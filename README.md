@@ -1,37 +1,184 @@
 ---
-title: Entroping Knowledge Vault
+title: Entroping
 type: index
-status: stable
+status: active
 tags:
   - entroping
-  - obsidian
-  - product-evolution
+  - readme
+  - quality-governance
 ---
 
-# Entroping Knowledge Vault
+# Entroping
 
-This repository is both the Entroping v4.1 documentation set and an Obsidian vault.
+**AI-native quality governance for API and backend systems.**
 
-Start with [[00_INDEX]].
+Entroping is a local-first integrity layer for high-velocity AI-assisted development. It lets AI help generate and maintain API tests, but it keeps final enforcement deterministic: committed Hurl files, executable governance rules, and reproducible CI reports.
 
-## First-Time Obsidian Use
+> AI writes code fast. Entroping makes runtime truth slow enough to trust.
 
-1. Open Obsidian.
-2. Choose **Open folder as vault**.
-3. Select `/Users/sakibshuvo/projects/Entroping`.
-4. Open [[00_INDEX]].
-5. Open Graph view from the left ribbon or command palette.
+## What It Is
 
-The graph becomes useful when notes link to decisions, requirements, sources, and implementation plans. Keep links meaningful; do not add links only to make the graph look dense.
+Entroping turns product intent, API specifications, live traffic, and policy rules into a governance loop:
 
-## Repo Roles
+```mermaid
+flowchart LR
+  Intent["Specs, stories, prompts"] --> Architect["Architect: build/refactor/audit"]
+  Traffic["Live HTTP traffic"] --> Eye["Eye: watch/freeze/map"]
+  Architect --> Tests["Hurl tests"]
+  Eye --> Tests
+  Law["qanstitution.yaml"] --> Enforcer["Enforcer: entroping run"]
+  Tests --> Enforcer
+  Enforcer --> Reports["JUnit, HTML, JSON, drift, bug reports"]
+  Reports --> CI["Local dev and CI gates"]
+```
 
-- Canonical product docs live at the repository root.
-- Decision records live in [[decisions/ADR-0001-hurl-native-governance]] and related ADRs.
-- Source-material references live in [[sources/SOURCE_MAP]].
-- Current working context lives in `.context/`.
+The core rule is simple: **LLMs may propose tests, but Hurl and the QAnstitution decide pass or fail.**
 
-## Optional Graphify
+## Four Pillars
 
-Graphify is optional. Start with Obsidian's built-in graph first. Add Graphify later only if you want generated graph reports and are comfortable with its model-integration behavior.
+- **Architect:** AI-assisted generation, refactoring, and audit of Hurl tests.
+- **Eye:** mitmproxy-powered traffic capture, golden flows, mocks, and dependency maps.
+- **Enforcer:** deterministic Hurl execution with QAnstitution gate injection.
+- **Lifecycle:** Git-native traceability through tags, story IDs, ADRs, reports, and CI artifacts.
 
+## Current Status
+
+This repository is the initial Entroping knowledge base and implementation scaffold.
+
+Available now:
+
+- Product, technical, user, command, and MVP specifications.
+- Obsidian vault with linked evolution notes and ADRs.
+- Python package scaffold with the locked v4.1 CLI surface.
+- CI-ready local checks through `uv`, `ruff`, `mypy`, and `pytest`.
+
+Not built yet:
+
+- Real Hurl execution and gate injection.
+- mitmproxy traffic capture.
+- LiteLLM Architect implementation.
+- Studio TUI.
+
+## Quick Start
+
+### Read the Product
+
+Open this repository in Obsidian and start with [00_INDEX.md](00_INDEX.md).
+
+Important docs:
+
+- [PRODUCT_SPEC.md](PRODUCT_SPEC.md) - product contract.
+- [TDS.md](TDS.md) - technical design.
+- [COMMAND_CHEAT_SHEET.md](COMMAND_CHEAT_SHEET.md) - locked CLI namespace.
+- [MVP_PLAN.md](MVP_PLAN.md) - implementation sequence.
+- [EVOLUTION_TIMELINE.md](EVOLUTION_TIMELINE.md) - product history.
+- [ADR-0001](decisions/ADR-0001-hurl-native-governance.md) - first architectural decision.
+
+### Set Up Development
+
+Requirements:
+
+- Python 3.12+
+- [`uv`](https://docs.astral.sh/uv/)
+- Optional: [`mise`](https://mise.jdx.dev/) for tool management
+- Optional for runtime later: `hurl`, `mitmproxy`, Ollama
+
+Install dependencies:
+
+```bash
+uv sync --dev
+```
+
+Run checks:
+
+```bash
+scripts/check.sh
+```
+
+Try the scaffolded CLI:
+
+```bash
+uv run entroping --help
+uv run entroping doctor
+```
+
+## Planned CLI Surface
+
+```text
+entroping init [--minimal]
+entroping doctor
+entroping config list
+entroping config set --agent <builder|auditor|breaker> --model <model-id>
+
+entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>]
+entroping architect refactor --target <glob> --prompt <text>
+entroping architect audit [--focus <logic|security|perf>] [--output <json|md>]
+
+entroping watch [--port <port>] [--target <url>]
+entroping freeze --name <flow> [--golden] [--mock <service>]
+entroping map [--export <mermaid|dot|md|png>]
+
+entroping studio [--env <name>]
+entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check]
+entroping report bug
+```
+
+Deprecated names such as `gen`, `fix`, `scan`, `chaos`, and `report --type` are intentionally not primary commands.
+
+## Architecture
+
+Entroping follows a Ports and Adapters design:
+
+```mermaid
+flowchart TB
+  subgraph Domain["Domain"]
+    Models["models: Pydantic schemas"]
+    Bridge["bridge: pure translators and compilers"]
+  end
+
+  subgraph Primary["Primary adapters"]
+    CLI["cli: Typer commands"]
+    Studio["studio: Textual TUI"]
+  end
+
+  subgraph Secondary["Secondary adapters"]
+    Core["core: Hurl, DB, reports, proxy"]
+    Brain["brain: LiteLLM agents"]
+  end
+
+  CLI --> Models
+  CLI --> Bridge
+  Studio --> Models
+  Studio --> Bridge
+  Core --> Models
+  Core --> Bridge
+  Brain --> Models
+  Brain --> Bridge
+  Bridge --> Models
+```
+
+Dependency rule: domain modules do not import adapters.
+
+## Repository Map
+
+```text
+src/entroping/        Python implementation scaffold
+tests/                Fast scaffold tests
+docs/                 Developer and architecture docs
+decisions/            ADRs for durable product decisions
+sources/              Source-material map
+.context/             Working context, changelog, lessons learned
+.obsidian/            Minimal vault configuration
+```
+
+## Security and Quality Rules
+
+- Do not log or commit secrets.
+- Keep `.entroping/`, reports, local env files, and generated Graphify output out of Git.
+- Use Hurl as the execution boundary; do not replace API execution with Python HTTP clients.
+- Keep `entroping run` deterministic and LLM-free.
+- Treat generated tests as code that must be reviewed.
+
+## License
+
+No license has been selected yet. Treat the project as private/proprietary until a license decision is made.

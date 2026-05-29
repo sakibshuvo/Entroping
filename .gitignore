@@ -1,5 +1,17 @@
 .DS_Store
 
+# Python
+__pycache__/
+*.py[cod]
+.python-version.bak
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+
 # Local runtime state and generated outputs
 .entroping/
 reports/

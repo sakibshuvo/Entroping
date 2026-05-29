@@ -35,6 +35,8 @@ Use this as the home note for the Entroping vault.
 - [[USER_FLOWS]] - end-to-end workflows.
 - [[USE_CASES]] - concrete scenarios.
 - [[DIAGRAMS]] - Mermaid and PlantUML diagrams.
+- [[docs/ARCHITECTURE]] - implementation architecture overview.
+- [[docs/DEVELOPMENT]] - local development and verification commands.
 - [[OBSIDIAN_START_HERE]] - first-time Obsidian workflow for this vault.
 - [[sources/SOURCE_MAP]] - where the source materials live.
 
@@ -56,4 +58,3 @@ When the product changes:
 2. Add or update an ADR if the reason matters later.
 3. Update [[EVOLUTION_TIMELINE]] with a short dated note.
 4. Update `.context/changelog.md` for handoff continuity.
-

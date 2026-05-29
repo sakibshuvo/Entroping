@@ -1,0 +1,49 @@
+[project]
+name = "entroping"
+version = "0.1.0"
+description = "AI-native quality governance for API and backend systems."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "pydantic>=2.8",
+  "rich>=13.7",
+  "typer>=0.12",
+]
+
+[project.scripts]
+entroping = "entroping.cli.main:app"
+
+[project.optional-dependencies]
+ai = ["litellm>=1.70"]
+proxy = ["mitmproxy>=11.0"]
+state = ["sqlmodel>=0.0.22"]
+studio = ["textual>=0.85"]
+
+[dependency-groups]
+dev = [
+  "mypy>=1.11",
+  "pytest>=8.3",
+  "ruff>=0.8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "SIM", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+disallow_untyped_decorators = false
+warn_unused_ignores = true
+
