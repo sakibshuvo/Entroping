@@ -8,6 +8,7 @@ import typer
 from rich.console import Console
 
 from entroping import __version__
+from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
 from entroping.core.hurl_runner import discover_hurl
 
 console = Console()
@@ -20,6 +21,24 @@ app = typer.Typer(
 config_app = typer.Typer(help="Inspect or update non-secret configuration.")
 architect_app = typer.Typer(help="Generate, refactor, and audit Hurl tests.")
 report_app = typer.Typer(help="Generate human handoff artifacts.")
+
+MINIMAL_QANSTITUTION = """project: "entroping-project"
+version: "4.1"
+description: "Minimal Entroping governance policy"
+
+gates:
+  - id: "global_latency"
+    description: "Every endpoint should respond within two seconds"
+    condition: "true"
+    gate: "duration < 2000"
+    enforcement: "block"
+
+settings:
+  timeout: 30000
+  parallel_workers: 2
+  follow_redirects: true
+  retry: 0
+"""
 
 
 def _version_callback(value: bool) -> None:
@@ -59,11 +78,17 @@ def init(
 ) -> None:
     """Create the standard local Entroping project directories."""
 
-    directories = [Path("tests"), Path("envs"), Path("rules"), Path(".entroping")]
+    directories = [Path("tests"), Path("envs"), Path(".entroping")]
     if not minimal:
-        directories.extend([Path("agents"), Path("reports")])
+        directories.extend([Path("rules"), Path("agents"), Path("reports")])
     for directory in directories:
         directory.mkdir(parents=True, exist_ok=True)
+    config_path = Path("qanstitution.yaml")
+    if config_path.exists():
+        console.print("qanstitution.yaml already exists; left unchanged.")
+    else:
+        config_path.write_text(MINIMAL_QANSTITUTION, encoding="utf-8")
+        console.print("Created minimal qanstitution.yaml.")
     console.print("[green]Initialized Entroping project structure.[/green]")
 
 
@@ -76,7 +101,24 @@ def doctor() -> None:
     if hurl.available:
         console.print(f"Hurl: [green]found[/green] at {hurl.path}")
     else:
-        console.print("Hurl: [yellow]not found[/yellow]")
+        console.print("Hurl: [yellow]not found[/yellow] (install hurl before running suites)")
+
+    config_path = Path("qanstitution.yaml")
+    if not config_path.exists():
+        console.print("QAnstitution: [yellow]not found[/yellow] (run entroping init --minimal)")
+        return
+
+    try:
+        law = load_qanstitution(config_path)
+    except QanstitutionLoadError as exc:
+        console.print("[red]QAnstitution: invalid[/red]")
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+
+    console.print(
+        f"QAnstitution: [green]valid[/green] ({len(law.gates)} gates, "
+        f"{len(law.imports)} imports)"
+    )
 
 
 @config_app.command("list")

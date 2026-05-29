@@ -50,6 +50,9 @@ Available now:
 - Product, technical, user, command, and MVP specifications.
 - Obsidian vault with linked evolution notes and ADRs.
 - Python package scaffold with the locked v4.1 CLI surface.
+- `entroping init --minimal` for a minimal local runtime skeleton and `qanstitution.yaml`.
+- `entroping doctor` for local Python, Hurl availability, and QAnstitution config health checks.
+- QAnstitution loading with root-bounded local imports, condition validation, duplicate gate checks, and final imported gate protection.
 - CI-ready local checks through `uv`, `ruff`, `mypy`, and `pytest`.
 
 Not built yet:
@@ -110,7 +113,11 @@ Try the scaffolded CLI:
 
 ```bash
 uv run entroping --help
-uv run entroping doctor
+repo_dir="$PWD"
+tmpdir="$(mktemp -d)"
+cd "$tmpdir"
+uv run --project "$repo_dir" entroping init --minimal
+uv run --project "$repo_dir" entroping doctor
 ```
 
 ## Planned CLI Surface

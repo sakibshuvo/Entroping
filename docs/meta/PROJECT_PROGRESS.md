@@ -48,7 +48,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | --- | --- | --- | --- |
 | Repo and context scaffold | Done | CI, docs, Obsidian vault, `scripts/feature_gate.sh` | Keep context docs current |
 | Issue tracking and progress system | Done | Issue templates, regression script, progress dashboard, CI regression command | Keep the queue and dashboard current |
-| [`init`, `doctor`, and QAnstitution loading](https://github.com/sakibshuvo/Entroping/issues/1) | Current | CLI scaffold exists | Creates minimal config and validates local tools |
+| [`init`, `doctor`, and QAnstitution loading](https://github.com/sakibshuvo/Entroping/issues/1) | Current | Local branch implements minimal init, doctor config validation, and local import loading with tests | Commit, push, and CI proof |
 | [Hurl discovery and metadata](https://github.com/sakibshuvo/Entroping/issues/2) | Next | Discovery adapter scaffold exists | Finds `.hurl` files and parses `# entroping:` metadata |
 | [Gate matching and injection](https://github.com/sakibshuvo/Entroping/issues/3) | Next | Policy compiler boundary exists | Source `.hurl` files are never mutated |
 | [Hurl subprocess runner](https://github.com/sakibshuvo/Entroping/issues/4) | Next | Runner scaffold exists | Timeouts, bounded output, redaction, non-zero failures |

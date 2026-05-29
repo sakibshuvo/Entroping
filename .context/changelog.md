@@ -30,3 +30,4 @@
 - Created the `Alpha: deterministic core` GitHub milestone with six initial feature/docs issues and linked them from `docs/meta/PROJECT_PROGRESS.md`.
 - Tightened Obsidian navigation by making `docs/meta/PROJECT_PROGRESS.md` the daily dashboard, reorganizing `00_INDEX.md` into reading tiers, and clarifying context tiers so agents do not treat every Markdown file as equally relevant.
 - Created the GitHub Project board `Entroping Alpha`, linked it to the repo, added issues #1-#6, and marked issue #1 as in progress.
+- Implemented the issue #1 Phase 1A slice: `entroping init --minimal` now creates a minimal `qanstitution.yaml` and runtime skeleton without overwriting existing policy, `entroping doctor` validates local config health without network calls, and `core.config_loader` loads root-bounded local QAnstitution imports with duplicate/final-gate validation.

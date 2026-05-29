@@ -188,6 +188,8 @@ Rules:
 - Imported gates merge before local gates.
 - Local gate IDs override imported gate IDs unless the imported gate has `final: true`.
 
+Phase 1A implementation note: local imports are supported first and must resolve under the root `qanstitution.yaml` directory. Remote HTTP(S) imports and broader local trust roots remain part of the architecture contract but are rejected by the current loader so `doctor` and local validation never make network calls.
+
 Example imported final rule:
 
 ```yaml

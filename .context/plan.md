@@ -27,14 +27,15 @@ The repo should remain usable as an Obsidian vault and as a Codex workspace with
 - `docs/meta/AUTONOMOUS_DEVELOPMENT.md` defines the Codex-first loop, Spec Kit pilot path, and future OpenCode/oMLX worker plan.
 - `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, `.github/pull_request_template.md`, and `scripts/feature_gate.sh` define the executable delivery gates for feature work.
 - `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, and `scripts/regression.sh` define issue tracking, regression coverage, and simple phase-level progress tracking.
+- Branch `feat/init-doctor-policy` implements the Phase 1A local slice for issue #1: `entroping init --minimal`, `entroping doctor`, and QAnstitution local loading/import validation.
 
 ## Next Milestone: Deterministic Core
 
 Implement only the deterministic path before adding AI, proxy capture, or Studio:
 
-1. Make `entroping init` create a minimal `qanstitution.yaml` and safe project skeleton.
-2. Make `entroping doctor` validate local config, Hurl availability, and optional tools without network calls.
-3. Add QAnstitution file loading and local import handling.
+1. Make `entroping init` create a minimal `qanstitution.yaml` and safe project skeleton. **Implemented locally in issue #1 branch.**
+2. Make `entroping doctor` validate local config, Hurl availability, and optional tools without network calls. **Implemented locally in issue #1 branch.**
+3. Add QAnstitution file loading and local import handling. **Implemented locally in issue #1 branch.**
 4. Implement Hurl test discovery and metadata parsing.
 5. Implement QAnstitution gate matching and gate-to-Hurl assertion compilation.
 6. Implement Hurl subprocess execution with timeout, bounded output, cleanup, and redaction.
