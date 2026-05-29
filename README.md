@@ -54,11 +54,13 @@ Available now:
 - `entroping doctor` for local Python, Hurl availability, and QAnstitution config health checks.
 - QAnstitution loading with root-bounded local imports, condition validation, duplicate gate checks, and final imported gate protection.
 - Hurl discovery, `# entroping:` metadata parsing, generated-state ignores, and tag-filter validation.
+- QAnstitution gate matching, temporary execution-copy injection, and deterministic Hurl subprocess execution through `entroping run`.
+- Runner safety controls for timeouts, bounded output, redaction, non-zero exits, and temporary run-state cleanup.
 - CI-ready local checks through `uv`, `ruff`, `mypy`, and `pytest`.
 
 Not built yet:
 
-- Real Hurl execution and gate injection.
+- JSON/JUnit/HTML reports and `report bug`.
 - mitmproxy traffic capture.
 - LiteLLM Architect implementation.
 - Studio TUI.
@@ -126,6 +128,12 @@ tmpdir="$(mktemp -d)"
 cd "$tmpdir"
 uv run --project "$repo_dir" entroping init --minimal
 uv run --project "$repo_dir" entroping doctor
+```
+
+If `hurl` is installed and the project has `.hurl` tests:
+
+```bash
+uv run --project "$repo_dir" entroping run --tag smoke
 ```
 
 ## Planned CLI Surface

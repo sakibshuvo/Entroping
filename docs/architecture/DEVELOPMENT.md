@@ -73,7 +73,7 @@ uv run entroping --version
 uv run entroping doctor
 ```
 
-The CLI currently exposes the planned v4.1 command surface. Most runtime commands intentionally return a scaffold message until their subsystem is implemented.
+The CLI currently exposes the planned v4.1 command surface. `init`, `doctor`, and the deterministic `run` path are implemented; AI, proxy, report, and Studio commands still intentionally return scaffold messages until their subsystems land.
 
 ## Agent Workflow
 
