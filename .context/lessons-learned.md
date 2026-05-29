@@ -20,3 +20,4 @@
 - A dependency audit must include optional extras before release. The default install can be clean while `uv run --all-extras --with pip-audit pip-audit --progress-spinner off` still catches future runtime surfaces such as mitmproxy.
 - Graphify should remain optional generated context. Keep `graphify-out/` ignored, and treat curated Markdown, ADRs, and `.context/` as the durable source of truth.
 - The autonomous workflow should stay Codex-first until OpenCode and local Qwen/oMLX have proven reliable on bounded read-only or review tasks. Cheap agents can draft and critique, but verified commits remain the product boundary.
+- A multi-agent workflow needs executable gates, not only principles. Keep one parent integrator, require local file evidence for claims, run deterministic checks before commit, and update context files so future threads inherit the decision trail.

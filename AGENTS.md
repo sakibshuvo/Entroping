@@ -47,6 +47,7 @@ These instructions extend the global Codex rules for this repository. If a rule 
 ## Autonomous Development Workflow
 
 - Follow `docs/meta/AUTONOMOUS_DEVELOPMENT.md` for Codex-first implementation, Spec Kit pilots, and future OpenCode/oMLX loops.
+- Use `docs/meta/FEATURE_DELIVERY_CHECKLIST.md` for every non-trivial feature, defect fix, or architecture change.
 - Codex is the final implementer and gatekeeper for now.
 - Use OpenCode or local Qwen only as bounded workers or reviewers until their outputs have been validated against local files, tests, and CI.
 - Do not let any unattended agent push to `main` or accept generated code without deterministic verification.
@@ -54,10 +55,8 @@ These instructions extend the global Codex rules for this repository. If a rule 
 
 ## Verification
 
-- For normal work, run `scripts/check.sh`.
-- For security-sensitive or dependency work, also run:
-  - `uvx bandit -q -r src`
-  - `uv run --with pip-audit pip-audit --local --progress-spinner off`
-  - `uv run --all-extras --with pip-audit pip-audit --progress-spinner off`
+- For normal work, run `scripts/feature_gate.sh`.
+- For security-sensitive or dependency work, run `scripts/feature_gate.sh --security`.
+- For docs-only changes, `scripts/check.sh` is acceptable when no source, dependency, subprocess, or runtime boundary changed.
 - Review `git diff` before staging or committing.
 - Do not commit `.DS_Store`, `.venv/`, `.entroping/`, generated reports, local env files, Graphify output, or Obsidian workspace/cache/plugin state.

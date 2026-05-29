@@ -26,6 +26,7 @@ Use these files in this order:
 7. `docs/product/MVP_PLAN.md` - implementation sequence.
 8. `docs/technical/TDS.md` - architecture details.
 9. `docs/meta/AUTONOMOUS_DEVELOPMENT.md` - agent workflow and automation rules.
+10. `docs/meta/FEATURE_DELIVERY_CHECKLIST.md` - per-feature execution checklist.
 
 ## New Codex Thread Prompt
 
@@ -35,7 +36,7 @@ Use this when starting a fresh thread:
 Work in /Users/sakibshuvo/projects/Entroping.
 Read AGENTS.md, README.md, 00_INDEX.md, .context/plan.md, docs/product/MVP_PLAN.md, and docs/technical/TDS.md first.
 Preserve the locked v4.1 command surface and implement only the next narrow milestone.
-Follow docs/meta/AUTONOMOUS_DEVELOPMENT.md for the Codex-first workflow and verification gates.
+Follow docs/meta/AUTONOMOUS_DEVELOPMENT.md and docs/meta/FEATURE_DELIVERY_CHECKLIST.md for the Codex-first workflow, TDD expectations, verification gates, multi-agent guardrails, and context updates.
 ```
 
 ## Obsidian Role

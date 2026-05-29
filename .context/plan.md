@@ -25,6 +25,7 @@ The repo should remain usable as an Obsidian vault and as a Codex workspace with
 - Security scan completed on 2026-05-29 and found one low-severity optional proxy dependency issue; the proxy dependency floor was raised to `mitmproxy>=12.2.3`, vulnerable transitives were refreshed, and the all-extras audit is now clean.
 - Project-local `AGENTS.md` now captures repository-specific implementation rules.
 - `docs/meta/AUTONOMOUS_DEVELOPMENT.md` defines the Codex-first loop, Spec Kit pilot path, and future OpenCode/oMLX worker plan.
+- `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, `.github/pull_request_template.md`, and `scripts/feature_gate.sh` define the executable delivery gates for feature work.
 
 ## Next Milestone: Deterministic Core
 
@@ -60,6 +61,7 @@ At the start of a new Codex thread, read:
 5. `docs/product/MVP_PLAN.md`
 6. `docs/technical/TDS.md`
 7. `docs/meta/AUTONOMOUS_DEVELOPMENT.md`
+8. `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`
 
 For product history, open Obsidian and start with `00_INDEX.md`.
 
@@ -71,3 +73,4 @@ For product history, open Obsidian and start with `00_INDEX.md`.
 - Do not send secrets or raw traffic to LLM providers.
 - Keep generated state, reports, local env files, and Graphify output out of Git.
 - Treat security and quality checks as release gates.
+- Use the feature delivery checklist for TDD, regression, architecture, security, multi-agent, documentation, and commit-readiness gates.

@@ -41,6 +41,7 @@ Use this as the home note for the Entroping vault.
 - [[docs/meta/GLOSSARY|GLOSSARY]] - plain-language explanation of Entroping terms.
 - [[docs/meta/CONTEXT_MANAGEMENT|CONTEXT_MANAGEMENT]] - how Codex, Obsidian, `.context`, and Graphify fit together.
 - [[docs/meta/AUTONOMOUS_DEVELOPMENT|AUTONOMOUS_DEVELOPMENT]] - Codex-first autonomous workflow and future OpenCode/oMLX plan.
+- [[docs/meta/FEATURE_DELIVERY_CHECKLIST|FEATURE_DELIVERY_CHECKLIST]] - executable checklist for TDD, gates, reviews, docs, and commits.
 - `AGENTS.md` - project-local Codex implementation rules.
 - `.context/plan.md` - current implementation milestone and handoff context.
 - [[examples/checkout-api/README|Checkout API demo fixture]] - minimal example for first-time users.

@@ -25,3 +25,4 @@
 - Refreshed `.context/plan.md` from historical documentation synthesis into the active deterministic-core implementation plan.
 - Added `docs/meta/CONTEXT_MANAGEMENT.md` to explain how Codex, Obsidian, `.context`, and optional Graphify output fit together.
 - Added `docs/meta/AUTONOMOUS_DEVELOPMENT.md` for the Codex-first development loop, Spec Kit pilot rules, and future OpenCode plus local Qwen/oMLX worker strategy.
+- Added `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, `.github/pull_request_template.md`, and `scripts/feature_gate.sh` to make the feature workflow executable across TDD, regression, architecture, security, multi-agent review, documentation, and commit-readiness gates.

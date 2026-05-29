@@ -29,6 +29,7 @@ Rules:
 - No direct agent work on unrelated files.
 - No merge or push without deterministic checks.
 - No generated context becomes canonical until a human or Codex promotes it into curated Markdown.
+- Use `docs/meta/FEATURE_DELIVERY_CHECKLIST.md` as the per-feature execution checklist.
 
 ## Source of Truth
 
@@ -82,20 +83,26 @@ Implementation must favor:
 - No adapter imports from domain modules.
 - No LLM calls inside `entroping run`.
 
+For test-driven work, write or update the failing test before implementation when the behavior can be expressed deterministically. Coverage should follow the risk of the feature:
+
+- Unit tests for pure domain and bridge behavior.
+- Adapter tests for CLI, filesystem, subprocess, report, proxy, and LLM boundaries.
+- Regression tests for fixed bugs and fragile edge cases.
+- Integration or smoke checks when behavior crosses subsystem boundaries.
+- Real Hurl smoke checks once the runner exists and `hurl` is available.
+
 ### 4. Verification
 
 Always run:
 
 ```bash
-scripts/check.sh
+scripts/feature_gate.sh
 ```
 
 For dependency, subprocess, LLM, proxy, report, or filesystem-sensitive work, also run:
 
 ```bash
-uvx bandit -q -r src
-uv run --with pip-audit pip-audit --local --progress-spinner off
-uv run --all-extras --with pip-audit pip-audit --progress-spinner off
+scripts/feature_gate.sh --security
 ```
 
 For Hurl-related work, add fixture validation and real Hurl smoke checks once the runner exists.
@@ -105,6 +112,7 @@ For Hurl-related work, add fixture validation and real Hurl smoke checks once th
 Before commit:
 
 - Review `git diff`.
+- Run `git diff --check`.
 - Ask for an independent review when the change touches shared architecture, subprocess execution, reports, proxy capture, LLM calls, or security-sensitive paths.
 - Fix only findings that survive evidence-based validation.
 
@@ -180,6 +188,13 @@ Codex writes the task brief -> OpenCode explores or reviews -> Codex validates -
 
 OpenCode outputs should be treated as review evidence, not truth. Any finding must include file/line evidence and a plausible source/control/sink path before action.
 
+Conflict controls:
+
+- Only the parent Codex thread applies final patches.
+- Helper agents receive bounded briefs with allowed files and output format.
+- Two helper agents should not edit the same file family at the same time.
+- If reviews conflict, resolve the disagreement against local files, tests, specs, and CI before changing code.
+
 ## Future Local Qwen via oMLX Loop
 
 oMLX is not currently installed in this environment. When installed, use it as an OpenAI-compatible or Anthropic-compatible local inference backend for low-risk work.
@@ -233,10 +248,12 @@ Use these gates:
 
 ```text
 No local file evidence -> no architecture claim.
-No test -> no completed feature.
+No failing or targeted test -> no feature implementation start unless explicitly documented.
+No deterministic checks -> no commit.
 No CI -> no merge.
 No context update -> no durable memory.
 Generated graph or model summary -> navigation aid only, not truth.
+No parent integrator approval -> no multi-agent patch lands.
 ```
 
 ## References

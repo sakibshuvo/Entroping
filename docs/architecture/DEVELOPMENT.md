@@ -29,23 +29,29 @@ uv sync --dev
 ## Checks
 
 ```bash
-scripts/check.sh
+scripts/feature_gate.sh
 ```
 
-The check script runs:
+The feature gate runs:
 
 1. `uv run ruff check .`
 2. `uv run mypy src tests`
 3. `uv run pytest`
+4. `git diff --check`
+5. `git diff --cached --check`
+
+For the underlying fast scaffold gate, run:
+
+```bash
+scripts/check.sh
+```
 
 ## Security Checks
 
 For dependency or security-sensitive work, also run:
 
 ```bash
-uvx bandit -q -r src
-uv run --with pip-audit pip-audit --local --progress-spinner off
-uv run --all-extras --with pip-audit pip-audit --progress-spinner off
+scripts/feature_gate.sh --security
 ```
 
 The all-extras audit matters because future runtime surfaces such as `watch` use optional dependencies.
@@ -63,3 +69,5 @@ The CLI currently exposes the planned v4.1 command surface. Most runtime command
 ## Agent Workflow
 
 Use `docs/meta/AUTONOMOUS_DEVELOPMENT.md` for the Codex-first operating loop and the future OpenCode/oMLX plan.
+
+Use `docs/meta/FEATURE_DELIVERY_CHECKLIST.md` before every meaningful feature branch or PR.
