@@ -1,0 +1,32 @@
+---
+title: ADR-0002 Locked Command Surface
+type: decision
+status: accepted
+date: 2026-05-29
+tags:
+  - decision
+  - cli
+  - command-surface
+---
+
+# ADR-0002: Locked Command Surface
+
+## Decision
+
+The v4.1 command surface is intentionally small:
+
+`init`, `doctor`, `config`, `architect build`, `architect refactor`, `architect audit`, `watch`, `freeze`, `map`, `studio`, `run`, and `report bug`.
+
+## Context
+
+The source conversation included older names such as `gen`, `fix`, `ui`, `scan`, `verify`, `explain`, `chaos`, `auth`, and `report --type`. The creator repeatedly corrected command drift.
+
+## Consequences
+
+- Deprecated names can only become aliases after an explicit compatibility decision.
+- `run --report` emits run artifacts.
+- `report bug` generates bug handoff Markdown.
+- New flags such as `--dry-run` or `--verbose` require a spec update before implementation.
+
+Links: [[COMMAND_CHEAT_SHEET]], [[PRODUCT_SPEC]], [[CREATOR_INTENT_AUDIT]]
+

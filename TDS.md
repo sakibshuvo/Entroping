@@ -1,0 +1,559 @@
+# Entroping Technical Design Specification
+
+**System:** Entroping Core  
+**Version:** 4.1 Stable  
+**Architecture:** Hexagonal, local-first, Git-native  
+**Runtime Principle:** Python orchestrates. Hurl enforces.
+
+## 1. Technical Goals
+
+Entroping must provide a reliable local CLI that can:
+
+- Parse and validate governance policy from `qanstitution.yaml`.
+- Generate and maintain valid Hurl tests with AI assistance.
+- Observe HTTP/S traffic through mitmproxy and persist redacted sessions.
+- Execute tests through the external Rust `hurl` binary.
+- Inject policy gates at runtime without mutating source files.
+- Produce deterministic reports for humans and CI.
+
+The implementation should prefer boring, inspectable, strongly typed modules over clever orchestration.
+
+## 2. Technology Stack
+
+| Layer | Technology | Requirement |
+| --- | --- | --- |
+| Language | Python 3.12+ | Strict typing for application code |
+| CLI | Typer + Rich | Human-friendly commands and errors |
+| TUI | Textual/Rich | `studio` local mission control |
+| Domain schemas | Pydantic v2 | Validated immutable-ish data models |
+| State | SQLModel + SQLite | Local traffic/session database under `.entroping/` |
+| Execution | Hurl Rust binary | Invoked through `subprocess`, never reimplemented |
+| Proxy | mitmproxy | Native addon for `watch` traffic capture |
+| AI | LiteLLM | Provider abstraction for all model calls |
+| Agent graph | Small typed in-process router for MVP | Builder/Auditor/Breaker task routing without adding orchestration dependency early |
+| Packaging | uv, then Nuitka/Homebrew | Source install first, binary distribution later |
+| Local model runtime | Ollama | Preferred local-first Brain for solo/dev workflows |
+| Credential storage | Environment variables or OS keychain | API keys must not be stored in plaintext config |
+
+## 3. Architectural Style
+
+Entroping follows Ports and Adapters. Dependencies point inward toward pure domain models and policies.
+
+```text
+src/entroping/
+  models/        # Domain schemas. No adapter imports.
+  bridge/        # Domain transformations and compilers.
+  cli/           # Typer primary adapter.
+  core/          # Hurl, proxy, DB, reports, config adapters.
+  brain/         # LiteLLM and agent orchestration adapters.
+  studio/        # Textual UI adapter.
+```
+
+### Dependency Rules
+
+- `models/` must not import `cli/`, `core/`, `brain/`, or `studio/`.
+- `bridge/` can import `models/` and pure utility code only.
+- `cli/` coordinates use cases but should not contain business rules.
+- `core/` adapts external systems such as Hurl, SQLite, filesystem, and mitmproxy.
+- `brain/` adapts LLM providers and validates structured outputs before returning domain objects.
+- Cross-module contracts use Pydantic models, typed protocols, or explicit dataclasses.
+
+## 4. Proposed Package Layout
+
+```text
+src/entroping/
+  __init__.py
+  cli/
+    main.py
+    commands/
+      init.py
+      doctor.py
+      config.py
+      architect.py
+      watch.py
+      freeze.py
+      map.py
+      run.py
+      report.py
+      studio.py
+  models/
+    qanstitution.py
+    hurl.py
+    traffic.py
+    report.py
+    agent.py
+    errors.py
+  bridge/
+    openapi_to_hurl.py
+    traffic_to_hurl.py
+    policy_to_hurl.py
+    story_traceability.py
+    merge.py
+  core/
+    config_loader.py
+    hurl_runner.py
+    gate_injector.py
+    traffic_store.py
+    mitm_addon.py
+    report_writer.py
+    dependency_mapper.py
+    env_loader.py
+  brain/
+    router.py
+    litellm_client.py
+    structured_outputs.py
+    prompts.py
+  studio/
+    app.py
+tests/
+```
+
+## 5. Domain Models
+
+Core models must be explicit and validated:
+
+| Model | Purpose |
+| --- | --- |
+| `Qanstitution` | Effective governance config after imports |
+| `GateRule` | Runtime assertion rule with condition and enforcement |
+| `AgentConfig` | Model/persona routing for Builder, Auditor, Breaker |
+| `IgnoreFailure` | Known-failure exception with issue ID and expiry |
+| `HurlTest` | Parsed test metadata, path, tags, story IDs |
+| `TestScenario` | LLM/generated intermediate representation |
+| `TrafficLog` | Redacted observed request/response record |
+| `FreezeSession` | Group of traffic records converted into tests or mocks |
+| `DependencySpec` | Optional provider/consumer spec pointer for cross-service validation |
+| `AiEditAudit` | Metadata about generated or refactored files for human review |
+| `RunResult` | Aggregated Hurl execution outcome |
+| `ReportArtifact` | Path, type, and summary metadata for generated reports |
+
+Avoid `Any` in application-facing models. Use discriminated unions or typed dictionaries only where the format is genuinely variable.
+
+## 6. QAnstitution Design
+
+`qanstitution.yaml` is the executable law. It is YAML because it must be schema-validatable, diffable, easy to import, and safe for deterministic runtime parsing.
+
+Example:
+
+```yaml
+project: "checkout-api"
+version: "4.1"
+description: "Checkout service quality law"
+
+sources:
+  spec: "./openapi.json"
+  stories: "./docs/stories"
+  traffic: ".entroping/state.db"
+  graph: "./schema.graphql"
+
+dependencies:
+  - name: "auth-service"
+    spec: "../auth-service/openapi.json"
+  - name: "payments"
+    spec: "https://raw.githubusercontent.com/acme/payments/main/openapi.json"
+
+imports:
+  - "./rules/security.yaml"
+  - "https://raw.githubusercontent.com/acme/governance/main/performance.yaml"
+
+agents:
+  builder:
+    source: "agents/builder.md"
+    model: "anthropic/<builder-model>"
+    temperature: 0.1
+    max_tokens: 4096
+  auditor:
+    source: "agents/auditor.md"
+    model: "openai/<auditor-model>"
+    temperature: 0.0
+  breaker:
+    source: "agents/breaker.md"
+    model: "deepseek/<breaker-model>"
+    temperature: 0.7
+
+gates:
+  - id: "global_latency"
+    description: "Every endpoint must respond within 2 seconds"
+    condition: "true"
+    gate: "duration < 2000"
+    enforcement: "block"
+  - id: "smoke_speed"
+    condition: "tags contains 'smoke'"
+    gate: "duration < 500"
+    enforcement: "block"
+
+ignore_failures:
+  - test: "tests/payments/refund.hurl"
+    rule_id: "global_latency"
+    issue_id: "PAY-1024"
+    expires: "2026-12-31"
+    reason: "Temporary database index migration"
+
+settings:
+  timeout: 30000
+  parallel_workers: 4
+  follow_redirects: true
+  retry: 2
+  env_defaults:
+    base_url: "http://localhost:8080"
+```
+
+### Import Semantics
+
+1. Resolve local imports relative to the importing file.
+2. Resolve HTTP(S) imports with timeouts and optional cache.
+3. Validate each imported document before merging.
+4. Merge imported gates before local gates.
+5. Local gates override imported gates with the same ID unless the imported gate is `final: true`.
+6. The effective policy must be inspectable through `doctor` or report output.
+
+### Condition DSL
+
+The first supported condition language should be intentionally small:
+
+```text
+true
+tags contains 'smoke'
+method == 'POST'
+path startswith '/api/v1/payments'
+url contains 'checkout'
+meta.story_id == 'STORY-123'
+```
+
+Invalid conditions fail configuration validation. Do not silently skip malformed gates.
+
+## 7. Hurl Execution Design
+
+`core.hurl_runner` is the only module allowed to invoke Hurl.
+
+Requirements:
+
+- Locate `hurl` through PATH or explicit config.
+- Use `subprocess.run` or `asyncio.create_subprocess_exec` with argument arrays.
+- Set timeouts.
+- Capture stdout and stderr without leaking secrets.
+- Return typed `RunResult` objects.
+- Never execute API requests with Python `requests`, `httpx`, or `urllib` as a replacement for Hurl.
+
+Gate injection should write temporary execution copies or feed Hurl through safe temporary files. Source `.hurl` files must not be mutated during `entroping run`.
+
+### Runtime Flow
+
+1. Discover test files.
+2. Parse metadata tags and story IDs.
+3. Load and validate effective QAnstitution.
+4. Match gates to tests.
+5. Create execution material with injected assertions.
+6. Invoke `hurl`.
+7. Parse outputs and enforcement levels.
+8. Write reports and exit with deterministic status.
+
+## 8. Hurl Metadata Conventions
+
+Tests should use Entroping metadata comments to support selection and traceability. Do not put `tags` or `meta` keys inside Hurl `[Options]`; those are not Hurl options and can make files invalid. Comments remain valid Hurl and are safe for Entroping to parse.
+
+```hurl
+# entroping: tags=smoke,checkout,critical
+# entroping: story_id=CHK-001
+# entroping: owner=payments
+
+POST {{base_url}}/checkout
+Content-Type: application/json
+{
+  "cart_id": "{{cart_id}}"
+}
+
+HTTP 201
+[Asserts]
+jsonpath "$.id" exists
+jsonpath "$.status" == "accepted"
+```
+
+Folders provide physical organization. Entroping metadata comments provide virtual suites and traceability. Hurl `[Options]` remains available for real Hurl options such as `variable`, `retry`, `location`, and `delay`.
+
+## 9. Architect Design
+
+The Architect is an AI-assisted adapter, not a source of authority. Its outputs must be validated before being accepted.
+
+### Agent Routing
+
+| Agent | Responsibilities |
+| --- | --- |
+| Builder | Generate positive path, contract, and story-linked tests |
+| Auditor | Find missing coverage, weak assertions, policy gaps, and drift risk |
+| Breaker | Generate negative, hostile, fuzz, auth, IDOR, and boundary tests |
+
+Use a small typed router for the MVP. LangGraph or another orchestration framework can be added later only if routing complexity justifies the dependency.
+
+### LLM Call Boundaries
+
+Separate:
+
+1. Prompt construction.
+2. Model invocation through LiteLLM.
+3. Structured response parsing.
+4. Domain validation.
+5. File merge/write.
+
+Prompts should include only necessary context. Secrets and raw sensitive traffic must not be sent to models.
+
+### Provider Strategy
+
+The Brain is local-first and cloud-second:
+
+- Default local provider should be Ollama where available.
+- Cloud models are configured explicitly through model IDs such as `anthropic/...`, `openai/...`, `gemini/...`, or `deepseek/...`.
+- Entroping must not shell out to external Gemini, Claude, or ChatGPT CLIs for intelligence.
+- If a local model is missing, the CLI should fail with helpful setup guidance or, in a future UX layer, offer an explicit pull/start flow.
+- API keys must come from environment variables or OS credential storage. Do not write provider keys into `qanstitution.yaml`, `.env.example`, logs, reports, or traffic state.
+- The same agent persona and QAnstitution constraints should be used across local and cloud models so behavior stays consistent.
+
+### Source Grounding
+
+The Architect can use these sources as grounding:
+
+- OpenAPI or GraphQL schemas from `sources`.
+- Markdown story snapshots from `docs/stories`.
+- Observed and redacted traffic sessions.
+- Cross-service specs listed in `dependencies`.
+- Explicit user prompts.
+
+Generated endpoints must be traceable to one of those sources. If the user asks for exploratory or negative tests beyond the spec, the generated file should carry metadata that marks the test as prompt-derived or breaker-derived.
+
+### Merge Strategy
+
+`architect build --strategy merge` and `architect refactor` must:
+
+- Preserve comments.
+- Preserve manual sections where possible.
+- Avoid rewriting unrelated files.
+- Produce a diff-oriented result.
+- Run parser-backed syntax validation on modified Hurl files, using `hurlfmt --out json <file>` or an equivalent Hurl parser-backed validator.
+
+## 10. Observation Design
+
+`entroping watch` starts a mitmproxy-based recorder.
+
+The recorder should reduce noise before persistence. Static assets, analytics beacons, browser favicon calls, large binary payloads, and hosts outside the selected target/dependency scope can be filtered or marked as ignored. Recorded calls should be grouped by session ID so `freeze` can operate on a coherent user flow rather than a flat traffic dump.
+
+### Captured Data
+
+| Field | Notes |
+| --- | --- |
+| Timestamp | UTC |
+| Request method/path/url | Normalized |
+| Request headers | Redacted allowlist/blocklist |
+| Request body | Size-limited and redacted |
+| Response status | Required |
+| Response headers | Redacted |
+| Response body | Size-limited and redacted |
+| Duration | Milliseconds |
+| Upstream host/service | For dependency mapping |
+| Session ID | For freeze grouping |
+
+### Redaction Requirements
+
+Default redactions must cover:
+
+- Authorization headers.
+- Cookies.
+- API keys and bearer tokens.
+- Password-like fields.
+- Session IDs where unsafe.
+- Large binary bodies.
+
+Users can extend redaction rules in QAnstitution or local config.
+
+### State Store
+
+The SQLite database under `.entroping/state.db` should be treated as local runtime state, not a product database.
+
+Suggested tables:
+
+| Table | Purpose |
+| --- | --- |
+| `traffic_log` | Redacted request/response records |
+| `traffic_session` | User-flow grouping for freeze operations |
+| `run_history` | Last run summary used by reports and bug templates |
+| `ai_edit_audit` | AI generation/refactor metadata, prompts, file paths, and validation status |
+| `baseline_snapshot` | Drift and golden-master comparison metadata |
+
+Retention must be configurable. A safe default is bounded local growth, such as size-based rotation around 1 GB or age-based cleanup, with explicit export commands later if needed.
+
+## 11. Freeze and Mock Design
+
+`entroping freeze` converts traffic sessions into artifacts.
+
+| Option | Output |
+| --- | --- |
+| `--name checkout_flow` | `tests/generated/checkout_flow.hurl` |
+| `--golden` | Stable assertions against known-good behavior |
+| `--mock payments` | WireMock mappings for observed dependency behavior |
+
+Generated tests should parameterize volatile fields such as IDs and timestamps. Golden assertions should avoid locking unstable values unless explicitly requested.
+
+Mock generation should select outbound calls where the upstream host or logical service differs from the target service. Entroping generates mappings for standard mock servers such as WireMock; it does not become the mock server itself.
+
+## 12. Dependency Map Design
+
+`entroping map --export <fmt>` reads traffic records and emits dependency graphs.
+
+Supported exports:
+
+- `mermaid`
+- `dot`
+- `md`
+- `png` where Graphviz or a renderer is available
+
+The map should show services, routes, methods, call counts, failures, and latency summaries where available.
+
+## 13. Reporting Design
+
+Reports are written under `reports/`.
+
+| Report | Command | Purpose |
+| --- | --- | --- |
+| HTML | `run --report html` | Human review |
+| JUnit XML | `run --report junit` | CI systems |
+| JSON | `run --report json` | Tooling integration |
+| Drift JSON | `run --drift-check` or `--report drift` | Baseline comparison |
+| Audit Markdown | `architect audit --output md` | Gap review |
+| Bug Markdown | `report bug` | Issue tracker handoff |
+
+JUnit is required because it is the common denominator for CI. Allure can consume JUnit later. JaCoCo is not a fit because Entroping is black-box runtime testing, not code coverage instrumentation.
+
+## 14. CLI Contracts
+
+### Setup
+
+```text
+entroping init [--minimal]
+entroping doctor
+entroping config list
+entroping config set --agent <builder|auditor|breaker> --model <model-id>
+```
+
+### Intelligence
+
+```text
+entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>]
+entroping architect refactor --target <glob> --prompt <text>
+entroping architect audit [--focus <logic|security|perf>] [--output <json|md>]
+```
+
+### Observation
+
+```text
+entroping watch [--port <port>] [--target <url>]
+entroping freeze --name <flow> [--golden] [--mock <service>]
+entroping map [--export <mermaid|dot|md|png>]
+```
+
+### Execution and Reporting
+
+```text
+entroping studio [--env <name>]
+entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check]
+entroping report bug
+```
+
+`--report` is repeatable so a single run can emit both CI and human artifacts, for example `--report junit --report html`.
+
+No additional commands or flags should be implemented without updating the product specification first.
+
+## 15. Configuration and Secrets
+
+- Secrets come from environment variables, secret managers, or gitignored env files.
+- Cloud provider credentials should use OS credential storage where practical, for example macOS Keychain through a keyring adapter.
+- `envs/*.env.example` can be committed.
+- Real `envs/*.env` files should be gitignored unless sanitized.
+- Logs and reports must redact known secret patterns.
+- LLM prompts must not include secrets.
+- Traffic persistence must apply redaction before storing raw data.
+
+## 16. Error Handling
+
+Errors must be explicit and actionable:
+
+- Missing Hurl binary: tell user how to install or configure it.
+- Invalid QAnstitution: identify path and field.
+- Bad gate condition: identify rule ID and invalid expression.
+- Hurl validation failure: show file path and relevant stderr.
+- mitmproxy certificate issue: explain CA installation steps.
+- LLM provider failure: include role/model and retry/fallback status without exposing keys.
+- Local model unavailable: explain whether Ollama is missing, not running, or missing the configured model.
+- State store too large: explain retention settings and cleanup/export options.
+
+Do not swallow exceptions silently. Convert expected failures into typed domain errors and user-friendly Rich output.
+
+## 17. Observability
+
+Runtime logs should include:
+
+- Command and mode.
+- Effective environment name.
+- Test count, tag filters, and report types.
+- Gate IDs applied.
+- Agent role/model metadata, latency, token usage, and estimated cost where available.
+- Hurl execution duration and exit status.
+
+Logs must not include request secrets, API keys, or sensitive captured bodies.
+
+## 18. Testing Strategy
+
+| Area | Tests |
+| --- | --- |
+| QAnstitution parser | Valid configs, invalid configs, imports, override/final semantics |
+| Condition DSL | Match and non-match cases, syntax failures |
+| Gate injector | Source file immutability, injected assertions, tags |
+| Hurl runner | Subprocess command construction, timeout, stderr parsing |
+| Architect merge | Preserve comments/manual sections, reject invalid Hurl |
+| Traffic redaction | Headers, cookies, JSON fields, body limits |
+| Traffic filtering/session stitching | Static asset exclusion, ignored hosts, session grouping |
+| Freeze | Traffic to parameterized Hurl and WireMock mappings |
+| State retention | Rotation/cleanup behavior for `.entroping/state.db` |
+| Reports | JUnit schema, JSON shape, bug template content |
+| CLI | Typer command contracts and exit codes |
+
+External integrations should be tested with small fixtures and deterministic subprocess stubs where possible. A smoke suite should exercise real Hurl when available.
+
+## 19. Security Requirements
+
+- Never log secrets.
+- Validate all file paths before writing generated artifacts.
+- Avoid path traversal when using flow names, mock names, and report names.
+- Use network timeouts for remote imports and LLM calls.
+- Cache remote imports only with clear provenance.
+- Avoid sending raw captured traffic to LLMs by default.
+- Require explicit user intent for cloud upload or remote model use with sensitive traffic.
+- Make known-failure exceptions expire.
+- Treat generated tests as code and require review.
+
+## 20. Distribution Plan
+
+### MVP Distribution
+
+Use source/local development distribution:
+
+```text
+uv tool install -e .
+```
+
+### Later Distribution
+
+- Nuitka standalone binary.
+- Homebrew formula.
+- PyPI package.
+- Docker image for CI runners.
+- GitHub release artifacts.
+- Optional Entroping Cloud integration for central governance, audit logs, SSO, and team dashboards.
+
+## 21. Implementation Guardrails
+
+1. Preserve the locked command namespace.
+2. Keep Hurl as the only execution engine.
+3. Keep LiteLLM as the only LLM provider abstraction.
+4. Keep `mitmproxy` as the traffic capture foundation.
+5. Keep domain code independent from adapters.
+6. Validate generated files before accepting them.
+7. Treat security and quality as release gates.
