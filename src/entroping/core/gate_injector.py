@@ -68,6 +68,7 @@ def write_injected_execution_copy(
     resolved_root.mkdir(parents=True, exist_ok=True)
 
     execution_path = resolved_root / _execution_file_name(source_path)
+    _validate_execution_path(execution_path)
     execution_path.write_text(injected_content, encoding="utf-8")
     return HurlExecutionCopy(
         source_path=source_path,
@@ -119,17 +120,25 @@ def inject_gate_assertions(
 
 
 def _validate_source_path(path: Path) -> Path:
-    resolved = path.expanduser().resolve()
+    expanded = path.expanduser()
+    if expanded.is_symlink():
+        msg = f"Refusing to inject gates into symlinked Hurl file: {expanded}"
+        raise GateInjectionError(msg)
+
+    resolved = expanded.resolve()
     if resolved.suffix != ".hurl":
         msg = f"Expected a .hurl file, got: {resolved}"
         raise GateInjectionError(msg)
     if not resolved.is_file():
         msg = f"Hurl source file not found: {resolved}"
         raise GateInjectionError(msg)
-    if resolved.is_symlink():
-        msg = f"Refusing to inject gates into symlinked Hurl file: {resolved}"
-        raise GateInjectionError(msg)
     return resolved
+
+
+def _validate_execution_path(path: Path) -> None:
+    if path.is_symlink():
+        msg = f"Refusing to write Hurl execution copy through symlinked execution path: {path}"
+        raise GateInjectionError(msg)
 
 
 def _execution_file_name(source_path: Path) -> str:

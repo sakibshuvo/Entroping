@@ -28,3 +28,4 @@
 - Hurl discovery should skip generated and local state such as `.entroping/`, reports, caches, virtualenvs, dependency folders, and hidden directories by default so future `run` work does not accidentally govern stale artifacts.
 - Multi-session development should start from GitHub Issues and isolated worktrees, not from a shared checkout. Use `scripts/start_issue.sh --dry-run` to validate the branch, worktree path, and prompt before launching several agents.
 - Gate matching for method, path, and URL conditions needs shallow Hurl request parsing, not Python HTTP execution and not custom Hurl options. Runtime injection should annotate temporary copies with rule IDs and enforcement levels so runner/report layers can keep block and warn gates distinct.
+- Path hardening checks must inspect symlink status before resolving a path. Calling `Path.resolve()` first can hide that the original user-controlled path was a symlink.

@@ -130,3 +130,53 @@ def test_write_injected_execution_copy_rejects_non_hurl_source_path(tmp_path: Pa
             [_gate("global_latency", "true", "duration < 2000")],
             execution_root=tmp_path / "execution",
         )
+
+
+@pytest.mark.security
+def test_write_injected_execution_copy_rejects_symlinked_source_path(tmp_path: Path) -> None:
+    source = _write_hurl(
+        tmp_path / "real" / "health.hurl",
+        """
+        GET {{base_url}}/health
+        HTTP 200
+        """,
+    )
+    symlink = tmp_path / "tests" / "health.hurl"
+    symlink.parent.mkdir(parents=True, exist_ok=True)
+    symlink.symlink_to(source)
+
+    with pytest.raises(GateInjectionError, match="symlinked Hurl file"):
+        write_injected_execution_copy(
+            HurlTest(path=symlink, metadata=HurlMetadata()),
+            [_gate("global_latency", "true", "duration < 2000")],
+            execution_root=tmp_path / "execution",
+        )
+
+
+@pytest.mark.security
+def test_write_injected_execution_copy_rejects_symlinked_execution_path(tmp_path: Path) -> None:
+    source = _write_hurl(
+        tmp_path / "tests" / "health.hurl",
+        """
+        GET {{base_url}}/health
+        HTTP 200
+        """,
+    )
+    discovered = discover_hurl_tests([source])[0]
+    execution_root = tmp_path / "execution"
+    first_execution = write_injected_execution_copy(
+        discovered,
+        [_gate("global_latency", "true", "duration < 2000")],
+        execution_root=execution_root,
+    )
+    first_execution.execution_path.unlink()
+    outside_target = tmp_path / "outside.hurl"
+    first_execution.execution_path.symlink_to(outside_target)
+
+    with pytest.raises(GateInjectionError, match="symlinked execution path"):
+        write_injected_execution_copy(
+            discovered,
+            [_gate("global_latency", "true", "duration < 2000")],
+            execution_root=execution_root,
+        )
+    assert not outside_target.exists()
