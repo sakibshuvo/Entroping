@@ -28,7 +28,7 @@ The repo should remain usable as an Obsidian vault and as a Codex workspace with
 - `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, `.github/pull_request_template.md`, and `scripts/feature_gate.sh` define the executable delivery gates for feature work.
 - `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, and `scripts/regression.sh` define issue tracking, regression coverage, and simple phase-level progress tracking.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work.
-- Issues #1 through #6 and #11 are integrated: `entroping init --minimal`, `entroping doctor`, QAnstitution local loading/import validation, Hurl discovery, Entroping metadata parsing, tag-filter validation, gate matching, gate assertion compilation, temporary Hurl execution-copy injection, deterministic Hurl subprocess execution, JSON/JUnit reports, latest-run state, bug Markdown generation, the local checkout quickstart, and deterministic OpenAPI-to-Hurl generation.
+- Issues #1 through #6, #11, #13, #15, #17, #19, #23, and #25 are integrated: `entroping init --minimal`, `entroping doctor`, QAnstitution local loading/import validation, Hurl discovery, Entroping metadata parsing, tag-filter validation, gate matching, gate assertion compilation, temporary Hurl execution-copy injection, deterministic Hurl subprocess execution, JSON/JUnit/HTML reports, latest-run state, bug Markdown generation, the local checkout quickstart, env-file Hurl variables, CI live Hurl smoke, deterministic OpenAPI-to-Hurl generation, OpenAPI parameter/example support, and deterministic Architect audit coverage.
 
 ## Next Milestone: Deterministic Core
 
@@ -187,18 +187,47 @@ Implemented boundaries:
 - The checkout demo now includes a parameterized lookup endpoint covered by the live CI
   Hurl smoke.
 
-## Active Slice: Issue #25 Deterministic Architect Audit Coverage
+## Completed Slice: Issue #25 Deterministic Architect Audit Coverage
 
 Outcome: make `architect audit` report OpenAPI operations that do not have committed
 Hurl coverage, without calling an LLM or executing Hurl.
 
-Planned boundaries:
+Implemented boundaries:
 
 - Keep audit comparison in a pure bridge module.
-- Use discovered Hurl metadata comments, especially `source=openapi` and `operation_id`,
-  as the coverage signal.
-- Support Markdown and JSON output while preserving machine-readable JSON.
+- Use discovered executable Hurl tests with metadata comments, especially `source=openapi`
+  and `operation_id`, as the coverage signal.
+- Support Markdown and raw JSON output while preserving machine-readable JSON.
 - Exit successfully when all operations are covered and non-zero when gaps are found.
+
+## Completed Slice: Issue #29 Non-Secret Agent Config Commands
+
+Outcome: make `config list` and `config set` real deterministic commands for
+Builder/Auditor/Breaker model routing, without storing credentials or calling model
+providers.
+
+Implemented boundaries:
+
+- Keep updates in a core filesystem adapter that validates the effective QAnstitution
+  before mutation and validates the updated temp file before replacing the original.
+- Reject empty, control-character, and secret-looking model identifiers through the
+  domain schema.
+- Preserve existing agent persona source, temperature, and max token settings when only
+  changing the model.
+- Create missing roles with `agents/<role>.md`, `temperature: 0.0`, and the requested
+  model.
+- Use exclusive random same-directory temporary files so predictable symlink paths
+  cannot receive config content.
+- Keep CLI output human-readable and non-secret.
+
+## Next Slice: Architect Brain Foundation
+
+Planned direction:
+
+- Add a LiteLLM boundary without wiring it into `entroping run`.
+- Load Builder/Auditor/Breaker persona files through validated non-secret config.
+- Define structured output models for generated Hurl edits before making provider calls.
+- Keep all model invocation outside deterministic CI/run paths.
 
 ## Explicitly Deferred
 

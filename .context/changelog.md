@@ -45,3 +45,4 @@
 - Implemented issue #19's live demo smoke script and GitHub Actions job with pinned Hurl, checksum verification, demo server startup, OpenAPI generation, env loading, real Hurl execution, and report artifact upload.
 - Implemented issue #23's OpenAPI depth slice with deterministic path/query/header/cookie parameter rendering, schema example/default/const/enum request-body generation, parameter validation, review-driven Hurl template/non-finite/collision hardening, and a parameterized checkout demo endpoint.
 - Implemented issue #25's Architect minimal slice with deterministic OpenAPI coverage audit, Markdown/JSON output, CLI pass/fail behavior, and review-driven hardening for executable Hurl coverage and Markdown validity.
+- Implemented issue #29's non-secret config slice with `config list`, `config set`, schema-level unsafe model identifier rejection, effective-policy validation before writes, symlink-safe temporary YAML updates, and focused CLI/domain tests.

@@ -32,8 +32,8 @@ Do not duplicate every issue here. The detailed queue lives in GitHub.
 
 ## Current Target
 
-**Goal:** give the Architect a real deterministic audit job before LLM-backed generation
-lands.
+**Goal:** start the first LLM-backed Architect slice after deterministic audit and
+non-secret agent routing.
 
 GitHub Project: [Entroping Alpha](https://github.com/users/sakibshuvo/projects/1)
 
@@ -68,7 +68,8 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [HTML run reports](https://github.com/sakibshuvo/Entroping/issues/17) | Done | `run --report html` writes escaped human-readable reports | Use in demo and CI proof |
 | [Live Hurl demo smoke in CI](https://github.com/sakibshuvo/Entroping/issues/19) | Done | Live smoke script and GitHub Actions job added | Keep demo path green |
 | [OpenAPI parameters and schema examples](https://github.com/sakibshuvo/Entroping/issues/23) | Done | Path/query/header/cookie parameters and request examples/defaults are supported | Keep generated demo path green |
-| [Deterministic Architect audit coverage](https://github.com/sakibshuvo/Entroping/issues/25) | Current | OpenAPI coverage audit for committed Hurl tests is being added | Merge after regression/security gate and CI |
+| [Deterministic Architect audit coverage](https://github.com/sakibshuvo/Entroping/issues/25) | Done | OpenAPI coverage audit for committed executable Hurl tests is supported | Keep audit output machine-readable |
+| [Non-secret agent config commands](https://github.com/sakibshuvo/Entroping/issues/29) | Done | `config list` / `config set` manage non-secret agent model routing | Keep credentials out of config |
 
 ## Later Roadmap
 
@@ -79,7 +80,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | Reporting Polish | Done | Dependency-free HTML run reports |
 | CI Proof | Done | Live demo smoke with real Hurl in GitHub Actions |
 | OpenAPI Depth | Done | Path/query/header/cookie parameters plus schema examples/defaults |
-| Architect Minimal | Current | Deterministic audit first, then LiteLLM/structured-output generation |
+| Architect Minimal | Current | Next slice is LiteLLM wrapper, persona loading, and structured-output validation |
 | Eye Capture Spike | Later | mitmproxy capture-only with redaction before persistence |
 | Freeze and Map | Later | Traffic-to-Hurl compiler and dependency maps |
 | Studio | Deferred | Useful after deterministic core and reports are real |
