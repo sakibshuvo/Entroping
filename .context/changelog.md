@@ -39,3 +39,4 @@
 - Implemented issue #6's alpha quickstart with a tiny local checkout demo server, literal localhost Hurl fixture, README quickstart commands, updated fixture documentation, and demo-server tests.
 - Implemented issue #11's first Architect build slice with a pure OpenAPI-to-Hurl compiler, local OpenAPI loader, deterministic `architect build --new` generation under `tests/generated/`, and docs/progress updates.
 - Implemented issue #13's environment runner slice with local `envs/<name>.env` loading, process-env overrides for matching keys, Hurl `--variable` argument passing, env-value output redaction, and fixture docs for generated tests.
+- Hardened issue #13's Hurl variable passing in issue #15 by switching to short-lived `--variables-file` temp files so env values do not appear in subprocess argv.

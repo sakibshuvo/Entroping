@@ -84,6 +84,7 @@ def test_run_hurl_file_passes_variables_as_argument_array_and_redacts_values(
 ) -> None:
     hurl_file = _write_hurl(tmp_path / "tests" / "health.hurl")
     calls: list[list[str]] = []
+    variables_files: list[Path] = []
 
     def fake_run(
         args: list[str],
@@ -96,6 +97,12 @@ def test_run_hurl_file_passes_variables_as_argument_array_and_redacts_values(
     ) -> subprocess.CompletedProcess[str]:
         _ = (stderr, timeout, check, shell)
         calls.append(args)
+        variables_file = Path(args[args.index("--variables-file") + 1])
+        variables_files.append(variables_file)
+        assert variables_file.is_file()
+        assert variables_file.read_text(encoding="utf-8") == (
+            "base_url=http://localhost:18080\ncart_id=demo-cart-001\n"
+        )
         stdout.write(b"base_url=http://localhost:18080\n")
         return subprocess.CompletedProcess(args=args, returncode=0)
 
@@ -113,13 +120,13 @@ def test_run_hurl_file_passes_variables_as_argument_array_and_redacts_values(
     assert calls == [
         [
             "/bin/hurl",
-            "--variable",
-            "base_url=http://localhost:18080",
-            "--variable",
-            "cart_id=demo-cart-001",
+            "--variables-file",
+            str(variables_files[0]),
             str(hurl_file.resolve()),
         ]
     ]
+    assert "http://localhost:18080" not in " ".join(calls[0])
+    assert not variables_files[0].exists()
     assert "http://localhost:18080" not in result.stdout
     assert "base_url=[REDACTED]" in result.stdout
 
@@ -187,6 +194,41 @@ def test_run_hurl_file_returns_timeout_result_with_redacted_partial_output(
     assert result.exit_code == 124
     assert "live-secret" not in result.stdout
     assert "Cookie: [REDACTED]" in result.stdout
+
+
+@pytest.mark.security
+def test_run_hurl_file_removes_variables_file_after_timeout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "slow.hurl")
+    variables_files: list[Path] = []
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stdout, stderr, check, shell)
+        variables_file = Path(args[args.index("--variables-file") + 1])
+        variables_files.append(variables_file)
+        assert variables_file.is_file()
+        raise subprocess.TimeoutExpired(cmd=args, timeout=timeout)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(
+        hurl_file,
+        HurlRunOptions(binary="hurl", variables={"base_url": "http://localhost:18080"}),
+    )
+
+    assert result.status == "timeout"
+    assert variables_files and not variables_files[0].exists()
 
 
 @pytest.mark.security

@@ -107,7 +107,7 @@ Implemented boundaries:
 - `core.openapi_loader` loads local YAML/JSON OpenAPI documents and rejects remote URLs, unsupported schemes, symlinks, non-files, and non-mapping documents.
 - `cli.architect build --new` loads QAnstitution, resolves `sources.spec`, writes generated files under `tests/generated/`, and refuses unsupported prompt/merge paths clearly.
 
-## Active Slice: Issue #13 Environment File Loading
+## Completed Slice: Issue #13 Environment File Loading
 
 Outcome: make `entroping run --env <name>` load gitignored `envs/<name>.env` files and pass variables to Hurl through subprocess argument arrays so generated OpenAPI tests using `{{base_url}}` are runnable.
 
@@ -115,8 +115,19 @@ Implemented boundaries:
 
 - `core.env_loader` parses simple local dotenv files, rejects path traversal, symlinks, invalid lines, duplicate keys, and invalid variable names.
 - Process environment overrides only matching file keys; unrelated process variables are not imported.
-- `core.hurl_runner` passes variables to Hurl with repeated `--variable KEY=value` arguments and redacts variable values from captured output.
+- `core.hurl_runner` passes variables to Hurl and redacts variable values from captured output; issue #15 hardens the transport away from secret-bearing argv.
 - `cli.run` loads env variables only when `--env` is supplied and keeps missing env files actionable.
+
+## Active Slice: Issue #15 Hurl Variable Argv Hardening
+
+Outcome: keep environment values out of Hurl process arguments by writing merged variables to a short-lived Hurl variables file and invoking Hurl with `--variables-file <path>`.
+
+Implemented boundaries:
+
+- `core.hurl_runner` writes sorted `KEY=value` lines to a temporary variables file only when variables are present.
+- Hurl subprocess command arrays contain the variables-file path, not loaded variable values.
+- The temporary variables file is removed after normal, failing, and timeout runs.
+- Redaction still includes loaded variable values before outputs reach reports.
 
 ## Explicitly Deferred
 
