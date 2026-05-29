@@ -268,6 +268,8 @@ meta.story_id == 'CHK-001'
 
 The first implementation should keep this small and deterministic. Compound expressions such as `and` and `or` can be added later after tests exist.
 
+The parser must validate the supported condition syntax when `qanstitution.yaml` is loaded. Invalid condition strings are configuration errors, not runtime warnings.
+
 ## 11. Gate Syntax
 
 The `gate` field should use Hurl-compatible assertion syntax:

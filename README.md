@@ -71,8 +71,10 @@ Important docs:
 - [TDS.md](docs/technical/TDS.md) - technical design.
 - [COMMAND_CHEAT_SHEET.md](docs/technical/COMMAND_CHEAT_SHEET.md) - locked CLI namespace.
 - [MVP_PLAN.md](docs/product/MVP_PLAN.md) - implementation sequence.
+- [GLOSSARY.md](docs/meta/GLOSSARY.md) - plain-language terminology guide.
 - [EVOLUTION_TIMELINE.md](docs/evolution/EVOLUTION_TIMELINE.md) - product history.
 - [ADR-0001](decisions/ADR-0001-hurl-native-governance.md) - first architectural decision.
+- [examples/checkout-api](examples/checkout-api/README.md) - tiny demo fixture.
 
 ### Set Up Development
 
@@ -169,6 +171,7 @@ docs/user/             User guide, flows, and use cases
 docs/evolution/        Timeline, requirements analysis, and creator intent
 docs/architecture/     Architecture, diagrams, and development guide
 docs/meta/             Obsidian onboarding notes
+examples/              Minimal fixtures for onboarding and future tests
 decisions/             ADRs for durable product decisions
 sources/               Source-material map
 .context/              Working context, changelog, lessons learned

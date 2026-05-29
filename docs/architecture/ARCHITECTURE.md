@@ -50,6 +50,8 @@ Rules:
 - Hurl execution is isolated behind `core`.
 - LLM calls are isolated behind `brain`.
 
+Bridge compilers stay split by responsibility: OpenAPI-to-Hurl, traffic-to-Hurl, policy-to-Hurl, story traceability, and merge/refactor logic are separate modules with separate tests.
+
 ## Runtime Governance Flow
 
 ```mermaid
@@ -108,4 +110,3 @@ Reports --> Models
 ```
 
 More diagrams live in [[docs/architecture/DIAGRAMS|DIAGRAMS]].
-

@@ -40,13 +40,13 @@ Deliverables:
 - Pydantic v2 schema.
 - Local import support.
 - Effective policy merge.
-- Basic condition parser.
+- Basic condition parser and typed condition AST for the supported DSL subset.
 - `entroping init`.
 - `entroping doctor`.
 
 Exit criteria:
 
-- Invalid config fails with actionable errors.
+- Invalid config and invalid gate conditions fail with actionable errors.
 - Duplicate and final gate behavior is tested.
 - Doctor reports Hurl availability and config health.
 
@@ -111,10 +111,11 @@ Exit criteria:
 Deliverables:
 
 - OpenAPI loader.
+- Dedicated `bridge.openapi_to_hurl` compiler.
 - Basic operation-to-Hurl generation.
 - Schema/status/header assertions.
 - `architect build --new`.
-- `--strategy merge`.
+- Dedicated `bridge.merge` module for `--strategy merge`.
 
 Exit criteria:
 
@@ -122,17 +123,30 @@ Exit criteria:
 - Generated tests include tags and story metadata where available.
 - Merge strategy avoids unrelated rewrites.
 
-### Phase 6: Eye
+### Phase 6A: Eye Capture Spike
 
 Deliverables:
 
-- mitmproxy addon.
+- Minimal mitmproxy addon.
 - SQLite traffic store.
-- Redaction pipeline.
+- Redaction pipeline for headers, cookies, known token fields, and body limits.
+- `watch` capture-only workflow.
+
+Exit criteria:
+
+- Captured secrets are redacted before persistence.
+- Capture can run without `freeze` or `map`.
+- Local state growth is bounded by retention settings.
+- No captured raw traffic is sent to LLMs.
+
+### Phase 6B: Freeze and Dependency Map
+
+Deliverables:
+
+- Dedicated `bridge.traffic_to_hurl` compiler.
 - Traffic filtering for static assets, analytics, irrelevant hosts, and large binary bodies.
 - Session stitching for recorded user flows.
 - State retention settings for `.entroping/state.db`.
-- `watch`.
 - `freeze`.
 - `map`.
 
@@ -169,6 +183,7 @@ The first milestone should include only:
 - QAnstitution parser
 - Hurl runner
 - gate injection
+- condition parser
 - JSON/JUnit reports
 
 This gives the product its core proof: executable law enforced by Hurl.
@@ -192,3 +207,4 @@ This gives the product its core proof: executable law enforced by Hurl.
 - No direct HTTP execution in the runner.
 - No provider-specific LLM SDKs.
 - No secret logging.
+- Bridge compilers stay separate: OpenAPI, traffic, policy, traceability, and merge logic must not collapse into one module.

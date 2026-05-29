@@ -2,7 +2,9 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from entroping.models.conditions import ConditionSyntaxError, parse_condition
 
 Enforcement = Literal["block", "warn", "audit_only"]
 AgentRole = Literal["builder", "auditor", "breaker"]
@@ -52,6 +54,17 @@ class GateRule(BaseModel):
     description: str | None = None
     final: bool = False
 
+    @field_validator("condition")
+    @classmethod
+    def validate_condition(cls, value: str) -> str:
+        """Fail fast when a gate uses unsupported condition syntax."""
+
+        try:
+            parse_condition(value)
+        except ConditionSyntaxError as exc:
+            raise ValueError(str(exc)) from exc
+        return value
+
 
 class KnownFailure(BaseModel):
     """Temporary exception that must remain traceable and expiring."""
@@ -91,4 +104,3 @@ class Qanstitution(BaseModel):
     gates: list[GateRule] = Field(default_factory=list)
     ignore_failures: list[KnownFailure] = Field(default_factory=list)
     settings: RuntimeSettings = Field(default_factory=RuntimeSettings)
-

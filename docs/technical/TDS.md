@@ -77,6 +77,7 @@ src/entroping/
       report.py
       studio.py
   models/
+    conditions.py
     qanstitution.py
     hurl.py
     traffic.py
@@ -115,6 +116,7 @@ Core models must be explicit and validated:
 | Model | Purpose |
 | --- | --- |
 | `Qanstitution` | Effective governance config after imports |
+| `Condition` | Parsed and validated small DSL for gate matching |
 | `GateRule` | Runtime assertion rule with condition and enforcement |
 | `AgentConfig` | Model/persona routing for Builder, Auditor, Breaker |
 | `IgnoreFailure` | Known-failure exception with issue ID and expiry |
@@ -221,6 +223,20 @@ meta.story_id == 'STORY-123'
 ```
 
 Invalid conditions fail configuration validation. Do not silently skip malformed gates.
+
+Implementation rule: keep the YAML-facing `GateRule.condition` field as the original string for readable diffs, but validate it by compiling into a typed condition object at parse time. The typed condition parser belongs in the domain model layer and must not depend on CLI, Hurl, LLM, or proxy adapters.
+
+## 6.1 Bridge Compiler Boundaries
+
+`bridge/` is a set of small compilers, not a dumping ground:
+
+| Module | Owns | Must not own |
+| --- | --- | --- |
+| `openapi_to_hurl.py` | OpenAPI operation/schema to Hurl models | LLM calls, file writes, merge strategy |
+| `traffic_to_hurl.py` | Redacted traffic session to Hurl models | mitmproxy capture, SQLite persistence |
+| `policy_to_hurl.py` | QAnstitution gate to Hurl assertions | Hurl subprocess execution |
+| `story_traceability.py` | Story IDs, owners, external doc URLs | Business-system API clients |
+| `merge.py` | Manual-edit-preserving Hurl merge/refactor logic | Test generation strategy |
 
 ## 7. Hurl Execution Design
 

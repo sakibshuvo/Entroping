@@ -34,6 +34,7 @@ Recommended first settings:
 ## Daily Editing Workflow
 
 - Use [[00_INDEX]] as the map.
+- Use [[docs/meta/GLOSSARY|GLOSSARY]] when product terms feel unfamiliar.
 - Use ADRs for product decisions that should survive context resets.
 - Use `.context/changelog.md` for short operational notes.
 - Keep source files in `/Users/sakibshuvo/projects/entroping-specs`; this vault links to them but does not replace them.
@@ -51,4 +52,3 @@ graphify /Users/sakibshuvo/projects/Entroping
 ```
 
 Keep generated output under `graphify-out/`, which is ignored by Git.
-

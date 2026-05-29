@@ -1,0 +1,56 @@
+openapi: "3.1.0"
+info:
+  title: Checkout API
+  version: "0.1.0"
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Check service health
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - ok
+  /checkout:
+    post:
+      operationId: createCheckout
+      summary: Create a checkout session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - cart_id
+              properties:
+                cart_id:
+                  type: string
+      responses:
+        "201":
+          description: Checkout session accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - status
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                    enum:
+                      - accepted
+

@@ -1,0 +1,30 @@
+project: "checkout-api-demo"
+version: "4.1"
+description: "Minimal Entroping governance example for first-time users"
+
+sources:
+  spec: "./openapi.yaml"
+
+gates:
+  - id: "global_latency"
+    description: "Every endpoint should respond within two seconds"
+    condition: "true"
+    gate: "duration < 2000"
+    enforcement: "block"
+  - id: "smoke_latency"
+    description: "Smoke checks should stay fast"
+    condition: "tags contains 'smoke'"
+    gate: "duration < 500"
+    enforcement: "warn"
+  - id: "checkout_post_policy"
+    description: "Checkout creation receives stricter policy attention"
+    condition: "method == 'POST'"
+    gate: "header \"Content-Type\" contains \"application/json\""
+    enforcement: "warn"
+
+settings:
+  timeout: 30000
+  parallel_workers: 2
+  follow_redirects: true
+  retry: 0
+

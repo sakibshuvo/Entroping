@@ -38,6 +38,8 @@ Use this as the home note for the Entroping vault.
 - [[docs/architecture/ARCHITECTURE|ARCHITECTURE]] - implementation architecture overview.
 - [[docs/architecture/DEVELOPMENT|DEVELOPMENT]] - local development and verification commands.
 - [[docs/meta/OBSIDIAN_START_HERE|OBSIDIAN_START_HERE]] - first-time Obsidian workflow for this vault.
+- [[docs/meta/GLOSSARY|GLOSSARY]] - plain-language explanation of Entroping terms.
+- [[examples/checkout-api/README|Checkout API demo fixture]] - minimal example for first-time users.
 - [[sources/SOURCE_MAP]] - where the source materials live.
 
 ## Decision Trail
