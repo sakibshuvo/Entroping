@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from entroping.models import GateRule, Qanstitution, parse_condition
+from entroping.models import AgentConfig, GateRule, Qanstitution, parse_condition
 from entroping.models.conditions import ContainsCondition, MetaEqualsCondition, TrueCondition
 
 
@@ -13,6 +13,23 @@ def test_qanstitution_accepts_minimal_project() -> None:
     assert law.project == "checkout-api"
     assert law.gates == []
     assert law.settings.timeout == 30_000
+
+
+@pytest.mark.parametrize(
+    ("model", "message"),
+    [
+        ("", "model identifier must not be empty"),
+        ("   ", "model identifier must not be empty"),
+        ("openai/gpt-4.1\x07", "model identifier must not contain control characters"),
+        ("sk-proj-live-secret", "model identifier must not look like a secret"),
+        ("ghp_live-secret", "model identifier must not look like a secret"),
+        ("xoxb-live-secret", "model identifier must not look like a secret"),
+        ("AIza-live-secret", "model identifier must not look like a secret"),
+    ],
+)
+def test_agent_config_rejects_unsafe_model_identifier(model: str, message: str) -> None:
+    with pytest.raises(ValidationError, match=message):
+        AgentConfig(source="agents/builder.md", model=model)
 
 
 def test_gate_rule_enforcement_values() -> None:

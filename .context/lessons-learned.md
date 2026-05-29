@@ -40,3 +40,7 @@
 - OpenAPI parameters should compile through explicit rendering rules, not string concatenation. Use Hurl variables as the fallback, URL-encode literal path/query/cookie values, validate header/cookie names as HTTP tokens, and keep examples/defaults source-grounded.
 - OpenAPI examples and defaults can become active Hurl syntax if emitted blindly. Reject Hurl template delimiters in literal source values and reject non-finite numbers before rendering generated `.hurl` files.
 - Rich console rendering can hard-wrap JSON and corrupt machine-readable output. Use raw stdout for `--output json` style CLI payloads, and reserve Rich rendering for human Markdown/status text.
+- Agent model IDs are routing metadata, not credentials. Validate them at the QAnstitution schema boundary, reject key-shaped values, and never add provider API keys to `qanstitution.yaml`.
+- Config writers should validate the existing document before mutation and the updated document before write, so a convenience command cannot silently repair or worsen unrelated invalid policy.
+- Config writers need effective-policy validation, not only root-schema validation. If imports, final-gate merge rules, or cycles make `doctor` fail, `config set` must fail before writing too.
+- Avoid predictable temp paths for config writes. Use exclusive random same-directory temp files and validate the temp file before replacing the real config so attacker-controlled symlinks cannot receive config content.

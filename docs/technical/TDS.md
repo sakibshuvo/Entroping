@@ -131,6 +131,10 @@ Core models must be explicit and validated:
 
 Avoid `Any` in application-facing models. Use discriminated unions or typed dictionaries only where the format is genuinely variable.
 
+`AgentConfig.model` is routing metadata only. It must reject empty values,
+control characters, and API-key-shaped strings so configuration commands cannot
+turn `qanstitution.yaml` into a credential store.
+
 ## 6. QAnstitution Design
 
 `qanstitution.yaml` is the executable law. It is YAML because it must be schema-validatable, diffable, easy to import, and safe for deterministic runtime parsing.

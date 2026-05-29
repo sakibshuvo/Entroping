@@ -87,6 +87,11 @@ Exit criteria:
 
 ### Phase 4: Architect Minimal
 
+Current implementation note: the deterministic pieces of this phase are landing before
+LLM calls. `architect audit` already reports OpenAPI coverage gaps, and `config list`
+/ `config set` manage non-secret Builder/Auditor/Breaker model routing in
+`qanstitution.yaml`.
+
 Deliverables:
 
 - LiteLLM client wrapper.

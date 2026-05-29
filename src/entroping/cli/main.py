@@ -22,6 +22,7 @@ from entroping.bridge.openapi_to_hurl import (
     compile_openapi_to_hurl,
 )
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
+from entroping.core.config_writer import ConfigUpdateError, update_agent_model
 from entroping.core.env_loader import load_environment_variables
 from entroping.core.gate_injector import GateInjectionError, write_injected_execution_copy
 from entroping.core.hurl_discovery import discover_hurl_tests, normalize_tag_filters
@@ -41,6 +42,7 @@ from entroping.core.report_writer import (
     write_json_report,
     write_junit_report,
 )
+from entroping.models.qanstitution import AgentRole
 
 console = Console()
 
@@ -156,18 +158,74 @@ def doctor() -> None:
 def config_list() -> None:
     """Show resolved non-secret configuration."""
 
-    _not_implemented("config list")
+    try:
+        law = load_qanstitution(Path("qanstitution.yaml"))
+    except QanstitutionLoadError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+
+    console.print(f"Project: {law.project}")
+    if law.version is not None:
+        console.print(f"Version: {law.version}")
+    if law.description is not None:
+        console.print(f"Description: {law.description}")
+
+    if law.sources is None:
+        console.print("Sources: none")
+    else:
+        console.print("Sources:")
+        if law.sources.spec is not None:
+            console.print(f"  Spec: {law.sources.spec}")
+        if law.sources.stories is not None:
+            console.print(f"  Stories: {law.sources.stories}")
+        if law.sources.traffic is not None:
+            console.print(f"  Traffic: {law.sources.traffic}")
+        if law.sources.graph is not None:
+            console.print(f"  Graph: {law.sources.graph}")
+        if law.sources.types is not None:
+            console.print(f"  Types: {law.sources.types}")
+
+    console.print(f"Imports: {len(law.imports)}")
+    console.print(f"Gates: {len(law.gates)}")
+    console.print("Settings:")
+    console.print(f"  timeout: {law.settings.timeout}")
+    console.print(f"  parallel_workers: {law.settings.parallel_workers}")
+    console.print(f"  follow_redirects: {str(law.settings.follow_redirects).lower()}")
+    console.print(f"  retry: {law.settings.retry}")
+
+    if not law.agents:
+        console.print("Agents: none")
+        return
+
+    console.print("Agents:")
+    for role in _agent_role_order():
+        agent_config = law.agents.get(role)
+        if agent_config is None:
+            continue
+        console.print(f"  {role}:")
+        console.print(f"    source: {agent_config.source}")
+        console.print(f"    model: {agent_config.model}")
+        console.print(f"    temperature: {agent_config.temperature}")
+        if agent_config.max_tokens is not None:
+            console.print(f"    max_tokens: {agent_config.max_tokens}")
 
 
 @config_app.command("set")
 def config_set(
-    agent: Annotated[str, typer.Option("--agent", help="Agent role to configure.")],
+    agent: Annotated[AgentRole, typer.Option("--agent", help="Agent role to configure.")],
     model: Annotated[str, typer.Option("--model", help="Provider/model identifier.")],
 ) -> None:
     """Configure model routing for an agent role."""
 
-    _ = (agent, model)
-    _not_implemented("config set")
+    try:
+        law = update_agent_model(Path("qanstitution.yaml"), agent=agent, model=model)
+    except ConfigUpdateError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+
+    agent_config = law.agents[agent]
+    console.print(f"[green]Configured {agent} model:[/green] {agent_config.model}")
+    console.print(f"Persona source: {agent_config.source}")
 
 
 @architect_app.command("build")
@@ -426,6 +484,10 @@ def _unsupported_run_options(
     if drift_check:
         unsupported.append("--drift-check")
     return tuple(unsupported)
+
+
+def _agent_role_order() -> tuple[AgentRole, ...]:
+    return ("builder", "auditor", "breaker")
 
 
 def _normalize_report_formats(report: list[str] | None) -> tuple[str, ...]:

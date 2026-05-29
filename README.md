@@ -52,6 +52,7 @@ Available now:
 - Python package scaffold with the locked v4.1 CLI surface.
 - `entroping init --minimal` for a minimal local runtime skeleton and `qanstitution.yaml`.
 - `entroping doctor` for local Python, Hurl availability, and QAnstitution config health checks.
+- `entroping config list` and `entroping config set` for deterministic, non-secret agent model routing.
 - QAnstitution loading with root-bounded local imports, condition validation, duplicate gate checks, and final imported gate protection.
 - Hurl discovery, `# entroping:` metadata parsing, generated-state ignores, and tag-filter validation.
 - QAnstitution gate matching, temporary execution-copy injection, and deterministic Hurl subprocess execution through `entroping run`.
@@ -211,9 +212,10 @@ entroping report bug
 Deprecated names such as `gen`, `fix`, `scan`, `chaos`, and `report --type` are intentionally not primary commands.
 
 Current implementation supports `init`, `doctor`, deterministic `architect build --new`
-from local OpenAPI files with common parameters and schema examples, `run --env`,
-deterministic `architect audit` for OpenAPI coverage, deterministic `run`,
-JSON/JUnit run reports, HTML run reports, and `report bug`.
+from local OpenAPI files with common parameters and schema examples, deterministic
+non-secret `config list` / `config set`, `run --env`, deterministic `architect audit`
+for OpenAPI coverage, deterministic `run`, JSON/JUnit run reports, HTML run reports,
+and `report bug`.
 
 ## Architecture
 

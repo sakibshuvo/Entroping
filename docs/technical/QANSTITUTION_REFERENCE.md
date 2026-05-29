@@ -232,6 +232,12 @@ Agent output must be parsed into structured data and validated before writing fi
 
 Model IDs are provider-specific and change over time. Treat the examples as routing placeholders and verify current access before committing a default.
 
+Current implementation note: `entroping config list` prints this routing metadata,
+and `entroping config set --agent <builder|auditor|breaker> --model <provider/model>`
+updates only the selected agent model. The model value is validated as routing
+metadata, not a credential; empty values, control characters, and API-key-shaped
+strings are rejected.
+
 ## 9. Gates
 
 A gate is a policy assertion that can be injected into matching Hurl executions.

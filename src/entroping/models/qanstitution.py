@@ -41,6 +41,23 @@ class AgentConfig(BaseModel):
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     max_tokens: int | None = Field(default=None, gt=0)
 
+    @field_validator("model")
+    @classmethod
+    def validate_model_identifier(cls, value: str) -> str:
+        """Reject empty, malformed, or secret-looking model identifiers."""
+
+        model = value.strip()
+        if not model:
+            msg = "model identifier must not be empty"
+            raise ValueError(msg)
+        if any(ord(character) < 32 or ord(character) == 127 for character in model):
+            msg = "model identifier must not contain control characters"
+            raise ValueError(msg)
+        if _looks_like_secret(model):
+            msg = "model identifier must not look like a secret"
+            raise ValueError(msg)
+        return model
+
 
 class GateRule(BaseModel):
     """Runtime governance assertion injected into matching Hurl executions."""
@@ -104,3 +121,27 @@ class Qanstitution(BaseModel):
     gates: list[GateRule] = Field(default_factory=list)
     ignore_failures: list[KnownFailure] = Field(default_factory=list)
     settings: RuntimeSettings = Field(default_factory=RuntimeSettings)
+
+
+def _looks_like_secret(value: str) -> bool:
+    normalized = value.strip()
+    upper = normalized.upper()
+    return (
+        normalized.startswith(
+            (
+                "sk-",
+                "sk_proj_",
+                "sk-proj-",
+                "ghp_",
+                "github_pat_",
+                "glpat-",
+                "hf_",
+                "xoxb-",
+                "xoxp-",
+            )
+        )
+        or upper.startswith(("AKIA", "ASIA"))
+        or normalized.startswith("AIza")
+        or normalized.startswith("ya29.")
+        or "BEGIN PRIVATE KEY" in upper
+    )
