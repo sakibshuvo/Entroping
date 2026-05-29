@@ -93,7 +93,8 @@ Requirements:
 
 - Python 3.12+
 - [`uv`](https://docs.astral.sh/uv/)
-- Optional for runtime later: `hurl`, `mitmproxy`, Ollama
+- [`hurl`](https://hurl.dev/) for the deterministic runner and demo
+- Optional for later roadmap work: `mitmproxy`, Ollama
 
 Install dependencies:
 
@@ -117,8 +118,8 @@ scripts/regression.sh --security
 Start an isolated issue session:
 
 ```bash
-scripts/start_issue.sh 3 feat/gate-injection --dry-run
-scripts/start_issue.sh 3 feat/gate-injection
+scripts/start_issue.sh <issue-number> <type>/<short-kebab-description> --dry-run
+scripts/start_issue.sh <issue-number> <type>/<short-kebab-description>
 ```
 
 Try the scaffolded CLI:
@@ -136,6 +137,31 @@ If `hurl` is installed and the project has `.hurl` tests:
 
 ```bash
 uv run --project "$repo_dir" entroping run --tag smoke
+```
+
+### Run the Alpha Demo
+
+Terminal 1:
+
+```bash
+python examples/checkout-api/demo_server.py --port 18080
+```
+
+Terminal 2:
+
+```bash
+cd examples/checkout-api
+uv run --project ../.. entroping doctor
+uv run --project ../.. entroping run --tag smoke --report json --report junit
+```
+
+Expected result:
+
+```text
+Hurl run: 1 passed, 0 failed
+Wrote latest run state: .entroping/latest-run.json
+Wrote report: reports/run-latest.json
+Wrote report: reports/junit.xml
 ```
 
 ## Planned CLI Surface

@@ -31,3 +31,4 @@
 - Path hardening checks must inspect symlink status before resolving a path. Calling `Path.resolve()` first can hide that the original user-controlled path was a symlink.
 - Hurl runner tests should stub the subprocess boundary, not the product behavior. The core proof is the argument array, `shell=False`, timeout conversion, bounded/redacted captured output, and deterministic suite exit code.
 - Reports need two destinations: user-facing artifacts under `reports/` and sanitized latest-run state under `.entroping/` so `report bug` can work without rerunning Hurl.
+- A first-run demo must not depend on future env-file loading. Use literal localhost URLs plus a tiny local server until `--env` grows real variable injection.
