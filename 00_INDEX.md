@@ -12,41 +12,52 @@ tags:
 
 Use this as the home note for the Entroping vault.
 
-## Canonical Docs
+## Start Here Today
+
+Use these first. They are the control panel for current work:
+
+- [[docs/meta/PROJECT_PROGRESS|PROJECT_PROGRESS]] - current alpha status, issue queue, and next slice.
+- [[docs/meta/FEATURE_DELIVERY_CHECKLIST|FEATURE_DELIVERY_CHECKLIST]] - required gate for every non-trivial change.
+- [[docs/meta/CONTEXT_MANAGEMENT|CONTEXT_MANAGEMENT]] - how Codex, Obsidian, `.context`, and Graphify fit together.
+- `AGENTS.md` - project-local Codex implementation rules.
+- `.context/plan.md` - active implementation milestone and handoff context.
+
+## Product Contract
 
 - [[docs/product/PRODUCT_SPEC|PRODUCT_SPEC]] - what Entroping is and what v4.1 must do.
-- [[docs/technical/TDS|TDS]] - architecture, adapters, schemas, execution, and test strategy.
 - [[docs/user/USER_GUIDE|USER_GUIDE]] - how a developer uses Entroping.
+- [[docs/product/MVP_PLAN|MVP_PLAN]] - implementation sequence.
+- [[docs/product/MARKETING_NOTE|MARKETING_NOTE]] - positioning and go-to-market language.
+
+## Technical Contract
+
+- [[docs/technical/TDS|TDS]] - architecture, adapters, schemas, execution, and test strategy.
 - [[docs/technical/COMMAND_CHEAT_SHEET|COMMAND_CHEAT_SHEET]] - locked command surface.
 - [[docs/technical/QANSTITUTION_REFERENCE|QANSTITUTION_REFERENCE]] - executable governance schema.
-- [[docs/product/MVP_PLAN|MVP_PLAN]] - implementation sequence.
-- [[docs/technical/CODEX_PROMPT|CODEX_PROMPT]] - implementation-agent guardrails.
+- [[docs/architecture/ARCHITECTURE|ARCHITECTURE]] - implementation architecture overview.
+- [[docs/architecture/DEVELOPMENT|DEVELOPMENT]] - local development and verification commands.
+- [[docs/architecture/DIAGRAMS|DIAGRAMS]] - Mermaid and PlantUML diagrams.
 
-## Evolution and Positioning
+## Work Management
+
+- [[docs/meta/ISSUE_TRACKING|ISSUE_TRACKING]] - GitHub issue tracking rules for bugs, features, and regressions.
+- [[docs/meta/TEST_STRATEGY|TEST_STRATEGY]] - regression suite and test-pyramid policy.
+- [[docs/meta/AUTONOMOUS_DEVELOPMENT|AUTONOMOUS_DEVELOPMENT]] - Codex-first autonomous workflow and future OpenCode/oMLX plan.
+
+## Product History
 
 - [[docs/evolution/EVOLUTION_TIMELINE|EVOLUTION_TIMELINE]] - how the product idea evolved.
 - [[docs/evolution/REQUIREMENTS_ANALYSIS|REQUIREMENTS_ANALYSIS]] - extracted requirements from source materials.
 - [[docs/evolution/CREATOR_INTENT_AUDIT|CREATOR_INTENT_AUDIT]] - creator corrections and non-negotiables.
 - [[docs/evolution/BRAIN_PROVIDER_STRATEGY|BRAIN_PROVIDER_STRATEGY]] - local-first/cloud-second model strategy.
-- [[docs/product/MARKETING_NOTE|MARKETING_NOTE]] - positioning and go-to-market language.
 
-## Design Aids
+## Reference Library
 
 - [[docs/user/USER_FLOWS|USER_FLOWS]] - end-to-end workflows.
 - [[docs/user/USE_CASES|USE_CASES]] - concrete scenarios.
-- [[docs/architecture/DIAGRAMS|DIAGRAMS]] - Mermaid and PlantUML diagrams.
-- [[docs/architecture/ARCHITECTURE|ARCHITECTURE]] - implementation architecture overview.
-- [[docs/architecture/DEVELOPMENT|DEVELOPMENT]] - local development and verification commands.
 - [[docs/meta/OBSIDIAN_START_HERE|OBSIDIAN_START_HERE]] - first-time Obsidian workflow for this vault.
 - [[docs/meta/GLOSSARY|GLOSSARY]] - plain-language explanation of Entroping terms.
-- [[docs/meta/CONTEXT_MANAGEMENT|CONTEXT_MANAGEMENT]] - how Codex, Obsidian, `.context`, and Graphify fit together.
-- [[docs/meta/AUTONOMOUS_DEVELOPMENT|AUTONOMOUS_DEVELOPMENT]] - Codex-first autonomous workflow and future OpenCode/oMLX plan.
-- [[docs/meta/FEATURE_DELIVERY_CHECKLIST|FEATURE_DELIVERY_CHECKLIST]] - executable checklist for TDD, gates, reviews, docs, and commits.
-- [[docs/meta/PROJECT_PROGRESS|PROJECT_PROGRESS]] - simple dashboard for current phase, alpha target, and roadmap status.
-- [[docs/meta/ISSUE_TRACKING|ISSUE_TRACKING]] - GitHub issue tracking rules for bugs, features, and regressions.
-- [[docs/meta/TEST_STRATEGY|TEST_STRATEGY]] - regression suite and test-pyramid policy.
-- `AGENTS.md` - project-local Codex implementation rules.
-- `.context/plan.md` - current implementation milestone and handoff context.
+- [[docs/technical/CODEX_PROMPT|CODEX_PROMPT]] - historical implementation-agent prompt; `AGENTS.md` is current.
 - [[examples/checkout-api/README|Checkout API demo fixture]] - minimal example for first-time users.
 - [[sources/SOURCE_MAP]] - where the source materials live.
 

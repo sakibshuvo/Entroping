@@ -12,6 +12,8 @@ tags:
 
 This vault is a local folder of Markdown files. Obsidian adds navigation, backlinks, graph view, search, and local editing on top of it.
 
+Obsidian makes context preservation easier when the notes are curated. It does not mean every idea should become a permanent file or that every agent should read every note.
+
 ## Open the Vault
 
 1. Launch Obsidian from `/Applications/Obsidian.app`.
@@ -33,8 +35,8 @@ Recommended first settings:
 
 ## Daily Editing Workflow
 
-- Use [[00_INDEX]] as the map.
-- Use [[docs/meta/PROJECT_PROGRESS|PROJECT_PROGRESS]] as the simple current-state dashboard.
+- Open [[docs/meta/PROJECT_PROGRESS|PROJECT_PROGRESS]] first.
+- Use [[00_INDEX]] as the map when you need to navigate beyond current work.
 - Use [[docs/meta/GLOSSARY|GLOSSARY]] when product terms feel unfamiliar.
 - Use [[docs/meta/CONTEXT_MANAGEMENT|CONTEXT_MANAGEMENT]] before starting a new Codex thread.
 - Use [[docs/meta/ISSUE_TRACKING|ISSUE_TRACKING]] to understand what belongs in GitHub Issues versus Obsidian.

@@ -13,6 +13,15 @@ tags:
 
 This is the simple human dashboard. GitHub Issues track individual work items; this note tracks phase-level progress and the current marathon target.
 
+## Daily Use
+
+1. Open this note first in Obsidian.
+2. Pick the one **Current** issue.
+3. Run the feature through [[docs/meta/FEATURE_DELIVERY_CHECKLIST|FEATURE_DELIVERY_CHECKLIST]].
+4. Update this note only when phase-level status changes.
+
+Do not duplicate every issue here. The detailed queue lives in GitHub.
+
 ## Status Key
 
 - **Done:** committed, pushed, and CI green.

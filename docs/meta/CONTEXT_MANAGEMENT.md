@@ -13,23 +13,38 @@ tags:
 
 Entroping uses layered context so Codex, Obsidian, and future graph tooling can rehydrate the project quickly without depending on one long chat thread.
 
-## Source of Truth
+## Context Tiers
 
-Use these files in this order:
+Do not read the entire vault for every task. Obsidian preserves context by making the graph navigable; Codex preserves context by reading the smallest source set that can govern the current change.
+
+### Always Read
 
 1. `AGENTS.md` - implementation rules for Codex.
-2. `README.md` - public project overview and quickstart.
-3. `00_INDEX.md` - Obsidian vault map.
-4. `.context/plan.md` - active implementation milestone.
-5. `.context/changelog.md` - recent work.
-6. `.context/lessons-learned.md` - durable pitfalls and decisions.
-7. `docs/product/MVP_PLAN.md` - implementation sequence.
-8. `docs/technical/TDS.md` - architecture details.
-9. `docs/meta/AUTONOMOUS_DEVELOPMENT.md` - agent workflow and automation rules.
-10. `docs/meta/FEATURE_DELIVERY_CHECKLIST.md` - per-feature execution checklist.
-11. `docs/meta/PROJECT_PROGRESS.md` - simple phase-level dashboard.
-12. `docs/meta/ISSUE_TRACKING.md` - GitHub issue tracking rules.
-13. `docs/meta/TEST_STRATEGY.md` - test pyramid and regression rules.
+2. `docs/meta/PROJECT_PROGRESS.md` - current alpha status and issue queue.
+3. `.context/plan.md` - active implementation milestone.
+4. `docs/meta/FEATURE_DELIVERY_CHECKLIST.md` - per-feature execution checklist.
+
+### Read When Implementing
+
+- `docs/product/MVP_PLAN.md` - implementation sequence.
+- `docs/technical/TDS.md` - architecture details.
+- `docs/technical/COMMAND_CHEAT_SHEET.md` - locked command surface.
+- `docs/meta/TEST_STRATEGY.md` - test pyramid and regression rules.
+- The GitHub issue, ADR, or failing test for the slice being implemented.
+
+### Read When Reviewing Or Handing Off
+
+- `README.md` - public project overview and quickstart.
+- `00_INDEX.md` - Obsidian vault map.
+- `.context/changelog.md` - recent work.
+- `.context/lessons-learned.md` - durable pitfalls and decisions.
+- `docs/meta/ISSUE_TRACKING.md` - GitHub issue tracking rules.
+
+### Read For Product History Only
+
+- `docs/evolution/*`
+- `sources/*`
+- `docs/technical/CODEX_PROMPT.md`
 
 ## New Codex Thread Prompt
 

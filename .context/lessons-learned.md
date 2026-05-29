@@ -22,3 +22,4 @@
 - The autonomous workflow should stay Codex-first until OpenCode and local Qwen/oMLX have proven reliable on bounded read-only or review tasks. Cheap agents can draft and critique, but verified commits remain the product boundary.
 - A multi-agent workflow needs executable gates, not only principles. Keep one parent integrator, require local file evidence for claims, run deterministic checks before commit, and update context files so future threads inherit the decision trail.
 - GitHub Issues should track individual bugs, feature slices, and regressions; Obsidian should track phase-level progress, roadmap movement, ADRs, and durable lessons. Duplicating every issue into Markdown creates stale context.
+- Obsidian improves context preservation only when notes are tiered and curated. Keep `PROJECT_PROGRESS` as the daily dashboard, use `00_INDEX` as the map, and leave product-history files as reference material instead of default agent input.

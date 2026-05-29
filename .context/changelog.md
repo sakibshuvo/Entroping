@@ -28,3 +28,4 @@
 - Added `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, `.github/pull_request_template.md`, and `scripts/feature_gate.sh` to make the feature workflow executable across TDD, regression, architecture, security, multi-agent review, documentation, and commit-readiness gates.
 - Added GitHub issue forms, `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, and `scripts/regression.sh` to make bug tracking, regression coverage, test-pyramid expectations, and progress tracking systematic.
 - Created the `Alpha: deterministic core` GitHub milestone with six initial feature/docs issues and linked them from `docs/meta/PROJECT_PROGRESS.md`.
+- Tightened Obsidian navigation by making `docs/meta/PROJECT_PROGRESS.md` the daily dashboard, reorganizing `00_INDEX.md` into reading tiers, and clarifying context tiers so agents do not treat every Markdown file as equally relevant.
