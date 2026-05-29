@@ -12,6 +12,7 @@ openapi.yaml
 qanstitution.yaml
 envs/local.env.example
 tests/checkout_smoke.hurl
+tests/generated/
 ```
 
 ## Quickstart
@@ -46,6 +47,12 @@ Wrote report: reports/run-latest.json
 Wrote report: reports/junit.xml
 ```
 
+To regenerate Hurl tests from `openapi.yaml`:
+
+```bash
+uv run --project ../.. entroping architect build --new --tag smoke
+```
+
 ## Design Notes
 
 - The example avoids real secrets.
@@ -54,3 +61,4 @@ Wrote report: reports/junit.xml
 - The QAnstitution condition examples stay inside the supported small DSL.
 - The checked-in `.hurl` file uses a literal local URL so the alpha quickstart does not depend on environment-variable loading.
 - `envs/local.env.example` documents the intended future environment shape, but current alpha execution does not load it.
+- Generated OpenAPI tests are written under `tests/generated/` and use `{{base_url}}` until `--env` variable loading is implemented.

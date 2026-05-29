@@ -164,6 +164,17 @@ Wrote report: reports/run-latest.json
 Wrote report: reports/junit.xml
 ```
 
+Generate reviewable Hurl tests from the fixture OpenAPI source:
+
+```bash
+cd examples/checkout-api
+uv run --project ../.. entroping architect build --new --tag smoke
+ls tests/generated
+```
+
+Current generation is deterministic and local-file only. It reads `sources.spec` from
+`qanstitution.yaml`, writes under `tests/generated/`, and does not call an LLM.
+
 ## Planned CLI Surface
 
 ```text
@@ -186,6 +197,9 @@ entroping report bug
 ```
 
 Deprecated names such as `gen`, `fix`, `scan`, `chaos`, and `report --type` are intentionally not primary commands.
+
+Current implementation supports `init`, `doctor`, deterministic `architect build --new`
+from local OpenAPI files, deterministic `run`, JSON/JUnit run reports, and `report bug`.
 
 ## Architecture
 

@@ -126,6 +126,78 @@ gates:
     assert "Unsupported QAnstitution condition syntax" in result.output
 
 
+def test_architect_build_new_generates_hurl_from_configured_openapi(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+sources:
+  spec: ./openapi.yaml
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    Path("openapi.yaml").write_text(
+        """
+openapi: "3.1.0"
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - ok
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["architect", "build", "--new", "--tag", "smoke"])
+
+    assert result.exit_code == 0
+    assert "Generated 1 Hurl test" in result.output
+    generated = Path("tests/generated/get_health.hurl")
+    assert generated.is_file()
+    content = generated.read_text(encoding="utf-8")
+    assert "# entroping: tags=generated,smoke" in content
+    assert "# entroping: source=openapi" in content
+    assert "GET {{base_url}}/health" in content
+    assert "HTTP 200" in content
+
+
+def test_architect_build_new_requires_configured_spec(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("qanstitution.yaml").write_text("project: checkout-api\ngates: []\n", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["architect", "build", "--new"])
+
+    assert result.exit_code == 1
+    assert "sources.spec is required" in result.output
+
+
+def test_architect_build_rejects_merge_strategy_until_supported() -> None:
+    result = CliRunner().invoke(app, ["architect", "build", "--new", "--strategy", "merge"])
+
+    assert result.exit_code == 2
+    assert "--strategy merge is not implemented yet" in result.output
+
+
 def test_run_executes_discovered_hurl_with_injected_gates_and_cleans_temp_state(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
