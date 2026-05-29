@@ -32,17 +32,20 @@ Do not duplicate every issue here. The detailed queue lives in GitHub.
 
 ## Current Target
 
-**Goal:** credible open-source alpha of the deterministic governance loop.
+**Goal:** credible open-source alpha of the deterministic governance loop, then the first deterministic Architect generation slice.
 
 GitHub Project: [Entroping Alpha](https://github.com/users/sakibshuvo/projects/1)
 
-GitHub milestone: [Alpha: deterministic core](https://github.com/sakibshuvo/Entroping/milestone/1)
+GitHub milestones:
+
+- [Alpha: deterministic core](https://github.com/sakibshuvo/Entroping/milestone/1)
+- [MVP: Architect build](https://github.com/sakibshuvo/Entroping/milestone/2)
 
 ```text
 init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> run Hurl -> JSON/JUnit report
 ```
 
-## Alpha Progress
+## Milestone Progress
 
 | Slice | Status | Evidence | Next proof |
 | --- | --- | --- | --- |
@@ -54,13 +57,14 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Hurl subprocess runner](https://github.com/sakibshuvo/Entroping/issues/4) | Done | Argument-array subprocess runner, timeout handling, bounded/redacted output, temp cleanup, CLI run integration, and tests | Feed run results into reports |
 | [JSON/JUnit reports](https://github.com/sakibshuvo/Entroping/issues/5) | Done | Redacted JSON, JUnit XML, latest-run state, `report bug`, and tests | Wire reports into the demo quickstart |
 | [README demo quickstart](https://github.com/sakibshuvo/Entroping/issues/6) | Done | Local checkout demo server, literal Hurl fixture, README quickstart, fixture docs, and tests | Keep quickstart aligned with runner/report changes |
+| [OpenAPI Architect build](https://github.com/sakibshuvo/Entroping/issues/11) | Current | Deterministic local `sources.spec` to `tests/generated/*.hurl` generation | Merge after regression/security gate and CI |
 
 ## Later Roadmap
 
 | Phase | Status | Notes |
 | --- | --- | --- |
+| OpenAPI Build | Current | Dedicated bridge compiler, local loader, and `architect build --new` |
 | Architect Minimal | Later | LiteLLM, structured outputs, generated Hurl review flow |
-| OpenAPI Build | Later | Dedicated bridge compiler and merge strategy |
 | Eye Capture Spike | Later | mitmproxy capture-only with redaction before persistence |
 | Freeze and Map | Later | Traffic-to-Hurl compiler and dependency maps |
 | Studio | Deferred | Useful after deterministic core and reports are real |

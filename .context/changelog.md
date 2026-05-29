@@ -37,3 +37,4 @@
 - Implemented issue #4's deterministic Hurl subprocess runner with argument-array execution, timeout handling, bounded and redacted output, missing-binary handling, non-zero result aggregation, `entroping run` integration, temporary execution-copy cleanup, and focused subprocess/CLI tests.
 - Implemented issue #5's report slice with redacted JSON run summaries, CI-consumable JUnit XML, latest-run state under `.entroping/`, `entroping report bug` Markdown generation, and report writer/CLI regression tests.
 - Implemented issue #6's alpha quickstart with a tiny local checkout demo server, literal localhost Hurl fixture, README quickstart commands, updated fixture documentation, and demo-server tests.
+- Implemented issue #11's first Architect build slice with a pure OpenAPI-to-Hurl compiler, local OpenAPI loader, deterministic `architect build --new` generation under `tests/generated/`, and docs/progress updates.

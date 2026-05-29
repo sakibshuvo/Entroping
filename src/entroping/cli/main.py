@@ -4,11 +4,17 @@ import sys
 import tempfile
 from pathlib import Path
 from typing import Annotated
+from urllib.parse import urlparse
 
 import typer
 from rich.console import Console
 
 from entroping import __version__
+from entroping.bridge.openapi_to_hurl import (
+    GeneratedHurlFile,
+    OpenApiCompilationError,
+    compile_openapi_to_hurl,
+)
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
 from entroping.core.gate_injector import GateInjectionError, write_injected_execution_copy
 from entroping.core.hurl_discovery import discover_hurl_tests, normalize_tag_filters
@@ -18,6 +24,7 @@ from entroping.core.hurl_runner import (
     discover_hurl,
     run_hurl_files,
 )
+from entroping.core.openapi_loader import OpenApiLoadError, load_openapi_document
 from entroping.core.report_writer import (
     ReportWriterError,
     build_run_report,
@@ -167,8 +174,35 @@ def architect_build(
 ) -> None:
     """Generate Hurl tests from configured sources or prompts."""
 
-    _ = (new, prompt, strategy, tag)
-    _not_implemented("architect build")
+    if strategy is not None:
+        normalized_strategy = strategy.strip().lower()
+        if normalized_strategy == "merge":
+            console.print("[yellow]--strategy merge is not implemented yet.[/yellow]")
+        else:
+            console.print(f"[yellow]Unsupported architect build strategy: {strategy}[/yellow]")
+        raise typer.Exit(2)
+    if prompt is not None:
+        _not_implemented("architect build --prompt")
+    if not new:
+        _not_implemented("architect build")
+
+    try:
+        tag_filters = normalize_tag_filters(tag)
+        law = load_qanstitution(Path("qanstitution.yaml"))
+        if law.sources is None or law.sources.spec is None or not law.sources.spec.strip():
+            msg = "sources.spec is required for architect build --new"
+            raise ValueError(msg)
+        document = load_openapi_document(_configured_spec_reference(law.sources.spec))
+        generated = compile_openapi_to_hurl(document, tags=tag_filters)
+        written = [_write_generated_hurl_file(item) for item in generated]
+    except (QanstitutionLoadError, OpenApiLoadError, OpenApiCompilationError, ValueError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+
+    noun = "test" if len(written) == 1 else "tests"
+    console.print(f"[green]Generated {len(written)} Hurl {noun} under tests/generated.[/green]")
+    for path in written:
+        console.print(f"Wrote Hurl test: {_display_cli_path(path)}")
 
 
 @architect_app.command("refactor")
@@ -372,6 +406,43 @@ def _normalize_report_formats(report: list[str] | None) -> tuple[str, ...]:
         if report_format not in normalized:
             normalized.append(report_format)
     return tuple(normalized)
+
+
+def _configured_spec_reference(spec: str) -> str | Path:
+    parsed = urlparse(spec)
+    if parsed.scheme:
+        return spec
+
+    spec_path = Path(spec)
+    if spec_path.is_absolute():
+        return spec_path
+    return Path("qanstitution.yaml").resolve().parent / spec_path
+
+
+def _write_generated_hurl_file(generated: GeneratedHurlFile) -> Path:
+    relative_path = Path(generated.relative_path)
+    if relative_path.is_absolute() or ".." in relative_path.parts:
+        msg = f"Generated Hurl path must stay inside the project: {generated.relative_path}"
+        raise ValueError(msg)
+
+    generated_root = (Path.cwd() / "tests" / "generated").resolve()
+    output_path = (Path.cwd() / relative_path).resolve()
+    if not output_path.is_relative_to(generated_root):
+        msg = f"Generated Hurl path must stay under tests/generated: {generated.relative_path}"
+        raise ValueError(msg)
+
+    if output_path.is_symlink():
+        msg = f"Refusing to overwrite symlinked generated Hurl file: {output_path}"
+        raise ValueError(msg)
+    if output_path.exists():
+        existing = output_path.read_text(encoding="utf-8")
+        if "# entroping: source=openapi" not in existing:
+            msg = f"Refusing to overwrite non-OpenAPI Hurl file: {_display_cli_path(output_path)}"
+            raise ValueError(msg)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(generated.content, encoding="utf-8")
+    return output_path
 
 
 @report_app.command("bug")

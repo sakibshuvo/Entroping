@@ -24,6 +24,10 @@ entroping config set --agent auditor --model openai/auditor-model
 
 ## Architect
 
+Current alpha implementation supports deterministic `architect build --new` from a local
+OpenAPI file configured at `sources.spec` in `qanstitution.yaml`. Prompt generation,
+remote specs, and `--strategy merge` remain planned.
+
 | Command | Purpose |
 | --- | --- |
 | `entroping architect build --new` | Generate new Hurl tests from configured sources |
@@ -108,7 +112,7 @@ Run artifacts are produced by repeatable `entroping run --report <html|junit|jso
 ```bash
 entroping init
 entroping architect build --new --tag smoke
-entroping run --env local --tag smoke --report html
+entroping run --tag smoke --report json --report junit
 ```
 
 ### Legacy API

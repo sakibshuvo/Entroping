@@ -32,3 +32,4 @@
 - Hurl runner tests should stub the subprocess boundary, not the product behavior. The core proof is the argument array, `shell=False`, timeout conversion, bounded/redacted captured output, and deterministic suite exit code.
 - Reports need two destinations: user-facing artifacts under `reports/` and sanitized latest-run state under `.entroping/` so `report bug` can work without rerunning Hurl.
 - A first-run demo must not depend on future env-file loading. Use literal localhost URLs plus a tiny local server until `--env` grows real variable injection.
+- OpenAPI is an attacker-controlled boundary. Reject control characters in generated metadata/request lines and reject unsupported JSONPath field names instead of emitting malformed or injectable Hurl.
