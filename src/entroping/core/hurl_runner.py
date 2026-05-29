@@ -147,50 +147,55 @@ def run_hurl_file(
     run_options = options or HurlRunOptions()
     hurl_path = validate_hurl_path(path)
     binary_path = _resolve_hurl_binary(run_options.binary)
-    command = (binary_path, *_variable_args(run_options.variables or {}), str(hurl_path))
+    variables_file = _write_variables_file(run_options.variables or {})
+    command = (binary_path, *_variables_file_args(variables_file), str(hurl_path))
 
     start = time.perf_counter()
     status: HurlRunStatus = "error"
     exit_code = 126
     extra_stderr = ""
 
-    with (
-        tempfile.TemporaryFile(mode="w+b") as stdout_file,
-        tempfile.TemporaryFile(mode="w+b") as stderr_file,
-    ):
-        try:
-            # Uses a resolved binary, argument array, timeout, and shell=False.
-            completed = subprocess.run(  # nosec B603
-                list(command),
-                stdout=stdout_file,
-                stderr=stderr_file,
-                timeout=run_options.timeout_seconds,
-                check=False,
-                shell=False,
-            )
-        except subprocess.TimeoutExpired:
-            status = "timeout"
-            exit_code = 124
-        except OSError as exc:
-            status = "error"
-            exit_code = 126
-            extra_stderr = f"Hurl subprocess failed: {exc}"
-        else:
-            exit_code = completed.returncode
-            status = "passed" if completed.returncode == 0 else "failed"
+    try:
+        with (
+            tempfile.TemporaryFile(mode="w+b") as stdout_file,
+            tempfile.TemporaryFile(mode="w+b") as stderr_file,
+        ):
+            try:
+                # Uses a resolved binary, argument array, timeout, and shell=False.
+                completed = subprocess.run(  # nosec B603
+                    list(command),
+                    stdout=stdout_file,
+                    stderr=stderr_file,
+                    timeout=run_options.timeout_seconds,
+                    check=False,
+                    shell=False,
+                )
+            except subprocess.TimeoutExpired:
+                status = "timeout"
+                exit_code = 124
+            except OSError as exc:
+                status = "error"
+                exit_code = 126
+                extra_stderr = f"Hurl subprocess failed: {exc}"
+            else:
+                exit_code = completed.returncode
+                status = "passed" if completed.returncode == 0 else "failed"
 
-        stdout, stdout_truncated = _read_process_output(
-            stdout_file,
-            stream_name="stdout",
-            limit_bytes=run_options.output_limit_bytes,
-            redacted_values=_redaction_values(run_options),
-        )
-        stderr, stderr_truncated = _read_process_output(
-            stderr_file,
-            stream_name="stderr",
-            limit_bytes=run_options.output_limit_bytes,
-            redacted_values=_redaction_values(run_options),
-        )
+            stdout, stdout_truncated = _read_process_output(
+                stdout_file,
+                stream_name="stdout",
+                limit_bytes=run_options.output_limit_bytes,
+                redacted_values=_redaction_values(run_options),
+            )
+            stderr, stderr_truncated = _read_process_output(
+                stderr_file,
+                stream_name="stderr",
+                limit_bytes=run_options.output_limit_bytes,
+                redacted_values=_redaction_values(run_options),
+            )
+    finally:
+        if variables_file is not None:
+            variables_file.unlink(missing_ok=True)
 
     if extra_stderr:
         stderr = f"{stderr}\n{extra_stderr}" if stderr else extra_stderr
@@ -247,11 +252,26 @@ def _resolve_hurl_binary(binary: str) -> str:
     return resolved
 
 
-def _variable_args(variables: Mapping[str, str]) -> tuple[str, ...]:
-    args: list[str] = []
-    for key in sorted(variables):
-        args.extend(["--variable", f"{key}={variables[key]}"])
-    return tuple(args)
+def _variables_file_args(path: Path | None) -> tuple[str, ...]:
+    if path is None:
+        return ()
+    return ("--variables-file", str(path))
+
+
+def _write_variables_file(variables: Mapping[str, str]) -> Path | None:
+    if not variables:
+        return None
+
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        prefix="entroping-hurl-vars-",
+        suffix=".env",
+        delete=False,
+    ) as handle:
+        for key in sorted(variables):
+            handle.write(f"{key}={variables[key]}\n")
+        return Path(handle.name)
 
 
 def _validate_variables(variables: Mapping[str, str]) -> None:

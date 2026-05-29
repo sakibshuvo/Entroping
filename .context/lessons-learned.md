@@ -33,4 +33,5 @@
 - Reports need two destinations: user-facing artifacts under `reports/` and sanitized latest-run state under `.entroping/` so `report bug` can work without rerunning Hurl.
 - A first-run demo must not depend on future env-file loading. Use literal localhost URLs plus a tiny local server until `--env` grows real variable injection.
 - OpenAPI is an attacker-controlled boundary. Reject control characters in generated metadata/request lines and reject unsupported JSONPath field names instead of emitting malformed or injectable Hurl.
-- Env loading should be intentionally narrow: read only `envs/<name>.env`, allow process overrides only for keys declared in that file, pass values to Hurl as argument arrays, and redact loaded values from outputs.
+- Env loading should be intentionally narrow: read only `envs/<name>.env`, allow process overrides only for keys declared in that file, pass values to Hurl through a variables file, and redact loaded values from outputs.
+- Avoid putting env-derived Hurl values directly in subprocess argv. Use Hurl's variables-file path instead, delete the temp file promptly, and keep redaction as a separate defense.

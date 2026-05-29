@@ -316,6 +316,7 @@ def test_run_writes_json_junit_reports_and_latest_state(
         encoding="utf-8",
     )
     executed_args: list[list[str]] = []
+    variables_files: list[Path] = []
 
     def fake_run(
         args: list[str],
@@ -328,6 +329,11 @@ def test_run_writes_json_junit_reports_and_latest_state(
     ) -> subprocess.CompletedProcess[str]:
         _ = (stderr, timeout, check, shell)
         executed_args.append(args)
+        variables_file = Path(args[args.index("--variables-file") + 1])
+        variables_files.append(variables_file)
+        assert variables_file.read_text(encoding="utf-8") == (
+            "base_url=http://localhost:18080\ncart_id=demo-cart-001\n"
+        )
         stdout.write(b"Authorization: Bearer live-secret\nbase_url=http://localhost:18080\n")
         return subprocess.CompletedProcess(args=args, returncode=0)
 
@@ -343,8 +349,9 @@ def test_run_writes_json_junit_reports_and_latest_state(
     assert "reports/run-latest.json" in result.output
     assert "reports/junit.xml" in result.output
     assert executed_args
-    assert "--variable" in executed_args[0]
-    assert "base_url=http://localhost:18080" in executed_args[0]
+    assert "--variables-file" in executed_args[0]
+    assert "base_url=http://localhost:18080" not in " ".join(executed_args[0])
+    assert variables_files and not variables_files[0].exists()
     report_json = json.loads(Path("reports/run-latest.json").read_text(encoding="utf-8"))
     latest_json = json.loads(Path(".entroping/latest-run.json").read_text(encoding="utf-8"))
     junit_root = ElementTree.parse(Path("reports/junit.xml")).getroot()

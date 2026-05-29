@@ -59,7 +59,8 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [JSON/JUnit reports](https://github.com/sakibshuvo/Entroping/issues/5) | Done | Redacted JSON, JUnit XML, latest-run state, `report bug`, and tests | Wire reports into the demo quickstart |
 | [README demo quickstart](https://github.com/sakibshuvo/Entroping/issues/6) | Done | Local checkout demo server, literal Hurl fixture, README quickstart, fixture docs, and tests | Keep quickstart aligned with runner/report changes |
 | [OpenAPI Architect build](https://github.com/sakibshuvo/Entroping/issues/11) | Done | Deterministic local `sources.spec` to `tests/generated/*.hurl` generation | Use `--env` to run generated variable-based tests |
-| [Environment file loading](https://github.com/sakibshuvo/Entroping/issues/13) | Current | `run --env` loads `envs/<name>.env` and passes variables to Hurl | Merge after regression/security gate and CI |
+| [Environment file loading](https://github.com/sakibshuvo/Entroping/issues/13) | Done | `run --env` loads `envs/<name>.env` and passes variables to Hurl | Keep variable passing hardened |
+| [Hurl variable argv hardening](https://github.com/sakibshuvo/Entroping/issues/15) | Current | Hurl variables are passed through a temp `--variables-file` instead of secret-bearing argv | Merge after regression/security gate and CI |
 
 ## Later Roadmap
 
