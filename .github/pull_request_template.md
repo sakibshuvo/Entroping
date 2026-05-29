@@ -23,6 +23,7 @@ Coverage gaps:
 ## Verification
 
 - [ ] `scripts/feature_gate.sh`
+- [ ] `scripts/regression.sh`
 - [ ] `scripts/feature_gate.sh --security` for dependency, subprocess, LLM, proxy, report, or filesystem-sensitive work.
 - [ ] `git diff --check`
 - [ ] `git diff --cached --check`
@@ -67,6 +68,7 @@ Reviewer notes:
 
 - [ ] User docs updated if behavior or commands changed.
 - [ ] Technical docs updated if architecture, schemas, boundaries, or gates changed.
+- [ ] `docs/meta/PROJECT_PROGRESS.md` updated for meaningful feature, bug, or roadmap changes.
 - [ ] `.context/changelog.md` updated for meaningful changes.
 - [ ] `.context/lessons-learned.md` updated for durable pitfalls or decisions.
 - [ ] ADR added or updated if the decision should survive future context resets.

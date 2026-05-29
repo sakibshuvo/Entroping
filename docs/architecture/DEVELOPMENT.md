@@ -46,12 +46,21 @@ For the underlying fast scaffold gate, run:
 scripts/check.sh
 ```
 
+## Regression Suite
+
+```bash
+scripts/regression.sh
+```
+
+The regression suite runs the feature gate plus CLI smoke checks. CI uses this command as the default proof that existing behavior still works.
+
 ## Security Checks
 
 For dependency or security-sensitive work, also run:
 
 ```bash
 scripts/feature_gate.sh --security
+scripts/regression.sh --security
 ```
 
 The all-extras audit matters because future runtime surfaces such as `watch` use optional dependencies.

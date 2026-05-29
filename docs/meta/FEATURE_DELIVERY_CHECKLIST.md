@@ -17,6 +17,7 @@ Use this checklist for every non-trivial Entroping feature. It is the executable
 ## 0. Feature Intake
 
 - [ ] Pick exactly one feature or defect from `docs/product/MVP_PLAN.md`, an issue, or a dedicated spec.
+- [ ] Create or link the GitHub issue that tracks this feature, bug, or regression.
 - [ ] Write the feature outcome in one sentence.
 - [ ] Identify the user-visible command, file, or behavior that will prove the feature works.
 - [ ] List the source-of-truth files read for this task.
@@ -68,10 +69,17 @@ Use this checklist for every non-trivial Entroping feature. It is the executable
 scripts/feature_gate.sh
 ```
 
+- [ ] Run the regression suite:
+
+```bash
+scripts/regression.sh
+```
+
 - [ ] For dependency, subprocess, LLM, proxy, report, or filesystem-sensitive work, run:
 
 ```bash
 scripts/feature_gate.sh --security
+scripts/regression.sh --security
 ```
 
 - [ ] For docs-only changes, still run at least:
@@ -101,6 +109,7 @@ scripts/check.sh
 
 ## 8. Documentation And Context Preservation
 
+- [ ] Update `docs/meta/PROJECT_PROGRESS.md` after meaningful feature, bug, or roadmap changes.
 - [ ] Update user-facing docs when behavior or commands change.
 - [ ] Update technical docs when architecture, schemas, boundaries, or gates change.
 - [ ] Update `.context/changelog.md` for meaningful changes.
@@ -122,7 +131,8 @@ scripts/check.sh
 ```text
 No local file evidence -> no architecture claim.
 No failing or targeted test -> no feature implementation start unless explicitly documented.
-No deterministic checks -> no commit.
+No issue or explicit task source -> no feature branch.
+No regression suite -> no commit.
 No security pass for sensitive boundaries -> no merge.
 No context update -> no durable memory.
 No parent integrator approval -> no multi-agent patch lands.

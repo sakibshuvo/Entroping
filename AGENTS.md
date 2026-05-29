@@ -40,9 +40,11 @@ These instructions extend the global Codex rules for this repository. If a rule 
 ## Documentation and Context
 
 - Keep `README.md`, `00_INDEX.md`, `.context/`, and `docs/product/MVP_PLAN.md` aligned with the current implementation milestone.
+- Keep `docs/meta/PROJECT_PROGRESS.md` current after meaningful feature, bug, or roadmap changes.
 - Add or update an ADR when a product or architecture decision should survive context resets.
 - Use `.context/plan.md` for the active implementation plan, `.context/changelog.md` for concise changes, and `.context/lessons-learned.md` for durable pitfalls and decisions.
 - Keep Obsidian/Graphify generated state out of Git unless it is intentionally curated Markdown.
+- Use GitHub Issues as the canonical tracker for individual bugs, feature slices, and regressions.
 
 ## Autonomous Development Workflow
 
@@ -56,6 +58,7 @@ These instructions extend the global Codex rules for this repository. If a rule 
 ## Verification
 
 - For normal work, run `scripts/feature_gate.sh`.
+- For regression proof, run `scripts/regression.sh`.
 - For security-sensitive or dependency work, run `scripts/feature_gate.sh --security`.
 - For docs-only changes, `scripts/check.sh` is acceptable when no source, dependency, subprocess, or runtime boundary changed.
 - Review `git diff` before staging or committing.

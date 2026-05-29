@@ -42,6 +42,9 @@ Use this as the home note for the Entroping vault.
 - [[docs/meta/CONTEXT_MANAGEMENT|CONTEXT_MANAGEMENT]] - how Codex, Obsidian, `.context`, and Graphify fit together.
 - [[docs/meta/AUTONOMOUS_DEVELOPMENT|AUTONOMOUS_DEVELOPMENT]] - Codex-first autonomous workflow and future OpenCode/oMLX plan.
 - [[docs/meta/FEATURE_DELIVERY_CHECKLIST|FEATURE_DELIVERY_CHECKLIST]] - executable checklist for TDD, gates, reviews, docs, and commits.
+- [[docs/meta/PROJECT_PROGRESS|PROJECT_PROGRESS]] - simple dashboard for current phase, alpha target, and roadmap status.
+- [[docs/meta/ISSUE_TRACKING|ISSUE_TRACKING]] - GitHub issue tracking rules for bugs, features, and regressions.
+- [[docs/meta/TEST_STRATEGY|TEST_STRATEGY]] - regression suite and test-pyramid policy.
 - `AGENTS.md` - project-local Codex implementation rules.
 - `.context/plan.md` - current implementation milestone and handoff context.
 - [[examples/checkout-api/README|Checkout API demo fixture]] - minimal example for first-time users.
@@ -63,6 +66,7 @@ When the product changes:
 
 1. Update the affected canonical doc.
 2. Add or update an ADR if the reason matters later.
-3. Update [[docs/evolution/EVOLUTION_TIMELINE|EVOLUTION_TIMELINE]] with a short dated note.
-4. Update `.context/changelog.md` for handoff continuity.
-5. Update `AGENTS.md` if implementation rules changed.
+3. Update [[docs/meta/PROJECT_PROGRESS|PROJECT_PROGRESS]] for phase-level progress.
+4. Update [[docs/evolution/EVOLUTION_TIMELINE|EVOLUTION_TIMELINE]] with a short dated note when the product story changes.
+5. Update `.context/changelog.md` for handoff continuity.
+6. Update `AGENTS.md` if implementation rules changed.

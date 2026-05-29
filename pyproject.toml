@@ -40,6 +40,14 @@ select = ["B", "E", "F", "I", "SIM", "UP"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+  "unit: pure domain, schema, and bridge logic tests",
+  "adapter: CLI, filesystem, subprocess, YAML, report, proxy, and LLM boundary tests",
+  "integration: cross-subsystem tests",
+  "smoke: installed CLI and command-surface smoke checks",
+  "regression: tests added for fixed bugs or fragile behavior",
+  "security: security-sensitive negative tests",
+]
 
 [tool.mypy]
 python_version = "3.12"

@@ -1,0 +1,81 @@
+name: Bug report
+description: Track a reproducible defect in Entroping.
+title: "[Bug]: "
+labels:
+  - type:bug
+  - status:needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Bugs must become regression tests when the behavior can be reproduced deterministically.
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Include commands, fixture paths, inputs, and relevant output.
+      placeholder: |
+        1. Run ...
+        2. Open ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - cli
+        - qanstitution
+        - hurl-runner
+        - reports
+        - brain
+        - eye
+        - docs
+        - tests
+        - unknown
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - p0 - blocks release or corrupts user data
+        - p1 - breaks core deterministic loop
+        - p2 - important but has workaround
+        - p3 - polish or minor confusion
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Paste relevant logs, screenshots, command output, or file references. Do not include secrets.
+    validations:
+      required: false
+  - type: checkboxes
+    id: regression
+    attributes:
+      label: Fix expectations
+      options:
+        - label: A failing regression test should be added before the fix, unless explicitly documented as impractical.
+          required: true
+        - label: "The fix should pass `scripts/regression.sh`."
+          required: true
+        - label: "Security-sensitive fixes should pass `scripts/feature_gate.sh --security`."
+          required: true

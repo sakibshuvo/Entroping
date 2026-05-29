@@ -34,8 +34,11 @@ Recommended first settings:
 ## Daily Editing Workflow
 
 - Use [[00_INDEX]] as the map.
+- Use [[docs/meta/PROJECT_PROGRESS|PROJECT_PROGRESS]] as the simple current-state dashboard.
 - Use [[docs/meta/GLOSSARY|GLOSSARY]] when product terms feel unfamiliar.
 - Use [[docs/meta/CONTEXT_MANAGEMENT|CONTEXT_MANAGEMENT]] before starting a new Codex thread.
+- Use [[docs/meta/ISSUE_TRACKING|ISSUE_TRACKING]] to understand what belongs in GitHub Issues versus Obsidian.
+- Use [[docs/meta/TEST_STRATEGY|TEST_STRATEGY]] to understand regression and test-pyramid expectations.
 - Use ADRs for product decisions that should survive context resets.
 - Use `.context/changelog.md` for short operational notes.
 - Keep source files in `/Users/sakibshuvo/projects/entroping-specs`; this vault links to them but does not replace them.
@@ -56,3 +59,13 @@ graphify /Users/sakibshuvo/projects/Entroping
 Keep generated output under `graphify-out/`, which is ignored by Git.
 
 Do not treat Graphify output as canonical. Promote useful findings back into curated Markdown docs, ADRs, or `.context/` notes.
+
+## Systematic Updates
+
+Update Obsidian-facing Markdown when the project state changes:
+
+- `docs/meta/PROJECT_PROGRESS.md` for phase-level progress.
+- `docs/product/MVP_PLAN.md` for roadmap or scope changes.
+- ADRs for durable product or architecture decisions.
+- `.context/changelog.md` for meaningful implementation changes.
+- `.context/lessons-learned.md` for durable pitfalls, not every small bug.

@@ -21,3 +21,4 @@
 - Graphify should remain optional generated context. Keep `graphify-out/` ignored, and treat curated Markdown, ADRs, and `.context/` as the durable source of truth.
 - The autonomous workflow should stay Codex-first until OpenCode and local Qwen/oMLX have proven reliable on bounded read-only or review tasks. Cheap agents can draft and critique, but verified commits remain the product boundary.
 - A multi-agent workflow needs executable gates, not only principles. Keep one parent integrator, require local file evidence for claims, run deterministic checks before commit, and update context files so future threads inherit the decision trail.
+- GitHub Issues should track individual bugs, feature slices, and regressions; Obsidian should track phase-level progress, roadmap movement, ADRs, and durable lessons. Duplicating every issue into Markdown creates stale context.

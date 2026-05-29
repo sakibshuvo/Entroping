@@ -1,0 +1,46 @@
+name: Regression report
+description: Track behavior that used to work and is now broken.
+title: "[Regression]: "
+labels:
+  - type:regression
+  - status:needs-triage
+body:
+  - type: textarea
+    id: last_good
+    attributes:
+      label: Last known good state
+      description: Commit, date, release, or command output where this behavior worked.
+    validations:
+      required: true
+  - type: textarea
+    id: broken
+    attributes:
+      label: Current broken state
+      description: What is broken now?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction command or flow
+      description: Include exact commands and fixture paths.
+    validations:
+      required: true
+  - type: textarea
+    id: expected_test
+    attributes:
+      label: Regression test to add
+      description: Describe the failing test that should be added before the fix.
+    validations:
+      required: true
+  - type: checkboxes
+    id: gates
+    attributes:
+      label: Fix gates
+      options:
+        - label: A regression test is added before or with the fix.
+          required: true
+        - label: "`scripts/regression.sh` passes."
+          required: true
+        - label: The cause is added to `.context/lessons-learned.md` if it is durable.
+          required: true

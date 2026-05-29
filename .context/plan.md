@@ -26,6 +26,7 @@ The repo should remain usable as an Obsidian vault and as a Codex workspace with
 - Project-local `AGENTS.md` now captures repository-specific implementation rules.
 - `docs/meta/AUTONOMOUS_DEVELOPMENT.md` defines the Codex-first loop, Spec Kit pilot path, and future OpenCode/oMLX worker plan.
 - `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, `.github/pull_request_template.md`, and `scripts/feature_gate.sh` define the executable delivery gates for feature work.
+- `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, and `scripts/regression.sh` define issue tracking, regression coverage, and simple phase-level progress tracking.
 
 ## Next Milestone: Deterministic Core
 
@@ -62,6 +63,9 @@ At the start of a new Codex thread, read:
 6. `docs/technical/TDS.md`
 7. `docs/meta/AUTONOMOUS_DEVELOPMENT.md`
 8. `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`
+9. `docs/meta/PROJECT_PROGRESS.md`
+10. `docs/meta/ISSUE_TRACKING.md`
+11. `docs/meta/TEST_STRATEGY.md`
 
 For product history, open Obsidian and start with `00_INDEX.md`.
 
@@ -74,3 +78,4 @@ For product history, open Obsidian and start with `00_INDEX.md`.
 - Keep generated state, reports, local env files, and Graphify output out of Git.
 - Treat security and quality checks as release gates.
 - Use the feature delivery checklist for TDD, regression, architecture, security, multi-agent, documentation, and commit-readiness gates.
+- Use GitHub Issues for individual work items and `docs/meta/PROJECT_PROGRESS.md` for simple Obsidian progress tracking.

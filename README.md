@@ -71,6 +71,9 @@ Important docs:
 - [TDS.md](docs/technical/TDS.md) - technical design.
 - [COMMAND_CHEAT_SHEET.md](docs/technical/COMMAND_CHEAT_SHEET.md) - locked CLI namespace.
 - [MVP_PLAN.md](docs/product/MVP_PLAN.md) - implementation sequence.
+- [PROJECT_PROGRESS.md](docs/meta/PROJECT_PROGRESS.md) - current alpha progress dashboard.
+- [ISSUE_TRACKING.md](docs/meta/ISSUE_TRACKING.md) - bug, feature, and regression tracking workflow.
+- [TEST_STRATEGY.md](docs/meta/TEST_STRATEGY.md) - test pyramid and regression suite.
 - [GLOSSARY.md](docs/meta/GLOSSARY.md) - plain-language terminology guide.
 - [EVOLUTION_TIMELINE.md](docs/evolution/EVOLUTION_TIMELINE.md) - product history.
 - [ADR-0001](decisions/ADR-0001-hurl-native-governance.md) - first architectural decision.
@@ -93,7 +96,14 @@ uv sync --dev
 Run checks:
 
 ```bash
-scripts/check.sh
+scripts/regression.sh
+```
+
+For security-sensitive or dependency work:
+
+```bash
+scripts/feature_gate.sh --security
+scripts/regression.sh --security
 ```
 
 Try the scaffolded CLI:

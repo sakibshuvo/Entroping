@@ -25,5 +25,5 @@ jobs:
       - name: Install dependencies
         run: uv sync --dev
 
-      - name: Run checks
-        run: scripts/check.sh
+      - name: Run regression suite
+        run: scripts/regression.sh

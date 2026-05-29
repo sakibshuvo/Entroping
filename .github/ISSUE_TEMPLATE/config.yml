@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/sakibshuvo/Entroping/security/advisories/new
+    about: Report sensitive security issues through a private security advisory instead of a public issue.

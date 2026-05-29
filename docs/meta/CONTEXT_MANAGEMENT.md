@@ -27,6 +27,9 @@ Use these files in this order:
 8. `docs/technical/TDS.md` - architecture details.
 9. `docs/meta/AUTONOMOUS_DEVELOPMENT.md` - agent workflow and automation rules.
 10. `docs/meta/FEATURE_DELIVERY_CHECKLIST.md` - per-feature execution checklist.
+11. `docs/meta/PROJECT_PROGRESS.md` - simple phase-level dashboard.
+12. `docs/meta/ISSUE_TRACKING.md` - GitHub issue tracking rules.
+13. `docs/meta/TEST_STRATEGY.md` - test pyramid and regression rules.
 
 ## New Codex Thread Prompt
 
@@ -34,9 +37,9 @@ Use this when starting a fresh thread:
 
 ```text
 Work in /Users/sakibshuvo/projects/Entroping.
-Read AGENTS.md, README.md, 00_INDEX.md, .context/plan.md, docs/product/MVP_PLAN.md, and docs/technical/TDS.md first.
+Read AGENTS.md, README.md, 00_INDEX.md, .context/plan.md, docs/product/MVP_PLAN.md, docs/technical/TDS.md, and docs/meta/PROJECT_PROGRESS.md first.
 Preserve the locked v4.1 command surface and implement only the next narrow milestone.
-Follow docs/meta/AUTONOMOUS_DEVELOPMENT.md and docs/meta/FEATURE_DELIVERY_CHECKLIST.md for the Codex-first workflow, TDD expectations, verification gates, multi-agent guardrails, and context updates.
+Follow docs/meta/AUTONOMOUS_DEVELOPMENT.md, docs/meta/FEATURE_DELIVERY_CHECKLIST.md, docs/meta/ISSUE_TRACKING.md, and docs/meta/TEST_STRATEGY.md for the Codex-first workflow, TDD expectations, regression gates, multi-agent guardrails, issue tracking, and context updates.
 ```
 
 ## Obsidian Role

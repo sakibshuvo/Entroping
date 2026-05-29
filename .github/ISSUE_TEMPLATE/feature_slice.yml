@@ -1,0 +1,60 @@
+name: Feature slice
+description: Track one narrow implementation slice.
+title: "[Feature]: "
+labels:
+  - type:feature
+  - status:needs-triage
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: State the feature outcome in one sentence.
+      placeholder: entroping init creates a minimal qanstitution.yaml and safe project skeleton.
+    validations:
+      required: true
+  - type: textarea
+    id: proof
+    attributes:
+      label: Proof of completion
+      description: What command, test, report, or user-visible behavior proves this is done?
+      placeholder: uv run entroping init --minimal creates ...
+    validations:
+      required: true
+  - type: dropdown
+    id: mvp_phase
+    attributes:
+      label: MVP phase
+      options:
+        - Phase 1 - QAnstitution and Doctor
+        - Phase 2 - Hurl Runner and Gate Injection
+        - Phase 3 - Reports and CI
+        - Phase 4 - Architect Minimal
+        - Phase 5 - OpenAPI Build
+        - Phase 6A - Eye Capture Spike
+        - Phase 6B - Freeze and Dependency Map
+        - Phase 7 - Studio
+        - Docs or repo hygiene
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Source of truth
+      description: Link the spec, ADR, checklist item, or doc section this slice implements.
+      placeholder: docs/product/MVP_PLAN.md#phase-1-qanstitution-and-doctor
+    validations:
+      required: true
+  - type: checkboxes
+    id: gates
+    attributes:
+      label: Required gates
+      options:
+        - label: TDD is used where the behavior can be tested before implementation.
+          required: true
+        - label: "`docs/meta/FEATURE_DELIVERY_CHECKLIST.md` is followed."
+          required: true
+        - label: "`scripts/regression.sh` passes before commit."
+          required: true
+        - label: "Docs, `.context/changelog.md`, and `.context/lessons-learned.md` are updated when required."
+          required: true
