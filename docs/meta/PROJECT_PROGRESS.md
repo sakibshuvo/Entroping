@@ -64,7 +64,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Environment file loading](https://github.com/sakibshuvo/Entroping/issues/13) | Done | `run --env` loads `envs/<name>.env` and passes variables to Hurl | Keep variable passing hardened |
 | [Hurl variable argv hardening](https://github.com/sakibshuvo/Entroping/issues/15) | Done | Hurl variables are passed through a temp `--variables-file` instead of secret-bearing argv | Keep env handling redacted |
 | [HTML run reports](https://github.com/sakibshuvo/Entroping/issues/17) | Done | `run --report html` writes escaped human-readable reports | Use in demo and CI proof |
-| [Live Hurl demo smoke in CI](https://github.com/sakibshuvo/Entroping/issues/19) | Current | Queue item ready; real Hurl CI proof pending | Install/provision Hurl, run demo server, generate tests, run reports |
+| [Live Hurl demo smoke in CI](https://github.com/sakibshuvo/Entroping/issues/19) | Current | Live smoke script and GitHub Actions job added | Merge after regression/security gate and CI |
 
 ## Later Roadmap
 
