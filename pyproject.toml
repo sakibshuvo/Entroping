@@ -15,7 +15,7 @@ entroping = "entroping.cli.main:app"
 
 [project.optional-dependencies]
 ai = ["litellm>=1.70"]
-proxy = ["mitmproxy>=11.0"]
+proxy = ["mitmproxy>=12.2.3"]
 state = ["sqlmodel>=0.0.22"]
 studio = ["textual>=0.85"]
 
@@ -46,4 +46,3 @@ python_version = "3.12"
 strict = true
 disallow_untyped_decorators = false
 warn_unused_ignores = true
-

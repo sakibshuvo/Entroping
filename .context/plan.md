@@ -1,57 +1,71 @@
-# Entroping Documentation Plan
+# Entroping Implementation Plan
 
 **Date:** 2026-05-29  
-**Status:** Documentation synthesis in progress
+**Status:** Active implementation scaffold and launch-prep track
 
 ## Objective
 
-Create a consolidated Entroping v4.1 documentation set from the Gemini evolution conversation, older local specs, the slide deck, and the latest v4.1 notes.
+Turn the current Entroping knowledge base into a credible open-source alpha by building the smallest deterministic governance loop first:
 
-## Source Decisions
+```text
+init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp files -> run Hurl -> emit reports
+```
 
-- Treat v4.1 as Hurl-native.
-- Treat `qanstitution.yaml` as executable governance law.
-- Treat `watch`, `freeze`, and `map` as restored v4.1 Eye lifecycle commands.
-- Treat Bruno as historical/future context, not an MVP source format.
-- Keep the command namespace frozen to the set documented in `COMMAND_CHEAT_SHEET.md`.
+The repo should remain usable as an Obsidian vault and as a Codex workspace with fast context rehydration.
 
-## Work Items
+## Current Baseline
 
-- Expanded product specification.
-- Expanded technical design specification.
-- Expanded user guide.
-- Marketing and positioning note.
-- Codex implementation prompt.
-- Requirements and evolution analysis.
-- QAnstitution reference.
-- Command cheat sheet.
-- User flows.
-- Use cases.
-- Mermaid and PlantUML diagrams.
-- MVP implementation plan.
-- Multi-pass creator intent audit.
-- Brain provider strategy.
+- Product, technical, user, architecture, and evolution docs are organized under `docs/`.
+- Root `README.md` and `00_INDEX.md` are the main public and vault entry points.
+- Python package scaffold exists under `src/entroping/`.
+- CLI command surface is locked to v4.1.
+- Pydantic QAnstitution models and typed condition parsing are in place.
+- Bridge compiler boundary modules exist but are mostly placeholders.
+- CI runs `scripts/check.sh`.
+- Security scan completed on 2026-05-29 and found one low-severity optional proxy dependency issue; the proxy dependency floor was raised to `mitmproxy>=12.2.3`, vulnerable transitives were refreshed, and the all-extras audit is now clean.
+- Project-local `AGENTS.md` now captures repository-specific implementation rules.
 
-## Second-Pass Corrections
+## Next Milestone: Deterministic Core
 
-- Added local-first model/provider requirements from the Gemini UX discussion.
-- Added source-grounding rules so AI generation cannot silently invent endpoints.
-- Clarified that `run` is deterministic and does not call the LLM.
-- Added traffic filtering, session stitching, state retention, and AI edit audit concepts.
-- Added external business truth handling for Jira/Notion-style systems.
-- Resolved `report --type` as non-primary in favor of `run --report` and `report bug`.
+Implement only the deterministic path before adding AI, proxy capture, or Studio:
 
-## Hard-Review Corrections
+1. Make `entroping init` create a minimal `qanstitution.yaml` and safe project skeleton.
+2. Make `entroping doctor` validate local config, Hurl availability, and optional tools without network calls.
+3. Add QAnstitution file loading and local import handling.
+4. Implement Hurl test discovery and metadata parsing.
+5. Implement QAnstitution gate matching and gate-to-Hurl assertion compilation.
+6. Implement Hurl subprocess execution with timeout, bounded output, cleanup, and redaction.
+7. Emit JSON and JUnit reports.
+8. Wire the checkout demo into README quickstart.
 
-- Hurl metadata is now specified as Entroping-readable comments, not custom `[Options]` keys.
-- Generated Hurl validation now uses parser-backed validation language instead of the earlier nonexistent validation command.
-- `run --report` is explicitly repeatable anywhere multiple artifact examples are shown.
-- Agent orchestration is a small typed router for MVP; external orchestration frameworks are later optional dependencies.
-- Diagram aliases now avoid duplicate PlantUML object names.
+## Explicitly Deferred
+
+- LiteLLM Architect implementation.
+- OpenAPI-to-Hurl generation.
+- mitmproxy `watch`, `freeze`, and `map`.
+- Studio TUI.
+- Nuitka packaging.
+- Hosted/cloud features.
+- Graphify-generated artifacts in Git.
+
+## Working Context Loop
+
+At the start of a new Codex thread, read:
+
+1. `AGENTS.md`
+2. `README.md`
+3. `00_INDEX.md`
+4. `.context/plan.md`
+5. `docs/product/MVP_PLAN.md`
+6. `docs/technical/TDS.md`
+
+For product history, open Obsidian and start with `00_INDEX.md`.
 
 ## Constraints
 
-- No implementation code in this pass.
-- No invented v4.1 commands.
-- Keep security, reliability, maintainability, and architectural consistency as release gates.
-- Preserve local-first and Git-native product direction.
+- Preserve the locked command namespace.
+- Keep `entroping run` deterministic and LLM-free.
+- Keep Hurl as the only API execution engine.
+- Do not send secrets or raw traffic to LLM providers.
+- Keep generated state, reports, local env files, and Graphify output out of Git.
+- Treat security and quality checks as release gates.

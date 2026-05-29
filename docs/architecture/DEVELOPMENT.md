@@ -35,6 +35,18 @@ The check script runs:
 2. `uv run mypy src tests`
 3. `uv run pytest`
 
+## Security Checks
+
+For dependency or security-sensitive work, also run:
+
+```bash
+uvx bandit -q -r src
+uv run --with pip-audit pip-audit --local --progress-spinner off
+uv run --all-extras --with pip-audit pip-audit --progress-spinner off
+```
+
+The all-extras audit matters because future runtime surfaces such as `watch` use optional dependencies.
+
 ## CLI Smoke Test
 
 ```bash

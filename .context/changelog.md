@@ -19,3 +19,8 @@
 - Reworked `README.md` as a GitHub-facing project overview with product pitch, status, quick start, architecture diagrams, repo map, and security rules.
 - Organized Markdown docs under `docs/product`, `docs/technical`, `docs/user`, `docs/evolution`, `docs/architecture`, and `docs/meta` while preserving root `README.md` and `00_INDEX.md`.
 - Added a glossary, checkout API demo fixture, explicit bridge compiler boundaries, and initial typed condition DSL validation in response to external architecture review.
+- Ran a repository-wide Codex Security scan. Current executable scaffold had no high or critical findings; the only reportable issue was a low-severity vulnerable optional proxy dependency tree.
+- Raised the optional proxy dependency floor to `mitmproxy>=12.2.3`, refreshed vulnerable transitive packages, and verified the all-extras dependency audit is clean.
+- Added project-local `AGENTS.md` so future Codex threads can rehydrate Entroping-specific architecture, runtime, AI, traffic, documentation, and verification rules quickly.
+- Refreshed `.context/plan.md` from historical documentation synthesis into the active deterministic-core implementation plan.
+- Added `docs/meta/CONTEXT_MANAGEMENT.md` to explain how Codex, Obsidian, `.context`, and optional Graphify output fit together.

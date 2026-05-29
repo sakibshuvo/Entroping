@@ -48,3 +48,8 @@ The Markdown docs became an Obsidian vault so product evolution, decisions, sour
 
 Links: [[00_INDEX]], [[docs/meta/OBSIDIAN_START_HERE|OBSIDIAN_START_HERE]], [[sources/SOURCE_MAP]]
 
+## Phase 7 - Implementation Scaffold and Security Baseline
+
+The repo became a working Python scaffold with CI, typed QAnstitution models, condition validation, bridge boundaries, a checkout demo fixture, project-local Codex rules, and a first security scan. The next product step is the deterministic governance loop rather than more documentation expansion.
+
+Links: [[docs/product/MVP_PLAN|MVP_PLAN]], [[docs/architecture/DEVELOPMENT|DEVELOPMENT]]

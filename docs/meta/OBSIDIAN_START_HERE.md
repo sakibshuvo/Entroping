@@ -35,9 +35,11 @@ Recommended first settings:
 
 - Use [[00_INDEX]] as the map.
 - Use [[docs/meta/GLOSSARY|GLOSSARY]] when product terms feel unfamiliar.
+- Use [[docs/meta/CONTEXT_MANAGEMENT|CONTEXT_MANAGEMENT]] before starting a new Codex thread.
 - Use ADRs for product decisions that should survive context resets.
 - Use `.context/changelog.md` for short operational notes.
 - Keep source files in `/Users/sakibshuvo/projects/entroping-specs`; this vault links to them but does not replace them.
+- Keep project-agent rules in `AGENTS.md`; new Codex threads should read it before implementation.
 
 ## Graphify Later
 
@@ -52,3 +54,5 @@ graphify /Users/sakibshuvo/projects/Entroping
 ```
 
 Keep generated output under `graphify-out/`, which is ignored by Git.
+
+Do not treat Graphify output as canonical. Promote useful findings back into curated Markdown docs, ADRs, or `.context/` notes.

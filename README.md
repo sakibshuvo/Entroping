@@ -175,6 +175,7 @@ examples/              Minimal fixtures for onboarding and future tests
 decisions/             ADRs for durable product decisions
 sources/               Source-material map
 .context/              Working context, changelog, lessons learned
+AGENTS.md              Project-local Codex implementation rules
 .obsidian/             Minimal vault configuration
 ```
 
@@ -185,6 +186,11 @@ sources/               Source-material map
 - Use Hurl as the execution boundary; do not replace API execution with Python HTTP clients.
 - Keep `entroping run` deterministic and LLM-free.
 - Treat generated tests as code that must be reviewed.
+- Audit optional extras before release:
+
+```bash
+uv run --all-extras --with pip-audit pip-audit --progress-spinner off
+```
 
 ## License
 
