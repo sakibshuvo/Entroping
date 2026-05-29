@@ -172,6 +172,7 @@ uv run --project ../.. entroping architect build --new --tag smoke
 cp envs/local.env.example envs/local.env
 uv run --project ../.. entroping run --env local --tag smoke --report html --report json --report junit
 ls tests/generated
+uv run --project ../.. entroping architect audit --output md
 ```
 
 Current generation is deterministic and local-file only. It reads `sources.spec` from
@@ -196,7 +197,7 @@ entroping config set --agent <builder|auditor|breaker> --model <model-id>
 
 entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>]
 entroping architect refactor --target <glob> --prompt <text>
-entroping architect audit [--focus <logic|security|perf>] [--output <json|md>]
+entroping architect audit [--focus logic] [--output <json|md>]
 
 entroping watch [--port <port>] [--target <url>]
 entroping freeze --name <flow> [--golden] [--mock <service>]
@@ -211,7 +212,8 @@ Deprecated names such as `gen`, `fix`, `scan`, `chaos`, and `report --type` are 
 
 Current implementation supports `init`, `doctor`, deterministic `architect build --new`
 from local OpenAPI files with common parameters and schema examples, `run --env`,
-deterministic `run`, JSON/JUnit run reports, HTML run reports, and `report bug`.
+deterministic `architect audit` for OpenAPI coverage, deterministic `run`,
+JSON/JUnit run reports, HTML run reports, and `report bug`.
 
 ## Architecture
 

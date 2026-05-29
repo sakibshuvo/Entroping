@@ -1,5 +1,6 @@
 """Command-line entrypoint for the Entroping scaffold."""
 
+import json
 import sys
 import tempfile
 from pathlib import Path
@@ -10,6 +11,11 @@ import typer
 from rich.console import Console
 
 from entroping import __version__
+from entroping.bridge.openapi_audit import (
+    audit_openapi_coverage,
+    audit_report_to_dict,
+    render_audit_markdown,
+)
 from entroping.bridge.openapi_to_hurl import (
     GeneratedHurlFile,
     OpenApiCompilationError,
@@ -220,13 +226,37 @@ def architect_refactor(
 
 @architect_app.command("audit")
 def architect_audit(
-    focus: Annotated[str | None, typer.Option("--focus", help="logic, security, or perf.")] = None,
+    focus: Annotated[
+        str | None,
+        typer.Option("--focus", help="Audit focus. Currently: logic."),
+    ] = None,
     output: Annotated[str | None, typer.Option("--output", help="json or md.")] = None,
 ) -> None:
     """Audit test quality and governance gaps."""
 
-    _ = (focus, output)
-    _not_implemented("architect audit")
+    try:
+        audit_focus = _normalize_architect_audit_focus(focus)
+        audit_output = _normalize_architect_audit_output(output)
+        law = load_qanstitution(Path("qanstitution.yaml"))
+        if law.sources is None or law.sources.spec is None or not law.sources.spec.strip():
+            msg = "sources.spec is required for architect audit"
+            raise ValueError(msg)
+        document = load_openapi_document(_configured_spec_reference(law.sources.spec))
+        hurl_tests = discover_hurl_tests() if Path("tests").exists() else []
+        report = audit_openapi_coverage(document, hurl_tests)
+    except (QanstitutionLoadError, OpenApiLoadError, OpenApiCompilationError, ValueError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+
+    _ = audit_focus
+    if audit_output == "json":
+        sys.stdout.write(json.dumps(audit_report_to_dict(report), indent=2, sort_keys=True))
+        sys.stdout.write("\n")
+    else:
+        sys.stdout.write(render_audit_markdown(report))
+        sys.stdout.write("\n")
+
+    raise typer.Exit(0 if report.passed else 1)
 
 
 @app.command()
@@ -411,6 +441,26 @@ def _normalize_report_formats(report: list[str] | None) -> tuple[str, ...]:
         if report_format not in normalized:
             normalized.append(report_format)
     return tuple(normalized)
+
+
+def _normalize_architect_audit_focus(focus: str | None) -> str:
+    if focus is None:
+        return "logic"
+    normalized = focus.strip().lower()
+    if normalized != "logic":
+        msg = f"Unsupported architect audit focus {focus!r}; supported focus: logic"
+        raise ValueError(msg)
+    return normalized
+
+
+def _normalize_architect_audit_output(output: str | None) -> str:
+    if output is None:
+        return "md"
+    normalized = output.strip().lower()
+    if normalized not in {"json", "md"}:
+        msg = f"Unsupported architect audit output {output!r}; supported outputs: json, md"
+        raise ValueError(msg)
+    return normalized
 
 
 def _configured_spec_reference(spec: str) -> str | Path:

@@ -44,3 +44,4 @@
 - Closed the completed alpha, Architect, runner-usability, and reporting milestones; queued issue #19 as the next live CI proof slice.
 - Implemented issue #19's live demo smoke script and GitHub Actions job with pinned Hurl, checksum verification, demo server startup, OpenAPI generation, env loading, real Hurl execution, and report artifact upload.
 - Implemented issue #23's OpenAPI depth slice with deterministic path/query/header/cookie parameter rendering, schema example/default/const/enum request-body generation, parameter validation, review-driven Hurl template/non-finite/collision hardening, and a parameterized checkout demo endpoint.
+- Implemented issue #25's Architect minimal slice with deterministic OpenAPI coverage audit, Markdown/JSON output, CLI pass/fail behavior, and review-driven hardening for executable Hurl coverage and Markdown validity.

@@ -39,3 +39,4 @@
 - Live demo proof belongs in a separate CI job after fast checks. Pin external CLIs, verify checksums, keep generated artifacts out of Git, and upload reports as CI artifacts instead.
 - OpenAPI parameters should compile through explicit rendering rules, not string concatenation. Use Hurl variables as the fallback, URL-encode literal path/query/cookie values, validate header/cookie names as HTTP tokens, and keep examples/defaults source-grounded.
 - OpenAPI examples and defaults can become active Hurl syntax if emitted blindly. Reject Hurl template delimiters in literal source values and reject non-finite numbers before rendering generated `.hurl` files.
+- Rich console rendering can hard-wrap JSON and corrupt machine-readable output. Use raw stdout for `--output json` style CLI payloads, and reserve Rich rendering for human Markdown/status text.
