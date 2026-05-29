@@ -129,7 +129,7 @@ Implemented boundaries:
 - The temporary variables file is removed after normal, failing, and timeout runs.
 - Redaction still includes loaded variable values before outputs reach reports.
 
-## Active Slice: Issue #17 HTML Run Reports
+## Completed Slice: Issue #17 HTML Run Reports
 
 Outcome: make `entroping run --report html` write a dependency-free human-readable report under `reports/run-latest.html` while preserving existing JSON and JUnit report behavior.
 
@@ -138,6 +138,18 @@ Implemented boundaries:
 - `core.report_writer` renders escaped HTML from the existing typed `RunReport` model.
 - `cli.run` accepts repeatable `--report html` alongside `json` and `junit`.
 - HTML reports include project, environment, summary counts, test status, duration, rule IDs, and escaped Hurl output.
+
+## Active Slice: Issue #19 Live Hurl Demo Smoke In CI
+
+Outcome: prove the user-facing demo path in GitHub Actions with the real Hurl binary:
+start the checkout demo server, generate Hurl tests from OpenAPI, load `--env local`,
+run smoke tests, and emit HTML/JSON/JUnit artifacts.
+
+Planned boundaries:
+
+- Keep live Hurl smoke separate from fast unit/regression checks.
+- Do not commit generated Hurl tests, env files, reports, or runtime state.
+- Keep logs actionable while preserving env-value redaction.
 
 ## Explicitly Deferred
 
