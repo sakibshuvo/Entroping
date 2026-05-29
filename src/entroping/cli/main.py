@@ -9,6 +9,7 @@ from rich.console import Console
 
 from entroping import __version__
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
+from entroping.core.hurl_discovery import normalize_tag_filters
 from entroping.core.hurl_runner import discover_hurl
 
 console = Console()
@@ -226,7 +227,10 @@ def studio(
 @app.command()
 def run(
     env: Annotated[str | None, typer.Option("--env", help="Environment name.")] = None,
-    tag: Annotated[str | None, typer.Option("--tag", help="Tag filter.")] = None,
+    tag: Annotated[
+        list[str] | None,
+        typer.Option("--tag", help="Tag filter; repeat for multiple tags."),
+    ] = None,
     ci: Annotated[bool, typer.Option("--ci", help="Strict CI mode.")] = False,
     parallel: Annotated[
         bool,
@@ -243,7 +247,12 @@ def run(
 ) -> None:
     """Run Hurl suites with QAnstitution gates."""
 
-    _ = (env, tag, ci, parallel, report, drift_check)
+    try:
+        tag_filters = normalize_tag_filters(tag)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc), param_hint="--tag") from exc
+
+    _ = (env, tag_filters, ci, parallel, report, drift_check)
     _not_implemented("run")
 
 

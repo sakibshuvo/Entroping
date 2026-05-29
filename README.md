@@ -53,6 +53,7 @@ Available now:
 - `entroping init --minimal` for a minimal local runtime skeleton and `qanstitution.yaml`.
 - `entroping doctor` for local Python, Hurl availability, and QAnstitution config health checks.
 - QAnstitution loading with root-bounded local imports, condition validation, duplicate gate checks, and final imported gate protection.
+- Hurl discovery, `# entroping:` metadata parsing, generated-state ignores, and tag-filter validation.
 - CI-ready local checks through `uv`, `ruff`, `mypy`, and `pytest`.
 
 Not built yet:

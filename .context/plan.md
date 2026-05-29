@@ -27,20 +27,38 @@ The repo should remain usable as an Obsidian vault and as a Codex workspace with
 - `docs/meta/AUTONOMOUS_DEVELOPMENT.md` defines the Codex-first loop, Spec Kit pilot path, and future OpenCode/oMLX worker plan.
 - `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, `.github/pull_request_template.md`, and `scripts/feature_gate.sh` define the executable delivery gates for feature work.
 - `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, and `scripts/regression.sh` define issue tracking, regression coverage, and simple phase-level progress tracking.
-- Branch `feat/init-doctor-policy` implements the Phase 1A local slice for issue #1: `entroping init --minimal`, `entroping doctor`, and QAnstitution local loading/import validation.
+- Issues #1 and #2 are integrated locally: `entroping init --minimal`, `entroping doctor`, QAnstitution local loading/import validation, Hurl discovery, Entroping metadata parsing, and tag-filter validation.
 
 ## Next Milestone: Deterministic Core
 
 Implement only the deterministic path before adding AI, proxy capture, or Studio:
 
-1. Make `entroping init` create a minimal `qanstitution.yaml` and safe project skeleton. **Implemented locally in issue #1 branch.**
-2. Make `entroping doctor` validate local config, Hurl availability, and optional tools without network calls. **Implemented locally in issue #1 branch.**
-3. Add QAnstitution file loading and local import handling. **Implemented locally in issue #1 branch.**
-4. Implement Hurl test discovery and metadata parsing.
+1. Make `entroping init` create a minimal `qanstitution.yaml` and safe project skeleton. **Done in issue #1.**
+2. Make `entroping doctor` validate local config, Hurl availability, and optional tools without network calls. **Done in issue #1.**
+3. Add QAnstitution file loading and local import handling. **Done in issue #1.**
+4. Implement Hurl test discovery and metadata parsing. **Done in issue #2.**
 5. Implement QAnstitution gate matching and gate-to-Hurl assertion compilation.
 6. Implement Hurl subprocess execution with timeout, bounded output, cleanup, and redaction.
 7. Emit JSON and JUnit reports.
 8. Wire the checkout demo into README quickstart.
+
+## Active Slice: Issue #3 Gate Matching And Injection
+
+Outcome: QAnstitution gates match discovered Hurl test metadata and compile into Hurl assertions in temporary execution copies without mutating source `.hurl` files.
+
+Source-of-truth files:
+
+- GitHub issue #3, `Phase 2B: QAnstitution gate matching and temporary Hurl injection`.
+- `docs/product/MVP_PLAN.md`, Phase 2 Hurl Runner and Gate Injection.
+- `docs/technical/TDS.md`, gate injection and Hurl execution design.
+- `docs/technical/QANSTITUTION_REFERENCE.md`, gate syntax and metadata examples.
+- `docs/meta/TEST_STRATEGY.md`, regression and security expectations.
+
+Planned boundaries:
+
+- Gate matching should operate on typed QAnstitution conditions and discovered Hurl metadata.
+- Gate-to-Hurl compilation should live behind a policy compiler boundary and be tested with fixtures.
+- Injection must write temporary execution copies and prove source `.hurl` fixtures are unchanged.
 
 ## Explicitly Deferred
 

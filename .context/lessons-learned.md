@@ -25,3 +25,4 @@
 - Obsidian improves context preservation only when notes are tiered and curated. Keep `PROJECT_PROGRESS` as the daily dashboard, use `00_INDEX` as the map, and leave product-history files as reference material instead of default agent input.
 - Quote QAnstitution condition strings in YAML, especially `condition: "true"`. Unquoted `true` is parsed as a boolean before Pydantic validation and should not be treated as the DSL expression.
 - Phase 1A local QAnstitution imports are intentionally root-bounded to avoid arbitrary file reads from attacker-controlled YAML. Broader local trust roots need an explicit design before implementation.
+- Hurl discovery should skip generated and local state such as `.entroping/`, reports, caches, virtualenvs, dependency folders, and hidden directories by default so future `run` work does not accidentally govern stale artifacts.
