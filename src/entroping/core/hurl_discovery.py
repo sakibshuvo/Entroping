@@ -3,7 +3,12 @@
 from collections.abc import Sequence
 from pathlib import Path
 
-from entroping.models.hurl import HurlMetadataSyntaxError, HurlTest, parse_hurl_metadata
+from entroping.models.hurl import (
+    HurlMetadataSyntaxError,
+    HurlTest,
+    parse_hurl_exchanges,
+    parse_hurl_metadata,
+)
 
 _DEFAULT_ROOTS = (Path("tests"),)
 _IGNORED_DIRECTORY_NAMES = frozenset(
@@ -63,7 +68,13 @@ def discover_hurl_tests(
         metadata = parse_hurl_metadata(content, source=path)
         if filters and metadata.tags.isdisjoint(filters):
             continue
-        discovered.append(HurlTest(path=path, metadata=metadata))
+        discovered.append(
+            HurlTest(
+                path=path,
+                metadata=metadata,
+                exchanges=parse_hurl_exchanges(content),
+            ),
+        )
 
     return discovered
 

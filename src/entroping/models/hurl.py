@@ -5,9 +5,14 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
+from urllib.parse import urlsplit
 
 _METADATA_PREFIX = "# entroping:"
 _METADATA_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_REQUEST_LINE_RE = re.compile(
+    r"^(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|CONNECT|TRACE)\s+(\S+)(?:\s+.*)?$",
+)
+_TEMPLATE_BASE_URL_RE = re.compile(r"^\{\{[^}]+\}\}(?P<path>/.*)$")
 
 
 class HurlMetadataSyntaxError(ValueError):
@@ -29,11 +34,21 @@ class HurlMetadata:
 
 
 @dataclass(frozen=True)
+class HurlExchange:
+    """Request target parsed from a Hurl transaction."""
+
+    method: str
+    url: str
+    path: str
+
+
+@dataclass(frozen=True)
 class HurlTest:
     """Discovered Hurl test and its Entroping metadata."""
 
     path: Path
     metadata: HurlMetadata
+    exchanges: tuple[HurlExchange, ...] = field(default_factory=tuple)
 
     @property
     def tags(self) -> frozenset[str]:
@@ -80,6 +95,31 @@ def parse_hurl_metadata(content: str, *, source: Path | None = None) -> HurlMeta
     return HurlMetadata(tags=tags or frozenset(), meta=MappingProxyType(dict(meta)))
 
 
+def parse_hurl_exchanges(content: str) -> tuple[HurlExchange, ...]:
+    """Parse Hurl request lines needed by deterministic gate matching.
+
+    This is intentionally shallow. Entroping does not execute requests here; it only
+    extracts the method and target string that Hurl will execute later.
+    """
+
+    exchanges: list[HurlExchange] = []
+    for line in content.splitlines():
+        match = _REQUEST_LINE_RE.fullmatch(line.strip())
+        if match is None:
+            continue
+
+        method, url = match.groups()
+        exchanges.append(
+            HurlExchange(
+                method=method.upper(),
+                url=url,
+                path=_extract_path(url),
+            ),
+        )
+
+    return tuple(exchanges)
+
+
 def _parse_tags(raw_value: str, *, line_number: int, source: Path | None) -> frozenset[str]:
     if raw_value == "":
         _raise_metadata_error(line_number, "empty tag value", source=source)
@@ -102,3 +142,27 @@ def _raise_metadata_error(
 ) -> None:
     location = f"{source}: " if source is not None else ""
     raise HurlMetadataSyntaxError(f"{location}line {line_number}: {message}")
+
+
+def _extract_path(url: str) -> str:
+    if url.startswith(("http://", "https://")):
+        parsed = urlsplit(url)
+        return parsed.path or "/"
+
+    template_match = _TEMPLATE_BASE_URL_RE.fullmatch(url)
+    if template_match is not None:
+        return _strip_query_and_fragment(template_match.group("path"))
+
+    if url.startswith("/"):
+        return _strip_query_and_fragment(url)
+
+    parsed = urlsplit(url)
+    if parsed.path.startswith("/"):
+        return parsed.path
+
+    return _strip_query_and_fragment(url)
+
+
+def _strip_query_and_fragment(value: str) -> str:
+    without_fragment = value.split("#", maxsplit=1)[0]
+    return without_fragment.split("?", maxsplit=1)[0]

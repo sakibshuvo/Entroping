@@ -285,6 +285,8 @@ gate: "status < 500"
 
 The gate injector is responsible for translating these into the correct Hurl assertion placement for each execution copy.
 
+Current implementation note: gate matching evaluates `true`, tags, metadata, and shallow parsed Hurl request method/path/URL values. Injection writes temporary execution copies and adds `# entroping-gate: <rule_id> enforcement=<level>` comments next to injected assertions so runner and report layers can distinguish `block`, `warn`, and `audit_only` gates without mutating source `.hurl` files.
+
 ## 12. Enforcement Behavior
 
 | Enforcement | Behavior |

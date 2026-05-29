@@ -2,7 +2,7 @@
 
 import pytest
 
-from entroping.models.hurl import HurlMetadataSyntaxError, parse_hurl_metadata
+from entroping.models.hurl import HurlMetadataSyntaxError, parse_hurl_exchanges, parse_hurl_metadata
 
 
 def test_parse_hurl_metadata_extracts_tags_and_traceability_fields() -> None:
@@ -55,3 +55,23 @@ def test_parse_hurl_metadata_rejects_duplicate_traceability_keys() -> None:
                 ],
             ),
         )
+
+
+def test_parse_hurl_exchanges_extracts_request_method_url_and_path() -> None:
+    exchanges = parse_hurl_exchanges(
+        "\n".join(
+            [
+                "GET {{base_url}}/health",
+                "HTTP 200",
+                "",
+                "POST https://api.example.test/v1/checkout?expand=true",
+                "Content-Type: application/json",
+                "HTTP 201",
+            ],
+        ),
+    )
+
+    assert [(exchange.method, exchange.url, exchange.path) for exchange in exchanges] == [
+        ("GET", "{{base_url}}/health", "/health"),
+        ("POST", "https://api.example.test/v1/checkout?expand=true", "/v1/checkout"),
+    ]
