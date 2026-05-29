@@ -18,6 +18,14 @@ from entroping.core.hurl_runner import (
     discover_hurl,
     run_hurl_files,
 )
+from entroping.core.report_writer import (
+    ReportWriterError,
+    build_run_report,
+    load_run_report,
+    write_bug_report,
+    write_json_report,
+    write_junit_report,
+)
 
 console = Console()
 
@@ -259,10 +267,13 @@ def run(
     except ValueError as exc:
         raise typer.BadParameter(str(exc), param_hint="--tag") from exc
 
+    try:
+        report_formats = _normalize_report_formats(report)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc), param_hint="--report") from exc
+
     unsupported_options = _unsupported_run_options(
-        env=env,
         parallel=parallel,
-        report=report,
         drift_check=drift_check,
     )
     if unsupported_options:
@@ -297,11 +308,32 @@ def run(
                 [execution.execution_path for execution in execution_copies],
                 HurlRunOptions(timeout_ms=law.settings.timeout),
             )
-    except (GateInjectionError, HurlBinaryNotFoundError, ValueError) as exc:
+            run_report = build_run_report(
+                project=law.project,
+                environment=env or "default",
+                execution_copies=execution_copies,
+                suite=suite,
+                project_root=Path.cwd(),
+            )
+    except (GateInjectionError, HurlBinaryNotFoundError, ReportWriterError, ValueError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+
+    try:
+        latest_state = write_json_report(run_report, state_dir / "latest-run.json")
+        artifacts: list[Path] = []
+        if "json" in report_formats:
+            artifacts.append(write_json_report(run_report, Path("reports") / "run-latest.json"))
+        if "junit" in report_formats:
+            artifacts.append(write_junit_report(run_report, Path("reports") / "junit.xml"))
+    except ReportWriterError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
 
     console.print(f"Hurl run: {suite.passed} passed, {suite.failed} failed")
+    console.print(f"Wrote latest run state: {latest_state}")
+    for artifact in artifacts:
+        console.print(f"Wrote report: {artifact}")
     for result in suite.results:
         if result.passed:
             continue
@@ -316,28 +348,52 @@ def run(
 
 def _unsupported_run_options(
     *,
-    env: str | None,
     parallel: bool,
-    report: list[str] | None,
     drift_check: bool,
 ) -> tuple[str, ...]:
     unsupported: list[str] = []
-    if env is not None:
-        unsupported.append("--env")
     if parallel:
         unsupported.append("--parallel")
-    if report:
-        unsupported.append("--report")
     if drift_check:
         unsupported.append("--drift-check")
     return tuple(unsupported)
+
+
+def _normalize_report_formats(report: list[str] | None) -> tuple[str, ...]:
+    if not report:
+        return ()
+
+    normalized: list[str] = []
+    for raw_format in report:
+        report_format = raw_format.strip().lower()
+        if report_format not in {"json", "junit"}:
+            msg = f"Unsupported report format {raw_format!r}; supported formats: json, junit"
+            raise ValueError(msg)
+        if report_format not in normalized:
+            normalized.append(report_format)
+    return tuple(normalized)
 
 
 @report_app.command("bug")
 def report_bug() -> None:
     """Generate a Markdown bug report from the latest failure."""
 
-    _not_implemented("report bug")
+    latest_state = Path(".entroping") / "latest-run.json"
+    if not latest_state.exists():
+        console.print("[yellow]No latest run found. Run entroping run before report bug.[/yellow]")
+        raise typer.Exit(1)
+
+    report = load_run_report(latest_state)
+    if report.summary.failed == 0:
+        console.print("[yellow]Latest Entroping run has no failures to report.[/yellow]")
+        raise typer.Exit(1)
+
+    try:
+        output_path = write_bug_report(report, Path("reports") / "bug.md")
+    except ReportWriterError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+    console.print(f"Wrote bug report: {output_path}")
 
 
 app.add_typer(config_app, name="config")

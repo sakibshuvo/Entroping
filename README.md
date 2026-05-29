@@ -56,11 +56,13 @@ Available now:
 - Hurl discovery, `# entroping:` metadata parsing, generated-state ignores, and tag-filter validation.
 - QAnstitution gate matching, temporary execution-copy injection, and deterministic Hurl subprocess execution through `entroping run`.
 - Runner safety controls for timeouts, bounded output, redaction, non-zero exits, and temporary run-state cleanup.
+- Redacted JSON and JUnit reports through `entroping run --report json --report junit`.
+- `entroping report bug` for Markdown handoff from the latest failing run.
 - CI-ready local checks through `uv`, `ruff`, `mypy`, and `pytest`.
 
 Not built yet:
 
-- JSON/JUnit/HTML reports and `report bug`.
+- HTML and drift reports.
 - mitmproxy traffic capture.
 - LiteLLM Architect implementation.
 - Studio TUI.

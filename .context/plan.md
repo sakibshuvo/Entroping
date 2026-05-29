@@ -28,7 +28,7 @@ The repo should remain usable as an Obsidian vault and as a Codex workspace with
 - `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, `.github/pull_request_template.md`, and `scripts/feature_gate.sh` define the executable delivery gates for feature work.
 - `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, and `scripts/regression.sh` define issue tracking, regression coverage, and simple phase-level progress tracking.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work.
-- Issues #1, #2, #3, and #4 are integrated locally: `entroping init --minimal`, `entroping doctor`, QAnstitution local loading/import validation, Hurl discovery, Entroping metadata parsing, tag-filter validation, gate matching, gate assertion compilation, temporary Hurl execution-copy injection, and deterministic Hurl subprocess execution.
+- Issues #1, #2, #3, #4, and #5 are integrated locally: `entroping init --minimal`, `entroping doctor`, QAnstitution local loading/import validation, Hurl discovery, Entroping metadata parsing, tag-filter validation, gate matching, gate assertion compilation, temporary Hurl execution-copy injection, deterministic Hurl subprocess execution, JSON/JUnit reports, latest-run state, and bug Markdown generation.
 
 ## Next Milestone: Deterministic Core
 
@@ -40,7 +40,7 @@ Implement only the deterministic path before adding AI, proxy capture, or Studio
 4. Implement Hurl test discovery and metadata parsing. **Done in issue #2.**
 5. Implement QAnstitution gate matching and gate-to-Hurl assertion compilation. **Done in issue #3.**
 6. Implement Hurl subprocess execution with timeout, bounded output, cleanup, and redaction. **Done in issue #4.**
-7. Emit JSON and JUnit reports.
+7. Emit JSON and JUnit reports. **Done in issue #5.**
 8. Wire the checkout demo into README quickstart.
 
 ## Completed Slice: Issue #3 Gate Matching And Injection
@@ -77,9 +77,19 @@ Implemented boundaries:
 - Runner results are typed, timeout-aware, redacted, and bounded before printing.
 - `entroping run` loads QAnstitution, discovers Hurl files, creates temporary injected execution copies, runs Hurl, cleans run state, and exits deterministically.
 
-## Active Slice: Issue #5 JSON And JUnit Reports
+## Completed Slice: Issue #5 JSON And JUnit Reports
 
 Outcome: emit machine-consumable JSON and JUnit summaries from deterministic run results so CI and humans can inspect failures without rerunning Hurl.
+
+Implemented boundaries:
+
+- `core.report_writer` writes redacted JSON and JUnit XML from typed run results.
+- `entroping run --report json --report junit` writes artifacts under `reports/` and always writes `.entroping/latest-run.json`.
+- `entroping report bug` writes a Markdown handoff from the latest failing run or returns an actionable no-run/no-failure message.
+
+## Active Slice: Issue #6 Alpha Demo Quickstart
+
+Outcome: make the checkout demo and README quickstart prove the deterministic alpha loop for a first-time user.
 
 ## Explicitly Deferred
 
@@ -112,7 +122,7 @@ For product history, open Obsidian and start with `00_INDEX.md`.
 To start an implementation or review session from an issue, dry-run the launcher first:
 
 ```bash
-scripts/start_issue.sh 5 feat/run-reports --dry-run
+scripts/start_issue.sh 6 docs/alpha-demo-quickstart --dry-run
 ```
 
 ## Constraints
