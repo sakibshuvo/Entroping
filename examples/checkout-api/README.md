@@ -51,6 +51,8 @@ To regenerate Hurl tests from `openapi.yaml`:
 
 ```bash
 uv run --project ../.. entroping architect build --new --tag smoke
+cp envs/local.env.example envs/local.env
+uv run --project ../.. entroping run --env local --tag smoke --report json --report junit
 ```
 
 ## Design Notes
@@ -60,5 +62,5 @@ uv run --project ../.. entroping architect build --new --tag smoke
 - Hurl metadata uses comments so the Hurl parser can safely ignore Entroping-specific data.
 - The QAnstitution condition examples stay inside the supported small DSL.
 - The checked-in `.hurl` file uses a literal local URL so the alpha quickstart does not depend on environment-variable loading.
-- `envs/local.env.example` documents the intended future environment shape, but current alpha execution does not load it.
-- Generated OpenAPI tests are written under `tests/generated/` and use `{{base_url}}` until `--env` variable loading is implemented.
+- `envs/local.env.example` is safe to commit; copy it to the gitignored `envs/local.env` before running generated tests.
+- Generated OpenAPI tests are written under `tests/generated/` and use `{{base_url}}` from `--env local`.

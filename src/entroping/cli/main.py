@@ -16,6 +16,7 @@ from entroping.bridge.openapi_to_hurl import (
     compile_openapi_to_hurl,
 )
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
+from entroping.core.env_loader import load_environment_variables
 from entroping.core.gate_injector import GateInjectionError, write_injected_execution_copy
 from entroping.core.hurl_discovery import discover_hurl_tests, normalize_tag_filters
 from entroping.core.hurl_runner import (
@@ -318,6 +319,7 @@ def run(
     try:
         law = load_qanstitution(Path("qanstitution.yaml"))
         hurl_tests = discover_hurl_tests(tag_filters=tuple(tag_filters))
+        env_variables = load_environment_variables(env) if env is not None else {}
     except (QanstitutionLoadError, FileNotFoundError, ValueError) as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
@@ -340,7 +342,7 @@ def run(
             ]
             suite = run_hurl_files(
                 [execution.execution_path for execution in execution_copies],
-                HurlRunOptions(timeout_ms=law.settings.timeout),
+                HurlRunOptions(timeout_ms=law.settings.timeout, variables=env_variables),
             )
             run_report = build_run_report(
                 project=law.project,

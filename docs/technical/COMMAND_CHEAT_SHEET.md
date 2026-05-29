@@ -70,7 +70,9 @@ entroping map --export mermaid
 
 ## Execution
 
-Current alpha implementation supports deterministic `run`, `--tag`, `--ci`, `--report json`, and `--report junit`. `--env`, `--parallel`, HTML reports, and drift reports remain part of the v4.1 contract but are not implemented yet.
+Current alpha implementation supports deterministic `run`, `--env`, `--tag`, `--ci`,
+`--report json`, and `--report junit`. `--parallel`, HTML reports, and drift reports
+remain part of the v4.1 contract but are not implemented yet.
 
 | Command | Purpose |
 | --- | --- |
@@ -86,7 +88,7 @@ Examples:
 
 ```bash
 entroping studio --env local
-entroping run --env local --tag smoke --report html
+entroping run --env local --tag smoke --report json --report junit
 entroping run --env ci --ci --parallel --report junit
 entroping run --env staging --drift-check --report drift
 ```

@@ -5,7 +5,7 @@ import shutil
 import subprocess  # nosec B404
 import tempfile
 import time
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO, Literal
@@ -18,6 +18,7 @@ _KEY_VALUE_SECRET_RE = re.compile(
     r"access_token|refresh_token|api_key|token|password|secret"
     r")(\s*[:=]\s*)([^\r\n;&\s]+(?:\s+[^\r\n;&\s]+)?)"
 )
+_VARIABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 HurlRunStatus = Literal["passed", "failed", "timeout", "error"]
 
@@ -46,6 +47,7 @@ class HurlRunOptions:
     timeout_ms: int = 30_000
     output_limit_bytes: int = _DEFAULT_OUTPUT_LIMIT_BYTES
     redacted_values: tuple[str, ...] = ()
+    variables: Mapping[str, str] | None = None
 
     def __post_init__(self) -> None:
         if self.binary.strip() == "":
@@ -57,6 +59,7 @@ class HurlRunOptions:
         if self.output_limit_bytes <= 0:
             msg = "Hurl output limit must be greater than zero"
             raise ValueError(msg)
+        _validate_variables(self.variables or {})
 
     @property
     def timeout_seconds(self) -> float:
@@ -144,7 +147,7 @@ def run_hurl_file(
     run_options = options or HurlRunOptions()
     hurl_path = validate_hurl_path(path)
     binary_path = _resolve_hurl_binary(run_options.binary)
-    command = (binary_path, str(hurl_path))
+    command = (binary_path, *_variable_args(run_options.variables or {}), str(hurl_path))
 
     start = time.perf_counter()
     status: HurlRunStatus = "error"
@@ -180,13 +183,13 @@ def run_hurl_file(
             stdout_file,
             stream_name="stdout",
             limit_bytes=run_options.output_limit_bytes,
-            redacted_values=run_options.redacted_values,
+            redacted_values=_redaction_values(run_options),
         )
         stderr, stderr_truncated = _read_process_output(
             stderr_file,
             stream_name="stderr",
             limit_bytes=run_options.output_limit_bytes,
-            redacted_values=run_options.redacted_values,
+            redacted_values=_redaction_values(run_options),
         )
 
     if extra_stderr:
@@ -242,6 +245,28 @@ def _resolve_hurl_binary(binary: str) -> str:
         msg = f"Hurl binary not found: {binary}"
         raise HurlBinaryNotFoundError(msg)
     return resolved
+
+
+def _variable_args(variables: Mapping[str, str]) -> tuple[str, ...]:
+    args: list[str] = []
+    for key in sorted(variables):
+        args.extend(["--variable", f"{key}={variables[key]}"])
+    return tuple(args)
+
+
+def _validate_variables(variables: Mapping[str, str]) -> None:
+    for key, value in variables.items():
+        if _VARIABLE_NAME_RE.fullmatch(key) is None:
+            msg = f"Invalid Hurl variable name: {key!r}"
+            raise ValueError(msg)
+        if "\n" in value or "\r" in value:
+            msg = f"Hurl variable {key!r} must be single-line"
+            raise ValueError(msg)
+
+
+def _redaction_values(options: HurlRunOptions) -> tuple[str, ...]:
+    variable_values = tuple((options.variables or {}).values())
+    return (*options.redacted_values, *variable_values)
 
 
 def _read_process_output(

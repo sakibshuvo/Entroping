@@ -169,11 +169,14 @@ Generate reviewable Hurl tests from the fixture OpenAPI source:
 ```bash
 cd examples/checkout-api
 uv run --project ../.. entroping architect build --new --tag smoke
+cp envs/local.env.example envs/local.env
+uv run --project ../.. entroping run --env local --tag smoke --report json --report junit
 ls tests/generated
 ```
 
 Current generation is deterministic and local-file only. It reads `sources.spec` from
 `qanstitution.yaml`, writes under `tests/generated/`, and does not call an LLM.
+`--env local` loads `envs/local.env` and passes variables such as `base_url` to Hurl.
 
 ## Planned CLI Surface
 
@@ -199,7 +202,8 @@ entroping report bug
 Deprecated names such as `gen`, `fix`, `scan`, `chaos`, and `report --type` are intentionally not primary commands.
 
 Current implementation supports `init`, `doctor`, deterministic `architect build --new`
-from local OpenAPI files, deterministic `run`, JSON/JUnit run reports, and `report bug`.
+from local OpenAPI files, `run --env`, deterministic `run`, JSON/JUnit run reports,
+and `report bug`.
 
 ## Architecture
 
