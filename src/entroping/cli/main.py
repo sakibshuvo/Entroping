@@ -331,9 +331,9 @@ def run(
         raise typer.Exit(1) from exc
 
     console.print(f"Hurl run: {suite.passed} passed, {suite.failed} failed")
-    console.print(f"Wrote latest run state: {latest_state}")
+    console.print(f"Wrote latest run state: {_display_cli_path(latest_state)}")
     for artifact in artifacts:
-        console.print(f"Wrote report: {artifact}")
+        console.print(f"Wrote report: {_display_cli_path(artifact)}")
     for result in suite.results:
         if result.passed:
             continue
@@ -393,7 +393,14 @@ def report_bug() -> None:
     except ReportWriterError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
-    console.print(f"Wrote bug report: {output_path}")
+    console.print(f"Wrote bug report: {_display_cli_path(output_path)}")
+
+
+def _display_cli_path(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(Path.cwd().resolve()))
+    except ValueError:
+        return str(path)
 
 
 app.add_typer(config_app, name="config")
