@@ -25,5 +25,5 @@ The creator explicitly pushed against bloated enterprise planning. The product c
 - Defer Nuitka, Homebrew formula, Docker, PyPI, and Cloud until the governance loop works.
 - Prefer a small typed agent router before adding orchestration frameworks.
 
-Links: [[MVP_PLAN]], [[CREATOR_INTENT_AUDIT]], [[TDS]]
+Links: [[docs/product/MVP_PLAN|MVP_PLAN]], [[docs/evolution/CREATOR_INTENT_AUDIT|CREATOR_INTENT_AUDIT]], [[docs/technical/TDS|TDS]]
 

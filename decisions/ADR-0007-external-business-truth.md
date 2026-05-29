@@ -25,5 +25,5 @@ The product needs traceability without making users rewrite all business require
 - Markdown story caches are optional and read-only by default.
 - Architect generation must stay source-grounded.
 
-Links: [[USER_GUIDE]], [[QANSTITUTION_REFERENCE]], [[REQUIREMENTS_ANALYSIS]]
+Links: [[docs/user/USER_GUIDE|USER_GUIDE]], [[docs/technical/QANSTITUTION_REFERENCE|QANSTITUTION_REFERENCE]], [[docs/evolution/REQUIREMENTS_ANALYSIS|REQUIREMENTS_ANALYSIS]]
 

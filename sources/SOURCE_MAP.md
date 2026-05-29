@@ -24,9 +24,9 @@ Important files:
 
 ## Consolidated Outputs
 
-- [[REQUIREMENTS_ANALYSIS]] reconciles the source materials.
-- [[CREATOR_INTENT_AUDIT]] captures what was missing or corrected.
-- [[EVOLUTION_TIMELINE]] narrates the product shift.
+- [[docs/evolution/REQUIREMENTS_ANALYSIS|REQUIREMENTS_ANALYSIS]] reconciles the source materials.
+- [[docs/evolution/CREATOR_INTENT_AUDIT|CREATOR_INTENT_AUDIT]] captures what was missing or corrected.
+- [[docs/evolution/EVOLUTION_TIMELINE|EVOLUTION_TIMELINE]] narrates the product shift.
 - [[decisions/ADR-0002-locked-command-surface]] captures command discipline.
 
 ## Rule

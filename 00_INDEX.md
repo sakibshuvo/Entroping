@@ -14,30 +14,30 @@ Use this as the home note for the Entroping vault.
 
 ## Canonical Docs
 
-- [[PRODUCT_SPEC]] - what Entroping is and what v4.1 must do.
-- [[TDS]] - architecture, adapters, schemas, execution, and test strategy.
-- [[USER_GUIDE]] - how a developer uses Entroping.
-- [[COMMAND_CHEAT_SHEET]] - locked command surface.
-- [[QANSTITUTION_REFERENCE]] - executable governance schema.
-- [[MVP_PLAN]] - implementation sequence.
-- [[CODEX_PROMPT]] - implementation-agent guardrails.
+- [[docs/product/PRODUCT_SPEC|PRODUCT_SPEC]] - what Entroping is and what v4.1 must do.
+- [[docs/technical/TDS|TDS]] - architecture, adapters, schemas, execution, and test strategy.
+- [[docs/user/USER_GUIDE|USER_GUIDE]] - how a developer uses Entroping.
+- [[docs/technical/COMMAND_CHEAT_SHEET|COMMAND_CHEAT_SHEET]] - locked command surface.
+- [[docs/technical/QANSTITUTION_REFERENCE|QANSTITUTION_REFERENCE]] - executable governance schema.
+- [[docs/product/MVP_PLAN|MVP_PLAN]] - implementation sequence.
+- [[docs/technical/CODEX_PROMPT|CODEX_PROMPT]] - implementation-agent guardrails.
 
 ## Evolution and Positioning
 
-- [[EVOLUTION_TIMELINE]] - how the product idea evolved.
-- [[REQUIREMENTS_ANALYSIS]] - extracted requirements from source materials.
-- [[CREATOR_INTENT_AUDIT]] - creator corrections and non-negotiables.
-- [[BRAIN_PROVIDER_STRATEGY]] - local-first/cloud-second model strategy.
-- [[MARKETING_NOTE]] - positioning and go-to-market language.
+- [[docs/evolution/EVOLUTION_TIMELINE|EVOLUTION_TIMELINE]] - how the product idea evolved.
+- [[docs/evolution/REQUIREMENTS_ANALYSIS|REQUIREMENTS_ANALYSIS]] - extracted requirements from source materials.
+- [[docs/evolution/CREATOR_INTENT_AUDIT|CREATOR_INTENT_AUDIT]] - creator corrections and non-negotiables.
+- [[docs/evolution/BRAIN_PROVIDER_STRATEGY|BRAIN_PROVIDER_STRATEGY]] - local-first/cloud-second model strategy.
+- [[docs/product/MARKETING_NOTE|MARKETING_NOTE]] - positioning and go-to-market language.
 
 ## Design Aids
 
-- [[USER_FLOWS]] - end-to-end workflows.
-- [[USE_CASES]] - concrete scenarios.
-- [[DIAGRAMS]] - Mermaid and PlantUML diagrams.
-- [[docs/ARCHITECTURE]] - implementation architecture overview.
-- [[docs/DEVELOPMENT]] - local development and verification commands.
-- [[OBSIDIAN_START_HERE]] - first-time Obsidian workflow for this vault.
+- [[docs/user/USER_FLOWS|USER_FLOWS]] - end-to-end workflows.
+- [[docs/user/USE_CASES|USE_CASES]] - concrete scenarios.
+- [[docs/architecture/DIAGRAMS|DIAGRAMS]] - Mermaid and PlantUML diagrams.
+- [[docs/architecture/ARCHITECTURE|ARCHITECTURE]] - implementation architecture overview.
+- [[docs/architecture/DEVELOPMENT|DEVELOPMENT]] - local development and verification commands.
+- [[docs/meta/OBSIDIAN_START_HERE|OBSIDIAN_START_HERE]] - first-time Obsidian workflow for this vault.
 - [[sources/SOURCE_MAP]] - where the source materials live.
 
 ## Decision Trail
@@ -56,5 +56,5 @@ When the product changes:
 
 1. Update the affected canonical doc.
 2. Add or update an ADR if the reason matters later.
-3. Update [[EVOLUTION_TIMELINE]] with a short dated note.
+3. Update [[docs/evolution/EVOLUTION_TIMELINE|EVOLUTION_TIMELINE]] with a short dated note.
 4. Update `.context/changelog.md` for handoff continuity.

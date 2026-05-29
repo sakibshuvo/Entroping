@@ -27,5 +27,5 @@ The product should not depend on external Gemini, Claude, ChatGPT, or other mode
 - Secrets and unredacted traffic must not be sent to model providers.
 - `entroping run` does not call the LLM.
 
-Links: [[BRAIN_PROVIDER_STRATEGY]], [[TDS]], [[CODEX_PROMPT]]
+Links: [[docs/evolution/BRAIN_PROVIDER_STRATEGY|BRAIN_PROVIDER_STRATEGY]], [[docs/technical/TDS|TDS]], [[docs/technical/CODEX_PROMPT|CODEX_PROMPT]]
 

@@ -25,5 +25,5 @@ AI can generate, refactor, and audit tests through Architect commands. Runtime e
 - CI failures are reproducible without model access.
 - Reports include exact test paths, rule IDs, and repro commands.
 
-Links: [[PRODUCT_SPEC]], [[TDS]], [[COMMAND_CHEAT_SHEET]]
+Links: [[docs/product/PRODUCT_SPEC|PRODUCT_SPEC]], [[docs/technical/TDS|TDS]], [[docs/technical/COMMAND_CHEAT_SHEET|COMMAND_CHEAT_SHEET]]
 

@@ -107,5 +107,5 @@ Reports --> Models
 @enduml
 ```
 
-More diagrams live in [[DIAGRAMS]].
+More diagrams live in [[docs/architecture/DIAGRAMS|DIAGRAMS]].
 

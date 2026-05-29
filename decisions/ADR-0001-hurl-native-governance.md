@@ -25,5 +25,5 @@ Earlier product thinking included broader AI testing and Bruno-like workflows. T
 - QAnstitution gates are injected into execution copies, not source files.
 - Bruno and similar clients can still drive traffic through `watch`, but they are not the canonical test format.
 
-Links: [[PRODUCT_SPEC]], [[TDS]], [[REQUIREMENTS_ANALYSIS]]
+Links: [[docs/product/PRODUCT_SPEC|PRODUCT_SPEC]], [[docs/technical/TDS|TDS]], [[docs/evolution/REQUIREMENTS_ANALYSIS|REQUIREMENTS_ANALYSIS]]
 

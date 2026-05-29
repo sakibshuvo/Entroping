@@ -17,3 +17,4 @@
 - Added PlantUML aliases in the deployment diagram to avoid renderer ambiguity.
 - Added the initial Python package scaffold, Typer CLI boundary, Pydantic QAnstitution models, Hurl discovery adapter, tests, uv tooling, and GitHub Actions CI.
 - Reworked `README.md` as a GitHub-facing project overview with product pitch, status, quick start, architecture diagrams, repo map, and security rules.
+- Organized Markdown docs under `docs/product`, `docs/technical`, `docs/user`, `docs/evolution`, `docs/architecture`, and `docs/meta` while preserving root `README.md` and `00_INDEX.md`.

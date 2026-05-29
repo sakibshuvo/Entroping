@@ -28,5 +28,5 @@ The source conversation included older names such as `gen`, `fix`, `ui`, `scan`,
 - `report bug` generates bug handoff Markdown.
 - New flags such as `--dry-run` or `--verbose` require a spec update before implementation.
 
-Links: [[COMMAND_CHEAT_SHEET]], [[PRODUCT_SPEC]], [[CREATOR_INTENT_AUDIT]]
+Links: [[docs/technical/COMMAND_CHEAT_SHEET|COMMAND_CHEAT_SHEET]], [[docs/product/PRODUCT_SPEC|PRODUCT_SPEC]], [[docs/evolution/CREATOR_INTENT_AUDIT|CREATOR_INTENT_AUDIT]]
 

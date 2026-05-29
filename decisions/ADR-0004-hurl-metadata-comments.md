@@ -30,5 +30,5 @@ Custom `tags` or `meta` keys inside Hurl `[Options]` are not safe because `[Opti
 - Entroping parses comments for tags, story IDs, owners, and external document URLs.
 - Generated tests must avoid custom non-Hurl options.
 
-Links: [[TDS]], [[QANSTITUTION_REFERENCE]], [[USER_GUIDE]]
+Links: [[docs/technical/TDS|TDS]], [[docs/technical/QANSTITUTION_REFERENCE|QANSTITUTION_REFERENCE]], [[docs/user/USER_GUIDE|USER_GUIDE]]
 

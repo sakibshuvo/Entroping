@@ -67,11 +67,11 @@ Open this repository in Obsidian and start with [00_INDEX.md](00_INDEX.md).
 
 Important docs:
 
-- [PRODUCT_SPEC.md](PRODUCT_SPEC.md) - product contract.
-- [TDS.md](TDS.md) - technical design.
-- [COMMAND_CHEAT_SHEET.md](COMMAND_CHEAT_SHEET.md) - locked CLI namespace.
-- [MVP_PLAN.md](MVP_PLAN.md) - implementation sequence.
-- [EVOLUTION_TIMELINE.md](EVOLUTION_TIMELINE.md) - product history.
+- [PRODUCT_SPEC.md](docs/product/PRODUCT_SPEC.md) - product contract.
+- [TDS.md](docs/technical/TDS.md) - technical design.
+- [COMMAND_CHEAT_SHEET.md](docs/technical/COMMAND_CHEAT_SHEET.md) - locked CLI namespace.
+- [MVP_PLAN.md](docs/product/MVP_PLAN.md) - implementation sequence.
+- [EVOLUTION_TIMELINE.md](docs/evolution/EVOLUTION_TIMELINE.md) - product history.
 - [ADR-0001](decisions/ADR-0001-hurl-native-governance.md) - first architectural decision.
 
 ### Set Up Development
@@ -161,13 +161,18 @@ Dependency rule: domain modules do not import adapters.
 ## Repository Map
 
 ```text
-src/entroping/        Python implementation scaffold
-tests/                Fast scaffold tests
-docs/                 Developer and architecture docs
-decisions/            ADRs for durable product decisions
-sources/              Source-material map
-.context/             Working context, changelog, lessons learned
-.obsidian/            Minimal vault configuration
+src/entroping/         Python implementation scaffold
+tests/                 Fast scaffold tests
+docs/product/          Product spec, MVP plan, and marketing note
+docs/technical/        TDS, QAnstitution, command contract, Codex prompt
+docs/user/             User guide, flows, and use cases
+docs/evolution/        Timeline, requirements analysis, and creator intent
+docs/architecture/     Architecture, diagrams, and development guide
+docs/meta/             Obsidian onboarding notes
+decisions/             ADRs for durable product decisions
+sources/               Source-material map
+.context/              Working context, changelog, lessons learned
+.obsidian/             Minimal vault configuration
 ```
 
 ## Security and Quality Rules
