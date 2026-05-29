@@ -73,7 +73,7 @@ uv run entroping --version
 uv run entroping doctor
 ```
 
-The CLI currently exposes the planned v4.1 command surface. `init`, `doctor`, and the deterministic `run` path are implemented; AI, proxy, report, and Studio commands still intentionally return scaffold messages until their subsystems land.
+The CLI currently exposes the planned v4.1 command surface. `init`, `doctor`, deterministic `run`, JSON/JUnit reports, and `report bug` are implemented; AI, proxy, HTML/drift reports, and Studio commands still intentionally return scaffold messages until their subsystems land.
 
 ## Agent Workflow
 

@@ -1,8 +1,10 @@
 """CLI smoke tests for the initial scaffold."""
 
+import json
 import subprocess
 from pathlib import Path
 from typing import BinaryIO
+from xml.etree import ElementTree
 
 import pytest
 from typer.testing import CliRunner
@@ -224,12 +226,121 @@ def test_run_reports_missing_hurl_binary(
     assert "Hurl binary not found" in result.output
 
 
+def test_run_writes_json_junit_reports_and_latest_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    source = Path("tests") / "health.hurl"
+    source.write_text(
+        "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (args, stderr, timeout, check, shell)
+        stdout.write(b"Authorization: Bearer live-secret\nok\n")
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+
+    result = runner.invoke(
+        app,
+        ["run", "--env", "local", "--tag", "smoke", "--report", "json", "--report", "junit"],
+    )
+
+    assert result.exit_code == 0
+    assert "reports/run-latest.json" in result.output
+    assert "reports/junit.xml" in result.output
+    report_json = json.loads(Path("reports/run-latest.json").read_text(encoding="utf-8"))
+    latest_json = json.loads(Path(".entroping/latest-run.json").read_text(encoding="utf-8"))
+    junit_root = ElementTree.parse(Path("reports/junit.xml")).getroot()
+    assert report_json["environment"] == "local"
+    assert report_json["tests"][0]["path"] == "tests/health.hurl"
+    assert "live-secret" not in Path("reports/run-latest.json").read_text(encoding="utf-8")
+    assert report_json == latest_json
+    assert junit_root.attrib["tests"] == "1"
+    assert junit_root.attrib["failures"] == "0"
+
+
+def test_report_bug_generates_markdown_from_latest_failing_run(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    (Path("tests") / "health.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (args, stdout, timeout, check, shell)
+        stderr.write(b"token=live-secret\nassert failed\n")
+        return subprocess.CompletedProcess(args=args, returncode=1)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    run_result = runner.invoke(app, ["run", "--tag", "smoke"])
+    assert run_result.exit_code == 1
+
+    bug_result = runner.invoke(app, ["report", "bug"])
+
+    assert bug_result.exit_code == 0
+    assert "reports/bug.md" in bug_result.output
+    bug = Path("reports/bug.md").read_text(encoding="utf-8")
+    assert "tests/health.hurl" in bug
+    assert "global_latency" in bug
+    assert "live-secret" not in bug
+    assert "token=[REDACTED]" in bug
+
+
+def test_report_bug_returns_actionable_message_without_latest_run(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "bug"])
+
+    assert result.exit_code == 1
+    assert "Run entroping run before report bug" in result.output
+    assert not (tmp_path / "reports" / "bug.md").exists()
+
+
+def test_run_rejects_unsupported_report_format() -> None:
+    result = CliRunner().invoke(app, ["run", "--report", "html"])
+
+    assert result.exit_code == 2
+    assert "Unsupported report format" in result.output
+
+
 def test_run_rejects_future_options_instead_of_silently_ignoring_them() -> None:
-    result = CliRunner().invoke(app, ["run", "--report", "json"])
+    result = CliRunner().invoke(app, ["run", "--parallel"])
 
     assert result.exit_code == 2
     assert "not implemented yet for entroping run" in result.output
-    assert "--report" in result.output
+    assert "--parallel" in result.output
 
 
 def test_run_rejects_empty_tag_filter() -> None:
