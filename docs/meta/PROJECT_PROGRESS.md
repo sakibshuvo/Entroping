@@ -34,6 +34,8 @@ Do not duplicate every issue here. The detailed queue lives in GitHub.
 
 **Goal:** credible open-source alpha of the deterministic governance loop.
 
+GitHub Project: [Entroping Alpha](https://github.com/users/sakibshuvo/projects/1)
+
 GitHub milestone: [Alpha: deterministic core](https://github.com/sakibshuvo/Entroping/milestone/1)
 
 ```text
