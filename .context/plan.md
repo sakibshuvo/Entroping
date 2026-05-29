@@ -41,7 +41,7 @@ Implement only the deterministic path before adding AI, proxy capture, or Studio
 5. Implement QAnstitution gate matching and gate-to-Hurl assertion compilation. **Done in issue #3.**
 6. Implement Hurl subprocess execution with timeout, bounded output, cleanup, and redaction. **Done in issue #4.**
 7. Emit JSON and JUnit reports. **Done in issue #5.**
-8. Wire the checkout demo into README quickstart.
+8. Wire the checkout demo into README quickstart. **Done in issue #6.**
 
 ## Completed Slice: Issue #3 Gate Matching And Injection
 
@@ -87,9 +87,19 @@ Implemented boundaries:
 - `entroping run --report json --report junit` writes artifacts under `reports/` and always writes `.entroping/latest-run.json`.
 - `entroping report bug` writes a Markdown handoff from the latest failing run or returns an actionable no-run/no-failure message.
 
-## Active Slice: Issue #6 Alpha Demo Quickstart
+## Completed Slice: Issue #6 Alpha Demo Quickstart
 
 Outcome: make the checkout demo and README quickstart prove the deterministic alpha loop for a first-time user.
+
+Implemented boundaries:
+
+- `examples/checkout-api/demo_server.py` provides a tiny local API for the smoke Hurl file.
+- The fixture Hurl file uses a literal localhost URL so the alpha quickstart does not depend on env-file loading.
+- README and fixture docs show the deterministic run plus JSON/JUnit reports.
+
+## Active Slice: Post-Alpha Polish
+
+Outcome: review release posture, license, branch/worktree cleanup, roadmap issues, and a public launch checklist before broader announcement.
 
 ## Explicitly Deferred
 
@@ -122,7 +132,7 @@ For product history, open Obsidian and start with `00_INDEX.md`.
 To start an implementation or review session from an issue, dry-run the launcher first:
 
 ```bash
-scripts/start_issue.sh 6 docs/alpha-demo-quickstart --dry-run
+scripts/start_issue.sh <issue-number> <type>/<short-kebab-description> --dry-run
 ```
 
 ## Constraints
