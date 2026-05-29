@@ -310,6 +310,12 @@ def test_run_writes_json_junit_reports_and_latest_state(
         "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
         encoding="utf-8",
     )
+    env_file = Path("envs") / "local.env"
+    env_file.write_text(
+        "base_url=http://localhost:18080\ncart_id=demo-cart-001\n",
+        encoding="utf-8",
+    )
+    executed_args: list[list[str]] = []
 
     def fake_run(
         args: list[str],
@@ -320,8 +326,9 @@ def test_run_writes_json_junit_reports_and_latest_state(
         check: bool,
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
-        _ = (args, stderr, timeout, check, shell)
-        stdout.write(b"Authorization: Bearer live-secret\nok\n")
+        _ = (stderr, timeout, check, shell)
+        executed_args.append(args)
+        stdout.write(b"Authorization: Bearer live-secret\nbase_url=http://localhost:18080\n")
         return subprocess.CompletedProcess(args=args, returncode=0)
 
     monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
@@ -335,15 +342,39 @@ def test_run_writes_json_junit_reports_and_latest_state(
     assert result.exit_code == 0
     assert "reports/run-latest.json" in result.output
     assert "reports/junit.xml" in result.output
+    assert executed_args
+    assert "--variable" in executed_args[0]
+    assert "base_url=http://localhost:18080" in executed_args[0]
     report_json = json.loads(Path("reports/run-latest.json").read_text(encoding="utf-8"))
     latest_json = json.loads(Path(".entroping/latest-run.json").read_text(encoding="utf-8"))
     junit_root = ElementTree.parse(Path("reports/junit.xml")).getroot()
     assert report_json["environment"] == "local"
     assert report_json["tests"][0]["path"] == "tests/health.hurl"
     assert "live-secret" not in Path("reports/run-latest.json").read_text(encoding="utf-8")
+    assert "http://localhost:18080" not in Path("reports/run-latest.json").read_text(
+        encoding="utf-8"
+    )
     assert report_json == latest_json
     assert junit_root.attrib["tests"] == "1"
     assert junit_root.attrib["failures"] == "0"
+
+
+def test_run_env_fails_with_actionable_missing_env_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    (Path("tests") / "health.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["run", "--env", "local", "--tag", "smoke"])
+
+    assert result.exit_code == 1
+    assert "Environment file not found" in result.output
 
 
 def test_report_bug_generates_markdown_from_latest_failing_run(

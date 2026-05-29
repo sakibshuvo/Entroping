@@ -40,6 +40,7 @@ GitHub milestones:
 
 - [Alpha: deterministic core](https://github.com/sakibshuvo/Entroping/milestone/1)
 - [MVP: Architect build](https://github.com/sakibshuvo/Entroping/milestone/2)
+- [MVP: Runner usability](https://github.com/sakibshuvo/Entroping/milestone/3)
 
 ```text
 init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> run Hurl -> JSON/JUnit report
@@ -57,13 +58,15 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Hurl subprocess runner](https://github.com/sakibshuvo/Entroping/issues/4) | Done | Argument-array subprocess runner, timeout handling, bounded/redacted output, temp cleanup, CLI run integration, and tests | Feed run results into reports |
 | [JSON/JUnit reports](https://github.com/sakibshuvo/Entroping/issues/5) | Done | Redacted JSON, JUnit XML, latest-run state, `report bug`, and tests | Wire reports into the demo quickstart |
 | [README demo quickstart](https://github.com/sakibshuvo/Entroping/issues/6) | Done | Local checkout demo server, literal Hurl fixture, README quickstart, fixture docs, and tests | Keep quickstart aligned with runner/report changes |
-| [OpenAPI Architect build](https://github.com/sakibshuvo/Entroping/issues/11) | Current | Deterministic local `sources.spec` to `tests/generated/*.hurl` generation | Merge after regression/security gate and CI |
+| [OpenAPI Architect build](https://github.com/sakibshuvo/Entroping/issues/11) | Done | Deterministic local `sources.spec` to `tests/generated/*.hurl` generation | Use `--env` to run generated variable-based tests |
+| [Environment file loading](https://github.com/sakibshuvo/Entroping/issues/13) | Current | `run --env` loads `envs/<name>.env` and passes variables to Hurl | Merge after regression/security gate and CI |
 
 ## Later Roadmap
 
 | Phase | Status | Notes |
 | --- | --- | --- |
 | OpenAPI Build | Current | Dedicated bridge compiler, local loader, and `architect build --new` |
+| Runner Usability | Current | Local env-file loading for generated Hurl variables |
 | Architect Minimal | Later | LiteLLM, structured outputs, generated Hurl review flow |
 | Eye Capture Spike | Later | mitmproxy capture-only with redaction before persistence |
 | Freeze and Map | Later | Traffic-to-Hurl compiler and dependency maps |

@@ -78,6 +78,52 @@ def test_run_hurl_file_invokes_hurl_with_argument_array_and_redacts_output(
     assert "token=[REDACTED]" in result.stderr
 
 
+def test_run_hurl_file_passes_variables_as_argument_array_and_redacts_values(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "health.hurl")
+    calls: list[list[str]] = []
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stderr, timeout, check, shell)
+        calls.append(args)
+        stdout.write(b"base_url=http://localhost:18080\n")
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(
+        hurl_file,
+        HurlRunOptions(
+            binary="hurl",
+            variables={"base_url": "http://localhost:18080", "cart_id": "demo-cart-001"},
+        ),
+    )
+
+    assert calls == [
+        [
+            "/bin/hurl",
+            "--variable",
+            "base_url=http://localhost:18080",
+            "--variable",
+            "cart_id=demo-cart-001",
+            str(hurl_file.resolve()),
+        ]
+    ]
+    assert "http://localhost:18080" not in result.stdout
+    assert "base_url=[REDACTED]" in result.stdout
+
+
 def test_run_hurl_file_returns_failed_result_for_non_zero_exit(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
