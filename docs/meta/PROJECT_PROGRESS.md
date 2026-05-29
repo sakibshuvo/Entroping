@@ -32,7 +32,7 @@ Do not duplicate every issue here. The detailed queue lives in GitHub.
 
 ## Current Target
 
-**Goal:** credible open-source alpha of the deterministic governance loop, then the first deterministic Architect generation slice.
+**Goal:** keep the deterministic alpha credible by proving the demo path with real Hurl in CI.
 
 GitHub Project: [Entroping Alpha](https://github.com/users/sakibshuvo/projects/1)
 
@@ -42,6 +42,7 @@ GitHub milestones:
 - [MVP: Architect build](https://github.com/sakibshuvo/Entroping/milestone/2)
 - [MVP: Runner usability](https://github.com/sakibshuvo/Entroping/milestone/3)
 - [MVP: Reporting polish](https://github.com/sakibshuvo/Entroping/milestone/4)
+- [MVP: CI proof](https://github.com/sakibshuvo/Entroping/milestone/5)
 
 ```text
 init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> run Hurl -> JSON/JUnit report
@@ -62,15 +63,17 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [OpenAPI Architect build](https://github.com/sakibshuvo/Entroping/issues/11) | Done | Deterministic local `sources.spec` to `tests/generated/*.hurl` generation | Use `--env` to run generated variable-based tests |
 | [Environment file loading](https://github.com/sakibshuvo/Entroping/issues/13) | Done | `run --env` loads `envs/<name>.env` and passes variables to Hurl | Keep variable passing hardened |
 | [Hurl variable argv hardening](https://github.com/sakibshuvo/Entroping/issues/15) | Done | Hurl variables are passed through a temp `--variables-file` instead of secret-bearing argv | Keep env handling redacted |
-| [HTML run reports](https://github.com/sakibshuvo/Entroping/issues/17) | Current | `run --report html` writes escaped human-readable reports | Merge after regression/security gate and CI |
+| [HTML run reports](https://github.com/sakibshuvo/Entroping/issues/17) | Done | `run --report html` writes escaped human-readable reports | Use in demo and CI proof |
+| [Live Hurl demo smoke in CI](https://github.com/sakibshuvo/Entroping/issues/19) | Current | Queue item ready; real Hurl CI proof pending | Install/provision Hurl, run demo server, generate tests, run reports |
 
 ## Later Roadmap
 
 | Phase | Status | Notes |
 | --- | --- | --- |
-| OpenAPI Build | Current | Dedicated bridge compiler, local loader, and `architect build --new` |
-| Runner Usability | Current | Local env-file loading for generated Hurl variables |
-| Reporting Polish | Current | Dependency-free HTML run reports |
+| OpenAPI Build | Done | Dedicated bridge compiler, local loader, and `architect build --new` |
+| Runner Usability | Done | Local env-file loading for generated Hurl variables |
+| Reporting Polish | Done | Dependency-free HTML run reports |
+| CI Proof | Current | Live demo smoke with real Hurl in GitHub Actions |
 | Architect Minimal | Later | LiteLLM, structured outputs, generated Hurl review flow |
 | Eye Capture Spike | Later | mitmproxy capture-only with redaction before persistence |
 | Freeze and Map | Later | Traffic-to-Hurl compiler and dependency maps |
