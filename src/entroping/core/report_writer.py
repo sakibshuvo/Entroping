@@ -3,6 +3,7 @@
 import json
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from html import escape
 from pathlib import Path
 from xml.etree import ElementTree  # nosec B405
 
@@ -144,6 +145,14 @@ def write_junit_report(report: RunReport, path: Path) -> Path:
     return resolved
 
 
+def write_html_report(report: RunReport, path: Path) -> Path:
+    """Write a dependency-free human-readable HTML report."""
+
+    resolved = _prepare_output_path(path)
+    resolved.write_text(_render_html_report(report), encoding="utf-8")
+    return resolved
+
+
 def render_bug_report(report: RunReport) -> str:
     """Render a Markdown bug handoff from the latest failing run."""
 
@@ -225,6 +234,71 @@ def _failure_text(test: RunTestReport) -> str:
     if test.stderr:
         parts.extend(("", "stderr:", test.stderr))
     return "\n".join(parts)
+
+
+def _render_html_report(report: RunReport) -> str:
+    rows = "\n".join(_html_test_row(test) for test in report.tests)
+    summary = (
+        f"{report.summary.passed} passed, {report.summary.failed} failed, "
+        f"{report.summary.total} total"
+    )
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Entroping {escape(report.project)}</title>
+  <style>
+    body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }}
+    body {{ margin: 2rem; color: #161616; }}
+    table {{ border-collapse: collapse; width: 100%; margin-top: 1rem; }}
+    th, td {{ border: 1px solid #d8d8d8; padding: 0.5rem; text-align: left; vertical-align: top; }}
+    th {{ background: #f4f4f4; }}
+    .passed {{ color: #137333; font-weight: 600; }}
+    .failed, .timeout, .error {{ color: #b3261e; font-weight: 600; }}
+    pre {{ white-space: pre-wrap; background: #f7f7f7; padding: 0.75rem; overflow: auto; }}
+  </style>
+</head>
+<body>
+  <h1>Entroping Run Report</h1>
+  <dl>
+    <dt>Project</dt><dd>{escape(report.project)}</dd>
+    <dt>Environment</dt><dd>{escape(report.environment)}</dd>
+    <dt>Generated</dt><dd>{escape(report.generated_at)}</dd>
+    <dt>Summary</dt><dd>{summary}</dd>
+  </dl>
+  <table>
+    <thead>
+      <tr><th>Test</th><th>Status</th><th>Duration</th><th>Rules</th><th>Output</th></tr>
+    </thead>
+    <tbody>
+{rows}
+    </tbody>
+  </table>
+</body>
+</html>
+"""
+
+
+def _html_test_row(test: RunTestReport) -> str:
+    output = _html_output(test)
+    return (
+        "      <tr>"
+        f"<td>{escape(test.path)}</td>"
+        f'<td class="{escape(test.status)}">{escape(test.status)}</td>'
+        f"<td>{test.duration_ms} ms</td>"
+        f"<td>{escape(', '.join(test.rule_ids) if test.rule_ids else 'none')}</td>"
+        f"<td>{output}</td>"
+        "</tr>"
+    )
+
+
+def _html_output(test: RunTestReport) -> str:
+    parts: list[str] = []
+    if test.stdout:
+        parts.append(f"<strong>stdout</strong><pre>{escape(test.stdout)}</pre>")
+    if test.stderr:
+        parts.append(f"<strong>stderr</strong><pre>{escape(test.stderr)}</pre>")
+    return "".join(parts) if parts else "&nbsp;"
 
 
 def _display_path(path: Path, root: Path) -> str:

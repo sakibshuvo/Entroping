@@ -13,6 +13,7 @@ from entroping.core.report_writer import (
     load_run_report,
     render_bug_report,
     write_bug_report,
+    write_html_report,
     write_json_report,
     write_junit_report,
 )
@@ -105,6 +106,31 @@ def test_write_junit_report_is_valid_ci_consumable_xml(tmp_path: Path) -> None:
     assert failure is not None
     assert failure.attrib["message"] == "failed"
     assert "global_latency" in (failure.text or "")
+
+
+def test_write_html_report_escapes_failure_output(tmp_path: Path) -> None:
+    source = tmp_path / "tests" / "health.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
+    report = build_run_report(
+        project="checkout-api",
+        environment="local",
+        execution_copies=[_execution_copy(source, execution)],
+        suite=_suite_result(execution, '<script>alert("x")</script>\n'),
+        project_root=tmp_path,
+    )
+    output = tmp_path / "reports" / "run-latest.html"
+
+    write_html_report(report, output)
+
+    html = output.read_text(encoding="utf-8")
+    assert "<title>Entroping checkout-api</title>" in html
+    assert "Environment" in html
+    assert "local" in html
+    assert "tests/health.hurl" in html
+    assert "global_latency" in html
+    assert "<script>" not in html
+    assert "&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;" in html
+    assert "live-secret" not in html
 
 
 def test_latest_run_state_round_trips_and_renders_bug_report(tmp_path: Path) -> None:

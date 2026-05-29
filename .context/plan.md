@@ -118,7 +118,7 @@ Implemented boundaries:
 - `core.hurl_runner` passes variables to Hurl and redacts variable values from captured output; issue #15 hardens the transport away from secret-bearing argv.
 - `cli.run` loads env variables only when `--env` is supplied and keeps missing env files actionable.
 
-## Active Slice: Issue #15 Hurl Variable Argv Hardening
+## Completed Slice: Issue #15 Hurl Variable Argv Hardening
 
 Outcome: keep environment values out of Hurl process arguments by writing merged variables to a short-lived Hurl variables file and invoking Hurl with `--variables-file <path>`.
 
@@ -128,6 +128,16 @@ Implemented boundaries:
 - Hurl subprocess command arrays contain the variables-file path, not loaded variable values.
 - The temporary variables file is removed after normal, failing, and timeout runs.
 - Redaction still includes loaded variable values before outputs reach reports.
+
+## Active Slice: Issue #17 HTML Run Reports
+
+Outcome: make `entroping run --report html` write a dependency-free human-readable report under `reports/run-latest.html` while preserving existing JSON and JUnit report behavior.
+
+Implemented boundaries:
+
+- `core.report_writer` renders escaped HTML from the existing typed `RunReport` model.
+- `cli.run` accepts repeatable `--report html` alongside `json` and `junit`.
+- HTML reports include project, environment, summary counts, test status, duration, rule IDs, and escaped Hurl output.
 
 ## Explicitly Deferred
 
