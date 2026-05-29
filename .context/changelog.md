@@ -42,3 +42,4 @@
 - Hardened issue #13's Hurl variable passing in issue #15 by switching to short-lived `--variables-file` temp files so env values do not appear in subprocess argv.
 - Implemented issue #17's HTML report slice with escaped dependency-free `reports/run-latest.html` output and repeatable `--report html` support.
 - Closed the completed alpha, Architect, runner-usability, and reporting milestones; queued issue #19 as the next live CI proof slice.
+- Implemented issue #19's live demo smoke script and GitHub Actions job with pinned Hurl, checksum verification, demo server startup, OpenAPI generation, env loading, real Hurl execution, and report artifact upload.

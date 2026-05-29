@@ -151,6 +151,16 @@ Planned boundaries:
 - Do not commit generated Hurl tests, env files, reports, or runtime state.
 - Keep logs actionable while preserving env-value redaction.
 
+Implemented boundaries:
+
+- `scripts/live_demo_smoke.sh` copies the checkout fixture into a temporary workspace,
+  starts the demo server, generates OpenAPI Hurl tests, writes a local env file, runs
+  smoke tests with HTML/JSON/JUnit reports, and optionally copies report artifacts.
+- CI pins Hurl `8.0.1`, verifies the upstream release checksum, runs the live smoke
+  after the fast regression job, and uploads generated reports as workflow artifacts.
+- Local tests exercise the smoke script with a fake Hurl binary so contributors do not
+  need Hurl installed for the normal regression suite.
+
 ## Explicitly Deferred
 
 - LiteLLM Architect implementation.

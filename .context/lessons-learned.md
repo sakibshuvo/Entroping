@@ -36,3 +36,4 @@
 - Env loading should be intentionally narrow: read only `envs/<name>.env`, allow process overrides only for keys declared in that file, pass values to Hurl through a variables file, and redact loaded values from outputs.
 - Avoid putting env-derived Hurl values directly in subprocess argv. Use Hurl's variables-file path instead, delete the temp file promptly, and keep redaction as a separate defense.
 - Human-facing reports still need output escaping. Treat Hurl stdout/stderr, paths, environment names, and rule IDs as untrusted when rendering HTML.
+- Live demo proof belongs in a separate CI job after fast checks. Pin external CLIs, verify checksums, keep generated artifacts out of Git, and upload reports as CI artifacts instead.

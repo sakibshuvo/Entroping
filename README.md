@@ -178,6 +178,12 @@ Current generation is deterministic and local-file only. It reads `sources.spec`
 `qanstitution.yaml`, writes under `tests/generated/`, and does not call an LLM.
 `--env local` loads `envs/local.env` and passes variables such as `base_url` to Hurl.
 
+CI also runs the same live demo path with a pinned Hurl binary:
+
+```bash
+scripts/live_demo_smoke.sh
+```
+
 ## Planned CLI Surface
 
 ```text
