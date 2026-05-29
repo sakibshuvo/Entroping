@@ -17,4 +17,8 @@ def test_ci_workflow_runs_live_demo_smoke_with_pinned_hurl() -> None:
     assert 'HURL_VERSION: "8.0.1"' in workflow_path.read_text(encoding="utf-8")
     assert "sha256sum \"$archive\"" in run_blocks
     assert "scripts/live_demo_smoke.sh" in run_blocks
-    assert "actions/upload-artifact@v4" in workflow_path.read_text(encoding="utf-8")
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+    assert "actions/checkout@v6" in workflow_text
+    assert "actions/setup-python@v6" in workflow_text
+    assert "astral-sh/setup-uv@v8.1.0" in workflow_text
+    assert "actions/upload-artifact@v7" in workflow_text
