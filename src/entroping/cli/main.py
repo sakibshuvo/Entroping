@@ -1,6 +1,7 @@
 """Command-line entrypoint for the Entroping scaffold."""
 
 import sys
+import tempfile
 from pathlib import Path
 from typing import Annotated
 
@@ -9,8 +10,14 @@ from rich.console import Console
 
 from entroping import __version__
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
-from entroping.core.hurl_discovery import normalize_tag_filters
-from entroping.core.hurl_runner import discover_hurl
+from entroping.core.gate_injector import GateInjectionError, write_injected_execution_copy
+from entroping.core.hurl_discovery import discover_hurl_tests, normalize_tag_filters
+from entroping.core.hurl_runner import (
+    HurlBinaryNotFoundError,
+    HurlRunOptions,
+    discover_hurl,
+    run_hurl_files,
+)
 
 console = Console()
 
@@ -252,8 +259,78 @@ def run(
     except ValueError as exc:
         raise typer.BadParameter(str(exc), param_hint="--tag") from exc
 
-    _ = (env, tag_filters, ci, parallel, report, drift_check)
-    _not_implemented("run")
+    unsupported_options = _unsupported_run_options(
+        env=env,
+        parallel=parallel,
+        report=report,
+        drift_check=drift_check,
+    )
+    if unsupported_options:
+        joined = ", ".join(unsupported_options)
+        console.print(f"[yellow]{joined} not implemented yet for entroping run.[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        law = load_qanstitution(Path("qanstitution.yaml"))
+        hurl_tests = discover_hurl_tests(tag_filters=tuple(tag_filters))
+    except (QanstitutionLoadError, FileNotFoundError, ValueError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+
+    if not hurl_tests:
+        console.print("[yellow]No Hurl tests matched the requested filters.[/yellow]")
+        raise typer.Exit(1 if ci else 0)
+
+    state_dir = Path(".entroping")
+    state_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        with tempfile.TemporaryDirectory(prefix="run-", dir=state_dir) as execution_root:
+            execution_copies = [
+                write_injected_execution_copy(
+                    hurl_test,
+                    law.gates,
+                    execution_root=Path(execution_root),
+                )
+                for hurl_test in hurl_tests
+            ]
+            suite = run_hurl_files(
+                [execution.execution_path for execution in execution_copies],
+                HurlRunOptions(timeout_ms=law.settings.timeout),
+            )
+    except (GateInjectionError, HurlBinaryNotFoundError, ValueError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+
+    console.print(f"Hurl run: {suite.passed} passed, {suite.failed} failed")
+    for result in suite.results:
+        if result.passed:
+            continue
+        console.print(f"[red]{result.path.name}: {result.status}[/red]")
+        if result.stdout:
+            console.print(result.stdout, markup=False)
+        if result.stderr:
+            console.print(result.stderr, markup=False)
+
+    raise typer.Exit(suite.exit_code)
+
+
+def _unsupported_run_options(
+    *,
+    env: str | None,
+    parallel: bool,
+    report: list[str] | None,
+    drift_check: bool,
+) -> tuple[str, ...]:
+    unsupported: list[str] = []
+    if env is not None:
+        unsupported.append("--env")
+    if parallel:
+        unsupported.append("--parallel")
+    if report:
+        unsupported.append("--report")
+    if drift_check:
+        unsupported.append("--drift-check")
+    return tuple(unsupported)
 
 
 @report_app.command("bug")

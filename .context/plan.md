@@ -28,7 +28,7 @@ The repo should remain usable as an Obsidian vault and as a Codex workspace with
 - `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, `.github/pull_request_template.md`, and `scripts/feature_gate.sh` define the executable delivery gates for feature work.
 - `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, and `scripts/regression.sh` define issue tracking, regression coverage, and simple phase-level progress tracking.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work.
-- Issues #1, #2, and #3 are integrated locally: `entroping init --minimal`, `entroping doctor`, QAnstitution local loading/import validation, Hurl discovery, Entroping metadata parsing, tag-filter validation, gate matching, gate assertion compilation, and temporary Hurl execution-copy injection.
+- Issues #1, #2, #3, and #4 are integrated locally: `entroping init --minimal`, `entroping doctor`, QAnstitution local loading/import validation, Hurl discovery, Entroping metadata parsing, tag-filter validation, gate matching, gate assertion compilation, temporary Hurl execution-copy injection, and deterministic Hurl subprocess execution.
 
 ## Next Milestone: Deterministic Core
 
@@ -39,7 +39,7 @@ Implement only the deterministic path before adding AI, proxy capture, or Studio
 3. Add QAnstitution file loading and local import handling. **Done in issue #1.**
 4. Implement Hurl test discovery and metadata parsing. **Done in issue #2.**
 5. Implement QAnstitution gate matching and gate-to-Hurl assertion compilation. **Done in issue #3.**
-6. Implement Hurl subprocess execution with timeout, bounded output, cleanup, and redaction.
+6. Implement Hurl subprocess execution with timeout, bounded output, cleanup, and redaction. **Done in issue #4.**
 7. Emit JSON and JUnit reports.
 8. Wire the checkout demo into README quickstart.
 
@@ -67,9 +67,19 @@ Implemented boundaries:
 - `bridge.policy_to_hurl` matches typed QAnstitution conditions and compiles rule ID, assertion, and enforcement metadata.
 - `core.gate_injector` writes deterministic temporary execution copies with `# entroping-gate:` annotations while leaving source `.hurl` files unchanged.
 
-## Active Slice: Issue #4 Hurl Subprocess Runner
+## Completed Slice: Issue #4 Hurl Subprocess Runner
 
 Outcome: execute injected Hurl copies through the external Hurl binary with timeouts, bounded output, cleanup, redaction, and deterministic non-zero failure handling.
+
+Implemented boundaries:
+
+- `core.hurl_runner` invokes Hurl through subprocess argument arrays with `shell=False`.
+- Runner results are typed, timeout-aware, redacted, and bounded before printing.
+- `entroping run` loads QAnstitution, discovers Hurl files, creates temporary injected execution copies, runs Hurl, cleans run state, and exits deterministically.
+
+## Active Slice: Issue #5 JSON And JUnit Reports
+
+Outcome: emit machine-consumable JSON and JUnit summaries from deterministic run results so CI and humans can inspect failures without rerunning Hurl.
 
 ## Explicitly Deferred
 
@@ -102,7 +112,7 @@ For product history, open Obsidian and start with `00_INDEX.md`.
 To start an implementation or review session from an issue, dry-run the launcher first:
 
 ```bash
-scripts/start_issue.sh 3 feat/gate-injection --dry-run
+scripts/start_issue.sh 5 feat/run-reports --dry-run
 ```
 
 ## Constraints

@@ -51,8 +51,8 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [`init`, `doctor`, and QAnstitution loading](https://github.com/sakibshuvo/Entroping/issues/1) | Done | Minimal init, doctor config validation, local import loading, and tests | Keep docs and examples aligned |
 | [Hurl discovery and metadata](https://github.com/sakibshuvo/Entroping/issues/2) | Done | Metadata parsing, recursive discovery, generated-state ignores, tag-filter validation, and tests | Feed discovery into gate injection |
 | [Gate matching and injection](https://github.com/sakibshuvo/Entroping/issues/3) | Done | Policy compiler, request metadata parsing, temporary execution copies, source-immutability regression tests | Feed injected copies into Hurl subprocess runner |
-| [Hurl subprocess runner](https://github.com/sakibshuvo/Entroping/issues/4) | Current | Runner scaffold exists | Timeouts, bounded output, redaction, non-zero failures |
-| [JSON/JUnit reports](https://github.com/sakibshuvo/Entroping/issues/5) | Next | Report command scaffold exists | CI can consume JUnit and humans can inspect JSON |
+| [Hurl subprocess runner](https://github.com/sakibshuvo/Entroping/issues/4) | Done | Argument-array subprocess runner, timeout handling, bounded/redacted output, temp cleanup, CLI run integration, and tests | Feed run results into reports |
+| [JSON/JUnit reports](https://github.com/sakibshuvo/Entroping/issues/5) | Current | Report command scaffold exists | CI can consume JUnit and humans can inspect JSON |
 | [README demo quickstart](https://github.com/sakibshuvo/Entroping/issues/6) | Next | Checkout fixture exists | A new user can run the alpha loop locally |
 
 ## Later Roadmap

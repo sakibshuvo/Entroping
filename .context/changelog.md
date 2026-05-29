@@ -34,3 +34,4 @@
 - Implemented issue #2's Hurl discovery and metadata slice with pure `# entroping:` comment parsing, recursive `.hurl` discovery, generated-state ignores, tag-filter validation, and focused unit plus adapter tests.
 - Added `scripts/start_issue.sh` and a tested prompt renderer for issue-scoped worktrees, dry-run previews, review/write session prompts, and best-effort GitHub issue/project status updates.
 - Implemented issue #3's gate matching and temporary Hurl injection slice with shallow request metadata parsing, QAnstitution condition matching, gate-to-Hurl assertion compilation, deterministic execution-copy names, and source-immutability regression coverage.
+- Implemented issue #4's deterministic Hurl subprocess runner with argument-array execution, timeout handling, bounded and redacted output, missing-binary handling, non-zero result aggregation, `entroping run` integration, temporary execution-copy cleanup, and focused subprocess/CLI tests.
