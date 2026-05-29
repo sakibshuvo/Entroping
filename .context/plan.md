@@ -41,6 +41,24 @@ Implement only the deterministic path before adding AI, proxy capture, or Studio
 7. Emit JSON and JUnit reports.
 8. Wire the checkout demo into README quickstart.
 
+## Active Slice: Issue #2 Hurl Discovery And Metadata
+
+Outcome: Entroping discovers recursive `.hurl` tests, ignores generated/local state, parses supported `# entroping:` metadata comments for tags and traceability, and accepts tag-filter inputs without executing Hurl yet.
+
+Source-of-truth files:
+
+- GitHub issue #2, `Phase 2A: Hurl discovery and metadata parsing`.
+- `docs/product/MVP_PLAN.md`, Phase 2 Hurl Runner and Gate Injection.
+- `docs/technical/TDS.md`, Hurl Execution Design and Hurl Metadata Conventions.
+- `docs/technical/QANSTITUTION_REFERENCE.md`, Hurl Metadata Example.
+- `docs/meta/TEST_STRATEGY.md`, Hurl discovery and metadata fixture expectations.
+
+Planned boundaries:
+
+- Pure metadata parsing belongs in `src/entroping/models/` and must stay independent of CLI/core adapters.
+- Filesystem discovery belongs in `src/entroping/core/` and must skip `.entroping/`, reports, dependency folders, virtualenvs, caches, and hidden generated state by default.
+- `entroping run --tag` may validate/collect tag-filter inputs, but actual Hurl execution and gate injection remain deferred to later issues.
+
 ## Explicitly Deferred
 
 - LiteLLM Architect implementation.

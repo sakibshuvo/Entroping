@@ -23,3 +23,4 @@
 - A multi-agent workflow needs executable gates, not only principles. Keep one parent integrator, require local file evidence for claims, run deterministic checks before commit, and update context files so future threads inherit the decision trail.
 - GitHub Issues should track individual bugs, feature slices, and regressions; Obsidian should track phase-level progress, roadmap movement, ADRs, and durable lessons. Duplicating every issue into Markdown creates stale context.
 - Obsidian improves context preservation only when notes are tiered and curated. Keep `PROJECT_PROGRESS` as the daily dashboard, use `00_INDEX` as the map, and leave product-history files as reference material instead of default agent input.
+- Hurl discovery should skip generated and local state such as `.entroping/`, reports, caches, virtualenvs, dependency folders, and hidden directories by default so future `run` work does not accidentally govern stale artifacts.

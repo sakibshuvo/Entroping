@@ -30,3 +30,4 @@
 - Created the `Alpha: deterministic core` GitHub milestone with six initial feature/docs issues and linked them from `docs/meta/PROJECT_PROGRESS.md`.
 - Tightened Obsidian navigation by making `docs/meta/PROJECT_PROGRESS.md` the daily dashboard, reorganizing `00_INDEX.md` into reading tiers, and clarifying context tiers so agents do not treat every Markdown file as equally relevant.
 - Created the GitHub Project board `Entroping Alpha`, linked it to the repo, added issues #1-#6, and marked issue #1 as in progress.
+- Implemented issue #2's Hurl discovery and metadata slice with pure `# entroping:` comment parsing, recursive `.hurl` discovery, generated-state ignores, tag-filter validation, and focused unit plus adapter tests.

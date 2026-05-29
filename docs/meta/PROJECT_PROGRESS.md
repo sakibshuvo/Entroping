@@ -49,7 +49,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | Repo and context scaffold | Done | CI, docs, Obsidian vault, `scripts/feature_gate.sh` | Keep context docs current |
 | Issue tracking and progress system | Done | Issue templates, regression script, progress dashboard, CI regression command | Keep the queue and dashboard current |
 | [`init`, `doctor`, and QAnstitution loading](https://github.com/sakibshuvo/Entroping/issues/1) | Current | CLI scaffold exists | Creates minimal config and validates local tools |
-| [Hurl discovery and metadata](https://github.com/sakibshuvo/Entroping/issues/2) | Next | Discovery adapter scaffold exists | Finds `.hurl` files and parses `# entroping:` metadata |
+| [Hurl discovery and metadata](https://github.com/sakibshuvo/Entroping/issues/2) | Next | Local issue branch adds metadata parsing, recursive discovery, generated-state ignores, and tag-filter tests | Merge after regression gate and review |
 | [Gate matching and injection](https://github.com/sakibshuvo/Entroping/issues/3) | Next | Policy compiler boundary exists | Source `.hurl` files are never mutated |
 | [Hurl subprocess runner](https://github.com/sakibshuvo/Entroping/issues/4) | Next | Runner scaffold exists | Timeouts, bounded output, redaction, non-zero failures |
 | [JSON/JUnit reports](https://github.com/sakibshuvo/Entroping/issues/5) | Next | Report command scaffold exists | CI can consume JUnit and humans can inspect JSON |

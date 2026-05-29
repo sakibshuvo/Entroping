@@ -1,6 +1,12 @@
 """Pure domain models for Entroping."""
 
 from entroping.models.conditions import Condition, ConditionSyntaxError, parse_condition
+from entroping.models.hurl import (
+    HurlMetadata,
+    HurlMetadataSyntaxError,
+    HurlTest,
+    parse_hurl_metadata,
+)
 from entroping.models.qanstitution import AgentConfig, GateRule, Qanstitution
 
 __all__ = [
@@ -8,6 +14,10 @@ __all__ = [
     "Condition",
     "ConditionSyntaxError",
     "GateRule",
+    "HurlMetadata",
+    "HurlMetadataSyntaxError",
+    "HurlTest",
     "Qanstitution",
     "parse_condition",
+    "parse_hurl_metadata",
 ]
