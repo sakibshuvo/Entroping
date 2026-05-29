@@ -37,3 +37,5 @@
 - Avoid putting env-derived Hurl values directly in subprocess argv. Use Hurl's variables-file path instead, delete the temp file promptly, and keep redaction as a separate defense.
 - Human-facing reports still need output escaping. Treat Hurl stdout/stderr, paths, environment names, and rule IDs as untrusted when rendering HTML.
 - Live demo proof belongs in a separate CI job after fast checks. Pin external CLIs, verify checksums, keep generated artifacts out of Git, and upload reports as CI artifacts instead.
+- OpenAPI parameters should compile through explicit rendering rules, not string concatenation. Use Hurl variables as the fallback, URL-encode literal path/query/cookie values, validate header/cookie names as HTTP tokens, and keep examples/defaults source-grounded.
+- OpenAPI examples and defaults can become active Hurl syntax if emitted blindly. Reject Hurl template delimiters in literal source values and reject non-finite numbers before rendering generated `.hurl` files.

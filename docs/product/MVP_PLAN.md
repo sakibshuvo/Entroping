@@ -113,6 +113,8 @@ Deliverables:
 - OpenAPI loader.
 - Dedicated `bridge.openapi_to_hurl` compiler.
 - Basic operation-to-Hurl generation.
+- Common path/query/header/cookie parameter rendering.
+- Request-body examples/defaults sourced from schemas.
 - Schema/status/header assertions.
 - `architect build --new`.
 - Dedicated `bridge.merge` module for `--strategy merge`.

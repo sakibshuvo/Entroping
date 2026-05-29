@@ -101,6 +101,102 @@ def test_compile_openapi_generates_deterministic_hurl_files() -> None:
     assert 'jsonpath "$.status" == "accepted"' in checkout
 
 
+def test_compile_openapi_renders_parameters_and_schema_examples() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/orders/{order_id}/events/{event-id}": {
+                "parameters": [
+                    {
+                        "name": "order_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                    },
+                    {
+                        "name": "tenant",
+                        "in": "query",
+                        "schema": {"type": "string", "default": "north"},
+                    },
+                ],
+                "post": {
+                    "operationId": "createOrderEvent",
+                    "parameters": [
+                        {
+                            "name": "event-id",
+                            "in": "path",
+                            "required": True,
+                            "example": "evt-001",
+                            "schema": {"type": "string"},
+                        },
+                        {
+                            "name": "status",
+                            "in": "query",
+                            "schema": {"type": "string", "enum": ["accepted", "pending"]},
+                        },
+                        {
+                            "name": "X-Request-Id",
+                            "in": "header",
+                            "schema": {"type": "string", "default": "req-123"},
+                        },
+                        {
+                            "name": "session_id",
+                            "in": "cookie",
+                            "schema": {"type": "string"},
+                        },
+                    ],
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["source", "retry", "priority", "payload"],
+                                    "properties": {
+                                        "source": {
+                                            "type": "string",
+                                            "example": "mobile",
+                                        },
+                                        "retry": {
+                                            "type": "boolean",
+                                            "default": True,
+                                        },
+                                        "priority": {
+                                            "const": "high",
+                                        },
+                                        "payload": {
+                                            "type": "object",
+                                            "examples": [{"kind": "refund"}],
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "responses": {"202": {"description": "accepted"}},
+                },
+            },
+        },
+    }
+
+    generated = compile_openapi_to_hurl(document, tags=frozenset({"orders"}))
+
+    assert len(generated) == 1
+    content = generated[0].content
+    assert "# entroping: path=/orders/{order_id}/events/{event-id}" in content
+    assert (
+        "POST {{base_url}}/orders/{{order_id}}/events/evt-001"
+        "?tenant=north&status=accepted"
+    ) in content
+    assert "X-Request-Id: req-123" in content
+    assert "Cookie: session_id={{session_id}}" in content
+    assert '"source": "mobile"' in content
+    assert '"retry": true' in content
+    assert '"priority": "high"' in content
+    assert '"payload": {\n    "kind": "refund"\n  }' in content
+    assert "HTTP 202" in content
+
+
 def test_compile_openapi_rejects_missing_paths_mapping() -> None:
     with pytest.raises(
         OpenApiCompilationError,
@@ -140,6 +236,197 @@ def test_compile_openapi_rejects_whitespace_in_paths() -> None:
     }
 
     with pytest.raises(OpenApiCompilationError, match="absolute path strings"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
+def test_compile_openapi_rejects_unsafe_parameter_definitions() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "parameters": [
+                        {
+                            "name": "X-Bad\nHeader",
+                            "in": "header",
+                            "schema": {"type": "string"},
+                        },
+                    ],
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="parameter name"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
+def test_compile_openapi_rejects_unsupported_parameter_locations() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "parameters": [
+                        {
+                            "name": "debug",
+                            "in": "body",
+                            "schema": {"type": "string"},
+                        },
+                    ],
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="parameter location"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
+def test_compile_openapi_rejects_control_characters_in_parameter_values() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "parameters": [
+                        {
+                            "name": "X-Request-Id",
+                            "in": "header",
+                            "schema": {"type": "string", "default": "req\t123"},
+                        },
+                    ],
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="control characters"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
+def test_compile_openapi_rejects_hurl_template_delimiters_in_parameter_values() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "in": "header",
+                            "schema": {"type": "string", "default": "Bearer {{token}}"},
+                        },
+                    ],
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="Hurl template delimiters"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
+def test_compile_openapi_rejects_hurl_template_delimiters_in_schema_examples() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/checkout": {
+                "post": {
+                    "operationId": "createCheckout",
+                    "requestBody": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["cart_id"],
+                                    "properties": {
+                                        "cart_id": {
+                                            "type": "string",
+                                            "example": "{{cart_id}}",
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "responses": {"201": {"description": "created"}},
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="Hurl template delimiters"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
+def test_compile_openapi_rejects_parameter_variable_name_collisions() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/orders": {
+                "get": {
+                    "operationId": "listOrders",
+                    "parameters": [
+                        {
+                            "name": "foo-bar",
+                            "in": "query",
+                            "schema": {"type": "string"},
+                        },
+                        {
+                            "name": "foo_bar",
+                            "in": "query",
+                            "schema": {"type": "string"},
+                        },
+                    ],
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="fallback variable"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
+def test_compile_openapi_rejects_non_finite_schema_examples() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/checkout": {
+                "post": {
+                    "operationId": "createCheckout",
+                    "requestBody": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["amount"],
+                                    "properties": {
+                                        "amount": {
+                                            "type": "number",
+                                            "default": float("nan"),
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "responses": {"201": {"description": "created"}},
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="finite"):
         compile_openapi_to_hurl(document, tags=frozenset())
 
 

@@ -43,6 +43,19 @@ def test_demo_server_routes_checkout_response() -> None:
     }
 
 
+def test_demo_server_routes_checkout_lookup_with_query() -> None:
+    demo_server = _load_demo_server()
+
+    response = demo_server.route_request("GET", "/checkout/chk_demo-cart-001?include=events", b"")
+
+    assert response.status == 200
+    assert json.loads(response.body) == {
+        "events": ["created", "accepted"],
+        "id": "chk_demo-cart-001",
+        "status": "accepted",
+    }
+
+
 def test_demo_server_rejects_bad_checkout_json() -> None:
     demo_server = _load_demo_server()
 
