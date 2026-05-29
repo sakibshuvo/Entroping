@@ -52,7 +52,7 @@ To regenerate Hurl tests from `openapi.yaml`:
 ```bash
 uv run --project ../.. entroping architect build --new --tag smoke
 cp envs/local.env.example envs/local.env
-uv run --project ../.. entroping run --env local --tag smoke --report json --report junit
+uv run --project ../.. entroping run --env local --tag smoke --report html --report json --report junit
 ```
 
 ## Design Notes

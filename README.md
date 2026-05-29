@@ -170,7 +170,7 @@ Generate reviewable Hurl tests from the fixture OpenAPI source:
 cd examples/checkout-api
 uv run --project ../.. entroping architect build --new --tag smoke
 cp envs/local.env.example envs/local.env
-uv run --project ../.. entroping run --env local --tag smoke --report json --report junit
+uv run --project ../.. entroping run --env local --tag smoke --report html --report json --report junit
 ls tests/generated
 ```
 
@@ -203,7 +203,7 @@ Deprecated names such as `gen`, `fix`, `scan`, `chaos`, and `report --type` are 
 
 Current implementation supports `init`, `doctor`, deterministic `architect build --new`
 from local OpenAPI files, `run --env`, deterministic `run`, JSON/JUnit run reports,
-and `report bug`.
+HTML run reports, and `report bug`.
 
 ## Architecture
 

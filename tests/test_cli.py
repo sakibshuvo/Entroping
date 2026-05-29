@@ -342,12 +342,25 @@ def test_run_writes_json_junit_reports_and_latest_state(
 
     result = runner.invoke(
         app,
-        ["run", "--env", "local", "--tag", "smoke", "--report", "json", "--report", "junit"],
+        [
+            "run",
+            "--env",
+            "local",
+            "--tag",
+            "smoke",
+            "--report",
+            "json",
+            "--report",
+            "junit",
+            "--report",
+            "html",
+        ],
     )
 
     assert result.exit_code == 0
     assert "reports/run-latest.json" in result.output
     assert "reports/junit.xml" in result.output
+    assert "reports/run-latest.html" in result.output
     assert executed_args
     assert "--variables-file" in executed_args[0]
     assert "base_url=http://localhost:18080" not in " ".join(executed_args[0])
@@ -359,6 +372,9 @@ def test_run_writes_json_junit_reports_and_latest_state(
     assert report_json["tests"][0]["path"] == "tests/health.hurl"
     assert "live-secret" not in Path("reports/run-latest.json").read_text(encoding="utf-8")
     assert "http://localhost:18080" not in Path("reports/run-latest.json").read_text(
+        encoding="utf-8"
+    )
+    assert "http://localhost:18080" not in Path("reports/run-latest.html").read_text(
         encoding="utf-8"
     )
     assert report_json == latest_json
@@ -439,7 +455,7 @@ def test_report_bug_returns_actionable_message_without_latest_run(
 
 
 def test_run_rejects_unsupported_report_format() -> None:
-    result = CliRunner().invoke(app, ["run", "--report", "html"])
+    result = CliRunner().invoke(app, ["run", "--report", "drift"])
 
     assert result.exit_code == 2
     assert "Unsupported report format" in result.output

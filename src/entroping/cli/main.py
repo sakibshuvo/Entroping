@@ -31,6 +31,7 @@ from entroping.core.report_writer import (
     build_run_report,
     load_run_report,
     write_bug_report,
+    write_html_report,
     write_json_report,
     write_junit_report,
 )
@@ -362,6 +363,8 @@ def run(
             artifacts.append(write_json_report(run_report, Path("reports") / "run-latest.json"))
         if "junit" in report_formats:
             artifacts.append(write_junit_report(run_report, Path("reports") / "junit.xml"))
+        if "html" in report_formats:
+            artifacts.append(write_html_report(run_report, Path("reports") / "run-latest.html"))
     except ReportWriterError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
@@ -402,8 +405,8 @@ def _normalize_report_formats(report: list[str] | None) -> tuple[str, ...]:
     normalized: list[str] = []
     for raw_format in report:
         report_format = raw_format.strip().lower()
-        if report_format not in {"json", "junit"}:
-            msg = f"Unsupported report format {raw_format!r}; supported formats: json, junit"
+        if report_format not in {"html", "json", "junit"}:
+            msg = f"Unsupported report format {raw_format!r}; supported formats: html, json, junit"
             raise ValueError(msg)
         if report_format not in normalized:
             normalized.append(report_format)

@@ -41,6 +41,7 @@ GitHub milestones:
 - [Alpha: deterministic core](https://github.com/sakibshuvo/Entroping/milestone/1)
 - [MVP: Architect build](https://github.com/sakibshuvo/Entroping/milestone/2)
 - [MVP: Runner usability](https://github.com/sakibshuvo/Entroping/milestone/3)
+- [MVP: Reporting polish](https://github.com/sakibshuvo/Entroping/milestone/4)
 
 ```text
 init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> run Hurl -> JSON/JUnit report
@@ -60,7 +61,8 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [README demo quickstart](https://github.com/sakibshuvo/Entroping/issues/6) | Done | Local checkout demo server, literal Hurl fixture, README quickstart, fixture docs, and tests | Keep quickstart aligned with runner/report changes |
 | [OpenAPI Architect build](https://github.com/sakibshuvo/Entroping/issues/11) | Done | Deterministic local `sources.spec` to `tests/generated/*.hurl` generation | Use `--env` to run generated variable-based tests |
 | [Environment file loading](https://github.com/sakibshuvo/Entroping/issues/13) | Done | `run --env` loads `envs/<name>.env` and passes variables to Hurl | Keep variable passing hardened |
-| [Hurl variable argv hardening](https://github.com/sakibshuvo/Entroping/issues/15) | Current | Hurl variables are passed through a temp `--variables-file` instead of secret-bearing argv | Merge after regression/security gate and CI |
+| [Hurl variable argv hardening](https://github.com/sakibshuvo/Entroping/issues/15) | Done | Hurl variables are passed through a temp `--variables-file` instead of secret-bearing argv | Keep env handling redacted |
+| [HTML run reports](https://github.com/sakibshuvo/Entroping/issues/17) | Current | `run --report html` writes escaped human-readable reports | Merge after regression/security gate and CI |
 
 ## Later Roadmap
 
@@ -68,6 +70,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | --- | --- | --- |
 | OpenAPI Build | Current | Dedicated bridge compiler, local loader, and `architect build --new` |
 | Runner Usability | Current | Local env-file loading for generated Hurl variables |
+| Reporting Polish | Current | Dependency-free HTML run reports |
 | Architect Minimal | Later | LiteLLM, structured outputs, generated Hurl review flow |
 | Eye Capture Spike | Later | mitmproxy capture-only with redaction before persistence |
 | Freeze and Map | Later | Traffic-to-Hurl compiler and dependency maps |
