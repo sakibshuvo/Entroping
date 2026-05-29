@@ -139,7 +139,7 @@ Implemented boundaries:
 - `cli.run` accepts repeatable `--report html` alongside `json` and `junit`.
 - HTML reports include project, environment, summary counts, test status, duration, rule IDs, and escaped Hurl output.
 
-## Active Slice: Issue #19 Live Hurl Demo Smoke In CI
+## Completed Slice: Issue #19 Live Hurl Demo Smoke In CI
 
 Outcome: prove the user-facing demo path in GitHub Actions with the real Hurl binary:
 start the checkout demo server, generate Hurl tests from OpenAPI, load `--env local`,
@@ -160,6 +160,23 @@ Implemented boundaries:
   after the fast regression job, and uploads generated reports as workflow artifacts.
 - Local tests exercise the smoke script with a fake Hurl binary so contributors do not
   need Hurl installed for the normal regression suite.
+
+## Active Slice: Issue #23 OpenAPI Parameters And Schema Examples
+
+Outcome: make `architect build --new` generate useful Hurl for common OpenAPI
+operations with path, query, header, and cookie parameters plus source-grounded
+request examples/defaults.
+
+Planned boundaries:
+
+- Keep the OpenAPI compiler pure: no filesystem writes, Hurl execution, adapter imports,
+  or LLM calls.
+- Use safe Hurl variables for parameter fallbacks and literal values only when OpenAPI
+  provides examples, defaults, constants, or enums.
+- Reject unsafe parameter names, locations, control characters, and unsupported
+  parameter value shapes before emitting Hurl.
+- Exercise the behavior through unit tests, CLI adapter tests, and the checkout demo
+  fixture used by the live CI smoke.
 
 ## Explicitly Deferred
 

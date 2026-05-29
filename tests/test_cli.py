@@ -178,6 +178,53 @@ paths:
     assert "HTTP 200" in content
 
 
+def test_architect_build_new_writes_parameterized_generated_hurl(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("qanstitution.yaml").write_text(
+        """
+project: orders-api
+sources:
+  spec: ./openapi.yaml
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    Path("openapi.yaml").write_text(
+        """
+openapi: "3.1.0"
+paths:
+  /orders/{order_id}:
+    get:
+      operationId: getOrder
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: include
+          in: query
+          schema:
+            type: string
+            enum:
+              - events
+      responses:
+        "200":
+          description: ok
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["architect", "build", "--new", "--tag", "orders"])
+
+    assert result.exit_code == 0
+    content = Path("tests/generated/get_order.hurl").read_text(encoding="utf-8")
+    assert "GET {{base_url}}/orders/{{order_id}}?include=events" in content
+
+
 def test_architect_build_new_requires_configured_spec(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

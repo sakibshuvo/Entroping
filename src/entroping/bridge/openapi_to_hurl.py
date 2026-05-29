@@ -5,12 +5,24 @@ LLMs, invoke Hurl, write files directly, or apply merge behavior.
 """
 
 import json
+import math
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from urllib.parse import quote
 
 _HTTP_METHODS = frozenset({"get", "post", "put", "patch", "delete", "head", "options", "trace"})
 _JSONPATH_FIELD_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_PATH_PARAMETER_RE = re.compile(r"\{([^{}]+)\}")
+_HTTP_TOKEN_RE = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
+_PARAMETER_LOCATIONS = frozenset({"path", "query", "header", "cookie"})
+
+
+class _MissingValue:
+    """Sentinel for absent OpenAPI examples/defaults."""
+
+
+_MISSING = _MissingValue()
 
 
 class OpenApiCompilationError(ValueError):
@@ -23,6 +35,16 @@ class GeneratedHurlFile:
 
     relative_path: str
     content: str
+
+
+@dataclass(frozen=True)
+class _OpenApiParameter:
+    """Normalized OpenAPI parameter data used by the pure compiler."""
+
+    name: str
+    location: str
+    variable_name: str
+    example_value: str | int | float | bool | None
 
 
 def compile_openapi_to_hurl(
@@ -64,6 +86,7 @@ def compile_openapi_to_hurl(
                     content=_render_operation(
                         method=method.upper(),
                         path=raw_path,
+                        path_item=path_item,
                         operation=operation,
                         operation_id=operation_id,
                         tags=tags,
@@ -81,24 +104,29 @@ def _render_operation(
     *,
     method: str,
     path: str,
+    path_item: Mapping[str, object],
     operation: Mapping[str, object],
     operation_id: str,
     tags: frozenset[str],
 ) -> str:
     status, response_schema = _select_response(operation)
+    parameters = _operation_parameters(path_item=path_item, operation=operation, path=path)
     lines = [
         f"# entroping: tags={_render_tags(tags)}",
         "# entroping: source=openapi",
         f"# entroping: operation_id={operation_id}",
         f"# entroping: path={path}",
         "",
-        f"{method} {{{{base_url}}}}{path}",
+        f"{method} {{{{base_url}}}}{_render_request_target(path, parameters)}",
     ]
+    lines.extend(_render_parameter_headers(parameters))
 
     request_schema = _json_request_schema(operation)
     if request_schema is not None:
         lines.append("Content-Type: application/json")
-        lines.extend(json.dumps(_example_for_schema(request_schema), indent=2).splitlines())
+        lines.extend(
+            json.dumps(_example_for_schema(request_schema), indent=2, allow_nan=False).splitlines()
+        )
 
     lines.append(f"HTTP {status}")
     assertions = _response_assertions(response_schema)
@@ -107,6 +135,251 @@ def _render_operation(
         lines.extend(assertions)
     lines.append("")
     return "\n".join(lines)
+
+
+def _operation_parameters(
+    *,
+    path_item: Mapping[str, object],
+    operation: Mapping[str, object],
+    path: str,
+) -> tuple[_OpenApiParameter, ...]:
+    path_parameters = _parameters_from_container(path_item, context=f"OpenAPI path {path!r}")
+    operation_parameters = _parameters_from_container(
+        operation,
+        context=f"OpenAPI operation for {path!r}",
+    )
+    parameters = _merge_parameters(path_parameters, operation_parameters)
+    _validate_path_template(path)
+    _validate_fallback_variable_names(parameters, path=path)
+    return parameters
+
+
+def _parameters_from_container(
+    container: Mapping[str, object],
+    *,
+    context: str,
+) -> tuple[_OpenApiParameter, ...]:
+    raw_parameters = container.get("parameters")
+    if raw_parameters is None:
+        return ()
+    if not isinstance(raw_parameters, Sequence) or isinstance(raw_parameters, str | bytes):
+        msg = f"{context} parameters must be a list"
+        raise OpenApiCompilationError(msg)
+
+    parsed: list[_OpenApiParameter] = []
+    for index, raw_parameter in enumerate(raw_parameters):
+        parameter = _ensure_mapping(raw_parameter, f"{context} parameter {index}")
+        parsed.append(_parse_parameter(parameter, context=f"{context} parameter {index}"))
+    return tuple(parsed)
+
+
+def _parse_parameter(
+    parameter: Mapping[str, object],
+    *,
+    context: str,
+) -> _OpenApiParameter:
+    name = _parameter_name(parameter.get("name"), context=context)
+    location = _parameter_location(parameter.get("in"), context=context)
+    if location in {"header", "cookie"} and _HTTP_TOKEN_RE.fullmatch(name) is None:
+        msg = f"{context} parameter name is not safe for {location}: {name!r}"
+        raise OpenApiCompilationError(msg)
+
+    schema = parameter.get("schema")
+    schema_mapping = _ensure_mapping(schema, f"{context} schema") if schema is not None else {}
+    value = _parameter_example_value(parameter, schema_mapping, context=context)
+    return _OpenApiParameter(
+        name=name,
+        location=location,
+        variable_name=_variable_name(name),
+        example_value=value,
+    )
+
+
+def _parameter_name(value: object, *, context: str) -> str:
+    if not isinstance(value, str) or not value:
+        msg = f"{context} parameter name must be a non-empty string"
+        raise OpenApiCompilationError(msg)
+    if _has_control(value):
+        msg = f"{context} parameter name contains control characters: {value!r}"
+        raise OpenApiCompilationError(msg)
+    return value
+
+
+def _parameter_location(value: object, *, context: str) -> str:
+    if not isinstance(value, str) or _has_control(value):
+        msg = f"{context} parameter location must be one of {sorted(_PARAMETER_LOCATIONS)}"
+        raise OpenApiCompilationError(msg)
+    location = value.lower()
+    if location not in _PARAMETER_LOCATIONS:
+        msg = f"{context} parameter location is not supported: {value!r}"
+        raise OpenApiCompilationError(msg)
+    return location
+
+
+def _parameter_example_value(
+    parameter: Mapping[str, object],
+    schema: Mapping[str, object],
+    *,
+    context: str,
+) -> str | int | float | bool | None:
+    value = parameter.get("example", _MISSING)
+    if value is _MISSING:
+        value = _schema_preferred_value(schema, context=f"{context} schema")
+    if value is _MISSING or value is None:
+        return None
+    return _ensure_scalar_parameter_value(value, context=context)
+
+
+def _ensure_scalar_parameter_value(
+    value: object,
+    *,
+    context: str,
+) -> str | int | float | bool:
+    if not isinstance(value, str | int | float | bool):
+        msg = f"{context} parameter example/default must be a scalar"
+        raise OpenApiCompilationError(msg)
+    if isinstance(value, str) and _has_control(value):
+        msg = f"{context} parameter example/default contains control characters"
+        raise OpenApiCompilationError(msg)
+    if isinstance(value, str) and _has_hurl_template_delimiter(value):
+        msg = f"{context} parameter example/default contains Hurl template delimiters"
+        raise OpenApiCompilationError(msg)
+    if isinstance(value, float) and not math.isfinite(value):
+        msg = f"{context} parameter example/default must be finite"
+        raise OpenApiCompilationError(msg)
+    return value
+
+
+def _merge_parameters(
+    path_parameters: tuple[_OpenApiParameter, ...],
+    operation_parameters: tuple[_OpenApiParameter, ...],
+) -> tuple[_OpenApiParameter, ...]:
+    merged: list[_OpenApiParameter] = []
+    indexes: dict[tuple[str, str], int] = {}
+    for parameter in (*path_parameters, *operation_parameters):
+        key = (parameter.location, parameter.name)
+        if key in indexes:
+            merged[indexes[key]] = parameter
+            continue
+        indexes[key] = len(merged)
+        merged.append(parameter)
+    return tuple(merged)
+
+
+def _validate_path_template(path: str) -> None:
+    stripped = _PATH_PARAMETER_RE.sub("", path)
+    if "{" in stripped or "}" in stripped:
+        msg = f"OpenAPI path template contains malformed parameter braces: {path!r}"
+        raise OpenApiCompilationError(msg)
+    for raw_name in _PATH_PARAMETER_RE.findall(path):
+        if _has_control(raw_name):
+            msg = f"OpenAPI path parameter name contains control characters: {raw_name!r}"
+            raise OpenApiCompilationError(msg)
+        _variable_name(raw_name)
+
+
+def _validate_fallback_variable_names(
+    parameters: tuple[_OpenApiParameter, ...],
+    *,
+    path: str,
+) -> None:
+    path_parameter_names = {
+        parameter.name for parameter in parameters if parameter.location == "path"
+    }
+    seen: dict[str, str] = {}
+
+    def remember(variable_name: str, descriptor: str) -> None:
+        previous = seen.get(variable_name)
+        if previous is not None and previous != descriptor:
+            msg = (
+                "OpenAPI parameters compile to duplicate fallback variable "
+                f"{variable_name!r}: {previous} and {descriptor}"
+            )
+            raise OpenApiCompilationError(msg)
+        seen[variable_name] = descriptor
+
+    for parameter in parameters:
+        if parameter.example_value is None:
+            remember(
+                parameter.variable_name,
+                f"{parameter.location} parameter {parameter.name!r}",
+            )
+
+    for raw_name in _PATH_PARAMETER_RE.findall(path):
+        if raw_name not in path_parameter_names:
+            remember(_variable_name(raw_name), f"path template parameter {raw_name!r}")
+
+
+def _render_request_target(
+    path: str,
+    parameters: tuple[_OpenApiParameter, ...],
+) -> str:
+    path_parameters = {
+        parameter.name: parameter for parameter in parameters if parameter.location == "path"
+    }
+
+    def replace_path_parameter(match: re.Match[str]) -> str:
+        raw_name = match.group(1)
+        parameter = path_parameters.get(raw_name)
+        if parameter is None:
+            return f"{{{{{_variable_name(raw_name)}}}}}"
+        if parameter.example_value is None:
+            return f"{{{{{parameter.variable_name}}}}}"
+        return _url_component(parameter.example_value)
+
+    rendered_path = _PATH_PARAMETER_RE.sub(replace_path_parameter, path)
+    query_parts = [
+        f"{_url_component(parameter.name)}={_parameter_value_token(parameter, url_component=True)}"
+        for parameter in parameters
+        if parameter.location == "query"
+    ]
+    if not query_parts:
+        return rendered_path
+    return f"{rendered_path}?{'&'.join(query_parts)}"
+
+
+def _render_parameter_headers(parameters: tuple[_OpenApiParameter, ...]) -> list[str]:
+    headers = [
+        f"{parameter.name}: {_parameter_value_token(parameter, url_component=False)}"
+        for parameter in parameters
+        if parameter.location == "header"
+    ]
+    cookie_parameters = [parameter for parameter in parameters if parameter.location == "cookie"]
+    if cookie_parameters:
+        cookie = "; ".join(
+            f"{parameter.name}={_parameter_value_token(parameter, url_component=True)}"
+            for parameter in cookie_parameters
+        )
+        headers.append(f"Cookie: {cookie}")
+    return headers
+
+
+def _parameter_value_token(parameter: _OpenApiParameter, *, url_component: bool) -> str:
+    if parameter.example_value is None:
+        return f"{{{{{parameter.variable_name}}}}}"
+    if url_component:
+        return _url_component(parameter.example_value)
+    return _scalar_to_text(parameter.example_value)
+
+
+def _url_component(value: str | int | float | bool) -> str:
+    return quote(_scalar_to_text(value), safe="-._~")
+
+
+def _scalar_to_text(value: str | int | float | bool) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
+def _variable_name(name: str) -> str:
+    normalized = re.sub(r"[^A-Za-z0-9_]+", "_", name).strip("_")
+    if not normalized:
+        msg = f"OpenAPI parameter name cannot produce a safe variable name: {name!r}"
+        raise OpenApiCompilationError(msg)
+    if normalized[0].isdigit():
+        normalized = f"param_{normalized}"
+    return normalized
 
 
 def _select_response(operation: Mapping[str, object]) -> tuple[str, Mapping[str, object] | None]:
@@ -182,10 +455,11 @@ def _first_enum_value(schema: Mapping[str, object]) -> str | int | float | bool 
 
 
 def _example_for_schema(schema: Mapping[str, object]) -> object:
+    preferred = _schema_preferred_value(schema, context="OpenAPI schema")
+    if preferred is not _MISSING:
+        return preferred
+
     schema_type = schema.get("type")
-    enum_value = _first_enum_value(schema)
-    if enum_value is not None:
-        return enum_value
     if schema_type == "object":
         properties = _ensure_mapping(schema.get("properties", {}), "OpenAPI object properties")
         required = _string_sequence(schema.get("required"), "OpenAPI object required")
@@ -202,6 +476,71 @@ def _example_for_schema(schema: Mapping[str, object]) -> object:
     if schema_type == "boolean":
         return False
     return "string"
+
+
+def _schema_preferred_value(schema: Mapping[str, object], *, context: str) -> object:
+    if "example" in schema:
+        return _ensure_json_value(schema["example"], context=f"{context} example")
+
+    examples_value = schema.get("examples", _MISSING)
+    if examples_value is not _MISSING:
+        extracted = _first_example_value(examples_value, context=f"{context} examples")
+        if extracted is not _MISSING:
+            return extracted
+
+    if "default" in schema:
+        return _ensure_json_value(schema["default"], context=f"{context} default")
+    if "const" in schema:
+        return _ensure_json_value(schema["const"], context=f"{context} const")
+
+    enum_value = _first_enum_value(schema)
+    if enum_value is not None:
+        return enum_value
+    return _MISSING
+
+
+def _first_example_value(value: object, *, context: str) -> object:
+    if isinstance(value, Sequence) and not isinstance(value, str | bytes):
+        for item in value:
+            return _ensure_json_value(item, context=context)
+        return _MISSING
+    if isinstance(value, Mapping):
+        normalized = _ensure_mapping(value, context)
+        for item in normalized.values():
+            example = _ensure_mapping(item, f"{context} item")
+            if "value" in example:
+                return _ensure_json_value(example["value"], context=context)
+        return _MISSING
+    msg = f"{context} must be a list or mapping"
+    raise OpenApiCompilationError(msg)
+
+
+def _ensure_json_value(value: object, *, context: str) -> object:
+    if value is None:
+        return value
+    if isinstance(value, str):
+        if _has_control(value):
+            msg = f"{context} contains control characters"
+            raise OpenApiCompilationError(msg)
+        if _has_hurl_template_delimiter(value):
+            msg = f"{context} contains Hurl template delimiters"
+            raise OpenApiCompilationError(msg)
+        return value
+    if isinstance(value, float) and not math.isfinite(value):
+        msg = f"{context} must be finite"
+        raise OpenApiCompilationError(msg)
+    if isinstance(value, int | float | bool):
+        return value
+    if isinstance(value, Sequence) and not isinstance(value, str | bytes):
+        return [_ensure_json_value(item, context=context) for item in value]
+    if isinstance(value, Mapping):
+        normalized = _ensure_mapping(value, context)
+        return {
+            key: _ensure_json_value(item, context=f"{context}.{key}")
+            for key, item in normalized.items()
+        }
+    msg = f"{context} must be JSON-compatible"
+    raise OpenApiCompilationError(msg)
 
 
 def _operation_id(operation: Mapping[str, object], *, method: str, path: str) -> str:
@@ -245,7 +584,11 @@ def _jsonpath_for_field(field_name: str) -> str:
 
 
 def _has_control(value: str) -> bool:
-    return "\n" in value or "\r" in value
+    return any(ord(char) < 32 or ord(char) == 127 for char in value)
+
+
+def _has_hurl_template_delimiter(value: str) -> bool:
+    return "{{" in value or "}}" in value
 
 
 def _is_safe_openapi_path(value: str) -> bool:

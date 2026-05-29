@@ -32,7 +32,8 @@ Do not duplicate every issue here. The detailed queue lives in GitHub.
 
 ## Current Target
 
-**Goal:** keep the deterministic alpha credible by proving the demo path with real Hurl in CI.
+**Goal:** make deterministic OpenAPI generation credible for real endpoint shapes, not
+only toy routes.
 
 GitHub Project: [Entroping Alpha](https://github.com/users/sakibshuvo/projects/1)
 
@@ -64,7 +65,8 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Environment file loading](https://github.com/sakibshuvo/Entroping/issues/13) | Done | `run --env` loads `envs/<name>.env` and passes variables to Hurl | Keep variable passing hardened |
 | [Hurl variable argv hardening](https://github.com/sakibshuvo/Entroping/issues/15) | Done | Hurl variables are passed through a temp `--variables-file` instead of secret-bearing argv | Keep env handling redacted |
 | [HTML run reports](https://github.com/sakibshuvo/Entroping/issues/17) | Done | `run --report html` writes escaped human-readable reports | Use in demo and CI proof |
-| [Live Hurl demo smoke in CI](https://github.com/sakibshuvo/Entroping/issues/19) | Current | Live smoke script and GitHub Actions job added | Merge after regression/security gate and CI |
+| [Live Hurl demo smoke in CI](https://github.com/sakibshuvo/Entroping/issues/19) | Done | Live smoke script and GitHub Actions job added | Keep demo path green |
+| [OpenAPI parameters and schema examples](https://github.com/sakibshuvo/Entroping/issues/23) | Current | Path/query/header/cookie parameters and request examples/defaults are being added | Merge after regression/security gate and CI |
 
 ## Later Roadmap
 
@@ -73,7 +75,8 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | OpenAPI Build | Done | Dedicated bridge compiler, local loader, and `architect build --new` |
 | Runner Usability | Done | Local env-file loading for generated Hurl variables |
 | Reporting Polish | Done | Dependency-free HTML run reports |
-| CI Proof | Current | Live demo smoke with real Hurl in GitHub Actions |
+| CI Proof | Done | Live demo smoke with real Hurl in GitHub Actions |
+| OpenAPI Depth | Current | Path/query/header/cookie parameters plus schema examples/defaults |
 | Architect Minimal | Later | LiteLLM, structured outputs, generated Hurl review flow |
 | Eye Capture Spike | Later | mitmproxy capture-only with redaction before persistence |
 | Freeze and Map | Later | Traffic-to-Hurl compiler and dependency maps |

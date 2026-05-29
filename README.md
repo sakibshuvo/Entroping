@@ -176,7 +176,9 @@ ls tests/generated
 
 Current generation is deterministic and local-file only. It reads `sources.spec` from
 `qanstitution.yaml`, writes under `tests/generated/`, and does not call an LLM.
-`--env local` loads `envs/local.env` and passes variables such as `base_url` to Hurl.
+It supports common path, query, header, and cookie parameters plus schema examples,
+defaults, constants, and enums for JSON request bodies. `--env local` loads
+`envs/local.env` and passes variables such as `base_url` to Hurl.
 
 CI also runs the same live demo path with a pinned Hurl binary:
 
@@ -208,8 +210,8 @@ entroping report bug
 Deprecated names such as `gen`, `fix`, `scan`, `chaos`, and `report --type` are intentionally not primary commands.
 
 Current implementation supports `init`, `doctor`, deterministic `architect build --new`
-from local OpenAPI files, `run --env`, deterministic `run`, JSON/JUnit run reports,
-HTML run reports, and `report bug`.
+from local OpenAPI files with common parameters and schema examples, `run --env`,
+deterministic `run`, JSON/JUnit run reports, HTML run reports, and `report bug`.
 
 ## Architecture
 

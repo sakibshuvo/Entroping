@@ -53,4 +53,40 @@ paths:
                     type: string
                     enum:
                       - accepted
-
+  /checkout/{checkout_id}:
+    get:
+      operationId: getCheckout
+      summary: Look up a checkout session
+      parameters:
+        - name: checkout_id
+          in: path
+          required: true
+          example: chk_demo-cart-001
+          schema:
+            type: string
+        - name: include
+          in: query
+          schema:
+            type: string
+            enum:
+              - events
+      responses:
+        "200":
+          description: Checkout session details
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - status
+                  - events
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                    enum:
+                      - accepted
+                  events:
+                    type: array

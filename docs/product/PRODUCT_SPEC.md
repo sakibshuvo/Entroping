@@ -169,7 +169,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 
 | ID | Requirement | Acceptance Criteria |
 | --- | --- | --- |
-| INT-001 | Generate tests from OpenAPI | `architect build --new` creates valid Hurl tests for operations and schemas |
+| INT-001 | Generate tests from OpenAPI | `architect build --new` creates valid Hurl tests for operations, common parameters, and schemas |
 | INT-002 | Generate directed tests from prompts | `architect build --prompt "<intent>"` creates scoped Hurl changes only |
 | INT-003 | Support merge strategy | `architect build --strategy merge` updates generated regions without overwriting manual regions |
 | INT-004 | Tag generated tests | `architect build --tag smoke` writes Entroping metadata comments that Hurl ignores safely |
