@@ -25,6 +25,8 @@ This is the simple human dashboard. GitHub Issues track individual work items; t
 
 **Goal:** credible open-source alpha of the deterministic governance loop.
 
+GitHub milestone: [Alpha: deterministic core](https://github.com/sakibshuvo/Entroping/milestone/1)
+
 ```text
 init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> run Hurl -> JSON/JUnit report
 ```
@@ -35,13 +37,12 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | --- | --- | --- | --- |
 | Repo and context scaffold | Done | CI, docs, Obsidian vault, `scripts/feature_gate.sh` | Keep context docs current |
 | Issue tracking and progress system | Done | Issue templates, regression script, progress dashboard, CI regression command | Keep the queue and dashboard current |
-| `init` and `doctor` | Current | CLI scaffold exists | Creates minimal config and validates local tools |
-| QAnstitution loading/imports | Next | Pydantic models and condition parser exist | Invalid config/imports fail with actionable errors |
-| Hurl discovery and metadata | Next | Discovery adapter scaffold exists | Finds `.hurl` files and parses `# entroping:` metadata |
-| Gate matching and injection | Next | Policy compiler boundary exists | Source `.hurl` files are never mutated |
-| Hurl subprocess runner | Next | Runner scaffold exists | Timeouts, bounded output, redaction, non-zero failures |
-| JSON/JUnit reports | Next | Report command scaffold exists | CI can consume JUnit and humans can inspect JSON |
-| README demo quickstart | Next | Checkout fixture exists | A new user can run the alpha loop locally |
+| [`init`, `doctor`, and QAnstitution loading](https://github.com/sakibshuvo/Entroping/issues/1) | Current | CLI scaffold exists | Creates minimal config and validates local tools |
+| [Hurl discovery and metadata](https://github.com/sakibshuvo/Entroping/issues/2) | Next | Discovery adapter scaffold exists | Finds `.hurl` files and parses `# entroping:` metadata |
+| [Gate matching and injection](https://github.com/sakibshuvo/Entroping/issues/3) | Next | Policy compiler boundary exists | Source `.hurl` files are never mutated |
+| [Hurl subprocess runner](https://github.com/sakibshuvo/Entroping/issues/4) | Next | Runner scaffold exists | Timeouts, bounded output, redaction, non-zero failures |
+| [JSON/JUnit reports](https://github.com/sakibshuvo/Entroping/issues/5) | Next | Report command scaffold exists | CI can consume JUnit and humans can inspect JSON |
+| [README demo quickstart](https://github.com/sakibshuvo/Entroping/issues/6) | Next | Checkout fixture exists | A new user can run the alpha loop locally |
 
 ## Later Roadmap
 
