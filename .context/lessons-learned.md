@@ -19,3 +19,4 @@
 - Project-local `AGENTS.md` is the fastest way to carry repo-specific Codex behavior across new threads. It should stay concise, stricter than generic docs, and focused on boundaries that are easy for an agent to violate.
 - A dependency audit must include optional extras before release. The default install can be clean while `uv run --all-extras --with pip-audit pip-audit --progress-spinner off` still catches future runtime surfaces such as mitmproxy.
 - Graphify should remain optional generated context. Keep `graphify-out/` ignored, and treat curated Markdown, ADRs, and `.context/` as the durable source of truth.
+- The autonomous workflow should stay Codex-first until OpenCode and local Qwen/oMLX have proven reliable on bounded read-only or review tasks. Cheap agents can draft and critique, but verified commits remain the product boundary.

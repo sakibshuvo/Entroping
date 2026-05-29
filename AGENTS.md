@@ -44,6 +44,14 @@ These instructions extend the global Codex rules for this repository. If a rule 
 - Use `.context/plan.md` for the active implementation plan, `.context/changelog.md` for concise changes, and `.context/lessons-learned.md` for durable pitfalls and decisions.
 - Keep Obsidian/Graphify generated state out of Git unless it is intentionally curated Markdown.
 
+## Autonomous Development Workflow
+
+- Follow `docs/meta/AUTONOMOUS_DEVELOPMENT.md` for Codex-first implementation, Spec Kit pilots, and future OpenCode/oMLX loops.
+- Codex is the final implementer and gatekeeper for now.
+- Use OpenCode or local Qwen only as bounded workers or reviewers until their outputs have been validated against local files, tests, and CI.
+- Do not let any unattended agent push to `main` or accept generated code without deterministic verification.
+- Spec Kit may be piloted for one feature at a time on a clean branch; do not let generated templates replace existing curated docs without review.
+
 ## Verification
 
 - For normal work, run `scripts/check.sh`.

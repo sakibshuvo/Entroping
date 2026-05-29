@@ -16,6 +16,9 @@ This repository is prepared for:
 - Python 3.12
 - uv for dependency and virtual environment management
 - ruff, mypy, and pytest for local quality gates
+- Codex as the primary implementation agent
+- OpenCode as a future low-cost worker/reviewer loop
+- Spec Kit as a future feature-spec pilot
 
 ## Setup
 
@@ -56,3 +59,7 @@ uv run entroping doctor
 ```
 
 The CLI currently exposes the planned v4.1 command surface. Most runtime commands intentionally return a scaffold message until their subsystem is implemented.
+
+## Agent Workflow
+
+Use `docs/meta/AUTONOMOUS_DEVELOPMENT.md` for the Codex-first operating loop and the future OpenCode/oMLX plan.

@@ -40,6 +40,7 @@ Use this as the home note for the Entroping vault.
 - [[docs/meta/OBSIDIAN_START_HERE|OBSIDIAN_START_HERE]] - first-time Obsidian workflow for this vault.
 - [[docs/meta/GLOSSARY|GLOSSARY]] - plain-language explanation of Entroping terms.
 - [[docs/meta/CONTEXT_MANAGEMENT|CONTEXT_MANAGEMENT]] - how Codex, Obsidian, `.context`, and Graphify fit together.
+- [[docs/meta/AUTONOMOUS_DEVELOPMENT|AUTONOMOUS_DEVELOPMENT]] - Codex-first autonomous workflow and future OpenCode/oMLX plan.
 - `AGENTS.md` - project-local Codex implementation rules.
 - `.context/plan.md` - current implementation milestone and handoff context.
 - [[examples/checkout-api/README|Checkout API demo fixture]] - minimal example for first-time users.

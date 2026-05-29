@@ -25,6 +25,7 @@ Use these files in this order:
 6. `.context/lessons-learned.md` - durable pitfalls and decisions.
 7. `docs/product/MVP_PLAN.md` - implementation sequence.
 8. `docs/technical/TDS.md` - architecture details.
+9. `docs/meta/AUTONOMOUS_DEVELOPMENT.md` - agent workflow and automation rules.
 
 ## New Codex Thread Prompt
 
@@ -34,6 +35,7 @@ Use this when starting a fresh thread:
 Work in /Users/sakibshuvo/projects/Entroping.
 Read AGENTS.md, README.md, 00_INDEX.md, .context/plan.md, docs/product/MVP_PLAN.md, and docs/technical/TDS.md first.
 Preserve the locked v4.1 command surface and implement only the next narrow milestone.
+Follow docs/meta/AUTONOMOUS_DEVELOPMENT.md for the Codex-first workflow and verification gates.
 ```
 
 ## Obsidian Role
@@ -71,3 +73,14 @@ README.md
 ```
 
 This gives Codex fast local context without requiring old conversation history.
+
+## Agent Tooling
+
+Current local agent tooling status:
+
+- Codex CLI: available.
+- OpenCode: available.
+- Spec Kit `specify`: available.
+- oMLX: not installed in this shell yet.
+
+Treat OpenCode and future local Qwen/oMLX outputs as supporting review artifacts until their results pass Codex validation and deterministic checks.

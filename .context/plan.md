@@ -24,6 +24,7 @@ The repo should remain usable as an Obsidian vault and as a Codex workspace with
 - CI runs `scripts/check.sh`.
 - Security scan completed on 2026-05-29 and found one low-severity optional proxy dependency issue; the proxy dependency floor was raised to `mitmproxy>=12.2.3`, vulnerable transitives were refreshed, and the all-extras audit is now clean.
 - Project-local `AGENTS.md` now captures repository-specific implementation rules.
+- `docs/meta/AUTONOMOUS_DEVELOPMENT.md` defines the Codex-first loop, Spec Kit pilot path, and future OpenCode/oMLX worker plan.
 
 ## Next Milestone: Deterministic Core
 
@@ -58,6 +59,7 @@ At the start of a new Codex thread, read:
 4. `.context/plan.md`
 5. `docs/product/MVP_PLAN.md`
 6. `docs/technical/TDS.md`
+7. `docs/meta/AUTONOMOUS_DEVELOPMENT.md`
 
 For product history, open Obsidian and start with `00_INDEX.md`.
 
