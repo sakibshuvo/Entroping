@@ -161,7 +161,7 @@ Implemented boundaries:
 - Local tests exercise the smoke script with a fake Hurl binary so contributors do not
   need Hurl installed for the normal regression suite.
 
-## Active Slice: Issue #23 OpenAPI Parameters And Schema Examples
+## Completed Slice: Issue #23 OpenAPI Parameters And Schema Examples
 
 Outcome: make `architect build --new` generate useful Hurl for common OpenAPI
 operations with path, query, header, and cookie parameters plus source-grounded
@@ -177,6 +177,28 @@ Planned boundaries:
   parameter value shapes before emitting Hurl.
 - Exercise the behavior through unit tests, CLI adapter tests, and the checkout demo
   fixture used by the live CI smoke.
+
+Implemented boundaries:
+
+- `bridge.openapi_to_hurl` supports common path/query/header/cookie parameter rendering
+  and schema example/default/const/enum request bodies.
+- OpenAPI literal rendering rejects Hurl template delimiters, non-finite numbers, unsafe
+  parameter names, and fallback variable collisions before emitting `.hurl`.
+- The checkout demo now includes a parameterized lookup endpoint covered by the live CI
+  Hurl smoke.
+
+## Active Slice: Issue #25 Deterministic Architect Audit Coverage
+
+Outcome: make `architect audit` report OpenAPI operations that do not have committed
+Hurl coverage, without calling an LLM or executing Hurl.
+
+Planned boundaries:
+
+- Keep audit comparison in a pure bridge module.
+- Use discovered Hurl metadata comments, especially `source=openapi` and `operation_id`,
+  as the coverage signal.
+- Support Markdown and JSON output while preserving machine-readable JSON.
+- Exit successfully when all operations are covered and non-zero when gaps are found.
 
 ## Explicitly Deferred
 

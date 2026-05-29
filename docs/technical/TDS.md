@@ -454,7 +454,7 @@ entroping config set --agent <builder|auditor|breaker> --model <model-id>
 ```text
 entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>]
 entroping architect refactor --target <glob> --prompt <text>
-entroping architect audit [--focus <logic|security|perf>] [--output <json|md>]
+entroping architect audit [--focus logic] [--output <json|md>]
 ```
 
 ### Observation

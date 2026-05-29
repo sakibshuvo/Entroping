@@ -32,8 +32,8 @@ Do not duplicate every issue here. The detailed queue lives in GitHub.
 
 ## Current Target
 
-**Goal:** make deterministic OpenAPI generation credible for real endpoint shapes, not
-only toy routes.
+**Goal:** give the Architect a real deterministic audit job before LLM-backed generation
+lands.
 
 GitHub Project: [Entroping Alpha](https://github.com/users/sakibshuvo/projects/1)
 
@@ -44,6 +44,7 @@ GitHub milestones:
 - [MVP: Runner usability](https://github.com/sakibshuvo/Entroping/milestone/3)
 - [MVP: Reporting polish](https://github.com/sakibshuvo/Entroping/milestone/4)
 - [MVP: CI proof](https://github.com/sakibshuvo/Entroping/milestone/5)
+- [MVP: Architect minimal](https://github.com/sakibshuvo/Entroping/milestone/7)
 
 ```text
 init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> run Hurl -> JSON/JUnit report
@@ -66,7 +67,8 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Hurl variable argv hardening](https://github.com/sakibshuvo/Entroping/issues/15) | Done | Hurl variables are passed through a temp `--variables-file` instead of secret-bearing argv | Keep env handling redacted |
 | [HTML run reports](https://github.com/sakibshuvo/Entroping/issues/17) | Done | `run --report html` writes escaped human-readable reports | Use in demo and CI proof |
 | [Live Hurl demo smoke in CI](https://github.com/sakibshuvo/Entroping/issues/19) | Done | Live smoke script and GitHub Actions job added | Keep demo path green |
-| [OpenAPI parameters and schema examples](https://github.com/sakibshuvo/Entroping/issues/23) | Current | Path/query/header/cookie parameters and request examples/defaults are being added | Merge after regression/security gate and CI |
+| [OpenAPI parameters and schema examples](https://github.com/sakibshuvo/Entroping/issues/23) | Done | Path/query/header/cookie parameters and request examples/defaults are supported | Keep generated demo path green |
+| [Deterministic Architect audit coverage](https://github.com/sakibshuvo/Entroping/issues/25) | Current | OpenAPI coverage audit for committed Hurl tests is being added | Merge after regression/security gate and CI |
 
 ## Later Roadmap
 
@@ -76,8 +78,8 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | Runner Usability | Done | Local env-file loading for generated Hurl variables |
 | Reporting Polish | Done | Dependency-free HTML run reports |
 | CI Proof | Done | Live demo smoke with real Hurl in GitHub Actions |
-| OpenAPI Depth | Current | Path/query/header/cookie parameters plus schema examples/defaults |
-| Architect Minimal | Later | LiteLLM, structured outputs, generated Hurl review flow |
+| OpenAPI Depth | Done | Path/query/header/cookie parameters plus schema examples/defaults |
+| Architect Minimal | Current | Deterministic audit first, then LiteLLM/structured-output generation |
 | Eye Capture Spike | Later | mitmproxy capture-only with redaction before persistence |
 | Freeze and Map | Later | Traffic-to-Hurl compiler and dependency maps |
 | Studio | Deferred | Useful after deterministic core and reports are real |

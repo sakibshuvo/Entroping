@@ -35,7 +35,7 @@ remote specs, and `--strategy merge` remain planned.
 | `entroping architect build --strategy merge` | Merge generated changes into existing tests |
 | `entroping architect build --tag <tag>` | Add a tag to generated tests |
 | `entroping architect refactor --target <glob> --prompt "<text>"` | Safely update existing Hurl tests |
-| `entroping architect audit --focus <logic|security|perf>` | Audit quality gaps |
+| `entroping architect audit --focus logic` | Audit OpenAPI coverage gaps |
 | `entroping architect audit --output <json|md>` | Select audit output format |
 
 Examples:
@@ -45,7 +45,7 @@ entroping architect build --new --tag smoke
 entroping architect build --prompt "Add negative tests for expired JWTs" --tag security
 entroping architect build --strategy merge --prompt "Cover the new refund endpoint"
 entroping architect refactor --target "tests/payments/*.hurl" --prompt "Add X-Tenant-Id header"
-entroping architect audit --focus security --output md
+entroping architect audit --focus logic --output md
 ```
 
 ## Observation

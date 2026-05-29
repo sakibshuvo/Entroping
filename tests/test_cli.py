@@ -238,6 +238,126 @@ def test_architect_build_new_requires_configured_spec(
     assert "sources.spec is required" in result.output
 
 
+def test_architect_audit_reports_missing_openapi_coverage_as_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+sources:
+  spec: ./openapi.yaml
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    Path("openapi.yaml").write_text(
+        """
+openapi: "3.1.0"
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: ok
+  /checkout:
+    post:
+      operationId: createCheckout
+      responses:
+        "201":
+          description: created
+""".lstrip(),
+        encoding="utf-8",
+    )
+    generated = Path("tests/generated")
+    generated.mkdir(parents=True)
+    (generated / "get_health.hurl").write_text(
+        "\n".join(
+            [
+                "# entroping: source=openapi",
+                "# entroping: operation_id=getHealth",
+                "",
+                "GET {{base_url}}/health",
+                "HTTP 200",
+            ],
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["architect", "audit", "--output", "json"])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["status"] == "fail"
+    assert payload["summary"]["missing_operations"] == 1
+    assert payload["findings"][0]["operation_id"] == "createCheckout"
+
+
+def test_architect_audit_passes_when_openapi_operations_are_covered(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+sources:
+  spec: ./openapi.yaml
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    Path("openapi.yaml").write_text(
+        """
+openapi: "3.1.0"
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: ok
+""".lstrip(),
+        encoding="utf-8",
+    )
+    generated = Path("tests/generated")
+    generated.mkdir(parents=True)
+    (generated / "get_health.hurl").write_text(
+        "\n".join(
+            [
+                "# entroping: source=openapi",
+                "# entroping: operation_id=getHealth",
+                "",
+                "GET {{base_url}}/health",
+                "HTTP 200",
+            ],
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["architect", "audit"])
+
+    assert result.exit_code == 0
+    assert "Architect Audit" in result.output
+    assert "No OpenAPI coverage gaps found." in result.output
+
+
+def test_architect_audit_rejects_unsupported_focus() -> None:
+    result = CliRunner().invoke(app, ["architect", "audit", "--focus", "security"])
+
+    assert result.exit_code == 1
+    assert "Unsupported architect audit focus" in result.output
+
+
+def test_architect_audit_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["architect", "audit", "--output", "yaml"])
+
+    assert result.exit_code == 1
+    assert "Unsupported architect audit output" in result.output
+
+
 def test_architect_build_rejects_merge_strategy_until_supported() -> None:
     result = CliRunner().invoke(app, ["architect", "build", "--new", "--strategy", "merge"])
 
