@@ -46,6 +46,37 @@ Before implementation, agents must read:
 
 Use Codex as the primary architect, implementer, and final gatekeeper.
 
+## Issue Session Launcher
+
+Use `scripts/start_issue.sh` to start parallel Codex, OpenCode, or review sessions from GitHub Issues. The script creates one isolated Git worktree per issue, updates issue tracking on a best-effort basis, and prints a deterministic session prompt that points the agent at the right source-of-truth files.
+
+Dry-run first:
+
+```bash
+scripts/start_issue.sh 3 feat/gate-injection --dry-run
+```
+
+Start a write session:
+
+```bash
+scripts/start_issue.sh 3 feat/gate-injection
+```
+
+Start a read-only review session:
+
+```bash
+scripts/start_issue.sh 3 review/gate-injection --mode review
+```
+
+Session rules:
+
+- One issue maps to one worktree and one branch.
+- Use `--dry-run` before starting a large batch.
+- Do not run two write agents on the same issue, branch, or file family.
+- Use review-mode sessions for parallel critique; only the parent integrator applies fixes.
+- Keep dependent issues in waves instead of launching them all at once.
+- For a 10-20 session marathon, mix a small number of write sessions with mostly read-only review, docs, test-design, and issue-refinement sessions.
+
 ### 1. Intake
 
 Define one task with a concrete outcome:
@@ -194,6 +225,7 @@ Conflict controls:
 - Helper agents receive bounded briefs with allowed files and output format.
 - Two helper agents should not edit the same file family at the same time.
 - If reviews conflict, resolve the disagreement against local files, tests, specs, and CI before changing code.
+- Use `scripts/start_issue.sh --mode review` for read-only worker prompts once the issue exists.
 
 ## Future Local Qwen via oMLX Loop
 

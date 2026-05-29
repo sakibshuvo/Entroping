@@ -32,3 +32,4 @@
 - Created the GitHub Project board `Entroping Alpha`, linked it to the repo, added issues #1-#6, and marked issue #1 as in progress.
 - Implemented the issue #1 Phase 1A slice: `entroping init --minimal` now creates a minimal `qanstitution.yaml` and runtime skeleton without overwriting existing policy, `entroping doctor` validates local config health without network calls, and `core.config_loader` loads root-bounded local QAnstitution imports with duplicate/final-gate validation.
 - Implemented issue #2's Hurl discovery and metadata slice with pure `# entroping:` comment parsing, recursive `.hurl` discovery, generated-state ignores, tag-filter validation, and focused unit plus adapter tests.
+- Added `scripts/start_issue.sh` and a tested prompt renderer for issue-scoped worktrees, dry-run previews, review/write session prompts, and best-effort GitHub issue/project status updates.

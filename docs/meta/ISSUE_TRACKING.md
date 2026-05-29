@@ -61,6 +61,33 @@ Feature-slice requirements:
 - Do not expand the command surface unless `docs/technical/COMMAND_CHEAT_SHEET.md` and product docs are updated first.
 - Close the issue from the commit or PR with `Closes #<number>`.
 
+## Starting A Session
+
+Use the launcher from the repo root so every agent starts with the same issue context, worktree isolation, and guardrails:
+
+```bash
+scripts/start_issue.sh <issue-number> <type>/<short-kebab-description> --dry-run
+scripts/start_issue.sh <issue-number> <type>/<short-kebab-description>
+```
+
+Examples:
+
+```bash
+scripts/start_issue.sh 3 feat/gate-injection --dry-run
+scripts/start_issue.sh 3 feat/gate-injection
+scripts/start_issue.sh 3 review/gate-injection --mode review
+```
+
+The launcher:
+
+- Reads the issue title, URL, and state from GitHub.
+- Creates `../Entroping-issue-<number>` unless `--dry-run` is used.
+- Creates the requested branch from `main`.
+- Saves a prompt under `.entroping/session-prompts/` in the worktree.
+- Best-effort moves the issue to `status:in-progress` and the project board to `In Progress`.
+
+Do not use this script to bypass planning. The generated prompt still requires `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, tests, regression checks, security review where relevant, and docs/context updates before merge.
+
 ## Obsidian Boundary
 
 Do not duplicate every GitHub issue in Obsidian. Update Obsidian only for:

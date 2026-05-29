@@ -47,7 +47,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | Slice | Status | Evidence | Next proof |
 | --- | --- | --- | --- |
 | Repo and context scaffold | Done | CI, docs, Obsidian vault, `scripts/feature_gate.sh` | Keep context docs current |
-| Issue tracking and progress system | Done | Issue templates, regression script, progress dashboard, CI regression command | Keep the queue and dashboard current |
+| Issue tracking and progress system | Done | Issue templates, regression script, progress dashboard, CI regression command, issue session launcher | Keep the queue and dashboard current |
 | [`init`, `doctor`, and QAnstitution loading](https://github.com/sakibshuvo/Entroping/issues/1) | Done | Minimal init, doctor config validation, local import loading, and tests | Keep docs and examples aligned |
 | [Hurl discovery and metadata](https://github.com/sakibshuvo/Entroping/issues/2) | Done | Metadata parsing, recursive discovery, generated-state ignores, tag-filter validation, and tests | Feed discovery into gate injection |
 | [Gate matching and injection](https://github.com/sakibshuvo/Entroping/issues/3) | Current | Policy compiler boundary exists | Source `.hurl` files are never mutated |

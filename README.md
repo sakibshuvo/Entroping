@@ -110,6 +110,13 @@ scripts/feature_gate.sh --security
 scripts/regression.sh --security
 ```
 
+Start an isolated issue session:
+
+```bash
+scripts/start_issue.sh 3 feat/gate-injection --dry-run
+scripts/start_issue.sh 3 feat/gate-injection
+```
+
 Try the scaffolded CLI:
 
 ```bash
