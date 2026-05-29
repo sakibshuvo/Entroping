@@ -15,5 +15,5 @@
 - Clarified that `--report` is repeatable for multiple run artifacts and that `report bug` is the only primary reporting subcommand.
 - Tightened the MVP agent-routing choice to a small typed in-process router, leaving LangGraph-style orchestration as a later dependency only if complexity justifies it.
 - Added PlantUML aliases in the deployment diagram to avoid renderer ambiguity.
-- Added the initial Python package scaffold, Typer CLI boundary, Pydantic QAnstitution models, Hurl discovery adapter, tests, uv/mise tooling, and GitHub Actions CI.
+- Added the initial Python package scaffold, Typer CLI boundary, Pydantic QAnstitution models, Hurl discovery adapter, tests, uv tooling, and GitHub Actions CI.
 - Reworked `README.md` as a GitHub-facing project overview with product pitch, status, quick start, architecture diagrams, repo map, and security rules.

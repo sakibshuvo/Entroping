@@ -80,7 +80,6 @@ Requirements:
 
 - Python 3.12+
 - [`uv`](https://docs.astral.sh/uv/)
-- Optional: [`mise`](https://mise.jdx.dev/) for tool management
 - Optional for runtime later: `hurl`, `mitmproxy`, Ollama
 
 Install dependencies:

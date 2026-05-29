@@ -5,7 +5,6 @@ status: active
 tags:
   - development
   - uv
-  - mise
 ---
 
 # Development
@@ -16,7 +15,6 @@ This repository is prepared for:
 
 - Python 3.12
 - uv for dependency and virtual environment management
-- mise for optional task shortcuts
 - ruff, mypy, and pytest for local quality gates
 
 ## Setup
@@ -25,22 +23,10 @@ This repository is prepared for:
 uv sync --dev
 ```
 
-or, with mise:
-
-```bash
-mise run sync
-```
-
 ## Checks
 
 ```bash
 scripts/check.sh
-```
-
-or:
-
-```bash
-mise run check
 ```
 
 The check script runs:
@@ -58,4 +44,3 @@ uv run entroping doctor
 ```
 
 The CLI currently exposes the planned v4.1 command surface. Most runtime commands intentionally return a scaffold message until their subsystem is implemented.
-
