@@ -59,3 +59,9 @@ Links: [[docs/product/MVP_PLAN|MVP_PLAN]], [[docs/architecture/DEVELOPMENT|DEVEL
 The Eye moved from concept to implementation. `watch` became capture-only, while `freeze` and `map` were deliberately split into filtering/session, traffic-to-Hurl, safe CLI write, and dependency graph compiler slices.
 
 Links: [[docs/technical/FREEZE_MAP_PLAN|FREEZE_MAP_PLAN]], [[decisions/ADR-0008-freeze-map-boundaries]]
+
+## Phase 9 - Final Source Snapshot and State Alignment
+
+On 2026-05-29, the NotebookLM Markdown export became the final source snapshot for current product reconciliation. On 2026-05-30, the traffic state adapter was aligned with that direction by keeping local SQLite storage and moving typed persistence to SQLModel.
+
+Links: [[sources/SOURCE_MAP]], [[docs/technical/TDS|TDS]]

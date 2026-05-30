@@ -7,13 +7,14 @@
 
 | Source | Role in Analysis |
 | --- | --- |
-| `/Users/sakibshuvo/projects/entroping-specs/Gemini-_33.md` | Original project evolution conversation and final command debates |
-| `/Users/sakibshuvo/projects/entroping-specs/PRODUCT_SPEC.md` | Older product concept |
-| `/Users/sakibshuvo/projects/entroping-specs/TDS.md` | Older technical architecture |
-| `/Users/sakibshuvo/projects/entroping-specs/USER_GUIDE.md` | Older user-facing workflow |
-| `/Users/sakibshuvo/projects/entroping-specs/MVP_PLAN.md` | Earlier implementation phasing |
-| `/Users/sakibshuvo/projects/entroping-specs/Entroping_Agentic_Integrity (1).pdf` | Most recent slide framing before this consolidation |
-| User-provided v4.1 Markdown block | Final stable naming and philosophy |
+| `/Users/sakibshuvo/projects/entroping-specs/notebookLM/2026-05-29 NotebookLM Specs.md` | Final consolidated NotebookLM Markdown export and primary current source snapshot |
+| `/Users/sakibshuvo/projects/entroping-specs/gemini chat exports exports /2026-05-29 Gemini-_33.md` | Original project evolution conversation and final command debates |
+| `/Users/sakibshuvo/projects/entroping-specs/2025-12-26 gemini spec/PRODUCT_SPEC.md` | Older product concept |
+| `/Users/sakibshuvo/projects/entroping-specs/2025-12-26 gemini spec/TDS.md` | Older technical architecture |
+| `/Users/sakibshuvo/projects/entroping-specs/2025-12-26 gemini spec/USER_GUIDE.md` | Older user-facing workflow |
+| `/Users/sakibshuvo/projects/entroping-specs/2025-12-26 gemini spec/MVP_PLAN.md` | Earlier implementation phasing |
+| `/Users/sakibshuvo/projects/entroping-specs/notebookLM/2026-04-25 Entroping_Agentic_Integrity (1).pdf` | Recent slide framing before the final NotebookLM Markdown export |
+| User-provided v4.1 Markdown block | Stable naming and philosophy later consolidated into the NotebookLM export |
 
 ## 2. Evolution Summary
 
@@ -140,7 +141,7 @@ Reason:
 ### 5.3 Traffic Requirements
 
 - Capture live traffic with mitmproxy.
-- Store traffic locally in SQLite.
+- Store traffic locally in SQLModel-backed SQLite.
 - Redact secrets before persistence.
 - Filter static assets, analytics beacons, irrelevant hosts, and oversized/binary payloads where configured.
 - Stitch related requests into sessions before freezing.

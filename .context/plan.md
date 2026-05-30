@@ -34,7 +34,7 @@ project, and a Codex workspace with fast context rehydration.
 - `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, `scripts/regression.sh`, and `scripts/audit_quality.sh` define issue tracking, regression coverage, quality audit coverage, and simple phase-level progress tracking.
 - Apache-2.0 licensing and package metadata are in place for the public core; keep future commercial cloud, model, policy-pack, or enterprise surfaces outside the open core unless explicitly relicensed.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work; `scripts/finish_issue.sh` verifies merged PRs and safely removes completed local worktrees.
-- Eye capture now has security-first traffic models, pre-persistence redaction, bounded SQLite state, and capture-only `watch` wiring through a lazy-loaded mitmproxy adapter.
+- Eye capture now has security-first traffic models, pre-persistence redaction, bounded SQLModel-backed SQLite state, and capture-only `watch` wiring through a lazy-loaded mitmproxy adapter.
 - Issues #1 through #85, plus validation fixes #95 and #97, are integrated.
   The shipped alpha covers init/doctor, QAnstitution loading/import validation,
   Hurl discovery and metadata, gate injection, deterministic Hurl subprocess
@@ -88,20 +88,36 @@ Issue #90 moved deterministic run orchestration behind `core.run_workflow`,
 leaving the CLI adapter responsible for option normalization, output, and exit
 mapping.
 
-Issue #96 is the active post-alpha security review slice. Local remediation has
-fixed 14 validated candidates across Brain redaction, Hurl subprocess isolation,
-filesystem symlink boundaries, traffic redaction/body limits, OpenAPI
-compilation/audit safety, policy gate semantics, Markdown escaping, generated
-Hurl writes, and live-demo workdir safety. The remaining completion step is to
-commit, open the PR, run CI, and rerun the clean release gate from a clean
-checkout or through CI.
+Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
+2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
+subprocess isolation, filesystem symlink boundaries, traffic redaction/body
+limits, OpenAPI compilation/audit safety, policy gate semantics, Markdown
+escaping, generated Hurl writes, and live-demo workdir safety.
 
-## Current Slice: Issue #96 Post-Alpha Security Review
+## Current Slice: Source Reconciliation, SQLModel State, And Agent Workflow Alignment
 
-Outcome so far: repository-wide scan artifacts were written under
-`/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, all 14
-deduplicated candidates have validation/verification ledgers, and no unresolved
-finding remains in the local branch.
+The 2026-05-29 NotebookLM Markdown export is the final current source snapshot.
+Keep older Gemini and dated NotebookLM files as historical evidence unless a
+specific contradiction is promoted into the canonical product docs or an ADR.
+
+Implementation focus:
+
+- Preserve SQLite as local `.entroping/state.db` runtime state.
+- Use SQLModel as the typed persistence layer for traffic state.
+- Keep traffic persistence redaction-first and bounded by retention.
+- Refresh source-map and progress docs so future sessions do not follow stale
+  paths or stale current-issue markers.
+- Add deterministic context packs so Codex, Claude Code, OpenCode, Gemini,
+  NotebookLM, and local Qwen can start from the same curated repo evidence.
+- Keep Obsidian as the first brain while source exports remain archival until
+  promoted into issues, ADRs, canonical docs, tests, or scripts.
+- Document the open-source growth and open-core monetization path without
+  weakening the Apache-2.0 public core.
+
+Completed security-review context: repository-wide scan artifacts were written
+under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, all
+14 deduplicated candidates have validation/verification ledgers, and no
+unresolved finding remained in the merged branch.
 
 Implemented boundaries:
 
@@ -123,15 +139,11 @@ Implemented boundaries:
 - The live demo smoke script refuses non-empty custom workdirs instead of
   deleting their contents.
 
-Local evidence:
+Latest local evidence:
 
-- `PYTHONPATH=src uv run pytest -q`: 368 passed.
-- `PYTHONPATH=src uv run ruff check src tests scripts`: passed.
-- `PYTHONPATH=src uv run mypy src tests`: passed.
-- `scripts/regression.sh --security`: passed.
-- `scripts/audit_quality.sh`: passed with 85.49 percent coverage.
-- `scripts/release_check.sh --require-live-demo --allow-dirty`: passed, including
-  package check, security regression, and live Hurl demo smoke.
+- `PYTHONPATH=src uv run pytest tests/test_context_pack_script.py tests/test_agent_workflow_docs.py tests/test_release_docs.py -q`: 14 passed.
+- `scripts/regression.sh --security`: 378 passed; Bandit and default/all-extras dependency audits passed.
+- `scripts/audit_quality.sh`: 378 passed with 85.54 percent coverage; Radon and Vulture gates passed.
 
 ## Completed Slice: Issue #90 Run Workflow Extraction
 
@@ -511,18 +523,16 @@ Architect writes generated files.
 Use these issues as the next marathon targets. Keep each one narrow, tested, and
 merged through GitHub before starting the next branch:
 
-- [#90](https://github.com/sakibshuvo/Entroping/issues/90): extract `run`
-  orchestration out of the CLI adapter.
-- [#91](https://github.com/sakibshuvo/Entroping/issues/91): implement story
-  traceability or narrow the docs claim.
-- [#92](https://github.com/sakibshuvo/Entroping/issues/92): refresh stale
-  context and progress notes.
-- [#93](https://github.com/sakibshuvo/Entroping/issues/93): add a repeatable
-  coverage and complexity audit gate.
-- [#94](https://github.com/sakibshuvo/Entroping/issues/94): add finish-issue
-  worktree and board hygiene automation.
-- [#96](https://github.com/sakibshuvo/Entroping/issues/96): run a formal
-  post-alpha security review.
+- [#106](https://github.com/sakibshuvo/Entroping/issues/106): expose story
+  traceability through the reporting CLI.
+- [#107](https://github.com/sakibshuvo/Entroping/issues/107): wire context packs
+  into issue-session prompts.
+- [#108](https://github.com/sakibshuvo/Entroping/issues/108): create launch demo
+  assets and public growth kit.
+- [#109](https://github.com/sakibshuvo/Entroping/issues/109): add OpenSSF
+  Scorecard and community-profile hardening.
+- [#110](https://github.com/sakibshuvo/Entroping/issues/110): add structured
+  response drift checks.
 
 ## Explicitly Deferred
 

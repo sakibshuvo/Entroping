@@ -145,7 +145,7 @@ Exit criteria:
 Current implementation note: the capture-safe foundation and capture-only proxy
 workflow exist. Entroping has typed traffic exchange models, a redaction
 pipeline for sensitive headers, query parameters, JSON fields, token-like text,
-and bounded body summaries, plus a local SQLite store under
+and bounded body summaries, plus a local SQLModel-backed SQLite store under
 `.entroping/state.db` that refuses unredacted exchanges and enforces event
 retention. `entroping watch` now lazy-loads mitmproxy, records completed HTTP
 flows through the redaction pipeline, filters traffic outside the optional
@@ -154,7 +154,7 @@ target scope, and keeps `freeze`/`map` out of scope.
 Deliverables:
 
 - Minimal mitmproxy addon.
-- SQLite traffic store.
+- SQLModel-backed SQLite traffic store.
 - Redaction pipeline for headers, cookies, known token fields, and body limits.
 - `watch` capture-only workflow.
 

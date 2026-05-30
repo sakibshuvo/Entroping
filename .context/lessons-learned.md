@@ -88,3 +88,5 @@
 - Dependency maps are export artifacts, not raw traffic dumps. Ignore query strings, template volatile path segments, aggregate only redacted records, and escape every host/method/path label independently for Mermaid, Markdown, and DOT.
 - WireMock generation should match dependencies by a narrow safe service selector and avoid request-header/body matching in the MVP. Method plus URL path and redacted response payloads give useful mocks without replaying captured secrets.
 - Release smoke jobs that download pinned external binaries still need bounded retries. Keep checksum verification strict, but do not let a single transient 5xx from a release host fail an otherwise valid PR.
+- SQLModel is the typed persistence layer, not a replacement for SQLite. Keep `.entroping/state.db` as local-first runtime state, and use SQLModel where relational state needs clearer schema, tests, and future migration paths.
+- Multi-agent scale needs deterministic context packs and one parent integrator. Use helper agents for bounded evidence and review, but promote durable decisions into issues, ADRs, docs, tests, or scripts before implementation follows them.

@@ -30,6 +30,7 @@ Rules:
 - No merge or push without deterministic checks.
 - No generated context becomes canonical until a human or Codex promotes it into curated Markdown.
 - Use `docs/meta/FEATURE_DELIVERY_CHECKLIST.md` as the per-feature execution checklist.
+- Use `docs/meta/AGENT_CONTROL_PLANE.md` for cross-agent role boundaries and `scripts/context_pack.sh` for deterministic context packs.
 - Keep repo behavior deterministic through tracked scripts, tests, and CI. Do not rely on prompt reminders for rules that can be checked in code.
 
 ## Source of Truth
@@ -68,6 +69,22 @@ scripts/install_hooks.sh
 ```
 
 Hooks are convenience only. A skipped hook must still be caught by `scripts/feature_gate.sh` and CI.
+
+## Context Pack Launcher
+
+Use `scripts/context_pack.sh` before handing work to any coding, review, source,
+or growth agent:
+
+```bash
+scripts/context_pack.sh --mode implementation
+scripts/context_pack.sh --mode review
+scripts/context_pack.sh --mode source
+scripts/context_pack.sh --mode growth
+scripts/context_pack.sh --mode handoff
+```
+
+Generated packs are disposable. Do not commit them; promote durable findings into
+issues, ADRs, canonical docs, tests, or `.context/` notes.
 
 ## Issue Session Launcher
 

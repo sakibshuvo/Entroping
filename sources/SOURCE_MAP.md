@@ -17,10 +17,12 @@ Source materials remain in `/Users/sakibshuvo/projects/entroping-specs`. This va
 
 Important files:
 
-- `Gemini-_33.md` - original project-evolution conversation.
-- `Entroping_Agentic_Integrity (1).pdf` - recent slide framing.
-- `PRODUCT_SPEC.md`, `TDS.md`, `USER_GUIDE.md`, `MVP_PLAN.md` - older spec snapshots.
-- `init_specs.sh` - older initialization/spec script.
+- `notebookLM/2026-05-29 NotebookLM Specs.md` - final consolidated NotebookLM Markdown export and primary current source snapshot.
+- `gemini chat exports exports /2026-05-29 Gemini-_33.md` - original project-evolution conversation and historical requirement debates.
+- `2025-12-26 gemini spec/PRODUCT_SPEC.md`, `TDS.md`, `USER_GUIDE.md`, `MVP_PLAN.md` - older December 2025 spec snapshots.
+- `2025-12-26 gemini spec/init_specs.sh` - older initialization/spec script.
+- `notebookLM/2026-04-25 Entroping_Agentic_Integrity (1).pdf` - recent slide framing before the final NotebookLM Markdown export.
+- Dated NotebookLM PDFs/images under `notebookLM/2025-12-31/` and `notebookLM/2026-04-25/` - archival visual references unless a later Markdown export contradicts them.
 
 ## Consolidated Outputs
 
@@ -32,4 +34,3 @@ Important files:
 ## Rule
 
 Do not rewrite source materials to match the current spec. Treat them as historical evidence. Update canonical docs and ADRs when the product changes.
-

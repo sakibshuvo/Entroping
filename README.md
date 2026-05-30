@@ -65,7 +65,7 @@ Available now:
 - LiteLLM-backed `entroping architect build --prompt` happy path with Builder persona/model loading, structured output parsing, parser-backed Hurl validation, redacted CLI output, and staged Architect-owned Hurl writes.
 - LiteLLM-backed `entroping architect build --strategy merge --prompt` for existing Architect-owned Hurl files and manual managed blocks.
 - LiteLLM-backed `entroping architect refactor` for selected Architect-owned Hurl files and manual Hurl files with explicit managed blocks, with safe target discovery, parser-backed validation, and manual-content preservation.
-- Eye capture-safe traffic models, redaction, and bounded local SQLite state under `.entroping/state.db`.
+- Eye capture-safe traffic models, redaction, and bounded local SQLite/SQLModel state under `.entroping/state.db`.
 - Capture-only `entroping watch` with lazy mitmproxy loading, target-scope filtering, pre-persistence redaction, and bounded local traffic state.
 - Basic `entroping freeze --name <flow> [--golden]` from redacted traffic state into validated generated Hurl files.
 - `entroping freeze --mock <service>` WireMock-compatible mappings from redacted dependency traffic.
@@ -97,6 +97,9 @@ Important docs:
 - [ISSUE_TRACKING.md](docs/meta/ISSUE_TRACKING.md) - bug, feature, and regression tracking workflow.
 - [TEST_STRATEGY.md](docs/meta/TEST_STRATEGY.md) - test pyramid and regression suite.
 - [RELEASE_CHECKLIST.md](docs/meta/RELEASE_CHECKLIST.md) - alpha release quality bar and evidence checklist.
+- [AGENT_CONTROL_PLANE.md](docs/meta/AGENT_CONTROL_PLANE.md) - Codex-first multi-agent workflow.
+- [KNOWLEDGE_BASE_WORKFLOW.md](docs/meta/KNOWLEDGE_BASE_WORKFLOW.md) - Obsidian, Gemini, NotebookLM, and Graphify source workflow.
+- [GROWTH_AND_MONETIZATION.md](docs/product/GROWTH_AND_MONETIZATION.md) - open-source growth and open-core monetization path.
 - [GLOSSARY.md](docs/meta/GLOSSARY.md) - plain-language terminology guide.
 - [EVOLUTION_TIMELINE.md](docs/evolution/EVOLUTION_TIMELINE.md) - product history.
 - [ADR-0001](decisions/ADR-0001-hurl-native-governance.md) - first architectural decision.
@@ -171,6 +174,17 @@ Start an isolated issue session:
 ```bash
 scripts/start_issue.sh <issue-number> <type>/<short-kebab-description> --dry-run
 scripts/start_issue.sh <issue-number> <type>/<short-kebab-description>
+```
+
+Generate a deterministic context pack for Codex, Claude Code, OpenCode, Gemini,
+NotebookLM, local Qwen, or another reviewer:
+
+```bash
+scripts/context_pack.sh --mode implementation
+scripts/context_pack.sh --mode review
+scripts/context_pack.sh --mode source
+scripts/context_pack.sh --mode growth
+scripts/context_pack.sh --mode handoff
 ```
 
 Try the scaffolded CLI:
@@ -338,6 +352,15 @@ sources/               Source-material map
 AGENTS.md              Project-local Codex implementation rules
 .obsidian/             Minimal vault configuration
 ```
+
+## Contributing And Community
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) explains the local development and PR rules.
+- [SECURITY.md](SECURITY.md) explains private vulnerability reporting and security gates.
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) sets the project conduct baseline.
+
+The open-source growth and monetization strategy lives in
+[GROWTH_AND_MONETIZATION.md](docs/product/GROWTH_AND_MONETIZATION.md).
 
 ## Security and Quality Rules
 

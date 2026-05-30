@@ -1,14 +1,34 @@
 """SQLite persistence for redacted Eye traffic state."""
 
-import sqlite3
 from pathlib import Path
-from typing import cast
+
+from sqlmodel import Field, Index, Session, SQLModel, col, create_engine, select
 
 from entroping.models.traffic import TrafficExchange
 
 
 class TrafficStoreError(ValueError):
     """Raised when traffic state cannot be persisted safely."""
+
+
+class TrafficEventRow(SQLModel, table=True):
+    """SQLModel row for one redacted traffic exchange."""
+
+    __tablename__ = "traffic_events"
+    __table_args__ = (
+        Index("idx_traffic_events_captured_at", "captured_at"),
+        Index("idx_traffic_events_host_path", "host", "path"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    captured_at: str
+    method: str
+    url: str
+    host: str
+    path: str
+    status_code: int | None = None
+    duration_ms: int | None = None
+    exchange_json: str
 
 
 class TrafficStore:
@@ -25,6 +45,7 @@ class TrafficStore:
         self.max_events = max_events
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         _reject_symlink_path_components(expanded)
+        self._engine = create_engine(f"sqlite:///{self.db_path}")
         self._initialize()
 
     @classmethod
@@ -40,37 +61,27 @@ class TrafficStore:
             msg = "refusing to persist unredacted traffic"
             raise TrafficStoreError(msg)
 
-        with self._connect() as connection:
-            cursor = connection.execute(
-                """
-                INSERT INTO traffic_events (
-                    captured_at,
-                    method,
-                    url,
-                    host,
-                    path,
-                    status_code,
-                    duration_ms,
-                    exchange_json
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    exchange.captured_at.isoformat(),
-                    exchange.request.method,
-                    exchange.request.url,
-                    exchange.request.host,
-                    exchange.request.path,
-                    exchange.response.status_code if exchange.response is not None else None,
-                    exchange.duration_ms,
-                    exchange.model_dump_json(),
-                ),
-            )
-            event_id = cursor.lastrowid
+        row = TrafficEventRow(
+            captured_at=exchange.captured_at.isoformat(),
+            method=exchange.request.method,
+            url=exchange.request.url,
+            host=exchange.request.host,
+            path=exchange.request.path,
+            status_code=exchange.response.status_code if exchange.response is not None else None,
+            duration_ms=exchange.duration_ms,
+            exchange_json=exchange.model_dump_json(),
+        )
+
+        with Session(self._engine) as session:
+            session.add(row)
+            session.commit()
+            session.refresh(row)
+            event_id = row.id
             if event_id is None:
                 msg = "SQLite did not return an inserted traffic event id"
                 raise TrafficStoreError(msg)
-            self._enforce_retention(connection)
+            self._enforce_retention(session)
+            session.commit()
             return event_id
 
     def list_exchanges(self, *, limit: int | None = None) -> tuple[TrafficExchange, ...]:
@@ -80,60 +91,24 @@ class TrafficStore:
             msg = "limit must be positive"
             raise TrafficStoreError(msg)
 
-        sql = "SELECT exchange_json FROM traffic_events ORDER BY id"
-        params: tuple[int, ...] = ()
+        statement = select(TrafficEventRow).order_by(col(TrafficEventRow.id))
         if limit is not None:
-            sql += " LIMIT ?"
-            params = (limit,)
+            statement = statement.limit(limit)
 
-        with self._connect() as connection:
-            rows = connection.execute(sql, params).fetchall()
+        with Session(self._engine) as session:
+            rows = session.exec(statement).all()
 
-        return tuple(
-            TrafficExchange.model_validate_json(cast(str, row["exchange_json"])) for row in rows
-        )
+        return tuple(TrafficExchange.model_validate_json(row.exchange_json) for row in rows)
 
     def _initialize(self) -> None:
-        with self._connect() as connection:
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS traffic_events (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    captured_at TEXT NOT NULL,
-                    method TEXT NOT NULL,
-                    url TEXT NOT NULL,
-                    host TEXT NOT NULL,
-                    path TEXT NOT NULL,
-                    status_code INTEGER,
-                    duration_ms INTEGER,
-                    exchange_json TEXT NOT NULL
-                )
-                """
-            )
-            connection.execute(
-                "CREATE INDEX IF NOT EXISTS idx_traffic_events_captured_at "
-                "ON traffic_events(captured_at)"
-            )
-            connection.execute(
-                "CREATE INDEX IF NOT EXISTS idx_traffic_events_host_path "
-                "ON traffic_events(host, path)"
-            )
+        SQLModel.metadata.create_all(self._engine)
 
-    def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.db_path)
-        connection.row_factory = sqlite3.Row
-        return connection
-
-    def _enforce_retention(self, connection: sqlite3.Connection) -> None:
-        connection.execute(
-            """
-            DELETE FROM traffic_events
-            WHERE id NOT IN (
-                SELECT id FROM traffic_events ORDER BY id DESC LIMIT ?
-            )
-            """,
-            (self.max_events,),
-        )
+    def _enforce_retention(self, session: Session) -> None:
+        stale_rows = session.exec(
+            select(TrafficEventRow).order_by(col(TrafficEventRow.id).desc()).offset(self.max_events),
+        ).all()
+        for row in stale_rows:
+            session.delete(row)
 
 
 def _reject_symlink_path_components(path: Path) -> None:
