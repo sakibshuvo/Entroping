@@ -1,14 +1,18 @@
 """Unit tests for QAnstitution gate matching and Hurl assertion compilation."""
 
 from pathlib import Path
+from typing import cast
 
 import pytest
 
+from entroping.bridge import policy_to_hurl
 from entroping.bridge.policy_to_hurl import (
     GateCompilationError,
     compile_gate_assertion,
     compile_matching_gates,
+    gate_matches_test,
 )
+from entroping.models.conditions import Condition, ContainsCondition, ContainsField
 from entroping.models.hurl import HurlExchange, HurlMetadata, HurlTest
 from entroping.models.qanstitution import Enforcement, GateRule
 
@@ -85,6 +89,17 @@ def test_compile_matching_gates_can_target_a_single_exchange() -> None:
     assert [gate.rule_id for gate in compiled] == ["global_latency", "health_path"]
 
 
+def test_gate_matches_test_exposes_matching_without_compilation() -> None:
+    assert gate_matches_test(
+        _gate("smoke_only", "tags contains 'smoke'", "status < 500"),
+        _checkout_test(),
+    )
+    assert not gate_matches_test(
+        _gate("billing_only", "tags contains 'billing'", "status < 500"),
+        _checkout_test(),
+    )
+
+
 def test_compile_matching_gates_surfaces_invalid_conditions_with_rule_id() -> None:
     broken_gate = GateRule.model_construct(
         id="bad_condition",
@@ -97,6 +112,36 @@ def test_compile_matching_gates_surfaces_invalid_conditions_with_rule_id() -> No
 
     with pytest.raises(GateCompilationError, match="bad_condition"):
         compile_matching_gates([broken_gate], _checkout_test())
+
+
+@pytest.mark.parametrize("gate_id", ["", "  ", "bad\nid", "bad\rid"])
+def test_compile_gate_assertion_rejects_invalid_rule_ids(gate_id: str) -> None:
+    gate = GateRule.model_construct(
+        id=gate_id,
+        condition="true",
+        gate="duration < 2000",
+        enforcement="block",
+        description=None,
+        final=False,
+    )
+
+    with pytest.raises(GateCompilationError, match="invalid rule id"):
+        compile_gate_assertion(gate)
+
+
+@pytest.mark.parametrize("assertion", ["", "  ", "status == 200\nheader exists", "status\r== 200"])
+def test_compile_gate_assertion_rejects_empty_or_multiline_assertions(assertion: str) -> None:
+    gate = GateRule.model_construct(
+        id="must_check_status",
+        condition="true",
+        gate=assertion,
+        enforcement="block",
+        description=None,
+        final=False,
+    )
+
+    with pytest.raises(GateCompilationError, match="invalid Hurl assertion"):
+        compile_gate_assertion(gate)
 
 
 @pytest.mark.parametrize("assertion", ["# no-op", "[Options]", "[Asserts]"])
@@ -112,3 +157,29 @@ def test_compile_gate_assertion_rejects_non_executable_lines(assertion: str) -> 
 
     with pytest.raises(GateCompilationError, match="executable Hurl assertion"):
         compile_gate_assertion(gate)
+
+
+def test_compile_matching_gates_rejects_unsupported_contains_fields(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def unknown_field_condition(_expression: str) -> Condition:
+        return cast(
+            Condition,
+            ContainsCondition(field=cast(ContainsField, "header"), value="json"),
+        )
+
+    monkeypatch.setattr(policy_to_hurl, "parse_condition", unknown_field_condition)
+
+    with pytest.raises(GateCompilationError, match="Unsupported Hurl exchange field"):
+        compile_matching_gates([_gate("header_gate", "true", "status < 500")], _checkout_test())
+
+
+def test_gate_matches_test_returns_false_for_unknown_future_condition(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def future_condition(_expression: str) -> Condition:
+        return cast(Condition, object())
+
+    monkeypatch.setattr(policy_to_hurl, "parse_condition", future_condition)
+
+    assert not gate_matches_test(_gate("future_gate", "true", "status < 500"), _checkout_test())
