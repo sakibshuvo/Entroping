@@ -106,6 +106,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Context refresh](https://github.com/sakibshuvo/Entroping/issues/92) | Done | `.context/plan.md` and this dashboard now match the post-alpha implementation surface | Keep future agent sessions grounded |
 | [Quality audit gate](https://github.com/sakibshuvo/Entroping/issues/93) | Done | `scripts/audit_quality.sh` runs coverage, complexity, maintainability, and dead-code gates | Prevent silent quality drift |
 | [Finish-issue workflow](https://github.com/sakibshuvo/Entroping/issues/94) | Done | `scripts/finish_issue.sh` verifies merged PRs, CI, clean issue worktrees, and project hygiene before local cleanup | Make multi-session marathons safer |
+| [Story traceability bridge](https://github.com/sakibshuvo/Entroping/issues/91) | Done | Pure bridge report maps Hurl metadata to stories, owners, docs, tests, tags, and traceability findings | Expose through CLI/report adapter later |
 
 ## Later Roadmap
 

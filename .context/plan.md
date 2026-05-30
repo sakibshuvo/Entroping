@@ -24,8 +24,8 @@ project, and a Codex workspace with fast context rehydration.
 - CLI command surface is locked to v4.1.
 - Pydantic QAnstitution models and typed condition parsing are in place.
 - Bridge compiler boundaries are implemented for OpenAPI-to-Hurl, policy-to-Hurl,
-  traffic-to-Hurl, traffic-to-WireMock, traffic-to-graph, and managed-block
-  Hurl merges. `story_traceability.py` remains the known traceability gap.
+  traffic-to-Hurl, traffic-to-WireMock, traffic-to-graph, story traceability,
+  and managed-block Hurl merges.
 - CI runs `scripts/regression.sh` and the live Hurl demo smoke.
 - Security scan completed on 2026-05-29 and found one low-severity optional proxy dependency issue; the proxy dependency floor was raised to `mitmproxy>=12.2.3`, vulnerable transitives were refreshed, and the all-extras audit is now clean.
 - Project-local `AGENTS.md` now captures repository-specific implementation rules.
@@ -82,6 +82,24 @@ path and ignored validation coverage artifacts. Issue #93 added the heavier
 local quality audit gate for coverage, complexity, maintainability, and
 dead-code discovery checks. Issue #94 added the symmetric finish workflow for
 post-merge worktree, local branch, label, and project-board cleanup.
+Issue #91 implemented the bridge-level story traceability report for Hurl
+metadata without adding business-system API clients.
+
+## Completed Slice: Issue #91 Story Traceability Bridge
+
+Outcome: the dedicated `story_traceability.py` bridge is no longer a placeholder
+and the docs now match the shipped local behavior.
+
+Implemented boundaries:
+
+- Discovered Hurl metadata compiles into story/test records with story IDs,
+  owners, external doc URLs, tags, and linked test paths.
+- Missing `story_id` metadata is reported deterministically.
+- One external `doc_url` mapped to multiple story IDs is reported as a
+  traceability conflict, while repeated tests for the same story remain valid.
+- Markdown rendering escapes table cells for safe local review.
+- No Jira, Notion, Linear, monday.com, or other business-system clients are
+  introduced in the bridge layer.
 
 ## Completed Slice: Issue #94 Finish-Issue Workflow
 

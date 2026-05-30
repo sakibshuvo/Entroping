@@ -55,6 +55,7 @@ Available now:
 - `entroping config list` and `entroping config set` for deterministic, non-secret agent model routing plus missing persona-template creation.
 - QAnstitution loading with root-bounded local imports, condition validation, duplicate gate checks, and final imported gate protection.
 - Hurl discovery, `# entroping:` metadata parsing, generated-state ignores, and tag-filter validation.
+- Bridge-level story traceability reports from discovered Hurl metadata, including missing story IDs and conflicting external doc links.
 - QAnstitution gate matching, temporary execution-copy injection, and deterministic Hurl subprocess execution through `entroping run`, including bounded `--parallel` execution.
 - Runner safety controls for timeouts, bounded output, redaction, non-zero exits, and temporary run-state cleanup.
 - Redacted JSON and JUnit reports through `entroping run --report json --report junit`.

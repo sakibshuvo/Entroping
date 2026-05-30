@@ -265,6 +265,11 @@ Implementation rule: keep the YAML-facing `GateRule.condition` field as the orig
 | `story_traceability.py` | Story IDs, owners, external doc URLs | Business-system API clients |
 | `merge.py` | Manual-edit-preserving Hurl merge/refactor logic | Test generation strategy |
 
+The shipped `story_traceability.py` bridge compiles discovered Hurl metadata
+into local story/test reports. It validates missing `story_id` comments and
+flags external `doc_url` values that point to multiple story IDs; it does not
+call Jira, Notion, Linear, monday.com, or other business-system APIs.
+
 ## 7. Hurl Execution Design
 
 `core.hurl_runner` is the only module allowed to invoke Hurl.
@@ -312,7 +317,11 @@ jsonpath "$.id" exists
 jsonpath "$.status" == "accepted"
 ```
 
-Folders provide physical organization. Entroping metadata comments provide virtual suites and traceability. Hurl `[Options]` remains available for real Hurl options such as `variable`, `retry`, `location`, and `delay`.
+Folders provide physical organization. Entroping metadata comments provide
+virtual suites and traceability. The traceability bridge can aggregate these
+comments into local reports before a future CLI/report adapter exposes that
+workflow directly. Hurl `[Options]` remains available for real Hurl options
+such as `variable`, `retry`, `location`, and `delay`.
 
 ## 9. Architect Design
 
