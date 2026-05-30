@@ -5,9 +5,13 @@ from textwrap import dedent
 
 import pytest
 
-from entroping.core.gate_injector import GateInjectionError, write_injected_execution_copy
+from entroping.core.gate_injector import (
+    GateInjectionError,
+    inject_gate_assertions,
+    write_injected_execution_copy,
+)
 from entroping.core.hurl_discovery import discover_hurl_tests
-from entroping.models.hurl import HurlMetadata, HurlTest
+from entroping.models.hurl import HurlExchange, HurlMetadata, HurlTest
 from entroping.models.qanstitution import Enforcement, GateRule
 
 
@@ -116,6 +120,154 @@ def test_write_injected_execution_copy_creates_asserts_block_when_missing(
         "# entroping-gate: global_latency enforcement=block\n"
         "duration < 2000"
     ) in execution.execution_path.read_text(encoding="utf-8")
+
+
+def test_write_injected_execution_copy_inserts_after_response_headers(tmp_path: Path) -> None:
+    source = _write_hurl(
+        tmp_path / "tests" / "health.hurl",
+        """
+        # entroping: tags=smoke
+
+        GET {{base_url}}/health
+        HTTP 200
+        Content-Type: application/json
+        [Asserts]
+        jsonpath "$.status" == "ok"
+        [Captures]
+        csrf_token: jsonpath "$.csrf"
+        """,
+    )
+
+    execution = write_injected_execution_copy(
+        discover_hurl_tests([source])[0],
+        [_gate("global_latency", "true", "duration < 2000")],
+        execution_root=tmp_path / "execution",
+    )
+
+    assert (
+        "Content-Type: application/json\n"
+        "[Asserts]\n"
+        'jsonpath "$.status" == "ok"\n'
+        "# entroping-gate: global_latency enforcement=block\n"
+        "duration < 2000\n"
+        "[Captures]"
+    ) in execution.execution_path.read_text(encoding="utf-8")
+
+
+def test_write_injected_copy_preserves_content_when_no_gates_match(tmp_path: Path) -> None:
+    source = _write_hurl(
+        tmp_path / "tests" / "health.hurl",
+        """
+        # entroping: tags=smoke
+
+        GET {{base_url}}/health
+        HTTP 200
+        """,
+    )
+    source_content = source.read_text(encoding="utf-8")
+
+    execution = write_injected_execution_copy(
+        discover_hurl_tests([source])[0],
+        [_gate("billing_latency", "tags contains 'billing'", "duration < 2000")],
+        execution_root=tmp_path / "execution",
+    )
+
+    assert execution.injected_gates == ()
+    assert execution.execution_path.read_text(encoding="utf-8") == source_content
+
+
+def test_write_injected_execution_copy_rejects_non_utf8_source(tmp_path: Path) -> None:
+    source = tmp_path / "tests" / "bad_encoding.hurl"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_bytes(b"\xff\xfe\x00")
+
+    with pytest.raises(GateInjectionError, match=f"{source.resolve()}: file is not valid UTF-8"):
+        write_injected_execution_copy(
+            HurlTest(path=source, metadata=HurlMetadata()),
+            [_gate("global_latency", "true", "duration < 2000")],
+            execution_root=tmp_path / "execution",
+        )
+
+
+def test_write_injected_execution_copy_wraps_source_read_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = _write_hurl(
+        tmp_path / "tests" / "health.hurl",
+        """
+        GET {{base_url}}/health
+        HTTP 200
+        """,
+    )
+    resolved_source = source.resolve()
+    original_read_text = Path.read_text
+
+    def fail_source_read(
+        self: Path,
+        encoding: str | None = None,
+        errors: str | None = None,
+    ) -> str:
+        if self == resolved_source:
+            raise OSError("disk unavailable")
+        return original_read_text(self, encoding=encoding, errors=errors)
+
+    monkeypatch.setattr(Path, "read_text", fail_source_read)
+
+    with pytest.raises(GateInjectionError, match="Could not read Hurl source file"):
+        write_injected_execution_copy(
+            HurlTest(path=source, metadata=HurlMetadata()),
+            [_gate("global_latency", "true", "duration < 2000")],
+            execution_root=tmp_path / "execution",
+        )
+
+
+def test_write_injected_execution_copy_rejects_file_execution_root(tmp_path: Path) -> None:
+    source = _write_hurl(
+        tmp_path / "tests" / "health.hurl",
+        """
+        GET {{base_url}}/health
+        HTTP 200
+        """,
+    )
+    execution_root = tmp_path / "execution-root"
+    execution_root.write_text("not a directory\n", encoding="utf-8")
+
+    with pytest.raises(GateInjectionError, match="Execution root must be a directory"):
+        write_injected_execution_copy(
+            discover_hurl_tests([source])[0],
+            [_gate("global_latency", "true", "duration < 2000")],
+            execution_root=execution_root,
+        )
+
+
+def test_write_injected_execution_copy_rejects_missing_source_path(tmp_path: Path) -> None:
+    source = tmp_path / "tests" / "missing.hurl"
+
+    with pytest.raises(GateInjectionError, match="Hurl source file not found"):
+        write_injected_execution_copy(
+            HurlTest(path=source, metadata=HurlMetadata()),
+            [_gate("global_latency", "true", "duration < 2000")],
+            execution_root=tmp_path / "execution",
+        )
+
+
+def test_inject_gate_assertions_rejects_gate_injection_without_response_sections() -> None:
+    content = "GET {{base_url}}/health\n"
+    hurl_test = HurlTest(
+        path=Path("tests/health.hurl"),
+        metadata=HurlMetadata(),
+        exchanges=(
+            HurlExchange(method="GET", url="{{base_url}}/health", path="/health"),
+        ),
+    )
+
+    with pytest.raises(GateInjectionError, match="No Hurl response sections found"):
+        inject_gate_assertions(
+            content,
+            hurl_test,
+            [_gate("global_latency", "true", "duration < 2000")],
+        )
 
 
 @pytest.mark.security
