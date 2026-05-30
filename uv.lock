@@ -696,6 +696,7 @@ dependencies = [
     { name = "pydantic", version = "2.13.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.14'" },
     { name = "pyyaml" },
     { name = "rich" },
+    { name = "sqlmodel" },
     { name = "typer" },
 ]
 
@@ -705,9 +706,6 @@ ai = [
 ]
 proxy = [
     { name = "mitmproxy" },
-]
-state = [
-    { name = "sqlmodel" },
 ]
 studio = [
     { name = "textual" },
@@ -731,11 +729,11 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.8" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "rich", specifier = ">=13.7" },
-    { name = "sqlmodel", marker = "extra == 'state'", specifier = ">=0.0.22" },
+    { name = "sqlmodel", specifier = ">=0.0.22" },
     { name = "textual", marker = "extra == 'studio'", specifier = ">=0.85" },
     { name = "typer", specifier = ">=0.12" },
 ]
-provides-extras = ["ai", "proxy", "state", "studio"]
+provides-extras = ["ai", "proxy", "studio"]
 
 [package.metadata.requires-dev]
 dev = [

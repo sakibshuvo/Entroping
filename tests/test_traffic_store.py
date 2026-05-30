@@ -4,9 +4,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+from sqlmodel import Session, create_engine, select
 
 from entroping.core.traffic_redactor import redact_traffic_exchange
-from entroping.core.traffic_store import TrafficStore, TrafficStoreError
+from entroping.core.traffic_store import TrafficEventRow, TrafficStore, TrafficStoreError
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
 
 
@@ -54,6 +55,23 @@ def test_store_persists_redacted_exchange_without_plaintext_secrets(tmp_path: Pa
     assert loaded[0].redacted is True
     assert loaded[0].request.headers["Authorization"] == "[REDACTED]"
     assert "live-secret" not in store.db_path.read_bytes().decode("utf-8", errors="ignore")
+
+
+def test_store_persists_events_through_sqlmodel_mapping(tmp_path: Path) -> None:
+    store = TrafficStore.open_project(tmp_path)
+    redacted = redact_traffic_exchange(_exchange(secret="live-secret"))
+
+    event_id = store.record_exchange(redacted)
+    engine = create_engine(f"sqlite:///{store.db_path}")
+    with Session(engine) as session:
+        rows = session.exec(select(TrafficEventRow)).all()
+
+    assert len(rows) == 1
+    assert rows[0].id == event_id
+    assert rows[0].method == "GET"
+    assert rows[0].host == "api.example.test"
+    assert rows[0].status_code == 200
+    assert "live-secret" not in rows[0].exchange_json
 
 
 def test_store_retention_keeps_latest_redacted_events(tmp_path: Path) -> None:

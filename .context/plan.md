@@ -34,7 +34,7 @@ project, and a Codex workspace with fast context rehydration.
 - `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, `scripts/regression.sh`, and `scripts/audit_quality.sh` define issue tracking, regression coverage, quality audit coverage, and simple phase-level progress tracking.
 - Apache-2.0 licensing and package metadata are in place for the public core; keep future commercial cloud, model, policy-pack, or enterprise surfaces outside the open core unless explicitly relicensed.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work; `scripts/finish_issue.sh` verifies merged PRs and safely removes completed local worktrees.
-- Eye capture now has security-first traffic models, pre-persistence redaction, bounded SQLite state, and capture-only `watch` wiring through a lazy-loaded mitmproxy adapter.
+- Eye capture now has security-first traffic models, pre-persistence redaction, bounded SQLModel-backed SQLite state, and capture-only `watch` wiring through a lazy-loaded mitmproxy adapter.
 - Issues #1 through #85, plus validation fixes #95 and #97, are integrated.
   The shipped alpha covers init/doctor, QAnstitution loading/import validation,
   Hurl discovery and metadata, gate injection, deterministic Hurl subprocess
@@ -88,20 +88,30 @@ Issue #90 moved deterministic run orchestration behind `core.run_workflow`,
 leaving the CLI adapter responsible for option normalization, output, and exit
 mapping.
 
-Issue #96 is the active post-alpha security review slice. Local remediation has
-fixed 14 validated candidates across Brain redaction, Hurl subprocess isolation,
-filesystem symlink boundaries, traffic redaction/body limits, OpenAPI
-compilation/audit safety, policy gate semantics, Markdown escaping, generated
-Hurl writes, and live-demo workdir safety. The remaining completion step is to
-commit, open the PR, run CI, and rerun the clean release gate from a clean
-checkout or through CI.
+Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
+2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
+subprocess isolation, filesystem symlink boundaries, traffic redaction/body
+limits, OpenAPI compilation/audit safety, policy gate semantics, Markdown
+escaping, generated Hurl writes, and live-demo workdir safety.
 
-## Current Slice: Issue #96 Post-Alpha Security Review
+## Current Slice: Source Reconciliation And SQLModel State Alignment
 
-Outcome so far: repository-wide scan artifacts were written under
-`/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, all 14
-deduplicated candidates have validation/verification ledgers, and no unresolved
-finding remains in the local branch.
+The 2026-05-29 NotebookLM Markdown export is the final current source snapshot.
+Keep older Gemini and dated NotebookLM files as historical evidence unless a
+specific contradiction is promoted into the canonical product docs or an ADR.
+
+Implementation focus:
+
+- Preserve SQLite as local `.entroping/state.db` runtime state.
+- Use SQLModel as the typed persistence layer for traffic state.
+- Keep traffic persistence redaction-first and bounded by retention.
+- Refresh source-map and progress docs so future sessions do not follow stale
+  paths or stale current-issue markers.
+
+Completed security-review context: repository-wide scan artifacts were written
+under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, all
+14 deduplicated candidates have validation/verification ledgers, and no
+unresolved finding remained in the merged branch.
 
 Implemented boundaries:
 
@@ -521,8 +531,8 @@ merged through GitHub before starting the next branch:
   coverage and complexity audit gate.
 - [#94](https://github.com/sakibshuvo/Entroping/issues/94): add finish-issue
   worktree and board hygiene automation.
-- [#96](https://github.com/sakibshuvo/Entroping/issues/96): run a formal
-  post-alpha security review.
+- No active validation issue is currently selected in this file. Pick the next
+  GitHub issue before starting another implementation branch.
 
 ## Explicitly Deferred
 

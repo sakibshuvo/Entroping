@@ -108,7 +108,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Finish-issue workflow](https://github.com/sakibshuvo/Entroping/issues/94) | Done | `scripts/finish_issue.sh` verifies merged PRs, CI, clean issue worktrees, and project hygiene before local cleanup | Make multi-session marathons safer |
 | [Story traceability bridge](https://github.com/sakibshuvo/Entroping/issues/91) | Done | Pure bridge report maps Hurl metadata to stories, owners, docs, tests, tags, and traceability findings | Expose through CLI/report adapter later |
 | [Run orchestration extraction](https://github.com/sakibshuvo/Entroping/issues/90) | Done | `core.run_workflow` now owns deterministic run orchestration and returns a typed workflow result | Keep future run flags out of the CLI adapter |
-| [Post-alpha security review](https://github.com/sakibshuvo/Entroping/issues/96) | Current | Local scan fixed 14 candidates and wrote `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z/report.md`; regression, quality audit, and dirty diagnostic release gate passed | Commit, push PR, and let clean CI/release gates prove the branch |
+| [Post-alpha security review](https://github.com/sakibshuvo/Entroping/issues/96) | Done | PR #105 merged the local boundary hardening after fixing 14 validated candidates; scan artifacts live under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z/` | Keep security scans tied to concrete remediation branches |
 
 ## Later Roadmap
 
@@ -126,7 +126,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | Alpha Release | Done | `v0.1.0-alpha` prerelease published from `abd08c0` with local release gate and CI evidence | Next release can include post-alpha PNG map rendering and package install polish |
 | Eye Capture Spike | Done | Capture-only `watch` records redacted, bounded traffic through mitmproxy; freeze/map remain separate |
 | Freeze and Map | Done | Basic `freeze`, WireMock dependency mocks, and Mermaid/DOT/Markdown/PNG dependency maps are in place |
-| Studio | Current | Read-only status shell is available; full interactive TUI remains later |
+| Studio | Later | Read-only status shell is available; full interactive TUI remains later |
 
 ## Update Rules
 
