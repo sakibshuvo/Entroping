@@ -73,6 +73,7 @@ Use these first. They are the control panel for current work:
 - [[decisions/ADR-0006-solo-first-mvp]]
 - [[decisions/ADR-0007-external-business-truth]]
 - [[decisions/ADR-0008-freeze-map-boundaries]]
+- [[decisions/ADR-0009-apache-core-open-core-boundary]]
 
 ## Working Loop
 

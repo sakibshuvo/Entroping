@@ -27,6 +27,7 @@ The repo should remain usable as an Obsidian vault and as a Codex workspace with
 - `docs/meta/AUTONOMOUS_DEVELOPMENT.md` defines the Codex-first loop, Spec Kit pilot path, and future OpenCode/oMLX worker plan.
 - `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, `.github/pull_request_template.md`, and `scripts/feature_gate.sh` define the executable delivery gates for feature work.
 - `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, and `scripts/regression.sh` define issue tracking, regression coverage, and simple phase-level progress tracking.
+- Apache-2.0 licensing and package metadata are in place for the public core; keep future commercial cloud, model, policy-pack, or enterprise surfaces outside the open core unless explicitly relicensed.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work.
 - Eye capture now has security-first traffic models, pre-persistence redaction, bounded SQLite state, and capture-only `watch` wiring through a lazy-loaded mitmproxy adapter.
 - Issues #1 through #6, #11, #13, #15, #17, #19, #23, #25, #29, #31, #33, #35, #37, #39, #41, #43, #46, #48, #50, and #52 are integrated: `entroping init --minimal`, `entroping doctor`, QAnstitution local loading/import validation, Hurl discovery, Entroping metadata parsing, tag-filter validation, gate matching, gate assertion compilation, temporary Hurl execution-copy injection, deterministic Hurl subprocess execution, JSON/JUnit/HTML reports, latest-run state, bug Markdown generation, the local checkout quickstart, env-file Hurl variables, CI live Hurl smoke, deterministic OpenAPI-to-Hurl generation, OpenAPI parameter/example support, deterministic Architect audit coverage, non-secret agent routing config, Brain prompt/provider foundations, staged Architect output writes, user-facing `architect build --prompt`, parser-backed prompt Hurl validation, safe persona-template creation from `config set`, safe Architect-owned `architect refactor`, executable import-boundary regression tests, deduplicated PR workflow triggers, deterministic managed-block Hurl merge, managed-block manual refactor integration, and prompt-backed build merge strategy.
@@ -46,7 +47,7 @@ The deterministic path is available and should remain the regression anchor:
 
 ## Current Milestone: Eye Capture And Release
 
-1. Keep public alpha blocked on owner-approved license and package metadata. **Current in issue #58.**
+1. Keep public alpha license and package metadata explicit. **Done in issue #58.**
 2. Keep capture-only `watch` separate from `freeze` and `map`. **Done in issue #60.**
 3. Design traffic-to-Hurl and dependency export before implementation. **Done in issue #59.**
 4. Run `scripts/release_check.sh --require-live-demo` before any release tag.
@@ -57,6 +58,17 @@ filtering/sessioning, traffic-to-Hurl freeze generation, safe `freeze` CLI
 writes, and dependency map exports. Issues #66 through #69 are implemented;
 issue #75 adds WireMock-compatible `freeze --mock` output. PNG map rendering
 remains deferred follow-up work.
+
+## Completed Slice: Issue #58 License And Package Metadata
+
+Outcome: make the public alpha legally explicit and package-index friendly.
+
+Implemented boundaries:
+
+- `LICENSE` contains the Apache License 2.0 text.
+- `pyproject.toml` declares the SPDX license expression `Apache-2.0`, ships the root license file, and uses alpha-level classifiers without overclaiming maturity.
+- `README.md` states the open-core boundary: Entroping Core is Apache-2.0, while future hosted, model, enterprise, policy-pack, and support offerings may use separate commercial terms.
+- `docs/meta/PROJECT_PROGRESS.md` no longer treats license/package metadata as the remaining alpha blocker.
 
 ## Completed Slice: Issue #3 Gate Matching And Injection
 

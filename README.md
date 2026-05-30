@@ -327,4 +327,6 @@ uv run --all-extras --with pip-audit pip-audit --progress-spinner off
 
 ## License
 
-No license has been selected yet. Treat the project as private/proprietary until a license decision is made.
+Entroping Core is licensed under Apache-2.0. See [LICENSE](LICENSE).
+
+The public core is intended to stay adoption-friendly and genuinely open source. Future hosted, team, enterprise, model, policy-pack, or support offerings may be distributed separately under commercial terms.
