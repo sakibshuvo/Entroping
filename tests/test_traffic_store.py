@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from sqlmodel import Session, create_engine, select
 
+from entroping.core import traffic_store
 from entroping.core.traffic_redactor import redact_traffic_exchange
 from entroping.core.traffic_store import TrafficEventRow, TrafficStore, TrafficStoreError
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
@@ -36,6 +37,11 @@ def test_store_uses_entroping_state_db_by_default(tmp_path: Path) -> None:
     assert store.db_path.parent.is_dir()
 
 
+def test_store_rejects_non_positive_retention_limit(tmp_path: Path) -> None:
+    with pytest.raises(TrafficStoreError, match="max_events must be positive"):
+        TrafficStore.open_project(tmp_path, max_events=0)
+
+
 def test_store_refuses_unredacted_exchange(tmp_path: Path) -> None:
     store = TrafficStore.open_project(tmp_path)
 
@@ -55,6 +61,28 @@ def test_store_persists_redacted_exchange_without_plaintext_secrets(tmp_path: Pa
     assert loaded[0].redacted is True
     assert loaded[0].request.headers["Authorization"] == "[REDACTED]"
     assert "live-secret" not in store.db_path.read_bytes().decode("utf-8", errors="ignore")
+
+
+def test_store_list_exchanges_rejects_non_positive_limit(tmp_path: Path) -> None:
+    store = TrafficStore.open_project(tmp_path)
+
+    with pytest.raises(TrafficStoreError, match="limit must be positive"):
+        store.list_exchanges(limit=0)
+
+
+def test_store_list_exchanges_applies_positive_limit(tmp_path: Path) -> None:
+    store = TrafficStore.open_project(tmp_path)
+    first = _exchange(secret="first-secret")
+    second = _exchange(secret="second-secret").model_copy(
+        update={"captured_at": datetime(2026, 5, 30, 12, 1, tzinfo=UTC)}
+    )
+    store.record_exchange(redact_traffic_exchange(first))
+    store.record_exchange(redact_traffic_exchange(second))
+
+    loaded = store.list_exchanges(limit=1)
+
+    assert len(loaded) == 1
+    assert loaded[0].captured_at.minute == 0
 
 
 def test_store_persists_events_through_sqlmodel_mapping(tmp_path: Path) -> None:
@@ -90,6 +118,53 @@ def test_store_retention_keeps_latest_redacted_events(tmp_path: Path) -> None:
     assert len(loaded) == 2
     assert [item.captured_at.minute for item in loaded] == [1, 2]
     assert "secret-" not in store.db_path.read_bytes().decode("utf-8", errors="ignore")
+
+
+def test_store_wraps_missing_inserted_row_id(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = TrafficStore.open_project(tmp_path)
+
+    class EmptyResult:
+        def all(self) -> list[TrafficEventRow]:
+            return []
+
+    class MissingIdSession:
+        def __init__(self, engine: object) -> None:
+            _ = engine
+
+        def __enter__(self) -> "MissingIdSession":
+            return self
+
+        def __exit__(
+            self,
+            exc_type: object,
+            exc_value: object,
+            traceback: object,
+        ) -> None:
+            _ = (exc_type, exc_value, traceback)
+
+        def add(self, row: TrafficEventRow) -> None:
+            row.id = None
+
+        def commit(self) -> None:
+            return None
+
+        def refresh(self, row: TrafficEventRow) -> None:
+            row.id = None
+
+        def exec(self, statement: object) -> EmptyResult:
+            _ = statement
+            return EmptyResult()
+
+        def delete(self, row: TrafficEventRow) -> None:
+            _ = row
+
+    monkeypatch.setattr(traffic_store, "Session", MissingIdSession)
+
+    with pytest.raises(TrafficStoreError, match="did not return an inserted traffic event id"):
+        store.record_exchange(redact_traffic_exchange(_exchange()))
 
 
 def test_store_refuses_symlinked_state_directory(tmp_path: Path) -> None:
