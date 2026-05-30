@@ -32,8 +32,9 @@ Do not duplicate every issue here. The detailed queue lives in GitHub.
 
 ## Current Target
 
-**Goal:** keep post-alpha work focused on small user-visible polish while the
-published `v0.1.0-alpha` remains backed by local and CI release evidence.
+**Goal:** keep the published `v0.1.0-alpha` backed by local and CI release
+evidence while burning down the validation queue: context drift, workflow
+friction, quality gates, security review, and maintenance hotspots.
 
 GitHub Project: [Entroping Alpha](https://github.com/users/sakibshuvo/projects/1)
 
@@ -100,6 +101,11 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Bounded parallel Hurl execution](https://github.com/sakibshuvo/Entroping/issues/83) | Done | `run --parallel` uses QAnstitution worker limits and preserves deterministic result ordering | Keep run path LLM-free |
 | [Deterministic drift report MVP](https://github.com/sakibshuvo/Entroping/issues/84) | Done | `run --drift-check --report drift` compares current run state with `.entroping/drift-baseline.json` | Add structured response drift later |
 | [Read-only Studio status shell](https://github.com/sakibshuvo/Entroping/issues/85) | Done | `studio --env <name>` inspects QAnstitution, latest run, reports, and traffic-state availability when the optional Studio extra is installed | Add interactive TUI views later |
+| [Architect build mode guidance](https://github.com/sakibshuvo/Entroping/issues/95) | Done | `architect build` without a mode now prints supported-mode guidance instead of scaffold placeholder text | Keep shipped commands actionable |
+| [Coverage artifact hygiene](https://github.com/sakibshuvo/Entroping/issues/97) | Done | `.coverage`, `coverage.xml`, and `htmlcov/` are ignored with a regression test | Add repeatable quality audit gate |
+| [Context refresh](https://github.com/sakibshuvo/Entroping/issues/92) | Current | `.context/plan.md` is being refreshed to match post-alpha reality | Keep future agent sessions grounded |
+| [Quality audit gate](https://github.com/sakibshuvo/Entroping/issues/93) | Next | Coverage and complexity checks should become a repeatable script | Prevent silent quality drift |
+| [Finish-issue workflow](https://github.com/sakibshuvo/Entroping/issues/94) | Next | Start-issue automation needs a symmetric cleanup/board flow | Make multi-session marathons safer |
 
 ## Later Roadmap
 

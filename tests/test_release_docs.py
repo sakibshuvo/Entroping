@@ -56,3 +56,11 @@ def test_progress_dashboard_marks_license_blocker_done() -> None:
         "(https://github.com/sakibshuvo/Entroping/issues/58) | Done |"
     ) in progress
     assert "license/package metadata is the remaining public-release blocker" not in progress
+
+
+def test_context_plan_does_not_reintroduce_stale_post_alpha_status() -> None:
+    plan = (REPO_ROOT / ".context" / "plan.md").read_text(encoding="utf-8")
+
+    assert "Bridge compiler boundary modules exist but are mostly placeholders" not in plan
+    assert "Next Slice: Architect Minimal Hardening" not in plan
+    assert "Current Validation Queue" in plan

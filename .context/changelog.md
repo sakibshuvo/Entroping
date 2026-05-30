@@ -2,6 +2,7 @@
 
 ## 2026-05-30
 
+- Refreshed issue #92's post-alpha context handoff so `.context/plan.md` and `PROJECT_PROGRESS.md` describe the implemented compiler/runtime surface and current validation queue instead of stale placeholder-era status.
 - Fixed issue #95's remaining `architect build` placeholder path so invoking the command without `--new` or `--prompt` now returns actionable supported-mode guidance.
 - Fixed issue #97's coverage-artifact hygiene gap by ignoring `.coverage`, `coverage.xml`, and `htmlcov/`, with a regression test proving Git ignores validation coverage output.
 - Implemented issue #85's read-only Studio status shell with optional Textual dependency guidance, local latest-run/report/traffic-state inspection, and no-mutation coverage.
