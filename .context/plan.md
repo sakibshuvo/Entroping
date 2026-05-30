@@ -526,13 +526,15 @@ merged through GitHub before starting the next branch:
 - [#106](https://github.com/sakibshuvo/Entroping/issues/106): expose story
   traceability through the reporting CLI.
 - [#107](https://github.com/sakibshuvo/Entroping/issues/107): wire context packs
-  into issue-session prompts.
+  into issue-session prompts. **Implemented locally on `feat/context-pack-session-prompts`; validation/PR pending.**
 - [#108](https://github.com/sakibshuvo/Entroping/issues/108): create launch demo
   assets and public growth kit.
 - [#109](https://github.com/sakibshuvo/Entroping/issues/109): add OpenSSF
   Scorecard and community-profile hardening.
 - [#110](https://github.com/sakibshuvo/Entroping/issues/110): add structured
   response drift checks.
+- [#112](https://github.com/sakibshuvo/Entroping/issues/112): make 100 percent
+  meaningful coverage a release gate.
 
 ## Explicitly Deferred
 

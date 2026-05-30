@@ -90,3 +90,4 @@
 - Release smoke jobs that download pinned external binaries still need bounded retries. Keep checksum verification strict, but do not let a single transient 5xx from a release host fail an otherwise valid PR.
 - SQLModel is the typed persistence layer, not a replacement for SQLite. Keep `.entroping/state.db` as local-first runtime state, and use SQLModel where relational state needs clearer schema, tests, and future migration paths.
 - Multi-agent scale needs deterministic context packs and one parent integrator. Use helper agents for bounded evidence and review, but promote durable decisions into issues, ADRs, docs, tests, or scripts before implementation follows them.
+- Pydantic and mypy are complementary gates: Pydantic validates runtime data at boundaries, while mypy enforces static type consistency before runtime.

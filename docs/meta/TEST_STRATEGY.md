@@ -11,7 +11,9 @@ tags:
 
 # Test Strategy
 
-Entroping uses a risk-based test pyramid. The goal is not decorative coverage; the goal is deterministic evidence that the governance loop works.
+Entroping uses a risk-based test pyramid. The target is 100 percent meaningful
+coverage, not decorative coverage; the goal is deterministic evidence that the
+governance loop works.
 
 ## Test Pyramid
 

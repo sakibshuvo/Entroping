@@ -44,6 +44,7 @@ def render_issue_session_prompt(session: IssueSessionPrompt) -> str:
     """Render the instructions for one issue-scoped Codex or OpenCode session."""
 
     mode_instructions = _mode_instructions(session)
+    context_pack_mode = _context_pack_mode(session)
     return f"""# Entroping Issue Session: #{session.issue_number}
 
 Repository: {session.repository}
@@ -52,6 +53,7 @@ Issue URL: {session.issue_url}
 Worktree: {session.worktree_path}
 Branch: {session.branch_name}
 Mode: {session.mode}
+Context pack: `scripts/context_pack.sh --mode {context_pack_mode}`
 
 ## Mission
 
@@ -123,6 +125,12 @@ def _mode_instructions(session: IssueSessionPrompt) -> str:
     )
 
 
+def _context_pack_mode(session: IssueSessionPrompt) -> str:
+    if session.mode == "review":
+        return "review"
+    return "implementation"
+
+
 def main() -> None:
     """CLI entrypoint used by scripts/start_issue.sh."""
 
@@ -182,5 +190,5 @@ def _get_mode(namespace: argparse.Namespace) -> SessionMode:
     return cast(SessionMode, value)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()
