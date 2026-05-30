@@ -1,6 +1,12 @@
 """AI adapter boundary for LiteLLM-backed Architect roles."""
 
 from entroping.brain.architect_build import ArchitectPromptBuildResult, run_architect_prompt_build
+from entroping.brain.architect_refactor import (
+    ArchitectRefactorError,
+    ArchitectRefactorResult,
+    discover_refactor_targets,
+    run_architect_refactor,
+)
 from entroping.brain.architect_writer import ArchitectWriteError, write_architect_edits
 from entroping.brain.litellm_client import (
     BrainProviderError,
@@ -23,6 +29,8 @@ __all__ = [
     "ArchitectOutputParseError",
     "ArchitectPromptBuildResult",
     "ArchitectPromptPackage",
+    "ArchitectRefactorError",
+    "ArchitectRefactorResult",
     "ArchitectWriteError",
     "BrainProviderError",
     "BrainProviderUnavailableError",
@@ -33,8 +41,10 @@ __all__ = [
     "PromptBuildError",
     "PromptMessage",
     "build_architect_prompt_package",
+    "discover_refactor_targets",
     "load_agent_persona",
     "parse_architect_edit_set",
     "run_architect_prompt_build",
+    "run_architect_refactor",
     "write_architect_edits",
 ]

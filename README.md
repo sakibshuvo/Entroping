@@ -61,13 +61,14 @@ Available now:
 - Escaped HTML run reports through `entroping run --report html`.
 - `entroping report bug` for Markdown handoff from the latest failing run.
 - LiteLLM-backed `entroping architect build --prompt` happy path with Builder persona/model loading, structured output parsing, parser-backed Hurl validation, redacted CLI output, and staged Architect-owned Hurl writes.
+- LiteLLM-backed `entroping architect refactor` happy path for selected Architect-owned Hurl files with safe target discovery and parser-backed validation.
 - CI-ready local checks through `uv`, `ruff`, `mypy`, and `pytest`.
 
 Not built yet:
 
 - Drift reports.
 - mitmproxy traffic capture.
-- Architect `--strategy merge`, `refactor`, and broader validation UX.
+- Architect `--strategy merge`, manual-file-preserving refactor, and broader validation UX.
 - Studio TUI.
 
 ## Quick Start
@@ -233,7 +234,8 @@ from local OpenAPI files with common parameters and schema examples, determinist
 non-secret `config list` / `config set`, `run --env`, deterministic `architect audit`
 for OpenAPI coverage, deterministic `run`, JSON/JUnit run reports, HTML run reports,
 `report bug`, and LiteLLM-backed `architect build --prompt` for parser-validated,
-Builder-generated Architect-owned Hurl files.
+Builder-generated Architect-owned Hurl files plus LiteLLM-backed `architect refactor`
+for selected Architect-owned Hurl files.
 
 ## Architecture
 
