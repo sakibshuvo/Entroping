@@ -118,3 +118,42 @@ def test_render_story_traceability_markdown_escapes_table_cells() -> None:
     assert "payments\\|checkout&lt;svg&gt;" in markdown
     assert "<img>" not in markdown
     assert "<svg>" not in markdown
+
+
+def test_render_story_traceability_markdown_handles_no_story_linked_tests() -> None:
+    report = compile_story_traceability([])
+
+    markdown = render_story_traceability_markdown(report)
+
+    assert "No story-linked tests found." in markdown
+    assert "No traceability findings." in markdown
+
+
+def test_render_story_traceability_markdown_renders_findings_table() -> None:
+    report = compile_story_traceability(
+        [
+            _test("tests/checkout.hurl"),
+            _test(
+                "tests/refund.hurl",
+                meta={
+                    "story_id": "PAY-002",
+                    "doc_url": "https://jira.example.com/browse/shared|doc",
+                },
+            ),
+            _test(
+                "tests/void.hurl",
+                meta={
+                    "story_id": "PAY-003",
+                    "doc_url": "https://jira.example.com/browse/shared|doc",
+                },
+            ),
+        ],
+    )
+
+    markdown = render_story_traceability_markdown(report)
+
+    assert "| Kind | Location | Message |" in markdown
+    assert "missing_story_id" in markdown
+    assert "tests/checkout.hurl" in markdown
+    assert "duplicate_doc_url" in markdown
+    assert "https://jira.example.com/browse/shared\\|doc" in markdown
