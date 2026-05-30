@@ -370,6 +370,13 @@ Generated endpoints must be traceable to one of those sources. If the user asks 
 - Produce a diff-oriented result.
 - Run parser-backed syntax validation on modified Hurl files, using `hurlfmt --out json <file>` or an equivalent Hurl parser-backed validator.
 
+Current implementation note: `architect refactor` has its first safe vertical slice
+for existing Architect-owned `.hurl` files. It loads selected target files into
+Builder prompt context, rejects unsafe globs and symlinked or non-Hurl targets,
+requires returned edits to stay within the selected target set, validates every
+edit through the parser-backed Hurl validator, and writes through the staged
+Architect writer. Manual-file-preserving merge behavior is still deferred.
+
 ## 10. Observation Design
 
 `entroping watch` starts a mitmproxy-based recorder.

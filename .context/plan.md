@@ -28,7 +28,7 @@ The repo should remain usable as an Obsidian vault and as a Codex workspace with
 - `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, `.github/pull_request_template.md`, and `scripts/feature_gate.sh` define the executable delivery gates for feature work.
 - `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, and `scripts/regression.sh` define issue tracking, regression coverage, and simple phase-level progress tracking.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work.
-- Issues #1 through #6, #11, #13, #15, #17, #19, #23, #25, #29, #31, #33, #35, #37, and #39 are integrated: `entroping init --minimal`, `entroping doctor`, QAnstitution local loading/import validation, Hurl discovery, Entroping metadata parsing, tag-filter validation, gate matching, gate assertion compilation, temporary Hurl execution-copy injection, deterministic Hurl subprocess execution, JSON/JUnit/HTML reports, latest-run state, bug Markdown generation, the local checkout quickstart, env-file Hurl variables, CI live Hurl smoke, deterministic OpenAPI-to-Hurl generation, OpenAPI parameter/example support, deterministic Architect audit coverage, non-secret agent routing config, Brain prompt/provider foundations, staged Architect output writes, user-facing `architect build --prompt`, parser-backed prompt Hurl validation, and safe persona-template creation from `config set`.
+- Issues #1 through #6, #11, #13, #15, #17, #19, #23, #25, #29, #31, #33, #35, #37, #39, and #41 are integrated: `entroping init --minimal`, `entroping doctor`, QAnstitution local loading/import validation, Hurl discovery, Entroping metadata parsing, tag-filter validation, gate matching, gate assertion compilation, temporary Hurl execution-copy injection, deterministic Hurl subprocess execution, JSON/JUnit/HTML reports, latest-run state, bug Markdown generation, the local checkout quickstart, env-file Hurl variables, CI live Hurl smoke, deterministic OpenAPI-to-Hurl generation, OpenAPI parameter/example support, deterministic Architect audit coverage, non-secret agent routing config, Brain prompt/provider foundations, staged Architect output writes, user-facing `architect build --prompt`, parser-backed prompt Hurl validation, safe persona-template creation from `config set`, and safe Architect-owned `architect refactor`.
 
 ## Next Milestone: Deterministic Core
 
@@ -262,13 +262,14 @@ Architect writes generated files.
 
 Planned direction:
 
-- Decide whether the next Architect slice should be merge strategy, refactor,
-  prompt-generation UX hardening, or the Eye capture spike.
+- Decide whether the next Architect slice should be merge strategy,
+  manual-file-preserving refactor, prompt-generation UX hardening, or the Eye
+  capture spike.
 - Keep provider failures explicit and keep deterministic `run` isolated from model access.
 
 ## Explicitly Deferred
 
-- Complete LiteLLM Architect refactor workflow.
+- Complete manual-file-preserving Architect merge/refactor workflow.
 - mitmproxy `watch`, `freeze`, and `map`.
 - Studio TUI.
 - Nuitka packaging.

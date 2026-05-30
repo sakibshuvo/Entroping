@@ -99,6 +99,9 @@ entroping architect refactor \
 entroping run --env local --tag regression --report html
 ```
 
+Current alpha support applies to Architect-owned Hurl files only. Manual-file
+preserving refactor is still planned.
+
 ### Success Criteria
 
 - Comments and manual sections are preserved.

@@ -13,11 +13,13 @@ from rich.console import Console
 from entroping import __version__
 from entroping.brain import (
     ArchitectOutputParseError,
+    ArchitectRefactorError,
     ArchitectWriteError,
     BrainProviderError,
     PersonaLoadError,
     PromptBuildError,
     run_architect_prompt_build,
+    run_architect_refactor,
 )
 from entroping.brain.safety import redact_secret_like_values
 from entroping.bridge.openapi_audit import (
@@ -332,8 +334,36 @@ def architect_refactor(
 ) -> None:
     """Safely update existing Hurl tests."""
 
-    _ = (target, prompt)
-    _not_implemented("architect refactor")
+    try:
+        law = load_qanstitution(Path("qanstitution.yaml"))
+        result = run_architect_refactor(
+            law=law,
+            target_glob=target,
+            prompt=prompt,
+            project_root=Path.cwd(),
+            config_path=Path("qanstitution.yaml"),
+        )
+    except (
+        ArchitectOutputParseError,
+        ArchitectRefactorError,
+        ArchitectWriteError,
+        BrainProviderError,
+        PersonaLoadError,
+        PromptBuildError,
+        QanstitutionLoadError,
+        ValueError,
+    ) as exc:
+        _print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    noun = "test" if len(result.written_paths) == 1 else "tests"
+    console.print(f"[green]Refactored {len(result.written_paths)} Architect Hurl {noun}.[/green]")
+    console.print(f"Summary: {_safe_cli_text(result.summary)}", markup=False)
+    console.print(f"Model: {_safe_cli_text(result.model)} ({result.latency_ms} ms)", markup=False)
+    for warning in result.warnings:
+        console.print(f"Warning: {_safe_cli_text(warning)}", style="yellow", markup=False)
+    for path in result.written_paths:
+        console.print(f"Wrote Hurl test: {_safe_cli_text(_display_cli_path(path))}", markup=False)
 
 
 @architect_app.command("audit")

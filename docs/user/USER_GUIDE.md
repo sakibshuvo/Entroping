@@ -100,7 +100,10 @@ entroping architect refactor \
   --prompt "Add the Authorization header using {{auth_token}} to every request."
 ```
 
-The refactor should preserve manual edits and validate Hurl before writing changes.
+Current alpha support is intentionally narrow: refactor targets must already be
+Architect-owned Hurl files marked with `# entroping: source=architect`. Manual-file
+preserving refactors are still a later slice. Refactored Hurl is validated before
+writing changes.
 
 ## 5. Legacy API Rescue
 
