@@ -54,3 +54,4 @@
 - Implemented issue #41's Architect-owned refactor path with safe target glob loading, Builder prompt context packaging, provider JSON parsing, selected-target enforcement, parser-backed Hurl validation, redacted CLI output, and staged writes.
 - Implemented issue #43's executable architecture/provider boundary guard with AST-based regression tests for domain/bridge adapter imports, run-core Brain/LiteLLM imports, and direct provider SDK imports.
 - Implemented issue #46's CI trigger dedupe so pull requests run once through `pull_request` and branch pushes do not start duplicate workflows unless the push is to `main`.
+- Implemented issue #48's pure bridge managed-block Hurl merge primitive for replacing explicit Entroping-managed blocks while preserving manual content outside those blocks.
