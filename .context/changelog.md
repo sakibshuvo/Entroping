@@ -10,6 +10,7 @@
 - Continued issue #112 by covering Hurl validator subprocess startup failures and raising `core.hurl_validator` to 100% module coverage.
 - Covered root-level Architect output validation errors, removed an unreachable managed-block marker branch, and raised `brain.output_parser` plus `bridge.merge` to 100% module coverage.
 - Covered traffic dependency graph path-normalization edge cases and raised `bridge.traffic_to_graph` to 100% module coverage.
+- Covered report writer mismatch, out-of-root path display, no-failure bug guidance, and bug-report write paths, raising `core.report_writer` to 100% module coverage.
 - Ran issue #96's formal post-alpha security review and fixed 14 validated candidates across Brain prompt redaction, Hurl subprocess env isolation, symlinked path components, traffic redaction/body limits, OpenAPI generation/audit safety, policy gate compilation, Markdown escaping, Architect generated-file writes, and live demo workdir handling.
 - Wrote the consolidated Codex Security scan artifacts under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, including discovery, coverage, reconciliation, validation, attack-path, Markdown, and HTML reports.
 - Refactored issue #90's `entroping run` orchestration into `core.run_workflow`, preserving reports, drift behavior, exit codes, and LLM-free execution while lowering CLI adapter complexity.
