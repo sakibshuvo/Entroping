@@ -331,9 +331,11 @@ Prompts should include only necessary context. Secrets and raw sensitive traffic
 Current implementation note: `architect build --prompt` now wires the CLI to the
 Brain foundation for the Builder happy path. The command loads the configured Builder
 persona, builds a redaction-checked prompt package, invokes LiteLLM through the lazy
-adapter, parses provider JSON into validated Architect edits, and writes only
-Architect-owned Hurl files through the staged writer. Provider summaries, warnings,
-and errors are redacted before CLI output. `entroping run` remains LLM-free.
+adapter, parses provider JSON into validated Architect edits, injects requested tags,
+validates generated Hurl through `hurlfmt --out json`, and writes only Architect-owned
+Hurl files through the staged writer. Provider summaries, warnings, parser failures,
+and errors are redacted or summarized before CLI output. `entroping run` remains
+LLM-free.
 
 ### Provider Strategy
 
@@ -516,7 +518,8 @@ Errors must be explicit and actionable:
 - Missing Hurl binary: tell user how to install or configure it.
 - Invalid QAnstitution: identify path and field.
 - Bad gate condition: identify rule ID and invalid expression.
-- Hurl validation failure: show file path and relevant stderr.
+- Hurl validation failure: show the generated file path without echoing raw provider
+  content from parser stdout/stderr.
 - mitmproxy certificate issue: explain CA installation steps.
 - LLM provider failure: include role/model and retry/fallback status without exposing keys.
 - Local model unavailable: explain whether Ollama is missing, not running, or missing the configured model.

@@ -93,8 +93,8 @@ LLM calls. `architect audit` reports OpenAPI coverage gaps, and `config list`
 `qanstitution.yaml`. The Brain foundation covers persona loading, prompt packaging,
 structured Hurl edit models, provider-output parsing, staged Architect-owned Hurl
 writes, and a lazy LiteLLM adapter. `architect build --prompt` now has a happy path
-for scoped Builder generation. Merge/refactor behavior and broader validation UX
-remain later slices.
+for scoped Builder generation with parser-backed Hurl validation before files are
+written. Merge/refactor behavior remains a later slice.
 
 Deliverables:
 
