@@ -32,8 +32,8 @@ Do not duplicate every issue here. The detailed queue lives in GitHub.
 
 ## Current Target
 
-**Goal:** harden the autonomous delivery workflow and choose the next highest-leverage
-product slice after prompt-based Hurl generation.
+**Goal:** prepare a credible `v0.1.0-alpha` release candidate, then move into
+the Eye capture milestone.
 
 GitHub Project: [Entroping Alpha](https://github.com/users/sakibshuvo/projects/1)
 
@@ -45,6 +45,8 @@ GitHub milestones:
 - [MVP: Reporting polish](https://github.com/sakibshuvo/Entroping/milestone/4)
 - [MVP: CI proof](https://github.com/sakibshuvo/Entroping/milestone/5)
 - [MVP: Architect minimal](https://github.com/sakibshuvo/Entroping/milestone/7)
+- [v0.1.0-alpha release](https://github.com/sakibshuvo/Entroping/milestone/8)
+- [MVP: Eye capture](https://github.com/sakibshuvo/Entroping/milestone/9)
 
 ```text
 init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> run Hurl -> JSON/JUnit report
@@ -82,6 +84,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Managed-block Architect refactor](https://github.com/sakibshuvo/Entroping/issues/50) | Done | `architect refactor` can update manual Hurl managed blocks while preserving surrounding content | Reused by prompt build merge |
 | [Prompt build merge strategy](https://github.com/sakibshuvo/Entroping/issues/52) | Done | `architect build --strategy merge --prompt` updates existing Architect-owned files or managed manual blocks | Keep non-prompt merge deferred |
 | [Deterministic repo hygiene and local hooks](https://github.com/sakibshuvo/Entroping/issues/54) | Done | `repo_hygiene.sh` blocks tracked local/generated state, `feature_gate.sh` runs it, and optional hook installation is scripted | Keep deterministic gates ahead of prompt-only process |
+| [Alpha release readiness gate](https://github.com/sakibshuvo/Entroping/issues/56) | Current | Release checklist and deterministic `release_check.sh` gate | Tag only after required evidence passes |
 
 ## Later Roadmap
 
@@ -93,7 +96,8 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | CI Proof | Done | Live demo smoke with real Hurl in GitHub Actions |
 | OpenAPI Depth | Done | Path/query/header/cookie parameters plus schema examples/defaults |
 | Architect Minimal | Done | Prompt generation, prompt-backed build merge, pre-write Hurl validation, Architect-owned refactor, and managed-block manual refactor are available |
-| Delivery Automation | Current | Deterministic repo hygiene, issue worktrees, regression gates, and optional local hooks support multi-session development | Use this process to tackle prompt UX hardening or Eye capture next |
+| Delivery Automation | Done | Deterministic repo hygiene, issue worktrees, regression gates, optional local hooks, and release-readiness checks support multi-session development |
+| Alpha Release | Current | `v0.1.0-alpha` needs release checklist evidence and final public-status polish | Use `scripts/release_check.sh --require-live-demo` before tagging |
 | Eye Capture Spike | Later | mitmproxy capture-only with redaction before persistence |
 | Freeze and Map | Later | Traffic-to-Hurl compiler and dependency maps |
 | Studio | Deferred | Useful after deterministic core and reports are real |
