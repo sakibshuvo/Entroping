@@ -60,7 +60,7 @@ Available now:
 - Redacted JSON and JUnit reports through `entroping run --report json --report junit`.
 - Escaped HTML run reports through `entroping run --report html`.
 - `entroping report bug` for Markdown handoff from the latest failing run.
-- Architect Brain foundation: validated Hurl edit output models, root-bounded persona loading, prompt package assembly, and a lazy LiteLLM adapter boundary.
+- Architect Brain foundation: validated Hurl edit output models, provider-output parsing, root-bounded persona loading, prompt package assembly, staged Architect-owned Hurl writes, and a lazy LiteLLM adapter boundary.
 - CI-ready local checks through `uv`, `ruff`, `mypy`, and `pytest`.
 
 Not built yet:

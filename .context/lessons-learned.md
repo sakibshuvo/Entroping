@@ -47,3 +47,5 @@
 - Brain implementation can advance safely before user-facing AI commands by making persona loading, prompt packaging, provider invocation, and structured output validation separate modules with tests.
 - Treat persona Markdown and prompt context as untrusted inputs: keep paths root-bounded, reject symlinks, cap file size, and scan for token-shaped secrets before any provider call.
 - LiteLLM belongs behind a lazy adapter with injectable completion functions so normal development and regression tests do not need provider credentials or network access.
+- Raw model output should enter the system through a parser boundary, not a writer. Parse JSON, validate with Pydantic, then let the filesystem adapter enforce ownership and path safety.
+- Architect writes should mark generated files with `# entroping: source=architect` and refuse to overwrite manual or non-Architect Hurl files until a merge/refactor mode explicitly owns that behavior.

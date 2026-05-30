@@ -47,3 +47,4 @@
 - Implemented issue #25's Architect minimal slice with deterministic OpenAPI coverage audit, Markdown/JSON output, CLI pass/fail behavior, and review-driven hardening for executable Hurl coverage and Markdown validity.
 - Implemented issue #29's non-secret config slice with `config list`, `config set`, schema-level unsafe model identifier rejection, effective-policy validation before writes, symlink-safe temporary YAML updates, and focused CLI/domain tests.
 - Implemented issue #31's Brain foundation with validated Architect edit models, root-bounded persona loading, secret-checked prompt packaging, lazy LiteLLM adapter, and no provider/network calls in tests.
+- Implemented issue #33's Architect output boundary with JSON-to-`ArchitectEditSet` parsing, Architect-owned Hurl staged writes, non-generated overwrite protection, and symlink-safe temporary writes.
