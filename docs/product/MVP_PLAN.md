@@ -176,7 +176,10 @@ slices instead of one broad Eye rewrite.
 Current implementation note: `bridge.traffic_sessions` now builds pure,
 ordered session candidates from redacted traffic, filters static assets, strips
 binary body text, and labels records as target, dependency, or observed without
-importing proxy, SQLite, CLI, Hurl, or Brain adapters.
+importing proxy, SQLite, CLI, Hurl, or Brain adapters. `bridge.traffic_to_hurl`
+now compiles those session candidates into generated Hurl content with
+traffic-source metadata, redacted textual request data, and stable golden
+assertions that avoid token-like, ID-like, timestamp-like, and redacted fields.
 
 Deliverables:
 

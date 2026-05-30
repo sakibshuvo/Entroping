@@ -4,3 +4,266 @@ This module will convert redacted, normalized traffic sessions into Hurl test
 models. It must not own proxy capture, SQLite persistence, or report writing.
 """
 
+import json
+import math
+import re
+from dataclasses import dataclass
+
+from entroping.bridge.traffic_sessions import TrafficSessionCandidate, TrafficSessionRecord
+from entroping.models.traffic import TrafficBody, TrafficResponse
+
+_REDACTED = "[REDACTED]"
+_SAFE_FILE_STEM_RE = re.compile(r"[^A-Za-z0-9_.-]+")
+_JSONPATH_FIELD_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_HOP_BY_HOP_REQUEST_HEADERS = frozenset(
+    {
+        "accept-encoding",
+        "connection",
+        "content-length",
+        "host",
+        "proxy-connection",
+        "te",
+        "trailer",
+        "transfer-encoding",
+        "upgrade",
+    }
+)
+_TEXTUAL_CONTENT_TYPES = frozenset(
+    {
+        "application/graphql",
+        "application/json",
+        "application/problem+json",
+        "application/x-ndjson",
+        "application/x-www-form-urlencoded",
+        "application/xml",
+    }
+)
+_SENSITIVE_KEY_PARTS = (
+    "api_key",
+    "apikey",
+    "auth",
+    "authorization",
+    "client_secret",
+    "cookie",
+    "credential",
+    "jwt",
+    "password",
+    "passwd",
+    "refresh_token",
+    "secret",
+    "session",
+    "token",
+)
+_VOLATILE_KEY_PARTS = (
+    "timestamp",
+    "created_at",
+    "updated_at",
+    "deleted_at",
+    "expires_at",
+    "uuid",
+)
+
+
+class TrafficHurlCompilationError(ValueError):
+    """Raised when a traffic session cannot be compiled into safe Hurl."""
+
+
+@dataclass(frozen=True, slots=True)
+class GeneratedTrafficHurlFile:
+    """Generated traffic Hurl content plus its deterministic repository path."""
+
+    relative_path: str
+    content: str
+
+
+def compile_traffic_session_to_hurl(
+    session: TrafficSessionCandidate,
+    *,
+    golden: bool,
+) -> GeneratedTrafficHurlFile:
+    """Compile a filtered redacted traffic session into one Hurl file."""
+
+    if not session.records:
+        msg = f"traffic session {session.name!r} contains no traffic records"
+        raise TrafficHurlCompilationError(msg)
+
+    lines = [
+        "# entroping: tags=traffic,freeze",
+        "# entroping: source=traffic",
+        f"# entroping: session={session.name}",
+    ]
+    if session.target_origin is not None:
+        lines.append(f"# entroping: target={session.target_origin}")
+    lines.append("")
+
+    for index, record in enumerate(session.records):
+        if index > 0:
+            lines.append("")
+        lines.extend(_render_record(record, golden=golden))
+
+    lines.append("")
+    return GeneratedTrafficHurlFile(
+        relative_path=f"tests/generated/{_safe_file_stem(session.name)}.hurl",
+        content="\n".join(lines),
+    )
+
+
+def _render_record(record: TrafficSessionRecord, *, golden: bool) -> list[str]:
+    exchange = record.exchange
+    if not exchange.redacted:
+        msg = "traffic-to-Hurl compilation requires redacted traffic"
+        raise TrafficHurlCompilationError(msg)
+    if exchange.response is None:
+        msg = "traffic-to-Hurl compilation requires response records"
+        raise TrafficHurlCompilationError(msg)
+
+    lines = [
+        f"# entroping: role={record.role}",
+        f"# entroping: captured_at={exchange.captured_at.isoformat()}",
+        f"{exchange.request.method} {_safe_hurl_line_value(exchange.request.url, 'request URL')}",
+    ]
+    lines.extend(_render_request_headers(exchange.request.headers))
+    request_body = _request_body_text(exchange.request.body)
+    if request_body is not None:
+        lines.extend(_safe_body_lines(request_body))
+    lines.append(f"HTTP {exchange.response.status_code}")
+
+    assertions = _golden_assertions(exchange.response) if golden else []
+    if assertions:
+        lines.append("[Asserts]")
+        lines.extend(assertions)
+    return lines
+
+
+def _render_request_headers(headers: dict[str, str]) -> list[str]:
+    rendered: list[str] = []
+    for name, value in headers.items():
+        if name.lower() in _HOP_BY_HOP_REQUEST_HEADERS:
+            continue
+        rendered.append(
+            f"{name}: {_safe_hurl_line_value(value, f'header {name!r}')}"
+        )
+    return rendered
+
+
+def _request_body_text(body: TrafficBody | None) -> str | None:
+    if body is None or body.text is None:
+        return None
+    if not _is_textual_content_type(body.content_type):
+        return None
+    return body.text
+
+
+def _safe_body_lines(text: str) -> list[str]:
+    if _has_hurl_template_delimiter(text):
+        msg = "traffic body contains Hurl template delimiters"
+        raise TrafficHurlCompilationError(msg)
+    return text.splitlines() or [""]
+
+
+def _golden_assertions(response: TrafficResponse) -> list[str]:
+    assertions: list[str] = []
+    content_type = _header_value(response.headers, "content-type")
+    if content_type is not None and _is_textual_content_type(content_type):
+        media_type = _media_type(content_type)
+        assertions.append(f'header "Content-Type" contains "{media_type}"')
+
+    body = response.body
+    if (
+        body is None
+        or body.text is None
+        or _media_type(body.content_type or "") != "application/json"
+    ):
+        return assertions
+
+    try:
+        parsed = json.loads(body.text)
+    except json.JSONDecodeError:
+        return assertions
+    if not isinstance(parsed, dict):
+        return assertions
+
+    for key, value in parsed.items():
+        key_text = str(key)
+        if not _is_stable_json_assertion(key_text, value):
+            continue
+        assertions.append(f'jsonpath "$.{key_text}" == {_hurl_json_literal(value)}')
+    return assertions
+
+
+def _is_stable_json_assertion(key: str, value: object) -> bool:
+    normalized = key.lower().replace("-", "_")
+    if _JSONPATH_FIELD_RE.fullmatch(key) is None:
+        return False
+    if (
+        normalized == "id"
+        or normalized.endswith("_id")
+        or any(part in normalized for part in (*_SENSITIVE_KEY_PARTS, *_VOLATILE_KEY_PARTS))
+    ):
+        return False
+    if not isinstance(value, str | int | float | bool):
+        return False
+    if isinstance(value, float) and not math.isfinite(value):
+        return False
+    return not (
+        isinstance(value, str)
+        and (
+            value == _REDACTED
+            or _contains_control(value)
+            or _has_hurl_template_delimiter(value)
+        )
+    )
+
+
+def _hurl_json_literal(value: str | int | float | bool) -> str:
+    return json.dumps(value, allow_nan=False)
+
+
+def _header_value(headers: dict[str, str], name: str) -> str | None:
+    normalized = name.lower()
+    for header_name, value in headers.items():
+        if header_name.lower() == normalized:
+            return value
+    return None
+
+
+def _is_textual_content_type(content_type: str | None) -> bool:
+    if content_type is None:
+        return False
+    media_type = _media_type(content_type)
+    return (
+        media_type.startswith("text/")
+        or media_type in _TEXTUAL_CONTENT_TYPES
+        or media_type.endswith("+json")
+        or media_type.endswith("+xml")
+    )
+
+
+def _media_type(content_type: str) -> str:
+    return content_type.split(";", maxsplit=1)[0].lower().strip()
+
+
+def _safe_file_stem(name: str) -> str:
+    stem = _SAFE_FILE_STEM_RE.sub("_", name.strip()).strip("._-")
+    if not stem:
+        msg = "traffic session name does not produce a safe Hurl filename"
+        raise TrafficHurlCompilationError(msg)
+    return stem
+
+
+def _safe_hurl_line_value(value: str, context: str) -> str:
+    if _contains_control(value):
+        msg = f"{context} contains control characters"
+        raise TrafficHurlCompilationError(msg)
+    if _has_hurl_template_delimiter(value):
+        msg = f"{context} contains Hurl template delimiters"
+        raise TrafficHurlCompilationError(msg)
+    return value
+
+
+def _contains_control(value: str) -> bool:
+    return any(ord(character) < 32 or ord(character) == 127 for character in value)
+
+
+def _has_hurl_template_delimiter(value: str) -> bool:
+    return "{{" in value or "}}" in value

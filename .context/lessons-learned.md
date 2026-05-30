@@ -64,3 +64,4 @@
 - Optional proxy dependencies should be lazy-loaded at the command boundary. A default install must explain `uv sync --extra proxy` instead of failing at import time, and adapter tests should use fake flow objects instead of requiring a live mitmproxy process.
 - Freeze/map work needs a compiler boundary before code. Keep filtering/sessioning, traffic-to-Hurl, graph export, and CLI/file writes separate so the Eye does not collapse into one adapter-heavy module.
 - Session candidates should be built from redacted traffic only. Strip binary body text and label target/dependency roles in a pure bridge module before any freeze/map compiler writes artifacts.
+- Traffic-to-Hurl generation should avoid raw response-body replay. Use observed request data plus stable response assertions, and skip token-like, ID-like, timestamp-like, redacted, binary, or templated values.
