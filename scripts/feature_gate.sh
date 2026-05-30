@@ -33,6 +33,7 @@ while (($#)); do
   shift
 done
 
+scripts/repo_hygiene.sh
 scripts/check.sh
 git diff --check
 git diff --cached --check

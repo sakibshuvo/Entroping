@@ -81,6 +81,8 @@ Output belongs under `graphify-out/`, which is ignored by Git.
 
 Project-specific rules belong in each repo's `AGENTS.md`. Global preferences belong in `/Users/sakibshuvo/.codex/AGENTS.md`.
 
+Do not add a committed project `.codex/` directory unless the repo later needs shareable Codex-specific assets that cannot be represented in `AGENTS.md`, tracked scripts, issue prompts, or docs. For now, `.codex/`, installed skills, plugins, and machine hooks are user-local acceleration layers.
+
 For another project, reuse the same pattern:
 
 ```text

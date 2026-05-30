@@ -45,6 +45,7 @@ These instructions extend the global Codex rules for this repository. If a rule 
 - Use `.context/plan.md` for the active implementation plan, `.context/changelog.md` for concise changes, and `.context/lessons-learned.md` for durable pitfalls and decisions.
 - Keep Obsidian/Graphify generated state out of Git unless it is intentionally curated Markdown.
 - Use GitHub Issues as the canonical tracker for individual bugs, feature slices, and regressions.
+- Keep `.codex/` and installed skills/plugins user-local. Project behavior belongs in this file, tracked scripts, issue prompts, docs, and CI.
 
 ## Autonomous Development Workflow
 
@@ -61,5 +62,7 @@ These instructions extend the global Codex rules for this repository. If a rule 
 - For regression proof, run `scripts/regression.sh`.
 - For security-sensitive or dependency work, run `scripts/feature_gate.sh --security`.
 - For docs-only changes, `scripts/check.sh` is acceptable when no source, dependency, subprocess, or runtime boundary changed.
+- `scripts/feature_gate.sh` runs `scripts/repo_hygiene.sh`; do not bypass it when local state or generated files are involved.
+- Optional local hooks can be installed with `scripts/install_hooks.sh`, but hooks are convenience only and do not replace CI or the feature gate.
 - Review `git diff` before staging or committing.
 - Do not commit `.DS_Store`, `.venv/`, `.entroping/`, generated reports, local env files, Graphify output, or Obsidian workspace/cache/plugin state.
