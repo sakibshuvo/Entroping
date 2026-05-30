@@ -57,6 +57,23 @@ Preserve the locked v4.1 command surface and implement only the next narrow mile
 Follow docs/meta/AUTONOMOUS_DEVELOPMENT.md, docs/meta/FEATURE_DELIVERY_CHECKLIST.md, docs/meta/ISSUE_TRACKING.md, and docs/meta/TEST_STRATEGY.md for the Codex-first workflow, TDD expectations, regression gates, multi-agent guardrails, issue tracking, and context updates.
 ```
 
+## Agent Context Packs
+
+For any agent, generate a deterministic pack instead of relying on old chat
+context:
+
+```bash
+scripts/context_pack.sh --mode implementation
+scripts/context_pack.sh --mode review
+scripts/context_pack.sh --mode source
+scripts/context_pack.sh --mode growth
+scripts/context_pack.sh --mode handoff
+```
+
+Use `implementation` for coding, `review` for critique, `source` for
+Gemini/NotebookLM reconciliation, `growth` for launch and monetization work, and
+`handoff` when a new Codex thread needs fast continuity.
+
 ## Obsidian Role
 
 Obsidian is the human navigation layer. It shows product evolution, ADRs, source links, and relationships between docs.

@@ -33,8 +33,9 @@ Do not duplicate every issue here. The detailed queue lives in GitHub.
 ## Current Target
 
 **Goal:** keep the published `v0.1.0-alpha` backed by local and CI release
-evidence while burning down the validation queue: context drift, workflow
-friction, quality gates, security review, and maintenance hotspots.
+evidence while moving the next marathon queue through story traceability,
+structured drift checks, public launch assets, OpenSSF trust signals, and
+agent-context automation.
 
 GitHub Project: [Entroping Alpha](https://github.com/users/sakibshuvo/projects/1)
 
@@ -126,6 +127,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | Alpha Release | Done | `v0.1.0-alpha` prerelease published from `abd08c0` with local release gate and CI evidence | Next release can include post-alpha PNG map rendering and package install polish |
 | Eye Capture Spike | Done | Capture-only `watch` records redacted, bounded traffic through mitmproxy; freeze/map remain separate |
 | Freeze and Map | Done | Basic `freeze`, WireMock dependency mocks, and Mermaid/DOT/Markdown/PNG dependency maps are in place |
+| Agent Workflow | Done | Deterministic context packs, cross-agent control plane, source-promotion workflow, and community health docs are available | Use issue branches for follow-on automation |
 | Studio | Later | Read-only status shell is available; full interactive TUI remains later |
 
 ## Update Rules
