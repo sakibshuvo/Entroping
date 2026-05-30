@@ -533,6 +533,45 @@ paths:
     assert "GET {{base_url}}/orders/{{order_id}}?include=events" in content
 
 
+def test_architect_build_new_refuses_symlinked_generated_parent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+sources:
+  spec: ./openapi.yaml
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    Path("openapi.yaml").write_text(
+        """
+openapi: "3.1.0"
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: ok
+""".lstrip(),
+        encoding="utf-8",
+    )
+    outside_dir = tmp_path / "outside-generated"
+    outside_dir.mkdir()
+    Path("tests").mkdir()
+    Path("tests/generated").symlink_to(outside_dir, target_is_directory=True)
+
+    result = CliRunner().invoke(app, ["architect", "build", "--new"])
+
+    assert result.exit_code == 1
+    assert "symlinked generated Hurl path component" in result.output
+    assert not (outside_dir / "get_health.hurl").exists()
+
+
 def test_architect_build_new_requires_configured_spec(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1849,6 +1888,7 @@ def test_run_executes_discovered_hurl_with_injected_gates_and_cleans_temp_state(
         stderr: BinaryIO,
         timeout: float,
         check: bool,
+        env: dict[str, str] | None = None,
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         _ = (stderr, timeout, check, shell)
@@ -1897,6 +1937,7 @@ def test_run_returns_non_zero_when_hurl_execution_fails(
         stderr: BinaryIO,
         timeout: float,
         check: bool,
+        env: dict[str, str] | None = None,
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         _ = (stdout, timeout, check, shell)
@@ -1960,6 +2001,7 @@ def test_run_writes_json_junit_reports_and_latest_state(
         stderr: BinaryIO,
         timeout: float,
         check: bool,
+        env: dict[str, str] | None = None,
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         _ = (stderr, timeout, check, shell)
@@ -2036,6 +2078,7 @@ def test_run_report_drift_writes_missing_baseline_artifact(
         stderr: BinaryIO,
         timeout: float,
         check: bool,
+        env: dict[str, str] | None = None,
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         _ = (stdout, stderr, timeout, check, shell)
@@ -2091,6 +2134,7 @@ def test_run_drift_check_fails_when_current_run_differs_from_baseline(
         stderr: BinaryIO,
         timeout: float,
         check: bool,
+        env: dict[str, str] | None = None,
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         _ = (stdout, stderr, timeout, check, shell)
@@ -2196,6 +2240,7 @@ def test_report_bug_generates_markdown_from_latest_failing_run(
         stderr: BinaryIO,
         timeout: float,
         check: bool,
+        env: dict[str, str] | None = None,
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         _ = (args, stdout, timeout, check, shell)

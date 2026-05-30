@@ -64,6 +64,49 @@ def test_redactor_removes_headers_query_params_and_json_secret_fields() -> None:
     assert '"api_key":"[REDACTED]"' in request_body.text
 
 
+def test_redactor_treats_json_subtype_bodies_as_structured_json() -> None:
+    exchange = _raw_exchange().model_copy(
+        update={
+            "request": _raw_exchange().request.model_copy(
+                update={
+                    "headers": {"Content-Type": "application/problem+json"},
+                    "body": TrafficBody(
+                        content_type="application/problem+json",
+                        size_bytes=31,
+                        text='{"token":"problem-secret","ok":true}',
+                    ),
+                },
+            ),
+        },
+    )
+
+    redacted = redact_traffic_exchange(exchange)
+
+    serialized = redacted.model_dump_json()
+    assert "problem-secret" not in serialized
+    assert redacted.request.body is not None
+    assert redacted.request.body.text is not None
+    assert '"token":"[REDACTED]"' in redacted.request.body.text
+
+
+def test_redactor_removes_url_userinfo_credentials() -> None:
+    exchange = _raw_exchange().model_copy(
+        update={
+            "request": _raw_exchange().request.model_copy(
+                update={
+                    "url": "https://user:pass@example.test/checkout?token=query-secret",
+                },
+            ),
+        },
+    )
+
+    redacted = redact_traffic_exchange(exchange)
+
+    assert redacted.request.url == "https://example.test/checkout?token=%5BREDACTED%5D"
+    assert redacted.request.host == "example.test"
+    assert "user:pass" not in redacted.model_dump_json()
+
+
 def test_redactor_bounds_text_body_summaries() -> None:
     exchange = _raw_exchange().model_copy(
         update={

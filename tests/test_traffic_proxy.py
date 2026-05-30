@@ -12,10 +12,12 @@ from entroping.core.traffic_proxy import (
     MitmproxyUnavailableError,
     TrafficCaptureAddon,
     WatchConfig,
+    _body_from,
     load_mitmproxy_runtime,
     run_watch,
 )
 from entroping.core.traffic_store import TrafficStore
+from entroping.models.traffic import TrafficBody
 
 
 @dataclass(frozen=True)
@@ -122,6 +124,25 @@ def test_capture_addon_redacts_before_persisting_flow(tmp_path: Path) -> None:
     assert "header-secret" not in store.db_path.read_text(encoding="utf-8", errors="ignore")
     assert "body-secret" not in store.db_path.read_text(encoding="utf-8", errors="ignore")
     assert "response-token" not in store.db_path.read_text(encoding="utf-8", errors="ignore")
+
+
+def test_body_from_caps_text_before_redaction_processing() -> None:
+    message = _Request(
+        method="POST",
+        pretty_url="https://api.example.test/checkout",
+        headers=_Headers({"Content-Type": "application/json"}),
+        content=(b'{"token":"' + (b"a" * 128) + b'"}'),
+        timestamp_start=1_780_000_000.0,
+    )
+
+    body = _body_from(message, max_body_chars=16)
+
+    assert body == TrafficBody(
+        content_type="application/json",
+        size_bytes=len(message.content),
+        text='{"token":"aaaaaa',
+        truncated=True,
+    )
 
 
 def test_capture_addon_ignores_urls_outside_target_scope(tmp_path: Path) -> None:

@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from html import escape
 from pathlib import Path
 from typing import Literal
 
@@ -163,4 +164,4 @@ def render_story_traceability_markdown(report: StoryTraceabilityReport) -> str:
 
 
 def _table_cell(value: str) -> str:
-    return value.replace("|", "\\|").replace("\n", " ")
+    return escape(value, quote=True).replace("|", "\\|").replace("\n", " ")

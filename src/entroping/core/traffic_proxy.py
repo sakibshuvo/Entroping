@@ -126,12 +126,12 @@ class TrafficCaptureAddon:
                 method=_string_attribute(request, ("method",)),
                 url=url,
                 headers=_headers_from(_optional_attribute(request, "headers")),
-                body=_body_from(request),
+                body=_body_from(request, max_body_chars=self._max_body_chars),
             ),
             response=TrafficResponse(
                 status_code=_status_code(response),
                 headers=_headers_from(_optional_attribute(response, "headers")),
-                body=_body_from(response),
+                body=_body_from(response, max_body_chars=self._max_body_chars),
             ),
         )
         redacted = redact_traffic_exchange(exchange, max_body_chars=self._max_body_chars)
@@ -247,16 +247,26 @@ def _call_header_items(items_method: _HeaderItems) -> tuple[tuple[object, object
     return tuple(items)
 
 
-def _body_from(message: object) -> TrafficBody | None:
+def _body_from(
+    message: object,
+    *,
+    max_body_chars: int = DEFAULT_MAX_BODY_CHARS,
+) -> TrafficBody | None:
     content = _bytes_attribute(message, "content")
     if not content:
         return None
     headers = _headers_from(_optional_attribute(message, "headers"))
     content_type = _content_type(headers)
+    text, truncated = _decode_text_body(
+        content,
+        content_type,
+        max_body_chars=max_body_chars,
+    )
     return TrafficBody(
         content_type=content_type,
         size_bytes=len(content),
-        text=_decode_text_body(content, content_type),
+        text=text,
+        truncated=truncated,
     )
 
 
@@ -267,15 +277,25 @@ def _content_type(headers: dict[str, str]) -> str | None:
     return None
 
 
-def _decode_text_body(content: bytes, content_type: str | None) -> str | None:
+def _decode_text_body(
+    content: bytes,
+    content_type: str | None,
+    *,
+    max_body_chars: int,
+) -> tuple[str | None, bool]:
     if content_type is None:
-        return None
+        return None, False
     media_type = content_type.split(";", maxsplit=1)[0].lower().strip()
     if media_type.startswith("text/") or media_type in _TEXTUAL_CONTENT_TYPES:
-        return content.decode("utf-8", errors="replace")
+        return _decode_bounded_text(content, max_body_chars=max_body_chars)
     if media_type.endswith("+json") or media_type.endswith("+xml"):
-        return content.decode("utf-8", errors="replace")
-    return None
+        return _decode_bounded_text(content, max_body_chars=max_body_chars)
+    return None, False
+
+
+def _decode_bounded_text(content: bytes, *, max_body_chars: int) -> tuple[str, bool]:
+    snippet = content[:max_body_chars]
+    return snippet.decode("utf-8", errors="replace"), len(content) > len(snippet)
 
 
 def _bytes_attribute(source: object, name: str) -> bytes:

@@ -36,6 +36,7 @@ def test_run_hurl_file_invokes_hurl_with_argument_array_and_redacts_output(
         stderr: BinaryIO,
         timeout: float,
         check: bool,
+        env: dict[str, str] | None = None,
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         calls.append(
@@ -80,6 +81,47 @@ def test_run_hurl_file_invokes_hurl_with_argument_array_and_redacts_output(
     assert "token=[REDACTED]" in result.stderr
 
 
+def test_run_hurl_file_uses_minimal_subprocess_environment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "health.hurl")
+    calls: list[dict[str, str]] = []
+    monkeypatch.setenv("DB_URL", "postgres://user:secret-host/db")
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str],
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (args, stderr, timeout, check, shell)
+        calls.append(env)
+        stdout.write(f"DB_URL={env.get('DB_URL', '')}\n".encode())
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(hurl_file, HurlRunOptions(binary="hurl"))
+
+    expected_path = ":".join(
+        dict.fromkeys(
+            [
+                str(Path("/bin/hurl").resolve().parent),
+                "/usr/bin",
+                "/bin",
+            ]
+        )
+    )
+    assert calls == [{"PATH": expected_path}]
+    assert "secret-host" not in result.stdout
+
+
 def test_run_hurl_file_passes_variables_as_argument_array_and_redacts_values(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -95,6 +137,7 @@ def test_run_hurl_file_passes_variables_as_argument_array_and_redacts_values(
         stderr: BinaryIO,
         timeout: float,
         check: bool,
+        env: dict[str, str] | None = None,
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         _ = (stderr, timeout, check, shell)
@@ -146,6 +189,7 @@ def test_run_hurl_file_returns_failed_result_for_non_zero_exit(
         stderr: BinaryIO,
         timeout: float,
         check: bool,
+        env: dict[str, str] | None = None,
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         _ = (timeout, check, shell)
@@ -177,6 +221,7 @@ def test_run_hurl_file_returns_timeout_result_with_redacted_partial_output(
         stderr: BinaryIO,
         timeout: float,
         check: bool,
+        env: dict[str, str] | None = None,
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         _ = (check, shell)
@@ -213,6 +258,7 @@ def test_run_hurl_file_removes_variables_file_after_timeout(
         stderr: BinaryIO,
         timeout: float,
         check: bool,
+        env: dict[str, str] | None = None,
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         _ = (stdout, stderr, check, shell)
@@ -247,6 +293,7 @@ def test_run_hurl_file_bounds_stdout_and_stderr(
         stderr: BinaryIO,
         timeout: float,
         check: bool,
+        env: dict[str, str] | None = None,
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         _ = (timeout, check, shell)
@@ -293,6 +340,7 @@ def test_run_hurl_files_aggregates_deterministic_exit_code(
         stderr: BinaryIO,
         timeout: float,
         check: bool,
+        env: dict[str, str] | None = None,
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         _ = (stdout, stderr, timeout, check, shell)
@@ -330,6 +378,7 @@ def test_run_hurl_files_bounds_parallel_workers_and_preserves_input_order(
         stderr: BinaryIO,
         timeout: float,
         check: bool,
+        env: dict[str, str] | None = None,
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         nonlocal active, max_active

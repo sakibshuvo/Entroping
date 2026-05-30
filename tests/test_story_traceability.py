@@ -104,8 +104,8 @@ def test_render_story_traceability_markdown_escapes_table_cells() -> None:
             _test(
                 "tests/checkout.hurl",
                 meta={
-                    "story_id": "CHK|001",
-                    "owner": "payments|checkout",
+                    "story_id": "CHK|001<img>",
+                    "owner": "payments|checkout<svg>",
                     "doc_url": "https://jira.example.com/browse/CHK-001",
                 },
             ),
@@ -114,5 +114,7 @@ def test_render_story_traceability_markdown_escapes_table_cells() -> None:
 
     markdown = render_story_traceability_markdown(report)
 
-    assert "CHK\\|001" in markdown
-    assert "payments\\|checkout" in markdown
+    assert "CHK\\|001&lt;img&gt;" in markdown
+    assert "payments\\|checkout&lt;svg&gt;" in markdown
+    assert "<img>" not in markdown
+    assert "<svg>" not in markdown

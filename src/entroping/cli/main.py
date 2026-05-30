@@ -660,8 +660,12 @@ def _write_generated_hurl_file(generated: GeneratedHurlFile) -> Path:
         msg = f"Generated Hurl path must stay inside the project: {generated.relative_path}"
         raise ValueError(msg)
 
-    generated_root = (Path.cwd() / "tests" / "generated").resolve()
-    output_path = (Path.cwd() / relative_path).resolve()
+    project_root = Path.cwd().resolve()
+    candidate = project_root / relative_path
+    _reject_symlink_path_components(candidate, root=project_root)
+
+    generated_root = project_root / "tests" / "generated"
+    output_path = candidate.resolve()
     if not output_path.is_relative_to(generated_root):
         msg = f"Generated Hurl path must stay under tests/generated: {generated.relative_path}"
         raise ValueError(msg)
@@ -678,6 +682,15 @@ def _write_generated_hurl_file(generated: GeneratedHurlFile) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(generated.content, encoding="utf-8")
     return output_path
+
+
+def _reject_symlink_path_components(path: Path, *, root: Path) -> None:
+    current = root
+    for part in path.relative_to(root).parts:
+        current = current / part
+        if current.is_symlink():
+            msg = f"Refusing to write symlinked generated Hurl path component: {current}"
+            raise ValueError(msg)
 
 
 @report_app.command("bug")

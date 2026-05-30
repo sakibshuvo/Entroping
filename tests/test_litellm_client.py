@@ -97,6 +97,25 @@ def test_litellm_client_sanitizes_provider_errors(tmp_path: Path) -> None:
     assert "[REDACTED]" in str(exc_info.value)
 
 
+def test_litellm_client_sanitizes_cookie_and_api_key_provider_errors(
+    tmp_path: Path,
+) -> None:
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        _ = kwargs
+        raise RuntimeError(
+            "provider rejected Cookie: sessionid=live-session-cookie; "
+            "X-API-Key: live-api-key"
+        )
+
+    with pytest.raises(BrainProviderError) as exc_info:
+        LiteLLMClient(completion_func=fake_completion).complete(_package(tmp_path))
+
+    message = str(exc_info.value)
+    assert "live-session-cookie" not in message
+    assert "live-api-key" not in message
+    assert "[REDACTED]" in message
+
+
 def test_litellm_client_rejects_empty_response_content(tmp_path: Path) -> None:
     def fake_completion(**kwargs: object) -> dict[str, object]:
         _ = kwargs

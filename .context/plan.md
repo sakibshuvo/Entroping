@@ -88,6 +88,51 @@ Issue #90 moved deterministic run orchestration behind `core.run_workflow`,
 leaving the CLI adapter responsible for option normalization, output, and exit
 mapping.
 
+Issue #96 is the active post-alpha security review slice. Local remediation has
+fixed 14 validated candidates across Brain redaction, Hurl subprocess isolation,
+filesystem symlink boundaries, traffic redaction/body limits, OpenAPI
+compilation/audit safety, policy gate semantics, Markdown escaping, generated
+Hurl writes, and live-demo workdir safety. The remaining completion step is to
+commit, open the PR, run CI, and rerun the clean release gate from a clean
+checkout or through CI.
+
+## Current Slice: Issue #96 Post-Alpha Security Review
+
+Outcome so far: repository-wide scan artifacts were written under
+`/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, all 14
+deduplicated candidates have validation/verification ledgers, and no unresolved
+finding remains in the local branch.
+
+Implemented boundaries:
+
+- Prompt and provider-error redaction now catch cookie, API-key, password, Basic
+  auth, token, and key-value secret shapes while allowing templated Hurl auth
+  placeholders.
+- Hurl execution uses a minimal subprocess environment instead of inheriting the
+  parent shell environment.
+- Env loading, report writing, drift reads/writes, traffic state, and generated
+  Hurl writes reject symlinked path components before resolving or writing.
+- Traffic redaction strips URL userinfo, handles JSON subtypes structurally, and
+  caps textual body extraction before decode/redaction work.
+- OpenAPI compilation rejects secret-like fallback variables and Hurl template
+  delimiters in JSON object keys.
+- OpenAPI audit coverage requires matching method/path evidence, not only
+  spoofable `operation_id` metadata.
+- Policy gates reject no-op comments and Hurl section headers.
+- Markdown renderers for audit and traceability escape HTML metacharacters.
+- The live demo smoke script refuses non-empty custom workdirs instead of
+  deleting their contents.
+
+Local evidence:
+
+- `PYTHONPATH=src uv run pytest -q`: 368 passed.
+- `PYTHONPATH=src uv run ruff check src tests scripts`: passed.
+- `PYTHONPATH=src uv run mypy src tests`: passed.
+- `scripts/regression.sh --security`: passed.
+- `scripts/audit_quality.sh`: passed with 85.49 percent coverage.
+- `scripts/release_check.sh --require-live-demo --allow-dirty`: passed, including
+  package check, security regression, and live Hurl demo smoke.
+
 ## Completed Slice: Issue #90 Run Workflow Extraction
 
 Outcome: `entroping run` no longer owns discovery, env loading, gate injection,

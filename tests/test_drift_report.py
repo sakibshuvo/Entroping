@@ -170,5 +170,30 @@ def test_load_drift_baseline_rejects_missing_or_symlinked_baseline(tmp_path: Pat
     target = tmp_path / "outside.json"
     missing.symlink_to(target)
 
-    with pytest.raises(DriftReportError, match="symlinked baseline"):
+    with pytest.raises(DriftReportError, match="symlinked path component"):
         load_drift_baseline(missing)
+
+
+def test_load_drift_baseline_rejects_symlinked_parent_directory(tmp_path: Path) -> None:
+    outside_dir = tmp_path / "outside-state"
+    outside_dir.mkdir()
+    (outside_dir / "drift-baseline.json").write_text('{"tests":[]}\n', encoding="utf-8")
+    (tmp_path / ".entroping").symlink_to(outside_dir, target_is_directory=True)
+
+    with pytest.raises(DriftReportError, match="symlinked path component"):
+        load_drift_baseline(tmp_path / ".entroping" / "drift-baseline.json")
+
+
+def test_write_drift_report_rejects_symlinked_parent_directory(tmp_path: Path) -> None:
+    report = build_missing_baseline_report(
+        current=_run_report(_test_report("tests/health.hurl")),
+        baseline_path=tmp_path / ".entroping" / "drift-baseline.json",
+    )
+    outside_dir = tmp_path / "outside-reports"
+    outside_dir.mkdir()
+    (tmp_path / "reports").symlink_to(outside_dir, target_is_directory=True)
+
+    with pytest.raises(DriftReportError, match="symlinked path component"):
+        write_drift_report(report, tmp_path / "reports" / "drift.json")
+
+    assert not (outside_dir / "drift.json").exists()

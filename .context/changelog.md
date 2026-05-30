@@ -2,6 +2,8 @@
 
 ## 2026-05-30
 
+- Ran issue #96's formal post-alpha security review and fixed 14 validated candidates across Brain prompt redaction, Hurl subprocess env isolation, symlinked path components, traffic redaction/body limits, OpenAPI generation/audit safety, policy gate compilation, Markdown escaping, Architect generated-file writes, and live demo workdir handling.
+- Wrote the consolidated Codex Security scan artifacts under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, including discovery, coverage, reconciliation, validation, attack-path, Markdown, and HTML reports.
 - Refactored issue #90's `entroping run` orchestration into `core.run_workflow`, preserving reports, drift behavior, exit codes, and LLM-free execution while lowering CLI adapter complexity.
 - Implemented issue #91's bridge-level story traceability compiler with missing-story and conflicting-doc-link findings, Markdown rendering, tests, and docs that avoid implying external API sync.
 - Hardened local validation scripts to use the repo `src/` path explicitly so audit and regression gates do not depend on editable-install `.pth` state.

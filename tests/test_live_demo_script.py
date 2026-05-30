@@ -89,3 +89,35 @@ def test_live_demo_smoke_script_rejects_repo_workdir(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert "Refusing to use unsafe live demo workdir" in result.stderr
+
+
+def test_live_demo_smoke_script_rejects_non_empty_custom_workdir(tmp_path: Path) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_hurl = fake_bin / "hurl"
+    fake_hurl.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    fake_hurl.chmod(fake_hurl.stat().st_mode | stat.S_IXUSR)
+
+    workdir = tmp_path / "demo"
+    workdir.mkdir()
+    sentinel = workdir / "keep.txt"
+    sentinel.write_text("do not delete\n", encoding="utf-8")
+
+    repo_root = Path(__file__).resolve().parents[1]
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
+    env["ENTROPING_LIVE_DEMO_WORKDIR"] = str(workdir)
+
+    result = subprocess.run(
+        ["bash", "scripts/live_demo_smoke.sh"],
+        cwd=repo_root,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=30,
+    )
+
+    assert result.returncode == 1
+    assert "Refusing to reuse non-empty live demo workdir" in result.stderr
+    assert sentinel.read_text(encoding="utf-8") == "do not delete\n"

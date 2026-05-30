@@ -2,6 +2,11 @@
 
 ## 2026-05-30
 
+- Security-sensitive path checks need component-level symlink rejection, not only final-path checks. Env loading, report writes, drift reports, state files, and generated Hurl writes all need to reject symlinked ancestors before resolving.
+- Hurl subprocess isolation needs an explicit environment allowlist. Passing variables through Hurl's variables file is not enough if the child process inherits unrelated parent secrets from CI or the local shell.
+- Treat OpenAPI as active Hurl input, not passive documentation. Parameter names and JSON object keys can become Hurl interpolation syntax unless fallbacks and keys are validated before rendering.
+- Markdown output is still a report boundary. Escape HTML metacharacters in addition to table pipes/newlines before metadata or spec values can be viewed in Obsidian, CI artifacts, or local renderers.
+- Demo scripts should never clean user-selected directories. If a script accepts a workdir from the environment, require a symlink-free, empty directory and fail closed instead of trying to be helpful with deletion.
 - Use Apache-2.0 for the public Entroping Core to maximize adoption and enterprise comfort while keeping paid hosted Brain, enterprise workflows, model weights, policy packs, support, and cloud services as separate commercial surfaces.
 - Licensing is release metadata, not a vibe. Keep `LICENSE`, `pyproject.toml`, README status, progress docs, and release checks aligned so a public alpha is not accidentally shipped as an unlicensed repository.
 - Distribution claims need executable evidence. Build and inspect wheel/sdist artifacts locally, keep `dist/` ignored, and keep PyPI/TestPyPI credentials out of the repo until publishing automation is explicitly designed.

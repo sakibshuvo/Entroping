@@ -179,6 +179,7 @@ def run_hurl_file(
     binary_path = _resolve_hurl_binary(run_options.binary)
     variables_file = _write_variables_file(run_options.variables or {})
     command = (binary_path, *_variables_file_args(variables_file), str(hurl_path))
+    subprocess_env = _minimal_subprocess_env(binary_path)
 
     start = time.perf_counter()
     status: HurlRunStatus = "error"
@@ -198,6 +199,7 @@ def run_hurl_file(
                     stderr=stderr_file,
                     timeout=run_options.timeout_seconds,
                     check=False,
+                    env=subprocess_env,
                     shell=False,
                 )
             except subprocess.TimeoutExpired:
@@ -280,6 +282,15 @@ def _resolve_hurl_binary(binary: str) -> str:
         msg = f"Hurl binary not found: {binary}"
         raise HurlBinaryNotFoundError(msg)
     return resolved
+
+
+def _minimal_subprocess_env(binary_path: str) -> dict[str, str]:
+    path_entries = [
+        str(Path(binary_path).resolve().parent),
+        "/usr/bin",
+        "/bin",
+    ]
+    return {"PATH": ":".join(dict.fromkeys(path_entries))}
 
 
 def _variables_file_args(path: Path | None) -> tuple[str, ...]:

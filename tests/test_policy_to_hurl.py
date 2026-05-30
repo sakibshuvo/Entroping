@@ -6,6 +6,7 @@ import pytest
 
 from entroping.bridge.policy_to_hurl import (
     GateCompilationError,
+    compile_gate_assertion,
     compile_matching_gates,
 )
 from entroping.models.hurl import HurlExchange, HurlMetadata, HurlTest
@@ -96,3 +97,18 @@ def test_compile_matching_gates_surfaces_invalid_conditions_with_rule_id() -> No
 
     with pytest.raises(GateCompilationError, match="bad_condition"):
         compile_matching_gates([broken_gate], _checkout_test())
+
+
+@pytest.mark.parametrize("assertion", ["# no-op", "[Options]", "[Asserts]"])
+def test_compile_gate_assertion_rejects_non_executable_lines(assertion: str) -> None:
+    gate = GateRule.model_construct(
+        id="must_check_status",
+        condition="true",
+        gate=assertion,
+        enforcement="block",
+        description=None,
+        final=False,
+    )
+
+    with pytest.raises(GateCompilationError, match="executable Hurl assertion"):
+        compile_gate_assertion(gate)

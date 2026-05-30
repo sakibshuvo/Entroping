@@ -311,9 +311,17 @@ def _display_path(path: Path, root: Path) -> str:
 
 def _prepare_output_path(path: Path) -> Path:
     expanded = path.expanduser()
-    if expanded.is_symlink():
-        msg = f"Refusing to write report through symlinked path: {expanded}"
-        raise ReportWriterError(msg)
+    _reject_symlink_path_components(expanded)
     resolved = expanded.resolve()
     resolved.parent.mkdir(parents=True, exist_ok=True)
     return resolved
+
+
+def _reject_symlink_path_components(path: Path) -> None:
+    current = Path(path.anchor) if path.is_absolute() else Path(".")
+    parts = path.parts[1:] if path.is_absolute() else path.parts
+    for part in parts:
+        current = current / part
+        if current.is_symlink():
+            msg = f"Refusing to write report through symlinked path component: {current}"
+            raise ReportWriterError(msg)

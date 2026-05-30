@@ -40,6 +40,10 @@ _ASSIGNMENT_RE = re.compile(
     r"password|passwd|refresh_token|secret|session[_-]?id|token"
     r")=([^\s&;,\"]+)"
 )
+_JSON_PAIR_RE = re.compile(
+    r'(?i)("(?:access_token|api[_-]?key|authorization|client_secret|cookie|jwt|'
+    r'password|passwd|refresh_token|secret|session[_-]?id|token)"\s*:\s*)"[^"]*"'
+)
 _AUTH_VALUE_RE = re.compile(r"(?i)\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+")
 
 
@@ -96,6 +100,7 @@ def _redact_headers(headers: dict[str, str]) -> dict[str, str]:
 
 def _redact_url(url: str) -> str:
     parsed = urlsplit(url)
+    netloc = parsed.netloc.rsplit("@", maxsplit=1)[-1]
     query = urlencode(
         [
             (key, REDACTED if _is_sensitive_key(key) else _redact_text(value))
@@ -103,7 +108,7 @@ def _redact_url(url: str) -> str:
         ],
         doseq=True,
     )
-    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, query, parsed.fragment))
+    return urlunsplit((parsed.scheme, netloc, parsed.path, query, parsed.fragment))
 
 
 def _redact_body(body: TrafficBody | None, *, max_body_chars: int) -> TrafficBody | None:
@@ -115,7 +120,7 @@ def _redact_body(body: TrafficBody | None, *, max_body_chars: int) -> TrafficBod
     content_type = (body.content_type or "").split(";", maxsplit=1)[0].lower().strip()
     redacted_text = (
         _redact_json_body(body.text)
-        if content_type == "application/json"
+        if _is_json_content_type(content_type)
         else _redact_plain_text_body(body.text, max_body_chars=max_body_chars)
     )
     truncated = (
@@ -163,7 +168,12 @@ def _redact_plain_text_body(text: str, *, max_body_chars: int) -> str:
 
 def _redact_text(text: str) -> str:
     redacted = _AUTH_VALUE_RE.sub(lambda match: f"{match.group(1)} {REDACTED}", text)
-    return _ASSIGNMENT_RE.sub(lambda match: f"{match.group(1)}={REDACTED}", redacted)
+    redacted = _ASSIGNMENT_RE.sub(lambda match: f"{match.group(1)}={REDACTED}", redacted)
+    return _JSON_PAIR_RE.sub(lambda match: f'{match.group(1)}"{REDACTED}"', redacted)
+
+
+def _is_json_content_type(content_type: str) -> bool:
+    return content_type == "application/json" or content_type.endswith("+json")
 
 
 def _is_sensitive_key(key: str) -> bool:
