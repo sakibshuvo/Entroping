@@ -57,6 +57,36 @@ def test_discover_hurl_tests_filters_by_any_requested_tag(tmp_path: Path) -> Non
     assert [test.path for test in discovered] == [checkout]
 
 
+def test_discover_hurl_tests_accepts_single_hurl_file_root(tmp_path: Path) -> None:
+    hurl_file = _write_hurl(
+        tmp_path / "single.hurl",
+        "# entroping: tags=smoke\nGET /single\nHTTP 200\n",
+    )
+
+    discovered = discover_hurl_tests([hurl_file])
+
+    assert [test.path for test in discovered] == [hurl_file.resolve()]
+    assert discovered[0].exchanges[0].path == "/single"
+
+
+def test_discover_hurl_tests_deduplicates_roots_and_preserves_sorted_order(tmp_path: Path) -> None:
+    zeta = _write_hurl(
+        tmp_path / "tests" / "zeta.hurl",
+        "# entroping: tags=regression\nGET /zeta\nHTTP 200\n",
+    )
+    alpha = _write_hurl(
+        tmp_path / "tests" / "alpha.hurl",
+        "# entroping: tags=smoke\nGET /alpha\nHTTP 200\n",
+    )
+
+    discovered = discover_hurl_tests([tmp_path, tmp_path / "tests", alpha])
+
+    assert [test.path for test in discovered] == [
+        alpha.resolve(),
+        zeta.resolve(),
+    ]
+
+
 def test_discover_hurl_tests_reports_malformed_metadata_with_file_path(tmp_path: Path) -> None:
     malformed = _write_hurl(
         tmp_path / "tests" / "bad.hurl",
@@ -67,6 +97,51 @@ def test_discover_hurl_tests_reports_malformed_metadata_with_file_path(tmp_path:
         discover_hurl_tests([tmp_path])
 
 
+def test_discover_hurl_tests_reports_non_utf8_hurl_with_file_path(tmp_path: Path) -> None:
+    bad_encoding = tmp_path / "tests" / "bad-encoding.hurl"
+    bad_encoding.parent.mkdir(parents=True, exist_ok=True)
+    bad_encoding.write_bytes(b"\xff\xfe\x00")
+
+    with pytest.raises(HurlMetadataSyntaxError, match=f"{bad_encoding}: file is not valid UTF-8"):
+        discover_hurl_tests([tmp_path])
+
+
+def test_discover_hurl_tests_rejects_missing_root(tmp_path: Path) -> None:
+    missing_root = tmp_path / "missing"
+
+    expected = f"Hurl discovery root does not exist: {missing_root}"
+    with pytest.raises(FileNotFoundError, match=expected):
+        discover_hurl_tests([missing_root])
+
+
+def test_discover_hurl_tests_rejects_non_hurl_file_root(tmp_path: Path) -> None:
+    notes = tmp_path / "notes.md"
+    notes.write_text("not a Hurl file\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match=f"Expected a .hurl file or directory, got: {notes}"):
+        discover_hurl_tests([notes])
+
+
+def test_discover_hurl_tests_skips_symlinked_hurl_files(tmp_path: Path) -> None:
+    target = _write_hurl(
+        tmp_path / "outside.hurl",
+        "# entroping: tags=outside\nGET /outside\nHTTP 200\n",
+    )
+    symlink = tmp_path / "tests" / "linked.hurl"
+    symlink.parent.mkdir(parents=True, exist_ok=True)
+    symlink.symlink_to(target)
+
+    discovered = discover_hurl_tests([tmp_path / "tests"])
+
+    assert discovered == []
+
+
 def test_normalize_tag_filters_rejects_empty_filter_input() -> None:
     with pytest.raises(ValueError, match="Tag filters must not be empty"):
         normalize_tag_filters(["smoke", "  "])
+
+
+def test_normalize_tag_filters_strips_and_deduplicates_values() -> None:
+    normalized = normalize_tag_filters([" smoke ", "smoke", "critical"])
+
+    assert normalized == frozenset({"smoke", "critical"})
