@@ -107,6 +107,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Quality audit gate](https://github.com/sakibshuvo/Entroping/issues/93) | Done | `scripts/audit_quality.sh` runs coverage, complexity, maintainability, and dead-code gates | Prevent silent quality drift |
 | [Finish-issue workflow](https://github.com/sakibshuvo/Entroping/issues/94) | Done | `scripts/finish_issue.sh` verifies merged PRs, CI, clean issue worktrees, and project hygiene before local cleanup | Make multi-session marathons safer |
 | [Story traceability bridge](https://github.com/sakibshuvo/Entroping/issues/91) | Done | Pure bridge report maps Hurl metadata to stories, owners, docs, tests, tags, and traceability findings | Expose through CLI/report adapter later |
+| [Run orchestration extraction](https://github.com/sakibshuvo/Entroping/issues/90) | Done | `core.run_workflow` now owns deterministic run orchestration and returns a typed workflow result | Keep future run flags out of the CLI adapter |
 
 ## Later Roadmap
 
