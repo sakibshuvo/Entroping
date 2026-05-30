@@ -177,3 +177,26 @@ def test_write_bug_report_rejects_symlinked_output_path(tmp_path: Path) -> None:
     else:
         raise AssertionError("expected symlinked report path to be rejected")
     assert not outside.exists()
+
+
+def test_write_report_rejects_symlinked_parent_directory(tmp_path: Path) -> None:
+    source = tmp_path / "tests" / "health.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
+    report = build_run_report(
+        project="checkout-api",
+        environment="local",
+        execution_copies=[_execution_copy(source, execution)],
+        suite=_suite_result(execution, "assert failed\n"),
+        project_root=tmp_path,
+    )
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir()
+    (tmp_path / "reports").symlink_to(outside_dir, target_is_directory=True)
+
+    try:
+        write_json_report(report, tmp_path / "reports" / "run-latest.json")
+    except ReportWriterError as exc:
+        assert "symlinked path component" in str(exc)
+    else:
+        raise AssertionError("expected symlinked report parent to be rejected")
+    assert not (outside_dir / "run-latest.json").exists()

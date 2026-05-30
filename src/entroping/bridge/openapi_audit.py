@@ -5,11 +5,13 @@ against discovered Hurl tests. It does not read files, invoke Hurl, call LLMs,
 or write reports.
 """
 
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from html import escape
 
 from entroping.bridge.openapi_to_hurl import OpenApiCompilationError
-from entroping.models.hurl import HurlTest
+from entroping.models.hurl import HurlExchange, HurlTest
 
 _HTTP_METHODS = frozenset({"get", "post", "put", "patch", "delete", "head", "options", "trace"})
 
@@ -56,7 +58,8 @@ def audit_openapi_coverage(
     """Report OpenAPI operations missing committed Hurl coverage."""
 
     expected_operations = _expected_operations(document)
-    covered_operation_ids = _covered_openapi_operation_ids(hurl_tests)
+    expected_by_id = {operation.operation_id: operation for operation in expected_operations}
+    covered_operation_ids = _covered_openapi_operation_ids(hurl_tests, expected_by_id)
     findings = tuple(
         _missing_coverage_finding(operation)
         for operation in expected_operations
@@ -165,7 +168,10 @@ def _expected_operations(document: Mapping[str, object]) -> tuple[_ExpectedOpera
     return tuple(expected)
 
 
-def _covered_openapi_operation_ids(hurl_tests: Sequence[HurlTest]) -> frozenset[str]:
+def _covered_openapi_operation_ids(
+    hurl_tests: Sequence[HurlTest],
+    expected_by_id: Mapping[str, _ExpectedOperation],
+) -> frozenset[str]:
     covered: set[str] = set()
     for hurl_test in hurl_tests:
         if hurl_test.metadata.meta.get("source") != "openapi":
@@ -173,9 +179,26 @@ def _covered_openapi_operation_ids(hurl_tests: Sequence[HurlTest]) -> frozenset[
         if not hurl_test.exchanges:
             continue
         operation_id = hurl_test.metadata.meta.get("operation_id")
-        if operation_id is not None:
+        if operation_id is None:
+            continue
+        expected = expected_by_id.get(operation_id)
+        if expected is None:
+            continue
+        if any(_exchange_covers_operation(exchange, expected) for exchange in hurl_test.exchanges):
             covered.add(operation_id)
     return frozenset(covered)
+
+
+def _exchange_covers_operation(exchange: HurlExchange, expected: _ExpectedOperation) -> bool:
+    return (
+        exchange.method.upper() == expected.method
+        and _path_matches_openapi_template(expected.path, exchange.path)
+    )
+
+
+def _path_matches_openapi_template(template: str, actual: str) -> bool:
+    pattern = "^" + re.sub(r"\\\{[^{}]+\\\}", r"[^/]+", re.escape(template)) + "$"
+    return re.fullmatch(pattern, actual) is not None
 
 
 def _missing_coverage_finding(operation: _ExpectedOperation) -> OpenApiAuditFinding:
@@ -234,4 +257,5 @@ def _has_control(value: str) -> bool:
 
 
 def _markdown_table_cell(value: str) -> str:
-    return value.replace("\\", "\\\\").replace("|", "\\|").replace("\n", " ")
+    escaped = escape(value, quote=True)
+    return escaped.replace("\\", "\\\\").replace("|", "\\|").replace("\n", " ")

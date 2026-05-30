@@ -18,13 +18,13 @@ class TrafficStore:
         if max_events <= 0:
             msg = "max_events must be positive"
             raise TrafficStoreError(msg)
-        if db_path.is_symlink():
-            msg = f"Refusing to use symlinked traffic state path: {db_path}"
-            raise TrafficStoreError(msg)
 
-        self.db_path = db_path.expanduser().resolve()
+        expanded = db_path.expanduser()
+        _reject_symlink_path_components(expanded)
+        self.db_path = expanded.resolve()
         self.max_events = max_events
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        _reject_symlink_path_components(expanded)
         self._initialize()
 
     @classmethod
@@ -134,3 +134,13 @@ class TrafficStore:
             """,
             (self.max_events,),
         )
+
+
+def _reject_symlink_path_components(path: Path) -> None:
+    current = Path(path.anchor) if path.is_absolute() else Path(".")
+    parts = path.parts[1:] if path.is_absolute() else path.parts
+    for part in parts:
+        current = current / part
+        if current.is_symlink():
+            msg = f"Refusing to use symlinked traffic state path component: {current}"
+            raise TrafficStoreError(msg)

@@ -99,6 +99,30 @@ def test_audit_openapi_coverage_does_not_count_metadata_without_hurl_exchange() 
     assert [finding.operation_id for finding in report.findings] == ["getHealth"]
 
 
+def test_audit_openapi_coverage_does_not_count_spoofed_operation_metadata() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/checkout": {
+                "post": {
+                    "operationId": "createCheckout",
+                    "responses": {"201": {"description": "created"}},
+                },
+            },
+        },
+    }
+    spoofed = HurlTest(
+        path=Path("tests/generated/create_checkout.hurl"),
+        metadata=HurlMetadata(meta={"source": "openapi", "operation_id": "createCheckout"}),
+        exchanges=(HurlExchange(method="GET", url="{{base_url}}/health", path="/health"),),
+    )
+
+    report = audit_openapi_coverage(document, [spoofed])
+
+    assert report.missing_operations == 1
+    assert [finding.operation_id for finding in report.findings] == ["createCheckout"]
+
+
 def test_audit_openapi_coverage_enumerates_default_response_operations() -> None:
     document: dict[str, object] = {
         "openapi": "3.1.0",
@@ -123,9 +147,9 @@ def test_render_audit_markdown_escapes_table_cells() -> None:
     document: dict[str, object] = {
         "openapi": "3.1.0",
         "paths": {
-            "/health|checks": {
+            "/health|checks<svg>": {
                 "get": {
-                    "operationId": "get|Health",
+                    "operationId": "get|Health<img>",
                     "responses": {"200": {"description": "ok"}},
                 },
             },
@@ -134,5 +158,7 @@ def test_render_audit_markdown_escapes_table_cells() -> None:
 
     markdown = render_audit_markdown(audit_openapi_coverage(document, []))
 
-    assert "get\\|Health" in markdown
-    assert "/health\\|checks" in markdown
+    assert "get\\|Health&lt;img&gt;" in markdown
+    assert "/health\\|checks&lt;svg&gt;" in markdown
+    assert "<img>" not in markdown
+    assert "<svg>" not in markdown

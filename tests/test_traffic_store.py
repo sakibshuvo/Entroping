@@ -72,3 +72,14 @@ def test_store_retention_keeps_latest_redacted_events(tmp_path: Path) -> None:
     assert len(loaded) == 2
     assert [item.captured_at.minute for item in loaded] == [1, 2]
     assert "secret-" not in store.db_path.read_bytes().decode("utf-8", errors="ignore")
+
+
+def test_store_refuses_symlinked_state_directory(tmp_path: Path) -> None:
+    outside_dir = tmp_path / "outside-state"
+    outside_dir.mkdir()
+    (tmp_path / ".entroping").symlink_to(outside_dir, target_is_directory=True)
+
+    with pytest.raises(TrafficStoreError, match="symlinked traffic state path component"):
+        TrafficStore.open_project(tmp_path)
+
+    assert not (outside_dir / "state.db").exists()

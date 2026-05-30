@@ -104,6 +104,51 @@ def test_build_architect_prompt_package_rejects_secret_like_context(tmp_path: Pa
         )
 
 
+@pytest.mark.parametrize(
+    "context",
+    [
+        "Cookie: sessionid=live-session-cookie",
+        "X-API-Key: live-api-key",
+        "GET /checkout?api_key=live-api-key",
+    ],
+)
+def test_build_architect_prompt_package_rejects_cookie_and_api_key_context(
+    tmp_path: Path,
+    context: str,
+) -> None:
+    with pytest.raises(PromptBuildError, match="must not contain secret-like values"):
+        build_architect_prompt_package(
+            law=_law(tmp_path),
+            persona=_persona(tmp_path),
+            intent="Generate coverage.",
+            source_context={"tests/generated/checkout.hurl": context},
+        )
+
+
+def test_build_architect_prompt_package_allows_templated_hurl_auth_context(
+    tmp_path: Path,
+) -> None:
+    package = build_architect_prompt_package(
+        law=_law(tmp_path),
+        persona=_persona(tmp_path),
+        intent="Refactor generated coverage.",
+        source_context={
+            "tests/generated/checkout.hurl": "\n".join(
+                [
+                    "GET {{base_url}}/checkout",
+                    "Authorization: Bearer {{token}}",
+                    "Cookie: sessionid={{session_id}}",
+                    "X-API-Key: {{api_key}}",
+                ],
+            ),
+        },
+    )
+
+    assert "Authorization: Bearer {{token}}" in package.messages[1].content
+    assert "Cookie: sessionid={{session_id}}" in package.messages[1].content
+    assert "X-API-Key: {{api_key}}" in package.messages[1].content
+
+
 def test_build_architect_prompt_package_rejects_secret_like_persona_content(
     tmp_path: Path,
 ) -> None:

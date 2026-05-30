@@ -59,6 +59,9 @@ def compile_gate_assertion(gate: GateRule) -> HurlGateAssertion:
     if not assertion or "\n" in assertion or "\r" in assertion:
         msg = f"Gate {gate.id!r} has an invalid Hurl assertion"
         raise GateCompilationError(msg)
+    if assertion.startswith("#") or (assertion.startswith("[") and assertion.endswith("]")):
+        msg = f"Gate {gate.id!r} does not contain an executable Hurl assertion"
+        raise GateCompilationError(msg)
 
     return HurlGateAssertion(
         rule_id=rule_id,

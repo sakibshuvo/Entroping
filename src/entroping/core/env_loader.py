@@ -39,11 +39,9 @@ def load_environment_variables(
 
 
 def _read_env_file(path: Path) -> dict[str, str]:
-    if path.is_symlink():
-        msg = f"Refusing to load symlinked environment file: {path}"
-        raise EnvironmentLoadError(msg)
-
-    resolved = path.expanduser().resolve()
+    expanded = path.expanduser()
+    _reject_symlink_path_components(expanded)
+    resolved = expanded.resolve()
     if not resolved.is_file():
         msg = f"Environment file not found: {resolved}"
         raise EnvironmentLoadError(msg)
@@ -79,3 +77,13 @@ def _read_env_file(path: Path) -> dict[str, str]:
         variables[key] = value
 
     return variables
+
+
+def _reject_symlink_path_components(path: Path) -> None:
+    current = Path(path.anchor) if path.is_absolute() else Path(".")
+    parts = path.parts[1:] if path.is_absolute() else path.parts
+    for part in parts:
+        current = current / part
+        if current.is_symlink():
+            msg = f"Refusing to load symlinked environment path component: {current}"
+            raise EnvironmentLoadError(msg)

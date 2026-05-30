@@ -142,7 +142,7 @@ def test_compile_openapi_renders_parameters_and_schema_examples() -> None:
                         {
                             "name": "session_id",
                             "in": "cookie",
-                            "schema": {"type": "string"},
+                            "schema": {"type": "string", "default": "demo-session"},
                         },
                     ],
                     "requestBody": {
@@ -189,7 +189,7 @@ def test_compile_openapi_renders_parameters_and_schema_examples() -> None:
         "?tenant=north&status=accepted"
     ) in content
     assert "X-Request-Id: req-123" in content
-    assert "Cookie: session_id={{session_id}}" in content
+    assert "Cookie: session_id=demo-session" in content
     assert '"source": "mobile"' in content
     assert '"retry": true' in content
     assert '"priority": "high"' in content
@@ -365,6 +365,63 @@ def test_compile_openapi_rejects_hurl_template_delimiters_in_schema_examples() -
     }
 
     with pytest.raises(OpenApiCompilationError, match="Hurl template delimiters"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
+def test_compile_openapi_rejects_secret_like_fallback_variable_names() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/leak/{AWS_SECRET_ACCESS_KEY}": {
+                "get": {
+                    "operationId": "leakSecret",
+                    "parameters": [
+                        {
+                            "name": "AWS_SECRET_ACCESS_KEY",
+                            "in": "path",
+                            "required": True,
+                            "schema": {"type": "string"},
+                        },
+                    ],
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="secret-like fallback variable"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
+def test_compile_openapi_rejects_hurl_template_delimiters_in_json_object_keys() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/checkout": {
+                "post": {
+                    "operationId": "createCheckout",
+                    "requestBody": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["{{secret}}"],
+                                    "properties": {
+                                        "{{secret}}": {
+                                            "type": "string",
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "responses": {"201": {"description": "created"}},
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="JSON object key"):
         compile_openapi_to_hurl(document, tags=frozenset())
 
 

@@ -235,9 +235,7 @@ def _has_control_character(value: str) -> bool:
 
 def _resolve_read_path(path: Path) -> Path:
     expanded = path.expanduser()
-    if expanded.is_symlink():
-        msg = f"Refusing to read symlinked baseline path: {expanded}"
-        raise DriftReportError(msg)
+    _reject_symlink_path_components(expanded, action="read baseline")
     if not expanded.exists():
         msg = f"Drift baseline not found: {_display_path(expanded)}"
         raise DriftBaselineNotFoundError(msg)
@@ -249,12 +247,20 @@ def _resolve_read_path(path: Path) -> Path:
 
 def _prepare_output_path(path: Path) -> Path:
     expanded = path.expanduser()
-    if expanded.is_symlink():
-        msg = f"Refusing to write drift report through symlinked path: {expanded}"
-        raise DriftReportError(msg)
+    _reject_symlink_path_components(expanded, action="write drift report")
     resolved = expanded.resolve()
     resolved.parent.mkdir(parents=True, exist_ok=True)
     return resolved
+
+
+def _reject_symlink_path_components(path: Path, *, action: str) -> None:
+    current = Path(path.anchor) if path.is_absolute() else Path(".")
+    parts = path.parts[1:] if path.is_absolute() else path.parts
+    for part in parts:
+        current = current / part
+        if current.is_symlink():
+            msg = f"Refusing to {action} through symlinked path component: {current}"
+            raise DriftReportError(msg)
 
 
 def _display_path(path: Path) -> str:

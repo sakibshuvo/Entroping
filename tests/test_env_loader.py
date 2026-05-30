@@ -67,5 +67,15 @@ def test_load_environment_variables_rejects_symlinked_files(tmp_path: Path) -> N
     real_file.write_text("base_url=http://localhost:8080\n", encoding="utf-8")
     (env_dir / "local.env").symlink_to(real_file)
 
-    with pytest.raises(EnvironmentLoadError, match="Refusing to load symlinked environment file"):
+    with pytest.raises(EnvironmentLoadError, match="symlinked environment path component"):
+        load_environment_variables("local", root=tmp_path)
+
+
+def test_load_environment_variables_rejects_symlinked_env_directory(tmp_path: Path) -> None:
+    outside_dir = tmp_path / "outside-envs"
+    outside_dir.mkdir()
+    (outside_dir / "local.env").write_text("base_url=http://localhost:8080\n", encoding="utf-8")
+    (tmp_path / "envs").symlink_to(outside_dir, target_is_directory=True)
+
+    with pytest.raises(EnvironmentLoadError, match="symlinked environment path component"):
         load_environment_variables("local", root=tmp_path)

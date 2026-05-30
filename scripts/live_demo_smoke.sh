@@ -8,11 +8,41 @@ workdir="${ENTROPING_LIVE_DEMO_WORKDIR:-}"
 own_workdir=0
 server_pid=""
 
+export PYTHONPATH="$repo_root/src${PYTHONPATH:+:$PYTHONPATH}"
+
 if [[ -z "$workdir" ]]; then
   workdir="$(mktemp -d)"
   own_workdir=1
 else
-  mkdir -p "$workdir"
+  workdir="$(
+    python - "$repo_root" "$workdir" <<'PY'
+from pathlib import Path
+import sys
+
+repo_root = Path(sys.argv[1]).resolve()
+candidate = Path(sys.argv[2]).expanduser()
+if not candidate.is_absolute():
+    candidate = (Path.cwd() / candidate)
+
+current = Path(candidate.anchor or "/")
+for part in candidate.parts[1:]:
+    current = current / part
+    if current.exists() or current.is_symlink():
+        if current.is_symlink():
+            raise SystemExit(f"Refusing to use symlinked live demo workdir component: {current}")
+
+candidate.mkdir(parents=True, exist_ok=True)
+resolved = candidate.resolve(strict=True)
+if resolved == Path("/") or resolved == repo_root or repo_root in resolved.parents:
+    raise SystemExit(f"Refusing to use unsafe live demo workdir: {resolved}")
+if any(resolved.iterdir()):
+    raise SystemExit(f"Refusing to reuse non-empty live demo workdir: {resolved}")
+print(resolved)
+PY
+  )" || {
+    echo "$workdir" >&2
+    exit 1
+  }
 fi
 workdir="$(cd "$workdir" && pwd)"
 
@@ -39,7 +69,6 @@ if ! command -v hurl >/dev/null 2>&1; then
   exit 1
 fi
 
-find "$workdir" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 cp -R "$repo_root/examples/checkout-api/." "$workdir/"
 
 python "$repo_root/examples/checkout-api/demo_server.py" --port "$demo_port" &

@@ -108,6 +108,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Finish-issue workflow](https://github.com/sakibshuvo/Entroping/issues/94) | Done | `scripts/finish_issue.sh` verifies merged PRs, CI, clean issue worktrees, and project hygiene before local cleanup | Make multi-session marathons safer |
 | [Story traceability bridge](https://github.com/sakibshuvo/Entroping/issues/91) | Done | Pure bridge report maps Hurl metadata to stories, owners, docs, tests, tags, and traceability findings | Expose through CLI/report adapter later |
 | [Run orchestration extraction](https://github.com/sakibshuvo/Entroping/issues/90) | Done | `core.run_workflow` now owns deterministic run orchestration and returns a typed workflow result | Keep future run flags out of the CLI adapter |
+| [Post-alpha security review](https://github.com/sakibshuvo/Entroping/issues/96) | Current | Local scan fixed 14 candidates and wrote `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z/report.md`; regression, quality audit, and dirty diagnostic release gate passed | Commit, push PR, and let clean CI/release gates prove the branch |
 
 ## Later Roadmap
 

@@ -16,6 +16,22 @@ _JSONPATH_FIELD_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _PATH_PARAMETER_RE = re.compile(r"\{([^{}]+)\}")
 _HTTP_TOKEN_RE = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
 _PARAMETER_LOCATIONS = frozenset({"path", "query", "header", "cookie"})
+_SENSITIVE_VARIABLE_PARTS = (
+    "access_token",
+    "api_key",
+    "apikey",
+    "authorization",
+    "client_secret",
+    "cookie",
+    "credential",
+    "jwt",
+    "password",
+    "passwd",
+    "refresh_token",
+    "secret",
+    "session",
+    "token",
+)
 
 
 class _MissingValue:
@@ -289,6 +305,13 @@ def _validate_fallback_variable_names(
     seen: dict[str, str] = {}
 
     def remember(variable_name: str, descriptor: str) -> None:
+        if _is_secret_like_variable_name(variable_name):
+            msg = (
+                "OpenAPI parameter would compile to secret-like fallback variable "
+                f"{variable_name!r}: {descriptor}. Provide an explicit safe example "
+                "or default instead."
+            )
+            raise OpenApiCompilationError(msg)
         previous = seen.get(variable_name)
         if previous is not None and previous != descriptor:
             msg = (
@@ -464,7 +487,10 @@ def _example_for_schema(schema: Mapping[str, object]) -> object:
         properties = _ensure_mapping(schema.get("properties", {}), "OpenAPI object properties")
         required = _string_sequence(schema.get("required"), "OpenAPI object required")
         return {
-            field_name: _example_for_schema(
+            _validate_json_object_key(
+                field_name,
+                context="OpenAPI object required",
+            ): _example_for_schema(
                 _ensure_mapping(properties.get(field_name, {}), f"schema for {field_name!r}")
             )
             for field_name in required
@@ -536,7 +562,10 @@ def _ensure_json_value(value: object, *, context: str) -> object:
     if isinstance(value, Mapping):
         normalized = _ensure_mapping(value, context)
         return {
-            key: _ensure_json_value(item, context=f"{context}.{key}")
+            _validate_json_object_key(key, context=context): _ensure_json_value(
+                item,
+                context=f"{context}.{key}",
+            )
             for key, item in normalized.items()
         }
     msg = f"{context} must be JSON-compatible"
@@ -589,6 +618,21 @@ def _has_control(value: str) -> bool:
 
 def _has_hurl_template_delimiter(value: str) -> bool:
     return "{{" in value or "}}" in value
+
+
+def _validate_json_object_key(value: str, *, context: str) -> str:
+    if _has_control(value):
+        msg = f"{context} JSON object key contains control characters: {value!r}"
+        raise OpenApiCompilationError(msg)
+    if _has_hurl_template_delimiter(value):
+        msg = f"{context} JSON object key contains Hurl template delimiters: {value!r}"
+        raise OpenApiCompilationError(msg)
+    return value
+
+
+def _is_secret_like_variable_name(value: str) -> bool:
+    normalized = value.lower().replace("-", "_")
+    return any(part in normalized for part in _SENSITIVE_VARIABLE_PARTS)
 
 
 def _is_safe_openapi_path(value: str) -> bool:
