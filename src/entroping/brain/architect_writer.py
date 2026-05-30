@@ -2,7 +2,9 @@
 
 import os
 import tempfile
-from pathlib import Path
+from collections.abc import Sequence
+from dataclasses import dataclass
+from pathlib import Path, PurePosixPath
 
 from entroping.models import ArchitectEdit, ArchitectEditSet
 
@@ -11,6 +13,15 @@ _ARCHITECT_SOURCE_MARKER = "# entroping: source=architect"
 
 class ArchitectWriteError(ValueError):
     """Raised when validated Architect edits cannot be written safely."""
+
+
+@dataclass(frozen=True)
+class PreparedHurlWrite:
+    """One validated refactor write prepared by the Architect orchestrator."""
+
+    path: str
+    content: str
+    require_architect_header: bool
 
 
 def write_architect_edits(
@@ -41,12 +52,71 @@ def write_architect_edits(
     return tuple(written)
 
 
+def write_refactor_hurl_edits(
+    writes: Sequence[PreparedHurlWrite],
+    *,
+    project_root: str | Path = ".",
+) -> tuple[Path, ...]:
+    """Write already-validated refactor results without changing ownership mode."""
+
+    root = Path(project_root).expanduser().resolve()
+    staged: list[tuple[Path, str, bool]] = []
+    for write in writes:
+        staged.append(
+            (
+                _resolve_refactor_path(write.path, root=root),
+                _prepared_refactor_content(write),
+                write.require_architect_header,
+            )
+        )
+
+    for output_path, _content, require_architect_header in staged:
+        _validate_existing_refactor_target(
+            output_path,
+            require_architect_header=require_architect_header,
+        )
+
+    written: list[Path] = []
+    for output_path, content, _require_architect_header in staged:
+        _write_text_atomically(output_path, content)
+        written.append(output_path)
+    return tuple(written)
+
+
 def _resolve_output_path(edit: ArchitectEdit, *, root: Path) -> Path:
     candidate = root / edit.path
     _reject_symlink_path(candidate, root=root)
     output_path = candidate.resolve()
     if not output_path.is_relative_to(root):
         msg = f"Architect Hurl path must stay under project root: {edit.path}"
+        raise ArchitectWriteError(msg)
+    return output_path
+
+
+def _resolve_refactor_path(display_path: str, *, root: Path) -> Path:
+    path = display_path.strip()
+    if not path:
+        msg = "Refactor Hurl path must not be empty"
+        raise ArchitectWriteError(msg)
+    if _has_path_control(path):
+        msg = "Refactor Hurl path must not contain control characters"
+        raise ArchitectWriteError(msg)
+    if "\\" in path:
+        msg = "Refactor Hurl path must use POSIX separators"
+        raise ArchitectWriteError(msg)
+    parsed = PurePosixPath(path)
+    if parsed.is_absolute() or ".." in parsed.parts:
+        msg = f"Refactor Hurl path must stay under project root: {display_path}"
+        raise ArchitectWriteError(msg)
+    if not parsed.parts or parsed.parts[0] != "tests" or parsed.suffix != ".hurl":
+        msg = f"Refactor Hurl path must be a tests/ .hurl file: {display_path}"
+        raise ArchitectWriteError(msg)
+
+    candidate = root / path
+    _reject_symlink_path(candidate, root=root)
+    output_path = candidate.resolve()
+    if not output_path.is_relative_to(root):
+        msg = f"Refactor Hurl path must stay under project root: {display_path}"
         raise ArchitectWriteError(msg)
     return output_path
 
@@ -80,6 +150,16 @@ def _ensure_trailing_newline(content: str) -> str:
     return f"{content}\n"
 
 
+def _has_path_control(value: str) -> bool:
+    return any(ord(character) < 32 or ord(character) == 127 for character in value)
+
+
+def _prepared_refactor_content(write: PreparedHurlWrite) -> str:
+    if write.require_architect_header:
+        return _architect_owned_content(write.content)
+    return _ensure_trailing_newline(write.content)
+
+
 def _validate_existing_target(path: Path) -> None:
     if path.is_symlink():
         msg = f"Refusing to write symlinked Hurl file: {path}"
@@ -89,6 +169,25 @@ def _validate_existing_target(path: Path) -> None:
     if not path.is_file():
         msg = f"Refusing to overwrite non-file Hurl target: {path}"
         raise ArchitectWriteError(msg)
+    existing = path.read_text(encoding="utf-8")
+    if not _has_architect_header(existing):
+        msg = f"Refusing to overwrite non-Architect Hurl file: {path}"
+        raise ArchitectWriteError(msg)
+
+
+def _validate_existing_refactor_target(path: Path, *, require_architect_header: bool) -> None:
+    if path.is_symlink():
+        msg = f"Refusing to write symlinked Hurl file: {path}"
+        raise ArchitectWriteError(msg)
+    if not path.exists():
+        msg = f"Refusing to create missing refactor target: {path}"
+        raise ArchitectWriteError(msg)
+    if not path.is_file():
+        msg = f"Refusing to overwrite non-file Hurl target: {path}"
+        raise ArchitectWriteError(msg)
+    if not require_architect_header:
+        return
+
     existing = path.read_text(encoding="utf-8")
     if not _has_architect_header(existing):
         msg = f"Refusing to overwrite non-Architect Hurl file: {path}"

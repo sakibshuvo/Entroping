@@ -927,6 +927,105 @@ gates: []
     assert "Authorization: Bearer {{token}}" in target.read_text(encoding="utf-8")
 
 
+def test_architect_refactor_preserves_manual_content_outside_managed_blocks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _accept_architect_refactor_hurl_validation(monkeypatch)
+    Path("agents").mkdir()
+    Path("agents/builder.md").write_text("Refactor checkout Hurl tests.", encoding="utf-8")
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/builder.md
+    model: openai/gpt-4.1-mini
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    target = Path("tests/manual/checkout.hurl")
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        (
+            "# manual setup stays\n"
+            "GET {{base_url}}/health\n"
+            "HTTP 200\n"
+            "\n"
+            "# entroping: managed-begin checkout-auth\n"
+            "GET {{base_url}}/checkout\n"
+            "HTTP 200\n"
+            "# entroping: managed-end checkout-auth\n"
+            "\n"
+            "# manual footer stays\n"
+        ),
+        encoding="utf-8",
+    )
+
+    def fake_complete(
+        self: object,
+        package: ArchitectPromptPackage,
+    ) -> LiteLLMCompletionResult:
+        _ = self
+        assert "Managed-block manual target" in package.messages[1].content
+        return LiteLLMCompletionResult(
+            content=json.dumps(
+                {
+                    "summary": "Added managed auth header",
+                    "edits": [
+                        {
+                            "path": "tests/manual/checkout.hurl",
+                            "content": (
+                                "# entroping: managed-begin checkout-auth\n"
+                                "GET {{base_url}}/checkout\n"
+                                "Authorization: Bearer {{token}}\n"
+                                "HTTP 200\n"
+                                "# entroping: managed-end checkout-auth\n"
+                            ),
+                        }
+                    ],
+                },
+            ),
+            model="openai/gpt-4.1-mini",
+            latency_ms=9,
+            usage=LiteLLMUsage(prompt_tokens=20, completion_tokens=30, total_tokens=50),
+        )
+
+    monkeypatch.setattr("entroping.brain.litellm_client.LiteLLMClient.complete", fake_complete)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "architect",
+            "refactor",
+            "--target",
+            "tests/manual/*.hurl",
+            "--prompt",
+            "Add Authorization header.",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Refactored 1 Architect Hurl test" in result.output
+    assert "Added managed auth header" in result.output
+    assert "Wrote Hurl test: tests/manual/checkout.hurl" in result.output
+    assert target.read_text(encoding="utf-8") == (
+        "# manual setup stays\n"
+        "GET {{base_url}}/health\n"
+        "HTTP 200\n"
+        "\n"
+        "# entroping: managed-begin checkout-auth\n"
+        "GET {{base_url}}/checkout\n"
+        "Authorization: Bearer {{token}}\n"
+        "HTTP 200\n"
+        "# entroping: managed-end checkout-auth\n"
+        "\n"
+        "# manual footer stays\n"
+    )
+
+
 def test_architect_refactor_rejects_missing_targets_before_provider_call(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

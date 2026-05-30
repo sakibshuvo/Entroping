@@ -96,9 +96,9 @@ writes, and a lazy LiteLLM adapter. `architect build --prompt` now has a happy p
 for scoped Builder generation with parser-backed Hurl validation before files are
 written. `config set` also creates a missing local persona Markdown template so
 first prompt runs do not require manual file scaffolding. `architect refactor` now
-has a first safe path for selected Architect-owned Hurl files. The bridge layer
-also has a deterministic managed-block merge primitive for future manual-file
-preserving refactors. CLI merge strategy integration remains a later slice.
+supports selected Architect-owned Hurl files and manual Hurl files that opt into
+explicit managed-block replacement. CLI `architect build --strategy merge`
+integration remains a later slice.
 
 Deliverables:
 
@@ -110,7 +110,7 @@ Deliverables:
 - Structured output validation.
 - `architect audit`.
 - `architect build --prompt` for scoped Hurl generation.
-- `architect refactor` with Hurl validation.
+- `architect refactor` with Hurl validation and managed-block preservation.
 
 Exit criteria:
 

@@ -83,6 +83,13 @@ def merge_managed_hurl_blocks(existing_content: str, generated_content: str) -> 
     return HurlMergeResult(content="".join(output), replaced_blocks=tuple(replaced_blocks))
 
 
+def list_managed_hurl_block_ids(content: str) -> tuple[str, ...]:
+    """Return managed block IDs in file order after validating marker shape."""
+
+    _lines, blocks = _parse_managed_blocks(content, label="Hurl")
+    return tuple(blocks)
+
+
 def _parse_managed_blocks(content: str, *, label: str) -> tuple[list[str], dict[str, ManagedBlock]]:
     lines = content.splitlines(keepends=True)
     blocks: dict[str, ManagedBlock] = {}

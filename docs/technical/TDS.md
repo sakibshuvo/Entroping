@@ -338,10 +338,11 @@ Current implementation note: `architect build --prompt` now wires the CLI to the
 Brain foundation for the Builder happy path. The command loads the configured Builder
 persona, builds a redaction-checked prompt package, invokes LiteLLM through the lazy
 adapter, parses provider JSON into validated Architect edits, injects requested tags,
-validates generated Hurl through `hurlfmt --out json`, and writes only Architect-owned
-Hurl files through the staged writer. Provider summaries, warnings, parser failures,
-and errors are redacted or summarized before CLI output. `entroping run` remains
-LLM-free.
+validates generated Hurl through `hurlfmt --out json`, and writes Architect-owned
+Hurl files through the staged writer. `architect refactor` also supports manual
+Hurl files that opt into managed-block replacement. Provider summaries, warnings,
+parser failures, and errors are redacted or summarized before CLI output.
+`entroping run` remains LLM-free.
 
 ### Provider Strategy
 
@@ -390,12 +391,14 @@ preserves content outside those markers byte-for-byte. It rejects malformed,
 duplicate, nested, missing, or unknown managed blocks before a caller can write
 anything.
 
-Current implementation note: `architect refactor` has its first safe vertical slice
-for existing Architect-owned `.hurl` files. It loads selected target files into
-Builder prompt context, rejects unsafe globs and symlinked or non-Hurl targets,
-requires returned edits to stay within the selected target set, validates every
-edit through the parser-backed Hurl validator, and writes through the staged
-Architect writer. Manual-file-preserving CLI integration is still deferred.
+Current implementation note: `architect refactor` supports two safe target modes:
+Architect-owned whole-file targets marked with `# entroping: source=architect`, and
+manual targets that contain valid managed-block markers. It loads selected target
+files into Builder prompt context, rejects unsafe globs and symlinked or non-Hurl
+targets, requires returned edits to stay within the selected target set, merges
+manual managed blocks before validation, validates final Hurl through the
+parser-backed Hurl validator, and writes through staged filesystem writes. Build
+merge strategy integration is still deferred.
 
 ## 10. Observation Design
 
