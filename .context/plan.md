@@ -28,7 +28,7 @@ The repo should remain usable as an Obsidian vault and as a Codex workspace with
 - `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, `.github/pull_request_template.md`, and `scripts/feature_gate.sh` define the executable delivery gates for feature work.
 - `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, and `scripts/regression.sh` define issue tracking, regression coverage, and simple phase-level progress tracking.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work.
-- Issues #1 through #6, #11, #13, #15, #17, #19, #23, #25, #29, #31, #33, and #35 are integrated: `entroping init --minimal`, `entroping doctor`, QAnstitution local loading/import validation, Hurl discovery, Entroping metadata parsing, tag-filter validation, gate matching, gate assertion compilation, temporary Hurl execution-copy injection, deterministic Hurl subprocess execution, JSON/JUnit/HTML reports, latest-run state, bug Markdown generation, the local checkout quickstart, env-file Hurl variables, CI live Hurl smoke, deterministic OpenAPI-to-Hurl generation, OpenAPI parameter/example support, deterministic Architect audit coverage, non-secret agent routing config, Brain prompt/provider foundations, staged Architect output writes, and user-facing `architect build --prompt`.
+- Issues #1 through #6, #11, #13, #15, #17, #19, #23, #25, #29, #31, #33, #35, and #37 are integrated: `entroping init --minimal`, `entroping doctor`, QAnstitution local loading/import validation, Hurl discovery, Entroping metadata parsing, tag-filter validation, gate matching, gate assertion compilation, temporary Hurl execution-copy injection, deterministic Hurl subprocess execution, JSON/JUnit/HTML reports, latest-run state, bug Markdown generation, the local checkout quickstart, env-file Hurl variables, CI live Hurl smoke, deterministic OpenAPI-to-Hurl generation, OpenAPI parameter/example support, deterministic Architect audit coverage, non-secret agent routing config, Brain prompt/provider foundations, staged Architect output writes, user-facing `architect build --prompt`, and parser-backed prompt Hurl validation.
 
 ## Next Milestone: Deterministic Core
 
@@ -245,12 +245,25 @@ Outcome: wire `architect build --prompt` to the Brain foundation while keeping
   `# entroping: source=architect` and non-Architect files are not overwritten.
 - Redacted untrusted provider summaries, warnings, and errors before CLI output.
 
+## Completed Slice: Issue #37 Prompt Hurl Validation
+
+Outcome: validate prompt-generated Hurl through `hurlfmt --out json` before
+Architect writes generated files.
+
+- Added a `core.hurl_validator` subprocess adapter with argument arrays,
+  timeouts, temporary file cleanup, and no raw provider-content echo on failure.
+- Validated every prompt-generated edit after structured parsing and tag injection
+  but before staged filesystem writes.
+- Kept validation all-or-nothing: one invalid edit prevents every generated file
+  from being written.
+- Hardened Architect edit paths against control characters.
+
 ## Next Slice: Architect Minimal Hardening
 
 Planned direction:
 
-- Decide whether the next Architect slice should be prompt-generation UX hardening,
-  parser-backed Hurl syntax validation, merge strategy, or refactor.
+- Decide whether the next Architect slice should be merge strategy, refactor,
+  prompt-generation UX hardening, or the Eye capture spike.
 - Keep provider failures explicit and keep deterministic `run` isolated from model access.
 
 ## Explicitly Deferred

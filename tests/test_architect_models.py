@@ -25,6 +25,7 @@ def test_architect_edit_accepts_safe_hurl_target() -> None:
         ("docs/refund.hurl", "path must stay under tests/"),
         ("tests/refund.txt", "path must end with .hurl"),
         ("tests\\refund.hurl", "path must use POSIX separators"),
+        ("tests/generated/bad\nsecret.hurl", "path must not contain control characters"),
     ],
 )
 def test_architect_edit_rejects_unsafe_target_path(path: str, message: str) -> None:

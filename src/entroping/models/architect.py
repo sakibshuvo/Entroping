@@ -23,6 +23,9 @@ class ArchitectEdit(BaseModel):
         if not path:
             msg = "path must not be empty"
             raise ValueError(msg)
+        if _has_path_control(path):
+            msg = "path must not contain control characters"
+            raise ValueError(msg)
         if "\\" in path:
             msg = "path must use POSIX separators"
             raise ValueError(msg)
@@ -105,3 +108,7 @@ class ArchitectEditSet(BaseModel):
 def _has_disallowed_control(value: str) -> bool:
     allowed = {"\n", "\r", "\t"}
     return any(character not in allowed and ord(character) < 32 for character in value)
+
+
+def _has_path_control(value: str) -> bool:
+    return any(ord(character) < 32 or ord(character) == 127 for character in value)

@@ -13,6 +13,14 @@ from typer.testing import CliRunner
 from entroping.brain.litellm_client import BrainProviderError, LiteLLMCompletionResult, LiteLLMUsage
 from entroping.brain.prompt_builder import ArchitectPromptPackage
 from entroping.cli.main import app
+from entroping.core.hurl_validator import HurlValidationError
+
+
+def _accept_architect_hurl_validation(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "entroping.brain.architect_build.validate_hurl_content",
+        lambda content, display_path: None,
+    )
 
 
 def test_root_help_includes_locked_commands() -> None:
@@ -444,6 +452,7 @@ def test_architect_build_prompt_writes_validated_architect_hurl(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
+    _accept_architect_hurl_validation(monkeypatch)
     Path("agents").mkdir()
     Path("agents/builder.md").write_text("Build minimal checkout Hurl tests.", encoding="utf-8")
     Path("qanstitution.yaml").write_text(
@@ -623,6 +632,64 @@ gates: []
     assert not Path("tests/generated/ai_checkout.hurl").exists()
 
 
+def test_architect_build_prompt_rejects_invalid_hurl_before_writing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("agents").mkdir()
+    Path("agents/builder.md").write_text("Build minimal checkout Hurl tests.", encoding="utf-8")
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/builder.md
+    model: openai/gpt-4.1-mini
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    def fake_complete(
+        self: object,
+        package: ArchitectPromptPackage,
+    ) -> LiteLLMCompletionResult:
+        _ = (self, package)
+        return LiteLLMCompletionResult(
+            content=json.dumps(
+                {
+                    "summary": "Generated invalid Hurl",
+                    "edits": [
+                        {
+                            "path": "tests/generated/bad.hurl",
+                            "content": "GET {{base_url}}/bad\nBAD\n",
+                        }
+                    ],
+                },
+            ),
+            model="openai/gpt-4.1-mini",
+            latency_ms=1,
+            usage=LiteLLMUsage(prompt_tokens=None, completion_tokens=None, total_tokens=None),
+        )
+
+    def fail_validation(content: str, display_path: str) -> None:
+        _ = content
+        raise HurlValidationError(f"Generated Hurl failed parser validation: {display_path}")
+
+    monkeypatch.setattr("entroping.brain.litellm_client.LiteLLMClient.complete", fake_complete)
+    monkeypatch.setattr("entroping.brain.architect_build.validate_hurl_content", fail_validation)
+
+    result = CliRunner().invoke(
+        app,
+        ["architect", "build", "--prompt", "Generate checkout smoke coverage."],
+    )
+
+    assert result.exit_code == 1
+    assert "Generated Hurl failed parser validation: tests/generated/bad.hurl" in result.output
+    assert not Path("tests/generated/bad.hurl").exists()
+
+
 def test_architect_build_prompt_does_not_echo_invalid_provider_content(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -684,6 +751,7 @@ def test_architect_build_prompt_redacts_untrusted_provider_output(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
+    _accept_architect_hurl_validation(monkeypatch)
     Path("agents").mkdir()
     Path("agents/builder.md").write_text("Build minimal checkout Hurl tests.", encoding="utf-8")
     Path("qanstitution.yaml").write_text(

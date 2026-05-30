@@ -1,6 +1,6 @@
 """Architect prompt-build orchestration."""
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -9,10 +9,12 @@ from entroping.brain.litellm_client import LiteLLMClient, LiteLLMUsage
 from entroping.brain.output_parser import parse_architect_edit_set
 from entroping.brain.persona_loader import load_agent_persona
 from entroping.brain.prompt_builder import build_architect_prompt_package
+from entroping.core.hurl_validator import validate_hurl_content
 from entroping.models import ArchitectEdit, ArchitectEditSet, parse_hurl_metadata
 from entroping.models.qanstitution import Qanstitution
 
 _ARCHITECT_SOURCE_MARKER = "# entroping: source=architect"
+HurlValidator = Callable[[str, str], None]
 
 
 @dataclass(frozen=True)
@@ -35,6 +37,7 @@ def run_architect_prompt_build(
     project_root: str | Path = ".",
     config_path: str | Path = "qanstitution.yaml",
     client: LiteLLMClient | None = None,
+    hurl_validator: HurlValidator | None = None,
 ) -> ArchitectPromptBuildResult:
     """Generate Architect-owned Hurl files from a Builder prompt."""
 
@@ -48,6 +51,7 @@ def run_architect_prompt_build(
     completion = (client or LiteLLMClient()).complete(package)
     edit_set = parse_architect_edit_set(completion.content)
     edit_set = _apply_requested_tags(edit_set, tags=tags)
+    _validate_architect_hurl(edit_set, hurl_validator=hurl_validator or validate_hurl_content)
     written_paths = write_architect_edits(edit_set, project_root=project_root)
     return ArchitectPromptBuildResult(
         summary=edit_set.summary,
@@ -82,6 +86,15 @@ def _apply_requested_tags(edit_set: ArchitectEditSet, *, tags: Sequence[str]) ->
             for edit in edit_set.edits
         ],
     )
+
+
+def _validate_architect_hurl(
+    edit_set: ArchitectEditSet,
+    *,
+    hurl_validator: HurlValidator,
+) -> None:
+    for edit in edit_set.edits:
+        hurl_validator(edit.content, edit.path)
 
 
 def _content_with_requested_tags(content: str, requested_tags: Sequence[str]) -> str:

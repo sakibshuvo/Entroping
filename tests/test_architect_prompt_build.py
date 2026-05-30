@@ -10,6 +10,7 @@ from entroping.brain.litellm_client import LiteLLMClient, LiteLLMCompletionResul
 from entroping.brain.output_parser import ArchitectOutputParseError
 from entroping.brain.prompt_builder import ArchitectPromptPackage
 from entroping.core.config_loader import load_qanstitution
+from entroping.core.hurl_validator import HurlValidationError
 
 
 def _write_project(tmp_path: Path) -> None:
@@ -44,6 +45,7 @@ def test_run_architect_prompt_build_composes_boundaries_and_writes_edits(
     _write_project(tmp_path)
     law = load_qanstitution(tmp_path / "qanstitution.yaml")
     packages: list[ArchitectPromptPackage] = []
+    validated: list[tuple[str, str]] = []
 
     def fake_completion(**kwargs: object) -> dict[str, object]:
         _ = kwargs
@@ -82,6 +84,7 @@ def test_run_architect_prompt_build_composes_boundaries_and_writes_edits(
         project_root=tmp_path,
         config_path=tmp_path / "qanstitution.yaml",
         client=CapturingClient(completion_func=fake_completion),
+        hurl_validator=lambda content, display_path: validated.append((content, display_path)),
     )
 
     assert result.summary == "Generate checkout coverage"
@@ -98,6 +101,12 @@ def test_run_architect_prompt_build_composes_boundaries_and_writes_edits(
     assert "You generate reviewable Hurl tests." in packages[0].messages[0].content
     assert "global_latency" in packages[0].messages[0].content
     assert "Requested Entroping tags: smoke, ai" in packages[0].messages[1].content
+    assert validated == [
+        (
+            "# entroping: tags=ai,smoke\nPOST {{base_url}}/checkout\nHTTP 201\n",
+            "tests/generated/checkout_ai.hurl",
+        )
+    ]
 
 
 def test_run_architect_prompt_build_rejects_invalid_output_before_writing(
@@ -117,6 +126,52 @@ def test_run_architect_prompt_build_rejects_invalid_output_before_writing(
             project_root=tmp_path,
             config_path=tmp_path / "qanstitution.yaml",
             client=LiteLLMClient(completion_func=fake_completion),
+            hurl_validator=lambda content, display_path: None,
+        )
+
+    assert not (tmp_path / "tests").exists()
+
+
+def test_run_architect_prompt_build_validates_before_writing(
+    tmp_path: Path,
+) -> None:
+    _write_project(tmp_path)
+    law = load_qanstitution(tmp_path / "qanstitution.yaml")
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        _ = kwargs
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "summary": "Generate invalid coverage",
+                                "edits": [
+                                    {
+                                        "path": "tests/generated/bad.hurl",
+                                        "content": "GET {{base_url}}/bad\nBAD\n",
+                                    }
+                                ],
+                            },
+                        )
+                    }
+                }
+            ],
+        }
+
+    def fail_validation(content: str, display_path: str) -> None:
+        _ = content
+        raise HurlValidationError(f"Generated Hurl failed parser validation: {display_path}")
+
+    with pytest.raises(HurlValidationError, match="tests/generated/bad.hurl"):
+        run_architect_prompt_build(
+            law=law,
+            intent="Generate checkout coverage.",
+            project_root=tmp_path,
+            config_path=tmp_path / "qanstitution.yaml",
+            client=LiteLLMClient(completion_func=fake_completion),
+            hurl_validator=fail_validation,
         )
 
     assert not (tmp_path / "tests").exists()

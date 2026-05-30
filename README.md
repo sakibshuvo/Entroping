@@ -60,7 +60,7 @@ Available now:
 - Redacted JSON and JUnit reports through `entroping run --report json --report junit`.
 - Escaped HTML run reports through `entroping run --report html`.
 - `entroping report bug` for Markdown handoff from the latest failing run.
-- LiteLLM-backed `entroping architect build --prompt` happy path with Builder persona/model loading, structured output parsing, redacted CLI output, and staged Architect-owned Hurl writes.
+- LiteLLM-backed `entroping architect build --prompt` happy path with Builder persona/model loading, structured output parsing, parser-backed Hurl validation, redacted CLI output, and staged Architect-owned Hurl writes.
 - CI-ready local checks through `uv`, `ruff`, `mypy`, and `pytest`.
 
 Not built yet:
@@ -186,7 +186,8 @@ defaults, constants, and enums for JSON request bodies. `--env local` loads
 
 Prompt-based Architect generation is available after you add a local Builder persona,
 configure a non-secret model route, and install optional AI dependencies. The checkout
-fixture does not ship provider config or credentials.
+fixture does not ship provider config or credentials. The command also requires
+`hurlfmt` so generated Hurl can be parser-validated before files are written.
 
 ```bash
 cd examples/checkout-api
@@ -232,8 +233,8 @@ Current implementation supports `init`, `doctor`, deterministic `architect build
 from local OpenAPI files with common parameters and schema examples, deterministic
 non-secret `config list` / `config set`, `run --env`, deterministic `architect audit`
 for OpenAPI coverage, deterministic `run`, JSON/JUnit run reports, HTML run reports,
-`report bug`, and LiteLLM-backed `architect build --prompt` for Builder-generated
-Architect-owned Hurl files.
+`report bug`, and LiteLLM-backed `architect build --prompt` for parser-validated,
+Builder-generated Architect-owned Hurl files.
 
 ## Architecture
 

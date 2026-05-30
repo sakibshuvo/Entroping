@@ -49,3 +49,4 @@
 - Implemented issue #31's Brain foundation with validated Architect edit models, root-bounded persona loading, secret-checked prompt packaging, lazy LiteLLM adapter, and no provider/network calls in tests.
 - Implemented issue #33's Architect output boundary with JSON-to-`ArchitectEditSet` parsing, Architect-owned Hurl staged writes, non-generated overwrite protection, and symlink-safe temporary writes.
 - Implemented issue #35's Architect prompt build happy path with Builder persona loading, LiteLLM invocation, structured output parsing, staged Architect-owned Hurl writes, redacted CLI output, and `entroping run` regression isolation.
+- Implemented issue #37's parser-backed prompt Hurl validation with a `hurlfmt` subprocess adapter, all-or-nothing pre-write validation, non-echoing validation errors, and Architect path control-character hardening.
