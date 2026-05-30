@@ -1,5 +1,6 @@
 """Command-line entrypoint for the Entroping scaffold."""
 
+import asyncio
 import json
 import sys
 import tempfile
@@ -55,6 +56,12 @@ from entroping.core.report_writer import (
     write_html_report,
     write_json_report,
     write_junit_report,
+)
+from entroping.core.traffic_proxy import (
+    DEFAULT_WATCH_PORT,
+    TrafficProxyError,
+    WatchConfig,
+    run_watch,
 )
 from entroping.models.qanstitution import AgentRole
 
@@ -420,8 +427,22 @@ def watch(
 ) -> None:
     """Start traffic observation."""
 
-    _ = (port, target)
-    _not_implemented("watch")
+    try:
+        config = WatchConfig(
+            project_root=Path.cwd(),
+            listen_port=port or DEFAULT_WATCH_PORT,
+            target_url=target,
+        )
+        console.print(f"Capturing traffic on 127.0.0.1:{config.listen_port}")
+        if config.target_url is not None:
+            console.print(f"Target scope: {_safe_cli_text(config.target_url)}", markup=False)
+        console.print("Persisting redacted traffic to .entroping/state.db")
+        asyncio.run(run_watch(config))
+    except KeyboardInterrupt:
+        console.print("Stopped traffic capture.")
+    except (TrafficProxyError, ValueError) as exc:
+        _print_cli_error(exc)
+        raise typer.Exit(1) from exc
 
 
 @app.command()

@@ -75,9 +75,10 @@ uv run entroping doctor
 
 The CLI currently exposes the planned v4.1 command surface. `init`, `doctor`,
 deterministic `architect build --new`, deterministic `architect audit`, `run --env`,
-JSON/JUnit/HTML reports, and `report bug` are implemented; LLM-backed generation,
-proxy capture, drift reports, and Studio commands still intentionally return scaffold
-messages until their subsystems land.
+JSON/JUnit/HTML reports, `report bug`, LLM-backed generation/refactor, and
+capture-only `watch` are implemented; `freeze`, `map`, drift reports, and Studio
+commands still intentionally return scaffold messages until their subsystems
+land.
 
 ## Agent Workflow
 

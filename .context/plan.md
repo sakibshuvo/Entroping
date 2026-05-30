@@ -1,7 +1,7 @@
 # Entroping Implementation Plan
 
 **Date:** 2026-05-29  
-**Status:** Active implementation scaffold and launch-prep track
+**Status:** Active alpha implementation and launch-prep track
 
 ## Objective
 
@@ -28,11 +28,12 @@ The repo should remain usable as an Obsidian vault and as a Codex workspace with
 - `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, `.github/pull_request_template.md`, and `scripts/feature_gate.sh` define the executable delivery gates for feature work.
 - `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, and `scripts/regression.sh` define issue tracking, regression coverage, and simple phase-level progress tracking.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work.
+- Eye capture now has security-first traffic models, pre-persistence redaction, bounded SQLite state, and capture-only `watch` wiring through a lazy-loaded mitmproxy adapter.
 - Issues #1 through #6, #11, #13, #15, #17, #19, #23, #25, #29, #31, #33, #35, #37, #39, #41, #43, #46, #48, #50, and #52 are integrated: `entroping init --minimal`, `entroping doctor`, QAnstitution local loading/import validation, Hurl discovery, Entroping metadata parsing, tag-filter validation, gate matching, gate assertion compilation, temporary Hurl execution-copy injection, deterministic Hurl subprocess execution, JSON/JUnit/HTML reports, latest-run state, bug Markdown generation, the local checkout quickstart, env-file Hurl variables, CI live Hurl smoke, deterministic OpenAPI-to-Hurl generation, OpenAPI parameter/example support, deterministic Architect audit coverage, non-secret agent routing config, Brain prompt/provider foundations, staged Architect output writes, user-facing `architect build --prompt`, parser-backed prompt Hurl validation, safe persona-template creation from `config set`, safe Architect-owned `architect refactor`, executable import-boundary regression tests, deduplicated PR workflow triggers, deterministic managed-block Hurl merge, managed-block manual refactor integration, and prompt-backed build merge strategy.
 
-## Next Milestone: Deterministic Core
+## Completed Milestone: Deterministic Core
 
-Implement only the deterministic path before adding AI, proxy capture, or Studio:
+The deterministic path is available and should remain the regression anchor:
 
 1. Make `entroping init` create a minimal `qanstitution.yaml` and safe project skeleton. **Done in issue #1.**
 2. Make `entroping doctor` validate local config, Hurl availability, and optional tools without network calls. **Done in issue #1.**
@@ -42,6 +43,13 @@ Implement only the deterministic path before adding AI, proxy capture, or Studio
 6. Implement Hurl subprocess execution with timeout, bounded output, cleanup, and redaction. **Done in issue #4.**
 7. Emit JSON and JUnit reports. **Done in issue #5.**
 8. Wire the checkout demo into README quickstart. **Done in issue #6.**
+
+## Current Milestone: Eye Capture And Release
+
+1. Keep public alpha blocked on owner-approved license and package metadata. **Current in issue #58.**
+2. Keep capture-only `watch` separate from `freeze` and `map`. **Done in issue #60.**
+3. Design traffic-to-Hurl and dependency export before implementation. **Next in issue #59.**
+4. Run `scripts/release_check.sh --require-live-demo` before any release tag.
 
 ## Completed Slice: Issue #3 Gate Matching And Injection
 
