@@ -2,6 +2,7 @@
 
 ## 2026-05-30
 
+- Implemented issue #80's optional PNG dependency map export through local Graphviz `dot`, with subprocess-bounded rendering, atomic `reports/dependency-map.png` writes, missing-renderer errors, and secret-safe renderer failure handling.
 - Implemented issue #58's license and package metadata blocker with Apache-2.0 core licensing, SPDX package metadata, alpha-safe classifiers, README license status, and ADR-0009 for the open-core boundary.
 - Updated the progress dashboard and active implementation context so the remaining public-alpha action is release-gate evidence and tagging, not license selection.
 

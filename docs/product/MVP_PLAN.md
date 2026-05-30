@@ -182,11 +182,12 @@ traffic-source metadata, redacted textual request data, and stable golden
 assertions that avoid token-like, ID-like, timestamp-like, and redacted fields.
 Basic `entroping freeze --name <flow> [--golden]` now reads local redacted
 traffic state, validates generated Hurl before writing, and writes atomically
-under `tests/generated/`. `entroping map --export mermaid|dot|md` now emits
+under `tests/generated/`. `entroping map --export mermaid|dot|md|png` now emits
 host-level dependency maps from redacted traffic with escaped labels, route call
-counts, failures, and latency summaries. `entroping freeze --mock <service>`
+counts, failures, latency summaries, and optional Graphviz-backed PNG files.
+`entroping freeze --mock <service>`
 now writes WireMock-compatible mappings from matching redacted dependency
-traffic under `mocks/<service>/`. PNG map rendering remains out of scope.
+traffic under `mocks/<service>/`.
 
 Deliverables:
 

@@ -32,8 +32,8 @@ Do not duplicate every issue here. The detailed queue lives in GitHub.
 
 ## Current Target
 
-**Goal:** keep the public-alpha release gate green, then tag `v0.1.0-alpha`
-after the latest `main` commit has local and CI evidence.
+**Goal:** keep post-alpha work focused on small user-visible polish while the
+published `v0.1.0-alpha` remains backed by local and CI release evidence.
 
 GitHub Project: [Entroping Alpha](https://github.com/users/sakibshuvo/projects/1)
 
@@ -93,8 +93,9 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Traffic filtering and session candidates](https://github.com/sakibshuvo/Entroping/issues/66) | Done | Pure bridge filtering/session inputs for freeze and map | Keep SQLite/proxy/CLI out of bridge |
 | [Traffic-to-Hurl compiler](https://github.com/sakibshuvo/Entroping/issues/67) | Done | Compile redacted sessions into valid Hurl content | Depends on #66 |
 | [Freeze CLI safe writes](https://github.com/sakibshuvo/Entroping/issues/68) | Done | Wire `freeze` to store reads, compiler output, staged writes, and parser validation | Depends on #66 and #67 |
-| [Dependency graph export](https://github.com/sakibshuvo/Entroping/issues/69) | Done | Host-level graph compiler plus Mermaid/Markdown/DOT exports; PNG gives an actionable renderer message | Keep PNG rendering deferred |
-| [WireMock dependency mappings](https://github.com/sakibshuvo/Entroping/issues/75) | Done | `freeze --mock <service>` writes WireMock-compatible mappings from redacted dependency traffic | Keep PNG rendering deferred |
+| [Dependency graph export](https://github.com/sakibshuvo/Entroping/issues/69) | Done | Host-level graph compiler plus Mermaid/Markdown/DOT exports | Keep output escaping tested |
+| [WireMock dependency mappings](https://github.com/sakibshuvo/Entroping/issues/75) | Done | `freeze --mock <service>` writes WireMock-compatible mappings from redacted dependency traffic | Keep mappings redacted |
+| [PNG dependency map rendering](https://github.com/sakibshuvo/Entroping/issues/80) | Done | `map --export png` writes `reports/dependency-map.png` through local Graphviz `dot` when available | Keep renderer optional and subprocess-bounded |
 
 ## Later Roadmap
 
@@ -107,9 +108,9 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | OpenAPI Depth | Done | Path/query/header/cookie parameters plus schema examples/defaults |
 | Architect Minimal | Done | Prompt generation, prompt-backed build merge, pre-write Hurl validation, Architect-owned refactor, and managed-block manual refactor are available |
 | Delivery Automation | Done | Deterministic repo hygiene, issue worktrees, regression gates, optional local hooks, and release-readiness checks support multi-session development |
-| Alpha Release | Current | Release checklist, license metadata, and deterministic release gate exist | Use `scripts/release_check.sh --require-live-demo` before tagging |
+| Alpha Release | Done | `v0.1.0-alpha` prerelease published from `abd08c0` with local release gate and CI evidence | Next release can include post-alpha PNG map rendering |
 | Eye Capture Spike | Done | Capture-only `watch` records redacted, bounded traffic through mitmproxy; freeze/map remain separate |
-| Freeze and Map | Done | Basic `freeze`, WireMock dependency mocks, and Mermaid/DOT/Markdown dependency maps are in place; PNG rendering remains deferred |
+| Freeze and Map | Done | Basic `freeze`, WireMock dependency mocks, and Mermaid/DOT/Markdown/PNG dependency maps are in place |
 | Studio | Deferred | Useful after deterministic core and reports are real |
 
 ## Update Rules

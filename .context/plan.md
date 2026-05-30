@@ -45,19 +45,35 @@ The deterministic path is available and should remain the regression anchor:
 7. Emit JSON and JUnit reports. **Done in issue #5.**
 8. Wire the checkout demo into README quickstart. **Done in issue #6.**
 
-## Current Milestone: Eye Capture And Release
+## Current Milestone: Post-Alpha Polish
 
 1. Keep public alpha license and package metadata explicit. **Done in issue #58.**
 2. Keep capture-only `watch` separate from `freeze` and `map`. **Done in issue #60.**
 3. Design traffic-to-Hurl and dependency export before implementation. **Done in issue #59.**
-4. Run `scripts/release_check.sh --require-live-demo` before any release tag.
+4. Publish `v0.1.0-alpha` only after local and CI release evidence. **Done from commit `abd08c0`.**
+5. Keep post-alpha additions small, issue-backed, and release-gated.
 
 Issue #59 outcome leaves behind `docs/technical/FREEZE_MAP_PLAN.md`, ADR-0008,
 and focused implementation issues #66, #67, #68, and #69 for
 filtering/sessioning, traffic-to-Hurl freeze generation, safe `freeze` CLI
 writes, and dependency map exports. Issues #66 through #69 are implemented;
-issue #75 adds WireMock-compatible `freeze --mock` output. PNG map rendering
-remains deferred follow-up work.
+issue #75 adds WireMock-compatible `freeze --mock` output, and issue #80 adds
+optional Graphviz-backed PNG dependency map rendering.
+
+## Completed Slice: Issue #80 PNG Dependency Map Rendering
+
+Outcome: `entroping map --export png` writes `reports/dependency-map.png` when
+local Graphviz `dot` is available, while preserving actionable missing-renderer
+errors when it is not.
+
+Implemented boundaries:
+
+- DOT text still comes from the pure `bridge.traffic_to_graph` compiler.
+- PNG rendering lives in `core.dependency_mapper` as a subprocess adapter using
+  argument arrays, binary stdin/stdout, a timeout, bounded errors, and atomic
+  ignored report writes.
+- Renderer failures do not echo raw DOT content, captured traffic, or secrets.
+- CLI output prints only the generated artifact path.
 
 ## Completed Slice: Issue #58 License And Package Metadata
 
@@ -296,7 +312,6 @@ Planned direction:
 ## Explicitly Deferred
 
 - Complete non-prompt `architect build --strategy merge` if product demand justifies it.
-- PNG map rendering.
 - Studio TUI.
 - Nuitka packaging.
 - Hosted/cloud features.
