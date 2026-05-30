@@ -79,7 +79,8 @@ raise SystemExit(1)
 render_prompt() {
   (
     cd "$repo_root"
-    uv run python -m entroping.core.session_prompt \
+    PYTHONPATH="${repo_root}/src${PYTHONPATH:+:${PYTHONPATH}}" \
+      uv run python -m entroping.core.session_prompt \
       --issue "$issue_number" \
       --title "$issue_title" \
       --url "$issue_url" \

@@ -57,6 +57,7 @@ Repository behavior belongs in:
 - `scripts/feature_gate.sh` for the local delivery gate.
 - `scripts/repo_hygiene.sh` for tracked local/generated-state rejection.
 - `scripts/regression.sh` for broader proof.
+- `scripts/start_issue.sh` and `scripts/finish_issue.sh` for deterministic issue-session lifecycle handling.
 - `.github/workflows/ci.yml` for remote verification.
 - GitHub Issues and PRs for work tracking and review.
 
@@ -90,10 +91,18 @@ Start a read-only review session:
 scripts/start_issue.sh 3 review/gate-injection --mode review
 ```
 
+After a PR is merged, use the paired finish flow from a separate checkout:
+
+```bash
+scripts/finish_issue.sh 3 --dry-run
+scripts/finish_issue.sh 3
+```
+
 Session rules:
 
 - One issue maps to one worktree and one branch.
 - Use `--dry-run` before starting a large batch.
+- Use `finish_issue.sh --dry-run` before removing completed session worktrees.
 - Do not run two write agents on the same issue, branch, or file family.
 - Use review-mode sessions for parallel critique; only the parent integrator applies fixes.
 - Keep dependent issues in waves instead of launching them all at once.

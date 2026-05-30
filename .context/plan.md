@@ -33,7 +33,7 @@ project, and a Codex workspace with fast context rehydration.
 - `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, `.github/pull_request_template.md`, and `scripts/feature_gate.sh` define the executable delivery gates for feature work.
 - `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, `scripts/regression.sh`, and `scripts/audit_quality.sh` define issue tracking, regression coverage, quality audit coverage, and simple phase-level progress tracking.
 - Apache-2.0 licensing and package metadata are in place for the public core; keep future commercial cloud, model, policy-pack, or enterprise surfaces outside the open core unless explicitly relicensed.
-- `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work.
+- `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work; `scripts/finish_issue.sh` verifies merged PRs and safely removes completed local worktrees.
 - Eye capture now has security-first traffic models, pre-persistence redaction, bounded SQLite state, and capture-only `watch` wiring through a lazy-loaded mitmproxy adapter.
 - Issues #1 through #85, plus validation fixes #95 and #97, are integrated.
   The shipped alpha covers init/doctor, QAnstitution loading/import validation,
@@ -80,7 +80,27 @@ execution, deterministic drift reporting, and the read-only Studio shell.
 Issues #95 and #97 removed the remaining generic Architect build placeholder
 path and ignored validation coverage artifacts. Issue #93 added the heavier
 local quality audit gate for coverage, complexity, maintainability, and
-dead-code discovery checks.
+dead-code discovery checks. Issue #94 added the symmetric finish workflow for
+post-merge worktree, local branch, label, and project-board cleanup.
+
+## Completed Slice: Issue #94 Finish-Issue Workflow
+
+Outcome: completed issue sessions can be cleaned up deterministically after PR
+merge instead of relying on manual branch/worktree judgement.
+
+Implemented boundaries:
+
+- `scripts/finish_issue.sh <issue-number>` verifies the GitHub issue is closed,
+  identifies its closing PR, confirms the PR is merged, and checks reported CI
+  statuses before local deletion.
+- The script refuses dirty, unregistered, branch-mismatched, or current
+  worktree removal.
+- Squash-merged local branches are deleted only after the closing PR and checks
+  are verified.
+- GitHub issue labels and Project status are updated on a best-effort basis,
+  with warnings when permissions are unavailable.
+- Temporary-repo tests cover dry-run output, unsafe dirty worktree rejection,
+  and successful clean worktree plus squash-merged branch cleanup.
 
 ## Completed Slice: Issue #93 Quality Audit Gate
 
