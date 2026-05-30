@@ -7,7 +7,8 @@
 
 Current alpha implementation supports `init`, `doctor`, `config list`, and
 `config set` for non-secret Builder/Auditor/Breaker model routing. `config set`
-updates `qanstitution.yaml`; it does not store credentials or call model providers.
+updates `qanstitution.yaml`, creates a missing local persona Markdown template,
+and does not store credentials or call model providers.
 
 | Command | Purpose |
 | --- | --- |

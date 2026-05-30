@@ -473,6 +473,11 @@ entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
 ```
 
+`config set` updates non-secret routing metadata only. If the selected agent's
+persona file is missing, it creates a local Markdown template under the configured
+relative source path after rejecting absolute paths, traversal, symlinks, non-Markdown
+paths, URLs, and control characters.
+
 ### Intelligence
 
 ```text
