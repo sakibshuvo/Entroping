@@ -114,3 +114,30 @@ def test_validate_hurl_content_rejects_timeout_and_cleans_temp_file(
         validate_hurl_content("GET /health\nHTTP 200\n", display_path="tests/generated/slow.hurl")
 
     assert temp_paths and not temp_paths[0].exists()
+
+
+def test_validate_hurl_content_wraps_subprocess_os_errors_and_cleans_temp_file(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    temp_paths: list[Path] = []
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stdout, stderr, timeout, check, shell)
+        temp_paths.append(Path(args[-1]))
+        raise OSError("exec failed")
+
+    monkeypatch.setattr("entroping.core.hurl_validator.shutil.which", lambda binary: "/bin/hurlfmt")
+    monkeypatch.setattr("entroping.core.hurl_validator.subprocess.run", fake_run)
+
+    with pytest.raises(HurlValidationError, match="subprocess failed"):
+        validate_hurl_content("GET /health\nHTTP 200\n", display_path="tests/generated/io.hurl")
+
+    assert temp_paths and not temp_paths[0].exists()
