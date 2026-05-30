@@ -5,6 +5,7 @@ from pathlib import Path
 import yaml
 
 _WORKFLOW_PATH = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml"
+_REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_ci_workflow_runs_on_pull_requests_and_main_pushes_only() -> None:
@@ -13,6 +14,25 @@ def test_ci_workflow_runs_on_pull_requests_and_main_pushes_only() -> None:
     triggers = workflow["on"]
     assert "pull_request" in triggers
     assert triggers["push"] == {"branches": ["main"]}
+
+
+def test_ci_workflow_enforces_security_and_quality_gates() -> None:
+    workflow = yaml.safe_load(_WORKFLOW_PATH.read_text(encoding="utf-8"))
+
+    checks = workflow["jobs"]["checks"]
+    quality_audit = workflow["jobs"]["quality-audit"]
+    checks_run_blocks = "\n".join(str(step.get("run", "")) for step in checks["steps"])
+    quality_run_blocks = "\n".join(str(step.get("run", "")) for step in quality_audit["steps"])
+
+    assert "scripts/regression.sh --security" in checks_run_blocks
+    assert "scripts/regression.sh\n" not in checks_run_blocks
+    assert quality_audit["needs"] == "checks"
+    assert "scripts/audit_quality.sh" in quality_run_blocks
+    assert any(
+        step.get("uses") == "actions/upload-artifact@v7"
+        and step.get("with", {}).get("path") == "reports"
+        for step in quality_audit["steps"]
+    )
 
 
 def test_ci_workflow_runs_live_demo_smoke_with_pinned_hurl() -> None:
@@ -39,3 +59,17 @@ def test_ci_workflow_runs_live_demo_smoke_with_pinned_hurl() -> None:
     assert "actions/setup-python@v6" in workflow_text
     assert "astral-sh/setup-uv@v8.1.0" in workflow_text
     assert "actions/upload-artifact@v7" in workflow_text
+
+
+def test_docs_explain_ci_enforced_and_local_only_gates() -> None:
+    readme = (_REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    test_strategy = (_REPO_ROOT / "docs" / "meta" / "TEST_STRATEGY.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "CI enforces `scripts/regression.sh --security`" in readme
+    assert "CI enforces `scripts/audit_quality.sh`" in readme
+    assert "Local-only before release:" in readme
+    assert "GitHub Actions Enforcement" in test_strategy
+    assert "`scripts/regression.sh --security`" in test_strategy
+    assert "`scripts/audit_quality.sh`" in test_strategy
