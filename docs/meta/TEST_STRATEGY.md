@@ -58,9 +58,9 @@ scripts/audit_quality.sh
 ```
 
 The quality audit is intentionally heavier than `scripts/regression.sh`. It
-runs the full test suite with a coverage threshold, records ignored JSON audit
-artifacts under `reports/`, then checks Radon complexity, Radon maintainability,
-and Vulture dead-code discovery.
+runs the full test suite with a default 100 percent coverage threshold, records
+ignored JSON audit artifacts under `reports/`, then checks Radon complexity,
+Radon maintainability, and Vulture dead-code discovery.
 
 ## GitHub Actions Enforcement
 
@@ -88,8 +88,9 @@ they depend on the release context and whether local Hurl is installed.
 
 ## Coverage Expectations
 
-- 100 percent meaningful coverage is the release bar. Temporary lower thresholds
-  are burn-down aids only and must be tracked with explicit gaps.
+- 100 percent meaningful coverage is the release bar and the default
+  `scripts/audit_quality.sh` gate. Temporary lower thresholds must be explicit
+  `ENTROPING_COVERAGE_FAIL_UNDER` overrides with tracked gaps.
 - New pure logic needs unit tests.
 - New CLI, filesystem, subprocess, YAML, report, proxy, or LLM behavior needs adapter tests.
 - Bug fixes need regression tests when the bug is reproducible.

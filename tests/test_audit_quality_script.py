@@ -34,7 +34,7 @@ def test_audit_quality_dry_run_shows_repeatable_steps() -> None:
     assert "Would run coverage gate" in result.stdout
     assert "Would run Radon complexity gate" in result.stdout
     assert "Would run Vulture dead-code discovery" in result.stdout
-    assert "coverage fail-under: 85" in result.stdout
+    assert "coverage fail-under: 100" in result.stdout
 
 
 def test_audit_quality_rejects_unknown_options() -> None:
