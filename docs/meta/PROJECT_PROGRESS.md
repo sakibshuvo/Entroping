@@ -33,9 +33,8 @@ Do not duplicate every issue here. The detailed queue lives in GitHub.
 ## Current Target
 
 **Goal:** keep the published `v0.1.0-alpha` backed by local and CI release
-evidence while moving the next marathon queue through story traceability,
-structured drift checks, public launch assets, OpenSSF trust signals, and
-agent-context automation.
+evidence while burning down issue #112 toward 100 percent meaningful coverage
+without gaming tests or hiding untested behavior.
 
 GitHub Project: [Entroping Alpha](https://github.com/users/sakibshuvo/projects/1)
 
@@ -128,7 +127,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | Eye Capture Spike | Done | Capture-only `watch` records redacted, bounded traffic through mitmproxy; freeze/map remain separate |
 | Freeze and Map | Done | Basic `freeze`, WireMock dependency mocks, and Mermaid/DOT/Markdown/PNG dependency maps are in place |
 | Agent Workflow | Done | Deterministic context packs, cross-agent control plane, source-promotion workflow, and community health docs are available | Use issue branches for follow-on automation |
-| Coverage Hardening | Current | 100 percent meaningful coverage is tracked in issue #112; #107 raises `core.session_prompt` to 100 percent module coverage | Burn down high-missing modules without gaming coverage |
+| Coverage Hardening | Current | 100 percent meaningful coverage is tracked in issue #112; `core.session_prompt` and `core.openapi_loader` now have 100 percent module coverage | Burn down high-missing modules without gaming coverage |
 | Studio | Later | Read-only status shell is available; full interactive TUI remains later |
 
 ## Update Rules
