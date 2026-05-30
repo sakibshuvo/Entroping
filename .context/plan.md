@@ -164,9 +164,10 @@ Latest local evidence:
 - `PYTHONPATH=src uv run pytest tests/test_safe_write.py --cov=entroping.core.safe_write --cov-report=term-missing -q`: 12 passed; `core.safe_write` at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_dependency_mapper.py tests/test_drift_report.py tests/test_traffic_models.py tests/test_studio_status.py --cov=entroping.core.dependency_mapper --cov=entroping.core.drift_report --cov=entroping.models.traffic --cov=entroping.studio.status --cov-report=term-missing --cov-fail-under=100 -q`: 49 passed; targeted support modules at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_traffic_proxy.py tests/test_freeze.py --cov=entroping.core.traffic_proxy --cov=entroping.core.freeze --cov-report=term-missing --cov-fail-under=100 -q`: 42 passed; Eye proxy/freeze modules at 100 percent coverage.
+- `PYTHONPATH=src uv run pytest tests/test_architect_prompt_build.py tests/test_architect_refactor.py tests/test_architect_writer.py --cov=entroping.brain.architect_build --cov=entroping.brain.architect_refactor --cov=entroping.brain.architect_writer --cov-report=term-missing --cov-fail-under=100 -q`: 57 passed; Architect workflow modules at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_ci_workflow.py tests/test_release_docs.py tests/test_agent_workflow_docs.py -q`: 15 passed.
-- `scripts/regression.sh --security`: 628 passed; Bandit and default/all-extras dependency audits passed.
-- `scripts/audit_quality.sh`: 628 passed with 96.55 percent total coverage; Radon and Vulture gates passed.
+- `scripts/regression.sh --security`: 653 passed; Bandit and default/all-extras dependency audits passed.
+- `scripts/audit_quality.sh`: 653 passed with 98.53 percent total coverage; Radon and Vulture gates passed.
 
 ## Completed Slice: Issue #90 Run Workflow Extraction
 
@@ -325,6 +326,26 @@ Implemented boundaries:
   wrapping, invalid WireMock JSON, path traversal/POSIX/suffix validation,
   non-file targets, resolved symlink escapes, and existing symlink/atomic-write
   protections.
+
+## Completed Slice: Issue #144 Architect Workflow Coverage
+
+Outcome: Architect prompt-build, refactor, and staged writer edge cases now have
+focused 100 percent coverage without provider calls or live Hurl execution.
+
+Implemented boundaries:
+
+- `brain.architect_build` coverage includes merge-mode Architect-owned targets,
+  manual managed-block merges, invalid and unknown managed blocks, tag metadata
+  replacement/insertion, unsafe merge targets, size/encoding/read errors, and
+  resolved symlink escapes.
+- `brain.architect_refactor` coverage includes empty/unsafe target globs,
+  resolved symlink escapes, directory targets, invalid managed blocks,
+  stat/read/encoding/empty target errors, and selected-target enforcement
+  before writes.
+- `brain.architect_writer` coverage includes unsafe refactor paths, resolved
+  escapes, symlink and non-file preflight failures, blank-header helpers,
+  newline preservation, atomic replacement failures, and temporary-write
+  failures.
 
 ## Completed Slice: Issue #85 Read-Only Studio Status Shell
 

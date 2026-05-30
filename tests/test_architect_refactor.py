@@ -1,10 +1,12 @@
 """Architect refactor orchestration tests."""
 
 import json
+import os
 from pathlib import Path
 
 import pytest
 
+import entroping.brain.architect_refactor as architect_refactor
 from entroping.brain.architect_refactor import (
     ArchitectRefactorError,
     discover_refactor_targets,
@@ -264,6 +266,11 @@ def test_discover_refactor_targets_rejects_unsafe_globs(
         discover_refactor_targets(target_glob, project_root=tmp_path)
 
 
+def test_discover_refactor_targets_rejects_empty_glob(tmp_path: Path) -> None:
+    with pytest.raises(ArchitectRefactorError, match="must not be empty"):
+        discover_refactor_targets("   ", project_root=tmp_path)
+
+
 def test_discover_refactor_targets_rejects_non_hurl_matches(tmp_path: Path) -> None:
     target = tmp_path / "tests" / "generated" / "notes.txt"
     target.parent.mkdir(parents=True)
@@ -282,6 +289,36 @@ def test_discover_refactor_targets_rejects_symlink_targets(tmp_path: Path) -> No
 
     with pytest.raises(ArchitectRefactorError, match="must not use symlinks"):
         discover_refactor_targets("tests/linked.hurl", project_root=tmp_path)
+
+
+def test_discover_refactor_targets_rejects_resolved_escape(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    outside_dir = tmp_path.parent / f"{tmp_path.name}-outside"
+    outside_dir.mkdir()
+    outside = outside_dir / "outside.hurl"
+    outside.write_text("# entroping: source=architect\nGET /outside\nHTTP 200\n", encoding="utf-8")
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    linked = tests_dir / "linked.hurl"
+    linked.symlink_to(outside)
+
+    def allow_symlink_path(candidate: Path, *, root: Path) -> None:
+        _ = candidate, root
+
+    monkeypatch.setattr(architect_refactor, "_reject_symlink_path", allow_symlink_path)
+
+    with pytest.raises(ArchitectRefactorError, match="must stay under project root"):
+        discover_refactor_targets("tests/linked.hurl", project_root=tmp_path)
+
+
+def test_discover_refactor_targets_rejects_directory_target(tmp_path: Path) -> None:
+    target = tmp_path / "tests" / "generated" / "directory.hurl"
+    target.mkdir(parents=True)
+
+    with pytest.raises(ArchitectRefactorError, match="must be a file"):
+        discover_refactor_targets("tests/generated/directory.hurl", project_root=tmp_path)
 
 
 def test_run_architect_refactor_rejects_manual_targets_without_managed_blocks_before_provider_call(
@@ -314,6 +351,17 @@ def test_run_architect_refactor_rejects_manual_targets_without_managed_blocks_be
         )
 
     assert provider_called is False
+
+
+def test_discover_refactor_targets_rejects_invalid_managed_blocks(tmp_path: Path) -> None:
+    target = tmp_path / "tests" / "manual.hurl"
+    _write_manual_hurl(
+        target,
+        "# entroping: managed-begin checkout-auth\nGET {{base_url}}/checkout\n",
+    )
+
+    with pytest.raises(ArchitectRefactorError, match="Invalid managed blocks"):
+        discover_refactor_targets("tests/manual.hurl", project_root=tmp_path)
 
 
 def test_run_architect_refactor_rejects_unknown_managed_blocks_without_writing(
@@ -413,6 +461,61 @@ def test_run_architect_refactor_rejects_edits_outside_selected_targets(
         )
 
     assert "GET {{base_url}}/checkout" in target.read_text(encoding="utf-8")
+
+
+def test_refactor_target_reader_rejects_unreadable_or_empty_targets(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "tests" / "generated" / "checkout.hurl"
+    _write_architect_hurl(target, "GET {{base_url}}/checkout\nHTTP 200\n")
+    display_path = "tests/generated/checkout.hurl"
+
+    original_stat = Path.stat
+
+    def fail_stat(self: Path, *, follow_symlinks: bool = True) -> os.stat_result:
+        if self == target:
+            raise OSError("stat failed")
+        return original_stat(self, follow_symlinks=follow_symlinks)
+
+    monkeypatch.setattr(Path, "stat", fail_stat)
+    with pytest.raises(ArchitectRefactorError, match="Could not inspect"):
+        architect_refactor._read_refactor_target(target, display_path=display_path)
+
+    monkeypatch.setattr(Path, "stat", original_stat)
+    target.write_text("x" * 256_001, encoding="utf-8")
+    with pytest.raises(ArchitectRefactorError, match="too large"):
+        architect_refactor._read_refactor_target(target, display_path=display_path)
+
+    target.write_bytes(b"\xff")
+    with pytest.raises(ArchitectRefactorError, match="UTF-8"):
+        architect_refactor._read_refactor_target(target, display_path=display_path)
+
+    target.write_text("", encoding="utf-8")
+    with pytest.raises(ArchitectRefactorError, match="must not be empty"):
+        architect_refactor._read_refactor_target(target, display_path=display_path)
+
+    target.write_text("# entroping: source=architect\nGET /checkout\nHTTP 200\n", encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def fail_read_text(
+        self: Path,
+        encoding: str | None = None,
+        errors: str | None = None,
+    ) -> str:
+        if self == target:
+            raise OSError("read failed")
+        return original_read_text(self, encoding=encoding, errors=errors)
+
+    monkeypatch.setattr(Path, "read_text", fail_read_text)
+    with pytest.raises(ArchitectRefactorError, match="Could not read"):
+        architect_refactor._read_refactor_target(target, display_path=display_path)
+
+
+def test_architect_refactor_header_helper_handles_blank_and_manual_content() -> None:
+    assert not architect_refactor._has_architect_header("")
+    assert architect_refactor._has_architect_header("\n# entroping: source=architect\n")
+    assert not architect_refactor._has_architect_header("\n# manual\n")
 
 
 def test_run_architect_refactor_validates_all_edits_before_writing(

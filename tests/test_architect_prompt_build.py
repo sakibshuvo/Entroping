@@ -1,16 +1,19 @@
 """Architect prompt-build orchestration tests."""
 
 import json
+import os
 from pathlib import Path
 
 import pytest
 
+import entroping.brain.architect_build as architect_build
 from entroping.brain.architect_build import run_architect_prompt_build
 from entroping.brain.litellm_client import LiteLLMClient, LiteLLMCompletionResult
 from entroping.brain.output_parser import ArchitectOutputParseError
 from entroping.brain.prompt_builder import ArchitectPromptPackage
 from entroping.core.config_loader import load_qanstitution
 from entroping.core.hurl_validator import HurlValidationError
+from entroping.models import ArchitectEdit, ArchitectEditSet
 
 
 def _write_project(tmp_path: Path) -> None:
@@ -199,6 +202,55 @@ def test_run_architect_prompt_build_merge_preserves_manual_blocks(
     assert "# entroping: source=architect" not in target.read_text(encoding="utf-8")
 
 
+def test_run_architect_prompt_build_merge_updates_architect_owned_target(
+    tmp_path: Path,
+) -> None:
+    _write_project(tmp_path)
+    target = tmp_path / "tests" / "generated" / "checkout.hurl"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "# entroping: source=architect\nGET {{base_url}}/old\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    law = load_qanstitution(tmp_path / "qanstitution.yaml")
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        _ = kwargs
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "summary": "Updated Architect-owned target",
+                                "edits": [
+                                    {
+                                        "path": "tests/generated/checkout.hurl",
+                                        "content": "GET {{base_url}}/new\nHTTP 200\n",
+                                    }
+                                ],
+                            },
+                        )
+                    }
+                }
+            ],
+        }
+
+    result = run_architect_prompt_build(
+        law=law,
+        intent="Merge checkout coverage.",
+        strategy="merge",
+        project_root=tmp_path,
+        config_path=tmp_path / "qanstitution.yaml",
+        client=LiteLLMClient(completion_func=fake_completion),
+        hurl_validator=lambda content, display_path: None,
+    )
+
+    assert result.written_paths == (target,)
+    assert target.read_text(encoding="utf-8").startswith("# entroping: source=architect\n")
+    assert "GET {{base_url}}/new" in target.read_text(encoding="utf-8")
+
+
 def test_run_architect_prompt_build_merge_rejects_missing_targets_without_writing(
     tmp_path: Path,
 ) -> None:
@@ -241,6 +293,79 @@ def test_run_architect_prompt_build_merge_rejects_missing_targets_without_writin
     assert not (tmp_path / "tests").exists()
 
 
+@pytest.mark.parametrize(
+    ("existing", "generated", "message"),
+    [
+        (
+            "# manual\nGET {{base_url}}/health\nHTTP 200\n",
+            "GET {{base_url}}/health\nHTTP 200\n",
+            "Architect-owned or contain managed blocks",
+        ),
+        (
+            "# entroping: managed-begin checkout-auth\nGET {{base_url}}/checkout\n",
+            "# entroping: managed-begin checkout-auth\nGET {{base_url}}/checkout\n",
+            "Invalid managed blocks",
+        ),
+        (
+            "# entroping: managed-begin checkout-auth\n"
+            "GET {{base_url}}/checkout\n"
+            "# entroping: managed-end checkout-auth\n",
+            "# entroping: managed-begin refund-auth\n"
+            "GET {{base_url}}/refunds\n"
+            "# entroping: managed-end refund-auth\n",
+            "Could not merge managed blocks",
+        ),
+    ],
+)
+def test_run_architect_prompt_build_merge_rejects_invalid_manual_targets(
+    tmp_path: Path,
+    existing: str,
+    generated: str,
+    message: str,
+) -> None:
+    _write_project(tmp_path)
+    target = tmp_path / "tests" / "manual" / "checkout.hurl"
+    target.parent.mkdir(parents=True)
+    target.write_text(existing, encoding="utf-8")
+    original = target.read_text(encoding="utf-8")
+    law = load_qanstitution(tmp_path / "qanstitution.yaml")
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        _ = kwargs
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "summary": "Invalid manual merge",
+                                "edits": [
+                                    {
+                                        "path": "tests/manual/checkout.hurl",
+                                        "content": generated,
+                                    }
+                                ],
+                            },
+                        )
+                    }
+                }
+            ],
+        }
+
+    with pytest.raises(ValueError, match=message):
+        run_architect_prompt_build(
+            law=law,
+            intent="Merge checkout coverage.",
+            strategy="merge",
+            project_root=tmp_path,
+            config_path=tmp_path / "qanstitution.yaml",
+            client=LiteLLMClient(completion_func=fake_completion),
+            hurl_validator=lambda content, display_path: None,
+        )
+
+    assert target.read_text(encoding="utf-8") == original
+
+
 def test_run_architect_prompt_build_rejects_invalid_output_before_writing(
     tmp_path: Path,
 ) -> None:
@@ -262,6 +387,117 @@ def test_run_architect_prompt_build_rejects_invalid_output_before_writing(
         )
 
     assert not (tmp_path / "tests").exists()
+
+
+def test_requested_tags_replace_existing_tag_metadata() -> None:
+    edit_set = ArchitectEditSet(
+        summary="Tagged",
+        edits=[
+            ArchitectEdit(
+                path="tests/generated/tagged.hurl",
+                content="# entroping: tags=old\nGET {{base_url}}/checkout\nHTTP 200\n",
+            )
+        ],
+    )
+
+    tagged = architect_build._apply_requested_tags(edit_set, tags=("smoke", "ai"))
+
+    assert tagged.edits[0].content.startswith("# entroping: tags=ai,old,smoke\n")
+
+
+def test_architect_build_tag_and_header_helpers_cover_empty_and_non_metadata_lines() -> None:
+    assert not architect_build._has_architect_header("")
+    assert architect_build._has_architect_header("\n# entroping: source=architect\n")
+    assert not architect_build._has_architect_header("\n# manual\n")
+    assert not architect_build._is_tags_metadata_line("# entroping:")
+    assert not architect_build._is_tags_metadata_line("# entroping: owner=qa")
+    assert not architect_build._is_tags_metadata_line("# plain comment")
+    assert architect_build._content_with_requested_tags("", ("smoke",)) == "# entroping: tags=smoke"
+    assert architect_build._content_with_requested_tags(
+        "\nGET {{base_url}}/checkout\nHTTP 200\n",
+        ("smoke",),
+    ).startswith("\n# entroping: tags=smoke\n")
+    assert architect_build._content_with_requested_tags(
+        "# entroping: source=architect\nGET {{base_url}}/checkout\nHTTP 200\n",
+        ("smoke",),
+    ).startswith("# entroping: source=architect\n# entroping: tags=smoke\n")
+
+
+def test_read_merge_target_rejects_unsafe_or_unreadable_targets(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "tests" / "manual.hurl"
+    target.parent.mkdir()
+    target.write_text("# manual\nGET /health\nHTTP 200\n", encoding="utf-8")
+    outside_dir = tmp_path.parent / f"{tmp_path.name}-outside"
+    outside_dir.mkdir()
+    outside = outside_dir / "outside.hurl"
+    outside.write_text("# manual\nGET /outside\nHTTP 200\n", encoding="utf-8")
+    symlink = tmp_path / "tests" / "linked.hurl"
+    symlink.symlink_to(target)
+
+    with pytest.raises(ValueError, match="must not use symlinks"):
+        architect_build._read_merge_target("tests/linked.hurl", root=tmp_path)
+
+    directory = tmp_path / "tests" / "directory.hurl"
+    directory.mkdir()
+    with pytest.raises(ValueError, match="must be a file"):
+        architect_build._read_merge_target("tests/directory.hurl", root=tmp_path)
+
+    large = tmp_path / "tests" / "large.hurl"
+    large.write_text("x" * 256_001, encoding="utf-8")
+    with pytest.raises(ValueError, match="too large"):
+        architect_build._read_merge_target("tests/large.hurl", root=tmp_path)
+
+    bad_utf8 = tmp_path / "tests" / "bad.hurl"
+    bad_utf8.write_bytes(b"\xff")
+    with pytest.raises(ValueError, match="UTF-8"):
+        architect_build._read_merge_target("tests/bad.hurl", root=tmp_path)
+
+    escape = tmp_path / "tests" / "escape.hurl"
+    escape.symlink_to(outside)
+
+    def allow_symlink_path(candidate: Path, *, root: Path) -> None:
+        _ = candidate, root
+
+    original_reject_symlink_path = architect_build._reject_symlink_path
+    monkeypatch.setattr(architect_build, "_reject_symlink_path", allow_symlink_path)
+    with pytest.raises(ValueError, match="must stay under project root"):
+        architect_build._read_merge_target("tests/escape.hurl", root=tmp_path)
+
+    monkeypatch.setattr(architect_build, "_reject_symlink_path", original_reject_symlink_path)
+    original_stat = Path.stat
+    target_resolved = target.resolve()
+    target_default_stat_calls = 0
+
+    def fail_stat(self: Path, *, follow_symlinks: bool = True) -> os.stat_result:
+        nonlocal target_default_stat_calls
+        if self == target_resolved and follow_symlinks:
+            target_default_stat_calls += 1
+        if self == target_resolved and follow_symlinks and target_default_stat_calls >= 4:
+            raise OSError("stat failed")
+        return original_stat(self, follow_symlinks=follow_symlinks)
+
+    monkeypatch.setattr(Path, "stat", fail_stat)
+    with pytest.raises(ValueError, match="Could not inspect"):
+        architect_build._read_merge_target("tests/manual.hurl", root=tmp_path)
+
+    monkeypatch.setattr(Path, "stat", original_stat)
+    original_read_text = Path.read_text
+
+    def fail_read_text(
+        self: Path,
+        encoding: str | None = None,
+        errors: str | None = None,
+    ) -> str:
+        if self == target_resolved:
+            raise OSError("read failed")
+        return original_read_text(self, encoding=encoding, errors=errors)
+
+    monkeypatch.setattr(Path, "read_text", fail_read_text)
+    with pytest.raises(ValueError, match="Could not read"):
+        architect_build._read_merge_target("tests/manual.hurl", root=tmp_path)
 
 
 def test_run_architect_prompt_build_validates_before_writing(
