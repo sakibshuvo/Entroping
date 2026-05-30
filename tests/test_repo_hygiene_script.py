@@ -21,6 +21,20 @@ def test_repo_hygiene_help_documents_forbidden_tracked_paths() -> None:
     assert ".entroping/" in result.stdout
 
 
+def test_gitignore_excludes_coverage_artifacts() -> None:
+    result = subprocess.run(
+        ["git", "check-ignore", ".coverage", "coverage.xml", "htmlcov/index.html"],
+        check=False,
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    ignored = set(result.stdout.splitlines())
+    assert ignored == {".coverage", "coverage.xml", "htmlcov/index.html"}
+
+
 def test_repo_hygiene_rejects_forbidden_tracked_paths(tmp_path: Path) -> None:
     subprocess.run(["git", "init"], check=True, cwd=tmp_path, capture_output=True, text=True)
     forbidden = tmp_path / ".DS_Store"

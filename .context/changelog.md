@@ -2,6 +2,7 @@
 
 ## 2026-05-30
 
+- Fixed issue #97's coverage-artifact hygiene gap by ignoring `.coverage`, `coverage.xml`, and `htmlcov/`, with a regression test proving Git ignores validation coverage output.
 - Implemented issue #85's read-only Studio status shell with optional Textual dependency guidance, local latest-run/report/traffic-state inspection, and no-mutation coverage.
 - Implemented issue #84's deterministic drift report MVP with `.entroping/drift-baseline.json`, `run --drift-check`, `--report drift`, missing-baseline artifacts, and result/rule-ID comparison.
 - Implemented issue #83's bounded parallel Hurl execution so `entroping run --parallel` uses QAnstitution worker limits while preserving per-file safety behavior and deterministic report ordering.
