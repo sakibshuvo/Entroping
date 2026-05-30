@@ -88,6 +88,12 @@ scripts/regression.sh --security
 scripts/check.sh
 ```
 
+- [ ] For validation marathons, release hardening, or maintenance-risk reviews, run:
+
+```bash
+scripts/audit_quality.sh
+```
+
 - [ ] Record any skipped check and the concrete reason in the final handoff or PR.
 
 ## 6. Regression And Architecture Review

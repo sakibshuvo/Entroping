@@ -35,8 +35,11 @@ studio = ["textual>=0.85"]
 dev = [
   "mypy>=1.11",
   "pytest>=8.3",
+  "pytest-cov>=7.1.0",
+  "radon>=6.0.1",
   "ruff>=0.8",
   "types-pyyaml>=6.0.12.20260518",
+  "vulture>=2.16",
 ]
 
 [build-system]
