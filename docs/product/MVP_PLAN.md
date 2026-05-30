@@ -87,12 +87,14 @@ Exit criteria:
 
 ### Phase 4: Architect Minimal
 
-Current implementation note: the deterministic pieces of this phase are landing before
-LLM calls. `architect audit` already reports OpenAPI coverage gaps, and `config list`
+Current implementation note: the deterministic pieces of this phase landed before
+LLM calls. `architect audit` reports OpenAPI coverage gaps, and `config list`
 / `config set` manage non-secret Builder/Auditor/Breaker model routing in
-`qanstitution.yaml`. The internal Brain foundation now covers persona loading,
-prompt packaging, structured Hurl edit models, and a lazy LiteLLM adapter; user-facing
-prompt generation remains a later slice.
+`qanstitution.yaml`. The Brain foundation covers persona loading, prompt packaging,
+structured Hurl edit models, provider-output parsing, staged Architect-owned Hurl
+writes, and a lazy LiteLLM adapter. `architect build --prompt` now has a happy path
+for scoped Builder generation. Merge/refactor behavior and broader validation UX
+remain later slices.
 
 Deliverables:
 

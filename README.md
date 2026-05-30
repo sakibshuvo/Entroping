@@ -60,14 +60,14 @@ Available now:
 - Redacted JSON and JUnit reports through `entroping run --report json --report junit`.
 - Escaped HTML run reports through `entroping run --report html`.
 - `entroping report bug` for Markdown handoff from the latest failing run.
-- Architect Brain foundation: validated Hurl edit output models, provider-output parsing, root-bounded persona loading, prompt package assembly, staged Architect-owned Hurl writes, and a lazy LiteLLM adapter boundary.
+- LiteLLM-backed `entroping architect build --prompt` happy path with Builder persona/model loading, structured output parsing, redacted CLI output, and staged Architect-owned Hurl writes.
 - CI-ready local checks through `uv`, `ruff`, `mypy`, and `pytest`.
 
 Not built yet:
 
 - Drift reports.
 - mitmproxy traffic capture.
-- End-to-end LiteLLM Architect build/refactor commands.
+- Architect `--strategy merge`, `refactor`, and broader validation UX.
 - Studio TUI.
 
 ## Quick Start
@@ -184,6 +184,21 @@ It supports common path, query, header, and cookie parameters plus schema exampl
 defaults, constants, and enums for JSON request bodies. `--env local` loads
 `envs/local.env` and passes variables such as `base_url` to Hurl.
 
+Prompt-based Architect generation is available after you add a local Builder persona,
+configure a non-secret model route, and install optional AI dependencies. The checkout
+fixture does not ship provider config or credentials.
+
+```bash
+cd examples/checkout-api
+mkdir -p agents
+printf '%s\n' 'Generate minimal, reviewable Hurl tests.' > agents/builder.md
+uv run --project ../.. entroping config set --agent builder --model openai/gpt-4.1-mini
+cd ../..
+uv sync --dev --extra ai
+cd examples/checkout-api
+uv run --project ../.. entroping architect build --prompt "Generate checkout smoke coverage" --tag ai
+```
+
 CI also runs the same live demo path with a pinned Hurl binary:
 
 ```bash
@@ -217,7 +232,8 @@ Current implementation supports `init`, `doctor`, deterministic `architect build
 from local OpenAPI files with common parameters and schema examples, deterministic
 non-secret `config list` / `config set`, `run --env`, deterministic `architect audit`
 for OpenAPI coverage, deterministic `run`, JSON/JUnit run reports, HTML run reports,
-`report bug`, and internal Brain foundations for future LiteLLM-backed Architect work.
+`report bug`, and LiteLLM-backed `architect build --prompt` for Builder-generated
+Architect-owned Hurl files.
 
 ## Architecture
 

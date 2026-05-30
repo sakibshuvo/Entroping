@@ -11,6 +11,15 @@ import typer
 from rich.console import Console
 
 from entroping import __version__
+from entroping.brain import (
+    ArchitectOutputParseError,
+    ArchitectWriteError,
+    BrainProviderError,
+    PersonaLoadError,
+    PromptBuildError,
+    run_architect_prompt_build,
+)
+from entroping.brain.safety import redact_secret_like_values
 from entroping.bridge.openapi_audit import (
     audit_openapi_coverage,
     audit_report_to_dict,
@@ -248,7 +257,8 @@ def architect_build(
             console.print(f"[yellow]Unsupported architect build strategy: {strategy}[/yellow]")
         raise typer.Exit(2)
     if prompt is not None:
-        _not_implemented("architect build --prompt")
+        _run_architect_prompt_build(prompt=prompt, tag=tag)
+        return
     if not new:
         _not_implemented("architect build")
 
@@ -269,6 +279,39 @@ def architect_build(
     console.print(f"[green]Generated {len(written)} Hurl {noun} under tests/generated.[/green]")
     for path in written:
         console.print(f"Wrote Hurl test: {_display_cli_path(path)}")
+
+
+def _run_architect_prompt_build(*, prompt: str, tag: list[str] | None) -> None:
+    try:
+        tag_filters = normalize_tag_filters(tag)
+        law = load_qanstitution(Path("qanstitution.yaml"))
+        result = run_architect_prompt_build(
+            law=law,
+            intent=prompt,
+            tags=tuple(sorted(tag_filters)),
+            project_root=Path.cwd(),
+            config_path=Path("qanstitution.yaml"),
+        )
+    except (
+        ArchitectOutputParseError,
+        ArchitectWriteError,
+        BrainProviderError,
+        PersonaLoadError,
+        PromptBuildError,
+        QanstitutionLoadError,
+        ValueError,
+    ) as exc:
+        _print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    noun = "test" if len(result.written_paths) == 1 else "tests"
+    console.print(f"[green]Generated {len(result.written_paths)} Architect Hurl {noun}.[/green]")
+    console.print(f"Summary: {_safe_cli_text(result.summary)}", markup=False)
+    console.print(f"Model: {_safe_cli_text(result.model)} ({result.latency_ms} ms)", markup=False)
+    for warning in result.warnings:
+        console.print(f"Warning: {_safe_cli_text(warning)}", style="yellow", markup=False)
+    for path in result.written_paths:
+        console.print(f"Wrote Hurl test: {_safe_cli_text(_display_cli_path(path))}", markup=False)
 
 
 @architect_app.command("refactor")
@@ -589,6 +632,14 @@ def _display_cli_path(path: Path) -> str:
         return str(path.resolve().relative_to(Path.cwd().resolve()))
     except ValueError:
         return str(path)
+
+
+def _safe_cli_text(value: object) -> str:
+    return redact_secret_like_values(str(value))
+
+
+def _print_cli_error(exc: BaseException) -> None:
+    console.print(_safe_cli_text(exc), style="red", markup=False)
 
 
 app.add_typer(config_app, name="config")

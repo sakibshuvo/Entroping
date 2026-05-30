@@ -10,6 +10,8 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
+from entroping.brain.litellm_client import BrainProviderError, LiteLLMCompletionResult, LiteLLMUsage
+from entroping.brain.prompt_builder import ArchitectPromptPackage
 from entroping.cli.main import app
 
 
@@ -437,6 +439,336 @@ def test_architect_build_new_requires_configured_spec(
     assert "sources.spec is required" in result.output
 
 
+def test_architect_build_prompt_writes_validated_architect_hurl(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("agents").mkdir()
+    Path("agents/builder.md").write_text("Build minimal checkout Hurl tests.", encoding="utf-8")
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/builder.md
+    model: openai/gpt-4.1-mini
+    temperature: 0.1
+gates:
+  - id: global_latency
+    condition: "true"
+    gate: duration < 2000
+    enforcement: block
+""".lstrip(),
+        encoding="utf-8",
+    )
+    packages: list[ArchitectPromptPackage] = []
+
+    def fake_complete(
+        self: object,
+        package: ArchitectPromptPackage,
+    ) -> LiteLLMCompletionResult:
+        _ = self
+        packages.append(package)
+        return LiteLLMCompletionResult(
+            content=json.dumps(
+                {
+                    "summary": "Add checkout smoke coverage",
+                    "edits": [
+                        {
+                            "path": "tests/generated/ai_checkout.hurl",
+                            "content": "POST {{base_url}}/checkout\nHTTP 201\n",
+                            "rationale": "Covers generated checkout creation.",
+                        }
+                    ],
+                    "warnings": ["Review generated assertions before committing."],
+                },
+            ),
+            model="openai/gpt-4.1-mini",
+            latency_ms=42,
+            usage=LiteLLMUsage(prompt_tokens=20, completion_tokens=30, total_tokens=50),
+        )
+
+    monkeypatch.setattr("entroping.brain.litellm_client.LiteLLMClient.complete", fake_complete)
+
+    result = CliRunner().invoke(
+        app,
+        ["architect", "build", "--prompt", "Generate checkout smoke coverage.", "--tag", "ai"],
+    )
+
+    assert result.exit_code == 0
+    assert "Generated 1 Architect Hurl test" in result.output
+    assert "Add checkout smoke coverage" in result.output
+    assert "Review generated assertions before committing." in result.output
+    assert packages
+    assert packages[0].role == "builder"
+    assert packages[0].model == "openai/gpt-4.1-mini"
+    assert packages[0].temperature == 0.1
+    assert "Build minimal checkout Hurl tests." in packages[0].messages[0].content
+    assert "global_latency" in packages[0].messages[0].content
+    assert "Generate checkout smoke coverage." in packages[0].messages[1].content
+    assert "Requested Entroping tags: ai" in packages[0].messages[1].content
+    output_path = Path("tests/generated/ai_checkout.hurl")
+    assert output_path.is_file()
+    assert output_path.read_text(encoding="utf-8") == (
+        "# entroping: source=architect\n"
+        "# entroping: tags=ai\n"
+        "POST {{base_url}}/checkout\n"
+        "HTTP 201\n"
+    )
+
+
+def test_architect_build_prompt_rejects_missing_builder_config(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("qanstitution.yaml").write_text("project: checkout-api\ngates: []\n", encoding="utf-8")
+    provider_called = False
+
+    def fake_complete(self: object, package: ArchitectPromptPackage) -> LiteLLMCompletionResult:
+        nonlocal provider_called
+        _ = (self, package)
+        provider_called = True
+        raise AssertionError("provider should not be called")
+
+    monkeypatch.setattr("entroping.brain.litellm_client.LiteLLMClient.complete", fake_complete)
+
+    result = CliRunner().invoke(
+        app,
+        ["architect", "build", "--prompt", "Generate checkout smoke coverage."],
+    )
+
+    assert result.exit_code == 1
+    assert "No agent config found for role builder" in result.output
+    assert provider_called is False
+
+
+def test_architect_build_prompt_rejects_missing_persona_before_provider_call(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/missing.md
+    model: openai/gpt-4.1-mini
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    provider_called = False
+
+    def fake_complete(self: object, package: ArchitectPromptPackage) -> LiteLLMCompletionResult:
+        nonlocal provider_called
+        _ = (self, package)
+        provider_called = True
+        raise AssertionError("provider should not be called")
+
+    monkeypatch.setattr("entroping.brain.litellm_client.LiteLLMClient.complete", fake_complete)
+
+    result = CliRunner().invoke(
+        app,
+        ["architect", "build", "--prompt", "Generate checkout smoke coverage."],
+    )
+
+    assert result.exit_code == 1
+    assert "Agent persona file not found" in result.output
+    assert provider_called is False
+
+
+def test_architect_build_prompt_rejects_invalid_provider_output_without_writing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("agents").mkdir()
+    Path("agents/builder.md").write_text("Build minimal checkout Hurl tests.", encoding="utf-8")
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/builder.md
+    model: openai/gpt-4.1-mini
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    def fake_complete(
+        self: object,
+        package: ArchitectPromptPackage,
+    ) -> LiteLLMCompletionResult:
+        _ = (self, package)
+        return LiteLLMCompletionResult(
+            content="not-json",
+            model="openai/gpt-4.1-mini",
+            latency_ms=1,
+            usage=LiteLLMUsage(prompt_tokens=None, completion_tokens=None, total_tokens=None),
+        )
+
+    monkeypatch.setattr("entroping.brain.litellm_client.LiteLLMClient.complete", fake_complete)
+
+    result = CliRunner().invoke(
+        app,
+        ["architect", "build", "--prompt", "Generate checkout smoke coverage."],
+    )
+
+    assert result.exit_code == 1
+    assert "Architect output must be a valid JSON object" in result.output
+    assert not Path("tests/generated/ai_checkout.hurl").exists()
+
+
+def test_architect_build_prompt_does_not_echo_invalid_provider_content(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("agents").mkdir()
+    Path("agents/builder.md").write_text("Build minimal checkout Hurl tests.", encoding="utf-8")
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/builder.md
+    model: openai/gpt-4.1-mini
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    def fake_complete(
+        self: object,
+        package: ArchitectPromptPackage,
+    ) -> LiteLLMCompletionResult:
+        _ = (self, package)
+        return LiteLLMCompletionResult(
+            content=json.dumps(
+                {
+                    "summary": "invalid output",
+                    "edits": [
+                        {
+                            "path": "tests/generated/leak.hurl",
+                            "content": (
+                                "GET {{base_url}}/health\n# provider-private-context\n\u0000"
+                            ),
+                        }
+                    ],
+                },
+            ),
+            model="openai/gpt-4.1-mini",
+            latency_ms=1,
+            usage=LiteLLMUsage(prompt_tokens=None, completion_tokens=None, total_tokens=None),
+        )
+
+    monkeypatch.setattr("entroping.brain.litellm_client.LiteLLMClient.complete", fake_complete)
+
+    result = CliRunner().invoke(
+        app,
+        ["architect", "build", "--prompt", "Generate checkout smoke coverage."],
+    )
+
+    assert result.exit_code == 1
+    assert "contain control characters" in result.output
+    assert "provider-private-context" not in result.output
+    assert not Path("tests/generated/leak.hurl").exists()
+
+
+def test_architect_build_prompt_redacts_untrusted_provider_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("agents").mkdir()
+    Path("agents/builder.md").write_text("Build minimal checkout Hurl tests.", encoding="utf-8")
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/builder.md
+    model: openai/gpt-4.1-mini
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    def fake_complete(
+        self: object,
+        package: ArchitectPromptPackage,
+    ) -> LiteLLMCompletionResult:
+        _ = (self, package)
+        return LiteLLMCompletionResult(
+            content=json.dumps(
+                {
+                    "summary": "Generated with sk-proj-live-secret",
+                    "edits": [
+                        {
+                            "path": "tests/generated/redacted.hurl",
+                            "content": "GET {{base_url}}/health\nHTTP 200\n",
+                        }
+                    ],
+                    "warnings": ["Provider warning mentioned sk-proj-live-secret"],
+                },
+            ),
+            model="openai/gpt-4.1-mini",
+            latency_ms=1,
+            usage=LiteLLMUsage(prompt_tokens=None, completion_tokens=None, total_tokens=None),
+        )
+
+    monkeypatch.setattr("entroping.brain.litellm_client.LiteLLMClient.complete", fake_complete)
+
+    result = CliRunner().invoke(
+        app,
+        ["architect", "build", "--prompt", "Generate checkout smoke coverage."],
+    )
+
+    assert result.exit_code == 0
+    assert "sk-proj-live-secret" not in result.output
+    assert "[REDACTED]" in result.output
+
+
+def test_architect_build_prompt_redacts_provider_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("agents").mkdir()
+    Path("agents/builder.md").write_text("Build minimal checkout Hurl tests.", encoding="utf-8")
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/builder.md
+    model: openai/gpt-4.1-mini
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    def fake_complete(self: object, package: ArchitectPromptPackage) -> LiteLLMCompletionResult:
+        _ = (self, package)
+        raise BrainProviderError("provider rejected sk-proj-live-secret")
+
+    monkeypatch.setattr("entroping.brain.litellm_client.LiteLLMClient.complete", fake_complete)
+
+    result = CliRunner().invoke(
+        app,
+        ["architect", "build", "--prompt", "Generate checkout smoke coverage."],
+    )
+
+    assert result.exit_code == 1
+    assert "sk-proj-live-secret" not in result.output
+    assert "[REDACTED]" in result.output
+    assert not Path("tests").exists()
+
+
 def test_architect_audit_reports_missing_openapi_coverage_as_json(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -596,8 +928,13 @@ def test_run_executes_discovered_hurl_with_injected_gates_and_cleans_temp_state(
         stdout.write(b"ok\n")
         return subprocess.CompletedProcess(args=args, returncode=0)
 
+    def fail_provider(self: object, package: ArchitectPromptPackage) -> LiteLLMCompletionResult:
+        _ = (self, package)
+        raise AssertionError("entroping run must not call LiteLLM")
+
     monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
     monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.brain.litellm_client.LiteLLMClient.complete", fail_provider)
 
     result = runner.invoke(app, ["run", "--tag", "smoke"])
 

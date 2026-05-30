@@ -32,8 +32,8 @@ Do not duplicate every issue here. The detailed queue lives in GitHub.
 
 ## Current Target
 
-**Goal:** wire the first user-facing LLM-backed Architect command after the Brain
-foundation is in place.
+**Goal:** stabilize the Architect minimal phase and choose the next highest-leverage
+slice after prompt-based Hurl generation.
 
 GitHub Project: [Entroping Alpha](https://github.com/users/sakibshuvo/projects/1)
 
@@ -70,8 +70,9 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [OpenAPI parameters and schema examples](https://github.com/sakibshuvo/Entroping/issues/23) | Done | Path/query/header/cookie parameters and request examples/defaults are supported | Keep generated demo path green |
 | [Deterministic Architect audit coverage](https://github.com/sakibshuvo/Entroping/issues/25) | Done | OpenAPI coverage audit for committed executable Hurl tests is supported | Keep audit output machine-readable |
 | [Non-secret agent config commands](https://github.com/sakibshuvo/Entroping/issues/29) | Done | `config list` / `config set` manage non-secret agent model routing | Keep credentials out of config |
-| [Architect brain foundation](https://github.com/sakibshuvo/Entroping/issues/31) | Done | Persona loading, prompt packaging, structured edit models, and lazy LiteLLM adapter are in place | Wire into `architect build --prompt` |
-| [Architect output parser and staged writer](https://github.com/sakibshuvo/Entroping/issues/33) | Done | Provider JSON is parsed into validated edits and staged as Architect-owned Hurl files | Wire into `architect build --prompt` |
+| [Architect brain foundation](https://github.com/sakibshuvo/Entroping/issues/31) | Done | Persona loading, prompt packaging, structured edit models, and lazy LiteLLM adapter are in place | Keep provider calls outside deterministic run |
+| [Architect output parser and staged writer](https://github.com/sakibshuvo/Entroping/issues/33) | Done | Provider JSON is parsed into validated edits and staged as Architect-owned Hurl files | Keep overwrite and symlink protections tested |
+| [Architect prompt build happy path](https://github.com/sakibshuvo/Entroping/issues/35) | Done | `architect build --prompt` loads Builder persona/model routing, calls LiteLLM through Brain, parses JSON edits, and writes Architect-owned Hurl files | Pick the next Architect hardening slice |
 
 ## Later Roadmap
 
@@ -82,7 +83,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | Reporting Polish | Done | Dependency-free HTML run reports |
 | CI Proof | Done | Live demo smoke with real Hurl in GitHub Actions |
 | OpenAPI Depth | Done | Path/query/header/cookie parameters plus schema examples/defaults |
-| Architect Minimal | Current | Next slice is user-facing `architect build --prompt` with validated generated diffs |
+| Architect Minimal | Current | Prompt generation happy path is available; next slice should harden validation UX, merge/refactor, or move to Eye capture |
 | Eye Capture Spike | Later | mitmproxy capture-only with redaction before persistence |
 | Freeze and Map | Later | Traffic-to-Hurl compiler and dependency maps |
 | Studio | Deferred | Useful after deterministic core and reports are real |
