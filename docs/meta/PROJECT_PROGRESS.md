@@ -32,8 +32,8 @@ Do not duplicate every issue here. The detailed queue lives in GitHub.
 
 ## Current Target
 
-**Goal:** prepare a credible `v0.1.0-alpha` release candidate, then move into
-the Eye capture milestone.
+**Goal:** resolve the final public-release blocker, then start the Eye capture
+foundation.
 
 GitHub Project: [Entroping Alpha](https://github.com/users/sakibshuvo/projects/1)
 
@@ -84,7 +84,11 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Managed-block Architect refactor](https://github.com/sakibshuvo/Entroping/issues/50) | Done | `architect refactor` can update manual Hurl managed blocks while preserving surrounding content | Reused by prompt build merge |
 | [Prompt build merge strategy](https://github.com/sakibshuvo/Entroping/issues/52) | Done | `architect build --strategy merge --prompt` updates existing Architect-owned files or managed manual blocks | Keep non-prompt merge deferred |
 | [Deterministic repo hygiene and local hooks](https://github.com/sakibshuvo/Entroping/issues/54) | Done | `repo_hygiene.sh` blocks tracked local/generated state, `feature_gate.sh` runs it, and optional hook installation is scripted | Keep deterministic gates ahead of prompt-only process |
-| [Alpha release readiness gate](https://github.com/sakibshuvo/Entroping/issues/56) | Current | Release checklist and deterministic `release_check.sh` gate | Tag only after required evidence passes |
+| [Alpha release readiness gate](https://github.com/sakibshuvo/Entroping/issues/56) | Done | Release checklist and deterministic `release_check.sh` gate | Tag only after required evidence passes |
+| [Open-source license and package metadata](https://github.com/sakibshuvo/Entroping/issues/58) | Current | Release blocker for public alpha | Choose license with owner approval before tag |
+| [Eye redaction and traffic store foundation](https://github.com/sakibshuvo/Entroping/issues/61) | Next | Security-first capture models, redaction, and local SQLite state | Build before mitmproxy `watch` wiring |
+| [Eye watch capture-only workflow](https://github.com/sakibshuvo/Entroping/issues/60) | Next | mitmproxy capture command after redaction/store foundation | Keep freeze/map out of scope |
+| [Freeze/map implementation plan](https://github.com/sakibshuvo/Entroping/issues/59) | Later | Design traffic-to-Hurl and dependency export before implementation | Split into focused implementation issues |
 
 ## Later Roadmap
 
@@ -97,8 +101,8 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | OpenAPI Depth | Done | Path/query/header/cookie parameters plus schema examples/defaults |
 | Architect Minimal | Done | Prompt generation, prompt-backed build merge, pre-write Hurl validation, Architect-owned refactor, and managed-block manual refactor are available |
 | Delivery Automation | Done | Deterministic repo hygiene, issue worktrees, regression gates, optional local hooks, and release-readiness checks support multi-session development |
-| Alpha Release | Current | `v0.1.0-alpha` needs release checklist evidence and final public-status polish | Use `scripts/release_check.sh --require-live-demo` before tagging |
-| Eye Capture Spike | Later | mitmproxy capture-only with redaction before persistence |
+| Alpha Release | Current | Release checklist exists; license/package metadata is the remaining public-release blocker | Use `scripts/release_check.sh --require-live-demo` before tagging |
+| Eye Capture Spike | Next | Start with redaction and SQLite traffic state before mitmproxy capture wiring |
 | Freeze and Map | Later | Traffic-to-Hurl compiler and dependency maps |
 | Studio | Deferred | Useful after deterministic core and reports are real |
 
