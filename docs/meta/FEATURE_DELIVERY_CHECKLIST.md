@@ -95,6 +95,7 @@ scripts/check.sh
 - [ ] Check that existing tests still pass.
 - [ ] Review `git diff` for unrelated edits, accidental generated files, secrets, and local state.
 - [ ] Check imports for architecture drift.
+- [ ] When package boundaries are touched, confirm `tests/test_architecture_boundaries.py` still covers the relevant import direction and provider boundary.
 - [ ] Check command names and flags against `docs/technical/COMMAND_CHEAT_SHEET.md`.
 - [ ] Check docs for claims that are not implemented yet.
 - [ ] If the feature touches a boundary listed in `AGENTS.md`, request independent review before commit.

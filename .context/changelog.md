@@ -52,3 +52,4 @@
 - Implemented issue #37's parser-backed prompt Hurl validation with a `hurlfmt` subprocess adapter, all-or-nothing pre-write validation, non-echoing validation errors, and Architect path control-character hardening.
 - Implemented issue #39's config persona-template creation so `config set` safely creates missing local agent Markdown templates without overwriting existing files or accepting traversal, symlink, URL, non-Markdown, or control-character paths.
 - Implemented issue #41's Architect-owned refactor path with safe target glob loading, Builder prompt context packaging, provider JSON parsing, selected-target enforcement, parser-backed Hurl validation, redacted CLI output, and staged writes.
+- Implemented issue #43's executable architecture/provider boundary guard with AST-based regression tests for domain/bridge adapter imports, run-core Brain/LiteLLM imports, and direct provider SDK imports.
