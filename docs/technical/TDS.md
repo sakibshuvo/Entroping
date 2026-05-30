@@ -493,7 +493,7 @@ Mock generation should select outbound calls where the upstream host or logical 
 
 Implementation order:
 
-1. Add deterministic traffic filtering and session candidate models.
+1. Add deterministic traffic filtering and session candidate models. Done in `bridge.traffic_sessions`.
 2. Add a pure `bridge.traffic_to_hurl` compiler for redacted traffic.
 3. Wire `freeze` through safe generated-file writes and parser validation.
 4. Add mocks only after basic freeze and redaction tests are stable.
