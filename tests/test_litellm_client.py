@@ -1,9 +1,11 @@
 """LiteLLM adapter boundary tests."""
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+import entroping.brain.litellm_client as litellm_client
 from entroping.brain.litellm_client import (
     BrainProviderError,
     BrainProviderUnavailableError,
@@ -123,3 +125,107 @@ def test_litellm_client_rejects_empty_response_content(tmp_path: Path) -> None:
 
     with pytest.raises(BrainProviderError, match="empty content"):
         LiteLLMClient(completion_func=fake_completion).complete(_package(tmp_path))
+
+
+def test_litellm_client_reraises_boundary_errors_without_wrapping(tmp_path: Path) -> None:
+    expected = BrainProviderError("already sanitized")
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        _ = kwargs
+        raise expected
+
+    with pytest.raises(BrainProviderError) as exc_info:
+        LiteLLMClient(completion_func=fake_completion).complete(_package(tmp_path))
+
+    assert exc_info.value is expected
+
+
+def test_litellm_client_rejects_litellm_without_completion(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_import_module(name: str) -> object:
+        assert name == "litellm"
+        return SimpleNamespace(not_completion=object())
+
+    monkeypatch.setattr(
+        "entroping.brain.litellm_client.importlib.import_module",
+        fake_import_module,
+    )
+
+    with pytest.raises(BrainProviderUnavailableError, match="does not expose completion"):
+        LiteLLMClient().complete(_package(tmp_path))
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        {},
+        {"choices": []},
+        {"choices": "not-a-sequence"},
+    ],
+)
+def test_litellm_client_rejects_responses_without_choices(
+    tmp_path: Path,
+    response: object,
+) -> None:
+    def fake_completion(**kwargs: object) -> object:
+        _ = kwargs
+        return response
+
+    with pytest.raises(BrainProviderError, match="did not include choices"):
+        LiteLLMClient(completion_func=fake_completion).complete(_package(tmp_path))
+
+
+def test_litellm_client_rejects_response_without_string_content(tmp_path: Path) -> None:
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        _ = kwargs
+        return {"choices": [{"message": {"content": 123}}]}
+
+    with pytest.raises(BrainProviderError, match="did not include message content"):
+        LiteLLMClient(completion_func=fake_completion).complete(_package(tmp_path))
+
+
+def test_litellm_client_reads_attribute_responses_and_defaults_metadata(tmp_path: Path) -> None:
+    package = _package(tmp_path)
+
+    def fake_completion(**kwargs: object) -> object:
+        _ = kwargs
+        return SimpleNamespace(
+            model="",
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(content='{"summary":"ok","edits":[]}'),
+                )
+            ],
+            usage=SimpleNamespace(
+                prompt_tokens="12",
+                completion_tokens=None,
+                total_tokens=17,
+            ),
+        )
+
+    result = LiteLLMClient(completion_func=fake_completion).complete(package)
+
+    assert result.model == package.model
+    assert result.content == '{"summary":"ok","edits":[]}'
+    assert result.usage.prompt_tokens is None
+    assert result.usage.completion_tokens is None
+    assert result.usage.total_tokens == 17
+
+
+def test_litellm_completion_loader_returns_callable(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        _ = kwargs
+        return {"choices": [{"message": {"content": "ok"}}]}
+
+    def fake_import_module(name: str) -> object:
+        assert name == "litellm"
+        return SimpleNamespace(completion=fake_completion)
+
+    monkeypatch.setattr(
+        "entroping.brain.litellm_client.importlib.import_module",
+        fake_import_module,
+    )
+
+    assert litellm_client._load_completion_func() is fake_completion
