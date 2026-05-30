@@ -142,6 +142,40 @@ def test_render_dependency_graph_outputs_route_statistics() -> None:
     assert "calls=1, failures=1, avg=99ms" in dot
 
 
+def test_compile_traffic_dependency_graph_normalizes_empty_paths_to_root() -> None:
+    session = build_traffic_session_candidate(
+        [
+            _exchange(
+                method="GET",
+                url="https://api.example.test",
+            )
+        ],
+        name="root",
+        target_url=None,
+    )
+
+    graph = compile_traffic_dependency_graph(session)
+
+    assert graph.routes[0].path_template == "/"
+
+
+def test_compile_traffic_dependency_graph_templates_redacted_path_segments() -> None:
+    session = build_traffic_session_candidate(
+        [
+            _exchange(
+                method="GET",
+                url="https://api.example.test/users/%5BREDACTED%5D/orders",
+            )
+        ],
+        name="redacted_path",
+        target_url=None,
+    )
+
+    graph = compile_traffic_dependency_graph(session)
+
+    assert graph.routes[0].path_template == "/users/{id}/orders"
+
+
 def test_compile_traffic_dependency_graph_rejects_empty_or_unredacted_sessions() -> None:
     empty = build_traffic_session_candidate([], name="empty", target_url=None)
     unsafe = build_traffic_session_candidate([], name="unsafe", target_url=None)

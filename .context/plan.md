@@ -145,8 +145,9 @@ Latest local evidence:
 - `PYTHONPATH=src uv run pytest tests/test_openapi_loader.py --cov=entroping.core.openapi_loader --cov-report=term-missing -q`: 10 passed; `core.openapi_loader` at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_hurl_validator.py --cov=entroping.core.hurl_validator --cov-report=term-missing -q`: 5 passed; `core.hurl_validator` at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_hurl_merge.py tests/test_architect_output_parser.py --cov=entroping.bridge.merge --cov=entroping.brain.output_parser --cov-report=term-missing -q`: 23 passed; `bridge.merge` and `brain.output_parser` at 100 percent coverage.
-- `scripts/regression.sh --security`: 393 passed; Bandit and default/all-extras dependency audits passed.
-- `scripts/audit_quality.sh`: 393 passed with 86.85 percent total coverage; Radon and Vulture gates passed.
+- `PYTHONPATH=src uv run pytest tests/test_traffic_to_graph.py --cov=entroping.bridge.traffic_to_graph --cov-report=term-missing -q`: 6 passed; `bridge.traffic_to_graph` at 100 percent coverage.
+- `scripts/regression.sh --security`: 395 passed; Bandit and default/all-extras dependency audits passed.
+- `scripts/audit_quality.sh`: 395 passed with 86.89 percent total coverage; Radon and Vulture gates passed.
 
 ## Completed Slice: Issue #90 Run Workflow Extraction
 
