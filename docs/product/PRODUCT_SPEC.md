@@ -121,7 +121,7 @@ Entroping manages the QA lifecycle as Git-native assets:
 
 - Tests are `.hurl` files.
 - Tags define virtual suites.
-- Markdown user stories link to tests through Entroping-readable Hurl comments such as `# entroping: story_id=CHK-001`.
+- Markdown user stories link to tests through Entroping-readable Hurl comments such as `# entroping: story_id=CHK-001`; the shipped bridge compiles this metadata into local traceability reports without calling external business-system APIs.
 - Known failures require issue IDs, reasons, and expiry dates.
 - Reports provide machine-readable and human-readable evidence.
 

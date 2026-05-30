@@ -252,6 +252,10 @@ Good tests:
 - Link external business systems with `# entroping: doc_url=...` when Jira, Notion, Linear, or monday.com remains the business source of truth.
 - Assert contract and business behavior, not only status code.
 
+Entroping can compile discovered Hurl metadata into a local story/test
+traceability report at the bridge layer. The current public CLI does not sync
+Jira, Notion, Linear, or monday.com directly.
+
 ## 9. Managing Test Data
 
 Use environment files for safe defaults:
@@ -436,6 +440,9 @@ If your real requirements live in Jira, Notion, Linear, or monday.com, do not du
 ```
 
 At team scale, generate `docs/stories/*.md` as a read-only cache from the external system so the Architect has local context.
+Keep external systems as sources of truth; Entroping treats `story_id` and
+`doc_url` as local traceability metadata unless a future adapter explicitly
+adds API synchronization.
 
 ## 15. Troubleshooting
 
