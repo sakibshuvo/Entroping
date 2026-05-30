@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+from entroping.core.safe_write import SafeWriteError, safe_write_text
 from entroping.models.drift import (
     DriftBaseline,
     DriftBaselineTest,
@@ -117,12 +118,14 @@ def build_missing_baseline_report(*, current: RunReport, baseline_path: Path) ->
 def write_drift_report(report: DriftReport, path: Path) -> Path:
     """Write a deterministic machine-readable drift report."""
 
-    resolved = _prepare_output_path(path)
-    resolved.write_text(
-        json.dumps(_drift_report_to_dict(report), indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    return resolved
+    try:
+        return safe_write_text(
+            path,
+            json.dumps(_drift_report_to_dict(report), indent=2, sort_keys=True) + "\n",
+            artifact="drift report",
+        )
+    except SafeWriteError as exc:
+        raise DriftReportError(str(exc)) from exc
 
 
 def _compare_common_test(
@@ -243,14 +246,6 @@ def _resolve_read_path(path: Path) -> Path:
         msg = f"Drift baseline path is not a file: {_display_path(expanded)}"
         raise DriftReportError(msg)
     return expanded.resolve()
-
-
-def _prepare_output_path(path: Path) -> Path:
-    expanded = path.expanduser()
-    _reject_symlink_path_components(expanded, action="write drift report")
-    resolved = expanded.resolve()
-    resolved.parent.mkdir(parents=True, exist_ok=True)
-    return resolved
 
 
 def _reject_symlink_path_components(path: Path, *, action: str) -> None:

@@ -147,7 +147,7 @@ Latest local evidence:
 - `PYTHONPATH=src uv run pytest tests/test_hurl_validator.py --cov=entroping.core.hurl_validator --cov-report=term-missing -q`: 5 passed; `core.hurl_validator` at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_hurl_merge.py tests/test_architect_output_parser.py --cov=entroping.bridge.merge --cov=entroping.brain.output_parser --cov-report=term-missing -q`: 23 passed; `bridge.merge` and `brain.output_parser` at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_traffic_to_graph.py --cov=entroping.bridge.traffic_to_graph --cov-report=term-missing -q`: 6 passed; `bridge.traffic_to_graph` at 100 percent coverage.
-- `PYTHONPATH=src uv run pytest tests/test_report_writer.py --cov=entroping.core.report_writer --cov-report=term-missing -q`: 10 passed; `core.report_writer` at 100 percent coverage.
+- `PYTHONPATH=src uv run pytest tests/test_report_writer.py --cov=entroping.core.report_writer --cov-report=term-missing -q`: 12 passed; `core.report_writer` at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_traffic_redactor.py --cov=entroping.core.traffic_redactor --cov-report=term-missing -q`: 10 passed; `core.traffic_redactor` at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_brain_prompt_builder.py --cov=entroping.brain.prompt_builder --cov-report=term-missing -q`: 16 passed; `brain.prompt_builder` at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_story_traceability.py --cov=entroping.bridge.story_traceability --cov-report=term-missing -q`: 6 passed; `bridge.story_traceability` at 100 percent coverage.
@@ -161,9 +161,10 @@ Latest local evidence:
 - `PYTHONPATH=src uv run pytest tests/test_traffic_sessions.py tests/test_traffic_to_hurl.py tests/test_traffic_to_wiremock.py --cov=entroping.bridge.traffic_sessions --cov=entroping.bridge.traffic_to_hurl --cov=entroping.bridge.traffic_to_wiremock --cov-report=term-missing -q`: 38 passed; targeted traffic compiler modules at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_config_loader.py tests/test_config_writer.py tests/test_env_loader.py --cov=entroping.core.config_loader --cov=entroping.core.config_writer --cov=entroping.core.env_loader --cov-report=term-missing -q`: 58 passed; targeted config/env modules at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_openapi_to_hurl.py tests/test_architect_audit.py --cov=entroping.bridge.openapi_to_hurl --cov=entroping.bridge.openapi_audit --cov-report=term-missing -q`: 39 passed; `bridge.openapi_to_hurl` and `bridge.openapi_audit` at 100 percent coverage.
+- `PYTHONPATH=src uv run pytest tests/test_safe_write.py --cov=entroping.core.safe_write --cov-report=term-missing -q`: 12 passed; `core.safe_write` at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_ci_workflow.py tests/test_release_docs.py tests/test_agent_workflow_docs.py -q`: 15 passed.
-- `scripts/regression.sh --security`: 544 passed; Bandit and default/all-extras dependency audits passed.
-- `scripts/audit_quality.sh`: 544 passed with 93.66 percent total coverage; Radon and Vulture gates passed.
+- `scripts/regression.sh --security`: 561 passed; Bandit and default/all-extras dependency audits passed.
+- `scripts/audit_quality.sh`: 561 passed with 94.07 percent total coverage; Radon and Vulture gates passed.
 
 ## Completed Slice: Issue #90 Run Workflow Extraction
 
@@ -266,6 +267,23 @@ Implemented boundaries:
 - The release checklist documents the Hurl bump process: update version,
   compute `sha256sum` locally, update `HURL_SHA256`, and let CI prove the demo
   path.
+
+## Completed Slice: Issue #149 Atomic Artifact Writes
+
+Outcome: core artifact writers now share one durable, symlink-safe write path
+instead of maintaining separate direct-write and temp-file implementations.
+
+Implemented boundaries:
+
+- `core.safe_write` writes text and binary artifacts through destination-local
+  temporary files, flushes and fsyncs them, rejects symlinked targets and parent
+  components, and atomically replaces final targets.
+- Existing targets are preserved when temporary writes or replacements fail.
+- Freeze-generated Hurl, WireMock mappings, PNG dependency maps, drift reports,
+  JSON/JUnit/HTML run reports, and bug reports all route through the shared
+  helper while preserving their module-specific public error types.
+- `core.safe_write` and `core.report_writer` have 100 percent focused module
+  coverage for the touched behavior.
 
 ## Completed Slice: Issue #85 Read-Only Studio Status Shell
 

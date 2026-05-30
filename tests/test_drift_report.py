@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import entroping.core.drift_report as drift_report
 from entroping.core.drift_report import (
     DriftBaselineNotFoundError,
     DriftReportError,
@@ -13,6 +14,7 @@ from entroping.core.drift_report import (
     load_drift_baseline,
     write_drift_report,
 )
+from entroping.core.safe_write import SafeWriteError
 from entroping.models.drift import DriftBaseline, DriftBaselineTest
 from entroping.models.report import RunReport, RunReportSummary, RunTestReport
 
@@ -159,6 +161,30 @@ def test_write_missing_baseline_drift_report_is_machine_readable(tmp_path: Path)
     assert data["summary"]["drifted"] == 1
     assert data["findings"][0]["kind"] == "missing_baseline"
     assert "Copy .entroping/latest-run.json" in data["findings"][0]["message"]
+
+
+def test_write_drift_report_preserves_existing_target_when_atomic_write_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    report = build_missing_baseline_report(
+        current=_run_report(_test_report("tests/health.hurl")),
+        baseline_path=tmp_path / ".entroping" / "drift-baseline.json",
+    )
+    output = tmp_path / "reports" / "drift.json"
+    output.parent.mkdir()
+    output.write_text("old\n", encoding="utf-8")
+
+    def fail_safe_write(path: Path, content: str, *, artifact: str) -> Path:
+        _ = path, content, artifact
+        raise SafeWriteError("temporary write failed")
+
+    monkeypatch.setattr(drift_report, "safe_write_text", fail_safe_write)
+
+    with pytest.raises(DriftReportError, match="temporary write failed"):
+        write_drift_report(report, output)
+
+    assert output.read_text(encoding="utf-8") == "old\n"
 
 
 def test_load_drift_baseline_rejects_missing_or_symlinked_baseline(tmp_path: Path) -> None:
