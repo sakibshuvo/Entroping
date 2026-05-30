@@ -60,6 +60,48 @@ def test_load_environment_variables_rejects_invalid_variable_names(tmp_path: Pat
         load_environment_variables("local", root=tmp_path)
 
 
+def test_load_environment_variables_rejects_duplicate_variables(tmp_path: Path) -> None:
+    env_file = tmp_path / "envs" / "local.env"
+    env_file.parent.mkdir()
+    env_file.write_text("base_url=http://one\nbase_url=http://two\n", encoding="utf-8")
+
+    with pytest.raises(EnvironmentLoadError, match="duplicate environment variable"):
+        load_environment_variables("local", root=tmp_path)
+
+
+def test_load_environment_variables_rejects_non_utf8_files(tmp_path: Path) -> None:
+    env_file = tmp_path / "envs" / "local.env"
+    env_file.parent.mkdir()
+    env_file.write_bytes(b"\xff\xfe\x00")
+
+    with pytest.raises(EnvironmentLoadError, match="Environment file is not valid UTF-8"):
+        load_environment_variables("local", root=tmp_path)
+
+
+def test_load_environment_variables_wraps_read_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env_file = tmp_path / "envs" / "local.env"
+    env_file.parent.mkdir()
+    env_file.write_text("base_url=http://localhost:8080\n", encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def fail_read_text(
+        self: Path,
+        encoding: str | None = None,
+        errors: str | None = None,
+    ) -> str:
+        if self == env_file.resolve():
+            raise OSError("disk unavailable")
+        return original_read_text(self, encoding=encoding, errors=errors)
+
+    monkeypatch.setattr(Path, "read_text", fail_read_text)
+
+    with pytest.raises(EnvironmentLoadError, match="Could not read environment file"):
+        load_environment_variables("local", root=tmp_path)
+
+
 def test_load_environment_variables_rejects_symlinked_files(tmp_path: Path) -> None:
     env_dir = tmp_path / "envs"
     env_dir.mkdir()

@@ -76,6 +76,33 @@ gates:
         load_qanstitution(tmp_path / "qanstitution.yaml")
 
 
+def test_load_qanstitution_rejects_missing_root_file(tmp_path: Path) -> None:
+    with pytest.raises(QanstitutionLoadError, match="QAnstitution file not found"):
+        load_qanstitution(tmp_path / "missing.yaml")
+
+
+def test_load_qanstitution_rejects_import_cycles(tmp_path: Path) -> None:
+    write_yaml(
+        tmp_path / "a.yaml",
+        """
+project: a
+imports:
+  - ./b.yaml
+""",
+    )
+    write_yaml(
+        tmp_path / "b.yaml",
+        """
+project: b
+imports:
+  - ./a.yaml
+""",
+    )
+
+    with pytest.raises(QanstitutionLoadError, match="import cycle detected"):
+        load_qanstitution(tmp_path / "a.yaml")
+
+
 def test_load_qanstitution_rejects_remote_imports_without_network(tmp_path: Path) -> None:
     write_yaml(
         tmp_path / "qanstitution.yaml",
@@ -92,6 +119,20 @@ gates:
     )
 
     with pytest.raises(QanstitutionLoadError, match="Remote QAnstitution imports"):
+        load_qanstitution(tmp_path / "qanstitution.yaml")
+
+
+def test_load_qanstitution_rejects_unsupported_import_schemes(tmp_path: Path) -> None:
+    write_yaml(
+        tmp_path / "qanstitution.yaml",
+        """
+project: checkout-api
+imports:
+  - s3://bucket/security.yaml
+""",
+    )
+
+    with pytest.raises(QanstitutionLoadError, match="Unsupported QAnstitution import scheme"):
         load_qanstitution(tmp_path / "qanstitution.yaml")
 
 
@@ -200,3 +241,56 @@ imports:
 
     with pytest.raises(QanstitutionLoadError, match="Unsupported QAnstitution condition syntax"):
         load_qanstitution(tmp_path / "qanstitution.yaml")
+
+
+@pytest.mark.parametrize(
+    ("body", "message"),
+    [
+        ("project: [", "Invalid YAML"),
+        ("[]", "must contain a YAML mapping"),
+        ("1: checkout-api", "keys must be strings"),
+        ("", "Invalid QAnstitution config"),
+    ],
+)
+def test_load_qanstitution_rejects_invalid_yaml_documents(
+    tmp_path: Path,
+    body: str,
+    message: str,
+) -> None:
+    write_yaml(tmp_path / "qanstitution.yaml", body)
+
+    with pytest.raises(QanstitutionLoadError, match=message):
+        load_qanstitution(tmp_path / "qanstitution.yaml")
+
+
+def test_load_qanstitution_wraps_read_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config_path = tmp_path / "qanstitution.yaml"
+    write_yaml(config_path, "project: checkout-api\n")
+    original_open = Path.open
+
+    def fail_open(
+        self: Path,
+        mode: str = "r",
+        buffering: int = -1,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
+    ) -> object:
+        if self == config_path.resolve():
+            raise OSError("disk unavailable")
+        return original_open(
+            self,
+            mode=mode,
+            buffering=buffering,
+            encoding=encoding,
+            errors=errors,
+            newline=newline,
+        )
+
+    monkeypatch.setattr(Path, "open", fail_open)
+
+    with pytest.raises(QanstitutionLoadError, match="Could not read QAnstitution file"):
+        load_qanstitution(config_path)
