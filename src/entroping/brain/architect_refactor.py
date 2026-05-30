@@ -3,13 +3,19 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
+from typing import Literal
 
-from entroping.brain.architect_writer import write_architect_edits
+from entroping.brain.architect_writer import PreparedHurlWrite, write_refactor_hurl_edits
 from entroping.brain.litellm_client import LiteLLMClient, LiteLLMUsage
 from entroping.brain.output_parser import parse_architect_edit_set
 from entroping.brain.persona_loader import load_agent_persona
 from entroping.brain.prompt_builder import build_architect_prompt_package
 from entroping.brain.safety import has_disallowed_control
+from entroping.bridge.merge import (
+    HurlMergeError,
+    list_managed_hurl_block_ids,
+    merge_managed_hurl_blocks,
+)
 from entroping.core.hurl_validator import validate_hurl_content
 from entroping.models import ArchitectEditSet
 from entroping.models.qanstitution import Qanstitution
@@ -42,6 +48,8 @@ class RefactorTarget:
     display_path: str
     path: Path
     content: str
+    ownership: Literal["architect", "managed_blocks"]
+    managed_block_ids: tuple[str, ...] = ()
 
 
 def run_architect_refactor(
@@ -69,8 +77,9 @@ def run_architect_refactor(
     completion = (client or LiteLLMClient()).complete(package)
     edit_set = parse_architect_edit_set(completion.content)
     _validate_selected_edits(edit_set, selected_paths={target.display_path for target in targets})
-    _validate_refactored_hurl(edit_set, hurl_validator=hurl_validator or validate_hurl_content)
-    written_paths = write_architect_edits(edit_set, project_root=root)
+    writes = _prepare_refactor_writes(edit_set, targets=targets)
+    _validate_refactored_hurl(writes, hurl_validator=hurl_validator or validate_hurl_content)
+    written_paths = write_refactor_hurl_edits(writes, project_root=root)
     return ArchitectRefactorResult(
         summary=edit_set.summary,
         warnings=tuple(edit_set.warnings),
@@ -133,10 +142,29 @@ def _load_refactor_target(path: Path, *, root: Path) -> RefactorTarget:
 
     display_path = _display_path(resolved, root=root)
     content = _read_refactor_target(resolved, display_path=display_path)
-    if not _has_architect_header(content):
-        msg = f"Refactor target must be Architect-owned: {display_path}"
+    if _has_architect_header(content):
+        return RefactorTarget(
+            display_path=display_path,
+            path=resolved,
+            content=content,
+            ownership="architect",
+        )
+
+    try:
+        managed_block_ids = list_managed_hurl_block_ids(content)
+    except HurlMergeError as exc:
+        msg = f"Invalid managed blocks in refactor target {display_path}: {exc}"
+        raise ArchitectRefactorError(msg) from exc
+    if not managed_block_ids:
+        msg = f"Refactor target must be Architect-owned or contain managed blocks: {display_path}"
         raise ArchitectRefactorError(msg)
-    return RefactorTarget(display_path=display_path, path=resolved, content=content)
+    return RefactorTarget(
+        display_path=display_path,
+        path=resolved,
+        content=content,
+        ownership="managed_blocks",
+        managed_block_ids=managed_block_ids,
+    )
 
 
 def _reject_symlink_path(candidate: Path, *, root: Path) -> None:
@@ -181,15 +209,27 @@ def _has_architect_header(content: str) -> bool:
 
 
 def _render_refactor_intent(prompt: str, *, targets: tuple[RefactorTarget, ...]) -> str:
-    target_lines = "\n".join(f"- {target.display_path}" for target in targets)
+    target_lines = "\n".join(_render_target_line(target) for target in targets)
     return "\n\n".join(
         [
-            "Refactor only the selected Architect-owned Hurl files.",
+            "Refactor only the selected Hurl files.",
             f"Instruction:\n{prompt}",
             f"Selected targets:\n{target_lines}",
+            (
+                "Return full Hurl content for Architect-owned whole-file targets. "
+                "For managed-block manual targets, return only matching managed block "
+                "sections and do not include or modify content outside those markers."
+            ),
             "Return a JSON edit for each modified target and do not create new files.",
         ]
     )
+
+
+def _render_target_line(target: RefactorTarget) -> str:
+    if target.ownership == "architect":
+        return f"- {target.display_path} (Architect-owned whole-file target)"
+    block_ids = ", ".join(target.managed_block_ids)
+    return f"- {target.display_path} (Managed-block manual target; block IDs: {block_ids})"
 
 
 def _validate_selected_edits(
@@ -203,13 +243,47 @@ def _validate_selected_edits(
             raise ArchitectRefactorError(msg)
 
 
-def _validate_refactored_hurl(
+def _prepare_refactor_writes(
     edit_set: ArchitectEditSet,
+    *,
+    targets: tuple[RefactorTarget, ...],
+) -> tuple[PreparedHurlWrite, ...]:
+    targets_by_path = {target.display_path: target for target in targets}
+    writes: list[PreparedHurlWrite] = []
+    for edit in edit_set.edits:
+        target = targets_by_path[edit.path]
+        if target.ownership == "architect":
+            writes.append(
+                PreparedHurlWrite(
+                    path=edit.path,
+                    content=edit.content,
+                    require_architect_header=True,
+                )
+            )
+            continue
+
+        try:
+            merged = merge_managed_hurl_blocks(target.content, edit.content)
+        except HurlMergeError as exc:
+            msg = f"Could not merge managed blocks for {target.display_path}: {exc}"
+            raise ArchitectRefactorError(msg) from exc
+        writes.append(
+            PreparedHurlWrite(
+                path=edit.path,
+                content=merged.content,
+                require_architect_header=False,
+            )
+        )
+    return tuple(writes)
+
+
+def _validate_refactored_hurl(
+    writes: tuple[PreparedHurlWrite, ...],
     *,
     hurl_validator: HurlValidator,
 ) -> None:
-    for edit in edit_set.edits:
-        hurl_validator(edit.content, edit.path)
+    for write in writes:
+        hurl_validator(write.content, write.path)
 
 
 def _display_path(path: Path, *, root: Path) -> str:

@@ -2,7 +2,11 @@
 
 import pytest
 
-from entroping.bridge.merge import HurlMergeError, merge_managed_hurl_blocks
+from entroping.bridge.merge import (
+    HurlMergeError,
+    list_managed_hurl_block_ids,
+    merge_managed_hurl_blocks,
+)
 
 
 def _managed_block(block_id: str, body: str) -> str:
@@ -114,6 +118,24 @@ def test_merge_managed_hurl_blocks_leaves_missing_generated_blocks_unchanged() -
         "GET /still-owned\n"
         "# entroping: managed-end unchanged\n"
     )
+
+
+def test_list_managed_hurl_block_ids_returns_ids_in_file_order() -> None:
+    content = (
+        "# entroping: managed-begin first\n"
+        "GET /first\n"
+        "# entroping: managed-end first\n"
+        "\n"
+        "# entroping: managed-begin second\n"
+        "GET /second\n"
+        "# entroping: managed-end second\n"
+    )
+
+    assert list_managed_hurl_block_ids(content) == ("first", "second")
+
+
+def test_list_managed_hurl_block_ids_returns_empty_tuple_without_markers() -> None:
+    assert list_managed_hurl_block_ids("# manual only\nGET /health\n") == ()
 
 
 @pytest.mark.parametrize(

@@ -78,7 +78,8 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Architect refactor happy path](https://github.com/sakibshuvo/Entroping/issues/41) | Done | `architect refactor` safely updates selected Architect-owned Hurl files through the Brain and parser validation boundaries | Keep manual-file merge behavior explicit |
 | [Architecture and provider boundary tests](https://github.com/sakibshuvo/Entroping/issues/43) | Done | AST-based regression tests enforce domain/bridge import direction, run-core isolation, and LiteLLM-only provider access | Keep process guardrails executable |
 | [CI duplicate workflow reduction](https://github.com/sakibshuvo/Entroping/issues/46) | Done | CI runs on pull requests and pushes to `main`, avoiding duplicate feature-branch runs | Keep marathon feedback fast |
-| [Managed-block Hurl merge](https://github.com/sakibshuvo/Entroping/issues/48) | Done | Pure bridge merge replaces explicit Entroping-managed Hurl blocks while preserving manual content outside them | Wire into Architect merge/refactor later |
+| [Managed-block Hurl merge](https://github.com/sakibshuvo/Entroping/issues/48) | Done | Pure bridge merge replaces explicit Entroping-managed Hurl blocks while preserving manual content outside them | Reused by managed-block refactor |
+| [Managed-block Architect refactor](https://github.com/sakibshuvo/Entroping/issues/50) | Done | `architect refactor` can update manual Hurl managed blocks while preserving surrounding content | Keep build merge strategy separate |
 
 ## Later Roadmap
 
@@ -89,7 +90,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | Reporting Polish | Done | Dependency-free HTML run reports |
 | CI Proof | Done | Live demo smoke with real Hurl in GitHub Actions |
 | OpenAPI Depth | Done | Path/query/header/cookie parameters plus schema examples/defaults |
-| Architect Minimal | Current | Prompt generation, pre-write Hurl validation, and Architect-owned refactor are available; next slice should tackle merge strategy, manual-file-preserving refactor, or Eye capture |
+| Architect Minimal | Current | Prompt generation, pre-write Hurl validation, Architect-owned refactor, and managed-block manual refactor are available; next slice should tackle build merge strategy, prompt UX hardening, or Eye capture |
 | Eye Capture Spike | Later | mitmproxy capture-only with redaction before persistence |
 | Freeze and Map | Later | Traffic-to-Hurl compiler and dependency maps |
 | Studio | Deferred | Useful after deterministic core and reports are real |

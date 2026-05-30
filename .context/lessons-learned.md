@@ -54,5 +54,6 @@
 - Architecture rules should be executable tests, not only prose. Use AST import-boundary checks to catch domain-to-adapter drift, run-core Brain imports, and direct provider SDK imports before review.
 - PR CI should run on `pull_request` plus `push` to `main`; broad branch push triggers double the feedback noise during multi-session work without increasing coverage.
 - Manual-file-preserving AI maintenance needs explicit ownership markers. Whole-file overwrite is safe only for Architect-owned files; manual files should opt into block-level replacement with deterministic merge errors.
+- Refactor writes need a separate prepared-write path from generation writes: generated files may create Architect-owned outputs, while refactors should require selected existing targets and preserve manual ownership mode.
 - Treat model summaries, warnings, and provider errors as untrusted CLI output. Redact token-shaped values and print without Rich markup interpretation before showing them to users.
 - Parser-backed validation errors for model-generated Hurl should identify the generated file path but not echo raw parser stderr/stdout, because those streams can include provider-supplied snippets.

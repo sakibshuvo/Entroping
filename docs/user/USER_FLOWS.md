@@ -99,8 +99,9 @@ entroping architect refactor \
 entroping run --env local --tag regression --report html
 ```
 
-Current alpha support applies to Architect-owned Hurl files only. Manual-file
-preserving refactor is still planned.
+Current alpha support applies to Architect-owned Hurl files and manual files that
+opt into managed-block replacement with `# entroping: managed-begin <id>` and
+`# entroping: managed-end <id>` markers.
 
 ### Success Criteria
 

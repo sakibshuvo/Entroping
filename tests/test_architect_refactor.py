@@ -45,6 +45,11 @@ def _write_architect_hurl(path: Path, content: str) -> None:
     path.write_text(f"# entroping: source=architect\n{content}", encoding="utf-8")
 
 
+def _write_manual_hurl(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
 def test_run_architect_refactor_loads_targets_and_writes_validated_edits(
     tmp_path: Path,
 ) -> None:
@@ -124,6 +129,96 @@ def test_run_architect_refactor_loads_targets_and_writes_validated_edits(
     ]
 
 
+def test_run_architect_refactor_merges_managed_blocks_into_manual_target(
+    tmp_path: Path,
+) -> None:
+    _write_project(tmp_path)
+    target = tmp_path / "tests" / "manual" / "checkout.hurl"
+    _write_manual_hurl(
+        target,
+        (
+            "# manual setup stays\n"
+            "GET {{base_url}}/health\n"
+            "HTTP 200\n"
+            "\n"
+            "# entroping: managed-begin checkout-auth\n"
+            "GET {{base_url}}/checkout\n"
+            "HTTP 200\n"
+            "# entroping: managed-end checkout-auth\n"
+            "\n"
+            "# manual footer stays\n"
+        ),
+    )
+    law = load_qanstitution(tmp_path / "qanstitution.yaml")
+    packages: list[ArchitectPromptPackage] = []
+    validated: list[tuple[str, str]] = []
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        _ = kwargs
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "summary": "Updated managed checkout block",
+                                "edits": [
+                                    {
+                                        "path": "tests/manual/checkout.hurl",
+                                        "content": (
+                                            "# entroping: managed-begin checkout-auth\n"
+                                            "GET {{base_url}}/checkout\n"
+                                            "Authorization: Bearer {{token}}\n"
+                                            "HTTP 200\n"
+                                            "# entroping: managed-end checkout-auth\n"
+                                        ),
+                                    }
+                                ],
+                            },
+                        )
+                    }
+                }
+            ],
+        }
+
+    class CapturingClient(LiteLLMClient):
+        def complete(self, package: ArchitectPromptPackage) -> LiteLLMCompletionResult:
+            packages.append(package)
+            return super().complete(package)
+
+    result = run_architect_refactor(
+        law=law,
+        target_glob="tests/manual/*.hurl",
+        prompt="Add Authorization header to the checkout block.",
+        project_root=tmp_path,
+        config_path=tmp_path / "qanstitution.yaml",
+        client=CapturingClient(completion_func=fake_completion),
+        hurl_validator=lambda content, display_path: validated.append((content, display_path)),
+    )
+
+    expected = (
+        "# manual setup stays\n"
+        "GET {{base_url}}/health\n"
+        "HTTP 200\n"
+        "\n"
+        "# entroping: managed-begin checkout-auth\n"
+        "GET {{base_url}}/checkout\n"
+        "Authorization: Bearer {{token}}\n"
+        "HTTP 200\n"
+        "# entroping: managed-end checkout-auth\n"
+        "\n"
+        "# manual footer stays\n"
+    )
+    assert result.summary == "Updated managed checkout block"
+    assert result.written_paths == (target,)
+    assert target.read_text(encoding="utf-8") == expected
+    assert validated == [(expected, "tests/manual/checkout.hurl")]
+    assert packages
+    assert "Managed-block manual target" in packages[0].messages[1].content
+    assert "checkout-auth" in packages[0].messages[1].content
+    assert "# entroping: source=architect" not in target.read_text(encoding="utf-8")
+
+
 def test_run_architect_refactor_rejects_missing_targets_before_provider_call(
     tmp_path: Path,
 ) -> None:
@@ -189,13 +284,12 @@ def test_discover_refactor_targets_rejects_symlink_targets(tmp_path: Path) -> No
         discover_refactor_targets("tests/linked.hurl", project_root=tmp_path)
 
 
-def test_run_architect_refactor_rejects_non_architect_targets_before_provider_call(
+def test_run_architect_refactor_rejects_manual_targets_without_managed_blocks_before_provider_call(
     tmp_path: Path,
 ) -> None:
     _write_project(tmp_path)
     target = tmp_path / "tests" / "manual.hurl"
-    target.parent.mkdir(parents=True)
-    target.write_text("# manual\nGET {{base_url}}/checkout\nHTTP 200\n", encoding="utf-8")
+    _write_manual_hurl(target, "# manual\nGET {{base_url}}/checkout\nHTTP 200\n")
     law = load_qanstitution(tmp_path / "qanstitution.yaml")
     provider_called = False
 
@@ -205,7 +299,10 @@ def test_run_architect_refactor_rejects_non_architect_targets_before_provider_ca
             provider_called = True
             return super().complete(package)
 
-    with pytest.raises(ArchitectRefactorError, match="Refactor target must be Architect-owned"):
+    with pytest.raises(
+        ArchitectRefactorError,
+        match="Refactor target must be Architect-owned or contain managed blocks",
+    ):
         run_architect_refactor(
             law=law,
             target_glob="tests/manual.hurl",
@@ -217,6 +314,61 @@ def test_run_architect_refactor_rejects_non_architect_targets_before_provider_ca
         )
 
     assert provider_called is False
+
+
+def test_run_architect_refactor_rejects_unknown_managed_blocks_without_writing(
+    tmp_path: Path,
+) -> None:
+    _write_project(tmp_path)
+    target = tmp_path / "tests" / "manual" / "checkout.hurl"
+    original = (
+        "# manual setup stays\n"
+        "# entroping: managed-begin checkout-auth\n"
+        "GET {{base_url}}/checkout\n"
+        "HTTP 200\n"
+        "# entroping: managed-end checkout-auth\n"
+    )
+    _write_manual_hurl(target, original)
+    law = load_qanstitution(tmp_path / "qanstitution.yaml")
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        _ = kwargs
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "summary": "Bad managed block",
+                                "edits": [
+                                    {
+                                        "path": "tests/manual/checkout.hurl",
+                                        "content": (
+                                            "# entroping: managed-begin refund-auth\n"
+                                            "GET {{base_url}}/refunds\n"
+                                            "# entroping: managed-end refund-auth\n"
+                                        ),
+                                    }
+                                ],
+                            },
+                        )
+                    }
+                }
+            ],
+        }
+
+    with pytest.raises(ArchitectRefactorError, match="generated block is not present"):
+        run_architect_refactor(
+            law=law,
+            target_glob="tests/manual/*.hurl",
+            prompt="Add Authorization header.",
+            project_root=tmp_path,
+            config_path=tmp_path / "qanstitution.yaml",
+            client=LiteLLMClient(completion_func=fake_completion),
+            hurl_validator=lambda content, display_path: None,
+        )
+
+    assert target.read_text(encoding="utf-8") == original
 
 
 def test_run_architect_refactor_rejects_edits_outside_selected_targets(

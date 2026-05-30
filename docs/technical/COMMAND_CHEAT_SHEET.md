@@ -32,8 +32,8 @@ entroping config set --agent auditor --model openai/auditor-model
 Current alpha implementation supports deterministic `architect build --new` from a local
 OpenAPI file configured at `sources.spec` in `qanstitution.yaml`, prompt-backed
 `architect build --prompt`, deterministic `architect audit`, and prompt-backed
-`architect refactor` for Architect-owned Hurl files. Remote specs, `--strategy merge`,
-and manual-file-preserving refactors remain planned.
+`architect refactor` for Architect-owned Hurl files and manual files with explicit
+managed blocks. Remote specs and `architect build --strategy merge` remain planned.
 
 | Command | Purpose |
 | --- | --- |
