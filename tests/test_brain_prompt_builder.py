@@ -62,6 +62,17 @@ def test_build_architect_prompt_package_includes_policy_and_context(tmp_path: Pa
     assert "docs/story.md" in package.messages[1].content
 
 
+def test_build_architect_prompt_package_marks_missing_source_context(tmp_path: Path) -> None:
+    package = build_architect_prompt_package(
+        law=_law(tmp_path),
+        persona=_persona(tmp_path),
+        intent="Generate checkout smoke coverage.",
+        source_context={},
+    )
+
+    assert "Source context: none" in package.messages[1].content
+
+
 @pytest.mark.parametrize(
     ("intent", "message"),
     [
@@ -91,6 +102,28 @@ def test_build_architect_prompt_package_rejects_unsafe_context_path(tmp_path: Pa
             persona=_persona(tmp_path),
             intent="Generate coverage.",
             source_context={"../secret.md": "secret"},
+        )
+
+
+@pytest.mark.parametrize(
+    ("path", "message"),
+    [
+        (" ", "context path must not be empty"),
+        (r"docs\story.md", "context path must use POSIX separators"),
+        ("docs/story\x00.md", "context path must not contain control characters"),
+    ],
+)
+def test_build_architect_prompt_package_rejects_malformed_context_paths(
+    tmp_path: Path,
+    path: str,
+    message: str,
+) -> None:
+    with pytest.raises(PromptBuildError, match=message):
+        build_architect_prompt_package(
+            law=_law(tmp_path),
+            persona=_persona(tmp_path),
+            intent="Generate coverage.",
+            source_context={path: "Checkout must return 201."},
         )
 
 
