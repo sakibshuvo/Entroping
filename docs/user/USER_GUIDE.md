@@ -350,20 +350,27 @@ Future drift slices should add:
 
 ## 12. Studio
 
-Open the local TUI:
+Open the read-only local status shell:
 
 ```bash
 entroping studio --env local
 ```
 
-Studio should help inspect:
+Install the optional dependency first in a local checkout:
 
-- Test suites and tags.
-- Last run results.
-- Applied gates.
-- Failure details.
-- Traffic sessions.
-- Reports.
+```bash
+uv sync --extra studio
+```
+
+The first Studio slice inspects:
+
+- Detected QAnstitution project.
+- Latest run summary when `.entroping/latest-run.json` exists.
+- Existing report artifact paths.
+- Traffic-state availability.
+
+Future Studio work should add test-suite navigation, applied-gate detail,
+failure drilldown, and traffic-session views.
 
 Studio is a local development interface. CI should use `entroping run`.
 

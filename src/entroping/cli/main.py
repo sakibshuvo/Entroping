@@ -74,6 +74,12 @@ from entroping.core.traffic_proxy import (
     run_watch,
 )
 from entroping.models.qanstitution import AgentRole
+from entroping.studio.status import (
+    StudioDependencyError,
+    collect_studio_status,
+    ensure_studio_available,
+    render_studio_status,
+)
 
 console = Console()
 
@@ -517,8 +523,14 @@ def studio(
 ) -> None:
     """Open the local Studio interface."""
 
-    _ = env
-    _not_implemented("studio")
+    try:
+        ensure_studio_available()
+        status = collect_studio_status(project_root=Path.cwd(), environment=env)
+    except StudioDependencyError as exc:
+        console.print(f"[yellow]{exc}[/yellow]")
+        raise typer.Exit(1) from exc
+
+    console.print(render_studio_status(status), markup=False, end="")
 
 
 @app.command()

@@ -7,6 +7,7 @@
 - Distribution claims need executable evidence. Build and inspect wheel/sdist artifacts locally, keep `dist/` ignored, and keep PyPI/TestPyPI credentials out of the repo until publishing automation is explicitly designed.
 - Parallel Hurl execution should change scheduling only, not report semantics. Bound worker count from QAnstitution, keep per-file subprocess isolation, and reorder completed futures back to input order before reports are built.
 - Drift reports should compare structured Entroping-owned state first. Do not parse free-form Hurl stdout for product truth; use the sanitized run report until response/header/schema detail is modeled explicitly.
+- Studio should begin as a read-only local-state adapter. Require optional UI dependencies explicitly, render useful terminal status first, and prove the command does not mutate `.entroping`, reports, tests, or config.
 - Optional renderer integrations should stay adapter-local and subprocess-bounded. Feed them already-redacted compiler output, write ignored artifacts atomically, and do not echo renderer stderr because external tools may replay source graph content.
 
 ## 2026-05-29
