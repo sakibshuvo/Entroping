@@ -3,6 +3,7 @@
 import json
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 from typing import BinaryIO
 from xml.etree import ElementTree
 
@@ -10,12 +11,17 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
+import entroping.cli.main as cli_main
 from entroping.brain.litellm_client import BrainProviderError, LiteLLMCompletionResult, LiteLLMUsage
 from entroping.brain.prompt_builder import ArchitectPromptPackage
+from entroping.bridge.openapi_to_hurl import GeneratedHurlFile
 from entroping.cli.main import app
 from entroping.core.hurl_runner import HurlFileResult, HurlRunOptions, HurlSuiteResult
 from entroping.core.hurl_validator import HurlValidationError
+from entroping.core.report_writer import ReportWriterError, write_json_report
+from entroping.core.run_workflow import NoHurlTestsMatchedError
 from entroping.core.traffic_proxy import MitmproxyUnavailableError, WatchConfig
+from entroping.models.report import RunReport, RunReportSummary, RunTestReport
 from entroping.studio.status import StudioDependencyError
 
 
@@ -234,6 +240,26 @@ gates:
     assert "Unsupported QAnstitution condition syntax" in result.output
 
 
+def test_doctor_reports_missing_hurl_and_missing_config(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        cli_main,
+        "discover_hurl",
+        lambda: SimpleNamespace(available=False, path=None),
+    )
+
+    result = CliRunner().invoke(app, ["doctor"])
+
+    assert result.exit_code == 0
+    assert "Hurl:" in result.output
+    assert "not found" in result.output
+    assert "QAnstitution:" in result.output
+    assert "run entroping init --minimal" in result.output
+
+
 def test_config_list_prints_resolved_non_secret_config(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -255,8 +281,13 @@ gates:
         """
 project: checkout-api
 version: "4.1"
+description: Checkout governance
 sources:
   spec: ./openapi.yaml
+  stories: ./stories
+  traffic: .entroping/state.db
+  graph: reports/dependency-map.md
+  types: ./types
 imports:
   - rules/platform.yaml
 agents:
@@ -264,6 +295,7 @@ agents:
     source: agents/builder.md
     model: openai/gpt-4.1-mini
     temperature: 0.2
+    max_tokens: 2048
 gates:
   - id: global_latency
     condition: "true"
@@ -283,15 +315,58 @@ settings:
     assert result.exit_code == 0
     assert "Project: checkout-api" in result.output
     assert "Version: 4.1" in result.output
+    assert "Description: Checkout governance" in result.output
     assert "Spec: ./openapi.yaml" in result.output
+    assert "Stories: ./stories" in result.output
+    assert "Traffic: .entroping/state.db" in result.output
+    assert "Graph: reports/dependency-map.md" in result.output
+    assert "Types: ./types" in result.output
     assert "Imports: 1" in result.output
     assert "Gates: 2" in result.output
     assert "builder" in result.output
     assert "openai/gpt-4.1-mini" in result.output
     assert "agents/builder.md" in result.output
+    assert "max_tokens: 2048" in result.output
     assert "timeout: 45000" in result.output
     assert "parallel_workers: 3" in result.output
     assert "API key" not in result.output
+
+
+def test_config_list_reports_no_sources_or_agents(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("qanstitution.yaml").write_text("project: checkout-api\ngates: []\n", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["config", "list"])
+
+    assert result.exit_code == 0
+    assert "Sources: none" in result.output
+    assert "Agents: none" in result.output
+
+
+def test_config_list_reports_invalid_qanstitution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+gates:
+  - id: bad_condition
+    condition: tags includes 'smoke'
+    gate: duration < 2000
+    enforcement: block
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["config", "list"])
+
+    assert result.exit_code == 1
+    assert "Unsupported QAnstitution condition syntax" in result.output
 
 
 def test_config_set_updates_existing_agent_model_preserving_settings(
@@ -595,6 +670,13 @@ def test_architect_build_requires_supported_generation_mode() -> None:
     assert 'architect build --strategy merge --prompt "<intent>"' in result.output
     assert "not built yet" not in result.output
     assert "not implemented" not in result.output
+
+
+def test_architect_build_rejects_unsupported_strategy() -> None:
+    result = CliRunner().invoke(app, ["architect", "build", "--strategy", "replace"])
+
+    assert result.exit_code == 2
+    assert "Unsupported architect build strategy" in result.output
 
 
 def test_architect_build_prompt_writes_validated_architect_hurl(
@@ -1471,6 +1553,19 @@ def test_architect_audit_rejects_unsupported_output() -> None:
     assert "Unsupported architect audit output" in result.output
 
 
+def test_architect_audit_requires_configured_spec(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("qanstitution.yaml").write_text("project: checkout-api\ngates: []\n", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["architect", "audit"])
+
+    assert result.exit_code == 1
+    assert "sources.spec is required for architect audit" in result.output
+
+
 def test_architect_build_merge_strategy_requires_prompt_for_now() -> None:
     result = CliRunner().invoke(app, ["architect", "build", "--new", "--strategy", "merge"])
 
@@ -1523,6 +1618,23 @@ def test_watch_prints_actionable_missing_proxy_dependency(
     assert result.exit_code == 1
     assert "mitmproxy is required" in result.output
     assert "uv sync --extra proxy" in result.output
+
+
+def test_watch_handles_keyboard_interrupt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def interrupt_run_watch(config: WatchConfig) -> None:
+        _ = config
+        raise KeyboardInterrupt
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("entroping.cli.main.run_watch", interrupt_run_watch)
+
+    result = CliRunner().invoke(app, ["watch"])
+
+    assert result.exit_code == 0
+    assert "Stopped traffic capture" in result.output
 
 
 def test_freeze_reports_missing_traffic_state(
@@ -2221,6 +2333,63 @@ def test_run_env_fails_with_actionable_missing_env_file(
     assert "Environment file not found" in result.output
 
 
+def test_run_reports_no_matching_hurl_tests_with_ci_exit_policy(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    def fake_execute_run_workflow(**kwargs: object) -> object:
+        _ = kwargs
+        raise NoHurlTestsMatchedError("no matches")
+
+    monkeypatch.setattr(cli_main, "execute_run_workflow", fake_execute_run_workflow)
+
+    local_result = CliRunner().invoke(app, ["run", "--tag", "smoke"])
+    ci_result = CliRunner().invoke(app, ["run", "--tag", "smoke", "--ci"])
+
+    assert local_result.exit_code == 0
+    assert ci_result.exit_code == 1
+    assert "No Hurl tests matched" in local_result.output
+    assert "No Hurl tests matched" in ci_result.output
+
+
+def test_run_prints_failed_stdout_from_workflow_result(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    failed = HurlFileResult(
+        path=tmp_path / "tests" / "health.hurl",
+        command=("hurl", "health.hurl"),
+        status="failed",
+        exit_code=1,
+        stdout="assertion failed on stdout",
+        stderr="",
+        stdout_truncated=False,
+        stderr_truncated=False,
+        duration_ms=12,
+    )
+
+    def fake_execute_run_workflow(**kwargs: object) -> object:
+        _ = kwargs
+        return SimpleNamespace(
+            suite=HurlSuiteResult(results=(failed,)),
+            drift_report=None,
+            latest_state_path=tmp_path / ".entroping" / "latest-run.json",
+            artifacts=(),
+            exit_code=1,
+        )
+
+    monkeypatch.setattr(cli_main, "execute_run_workflow", fake_execute_run_workflow)
+
+    result = CliRunner().invoke(app, ["run"])
+
+    assert result.exit_code == 1
+    assert "health.hurl: failed" in result.output
+    assert "assertion failed on stdout" in result.output
+
+
 def test_report_bug_generates_markdown_from_latest_failing_run(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -2276,6 +2445,76 @@ def test_report_bug_returns_actionable_message_without_latest_run(
     assert not (tmp_path / "reports" / "bug.md").exists()
 
 
+def test_report_bug_returns_actionable_message_without_failures(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    latest_state = Path(".entroping") / "latest-run.json"
+    report = RunReport(
+        project="checkout-api",
+        environment="default",
+        generated_at="2026-05-30T00:00:00+00:00",
+        summary=RunReportSummary(total=1, passed=1, failed=0, exit_code=0),
+        tests=(
+            RunTestReport(
+                path="tests/health.hurl",
+                execution_path=".entroping/run/health.hurl",
+                status="passed",
+                exit_code=0,
+                duration_ms=10,
+                rule_ids=(),
+                stdout="",
+                stderr="",
+            ),
+        ),
+    )
+    write_json_report(report, latest_state)
+
+    result = CliRunner().invoke(app, ["report", "bug"])
+
+    assert result.exit_code == 1
+    assert "no failures to report" in result.output
+
+
+def test_report_bug_wraps_writer_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    latest_state = Path(".entroping") / "latest-run.json"
+    report = RunReport(
+        project="checkout-api",
+        environment="default",
+        generated_at="2026-05-30T00:00:00+00:00",
+        summary=RunReportSummary(total=1, passed=0, failed=1, exit_code=1),
+        tests=(
+            RunTestReport(
+                path="tests/health.hurl",
+                execution_path=".entroping/run/health.hurl",
+                status="failed",
+                exit_code=1,
+                duration_ms=10,
+                rule_ids=("global_latency",),
+                stdout="",
+                stderr="assert failed",
+            ),
+        ),
+    )
+    write_json_report(report, latest_state)
+
+    def fail_write_bug_report(report: RunReport, path: Path) -> Path:
+        _ = report, path
+        raise ReportWriterError("could not write bug")
+
+    monkeypatch.setattr(cli_main, "write_bug_report", fail_write_bug_report)
+
+    result = CliRunner().invoke(app, ["report", "bug"])
+
+    assert result.exit_code == 1
+    assert "could not write bug" in result.output
+
+
 def test_run_rejects_unsupported_report_format() -> None:
     result = CliRunner().invoke(app, ["run", "--report", "xml"])
 
@@ -2288,3 +2527,96 @@ def test_run_rejects_empty_tag_filter() -> None:
 
     assert result.exit_code == 2
     assert "Tag filters must not be empty" in result.output
+
+
+def test_cli_helper_normalizes_supported_audit_focus() -> None:
+    assert cli_main._normalize_architect_audit_focus(" LoGiC ") == "logic"
+
+
+def test_configured_spec_reference_preserves_remote_and_absolute_paths(tmp_path: Path) -> None:
+    remote = cli_main._configured_spec_reference("https://example.test/openapi.yaml")
+    absolute = cli_main._configured_spec_reference(str(tmp_path / "openapi.yaml"))
+
+    assert remote == "https://example.test/openapi.yaml"
+    assert absolute == tmp_path / "openapi.yaml"
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "message"),
+    [
+        ("../escape.hurl", "must stay inside the project"),
+        ("tests/manual/checkout.hurl", "must stay under tests/generated"),
+    ],
+)
+def test_write_generated_hurl_file_rejects_unsafe_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    relative_path: str,
+    message: str,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(ValueError, match=message):
+        cli_main._write_generated_hurl_file(
+            GeneratedHurlFile(
+                relative_path=relative_path,
+                content="# entroping: source=openapi\nGET /health\nHTTP 200\n",
+            )
+        )
+
+
+def test_write_generated_hurl_file_rejects_symlinked_output_after_resolution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    output_path = tmp_path / "tests" / "generated" / "health.hurl"
+
+    def allow_symlink_components(path: Path, *, root: Path) -> None:
+        _ = path, root
+
+    original_is_symlink = Path.is_symlink
+
+    def fake_is_symlink(self: Path) -> bool:
+        if self == output_path:
+            return True
+        return original_is_symlink(self)
+
+    monkeypatch.setattr(cli_main, "_reject_symlink_path_components", allow_symlink_components)
+    monkeypatch.setattr(Path, "is_symlink", fake_is_symlink)
+
+    with pytest.raises(ValueError, match="symlinked generated Hurl file"):
+        cli_main._write_generated_hurl_file(
+            GeneratedHurlFile(
+                relative_path="tests/generated/health.hurl",
+                content="# entroping: source=openapi\nGET /health\nHTTP 200\n",
+            )
+        )
+
+
+def test_write_generated_hurl_file_rejects_existing_non_openapi_target(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    target = tmp_path / "tests" / "generated" / "health.hurl"
+    target.parent.mkdir(parents=True)
+    target.write_text("# manual\nGET /health\nHTTP 200\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="non-OpenAPI Hurl file"):
+        cli_main._write_generated_hurl_file(
+            GeneratedHurlFile(
+                relative_path="tests/generated/health.hurl",
+                content="# entroping: source=openapi\nGET /health\nHTTP 200\n",
+            )
+        )
+
+
+def test_display_cli_path_returns_absolute_path_outside_cwd(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    outside = tmp_path.parent / f"{tmp_path.name}-outside.txt"
+
+    assert cli_main._display_cli_path(outside) == str(outside)

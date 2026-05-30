@@ -166,9 +166,10 @@ Latest local evidence:
 - `PYTHONPATH=src uv run pytest tests/test_dependency_mapper.py tests/test_drift_report.py tests/test_traffic_models.py tests/test_studio_status.py --cov=entroping.core.dependency_mapper --cov=entroping.core.drift_report --cov=entroping.models.traffic --cov=entroping.studio.status --cov-report=term-missing --cov-fail-under=100 -q`: 49 passed; targeted support modules at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_traffic_proxy.py tests/test_freeze.py --cov=entroping.core.traffic_proxy --cov=entroping.core.freeze --cov-report=term-missing --cov-fail-under=100 -q`: 42 passed; Eye proxy/freeze modules at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_architect_prompt_build.py tests/test_architect_refactor.py tests/test_architect_writer.py --cov=entroping.brain.architect_build --cov=entroping.brain.architect_refactor --cov=entroping.brain.architect_writer --cov-report=term-missing --cov-fail-under=100 -q`: 57 passed; Architect workflow modules at 100 percent coverage.
+- `PYTHONPATH=src uv run pytest tests/test_cli.py --cov=entroping.cli.main --cov-report=term-missing --cov-fail-under=100 -q`: 85 passed; CLI adapter at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_ci_workflow.py tests/test_release_docs.py tests/test_agent_workflow_docs.py -q`: 15 passed.
-- `scripts/regression.sh --security`: 665 passed; Bandit and default/all-extras dependency audits passed.
-- `scripts/audit_quality.sh`: 665 passed with 99.10 percent total coverage; Radon and Vulture gates passed.
+- `scripts/regression.sh --security`: 682 passed; Bandit and default/all-extras dependency audits passed.
+- `scripts/audit_quality.sh`: 682 passed with 100.00 percent total coverage; Radon and Vulture gates passed.
 
 ## Completed Slice: Issue #90 Run Workflow Extraction
 
@@ -363,6 +364,23 @@ Implemented boundaries:
   redacted provider exceptions, malformed choices/content responses, object
   attribute response shapes, usage type fallbacks, model defaulting, and lazy
   completion loading.
+
+## Completed Slice: Issue #159 CLI Adapter Coverage
+
+Outcome: the Typer CLI adapter now has focused 100 percent coverage without
+changing the locked v4.1 command surface.
+
+Implemented boundaries:
+
+- Doctor/config coverage includes missing Hurl, missing/invalid QAnstitution,
+  no-source/no-agent display, source field display, description display, and
+  agent `max_tokens` display.
+- Architect/watch/run/report coverage includes unsupported strategies, missing
+  audit spec, keyboard-interrupted capture, no-match CI exit policy, failed
+  stdout printing, report-bug no-failure handling, and report writer errors.
+- Helper coverage includes audit focus normalization, remote/absolute spec
+  reference handling, generated Hurl path rejection, symlinked generated output
+  rejection, non-OpenAPI overwrite rejection, and outside-CWD path display.
 
 ## Completed Slice: Issue #85 Read-Only Studio Status Shell
 
