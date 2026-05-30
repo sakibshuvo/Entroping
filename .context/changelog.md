@@ -46,3 +46,4 @@
 - Implemented issue #23's OpenAPI depth slice with deterministic path/query/header/cookie parameter rendering, schema example/default/const/enum request-body generation, parameter validation, review-driven Hurl template/non-finite/collision hardening, and a parameterized checkout demo endpoint.
 - Implemented issue #25's Architect minimal slice with deterministic OpenAPI coverage audit, Markdown/JSON output, CLI pass/fail behavior, and review-driven hardening for executable Hurl coverage and Markdown validity.
 - Implemented issue #29's non-secret config slice with `config list`, `config set`, schema-level unsafe model identifier rejection, effective-policy validation before writes, symlink-safe temporary YAML updates, and focused CLI/domain tests.
+- Implemented issue #31's Brain foundation with validated Architect edit models, root-bounded persona loading, secret-checked prompt packaging, lazy LiteLLM adapter, and no provider/network calls in tests.

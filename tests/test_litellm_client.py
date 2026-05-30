@@ -1,0 +1,106 @@
+"""LiteLLM adapter boundary tests."""
+
+from pathlib import Path
+
+import pytest
+
+from entroping.brain.litellm_client import (
+    BrainProviderError,
+    BrainProviderUnavailableError,
+    LiteLLMClient,
+)
+from entroping.brain.persona_loader import AgentPersona
+from entroping.brain.prompt_builder import ArchitectPromptPackage, build_architect_prompt_package
+from entroping.core.config_loader import load_qanstitution
+
+
+def _package(tmp_path: Path) -> ArchitectPromptPackage:
+    config_path = tmp_path / "qanstitution.yaml"
+    config_path.write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/builder.md
+    model: openai/gpt-4.1-mini
+    temperature: 0.2
+    max_tokens: 1024
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    law = load_qanstitution(config_path)
+    persona = AgentPersona(
+        role="builder",
+        source_path=tmp_path / "agents" / "builder.md",
+        content="Build tests.",
+        model="openai/gpt-4.1-mini",
+        temperature=0.2,
+        max_tokens=1024,
+    )
+    return build_architect_prompt_package(
+        law=law,
+        persona=persona,
+        intent="Generate checkout tests.",
+        source_context={},
+    )
+
+
+def test_litellm_client_calls_injected_completion_without_network(tmp_path: Path) -> None:
+    calls: list[dict[str, object]] = []
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        calls.append(kwargs)
+        return {
+            "model": "openai/gpt-4.1-mini",
+            "choices": [{"message": {"content": '{"summary":"ok","edits":[]}'}}],
+            "usage": {"prompt_tokens": 12, "completion_tokens": 5, "total_tokens": 17},
+        }
+
+    result = LiteLLMClient(completion_func=fake_completion).complete(_package(tmp_path))
+
+    assert calls
+    assert calls[0]["model"] == "openai/gpt-4.1-mini"
+    assert calls[0]["temperature"] == 0.2
+    assert calls[0]["max_tokens"] == 1024
+    assert result.content == '{"summary":"ok","edits":[]}'
+    assert result.usage.total_tokens == 17
+    assert result.latency_ms >= 0
+
+
+def test_litellm_client_raises_when_optional_dependency_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_import_module(name: str) -> object:
+        assert name == "litellm"
+        raise ModuleNotFoundError(name)
+
+    monkeypatch.setattr(
+        "entroping.brain.litellm_client.importlib.import_module",
+        fake_import_module,
+    )
+
+    with pytest.raises(BrainProviderUnavailableError, match="litellm optional dependency"):
+        LiteLLMClient().complete(_package(tmp_path))
+
+
+def test_litellm_client_sanitizes_provider_errors(tmp_path: Path) -> None:
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        _ = kwargs
+        raise RuntimeError("provider rejected sk-proj-live-secret")
+
+    with pytest.raises(BrainProviderError) as exc_info:
+        LiteLLMClient(completion_func=fake_completion).complete(_package(tmp_path))
+
+    assert "sk-proj-live-secret" not in str(exc_info.value)
+    assert "[REDACTED]" in str(exc_info.value)
+
+
+def test_litellm_client_rejects_empty_response_content(tmp_path: Path) -> None:
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        _ = kwargs
+        return {"choices": [{"message": {"content": ""}}]}
+
+    with pytest.raises(BrainProviderError, match="empty content"):
+        LiteLLMClient(completion_func=fake_completion).complete(_package(tmp_path))

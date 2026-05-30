@@ -90,7 +90,9 @@ Exit criteria:
 Current implementation note: the deterministic pieces of this phase are landing before
 LLM calls. `architect audit` already reports OpenAPI coverage gaps, and `config list`
 / `config set` manage non-secret Builder/Auditor/Breaker model routing in
-`qanstitution.yaml`.
+`qanstitution.yaml`. The internal Brain foundation now covers persona loading,
+prompt packaging, structured Hurl edit models, and a lazy LiteLLM adapter; user-facing
+prompt generation remains a later slice.
 
 Deliverables:
 

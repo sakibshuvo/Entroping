@@ -44,3 +44,6 @@
 - Config writers should validate the existing document before mutation and the updated document before write, so a convenience command cannot silently repair or worsen unrelated invalid policy.
 - Config writers need effective-policy validation, not only root-schema validation. If imports, final-gate merge rules, or cycles make `doctor` fail, `config set` must fail before writing too.
 - Avoid predictable temp paths for config writes. Use exclusive random same-directory temp files and validate the temp file before replacing the real config so attacker-controlled symlinks cannot receive config content.
+- Brain implementation can advance safely before user-facing AI commands by making persona loading, prompt packaging, provider invocation, and structured output validation separate modules with tests.
+- Treat persona Markdown and prompt context as untrusted inputs: keep paths root-bounded, reject symlinks, cap file size, and scan for token-shaped secrets before any provider call.
+- LiteLLM belongs behind a lazy adapter with injectable completion functions so normal development and regression tests do not need provider credentials or network access.

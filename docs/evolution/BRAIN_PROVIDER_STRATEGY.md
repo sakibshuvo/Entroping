@@ -116,6 +116,11 @@ The model provides raw reasoning and text generation. Entroping turns that into 
 
 Generated files are accepted only after validation. The model is never the final judge.
 
+Current implementation note: the Brain foundation now has strict Architect edit models,
+root-bounded Markdown persona loading, deterministic prompt package assembly, and a
+lazy LiteLLM adapter that can be tested without network calls. End-to-end
+`architect build --prompt` and `architect refactor` are still future slices.
+
 ## 8. CI Strategy
 
 CI should normally run deterministic tests only:
