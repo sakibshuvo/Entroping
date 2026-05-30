@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from xml.etree import ElementTree
 
+import pytest
+
 from entroping.bridge.policy_to_hurl import HurlGateAssertion
 from entroping.core.gate_injector import HurlExecutionCopy
 from entroping.core.hurl_runner import HurlFileResult, HurlSuiteResult
@@ -77,6 +79,35 @@ def test_write_json_report_includes_ci_debug_fields_and_redacts_output(tmp_path:
     assert "live-secret" not in output.read_text(encoding="utf-8")
     assert "Authorization: [REDACTED]" in data["tests"][0]["stdout"]
     assert "token=[REDACTED]" in data["tests"][0]["stderr"]
+
+
+def test_build_run_report_rejects_mismatched_execution_and_result_counts(tmp_path: Path) -> None:
+    execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
+
+    with pytest.raises(ReportWriterError, match="Execution copy count does not match"):
+        build_run_report(
+            project="checkout-api",
+            environment="local",
+            execution_copies=[],
+            suite=_suite_result(execution, "assert failed\n"),
+            project_root=tmp_path,
+        )
+
+
+def test_build_run_report_displays_absolute_paths_outside_project_root(tmp_path: Path) -> None:
+    outside_source = tmp_path.parent / "external-health.hurl"
+    outside_execution = tmp_path.parent / "external-run-health.hurl"
+
+    report = build_run_report(
+        project="checkout-api",
+        environment="local",
+        execution_copies=[_execution_copy(outside_source, outside_execution)],
+        suite=_suite_result(outside_execution, "assert failed\n"),
+        project_root=tmp_path,
+    )
+
+    assert report.tests[0].path == str(outside_source.resolve())
+    assert report.tests[0].execution_path == str(outside_execution.resolve())
 
 
 def test_write_junit_report_is_valid_ci_consumable_xml(tmp_path: Path) -> None:
@@ -153,6 +184,54 @@ def test_latest_run_state_round_trips_and_renders_bug_report(tmp_path: Path) -> 
     assert "tests/health.hurl" in bug
     assert "global_latency" in bug
     assert "entroping run --tag" in bug
+
+
+def test_render_bug_report_without_failures_returns_guidance() -> None:
+    report = HurlSuiteResult(
+        results=(
+            HurlFileResult(
+                path=Path("tests/health.hurl"),
+                command=("/bin/hurl", "tests/health.hurl"),
+                status="passed",
+                exit_code=0,
+                stdout="",
+                stderr="",
+                stdout_truncated=False,
+                stderr_truncated=False,
+                duration_ms=50,
+            ),
+        ),
+    )
+    run_report = build_run_report(
+        project="checkout-api",
+        environment="local",
+        execution_copies=[_execution_copy(Path("tests/health.hurl"), Path("tests/health.hurl"))],
+        suite=report,
+        project_root=Path("."),
+    )
+
+    assert render_bug_report(run_report) == (
+        "No failing Entroping run is available for bug report generation.\n"
+    )
+
+
+def test_write_bug_report_writes_failure_markdown(tmp_path: Path) -> None:
+    source = tmp_path / "tests" / "health.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
+    report = build_run_report(
+        project="checkout-api",
+        environment="local",
+        execution_copies=[_execution_copy(source, execution)],
+        suite=_suite_result(execution, "assert failed\n"),
+        project_root=tmp_path,
+    )
+    output = tmp_path / "reports" / "bug.md"
+
+    written = write_bug_report(report, output)
+
+    assert written == output.resolve()
+    assert "# Entroping Failure Report" in output.read_text(encoding="utf-8")
+    assert "tests/health.hurl" in output.read_text(encoding="utf-8")
 
 
 def test_write_bug_report_rejects_symlinked_output_path(tmp_path: Path) -> None:
