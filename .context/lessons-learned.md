@@ -65,3 +65,4 @@
 - Freeze/map work needs a compiler boundary before code. Keep filtering/sessioning, traffic-to-Hurl, graph export, and CLI/file writes separate so the Eye does not collapse into one adapter-heavy module.
 - Session candidates should be built from redacted traffic only. Strip binary body text and label target/dependency roles in a pure bridge module before any freeze/map compiler writes artifacts.
 - Traffic-to-Hurl generation should avoid raw response-body replay. Use observed request data plus stable response assertions, and skip token-like, ID-like, timestamp-like, redacted, binary, or templated values.
+- Freeze writes must validate Hurl before touching the target path and use random same-directory temp files plus symlink checks before replacement. Missing traffic state should fail without creating `.entroping/state.db`.

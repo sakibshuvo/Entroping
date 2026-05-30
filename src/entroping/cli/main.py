@@ -39,6 +39,7 @@ from entroping.core.config_writer import (
     update_agent_model_with_persona_template,
 )
 from entroping.core.env_loader import load_environment_variables
+from entroping.core.freeze import FreezeError, run_freeze
 from entroping.core.gate_injector import GateInjectionError, write_injected_execution_copy
 from entroping.core.hurl_discovery import discover_hurl_tests, normalize_tag_filters
 from entroping.core.hurl_runner import (
@@ -453,8 +454,19 @@ def freeze(
 ) -> None:
     """Convert captured traffic into Hurl tests and mocks."""
 
-    _ = (name, golden, mock)
-    _not_implemented("freeze")
+    if mock is not None:
+        console.print("[yellow]freeze --mock is not implemented yet.[/yellow]")
+        raise typer.Exit(1)
+
+    try:
+        result = run_freeze(project_root=Path.cwd(), name=name, golden=golden)
+    except (FreezeError, ValueError) as exc:
+        _print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    noun = "record" if result.record_count == 1 else "records"
+    console.print(f"[green]Froze {result.record_count} traffic {noun} into Hurl.[/green]")
+    console.print(f"Wrote Hurl test: {_display_cli_path(result.output_path)}")
 
 
 @app.command()

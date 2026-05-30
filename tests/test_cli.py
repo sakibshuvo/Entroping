@@ -31,6 +31,48 @@ def _accept_architect_refactor_hurl_validation(monkeypatch: pytest.MonkeyPatch) 
     )
 
 
+def _record_freeze_exchange(tmp_path: Path, *, secret: str = "freeze-secret") -> None:
+    from datetime import UTC, datetime
+
+    from entroping.core.traffic_redactor import redact_traffic_exchange
+    from entroping.core.traffic_store import TrafficStore
+    from entroping.models.traffic import (
+        TrafficBody,
+        TrafficExchange,
+        TrafficRequest,
+        TrafficResponse,
+    )
+
+    exchange = TrafficExchange(
+        captured_at=datetime(2026, 5, 30, 12, 0, tzinfo=UTC),
+        duration_ms=25,
+        request=TrafficRequest(
+            method="POST",
+            url=f"https://api.example.test/checkout?token={secret}",
+            headers={
+                "Authorization": f"Bearer {secret}",
+                "Content-Type": "application/json",
+            },
+            body=TrafficBody(
+                content_type="application/json",
+                size_bytes=44,
+                text=f'{{"cart_id":"cart-1","password":"{secret}"}}',
+            ),
+        ),
+        response=TrafficResponse(
+            status_code=201,
+            headers={"Content-Type": "application/json"},
+            body=TrafficBody(
+                content_type="application/json",
+                size_bytes=43,
+                text='{"id":"ord_123","status":"accepted"}',
+            ),
+        ),
+    )
+    store = TrafficStore.open_project(tmp_path)
+    store.record_exchange(redact_traffic_exchange(exchange))
+
+
 def test_root_help_includes_locked_commands() -> None:
     result = CliRunner().invoke(app, ["--help"])
 
@@ -1383,6 +1425,81 @@ def test_watch_prints_actionable_missing_proxy_dependency(
     assert result.exit_code == 1
     assert "mitmproxy is required" in result.output
     assert "uv sync --extra proxy" in result.output
+
+
+def test_freeze_reports_missing_traffic_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["freeze", "--name", "checkout_flow"])
+
+    assert result.exit_code == 1
+    assert "No traffic state found" in result.output
+    assert not Path("tests/generated/checkout_flow.hurl").exists()
+
+
+def test_freeze_rejects_unsafe_flow_name(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_freeze_exchange(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["freeze", "--name", "../checkout"])
+
+    assert result.exit_code == 1
+    assert "freeze name" in result.output
+    assert not Path("tests/generated/checkout.hurl").exists()
+
+
+def test_freeze_writes_validated_hurl_from_redacted_traffic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_freeze_exchange(tmp_path, secret="live-secret")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "entroping.core.freeze.validate_hurl_content",
+        lambda content, display_path: None,
+    )
+
+    result = CliRunner().invoke(app, ["freeze", "--name", "checkout_flow", "--golden"])
+
+    output = Path("tests/generated/checkout_flow.hurl")
+    assert result.exit_code == 0
+    assert "Wrote Hurl test: tests/generated/checkout_flow.hurl" in result.output
+    assert output.is_file()
+    content = output.read_text(encoding="utf-8")
+    assert "# entroping: source=traffic" in content
+    assert "POST https://api.example.test/checkout?token=%5BREDACTED%5D" in content
+    assert "Authorization: [REDACTED]" in content
+    assert "live-secret" not in content
+    assert 'jsonpath "$.status" == "accepted"' in content
+
+
+def test_freeze_validation_failure_does_not_write_partial_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_freeze_exchange(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    def fail_validation(content: str, display_path: str) -> None:
+        _ = content
+        raise HurlValidationError(f"Generated Hurl failed parser validation: {display_path}")
+
+    monkeypatch.setattr("entroping.core.freeze.validate_hurl_content", fail_validation)
+
+    result = CliRunner().invoke(app, ["freeze", "--name", "checkout_flow"])
+
+    assert result.exit_code == 1
+    assert (
+        "Generated Hurl failed parser validation: tests/generated/checkout_flow.hurl"
+        in result.output
+    )
+    assert not Path("tests/generated/checkout_flow.hurl").exists()
 
 
 def test_run_executes_discovered_hurl_with_injected_gates_and_cleans_temp_state(

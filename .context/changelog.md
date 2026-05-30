@@ -65,3 +65,4 @@
 - Added issue #59's freeze/map implementation plan and ADR-0008 so filtering, sessioning, traffic-to-Hurl compilation, and graph export are split into implementation issues #66 through #69 before coding begins.
 - Implemented issue #66's pure traffic session bridge with static-asset filtering, redacted-record enforcement, binary body text stripping, target/dependency/observed roles, ordering, and unit coverage.
 - Implemented issue #67's redacted traffic-to-Hurl compiler with traffic metadata, request rendering, binary body omission, stable golden assertions, and bridge-only tests.
+- Implemented issue #68's basic `freeze` CLI workflow with missing-state and unsafe-name errors, parser validation before writes, atomic generated Hurl writes, symlink protection, and redaction regression coverage.
