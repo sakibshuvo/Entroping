@@ -5,7 +5,9 @@ from pathlib import Path
 
 import pytest
 
+import entroping.core.freeze as freeze
 from entroping.core.freeze import FreezeError, run_freeze, run_freeze_mock
+from entroping.core.safe_write import SafeWriteError
 from entroping.core.traffic_redactor import redact_traffic_exchange
 from entroping.core.traffic_store import TrafficStore
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
@@ -74,6 +76,38 @@ def test_run_freeze_refuses_symlink_generated_target(tmp_path: Path) -> None:
         )
 
     assert victim.read_text(encoding="utf-8") == "victim\n"
+
+
+def test_run_freeze_preserves_existing_target_when_atomic_write_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_exchange(tmp_path)
+    output = tmp_path / "tests" / "generated" / "checkout_flow.hurl"
+    output.parent.mkdir(parents=True)
+    output.write_text("old\n", encoding="utf-8")
+
+    def fail_safe_write(
+        path: Path,
+        content: str,
+        *,
+        artifact: str,
+        root: Path | None = None,
+    ) -> Path:
+        _ = path, content, artifact, root
+        raise SafeWriteError("temporary write failed")
+
+    monkeypatch.setattr(freeze, "safe_write_text", fail_safe_write)
+
+    with pytest.raises(FreezeError, match="temporary write failed"):
+        run_freeze(
+            project_root=tmp_path,
+            name="checkout_flow",
+            golden=False,
+            hurl_validator=lambda content, display_path: None,
+        )
+
+    assert output.read_text(encoding="utf-8") == "old\n"
 
 
 def test_run_freeze_mock_refuses_symlink_mapping_target(tmp_path: Path) -> None:

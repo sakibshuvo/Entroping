@@ -6,7 +6,9 @@ from pathlib import Path
 
 import pytest
 
+import entroping.core.dependency_mapper as dependency_mapper
 from entroping.core.dependency_mapper import DependencyMapError, run_dependency_map
+from entroping.core.safe_write import SafeWriteError
 from entroping.core.traffic_redactor import redact_traffic_exchange
 from entroping.core.traffic_store import TrafficStore
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
@@ -206,3 +208,50 @@ def test_run_dependency_map_png_refuses_symlink_output(
         run_dependency_map(project_root=tmp_path, export_format="png")
 
     assert victim.read_bytes() == b"victim"
+
+
+def test_run_dependency_map_png_preserves_existing_target_when_atomic_write_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_exchange(tmp_path)
+    output = tmp_path / "reports" / "dependency-map.png"
+    output.parent.mkdir()
+    output.write_bytes(b"old")
+
+    def fake_run(
+        args: list[str],
+        *,
+        input: bytes,
+        capture_output: bool,
+        text: bool,
+        timeout: int,
+        check: bool,
+        shell: bool,
+    ) -> subprocess.CompletedProcess[bytes]:
+        _ = input, capture_output, text, timeout, check, shell
+        return subprocess.CompletedProcess(
+            args=args,
+            returncode=0,
+            stdout=b"\x89PNG\r\n",
+            stderr=b"",
+        )
+
+    def fail_safe_write(
+        path: Path,
+        content: bytes,
+        *,
+        artifact: str,
+        root: Path | None = None,
+    ) -> Path:
+        _ = path, content, artifact, root
+        raise SafeWriteError("temporary write failed")
+
+    monkeypatch.setattr("entroping.core.dependency_mapper.shutil.which", lambda name: "/bin/dot")
+    monkeypatch.setattr("entroping.core.dependency_mapper.subprocess.run", fake_run)
+    monkeypatch.setattr(dependency_mapper, "safe_write_bytes", fail_safe_write)
+
+    with pytest.raises(DependencyMapError, match="temporary write failed"):
+        run_dependency_map(project_root=tmp_path, export_format="png")
+
+    assert output.read_bytes() == b"old"

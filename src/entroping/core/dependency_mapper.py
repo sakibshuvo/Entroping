@@ -2,7 +2,6 @@
 
 import shutil
 import subprocess  # nosec B404
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -19,6 +18,7 @@ from entroping.bridge.traffic_to_graph import (
     render_dependency_graph_markdown,
     render_dependency_graph_mermaid,
 )
+from entroping.core.safe_write import SafeWriteError, safe_write_bytes
 from entroping.core.traffic_store import TrafficStore, TrafficStoreError
 
 MapExportFormat = Literal["mermaid", "dot", "md", "png"]
@@ -151,42 +151,7 @@ def _render_png_export(
 
 
 def _write_binary_atomically(path: Path, content: bytes, *, root: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    _reject_symlink_path(path, root=root)
-    temporary_path = _write_temporary_file(path, content)
     try:
-        if path.is_symlink():
-            msg = f"Refusing to overwrite symlinked dependency map: {path}"
-            raise DependencyMapError(msg)
-        temporary_path.replace(path)
-    except OSError as exc:
-        msg = f"Could not write dependency map {path}: {exc}"
-        raise DependencyMapError(msg) from exc
-    finally:
-        if temporary_path.exists():
-            temporary_path.unlink()
-
-
-def _write_temporary_file(path: Path, content: bytes) -> Path:
-    try:
-        with tempfile.NamedTemporaryFile(
-            mode="xb",
-            dir=path.parent,
-            prefix=f".{path.name}.",
-            suffix=".tmp",
-            delete=False,
-        ) as temporary_file:
-            temporary_file.write(content)
-            return Path(temporary_file.name)
-    except OSError as exc:
-        msg = f"Could not create temporary dependency map next to {path}: {exc}"
-        raise DependencyMapError(msg) from exc
-
-
-def _reject_symlink_path(candidate: Path, *, root: Path) -> None:
-    current = root
-    for part in candidate.relative_to(root).parts:
-        current = current / part
-        if current.is_symlink():
-            msg = f"Refusing to write symlinked dependency map: {current}"
-            raise DependencyMapError(msg)
+        safe_write_bytes(path, content, artifact="dependency map", root=root)
+    except SafeWriteError as exc:
+        raise DependencyMapError(str(exc)) from exc

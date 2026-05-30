@@ -4,11 +4,13 @@ import json
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from html import escape
+from io import BytesIO
 from pathlib import Path
 from xml.etree import ElementTree  # nosec B405
 
 from entroping.core.gate_injector import HurlExecutionCopy
 from entroping.core.hurl_runner import HurlSuiteResult, redact_hurl_output
+from entroping.core.safe_write import SafeWriteError, safe_write_bytes, safe_write_text
 from entroping.models.report import RunReport, RunReportSummary, RunTestReport
 
 
@@ -63,12 +65,11 @@ def build_run_report(
 def write_json_report(report: RunReport, path: Path) -> Path:
     """Write a redacted JSON run report."""
 
-    resolved = _prepare_output_path(path)
-    resolved.write_text(
+    return _write_report_text(
+        path,
         json.dumps(_report_to_dict(report), indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
+        artifact="path",
     )
-    return resolved
 
 
 def load_run_report(path: Path) -> RunReport:
@@ -106,7 +107,6 @@ def load_run_report(path: Path) -> RunReport:
 def write_junit_report(report: RunReport, path: Path) -> Path:
     """Write a CI-consumable JUnit XML report."""
 
-    resolved = _prepare_output_path(path)
     testsuite = ElementTree.Element(
         "testsuite",
         {
@@ -141,16 +141,15 @@ def write_junit_report(report: RunReport, path: Path) -> Path:
 
     tree = ElementTree.ElementTree(testsuite)
     ElementTree.indent(tree, space="  ")
-    tree.write(resolved, encoding="utf-8", xml_declaration=True)
-    return resolved
+    buffer = BytesIO()
+    tree.write(buffer, encoding="utf-8", xml_declaration=True)
+    return _write_report_bytes(path, buffer.getvalue(), artifact="path")
 
 
 def write_html_report(report: RunReport, path: Path) -> Path:
     """Write a dependency-free human-readable HTML report."""
 
-    resolved = _prepare_output_path(path)
-    resolved.write_text(_render_html_report(report), encoding="utf-8")
-    return resolved
+    return _write_report_text(path, _render_html_report(report), artifact="path")
 
 
 def render_bug_report(report: RunReport) -> str:
@@ -190,9 +189,7 @@ def render_bug_report(report: RunReport) -> str:
 def write_bug_report(report: RunReport, path: Path) -> Path:
     """Write a Markdown bug handoff with the same path safety as other reports."""
 
-    resolved = _prepare_output_path(path)
-    resolved.write_text(render_bug_report(report), encoding="utf-8")
-    return resolved
+    return _write_report_text(path, render_bug_report(report), artifact="path")
 
 
 def _report_to_dict(report: RunReport) -> dict[str, object]:
@@ -309,19 +306,15 @@ def _display_path(path: Path, root: Path) -> str:
         return str(resolved)
 
 
-def _prepare_output_path(path: Path) -> Path:
-    expanded = path.expanduser()
-    _reject_symlink_path_components(expanded)
-    resolved = expanded.resolve()
-    resolved.parent.mkdir(parents=True, exist_ok=True)
-    return resolved
+def _write_report_text(path: Path, content: str, *, artifact: str) -> Path:
+    try:
+        return safe_write_text(path, content, artifact=artifact)
+    except SafeWriteError as exc:
+        raise ReportWriterError(str(exc)) from exc
 
 
-def _reject_symlink_path_components(path: Path) -> None:
-    current = Path(path.anchor) if path.is_absolute() else Path(".")
-    parts = path.parts[1:] if path.is_absolute() else path.parts
-    for part in parts:
-        current = current / part
-        if current.is_symlink():
-            msg = f"Refusing to write report through symlinked path component: {current}"
-            raise ReportWriterError(msg)
+def _write_report_bytes(path: Path, content: bytes, *, artifact: str) -> Path:
+    try:
+        return safe_write_bytes(path, content, artifact=artifact)
+    except SafeWriteError as exc:
+        raise ReportWriterError(str(exc)) from exc

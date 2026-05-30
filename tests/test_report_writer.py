@@ -6,6 +6,7 @@ from xml.etree import ElementTree
 
 import pytest
 
+import entroping.core.report_writer as report_writer
 from entroping.bridge.policy_to_hurl import HurlGateAssertion
 from entroping.core.gate_injector import HurlExecutionCopy
 from entroping.core.hurl_runner import HurlFileResult, HurlSuiteResult
@@ -19,6 +20,7 @@ from entroping.core.report_writer import (
     write_json_report,
     write_junit_report,
 )
+from entroping.core.safe_write import SafeWriteError
 
 
 def _execution_copy(source: Path, execution: Path) -> HurlExecutionCopy:
@@ -81,6 +83,35 @@ def test_write_json_report_includes_ci_debug_fields_and_redacts_output(tmp_path:
     assert "token=[REDACTED]" in data["tests"][0]["stderr"]
 
 
+def test_write_json_report_preserves_existing_target_when_atomic_write_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "tests" / "health.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
+    report = build_run_report(
+        project="checkout-api",
+        environment="local",
+        execution_copies=[_execution_copy(source, execution)],
+        suite=_suite_result(execution, "assert failed\n"),
+        project_root=tmp_path,
+    )
+    output = tmp_path / "reports" / "run-latest.json"
+    output.parent.mkdir()
+    output.write_text("old\n", encoding="utf-8")
+
+    def fail_safe_write(path: Path, content: str, *, artifact: str) -> Path:
+        _ = path, content, artifact
+        raise SafeWriteError("temporary write failed")
+
+    monkeypatch.setattr(report_writer, "safe_write_text", fail_safe_write)
+
+    with pytest.raises(ReportWriterError, match="temporary write failed"):
+        write_json_report(report, output)
+
+    assert output.read_text(encoding="utf-8") == "old\n"
+
+
 def test_build_run_report_rejects_mismatched_execution_and_result_counts(tmp_path: Path) -> None:
     execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
 
@@ -137,6 +168,35 @@ def test_write_junit_report_is_valid_ci_consumable_xml(tmp_path: Path) -> None:
     assert failure is not None
     assert failure.attrib["message"] == "failed"
     assert "global_latency" in (failure.text or "")
+
+
+def test_write_junit_report_preserves_existing_target_when_atomic_write_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "tests" / "health.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
+    report = build_run_report(
+        project="checkout-api",
+        environment="ci",
+        execution_copies=[_execution_copy(source, execution)],
+        suite=_suite_result(execution, "assert failed\n"),
+        project_root=tmp_path,
+    )
+    output = tmp_path / "reports" / "junit.xml"
+    output.parent.mkdir()
+    output.write_text("<old />\n", encoding="utf-8")
+
+    def fail_safe_write(path: Path, content: bytes, *, artifact: str) -> Path:
+        _ = path, content, artifact
+        raise SafeWriteError("temporary write failed")
+
+    monkeypatch.setattr(report_writer, "safe_write_bytes", fail_safe_write)
+
+    with pytest.raises(ReportWriterError, match="temporary write failed"):
+        write_junit_report(report, output)
+
+    assert output.read_text(encoding="utf-8") == "<old />\n"
 
 
 def test_write_html_report_escapes_failure_output(tmp_path: Path) -> None:

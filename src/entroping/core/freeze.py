@@ -1,7 +1,6 @@
 """Freeze redacted traffic state into generated artifacts."""
 
 import json
-import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -21,6 +20,7 @@ from entroping.bridge.traffic_to_wiremock import (
     compile_traffic_session_to_wiremock,
 )
 from entroping.core.hurl_validator import HurlValidationError, validate_hurl_content
+from entroping.core.safe_write import SafeWriteError, safe_write_text
 from entroping.core.traffic_store import TrafficStore, TrafficStoreError
 
 
@@ -75,7 +75,7 @@ def run_freeze(
         generated = compile_traffic_session_to_hurl(session, golden=golden)
         output_path = _resolve_generated_hurl_path(generated, root=root)
         active_validator(generated.content, generated.relative_path)
-        _write_text_atomically(output_path, generated.content)
+        _write_text_atomically(output_path, generated.content, root=root)
     except (
         HurlValidationError,
         TrafficHurlCompilationError,
@@ -121,7 +121,12 @@ def run_freeze_mock(
         for generated in generated_mappings:
             json.loads(generated.content)
         for output_path, generated in zip(output_paths, generated_mappings, strict=True):
-            _write_text_atomically(output_path, generated.content, artifact="WireMock mapping")
+            _write_text_atomically(
+                output_path,
+                generated.content,
+                artifact="WireMock mapping",
+                root=root,
+            )
     except (
         json.JSONDecodeError,
         TrafficSessionError,
@@ -246,39 +251,13 @@ def _write_text_atomically(
     path: Path,
     content: str,
     *,
+    root: Path,
     artifact: str = "generated Hurl file",
 ) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary_path = _write_temporary_file(path, content)
     try:
-        if path.is_symlink():
-            msg = f"Refusing to overwrite symlinked {artifact}: {path}"
-            raise FreezeError(msg)
-        temporary_path.replace(path)
-    except OSError as exc:
-        msg = f"Could not write {artifact} {path}: {exc}"
-        raise FreezeError(msg) from exc
-    finally:
-        if temporary_path.exists():
-            temporary_path.unlink()
-
-
-def _write_temporary_file(path: Path, content: str) -> Path:
-    try:
-        with tempfile.NamedTemporaryFile(
-            "w",
-            encoding="utf-8",
-            dir=path.parent,
-            prefix=f".{path.name}.",
-            suffix=".tmp",
-            delete=False,
-        ) as handle:
-            temporary_path = Path(handle.name)
-            handle.write(content)
-            return temporary_path
-    except OSError as exc:
-        msg = f"Could not write temporary generated Hurl file for {path}: {exc}"
-        raise FreezeError(msg) from exc
+        safe_write_text(path, content, artifact=artifact, root=root)
+    except SafeWriteError as exc:
+        raise FreezeError(str(exc)) from exc
 
 
 def _contains_control(value: str) -> bool:
