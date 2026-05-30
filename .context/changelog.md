@@ -57,3 +57,4 @@
 - Implemented issue #48's pure bridge managed-block Hurl merge primitive for replacing explicit Entroping-managed blocks while preserving manual content outside those blocks.
 - Implemented issue #50's managed-block `architect refactor` integration so manual Hurl files can opt into block-level AI maintenance without whole-file overwrite.
 - Implemented issue #52's prompt-backed `architect build --strategy merge` path for existing Architect-owned Hurl files and manual managed blocks.
+- Implemented issue #54's deterministic repo hygiene slice with tracked local/generated-state rejection, feature-gate integration, optional local hook installation, Obsidian UI state removal from Git, and script tests.

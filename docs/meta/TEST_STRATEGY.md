@@ -32,6 +32,10 @@ Fast feature gate:
 scripts/feature_gate.sh
 ```
 
+The feature gate starts with `scripts/repo_hygiene.sh`, which fails if local machine
+state, runtime state, generated reports, graph output, virtualenvs, or tool caches
+are tracked by Git.
+
 Regression suite:
 
 ```bash
@@ -57,6 +61,9 @@ scripts/regression.sh --security
   matters more than a single function result. `tests/test_architecture_boundaries.py`
   is the executable guard for hexagonal imports, deterministic run-core isolation,
   and LiteLLM-only provider access.
+- Development-process guardrails need tests too. Script-level checks should have
+  smoke or negative tests when they enforce behavior that agents might otherwise
+  forget.
 
 ## Pytest Markers
 

@@ -32,8 +32,8 @@ Do not duplicate every issue here. The detailed queue lives in GitHub.
 
 ## Current Target
 
-**Goal:** stabilize the Architect minimal phase and choose the next highest-leverage
-slice after prompt-based Hurl generation.
+**Goal:** harden the autonomous delivery workflow and choose the next highest-leverage
+product slice after prompt-based Hurl generation.
 
 GitHub Project: [Entroping Alpha](https://github.com/users/sakibshuvo/projects/1)
 
@@ -81,6 +81,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Managed-block Hurl merge](https://github.com/sakibshuvo/Entroping/issues/48) | Done | Pure bridge merge replaces explicit Entroping-managed Hurl blocks while preserving manual content outside them | Reused by managed-block refactor |
 | [Managed-block Architect refactor](https://github.com/sakibshuvo/Entroping/issues/50) | Done | `architect refactor` can update manual Hurl managed blocks while preserving surrounding content | Reused by prompt build merge |
 | [Prompt build merge strategy](https://github.com/sakibshuvo/Entroping/issues/52) | Done | `architect build --strategy merge --prompt` updates existing Architect-owned files or managed manual blocks | Keep non-prompt merge deferred |
+| [Deterministic repo hygiene and local hooks](https://github.com/sakibshuvo/Entroping/issues/54) | Done | `repo_hygiene.sh` blocks tracked local/generated state, `feature_gate.sh` runs it, and optional hook installation is scripted | Keep deterministic gates ahead of prompt-only process |
 
 ## Later Roadmap
 
@@ -91,7 +92,8 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | Reporting Polish | Done | Dependency-free HTML run reports |
 | CI Proof | Done | Live demo smoke with real Hurl in GitHub Actions |
 | OpenAPI Depth | Done | Path/query/header/cookie parameters plus schema examples/defaults |
-| Architect Minimal | Current | Prompt generation, prompt-backed build merge, pre-write Hurl validation, Architect-owned refactor, and managed-block manual refactor are available; next slice should tackle prompt UX hardening or Eye capture |
+| Architect Minimal | Done | Prompt generation, prompt-backed build merge, pre-write Hurl validation, Architect-owned refactor, and managed-block manual refactor are available |
+| Delivery Automation | Current | Deterministic repo hygiene, issue worktrees, regression gates, and optional local hooks support multi-session development | Use this process to tackle prompt UX hardening or Eye capture next |
 | Eye Capture Spike | Later | mitmproxy capture-only with redaction before persistence |
 | Freeze and Map | Later | Traffic-to-Hurl compiler and dependency maps |
 | Studio | Deferred | Useful after deterministic core and reports are real |

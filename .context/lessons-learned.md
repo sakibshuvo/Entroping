@@ -58,3 +58,4 @@
 - Prompt-backed build merge should not create missing targets; use plain prompt build for new files and merge strategy only when an existing Hurl file owns the destination.
 - Treat model summaries, warnings, and provider errors as untrusted CLI output. Redact token-shaped values and print without Rich markup interpretation before showing them to users.
 - Parser-backed validation errors for model-generated Hurl should identify the generated file path but not echo raw parser stderr/stdout, because those streams can include provider-supplied snippets.
+- Prompt rules are not enough for multi-session development. Any repeatable decision about tracked machine state, generated output, cache files, or local hook setup should become a script, test, or CI gate.

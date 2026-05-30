@@ -30,6 +30,7 @@ Rules:
 - No merge or push without deterministic checks.
 - No generated context becomes canonical until a human or Codex promotes it into curated Markdown.
 - Use `docs/meta/FEATURE_DELIVERY_CHECKLIST.md` as the per-feature execution checklist.
+- Keep repo behavior deterministic through tracked scripts, tests, and CI. Do not rely on prompt reminders for rules that can be checked in code.
 
 ## Source of Truth
 
@@ -45,6 +46,27 @@ Before implementation, agents must read:
 ## Codex-First Loop
 
 Use Codex as the primary architect, implementer, and final gatekeeper.
+
+## Deterministic Local Guardrails
+
+Entroping intentionally keeps `.codex/`, installed skills, plugins, and shell hooks out of the repository. Those are user-machine accelerators, not project truth.
+
+Repository behavior belongs in:
+
+- `AGENTS.md` for project-specific agent rules.
+- `scripts/feature_gate.sh` for the local delivery gate.
+- `scripts/repo_hygiene.sh` for tracked local/generated-state rejection.
+- `scripts/regression.sh` for broader proof.
+- `.github/workflows/ci.yml` for remote verification.
+- GitHub Issues and PRs for work tracking and review.
+
+Optional local hooks can be installed with:
+
+```bash
+scripts/install_hooks.sh
+```
+
+Hooks are convenience only. A skipped hook must still be caught by `scripts/feature_gate.sh` and CI.
 
 ## Issue Session Launcher
 
