@@ -16,6 +16,8 @@ These instructions extend the global Codex rules for this repository. If a rule 
 - Keep bridge compiler responsibilities separate:
   - `openapi_to_hurl.py` for OpenAPI translation.
   - `traffic_to_hurl.py` for redacted traffic translation.
+  - `traffic_to_wiremock.py` for redacted dependency mock translation.
+  - `traffic_to_graph.py` for redacted dependency map translation.
   - `policy_to_hurl.py` for QAnstitution gate translation.
   - `story_traceability.py` for external business-truth linkage.
   - `merge.py` for preserving manual Hurl edits.

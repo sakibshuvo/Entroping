@@ -184,12 +184,14 @@ Basic `entroping freeze --name <flow> [--golden]` now reads local redacted
 traffic state, validates generated Hurl before writing, and writes atomically
 under `tests/generated/`. `entroping map --export mermaid|dot|md` now emits
 host-level dependency maps from redacted traffic with escaped labels, route call
-counts, failures, and latency summaries. Mock generation and PNG map rendering
-remain out of scope.
+counts, failures, and latency summaries. `entroping freeze --mock <service>`
+now writes WireMock-compatible mappings from matching redacted dependency
+traffic under `mocks/<service>/`. PNG map rendering remains out of scope.
 
 Deliverables:
 
 - Dedicated `bridge.traffic_to_hurl` compiler.
+- Dedicated `bridge.traffic_to_wiremock` mock mapping compiler.
 - Dedicated `bridge.traffic_sessions` filtering/session boundary.
 - Dedicated `bridge.traffic_to_graph` dependency graph boundary.
 - Traffic filtering for static assets, analytics, irrelevant hosts, and large binary bodies.

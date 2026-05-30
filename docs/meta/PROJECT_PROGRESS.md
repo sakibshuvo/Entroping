@@ -92,7 +92,8 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Traffic filtering and session candidates](https://github.com/sakibshuvo/Entroping/issues/66) | Done | Pure bridge filtering/session inputs for freeze and map | Keep SQLite/proxy/CLI out of bridge |
 | [Traffic-to-Hurl compiler](https://github.com/sakibshuvo/Entroping/issues/67) | Done | Compile redacted sessions into valid Hurl content | Depends on #66 |
 | [Freeze CLI safe writes](https://github.com/sakibshuvo/Entroping/issues/68) | Done | Wire `freeze` to store reads, compiler output, staged writes, and parser validation | Depends on #66 and #67 |
-| [Dependency graph export](https://github.com/sakibshuvo/Entroping/issues/69) | Done | Host-level graph compiler plus Mermaid/Markdown/DOT exports; PNG gives an actionable renderer message | Keep mock generation deferred until redaction and fixture coverage expand |
+| [Dependency graph export](https://github.com/sakibshuvo/Entroping/issues/69) | Done | Host-level graph compiler plus Mermaid/Markdown/DOT exports; PNG gives an actionable renderer message | Keep PNG rendering deferred |
+| [WireMock dependency mappings](https://github.com/sakibshuvo/Entroping/issues/75) | Done | `freeze --mock <service>` writes WireMock-compatible mappings from redacted dependency traffic | Keep PNG rendering deferred |
 
 ## Later Roadmap
 
@@ -107,7 +108,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | Delivery Automation | Done | Deterministic repo hygiene, issue worktrees, regression gates, optional local hooks, and release-readiness checks support multi-session development |
 | Alpha Release | Current | Release checklist exists; license/package metadata is the remaining public-release blocker | Use `scripts/release_check.sh --require-live-demo` before tagging |
 | Eye Capture Spike | Done | Capture-only `watch` records redacted, bounded traffic through mitmproxy; freeze/map remain separate |
-| Freeze and Map | Done | Basic `freeze` plus Mermaid/DOT/Markdown dependency maps are in place; mock generation and PNG rendering remain deferred |
+| Freeze and Map | Done | Basic `freeze`, WireMock dependency mocks, and Mermaid/DOT/Markdown dependency maps are in place; PNG rendering remains deferred |
 | Studio | Deferred | Useful after deterministic core and reports are real |
 
 ## Update Rules

@@ -132,8 +132,8 @@ Route a browser, curl, Postman, Bruno, Insomnia, or another client through the p
 Current alpha status: `watch` records redacted, bounded traffic locally under
 `.entroping/state.db`; basic `freeze --name <flow> [--golden]` writes validated
 generated Hurl files; `map --export mermaid|dot|md` emits host-level dependency
-maps from redacted traffic. `freeze --mock` and PNG map rendering are still
-planned follow-up commands.
+maps from redacted traffic; `freeze --mock <service>` writes WireMock-compatible
+dependency mappings. PNG map rendering is still planned follow-up work.
 
 Freeze the session into tests:
 
@@ -162,7 +162,9 @@ entroping watch --port 8080 --target http://localhost:3000
 entroping freeze --name refund_flow --mock payments
 ```
 
-Entroping should emit WireMock-compatible mappings for the observed dependency. Run your service under test against those mocks, then run the Hurl suite.
+Entroping emits WireMock-compatible mappings under `mocks/<service>/` for the
+observed dependency. Run your service under test against those mocks, then run
+the Hurl suite.
 
 ## 7. Microservice and Multi-Repo Workflows
 

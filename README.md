@@ -66,13 +66,14 @@ Available now:
 - Eye capture-safe traffic models, redaction, and bounded local SQLite state under `.entroping/state.db`.
 - Capture-only `entroping watch` with lazy mitmproxy loading, target-scope filtering, pre-persistence redaction, and bounded local traffic state.
 - Basic `entroping freeze --name <flow> [--golden]` from redacted traffic state into validated generated Hurl files.
+- `entroping freeze --mock <service>` WireMock-compatible mappings from redacted dependency traffic.
 - `entroping map --export <mermaid|dot|md>` host-level dependency maps from redacted traffic state, with escaped labels and route latency/failure summaries.
 - CI-ready local checks through `uv`, `ruff`, `mypy`, and `pytest`.
 
 Not built yet:
 
 - Drift reports.
-- `freeze --mock` dependency mock generation and PNG map rendering.
+- PNG map rendering.
 - Broader Architect validation UX.
 - Studio TUI.
 

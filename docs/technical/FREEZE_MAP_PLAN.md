@@ -107,8 +107,9 @@ Generation rules:
 - No assertions for token-like, ID-like, timestamp-like, or explicitly redacted
   fields.
 
-`--mock <service>` remains a later implementation after basic freeze works.
-Mock output must never write unredacted dependency secrets into mappings.
+`--mock <service>` writes WireMock-compatible mappings under
+`mocks/<service>/` for matching redacted dependency traffic. Mock output must
+never write unredacted dependency secrets into mappings.
 
 ## Map Rules
 
