@@ -93,6 +93,51 @@ def test_load_drift_baseline_accepts_small_and_run_report_shaped_json(tmp_path: 
     )
 
 
+def test_load_drift_baseline_accepts_missing_optional_project_fields(tmp_path: Path) -> None:
+    baseline_path = tmp_path / ".entroping" / "drift-baseline.json"
+    baseline_path.parent.mkdir(parents=True)
+    baseline_path.write_text('{"tests":[]}\n', encoding="utf-8")
+
+    baseline = load_drift_baseline(baseline_path)
+
+    assert baseline.project == ""
+    assert baseline.environment == ""
+    assert baseline.tests == ()
+
+
+@pytest.mark.parametrize(
+    ("payload", "message"),
+    [
+        ("[]", "must be a JSON object"),
+        ('{"project":"checkout-api"}', "must contain a tests list"),
+        ('{"tests":[null]}', "must be a JSON object"),
+        ('{"tests":[{"path":"tests/health.hurl","status":"passed","exit_code":"0"}]}', "exit_code"),
+        (
+            '{"tests":[{"path":"tests/health.hurl","status":"passed","exit_code":0,'
+            '"rule_ids":[1]}]}',
+            "rule_ids",
+        ),
+        ('{"tests":[{"path":"","status":"passed","exit_code":0}]}', "non-empty string"),
+        (
+            '{"tests":[{"path":"tests/health.hurl","status":"bad\\n","exit_code":0}]}',
+            "non-empty string",
+        ),
+        ('{"project":123,"tests":[]}', "project/environment fields must be strings"),
+    ],
+)
+def test_load_drift_baseline_rejects_malformed_baseline_json(
+    tmp_path: Path,
+    payload: str,
+    message: str,
+) -> None:
+    baseline_path = tmp_path / ".entroping" / "drift-baseline.json"
+    baseline_path.parent.mkdir(parents=True)
+    baseline_path.write_text(payload + "\n", encoding="utf-8")
+
+    with pytest.raises(DriftReportError, match=message):
+        load_drift_baseline(baseline_path)
+
+
 def test_build_drift_report_compares_results_in_deterministic_path_order(tmp_path: Path) -> None:
     baseline = DriftBaseline(
         project="checkout-api",
@@ -198,6 +243,14 @@ def test_load_drift_baseline_rejects_missing_or_symlinked_baseline(tmp_path: Pat
 
     with pytest.raises(DriftReportError, match="symlinked path component"):
         load_drift_baseline(missing)
+
+
+def test_load_drift_baseline_rejects_directory_baseline_path(tmp_path: Path) -> None:
+    baseline_path = tmp_path / ".entroping" / "drift-baseline.json"
+    baseline_path.mkdir(parents=True)
+
+    with pytest.raises(DriftReportError, match="is not a file"):
+        load_drift_baseline(baseline_path)
 
 
 def test_load_drift_baseline_rejects_symlinked_parent_directory(tmp_path: Path) -> None:

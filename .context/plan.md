@@ -162,9 +162,10 @@ Latest local evidence:
 - `PYTHONPATH=src uv run pytest tests/test_config_loader.py tests/test_config_writer.py tests/test_env_loader.py --cov=entroping.core.config_loader --cov=entroping.core.config_writer --cov=entroping.core.env_loader --cov-report=term-missing -q`: 58 passed; targeted config/env modules at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_openapi_to_hurl.py tests/test_architect_audit.py --cov=entroping.bridge.openapi_to_hurl --cov=entroping.bridge.openapi_audit --cov-report=term-missing -q`: 39 passed; `bridge.openapi_to_hurl` and `bridge.openapi_audit` at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_safe_write.py --cov=entroping.core.safe_write --cov-report=term-missing -q`: 12 passed; `core.safe_write` at 100 percent coverage.
+- `PYTHONPATH=src uv run pytest tests/test_dependency_mapper.py tests/test_drift_report.py tests/test_traffic_models.py tests/test_studio_status.py --cov=entroping.core.dependency_mapper --cov=entroping.core.drift_report --cov=entroping.models.traffic --cov=entroping.studio.status --cov-report=term-missing --cov-fail-under=100 -q`: 49 passed; targeted support modules at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_ci_workflow.py tests/test_release_docs.py tests/test_agent_workflow_docs.py -q`: 15 passed.
-- `scripts/regression.sh --security`: 561 passed; Bandit and default/all-extras dependency audits passed.
-- `scripts/audit_quality.sh`: 561 passed with 94.07 percent total coverage; Radon and Vulture gates passed.
+- `scripts/regression.sh --security`: 595 passed; Bandit and default/all-extras dependency audits passed.
+- `scripts/audit_quality.sh`: 595 passed with 94.99 percent total coverage; Radon and Vulture gates passed.
 
 ## Completed Slice: Issue #90 Run Workflow Extraction
 
@@ -284,6 +285,27 @@ Implemented boundaries:
   helper while preserving their module-specific public error types.
 - `core.safe_write` and `core.report_writer` have 100 percent focused module
   coverage for the touched behavior.
+
+## Completed Slice: Issue #146 Deterministic Support-Module Coverage
+
+Outcome: the remaining deterministic support modules from the issue #112
+coverage queue now have focused 100 percent coverage without provider calls,
+live network, or UI sessions.
+
+Implemented boundaries:
+
+- `core.dependency_mapper` coverage includes missing state, unsupported export
+  values, all printable export modes, traffic-store error wrapping, internal PNG
+  misuse protection, Graphviz `OSError`, empty renderer output, and existing PNG
+  safety behavior.
+- `core.drift_report` coverage includes malformed baseline JSON shapes, invalid
+  baseline records, optional metadata defaults, non-file baseline paths, and
+  existing symlink/report-write behavior.
+- `models.traffic` coverage includes content-type, method, URL, header, tab
+  allowance, and timezone-aware timestamp validation.
+- `studio.status` coverage includes missing optional Textual dependency,
+  missing QAnstitution, QAnstitution load errors, latest-run load errors,
+  no-report rendering, and existing latest-run state rendering.
 
 ## Completed Slice: Issue #85 Read-Only Studio Status Shell
 
