@@ -51,5 +51,6 @@
 - Raw model output should enter the system through a parser boundary, not a writer. Parse JSON, validate with Pydantic, then let the filesystem adapter enforce ownership and path safety.
 - Architect writes should mark generated files with `# entroping: source=architect` and refuse to overwrite manual or non-Architect Hurl files until a merge/refactor mode explicitly owns that behavior.
 - Refactor commands should treat target globs as untrusted input: reject traversal, absolute paths, control characters, symlinks, non-Hurl files, and provider edits outside the selected target set before any write.
+- Architecture rules should be executable tests, not only prose. Use AST import-boundary checks to catch domain-to-adapter drift, run-core Brain imports, and direct provider SDK imports before review.
 - Treat model summaries, warnings, and provider errors as untrusted CLI output. Redact token-shaped values and print without Rich markup interpretation before showing them to users.
 - Parser-backed validation errors for model-generated Hurl should identify the generated file path but not echo raw parser stderr/stdout, because those streams can include provider-supplied snippets.

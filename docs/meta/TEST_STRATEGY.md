@@ -21,7 +21,7 @@ Entroping uses a risk-based test pyramid. The goal is not decorative coverage; t
 | Adapter | Prove boundary behavior without live systems | CLI commands, filesystem writes, subprocess stubs, YAML loading, report writers |
 | Integration | Prove multiple Entroping subsystems work together | policy load -> gate compile -> temp Hurl execution copy -> result model |
 | Smoke | Prove installed CLI still boots | `entroping --help`, `entroping --version`, `entroping doctor` |
-| Regression | Freeze bugs and risky behaviors | import cycles, redaction gaps, path traversal, source Hurl mutation |
+| Regression | Freeze bugs and risky behaviors | import-boundary drift, import cycles, redaction gaps, path traversal, source Hurl mutation |
 | Security | Prove sensitive boundaries stay controlled | secret redaction, path handling, subprocess args, dependency audits |
 
 ## Required Commands
@@ -53,6 +53,10 @@ scripts/regression.sh --security
 - Features crossing subsystem boundaries need integration or smoke coverage.
 - Hurl runner work needs fixture `.hurl` files and real Hurl smoke checks once `hurl` is available.
 - Security-sensitive behavior needs negative tests for unsafe input, redaction, or failure mode.
+- Architecture-sensitive behavior needs import-boundary tests when a package boundary
+  matters more than a single function result. `tests/test_architecture_boundaries.py`
+  is the executable guard for hexagonal imports, deterministic run-core isolation,
+  and LiteLLM-only provider access.
 
 ## Pytest Markers
 
@@ -75,5 +79,6 @@ Today `scripts/regression.sh` runs the feature gate plus CLI smoke checks. As th
 4. Hurl subprocess stubs and real Hurl smoke checks.
 5. JSON/JUnit report fixtures.
 6. Redaction tests for reports and future proxy capture.
+7. Architecture/provider boundary tests for every new adapter family.
 
 Keep the regression suite boring, deterministic, and local-first.

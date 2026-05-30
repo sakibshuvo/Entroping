@@ -58,6 +58,12 @@ src/entroping/
 - `brain/` adapts LLM providers and validates structured outputs before returning domain objects.
 - Cross-module contracts use Pydantic models, typed protocols, or explicit dataclasses.
 
+`tests/test_architecture_boundaries.py` is the executable regression guard for
+these dependency rules. It parses Python imports with `ast` and fails the normal
+test suite if domain or bridge code imports adapters, deterministic run-core
+modules import Brain/LiteLLM code, or source modules import provider SDKs directly
+instead of going through LiteLLM.
+
 Current Brain foundation modules:
 
 - `models.architect` defines validated Architect Hurl edit output models.
