@@ -220,18 +220,29 @@ Implemented boundaries:
   cannot receive config content.
 - Keep CLI output human-readable and non-secret.
 
-## Next Slice: Architect Brain Foundation
+## Completed Slice: Issue #31 Architect Brain Foundation
+
+Outcome: add deterministic Brain foundations for future LLM-backed Architect commands
+without calling providers from `entroping run` or tests.
+
+- Added a lazy LiteLLM boundary without wiring it into `entroping run`.
+- Loaded Builder/Auditor/Breaker persona files through validated non-secret config.
+- Defined structured output models for generated Hurl edits before making provider calls.
+- Added prompt package assembly that rejects secret-shaped content and unsafe context paths.
+- Keep all model invocation outside deterministic CI/run paths.
+
+## Next Slice: User-Facing Architect Prompt Generation
 
 Planned direction:
 
-- Add a LiteLLM boundary without wiring it into `entroping run`.
-- Load Builder/Auditor/Breaker persona files through validated non-secret config.
-- Define structured output models for generated Hurl edits before making provider calls.
-- Keep all model invocation outside deterministic CI/run paths.
+- Wire `architect build --prompt` to the Brain foundation.
+- Parse model output into `ArchitectEditSet` and validate generated Hurl content.
+- Stage generated diffs for review without mutating unrelated files.
+- Keep provider failures explicit and keep deterministic `run` isolated from model access.
 
 ## Explicitly Deferred
 
-- LiteLLM Architect implementation.
+- Complete LiteLLM Architect refactor workflow.
 - mitmproxy `watch`, `freeze`, and `map`.
 - Studio TUI.
 - Nuitka packaging.

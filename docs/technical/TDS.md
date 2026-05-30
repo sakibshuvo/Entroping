@@ -58,6 +58,13 @@ src/entroping/
 - `brain/` adapts LLM providers and validates structured outputs before returning domain objects.
 - Cross-module contracts use Pydantic models, typed protocols, or explicit dataclasses.
 
+Current Brain foundation modules:
+
+- `models.architect` defines validated Architect Hurl edit output models.
+- `brain.persona_loader` loads root-bounded Markdown persona files from agent config.
+- `brain.prompt_builder` builds redaction-checked prompt packages.
+- `brain.litellm_client` lazily wraps `litellm.completion` behind an injectable adapter.
+
 ## 4. Proposed Package Layout
 
 ```text
@@ -316,6 +323,10 @@ Separate:
 5. File merge/write.
 
 Prompts should include only necessary context. Secrets and raw sensitive traffic must not be sent to models.
+
+Current implementation note: the LiteLLM adapter is available as an internal boundary
+only. `entroping run` remains LLM-free, and user-facing `architect build --prompt`
+is not wired until a later slice can validate generated Hurl before writing files.
 
 ### Provider Strategy
 

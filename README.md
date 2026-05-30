@@ -58,14 +58,16 @@ Available now:
 - QAnstitution gate matching, temporary execution-copy injection, and deterministic Hurl subprocess execution through `entroping run`.
 - Runner safety controls for timeouts, bounded output, redaction, non-zero exits, and temporary run-state cleanup.
 - Redacted JSON and JUnit reports through `entroping run --report json --report junit`.
+- Escaped HTML run reports through `entroping run --report html`.
 - `entroping report bug` for Markdown handoff from the latest failing run.
+- Architect Brain foundation: validated Hurl edit output models, root-bounded persona loading, prompt package assembly, and a lazy LiteLLM adapter boundary.
 - CI-ready local checks through `uv`, `ruff`, `mypy`, and `pytest`.
 
 Not built yet:
 
-- HTML and drift reports.
+- Drift reports.
 - mitmproxy traffic capture.
-- LiteLLM Architect implementation.
+- End-to-end LiteLLM Architect build/refactor commands.
 - Studio TUI.
 
 ## Quick Start
@@ -215,7 +217,7 @@ Current implementation supports `init`, `doctor`, deterministic `architect build
 from local OpenAPI files with common parameters and schema examples, deterministic
 non-secret `config list` / `config set`, `run --env`, deterministic `architect audit`
 for OpenAPI coverage, deterministic `run`, JSON/JUnit run reports, HTML run reports,
-and `report bug`.
+`report bug`, and internal Brain foundations for future LiteLLM-backed Architect work.
 
 ## Architecture
 
