@@ -109,6 +109,138 @@ def test_run_architect_prompt_build_composes_boundaries_and_writes_edits(
     ]
 
 
+def test_run_architect_prompt_build_merge_preserves_manual_blocks(
+    tmp_path: Path,
+) -> None:
+    _write_project(tmp_path)
+    target = tmp_path / "tests" / "manual" / "checkout.hurl"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        (
+            "# manual setup stays\n"
+            "GET {{base_url}}/health\n"
+            "HTTP 200\n"
+            "\n"
+            "# entroping: managed-begin checkout-auth\n"
+            "GET {{base_url}}/checkout\n"
+            "HTTP 200\n"
+            "# entroping: managed-end checkout-auth\n"
+            "\n"
+            "# manual footer stays\n"
+        ),
+        encoding="utf-8",
+    )
+    law = load_qanstitution(tmp_path / "qanstitution.yaml")
+    packages: list[ArchitectPromptPackage] = []
+    validated: list[tuple[str, str]] = []
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        _ = kwargs
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "summary": "Merged checkout coverage",
+                                "edits": [
+                                    {
+                                        "path": "tests/manual/checkout.hurl",
+                                        "content": (
+                                            "# entroping: managed-begin checkout-auth\n"
+                                            "GET {{base_url}}/checkout\n"
+                                            "Authorization: Bearer {{token}}\n"
+                                            "HTTP 200\n"
+                                            "# entroping: managed-end checkout-auth\n"
+                                        ),
+                                    }
+                                ],
+                            },
+                        )
+                    }
+                }
+            ],
+        }
+
+    class CapturingClient(LiteLLMClient):
+        def complete(self, package: ArchitectPromptPackage) -> LiteLLMCompletionResult:
+            packages.append(package)
+            return super().complete(package)
+
+    result = run_architect_prompt_build(
+        law=law,
+        intent="Merge Authorization into checkout coverage.",
+        strategy="merge",
+        project_root=tmp_path,
+        config_path=tmp_path / "qanstitution.yaml",
+        client=CapturingClient(completion_func=fake_completion),
+        hurl_validator=lambda content, display_path: validated.append((content, display_path)),
+    )
+
+    expected = (
+        "# manual setup stays\n"
+        "GET {{base_url}}/health\n"
+        "HTTP 200\n"
+        "\n"
+        "# entroping: managed-begin checkout-auth\n"
+        "GET {{base_url}}/checkout\n"
+        "Authorization: Bearer {{token}}\n"
+        "HTTP 200\n"
+        "# entroping: managed-end checkout-auth\n"
+        "\n"
+        "# manual footer stays\n"
+    )
+    assert result.summary == "Merged checkout coverage"
+    assert result.written_paths == (target,)
+    assert target.read_text(encoding="utf-8") == expected
+    assert validated == [(expected, "tests/manual/checkout.hurl")]
+    assert packages
+    assert "Merge strategy" in packages[0].messages[1].content
+    assert "# entroping: source=architect" not in target.read_text(encoding="utf-8")
+
+
+def test_run_architect_prompt_build_merge_rejects_missing_targets_without_writing(
+    tmp_path: Path,
+) -> None:
+    _write_project(tmp_path)
+    law = load_qanstitution(tmp_path / "qanstitution.yaml")
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        _ = kwargs
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "summary": "Missing merge target",
+                                "edits": [
+                                    {
+                                        "path": "tests/manual/missing.hurl",
+                                        "content": "GET {{base_url}}/missing\nHTTP 200\n",
+                                    }
+                                ],
+                            },
+                        )
+                    }
+                }
+            ],
+        }
+
+    with pytest.raises(ValueError, match="Merge target does not exist"):
+        run_architect_prompt_build(
+            law=law,
+            intent="Merge checkout coverage.",
+            strategy="merge",
+            project_root=tmp_path,
+            config_path=tmp_path / "qanstitution.yaml",
+            client=LiteLLMClient(completion_func=fake_completion),
+            hurl_validator=lambda content, display_path: None,
+        )
+
+    assert not (tmp_path / "tests").exists()
+
+
 def test_run_architect_prompt_build_rejects_invalid_output_before_writing(
     tmp_path: Path,
 ) -> None:
