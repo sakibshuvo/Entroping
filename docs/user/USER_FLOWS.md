@@ -71,6 +71,10 @@ entroping architect build --strategy merge --prompt "Cover the new refund endpoi
 entroping run --env local --tag payments --report html
 ```
 
+Prompt-backed merge updates existing Hurl targets only. Manual files must expose
+managed blocks; new files should use `architect build --prompt` without
+`--strategy merge`.
+
 ### Success Criteria
 
 - Tests represent intended behavior.

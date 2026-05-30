@@ -536,6 +536,96 @@ gates:
     )
 
 
+def test_architect_build_prompt_merge_preserves_manual_content(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _accept_architect_hurl_validation(monkeypatch)
+    Path("agents").mkdir()
+    Path("agents/builder.md").write_text("Build minimal checkout Hurl tests.", encoding="utf-8")
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/builder.md
+    model: openai/gpt-4.1-mini
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    target = Path("tests/manual/checkout.hurl")
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        (
+            "# manual setup stays\n"
+            "# entroping: managed-begin checkout-auth\n"
+            "GET {{base_url}}/checkout\n"
+            "HTTP 200\n"
+            "# entroping: managed-end checkout-auth\n"
+            "# manual footer stays\n"
+        ),
+        encoding="utf-8",
+    )
+
+    def fake_complete(
+        self: object,
+        package: ArchitectPromptPackage,
+    ) -> LiteLLMCompletionResult:
+        _ = self
+        assert "Merge strategy" in package.messages[1].content
+        return LiteLLMCompletionResult(
+            content=json.dumps(
+                {
+                    "summary": "Merged checkout auth coverage",
+                    "edits": [
+                        {
+                            "path": "tests/manual/checkout.hurl",
+                            "content": (
+                                "# entroping: managed-begin checkout-auth\n"
+                                "GET {{base_url}}/checkout\n"
+                                "Authorization: Bearer {{token}}\n"
+                                "HTTP 200\n"
+                                "# entroping: managed-end checkout-auth\n"
+                            ),
+                        }
+                    ],
+                },
+            ),
+            model="openai/gpt-4.1-mini",
+            latency_ms=42,
+            usage=LiteLLMUsage(prompt_tokens=20, completion_tokens=30, total_tokens=50),
+        )
+
+    monkeypatch.setattr("entroping.brain.litellm_client.LiteLLMClient.complete", fake_complete)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "architect",
+            "build",
+            "--strategy",
+            "merge",
+            "--prompt",
+            "Merge Authorization into checkout coverage.",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Generated 1 Architect Hurl test" in result.output
+    assert "Merged checkout auth coverage" in result.output
+    assert target.read_text(encoding="utf-8") == (
+        "# manual setup stays\n"
+        "# entroping: managed-begin checkout-auth\n"
+        "GET {{base_url}}/checkout\n"
+        "Authorization: Bearer {{token}}\n"
+        "HTTP 200\n"
+        "# entroping: managed-end checkout-auth\n"
+        "# manual footer stays\n"
+    )
+
+
 def test_architect_build_prompt_rejects_missing_builder_config(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1240,11 +1330,11 @@ def test_architect_audit_rejects_unsupported_output() -> None:
     assert "Unsupported architect audit output" in result.output
 
 
-def test_architect_build_rejects_merge_strategy_until_supported() -> None:
+def test_architect_build_merge_strategy_requires_prompt_for_now() -> None:
     result = CliRunner().invoke(app, ["architect", "build", "--new", "--strategy", "merge"])
 
     assert result.exit_code == 2
-    assert "--strategy merge is not implemented yet" in result.output
+    assert "--strategy merge requires --prompt" in result.output
 
 
 def test_run_executes_discovered_hurl_with_injected_gates_and_cleans_temp_state(

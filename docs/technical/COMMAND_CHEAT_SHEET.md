@@ -33,7 +33,8 @@ Current alpha implementation supports deterministic `architect build --new` from
 OpenAPI file configured at `sources.spec` in `qanstitution.yaml`, prompt-backed
 `architect build --prompt`, deterministic `architect audit`, and prompt-backed
 `architect refactor` for Architect-owned Hurl files and manual files with explicit
-managed blocks. Remote specs and `architect build --strategy merge` remain planned.
+managed blocks. Prompt-backed `architect build --strategy merge` is available for
+existing Hurl targets. Remote specs remain planned.
 
 | Command | Purpose |
 | --- | --- |

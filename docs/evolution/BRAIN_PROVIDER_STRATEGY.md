@@ -119,9 +119,9 @@ Generated files are accepted only after validation. The model is never the final
 Current implementation note: the Brain foundation now has strict Architect edit models,
 root-bounded Markdown persona loading, deterministic prompt package assembly, and a
 lazy LiteLLM adapter that can be tested without network calls. End-to-end
-`architect build --prompt`, Architect-owned `architect refactor`, and managed-block
-manual refactor paths are now available behind structured parsing and parser-backed
-Hurl validation.
+`architect build --prompt`, prompt-backed `architect build --strategy merge`,
+Architect-owned `architect refactor`, and managed-block manual refactor paths are
+now available behind structured parsing and parser-backed Hurl validation.
 
 ## 8. CI Strategy
 

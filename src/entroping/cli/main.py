@@ -262,16 +262,22 @@ def architect_build(
 ) -> None:
     """Generate Hurl tests from configured sources or prompts."""
 
+    normalized_strategy: str | None = None
     if strategy is not None:
         normalized_strategy = strategy.strip().lower()
-        if normalized_strategy == "merge":
-            console.print("[yellow]--strategy merge is not implemented yet.[/yellow]")
-        else:
+        if normalized_strategy != "merge":
             console.print(f"[yellow]Unsupported architect build strategy: {strategy}[/yellow]")
-        raise typer.Exit(2)
+            raise typer.Exit(2)
     if prompt is not None:
-        _run_architect_prompt_build(prompt=prompt, tag=tag)
+        _run_architect_prompt_build(
+            prompt=prompt,
+            tag=tag,
+            strategy="merge" if normalized_strategy == "merge" else "create",
+        )
         return
+    if normalized_strategy == "merge":
+        console.print("[yellow]--strategy merge requires --prompt in the current alpha.[/yellow]")
+        raise typer.Exit(2)
     if not new:
         _not_implemented("architect build")
 
@@ -294,7 +300,12 @@ def architect_build(
         console.print(f"Wrote Hurl test: {_display_cli_path(path)}")
 
 
-def _run_architect_prompt_build(*, prompt: str, tag: list[str] | None) -> None:
+def _run_architect_prompt_build(
+    *,
+    prompt: str,
+    tag: list[str] | None,
+    strategy: str = "create",
+) -> None:
     try:
         tag_filters = normalize_tag_filters(tag)
         law = load_qanstitution(Path("qanstitution.yaml"))
@@ -302,6 +313,7 @@ def _run_architect_prompt_build(*, prompt: str, tag: list[str] | None) -> None:
             law=law,
             intent=prompt,
             tags=tuple(sorted(tag_filters)),
+            strategy="merge" if strategy == "merge" else "create",
             project_root=Path.cwd(),
             config_path=Path("qanstitution.yaml"),
         )

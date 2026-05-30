@@ -97,8 +97,9 @@ for scoped Builder generation with parser-backed Hurl validation before files ar
 written. `config set` also creates a missing local persona Markdown template so
 first prompt runs do not require manual file scaffolding. `architect refactor` now
 supports selected Architect-owned Hurl files and manual Hurl files that opt into
-explicit managed-block replacement. CLI `architect build --strategy merge`
-integration remains a later slice.
+explicit managed-block replacement. `architect build --strategy merge --prompt`
+now updates existing Architect-owned Hurl files or managed manual blocks without
+creating new merge targets.
 
 Deliverables:
 
@@ -110,6 +111,7 @@ Deliverables:
 - Structured output validation.
 - `architect audit`.
 - `architect build --prompt` for scoped Hurl generation.
+- `architect build --strategy merge --prompt` for existing Hurl targets.
 - `architect refactor` with Hurl validation and managed-block preservation.
 
 Exit criteria:

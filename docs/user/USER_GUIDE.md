@@ -67,6 +67,16 @@ Generate first tests from your API spec:
 entroping architect build --new --tag smoke
 ```
 
+Generate or merge scoped prompt-backed coverage:
+
+```bash
+entroping architect build --prompt "Cover checkout authorization failures." --tag security
+entroping architect build --strategy merge --prompt "Update checkout authorization coverage."
+```
+
+Prompt-backed merge updates existing Hurl files only. Manual files must expose
+managed blocks; use prompt build without `--strategy merge` for new files.
+
 Run the suite:
 
 ```bash

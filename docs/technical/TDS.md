@@ -340,9 +340,10 @@ persona, builds a redaction-checked prompt package, invokes LiteLLM through the 
 adapter, parses provider JSON into validated Architect edits, injects requested tags,
 validates generated Hurl through `hurlfmt --out json`, and writes Architect-owned
 Hurl files through the staged writer. `architect refactor` also supports manual
-Hurl files that opt into managed-block replacement. Provider summaries, warnings,
-parser failures, and errors are redacted or summarized before CLI output.
-`entroping run` remains LLM-free.
+Hurl files that opt into managed-block replacement. `architect build --strategy
+merge --prompt` reuses the same managed-block and prepared-write boundaries for
+existing files only. Provider summaries, warnings, parser failures, and errors are
+redacted or summarized before CLI output. `entroping run` remains LLM-free.
 
 ### Provider Strategy
 
@@ -397,8 +398,9 @@ manual targets that contain valid managed-block markers. It loads selected targe
 files into Builder prompt context, rejects unsafe globs and symlinked or non-Hurl
 targets, requires returned edits to stay within the selected target set, merges
 manual managed blocks before validation, validates final Hurl through the
-parser-backed Hurl validator, and writes through staged filesystem writes. Build
-merge strategy integration is still deferred.
+parser-backed Hurl validator, and writes through staged filesystem writes. Prompt
+build merge uses the same rules for existing files; merge without a prompt remains
+deferred.
 
 ## 10. Observation Design
 
