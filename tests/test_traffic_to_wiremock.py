@@ -21,9 +21,22 @@ def _exchange(
     url: str = "https://payments.example.test/charge?token=%5BREDACTED%5D",
     status_code: int = 201,
     response_body: str | None = '{"approved":true,"token":"[REDACTED]"}',
+    response_content_type: str | None = "application/json",
+    response_headers: dict[str, str] | None = None,
     offset_seconds: int = 0,
     redacted: bool = True,
 ) -> TrafficExchange:
+    headers = (
+        {
+            "Content-Type": response_content_type,
+            "Set-Cookie": "[REDACTED]",
+        }
+        if response_content_type is not None
+        else {"Set-Cookie": "[REDACTED]"}
+    )
+    if response_headers is not None:
+        headers.update(response_headers)
+
     return TrafficExchange(
         captured_at=BASE_TIME + timedelta(seconds=offset_seconds),
         duration_ms=40,
@@ -39,13 +52,10 @@ def _exchange(
         ),
         response=TrafficResponse(
             status_code=status_code,
-            headers={
-                "Content-Type": "application/json",
-                "Set-Cookie": "[REDACTED]",
-            },
+            headers=headers,
             body=(
                 TrafficBody(
-                    content_type="application/json",
+                    content_type=response_content_type,
                     size_bytes=len(response_body),
                     text=response_body,
                 )
@@ -135,3 +145,100 @@ def test_compile_traffic_session_to_wiremock_rejects_empty_or_unredacted_session
         compile_traffic_session_to_wiremock(empty, service="payments")
     with pytest.raises(TrafficWireMockCompilationError, match="requires redacted traffic"):
         compile_traffic_session_to_wiremock(unsafe_session, service="payments")
+
+
+def test_compile_traffic_session_to_wiremock_rejects_records_without_response() -> None:
+    safe = build_traffic_session_candidate([_exchange()], name="safe", target_url=None)
+    safe_record = safe.records[0]
+    missing_response = safe_record.exchange.model_copy(update={"response": None})
+    session = safe.__class__(
+        name=safe.name,
+        target_origin=safe.target_origin,
+        records=(TrafficSessionRecord(exchange=missing_response, role="observed"),),
+    )
+
+    with pytest.raises(TrafficWireMockCompilationError, match="requires response records"):
+        compile_traffic_session_to_wiremock(session, service="payments")
+
+
+def test_compile_traffic_session_to_wiremock_omits_redacted_headers_and_empty_body() -> None:
+    session = build_traffic_session_candidate(
+        [
+            _exchange(
+                response_body=None,
+                response_headers={
+                    "X-Trace": "[REDACTED]",
+                    "Transfer-Encoding": "chunked",
+                },
+            )
+        ],
+        name="headers",
+        target_url=None,
+    )
+
+    generated = compile_traffic_session_to_wiremock(session, service="payments")[0]
+    payload = json.loads(generated.content)
+
+    assert payload["response"] == {
+        "headers": {"Content-Type": "application/json"},
+        "status": 201,
+    }
+    assert "X-Trace" not in payload["response"]["headers"]
+    assert "Transfer-Encoding" not in payload["response"]["headers"]
+
+
+def test_compile_traffic_session_to_wiremock_renders_textual_body() -> None:
+    session = build_traffic_session_candidate(
+        [
+            _exchange(
+                response_body="dependency failed",
+                response_content_type="text/plain; charset=utf-8",
+            )
+        ],
+        name="plain_text",
+        target_url=None,
+    )
+
+    generated = compile_traffic_session_to_wiremock(session, service="payments")[0]
+    payload = json.loads(generated.content)
+
+    assert payload["response"]["body"] == "dependency failed"
+
+
+def test_compile_traffic_session_to_wiremock_omits_unknown_content_type_body() -> None:
+    session = TrafficSessionRecord(
+        exchange=_exchange(
+            response_body="opaque body",
+            response_content_type=None,
+        ),
+        role="observed",
+    )
+    candidate = build_traffic_session_candidate([], name="unknown", target_url=None).__class__(
+        name="unknown",
+        target_origin=None,
+        records=(session,),
+    )
+
+    generated = compile_traffic_session_to_wiremock(candidate, service="payments")[0]
+    payload = json.loads(generated.content)
+
+    assert payload["response"] == {"status": 201}
+
+
+@pytest.mark.parametrize(
+    ("service", "message"),
+    [
+        (" ", "mock service must not be empty"),
+        ("pay\nments", "mock service must not contain control characters"),
+        (".payments", "mock service must be a safe file stem"),
+        ("pay ments!", "mock service must contain only letters"),
+    ],
+)
+def test_compile_traffic_session_to_wiremock_rejects_invalid_service_stems(
+    service: str,
+    message: str,
+) -> None:
+    session = build_traffic_session_candidate([_exchange()], name="refund_flow", target_url=None)
+
+    with pytest.raises(TrafficWireMockCompilationError, match=message):
+        compile_traffic_session_to_wiremock(session, service=service)
