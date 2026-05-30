@@ -323,11 +323,28 @@ Use drift detection when you have a baseline and want to know whether runtime be
 entroping run --env staging --drift-check --report drift
 ```
 
-Drift findings should identify:
+For the MVP, the baseline lives at `.entroping/drift-baseline.json`. After a
+reviewed known-good run, create it from the sanitized latest run state:
 
-- Status code changes.
+```bash
+cp .entroping/latest-run.json .entroping/drift-baseline.json
+```
+
+The first drift slice compares:
+
+- New or missing test paths.
+- Hurl result status and exit code changes.
+- Injected QAnstitution rule ID changes.
+
+If the baseline is missing, `--report drift` writes a machine-readable
+`reports/drift.json` with a `missing_baseline` finding. `--drift-check` returns a
+non-zero exit code for missing baselines or drift findings after Hurl itself has
+finished, so Hurl failures are still visible.
+
+Future drift slices should add:
+
+- Structured status/header/body assertion changes.
 - Schema/body shape changes.
-- Header changes.
 - Latency regressions.
 - New or missing dependency calls where traffic baselines exist.
 

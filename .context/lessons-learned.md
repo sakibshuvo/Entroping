@@ -6,6 +6,7 @@
 - Licensing is release metadata, not a vibe. Keep `LICENSE`, `pyproject.toml`, README status, progress docs, and release checks aligned so a public alpha is not accidentally shipped as an unlicensed repository.
 - Distribution claims need executable evidence. Build and inspect wheel/sdist artifacts locally, keep `dist/` ignored, and keep PyPI/TestPyPI credentials out of the repo until publishing automation is explicitly designed.
 - Parallel Hurl execution should change scheduling only, not report semantics. Bound worker count from QAnstitution, keep per-file subprocess isolation, and reorder completed futures back to input order before reports are built.
+- Drift reports should compare structured Entroping-owned state first. Do not parse free-form Hurl stdout for product truth; use the sanitized run report until response/header/schema detail is modeled explicitly.
 - Optional renderer integrations should stay adapter-local and subprocess-bounded. Feed them already-redacted compiler output, write ignored artifacts atomically, and do not echo renderer stderr because external tools may replay source graph content.
 
 ## 2026-05-29

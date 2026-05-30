@@ -2,6 +2,7 @@
 
 ## 2026-05-30
 
+- Implemented issue #84's deterministic drift report MVP with `.entroping/drift-baseline.json`, `run --drift-check`, `--report drift`, missing-baseline artifacts, and result/rule-ID comparison.
 - Implemented issue #83's bounded parallel Hurl execution so `entroping run --parallel` uses QAnstitution worker limits while preserving per-file safety behavior and deterministic report ordering.
 - Implemented issue #82's distribution and install polish with a deterministic package artifact check, source/tag install guidance, and release documentation that keeps package publishing credentials out of the repo.
 - Implemented issue #80's optional PNG dependency map export through local Graphviz `dot`, with subprocess-bounded rendering, atomic `reports/dependency-map.png` writes, missing-renderer errors, and secret-safe renderer failure handling.
