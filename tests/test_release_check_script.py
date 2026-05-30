@@ -33,6 +33,7 @@ def test_release_check_dry_run_shows_full_alpha_gate() -> None:
     assert result.returncode == 0, result.stderr
     assert "scripts/repo_hygiene.sh" in result.stdout
     assert "scripts/regression.sh --security" in result.stdout
+    assert "scripts/package_check.sh" in result.stdout
     assert "scripts/live_demo_smoke.sh" in result.stdout
     assert "require live demo: yes" in result.stdout
 

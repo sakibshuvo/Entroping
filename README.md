@@ -69,6 +69,7 @@ Available now:
 - `entroping freeze --mock <service>` WireMock-compatible mappings from redacted dependency traffic.
 - `entroping map --export <mermaid|dot|md|png>` host-level dependency maps from redacted traffic state, with escaped labels, route latency/failure summaries, and optional Graphviz-backed PNG output.
 - CI-ready local checks through `uv`, `ruff`, `mypy`, and `pytest`.
+- Local package artifact verification with wheel/sdist metadata checks through `scripts/package_check.sh`.
 
 Not built yet:
 
@@ -97,6 +98,29 @@ Important docs:
 - [EVOLUTION_TIMELINE.md](docs/evolution/EVOLUTION_TIMELINE.md) - product history.
 - [ADR-0001](decisions/ADR-0001-hurl-native-governance.md) - first architectural decision.
 - [examples/checkout-api](examples/checkout-api/README.md) - tiny demo fixture.
+
+### Install The CLI
+
+The alpha is source-distributed first. PyPI, Homebrew, and standalone binaries
+are later distribution tracks.
+
+Install from the latest GitHub branch:
+
+```bash
+uv tool install git+https://github.com/sakibshuvo/Entroping.git
+```
+
+Install from the alpha tag:
+
+```bash
+uv tool install git+https://github.com/sakibshuvo/Entroping.git@v0.1.0-alpha
+```
+
+For local development in a checkout:
+
+```bash
+uv tool install -e .
+```
 
 ### Set Up Development
 
@@ -129,13 +153,14 @@ scripts/regression.sh --security
 For alpha release readiness:
 
 ```bash
+scripts/package_check.sh
 scripts/release_check.sh --dry-run --require-live-demo
 scripts/release_check.sh --require-live-demo
 ```
 
-If Hurl is not installed locally, `scripts/release_check.sh` still runs hygiene
-and the security regression suite, then skips the live demo with an explicit
-message. The release-candidate form is documented in
+If Hurl is not installed locally, `scripts/release_check.sh` still runs hygiene,
+package verification, and the security regression suite, then skips the live
+demo with an explicit message. The release-candidate form is documented in
 [docs/meta/RELEASE_CHECKLIST.md](docs/meta/RELEASE_CHECKLIST.md).
 
 Start an isolated issue session:

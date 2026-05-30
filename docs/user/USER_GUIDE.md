@@ -15,7 +15,19 @@ Define law -> Generate or record tests -> Run Hurl with gates -> Review reports 
 
 ## 2. Install
 
-For the MVP/source workflow:
+The alpha is installed from source. For the latest GitHub branch:
+
+```bash
+uv tool install git+https://github.com/sakibshuvo/Entroping.git
+```
+
+For the published alpha tag:
+
+```bash
+uv tool install git+https://github.com/sakibshuvo/Entroping.git@v0.1.0-alpha
+```
+
+For local solo development:
 
 ```bash
 uv tool install -e .

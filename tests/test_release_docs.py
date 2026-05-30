@@ -10,6 +10,8 @@ def test_readme_links_alpha_release_gate_and_checklist() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
     assert "scripts/release_check.sh" in readme
+    assert "scripts/package_check.sh" in readme
+    assert "git+https://github.com/sakibshuvo/Entroping.git@v0.1.0-alpha" in readme
     assert "docs/meta/RELEASE_CHECKLIST.md" in readme
 
 
@@ -19,6 +21,9 @@ def test_alpha_release_checklist_documents_required_evidence() -> None:
     )
 
     assert "v0.1.0-alpha" in checklist
+    assert "scripts/package_check.sh" in checklist
+    assert "License-Expression" in checklist
+    assert "PyPI/TestPyPI tokens" in checklist
     assert "scripts/regression.sh --security" in checklist
     assert "scripts/live_demo_smoke.sh" in checklist
     assert "Not Built Yet" in checklist

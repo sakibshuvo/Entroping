@@ -38,6 +38,7 @@ scripts/release_check.sh --require-live-demo
 This gate includes:
 
 - `scripts/repo_hygiene.sh`
+- `scripts/package_check.sh`
 - `scripts/regression.sh --security`
 - `scripts/live_demo_smoke.sh`
 
@@ -47,7 +48,12 @@ If the local machine does not have Hurl installed, the non-release diagnostic fo
 scripts/release_check.sh
 ```
 
-That still runs hygiene and `scripts/regression.sh --security`, but skips the live demo unless Hurl is available.
+That still runs hygiene, package verification, and `scripts/regression.sh --security`, but skips the live demo unless Hurl is available.
+
+Package artifacts are verified locally, not published automatically. The package
+gate removes `dist/`, runs `uv build`, and inspects the wheel and source
+distribution for the expected name, version, SPDX `License-Expression`, license
+file metadata, alpha classifier, and root release files.
 
 ## CI Evidence
 
@@ -93,3 +99,9 @@ Then create a GitHub release with:
 - The implemented command list.
 - The "Not Built Yet" section above.
 - A pointer to the next milestone: Eye capture.
+- Optional manually attached wheel and sdist artifacts built by
+  `scripts/package_check.sh`.
+
+Do not add PyPI/TestPyPI tokens, release signing keys, or package-index
+credentials to the repository. Package-index publishing is a future release
+automation track, not part of the alpha gate.

@@ -60,6 +60,22 @@ writes, and dependency map exports. Issues #66 through #69 are implemented;
 issue #75 adds WireMock-compatible `freeze --mock` output, and issue #80 adds
 optional Graphviz-backed PNG dependency map rendering.
 
+## Completed Slice: Issue #82 Distribution Install Polish
+
+Outcome: make the source-distributed alpha easier to evaluate without PyPI,
+TestPyPI, Homebrew, or hosted-service credentials.
+
+Implemented boundaries:
+
+- `scripts/package_check.sh` removes `dist/`, builds wheel/sdist artifacts with
+  `uv build`, and verifies release-critical metadata before any publishing
+  claim.
+- The release gate now runs package verification before regression/security
+  checks and live demo proof.
+- README, user guide, TDS, and release checklist document GitHub branch/tag
+  install paths, local editable installs, and the fact that package-index
+  publishing is not automated yet.
+
 ## Completed Slice: Issue #80 PNG Dependency Map Rendering
 
 Outcome: `entroping map --export png` writes `reports/dependency-map.png` when
