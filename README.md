@@ -87,6 +87,7 @@ Important docs:
 - [PROJECT_PROGRESS.md](docs/meta/PROJECT_PROGRESS.md) - current alpha progress dashboard.
 - [ISSUE_TRACKING.md](docs/meta/ISSUE_TRACKING.md) - bug, feature, and regression tracking workflow.
 - [TEST_STRATEGY.md](docs/meta/TEST_STRATEGY.md) - test pyramid and regression suite.
+- [RELEASE_CHECKLIST.md](docs/meta/RELEASE_CHECKLIST.md) - alpha release quality bar and evidence checklist.
 - [GLOSSARY.md](docs/meta/GLOSSARY.md) - plain-language terminology guide.
 - [EVOLUTION_TIMELINE.md](docs/evolution/EVOLUTION_TIMELINE.md) - product history.
 - [ADR-0001](decisions/ADR-0001-hurl-native-governance.md) - first architectural decision.
@@ -119,6 +120,18 @@ For security-sensitive or dependency work:
 scripts/feature_gate.sh --security
 scripts/regression.sh --security
 ```
+
+For alpha release readiness:
+
+```bash
+scripts/release_check.sh --dry-run --require-live-demo
+scripts/release_check.sh --require-live-demo
+```
+
+If Hurl is not installed locally, `scripts/release_check.sh` still runs hygiene
+and the security regression suite, then skips the live demo with an explicit
+message. The release-candidate form is documented in
+[docs/meta/RELEASE_CHECKLIST.md](docs/meta/RELEASE_CHECKLIST.md).
 
 Start an isolated issue session:
 
