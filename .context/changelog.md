@@ -63,3 +63,4 @@
 - Implemented issue #61's Eye foundation with typed traffic models, pre-persistence redaction, bounded SQLite traffic state, and tests proving secrets are not stored.
 - Implemented issue #60's capture-only `watch` workflow with lazy mitmproxy loading, target-scope filtering, redacted flow persistence, CLI wiring, and proxy adapter tests that avoid live network dependence.
 - Added issue #59's freeze/map implementation plan and ADR-0008 so filtering, sessioning, traffic-to-Hurl compilation, and graph export are split into implementation issues #66 through #69 before coding begins.
+- Implemented issue #66's pure traffic session bridge with static-asset filtering, redacted-record enforcement, binary body text stripping, target/dependency/observed roles, ordering, and unit coverage.

@@ -173,6 +173,11 @@ Planning note: Phase 6B is split by
 land as separate filtering/session, traffic-to-Hurl, freeze CLI, and map export
 slices instead of one broad Eye rewrite.
 
+Current implementation note: `bridge.traffic_sessions` now builds pure,
+ordered session candidates from redacted traffic, filters static assets, strips
+binary body text, and labels records as target, dependency, or observed without
+importing proxy, SQLite, CLI, Hurl, or Brain adapters.
+
 Deliverables:
 
 - Dedicated `bridge.traffic_to_hurl` compiler.
