@@ -89,6 +89,100 @@ def test_redactor_treats_json_subtype_bodies_as_structured_json() -> None:
     assert '"token":"[REDACTED]"' in redacted.request.body.text
 
 
+def test_redactor_rejects_non_positive_body_limit() -> None:
+    with pytest.raises(ValueError, match="max_body_chars must be positive"):
+        redact_traffic_exchange(_raw_exchange(), max_body_chars=0)
+
+
+def test_redactor_preserves_non_text_body_metadata() -> None:
+    exchange = _raw_exchange().model_copy(
+        update={
+            "request": _raw_exchange().request.model_copy(
+                update={
+                    "headers": {"Content-Type": "application/octet-stream"},
+                    "body": TrafficBody(
+                        content_type="application/octet-stream",
+                        size_bytes=128,
+                        text=None,
+                        truncated=True,
+                    ),
+                },
+            ),
+        },
+    )
+
+    redacted = redact_traffic_exchange(exchange)
+
+    assert redacted.request.body is not None
+    assert redacted.request.body.text is None
+    assert redacted.request.body.truncated is True
+    assert redacted.request.body.content_type == "application/octet-stream"
+
+
+def test_redactor_preserves_absent_bodies() -> None:
+    base = _raw_exchange()
+    assert base.response is not None
+    exchange = base.model_copy(
+        update={
+            "request": base.request.model_copy(update={"body": None}),
+            "response": base.response.model_copy(update={"body": None}),
+        },
+    )
+
+    redacted = redact_traffic_exchange(exchange)
+
+    assert redacted.request.body is None
+    assert redacted.response is not None
+    assert redacted.response.body is None
+
+
+def test_redactor_falls_back_to_text_redaction_for_invalid_json() -> None:
+    exchange = _raw_exchange().model_copy(
+        update={
+            "request": _raw_exchange().request.model_copy(
+                update={
+                    "body": TrafficBody(
+                        content_type="application/json",
+                        size_bytes=32,
+                        text='{"token":"broken-secret"',
+                    ),
+                },
+            ),
+        },
+    )
+
+    redacted = redact_traffic_exchange(exchange)
+
+    assert redacted.request.body is not None
+    assert redacted.request.body.text == '{"token":"[REDACTED]"'
+    assert "broken-secret" not in redacted.model_dump_json()
+
+
+def test_redactor_redacts_secret_values_inside_json_arrays() -> None:
+    exchange = _raw_exchange().model_copy(
+        update={
+            "request": _raw_exchange().request.model_copy(
+                update={
+                    "body": TrafficBody(
+                        content_type="application/json",
+                        size_bytes=96,
+                        text='[{"token":"array-secret"},"Bearer inline-secret",{"ok":true}]',
+                    ),
+                },
+            ),
+        },
+    )
+
+    redacted = redact_traffic_exchange(exchange)
+
+    assert redacted.request.body is not None
+    assert redacted.request.body.text == (
+        '[{"token":"[REDACTED]"},"Bearer [REDACTED]",{"ok":true}]'
+    )
+    assert "array-secret" not in redacted.model_dump_json()
+    assert "inline-secret" not in redacted.model_dump_json()
+
+
 def test_redactor_removes_url_userinfo_credentials() -> None:
     exchange = _raw_exchange().model_copy(
         update={
