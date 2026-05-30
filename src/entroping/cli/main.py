@@ -117,12 +117,6 @@ def _version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
-def _not_implemented(command: str) -> None:
-    console.print(f"[yellow]{command} is part of the planned v4.1 command surface.[/yellow]")
-    console.print("The implementation scaffold is in place; runtime behavior is not built yet.")
-    raise typer.Exit(2)
-
-
 @app.callback()
 def main(
     version: Annotated[
@@ -302,7 +296,11 @@ def architect_build(
         console.print("[yellow]--strategy merge requires --prompt in the current alpha.[/yellow]")
         raise typer.Exit(2)
     if not new:
-        _not_implemented("architect build")
+        console.print("[yellow]Choose a supported architect build mode:[/yellow]")
+        console.print("  entroping architect build --new")
+        console.print('  entroping architect build --prompt "<intent>"')
+        console.print('  entroping architect build --strategy merge --prompt "<intent>"')
+        raise typer.Exit(2)
 
     try:
         tag_filters = normalize_tag_filters(tag)

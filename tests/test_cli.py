@@ -546,6 +546,18 @@ def test_architect_build_new_requires_configured_spec(
     assert "sources.spec is required" in result.output
 
 
+def test_architect_build_requires_supported_generation_mode() -> None:
+    result = CliRunner().invoke(app, ["architect", "build"])
+
+    assert result.exit_code == 2
+    assert "Choose a supported architect build mode" in result.output
+    assert "architect build --new" in result.output
+    assert 'architect build --prompt "<intent>"' in result.output
+    assert 'architect build --strategy merge --prompt "<intent>"' in result.output
+    assert "not built yet" not in result.output
+    assert "not implemented" not in result.output
+
+
 def test_architect_build_prompt_writes_validated_architect_hurl(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
