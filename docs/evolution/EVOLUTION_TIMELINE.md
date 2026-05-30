@@ -53,3 +53,9 @@ Links: [[00_INDEX]], [[docs/meta/OBSIDIAN_START_HERE|OBSIDIAN_START_HERE]], [[so
 The repo became a working Python scaffold with CI, typed QAnstitution models, condition validation, bridge boundaries, a checkout demo fixture, project-local Codex rules, and a first security scan. The next product step is the deterministic governance loop rather than more documentation expansion.
 
 Links: [[docs/product/MVP_PLAN|MVP_PLAN]], [[docs/architecture/DEVELOPMENT|DEVELOPMENT]]
+
+## Phase 8 - Eye Boundary Split
+
+The Eye moved from concept to implementation. `watch` became capture-only, while `freeze` and `map` were deliberately split into filtering/session, traffic-to-Hurl, safe CLI write, and dependency graph compiler slices.
+
+Links: [[docs/technical/FREEZE_MAP_PLAN|FREEZE_MAP_PLAN]], [[decisions/ADR-0008-freeze-map-boundaries]]

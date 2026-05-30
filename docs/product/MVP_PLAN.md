@@ -167,9 +167,17 @@ Exit criteria:
 
 ### Phase 6B: Freeze and Dependency Map
 
+Planning note: Phase 6B is split by
+[[docs/technical/FREEZE_MAP_PLAN|FREEZE_MAP_PLAN]] and
+[[decisions/ADR-0008-freeze-map-boundaries|ADR-0008]]. The implementation must
+land as separate filtering/session, traffic-to-Hurl, freeze CLI, and map export
+slices instead of one broad Eye rewrite.
+
 Deliverables:
 
 - Dedicated `bridge.traffic_to_hurl` compiler.
+- Dedicated `bridge.traffic_sessions` filtering/session boundary.
+- Dedicated `bridge.traffic_to_graph` dependency graph boundary.
 - Traffic filtering for static assets, analytics, irrelevant hosts, and large binary bodies.
 - Session stitching for recorded user flows.
 - State retention settings for `.entroping/state.db`.
@@ -183,6 +191,7 @@ Exit criteria:
 - Local state growth is bounded.
 - Freeze produces valid Hurl.
 - Map exports Mermaid or Markdown.
+- Generated Hurl and maps contain no raw captured secrets.
 
 ### Phase 7: Studio
 

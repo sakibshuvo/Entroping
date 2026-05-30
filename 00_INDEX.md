@@ -32,6 +32,7 @@ Use these first. They are the control panel for current work:
 ## Technical Contract
 
 - [[docs/technical/TDS|TDS]] - architecture, adapters, schemas, execution, and test strategy.
+- [[docs/technical/FREEZE_MAP_PLAN|FREEZE_MAP_PLAN]] - Eye freeze/map boundaries, tests, and implementation issue set.
 - [[docs/technical/COMMAND_CHEAT_SHEET|COMMAND_CHEAT_SHEET]] - locked command surface.
 - [[docs/technical/QANSTITUTION_REFERENCE|QANSTITUTION_REFERENCE]] - executable governance schema.
 - [[docs/architecture/ARCHITECTURE|ARCHITECTURE]] - implementation architecture overview.
@@ -71,6 +72,7 @@ Use these first. They are the control panel for current work:
 - [[decisions/ADR-0005-deterministic-run-boundary]]
 - [[decisions/ADR-0006-solo-first-mvp]]
 - [[decisions/ADR-0007-external-business-truth]]
+- [[decisions/ADR-0008-freeze-map-boundaries]]
 
 ## Working Loop
 

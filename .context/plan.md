@@ -48,8 +48,13 @@ The deterministic path is available and should remain the regression anchor:
 
 1. Keep public alpha blocked on owner-approved license and package metadata. **Current in issue #58.**
 2. Keep capture-only `watch` separate from `freeze` and `map`. **Done in issue #60.**
-3. Design traffic-to-Hurl and dependency export before implementation. **Next in issue #59.**
+3. Design traffic-to-Hurl and dependency export before implementation. **Current in issue #59.**
 4. Run `scripts/release_check.sh --require-live-demo` before any release tag.
+
+Issue #59 outcome leaves behind `docs/technical/FREEZE_MAP_PLAN.md`, ADR-0008,
+and focused implementation issues #66, #67, #68, and #69 for
+filtering/sessioning, traffic-to-Hurl freeze generation, safe `freeze` CLI
+writes, and dependency map exports.
 
 ## Completed Slice: Issue #3 Gate Matching And Injection
 

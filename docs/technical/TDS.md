@@ -475,6 +475,12 @@ Retention must be configurable. A safe default is bounded local growth, such as 
 
 `entroping freeze` converts traffic sessions into artifacts.
 
+The canonical implementation plan is
+[[docs/technical/FREEZE_MAP_PLAN|FREEZE_MAP_PLAN]]. The boundary rule is that
+capture, persistence, session/filtering, Hurl compilation, and graph compilation
+stay separate. `watch` must not generate Hurl, and bridge compilers must not
+read SQLite directly.
+
 | Option | Output |
 | --- | --- |
 | `--name checkout_flow` | `tests/generated/checkout_flow.hurl` |
@@ -484,6 +490,13 @@ Retention must be configurable. A safe default is bounded local growth, such as 
 Generated tests should parameterize volatile fields such as IDs and timestamps. Golden assertions should avoid locking unstable values unless explicitly requested.
 
 Mock generation should select outbound calls where the upstream host or logical service differs from the target service. Entroping generates mappings for standard mock servers such as WireMock; it does not become the mock server itself.
+
+Implementation order:
+
+1. Add deterministic traffic filtering and session candidate models.
+2. Add a pure `bridge.traffic_to_hurl` compiler for redacted traffic.
+3. Wire `freeze` through safe generated-file writes and parser validation.
+4. Add mocks only after basic freeze and redaction tests are stable.
 
 ## 12. Dependency Map Design
 
@@ -497,6 +510,10 @@ Supported exports:
 - `png` where Graphviz or a renderer is available
 
 The map should show services, routes, methods, call counts, failures, and latency summaries where available.
+
+MVP map output is host-level. Service-level inference, external system labels,
+and PNG rendering are follow-up layers after the Mermaid/Markdown/DOT compiler is
+stable and escaped.
 
 ## 13. Reporting Design
 
