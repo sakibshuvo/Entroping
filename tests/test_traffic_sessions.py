@@ -23,22 +23,26 @@ def _exchange(
     url: str,
     status_code: int = 200,
     offset_seconds: int = 0,
-    content_type: str = "application/json",
+    content_type: str | None = "application/json",
     body_text: str | None = '{"ok":true}',
     redacted: bool = True,
 ) -> TrafficExchange:
+    headers: dict[str, str] = {}
+    if content_type is not None:
+        headers["Content-Type"] = content_type
+
     return TrafficExchange(
         captured_at=BASE_TIME + timedelta(seconds=offset_seconds),
         duration_ms=25,
         request=TrafficRequest(
             method="GET",
             url=url,
-            headers={"Content-Type": content_type},
+            headers=headers,
             body=TrafficBody(content_type=content_type, size_bytes=0, text=body_text),
         ),
         response=TrafficResponse(
             status_code=status_code,
-            headers={"Content-Type": content_type},
+            headers=headers,
             body=TrafficBody(content_type=content_type, size_bytes=0, text=body_text),
         ),
         redacted=redacted,
@@ -144,3 +148,58 @@ def test_session_requires_redacted_traffic() -> None:
             name="unsafe",
             target_url="https://api.example.test",
         )
+
+
+@pytest.mark.parametrize(
+    ("name", "message"),
+    [
+        ("  ", "traffic session name must not be empty"),
+        ("bad\nname", "traffic session name must not contain control characters"),
+    ],
+)
+def test_session_rejects_invalid_names(name: str, message: str) -> None:
+    with pytest.raises(TrafficSessionError, match=message):
+        build_traffic_session_candidate(
+            [_exchange(url="https://api.example.test/checkout")],
+            name=name,
+            target_url="https://api.example.test",
+        )
+
+
+@pytest.mark.parametrize(
+    ("target_url", "message"),
+    [
+        ("https://api.example.test\n", "target_url must not contain control characters"),
+        ("ftp://api.example.test", "target_url must be an absolute http or https URL"),
+        ("api.example.test", "target_url must be an absolute http or https URL"),
+    ],
+)
+def test_session_rejects_invalid_target_urls(target_url: str, message: str) -> None:
+    with pytest.raises(TrafficSessionError, match=message):
+        build_traffic_session_candidate(
+            [_exchange(url="https://api.example.test/checkout")],
+            name="checkout",
+            target_url=target_url,
+        )
+
+
+def test_session_omits_body_text_when_content_type_is_unknown() -> None:
+    unknown_body_type = _exchange(
+        url="https://api.example.test/download",
+        content_type=None,
+        body_text="opaque-body-summary",
+    )
+
+    candidate = build_traffic_session_candidate(
+        [unknown_body_type],
+        name="download",
+        target_url="https://api.example.test",
+    )
+
+    request_body = candidate.records[0].exchange.request.body
+    response = candidate.records[0].exchange.response
+    assert request_body is not None
+    assert request_body.text is None
+    assert response is not None
+    assert response.body is not None
+    assert response.body.text is None
