@@ -1,27 +1,32 @@
 # Entroping Implementation Plan
 
-**Date:** 2026-05-29  
-**Status:** Active alpha implementation and launch-prep track
+**Date:** 2026-05-30
+**Status:** Post-alpha validation and hardening track
 
 ## Objective
 
-Turn the current Entroping knowledge base into a credible open-source alpha by building the smallest deterministic governance loop first:
+Keep the open-source alpha credible by preserving the deterministic governance
+loop while tightening the places that can create requirement drift, weak context
+handoff, or multi-agent workflow friction:
 
 ```text
 init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp files -> run Hurl -> emit reports
 ```
 
-The repo should remain usable as an Obsidian vault and as a Codex workspace with fast context rehydration.
+The repo should remain usable as an Obsidian vault, a GitHub issue-driven
+project, and a Codex workspace with fast context rehydration.
 
 ## Current Baseline
 
 - Product, technical, user, architecture, and evolution docs are organized under `docs/`.
 - Root `README.md` and `00_INDEX.md` are the main public and vault entry points.
-- Python package scaffold exists under `src/entroping/`.
+- Python package and CLI implementation exist under `src/entroping/`.
 - CLI command surface is locked to v4.1.
 - Pydantic QAnstitution models and typed condition parsing are in place.
-- Bridge compiler boundary modules exist but are mostly placeholders.
-- CI runs `scripts/check.sh`.
+- Bridge compiler boundaries are implemented for OpenAPI-to-Hurl, policy-to-Hurl,
+  traffic-to-Hurl, traffic-to-WireMock, traffic-to-graph, and managed-block
+  Hurl merges. `story_traceability.py` remains the known traceability gap.
+- CI runs `scripts/regression.sh` and the live Hurl demo smoke.
 - Security scan completed on 2026-05-29 and found one low-severity optional proxy dependency issue; the proxy dependency floor was raised to `mitmproxy>=12.2.3`, vulnerable transitives were refreshed, and the all-extras audit is now clean.
 - Project-local `AGENTS.md` now captures repository-specific implementation rules.
 - `docs/meta/AUTONOMOUS_DEVELOPMENT.md` defines the Codex-first loop, Spec Kit pilot path, and future OpenCode/oMLX worker plan.
@@ -30,7 +35,15 @@ The repo should remain usable as an Obsidian vault and as a Codex workspace with
 - Apache-2.0 licensing and package metadata are in place for the public core; keep future commercial cloud, model, policy-pack, or enterprise surfaces outside the open core unless explicitly relicensed.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work.
 - Eye capture now has security-first traffic models, pre-persistence redaction, bounded SQLite state, and capture-only `watch` wiring through a lazy-loaded mitmproxy adapter.
-- Issues #1 through #6, #11, #13, #15, #17, #19, #23, #25, #29, #31, #33, #35, #37, #39, #41, #43, #46, #48, #50, and #52 are integrated: `entroping init --minimal`, `entroping doctor`, QAnstitution local loading/import validation, Hurl discovery, Entroping metadata parsing, tag-filter validation, gate matching, gate assertion compilation, temporary Hurl execution-copy injection, deterministic Hurl subprocess execution, JSON/JUnit/HTML reports, latest-run state, bug Markdown generation, the local checkout quickstart, env-file Hurl variables, CI live Hurl smoke, deterministic OpenAPI-to-Hurl generation, OpenAPI parameter/example support, deterministic Architect audit coverage, non-secret agent routing config, Brain prompt/provider foundations, staged Architect output writes, user-facing `architect build --prompt`, parser-backed prompt Hurl validation, safe persona-template creation from `config set`, safe Architect-owned `architect refactor`, executable import-boundary regression tests, deduplicated PR workflow triggers, deterministic managed-block Hurl merge, managed-block manual refactor integration, and prompt-backed build merge strategy.
+- Issues #1 through #85, plus validation fixes #95 and #97, are integrated.
+  The shipped alpha covers init/doctor, QAnstitution loading/import validation,
+  Hurl discovery and metadata, gate injection, deterministic Hurl subprocess
+  execution, JSON/JUnit/HTML/drift reports, bug templates, OpenAPI generation
+  and audit, env-file variables, live Hurl CI smoke, Brain/LiteLLM prompt
+  generation and refactor paths, managed-block merges, architecture boundary
+  tests, capture-only `watch`, `freeze`, WireMock mocks, dependency maps,
+  package artifact checks, bounded parallel run, and a read-only Studio status
+  shell.
 
 ## Completed Milestone: Deterministic Core
 
@@ -45,13 +58,16 @@ The deterministic path is available and should remain the regression anchor:
 7. Emit JSON and JUnit reports. **Done in issue #5.**
 8. Wire the checkout demo into README quickstart. **Done in issue #6.**
 
-## Current Milestone: Post-Alpha Polish
+## Current Milestone: Validation And Hardening
 
 1. Keep public alpha license and package metadata explicit. **Done in issue #58.**
 2. Keep capture-only `watch` separate from `freeze` and `map`. **Done in issue #60.**
 3. Design traffic-to-Hurl and dependency export before implementation. **Done in issue #59.**
 4. Publish `v0.1.0-alpha` only after local and CI release evidence. **Done from commit `abd08c0`.**
-5. Keep post-alpha additions small, issue-backed, and release-gated.
+5. Keep post-alpha additions small, issue-backed, release-gated, and reflected in
+   this context file.
+6. Use the validation queue to remove drift, workflow friction, and maintenance
+   hotspots before adding larger product surface.
 
 Issue #59 outcome leaves behind `docs/technical/FREEZE_MAP_PLAN.md`, ADR-0008,
 and focused implementation issues #66, #67, #68, and #69 for
@@ -59,6 +75,10 @@ filtering/sessioning, traffic-to-Hurl freeze generation, safe `freeze` CLI
 writes, and dependency map exports. Issues #66 through #69 are implemented;
 issue #75 adds WireMock-compatible `freeze --mock` output, and issue #80 adds
 optional Graphviz-backed PNG dependency map rendering.
+Issues #82 through #85 added package install polish, bounded parallel Hurl
+execution, deterministic drift reporting, and the read-only Studio shell.
+Issues #95 and #97 removed the remaining generic Architect build placeholder
+path and ignored validation coverage artifacts.
 
 ## Completed Slice: Issue #85 Read-Only Studio Status Shell
 
@@ -363,13 +383,23 @@ Architect writes generated files.
   from being written.
 - Hardened Architect edit paths against control characters.
 
-## Next Slice: Architect Minimal Hardening
+## Current Validation Queue
 
-Planned direction:
+Use these issues as the next marathon targets. Keep each one narrow, tested, and
+merged through GitHub before starting the next branch:
 
-- Decide whether the next Architect slice should be prompt-generation UX hardening
-  or the Eye capture spike.
-- Keep provider failures explicit and keep deterministic `run` isolated from model access.
+- [#90](https://github.com/sakibshuvo/Entroping/issues/90): extract `run`
+  orchestration out of the CLI adapter.
+- [#91](https://github.com/sakibshuvo/Entroping/issues/91): implement story
+  traceability or narrow the docs claim.
+- [#92](https://github.com/sakibshuvo/Entroping/issues/92): refresh stale
+  context and progress notes.
+- [#93](https://github.com/sakibshuvo/Entroping/issues/93): add a repeatable
+  coverage and complexity audit gate.
+- [#94](https://github.com/sakibshuvo/Entroping/issues/94): add finish-issue
+  worktree and board hygiene automation.
+- [#96](https://github.com/sakibshuvo/Entroping/issues/96): run a formal
+  post-alpha security review.
 
 ## Explicitly Deferred
 
