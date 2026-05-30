@@ -78,8 +78,9 @@ deterministic `architect build --new`, deterministic `architect audit`, `run --e
 JSON/JUnit/HTML reports, `report bug`, LLM-backed generation/refactor, and
 capture-only `watch` are implemented. Basic `freeze` and Mermaid/DOT/Markdown
 `map` exports are implemented, and `freeze --mock` writes WireMock-compatible
-mappings. PNG map rendering, drift reports, and Studio still intentionally return
-explicit not-built messages until their subsystems land.
+mappings. PNG map rendering is implemented through optional local Graphviz `dot`.
+Drift reports and Studio still intentionally return explicit not-built messages
+until their subsystems land.
 
 ## Agent Workflow
 

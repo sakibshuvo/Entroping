@@ -1657,12 +1657,50 @@ def test_map_png_reports_missing_renderer(
 ) -> None:
     _record_freeze_exchange(tmp_path)
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("entroping.core.dependency_mapper.shutil.which", lambda name: None)
 
     result = CliRunner().invoke(app, ["map", "--export", "png"])
 
     assert result.exit_code == 1
-    assert "PNG map export requires a graph renderer" in result.output
-    assert "Use --export mermaid, dot, or md" in result.output
+    assert "Graphviz dot is required" in result.output
+    assert "use --export" in result.output
+    assert "mermaid, dot, or md" in result.output
+
+
+def test_map_png_writes_dependency_map_without_raw_secret(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_freeze_exchange(tmp_path, secret="png-secret")
+
+    def fake_run(
+        args: list[str],
+        *,
+        input: bytes,
+        capture_output: bool,
+        text: bool,
+        timeout: int,
+        check: bool,
+        shell: bool,
+    ) -> subprocess.CompletedProcess[bytes]:
+        _ = input, capture_output, text, timeout, check, shell
+        return subprocess.CompletedProcess(
+            args=args,
+            returncode=0,
+            stdout=b"\x89PNG\r\n",
+            stderr=b"",
+        )
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("entroping.core.dependency_mapper.shutil.which", lambda name: "/bin/dot")
+    monkeypatch.setattr("entroping.core.dependency_mapper.subprocess.run", fake_run)
+
+    result = CliRunner().invoke(app, ["map", "--export", "png"])
+
+    assert result.exit_code == 0
+    assert Path("reports/dependency-map.png").read_bytes() == b"\x89PNG\r\n"
+    assert "Wrote dependency map: reports/dependency-map.png" in result.output
+    assert "png-secret" not in result.output
 
 
 def test_map_outputs_markdown_from_redacted_traffic_without_raw_secret(

@@ -60,9 +60,9 @@ entroping architect audit --focus logic --output md
 
 Current alpha implementation supports capture-only `watch`, basic Hurl
 generation through `freeze --name <flow> [--golden]`, and dependency map export
-through `map --export mermaid|dot|md`. `freeze --mock <service>` writes
+through `map --export mermaid|dot|md|png`. `freeze --mock <service>` writes
 WireMock-compatible mappings from redacted dependency traffic. PNG map rendering
-remains planned.
+uses local Graphviz `dot` when it is available.
 
 | Command | Purpose |
 | --- | --- |

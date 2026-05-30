@@ -496,6 +496,10 @@ def map(
         _print_cli_error(exc)
         raise typer.Exit(1) from exc
 
+    if result.output_path is not None:
+        console.print(f"Wrote dependency map: {_display_cli_path(result.output_path)}")
+        return
+
     console.print(result.content, markup=False, end="")
 
 

@@ -518,13 +518,14 @@ Supported exports:
 
 The map should show services, routes, methods, call counts, failures, and latency summaries where available.
 
-MVP map output is host-level. Service-level inference, external system labels,
-and PNG rendering are follow-up layers after the Mermaid/Markdown/DOT compiler is
-stable and escaped.
+MVP map output is host-level. Service-level inference and external system labels
+are follow-up layers after the Mermaid/Markdown/DOT/PNG compiler path is stable
+and escaped.
 
-Current implementation note: Mermaid, DOT, and Markdown exports are implemented
+Current implementation note: Mermaid, DOT, Markdown, and PNG exports are implemented
 through a pure `bridge.traffic_to_graph` compiler and `core.dependency_mapper`
-adapter. PNG export currently fails with an actionable missing-renderer message.
+adapter. PNG export renders through local Graphviz `dot` when available and fails
+with an actionable missing-renderer message otherwise.
 
 ## 13. Reporting Design
 

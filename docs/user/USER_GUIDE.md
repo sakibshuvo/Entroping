@@ -131,9 +131,10 @@ Route a browser, curl, Postman, Bruno, Insomnia, or another client through the p
 
 Current alpha status: `watch` records redacted, bounded traffic locally under
 `.entroping/state.db`; basic `freeze --name <flow> [--golden]` writes validated
-generated Hurl files; `map --export mermaid|dot|md` emits host-level dependency
+generated Hurl files; `map --export mermaid|dot|md|png` emits host-level dependency
 maps from redacted traffic; `freeze --mock <service>` writes WireMock-compatible
-dependency mappings. PNG map rendering is still planned follow-up work.
+dependency mappings. PNG export requires local Graphviz `dot`; use Mermaid, DOT,
+or Markdown export when Graphviz is not installed.
 
 Freeze the session into tests:
 
