@@ -11,9 +11,9 @@ tags:
 
 # Test Strategy
 
-Entroping uses a risk-based test pyramid. The target is 100 percent meaningful
-coverage, not decorative coverage; the goal is deterministic evidence that the
-governance loop works.
+Entroping uses a risk-based test pyramid. The release target is 100 percent
+meaningful coverage, not decorative coverage; the goal is deterministic evidence
+that the governance loop works.
 
 ## Test Pyramid
 
@@ -64,6 +64,8 @@ and Vulture dead-code discovery.
 
 ## Coverage Expectations
 
+- 100 percent meaningful coverage is the release bar. Temporary lower thresholds
+  are burn-down aids only and must be tracked with explicit gaps.
 - New pure logic needs unit tests.
 - New CLI, filesystem, subprocess, YAML, report, proxy, or LLM behavior needs adapter tests.
 - Bug fixes need regression tests when the bug is reproducible.
