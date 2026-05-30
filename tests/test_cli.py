@@ -13,6 +13,7 @@ from typer.testing import CliRunner
 from entroping.brain.litellm_client import BrainProviderError, LiteLLMCompletionResult, LiteLLMUsage
 from entroping.brain.prompt_builder import ArchitectPromptPackage
 from entroping.cli.main import app
+from entroping.core.hurl_runner import HurlFileResult, HurlRunOptions, HurlSuiteResult
 from entroping.core.hurl_validator import HurlValidationError
 from entroping.core.traffic_proxy import MitmproxyUnavailableError, WatchConfig
 
@@ -1908,6 +1909,57 @@ def test_run_writes_json_junit_reports_and_latest_state(
     assert junit_root.attrib["failures"] == "0"
 
 
+def test_run_parallel_uses_qanstitution_worker_limit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    (Path("tests") / "health.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    (Path("tests") / "checkout.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET {{base_url}}/checkout\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    captured: dict[str, object] = {}
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+    ) -> HurlSuiteResult:
+        captured["max_workers"] = max_workers
+        captured["timeout_ms"] = options.timeout_ms
+        return HurlSuiteResult(
+            results=tuple(
+                HurlFileResult(
+                    path=path,
+                    command=("hurl", str(path)),
+                    status="passed",
+                    exit_code=0,
+                    stdout="",
+                    stderr="",
+                    stdout_truncated=False,
+                    stderr_truncated=False,
+                    duration_ms=1,
+                )
+                for path in paths
+            )
+        )
+
+    monkeypatch.setattr("entroping.cli.main.run_hurl_files", fake_run_hurl_files)
+
+    result = runner.invoke(app, ["run", "--tag", "smoke", "--parallel"])
+
+    assert result.exit_code == 0
+    assert captured == {"max_workers": 2, "timeout_ms": 30_000}
+    assert "Hurl run: 2 passed, 0 failed" in result.output
+
+
 def test_run_env_fails_with_actionable_missing_env_file(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1988,11 +2040,11 @@ def test_run_rejects_unsupported_report_format() -> None:
 
 
 def test_run_rejects_future_options_instead_of_silently_ignoring_them() -> None:
-    result = CliRunner().invoke(app, ["run", "--parallel"])
+    result = CliRunner().invoke(app, ["run", "--drift-check"])
 
     assert result.exit_code == 2
     assert "not implemented yet for entroping run" in result.output
-    assert "--parallel" in result.output
+    assert "--drift-check" in result.output
 
 
 def test_run_rejects_empty_tag_filter() -> None:

@@ -583,6 +583,9 @@ entroping report bug
 ```
 
 `--report` is repeatable so a single run can emit both CI and human artifacts, for example `--report junit --report html`.
+`--parallel` uses `settings.parallel_workers` from `qanstitution.yaml`, keeps the
+per-file timeout and output-redaction behavior, and preserves deterministic
+input ordering in reports.
 
 No additional commands or flags should be implemented without updating the product specification first.
 

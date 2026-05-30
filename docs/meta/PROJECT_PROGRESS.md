@@ -97,6 +97,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [WireMock dependency mappings](https://github.com/sakibshuvo/Entroping/issues/75) | Done | `freeze --mock <service>` writes WireMock-compatible mappings from redacted dependency traffic | Keep mappings redacted |
 | [PNG dependency map rendering](https://github.com/sakibshuvo/Entroping/issues/80) | Done | `map --export png` writes `reports/dependency-map.png` through local Graphviz `dot` when available | Keep renderer optional and subprocess-bounded |
 | [Distribution and install polish](https://github.com/sakibshuvo/Entroping/issues/82) | Done | GitHub branch/tag install docs plus deterministic wheel/sdist metadata verification | Keep package publishing credentials out of the repo |
+| [Bounded parallel Hurl execution](https://github.com/sakibshuvo/Entroping/issues/83) | Done | `run --parallel` uses QAnstitution worker limits and preserves deterministic result ordering | Keep run path LLM-free |
 
 ## Later Roadmap
 
@@ -106,6 +107,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | Runner Usability | Done | Local env-file loading for generated Hurl variables |
 | Reporting Polish | Done | Dependency-free HTML run reports |
 | CI Proof | Done | Live demo smoke with real Hurl in GitHub Actions |
+| Runner Parallelism | Done | Bounded `run --parallel` with deterministic report ordering |
 | OpenAPI Depth | Done | Path/query/header/cookie parameters plus schema examples/defaults |
 | Architect Minimal | Done | Prompt generation, prompt-backed build merge, pre-write Hurl validation, Architect-owned refactor, and managed-block manual refactor are available |
 | Delivery Automation | Done | Deterministic repo hygiene, issue worktrees, regression gates, optional local hooks, and release-readiness checks support multi-session development |

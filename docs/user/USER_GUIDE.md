@@ -101,6 +101,10 @@ Use strict CI mode in pipelines:
 entroping run --env ci --ci --parallel --report junit
 ```
 
+`--parallel` uses `settings.parallel_workers` from `qanstitution.yaml` and keeps
+report ordering stable, so CI output remains deterministic even when files run
+concurrently.
+
 ## 4. Existing Hurl Project
 
 If you already have Hurl tests, Entroping should adopt them rather than replace them.

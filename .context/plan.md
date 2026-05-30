@@ -60,6 +60,21 @@ writes, and dependency map exports. Issues #66 through #69 are implemented;
 issue #75 adds WireMock-compatible `freeze --mock` output, and issue #80 adds
 optional Graphviz-backed PNG dependency map rendering.
 
+## Completed Slice: Issue #83 Bounded Parallel Hurl Execution
+
+Outcome: `entroping run --parallel` executes multiple Hurl files concurrently
+without changing deterministic reporting semantics.
+
+Implemented boundaries:
+
+- Serial execution remains the default for `entroping run`.
+- `--parallel` uses `settings.parallel_workers` from `qanstitution.yaml`, with
+  a positive bounded worker count and no LLM involvement.
+- Each file still goes through the existing subprocess boundary, timeout,
+  output-bound, redaction, and variables-file cleanup behavior.
+- Suite results are restored to input order before JSON, JUnit, HTML, latest-run,
+  and CLI failure output are built.
+
 ## Completed Slice: Issue #82 Distribution Install Polish
 
 Outcome: make the source-distributed alpha easier to evaluate without PyPI,

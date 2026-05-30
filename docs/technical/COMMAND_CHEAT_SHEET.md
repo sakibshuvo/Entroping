@@ -85,8 +85,8 @@ entroping map --export mermaid
 ## Execution
 
 Current alpha implementation supports deterministic `run`, `--env`, `--tag`, `--ci`,
-`--report html`, `--report json`, and `--report junit`. `--parallel` and drift reports
-remain part of the v4.1 contract but are not implemented yet.
+bounded `--parallel`, `--report html`, `--report json`, and `--report junit`.
+Drift reports remain part of the v4.1 contract but are not implemented yet.
 
 | Command | Purpose |
 | --- | --- |
