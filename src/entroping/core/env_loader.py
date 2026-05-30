@@ -71,9 +71,6 @@ def _read_env_file(path: Path) -> dict[str, str]:
         if key in variables:
             msg = f"{resolved}: line {line_number}: duplicate environment variable {key!r}"
             raise EnvironmentLoadError(msg)
-        if "\n" in value or "\r" in value:
-            msg = f"{resolved}: line {line_number}: environment values must be single-line"
-            raise EnvironmentLoadError(msg)
         variables[key] = value
 
     return variables
