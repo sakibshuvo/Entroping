@@ -161,9 +161,9 @@ Latest local evidence:
 - `PYTHONPATH=src uv run pytest tests/test_traffic_sessions.py tests/test_traffic_to_hurl.py tests/test_traffic_to_wiremock.py --cov=entroping.bridge.traffic_sessions --cov=entroping.bridge.traffic_to_hurl --cov=entroping.bridge.traffic_to_wiremock --cov-report=term-missing -q`: 38 passed; targeted traffic compiler modules at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_config_loader.py tests/test_config_writer.py tests/test_env_loader.py --cov=entroping.core.config_loader --cov=entroping.core.config_writer --cov=entroping.core.env_loader --cov-report=term-missing -q`: 58 passed; targeted config/env modules at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_openapi_to_hurl.py tests/test_architect_audit.py --cov=entroping.bridge.openapi_to_hurl --cov=entroping.bridge.openapi_audit --cov-report=term-missing -q`: 39 passed; `bridge.openapi_to_hurl` and `bridge.openapi_audit` at 100 percent coverage.
-- `PYTHONPATH=src uv run pytest tests/test_ci_workflow.py tests/test_release_docs.py tests/test_agent_workflow_docs.py -q`: 14 passed.
-- `scripts/regression.sh --security`: 543 passed; Bandit and default/all-extras dependency audits passed.
-- `scripts/audit_quality.sh`: 543 passed with 93.66 percent total coverage; Radon and Vulture gates passed.
+- `PYTHONPATH=src uv run pytest tests/test_ci_workflow.py tests/test_release_docs.py tests/test_agent_workflow_docs.py -q`: 15 passed.
+- `scripts/regression.sh --security`: 544 passed; Bandit and default/all-extras dependency audits passed.
+- `scripts/audit_quality.sh`: 544 passed with 93.66 percent total coverage; Radon and Vulture gates passed.
 
 ## Completed Slice: Issue #90 Run Workflow Extraction
 
@@ -251,6 +251,21 @@ Implemented boundaries:
   available.
 - README and `docs/meta/TEST_STRATEGY.md` now distinguish CI-enforced gates from
   local release-owner package/live-demo release checks.
+
+## Completed Slice: Issue #150 Live-Demo Hurl Checksum Pinning
+
+Outcome: the CI live-demo job no longer trusts a `.sha256` sidecar downloaded
+from the same upstream release at runtime.
+
+Implemented boundaries:
+
+- `.github/workflows/ci.yml` pins `HURL_VERSION` and the reviewed
+  `HURL_SHA256` value for the Linux archive used by `live-demo-smoke`.
+- The workflow keeps bounded archive download retries but verifies the archive
+  against the in-repo checksum before extracting it.
+- The release checklist documents the Hurl bump process: update version,
+  compute `sha256sum` locally, update `HURL_SHA256`, and let CI prove the demo
+  path.
 
 ## Completed Slice: Issue #85 Read-Only Studio Status Shell
 
