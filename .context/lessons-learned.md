@@ -12,6 +12,7 @@
 - Coverage runs that invoke nested local tools should not rely only on editable-install `.pth` metadata. Set an explicit repo-local `PYTHONPATH` for deterministic audit scripts so subprocesses can import `src/entroping` even when local virtualenv metadata is flaky.
 - Squash merges break normal `git branch -d` ancestry checks even when a PR is genuinely merged. Cleanup should verify the GitHub PR and CI state first, then use a scripted local branch deletion path instead of relying on chat memory.
 - Traceability should start as a local compiler over committed metadata. Do not add Jira, Notion, Linear, or monday.com clients until the local story/test report and conflict rules are stable.
+- High-risk CLI commands should delegate orchestration to core use cases before adding more flags. Keep Typer functions focused on option normalization, user-facing output, and exit-code mapping.
 
 ## 2026-05-29
 

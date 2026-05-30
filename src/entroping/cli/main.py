@@ -3,7 +3,6 @@
 import asyncio
 import json
 import sys
-import tempfile
 from pathlib import Path
 from typing import Annotated
 from urllib.parse import urlparse
@@ -39,34 +38,21 @@ from entroping.core.config_writer import (
     update_agent_model_with_persona_template,
 )
 from entroping.core.dependency_mapper import DependencyMapError, run_dependency_map
-from entroping.core.drift_report import (
-    DriftBaselineNotFoundError,
-    DriftReportError,
-    build_drift_report,
-    build_missing_baseline_report,
-    load_drift_baseline,
-    write_drift_report,
-)
-from entroping.core.env_loader import load_environment_variables
+from entroping.core.drift_report import DriftReportError
 from entroping.core.freeze import FreezeError, run_freeze, run_freeze_mock
-from entroping.core.gate_injector import GateInjectionError, write_injected_execution_copy
+from entroping.core.gate_injector import GateInjectionError
 from entroping.core.hurl_discovery import discover_hurl_tests, normalize_tag_filters
 from entroping.core.hurl_runner import (
     HurlBinaryNotFoundError,
-    HurlRunOptions,
     discover_hurl,
-    run_hurl_files,
 )
 from entroping.core.openapi_loader import OpenApiLoadError, load_openapi_document
 from entroping.core.report_writer import (
     ReportWriterError,
-    build_run_report,
     load_run_report,
     write_bug_report,
-    write_html_report,
-    write_json_report,
-    write_junit_report,
 )
+from entroping.core.run_workflow import NoHurlTestsMatchedError, execute_run_workflow
 from entroping.core.traffic_proxy import (
     DEFAULT_WATCH_PORT,
     TrafficProxyError,
@@ -565,77 +551,31 @@ def run(
         raise typer.BadParameter(str(exc), param_hint="--report") from exc
 
     try:
-        law = load_qanstitution(Path("qanstitution.yaml"))
-        hurl_tests = discover_hurl_tests(tag_filters=tuple(tag_filters))
-        env_variables = load_environment_variables(env) if env is not None else {}
-    except (QanstitutionLoadError, FileNotFoundError, ValueError) as exc:
-        console.print(f"[red]{exc}[/red]")
-        raise typer.Exit(1) from exc
-
-    if not hurl_tests:
+        workflow_result = execute_run_workflow(
+            project_root=Path.cwd(),
+            environment=env,
+            tag_filters=tuple(tag_filters),
+            report_formats=report_formats,
+            parallel=parallel,
+            drift_check=drift_check,
+        )
+    except NoHurlTestsMatchedError as exc:
         console.print("[yellow]No Hurl tests matched the requested filters.[/yellow]")
-        raise typer.Exit(1 if ci else 0)
-
-    hurl_workers = law.settings.parallel_workers if parallel else 1
-    state_dir = Path(".entroping")
-    state_dir.mkdir(parents=True, exist_ok=True)
-    try:
-        with tempfile.TemporaryDirectory(prefix="run-", dir=state_dir) as execution_root:
-            execution_copies = [
-                write_injected_execution_copy(
-                    hurl_test,
-                    law.gates,
-                    execution_root=Path(execution_root),
-                )
-                for hurl_test in hurl_tests
-            ]
-            suite = run_hurl_files(
-                [execution.execution_path for execution in execution_copies],
-                HurlRunOptions(timeout_ms=law.settings.timeout, variables=env_variables),
-                max_workers=hurl_workers,
-            )
-            run_report = build_run_report(
-                project=law.project,
-                environment=env or "default",
-                execution_copies=execution_copies,
-                suite=suite,
-                project_root=Path.cwd(),
-            )
-    except (GateInjectionError, HurlBinaryNotFoundError, ReportWriterError, ValueError) as exc:
+        raise typer.Exit(1 if ci else 0) from exc
+    except (
+        DriftReportError,
+        FileNotFoundError,
+        GateInjectionError,
+        HurlBinaryNotFoundError,
+        QanstitutionLoadError,
+        ReportWriterError,
+        ValueError,
+    ) as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
 
-    try:
-        latest_state = write_json_report(run_report, state_dir / "latest-run.json")
-        artifacts: list[Path] = []
-        drift_report = None
-        if drift_check or "drift" in report_formats:
-            baseline_path = state_dir / "drift-baseline.json"
-            try:
-                baseline = load_drift_baseline(baseline_path)
-            except DriftBaselineNotFoundError:
-                drift_report = build_missing_baseline_report(
-                    current=run_report,
-                    baseline_path=baseline_path,
-                )
-            else:
-                drift_report = build_drift_report(
-                    current=run_report,
-                    baseline=baseline,
-                    baseline_path=baseline_path,
-                )
-        if "json" in report_formats:
-            artifacts.append(write_json_report(run_report, Path("reports") / "run-latest.json"))
-        if "junit" in report_formats:
-            artifacts.append(write_junit_report(run_report, Path("reports") / "junit.xml"))
-        if "html" in report_formats:
-            artifacts.append(write_html_report(run_report, Path("reports") / "run-latest.html"))
-        if "drift" in report_formats and drift_report is not None:
-            artifacts.append(write_drift_report(drift_report, Path("reports") / "drift.json"))
-    except (DriftReportError, ReportWriterError) as exc:
-        console.print(f"[red]{exc}[/red]")
-        raise typer.Exit(1) from exc
-
+    suite = workflow_result.suite
+    drift_report = workflow_result.drift_report
     console.print(f"Hurl run: {suite.passed} passed, {suite.failed} failed")
     if drift_report is not None:
         if drift_report.summary.missing_baseline:
@@ -646,8 +586,8 @@ def run(
         else:
             noun = "finding" if drift_report.summary.drifted == 1 else "findings"
             console.print(f"Drift check: {drift_report.summary.drifted} {noun}")
-    console.print(f"Wrote latest run state: {_display_cli_path(latest_state)}")
-    for artifact in artifacts:
+    console.print(f"Wrote latest run state: {_display_cli_path(workflow_result.latest_state_path)}")
+    for artifact in workflow_result.artifacts:
         console.print(f"Wrote report: {_display_cli_path(artifact)}")
     for result in suite.results:
         if result.passed:
@@ -658,15 +598,7 @@ def run(
         if result.stderr:
             console.print(result.stderr, markup=False)
 
-    exit_code = suite.exit_code
-    if (
-        exit_code == 0
-        and drift_check
-        and drift_report is not None
-        and drift_report.summary.drifted > 0
-    ):
-        exit_code = 1
-    raise typer.Exit(exit_code)
+    raise typer.Exit(workflow_result.exit_code)
 
 
 def _agent_role_order() -> tuple[AgentRole, ...]:

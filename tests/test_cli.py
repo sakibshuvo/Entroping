@@ -2150,7 +2150,7 @@ def test_run_parallel_uses_qanstitution_worker_limit(
             )
         )
 
-    monkeypatch.setattr("entroping.cli.main.run_hurl_files", fake_run_hurl_files)
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
 
     result = runner.invoke(app, ["run", "--tag", "smoke", "--parallel"])
 

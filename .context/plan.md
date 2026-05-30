@@ -84,6 +84,28 @@ dead-code discovery checks. Issue #94 added the symmetric finish workflow for
 post-merge worktree, local branch, label, and project-board cleanup.
 Issue #91 implemented the bridge-level story traceability report for Hurl
 metadata without adding business-system API clients.
+Issue #90 moved deterministic run orchestration behind `core.run_workflow`,
+leaving the CLI adapter responsible for option normalization, output, and exit
+mapping.
+
+## Completed Slice: Issue #90 Run Workflow Extraction
+
+Outcome: `entroping run` no longer owns discovery, env loading, gate injection,
+Hurl execution, report writes, drift comparison, and exit-code policy directly
+inside the Typer adapter.
+
+Implemented boundaries:
+
+- `core.run_workflow.execute_run_workflow` owns the deterministic governance
+  loop and returns a typed `RunWorkflowResult`.
+- The CLI still normalizes `--tag` and `--report`, prints user-facing messages,
+  and maps no-match behavior to CI/non-CI exit codes.
+- JSON, JUnit, HTML, drift, latest-run state, parallel workers, environment
+  variables, temporary execution cleanup, and drift exit-code behavior are
+  preserved.
+- Focused core tests cover report writing, no-match handling, temporary cleanup,
+  and drift exit-code policy.
+- `entroping run` CLI complexity dropped from Radon E(34) to C(14).
 
 ## Completed Slice: Issue #91 Story Traceability Bridge
 
