@@ -62,7 +62,23 @@ Before tagging, the latest `main` commit must have passing GitHub Actions jobs:
 - `checks`
 - `live-demo-smoke`
 
-The `live-demo-smoke` job installs a pinned Hurl binary, generates Hurl from the checkout OpenAPI fixture, runs the deterministic Enforcer path, and uploads run reports.
+The `live-demo-smoke` job installs a pinned Hurl binary, verifies the archive
+against the reviewed `HURL_SHA256` value in `.github/workflows/ci.yml`,
+generates Hurl from the checkout OpenAPI fixture, runs the deterministic
+Enforcer path, and uploads run reports.
+
+When bumping Hurl:
+
+1. Update `.github/workflows/ci.yml` `HURL_VERSION`.
+2. Download the matching Linux archive from the Hurl release page.
+3. Compute and review the checksum locally:
+
+   ```bash
+   sha256sum hurl-<version>-x86_64-unknown-linux-gnu.tar.gz
+   ```
+
+4. Update `.github/workflows/ci.yml` `HURL_SHA256` in the same review.
+5. Let the `live-demo-smoke` job prove the pinned checksum and demo path.
 
 ## Manual Review
 

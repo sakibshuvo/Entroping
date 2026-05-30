@@ -64,6 +64,7 @@ jobs:
     needs: checks
     env:
       HURL_VERSION: "8.0.1"
+      HURL_SHA256: "cac7c4670d69444db120edb21fe06c97ba8c80dcc52279957c8dd18f05fb0c06"
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -97,9 +98,8 @@ jobs:
             done
           }
           download_with_retry "$base_url/$archive" "$RUNNER_TEMP/$archive"
-          download_with_retry "$base_url/$archive.sha256" "$RUNNER_TEMP/$archive.sha256"
           cd "$RUNNER_TEMP"
-          test "$(cat "$archive.sha256")" = "$(sha256sum "$archive" | awk '{print $1}')"
+          test "$HURL_SHA256" = "$(sha256sum "$archive" | awk '{print $1}')"
           tar -xzf "$archive"
           echo "$RUNNER_TEMP/hurl-${HURL_VERSION}-x86_64-unknown-linux-gnu/bin" >> "$GITHUB_PATH"
 

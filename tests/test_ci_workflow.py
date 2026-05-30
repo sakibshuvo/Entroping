@@ -41,18 +41,19 @@ def test_ci_workflow_runs_live_demo_smoke_with_pinned_hurl() -> None:
     live_demo = workflow["jobs"]["live-demo-smoke"]
     steps = live_demo["steps"]
     run_blocks = "\n".join(str(step.get("run", "")) for step in steps)
+    live_demo_env = live_demo["env"]
 
     assert live_demo["needs"] == "checks"
-    assert 'HURL_VERSION: "8.0.1"' in _WORKFLOW_PATH.read_text(encoding="utf-8")
+    assert live_demo_env["HURL_VERSION"] == "8.0.1"
+    assert len(live_demo_env["HURL_SHA256"]) == 64
+    assert all(character in "0123456789abcdef" for character in live_demo_env["HURL_SHA256"])
     assert "sha256sum \"$archive\"" in run_blocks
+    assert "HURL_SHA256" in run_blocks
     assert "download_with_retry()" in run_blocks
     assert "for attempt in 1 2 3" in run_blocks
     assert "sleep $((attempt * 2))" in run_blocks
     assert 'download_with_retry "$base_url/$archive" "$RUNNER_TEMP/$archive"' in run_blocks
-    assert (
-        'download_with_retry "$base_url/$archive.sha256" "$RUNNER_TEMP/$archive.sha256"'
-        in run_blocks
-    )
+    assert "$archive.sha256" not in run_blocks
     assert "scripts/live_demo_smoke.sh" in run_blocks
     workflow_text = _WORKFLOW_PATH.read_text(encoding="utf-8")
     assert "actions/checkout@v6" in workflow_text
@@ -73,3 +74,13 @@ def test_docs_explain_ci_enforced_and_local_only_gates() -> None:
     assert "GitHub Actions Enforcement" in test_strategy
     assert "`scripts/regression.sh --security`" in test_strategy
     assert "`scripts/audit_quality.sh`" in test_strategy
+
+
+def test_release_docs_explain_hurl_checksum_bump_process() -> None:
+    checklist = (_REPO_ROOT / "docs" / "meta" / "RELEASE_CHECKLIST.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "HURL_SHA256" in checklist
+    assert "sha256sum" in checklist
+    assert "Update `.github/workflows/ci.yml`" in checklist
