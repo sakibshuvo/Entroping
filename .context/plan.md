@@ -169,7 +169,7 @@ Latest local evidence:
 - `PYTHONPATH=src uv run pytest tests/test_cli.py --cov=entroping.cli.main --cov-report=term-missing --cov-fail-under=100 -q`: 85 passed; CLI adapter at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_ci_workflow.py tests/test_release_docs.py tests/test_agent_workflow_docs.py -q`: 15 passed.
 - `scripts/regression.sh --security`: 682 passed; Bandit and default/all-extras dependency audits passed.
-- `scripts/audit_quality.sh`: 682 passed with 100.00 percent total coverage; Radon and Vulture gates passed.
+- `scripts/audit_quality.sh`: 682 passed with the default 100 percent coverage gate, 100.00 percent total coverage, and passing Radon/Vulture gates.
 
 ## Completed Slice: Issue #90 Run Workflow Extraction
 
@@ -233,7 +233,7 @@ quality audit separate from the faster regression suite.
 Implemented boundaries:
 
 - `scripts/audit_quality.sh` runs the full suite with `pytest-cov` and a default
-  85 percent coverage threshold.
+  100 percent coverage threshold.
 - Radon cyclomatic complexity and maintainability-index checks are enforced with
   documented environment thresholds.
 - Vulture dead-code discovery runs with a curated confidence threshold.
@@ -381,6 +381,21 @@ Implemented boundaries:
 - Helper coverage includes audit focus normalization, remote/absolute spec
   reference handling, generated Hurl path rejection, symlinked generated output
   rejection, non-OpenAPI overwrite rejection, and outside-CWD path display.
+
+## Completed Slice: Issue #112 100 Percent Coverage Release Gate
+
+Outcome: 100 percent meaningful coverage is now the default quality-audit gate,
+not only the target tracked by issue slices.
+
+Implemented boundaries:
+
+- `scripts/audit_quality.sh` defaults `ENTROPING_COVERAGE_FAIL_UNDER` to `100`
+  and documents the default in help output.
+- `docs/meta/TEST_STRATEGY.md` states that `scripts/audit_quality.sh` enforces
+  the 100 percent default, and any lower threshold must be an explicit tracked
+  override.
+- The latest full local quality audit passed with 682 tests, 100.00 percent
+  total coverage, and passing Radon plus Vulture gates.
 
 ## Completed Slice: Issue #85 Read-Only Studio Status Shell
 
@@ -700,8 +715,8 @@ merged through GitHub before starting the next branch:
   Scorecard and community-profile hardening.
 - [#110](https://github.com/sakibshuvo/Entroping/issues/110): add structured
   response drift checks.
-- [#112](https://github.com/sakibshuvo/Entroping/issues/112): make 100 percent
-  meaningful coverage a release gate.
+- Issue #112 is complete: `scripts/audit_quality.sh` now makes 100 percent
+  meaningful coverage the default release gate.
 
 ## Explicitly Deferred
 

@@ -203,6 +203,11 @@ def test_doctor_reports_valid_config_health(
 ) -> None:
     runner = CliRunner()
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        cli_main,
+        "discover_hurl",
+        lambda: SimpleNamespace(available=True, path="/usr/local/bin/hurl"),
+    )
 
     runner.invoke(app, ["init", "--minimal"])
 
@@ -211,6 +216,7 @@ def test_doctor_reports_valid_config_health(
     assert result.exit_code == 0
     assert "Python:" in result.output
     assert "Hurl:" in result.output
+    assert "found" in result.output
     assert "QAnstitution: valid" in result.output
 
 
