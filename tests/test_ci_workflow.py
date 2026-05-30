@@ -25,6 +25,14 @@ def test_ci_workflow_runs_live_demo_smoke_with_pinned_hurl() -> None:
     assert live_demo["needs"] == "checks"
     assert 'HURL_VERSION: "8.0.1"' in _WORKFLOW_PATH.read_text(encoding="utf-8")
     assert "sha256sum \"$archive\"" in run_blocks
+    assert "download_with_retry()" in run_blocks
+    assert "for attempt in 1 2 3" in run_blocks
+    assert "sleep $((attempt * 2))" in run_blocks
+    assert 'download_with_retry "$base_url/$archive" "$RUNNER_TEMP/$archive"' in run_blocks
+    assert (
+        'download_with_retry "$base_url/$archive.sha256" "$RUNNER_TEMP/$archive.sha256"'
+        in run_blocks
+    )
     assert "scripts/live_demo_smoke.sh" in run_blocks
     workflow_text = _WORKFLOW_PATH.read_text(encoding="utf-8")
     assert "actions/checkout@v6" in workflow_text

@@ -54,8 +54,21 @@ jobs:
         run: |
           archive="hurl-${HURL_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
           base_url="https://github.com/Orange-OpenSource/hurl/releases/download/${HURL_VERSION}"
-          curl --fail --location --silent --show-error --output "$RUNNER_TEMP/$archive" "$base_url/$archive"
-          curl --fail --location --silent --show-error --output "$RUNNER_TEMP/$archive.sha256" "$base_url/$archive.sha256"
+          download_with_retry() {
+            local url="$1"
+            local output="$2"
+            for attempt in 1 2 3; do
+              if curl --fail --location --silent --show-error --output "$output" "$url"; then
+                return 0
+              fi
+              if [ "$attempt" -eq 3 ]; then
+                return 1
+              fi
+              sleep $((attempt * 2))
+            done
+          }
+          download_with_retry "$base_url/$archive" "$RUNNER_TEMP/$archive"
+          download_with_retry "$base_url/$archive.sha256" "$RUNNER_TEMP/$archive.sha256"
           cd "$RUNNER_TEMP"
           test "$(cat "$archive.sha256")" = "$(sha256sum "$archive" | awk '{print $1}')"
           tar -xzf "$archive"
