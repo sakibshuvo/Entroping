@@ -3,6 +3,7 @@
 import subprocess
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import BinaryIO
 
@@ -10,9 +11,12 @@ import pytest
 
 from entroping.core.hurl_runner import (
     HurlBinaryNotFoundError,
+    HurlRunnerError,
     HurlRunOptions,
+    discover_hurl,
     run_hurl_file,
     run_hurl_files,
+    validate_hurl_path,
 )
 
 
@@ -20,6 +24,42 @@ def _write_hurl(path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("GET {{base_url}}/health\nHTTP 200\n", encoding="utf-8")
     return path
+
+
+def test_discover_hurl_reports_binary_availability(monkeypatch: pytest.MonkeyPatch) -> None:
+    def resolve_binary(binary: str) -> str:
+        return f"/opt/bin/{binary}"
+
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", resolve_binary)
+
+    assert discover_hurl("custom-hurl").available
+    assert discover_hurl("custom-hurl").path == "/opt/bin/custom-hurl"
+
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: None)
+
+    assert not discover_hurl("missing-hurl").available
+    assert discover_hurl("missing-hurl").path is None
+
+
+@pytest.mark.parametrize(
+    ("factory", "message"),
+    [
+        (lambda: HurlRunOptions(binary="  "), "Hurl binary must not be empty"),
+        (lambda: HurlRunOptions(timeout_ms=0), "Hurl timeout must be greater than zero"),
+        (
+            lambda: HurlRunOptions(output_limit_bytes=0),
+            "Hurl output limit must be greater than zero",
+        ),
+        (lambda: HurlRunOptions(variables={"bad-name": "value"}), "Invalid Hurl variable name"),
+        (lambda: HurlRunOptions(variables={"token": "line1\nline2"}), "must be single-line"),
+    ],
+)
+def test_hurl_run_options_reject_invalid_runtime_options(
+    factory: Callable[[], HurlRunOptions],
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        factory()
 
 
 def test_run_hurl_file_invokes_hurl_with_argument_array_and_redacts_output(
@@ -207,6 +247,38 @@ def test_run_hurl_file_returns_failed_result_for_non_zero_exit(
     assert "Assert status < 500 failed" in result.stderr
 
 
+def test_run_hurl_file_returns_error_result_for_subprocess_oserror(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "error.hurl")
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (args, stdout, timeout, check, env, shell)
+        stderr.write(b"stderr before failure\n")
+        raise OSError("permission denied")
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(hurl_file, HurlRunOptions(binary="hurl"))
+
+    assert not result.passed
+    assert result.status == "error"
+    assert result.exit_code == 126
+    assert "stderr before failure" in result.stderr
+    assert "Hurl subprocess failed: permission denied" in result.stderr
+
+
 @pytest.mark.security
 def test_run_hurl_file_returns_timeout_result_with_redacted_partial_output(
     tmp_path: Path,
@@ -326,6 +398,24 @@ def test_run_hurl_file_reports_missing_binary_before_subprocess(
         run_hurl_file(hurl_file, HurlRunOptions(binary="missing-hurl"))
 
 
+def test_validate_hurl_path_rejects_unsafe_or_invalid_paths(tmp_path: Path) -> None:
+    target = _write_hurl(tmp_path / "real" / "health.hurl")
+    symlink = tmp_path / "tests" / "linked.hurl"
+    symlink.parent.mkdir(parents=True, exist_ok=True)
+    symlink.symlink_to(target)
+
+    with pytest.raises(ValueError, match="symlinked Hurl file"):
+        validate_hurl_path(symlink)
+
+    notes = tmp_path / "tests" / "notes.txt"
+    notes.write_text("not hurl\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="Expected a .hurl file"):
+        validate_hurl_path(notes)
+
+    with pytest.raises(ValueError, match="Hurl file not found"):
+        validate_hurl_path(tmp_path / "tests" / "missing.hurl")
+
+
 def test_run_hurl_files_aggregates_deterministic_exit_code(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -358,6 +448,41 @@ def test_run_hurl_files_aggregates_deterministic_exit_code(
     assert suite.passed == 1
     assert suite.failed == 1
     assert suite.exit_code == 1
+
+
+def test_run_hurl_files_rejects_invalid_worker_count(tmp_path: Path) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "health.hurl")
+
+    with pytest.raises(ValueError, match="Hurl worker count must be greater than zero"):
+        run_hurl_files([hurl_file], HurlRunOptions(binary="hurl"), max_workers=0)
+
+
+def test_run_hurl_files_surfaces_missing_worker_result(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first = _write_hurl(tmp_path / "tests" / "first.hurl")
+    second = _write_hurl(tmp_path / "tests" / "second.hurl")
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stdout, stderr, timeout, check, env, shell)
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+    monkeypatch.setattr("entroping.core.hurl_runner.as_completed", lambda futures: ())
+
+    with pytest.raises(HurlRunnerError, match="Hurl worker did not produce a result"):
+        run_hurl_files([first, second], HurlRunOptions(binary="hurl"), max_workers=2)
 
 
 def test_run_hurl_files_bounds_parallel_workers_and_preserves_input_order(
