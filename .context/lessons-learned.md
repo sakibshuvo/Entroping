@@ -68,3 +68,4 @@
 - Freeze writes must validate Hurl before touching the target path and use random same-directory temp files plus symlink checks before replacement. Missing traffic state should fail without creating `.entroping/state.db`.
 - Dependency maps are export artifacts, not raw traffic dumps. Ignore query strings, template volatile path segments, aggregate only redacted records, and escape every host/method/path label independently for Mermaid, Markdown, and DOT.
 - WireMock generation should match dependencies by a narrow safe service selector and avoid request-header/body matching in the MVP. Method plus URL path and redacted response payloads give useful mocks without replaying captured secrets.
+- Release smoke jobs that download pinned external binaries still need bounded retries. Keep checksum verification strict, but do not let a single transient 5xx from a release host fail an otherwise valid PR.
