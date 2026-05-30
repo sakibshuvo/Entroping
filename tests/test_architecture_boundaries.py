@@ -49,6 +49,11 @@ DETERMINISTIC_RUN_MODULES = (
     "entroping.core.report_writer",
 )
 
+TRAFFIC_STATE_MODULES = (
+    "entroping.core.traffic_redactor",
+    "entroping.core.traffic_store",
+)
+
 
 def test_import_boundary_checker_detects_synthetic_violations(tmp_path: Path) -> None:
     package = tmp_path / "entroping"
@@ -108,5 +113,20 @@ def test_litellm_is_the_only_model_provider_abstraction_in_source() -> None:
     modules = collect_python_modules(SOURCE_ROOT, package_name="entroping")
 
     violations = find_provider_imports(modules)
+
+    assert not violations, format_violations(violations)
+
+
+def test_traffic_state_modules_do_not_import_brain_or_litellm() -> None:
+    modules = collect_python_modules(SOURCE_ROOT, package_name="entroping")
+    rules = (
+        ImportBoundaryRule(
+            source_prefixes=TRAFFIC_STATE_MODULES,
+            forbidden_import_prefixes=("entroping.brain", "litellm"),
+            reason="traffic capture state must never call model providers",
+        ),
+    )
+
+    violations = find_forbidden_imports(modules, rules=rules)
 
     assert not violations, format_violations(violations)

@@ -11,6 +11,7 @@ from entroping.models.hurl import (
     parse_hurl_metadata,
 )
 from entroping.models.qanstitution import AgentConfig, GateRule, Qanstitution
+from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
 
 __all__ = [
     "AgentConfig",
@@ -24,6 +25,10 @@ __all__ = [
     "HurlMetadataSyntaxError",
     "HurlTest",
     "Qanstitution",
+    "TrafficBody",
+    "TrafficExchange",
+    "TrafficRequest",
+    "TrafficResponse",
     "parse_condition",
     "parse_hurl_exchanges",
     "parse_hurl_metadata",

@@ -1,0 +1,74 @@
+"""Tests for local SQLite traffic state."""
+
+from datetime import UTC, datetime
+from pathlib import Path
+
+import pytest
+
+from entroping.core.traffic_redactor import redact_traffic_exchange
+from entroping.core.traffic_store import TrafficStore, TrafficStoreError
+from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
+
+
+def _exchange(secret: str = "secret-token") -> TrafficExchange:
+    return TrafficExchange(
+        captured_at=datetime(2026, 5, 30, 12, 0, tzinfo=UTC),
+        duration_ms=11,
+        request=TrafficRequest(
+            method="GET",
+            url=f"https://api.example.test/health?token={secret}",
+            headers={"Authorization": f"Bearer {secret}"},
+            body=None,
+        ),
+        response=TrafficResponse(
+            status_code=200,
+            headers={"Content-Type": "application/json"},
+            body=TrafficBody(content_type="application/json", size_bytes=11, text='{"ok":true}'),
+        ),
+    )
+
+
+def test_store_uses_entroping_state_db_by_default(tmp_path: Path) -> None:
+    store = TrafficStore.open_project(tmp_path)
+
+    assert store.db_path == tmp_path / ".entroping" / "state.db"
+    assert store.db_path.parent.is_dir()
+
+
+def test_store_refuses_unredacted_exchange(tmp_path: Path) -> None:
+    store = TrafficStore.open_project(tmp_path)
+
+    with pytest.raises(TrafficStoreError, match="refusing to persist unredacted traffic"):
+        store.record_exchange(_exchange())
+
+
+def test_store_persists_redacted_exchange_without_plaintext_secrets(tmp_path: Path) -> None:
+    store = TrafficStore.open_project(tmp_path)
+    redacted = redact_traffic_exchange(_exchange(secret="live-secret"))
+
+    event_id = store.record_exchange(redacted)
+    loaded = store.list_exchanges()
+
+    assert event_id == 1
+    assert len(loaded) == 1
+    assert loaded[0].redacted is True
+    assert loaded[0].request.headers["Authorization"] == "[REDACTED]"
+    assert "live-secret" not in store.db_path.read_bytes().decode("utf-8", errors="ignore")
+
+
+def test_store_retention_keeps_latest_redacted_events(tmp_path: Path) -> None:
+    store = TrafficStore.open_project(tmp_path, max_events=2)
+
+    for index in range(3):
+        exchange = _exchange(secret=f"secret-{index}").model_copy(
+            update={
+                "captured_at": datetime(2026, 5, 30, 12, index, tzinfo=UTC),
+            }
+        )
+        store.record_exchange(redact_traffic_exchange(exchange))
+
+    loaded = store.list_exchanges()
+
+    assert len(loaded) == 2
+    assert [item.captured_at.minute for item in loaded] == [1, 2]
+    assert "secret-" not in store.db_path.read_bytes().decode("utf-8", errors="ignore")

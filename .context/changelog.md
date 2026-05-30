@@ -60,3 +60,4 @@
 - Implemented issue #54's deterministic repo hygiene slice with tracked local/generated-state rejection, feature-gate integration, optional local hook installation, Obsidian UI state removal from Git, and script tests.
 - Added issue #56's alpha release-readiness gate and checklist so public release claims have deterministic local evidence.
 - Refreshed the progress dashboard after the release-readiness merge, adding the license/package release blocker and the next Eye capture queue.
+- Implemented issue #61's Eye foundation with typed traffic models, pre-persistence redaction, bounded SQLite traffic state, and tests proving secrets are not stored.
