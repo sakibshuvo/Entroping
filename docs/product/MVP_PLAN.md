@@ -182,7 +182,10 @@ traffic-source metadata, redacted textual request data, and stable golden
 assertions that avoid token-like, ID-like, timestamp-like, and redacted fields.
 Basic `entroping freeze --name <flow> [--golden]` now reads local redacted
 traffic state, validates generated Hurl before writing, and writes atomically
-under `tests/generated/`. Mock generation remains out of scope.
+under `tests/generated/`. `entroping map --export mermaid|dot|md` now emits
+host-level dependency maps from redacted traffic with escaped labels, route call
+counts, failures, and latency summaries. Mock generation and PNG map rendering
+remain out of scope.
 
 Deliverables:
 

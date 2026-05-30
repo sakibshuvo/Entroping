@@ -131,8 +131,9 @@ Route a browser, curl, Postman, Bruno, Insomnia, or another client through the p
 
 Current alpha status: `watch` records redacted, bounded traffic locally under
 `.entroping/state.db`; basic `freeze --name <flow> [--golden]` writes validated
-generated Hurl files. `freeze --mock` and `map` are still planned follow-up
-commands.
+generated Hurl files; `map --export mermaid|dot|md` emits host-level dependency
+maps from redacted traffic. `freeze --mock` and PNG map rendering are still
+planned follow-up commands.
 
 Freeze the session into tests:
 

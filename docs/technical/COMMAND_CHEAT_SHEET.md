@@ -58,6 +58,11 @@ entroping architect audit --focus logic --output md
 
 ## Observation
 
+Current alpha implementation supports capture-only `watch`, basic Hurl
+generation through `freeze --name <flow> [--golden]`, and dependency map export
+through `map --export mermaid|dot|md`. `freeze --mock` and PNG map rendering
+remain planned.
+
 | Command | Purpose |
 | --- | --- |
 | `entroping watch --port <port>` | Start local mitmproxy recorder |

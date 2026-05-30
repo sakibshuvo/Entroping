@@ -65,14 +65,14 @@ Before tagging:
 - Review `README.md` for accurate current status.
 - Review `docs/meta/PROJECT_PROGRESS.md` for phase-level status.
 - Confirm no secrets, local env files, `.entroping/`, generated reports, Graphify output, or Obsidian UI state are tracked.
-- Confirm `watch` is described as capture-only, `freeze` is described as basic Hurl generation only, and `freeze --mock`, `map`, and `studio` are clearly presented as not built yet.
+- Confirm `watch` is described as capture-only, `freeze` is described as basic Hurl generation only, `map` is described as Mermaid/DOT/Markdown export only, and `freeze --mock`, PNG map rendering, and `studio` are clearly presented as not built yet.
 
 ## Not Built Yet
 
 Do not imply these are complete in release notes:
 
 - dependency mock generation through `entroping freeze --mock`.
-- dependency map export through `entroping map`.
+- PNG dependency map rendering through `entroping map --export png`.
 - Studio/TUI.
 - hosted cloud workflows.
 - enterprise policy approval workflows.
