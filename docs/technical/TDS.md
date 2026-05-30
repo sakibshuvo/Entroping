@@ -659,11 +659,24 @@ External integrations should be tested with small fixtures and deterministic sub
 
 ### MVP Distribution
 
-Use source/local development distribution:
+Use source/GitHub distribution first:
 
 ```text
 uv tool install -e .
+uv tool install git+https://github.com/sakibshuvo/Entroping.git
+uv tool install git+https://github.com/sakibshuvo/Entroping.git@v0.1.0-alpha
 ```
+
+Before any release claim, verify local artifacts:
+
+```text
+scripts/package_check.sh
+```
+
+The package check builds wheel/sdist artifacts with `uv build` and inspects
+metadata for project name, version, SPDX license expression, license file
+presence, and alpha maturity classifiers. It does not publish to PyPI/TestPyPI
+and must not require package-index credentials.
 
 ### Later Distribution
 
