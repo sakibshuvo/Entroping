@@ -31,7 +31,7 @@ project, and a Codex workspace with fast context rehydration.
 - Project-local `AGENTS.md` now captures repository-specific implementation rules.
 - `docs/meta/AUTONOMOUS_DEVELOPMENT.md` defines the Codex-first loop, Spec Kit pilot path, and future OpenCode/oMLX worker plan.
 - `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, `.github/pull_request_template.md`, and `scripts/feature_gate.sh` define the executable delivery gates for feature work.
-- `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, and `scripts/regression.sh` define issue tracking, regression coverage, and simple phase-level progress tracking.
+- `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, `scripts/regression.sh`, and `scripts/audit_quality.sh` define issue tracking, regression coverage, quality audit coverage, and simple phase-level progress tracking.
 - Apache-2.0 licensing and package metadata are in place for the public core; keep future commercial cloud, model, policy-pack, or enterprise surfaces outside the open core unless explicitly relicensed.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work.
 - Eye capture now has security-first traffic models, pre-persistence redaction, bounded SQLite state, and capture-only `watch` wiring through a lazy-loaded mitmproxy adapter.
@@ -78,7 +78,25 @@ optional Graphviz-backed PNG dependency map rendering.
 Issues #82 through #85 added package install polish, bounded parallel Hurl
 execution, deterministic drift reporting, and the read-only Studio shell.
 Issues #95 and #97 removed the remaining generic Architect build placeholder
-path and ignored validation coverage artifacts.
+path and ignored validation coverage artifacts. Issue #93 added the heavier
+local quality audit gate for coverage, complexity, maintainability, and
+dead-code discovery checks.
+
+## Completed Slice: Issue #93 Quality Audit Gate
+
+Outcome: marathon validation and release hardening now have a repeatable local
+quality audit separate from the faster regression suite.
+
+Implemented boundaries:
+
+- `scripts/audit_quality.sh` runs the full suite with `pytest-cov` and a default
+  85 percent coverage threshold.
+- Radon cyclomatic complexity and maintainability-index checks are enforced with
+  documented environment thresholds.
+- Vulture dead-code discovery runs with a curated confidence threshold.
+- Coverage and static-analysis JSON outputs are written only under ignored
+  `reports/`, and transient `.coverage` state is removed on exit.
+- The script has help, dry-run, and unknown-option smoke tests.
 
 ## Completed Slice: Issue #85 Read-Only Studio Status Shell
 

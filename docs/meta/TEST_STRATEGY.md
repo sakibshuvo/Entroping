@@ -49,6 +49,17 @@ scripts/feature_gate.sh --security
 scripts/regression.sh --security
 ```
 
+Validation or release-hardening audit:
+
+```bash
+scripts/audit_quality.sh
+```
+
+The quality audit is intentionally heavier than `scripts/regression.sh`. It
+runs the full test suite with a coverage threshold, records ignored JSON audit
+artifacts under `reports/`, then checks Radon complexity, Radon maintainability,
+and Vulture dead-code discovery.
+
 ## Coverage Expectations
 
 - New pure logic needs unit tests.

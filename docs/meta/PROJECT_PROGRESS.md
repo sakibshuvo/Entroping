@@ -103,9 +103,9 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Read-only Studio status shell](https://github.com/sakibshuvo/Entroping/issues/85) | Done | `studio --env <name>` inspects QAnstitution, latest run, reports, and traffic-state availability when the optional Studio extra is installed | Add interactive TUI views later |
 | [Architect build mode guidance](https://github.com/sakibshuvo/Entroping/issues/95) | Done | `architect build` without a mode now prints supported-mode guidance instead of scaffold placeholder text | Keep shipped commands actionable |
 | [Coverage artifact hygiene](https://github.com/sakibshuvo/Entroping/issues/97) | Done | `.coverage`, `coverage.xml`, and `htmlcov/` are ignored with a regression test | Add repeatable quality audit gate |
-| [Context refresh](https://github.com/sakibshuvo/Entroping/issues/92) | Current | `.context/plan.md` is being refreshed to match post-alpha reality | Keep future agent sessions grounded |
-| [Quality audit gate](https://github.com/sakibshuvo/Entroping/issues/93) | Next | Coverage and complexity checks should become a repeatable script | Prevent silent quality drift |
-| [Finish-issue workflow](https://github.com/sakibshuvo/Entroping/issues/94) | Next | Start-issue automation needs a symmetric cleanup/board flow | Make multi-session marathons safer |
+| [Context refresh](https://github.com/sakibshuvo/Entroping/issues/92) | Done | `.context/plan.md` and this dashboard now match the post-alpha implementation surface | Keep future agent sessions grounded |
+| [Quality audit gate](https://github.com/sakibshuvo/Entroping/issues/93) | Done | `scripts/audit_quality.sh` runs coverage, complexity, maintainability, and dead-code gates | Prevent silent quality drift |
+| [Finish-issue workflow](https://github.com/sakibshuvo/Entroping/issues/94) | Current | Start-issue automation needs a symmetric cleanup/board flow | Make multi-session marathons safer |
 
 ## Later Roadmap
 
