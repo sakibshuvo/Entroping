@@ -53,3 +53,4 @@
 - Implemented issue #39's config persona-template creation so `config set` safely creates missing local agent Markdown templates without overwriting existing files or accepting traversal, symlink, URL, non-Markdown, or control-character paths.
 - Implemented issue #41's Architect-owned refactor path with safe target glob loading, Builder prompt context packaging, provider JSON parsing, selected-target enforcement, parser-backed Hurl validation, redacted CLI output, and staged writes.
 - Implemented issue #43's executable architecture/provider boundary guard with AST-based regression tests for domain/bridge adapter imports, run-core Brain/LiteLLM imports, and direct provider SDK imports.
+- Implemented issue #46's CI trigger dedupe so pull requests run once through `pull_request` and branch pushes do not start duplicate workflows unless the push is to `main`.
