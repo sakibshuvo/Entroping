@@ -15,6 +15,7 @@
 - Implemented #120's Architect prompt builder coverage slice, covering missing-source-context rendering and malformed context paths while raising `brain.prompt_builder` to 100% module coverage.
 - Implemented #121's story traceability coverage slice, covering empty-story Markdown and findings-table rendering while raising `bridge.story_traceability` to 100% module coverage.
 - Implemented #122's SQLModel traffic store coverage slice, covering retention/list validation and missing inserted-id handling while raising `core.traffic_store` to 100% module coverage.
+- Created focused follow-up coverage issues #127 through #130 and implemented #127's Brain safety tests, raising `brain.safety` to 100% module coverage.
 - Ran issue #96's formal post-alpha security review and fixed 14 validated candidates across Brain prompt redaction, Hurl subprocess env isolation, symlinked path components, traffic redaction/body limits, OpenAPI generation/audit safety, policy gate compilation, Markdown escaping, Architect generated-file writes, and live demo workdir handling.
 - Wrote the consolidated Codex Security scan artifacts under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, including discovery, coverage, reconciliation, validation, attack-path, Markdown, and HTML reports.
 - Refactored issue #90's `entroping run` orchestration into `core.run_workflow`, preserving reports, drift behavior, exit codes, and LLM-free execution while lowering CLI adapter complexity.

@@ -127,7 +127,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | Eye Capture Spike | Done | Capture-only `watch` records redacted, bounded traffic through mitmproxy; freeze/map remain separate |
 | Freeze and Map | Done | Basic `freeze`, WireMock dependency mocks, and Mermaid/DOT/Markdown/PNG dependency maps are in place |
 | Agent Workflow | Done | Deterministic context packs, cross-agent control plane, source-promotion workflow, and community health docs are available | Use issue branches for follow-on automation |
-| Coverage Hardening | Current | 100 percent meaningful coverage is tracked in issue #112 and sliced through #119-#122; `core.session_prompt`, `core.openapi_loader`, `core.hurl_validator`, `core.report_writer`, `core.traffic_redactor`, `core.traffic_store`, `brain.output_parser`, `brain.prompt_builder`, `bridge.merge`, `bridge.story_traceability`, and `bridge.traffic_to_graph` now have 100 percent module coverage | Burn down high-missing modules without gaming coverage |
+| Coverage Hardening | Current | 100 percent meaningful coverage is tracked in issue #112 and sliced through #119-#130; `core.session_prompt`, `core.openapi_loader`, `core.hurl_validator`, `core.report_writer`, `core.traffic_redactor`, `core.traffic_store`, `brain.output_parser`, `brain.prompt_builder`, `brain.safety`, `bridge.merge`, `bridge.story_traceability`, and `bridge.traffic_to_graph` now have 100 percent module coverage | Burn down high-missing modules without gaming coverage |
 | Studio | Later | Read-only status shell is available; full interactive TUI remains later |
 
 ## Update Rules
