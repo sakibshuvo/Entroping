@@ -61,3 +61,4 @@
 - Added issue #56's alpha release-readiness gate and checklist so public release claims have deterministic local evidence.
 - Refreshed the progress dashboard after the release-readiness merge, adding the license/package release blocker and the next Eye capture queue.
 - Implemented issue #61's Eye foundation with typed traffic models, pre-persistence redaction, bounded SQLite traffic state, and tests proving secrets are not stored.
+- Implemented issue #60's capture-only `watch` workflow with lazy mitmproxy loading, target-scope filtering, redacted flow persistence, CLI wiring, and proxy adapter tests that avoid live network dependence.

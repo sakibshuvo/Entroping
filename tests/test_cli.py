@@ -14,6 +14,7 @@ from entroping.brain.litellm_client import BrainProviderError, LiteLLMCompletion
 from entroping.brain.prompt_builder import ArchitectPromptPackage
 from entroping.cli.main import app
 from entroping.core.hurl_validator import HurlValidationError
+from entroping.core.traffic_proxy import MitmproxyUnavailableError, WatchConfig
 
 
 def _accept_architect_hurl_validation(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1335,6 +1336,53 @@ def test_architect_build_merge_strategy_requires_prompt_for_now() -> None:
 
     assert result.exit_code == 2
     assert "--strategy merge requires --prompt" in result.output
+
+
+def test_watch_invokes_capture_workflow(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[WatchConfig] = []
+
+    async def fake_run_watch(config: WatchConfig) -> None:
+        calls.append(config)
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("entroping.cli.main.run_watch", fake_run_watch)
+
+    result = CliRunner().invoke(
+        app,
+        ["watch", "--port", "8090", "--target", "https://api.example.test"],
+    )
+
+    assert result.exit_code == 0
+    assert "not implemented" not in result.output
+    assert "Capturing traffic on 127.0.0.1:8090" in result.output
+    assert calls == [
+        WatchConfig(
+            project_root=tmp_path,
+            listen_port=8090,
+            target_url="https://api.example.test",
+        )
+    ]
+
+
+def test_watch_prints_actionable_missing_proxy_dependency(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fail_run_watch(config: WatchConfig) -> None:
+        _ = config
+        raise MitmproxyUnavailableError("mitmproxy is required; run uv sync --extra proxy")
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("entroping.cli.main.run_watch", fail_run_watch)
+
+    result = CliRunner().invoke(app, ["watch"])
+
+    assert result.exit_code == 1
+    assert "mitmproxy is required" in result.output
+    assert "uv sync --extra proxy" in result.output
 
 
 def test_run_executes_discovered_hurl_with_injected_gates_and_cleans_temp_state(

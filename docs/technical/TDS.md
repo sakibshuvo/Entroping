@@ -410,6 +410,14 @@ deferred.
 
 The recorder should reduce noise before persistence. Static assets, analytics beacons, browser favicon calls, large binary payloads, and hosts outside the selected target/dependency scope can be filtered or marked as ignored. Recorded calls should be grouped by session ID so `freeze` can operate on a coherent user flow rather than a flat traffic dump.
 
+Current implementation:
+
+- `core.traffic_proxy` lazy-loads mitmproxy so default installs can fail with an actionable optional-dependency message.
+- `TrafficCaptureAddon.response()` records completed HTTP flows only after converting them into `TrafficExchange` models, redacting them, and persisting through `TrafficStore`.
+- `watch --target <url>` scopes capture to the exact target scheme and host.
+- Request and response body summaries decode textual media types, keep binary bodies as size-only records, and reuse the global traffic body limit.
+- `freeze` and `map` are intentionally not coupled to capture startup.
+
 ### Captured Data
 
 | Field | Notes |
@@ -449,6 +457,7 @@ Current foundation:
 - Persistence refuses any exchange whose `redacted` flag is false.
 - Retention keeps local growth bounded by a configurable event count.
 - Traffic state modules are covered by import-boundary tests so they do not call Brain/LiteLLM providers.
+- Proxy capture modules are adapter-only and should not send captured traffic to Brain/LiteLLM providers.
 
 Suggested future tables:
 

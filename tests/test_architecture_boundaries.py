@@ -50,6 +50,7 @@ DETERMINISTIC_RUN_MODULES = (
 )
 
 TRAFFIC_STATE_MODULES = (
+    "entroping.core.traffic_proxy",
     "entroping.core.traffic_redactor",
     "entroping.core.traffic_store",
 )

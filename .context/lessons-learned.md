@@ -61,3 +61,4 @@
 - Prompt rules are not enough for multi-session development. Any repeatable decision about tracked machine state, generated output, cache files, or local hook setup should become a script, test, or CI gate.
 - Release claims need a higher bar than feature completion. Keep a dedicated release checklist that names required evidence and known-not-built boundaries so public alpha messaging stays accurate.
 - Eye capture must be security-first: model captured traffic as untrusted input, redact before persistence, refuse unredacted state writes, and prove traffic modules cannot import Brain or provider code.
+- Optional proxy dependencies should be lazy-loaded at the command boundary. A default install must explain `uv sync --extra proxy` instead of failing at import time, and adapter tests should use fake flow objects instead of requiring a live mitmproxy process.
