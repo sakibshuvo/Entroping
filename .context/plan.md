@@ -60,6 +60,22 @@ writes, and dependency map exports. Issues #66 through #69 are implemented;
 issue #75 adds WireMock-compatible `freeze --mock` output, and issue #80 adds
 optional Graphviz-backed PNG dependency map rendering.
 
+## Completed Slice: Issue #84 Deterministic Drift Report MVP
+
+Outcome: `entroping run --drift-check` and `--report drift` compare the current
+sanitized run report against a local baseline without invoking AI providers.
+
+Implemented boundaries:
+
+- The MVP baseline path is `.entroping/drift-baseline.json`; a reviewed
+  `.entroping/latest-run.json` can be copied there as the first baseline.
+- Drift comparison is deterministic and limited to current structured run-report
+  fields: test path, Hurl status, exit code, and injected QAnstitution rule IDs.
+- Missing baselines produce an actionable CLI message and a machine-readable
+  `missing_baseline` finding when `--report drift` is requested.
+- `--drift-check` affects the final exit code only after Hurl execution
+  completes, so Hurl failures are not hidden by baseline problems.
+
 ## Completed Slice: Issue #83 Bounded Parallel Hurl Execution
 
 Outcome: `entroping run --parallel` executes multiple Hurl files concurrently

@@ -39,6 +39,14 @@ from entroping.core.config_writer import (
     update_agent_model_with_persona_template,
 )
 from entroping.core.dependency_mapper import DependencyMapError, run_dependency_map
+from entroping.core.drift_report import (
+    DriftBaselineNotFoundError,
+    DriftReportError,
+    build_drift_report,
+    build_missing_baseline_report,
+    load_drift_baseline,
+    write_drift_report,
+)
 from entroping.core.env_loader import load_environment_variables
 from entroping.core.freeze import FreezeError, run_freeze, run_freeze_mock
 from entroping.core.gate_injector import GateInjectionError, write_injected_execution_copy
@@ -546,12 +554,6 @@ def run(
     except ValueError as exc:
         raise typer.BadParameter(str(exc), param_hint="--report") from exc
 
-    unsupported_options = _unsupported_run_options(drift_check=drift_check)
-    if unsupported_options:
-        joined = ", ".join(unsupported_options)
-        console.print(f"[yellow]{joined} not implemented yet for entroping run.[/yellow]")
-        raise typer.Exit(2)
-
     try:
         law = load_qanstitution(Path("qanstitution.yaml"))
         hurl_tests = discover_hurl_tests(tag_filters=tuple(tag_filters))
@@ -596,17 +598,44 @@ def run(
     try:
         latest_state = write_json_report(run_report, state_dir / "latest-run.json")
         artifacts: list[Path] = []
+        drift_report = None
+        if drift_check or "drift" in report_formats:
+            baseline_path = state_dir / "drift-baseline.json"
+            try:
+                baseline = load_drift_baseline(baseline_path)
+            except DriftBaselineNotFoundError:
+                drift_report = build_missing_baseline_report(
+                    current=run_report,
+                    baseline_path=baseline_path,
+                )
+            else:
+                drift_report = build_drift_report(
+                    current=run_report,
+                    baseline=baseline,
+                    baseline_path=baseline_path,
+                )
         if "json" in report_formats:
             artifacts.append(write_json_report(run_report, Path("reports") / "run-latest.json"))
         if "junit" in report_formats:
             artifacts.append(write_junit_report(run_report, Path("reports") / "junit.xml"))
         if "html" in report_formats:
             artifacts.append(write_html_report(run_report, Path("reports") / "run-latest.html"))
-    except ReportWriterError as exc:
+        if "drift" in report_formats and drift_report is not None:
+            artifacts.append(write_drift_report(drift_report, Path("reports") / "drift.json"))
+    except (DriftReportError, ReportWriterError) as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
 
     console.print(f"Hurl run: {suite.passed} passed, {suite.failed} failed")
+    if drift_report is not None:
+        if drift_report.summary.missing_baseline:
+            console.print(
+                "[yellow]Drift baseline not found: .entroping/drift-baseline.json. "
+                "Copy .entroping/latest-run.json after reviewing a known-good run.[/yellow]"
+            )
+        else:
+            noun = "finding" if drift_report.summary.drifted == 1 else "findings"
+            console.print(f"Drift check: {drift_report.summary.drifted} {noun}")
     console.print(f"Wrote latest run state: {_display_cli_path(latest_state)}")
     for artifact in artifacts:
         console.print(f"Wrote report: {_display_cli_path(artifact)}")
@@ -619,17 +648,15 @@ def run(
         if result.stderr:
             console.print(result.stderr, markup=False)
 
-    raise typer.Exit(suite.exit_code)
-
-
-def _unsupported_run_options(
-    *,
-    drift_check: bool,
-) -> tuple[str, ...]:
-    unsupported: list[str] = []
-    if drift_check:
-        unsupported.append("--drift-check")
-    return tuple(unsupported)
+    exit_code = suite.exit_code
+    if (
+        exit_code == 0
+        and drift_check
+        and drift_report is not None
+        and drift_report.summary.drifted > 0
+    ):
+        exit_code = 1
+    raise typer.Exit(exit_code)
 
 
 def _agent_role_order() -> tuple[AgentRole, ...]:
@@ -643,8 +670,11 @@ def _normalize_report_formats(report: list[str] | None) -> tuple[str, ...]:
     normalized: list[str] = []
     for raw_format in report:
         report_format = raw_format.strip().lower()
-        if report_format not in {"html", "json", "junit"}:
-            msg = f"Unsupported report format {raw_format!r}; supported formats: html, json, junit"
+        if report_format not in {"drift", "html", "json", "junit"}:
+            msg = (
+                f"Unsupported report format {raw_format!r}; "
+                "supported formats: drift, html, json, junit"
+            )
             raise ValueError(msg)
         if report_format not in normalized:
             normalized.append(report_format)

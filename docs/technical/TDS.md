@@ -536,7 +536,7 @@ Reports are written under `reports/`.
 | HTML | `run --report html` | Human review |
 | JUnit XML | `run --report junit` | CI systems |
 | JSON | `run --report json` | Tooling integration |
-| Drift JSON | `run --drift-check` or `--report drift` | Baseline comparison |
+| Drift JSON | `run --drift-check` or `--report drift` | `.entroping/drift-baseline.json` comparison |
 | Audit Markdown | `architect audit --output md` | Gap review |
 | Bug Markdown | `report bug` | Issue tracker handoff |
 
@@ -586,6 +586,10 @@ entroping report bug
 `--parallel` uses `settings.parallel_workers` from `qanstitution.yaml`, keeps the
 per-file timeout and output-redaction behavior, and preserves deterministic
 input ordering in reports.
+`--drift-check` and `--report drift` compare the sanitized current run report
+against `.entroping/drift-baseline.json`. The MVP baseline compares test path,
+Hurl result status, exit code, and injected QAnstitution rule IDs; structured
+header/body/schema drift requires future response-detail capture.
 
 No additional commands or flags should be implemented without updating the product specification first.
 

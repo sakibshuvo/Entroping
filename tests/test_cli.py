@@ -1909,6 +1909,97 @@ def test_run_writes_json_junit_reports_and_latest_state(
     assert junit_root.attrib["failures"] == "0"
 
 
+def test_run_report_drift_writes_missing_baseline_artifact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    (Path("tests") / "health.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stdout, stderr, timeout, check, shell)
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+
+    result = runner.invoke(app, ["run", "--tag", "smoke", "--report", "drift"])
+
+    assert result.exit_code == 0
+    assert "Drift baseline not found" in result.output
+    assert "reports/drift.json" in result.output
+    drift = json.loads(Path("reports/drift.json").read_text(encoding="utf-8"))
+    assert drift["summary"]["missing_baseline"] is True
+    assert drift["findings"][0]["kind"] == "missing_baseline"
+
+
+def test_run_drift_check_fails_when_current_run_differs_from_baseline(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    (Path("tests") / "health.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    baseline = Path(".entroping") / "drift-baseline.json"
+    baseline.write_text(
+        json.dumps(
+            {
+                "project": "entroping-project",
+                "environment": "default",
+                "tests": [
+                    {
+                        "path": "tests/health.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "rule_ids": ["old_rule"],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stdout, stderr, timeout, check, shell)
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+
+    result = runner.invoke(app, ["run", "--tag", "smoke", "--drift-check", "--report", "drift"])
+
+    assert result.exit_code == 1
+    assert "Drift check: 1 finding" in result.output
+    drift = json.loads(Path("reports/drift.json").read_text(encoding="utf-8"))
+    assert drift["findings"][0]["kind"] == "assertions_changed"
+    assert drift["findings"][0]["path"] == "tests/health.hurl"
+
+
 def test_run_parallel_uses_qanstitution_worker_limit(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -2033,18 +2124,10 @@ def test_report_bug_returns_actionable_message_without_latest_run(
 
 
 def test_run_rejects_unsupported_report_format() -> None:
-    result = CliRunner().invoke(app, ["run", "--report", "drift"])
+    result = CliRunner().invoke(app, ["run", "--report", "xml"])
 
     assert result.exit_code == 2
     assert "Unsupported report format" in result.output
-
-
-def test_run_rejects_future_options_instead_of_silently_ignoring_them() -> None:
-    result = CliRunner().invoke(app, ["run", "--drift-check"])
-
-    assert result.exit_code == 2
-    assert "not implemented yet for entroping run" in result.output
-    assert "--drift-check" in result.output
 
 
 def test_run_rejects_empty_tag_filter() -> None:
