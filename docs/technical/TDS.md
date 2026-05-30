@@ -61,6 +61,8 @@ src/entroping/
 Current Brain foundation modules:
 
 - `models.architect` defines validated Architect Hurl edit output models.
+- `brain.output_parser` parses raw provider JSON into validated Architect edits.
+- `brain.architect_writer` stages Architect-owned Hurl file writes safely.
 - `brain.persona_loader` loads root-bounded Markdown persona files from agent config.
 - `brain.prompt_builder` builds redaction-checked prompt packages.
 - `brain.litellm_client` lazily wraps `litellm.completion` behind an injectable adapter.

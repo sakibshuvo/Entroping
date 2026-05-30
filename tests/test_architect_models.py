@@ -64,3 +64,14 @@ def test_architect_edit_set_rejects_control_character_warning() -> None:
             edits=[edit],
             warnings=["bad\x00warning"],
         )
+
+
+def test_architect_edit_set_rejects_duplicate_paths() -> None:
+    with pytest.raises(ValidationError, match="duplicate Architect edit path"):
+        ArchitectEditSet(
+            summary="Generate checkout tests",
+            edits=[
+                ArchitectEdit(path="tests/generated/refund.hurl", content="GET /a\nHTTP 200\n"),
+                ArchitectEdit(path="tests/generated/refund.hurl", content="GET /b\nHTTP 200\n"),
+            ],
+        )

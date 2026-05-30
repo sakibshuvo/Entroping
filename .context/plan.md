@@ -233,11 +233,16 @@ without calling providers from `entroping run` or tests.
 
 ## Next Slice: User-Facing Architect Prompt Generation
 
+Completed prerequisite:
+
+- Issue #33 parses raw provider JSON into `ArchitectEditSet` and writes validated
+  Architect-owned Hurl files with symlink-safe staged writes. Non-Architect files are
+  not overwritten.
+
 Planned direction:
 
 - Wire `architect build --prompt` to the Brain foundation.
-- Parse model output into `ArchitectEditSet` and validate generated Hurl content.
-- Stage generated diffs for review without mutating unrelated files.
+- Reuse the parser and staged writer for generated diffs.
 - Keep provider failures explicit and keep deterministic `run` isolated from model access.
 
 ## Explicitly Deferred

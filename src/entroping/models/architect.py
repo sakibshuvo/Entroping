@@ -2,7 +2,7 @@
 
 from pathlib import PurePosixPath
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class ArchitectEdit(BaseModel):
@@ -63,6 +63,18 @@ class ArchitectEditSet(BaseModel):
     summary: str
     edits: list[ArchitectEdit] = Field(min_length=1)
     warnings: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def reject_duplicate_edit_paths(self) -> "ArchitectEditSet":
+        """Reject contradictory provider edits for the same target path."""
+
+        seen: set[str] = set()
+        for edit in self.edits:
+            if edit.path in seen:
+                msg = f"duplicate Architect edit path: {edit.path}"
+                raise ValueError(msg)
+            seen.add(edit.path)
+        return self
 
     @field_validator("summary")
     @classmethod
