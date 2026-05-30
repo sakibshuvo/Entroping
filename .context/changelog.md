@@ -8,6 +8,7 @@
 - Implemented issue #107's session-prompt context-pack wiring so write sessions point to `scripts/context_pack.sh --mode implementation`, review sessions point to `--mode review`, and `core.session_prompt` has meaningful 100% module coverage.
 - Started issue #112's 100% meaningful coverage hardening by adding OpenAPI loader error-path tests, raising `core.openapi_loader` to 100% module coverage without weakening loader behavior.
 - Continued issue #112 by covering Hurl validator subprocess startup failures and raising `core.hurl_validator` to 100% module coverage.
+- Covered root-level Architect output validation errors, removed an unreachable managed-block marker branch, and raised `brain.output_parser` plus `bridge.merge` to 100% module coverage.
 - Ran issue #96's formal post-alpha security review and fixed 14 validated candidates across Brain prompt redaction, Hurl subprocess env isolation, symlinked path components, traffic redaction/body limits, OpenAPI generation/audit safety, policy gate compilation, Markdown escaping, Architect generated-file writes, and live demo workdir handling.
 - Wrote the consolidated Codex Security scan artifacts under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, including discovery, coverage, reconciliation, validation, attack-path, Markdown, and HTML reports.
 - Refactored issue #90's `entroping run` orchestration into `core.run_workflow`, preserving reports, drift behavior, exit codes, and LLM-free execution while lowering CLI adapter complexity.

@@ -3,8 +3,10 @@
 import json
 
 import pytest
+from pydantic import ValidationError
 
 from entroping.brain.output_parser import ArchitectOutputParseError, parse_architect_edit_set
+from entroping.models import ArchitectEditSet
 
 
 def test_parse_architect_edit_set_accepts_valid_json_object() -> None:
@@ -78,3 +80,34 @@ def test_parse_architect_edit_set_does_not_echo_invalid_input_values() -> None:
     assert "content must not contain control characters" in str(exc_info.value)
     assert secret_provider_context not in str(exc_info.value)
     assert json_with_invalid_content not in str(exc_info.value)
+
+
+def test_parse_architect_edit_set_formats_root_validation_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_root_error(payload: object) -> None:
+        _ = payload
+        raise ValidationError.from_exception_data(
+            "ArchitectEditSet",
+            [
+                {
+                    "type": "value_error",
+                    "loc": (),
+                    "input": {},
+                    "ctx": {"error": ValueError("root object invalid")},
+                }
+            ],
+        )
+
+    monkeypatch.setattr(
+        ArchitectEditSet,
+        "model_validate",
+        staticmethod(raise_root_error),
+    )
+
+    with pytest.raises(ArchitectOutputParseError) as exc_info:
+        parse_architect_edit_set(
+            '{"summary":"ok","edits":[{"path":"tests/x.hurl","content":"GET /\\n"}]}'
+        )
+
+    assert str(exc_info.value) == "Invalid Architect edit set: Value error, root object invalid"
