@@ -88,6 +88,30 @@ The launcher:
 
 Do not use this script to bypass planning. The generated prompt still requires `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, tests, regression checks, security review where relevant, and docs/context updates before merge.
 
+## Finishing A Session
+
+After the issue PR is merged and CI is green, use the finish script from a
+separate checkout so local cleanup follows the same deterministic checks every
+time:
+
+```bash
+scripts/finish_issue.sh <issue-number> --dry-run
+scripts/finish_issue.sh <issue-number>
+```
+
+The finish script:
+
+- Reads the closed issue and its closing pull request from GitHub.
+- Verifies the pull request is merged and all reported checks passed.
+- Verifies the issue worktree path belongs to this repository.
+- Refuses to remove dirty or branch-mismatched worktrees.
+- Removes the local issue worktree and deletes squash-merged local branches only
+  after those checks pass.
+- Best-effort removes active status labels and moves the GitHub Project item to
+  `Done`.
+
+Use `--dry-run` first when cleaning up a batch of sessions.
+
 ## Obsidian Boundary
 
 Do not duplicate every GitHub issue in Obsidian. Update Obsidian only for:

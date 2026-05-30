@@ -105,7 +105,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Coverage artifact hygiene](https://github.com/sakibshuvo/Entroping/issues/97) | Done | `.coverage`, `coverage.xml`, and `htmlcov/` are ignored with a regression test | Add repeatable quality audit gate |
 | [Context refresh](https://github.com/sakibshuvo/Entroping/issues/92) | Done | `.context/plan.md` and this dashboard now match the post-alpha implementation surface | Keep future agent sessions grounded |
 | [Quality audit gate](https://github.com/sakibshuvo/Entroping/issues/93) | Done | `scripts/audit_quality.sh` runs coverage, complexity, maintainability, and dead-code gates | Prevent silent quality drift |
-| [Finish-issue workflow](https://github.com/sakibshuvo/Entroping/issues/94) | Current | Start-issue automation needs a symmetric cleanup/board flow | Make multi-session marathons safer |
+| [Finish-issue workflow](https://github.com/sakibshuvo/Entroping/issues/94) | Done | `scripts/finish_issue.sh` verifies merged PRs, CI, clean issue worktrees, and project hygiene before local cleanup | Make multi-session marathons safer |
 
 ## Later Roadmap
 

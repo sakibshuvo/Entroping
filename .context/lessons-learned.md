@@ -10,6 +10,7 @@
 - Studio should begin as a read-only local-state adapter. Require optional UI dependencies explicitly, render useful terminal status first, and prove the command does not mutate `.entroping`, reports, tests, or config.
 - Optional renderer integrations should stay adapter-local and subprocess-bounded. Feed them already-redacted compiler output, write ignored artifacts atomically, and do not echo renderer stderr because external tools may replay source graph content.
 - Coverage runs that invoke nested local tools should not rely only on editable-install `.pth` metadata. Set an explicit repo-local `PYTHONPATH` for deterministic audit scripts so subprocesses can import `src/entroping` even when local virtualenv metadata is flaky.
+- Squash merges break normal `git branch -d` ancestry checks even when a PR is genuinely merged. Cleanup should verify the GitHub PR and CI state first, then use a scripted local branch deletion path instead of relying on chat memory.
 
 ## 2026-05-29
 

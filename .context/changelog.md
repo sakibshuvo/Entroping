@@ -2,6 +2,7 @@
 
 ## 2026-05-30
 
+- Implemented issue #94's finish-issue workflow with merged-PR and CI verification, clean worktree safety checks, squash-merged branch cleanup, project Done updates, docs, and script tests.
 - Implemented issue #93's repeatable local quality audit gate with coverage, Radon complexity/maintainability, Vulture dead-code discovery, ignored report artifacts, and script smoke tests.
 - Refreshed issue #92's post-alpha context handoff so `.context/plan.md` and `PROJECT_PROGRESS.md` describe the implemented compiler/runtime surface and current validation queue instead of stale placeholder-era status.
 - Fixed issue #95's remaining `architect build` placeholder path so invoking the command without `--new` or `--prompt` now returns actionable supported-mode guidance.
