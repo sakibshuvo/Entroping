@@ -163,9 +163,10 @@ Latest local evidence:
 - `PYTHONPATH=src uv run pytest tests/test_openapi_to_hurl.py tests/test_architect_audit.py --cov=entroping.bridge.openapi_to_hurl --cov=entroping.bridge.openapi_audit --cov-report=term-missing -q`: 39 passed; `bridge.openapi_to_hurl` and `bridge.openapi_audit` at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_safe_write.py --cov=entroping.core.safe_write --cov-report=term-missing -q`: 12 passed; `core.safe_write` at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_dependency_mapper.py tests/test_drift_report.py tests/test_traffic_models.py tests/test_studio_status.py --cov=entroping.core.dependency_mapper --cov=entroping.core.drift_report --cov=entroping.models.traffic --cov=entroping.studio.status --cov-report=term-missing --cov-fail-under=100 -q`: 49 passed; targeted support modules at 100 percent coverage.
+- `PYTHONPATH=src uv run pytest tests/test_traffic_proxy.py tests/test_freeze.py --cov=entroping.core.traffic_proxy --cov=entroping.core.freeze --cov-report=term-missing --cov-fail-under=100 -q`: 42 passed; Eye proxy/freeze modules at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_ci_workflow.py tests/test_release_docs.py tests/test_agent_workflow_docs.py -q`: 15 passed.
-- `scripts/regression.sh --security`: 595 passed; Bandit and default/all-extras dependency audits passed.
-- `scripts/audit_quality.sh`: 595 passed with 94.99 percent total coverage; Radon and Vulture gates passed.
+- `scripts/regression.sh --security`: 628 passed; Bandit and default/all-extras dependency audits passed.
+- `scripts/audit_quality.sh`: 628 passed with 96.55 percent total coverage; Radon and Vulture gates passed.
 
 ## Completed Slice: Issue #90 Run Workflow Extraction
 
@@ -306,6 +307,24 @@ Implemented boundaries:
 - `studio.status` coverage includes missing optional Textual dependency,
   missing QAnstitution, QAnstitution load errors, latest-run load errors,
   no-report rendering, and existing latest-run state rendering.
+
+## Completed Slice: Issue #145 Eye Proxy And Freeze Coverage
+
+Outcome: Eye capture and freeze edge cases now have focused 100 percent coverage
+without live proxy sessions, external network traffic, or real mitmproxy
+processes.
+
+Implemented boundaries:
+
+- `core.traffic_proxy` coverage includes WatchConfig bounds, missing and
+  malformed mitmproxy runtime imports, flow-shape errors, target-scope matching,
+  body/header variants, bounded text extraction, timestamp fallbacks, and fake
+  `run_watch` addon registration.
+- `core.freeze` coverage includes missing/empty state, successful Hurl and
+  WireMock artifact generation, name/service validation, Hurl validation error
+  wrapping, invalid WireMock JSON, path traversal/POSIX/suffix validation,
+  non-file targets, resolved symlink escapes, and existing symlink/atomic-write
+  protections.
 
 ## Completed Slice: Issue #85 Read-Only Studio Status Shell
 
