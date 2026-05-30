@@ -152,8 +152,9 @@ Latest local evidence:
 - `PYTHONPATH=src uv run pytest tests/test_story_traceability.py --cov=entroping.bridge.story_traceability --cov-report=term-missing -q`: 6 passed; `bridge.story_traceability` at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_traffic_store.py --cov=entroping.core.traffic_store --cov-report=term-missing -q`: 10 passed; `core.traffic_store` at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_brain_safety.py --cov=entroping.brain.safety --cov-report=term-missing -q`: 9 passed; `brain.safety` at 100 percent coverage.
-- `scripts/regression.sh --security`: 423 passed; Bandit and default/all-extras dependency audits passed.
-- `scripts/audit_quality.sh`: 423 passed with 87.67 percent total coverage; Radon and Vulture gates passed.
+- `PYTHONPATH=src uv run pytest tests/test_hurl_metadata.py --cov=entroping.models.hurl --cov-report=term-missing -q`: 11 passed; `models.hurl` at 100 percent coverage.
+- `scripts/regression.sh --security`: 429 passed; Bandit and default/all-extras dependency audits passed.
+- `scripts/audit_quality.sh`: 429 passed with 87.84 percent total coverage; Radon and Vulture gates passed.
 
 ## Completed Slice: Issue #90 Run Workflow Extraction
 
