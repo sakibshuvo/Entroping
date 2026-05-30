@@ -2,11 +2,14 @@
 
 from pathlib import Path
 
+import pytest
+
 from entroping.bridge.openapi_audit import (
     audit_openapi_coverage,
     audit_report_to_dict,
     render_audit_markdown,
 )
+from entroping.bridge.openapi_to_hurl import OpenApiCompilationError
 from entroping.models.hurl import HurlExchange, HurlMetadata, HurlTest
 
 
@@ -141,6 +144,102 @@ def test_audit_openapi_coverage_enumerates_default_response_operations() -> None
     assert report.total_operations == 1
     assert report.missing_operations == 1
     assert [finding.operation_id for finding in report.findings] == ["getFallback"]
+
+
+def test_audit_openapi_coverage_matches_fallback_ids_root_and_path_templates() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/": {"get": {"responses": {"200": {"description": "ok"}}}},
+            "/users/{user_id}": {"get": {"responses": {"200": {"description": "ok"}}}},
+        },
+    }
+    root = HurlTest(
+        path=Path("tests/generated/get_root.hurl"),
+        metadata=HurlMetadata(meta={"source": "openapi", "operation_id": "get_root"}),
+        exchanges=(HurlExchange(method="get", url="{{base_url}}/", path="/"),),
+    )
+    templated = HurlTest(
+        path=Path("tests/generated/get_users_user_id.hurl"),
+        metadata=HurlMetadata(meta={"source": "openapi", "operation_id": "get_users_user_id"}),
+        exchanges=(HurlExchange(method="GET", url="{{base_url}}/users/123", path="/users/123"),),
+    )
+
+    report = audit_openapi_coverage(document, [root, templated])
+
+    assert report.passed
+    assert report.covered_operations == 2
+
+
+def test_audit_openapi_coverage_ignores_missing_and_unknown_operation_metadata() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+    missing_operation_id = HurlTest(
+        path=Path("tests/generated/missing.hurl"),
+        metadata=HurlMetadata(meta={"source": "openapi"}),
+        exchanges=(HurlExchange(method="GET", url="{{base_url}}/health", path="/health"),),
+    )
+    unknown_operation_id = HurlTest(
+        path=Path("tests/generated/unknown.hurl"),
+        metadata=HurlMetadata(meta={"source": "openapi", "operation_id": "unknown"}),
+        exchanges=(HurlExchange(method="GET", url="{{base_url}}/health", path="/health"),),
+    )
+
+    report = audit_openapi_coverage(document, [missing_operation_id, unknown_operation_id])
+
+    assert report.missing_operations == 1
+    assert [finding.operation_id for finding in report.findings] == ["getHealth"]
+
+
+def test_audit_openapi_coverage_rejects_malformed_documents() -> None:
+    cases: tuple[tuple[dict[str, object], str], ...] = (
+        ({"openapi": "3.1.0"}, "paths mapping"),
+        ({"openapi": "3.1.0", "paths": {"health": {}}}, "absolute path strings"),
+        ({"openapi": "3.1.0", "paths": {"/health": "bad"}}, "must be a mapping"),
+        (
+            {"openapi": "3.1.0", "paths": {"/health": {"summary": "ignored"}}},
+            "supported HTTP operations",
+        ),
+        (
+            {"openapi": "3.1.0", "paths": {"/health": {"get": "bad"}}},
+            "OpenAPI operation 'get' /health must be a mapping",
+        ),
+        (
+            {
+                "openapi": "3.1.0",
+                "paths": {
+                    "/one": {"get": {"operationId": "same", "responses": {"200": {}}}},
+                    "/two": {"get": {"operationId": "same", "responses": {"200": {}}}},
+                },
+            },
+            "operationId must be unique",
+        ),
+        (
+            {
+                "openapi": "3.1.0",
+                "paths": {
+                    "/health": {
+                        "get": {"operationId": "get\nHealth", "responses": {"200": {}}},
+                    },
+                },
+            },
+            "operationId is not safe",
+        ),
+        ({"openapi": "3.1.0", "paths": {1: {}}}, "paths keys must be strings"),
+    )
+
+    for document, expected_error in cases:
+        with pytest.raises(OpenApiCompilationError, match=expected_error):
+            audit_openapi_coverage(document, [])
 
 
 def test_render_audit_markdown_escapes_table_cells() -> None:
