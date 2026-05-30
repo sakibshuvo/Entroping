@@ -1,0 +1,168 @@
+"""Freeze redacted traffic state into generated Hurl files."""
+
+import tempfile
+from collections.abc import Callable
+from dataclasses import dataclass
+from pathlib import Path, PurePosixPath
+
+from entroping.bridge.traffic_sessions import (
+    TrafficSessionError,
+    build_traffic_session_candidate,
+)
+from entroping.bridge.traffic_to_hurl import (
+    GeneratedTrafficHurlFile,
+    TrafficHurlCompilationError,
+    compile_traffic_session_to_hurl,
+)
+from entroping.core.hurl_validator import HurlValidationError, validate_hurl_content
+from entroping.core.traffic_store import TrafficStore, TrafficStoreError
+
+
+class FreezeError(ValueError):
+    """Raised when traffic cannot be frozen into generated Hurl safely."""
+
+
+@dataclass(frozen=True, slots=True)
+class FreezeResult:
+    """Result of a successful freeze workflow."""
+
+    output_path: Path
+    record_count: int
+
+
+HurlContentValidator = Callable[[str, str], None]
+
+
+def run_freeze(
+    *,
+    project_root: Path,
+    name: str,
+    golden: bool,
+    hurl_validator: HurlContentValidator | None = None,
+) -> FreezeResult:
+    """Compile redacted local traffic into one validated generated Hurl file."""
+
+    root = project_root.expanduser().resolve()
+    active_validator = hurl_validator or validate_hurl_content
+    freeze_name = _validate_freeze_name(name)
+    state_path = root / ".entroping" / "state.db"
+    if not state_path.exists():
+        msg = "No traffic state found. Run entroping watch before freeze."
+        raise FreezeError(msg)
+
+    try:
+        store = TrafficStore.open_project(root)
+        exchanges = store.list_exchanges()
+        session = build_traffic_session_candidate(
+            exchanges,
+            name=freeze_name,
+            target_url=None,
+        )
+        generated = compile_traffic_session_to_hurl(session, golden=golden)
+        output_path = _resolve_generated_hurl_path(generated, root=root)
+        active_validator(generated.content, generated.relative_path)
+        _write_text_atomically(output_path, generated.content)
+    except (
+        HurlValidationError,
+        TrafficHurlCompilationError,
+        TrafficSessionError,
+        TrafficStoreError,
+    ) as exc:
+        raise FreezeError(str(exc)) from exc
+
+    return FreezeResult(output_path=output_path, record_count=len(session.records))
+
+
+def _validate_freeze_name(name: str) -> str:
+    value = name.strip()
+    if not value:
+        msg = "freeze name must not be empty"
+        raise FreezeError(msg)
+    if _contains_control(value):
+        msg = "freeze name must not contain control characters"
+        raise FreezeError(msg)
+    if "/" in value or "\\" in value or ".." in value or value.startswith("."):
+        msg = "freeze name must be a safe file stem"
+        raise FreezeError(msg)
+    if not all(character.isalnum() or character in {"_", "-", "."} for character in value):
+        msg = "freeze name must contain only letters, numbers, dots, dashes, or underscores"
+        raise FreezeError(msg)
+    return value
+
+
+def _resolve_generated_hurl_path(generated: GeneratedTrafficHurlFile, *, root: Path) -> Path:
+    if "\\" in generated.relative_path:
+        msg = f"Generated Hurl path must use POSIX separators: {generated.relative_path}"
+        raise FreezeError(msg)
+
+    relative_path = PurePosixPath(generated.relative_path)
+    if relative_path.is_absolute() or ".." in relative_path.parts:
+        msg = f"Generated Hurl path must stay inside the project: {generated.relative_path}"
+        raise FreezeError(msg)
+    if (
+        len(relative_path.parts) < 3
+        or relative_path.parts[0] != "tests"
+        or relative_path.parts[1] != "generated"
+        or relative_path.suffix != ".hurl"
+    ):
+        msg = f"Generated Hurl path must stay under tests/generated: {generated.relative_path}"
+        raise FreezeError(msg)
+
+    candidate = root.joinpath(*relative_path.parts)
+    _reject_symlink_path(candidate, root=root)
+    output_path = candidate.resolve()
+    generated_root = (root / "tests" / "generated").resolve()
+    if not output_path.is_relative_to(generated_root):
+        msg = f"Generated Hurl path must stay under tests/generated: {generated.relative_path}"
+        raise FreezeError(msg)
+    if output_path.exists() and not output_path.is_file():
+        msg = f"Refusing to overwrite non-file generated Hurl target: {output_path}"
+        raise FreezeError(msg)
+    return output_path
+
+
+def _reject_symlink_path(candidate: Path, *, root: Path) -> None:
+    current = root
+    for part in candidate.relative_to(root).parts:
+        current = current / part
+        if current.is_symlink():
+            msg = f"Refusing to write symlinked generated Hurl file: {current}"
+            raise FreezeError(msg)
+
+
+def _write_text_atomically(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = _write_temporary_file(path, content)
+    try:
+        if path.is_symlink():
+            msg = f"Refusing to overwrite symlinked generated Hurl file: {path}"
+            raise FreezeError(msg)
+        temporary_path.replace(path)
+    except OSError as exc:
+        msg = f"Could not write generated Hurl file {path}: {exc}"
+        raise FreezeError(msg) from exc
+    finally:
+        if temporary_path.exists():
+            temporary_path.unlink()
+
+
+def _write_temporary_file(path: Path, content: str) -> Path:
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary_path = Path(handle.name)
+            handle.write(content)
+            return temporary_path
+    except OSError as exc:
+        msg = f"Could not write temporary generated Hurl file for {path}: {exc}"
+        raise FreezeError(msg) from exc
+
+
+def _contains_control(value: str) -> bool:
+    return any(ord(character) < 32 or ord(character) == 127 for character in value)

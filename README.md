@@ -65,12 +65,13 @@ Available now:
 - LiteLLM-backed `entroping architect refactor` for selected Architect-owned Hurl files and manual Hurl files with explicit managed blocks, with safe target discovery, parser-backed validation, and manual-content preservation.
 - Eye capture-safe traffic models, redaction, and bounded local SQLite state under `.entroping/state.db`.
 - Capture-only `entroping watch` with lazy mitmproxy loading, target-scope filtering, pre-persistence redaction, and bounded local traffic state.
+- Basic `entroping freeze --name <flow> [--golden]` from redacted traffic state into validated generated Hurl files.
 - CI-ready local checks through `uv`, `ruff`, `mypy`, and `pytest`.
 
 Not built yet:
 
 - Drift reports.
-- `freeze` traffic-to-Hurl generation and `map` dependency exports.
+- `freeze --mock` dependency mock generation and `map` dependency exports.
 - Broader Architect validation UX.
 - Studio TUI.
 

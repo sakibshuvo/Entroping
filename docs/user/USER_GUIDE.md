@@ -130,7 +130,9 @@ entroping watch --port 8080 --target http://localhost:3000
 Route a browser, curl, Postman, Bruno, Insomnia, or another client through the proxy. Exercise the workflow manually.
 
 Current alpha status: `watch` records redacted, bounded traffic locally under
-`.entroping/state.db`; `freeze` and `map` are still planned follow-up commands.
+`.entroping/state.db`; basic `freeze --name <flow> [--golden]` writes validated
+generated Hurl files. `freeze --mock` and `map` are still planned follow-up
+commands.
 
 Freeze the session into tests:
 

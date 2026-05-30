@@ -180,6 +180,9 @@ importing proxy, SQLite, CLI, Hurl, or Brain adapters. `bridge.traffic_to_hurl`
 now compiles those session candidates into generated Hurl content with
 traffic-source metadata, redacted textual request data, and stable golden
 assertions that avoid token-like, ID-like, timestamp-like, and redacted fields.
+Basic `entroping freeze --name <flow> [--golden]` now reads local redacted
+traffic state, validates generated Hurl before writing, and writes atomically
+under `tests/generated/`. Mock generation remains out of scope.
 
 Deliverables:
 

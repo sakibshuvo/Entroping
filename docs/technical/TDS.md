@@ -495,7 +495,7 @@ Implementation order:
 
 1. Add deterministic traffic filtering and session candidate models. Done in `bridge.traffic_sessions`.
 2. Add a pure `bridge.traffic_to_hurl` compiler for redacted traffic. Done.
-3. Wire `freeze` through safe generated-file writes and parser validation.
+3. Wire `freeze` through safe generated-file writes and parser validation. Done for basic Hurl generation.
 4. Add mocks only after basic freeze and redaction tests are stable.
 
 ## 12. Dependency Map Design

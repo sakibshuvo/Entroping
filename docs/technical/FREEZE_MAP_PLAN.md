@@ -170,7 +170,7 @@ The next implementation issues are small and sequential:
 
 1. [#66 Eye: traffic filtering and session candidates](https://github.com/sakibshuvo/Entroping/issues/66) - done.
 2. [#67 Freeze: redacted traffic-to-Hurl compiler](https://github.com/sakibshuvo/Entroping/issues/67) - done.
-3. [#68 Freeze: CLI workflow and safe generated writes](https://github.com/sakibshuvo/Entroping/issues/68) - next.
-4. [#69 Map: dependency graph compiler and exports](https://github.com/sakibshuvo/Entroping/issues/69).
+3. [#68 Freeze: CLI workflow and safe generated writes](https://github.com/sakibshuvo/Entroping/issues/68) - done.
+4. [#69 Map: dependency graph compiler and exports](https://github.com/sakibshuvo/Entroping/issues/69) - next.
 
 Each issue should ship with tests and documentation updates before merge.

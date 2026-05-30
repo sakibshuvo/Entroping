@@ -54,8 +54,8 @@ The deterministic path is available and should remain the regression anchor:
 Issue #59 outcome leaves behind `docs/technical/FREEZE_MAP_PLAN.md`, ADR-0008,
 and focused implementation issues #66, #67, #68, and #69 for
 filtering/sessioning, traffic-to-Hurl freeze generation, safe `freeze` CLI
-writes, and dependency map exports. Issues #66 and #67 are implemented; issue
-#68 is the next code slice.
+writes, and dependency map exports. Issues #66, #67, and #68 are implemented;
+issue #69 is the next code slice.
 
 ## Completed Slice: Issue #3 Gate Matching And Injection
 
