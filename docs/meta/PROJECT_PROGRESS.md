@@ -99,6 +99,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Distribution and install polish](https://github.com/sakibshuvo/Entroping/issues/82) | Done | GitHub branch/tag install docs plus deterministic wheel/sdist metadata verification | Keep package publishing credentials out of the repo |
 | [Bounded parallel Hurl execution](https://github.com/sakibshuvo/Entroping/issues/83) | Done | `run --parallel` uses QAnstitution worker limits and preserves deterministic result ordering | Keep run path LLM-free |
 | [Deterministic drift report MVP](https://github.com/sakibshuvo/Entroping/issues/84) | Done | `run --drift-check --report drift` compares current run state with `.entroping/drift-baseline.json` | Add structured response drift later |
+| [Read-only Studio status shell](https://github.com/sakibshuvo/Entroping/issues/85) | Done | `studio --env <name>` inspects QAnstitution, latest run, reports, and traffic-state availability when the optional Studio extra is installed | Add interactive TUI views later |
 
 ## Later Roadmap
 
@@ -116,7 +117,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | Alpha Release | Done | `v0.1.0-alpha` prerelease published from `abd08c0` with local release gate and CI evidence | Next release can include post-alpha PNG map rendering and package install polish |
 | Eye Capture Spike | Done | Capture-only `watch` records redacted, bounded traffic through mitmproxy; freeze/map remain separate |
 | Freeze and Map | Done | Basic `freeze`, WireMock dependency mocks, and Mermaid/DOT/Markdown/PNG dependency maps are in place |
-| Studio | Deferred | Useful after deterministic core and reports are real |
+| Studio | Current | Read-only status shell is available; full interactive TUI remains later |
 
 ## Update Rules
 

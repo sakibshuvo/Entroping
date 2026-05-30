@@ -60,6 +60,21 @@ writes, and dependency map exports. Issues #66 through #69 are implemented;
 issue #75 adds WireMock-compatible `freeze --mock` output, and issue #80 adds
 optional Graphviz-backed PNG dependency map rendering.
 
+## Completed Slice: Issue #85 Read-Only Studio Status Shell
+
+Outcome: `entroping studio --env <name>` no longer uses the generic placeholder
+for the supported local read-only path.
+
+Implemented boundaries:
+
+- The command requires the optional Studio/Textual extra and returns actionable
+  `uv sync --extra studio` guidance when it is missing.
+- The first status shell reads only local state: QAnstitution project, latest
+  run summary, existing report artifacts, and traffic-state availability.
+- No tests, config, `.entroping` state, or report files are mutated by Studio.
+- Full interactive TUI navigation, failure drilldown, and traffic-session views
+  remain later Studio work.
+
 ## Completed Slice: Issue #84 Deterministic Drift Report MVP
 
 Outcome: `entroping run --drift-check` and `--report drift` compare the current
@@ -359,7 +374,7 @@ Planned direction:
 ## Explicitly Deferred
 
 - Complete non-prompt `architect build --strategy merge` if product demand justifies it.
-- Studio TUI.
+- Full interactive Studio TUI beyond the read-only status shell.
 - Nuitka packaging.
 - Hosted/cloud features.
 - Graphify-generated artifacts in Git.

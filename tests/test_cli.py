@@ -16,6 +16,7 @@ from entroping.cli.main import app
 from entroping.core.hurl_runner import HurlFileResult, HurlRunOptions, HurlSuiteResult
 from entroping.core.hurl_validator import HurlValidationError
 from entroping.core.traffic_proxy import MitmproxyUnavailableError, WatchConfig
+from entroping.studio.status import StudioDependencyError
 
 
 def _accept_architect_hurl_validation(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1718,6 +1719,101 @@ def test_map_outputs_markdown_from_redacted_traffic_without_raw_secret(
     assert "| api.example.test | POST | /checkout | 1 | 0 | 25 | 25 | 25 |" in result.output
     assert "flowchart LR" in result.output
     assert "map-secret" not in result.output
+
+
+def test_studio_missing_optional_dependency_returns_setup_guidance(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    def fail_dependency_check() -> None:
+        raise StudioDependencyError("Install Studio dependencies with: uv sync --extra studio")
+
+    monkeypatch.setattr("entroping.cli.main.ensure_studio_available", fail_dependency_check)
+
+    result = CliRunner().invoke(app, ["studio", "--env", "local"])
+
+    assert result.exit_code == 1
+    assert "uv sync --extra studio" in result.output
+    assert "not built yet" not in result.output
+
+
+def test_studio_read_only_status_without_latest_run(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("entroping.cli.main.ensure_studio_available", lambda: None)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+
+    result = runner.invoke(app, ["studio", "--env", "local"])
+
+    assert result.exit_code == 0
+    assert "Entroping Studio (read-only)" in result.output
+    assert "Environment: local" in result.output
+    assert "Project: entroping-project" in result.output
+    assert "Latest run: none" in result.output
+    assert "Traffic state: missing" in result.output
+    assert "not built yet" not in result.output
+
+
+def test_studio_read_only_status_with_latest_run_and_no_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("entroping.cli.main.ensure_studio_available", lambda: None)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    state_dir = Path(".entroping")
+    state_dir.mkdir(exist_ok=True)
+    (state_dir / "state.db").write_bytes(b"sqlite")
+    (state_dir / "latest-run.json").write_text(
+        json.dumps(
+            {
+                "project": "entroping-project",
+                "environment": "local",
+                "generated_at": "2026-05-30T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 1, "failed": 0, "exit_code": 0},
+                "tests": [
+                    {
+                        "path": "tests/health.hurl",
+                        "execution_path": ".entroping/run-1/health.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 10,
+                        "rule_ids": ["global_latency"],
+                        "stdout": "",
+                        "stderr": "",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    reports_dir = Path("reports")
+    reports_dir.mkdir()
+    (reports_dir / "run-latest.json").write_text("{}\n", encoding="utf-8")
+    before = {
+        path.relative_to(tmp_path): path.read_bytes()
+        for path in tmp_path.rglob("*")
+        if path.is_file()
+    }
+
+    result = runner.invoke(app, ["studio", "--env", "local"])
+
+    after = {
+        path.relative_to(tmp_path): path.read_bytes()
+        for path in tmp_path.rglob("*")
+        if path.is_file()
+    }
+    assert result.exit_code == 0
+    assert "Latest run: 1 passed, 0 failed, 1 total" in result.output
+    assert "Reports: reports/run-latest.json" in result.output
+    assert "Traffic state: available" in result.output
+    assert after == before
 
 
 def test_run_executes_discovered_hurl_with_injected_gates_and_cleans_temp_state(

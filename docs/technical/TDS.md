@@ -582,6 +582,9 @@ entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|j
 entroping report bug
 ```
 
+`studio` is currently a read-only status shell. It requires the optional Studio
+extra, reads local QAnstitution/latest-run/report/traffic-state files, and must
+not mutate tests, config, or runtime state.
 `--report` is repeatable so a single run can emit both CI and human artifacts, for example `--report junit --report html`.
 `--parallel` uses `settings.parallel_workers` from `qanstitution.yaml`, keeps the
 per-file timeout and output-redaction behavior, and preserves deterministic

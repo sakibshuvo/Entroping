@@ -69,6 +69,7 @@ Available now:
 - Basic `entroping freeze --name <flow> [--golden]` from redacted traffic state into validated generated Hurl files.
 - `entroping freeze --mock <service>` WireMock-compatible mappings from redacted dependency traffic.
 - `entroping map --export <mermaid|dot|md|png>` host-level dependency maps from redacted traffic state, with escaped labels, route latency/failure summaries, and optional Graphviz-backed PNG output.
+- Read-only `entroping studio --env <name>` status shell for latest run, reports, QAnstitution project, and traffic-state availability when the optional Studio extra is installed.
 - CI-ready local checks through `uv`, `ruff`, `mypy`, and `pytest`.
 - Local package artifact verification with wheel/sdist metadata checks through `scripts/package_check.sh`.
 
@@ -76,7 +77,7 @@ Not built yet:
 
 - Broader structured response/header/schema drift beyond the current result and rule-ID baseline.
 - Broader Architect validation UX.
-- Studio TUI.
+- Full interactive Studio TUI beyond the current read-only status shell.
 
 ## Quick Start
 
