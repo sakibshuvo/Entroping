@@ -142,6 +142,12 @@ Exit criteria:
 
 ### Phase 6A: Eye Capture Spike
 
+Current implementation note: the capture-safe foundation exists before proxy
+startup. Entroping has typed traffic exchange models, a redaction pipeline for
+sensitive headers, query parameters, JSON fields, token-like text, and bounded
+body summaries, plus a local SQLite store under `.entroping/state.db` that
+refuses unredacted exchanges and enforces event retention.
+
 Deliverables:
 
 - Minimal mitmproxy addon.

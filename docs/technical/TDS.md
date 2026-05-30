@@ -26,7 +26,7 @@ The implementation should prefer boring, inspectable, strongly typed modules ove
 | CLI | Typer + Rich | Human-friendly commands and errors |
 | TUI | Textual/Rich | `studio` local mission control |
 | Domain schemas | Pydantic v2 | Validated immutable-ish data models |
-| State | SQLModel + SQLite | Local traffic/session database under `.entroping/` |
+| State | SQLite via standard library | Local traffic/session database under `.entroping/`; SQLModel remains optional if the schema grows |
 | Execution | Hurl Rust binary | Invoked through `subprocess`, never reimplemented |
 | Proxy | mitmproxy | Native addon for `watch` traffic capture |
 | AI | LiteLLM | Provider abstraction for all model calls |
@@ -139,7 +139,9 @@ Core models must be explicit and validated:
 | `IgnoreFailure` | Known-failure exception with issue ID and expiry |
 | `HurlTest` | Parsed test metadata, path, tags, story IDs |
 | `TestScenario` | LLM/generated intermediate representation |
-| `TrafficLog` | Redacted observed request/response record |
+| `TrafficExchange` | Redacted observed request/response record |
+| `TrafficRequest` / `TrafficResponse` | Request/response metadata plus bounded body summaries |
+| `TrafficBody` | Size, content type, truncation flag, and redacted text summary |
 | `FreezeSession` | Group of traffic records converted into tests or mocks |
 | `DependencySpec` | Optional provider/consumer spec pointer for cross-service validation |
 | `AiEditAudit` | Metadata about generated or refactored files for human review |
@@ -440,7 +442,15 @@ Users can extend redaction rules in QAnstitution or local config.
 
 The SQLite database under `.entroping/state.db` should be treated as local runtime state, not a product database.
 
-Suggested tables:
+Current foundation:
+
+- `TrafficStore.open_project(<root>)` opens `.entroping/state.db`.
+- `traffic_events` stores only redacted `TrafficExchange` JSON plus indexed method, URL, host, path, status, duration, and capture time.
+- Persistence refuses any exchange whose `redacted` flag is false.
+- Retention keeps local growth bounded by a configurable event count.
+- Traffic state modules are covered by import-boundary tests so they do not call Brain/LiteLLM providers.
+
+Suggested future tables:
 
 | Table | Purpose |
 | --- | --- |
