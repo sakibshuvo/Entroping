@@ -84,6 +84,7 @@ Important docs:
 
 - [PRODUCT_SPEC.md](docs/product/PRODUCT_SPEC.md) - product contract.
 - [TDS.md](docs/technical/TDS.md) - technical design.
+- [FREEZE_MAP_PLAN.md](docs/technical/FREEZE_MAP_PLAN.md) - post-watch Eye implementation boundaries.
 - [COMMAND_CHEAT_SHEET.md](docs/technical/COMMAND_CHEAT_SHEET.md) - locked CLI namespace.
 - [MVP_PLAN.md](docs/product/MVP_PLAN.md) - implementation sequence.
 - [PROJECT_PROGRESS.md](docs/meta/PROJECT_PROGRESS.md) - current alpha progress dashboard.
