@@ -2,7 +2,7 @@
 
 import re
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, cast
 
 _MARKER_PATTERN = re.compile(
     r"^#\s*entroping:\s*managed-(?P<kind>begin|end)\s+(?P<id>[A-Za-z0-9_.:-]+)$"
@@ -136,11 +136,5 @@ def _parse_marker(line: str) -> ManagedMarker | None:
     match = _MARKER_PATTERN.match(line.strip())
     if match is None:
         return None
-    raw_kind = match.group("kind")
-    if raw_kind == "begin":
-        kind: Literal["begin", "end"] = "begin"
-    elif raw_kind == "end":
-        kind = "end"
-    else:
-        return None
+    kind = cast(Literal["begin", "end"], match.group("kind"))
     return ManagedMarker(kind=kind, block_id=match.group("id"))
