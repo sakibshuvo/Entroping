@@ -52,7 +52,7 @@ Available now:
 - Python package scaffold with the locked v4.1 CLI surface.
 - `entroping init --minimal` for a minimal local runtime skeleton and `qanstitution.yaml`.
 - `entroping doctor` for local Python, Hurl availability, and QAnstitution config health checks.
-- `entroping config list` and `entroping config set` for deterministic, non-secret agent model routing.
+- `entroping config list` and `entroping config set` for deterministic, non-secret agent model routing plus missing persona-template creation.
 - QAnstitution loading with root-bounded local imports, condition validation, duplicate gate checks, and final imported gate protection.
 - Hurl discovery, `# entroping:` metadata parsing, generated-state ignores, and tag-filter validation.
 - QAnstitution gate matching, temporary execution-copy injection, and deterministic Hurl subprocess execution through `entroping run`.
@@ -184,15 +184,14 @@ It supports common path, query, header, and cookie parameters plus schema exampl
 defaults, constants, and enums for JSON request bodies. `--env local` loads
 `envs/local.env` and passes variables such as `base_url` to Hurl.
 
-Prompt-based Architect generation is available after you add a local Builder persona,
-configure a non-secret model route, and install optional AI dependencies. The checkout
-fixture does not ship provider config or credentials. The command also requires
-`hurlfmt` so generated Hurl can be parser-validated before files are written.
+Prompt-based Architect generation is available after you configure a non-secret
+model route and install optional AI dependencies. `config set` creates a safe local
+persona template when the configured persona file is missing. The checkout fixture
+does not ship provider credentials. The command also requires `hurlfmt` so generated
+Hurl can be parser-validated before files are written.
 
 ```bash
 cd examples/checkout-api
-mkdir -p agents
-printf '%s\n' 'Generate minimal, reviewable Hurl tests.' > agents/builder.md
 uv run --project ../.. entroping config set --agent builder --model openai/gpt-4.1-mini
 cd ../..
 uv sync --dev --extra ai

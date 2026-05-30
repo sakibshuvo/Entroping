@@ -247,6 +247,8 @@ def test_config_set_creates_missing_agent_with_default_source(
     )
 
     assert result.exit_code == 0
+    assert "Created persona template: agents/breaker.md" in result.output
+    assert Path("agents/breaker.md").is_file()
     document = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     assert document["agents"]["breaker"] == {
         "source": "agents/breaker.md",

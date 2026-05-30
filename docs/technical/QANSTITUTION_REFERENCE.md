@@ -234,7 +234,9 @@ Model IDs are provider-specific and change over time. Treat the examples as rout
 
 Current implementation note: `entroping config list` prints this routing metadata,
 and `entroping config set --agent <builder|auditor|breaker> --model <provider/model>`
-updates only the selected agent model. The model value is validated as routing
+updates only the selected agent model. If the selected persona source is missing,
+`config set` creates a local Markdown template after validating that the path stays
+inside the project and does not use symlinks. The model value is validated as routing
 metadata, not a credential; empty values, control characters, and API-key-shaped
 strings are rejected.
 

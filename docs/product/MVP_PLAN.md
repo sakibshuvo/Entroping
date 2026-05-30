@@ -94,7 +94,9 @@ LLM calls. `architect audit` reports OpenAPI coverage gaps, and `config list`
 structured Hurl edit models, provider-output parsing, staged Architect-owned Hurl
 writes, and a lazy LiteLLM adapter. `architect build --prompt` now has a happy path
 for scoped Builder generation with parser-backed Hurl validation before files are
-written. Merge/refactor behavior remains a later slice.
+written. `config set` also creates a missing local persona Markdown template so
+first prompt runs do not require manual file scaffolding. Merge/refactor behavior
+remains a later slice.
 
 Deliverables:
 

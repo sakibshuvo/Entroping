@@ -50,3 +50,4 @@
 - Implemented issue #33's Architect output boundary with JSON-to-`ArchitectEditSet` parsing, Architect-owned Hurl staged writes, non-generated overwrite protection, and symlink-safe temporary writes.
 - Implemented issue #35's Architect prompt build happy path with Builder persona loading, LiteLLM invocation, structured output parsing, staged Architect-owned Hurl writes, redacted CLI output, and `entroping run` regression isolation.
 - Implemented issue #37's parser-backed prompt Hurl validation with a `hurlfmt` subprocess adapter, all-or-nothing pre-write validation, non-echoing validation errors, and Architect path control-character hardening.
+- Implemented issue #39's config persona-template creation so `config set` safely creates missing local agent Markdown templates without overwriting existing files or accepting traversal, symlink, URL, non-Markdown, or control-character paths.

@@ -46,6 +46,7 @@
 - Avoid predictable temp paths for config writes. Use exclusive random same-directory temp files and validate the temp file before replacing the real config so attacker-controlled symlinks cannot receive config content.
 - Brain implementation can advance safely before user-facing AI commands by making persona loading, prompt packaging, provider invocation, and structured output validation separate modules with tests.
 - Treat persona Markdown and prompt context as untrusted inputs: keep paths root-bounded, reject symlinks, cap file size, and scan for token-shaped secrets before any provider call.
+- Convenience commands that write config pointers should also create safe local target templates or fail before config mutation; otherwise the next command can still fail even though setup appeared successful.
 - LiteLLM belongs behind a lazy adapter with injectable completion functions so normal development and regression tests do not need provider credentials or network access.
 - Raw model output should enter the system through a parser boundary, not a writer. Parse JSON, validate with Pydantic, then let the filesystem adapter enforce ownership and path safety.
 - Architect writes should mark generated files with `# entroping: source=architect` and refuse to overwrite manual or non-Architect Hurl files until a merge/refactor mode explicitly owns that behavior.

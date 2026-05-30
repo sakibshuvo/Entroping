@@ -31,7 +31,10 @@ from entroping.bridge.openapi_to_hurl import (
     compile_openapi_to_hurl,
 )
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
-from entroping.core.config_writer import ConfigUpdateError, update_agent_model
+from entroping.core.config_writer import (
+    ConfigUpdateError,
+    update_agent_model_with_persona_template,
+)
 from entroping.core.env_loader import load_environment_variables
 from entroping.core.gate_injector import GateInjectionError, write_injected_execution_copy
 from entroping.core.hurl_discovery import discover_hurl_tests, normalize_tag_filters
@@ -227,14 +230,22 @@ def config_set(
     """Configure model routing for an agent role."""
 
     try:
-        law = update_agent_model(Path("qanstitution.yaml"), agent=agent, model=model)
+        result = update_agent_model_with_persona_template(
+            Path("qanstitution.yaml"),
+            agent=agent,
+            model=model,
+        )
     except ConfigUpdateError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
 
+    law = result.law
     agent_config = law.agents[agent]
     console.print(f"[green]Configured {agent} model:[/green] {agent_config.model}")
     console.print(f"Persona source: {agent_config.source}")
+    if result.persona_template_path is not None:
+        created_path = _display_cli_path(result.persona_template_path)
+        console.print(f"Created persona template: {created_path}")
 
 
 @architect_app.command("build")
