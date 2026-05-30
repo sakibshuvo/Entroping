@@ -66,6 +66,8 @@ Current Brain foundation modules:
 - `brain.persona_loader` loads root-bounded Markdown persona files from agent config.
 - `brain.prompt_builder` builds redaction-checked prompt packages.
 - `brain.litellm_client` lazily wraps `litellm.completion` behind an injectable adapter.
+- `brain.architect_build` orchestrates Builder prompt generation across persona
+  loading, prompt packaging, LiteLLM invocation, output parsing, and staged writes.
 
 ## 4. Proposed Package Layout
 
@@ -326,9 +328,12 @@ Separate:
 
 Prompts should include only necessary context. Secrets and raw sensitive traffic must not be sent to models.
 
-Current implementation note: the LiteLLM adapter is available as an internal boundary
-only. `entroping run` remains LLM-free, and user-facing `architect build --prompt`
-is not wired until a later slice can validate generated Hurl before writing files.
+Current implementation note: `architect build --prompt` now wires the CLI to the
+Brain foundation for the Builder happy path. The command loads the configured Builder
+persona, builds a redaction-checked prompt package, invokes LiteLLM through the lazy
+adapter, parses provider JSON into validated Architect edits, and writes only
+Architect-owned Hurl files through the staged writer. Provider summaries, warnings,
+and errors are redacted before CLI output. `entroping run` remains LLM-free.
 
 ### Provider Strategy
 

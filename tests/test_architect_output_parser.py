@@ -1,5 +1,7 @@
 """Architect provider-output parser tests."""
 
+import json
+
 import pytest
 
 from entroping.brain.output_parser import ArchitectOutputParseError, parse_architect_edit_set
@@ -54,3 +56,25 @@ def test_parse_architect_edit_set_rejects_unsafe_provider_content(
 ) -> None:
     with pytest.raises(ArchitectOutputParseError, match=message):
         parse_architect_edit_set(content)
+
+
+def test_parse_architect_edit_set_does_not_echo_invalid_input_values() -> None:
+    secret_provider_context = "provider-private-context"
+    json_with_invalid_content = json.dumps(
+        {
+            "summary": "ok",
+            "edits": [
+                {
+                    "path": "tests/x.hurl",
+                    "content": f"GET /health\n# {secret_provider_context}\u0000",
+                }
+            ],
+        },
+    )
+
+    with pytest.raises(ArchitectOutputParseError) as exc_info:
+        parse_architect_edit_set(json_with_invalid_content)
+
+    assert "content must not contain control characters" in str(exc_info.value)
+    assert secret_provider_context not in str(exc_info.value)
+    assert json_with_invalid_content not in str(exc_info.value)
