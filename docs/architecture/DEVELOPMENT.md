@@ -77,9 +77,9 @@ The CLI currently exposes the planned v4.1 command surface. `init`, `doctor`,
 deterministic `architect build --new`, deterministic `architect audit`, `run --env`,
 JSON/JUnit/HTML reports, `report bug`, LLM-backed generation/refactor, and
 capture-only `watch` are implemented. Basic `freeze` and Mermaid/DOT/Markdown
-`map` exports are implemented; `freeze --mock`, PNG map rendering, drift reports,
-and Studio still intentionally return explicit not-built messages until their
-subsystems land.
+`map` exports are implemented, and `freeze --mock` writes WireMock-compatible
+mappings. PNG map rendering, drift reports, and Studio still intentionally return
+explicit not-built messages until their subsystems land.
 
 ## Agent Workflow
 

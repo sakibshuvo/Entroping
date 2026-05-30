@@ -73,6 +73,51 @@ def _record_freeze_exchange(tmp_path: Path, *, secret: str = "freeze-secret") ->
     store.record_exchange(redact_traffic_exchange(exchange))
 
 
+def _record_mock_exchange(tmp_path: Path, *, secret: str = "mock-secret") -> None:
+    from datetime import UTC, datetime
+
+    from entroping.core.traffic_redactor import redact_traffic_exchange
+    from entroping.core.traffic_store import TrafficStore
+    from entroping.models.traffic import (
+        TrafficBody,
+        TrafficExchange,
+        TrafficRequest,
+        TrafficResponse,
+    )
+
+    exchange = TrafficExchange(
+        captured_at=datetime(2026, 5, 30, 12, 1, tzinfo=UTC),
+        duration_ms=40,
+        request=TrafficRequest(
+            method="POST",
+            url=f"https://payments.example.test/charge?token={secret}",
+            headers={
+                "Authorization": f"Bearer {secret}",
+                "Content-Type": "application/json",
+            },
+            body=TrafficBody(
+                content_type="application/json",
+                size_bytes=34,
+                text=f'{{"card_token":"{secret}"}}',
+            ),
+        ),
+        response=TrafficResponse(
+            status_code=201,
+            headers={
+                "Content-Type": "application/json",
+                "Set-Cookie": f"session={secret}",
+            },
+            body=TrafficBody(
+                content_type="application/json",
+                size_bytes=43,
+                text=f'{{"approved":true,"token":"{secret}"}}',
+            ),
+        ),
+    )
+    store = TrafficStore.open_project(tmp_path)
+    store.record_exchange(redact_traffic_exchange(exchange))
+
+
 def test_root_help_includes_locked_commands() -> None:
     result = CliRunner().invoke(app, ["--help"])
 
@@ -1500,6 +1545,69 @@ def test_freeze_validation_failure_does_not_write_partial_output(
         in result.output
     )
     assert not Path("tests/generated/checkout_flow.hurl").exists()
+
+
+def test_freeze_mock_reports_missing_traffic_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["freeze", "--name", "refund_flow", "--mock", "payments"])
+
+    assert result.exit_code == 1
+    assert "No traffic state found" in result.output
+    assert not Path("mocks/payments").exists()
+
+
+def test_freeze_mock_rejects_unsafe_mock_service(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_mock_exchange(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["freeze", "--name", "refund_flow", "--mock", "../payments"])
+
+    assert result.exit_code == 1
+    assert "mock service" in result.output
+    assert not Path("mocks/payments").exists()
+
+
+def test_freeze_mock_reports_no_matching_dependency(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_mock_exchange(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["freeze", "--name", "refund_flow", "--mock", "shipping"])
+
+    assert result.exit_code == 1
+    assert "No traffic records matched mock service" in result.output
+    assert not Path("mocks/shipping").exists()
+
+
+def test_freeze_mock_writes_wiremock_mapping_without_raw_secret(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_mock_exchange(tmp_path, secret="wire-secret")
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["freeze", "--name", "refund_flow", "--mock", "payments"])
+
+    output = Path("mocks/payments/refund_flow-001.json")
+    assert result.exit_code == 0
+    assert "Wrote WireMock mapping: mocks/payments/refund_flow-001.json" in result.output
+    assert output.is_file()
+    content = output.read_text(encoding="utf-8")
+    payload = json.loads(content)
+    assert payload["request"] == {"method": "POST", "urlPath": "/charge"}
+    assert payload["response"]["status"] == 201
+    assert payload["response"]["headers"] == {"Content-Type": "application/json"}
+    assert payload["response"]["jsonBody"]["token"] == "[REDACTED]"
+    assert "wire-secret" not in content
 
 
 def test_map_reports_missing_traffic_state(

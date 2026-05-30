@@ -55,7 +55,8 @@ Issue #59 outcome leaves behind `docs/technical/FREEZE_MAP_PLAN.md`, ADR-0008,
 and focused implementation issues #66, #67, #68, and #69 for
 filtering/sessioning, traffic-to-Hurl freeze generation, safe `freeze` CLI
 writes, and dependency map exports. Issues #66 through #69 are implemented;
-`freeze --mock` and PNG map rendering remain deferred follow-up work.
+issue #75 adds WireMock-compatible `freeze --mock` output. PNG map rendering
+remains deferred follow-up work.
 
 ## Completed Slice: Issue #3 Gate Matching And Injection
 
@@ -283,7 +284,6 @@ Planned direction:
 ## Explicitly Deferred
 
 - Complete non-prompt `architect build --strategy merge` if product demand justifies it.
-- `freeze --mock` dependency mock generation.
 - PNG map rendering.
 - Studio TUI.
 - Nuitka packaging.

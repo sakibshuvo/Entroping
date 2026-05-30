@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from entroping.core.freeze import FreezeError, run_freeze
+from entroping.core.freeze import FreezeError, run_freeze, run_freeze_mock
 from entroping.core.traffic_redactor import redact_traffic_exchange
 from entroping.core.traffic_store import TrafficStore
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
@@ -34,6 +34,29 @@ def _record_exchange(project_root: Path) -> None:
     TrafficStore.open_project(project_root).record_exchange(redact_traffic_exchange(exchange))
 
 
+def _record_dependency_exchange(project_root: Path) -> None:
+    exchange = TrafficExchange(
+        captured_at=datetime(2026, 5, 30, 12, 1, tzinfo=UTC),
+        duration_ms=40,
+        request=TrafficRequest(
+            method="POST",
+            url="https://payments.example.test/charge",
+            headers={"Content-Type": "application/json"},
+            body=None,
+        ),
+        response=TrafficResponse(
+            status_code=201,
+            headers={"Content-Type": "application/json"},
+            body=TrafficBody(
+                content_type="application/json",
+                size_bytes=17,
+                text='{"ok":true}',
+            ),
+        ),
+    )
+    TrafficStore.open_project(project_root).record_exchange(redact_traffic_exchange(exchange))
+
+
 def test_run_freeze_refuses_symlink_generated_target(tmp_path: Path) -> None:
     _record_exchange(tmp_path)
     output_dir = tmp_path / "tests" / "generated"
@@ -48,6 +71,24 @@ def test_run_freeze_refuses_symlink_generated_target(tmp_path: Path) -> None:
             name="checkout_flow",
             golden=False,
             hurl_validator=lambda content, display_path: None,
+        )
+
+    assert victim.read_text(encoding="utf-8") == "victim\n"
+
+
+def test_run_freeze_mock_refuses_symlink_mapping_target(tmp_path: Path) -> None:
+    _record_dependency_exchange(tmp_path)
+    output_dir = tmp_path / "mocks" / "payments"
+    output_dir.mkdir(parents=True)
+    victim = tmp_path / "victim.json"
+    victim.write_text("victim\n", encoding="utf-8")
+    (output_dir / "refund_flow-001.json").symlink_to(victim)
+
+    with pytest.raises(FreezeError, match="symlinked WireMock mapping"):
+        run_freeze_mock(
+            project_root=tmp_path,
+            name="refund_flow",
+            service="payments",
         )
 
     assert victim.read_text(encoding="utf-8") == "victim\n"

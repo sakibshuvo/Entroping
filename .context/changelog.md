@@ -67,3 +67,4 @@
 - Implemented issue #67's redacted traffic-to-Hurl compiler with traffic metadata, request rendering, binary body omission, stable golden assertions, and bridge-only tests.
 - Implemented issue #68's basic `freeze` CLI workflow with missing-state and unsafe-name errors, parser validation before writes, atomic generated Hurl writes, symlink protection, and redaction regression coverage.
 - Implemented issue #69's dependency map export with a pure traffic-to-graph compiler, Mermaid/Markdown/DOT renderers, CLI map wiring, PNG missing-renderer messaging, and redaction/escaping coverage.
+- Implemented issue #75's `freeze --mock` path with a pure traffic-to-WireMock compiler, safe mock service selection, staged mapping writes, symlink protection, and no-raw-secret coverage.

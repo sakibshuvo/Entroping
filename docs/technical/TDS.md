@@ -104,6 +104,8 @@ src/entroping/
   bridge/
     openapi_to_hurl.py
     traffic_to_hurl.py
+    traffic_to_wiremock.py
+    traffic_to_graph.py
     policy_to_hurl.py
     story_traceability.py
     merge.py
@@ -257,6 +259,8 @@ Implementation rule: keep the YAML-facing `GateRule.condition` field as the orig
 | --- | --- | --- |
 | `openapi_to_hurl.py` | OpenAPI operation/schema to Hurl models | LLM calls, file writes, merge strategy |
 | `traffic_to_hurl.py` | Redacted traffic session to Hurl models | mitmproxy capture, SQLite persistence |
+| `traffic_to_wiremock.py` | Redacted dependency traffic to WireMock mappings | Filesystem writes, mock server runtime |
+| `traffic_to_graph.py` | Redacted traffic to dependency graph models | SQLite reads, renderer invocation |
 | `policy_to_hurl.py` | QAnstitution gate to Hurl assertions | Hurl subprocess execution |
 | `story_traceability.py` | Story IDs, owners, external doc URLs | Business-system API clients |
 | `merge.py` | Manual-edit-preserving Hurl merge/refactor logic | Test generation strategy |
@@ -489,14 +493,17 @@ read SQLite directly.
 
 Generated tests should parameterize volatile fields such as IDs and timestamps. Golden assertions should avoid locking unstable values unless explicitly requested.
 
-Mock generation should select outbound calls where the upstream host or logical service differs from the target service. Entroping generates mappings for standard mock servers such as WireMock; it does not become the mock server itself.
+Mock generation selects records by safe service selector, matching either an
+exact host such as `payments.example.test` or the first host label such as
+`payments`. Entroping generates mappings for standard mock servers such as
+WireMock; it does not become the mock server itself.
 
 Implementation order:
 
 1. Add deterministic traffic filtering and session candidate models. Done in `bridge.traffic_sessions`.
 2. Add a pure `bridge.traffic_to_hurl` compiler for redacted traffic. Done.
 3. Wire `freeze` through safe generated-file writes and parser validation. Done for basic Hurl generation.
-4. Add mocks only after basic freeze and redaction tests are stable.
+4. Add WireMock-compatible mock mappings after basic freeze and redaction tests are stable. Done.
 
 ## 12. Dependency Map Design
 

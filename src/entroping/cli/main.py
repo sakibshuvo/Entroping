@@ -40,7 +40,7 @@ from entroping.core.config_writer import (
 )
 from entroping.core.dependency_mapper import DependencyMapError, run_dependency_map
 from entroping.core.env_loader import load_environment_variables
-from entroping.core.freeze import FreezeError, run_freeze
+from entroping.core.freeze import FreezeError, run_freeze, run_freeze_mock
 from entroping.core.gate_injector import GateInjectionError, write_injected_execution_copy
 from entroping.core.hurl_discovery import discover_hurl_tests, normalize_tag_filters
 from entroping.core.hurl_runner import (
@@ -456,18 +456,29 @@ def freeze(
     """Convert captured traffic into Hurl tests and mocks."""
 
     if mock is not None:
-        console.print("[yellow]freeze --mock is not implemented yet.[/yellow]")
-        raise typer.Exit(1)
+        try:
+            mock_result = run_freeze_mock(project_root=Path.cwd(), name=name, service=mock)
+        except (FreezeError, ValueError) as exc:
+            _print_cli_error(exc)
+            raise typer.Exit(1) from exc
+
+        noun = "mapping" if mock_result.record_count == 1 else "mappings"
+        console.print(
+            f"[green]Froze {mock_result.record_count} traffic {noun} into WireMock.[/green]"
+        )
+        for output_path in mock_result.output_paths:
+            console.print(f"Wrote WireMock mapping: {_display_cli_path(output_path)}")
+        return
 
     try:
-        result = run_freeze(project_root=Path.cwd(), name=name, golden=golden)
+        freeze_result = run_freeze(project_root=Path.cwd(), name=name, golden=golden)
     except (FreezeError, ValueError) as exc:
         _print_cli_error(exc)
         raise typer.Exit(1) from exc
 
-    noun = "record" if result.record_count == 1 else "records"
-    console.print(f"[green]Froze {result.record_count} traffic {noun} into Hurl.[/green]")
-    console.print(f"Wrote Hurl test: {_display_cli_path(result.output_path)}")
+    noun = "record" if freeze_result.record_count == 1 else "records"
+    console.print(f"[green]Froze {freeze_result.record_count} traffic {noun} into Hurl.[/green]")
+    console.print(f"Wrote Hurl test: {_display_cli_path(freeze_result.output_path)}")
 
 
 @app.command()
