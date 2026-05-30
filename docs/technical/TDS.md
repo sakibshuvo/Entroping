@@ -515,6 +515,10 @@ MVP map output is host-level. Service-level inference, external system labels,
 and PNG rendering are follow-up layers after the Mermaid/Markdown/DOT compiler is
 stable and escaped.
 
+Current implementation note: Mermaid, DOT, and Markdown exports are implemented
+through a pure `bridge.traffic_to_graph` compiler and `core.dependency_mapper`
+adapter. PNG export currently fails with an actionable missing-renderer message.
+
 ## 13. Reporting Design
 
 Reports are written under `reports/`.

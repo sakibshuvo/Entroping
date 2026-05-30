@@ -66,3 +66,4 @@
 - Implemented issue #66's pure traffic session bridge with static-asset filtering, redacted-record enforcement, binary body text stripping, target/dependency/observed roles, ordering, and unit coverage.
 - Implemented issue #67's redacted traffic-to-Hurl compiler with traffic metadata, request rendering, binary body omission, stable golden assertions, and bridge-only tests.
 - Implemented issue #68's basic `freeze` CLI workflow with missing-state and unsafe-name errors, parser validation before writes, atomic generated Hurl writes, symlink protection, and redaction regression coverage.
+- Implemented issue #69's dependency map export with a pure traffic-to-graph compiler, Mermaid/Markdown/DOT renderers, CLI map wiring, PNG missing-renderer messaging, and redaction/escaping coverage.

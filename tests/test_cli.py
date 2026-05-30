@@ -1502,6 +1502,77 @@ def test_freeze_validation_failure_does_not_write_partial_output(
     assert not Path("tests/generated/checkout_flow.hurl").exists()
 
 
+def test_map_reports_missing_traffic_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["map"])
+
+    assert result.exit_code == 1
+    assert "No traffic state found" in result.output
+
+
+def test_map_reports_empty_traffic_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from entroping.core.traffic_store import TrafficStore
+
+    TrafficStore.open_project(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["map", "--export", "mermaid"])
+
+    assert result.exit_code == 1
+    assert "contains no traffic records" in result.output
+
+
+def test_map_rejects_unsupported_export(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_freeze_exchange(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["map", "--export", "svg"])
+
+    assert result.exit_code == 1
+    assert "Unsupported map export" in result.output
+    assert "mermaid, dot, md, png" in result.output
+
+
+def test_map_png_reports_missing_renderer(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_freeze_exchange(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["map", "--export", "png"])
+
+    assert result.exit_code == 1
+    assert "PNG map export requires a graph renderer" in result.output
+    assert "Use --export mermaid, dot, or md" in result.output
+
+
+def test_map_outputs_markdown_from_redacted_traffic_without_raw_secret(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_freeze_exchange(tmp_path, secret="map-secret")
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["map", "--export", "md"])
+
+    assert result.exit_code == 0
+    assert "| Host | Method | Path | Calls | Failures | Min ms | Avg ms | Max ms |" in result.output
+    assert "| api.example.test | POST | /checkout | 1 | 0 | 25 | 25 | 25 |" in result.output
+    assert "flowchart LR" in result.output
+    assert "map-secret" not in result.output
+
+
 def test_run_executes_discovered_hurl_with_injected_gates_and_cleans_temp_state(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

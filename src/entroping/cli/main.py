@@ -38,6 +38,7 @@ from entroping.core.config_writer import (
     ConfigUpdateError,
     update_agent_model_with_persona_template,
 )
+from entroping.core.dependency_mapper import DependencyMapError, run_dependency_map
 from entroping.core.env_loader import load_environment_variables
 from entroping.core.freeze import FreezeError, run_freeze
 from entroping.core.gate_injector import GateInjectionError, write_injected_execution_copy
@@ -478,8 +479,13 @@ def map(
 ) -> None:
     """Export observed dependency maps."""
 
-    _ = export
-    _not_implemented("map")
+    try:
+        result = run_dependency_map(project_root=Path.cwd(), export_format=export)
+    except (DependencyMapError, ValueError) as exc:
+        _print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(result.content, markup=False, end="")
 
 
 @app.command()
