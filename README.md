@@ -156,6 +156,18 @@ scripts/feature_gate.sh --security
 scripts/regression.sh --security
 ```
 
+CI enforces `scripts/regression.sh --security` for pull requests and pushes to
+`main`. CI enforces `scripts/audit_quality.sh` as a separate quality-audit job
+after the fast security regression job, then uploads generated audit reports as
+workflow artifacts.
+
+Local-only before release:
+
+```bash
+scripts/package_check.sh
+scripts/release_check.sh --require-live-demo
+```
+
 For alpha release readiness:
 
 ```bash

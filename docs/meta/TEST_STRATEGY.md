@@ -62,6 +62,30 @@ runs the full test suite with a coverage threshold, records ignored JSON audit
 artifacts under `reports/`, then checks Radon complexity, Radon maintainability,
 and Vulture dead-code discovery.
 
+## GitHub Actions Enforcement
+
+GitHub Actions enforces the same security-sensitive gate used for local release
+proof:
+
+```bash
+scripts/regression.sh --security
+```
+
+The CI workflow also runs the heavier quality audit as a separate job after the
+security regression job:
+
+```bash
+scripts/audit_quality.sh
+```
+
+CI-enforced commands are `scripts/regression.sh --security` and
+`scripts/audit_quality.sh`.
+
+The quality-audit job uploads the generated `reports/` directory as workflow
+artifacts for review. Packaging checks and release/live-demo release decisions
+remain local release-owner gates through `scripts/release_check.sh`, because
+they depend on the release context and whether local Hurl is installed.
+
 ## Coverage Expectations
 
 - 100 percent meaningful coverage is the release bar. Temporary lower thresholds

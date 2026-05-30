@@ -26,7 +26,8 @@ project, and a Codex workspace with fast context rehydration.
 - Bridge compiler boundaries are implemented for OpenAPI-to-Hurl, policy-to-Hurl,
   traffic-to-Hurl, traffic-to-WireMock, traffic-to-graph, story traceability,
   and managed-block Hurl merges.
-- CI runs `scripts/regression.sh` and the live Hurl demo smoke.
+- CI runs `scripts/regression.sh --security`, `scripts/audit_quality.sh`, and
+  the live Hurl demo smoke.
 - Security scan completed on 2026-05-29 and found one low-severity optional proxy dependency issue; the proxy dependency floor was raised to `mitmproxy>=12.2.3`, vulnerable transitives were refreshed, and the all-extras audit is now clean.
 - Project-local `AGENTS.md` now captures repository-specific implementation rules.
 - `docs/meta/AUTONOMOUS_DEVELOPMENT.md` defines the Codex-first loop, Spec Kit pilot path, and future OpenCode/oMLX worker plan.
@@ -160,8 +161,9 @@ Latest local evidence:
 - `PYTHONPATH=src uv run pytest tests/test_traffic_sessions.py tests/test_traffic_to_hurl.py tests/test_traffic_to_wiremock.py --cov=entroping.bridge.traffic_sessions --cov=entroping.bridge.traffic_to_hurl --cov=entroping.bridge.traffic_to_wiremock --cov-report=term-missing -q`: 38 passed; targeted traffic compiler modules at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_config_loader.py tests/test_config_writer.py tests/test_env_loader.py --cov=entroping.core.config_loader --cov=entroping.core.config_writer --cov=entroping.core.env_loader --cov-report=term-missing -q`: 58 passed; targeted config/env modules at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_openapi_to_hurl.py tests/test_architect_audit.py --cov=entroping.bridge.openapi_to_hurl --cov=entroping.bridge.openapi_audit --cov-report=term-missing -q`: 39 passed; `bridge.openapi_to_hurl` and `bridge.openapi_audit` at 100 percent coverage.
-- `scripts/regression.sh --security`: 541 passed; Bandit and default/all-extras dependency audits passed.
-- `scripts/audit_quality.sh`: 541 passed with 93.66 percent total coverage; Radon and Vulture gates passed.
+- `PYTHONPATH=src uv run pytest tests/test_ci_workflow.py tests/test_release_docs.py tests/test_agent_workflow_docs.py -q`: 14 passed.
+- `scripts/regression.sh --security`: 543 passed; Bandit and default/all-extras dependency audits passed.
+- `scripts/audit_quality.sh`: 543 passed with 93.66 percent total coverage; Radon and Vulture gates passed.
 
 ## Completed Slice: Issue #90 Run Workflow Extraction
 
@@ -232,6 +234,23 @@ Implemented boundaries:
 - Coverage and static-analysis JSON outputs are written only under ignored
   `reports/`, and transient `.coverage` state is removed on exit.
 - The script has help, dry-run, and unknown-option smoke tests.
+
+## Completed Slice: Issue #148 CI Security And Quality Enforcement
+
+Outcome: GitHub Actions no longer treats the security and quality gates as
+local-only marathon proof.
+
+Implemented boundaries:
+
+- The primary CI checks job runs `scripts/regression.sh --security`, so Bandit
+  and default/all-extras dependency audits are part of pull-request and `main`
+  push verification.
+- The workflow runs `scripts/audit_quality.sh` in a separate `quality-audit`
+  job after the fast security regression job.
+- The quality-audit job uploads ignored `reports/` artifacts for review when
+  available.
+- README and `docs/meta/TEST_STRATEGY.md` now distinguish CI-enforced gates from
+  local release-owner package/live-demo release checks.
 
 ## Completed Slice: Issue #85 Read-Only Studio Status Shell
 
