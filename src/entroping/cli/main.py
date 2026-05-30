@@ -546,10 +546,7 @@ def run(
     except ValueError as exc:
         raise typer.BadParameter(str(exc), param_hint="--report") from exc
 
-    unsupported_options = _unsupported_run_options(
-        parallel=parallel,
-        drift_check=drift_check,
-    )
+    unsupported_options = _unsupported_run_options(drift_check=drift_check)
     if unsupported_options:
         joined = ", ".join(unsupported_options)
         console.print(f"[yellow]{joined} not implemented yet for entroping run.[/yellow]")
@@ -567,6 +564,7 @@ def run(
         console.print("[yellow]No Hurl tests matched the requested filters.[/yellow]")
         raise typer.Exit(1 if ci else 0)
 
+    hurl_workers = law.settings.parallel_workers if parallel else 1
     state_dir = Path(".entroping")
     state_dir.mkdir(parents=True, exist_ok=True)
     try:
@@ -582,6 +580,7 @@ def run(
             suite = run_hurl_files(
                 [execution.execution_path for execution in execution_copies],
                 HurlRunOptions(timeout_ms=law.settings.timeout, variables=env_variables),
+                max_workers=hurl_workers,
             )
             run_report = build_run_report(
                 project=law.project,
@@ -625,12 +624,9 @@ def run(
 
 def _unsupported_run_options(
     *,
-    parallel: bool,
     drift_check: bool,
 ) -> tuple[str, ...]:
     unsupported: list[str] = []
-    if parallel:
-        unsupported.append("--parallel")
     if drift_check:
         unsupported.append("--drift-check")
     return tuple(unsupported)

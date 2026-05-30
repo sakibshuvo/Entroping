@@ -1,6 +1,8 @@
 """Adapter tests for the deterministic Hurl subprocess runner."""
 
 import subprocess
+import threading
+import time
 from pathlib import Path
 from typing import BinaryIO
 
@@ -307,4 +309,65 @@ def test_run_hurl_files_aggregates_deterministic_exit_code(
     assert suite.total == 2
     assert suite.passed == 1
     assert suite.failed == 1
+    assert suite.exit_code == 1
+
+
+def test_run_hurl_files_bounds_parallel_workers_and_preserves_input_order(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first = _write_hurl(tmp_path / "tests" / "first.hurl")
+    second = _write_hurl(tmp_path / "tests" / "second.hurl")
+    third = _write_hurl(tmp_path / "tests" / "third.hurl")
+    active = 0
+    max_active = 0
+    lock = threading.Lock()
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        nonlocal active, max_active
+        _ = (stderr, timeout, check, shell)
+        with lock:
+            active += 1
+            max_active = max(max_active, active)
+        try:
+            path_name = Path(args[-1]).name
+            time.sleep(0.03 if path_name == "third.hurl" else 0.01)
+            stdout.write(f"ran {path_name}\n".encode())
+            return subprocess.CompletedProcess(
+                args=args,
+                returncode=1 if path_name == "second.hurl" else 0,
+            )
+        finally:
+            with lock:
+                active -= 1
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    suite = run_hurl_files(
+        [third, first, second],
+        HurlRunOptions(binary="hurl"),
+        max_workers=2,
+    )
+
+    assert max_active == 2
+    assert [result.path for result in suite.results] == [
+        third.resolve(),
+        first.resolve(),
+        second.resolve(),
+    ]
+    assert [result.stdout for result in suite.results] == [
+        "ran third.hurl\n",
+        "ran first.hurl\n",
+        "ran second.hurl\n",
+    ]
+    assert [result.status for result in suite.results] == ["passed", "passed", "failed"]
     assert suite.exit_code == 1

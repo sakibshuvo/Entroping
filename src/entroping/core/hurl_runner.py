@@ -6,6 +6,7 @@ import subprocess  # nosec B404
 import tempfile
 import time
 from collections.abc import Mapping, Sequence
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO, Literal
@@ -130,11 +131,40 @@ def discover_hurl(binary: str = "hurl") -> HurlBinaryStatus:
 def run_hurl_files(
     paths: Sequence[Path],
     options: HurlRunOptions | None = None,
+    *,
+    max_workers: int = 1,
 ) -> HurlSuiteResult:
     """Run Hurl once per file and aggregate deterministic results."""
 
+    if max_workers <= 0:
+        msg = "Hurl worker count must be greater than zero"
+        raise ValueError(msg)
+
     run_options = options or HurlRunOptions()
-    results = tuple(run_hurl_file(path, run_options) for path in paths)
+    if max_workers == 1 or len(paths) <= 1:
+        results = tuple(run_hurl_file(path, run_options) for path in paths)
+        return HurlSuiteResult(results=results)
+
+    ordered_results: list[HurlFileResult | None] = [None] * len(paths)
+    bounded_workers = min(max_workers, len(paths))
+    with ThreadPoolExecutor(
+        max_workers=bounded_workers,
+        thread_name_prefix="entroping-hurl",
+    ) as executor:
+        futures: dict[Future[HurlFileResult], int] = {
+            executor.submit(run_hurl_file, path, run_options): index
+            for index, path in enumerate(paths)
+        }
+        for future in as_completed(futures):
+            ordered_results[futures[future]] = future.result()
+
+    results_list: list[HurlFileResult] = []
+    for result in ordered_results:
+        if result is None:
+            msg = "Hurl worker did not produce a result"
+            raise HurlRunnerError(msg)
+        results_list.append(result)
+    results = tuple(results_list)
     return HurlSuiteResult(results=results)
 
 
