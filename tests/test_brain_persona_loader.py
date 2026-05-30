@@ -1,9 +1,11 @@
 """Brain persona loader tests."""
 
+import os
 from pathlib import Path
 
 import pytest
 
+import entroping.brain.persona_loader as persona_loader
 from entroping.brain.persona_loader import PersonaLoadError, load_agent_persona
 from entroping.core.config_loader import load_qanstitution
 
@@ -51,6 +53,7 @@ def test_load_agent_persona_rejects_missing_role(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     ("source", "message"),
     [
+        ("https://example.com/builder.md", "must be a local Markdown path"),
         ("../builder.md", "must stay under"),
         ("/tmp/builder.md", "must be relative"),
         ("agents/builder.txt", "must be a Markdown file"),
@@ -90,3 +93,67 @@ def test_load_agent_persona_rejects_secret_like_content(tmp_path: Path) -> None:
 
     with pytest.raises(PersonaLoadError, match="must not contain secret-like values"):
         load_agent_persona(law, "builder", config_path=config_path)
+
+
+def test_load_agent_persona_rejects_missing_file(tmp_path: Path) -> None:
+    config_path = _write_config(tmp_path, "agents/missing.md")
+    law = load_qanstitution(config_path)
+
+    with pytest.raises(PersonaLoadError, match="Agent persona file not found"):
+        load_agent_persona(law, "builder", config_path=config_path)
+
+
+def test_read_persona_rejects_inspection_and_read_failures(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    persona_path = tmp_path / "agents" / "builder.md"
+    persona_path.parent.mkdir()
+    persona_path.write_text("You are the Builder.\n", encoding="utf-8")
+    original_stat = Path.stat
+
+    def fail_stat(self: Path, *, follow_symlinks: bool = True) -> os.stat_result:
+        if self == persona_path:
+            raise OSError("stat failed")
+        return original_stat(self, follow_symlinks=follow_symlinks)
+
+    monkeypatch.setattr(Path, "stat", fail_stat)
+    with pytest.raises(PersonaLoadError, match="Could not inspect agent persona"):
+        persona_loader._read_persona(persona_path)
+
+    monkeypatch.setattr(Path, "stat", original_stat)
+    original_read_text = Path.read_text
+
+    def fail_read_text(
+        self: Path,
+        encoding: str | None = None,
+        errors: str | None = None,
+    ) -> str:
+        if self == persona_path:
+            raise OSError("read failed")
+        return original_read_text(self, encoding=encoding, errors=errors)
+
+    monkeypatch.setattr(Path, "read_text", fail_read_text)
+    with pytest.raises(PersonaLoadError, match="Could not read agent persona"):
+        persona_loader._read_persona(persona_path)
+
+
+def test_read_persona_rejects_invalid_content_shapes(tmp_path: Path) -> None:
+    persona_path = tmp_path / "agents" / "builder.md"
+    persona_path.parent.mkdir()
+
+    persona_path.write_text("x" * 128_001, encoding="utf-8")
+    with pytest.raises(PersonaLoadError, match="too large"):
+        persona_loader._read_persona(persona_path)
+
+    persona_path.write_bytes(b"\xff")
+    with pytest.raises(PersonaLoadError, match="UTF-8"):
+        persona_loader._read_persona(persona_path)
+
+    persona_path.write_text("  \n\t", encoding="utf-8")
+    with pytest.raises(PersonaLoadError, match="must not be empty"):
+        persona_loader._read_persona(persona_path)
+
+    persona_path.write_text("Builder\u0007persona\n", encoding="utf-8")
+    with pytest.raises(PersonaLoadError, match="must not contain control characters"):
+        persona_loader._read_persona(persona_path)

@@ -153,6 +153,7 @@ Latest local evidence:
 - `PYTHONPATH=src uv run pytest tests/test_story_traceability.py --cov=entroping.bridge.story_traceability --cov-report=term-missing -q`: 6 passed; `bridge.story_traceability` at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_traffic_store.py --cov=entroping.core.traffic_store --cov-report=term-missing -q`: 10 passed; `core.traffic_store` at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_brain_safety.py --cov=entroping.brain.safety --cov-report=term-missing -q`: 9 passed; `brain.safety` at 100 percent coverage.
+- `PYTHONPATH=src uv run pytest tests/test_brain_persona_loader.py tests/test_litellm_client.py --cov=entroping.brain.persona_loader --cov=entroping.brain.litellm_client --cov-report=term-missing --cov-fail-under=100 -q`: 24 passed; Brain provider/persona boundary modules at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_hurl_metadata.py --cov=entroping.models.hurl --cov-report=term-missing -q`: 11 passed; `models.hurl` at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_hurl_discovery.py --cov=entroping.core.hurl_discovery --cov-report=term-missing -q`: 11 passed; `core.hurl_discovery` at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_policy_to_hurl.py --cov=entroping.bridge.policy_to_hurl --cov-report=term-missing -q`: 17 passed; `bridge.policy_to_hurl` at 100 percent coverage.
@@ -166,8 +167,8 @@ Latest local evidence:
 - `PYTHONPATH=src uv run pytest tests/test_traffic_proxy.py tests/test_freeze.py --cov=entroping.core.traffic_proxy --cov=entroping.core.freeze --cov-report=term-missing --cov-fail-under=100 -q`: 42 passed; Eye proxy/freeze modules at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_architect_prompt_build.py tests/test_architect_refactor.py tests/test_architect_writer.py --cov=entroping.brain.architect_build --cov=entroping.brain.architect_refactor --cov=entroping.brain.architect_writer --cov-report=term-missing --cov-fail-under=100 -q`: 57 passed; Architect workflow modules at 100 percent coverage.
 - `PYTHONPATH=src uv run pytest tests/test_ci_workflow.py tests/test_release_docs.py tests/test_agent_workflow_docs.py -q`: 15 passed.
-- `scripts/regression.sh --security`: 653 passed; Bandit and default/all-extras dependency audits passed.
-- `scripts/audit_quality.sh`: 653 passed with 98.53 percent total coverage; Radon and Vulture gates passed.
+- `scripts/regression.sh --security`: 665 passed; Bandit and default/all-extras dependency audits passed.
+- `scripts/audit_quality.sh`: 665 passed with 99.10 percent total coverage; Radon and Vulture gates passed.
 
 ## Completed Slice: Issue #90 Run Workflow Extraction
 
@@ -346,6 +347,22 @@ Implemented boundaries:
   escapes, symlink and non-file preflight failures, blank-header helpers,
   newline preservation, atomic replacement failures, and temporary-write
   failures.
+
+## Completed Slice: Issue #157 Brain Provider And Persona Boundary Coverage
+
+Outcome: the remaining Brain provider/persona boundaries now have focused 100
+percent coverage without invoking LiteLLM providers or external networks.
+
+Implemented boundaries:
+
+- `brain.persona_loader` coverage includes URL/absolute/non-Markdown/missing
+  persona sources, symlinked persona paths, stat/read failures, size limits,
+  UTF-8 errors, empty content, control characters, and secret-like content.
+- `brain.litellm_client` coverage includes optional dependency absence,
+  installed modules without `completion`, provider boundary re-raise behavior,
+  redacted provider exceptions, malformed choices/content responses, object
+  attribute response shapes, usage type fallbacks, model defaulting, and lazy
+  completion loading.
 
 ## Completed Slice: Issue #85 Read-Only Studio Status Shell
 
