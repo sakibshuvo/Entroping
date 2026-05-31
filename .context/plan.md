@@ -112,6 +112,8 @@ as the active alpha implementation without overclaiming production stability.
 Issue #174 rewrote the README as a public open-source front door: sourced hype
 and runtime-governance positioning first, two-minute live demo proof next, and
 deep Obsidian/spec inventory later.
+Issue #179 improved Architect validation UX for invalid provider JSON and
+parser-rejected Hurl while preserving no-write behavior and raw output redaction.
 Issue #90 moved deterministic run orchestration behind `core.run_workflow`,
 leaving the CLI adapter responsible for option normalization, output, and exit
 mapping.
@@ -500,6 +502,19 @@ Implemented boundaries:
   noise out of drift reports.
 - Findings are warnings and include only duration/increase numbers, never
   response bodies, captured traffic, cookies, tokens, or raw provider data.
+
+## Completed Slice: Issue #179 Architect Validation UX
+
+Outcome: prompt-backed Architect failures are easier to act on without making
+provider output or parser streams visible.
+
+Implemented boundaries:
+
+- Invalid provider JSON now reports that Architect output validation failed
+  before write and names the expected `summary` / `warnings` / `edits[]` shape.
+- Parser-rejected Hurl now reports that Hurl validation failed before write.
+- Both paths still print the redacted root error, preserve all-or-nothing writes,
+  and keep raw model output plus parser stdout/stderr out of the CLI.
 
 ## Completed Slice: Issue #83 Bounded Parallel Hurl Execution
 

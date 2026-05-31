@@ -957,6 +957,9 @@ gates: []
 
     assert result.exit_code == 1
     assert "Architect output must be a valid JSON object" in result.output
+    assert "Architect output validation failed before write." in result.output
+    assert "Expected JSON object with summary, optional warnings, and edits[]." in result.output
+    assert "No Architect files were written." in result.output
     assert not Path("tests/generated/ai_checkout.hurl").exists()
 
 
@@ -1015,6 +1018,8 @@ gates: []
 
     assert result.exit_code == 1
     assert "Generated Hurl failed parser validation: tests/generated/bad.hurl" in result.output
+    assert "Architect Hurl validation failed before write." in result.output
+    assert "No Architect files were written." in result.output
     assert not Path("tests/generated/bad.hurl").exists()
 
 
