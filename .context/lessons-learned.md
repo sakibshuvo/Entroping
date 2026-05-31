@@ -18,6 +18,7 @@
 - Studio mutation must be preview-first, confirmation-gated, and reversible before code. Keep Textual as an adapter over existing CLI/core use cases, not a direct writer or runner.
 - Studio drilldowns should explain existing artifacts, not create new truth. Applied-gate views should derive from latest-run report rule IDs plus loaded QAnstitution definitions while leaving Hurl execution and report generation in the CLI path.
 - Studio traffic inspection should use a read-only database path. Reusing a write-capable store initializer for UI browsing can create or migrate `.entroping/state.db`; add a separate read-only SQLModel query path and keep raw URLs, headers, bodies, cookies, tokens, and secrets out of TUI rows.
+- Runtime compatibility claims should be CI-proven and capped when unproven. If package metadata says Python 3.12 and 3.13, run regression and optional-extras smoke on both versions, keep 3.12 as the syntax/type-checking floor, and avoid implying Python 3.14 until a future lane proves it.
 
 ## 2026-05-30
 

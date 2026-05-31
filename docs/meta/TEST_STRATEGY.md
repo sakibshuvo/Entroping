@@ -84,6 +84,12 @@ proof:
 scripts/regression.sh --security
 ```
 
+The `checks` job runs that gate on Python 3.12 and Python 3.13. CI proves
+Python 3.12 and 3.13 before the package metadata can claim support for those
+runtimes. Python 3.12 remains the syntax and mypy floor, so static typing and
+linting stay anchored to the lowest supported version; Entroping is not claimed
+for Python 3.14 until a future compatibility issue adds CI evidence.
+
 The CI workflow also runs the heavier quality audit as a separate job after the
 security regression job:
 
@@ -111,6 +117,9 @@ provider credentials or live traffic capture:
 uv sync --dev --all-extras
 uv run python scripts/optional_extras_smoke.py
 ```
+
+That optional-extras smoke also runs on Python 3.12 and 3.13 so optional
+dependency compatibility is part of the supported-version proof.
 
 CI-enforced commands are `scripts/regression.sh --security`,
 `scripts/audit_quality.sh`, the `install-smoke` matrix, and the

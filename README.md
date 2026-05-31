@@ -153,12 +153,16 @@ uv tool install -e .
 
 Requirements:
 
-- Python 3.12+
+- Python 3.12 or 3.13
 - [`uv`](https://docs.astral.sh/uv/)
 - [`hurl`](https://hurl.dev/) for deterministic execution and the live demo
 - Optional extras: `mitmproxy` for `watch`, LiteLLM providers for prompt-backed Architect work, Graphviz for PNG maps
   ([AI_PROVIDER_SETUP.md](docs/user/AI_PROVIDER_SETUP.md) covers LiteLLM,
   local Qwen/oMLX, and no-provider CI)
+
+CI proves Python 3.12 and 3.13 for the security regression suite and optional
+extras smoke. Python 3.12 remains the syntax and mypy floor; Entroping is not
+claimed for Python 3.14 until CI evidence is added.
 
 ## Use The CLI
 

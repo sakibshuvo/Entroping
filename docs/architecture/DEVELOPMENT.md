@@ -13,7 +13,7 @@ tags:
 
 This repository is prepared for:
 
-- Python 3.12
+- Python 3.12 or 3.13
 - uv for dependency and virtual environment management
 - ruff, mypy, and pytest for local quality gates
 - Codex as the primary implementation agent
@@ -64,6 +64,10 @@ scripts/regression.sh --security
 ```
 
 The all-extras audit matters because future runtime surfaces such as `watch` use optional dependencies.
+
+CI proves Python 3.12 and 3.13 with the security regression suite and optional
+extras smoke. Python 3.12 remains the syntax and mypy floor; Entroping is not
+claimed for Python 3.14 until CI evidence is added.
 
 ## CLI Smoke Test
 

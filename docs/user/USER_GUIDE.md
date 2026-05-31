@@ -36,7 +36,7 @@ uv tool install -e .
 Required external tools:
 
 - `hurl`
-- Python 3.12+
+- Python 3.12 or 3.13
 - `mitmproxy` for `watch`
 - Ollama or cloud API credentials only when using AI commands
 
