@@ -228,6 +228,10 @@ def config_list() -> None:
         console.print(f"  {role}:")
         console.print(f"    source: {agent_config.source}")
         console.print(f"    model: {agent_config.model}")
+        if agent_config.api_base is not None:
+            console.print(f"    api_base: {agent_config.api_base}")
+        if agent_config.api_key_env is not None:
+            console.print(f"    api_key_env: {agent_config.api_key_env}")
         console.print(f"    temperature: {agent_config.temperature}")
         if agent_config.max_tokens is not None:
             console.print(f"    max_tokens: {agent_config.max_tokens}")

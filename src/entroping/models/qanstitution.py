@@ -1,6 +1,8 @@
 """Domain models for ``qanstitution.yaml``."""
 
+import re
 from typing import Literal
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -8,6 +10,7 @@ from entroping.models.conditions import ConditionSyntaxError, parse_condition
 
 Enforcement = Literal["block", "warn", "audit_only"]
 AgentRole = Literal["builder", "auditor", "breaker"]
+_ENV_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 class SourceConfig(BaseModel):
@@ -38,6 +41,8 @@ class AgentConfig(BaseModel):
 
     source: str
     model: str
+    api_base: str | None = None
+    api_key_env: str | None = None
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     max_tokens: int | None = Field(default=None, gt=0)
 
@@ -57,6 +62,61 @@ class AgentConfig(BaseModel):
             msg = "model identifier must not look like a secret"
             raise ValueError(msg)
         return model
+
+    @field_validator("api_base")
+    @classmethod
+    def validate_api_base(cls, value: str | None) -> str | None:
+        """Validate an optional OpenAI-compatible provider base URL."""
+
+        if value is None:
+            return None
+        api_base = value.strip()
+        if not api_base:
+            msg = "api_base must not be empty"
+            raise ValueError(msg)
+        if any(ord(character) < 32 or ord(character) == 127 for character in api_base):
+            msg = "api_base must not contain control characters"
+            raise ValueError(msg)
+        if _looks_like_secret(api_base):
+            msg = "api_base must not look like a secret"
+            raise ValueError(msg)
+
+        parsed = urlparse(api_base)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            msg = "api_base must use http or https"
+            raise ValueError(msg)
+        if parsed.username is not None or parsed.password is not None:
+            msg = "api_base must not contain userinfo"
+            raise ValueError(msg)
+        if parsed.query:
+            msg = "api_base must not contain query parameters"
+            raise ValueError(msg)
+        if parsed.fragment:
+            msg = "api_base must not contain fragments"
+            raise ValueError(msg)
+        return api_base
+
+    @field_validator("api_key_env")
+    @classmethod
+    def validate_api_key_env(cls, value: str | None) -> str | None:
+        """Validate an optional environment variable name for provider auth."""
+
+        if value is None:
+            return None
+        api_key_env = value.strip()
+        if not api_key_env:
+            msg = "api_key_env must not be empty"
+            raise ValueError(msg)
+        if any(ord(character) < 32 or ord(character) == 127 for character in api_key_env):
+            msg = "api_key_env must not contain control characters"
+            raise ValueError(msg)
+        if _looks_like_secret(api_key_env):
+            msg = "api_key_env must not look like a secret"
+            raise ValueError(msg)
+        if _ENV_NAME_RE.fullmatch(api_key_env) is None:
+            msg = "api_key_env must be an environment variable name"
+            raise ValueError(msg)
+        return api_key_env
 
 
 class GateRule(BaseModel):

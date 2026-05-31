@@ -25,6 +25,7 @@
 - Implemented issue #191's public launch preview upgrade with curated terminal, HTML report, and dependency-map PNGs generated from live checkout fixture output and redacted traffic state.
 - Added issue #184's good-first-issue walkthrough so new contributors can move from labeled issue selection through `scripts/start_issue.sh`, local validation gates, and PR documentation expectations without reading the whole vault first.
 - Added issue #189's downstream GitHub Actions starter workflow with pinned Hurl installation, tagged Entroping install, JUnit/HTML report upload, user docs, and guard tests.
+- Added issue #195's Brain provider setup path with optional `api_base` and `api_key_env` agent metadata, LiteLLM/local Qwen/oMLX setup docs, no-provider CI guidance, and docs/code guard tests.
 
 ## 2026-05-30
 

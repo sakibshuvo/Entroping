@@ -41,6 +41,37 @@ def test_load_agent_persona_reads_root_bounded_markdown(tmp_path: Path) -> None:
     assert persona.content == "You are the Builder.\n"
 
 
+def test_load_agent_persona_preserves_provider_connection_metadata(tmp_path: Path) -> None:
+    persona_path = tmp_path / "agents" / "builder.md"
+    persona_path.parent.mkdir()
+    persona_path.write_text("You are the local Builder.\n", encoding="utf-8")
+    config_path = tmp_path / "qanstitution.yaml"
+    config_path.write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/builder.md
+    model: openai/qwen3-coder
+    api_base: http://127.0.0.1:8000/v1
+    api_key_env: ENTROPING_OMLX_API_KEY
+    temperature: 0.1
+    max_tokens: 4096
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    law = load_qanstitution(config_path)
+
+    persona = load_agent_persona(law, "builder", config_path=config_path)
+
+    assert persona.model == "openai/qwen3-coder"
+    assert persona.api_base == "http://127.0.0.1:8000/v1"
+    assert persona.api_key_env == "ENTROPING_OMLX_API_KEY"
+    assert persona.temperature == 0.1
+    assert persona.max_tokens == 4096
+
+
 def test_load_agent_persona_rejects_missing_role(tmp_path: Path) -> None:
     config_path = tmp_path / "qanstitution.yaml"
     config_path.write_text("project: checkout-api\ngates: []\n", encoding="utf-8")

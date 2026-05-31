@@ -221,6 +221,23 @@ agents:
     temperature: 0.7
 ```
 
+Local OpenAI-compatible providers can add non-secret endpoint metadata:
+
+```yaml
+agents:
+  builder:
+    source: "agents/builder.md"
+    model: "openai/<local-qwen-model>"
+    api_base: "http://127.0.0.1:8000/v1"
+    api_key_env: "ENTROPING_OMLX_API_KEY"
+    temperature: 0.1
+    max_tokens: 4096
+```
+
+`api_base` must be an `http` or `https` URL without userinfo, query
+parameters, or fragments. `api_key_env` must be a valid environment variable
+name. No API keys in qanstitution.yaml.
+
 The runtime prompt is composed from:
 
 1. Agent persona Markdown.
@@ -238,7 +255,9 @@ updates only the selected agent model. If the selected persona source is missing
 `config set` creates a local Markdown template after validating that the path stays
 inside the project and does not use symlinks. The model value is validated as routing
 metadata, not a credential; empty values, control characters, and API-key-shaped
-strings are rejected.
+strings are rejected. Optional `api_base` and `api_key_env` values are also
+printed by `config list` when present, while the actual environment value is
+never printed.
 
 ## 9. Gates
 

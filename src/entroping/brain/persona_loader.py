@@ -22,6 +22,8 @@ class AgentPersona:
     source_path: Path
     content: str
     model: str
+    api_base: str | None
+    api_key_env: str | None
     temperature: float
     max_tokens: int | None
 
@@ -47,6 +49,8 @@ def load_agent_persona(
         source_path=source_path,
         content=content,
         model=agent.model,
+        api_base=agent.api_base,
+        api_key_env=agent.api_key_env,
         temperature=agent.temperature,
         max_tokens=agent.max_tokens,
     )

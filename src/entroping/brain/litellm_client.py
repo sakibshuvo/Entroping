@@ -1,6 +1,7 @@
 """Lazy LiteLLM adapter for Architect model calls."""
 
 import importlib
+import os
 import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -93,7 +94,19 @@ def _completion_kwargs(package: ArchitectPromptPackage) -> dict[str, object]:
     }
     if package.max_tokens is not None:
         kwargs["max_tokens"] = package.max_tokens
+    if package.api_base is not None:
+        kwargs["api_base"] = package.api_base
+    if package.api_key_env is not None:
+        kwargs["api_key"] = _read_api_key(package.api_key_env)
     return kwargs
+
+
+def _read_api_key(env_name: str) -> str:
+    value = os.environ.get(env_name)
+    if value is None or not value.strip():
+        msg = f"API key environment variable is not set: {env_name}"
+        raise BrainProviderError(msg)
+    return value
 
 
 def _extract_content(response: object) -> str:

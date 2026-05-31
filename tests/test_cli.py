@@ -300,6 +300,8 @@ agents:
   builder:
     source: agents/builder.md
     model: openai/gpt-4.1-mini
+    api_base: http://127.0.0.1:8000/v1
+    api_key_env: ENTROPING_OMLX_API_KEY
     temperature: 0.2
     max_tokens: 2048
 gates:
@@ -331,6 +333,8 @@ settings:
     assert "Gates: 2" in result.output
     assert "builder" in result.output
     assert "openai/gpt-4.1-mini" in result.output
+    assert "api_base: http://127.0.0.1:8000/v1" in result.output
+    assert "api_key_env: ENTROPING_OMLX_API_KEY" in result.output
     assert "agents/builder.md" in result.output
     assert "max_tokens: 2048" in result.output
     assert "timeout: 45000" in result.output
