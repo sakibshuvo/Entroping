@@ -124,7 +124,8 @@ Still alpha:
 - Dependency-call drift is route-level only: host, method, and templated path,
   with no raw traffic values.
 - Architect validation guidance is improved, but the broader UX is intentionally narrow.
-- Studio is interactive but read-only; mutation workflows still need separate design.
+- Studio is interactive but read-only; future mutation workflows must follow
+  [STUDIO_MUTATION_WORKFLOW_DESIGN.md](docs/technical/STUDIO_MUTATION_WORKFLOW_DESIGN.md).
 
 ## Install
 

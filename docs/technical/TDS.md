@@ -615,7 +615,8 @@ It must not mutate tests, config, reports, or runtime state. Near-term Studio
 work is report-backed: CLI and report artifacts remain the primary workflow,
 and Studio may only add read-only views over sanitized reports, applied gate
 metadata, and redacted traffic summaries until a separate mutation design is
-accepted.
+accepted. The accepted design gate for any future write action lives in
+[STUDIO_MUTATION_WORKFLOW_DESIGN.md](STUDIO_MUTATION_WORKFLOW_DESIGN.md).
 `--report` is repeatable so a single run can emit both CI and human artifacts, for example `--report junit --report html`.
 `--parallel` uses `settings.parallel_workers` from `qanstitution.yaml`, keeps the
 per-file timeout and output-redaction behavior, and preserves deterministic

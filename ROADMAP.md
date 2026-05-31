@@ -62,7 +62,7 @@ Goal: deepen the alpha without weakening deterministic execution.
 - CLI and reports remain the primary workflow for drift baselines, redaction
   review, Architect remediation feedback, and richer examples.
 - No Studio mutation implementation is planned for v0.3; mutation work remains
-  a design gate only.
+  governed by [STUDIO_MUTATION_WORKFLOW_DESIGN.md](docs/technical/STUDIO_MUTATION_WORKFLOW_DESIGN.md).
 - Baseline workflows for drift, latency, response-shape, and dependency-route evidence.
 - Redaction review UX for captured traffic.
 - Better Architect feedback when provider output is invalid or incomplete.
