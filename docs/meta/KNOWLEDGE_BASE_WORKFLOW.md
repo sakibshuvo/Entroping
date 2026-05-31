@@ -20,13 +20,14 @@ Obsidian is the first brain for Entroping. It is where the product story, decisi
 The active vault is the repo:
 
 ```text
-/Users/sakibshuvo/projects/Entroping
+<repo-root>
 ```
 
-The source archive stays separate:
+The source archive stays separate. Use a sibling `../entroping-specs` checkout
+or set `ENTROPING_SOURCE_ROOT`:
 
 ```text
-/Users/sakibshuvo/projects/entroping-specs
+<source-archive>
 ```
 
 Do not merge source exports into the implementation repo as raw dumps. Curate links, analyses, decisions, and promoted requirements.
@@ -36,7 +37,7 @@ Do not merge source exports into the implementation repo as raw dumps. Curate li
 Current source snapshot:
 
 ```text
-/Users/sakibshuvo/projects/entroping-specs/notebookLM/2026-05-29 NotebookLM Specs.md
+<source-archive>/notebookLM/2026-05-29 NotebookLM Specs.md
 ```
 
 Historical evidence:
@@ -62,7 +63,7 @@ If a source insight does not pass one of these gates, it stays archival.
 
 Use Gemini and NotebookLM as research assistants over source material, then bring the result back into the repo.
 
-1. Put the export under `/Users/sakibshuvo/projects/entroping-specs` with a dated filename.
+1. Put the export under `<source-archive>` with a dated filename.
 2. If it is a final export, update `sources/SOURCE_MAP.md`.
 3. Run:
 
@@ -104,7 +105,7 @@ Recommended local flow:
 ```bash
 uv tool install graphifyy
 graphify install
-graphify /Users/sakibshuvo/projects/Entroping
+graphify <repo-root>
 ```
 
 Output belongs under `graphify-out/`, which is ignored by Git.

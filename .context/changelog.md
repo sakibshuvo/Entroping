@@ -39,6 +39,7 @@
 - Implemented #108's launch demo asset kit with README links, real checkout smoke terminal frames, a text/SVG HTML report preview, a dependency-map example from redacted traffic, and a concrete growth-plan publish order.
 - Fixed #166's launch-doc portability gap by replacing maintainer-local temp paths with an `ENTROPING_DEMO_TMP_BASE` override and adding a guardrail test.
 - Implemented #168's configurable source archive path for `scripts/context_pack.sh --mode source`, replacing the hardcoded maintainer-local path with `ENTROPING_SOURCE_ROOT` plus a sibling-folder default.
+- Fixed #170's agent workflow docs so Obsidian, Graphify, and prompt examples use portable `<repo-root>` and `<source-archive>` placeholders instead of maintainer-local paths.
 - Ran issue #96's formal post-alpha security review and fixed 14 validated candidates across Brain prompt redaction, Hurl subprocess env isolation, symlinked path components, traffic redaction/body limits, OpenAPI generation/audit safety, policy gate compilation, Markdown escaping, Architect generated-file writes, and live demo workdir handling.
 - Wrote the consolidated Codex Security scan artifacts under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, including discovery, coverage, reconciliation, validation, attack-path, Markdown, and HTML reports.
 - Refactored issue #90's `entroping run` orchestration into `core.run_workflow`, preserving reports, drift behavior, exit codes, and LLM-free execution while lowering CLI adapter complexity.

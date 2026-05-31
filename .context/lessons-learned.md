@@ -94,3 +94,4 @@
 - Launch assets should be generated from real product paths but committed as small, reviewable text/SVG artifacts. Keep bulky terminal recordings, screenshots, generated reports, and traffic state out of Git unless each asset is deliberately curated.
 - Public launch commands must not bake in maintainer-local paths. Use portable defaults with environment overrides, then test the public docs for path leaks.
 - Agent handoff scripts should prefer repository-relative defaults plus environment overrides over hardcoded workstation paths.
+- Agent workflow docs should be portable even when the maintainer has a known local checkout. Use placeholders in committed docs and keep machine-specific paths in local prompts or environment variables.
