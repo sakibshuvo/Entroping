@@ -91,3 +91,4 @@
 - SQLModel is the typed persistence layer, not a replacement for SQLite. Keep `.entroping/state.db` as local-first runtime state, and use SQLModel where relational state needs clearer schema, tests, and future migration paths.
 - Multi-agent scale needs deterministic context packs and one parent integrator. Use helper agents for bounded evidence and review, but promote durable decisions into issues, ADRs, docs, tests, or scripts before implementation follows them.
 - Pydantic and mypy are complementary gates: Pydantic validates runtime data at boundaries, while mypy enforces static type consistency before runtime.
+- Launch assets should be generated from real product paths but committed as small, reviewable text/SVG artifacts. Keep bulky terminal recordings, screenshots, generated reports, and traffic state out of Git unless each asset is deliberately curated.

@@ -55,6 +55,23 @@ cp envs/local.env.example envs/local.env
 uv run --project ../.. entroping run --env local --tag smoke --report html --report json --report junit
 ```
 
+## Launch Asset Generation
+
+The public launch kit in `docs/assets/launch/README.md` is generated from this
+fixture. From the repository root:
+
+```bash
+artifact_dir="$(mktemp -d /Users/sakibshuvo/projects/entroping-demo-artifacts.XXXXXX)"
+workdir="$(mktemp -d /Users/sakibshuvo/projects/entroping-demo-work.XXXXXX)"
+ENTROPING_LIVE_DEMO_ARTIFACT_DIR="$artifact_dir" \
+  ENTROPING_LIVE_DEMO_WORKDIR="$workdir" \
+  scripts/live_demo_smoke.sh
+```
+
+Use the copied HTML, JSON, and JUnit reports as screenshot sources. Keep the
+generated `reports/`, `.entroping/`, GIFs, and PNGs out of Git unless a launch
+asset is intentionally curated and size-checked.
+
 ## Design Notes
 
 - The example avoids real secrets.

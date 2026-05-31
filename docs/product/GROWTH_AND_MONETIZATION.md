@@ -47,13 +47,28 @@ GitHub's community profile checklist expects health files such as README, CODE_O
 
 ## Launch Asset Checklist
 
-1. Run `scripts/community_profile_audit.sh` and fix any missing health file.
-2. Manually dispatch `.github/workflows/scorecard.yml` once the repository is public.
-3. Confirm the OpenSSF Scorecard badge resolves after the first published run.
-4. Record the terminal demo with real checkout fixture output.
-5. Capture an HTML report screenshot from `entroping run --report html`.
-6. Capture a dependency map screenshot from `entroping map --export png`.
-7. Publish README, release notes, demo assets, and launch post in that order.
+The committed asset hub lives at `docs/assets/launch/README.md`. It should stay
+small, text/SVG-first, and generated from real checkout fixture output.
+
+Publish order:
+
+1. Verify community health and Scorecard evidence with
+   `scripts/community_profile_audit.sh`, then manually dispatch
+   `.github/workflows/scorecard.yml` once the repository is public.
+2. Add two-minute README demo links to the launch asset hub and its three
+   public preview files.
+3. Record the terminal screenshot set from `scripts/live_demo_smoke.sh` with
+   `4 passed, 0 failed` visible.
+4. Capture the HTML report screenshot from `reports/run-latest.html`.
+5. Capture or embed the dependency map example from `entroping map --export md`
+   or `entroping map --export png`.
+6. Publish release notes after local `scripts/release_check.sh --require-live-demo`
+   evidence and CI evidence are available.
+7. Publish the launch post after the README, release notes, and asset links are
+   already live.
+
+Do not commit generated GIFs, PNGs, `reports/`, or `.entroping/` state unless a
+specific asset has been curated and size-checked.
 
 ## Hype Loop
 

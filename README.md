@@ -281,6 +281,22 @@ CI also runs the same live demo path with a pinned Hurl binary:
 scripts/live_demo_smoke.sh
 ```
 
+### Two-Minute Demo Assets
+
+For public launch previews, use the
+[Two-Minute Demo Assets](docs/assets/launch/README.md):
+
+- [Terminal demo screenshot set](docs/assets/launch/terminal-demo-screenshot-set.md)
+  from `scripts/live_demo_smoke.sh`.
+- [HTML report screenshot](docs/assets/launch/html-report-screenshot.svg)
+  derived from `reports/run-latest.html`.
+- [Dependency map example](docs/assets/launch/dependency-map-example.md)
+  generated from redacted traffic state.
+
+The committed launch kit stays text/SVG-first. Generated report files, terminal
+recordings, GIFs, PNGs, and local traffic state remain untracked unless a
+specific asset is curated and size-checked for release.
+
 ## Planned CLI Surface
 
 ```text
