@@ -448,10 +448,13 @@ Studio opens tabbed views for:
 - Failure details from the sanitized latest run report.
 - Applied-gate drilldowns from latest-run report rule IDs and QAnstitution gate definitions.
 - Existing report artifact paths.
-- Traffic-state availability.
+- A read-only traffic session browser over redacted SQLModel-backed state.
+- Inferred target/dependency grouping, route counts, latency summaries, and safe redaction categories and counts.
 
 Studio is intentionally read-only in the alpha. It does not update tests,
-config, reports, or `.entroping` state.
+config, reports, or `.entroping` state. It also does not start `watch`, control
+live capture, or render raw URLs with query values, headers, bodies, cookies,
+tokens, or secrets.
 
 The applied-gate drilldowns explain which QAnstitution gates were applied to
 which tests by reading latest-run report rule IDs and QAnstitution gate

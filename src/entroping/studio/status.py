@@ -3,10 +3,25 @@
 import importlib.util
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
 
+from entroping.bridge.redaction_review import RedactionReviewReport, compile_redaction_review
+from entroping.bridge.traffic_sessions import (
+    TrafficRecordRole,
+    TrafficSessionCandidate,
+    TrafficSessionError,
+    build_traffic_session_candidate,
+)
+from entroping.bridge.traffic_to_graph import (
+    TrafficDependencyRoute,
+    TrafficGraphCompilationError,
+    compile_traffic_dependency_graph,
+)
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
 from entroping.core.report_writer import load_run_report
+from entroping.core.traffic_store import TrafficStoreError, list_project_exchanges_readonly
 from entroping.models.qanstitution import GateRule
+from entroping.models.traffic import TrafficExchange
 
 _KNOWN_REPORT_PATHS = (
     Path("reports") / "run-latest.json",
@@ -15,6 +30,7 @@ _KNOWN_REPORT_PATHS = (
     Path("reports") / "drift.json",
     Path("reports") / "bug.md",
 )
+_TRAFFIC_BROWSER_LIMIT = 1_000
 
 
 class StudioDependencyError(RuntimeError):
@@ -58,6 +74,27 @@ class StudioAppliedGateStatus:
 
 
 @dataclass(frozen=True)
+class StudioTrafficRouteStatus:
+    """Read-only route summary compiled from redacted traffic state."""
+
+    role: TrafficRecordRole
+    destination_host: str
+    method: str
+    path_template: str
+    call_count: int
+    failure_count: int
+    latency_average_ms: int | None
+
+
+@dataclass(frozen=True)
+class StudioTrafficRedactionStatus:
+    """Safe redaction category count for the Studio traffic browser."""
+
+    category: str
+    count: int
+
+
+@dataclass(frozen=True)
 class StudioStatus:
     """Read-only local state snapshot for Studio."""
 
@@ -69,6 +106,11 @@ class StudioStatus:
     report_paths: tuple[str, ...]
     traffic_state_available: bool
     applied_gates: tuple[StudioAppliedGateStatus, ...] = ()
+    traffic_state_status: str = "missing"
+    traffic_record_count: int = 0
+    traffic_redacted_count: int = 0
+    traffic_routes: tuple[StudioTrafficRouteStatus, ...] = ()
+    traffic_redactions: tuple[StudioTrafficRedactionStatus, ...] = ()
 
 
 def ensure_studio_available() -> None:
@@ -88,6 +130,14 @@ def collect_studio_status(*, project_root: Path, environment: str | None) -> Stu
     root = project_root.expanduser().resolve()
     project, qanstitution_status, gates_by_id = _load_project_status(root)
     latest_run, latest_run_status = _load_latest_run_status(root)
+    (
+        traffic_state_available,
+        traffic_state_status,
+        traffic_record_count,
+        traffic_redacted_count,
+        traffic_routes,
+        traffic_redactions,
+    ) = _load_traffic_browser_status(root)
     return StudioStatus(
         environment=environment or "default",
         project=project,
@@ -95,8 +145,13 @@ def collect_studio_status(*, project_root: Path, environment: str | None) -> Stu
         latest_run=latest_run,
         latest_run_status=latest_run_status,
         report_paths=_existing_report_paths(root),
-        traffic_state_available=(root / ".entroping" / "state.db").is_file(),
+        traffic_state_available=traffic_state_available,
         applied_gates=_applied_gate_statuses(latest_run, gates_by_id),
+        traffic_state_status=traffic_state_status,
+        traffic_record_count=traffic_record_count,
+        traffic_redacted_count=traffic_redacted_count,
+        traffic_routes=traffic_routes,
+        traffic_redactions=traffic_redactions,
     )
 
 
@@ -111,7 +166,9 @@ def render_studio_status(status: StudioStatus) -> str:
         _latest_run_line(status),
         f"Applied gates: {len(status.applied_gates)}",
         f"Reports: {_reports_line(status.report_paths)}",
-        f"Traffic state: {'available' if status.traffic_state_available else 'missing'}",
+        _traffic_state_line(status),
+        f"Traffic routes: {len(status.traffic_routes)}",
+        f"Traffic redaction categories: {len(status.traffic_redactions)}",
     ]
     return "\n".join(lines) + "\n"
 
@@ -167,6 +224,124 @@ def _existing_report_paths(root: Path) -> tuple[str, ...]:
     return tuple(sorted(paths))
 
 
+def _load_traffic_browser_status(
+    root: Path,
+) -> tuple[
+    bool,
+    str,
+    int,
+    int,
+    tuple[StudioTrafficRouteStatus, ...],
+    tuple[StudioTrafficRedactionStatus, ...],
+]:
+    state_path = root / ".entroping" / "state.db"
+    if not state_path.is_file():
+        return False, "missing", 0, 0, (), ()
+
+    try:
+        exchanges = list_project_exchanges_readonly(root, limit=_TRAFFIC_BROWSER_LIMIT)
+        redaction_report = compile_redaction_review(exchanges)
+        session = _studio_traffic_session(exchanges)
+        routes = _studio_traffic_routes(session)
+    except (
+        TrafficGraphCompilationError,
+        TrafficSessionError,
+        TrafficStoreError,
+        TypeError,
+        ValueError,
+    ) as exc:
+        return True, _traffic_error_status(exc), 0, 0, (), ()
+
+    return (
+        True,
+        "ok" if exchanges else "empty",
+        len(exchanges),
+        redaction_report.redacted_records,
+        routes,
+        _studio_redaction_statuses(redaction_report),
+    )
+
+
+def _studio_traffic_session(exchanges: tuple[TrafficExchange, ...]) -> TrafficSessionCandidate:
+    observed_session = build_traffic_session_candidate(
+        exchanges,
+        name="studio_traffic",
+        target_url=None,
+    )
+    target_url = _first_observed_origin(observed_session)
+    if target_url is None:
+        return observed_session
+    return build_traffic_session_candidate(
+        exchanges,
+        name=observed_session.name,
+        target_url=target_url,
+    )
+
+
+def _first_observed_origin(session: TrafficSessionCandidate) -> str | None:
+    for record in session.records:
+        parsed = urlsplit(record.exchange.request.url)
+        if parsed.scheme in {"http", "https"} and parsed.netloc:
+            return f"{parsed.scheme}://{parsed.netloc}"
+    return None
+
+
+def _studio_traffic_routes(
+    session: TrafficSessionCandidate,
+) -> tuple[StudioTrafficRouteStatus, ...]:
+    rows: list[StudioTrafficRouteStatus] = []
+    for role in _traffic_role_order():
+        records = tuple(record for record in session.records if record.role == role)
+        if not records:
+            continue
+        role_session = TrafficSessionCandidate(
+            name=session.name,
+            target_origin=session.target_origin,
+            records=records,
+        )
+        graph = compile_traffic_dependency_graph(role_session)
+        rows.extend(_studio_route_status(role, route) for route in graph.routes)
+    return tuple(rows)
+
+
+def _studio_route_status(
+    role: TrafficRecordRole,
+    route: TrafficDependencyRoute,
+) -> StudioTrafficRouteStatus:
+    return StudioTrafficRouteStatus(
+        role=role,
+        destination_host=route.destination_host,
+        method=route.method,
+        path_template=route.path_template,
+        call_count=route.call_count,
+        failure_count=route.failure_count,
+        latency_average_ms=route.latency_average_ms,
+    )
+
+
+def _studio_redaction_statuses(
+    report: RedactionReviewReport,
+) -> tuple[StudioTrafficRedactionStatus, ...]:
+    categories = (
+        *report.header_categories,
+        *report.body_categories,
+        *report.query_categories,
+    )
+    return tuple(
+        StudioTrafficRedactionStatus(category=row.category, count=row.count)
+        for row in sorted(categories, key=lambda item: (-item.count, item.category))
+    )
+
+
+def _traffic_role_order() -> tuple[TrafficRecordRole, ...]:
+    return ("target", "dependency", "observed")
+
+
+def _traffic_error_status(exc: Exception) -> str:
+    detail = str(exc).splitlines()[0].strip()[:120] or exc.__class__.__name__
+    return f"error: {detail}"
+
+
 def _applied_gate_statuses(
     latest_run: LatestRunStatus | None,
     gates_by_id: dict[str, GateRule],
@@ -199,6 +374,14 @@ def _latest_run_line(status: StudioStatus) -> str:
         f"Latest run: {latest.passed} passed, {latest.failed} failed, "
         f"{latest.total} total"
     )
+
+
+def _traffic_state_line(status: StudioStatus) -> str:
+    if not status.traffic_state_available:
+        return "Traffic state: missing"
+    if status.traffic_state_status == "ok":
+        return "Traffic state: available"
+    return f"Traffic state: available ({status.traffic_state_status})"
 
 
 def _reports_line(report_paths: tuple[str, ...]) -> str:

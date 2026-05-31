@@ -174,6 +174,11 @@ rollback, and existing CLI/core use cases before any mutation code lands.
 Issue #192 adds read-only applied-gate drilldowns over existing deterministic
 artifacts: Studio links latest-run report rule IDs to loaded QAnstitution gate
 definitions without running Hurl, calling providers, or editing tests/config.
+Issue #190 adds a read-only Studio traffic session browser over redacted
+SQLModel-backed state: Studio uses a read-only query path plus existing traffic
+session and dependency-graph compilers to show inferred target/dependency route
+summaries and safe redaction categories without starting `watch`, rendering raw
+traffic values, or mutating runtime state.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
@@ -657,6 +662,23 @@ Implemented boundaries:
   Studio view, so old reports remain inspectable.
 - Studio still does not run Hurl, call LLM providers, edit tests, edit config,
   or mutate reports/runtime state.
+
+## Completed Slice: Issue #190 Read-Only Studio Traffic Session Browser
+
+Outcome: Studio can inspect captured traffic state before `freeze` or `map`
+without becoming a live-capture or mutation surface.
+
+Implemented boundaries:
+
+- Studio reads `.entroping/state.db` through a read-only SQLModel query path
+  that does not create missing state or initialize tables for UI browsing.
+- Traffic rows are compiled from already-redacted exchanges through the existing
+  traffic session and dependency-graph compiler boundaries.
+- The Traffic tab shows route summaries, inferred target/dependency grouping,
+  average latency, failures, and safe redaction categories/counts.
+- Studio does not start `watch`, control capture, run Hurl, write config, edit
+  tests, mutate reports, or render raw URLs with query values, headers, bodies,
+  cookies, tokens, or secrets.
 
 ## Completed Slice: Issue #208 Performance Smoke Evidence
 

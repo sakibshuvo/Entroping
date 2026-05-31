@@ -1,18 +1,57 @@
 """Unit tests for read-only Studio status collection."""
 
 import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
 import entroping.studio.status as studio_status
 from entroping.core.config_loader import QanstitutionLoadError
+from entroping.core.traffic_redactor import redact_traffic_exchange
+from entroping.core.traffic_store import TrafficStore, TrafficStoreError
+from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
 from entroping.studio.status import (
     StudioDependencyError,
     collect_studio_status,
     ensure_studio_available,
     render_studio_status,
 )
+
+BASE_TIME = datetime(2026, 5, 31, 12, 0, tzinfo=UTC)
+
+
+def _traffic_exchange(
+    *,
+    method: str,
+    url: str,
+    secret: str,
+    status_code: int = 200,
+    duration_ms: int | None = 100,
+    offset_seconds: int = 0,
+) -> TrafficExchange:
+    return TrafficExchange(
+        captured_at=BASE_TIME + timedelta(seconds=offset_seconds),
+        duration_ms=duration_ms,
+        request=TrafficRequest(
+            method=method,
+            url=f"{url}?token={secret}",
+            headers={
+                "Authorization": f"Bearer {secret}",
+                "Content-Type": "application/json",
+            },
+            body=TrafficBody(
+                content_type="application/json",
+                size_bytes=64,
+                text=f'{{"password":"{secret}"}}',
+            ),
+        ),
+        response=TrafficResponse(
+            status_code=status_code,
+            headers={"Content-Type": "application/json"},
+            body=TrafficBody(content_type="application/json", size_bytes=11, text='{"ok":true}'),
+        ),
+    )
 
 
 def test_ensure_studio_available_reports_missing_textual(
@@ -153,3 +192,106 @@ gates:
     assert "Latest run: 1 passed, 1 failed, 2 total" in rendered
     assert "Applied gates: 2" in rendered
     assert "Traffic state: available" in rendered
+
+
+def test_collect_studio_status_reads_redacted_traffic_routes_without_raw_values(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "qanstitution.yaml").write_text(
+        'project: "checkout-api"\ngates: []\n',
+        encoding="utf-8",
+    )
+    store = TrafficStore.open_project(tmp_path)
+    for exchange in (
+        _traffic_exchange(
+            method="GET",
+            url="https://api.example.test/orders/123",
+            secret="studio-secret-1",
+            duration_ms=100,
+        ),
+        _traffic_exchange(
+            method="GET",
+            url="https://api.example.test/orders/456",
+            secret="studio-secret-2",
+            status_code=503,
+            duration_ms=200,
+            offset_seconds=1,
+        ),
+        _traffic_exchange(
+            method="POST",
+            url="https://payments.example.test/charge",
+            secret="studio-secret-3",
+            duration_ms=None,
+            offset_seconds=2,
+        ),
+    ):
+        store.record_exchange(redact_traffic_exchange(exchange))
+    before = (tmp_path / ".entroping" / "state.db").stat().st_mtime_ns
+
+    status = collect_studio_status(project_root=tmp_path, environment="local")
+    after = (tmp_path / ".entroping" / "state.db").stat().st_mtime_ns
+    rendered = render_studio_status(status)
+    serialized_status = repr(status.traffic_routes) + repr(status.traffic_redactions) + rendered
+
+    assert after == before
+    assert status.traffic_state_available
+    assert status.traffic_state_status == "ok"
+    assert status.traffic_record_count == 3
+    assert status.traffic_redacted_count == 3
+    assert [
+        (
+            route.role,
+            route.destination_host,
+            route.method,
+            route.path_template,
+            route.call_count,
+            route.failure_count,
+            route.latency_average_ms,
+        )
+        for route in status.traffic_routes
+    ] == [
+        ("target", "api.example.test", "GET", "/orders/{id}", 2, 1, 150),
+        ("dependency", "payments.example.test", "POST", "/charge", 1, 0, None),
+    ]
+    assert [(item.category, item.count) for item in status.traffic_redactions] == [
+        ("request authorization header", 3),
+        ("request password body field", 3),
+        ("token-like query parameter", 3),
+    ]
+    assert "Traffic routes: 2" in rendered
+    assert "Traffic redaction categories: 3" in rendered
+    assert "studio-secret" not in serialized_status
+    assert "token=" not in serialized_status
+
+
+def test_collect_studio_status_handles_empty_traffic_state(tmp_path: Path) -> None:
+    TrafficStore.open_project(tmp_path)
+
+    status = collect_studio_status(project_root=tmp_path, environment=None)
+
+    assert status.traffic_state_available
+    assert status.traffic_state_status == "empty"
+    assert status.traffic_record_count == 0
+    assert status.traffic_redacted_count == 0
+    assert status.traffic_routes == ()
+    assert status.traffic_redactions == ()
+
+
+def test_collect_studio_status_reports_traffic_state_errors_without_crashing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / ".entroping").mkdir()
+    (tmp_path / ".entroping" / "state.db").write_text("not sqlite\n", encoding="utf-8")
+
+    def fail_readonly(project_root: Path, *, limit: int | None = None) -> object:
+        _ = (project_root, limit)
+        raise TrafficStoreError("traffic store failed")
+
+    monkeypatch.setattr(studio_status, "list_project_exchanges_readonly", fail_readonly)
+
+    status = collect_studio_status(project_root=tmp_path, environment=None)
+
+    assert status.traffic_state_available
+    assert status.traffic_state_status == "error: traffic store failed"
+    assert status.traffic_routes == ()

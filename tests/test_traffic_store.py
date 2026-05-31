@@ -8,7 +8,12 @@ from sqlmodel import Session, create_engine, select
 
 from entroping.core import traffic_store
 from entroping.core.traffic_redactor import redact_traffic_exchange
-from entroping.core.traffic_store import TrafficEventRow, TrafficStore, TrafficStoreError
+from entroping.core.traffic_store import (
+    TrafficEventRow,
+    TrafficStore,
+    TrafficStoreError,
+    list_project_exchanges_readonly,
+)
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
 
 
@@ -80,6 +85,50 @@ def test_store_list_exchanges_applies_positive_limit(tmp_path: Path) -> None:
     store.record_exchange(redact_traffic_exchange(second))
 
     loaded = store.list_exchanges(limit=1)
+
+    assert len(loaded) == 1
+    assert loaded[0].captured_at.minute == 0
+
+
+def test_readonly_project_exchange_listing_does_not_create_missing_state(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(TrafficStoreError, match="traffic state not found"):
+        list_project_exchanges_readonly(tmp_path)
+
+    assert not (tmp_path / ".entroping").exists()
+
+
+def test_readonly_project_exchange_listing_rejects_non_positive_limit(tmp_path: Path) -> None:
+    with pytest.raises(TrafficStoreError, match="limit must be positive"):
+        list_project_exchanges_readonly(tmp_path, limit=0)
+
+
+def test_readonly_project_exchange_listing_preserves_existing_state_file(
+    tmp_path: Path,
+) -> None:
+    store = TrafficStore.open_project(tmp_path)
+    store.record_exchange(redact_traffic_exchange(_exchange(secret="readonly-secret")))
+    state_path = tmp_path / ".entroping" / "state.db"
+    before = state_path.stat().st_mtime_ns
+
+    loaded = list_project_exchanges_readonly(tmp_path)
+    after = state_path.stat().st_mtime_ns
+
+    assert len(loaded) == 1
+    assert loaded[0].request.headers["Authorization"] == "[REDACTED]"
+    assert after == before
+
+
+def test_readonly_project_exchange_listing_applies_limit(tmp_path: Path) -> None:
+    store = TrafficStore.open_project(tmp_path)
+    for index in range(2):
+        exchange = _exchange(secret=f"readonly-secret-{index}").model_copy(
+            update={"captured_at": datetime(2026, 5, 30, 12, index, tzinfo=UTC)}
+        )
+        store.record_exchange(redact_traffic_exchange(exchange))
+
+    loaded = list_project_exchanges_readonly(tmp_path, limit=1)
 
     assert len(loaded) == 1
     assert loaded[0].captured_at.minute == 0

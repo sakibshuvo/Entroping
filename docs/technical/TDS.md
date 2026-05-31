@@ -610,9 +610,15 @@ entroping report github-annotations [--junit <path>] [--drift <path>] [--traceab
 
 `studio` is an interactive read-only Textual TUI. It requires the optional
 Studio extra and renders tabs for local QAnstitution status, latest-run summary,
-suite rows, failure details, applied-gate drilldowns, report artifacts, and
-traffic-state visibility. Applied-gate drilldowns read latest-run report rule IDs
-and QAnstitution gate definitions; Studio does not run Hurl and does not edit tests or config to build this view.
+suite rows, failure details, applied-gate drilldowns, report artifacts, and a
+read-only traffic session browser. Applied-gate drilldowns read latest-run report rule IDs
+and QAnstitution gate definitions; Studio does not run Hurl and does not edit tests or config
+to build this view. The traffic browser reads
+redacted SQLModel-backed state from `.entroping/state.db` through a read-only
+query path, infers target/dependency grouping from filtered captured traffic,
+and displays route summaries plus safe redaction categories and counts. It does
+not start `watch`, control live capture, or render raw URLs with query values,
+headers, bodies, cookies, tokens, or secrets.
 It must not mutate tests, config, reports, or runtime state. Near-term Studio
 work is report-backed: CLI and report artifacts remain the primary workflow,
 and Studio may only add read-only views over sanitized reports, applied gate
