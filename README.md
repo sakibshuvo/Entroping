@@ -59,11 +59,11 @@ Wrote report: reports/run-latest.html
 For public launch previews, use the
 [Two-Minute Demo Assets](docs/assets/launch/README.md):
 
-- [Terminal demo screenshot set](docs/assets/launch/terminal-demo-screenshot-set.md)
+- [Terminal demo screenshot](docs/assets/launch/terminal-demo-screenshot.png)
   from `scripts/live_demo_smoke.sh`.
-- [HTML report screenshot](docs/assets/launch/html-report-screenshot.svg)
-  derived from `reports/run-latest.html`.
-- [Dependency map example](docs/assets/launch/dependency-map-example.md)
+- [HTML report screenshot](docs/assets/launch/html-report-screenshot.png)
+  captured from `reports/run-latest.html`.
+- [Dependency map screenshot](docs/assets/launch/dependency-map-screenshot.png)
   generated from redacted traffic state.
 
 ## What You Get

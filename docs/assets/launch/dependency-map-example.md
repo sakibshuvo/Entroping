@@ -15,6 +15,8 @@ This example was generated through the same Markdown renderer used by
 redacted traffic records. It demonstrates the public shape without committing
 local runtime state or generated `reports/` artifacts.
 
+Curated PNG: [dependency-map-screenshot.png](dependency-map-screenshot.png)
+
 ```markdown
 # Entroping Dependency Map
 
@@ -36,7 +38,7 @@ flowchart LR
   source -->|GET /health calls=1 failures=0 8ms avg| host_3
 ```
 
-## External Screenshot Path
+## Rebuild Screenshot Source
 
 When Graphviz is installed, capture a PNG from a real local traffic state:
 
@@ -45,5 +47,5 @@ entroping map --export png
 open reports/dependency-map.png
 ```
 
-Keep the generated PNG out of Git unless it is intentionally curated and
-size-checked for a launch post.
+Keep raw generated PNGs out of Git unless the artifact is intentionally curated
+and size-checked for a launch post.

@@ -57,9 +57,9 @@ Publish order:
    `.github/workflows/scorecard.yml` once the repository is public.
 2. Keep `ROADMAP.md`, GitHub milestones, and the project board visible before
    external announcements.
-3. Add two-minute README demo links to the launch asset hub and its three
-   public preview files.
-4. Record the terminal screenshot set from `scripts/live_demo_smoke.sh` with
+3. Add two-minute README demo links to the launch asset hub and its curated
+   public preview PNGs.
+4. Record the terminal screenshot from `scripts/live_demo_smoke.sh` with
    `4 passed, 0 failed` visible.
 5. Capture the HTML report screenshot from `reports/run-latest.html`.
 6. Capture or embed the dependency map example from `entroping map --export md`
