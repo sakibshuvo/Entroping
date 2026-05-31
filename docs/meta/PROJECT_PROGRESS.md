@@ -139,6 +139,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Post-alpha security review](https://github.com/sakibshuvo/Entroping/issues/96) | Done | PR #105 merged the local boundary hardening after fixing 14 validated candidates; scan artifacts live under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z/` | Keep security scans tied to concrete remediation branches |
 | [Stable-core threat model refresh](https://github.com/sakibshuvo/Entroping/issues/207) | Done | `docs/technical/THREAT_MODEL.md` now tracks current runtime surfaces, controls, prior validated findings, and residual-risk follow-up issues | Review before stable-core security claims |
 | [Captured-traffic redaction review](https://github.com/sakibshuvo/Entroping/issues/198) | Done | `entroping report redaction --output md|html` writes counts-only reports for header, query, body-field, and body-summary redaction categories | Keep reports free of raw captured values |
+| [Optional-extras runtime smoke](https://github.com/sakibshuvo/Entroping/issues/227) | Done | GitHub Actions installs all optional extras and runs `scripts/optional_extras_smoke.py` against LiteLLM, mitmproxy, and Textual boundaries without credentials or live capture | Keep default regression lightweight while proving optional adapters boot |
 
 ## Later Roadmap
 

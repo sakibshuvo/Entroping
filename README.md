@@ -116,7 +116,8 @@ Built today:
   SQLite state, redaction before persistence, generated Hurl flows, WireMock
   mappings, and Mermaid/DOT/Markdown/PNG dependency maps.
 - Local and CI quality gates through `uv`, `ruff`, `mypy`, `pytest`, coverage,
-  package verification, security checks, live demo smoke, and quality audit.
+  package verification, security checks, optional-extras smoke, live demo smoke,
+  and quality audit.
 
 Still alpha:
 
@@ -219,8 +220,11 @@ scripts/regression.sh --security
 ```
 
 CI enforces `scripts/regression.sh --security` for pull requests and pushes to
-`main`. CI enforces `scripts/audit_quality.sh` as a separate quality-audit job
-and uploads generated reports as workflow artifacts.
+`main`. CI enforces `scripts/audit_quality.sh` as a separate quality-audit job,
+and runs `optional-extras-smoke` with all optional dependencies installed so
+Brain/LiteLLM, Eye/mitmproxy, and Studio/Textual boot without provider
+credentials or live traffic capture. The quality-audit job uploads generated
+reports as workflow artifacts.
 
 Local-only before release:
 

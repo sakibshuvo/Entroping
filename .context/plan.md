@@ -152,6 +152,11 @@ redaction review report. `entroping report redaction --output md|html` reads
 redacted `.entroping/state.db` records, reports header/query/body redaction
 categories and body-summary counts, and writes safe local artifacts under
 `reports/` without rendering raw captured values.
+Issue #227 closes the optional-runtime CI gap by adding a dedicated
+`optional-extras-smoke` workflow lane. The lane installs all optional extras and
+boots the LiteLLM, mitmproxy, and Textual adapter boundaries without provider
+credentials or live capture, while keeping the default regression path
+lightweight.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl

@@ -124,8 +124,8 @@ The **Dependency policy** is local-first and conservative:
 - default install stays lightweight;
 - AI, proxy, and Studio dependencies remain optional extras;
 - default and all-extras dependency audits run in security gates;
-- optional extras need runtime smoke coverage before stable claims, tracked by
-  issue #227;
+- optional extras need runtime smoke coverage before stable claims, enforced by
+  the `optional-extras-smoke` CI lane added for issue #227;
 - standalone binaries remain deferred because bundling native dependencies
   increases update and signing responsibility.
 
@@ -141,7 +141,7 @@ The **Dependency policy** is local-first and conservative:
 | Reports | JSON, JUnit, HTML, Markdown, audit, redaction, and traceability outputs escape or redact untrusted values. |
 | Brain | Prompt builder rejects secret-like context, provider errors are redacted, output is parsed before write, and Hurl validation runs before generated files land. |
 | Traffic | Redaction covers sensitive headers, URL userinfo/query values, JSON fields, token-like text, and bounded body summaries before SQLModel persistence; `report redaction` lets users inspect counts-only coverage before freezing or mapping. |
-| CI | Pull requests run `scripts/regression.sh --security`, `scripts/audit_quality.sh`, and live demo smoke. |
+| CI | Pull requests run `scripts/regression.sh --security`, `scripts/audit_quality.sh`, optional-extras runtime smoke, and live demo smoke. |
 
 ## Validated Findings And Remediation Status
 
@@ -156,7 +156,6 @@ Important follow-up issues that keep residual risk visible:
 
 | Issue | Residual risk tracked |
 | --- | --- |
-| issue #227 | Add optional-extras runtime smoke coverage for Brain/LiteLLM, Eye/mitmproxy, and Studio/Textual dependency surfaces. |
 | issue #206 | Build a cross-platform install and smoke matrix so release claims are not macOS-only. |
 | issue #203 | Stabilize report artifact schemas before downstream consumers depend on them. |
 

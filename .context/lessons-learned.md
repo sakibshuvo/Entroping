@@ -8,6 +8,7 @@
 - Latency drift should be conservative and baseline-backed. Compare only sanitized `duration_ms` values from reviewed run reports, require both absolute and percentage regression thresholds, and report warnings rather than treating tiny local timing noise as product truth.
 - Architect error UX should be actionable without becoming a data leak. Print short validation categories and no-write guidance, but continue hiding raw provider output and parser streams.
 - Redaction review reports should be category/count artifacts, not sampled traffic dumps. Even already-redacted state can contain sensitive business structure, so the default review should prove coverage without rendering URLs, header values, body values, or `[REDACTED]` placeholders.
+- Optional dependency audits and optional runtime smokes are different gates. Keep the all-extras dependency audit in the security gate, and keep adapter boot checks in a separate CI job so default regression remains lightweight.
 
 ## 2026-05-30
 
