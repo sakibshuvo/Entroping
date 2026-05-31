@@ -1,0 +1,37 @@
+site_name: Entroping
+site_description: Runtime governance for AI-assisted backend development.
+site_url: https://sakibshuvo.github.io/Entroping/
+repo_url: https://github.com/sakibshuvo/Entroping
+repo_name: sakibshuvo/Entroping
+docs_dir: docs
+site_dir: site
+strict: false
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.instant
+    - navigation.top
+    - search.suggest
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.superfences
+
+nav:
+  - Home: index.md
+  - User Guide: user/USER_GUIDE.md
+  - GitHub Actions Starter: user/GITHUB_ACTIONS_STARTER.md
+  - AI Provider Setup: user/AI_PROVIDER_SETUP.md
+  - Use Cases: user/USE_CASES.md
+  - Technical Design: technical/TDS.md
+  - QAnstitution Reference: technical/QANSTITUTION_REFERENCE.md
+  - Command Cheat Sheet: technical/COMMAND_CHEAT_SHEET.md
+  - Release Checklist: meta/RELEASE_CHECKLIST.md
+  - PyPI Release Runbook: meta/PYPI_RELEASE_RUNBOOK.md

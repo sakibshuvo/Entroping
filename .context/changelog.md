@@ -27,6 +27,7 @@
 - Added issue #189's downstream GitHub Actions starter workflow with pinned Hurl installation, tagged Entroping install, JUnit/HTML report upload, user docs, and guard tests.
 - Added issue #195's Brain provider setup path with optional `api_base` and `api_key_env` agent metadata, LiteLLM/local Qwen/oMLX setup docs, no-provider CI guidance, and docs/code guard tests.
 - Added issue #186's package-index release runbook for TestPyPI-first Trusted Publishing, PEP 440 alpha naming, token-free GitHub Actions environments, PyPI publish policy, and yank/new-version rollback.
+- Added issue #188's public docs site decision and minimal MkDocs Material scaffold with `mkdocs.yml`, `docs/index.md`, and guard tests, while keeping canonical docs in the existing Markdown tree.
 
 ## 2026-05-30
 

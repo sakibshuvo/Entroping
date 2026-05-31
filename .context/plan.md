@@ -124,6 +124,9 @@ the no-provider CI boundary.
 Issue #186 adds the TestPyPI-first package-index release runbook, including
 Trusted Publishing feasibility, token-free GitHub environments, PEP 440 alpha
 versioning, PyPI publish policy, and yank/new-version rollback guidance.
+Issue #188 chooses MkDocs Material for the public docs site, adds a minimal
+`mkdocs.yml` plus `docs/index.md` scaffold, and keeps the canonical Markdown
+tree as the source instead of duplicating docs.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
@@ -800,7 +803,6 @@ Architect writes generated files.
 Use these issues as the next marathon targets. Keep each one narrow, tested, and
 merged through GitHub before starting the next branch:
 
-- Issue #188: choose and scaffold the public documentation site.
 - Issue #183: evaluate Homebrew tap or standalone binary distribution.
 - After those adoption slices land, move to v0.3 product-depth issues such as
   Studio drilldowns, reviewed baseline workflows, redaction review UX, and
