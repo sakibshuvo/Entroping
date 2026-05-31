@@ -18,8 +18,9 @@ This is the simple human dashboard. GitHub Issues track individual work items; t
 1. Open this note first in Obsidian.
 2. Pick the one **Current** issue.
 3. Run the feature through [[docs/meta/FEATURE_DELIVERY_CHECKLIST|FEATURE_DELIVERY_CHECKLIST]].
-4. Use [[docs/meta/DOCS_GOVERNANCE|DOCS_GOVERNANCE]] to decide whether roadmap or docs need updates.
-5. Update this note only when phase-level status changes.
+4. Use [[docs/meta/OBSIDIAN_VS_GITHUB|OBSIDIAN_VS_GITHUB]] when deciding where an idea, bug, or status update belongs.
+5. Use [[docs/meta/DOCS_GOVERNANCE|DOCS_GOVERNANCE]] to decide whether roadmap or docs need updates.
+6. Update this note only when phase-level status changes.
 
 Do not duplicate every issue here. The detailed queue lives in GitHub.
 
