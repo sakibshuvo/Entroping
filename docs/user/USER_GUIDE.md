@@ -36,6 +36,8 @@ uv tool install -e .
 Required external tools:
 
 - `hurl`
+- `hurlfmt` for Architect generated-Hurl validation; it is usually installed
+  with the Hurl package, and `entroping doctor` reports it separately.
 - Python 3.12 or 3.13
 - `mitmproxy` for `watch`
 - Ollama or cloud API credentials only when using AI commands
@@ -46,7 +48,7 @@ After installation:
 entroping doctor
 ```
 
-`doctor` should tell you whether Hurl, mitmproxy, local config, and QAnstitution files are usable.
+`doctor` should tell you whether Hurl, `hurlfmt`, local config, and QAnstitution files are usable.
 
 For local solo development, keep the install editable with `uv tool install -e .`. Homebrew, Nuitka binaries, Docker, and PyPI are distribution targets after the CLI is stable.
 
@@ -547,6 +549,9 @@ adds API synchronization.
 ### Hurl is Missing
 
 Run `entroping doctor`. Install Hurl through your package manager, then retry.
+If `hurlfmt` is missing but Hurl is present, deterministic runs can still work,
+but Architect generation/refactor validation needs the parser binary before it
+can accept generated Hurl.
 
 ### mitmproxy Certificate Errors
 

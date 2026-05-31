@@ -46,6 +46,10 @@ path before Entroping claims Hurl-backed Windows execution.
 ## Dependency Rules
 
 - Hurl is required for deterministic `entroping run`.
+- `hurlfmt` is required for Architect generated-Hurl validation. Most Hurl
+  package installs include it, but `entroping doctor` reports it separately so
+  users can catch parser-validation gaps before AI-backed generation/refactor
+  workflows fail.
 - Linux CI installs a reviewed pinned Hurl archive and verifies `HURL_SHA256`.
 - macOS CI installs Hurl through Homebrew.
 - Windows CI intentionally stays doctor-only until the Hurl install path is

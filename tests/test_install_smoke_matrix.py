@@ -56,6 +56,8 @@ def test_install_smoke_matrix_doc_matches_ci_and_support_claims() -> None:
         "uv tool install . --force",
         "entroping init --minimal",
         "entroping doctor",
+        "hurlfmt",
+        "Architect generated-Hurl validation",
         "optional-extras-smoke",
     ]
     for term in required_terms:
