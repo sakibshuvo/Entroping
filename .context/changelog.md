@@ -2,6 +2,9 @@
 
 ## 2026-05-31
 
+- Added `docs/meta/OBSIDIAN_VS_GITHUB.md` as the internal maintainer guide
+  for choosing between Obsidian, GitHub Issues, GitHub Project, roadmap, ADRs,
+  source archives, and context files.
 - Added executable documentation governance through `docs/meta/DOCS_GOVERNANCE.md`,
   `scripts/doc_governance_check.sh`, CI PR-body validation, PR template
   documentation-impact declarations, and feature-gate wiring so roadmap and

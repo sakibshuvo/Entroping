@@ -43,6 +43,7 @@ Use these first. They are the control panel for current work:
 ## Work Management
 
 - [[docs/meta/ISSUE_TRACKING|ISSUE_TRACKING]] - GitHub issue tracking rules for bugs, features, and regressions.
+- [[docs/meta/OBSIDIAN_VS_GITHUB|OBSIDIAN_VS_GITHUB]] - practical guide for where ideas, bugs, roadmap, and context belong.
 - [[ROADMAP|ROADMAP]] - public milestones and near-term sequencing.
 - [[docs/meta/DOCS_GOVERNANCE|DOCS_GOVERNANCE]] - documentation owners, roadmap-change gate, and PR declaration rules.
 - [[docs/meta/TEST_STRATEGY|TEST_STRATEGY]] - regression suite and test-pyramid policy.

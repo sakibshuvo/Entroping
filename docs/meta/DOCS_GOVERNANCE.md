@@ -20,6 +20,9 @@ The rule is simple:
 GitHub tracks work. Obsidian explains why. README sells. Roadmap sequences. Specs constrain.
 ```
 
+For the practical day-to-day distinction between GitHub and Obsidian, read
+[[docs/meta/OBSIDIAN_VS_GITHUB|OBSIDIAN_VS_GITHUB]].
+
 ## Update Matrix
 
 | Change type | Required update | Usually do not update |
