@@ -32,6 +32,7 @@
 - Added issue #230's zero-config checkout demo entrypoint: `scripts/demo.sh` now provides friendly preflight guidance and delegates to the existing live smoke release gate without expanding the locked CLI surface.
 - Added issue #232's first-hour QAnstitution UX: the starter policy, checkout demo policy, and new user guide now share schema-validated status, latency, and request-ID header gates without adding condition syntax.
 - Added issue #205's CLI compatibility audit: locked command signatures, deprecated alias policy, exit-code semantics, report artifacts, and Typer/help/documentation guard tests now anchor stable-core command claims.
+- Added issue #207's tracked threat model refresh: `docs/technical/THREAT_MODEL.md` now records current stable-core security boundaries, implemented controls, prior validated findings, and residual-risk issue mapping.
 
 ## 2026-05-30
 

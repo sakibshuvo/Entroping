@@ -88,6 +88,8 @@ Before tagging:
 - Review `git log -1 --oneline` and confirm the intended release commit.
 - Review `README.md` for accurate current status.
 - Review `docs/meta/PROJECT_PROGRESS.md` for phase-level status.
+- Review `docs/technical/THREAT_MODEL.md` before any stable-core security
+  posture claim.
 - Review `docs/technical/CLI_COMPATIBILITY_AUDIT.md` before any stable-core
   command, flag, exit-code, or report-artifact claim.
 - Confirm no secrets, local env files, `.entroping/`, generated reports, Graphify output, or Obsidian UI state are tracked.

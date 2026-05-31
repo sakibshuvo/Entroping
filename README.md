@@ -304,6 +304,7 @@ Orientation:
 - [USER_GUIDE.md](docs/user/USER_GUIDE.md) - practical user guide.
 - [USE_CASES.md](docs/user/USE_CASES.md) - concrete usage scenarios.
 - [GLOSSARY.md](docs/meta/GLOSSARY.md) - plain-language terminology guide.
+- [THREAT_MODEL.md](docs/technical/THREAT_MODEL.md) - security boundaries and residual-risk map.
 - [EVOLUTION_TIMELINE.md](docs/evolution/EVOLUTION_TIMELINE.md) - product history.
 - [ADR-0001](decisions/ADR-0001-hurl-native-governance.md) - first architectural decision.
 - [examples/checkout-api](examples/checkout-api/README.md) - tiny demo fixture.

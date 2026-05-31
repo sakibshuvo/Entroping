@@ -714,6 +714,8 @@ External integrations should be tested with small fixtures and deterministic sub
 
 ## 19. Security Requirements
 
+Threat model: [THREAT_MODEL.md](THREAT_MODEL.md).
+
 - Never log secrets.
 - Validate all file paths before writing generated artifacts.
 - Avoid path traversal when using flow names, mock names, and report names.
