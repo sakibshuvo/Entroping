@@ -35,3 +35,16 @@ scripts/regression.sh --security
 ```
 
 This runs repo hygiene, linting, typing, tests, Bandit, default dependency audit, and all-extras dependency audit.
+
+## Public Trust Signals
+
+The repository includes community-health files and a non-blocking OpenSSF
+Scorecard workflow:
+
+```bash
+scripts/community_profile_audit.sh
+```
+
+`.github/workflows/scorecard.yml` runs on a weekly schedule or manual dispatch,
+publishes Scorecard results for the README badge, and is intentionally not a
+pull-request gate.

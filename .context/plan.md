@@ -33,6 +33,7 @@ project, and a Codex workspace with fast context rehydration.
 - `docs/meta/AUTONOMOUS_DEVELOPMENT.md` defines the Codex-first loop, Spec Kit pilot path, and future OpenCode/oMLX worker plan.
 - `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, `.github/pull_request_template.md`, and `scripts/feature_gate.sh` define the executable delivery gates for feature work.
 - `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, `scripts/regression.sh`, and `scripts/audit_quality.sh` define issue tracking, regression coverage, quality audit coverage, and simple phase-level progress tracking.
+- `scripts/community_profile_audit.sh` and `.github/workflows/scorecard.yml` provide public trust-signal hygiene without adding a pull-request gate.
 - Apache-2.0 licensing and package metadata are in place for the public core; keep future commercial cloud, model, policy-pack, or enterprise surfaces outside the open core unless explicitly relicensed.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work; `scripts/finish_issue.sh` verifies merged PRs and safely removes completed local worktrees.
 - Eye capture now has security-first traffic models, pre-persistence redaction, bounded SQLModel-backed SQLite state, and capture-only `watch` wiring through a lazy-loaded mitmproxy adapter.
@@ -87,6 +88,8 @@ Issue #91 implemented the bridge-level story traceability report for Hurl
 metadata without adding business-system API clients. Issue #106 exposed that
 local report through `entroping report traceability --output md` while keeping
 external sync out of scope.
+Issue #109 added community-profile auditing and a scheduled/manual OpenSSF
+Scorecard workflow without making Scorecard a required pull-request check.
 Issue #90 moved deterministic run orchestration behind `core.run_workflow`,
 leaving the CLI adapter responsible for option normalization, output, and exit
 mapping.
@@ -727,7 +730,7 @@ merged through GitHub before starting the next branch:
 - [#108](https://github.com/sakibshuvo/Entroping/issues/108): create launch demo
   assets and public growth kit.
 - [#109](https://github.com/sakibshuvo/Entroping/issues/109): add OpenSSF
-  Scorecard and community-profile hardening.
+  Scorecard and community-profile hardening. **Implemented locally on `security/openssf-community-profile`; validation/PR pending.**
 - [#110](https://github.com/sakibshuvo/Entroping/issues/110): add structured
   response drift checks.
 - Issue #112 is complete: `scripts/audit_quality.sh` now makes 100 percent

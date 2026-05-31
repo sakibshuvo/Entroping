@@ -37,11 +37,23 @@ The product should not look like a generic test generator. The sharp wedge is ru
 - Apache-2.0 public core license.
 - `CONTRIBUTING.md`, `SECURITY.md`, issue templates, PR template, release checklist, and CI.
 - Public roadmap through GitHub issues and milestones.
-- Security posture that can be inspected through local gates and later OpenSSF Scorecard.
+- Security posture that can be inspected through local gates, `scripts/community_profile_audit.sh`, and OpenSSF Scorecard.
 - Fast first win: run a demo API, generate or run Hurl tests, see a report.
 - Strong visual assets: terminal GIF, dependency map image, report screenshot, architecture diagram.
 
-GitHub's community profile checklist expects health files such as README, CODE_OF_CONDUCT, LICENSE, CONTRIBUTING, SECURITY policy, and issue templates. OpenSSF Scorecard can later provide automated security-health signal and a README badge once the repo is public enough for that signal to matter.
+GitHub's community profile checklist expects health files such as README, CODE_OF_CONDUCT, LICENSE, CONTRIBUTING, SECURITY policy, and issue templates. Entroping audits those local files with `scripts/community_profile_audit.sh`.
+
+`.github/workflows/scorecard.yml` is a scheduled/manual OpenSSF Scorecard workflow. It publishes results for the README badge, uploads the JSON result as a short-lived artifact, and avoids pull-request triggers so it does not become a noisy required check.
+
+## Launch Asset Checklist
+
+1. Run `scripts/community_profile_audit.sh` and fix any missing health file.
+2. Manually dispatch `.github/workflows/scorecard.yml` once the repository is public.
+3. Confirm the OpenSSF Scorecard badge resolves after the first published run.
+4. Record the terminal demo with real checkout fixture output.
+5. Capture an HTML report screenshot from `entroping run --report html`.
+6. Capture a dependency map screenshot from `entroping map --export png`.
+7. Publish README, release notes, demo assets, and launch post in that order.
 
 ## Hype Loop
 
