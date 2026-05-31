@@ -68,6 +68,11 @@ LOCKED_CLI_CONTRACTS = (
     ),
     CliContract("entroping report bug", ("report", "bug", "--help"), ()),
     CliContract(
+        "entroping report redaction [--output <md|html>]",
+        ("report", "redaction", "--help"),
+        ("--output",),
+    ),
+    CliContract(
         "entroping report traceability [--output md]",
         ("report", "traceability", "--help"),
         ("--output",),
@@ -94,6 +99,8 @@ REPORT_ARTIFACTS = (
     "reports/run-latest.html",
     "reports/drift.json",
     "reports/bug.md",
+    "reports/redaction-review.md",
+    "reports/redaction-review.html",
     "stdout Markdown",
 )
 

@@ -147,6 +147,11 @@ instead of leaving it only in `/tmp` scan artifacts. The model now covers the
 implemented Hurl subprocess, Brain/LiteLLM, Eye/traffic redaction, SQLModel
 SQLite state, report, filesystem, dependency, Studio, CI, and residual-risk
 issue boundaries that matter before stable-core claims.
+Issue #198 closes one of those residual Eye risks by adding a counts-only
+redaction review report. `entroping report redaction --output md|html` reads
+redacted `.entroping/state.db` records, reports header/query/body redaction
+categories and body-summary counts, and writes safe local artifacts under
+`reports/` without rendering raw captured values.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl

@@ -33,6 +33,7 @@
 - Added issue #232's first-hour QAnstitution UX: the starter policy, checkout demo policy, and new user guide now share schema-validated status, latency, and request-ID header gates without adding condition syntax.
 - Added issue #205's CLI compatibility audit: locked command signatures, deprecated alias policy, exit-code semantics, report artifacts, and Typer/help/documentation guard tests now anchor stable-core command claims.
 - Added issue #207's tracked threat model refresh: `docs/technical/THREAT_MODEL.md` now records current stable-core security boundaries, implemented controls, prior validated findings, and residual-risk issue mapping.
+- Added issue #198's redaction review report: `entroping report redaction --output md|html` writes counts-only captured-traffic redaction reviews without raw header, query, or body values.
 
 ## 2026-05-30
 

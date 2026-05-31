@@ -24,6 +24,7 @@ entroping map [--export <mermaid|dot|md|png>]
 entroping studio [--env <name>]
 entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check]
 entroping report bug
+entroping report redaction [--output <md|html>]
 entroping report traceability [--output md]
 ```
 
@@ -136,12 +137,15 @@ entroping run --env staging --drift-check --report drift
 | Command | Purpose |
 | --- | --- |
 | `entroping report bug` | Generate a Markdown bug report from the latest failure |
+| `entroping report redaction --output md` | Write a counts-only captured-traffic redaction review to `reports/redaction-review.md` |
+| `entroping report redaction --output html` | Write a browser-readable redaction review to `reports/redaction-review.html` |
 | `entroping report traceability --output md` | Generate a local Markdown story/test traceability report |
 
 Example:
 
 ```bash
 entroping report bug
+entroping report redaction --output md
 entroping report traceability --output md
 ```
 

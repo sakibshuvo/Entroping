@@ -135,7 +135,7 @@ The v4.1 command namespace is intentionally small and stable:
 | Intelligence | `architect build`, `architect refactor`, `architect audit` |
 | Observation | `watch`, `freeze`, `map` |
 | Execution | `run`, `studio` |
-| Reporting | `report bug`, `report traceability` |
+| Reporting | `report bug`, `report redaction`, `report traceability` |
 
 Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `verify`, `explain`, and `chaos` must not be treated as primary v4.1 commands. They can exist only as explicit backwards-compatible aliases or future roadmap items.
 
@@ -207,9 +207,10 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | EXE-006 | Emit reports | Repeatable `--report html`, `--report junit`, `--report json`, and `--report drift` flags write reports under `reports/` |
 | EXE-007 | Detect drift | `--drift-check` compares current behavior against baselines and reports breaking changes |
 | EXE-008 | Generate bug reports | `entroping report bug` creates a Markdown bug template with exact Hurl/curl repro details |
-| EXE-009 | Generate traceability reports | `entroping report traceability --output md` maps local Hurl metadata to stories, owners, docs, tests, tags, and findings |
-| EXE-010 | Provide TUI workflow | `entroping studio --env local` opens Textual/Rich mission control for local debugging |
-| EXE-011 | Preserve execution reproducibility | All blocking CI behavior must be explainable from committed Hurl files, env data, effective QAnstitution, and Hurl output |
+| EXE-009 | Generate redaction review reports | `entroping report redaction --output md` and `--output html` summarize captured traffic redaction categories and counts without raw secrets |
+| EXE-010 | Generate traceability reports | `entroping report traceability --output md` maps local Hurl metadata to stories, owners, docs, tests, tags, and findings |
+| EXE-011 | Provide TUI workflow | `entroping studio --env local` opens Textual/Rich mission control for local debugging |
+| EXE-012 | Preserve execution reproducibility | All blocking CI behavior must be explainable from committed Hurl files, env data, effective QAnstitution, and Hurl output |
 
 ## 10. Supported Test Types
 

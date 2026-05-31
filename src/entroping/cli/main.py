@@ -4,7 +4,7 @@ import asyncio
 import json
 import sys
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, cast
 from urllib.parse import urlparse
 
 import typer
@@ -52,6 +52,11 @@ from entroping.core.hurl_runner import (
 )
 from entroping.core.hurl_validator import HurlValidationError
 from entroping.core.openapi_loader import OpenApiLoadError, load_openapi_document
+from entroping.core.redaction_review_report import (
+    RedactionReviewError,
+    RedactionReviewOutput,
+    run_redaction_review,
+)
 from entroping.core.report_writer import (
     ReportWriterError,
     load_run_report,
@@ -733,6 +738,38 @@ def report_bug() -> None:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
     console.print(f"Wrote bug report: {_display_cli_path(output_path)}")
+
+
+@report_app.command("redaction")
+def report_redaction(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or html."),
+    ] = "md",
+) -> None:
+    """Generate a safe counts-only redaction review report from captured traffic."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "html"}:
+        console.print(f"[yellow]Unsupported redaction output: {output}[/yellow]")
+        raise typer.Exit(2)
+    redaction_output = cast(RedactionReviewOutput, normalized_output)
+
+    try:
+        result = run_redaction_review(
+            project_root=Path.cwd(),
+            output=redaction_output,
+        )
+    except RedactionReviewError as exc:
+        _print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    noun = "record" if result.report.total_records == 1 else "records"
+    console.print(
+        f"[green]Reviewed redaction coverage for {result.report.total_records} traffic "
+        f"{noun}.[/green]"
+    )
+    console.print(f"Wrote redaction review: {_display_cli_path(result.output_path)}")
 
 
 @report_app.command("traceability")
