@@ -61,7 +61,10 @@ file metadata, alpha classifier, and root release files.
 Before tagging, the latest `main` commit must have passing GitHub Actions jobs:
 
 - `checks`
+- `install-smoke`
 - `live-demo-smoke`
+- `optional-extras-smoke`
+- `quality-audit`
 
 The `live-demo-smoke` job installs a pinned Hurl binary, verifies the archive
 against the reviewed `HURL_SHA256` value in `.github/workflows/ci.yml`,
@@ -95,6 +98,9 @@ Before tagging:
   command, flag, exit-code, or report-artifact claim.
 - Confirm the `optional-extras-smoke` CI lane is passing before making claims
   about Brain/LiteLLM, Eye/mitmproxy, or Studio/Textual optional surfaces.
+- Confirm the `install-smoke` CI matrix is passing before making Linux, macOS,
+  or Windows install claims. Windows Hurl-backed `entroping run` is not claimed
+  for alpha; see [INSTALL_SMOKE_MATRIX.md](INSTALL_SMOKE_MATRIX.md).
 - Review `reports/performance-smoke.json` from
   `uv run python scripts/performance_smoke.py` before making stable-core
   scalability claims.

@@ -91,6 +91,18 @@ security regression job:
 scripts/audit_quality.sh
 ```
 
+The `install-smoke` job proves the supported install path across operating
+systems:
+
+```text
+Linux: uv tool install + pinned Hurl archive + doctor
+macOS: uv tool install + Homebrew Hurl + doctor
+Windows: uv tool install + doctor-only missing-Hurl guidance
+```
+
+The detailed support and non-claim matrix lives in
+[INSTALL_SMOKE_MATRIX.md](INSTALL_SMOKE_MATRIX.md).
+
 The `optional-extras-smoke` job installs all optional extras and exercises the
 Brain/LiteLLM, Eye/mitmproxy, and Studio/Textual import/setup boundaries without
 provider credentials or live traffic capture:
@@ -101,7 +113,8 @@ uv run python scripts/optional_extras_smoke.py
 ```
 
 CI-enforced commands are `scripts/regression.sh --security`,
-`scripts/audit_quality.sh`, and the `optional-extras-smoke` lane.
+`scripts/audit_quality.sh`, the `install-smoke` matrix, and the
+`optional-extras-smoke` lane.
 
 Drift tests must keep response comparison value-free. The structured drift MVP
 compares response status codes, selected stable headers, and JSON body shape
