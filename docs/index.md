@@ -16,6 +16,7 @@ Obsidian.
 Start here:
 
 - [User Guide](user/USER_GUIDE.md)
+- [Launch Demo Assets](assets/launch/README.md)
 - [GitHub Actions Starter](user/GITHUB_ACTIONS_STARTER.md)
 - [AI Provider Setup](user/AI_PROVIDER_SETUP.md)
 - [Use Cases](user/USE_CASES.md)

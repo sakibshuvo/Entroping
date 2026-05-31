@@ -29,6 +29,7 @@
 - Added issue #186's package-index release runbook for TestPyPI-first Trusted Publishing, PEP 440 alpha naming, token-free GitHub Actions environments, PyPI publish policy, and yank/new-version rollback.
 - Added issue #188's public docs site decision and minimal MkDocs Material scaffold with `mkdocs.yml`, `docs/index.md`, and guard tests, while keeping canonical docs in the existing Markdown tree.
 - Added issue #183's distribution recommendation: keep `uv tool install` first, activate PyPI/TestPyPI next, prototype Homebrew after PyPI alpha, defer standalone binaries, and track follow-up implementation issues #223 through #225.
+- Added issue #230's zero-config checkout demo entrypoint: `scripts/demo.sh` now provides friendly preflight guidance and delegates to the existing live smoke release gate without expanding the locked CLI surface.
 
 ## 2026-05-30
 

@@ -67,12 +67,13 @@ artifact_dir="$(mktemp -d "$demo_tmp_base/artifacts.XXXXXX")"
 workdir="$(mktemp -d "$demo_tmp_base/work.XXXXXX")"
 ENTROPING_LIVE_DEMO_ARTIFACT_DIR="$artifact_dir" \
   ENTROPING_LIVE_DEMO_WORKDIR="$workdir" \
-  scripts/live_demo_smoke.sh
+  scripts/demo.sh
 ```
 
-Use the copied HTML, JSON, and JUnit reports as screenshot sources. Keep the
-generated `reports/`, `.entroping/`, GIFs, and PNGs out of Git unless a launch
-asset is intentionally curated and size-checked.
+Use `scripts/live_demo_smoke.sh` directly when you need the lower-level release
+gate without wrapper messaging. Use the copied HTML, JSON, and JUnit reports as
+screenshot sources. Keep the generated `reports/`, `.entroping/`, GIFs, and
+PNGs out of Git unless a launch asset is intentionally curated and size-checked.
 
 ## Design Notes
 

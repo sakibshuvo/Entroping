@@ -5,12 +5,17 @@ import stat
 import subprocess
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
-def test_live_demo_smoke_script_uses_hurl_and_copies_artifacts(tmp_path: Path) -> None:
-    fake_bin = tmp_path / "bin"
-    fake_bin.mkdir()
-    fake_hurl = fake_bin / "hurl"
-    fake_hurl.write_text(
+
+def _write_executable(path: Path, content: str) -> None:
+    path.write_text(content, encoding="utf-8")
+    path.chmod(path.stat().st_mode | stat.S_IXUSR)
+
+
+def _write_live_demo_fake_hurl(path: Path) -> None:
+    _write_executable(
+        path,
         """#!/usr/bin/env bash
 set -euo pipefail
 
@@ -39,9 +44,65 @@ grep -q "base_url=http://127.0.0.1:18080" "$vars_file"
 grep -q "cart_id=demo-cart-001" "$vars_file"
 echo "fake hurl ok"
 """,
-        encoding="utf-8",
     )
-    fake_hurl.chmod(fake_hurl.stat().st_mode | stat.S_IXUSR)
+
+
+def test_demo_script_delegates_to_live_demo_smoke_and_keeps_reports(tmp_path: Path) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    _write_live_demo_fake_hurl(fake_bin / "hurl")
+
+    artifact_dir = tmp_path / "artifacts"
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
+    env["ENTROPING_LIVE_DEMO_ARTIFACT_DIR"] = str(artifact_dir)
+    env["ENTROPING_DEMO_PORT"] = "18080"
+
+    result = subprocess.run(
+        ["bash", "scripts/demo.sh"],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=60,
+    )
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "[entroping-demo] Starting checkout demo" in result.stdout
+    assert "scripts/live_demo_smoke.sh" in result.stdout
+    assert str(artifact_dir) in result.stdout
+    assert (artifact_dir / "run-latest.html").is_file()
+    assert (artifact_dir / "run-latest.json").is_file()
+    assert (artifact_dir / "junit.xml").is_file()
+
+
+def test_demo_script_explains_missing_hurl_before_running_demo(tmp_path: Path) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    _write_executable(fake_bin / "uv", "#!/usr/bin/env bash\nexit 0\n")
+    env = os.environ.copy()
+    env["PATH"] = str(fake_bin)
+
+    result = subprocess.run(
+        ["/bin/bash", "scripts/demo.sh"],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=30,
+    )
+
+    assert result.returncode == 1
+    assert "Hurl is required" in result.stderr
+    assert "https://hurl.dev/docs/installation.html" in result.stderr
+
+
+def test_live_demo_smoke_script_uses_hurl_and_copies_artifacts(tmp_path: Path) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    _write_live_demo_fake_hurl(fake_bin / "hurl")
 
     artifact_dir = tmp_path / "artifacts"
     env = os.environ.copy()
@@ -51,7 +112,7 @@ echo "fake hurl ok"
 
     result = subprocess.run(
         ["bash", "scripts/live_demo_smoke.sh"],
-        cwd=Path(__file__).resolve().parents[1],
+        cwd=REPO_ROOT,
         env=env,
         text=True,
         capture_output=True,
@@ -68,18 +129,15 @@ echo "fake hurl ok"
 def test_live_demo_smoke_script_rejects_repo_workdir(tmp_path: Path) -> None:
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
-    fake_hurl = fake_bin / "hurl"
-    fake_hurl.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
-    fake_hurl.chmod(fake_hurl.stat().st_mode | stat.S_IXUSR)
+    _write_executable(fake_bin / "hurl", "#!/usr/bin/env bash\nexit 0\n")
 
-    repo_root = Path(__file__).resolve().parents[1]
     env = os.environ.copy()
     env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
-    env["ENTROPING_LIVE_DEMO_WORKDIR"] = str(repo_root)
+    env["ENTROPING_LIVE_DEMO_WORKDIR"] = str(REPO_ROOT)
 
     result = subprocess.run(
         ["bash", "scripts/live_demo_smoke.sh"],
-        cwd=repo_root,
+        cwd=REPO_ROOT,
         env=env,
         text=True,
         capture_output=True,
@@ -94,23 +152,20 @@ def test_live_demo_smoke_script_rejects_repo_workdir(tmp_path: Path) -> None:
 def test_live_demo_smoke_script_rejects_non_empty_custom_workdir(tmp_path: Path) -> None:
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
-    fake_hurl = fake_bin / "hurl"
-    fake_hurl.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
-    fake_hurl.chmod(fake_hurl.stat().st_mode | stat.S_IXUSR)
+    _write_executable(fake_bin / "hurl", "#!/usr/bin/env bash\nexit 0\n")
 
     workdir = tmp_path / "demo"
     workdir.mkdir()
     sentinel = workdir / "keep.txt"
     sentinel.write_text("do not delete\n", encoding="utf-8")
 
-    repo_root = Path(__file__).resolve().parents[1]
     env = os.environ.copy()
     env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
     env["ENTROPING_LIVE_DEMO_WORKDIR"] = str(workdir)
 
     result = subprocess.run(
         ["bash", "scripts/live_demo_smoke.sh"],
-        cwd=repo_root,
+        cwd=REPO_ROOT,
         env=env,
         text=True,
         capture_output=True,
