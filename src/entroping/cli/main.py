@@ -606,7 +606,8 @@ def run(
         if drift_report.summary.missing_baseline:
             console.print(
                 "[yellow]Drift baseline not found: .entroping/drift-baseline.json. "
-                "Copy .entroping/latest-run.json after reviewing a known-good run.[/yellow]"
+                "Run with --report drift to review reports/drift-baseline.candidate.json "
+                "before copying it into .entroping/drift-baseline.json.[/yellow]"
             )
         else:
             noun = "finding" if drift_report.summary.drifted == 1 else "findings"

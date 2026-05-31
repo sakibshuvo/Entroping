@@ -17,6 +17,7 @@ Start here:
 
 - [User Guide](user/USER_GUIDE.md)
 - [QAnstitution First Hour](user/QANSTITUTION_FIRST_HOUR.md)
+- [Drift Baseline Workflow](user/DRIFT_BASELINE_WORKFLOW.md)
 - [Launch Demo Assets](assets/launch/README.md)
 - [GitHub Actions Starter](user/GITHUB_ACTIONS_STARTER.md)
 - [AI Provider Setup](user/AI_PROVIDER_SETUP.md)

@@ -98,6 +98,7 @@ REPORT_ARTIFACTS = (
     "reports/junit.xml",
     "reports/run-latest.html",
     "reports/drift.json",
+    "reports/drift-baseline.candidate.json",
     "reports/bug.md",
     "reports/redaction-review.md",
     "reports/redaction-review.html",

@@ -22,6 +22,7 @@ from entroping.core.drift_report import (
     load_dependency_drift_baseline,
     load_drift_baseline,
     write_drift_report,
+    write_reviewed_drift_baseline_candidate,
 )
 from entroping.core.env_loader import load_environment_variables
 from entroping.core.gate_injector import write_injected_execution_copy
@@ -150,6 +151,13 @@ def execute_run_workflow(
         artifacts.append(write_html_report(run_report, reports_dir / "run-latest.html"))
     if "drift" in report_formats and drift_report is not None:
         artifacts.append(write_drift_report(drift_report, reports_dir / "drift.json"))
+        if run_report.summary.exit_code == 0:
+            artifacts.append(
+                write_reviewed_drift_baseline_candidate(
+                    run_report,
+                    reports_dir / "drift-baseline.candidate.json",
+                )
+            )
 
     return RunWorkflowResult(
         suite=suite,
