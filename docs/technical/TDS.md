@@ -728,9 +728,10 @@ Logs must not include request secrets, API keys, or sensitive captured bodies.
 | Freeze | Traffic to parameterized Hurl and WireMock mappings |
 | State retention | Rotation/cleanup behavior for `.entroping/state.db` |
 | Reports | JUnit schema, JSON shape, bug template content |
+| Performance smoke | Large synthetic Hurl suite, bounded parallel runner behavior, report size, and SQLModel traffic-store retention evidence |
 | CLI | Typer command contracts and exit codes |
 
-External integrations should be tested with small fixtures and deterministic subprocess stubs where possible. A smoke suite should exercise real Hurl when available.
+External integrations should be tested with small fixtures and deterministic subprocess stubs where possible. A smoke suite should exercise real Hurl when available. Local release-owner scalability evidence is generated through `uv run python scripts/performance_smoke.py`, which writes ignored JSON evidence under `reports/performance-smoke.json`.
 
 ## 19. Security Requirements
 

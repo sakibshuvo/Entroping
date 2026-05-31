@@ -10,12 +10,14 @@ Usage: scripts/release_check.sh [OPTIONS]
 Runs the local alpha release-readiness gate.
 
 By default this requires a clean Git worktree, rejects tracked local/generated
-state, verifies package artifacts, runs the security regression suite, and runs
-the live demo smoke when the Hurl binary is available.
+state, verifies package artifacts, runs the security regression suite, runs the
+bounded performance smoke, and runs the live demo smoke when the Hurl binary is
+available.
 
 Options:
   --dry-run            Show the planned release gate without running commands.
   --skip-security      Run regression without dependency/security audits.
+  --skip-performance   Do not run the bounded performance smoke.
   --skip-live-demo     Do not run the live Hurl demo smoke.
   --require-live-demo  Fail if Hurl is missing instead of skipping the demo.
   --allow-dirty        Allow uncommitted changes in the working tree.
@@ -25,6 +27,7 @@ EOF
 
 dry_run=0
 skip_security=0
+skip_performance=0
 skip_live_demo=0
 require_live_demo=0
 allow_dirty=0
@@ -36,6 +39,9 @@ while (($#)); do
       ;;
     --skip-security)
       skip_security=1
+      ;;
+    --skip-performance)
+      skip_performance=1
       ;;
     --skip-live-demo)
       skip_live_demo=1
@@ -87,6 +93,7 @@ run_or_print() {
 
 log "dry run: $(yes_no "$dry_run")"
 log "skip security: $(yes_no "$skip_security")"
+log "skip performance: $(yes_no "$skip_performance")"
 log "skip live demo: $(yes_no "$skip_live_demo")"
 log "require live demo: $(yes_no "$require_live_demo")"
 log "allow dirty worktree: $(yes_no "$allow_dirty")"
@@ -118,6 +125,12 @@ if ((skip_security)); then
   run_or_print scripts/regression.sh
 else
   run_or_print scripts/regression.sh --security
+fi
+
+if ((skip_performance)); then
+  log "Skipping performance smoke by request."
+else
+  run_or_print uv run python scripts/performance_smoke.py
 fi
 
 if ((skip_live_demo)); then

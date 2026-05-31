@@ -23,6 +23,7 @@ def test_release_check_help_documents_release_options() -> None:
     assert result.returncode == 0
     assert "--dry-run" in result.stdout
     assert "--skip-security" in result.stdout
+    assert "--skip-performance" in result.stdout
     assert "--require-live-demo" in result.stdout
     assert "--allow-dirty" in result.stdout
 
@@ -34,16 +35,24 @@ def test_release_check_dry_run_shows_full_alpha_gate() -> None:
     assert "scripts/repo_hygiene.sh" in result.stdout
     assert "scripts/regression.sh --security" in result.stdout
     assert "scripts/package_check.sh" in result.stdout
+    assert "scripts/performance_smoke.py" in result.stdout
     assert "scripts/live_demo_smoke.sh" in result.stdout
     assert "require live demo: yes" in result.stdout
 
 
-def test_release_check_dry_run_can_skip_security_and_live_demo() -> None:
-    result = run_release_check("--dry-run", "--skip-security", "--skip-live-demo")
+def test_release_check_dry_run_can_skip_security_performance_and_live_demo() -> None:
+    result = run_release_check(
+        "--dry-run",
+        "--skip-security",
+        "--skip-performance",
+        "--skip-live-demo",
+    )
 
     assert result.returncode == 0, result.stderr
     assert "scripts/regression.sh" in result.stdout
     assert "scripts/regression.sh --security" not in result.stdout
+    assert "scripts/performance_smoke.py" not in result.stdout
+    assert "skip performance: yes" in result.stdout
     assert "scripts/live_demo_smoke.sh" not in result.stdout
     assert "skip live demo: yes" in result.stdout
 

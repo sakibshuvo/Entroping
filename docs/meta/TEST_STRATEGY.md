@@ -62,6 +62,19 @@ runs the full test suite with a default 100 percent coverage threshold, records
 ignored JSON audit artifacts under `reports/`, then checks Radon complexity,
 Radon maintainability, and Vulture dead-code discovery.
 
+Performance smoke:
+
+```bash
+uv run python scripts/performance_smoke.py
+```
+
+The performance smoke is a local release-owner gate, not a pull-request CI
+requirement. It uses a fake Hurl binary to avoid network calls while exercising
+many Hurl files, bounded parallel runner behavior, gate injection, JSON/JUnit/HTML
+report generation, and a larger SQLModel-backed traffic store with retention.
+It writes reviewable evidence to `reports/performance-smoke.json`, which stays
+ignored like other generated reports.
+
 ## GitHub Actions Enforcement
 
 GitHub Actions enforces the same security-sensitive gate used for local release
@@ -110,6 +123,8 @@ The quality-audit job uploads the generated `reports/` directory as workflow
 artifacts for review. Packaging checks and release/live-demo release decisions
 remain local release-owner gates through `scripts/release_check.sh`, because
 they depend on the release context and whether local Hurl is installed.
+`scripts/release_check.sh` also runs `uv run python scripts/performance_smoke.py`
+unless `--skip-performance` is used for a local diagnostic pass.
 
 ## Coverage Expectations
 
