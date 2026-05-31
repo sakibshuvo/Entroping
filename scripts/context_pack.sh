@@ -19,6 +19,11 @@ The pack is written to stdout. Redirect it to a temp file when needed:
 
   scripts/context_pack.sh --mode implementation > /tmp/entroping-context.md
 
+For source reconciliation, set ENTROPING_SOURCE_ROOT when the source archive is
+not a sibling directory named entroping-specs:
+
+  ENTROPING_SOURCE_ROOT=/path/to/entroping-specs scripts/context_pack.sh --mode source
+
 Do not commit generated context packs. Promote durable changes into curated
 Markdown, ADRs, GitHub issues, tests, or scripts instead.
 EOF
@@ -60,7 +65,14 @@ repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" \
   || die "run this from inside the Entroping git repository"
 cd "$repo_root"
 
-source_root="/Users/sakibshuvo/projects/entroping-specs"
+default_source_root="$(cd "$repo_root/.." && pwd)/entroping-specs"
+source_root="${ENTROPING_SOURCE_ROOT:-$default_source_root}"
+if [[ "$source_root" != /* ]]; then
+  source_root="$repo_root/$source_root"
+fi
+if [[ -d "$source_root" ]]; then
+  source_root="$(cd "$source_root" && pwd)"
+fi
 files=()
 
 add_file() {

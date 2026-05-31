@@ -70,6 +70,12 @@ Use Gemini and NotebookLM as research assistants over source material, then brin
 scripts/context_pack.sh --mode source
 ```
 
+If the source archive is not a sibling `../entroping-specs` directory, set:
+
+```bash
+ENTROPING_SOURCE_ROOT=/path/to/entroping-specs scripts/context_pack.sh --mode source
+```
+
 4. Ask the external tool to answer with source-file citations and uncertainty labels.
 5. Convert accepted findings into issues, ADRs, or canonical docs.
 6. Run tests if any repo behavior changed.

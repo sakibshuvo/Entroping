@@ -74,6 +74,13 @@ Use `implementation` for coding, `review` for critique, `source` for
 Gemini/NotebookLM reconciliation, `growth` for launch and monetization work, and
 `handoff` when a new Codex thread needs fast continuity.
 
+`source` mode defaults to a sibling `../entroping-specs` archive. Override it
+when the source archive lives elsewhere:
+
+```bash
+ENTROPING_SOURCE_ROOT=/path/to/entroping-specs scripts/context_pack.sh --mode source
+```
+
 ## Obsidian Role
 
 Obsidian is the human navigation layer. It shows product evolution, ADRs, source links, and relationships between docs.
