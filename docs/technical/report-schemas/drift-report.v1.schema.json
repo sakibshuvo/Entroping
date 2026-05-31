@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sakibshuvo.github.io/Entroping/schemas/drift-report.v1.schema.json",
+  "title": "Entroping Drift Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project",
+    "environment",
+    "generated_at",
+    "baseline_path",
+    "summary",
+    "findings"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.drift-report.v1"
+    },
+    "project": {
+      "type": "string"
+    },
+    "environment": {
+      "type": "string"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "baseline_path": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baseline_tests",
+        "current_tests",
+        "findings",
+        "drifted",
+        "missing_baseline"
+      ],
+      "properties": {
+        "baseline_tests": {"type": "integer", "minimum": 0},
+        "current_tests": {"type": "integer", "minimum": 0},
+        "findings": {"type": "integer", "minimum": 0},
+        "drifted": {"type": "integer", "minimum": 0},
+        "missing_baseline": {"type": "boolean"}
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "severity",
+          "path",
+          "message",
+          "baseline",
+          "current"
+        ],
+        "properties": {
+          "kind": {"type": "string"},
+          "severity": {
+            "enum": ["info", "warning", "error"]
+          },
+          "path": {"type": "string"},
+          "message": {"type": "string"},
+          "baseline": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "current": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

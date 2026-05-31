@@ -630,16 +630,21 @@ candidate is sanitized and reviewable; the active
 
 | Command | Artifact | Stability note |
 | --- | --- | --- |
-| `entroping run` | `.entroping/latest-run.json` | Runtime state for follow-up report commands; not committed. |
-| `entroping run --report json` | `reports/run-latest.json` | Machine-readable run report. |
+| `entroping run` | `.entroping/latest-run.json` | Runtime state for follow-up report commands; uses `entroping.run-report.v1`; not committed. |
+| `entroping run --report json` | `reports/run-latest.json` | Machine-readable run report using `entroping.run-report.v1`. |
 | `entroping run --report junit` | `reports/junit.xml` | CI-compatible test report. |
 | `entroping run --report html` | `reports/run-latest.html` | Human-readable local report. |
-| `entroping run --report drift` | `reports/drift.json` | Machine-readable drift findings. |
+| `entroping run --report drift` | `reports/drift.json` | Machine-readable drift findings using `entroping.drift-report.v1`. |
 | `entroping run --report drift` | `reports/drift-baseline.candidate.json` | Reviewable sanitized baseline candidate after a passing Hurl suite. |
 | `entroping report bug` | `reports/bug.md` | Markdown handoff for issue trackers. |
 | `entroping report redaction --output md` | `reports/redaction-review.md` | Counts-only captured-traffic redaction review. |
 | `entroping report redaction --output html` | `reports/redaction-review.html` | Browser-readable captured-traffic redaction review. |
 | `entroping report traceability --output md` | `stdout Markdown` | Local story/test coverage report. |
+
+Versioned report schema contracts are documented in
+`docs/technical/REPORT_SCHEMAS.md`. JSON report writers must include
+`schema_version`; loaders remain tolerant of older local state that predates the
+version field.
 
 If `.entroping/dependency-baseline.json` exists, the same drift run also compares
 current redacted traffic observations from `.entroping/state.db` against reviewed

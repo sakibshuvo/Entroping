@@ -538,6 +538,26 @@ Implemented boundaries:
 - The user guide and command references describe candidate review, diff, and
   promotion before baseline updates.
 
+## Completed Slice: Issue #203 Versioned Report Schemas
+
+Outcome: machine-readable report payloads now carry explicit v1 schema versions
+so downstream dashboards, PR annotations, and hosted surfaces can depend on
+stable contracts instead of incidental JSON shape.
+
+Implemented boundaries:
+
+- `reports/run-latest.json` and `.entroping/latest-run.json` include
+  `schema_version: entroping.run-report.v1`.
+- `reports/drift.json` includes `schema_version:
+  entroping.drift-report.v1`.
+- The story traceability bridge exposes `entroping.traceability-report.v1` as a
+  JSON-serializable data contract without expanding the locked CLI output
+  surface.
+- `docs/technical/REPORT_SCHEMAS.md` and checked-in JSON Schema files define
+  compatibility rules for additive and breaking report changes.
+- `tests/test_report_schema_contracts.py` freezes representative v1 payloads so
+  report shape changes require intentional schema updates.
+
 ## Completed Slice: Issue #110 Structured Response Drift
 
 Outcome: drift reports can compare optional response fingerprints without

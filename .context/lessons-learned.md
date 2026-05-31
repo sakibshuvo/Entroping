@@ -41,6 +41,7 @@
 - The Eye lifecycle from v3 is still required in v4.1: traffic capture, freeze, golden masters, mocks, and dependency maps.
 - Hurl is the enforcement boundary. Python orchestrates but must not replace Hurl as the API execution engine.
 - Reports need both machine formats and human formats: JUnit for CI, JSON for tooling, HTML/Markdown for review and bug handoff.
+- Machine-readable reports need explicit schema versions before external dashboards or PR annotation tools depend on them. Additive optional fields can remain in v1, but required-field, rename, removal, or type changes need a new schema version and migration note.
 - The creator intent is solo-first but not toy-grade: use `uv` and source debugging now, defer binary packaging and Cloud until the core governance loop is real.
 - The Brain must be local-first and LiteLLM-routed; do not depend on external provider CLIs, and do not put API keys in plaintext config.
 - `entroping run` must remain deterministic and should not call the LLM; AI-generated Breaker work must become committed Hurl tests before it can govern CI.
