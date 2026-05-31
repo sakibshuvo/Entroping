@@ -27,6 +27,7 @@ Use these first. They are the control panel for current work:
 - [[ROADMAP|ROADMAP]] - public roadmap, release sequence, and open-core boundary.
 - [[docs/product/PRODUCT_SPEC|PRODUCT_SPEC]] - what Entroping is and what v4.1 must do.
 - [[docs/user/USER_GUIDE|USER_GUIDE]] - how a developer uses Entroping.
+- [[docs/user/DRIFT_BASELINE_WORKFLOW|DRIFT_BASELINE_WORKFLOW]] - reviewed candidate-to-baseline drift workflow.
 - [[docs/product/MVP_PLAN|MVP_PLAN]] - implementation sequence.
 - [[docs/product/MARKETING_NOTE|MARKETING_NOTE]] - positioning and go-to-market language.
 
@@ -72,6 +73,7 @@ Use these first. They are the control panel for current work:
 - [[docs/user/USER_FLOWS|USER_FLOWS]] - end-to-end workflows.
 - [[docs/user/USE_CASES|USE_CASES]] - concrete scenarios.
 - [[docs/user/QANSTITUTION_FIRST_HOUR|QANSTITUTION_FIRST_HOUR]] - first-hour status, latency, and request-ID header policy guide.
+- [[docs/user/DRIFT_BASELINE_WORKFLOW|DRIFT_BASELINE_WORKFLOW]] - safe drift baseline creation and update workflow.
 - [[docs/user/AI_PROVIDER_SETUP|AI_PROVIDER_SETUP]] - LiteLLM, local Qwen/oMLX, cloud model, and no-provider CI setup.
 - [[docs/user/GITHUB_ACTIONS_STARTER|GITHUB_ACTIONS_STARTER]] - copyable downstream GitHub Actions CI gate.
 - [[docs/meta/OBSIDIAN_START_HERE|OBSIDIAN_START_HERE]] - first-time Obsidian workflow for this vault.

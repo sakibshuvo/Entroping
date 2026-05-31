@@ -12,9 +12,11 @@ from entroping.core.drift_report import (
     append_dependency_drift_findings,
     build_drift_report,
     build_missing_baseline_report,
+    build_reviewed_drift_baseline,
     load_dependency_drift_baseline,
     load_drift_baseline,
     write_drift_report,
+    write_reviewed_drift_baseline_candidate,
 )
 from entroping.core.safe_write import SafeWriteError
 from entroping.models.drift import (
@@ -690,7 +692,133 @@ def test_write_missing_baseline_drift_report_is_machine_readable(tmp_path: Path)
     assert data["summary"]["missing_baseline"] is True
     assert data["summary"]["drifted"] == 1
     assert data["findings"][0]["kind"] == "missing_baseline"
-    assert "Copy .entroping/latest-run.json" in data["findings"][0]["message"]
+    assert "reports/drift-baseline.candidate.json" in data["findings"][0]["message"]
+
+
+def test_build_reviewed_drift_baseline_is_value_free_and_deterministic() -> None:
+    current = _run_report(
+        RunTestReport(
+            path="tests/z-health.hurl",
+            execution_path=".entroping/run-1/z-health.hurl",
+            status="passed",
+            exit_code=0,
+            duration_ms=42,
+            rule_ids=("global_latency",),
+            stdout="HTTP 200\nAuthorization: Bearer live-secret\n\n{\"token\":\"live-secret\"}",
+            stderr="stderr live-secret",
+            response_status_code=200,
+            response_headers=(
+                ("content-type", "application/json"),
+                ("date", "volatile"),
+                ("x-request-id", "req_123"),
+                ("cache-control", "[REDACTED]"),
+            ),
+            response_body_shape=(
+                "$.token:string",
+                "$:object",
+                "bad\u0000shape",
+            ),
+        ),
+        _test_report("tests/a-health.hurl", rule_ids=("auth_required", "global_latency")),
+    )
+
+    baseline = build_reviewed_drift_baseline(current)
+
+    assert [test.path for test in baseline.tests] == [
+        "tests/a-health.hurl",
+        "tests/z-health.hurl",
+    ]
+    assert baseline.tests[1] == DriftBaselineTest(
+        path="tests/z-health.hurl",
+        status="passed",
+        exit_code=0,
+        rule_ids=("global_latency",),
+        duration_ms=42,
+        response_status_code=200,
+        response_headers=(("content-type", "application/json"),),
+        response_body_shape=("$:object", "$.token:string"),
+    )
+
+
+def test_write_reviewed_drift_baseline_candidate_is_safe_and_sanitized(
+    tmp_path: Path,
+) -> None:
+    current = _run_report(
+        RunTestReport(
+            path="tests/health.hurl",
+            execution_path=".entroping/run-1/health.hurl",
+            status="passed",
+            exit_code=0,
+            duration_ms=25,
+            rule_ids=("global_latency",),
+            stdout="HTTP 200\nContent-Type: application/json\n\n{\"secret\":\"live-secret\"}",
+            stderr="live-secret",
+            response_status_code=200,
+            response_headers=(
+                ("content-type", "application/json"),
+                ("set-cookie", "session=live-secret"),
+            ),
+            response_body_shape=("$:object", "$.secret:string"),
+        )
+    )
+    output = tmp_path / "reports" / "drift-baseline.candidate.json"
+
+    write_reviewed_drift_baseline_candidate(current, output)
+
+    content = output.read_text(encoding="utf-8")
+    data = json.loads(content)
+    assert data == {
+        "environment": "staging",
+        "project": "checkout-api",
+        "tests": [
+            {
+                "duration_ms": 25,
+                "exit_code": 0,
+                "path": "tests/health.hurl",
+                "response": {
+                    "body_shape": ["$:object", "$.secret:string"],
+                    "headers": {"content-type": "application/json"},
+                    "status_code": 200,
+                },
+                "rule_ids": ["global_latency"],
+                "status": "passed",
+            }
+        ],
+    }
+    assert "stdout" not in content
+    assert "stderr" not in content
+    assert "execution_path" not in content
+    assert "set-cookie" not in content
+    assert "live-secret" not in content
+
+
+def test_write_reviewed_drift_baseline_candidate_rejects_final_baseline_path(
+    tmp_path: Path,
+) -> None:
+    current = _run_report(_test_report("tests/health.hurl"))
+    active_baseline = tmp_path / ".entroping" / "drift-baseline.json"
+
+    with pytest.raises(DriftReportError, match="candidate file"):
+        write_reviewed_drift_baseline_candidate(current, active_baseline)
+
+    assert not active_baseline.exists()
+
+
+def test_write_reviewed_drift_baseline_candidate_rejects_symlinked_parent_directory(
+    tmp_path: Path,
+) -> None:
+    current = _run_report(_test_report("tests/health.hurl"))
+    outside_dir = tmp_path / "outside-reports"
+    outside_dir.mkdir()
+    (tmp_path / "reports").symlink_to(outside_dir, target_is_directory=True)
+
+    with pytest.raises(DriftReportError, match="symlinked path component"):
+        write_reviewed_drift_baseline_candidate(
+            current,
+            tmp_path / "reports" / "drift-baseline.candidate.json",
+        )
+
+    assert not (outside_dir / "drift-baseline.candidate.json").exists()
 
 
 def test_write_drift_report_preserves_existing_target_when_atomic_write_fails(

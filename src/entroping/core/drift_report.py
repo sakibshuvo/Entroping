@@ -170,8 +170,9 @@ def build_missing_baseline_report(*, current: RunReport, baseline_path: Path) ->
     """Build a machine-readable report for the missing-baseline path."""
 
     message = (
-        "Drift baseline not found. Copy .entroping/latest-run.json to "
-        ".entroping/drift-baseline.json after reviewing a known-good run."
+        "Drift baseline not found. Run entroping run --report drift, review "
+        "reports/drift-baseline.candidate.json, then copy it to "
+        ".entroping/drift-baseline.json only after accepting the behavior."
     )
     finding = DriftFinding(
         kind="missing_baseline",
@@ -197,6 +198,38 @@ def build_missing_baseline_report(*, current: RunReport, baseline_path: Path) ->
     )
 
 
+def build_reviewed_drift_baseline(current: RunReport) -> DriftBaseline:
+    """Build a value-free baseline candidate from the current run report."""
+
+    tests = tuple(_baseline_test_from_run(test) for test in sorted(current.tests, key=_test_key))
+    return DriftBaseline(
+        project=current.project,
+        environment=current.environment,
+        tests=tests,
+    )
+
+
+def write_reviewed_drift_baseline_candidate(current: RunReport, path: Path) -> Path:
+    """Write a reviewable baseline candidate without approving it as active state."""
+
+    if path.name == "drift-baseline.json":
+        msg = (
+            "Refusing to write reviewed drift baseline candidate directly to "
+            "drift-baseline.json; write a candidate file first."
+        )
+        raise DriftReportError(msg)
+
+    baseline = build_reviewed_drift_baseline(current)
+    try:
+        return safe_write_text(
+            path,
+            json.dumps(_drift_baseline_to_dict(baseline), indent=2, sort_keys=True) + "\n",
+            artifact="drift baseline candidate",
+        )
+    except SafeWriteError as exc:
+        raise DriftReportError(str(exc)) from exc
+
+
 def write_drift_report(report: DriftReport, path: Path) -> Path:
     """Write a deterministic machine-readable drift report."""
 
@@ -208,6 +241,27 @@ def write_drift_report(report: DriftReport, path: Path) -> Path:
         )
     except SafeWriteError as exc:
         raise DriftReportError(str(exc)) from exc
+
+
+def _test_key(test: RunTestReport) -> str:
+    return test.path
+
+
+def _baseline_test_from_run(test: RunTestReport) -> DriftBaselineTest:
+    response = {
+        "headers": dict(test.response_headers),
+        "body_shape": list(test.response_body_shape),
+    }
+    return DriftBaselineTest(
+        path=test.path,
+        status=test.status,
+        exit_code=test.exit_code,
+        rule_ids=test.rule_ids,
+        duration_ms=test.duration_ms,
+        response_status_code=test.response_status_code,
+        response_headers=_optional_response_headers(response),
+        response_body_shape=_optional_response_body_shape(response),
+    )
 
 
 def _compare_common_test(
@@ -622,6 +676,46 @@ def _drift_report_to_dict(report: DriftReport) -> dict[str, object]:
         },
         "findings": [_finding_to_dict(finding) for finding in report.findings],
     }
+
+
+def _drift_baseline_to_dict(baseline: DriftBaseline) -> dict[str, object]:
+    return {
+        "project": baseline.project,
+        "environment": baseline.environment,
+        "tests": [_drift_baseline_test_to_dict(test) for test in baseline.tests],
+    }
+
+
+def _drift_baseline_test_to_dict(test: DriftBaselineTest) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "path": test.path,
+        "status": test.status,
+        "exit_code": test.exit_code,
+        "duration_ms": test.duration_ms,
+        "rule_ids": list(test.rule_ids),
+    }
+    response = _drift_baseline_response_to_dict(test)
+    if response is not None:
+        payload["response"] = response
+    return payload
+
+
+def _drift_baseline_response_to_dict(test: DriftBaselineTest) -> dict[str, object] | None:
+    if (
+        test.response_status_code is None
+        and not test.response_headers
+        and not test.response_body_shape
+    ):
+        return None
+
+    response: dict[str, object] = {}
+    if test.response_status_code is not None:
+        response["status_code"] = test.response_status_code
+    if test.response_headers:
+        response["headers"] = dict(test.response_headers)
+    if test.response_body_shape:
+        response["body_shape"] = list(test.response_body_shape)
+    return response
 
 
 def _finding_to_dict(finding: DriftFinding) -> dict[str, object]:

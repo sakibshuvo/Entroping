@@ -121,11 +121,13 @@ entroping run --env staging --drift-check --report drift
 ### Expected Artifacts
 
 - `reports/drift.json`
+- `reports/drift-baseline.candidate.json` when the Hurl suite passes.
 - Summary of changed status codes, headers, schemas, or latency.
 
 ### Value
 
-The team sees runtime drift before customers do.
+The team sees runtime drift before customers do, then promotes a new baseline
+only after reviewing the candidate artifact.
 
 ## 6. Generate Security Breaker Tests
 

@@ -15,6 +15,7 @@
 ## 2026-05-30
 
 - Security-sensitive path checks need component-level symlink rejection, not only final-path checks. Env loading, report writes, drift reports, state files, and generated Hurl writes all need to reject symlinked ancestors before resolving.
+- Drift baseline workflows should emit a sanitized candidate artifact and require deliberate promotion. Copying raw latest-run state into an active baseline blurs review evidence with approval and can retain output fields that drift comparison does not need.
 - Hurl subprocess isolation needs an explicit environment allowlist. Passing variables through Hurl's variables file is not enough if the child process inherits unrelated parent secrets from CI or the local shell.
 - Treat OpenAPI as active Hurl input, not passive documentation. Parameter names and JSON object keys can become Hurl interpolation syntax unless fallbacks and keys are validated before rendering.
 - Markdown output is still a report boundary. Escape HTML metacharacters in addition to table pipes/newlines before metadata or spec values can be viewed in Obsidian, CI artifacts, or local renderers.

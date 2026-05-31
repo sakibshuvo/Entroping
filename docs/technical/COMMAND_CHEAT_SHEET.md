@@ -132,6 +132,10 @@ entroping run --env ci --ci --parallel --report junit
 entroping run --env staging --drift-check --report drift
 ```
 
+`--report drift` writes both `reports/drift.json` and, when the Hurl suite
+passes, `reports/drift-baseline.candidate.json`. Review the candidate before
+copying it to `.entroping/drift-baseline.json`.
+
 ## Reporting
 
 | Command | Purpose |

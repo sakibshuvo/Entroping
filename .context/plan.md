@@ -511,8 +511,8 @@ sanitized run report against a local baseline without invoking AI providers.
 
 Implemented boundaries:
 
-- The MVP baseline path is `.entroping/drift-baseline.json`; a reviewed
-  `.entroping/latest-run.json` can be copied there as the first baseline.
+- The MVP baseline path is `.entroping/drift-baseline.json`; active baselines
+  are promoted manually from reviewed candidate artifacts.
 - Drift comparison is deterministic and limited to current structured run-report
   fields: test path, Hurl status, exit code, injected QAnstitution rule IDs,
   and optional value-free response fingerprints.
@@ -520,6 +520,23 @@ Implemented boundaries:
   `missing_baseline` finding when `--report drift` is requested.
 - `--drift-check` affects the final exit code only after Hurl execution
   completes, so Hurl failures are not hidden by baseline problems.
+
+## Completed Slice: Issue #197 Reviewed Drift Baseline Workflow
+
+Outcome: `entroping run --report drift` now writes
+`reports/drift-baseline.candidate.json` after passing Hurl suites so users can
+review and deliberately promote drift baselines without treating current
+behavior as automatically approved.
+
+Implemented boundaries:
+
+- The active `.entroping/drift-baseline.json` file is never written by the run
+  workflow.
+- Candidate baselines exclude stdout, stderr, execution paths, volatile
+  headers, cookies, authorization data, raw response bodies, and raw values.
+- Candidate writes use the same symlink-safe artifact writer as reports.
+- The user guide and command references describe candidate review, diff, and
+  promotion before baseline updates.
 
 ## Completed Slice: Issue #110 Structured Response Drift
 

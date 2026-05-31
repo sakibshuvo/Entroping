@@ -363,11 +363,20 @@ Use drift detection when you have a baseline and want to know whether runtime be
 entroping run --env staging --drift-check --report drift
 ```
 
-For the MVP, the baseline lives at `.entroping/drift-baseline.json`. After a
-reviewed known-good run, create it from the sanitized latest run state:
+For the MVP, the active baseline lives at `.entroping/drift-baseline.json`.
+Entroping does not overwrite that file automatically. When `--report drift` is
+requested and the Hurl suite passes, Entroping writes a sanitized candidate:
 
 ```bash
-cp .entroping/latest-run.json .entroping/drift-baseline.json
+reports/drift-baseline.candidate.json
+```
+
+Review the candidate, compare it with the existing baseline when one exists, and
+promote it only after accepting the behavior:
+
+```bash
+git diff --no-index -- .entroping/drift-baseline.json reports/drift-baseline.candidate.json
+cp reports/drift-baseline.candidate.json .entroping/drift-baseline.json
 ```
 
 The first drift slice compares:
@@ -403,9 +412,11 @@ compiled through the dependency-map path. Counts, latency, query strings,
 headers, bodies, cookies, and tokens are not dependency drift truth.
 
 If the baseline is missing, `--report drift` writes a machine-readable
-`reports/drift.json` with a `missing_baseline` finding. `--drift-check` returns a
-non-zero exit code for missing baselines or drift findings after Hurl itself has
-finished, so Hurl failures are still visible.
+`reports/drift.json` with a `missing_baseline` finding and a reviewable
+`reports/drift-baseline.candidate.json` candidate when the Hurl suite passed.
+`--drift-check` returns a non-zero exit code for missing baselines or drift
+findings after Hurl itself has finished, so Hurl failures are still visible. See
+[Drift Baseline Workflow](DRIFT_BASELINE_WORKFLOW.md) for the full review path.
 
 ## 12. Studio
 

@@ -621,7 +621,10 @@ comparison uses the sanitized `duration_ms` values already present in reviewed
 run baselines and reports only conservative warning findings. Response
 fingerprints contain only status code, selected stable headers such as
 `content-type`, and JSON body shape paths; full response bodies and volatile
-headers are not stored as drift truth.
+headers are not stored as drift truth. `--report drift` also writes
+`reports/drift-baseline.candidate.json` after a passing Hurl suite. That
+candidate is sanitized and reviewable; the active
+`.entroping/drift-baseline.json` file is never written automatically.
 
 ### Report Artifact Contracts
 
@@ -632,6 +635,7 @@ headers are not stored as drift truth.
 | `entroping run --report junit` | `reports/junit.xml` | CI-compatible test report. |
 | `entroping run --report html` | `reports/run-latest.html` | Human-readable local report. |
 | `entroping run --report drift` | `reports/drift.json` | Machine-readable drift findings. |
+| `entroping run --report drift` | `reports/drift-baseline.candidate.json` | Reviewable sanitized baseline candidate after a passing Hurl suite. |
 | `entroping report bug` | `reports/bug.md` | Markdown handoff for issue trackers. |
 | `entroping report redaction --output md` | `reports/redaction-review.md` | Counts-only captured-traffic redaction review. |
 | `entroping report redaction --output html` | `reports/redaction-review.html` | Browser-readable captured-traffic redaction review. |

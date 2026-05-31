@@ -75,6 +75,7 @@ only through a compatibility issue and migration note.
 | `entroping run --report junit` | `reports/junit.xml` |
 | `entroping run --report html` | `reports/run-latest.html` |
 | `entroping run --report drift` | `reports/drift.json` |
+| `entroping run --report drift` | `reports/drift-baseline.candidate.json` |
 | `entroping report bug` | `reports/bug.md` |
 | `entroping report redaction --output md` | `reports/redaction-review.md` |
 | `entroping report redaction --output html` | `reports/redaction-review.html` |

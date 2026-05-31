@@ -2258,9 +2258,23 @@ def test_run_report_drift_writes_missing_baseline_artifact(
     assert result.exit_code == 0
     assert "Drift baseline not found" in result.output
     assert "reports/drift.json" in result.output
+    assert "reports/drift-baseline.candidate.json" in result.output
     drift = json.loads(Path("reports/drift.json").read_text(encoding="utf-8"))
     assert drift["summary"]["missing_baseline"] is True
     assert drift["findings"][0]["kind"] == "missing_baseline"
+    candidate = json.loads(
+        Path("reports/drift-baseline.candidate.json").read_text(encoding="utf-8")
+    )
+    assert candidate["tests"] == [
+        {
+            "duration_ms": 0,
+            "exit_code": 0,
+            "path": "tests/health.hurl",
+            "rule_ids": ["no_server_errors", "global_latency", "request_id_header"],
+            "status": "passed",
+        }
+    ]
+    assert not (Path(".entroping") / "drift-baseline.json").exists()
 
 
 def test_run_drift_check_fails_when_current_run_differs_from_baseline(

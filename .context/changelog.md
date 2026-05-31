@@ -166,3 +166,4 @@
 - Implemented issue #69's dependency map export with a pure traffic-to-graph compiler, Mermaid/Markdown/DOT renderers, CLI map wiring, PNG missing-renderer messaging, and redaction/escaping coverage.
 - Implemented issue #75's `freeze --mock` path with a pure traffic-to-WireMock compiler, safe mock service selection, staged mapping writes, symlink protection, and no-raw-secret coverage.
 - Hardened the live demo CI Hurl install step with bounded retries after a transient GitHub release download 502 caused a flaky PR check.
+- Implemented issue #197's reviewed drift baseline workflow with sanitized candidate baseline artifacts, no automatic active-baseline writes, path-safety and redaction regression tests, and user/technical docs for review, diff, and promotion.

@@ -219,6 +219,11 @@ def test_execute_run_workflow_drift_findings_affect_exit_code(
     assert result.drift_report.summary.drifted == 1
     assert result.exit_code == 1
     assert (tmp_path / "reports" / "drift.json").exists()
+    assert (tmp_path / "reports" / "drift-baseline.candidate.json").exists()
+    baseline_after_run = json.loads(
+        (state_dir / "drift-baseline.json").read_text(encoding="utf-8")
+    )
+    assert baseline_after_run["tests"][0]["rule_ids"] == ["old_rule"]
 
 
 def test_execute_run_workflow_missing_drift_baseline_affects_exit_code(
@@ -250,6 +255,48 @@ def test_execute_run_workflow_missing_drift_baseline_affects_exit_code(
     assert result.drift_report is not None
     assert result.drift_report.summary.missing_baseline is True
     assert result.exit_code == 1
+    assert not (tmp_path / "reports" / "drift-baseline.candidate.json").exists()
+
+
+def test_execute_run_workflow_writes_reviewed_drift_baseline_candidate_for_report(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_project(tmp_path)
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+    ) -> HurlSuiteResult:
+        _ = (options, max_workers)
+        return HurlSuiteResult(results=tuple(_passed_result(path) for path in paths))
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
+
+    result = execute_run_workflow(
+        project_root=tmp_path,
+        environment=None,
+        tag_filters=("smoke",),
+        report_formats=("drift",),
+        parallel=False,
+        drift_check=False,
+    )
+
+    candidate_path = tmp_path / "reports" / "drift-baseline.candidate.json"
+    assert candidate_path in result.artifacts
+    candidate = json.loads(candidate_path.read_text(encoding="utf-8"))
+    assert candidate["tests"] == [
+        {
+            "duration_ms": 12,
+            "exit_code": 0,
+            "path": "tests/health.hurl",
+            "rule_ids": ["latency"],
+            "status": "passed",
+        }
+    ]
+    assert not (tmp_path / ".entroping" / "drift-baseline.json").exists()
 
 
 def test_execute_run_workflow_preserves_hurl_failure_exit_code(
