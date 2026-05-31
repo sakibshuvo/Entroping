@@ -543,6 +543,11 @@ When Architect provider output is not valid JSON or generated Hurl fails parser
 validation, Entroping stops before writing files and prints a short validation
 summary. The raw provider output and parser streams are still not echoed because
 they can contain untrusted or secret-like content.
+Use the printed retry guidance as the next prompt constraint: ask for only the
+Architect JSON object when schema parsing fails, or ask for syntactically valid
+Hurl content inside the selected file when parser validation fails. Do not paste
+raw provider output or parser streams into tickets until you have reviewed them
+for secrets.
 
 ### Local Brain Feels Slow
 

@@ -36,6 +36,7 @@
 - Added issue #198's redaction review report: `entroping report redaction --output md|html` writes counts-only captured-traffic redaction reviews without raw header, query, or body values.
 - Added issue #227's optional-extras runtime smoke lane: CI installs all extras and runs `scripts/optional_extras_smoke.py` against LiteLLM, mitmproxy, and Textual boundaries without credentials or live capture.
 - Added ADR-0010 for issue #231: v0.3 stays CLI/report-first, Studio remains optional/read-only/report-backed, and mutation workflows remain design-only.
+- Added issue #199's Architect remediation guidance: invalid provider JSON and parser-rejected Hurl now print safe retry constraints while preserving no-write behavior and raw-output redaction.
 
 ## 2026-05-30
 

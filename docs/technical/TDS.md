@@ -680,8 +680,8 @@ Errors must be explicit and actionable:
 - Missing Hurl binary: tell user how to install or configure it.
 - Invalid QAnstitution: identify path and field.
 - Bad gate condition: identify rule ID and invalid expression.
-- Hurl validation failure: show the generated file path without echoing raw provider
-  content from parser stdout/stderr.
+- Hurl validation failure: show the generated file path and retry guidance
+  without echoing raw provider content from parser stdout/stderr.
 - mitmproxy certificate issue: explain CA installation steps.
 - LLM provider failure: include role/model and retry/fallback status without exposing keys.
 - Local model unavailable: explain whether Ollama is missing, not running, or missing the configured model.

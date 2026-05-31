@@ -114,6 +114,10 @@ and runtime-governance positioning first, two-minute live demo proof next, and
 deep Obsidian/spec inventory later.
 Issue #179 improved Architect validation UX for invalid provider JSON and
 parser-rejected Hurl while preserving no-write behavior and raw output redaction.
+Issue #199 extended that UX with safe retry guidance: schema/parser failures now
+tell users to return only the Architect JSON object, while parser-rejected Hurl
+tells users to return syntactically valid Hurl in the selected file only. Both
+paths still avoid echoing raw provider output or parser streams.
 Issue #90 moved deterministic run orchestration behind `core.run_workflow`,
 leaving the CLI adapter responsible for option normalization, output, and exit
 mapping.

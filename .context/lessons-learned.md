@@ -10,6 +10,7 @@
 - Redaction review reports should be category/count artifacts, not sampled traffic dumps. Even already-redacted state can contain sensitive business structure, so the default review should prove coverage without rendering URLs, header values, body values, or `[REDACTED]` placeholders.
 - Optional dependency audits and optional runtime smokes are different gates. Keep the all-extras dependency audit in the security gate, and keep adapter boot checks in a separate CI job so default regression remains lightweight.
 - TUI polish should trail durable artifacts. Studio can make local inspection nicer, but the product truth needs to land first in CLI commands, sanitized reports, and CI-friendly files that agents and users can review without a custom UI.
+- Architect remediation hints should be constraints, not copied provider text. Tell users how to retry safely, but keep raw model output and parser streams out of the terminal.
 
 ## 2026-05-30
 
