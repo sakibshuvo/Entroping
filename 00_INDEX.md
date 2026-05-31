@@ -39,6 +39,7 @@ Use these first. They are the control panel for current work:
 - [[docs/technical/COMMAND_CHEAT_SHEET|COMMAND_CHEAT_SHEET]] - locked command surface.
 - [[docs/technical/QANSTITUTION_REFERENCE|QANSTITUTION_REFERENCE]] - executable governance schema.
 - [[docs/technical/POLICY_PACK_LAYOUT|POLICY_PACK_LAYOUT]] - reusable QAnstitution policy-pack layout and example.
+- [[docs/technical/STUDIO_MUTATION_WORKFLOW_DESIGN|STUDIO_MUTATION_WORKFLOW_DESIGN]] - design gate for any future Studio write action.
 - [[docs/technical/REPORT_SCHEMAS|REPORT_SCHEMAS]] - versioned JSON report contracts and compatibility policy.
 - [[docs/architecture/ARCHITECTURE|ARCHITECTURE]] - implementation architecture overview.
 - [[docs/architecture/DEVELOPMENT|DEVELOPMENT]] - local development and verification commands.

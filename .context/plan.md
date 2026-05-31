@@ -168,6 +168,9 @@ Issue #231 settles the next Studio boundary before v0.3 expansion. ADR-0010
 keeps the roadmap CLI/report-first, allows only optional read-only
 report-backed Studio drilldowns over sanitized artifacts or redacted summaries,
 and keeps mutation workflows design-only until a separate accepted decision.
+Issue #196 adds that accepted design gate without changing runtime behavior:
+future Studio write actions must use preview, two-step confirmation, redaction,
+rollback, and existing CLI/core use cases before any mutation code lands.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
@@ -617,6 +620,23 @@ Implemented boundaries:
 - Starter pack examples stay in the Apache-2.0 public core; deeper curated
   policy-pack catalogs can be commercial only if they still produce local,
   auditable QAnstitution files before enforcement.
+
+## Completed Slice: Issue #196 Studio Mutation Workflow Design
+
+Outcome: future Studio write actions now have an accepted design gate before
+any Textual mutation code can land.
+
+Implemented boundaries:
+
+- v0.3 Studio remains read-only; no rerun, config-edit, Hurl-edit, baseline
+  promotion, freeze/map write, provider-backed edit, scheduler, cloud, or
+  telemetry behavior was added.
+- Future mutation workflows must call existing CLI/core use cases instead of
+  Textual widgets writing files directly.
+- Every future write needs a sanitized preview, reviewable diff or structured
+  change summary, two-step confirmation, result evidence, and rollback path.
+- Future Studio previews must not render raw secrets, raw captured traffic,
+  raw provider output, or unredacted Hurl output.
 
 ## Completed Slice: Issue #208 Performance Smoke Evidence
 

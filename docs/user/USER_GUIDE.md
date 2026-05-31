@@ -455,6 +455,9 @@ config, reports, or `.entroping` state.
 Near-term Studio work is report-backed and read-only: applied-gate detail,
 deeper failure drilldown, and traffic-session navigation may read sanitized
 artifacts or redacted state. Studio should not rerun suites, edit tests, or change config in the alpha.
+Future write actions must follow
+[STUDIO_MUTATION_WORKFLOW_DESIGN.md](../technical/STUDIO_MUTATION_WORKFLOW_DESIGN.md)
+before implementation.
 
 Studio is a local development interface. CI should use `entroping run`.
 

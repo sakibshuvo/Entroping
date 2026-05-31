@@ -149,6 +149,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Captured-traffic redaction review](https://github.com/sakibshuvo/Entroping/issues/198) | Done | `entroping report redaction --output md|html` writes counts-only reports for header, query, body-field, and body-summary redaction categories | Keep reports free of raw captured values |
 | [Optional-extras runtime smoke](https://github.com/sakibshuvo/Entroping/issues/227) | Done | GitHub Actions installs all optional extras and runs `scripts/optional_extras_smoke.py` against LiteLLM, mitmproxy, and Textual boundaries without credentials or live capture | Keep default regression lightweight while proving optional adapters boot |
 | [Studio scope decision](https://github.com/sakibshuvo/Entroping/issues/231) | Done | ADR-0010 keeps v0.3 CLI/report-first, allows only optional read-only report-backed Studio drilldowns, and keeps mutation work design-only | Update Studio issues before implementation |
+| [Studio mutation workflow design](https://github.com/sakibshuvo/Entroping/issues/196) | Done | `docs/technical/STUDIO_MUTATION_WORKFLOW_DESIGN.md` defines future preview, confirmation, redaction, rollback, and test gates without adding mutation code | Keep v0.3 Studio read-only |
 
 ## Later Roadmap
 

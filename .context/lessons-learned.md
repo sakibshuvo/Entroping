@@ -15,6 +15,7 @@
 - Performance smokes should produce reviewable release evidence, not noisy microbenchmarks. Use bounded synthetic workloads, generous thresholds, fake Hurl for network-free runner proof, and ignored JSON artifacts that a release owner can inspect.
 - Cross-platform install claims need explicit non-claims. It is better to prove Windows CLI installation and `doctor` guidance than imply Hurl-backed Windows execution before the Windows Hurl path is reviewed.
 - Policy packs should start as ordinary QAnstitution imports plus metadata, not a second policy system. Prove the directory shape and examples first; add registry, remote-fetch, or manifest validation only after a focused follow-up issue.
+- Studio mutation must be preview-first, confirmation-gated, and reversible before code. Keep Textual as an adapter over existing CLI/core use cases, not a direct writer or runner.
 
 ## 2026-05-30
 

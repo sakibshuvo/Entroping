@@ -56,4 +56,4 @@ security, and maintenance cost before the CLI/report path is mature.
   reports, and CI proof first; Studio is useful polish, not the adoption
   blocker.
 
-Links: [[ROADMAP]], [[docs/user/USER_GUIDE|USER_GUIDE]], [[docs/technical/TDS|TDS]], [#190](https://github.com/sakibshuvo/Entroping/issues/190), [#192](https://github.com/sakibshuvo/Entroping/issues/192), [#196](https://github.com/sakibshuvo/Entroping/issues/196), [#231](https://github.com/sakibshuvo/Entroping/issues/231)
+Links: [[ROADMAP]], [[docs/user/USER_GUIDE|USER_GUIDE]], [[docs/technical/TDS|TDS]], [STUDIO_MUTATION_WORKFLOW_DESIGN.md](../docs/technical/STUDIO_MUTATION_WORKFLOW_DESIGN.md), [#190](https://github.com/sakibshuvo/Entroping/issues/190), [#192](https://github.com/sakibshuvo/Entroping/issues/192), [#196](https://github.com/sakibshuvo/Entroping/issues/196), [#231](https://github.com/sakibshuvo/Entroping/issues/231)
