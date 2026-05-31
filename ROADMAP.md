@@ -52,12 +52,17 @@ Goal: make the first hour with Entroping smooth enough for real users.
 - GitHub Actions template for running Entroping in downstream repos.
 - Provider setup guide for LiteLLM, local Qwen/oMLX, and no-provider CI.
 
-## Next: v0.3.0-alpha Product Depth
+## Next: v0.3.0-alpha CLI/report-first product depth
 
 Goal: deepen the alpha without weakening deterministic execution.
 
-- Studio read-only drilldowns for applied gates, failures, reports, and traffic sessions.
-- Reviewed design for any Studio mutation workflow before implementation.
+- Studio stays optional, read-only, and report-backed. It may add drilldowns
+  only over already-sanitized reports, applied gate metadata, or redacted
+  traffic summaries.
+- CLI and reports remain the primary workflow for drift baselines, redaction
+  review, Architect remediation feedback, and richer examples.
+- No Studio mutation implementation is planned for v0.3; mutation work remains
+  a design gate only.
 - Baseline workflows for drift, latency, response-shape, and dependency-route evidence.
 - Redaction review UX for captured traffic.
 - Better Architect feedback when provider output is invalid or incomplete.

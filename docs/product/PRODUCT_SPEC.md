@@ -209,7 +209,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | EXE-008 | Generate bug reports | `entroping report bug` creates a Markdown bug template with exact Hurl/curl repro details |
 | EXE-009 | Generate redaction review reports | `entroping report redaction --output md` and `--output html` summarize captured traffic redaction categories and counts without raw secrets |
 | EXE-010 | Generate traceability reports | `entroping report traceability --output md` maps local Hurl metadata to stories, owners, docs, tests, tags, and findings |
-| EXE-011 | Provide TUI workflow | `entroping studio --env local` opens Textual/Rich mission control for local debugging |
+| EXE-011 | Provide read-only TUI workflow | `entroping studio --env local` opens optional Textual/Rich local inspection over sanitized reports and redacted state |
 | EXE-012 | Preserve execution reproducibility | All blocking CI behavior must be explainable from committed Hurl files, env data, effective QAnstitution, and Hurl output |
 
 ## 10. Supported Test Types
@@ -310,11 +310,11 @@ The old v1 direction optimized for a solo developer exploring a local CLI quickl
 - **Execution path:** Hurl-native, deterministic, and CI-first.
 - **AI path:** local-first with optional cloud fallback, never dependent on external Gemini or Claude CLIs.
 - **Business path:** open-core CLI first, future Cloud only for centralized rules, audit logs, SSO, and team dashboards.
-- **UX path:** the CLI and `run --ci` are the real product core; richer GUI/Bruno-like management is future product vision.
+- **UX path:** the CLI and reports are the real product core; Studio is an optional read-only local inspector, and richer GUI/Bruno-like management is future product vision.
 
 ## 17. Final Product Definition
 
-Entroping v4.1 is a local-first CLI and TUI system that uses AI to create and maintain Hurl tests, observes real traffic through mitmproxy, enforces policy from `qanstitution.yaml`, and reports deterministic runtime evidence for developers and CI.
+Entroping v4.1 is a local-first CLI system with an optional read-only Studio TUI. It uses AI to create and maintain Hurl tests, observes real traffic through mitmproxy, enforces policy from `qanstitution.yaml`, and reports deterministic runtime evidence for developers and CI.
 
 The final product promise is simple:
 

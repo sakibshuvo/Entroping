@@ -140,6 +140,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Stable-core threat model refresh](https://github.com/sakibshuvo/Entroping/issues/207) | Done | `docs/technical/THREAT_MODEL.md` now tracks current runtime surfaces, controls, prior validated findings, and residual-risk follow-up issues | Review before stable-core security claims |
 | [Captured-traffic redaction review](https://github.com/sakibshuvo/Entroping/issues/198) | Done | `entroping report redaction --output md|html` writes counts-only reports for header, query, body-field, and body-summary redaction categories | Keep reports free of raw captured values |
 | [Optional-extras runtime smoke](https://github.com/sakibshuvo/Entroping/issues/227) | Done | GitHub Actions installs all optional extras and runs `scripts/optional_extras_smoke.py` against LiteLLM, mitmproxy, and Textual boundaries without credentials or live capture | Keep default regression lightweight while proving optional adapters boot |
+| [Studio scope decision](https://github.com/sakibshuvo/Entroping/issues/231) | Done | ADR-0010 keeps v0.3 CLI/report-first, allows only optional read-only report-backed Studio drilldowns, and keeps mutation work design-only | Update Studio issues before implementation |
 
 ## Later Roadmap
 
@@ -161,7 +162,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | Coverage Hardening | Done | `scripts/audit_quality.sh` enforces 100 percent coverage by default; `cli.main`, `core.session_prompt`, `core.config_loader`, `core.config_writer`, `core.dependency_mapper`, `core.drift_report`, `core.env_loader`, `core.freeze`, `core.gate_injector`, `core.openapi_loader`, `core.hurl_discovery`, `core.hurl_runner`, `core.hurl_validator`, `core.report_writer`, `core.safe_write`, `core.traffic_proxy`, `core.traffic_redactor`, `core.traffic_store`, `studio.app`, `studio.status`, `brain.architect_build`, `brain.architect_refactor`, `brain.architect_writer`, `brain.litellm_client`, `brain.output_parser`, `brain.persona_loader`, `brain.prompt_builder`, `brain.safety`, `models.hurl`, `models.traffic`, `bridge.merge`, `bridge.openapi_audit`, `bridge.openapi_to_hurl`, `bridge.policy_to_hurl`, `bridge.story_traceability`, `bridge.traffic_sessions`, `bridge.traffic_to_graph`, `bridge.traffic_to_hurl`, and `bridge.traffic_to_wiremock` have 100 percent module coverage | Keep future gaps explicit and tracked |
 | Public Trust Signals | Done | Community-profile audit script, README Scorecard badge, and scheduled/manual OpenSSF Scorecard workflow are in place | Manually dispatch Scorecard after public repo settings are ready |
 | Launch Assets | Done | Launch kit links curated PNG previews for terminal smoke, HTML report, and dependency map plus portable rebuild/source commands from README and Obsidian index | Keep raw generated media out of Git |
-| Studio | Done | Interactive read-only Textual TUI is available; mutation workflows remain later |
+| Studio | Done | Interactive read-only Textual TUI is available; v0.3 Studio work is optional, report-backed, and mutation-free by ADR-0010 |
 
 ## Update Rules
 

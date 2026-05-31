@@ -604,7 +604,11 @@ entroping report traceability [--output md]
 `studio` is an interactive read-only Textual TUI. It requires the optional
 Studio extra and renders tabs for local QAnstitution status, latest-run summary,
 suite rows, failure details, report artifacts, and traffic-state visibility.
-It must not mutate tests, config, reports, or runtime state.
+It must not mutate tests, config, reports, or runtime state. Near-term Studio
+work is report-backed: CLI and report artifacts remain the primary workflow,
+and Studio may only add read-only views over sanitized reports, applied gate
+metadata, and redacted traffic summaries until a separate mutation design is
+accepted.
 `--report` is repeatable so a single run can emit both CI and human artifacts, for example `--report junit --report html`.
 `--parallel` uses `settings.parallel_workers` from `qanstitution.yaml`, keeps the
 per-file timeout and output-redaction behavior, and preserves deterministic
