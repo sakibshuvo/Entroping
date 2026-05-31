@@ -35,6 +35,39 @@ on GitHub, Git history, Markdown docs, ADRs, `.context/`, issues, PRs, CI, and
 release tags. Obsidian improves navigation and context recovery on top of those
 assets.
 
+## Start Analyzing And Evolving
+
+Use this short loop when you want to understand, evolve, or restart work on the
+project:
+
+1. Open the repository as the Obsidian vault.
+2. Start from `00_INDEX.md`.
+3. Read `docs/meta/PROJECT_PROGRESS.md` and `ROADMAP.md` for current status.
+4. Read this guide, `docs/meta/OBSIDIAN_VS_GITHUB.md`, and
+   `docs/meta/DOCS_GOVERNANCE.md` for operating rules.
+5. Use GitHub Issues as the execution backlog.
+6. Use `docs/evolution/`, `sources/SOURCE_MAP.md`, `decisions/`, and
+   `.context/lessons-learned.md` for idea evolution and historical context.
+
+The operating loop is:
+
+```text
+Brainstorm in Obsidian
+       ↓
+Promote actionable work to GitHub issue
+       ↓
+Build on branch / agent session
+       ↓
+Run tests, security, and docs gates
+       ↓
+Merge through GitHub
+       ↓
+Update context only if product truth changed
+```
+
+Do not browse every Markdown file. Start from the index, progress note, roadmap,
+and target issue. GitHub is the factory floor. Obsidian is the memory palace.
+
 ## What People Are Actually Doing
 
 The useful Obsidian project patterns cluster around six practices:

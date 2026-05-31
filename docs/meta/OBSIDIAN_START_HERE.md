@@ -35,6 +35,8 @@ Recommended first settings:
 
 ## Daily Editing Workflow
 
+- To analyze or evolve the project, follow
+  [[docs/meta/OBSIDIAN_CONTEXT_ENGINE_GUIDE#Start Analyzing And Evolving|Start Analyzing And Evolving]].
 - Open [[docs/meta/PROJECT_PROGRESS|PROJECT_PROGRESS]] first.
 - Use [[00_INDEX]] as the map when you need to navigate beyond current work.
 - Use [[docs/meta/GLOSSARY|GLOSSARY]] when product terms feel unfamiliar.

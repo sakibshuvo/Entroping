@@ -35,6 +35,22 @@ def test_knowledge_base_workflow_documents_source_promotion() -> None:
     assert "hallucination" in doc.lower()
 
 
+def test_obsidian_context_engine_documents_project_evolution_loop() -> None:
+    doc = (
+        REPO_ROOT / "docs" / "meta" / "OBSIDIAN_CONTEXT_ENGINE_GUIDE.md"
+    ).read_text(encoding="utf-8")
+    start_here = (
+        REPO_ROOT / "docs" / "meta" / "OBSIDIAN_START_HERE.md"
+    ).read_text(encoding="utf-8")
+
+    assert "Start Analyzing And Evolving" in doc
+    assert "Brainstorm in Obsidian" in doc
+    assert "Promote actionable work to GitHub issue" in doc
+    assert "GitHub is the factory floor" in doc
+    assert "Obsidian is the memory palace" in doc
+    assert "Start Analyzing And Evolving" in start_here
+
+
 def test_growth_and_monetization_plan_keeps_open_core_boundary() -> None:
     doc = (REPO_ROOT / "docs" / "product" / "GROWTH_AND_MONETIZATION.md").read_text(
         encoding="utf-8"
