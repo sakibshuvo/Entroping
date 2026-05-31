@@ -3,6 +3,30 @@
 **Version:** 4.1 Stable  
 **Rule:** Use this command surface as the implementation and user-facing source of truth.
 
+Compatibility audit: [CLI_COMPATIBILITY_AUDIT.md](CLI_COMPATIBILITY_AUDIT.md).
+
+## Locked Alpha Surface
+
+```text
+entroping init [--minimal]
+entroping doctor
+entroping config list
+entroping config set --agent <builder|auditor|breaker> --model <model-id>
+
+entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>]
+entroping architect refactor --target <glob> --prompt <text>
+entroping architect audit [--focus logic] [--output <json|md>]
+
+entroping watch [--port <port>] [--target <url>]
+entroping freeze --name <flow> [--golden] [--mock <service>]
+entroping map [--export <mermaid|dot|md|png>]
+
+entroping studio [--env <name>]
+entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check]
+entroping report bug
+entroping report traceability [--output md]
+```
+
 ## Setup
 
 Current alpha implementation supports `init`, `doctor`, `config list`, and

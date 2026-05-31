@@ -3,6 +3,8 @@
 ## 2026-05-31
 
 - The root README is a public product front door, not the full Obsidian vault index. Lead with the problem, promise, and executable demo proof; keep phase inventories, source maps, and agent context lower in the document or in linked docs.
+- Run mypy through the repo target, not isolated test-file imports. `uv run mypy tests/<file>.py` can analyze the installed package and report missing `py.typed`, while `uv run mypy src tests/<file>.py` or the normal feature gate checks the local source tree correctly.
+- CLI help-output tests should normalize Rich/Typer rendering. Pin `COLUMNS` and strip ANSI escape sequences before asserting command or flag names, otherwise CI terminal rendering can truncate or style option names while local tests still pass.
 - Latency drift should be conservative and baseline-backed. Compare only sanitized `duration_ms` values from reviewed run reports, require both absolute and percentage regression thresholds, and report warnings rather than treating tiny local timing noise as product truth.
 - Architect error UX should be actionable without becoming a data leak. Print short validation categories and no-write guidance, but continue hiding raw provider output and parser streams.
 
