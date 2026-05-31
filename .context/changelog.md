@@ -49,6 +49,7 @@
 - Added ADR-0011 for issue #202: organization QAnstitution imports must preserve provenance, final-gate behavior, local-first validation, and effective-policy evidence before remote/registry features are implemented.
 - Added issue #204's non-GitHub CI provider recipes with GitLab CI, Buildkite, CircleCI, and generic shell guidance while deferring untested native templates from `examples/`.
 - Added issue #225's standalone binary distribution decision: defer Nuitka/PyInstaller automation until PyPI alpha, Homebrew tap demand, platform signing/notarization runbooks, and support evidence justify it.
+- Added issue #223's manual PyPI/TestPyPI Trusted Publishing workflow with unprivileged artifact build, protected `testpypi`/`pypi` environments, and token-free OIDC publish jobs.
 
 ## 2026-05-30
 
