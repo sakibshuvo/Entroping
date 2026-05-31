@@ -67,6 +67,9 @@ Feature-slice requirements:
 
 ## Starting A Session
 
+For a first contribution, start with
+[[docs/meta/GOOD_FIRST_ISSUE_WALKTHROUGH|GOOD_FIRST_ISSUE_WALKTHROUGH]].
+
 Use the launcher from the repo root so every agent starts with the same issue context, worktree isolation, and guardrails:
 
 ```bash

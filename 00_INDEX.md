@@ -42,6 +42,7 @@ Use these first. They are the control panel for current work:
 
 ## Work Management
 
+- [[docs/meta/GOOD_FIRST_ISSUE_WALKTHROUGH|GOOD_FIRST_ISSUE_WALKTHROUGH]] - newcomer path from issue labels to validated PR.
 - [[docs/meta/ISSUE_TRACKING|ISSUE_TRACKING]] - GitHub issue tracking rules for bugs, features, and regressions.
 - [[docs/meta/OBSIDIAN_VS_GITHUB|OBSIDIAN_VS_GITHUB]] - practical guide for where ideas, bugs, roadmap, and context belong.
 - [[docs/meta/OBSIDIAN_CONTEXT_ENGINE_GUIDE|OBSIDIAN_CONTEXT_ENGINE_GUIDE]] - how to use Obsidian as an agent-friendly context preservation engine.

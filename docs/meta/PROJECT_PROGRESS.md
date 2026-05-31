@@ -34,8 +34,9 @@ Do not duplicate every issue here. The detailed queue lives in GitHub.
 
 ## Current Target
 
-**Goal:** move from public-cleanup proof into the v0.2 adoption and onboarding
-queue now that the fresh-clone smoke and curated launch previews are in place.
+**Goal:** make the v0.2 adoption path contributor-friendly after the
+fresh-clone smoke and curated launch previews proved the public first-hour
+experience.
 
 GitHub Project: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -125,6 +126,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [README open-source front door](https://github.com/sakibshuvo/Entroping/issues/174) | Done | README now leads with the AI-regression hook, two-minute live demo proof, concise value props, launch assets, and alpha boundaries before deep docs | Keep the front page demo-first as the product surface grows |
 | [Public clean-checkout onboarding smoke](https://github.com/sakibshuvo/Entroping/issues/185) | Done | Fresh public clone on macOS 26.5 arm64 completed `uv sync --dev`, verified Hurl 8.0.1 on PATH, ran `scripts/live_demo_smoke.sh`, and passed `scripts/release_check.sh --require-live-demo` | Capture issue evidence and keep README quickstart honest |
 | [Curated public launch previews](https://github.com/sakibshuvo/Entroping/issues/191) | Done | README and launch hub link terminal, HTML report, and dependency-map PNGs generated from live checkout fixture output and redacted traffic state | Replace media only from reproducible source commands |
+| [Good-first-issue contributor walkthrough](https://github.com/sakibshuvo/Entroping/issues/184) | Done | New contributor guide explains labels, milestones, `scripts/start_issue.sh`, validation gates, and PR documentation expectations | Keep first-contribution path small as workflow grows |
 | [Run orchestration extraction](https://github.com/sakibshuvo/Entroping/issues/90) | Done | `core.run_workflow` now owns deterministic run orchestration and returns a typed workflow result | Keep future run flags out of the CLI adapter |
 | [Post-alpha security review](https://github.com/sakibshuvo/Entroping/issues/96) | Done | PR #105 merged the local boundary hardening after fixing 14 validated candidates; scan artifacts live under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z/` | Keep security scans tied to concrete remediation branches |
 
