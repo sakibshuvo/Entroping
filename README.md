@@ -221,7 +221,8 @@ scripts/regression.sh --security
 
 CI enforces `scripts/regression.sh --security` for pull requests and pushes to
 `main`. CI enforces `scripts/audit_quality.sh` as a separate quality-audit job,
-and runs `optional-extras-smoke` with all optional dependencies installed so
+runs `install-smoke` across Linux, macOS, and Windows, and runs
+`optional-extras-smoke` with all optional dependencies installed so
 Brain/LiteLLM, Eye/mitmproxy, and Studio/Textual boot without provider
 credentials or live traffic capture. The quality-audit job uploads generated
 reports as workflow artifacts.
@@ -292,6 +293,7 @@ Operating the project:
 - [GITHUB_ACTIONS_STARTER.md](docs/user/GITHUB_ACTIONS_STARTER.md) - copyable downstream CI workflow.
 - [PYPI_RELEASE_RUNBOOK.md](docs/meta/PYPI_RELEASE_RUNBOOK.md) - TestPyPI-first package-index publishing plan.
 - [PUBLIC_DOCS_SITE_DECISION.md](docs/meta/PUBLIC_DOCS_SITE_DECISION.md) - MkDocs Material public-site decision and scaffold.
+- [INSTALL_SMOKE_MATRIX.md](docs/meta/INSTALL_SMOKE_MATRIX.md) - Linux, macOS, and Windows install-smoke support claims.
 - [DISTRIBUTION_RECOMMENDATION.md](docs/meta/DISTRIBUTION_RECOMMENDATION.md) - uv, PyPI, Homebrew tap, and standalone binary sequencing.
 - [AGENT_CONTROL_PLANE.md](docs/meta/AGENT_CONTROL_PLANE.md) - Codex-first multi-agent workflow.
 - [KNOWLEDGE_BASE_WORKFLOW.md](docs/meta/KNOWLEDGE_BASE_WORKFLOW.md) - Obsidian, Gemini, NotebookLM, and Graphify workflow.

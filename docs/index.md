@@ -34,6 +34,7 @@ Core references:
 - [Command Cheat Sheet](technical/COMMAND_CHEAT_SHEET.md)
 - [Release Checklist](meta/RELEASE_CHECKLIST.md)
 - [PyPI Release Runbook](meta/PYPI_RELEASE_RUNBOOK.md)
+- [Install Smoke Matrix](meta/INSTALL_SMOKE_MATRIX.md)
 
 Canonical source still lives in the repository Markdown. The Obsidian vault
 entry point remains `00_INDEX.md`; this page is only the public web landing page.

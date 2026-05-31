@@ -63,6 +63,99 @@ jobs:
           path: reports
           if-no-files-found: ignore
 
+  install-smoke:
+    runs-on: ${{ matrix.os }}
+    needs: checks
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            hurl_mode: pinned-archive
+          - os: macos-latest
+            hurl_mode: homebrew
+          - os: windows-latest
+            hurl_mode: doctor-only
+    env:
+      HURL_VERSION: "8.0.1"
+      HURL_SHA256: "cac7c4670d69444db120edb21fe06c97ba8c80dcc52279957c8dd18f05fb0c06"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Install pinned Hurl on Linux
+        if: matrix.hurl_mode == 'pinned-archive'
+        shell: bash
+        run: |
+          archive="hurl-${HURL_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          base_url="https://github.com/Orange-OpenSource/hurl/releases/download/${HURL_VERSION}"
+          download_with_retry() {
+            local url="$1"
+            local output="$2"
+            for attempt in 1 2 3; do
+              if curl --fail --location --silent --show-error --output "$output" "$url"; then
+                return 0
+              fi
+              if [ "$attempt" -eq 3 ]; then
+                return 1
+              fi
+              sleep $((attempt * 2))
+            done
+          }
+          download_with_retry "$base_url/$archive" "$RUNNER_TEMP/$archive"
+          cd "$RUNNER_TEMP"
+          test "$HURL_SHA256" = "$(sha256sum "$archive" | awk '{print $1}')"
+          tar -xzf "$archive"
+          echo "$RUNNER_TEMP/hurl-${HURL_VERSION}-x86_64-unknown-linux-gnu/bin" >> "$GITHUB_PATH"
+
+      - name: Install Hurl on macOS
+        if: matrix.hurl_mode == 'homebrew'
+        run: brew install hurl
+
+      - name: Install Entroping and smoke CLI on Unix
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          uv tool install . --force
+          tool_bin="$(uv tool dir --bin)"
+          entroping_bin="$tool_bin/entroping"
+          smoke_dir="$RUNNER_TEMP/entroping-install-smoke"
+          rm -rf "$smoke_dir"
+          mkdir -p "$smoke_dir"
+          # entroping --version
+          "$entroping_bin" --version
+          cd "$smoke_dir"
+          # entroping init --minimal
+          "$entroping_bin" init --minimal
+          # entroping doctor
+          "$entroping_bin" doctor
+
+      - name: Install Entroping and smoke CLI on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          uv tool install . --force
+          $toolBin = (uv tool dir --bin).Trim()
+          $entroping = Join-Path $toolBin "entroping.exe"
+          $smokeDir = Join-Path $env:RUNNER_TEMP "entroping-install-smoke"
+          Remove-Item -Recurse -Force $smokeDir -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Path $smokeDir | Out-Null
+          # entroping --version
+          & $entroping --version
+          Set-Location $smokeDir
+          # entroping init --minimal
+          & $entroping init --minimal
+          # entroping doctor
+          & $entroping doctor
+
   optional-extras-smoke:
     runs-on: ubuntu-latest
     needs: checks

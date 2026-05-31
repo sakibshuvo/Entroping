@@ -34,6 +34,7 @@ project, and a Codex workspace with fast context rehydration.
 - `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, `.github/pull_request_template.md`, and `scripts/feature_gate.sh` define the executable delivery gates for feature work.
 - `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, `scripts/regression.sh`, and `scripts/audit_quality.sh` define issue tracking, regression coverage, quality audit coverage, and simple phase-level progress tracking.
 - `scripts/performance_smoke.py` produces local release-owner evidence for large Hurl suites, parallel runner behavior, report size, and SQLModel traffic-store retention.
+- CI includes an `install-smoke` matrix for Linux, macOS, and Windows setup claims. Linux uses a pinned Hurl archive, macOS uses Homebrew Hurl, and Windows is explicitly doctor-only until Hurl-backed execution is reviewed.
 - `scripts/community_profile_audit.sh` and `.github/workflows/scorecard.yml` provide public trust-signal hygiene without adding a pull-request gate.
 - Apache-2.0 licensing and package metadata are in place for the public core; `docs/product/OPEN_CORE_BOUNDARIES.md` now defines what stays core versus what can become commercial.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work; `scripts/finish_issue.sh` verifies merged PRs and safely removes completed local worktrees.
@@ -612,6 +613,24 @@ Implemented boundaries:
   pass/fail status.
 - `scripts/release_check.sh` runs the performance smoke by default and supports
   `--skip-performance` for local diagnostics.
+
+## Completed Slice: Issue #206 Cross-Platform Install Smoke Matrix
+
+Outcome: public setup claims now have a CI-backed operating-system matrix and
+explicit non-claims instead of relying on generic "cross-platform" wording.
+
+Implemented boundaries:
+
+- The `install-smoke` CI job runs after `checks` on Ubuntu, macOS, and Windows.
+- Linux installs a reviewed pinned Hurl archive and verifies `HURL_SHA256`
+  before running `uv tool install . --force`, `entroping --version`,
+  `entroping init --minimal`, and `entroping doctor`.
+- macOS uses Homebrew Hurl with the same uv tool install and CLI smoke path.
+- Windows proves uv tool install, console-script startup, minimal init, and
+  doctor guidance only. Windows Hurl-backed `entroping run` is not claimed for
+  alpha.
+- Optional adapters stay in the separate `optional-extras-smoke` lane, so base
+  install claims do not imply mitmproxy, Textual, Graphviz, or provider setup.
 
 ## Completed Slice: Issue #110 Structured Response Drift
 

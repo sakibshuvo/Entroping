@@ -47,6 +47,11 @@ entry points, and install smoke behavior. Defer standalone binaries until users
 are asking for them or until enterprise/commercial packaging needs justify the
 signing and support burden.
 
+Cross-platform install claims are controlled by
+[INSTALL_SMOKE_MATRIX.md](INSTALL_SMOKE_MATRIX.md). The current CI matrix proves
+uv tool installation on Linux, macOS, and Windows, but Windows remains
+doctor-only for Hurl until a Windows Hurl-backed execution path is reviewed.
+
 Do not start with signing or notarization. That complexity should arrive only
 after the simpler package-manager paths are already useful.
 
