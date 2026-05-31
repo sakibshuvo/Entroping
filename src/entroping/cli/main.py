@@ -820,9 +820,23 @@ def _print_architect_error(exc: BaseException) -> None:
             "Expected JSON object with summary, optional warnings, and edits[].",
             style="yellow",
         )
+        console.print(
+            "Retry guidance: return only the Architect JSON object. "
+            "Do not wrap the response in Markdown fences.",
+            style="yellow",
+            markup=False,
+            soft_wrap=True,
+        )
         console.print("No Architect files were written.", style="yellow")
     if isinstance(exc, HurlValidationError):
         console.print("Architect Hurl validation failed before write.", style="yellow")
+        console.print(
+            "Retry guidance: return syntactically valid Hurl. "
+            "Keep generated content in the selected Hurl file only.",
+            style="yellow",
+            markup=False,
+            soft_wrap=True,
+        )
         console.print("No Architect files were written.", style="yellow")
 
 

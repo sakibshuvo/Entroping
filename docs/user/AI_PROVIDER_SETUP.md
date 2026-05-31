@@ -198,3 +198,12 @@ If LiteLLM reports provider errors:
   one.
 - Keep `entroping run --ci` as the final proof after generated files are
   reviewed.
+
+If provider output reaches Entroping but fails validation:
+
+- For schema/parser errors, retry with a narrower prompt that asks for only the
+  Architect JSON object and no Markdown fences.
+- For generated Hurl validation errors, retry with a prompt that asks for
+  syntactically valid Hurl in the selected file only.
+- Do not copy raw provider output, parser stdout, parser stderr, or prompt
+  context into issues until it has been reviewed for secrets.
