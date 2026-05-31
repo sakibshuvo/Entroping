@@ -90,6 +90,7 @@ Use these first. They are the control panel for current work:
 - [[docs/technical/REPORT_SCHEMAS|REPORT_SCHEMAS]] - run, drift, and traceability report schema versions.
 - [[docs/technical/CODEX_PROMPT|CODEX_PROMPT]] - historical implementation-agent prompt; `AGENTS.md` is current.
 - [[examples/checkout-api/README|Checkout API demo fixture]] - minimal example for first-time users.
+- [[examples/support-api/README|Support API demo fixture]] - second fixture with ticket filters, request headers, and mutation audit gates.
 - [[sources/SOURCE_MAP]] - where the source materials live.
 
 ## Decision Trail
