@@ -67,6 +67,7 @@ Use these first. They are the control panel for current work:
 
 - [[docs/user/USER_FLOWS|USER_FLOWS]] - end-to-end workflows.
 - [[docs/user/USE_CASES|USE_CASES]] - concrete scenarios.
+- [[docs/user/AI_PROVIDER_SETUP|AI_PROVIDER_SETUP]] - LiteLLM, local Qwen/oMLX, cloud model, and no-provider CI setup.
 - [[docs/user/GITHUB_ACTIONS_STARTER|GITHUB_ACTIONS_STARTER]] - copyable downstream GitHub Actions CI gate.
 - [[docs/meta/OBSIDIAN_START_HERE|OBSIDIAN_START_HERE]] - first-time Obsidian workflow for this vault.
 - [[docs/meta/GLOSSARY|GLOSSARY]] - plain-language explanation of Entroping terms.

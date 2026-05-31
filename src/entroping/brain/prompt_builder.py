@@ -31,6 +31,8 @@ class ArchitectPromptPackage(BaseModel):
 
     role: str
     model: str
+    api_base: str | None = None
+    api_key_env: str | None = None
     temperature: float = Field(ge=0.0, le=2.0)
     max_tokens: int | None = Field(default=None, gt=0)
     messages: tuple[PromptMessage, ...] = Field(min_length=2)
@@ -65,6 +67,8 @@ def build_architect_prompt_package(
     return ArchitectPromptPackage(
         role=persona.role,
         model=persona.model,
+        api_base=persona.api_base,
+        api_key_env=persona.api_key_env,
         temperature=persona.temperature,
         max_tokens=persona.max_tokens,
         messages=(

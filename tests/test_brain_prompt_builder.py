@@ -39,6 +39,8 @@ def _persona(tmp_path: Path) -> AgentPersona:
         source_path=tmp_path / "agents" / "builder.md",
         content="You build minimal Hurl tests.",
         model="openai/gpt-4.1-mini",
+        api_base=None,
+        api_key_env=None,
         temperature=0.0,
         max_tokens=None,
     )
@@ -54,12 +56,40 @@ def test_build_architect_prompt_package_includes_policy_and_context(tmp_path: Pa
 
     assert package.role == "builder"
     assert package.model == "openai/gpt-4.1-mini"
+    assert package.api_base is None
+    assert package.api_key_env is None
     assert package.messages[0].role == "system"
     assert "You build minimal Hurl tests." in package.messages[0].content
     assert "global_latency" in package.messages[0].content
     assert package.messages[1].role == "user"
     assert "Generate checkout smoke coverage." in package.messages[1].content
     assert "docs/story.md" in package.messages[1].content
+
+
+def test_build_architect_prompt_package_carries_provider_connection_metadata(
+    tmp_path: Path,
+) -> None:
+    persona = AgentPersona(
+        role="builder",
+        source_path=tmp_path / "agents" / "builder.md",
+        content="You build minimal Hurl tests.",
+        model="openai/qwen3-coder",
+        api_base="http://127.0.0.1:8000/v1",
+        api_key_env="ENTROPING_OMLX_API_KEY",
+        temperature=0.0,
+        max_tokens=None,
+    )
+
+    package = build_architect_prompt_package(
+        law=_law(tmp_path),
+        persona=persona,
+        intent="Generate checkout smoke coverage.",
+        source_context={},
+    )
+
+    assert package.model == "openai/qwen3-coder"
+    assert package.api_base == "http://127.0.0.1:8000/v1"
+    assert package.api_key_env == "ENTROPING_OMLX_API_KEY"
 
 
 def test_build_architect_prompt_package_marks_missing_source_context(tmp_path: Path) -> None:
@@ -190,6 +220,8 @@ def test_build_architect_prompt_package_rejects_secret_like_persona_content(
         source_path=tmp_path / "agents" / "builder.md",
         content="Use sk-proj-live-secret.",
         model="openai/gpt-4.1-mini",
+        api_base=None,
+        api_key_env=None,
         temperature=0.0,
         max_tokens=None,
     )

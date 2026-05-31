@@ -65,6 +65,24 @@ agents:
 
 The model ID includes the provider prefix. This lets `entroping config set --agent <name> --model <provider/model>` switch models without adding a separate provider command to the frozen command surface.
 
+Current setup details live in `docs/user/AI_PROVIDER_SETUP.md`.
+
+For local OpenAI-compatible runtimes such as oMLX, an agent can also define
+non-secret connection metadata:
+
+```yaml
+agents:
+  builder:
+    source: "agents/builder.md"
+    model: "openai/<local-qwen-model>"
+    api_base: "http://127.0.0.1:8000/v1"
+    api_key_env: "ENTROPING_OMLX_API_KEY"
+    temperature: 0.1
+```
+
+`api_base` is a provider endpoint. `api_key_env` is only the environment
+variable name that holds a local or cloud provider key.
+
 ## 5. Credential Handling
 
 MVP credential sources:
@@ -81,6 +99,8 @@ Never store API keys in:
 - `.entroping/state.db`
 - logs
 - reports
+
+No API keys in qanstitution.yaml.
 
 An `entroping auth` command would be useful, but it is not part of the locked v4.1 command surface.
 

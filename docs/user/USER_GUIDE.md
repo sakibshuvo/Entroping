@@ -465,6 +465,10 @@ The intended UX is local-first and cloud-second:
 - Do not rely on external Gemini or Claude CLI tools; Entroping talks to models through LiteLLM.
 - Keep API keys in environment variables or OS credential storage, not plaintext config files.
 
+The operational setup guide lives in `docs/user/AI_PROVIDER_SETUP.md`. It covers
+LiteLLM installation, local Qwen through Ollama, local Qwen through oMLX
+OpenAI-compatible endpoints, cloud model routing, and no-provider CI.
+
 The Architect should generate only from configured sources: specs, stories, dependency specs, redacted traffic, or explicit prompt context. If you ask for exploratory negative tests, review them carefully and keep the resulting Hurl files in Git.
 
 ### Business Truth Elsewhere

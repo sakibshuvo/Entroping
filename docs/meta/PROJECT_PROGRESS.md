@@ -34,9 +34,9 @@ Do not duplicate every issue here. The detailed queue lives in GitHub.
 
 ## Current Target
 
-**Goal:** make the v0.2 adoption path contributor-friendly after the
-fresh-clone smoke and curated launch previews proved the public first-hour
-experience.
+**Goal:** finish the v0.2 adoption path by turning the proven public demo,
+contributor path, downstream CI gate, and provider setup into clear packaging
+and docs-site decisions.
 
 GitHub Project: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -128,6 +128,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Curated public launch previews](https://github.com/sakibshuvo/Entroping/issues/191) | Done | README and launch hub link terminal, HTML report, and dependency-map PNGs generated from live checkout fixture output and redacted traffic state | Replace media only from reproducible source commands |
 | [Good-first-issue contributor walkthrough](https://github.com/sakibshuvo/Entroping/issues/184) | Done | New contributor guide explains labels, milestones, `scripts/start_issue.sh`, validation gates, and PR documentation expectations | Keep first-contribution path small as workflow grows |
 | [Downstream GitHub Actions starter](https://github.com/sakibshuvo/Entroping/issues/189) | Done | Copyable workflow installs tagged Entroping, verifies pinned Hurl, runs `entroping run --ci --report junit --report html`, and uploads reports | Keep starter aligned with current report paths and release tag |
+| [Brain provider setup guide](https://github.com/sakibshuvo/Entroping/issues/195) | Done | LiteLLM, local Qwen through Ollama/oMLX, cloud routing, `api_base`, `api_key_env`, secret rules, and no-provider CI are documented and schema-backed | Keep model/provider docs current without making `entroping run` depend on LLM access |
 | [Run orchestration extraction](https://github.com/sakibshuvo/Entroping/issues/90) | Done | `core.run_workflow` now owns deterministic run orchestration and returns a typed workflow result | Keep future run flags out of the CLI adapter |
 | [Post-alpha security review](https://github.com/sakibshuvo/Entroping/issues/96) | Done | PR #105 merged the local boundary hardening after fixing 14 validated candidates; scan artifacts live under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z/` | Keep security scans tied to concrete remediation branches |
 

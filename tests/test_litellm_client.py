@@ -37,6 +37,8 @@ gates: []
         source_path=tmp_path / "agents" / "builder.md",
         content="Build tests.",
         model="openai/gpt-4.1-mini",
+        api_base=None,
+        api_key_env=None,
         temperature=0.2,
         max_tokens=1024,
     )
@@ -65,9 +67,43 @@ def test_litellm_client_calls_injected_completion_without_network(tmp_path: Path
     assert calls[0]["model"] == "openai/gpt-4.1-mini"
     assert calls[0]["temperature"] == 0.2
     assert calls[0]["max_tokens"] == 1024
+    assert "api_base" not in calls[0]
+    assert "api_key" not in calls[0]
     assert result.content == '{"summary":"ok","edits":[]}'
     assert result.usage.total_tokens == 17
     assert result.latency_ms >= 0
+
+
+def test_litellm_client_passes_openai_compatible_provider_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    package = _package(tmp_path).model_copy(
+        update={
+            "model": "openai/qwen3-coder",
+            "api_base": "http://127.0.0.1:8000/v1",
+            "api_key_env": "ENTROPING_OMLX_API_KEY",
+        }
+    )
+    monkeypatch.setenv("ENTROPING_OMLX_API_KEY", "local-provider-key")
+    calls: list[dict[str, object]] = []
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        calls.append(kwargs)
+        return {"choices": [{"message": {"content": '{"summary":"ok","edits":[]}'}}]}
+
+    LiteLLMClient(completion_func=fake_completion).complete(package)
+
+    assert calls[0]["model"] == "openai/qwen3-coder"
+    assert calls[0]["api_base"] == "http://127.0.0.1:8000/v1"
+    assert calls[0]["api_key"] == "local-provider-key"
+
+
+def test_litellm_client_rejects_missing_api_key_env(tmp_path: Path) -> None:
+    package = _package(tmp_path).model_copy(update={"api_key_env": "ENTROPING_MISSING_KEY"})
+
+    with pytest.raises(BrainProviderError, match="API key environment variable is not set"):
+        LiteLLMClient(completion_func=lambda **_: {}).complete(package)
 
 
 def test_litellm_client_raises_when_optional_dependency_missing(

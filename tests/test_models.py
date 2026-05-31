@@ -32,6 +32,53 @@ def test_agent_config_rejects_unsafe_model_identifier(model: str, message: str) 
         AgentConfig(source="agents/builder.md", model=model)
 
 
+def test_agent_config_accepts_provider_connection_metadata() -> None:
+    config = AgentConfig(
+        source="agents/builder.md",
+        model="openai/qwen3-coder",
+        api_base="http://127.0.0.1:8000/v1",
+        api_key_env="ENTROPING_OMLX_API_KEY",
+    )
+
+    assert config.api_base == "http://127.0.0.1:8000/v1"
+    assert config.api_key_env == "ENTROPING_OMLX_API_KEY"
+
+
+@pytest.mark.parametrize(
+    ("api_base", "message"),
+    [
+        ("", "api_base must not be empty"),
+        ("ftp://127.0.0.1:8000/v1", "api_base must use http or https"),
+        ("http://user:pass@127.0.0.1:8000/v1", "api_base must not contain userinfo"),
+        ("http://127.0.0.1:8000/v1?token=secret", "api_base must not contain query"),
+        ("http://127.0.0.1:8000/v1#models", "api_base must not contain fragments"),
+        ("sk-proj-live-secret", "api_base must not look like a secret"),
+        ("http://127.0.0.1:8000/v1\x00", "api_base must not contain control characters"),
+    ],
+)
+def test_agent_config_rejects_unsafe_api_base(api_base: str, message: str) -> None:
+    with pytest.raises(ValidationError, match=message):
+        AgentConfig(source="agents/builder.md", model="openai/qwen3-coder", api_base=api_base)
+
+
+@pytest.mark.parametrize(
+    ("api_key_env", "message"),
+    [
+        ("", "api_key_env must not be empty"),
+        ("OPENAI-API-KEY", "api_key_env must be an environment variable name"),
+        ("sk-proj-live-secret", "api_key_env must not look like a secret"),
+        ("OPENAI_API_KEY\x00", "api_key_env must not contain control characters"),
+    ],
+)
+def test_agent_config_rejects_unsafe_api_key_env(api_key_env: str, message: str) -> None:
+    with pytest.raises(ValidationError, match=message):
+        AgentConfig(
+            source="agents/builder.md",
+            model="openai/qwen3-coder",
+            api_key_env=api_key_env,
+        )
+
+
 def test_gate_rule_enforcement_values() -> None:
     gate = GateRule(
         id="global_latency",

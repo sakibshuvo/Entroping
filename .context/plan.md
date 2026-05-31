@@ -1,7 +1,7 @@
 # Entroping Implementation Plan
 
-**Date:** 2026-05-30
-**Status:** Post-alpha validation and hardening track
+**Date:** 2026-05-31
+**Status:** v0.2 adoption and onboarding track
 
 ## Objective
 
@@ -117,6 +117,10 @@ parser-rejected Hurl while preserving no-write behavior and raw output redaction
 Issue #90 moved deterministic run orchestration behind `core.run_workflow`,
 leaving the CLI adapter responsible for option normalization, output, and exit
 mapping.
+Issue #184 added a good-first-issue walkthrough. Issue #189 added a downstream
+GitHub Actions starter workflow. Issue #195 documents LiteLLM, local Qwen
+through Ollama/oMLX, optional `api_base` and `api_key_env` agent metadata, and
+the no-provider CI boundary.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
@@ -793,10 +797,12 @@ Architect writes generated files.
 Use these issues as the next marathon targets. Keep each one narrow, tested, and
 merged through GitHub before starting the next branch:
 
-- Issue #108 is complete: README links a launch asset hub with real checkout
-  terminal output, an HTML report SVG preview, and a dependency-map example.
-- Issue #112 is complete: `scripts/audit_quality.sh` now makes 100 percent
-  meaningful coverage the default release gate.
+- Issue #186: design the PyPI and TestPyPI release path.
+- Issue #188: choose and scaffold the public documentation site.
+- Issue #183: evaluate Homebrew tap or standalone binary distribution.
+- After those adoption slices land, move to v0.3 product-depth issues such as
+  Studio drilldowns, reviewed baseline workflows, redaction review UX, and
+  stronger Architect remediation guidance.
 
 ## Explicitly Deferred
 

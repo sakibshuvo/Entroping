@@ -151,6 +151,8 @@ Requirements:
 - [`uv`](https://docs.astral.sh/uv/)
 - [`hurl`](https://hurl.dev/) for deterministic execution and the live demo
 - Optional extras: `mitmproxy` for `watch`, LiteLLM providers for prompt-backed Architect work, Graphviz for PNG maps
+  ([AI_PROVIDER_SETUP.md](docs/user/AI_PROVIDER_SETUP.md) covers LiteLLM,
+  local Qwen/oMLX, and no-provider CI)
 
 ## Use The CLI
 
@@ -259,6 +261,10 @@ Technical:
 - [QANSTITUTION_REFERENCE.md](docs/technical/QANSTITUTION_REFERENCE.md) - policy schema and examples.
 - [COMMAND_CHEAT_SHEET.md](docs/technical/COMMAND_CHEAT_SHEET.md) - locked CLI namespace.
 - [FREEZE_MAP_PLAN.md](docs/technical/FREEZE_MAP_PLAN.md) - Eye implementation boundaries.
+
+User workflows:
+
+- [AI_PROVIDER_SETUP.md](docs/user/AI_PROVIDER_SETUP.md) - LiteLLM, local Qwen/oMLX, cloud model, and LLM-free CI setup.
 
 Operating the project:
 
