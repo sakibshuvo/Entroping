@@ -115,7 +115,7 @@ Built today:
 Still alpha:
 
 - Dependency-call drift is not beyond the current value-free baseline comparison.
-- Architect UX is functional but intentionally narrow.
+- Architect validation guidance is improved, but the broader UX is intentionally narrow.
 - Studio is a read-only status shell, not a full interactive TUI.
 
 ## Install

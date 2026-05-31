@@ -50,6 +50,7 @@ from entroping.core.hurl_runner import (
     HurlBinaryNotFoundError,
     discover_hurl,
 )
+from entroping.core.hurl_validator import HurlValidationError
 from entroping.core.openapi_loader import OpenApiLoadError, load_openapi_document
 from entroping.core.report_writer import (
     ReportWriterError,
@@ -338,7 +339,7 @@ def _run_architect_prompt_build(
         QanstitutionLoadError,
         ValueError,
     ) as exc:
-        _print_cli_error(exc)
+        _print_architect_error(exc)
         raise typer.Exit(1) from exc
 
     noun = "test" if len(result.written_paths) == 1 else "tests"
@@ -377,7 +378,7 @@ def architect_refactor(
         QanstitutionLoadError,
         ValueError,
     ) as exc:
-        _print_cli_error(exc)
+        _print_architect_error(exc)
         raise typer.Exit(1) from exc
 
     noun = "test" if len(result.written_paths) == 1 else "tests"
@@ -758,6 +759,20 @@ def _safe_cli_text(value: object) -> str:
 
 def _print_cli_error(exc: BaseException) -> None:
     console.print(_safe_cli_text(exc), style="red", markup=False)
+
+
+def _print_architect_error(exc: BaseException) -> None:
+    _print_cli_error(exc)
+    if isinstance(exc, ArchitectOutputParseError):
+        console.print("Architect output validation failed before write.", style="yellow")
+        console.print(
+            "Expected JSON object with summary, optional warnings, and edits[].",
+            style="yellow",
+        )
+        console.print("No Architect files were written.", style="yellow")
+    if isinstance(exc, HurlValidationError):
+        console.print("Architect Hurl validation failed before write.", style="yellow")
+        console.print("No Architect files were written.", style="yellow")
 
 
 app.add_typer(config_app, name="config")

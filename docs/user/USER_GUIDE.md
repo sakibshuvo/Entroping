@@ -488,6 +488,10 @@ entroping architect audit --focus logic --output md
 ```
 
 Then refine with a narrower prompt. If `hurlfmt` is not installed, use the project's configured Hurl parser-backed validation step before accepting generated files.
+When Architect provider output is not valid JSON or generated Hurl fails parser
+validation, Entroping stops before writing files and prints a short validation
+summary. The raw provider output and parser streams are still not echoed because
+they can contain untrusted or secret-like content.
 
 ### Local Brain Feels Slow
 
