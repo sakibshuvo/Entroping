@@ -120,3 +120,4 @@
 - Agent workflow docs should be portable even when the maintainer has a known local checkout. Use placeholders in committed docs and keep machine-specific paths in local prompts or environment variables.
 - Public README status language needs the same regression protection as code: stale "scaffold" wording can quietly undercut a real alpha.
 - Public docs deployment needs two gates: PR CI should build the MkDocs site strictly, while the Pages workflow should publish only from `main` after the same strict build.
+- Organization governance should compile into one effective local QAnstitution. Preserve provenance and final-gate behavior before adding remote policy registries, caches, or approval workflows.

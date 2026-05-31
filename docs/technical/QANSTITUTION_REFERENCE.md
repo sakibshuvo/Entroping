@@ -210,6 +210,12 @@ Reusable policy-pack structure is documented in
 normal local QAnstitution imports plus reviewable metadata and examples, not a
 separate runtime format.
 
+Organization import controls are defined in
+[ADR-0011-organization-qanstitution-import-controls.md](https://github.com/sakibshuvo/Entroping/blob/main/decisions/ADR-0011-organization-qanstitution-import-controls.md).
+Organization imports still compile into the same effective local policy; they
+must preserve provenance, final-gate behavior, and offline/local-first
+validation before any remote registry behavior is implemented.
+
 Example imported final rule:
 
 ```yaml
