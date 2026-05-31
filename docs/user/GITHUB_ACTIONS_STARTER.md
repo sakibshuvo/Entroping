@@ -64,7 +64,8 @@ entroping doctor
 entroping run --ci --report junit --report html
 ```
 
-8. Uploads `reports/` as a GitHub Actions artifact.
+8. Emits GitHub Actions annotations from local Entroping reports.
+9. Uploads `reports/` as a GitHub Actions artifact.
 
 ## Common Variants
 
@@ -87,6 +88,13 @@ To run only a tagged suite:
 entroping run --ci --tag smoke --report junit --report html
 ```
 
+To include story traceability findings as PR annotations after you have adopted
+`# entroping: story_id=...` metadata, change the annotation step to:
+
+```bash
+entroping report github-annotations --traceability
+```
+
 ## Expected Artifacts
 
 The run writes the same report paths Entroping uses locally:
@@ -97,9 +105,10 @@ reports/run-latest.html
 .entroping/latest-run.json
 ```
 
-The workflow uploads `reports/`. It does not upload `.entroping/` because that
-directory is local runtime state and can contain baselines or machine-local
-history.
+The annotation step reads local reports and prints GitHub workflow-command
+annotations to stdout. The workflow uploads `reports/`. It does not upload
+`.entroping/` because that directory is local runtime state and can contain
+baselines or machine-local history.
 
 ## Hurl Checksum Updates
 

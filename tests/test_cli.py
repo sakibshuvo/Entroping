@@ -2781,6 +2781,110 @@ def test_report_traceability_rejects_unsupported_output() -> None:
     assert "Unsupported traceability output" in result.output
 
 
+def test_report_github_annotations_emits_report_and_traceability_annotations(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports_dir = Path("reports")
+    reports_dir.mkdir()
+    (reports_dir / "junit.xml").write_text(
+        """<?xml version="1.0" encoding="utf-8"?>
+<testsuite name="Entroping checkout-api" tests="1" failures="1" errors="0">
+  <testcase classname="tests" name="health.hurl" time="0.010">
+    <failure message="failed" type="entroping.hurl">path: tests/health.hurl
+status: failed
+token=live-secret</failure>
+  </testcase>
+</testsuite>
+""",
+        encoding="utf-8",
+    )
+    (reports_dir / "drift.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.drift-report.v1",
+                "findings": [
+                    {
+                        "kind": "response_status_changed",
+                        "severity": "error",
+                        "path": "tests/health.hurl",
+                        "message": "Response status changed.",
+                        "baseline": {},
+                        "current": {},
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    tests_dir = Path("tests")
+    tests_dir.mkdir()
+    (tests_dir / "missing.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["report", "github-annotations", "--traceability"])
+
+    assert result.exit_code == 0
+    assert "::error file=tests/health.hurl" in result.output
+    assert "Entroping Hurl failure" in result.output
+    assert "Entroping drift%3A response_status_changed" in result.output
+    assert "Entroping traceability%3A missing_story_id" in result.output
+    assert "live-secret" not in result.output
+    assert "token=[REDACTED]" in result.output
+
+
+def test_report_github_annotations_truncates_annotations(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports_dir = Path("reports")
+    reports_dir.mkdir()
+    (reports_dir / "junit.xml").write_text(
+        """<?xml version="1.0" encoding="utf-8"?>
+<testsuite name="Entroping checkout-api" tests="2" failures="2" errors="0">
+  <testcase classname="tests" name="one.hurl" time="0.001">
+    <failure message="first" type="entroping.hurl" />
+  </testcase>
+  <testcase classname="tests" name="two.hurl" time="0.001">
+    <failure message="second" type="entroping.hurl" />
+  </testcase>
+</testsuite>
+""",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "github-annotations", "--max-annotations", "1"],
+    )
+
+    assert result.exit_code == 0
+    assert "Entroping Hurl failure" in result.output
+    assert "first" in result.output
+    assert "second" not in result.output
+    assert "Entroping annotations truncated" in result.output
+    assert "1 annotation(s) omitted" in result.output
+
+
+def test_report_github_annotations_rejects_malformed_reports(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports_dir = Path("reports")
+    reports_dir.mkdir()
+    (reports_dir / "drift.json").write_text("{", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["report", "github-annotations"])
+
+    assert result.exit_code == 1
+    assert "Could not parse drift report" in result.output
+
+
 def test_run_rejects_unsupported_report_format() -> None:
     result = CliRunner().invoke(app, ["run", "--report", "xml"])
 

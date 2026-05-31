@@ -1,0 +1,263 @@
+"""GitHub Actions annotation rendering from Entroping report artifacts."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Literal
+from xml.etree import ElementTree  # nosec B405
+
+from entroping.bridge.story_traceability import (
+    StoryTraceabilityReport,
+    compile_story_traceability,
+)
+from entroping.core.hurl_discovery import discover_hurl_tests
+from entroping.core.hurl_runner import redact_hurl_output
+
+AnnotationLevel = Literal["error", "warning", "notice"]
+
+
+class GitHubAnnotationError(ValueError):
+    """Raised when report artifacts cannot be converted into annotations."""
+
+
+@dataclass(frozen=True, slots=True)
+class GitHubAnnotation:
+    """One GitHub Actions workflow-command annotation."""
+
+    level: AnnotationLevel
+    title: str
+    message: str
+    file: str | None = None
+    line: int = 1
+
+
+def collect_github_annotations(
+    *,
+    junit_path: Path,
+    drift_path: Path,
+    include_traceability: bool,
+) -> tuple[GitHubAnnotation, ...]:
+    """Collect annotations from available local report artifacts."""
+
+    annotations = [
+        *annotations_from_junit_report(junit_path),
+        *annotations_from_drift_report(drift_path),
+    ]
+    if include_traceability:
+        hurl_tests = discover_hurl_tests() if Path("tests").exists() else []
+        annotations.extend(
+            annotations_from_traceability_report(compile_story_traceability(hurl_tests))
+        )
+    return tuple(annotations)
+
+
+def annotations_from_junit_report(path: Path) -> tuple[GitHubAnnotation, ...]:
+    """Return GitHub annotations for JUnit failures and errors."""
+
+    if not path.exists():
+        return ()
+
+    try:
+        root = ElementTree.parse(path).getroot()  # nosec B314
+    except ElementTree.ParseError as exc:
+        msg = f"Could not parse JUnit report {path}: {exc}"
+        raise GitHubAnnotationError(msg) from exc
+
+    annotations: list[GitHubAnnotation] = []
+    for testcase in root.findall(".//testcase"):
+        for element_name, title in (
+            ("failure", "Entroping Hurl failure"),
+            ("error", "Entroping JUnit error"),
+        ):
+            for element in testcase.findall(element_name):
+                message = _annotation_message(
+                    element.text or element.get("message") or testcase.get("name") or title
+                )
+                annotations.append(
+                    GitHubAnnotation(
+                        level="error",
+                        title=title,
+                        message=message,
+                        file=_junit_test_path(testcase, message),
+                        line=1,
+                    )
+                )
+    return tuple(annotations)
+
+
+def annotations_from_drift_report(path: Path) -> tuple[GitHubAnnotation, ...]:
+    """Return GitHub annotations for drift findings."""
+
+    if not path.exists():
+        return ()
+
+    data = _load_json_object(path, artifact="drift report")
+    raw_findings = data.get("findings", [])
+    if not isinstance(raw_findings, list):
+        msg = f"Drift report {path} must contain a findings list"
+        raise GitHubAnnotationError(msg)
+
+    annotations: list[GitHubAnnotation] = []
+    for raw_finding in raw_findings:
+        if not isinstance(raw_finding, dict):
+            continue
+        kind = _string_field(raw_finding.get("kind"), fallback="unknown")
+        message = _annotation_message(_string_field(raw_finding.get("message"), fallback=kind))
+        annotations.append(
+            GitHubAnnotation(
+                level=_drift_level(raw_finding.get("severity")),
+                title=f"Entroping drift: {kind}",
+                message=message,
+                file=_finding_file(raw_finding.get("path")),
+                line=1,
+            )
+        )
+    return tuple(annotations)
+
+
+def annotations_from_traceability_report(
+    report: StoryTraceabilityReport,
+) -> tuple[GitHubAnnotation, ...]:
+    """Return GitHub annotations for traceability findings."""
+
+    annotations: list[GitHubAnnotation] = []
+    for finding in report.findings:
+        annotations.append(
+            GitHubAnnotation(
+                level=_traceability_level(finding.kind),
+                title=f"Entroping traceability: {finding.kind}",
+                message=_annotation_message(finding.message),
+                file=str(finding.test_path) if finding.test_path is not None else None,
+                line=1,
+            )
+        )
+    return tuple(annotations)
+
+
+def render_github_annotation(annotation: GitHubAnnotation) -> str:
+    """Render a GitHub Actions workflow command for one annotation."""
+
+    properties = []
+    if annotation.file is not None:
+        properties.append(f"file={_escape_property(annotation.file)}")
+        properties.append(f"line={annotation.line}")
+    properties.append(f"title={_escape_property(annotation.title)}")
+    return (
+        f"::{annotation.level} {','.join(properties)}::"
+        f"{_escape_data(_annotation_message(annotation.message))}"
+    )
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Emit GitHub Actions annotations from local Entroping report artifacts."""
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--junit", type=Path, default=Path("reports") / "junit.xml")
+    parser.add_argument("--drift", type=Path, default=Path("reports") / "drift.json")
+    parser.add_argument(
+        "--traceability",
+        action="store_true",
+        help="Compile local Hurl metadata and annotate traceability findings.",
+    )
+    parser.add_argument("--max-annotations", type=int, default=50)
+    args = parser.parse_args(argv)
+
+    annotations = collect_github_annotations(
+        junit_path=args.junit,
+        drift_path=args.drift,
+        include_traceability=args.traceability,
+    )
+    max_annotations = max(0, args.max_annotations)
+    for annotation in annotations[:max_annotations]:
+        print(render_github_annotation(annotation))
+    if len(annotations) > max_annotations:
+        omitted = len(annotations) - max_annotations
+        print(
+            render_github_annotation(
+                GitHubAnnotation(
+                    level="notice",
+                    title="Entroping annotations truncated",
+                    message=f"{omitted} annotation(s) omitted by --max-annotations.",
+                )
+            )
+        )
+    return 0
+
+
+def _load_json_object(path: Path, *, artifact: str) -> dict[str, object]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        msg = f"Could not parse {artifact} {path}: {exc}"
+        raise GitHubAnnotationError(msg) from exc
+    if not isinstance(data, dict):
+        msg = f"{artifact.capitalize()} {path} must be a JSON object"
+        raise GitHubAnnotationError(msg)
+    return data
+
+
+def _junit_test_path(testcase: ElementTree.Element, message: str) -> str | None:
+    for line in message.splitlines():
+        if line.startswith("path: "):
+            return _safe_file(line.removeprefix("path: "))
+
+    name = testcase.get("name")
+    if not name:
+        return None
+    classname = testcase.get("classname") or ""
+    if not classname or classname == ".":
+        return _safe_file(name)
+    return _safe_file(str(Path(classname) / name))
+
+
+def _finding_file(value: object) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    stripped = value.strip()
+    if stripped == "*" or stripped.startswith("dependency:"):
+        return None
+    return _safe_file(stripped)
+
+
+def _safe_file(value: str) -> str:
+    return " ".join(value.replace("\\", "/").split())
+
+
+def _string_field(value: object, *, fallback: str) -> str:
+    if isinstance(value, str) and value.strip():
+        return " ".join(value.split())
+    return fallback
+
+
+def _drift_level(value: object) -> AnnotationLevel:
+    if value == "error":
+        return "error"
+    if value == "warning":
+        return "warning"
+    return "notice"
+
+
+def _traceability_level(kind: str) -> AnnotationLevel:
+    if kind == "missing_story_id":
+        return "error"
+    return "warning"
+
+
+def _annotation_message(value: str) -> str:
+    return redact_hurl_output(value)
+
+
+def _escape_property(value: str) -> str:
+    return _escape_data(value).replace(":", "%3A").replace(",", "%2C")
+
+
+def _escape_data(value: str) -> str:
+    return value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+if __name__ == "__main__":  # pragma: no cover
+    raise SystemExit(main(sys.argv[1:]))

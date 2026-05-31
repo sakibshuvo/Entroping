@@ -61,6 +61,10 @@ jobs:
       - name: Run Entroping gate
         run: entroping run --ci --report junit --report html
 
+      - name: Annotate Entroping findings
+        if: always()
+        run: entroping report github-annotations
+
       - name: Upload Entroping reports
         if: always()
         uses: actions/upload-artifact@v7

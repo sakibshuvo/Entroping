@@ -558,6 +558,23 @@ Implemented boundaries:
 - `tests/test_report_schema_contracts.py` freezes representative v1 payloads so
   report shape changes require intentional schema updates.
 
+## Completed Slice: Issue #200 GitHub PR Annotations
+
+Outcome: downstream GitHub Actions workflows can surface Entroping failures and
+governance findings directly on pull requests without calling GitHub APIs or
+replacing report artifacts.
+
+Implemented boundaries:
+
+- `entroping report github-annotations` reads local JUnit and drift report
+  artifacts and prints GitHub Actions workflow-command annotations to stdout.
+- `--traceability` compiles local Hurl metadata and annotates missing story IDs
+  or duplicate external doc links when teams opt into traceability checks.
+- Annotation rendering escapes GitHub workflow-command properties and messages
+  and applies Hurl output redaction before emitting text.
+- The downstream GitHub Actions starter runs the annotation step with
+  `if: always()` so failed Entroping runs still produce inline PR feedback.
+
 ## Completed Slice: Issue #110 Structured Response Drift
 
 Outcome: drift reports can compare optional response fingerprints without

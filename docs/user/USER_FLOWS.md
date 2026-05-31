@@ -187,14 +187,16 @@ A pull request or deployment pipeline needs a deterministic API gate.
 1. Install dependencies.
 2. Run `doctor`.
 3. Run suite in CI mode.
-4. Publish JUnit and HTML reports.
-5. Block merge on failures.
+4. Emit GitHub PR annotations from local reports.
+5. Publish JUnit and HTML reports.
+6. Block merge on failures.
 
 ### Commands
 
 ```bash
 entroping doctor
 entroping run --env ci --ci --parallel --report junit --report html
+entroping report github-annotations
 ```
 
 For a copyable GitHub Actions workflow, use
@@ -204,6 +206,7 @@ For a copyable GitHub Actions workflow, use
 
 - Non-zero exit on blocking failures.
 - JUnit appears in CI test summary.
+- GitHub annotations point reviewers at failed Hurl files or drift findings.
 - Failed gates include rule IDs.
 
 ## 8. Governance Rollout
