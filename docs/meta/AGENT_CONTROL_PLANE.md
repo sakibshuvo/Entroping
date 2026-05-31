@@ -25,7 +25,7 @@ No helper agent is a source of truth. The hierarchy is:
 1. Local repo files and tests.
 2. GitHub issues, PRs, and CI.
 3. ADRs and canonical product/technical docs.
-4. Source exports in `/Users/sakibshuvo/projects/entroping-specs`.
+4. Source exports under `<source-archive>`, usually `../entroping-specs` or `ENTROPING_SOURCE_ROOT`.
 5. Agent summaries, chat context, NotebookLM answers, Gemini answers, Claude Code output, OpenCode output, and local Qwen output.
 
 ## Context Pack
@@ -86,7 +86,7 @@ Run marathons in waves:
 ## Prompt Template
 
 ```text
-Work in /Users/sakibshuvo/projects/Entroping.
+Work in <repo-root>.
 Use AGENTS.md as the project rules.
 Use scripts/context_pack.sh --mode implementation as the context pack.
 Implement only the named GitHub issue or task.

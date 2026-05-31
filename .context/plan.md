@@ -101,6 +101,9 @@ added a regression guard so public launch docs stay copy/paste portable.
 Issue #168 made `scripts/context_pack.sh --mode source` source-archive paths
 configurable through `ENTROPING_SOURCE_ROOT`, with a sibling `../entroping-specs`
 default instead of a maintainer-local script constant.
+Issue #170 replaced maintainer-local repo/source paths in agent and Obsidian
+workflow docs with `<repo-root>`, `<source-archive>`, and `ENTROPING_SOURCE_ROOT`
+guidance so external agents and contributors can reuse the same flow.
 Issue #90 moved deterministic run orchestration behind `core.run_workflow`,
 leaving the CLI adapter responsible for option normalization, output, and exit
 mapping.

@@ -18,7 +18,7 @@ Obsidian makes context preservation easier when the notes are curated. It does n
 
 1. Launch Obsidian from `/Applications/Obsidian.app`.
 2. Click **Open folder as vault**.
-3. Select `/Users/sakibshuvo/projects/Entroping`.
+3. Select the Entroping repository checkout, shown elsewhere as `<repo-root>`.
 4. Open [[00_INDEX]].
 
 ## First Graph View
@@ -43,7 +43,7 @@ Recommended first settings:
 - Use [[docs/meta/TEST_STRATEGY|TEST_STRATEGY]] to understand regression and test-pyramid expectations.
 - Use ADRs for product decisions that should survive context resets.
 - Use `.context/changelog.md` for short operational notes.
-- Keep source files in `/Users/sakibshuvo/projects/entroping-specs`; this vault links to them but does not replace them.
+- Keep source files in `<source-archive>`; this vault links to them but does not replace them. Use `ENTROPING_SOURCE_ROOT` when the archive is not the sibling `../entroping-specs` folder.
 - Keep project-agent rules in `AGENTS.md`; new Codex threads should read it before implementation.
 
 ## Graphify Later
@@ -55,7 +55,7 @@ If you later want Graphify:
 ```bash
 uv tool install graphifyy
 graphify install
-graphify /Users/sakibshuvo/projects/Entroping
+graphify <repo-root>
 ```
 
 Keep generated output under `graphify-out/`, which is ignored by Git.

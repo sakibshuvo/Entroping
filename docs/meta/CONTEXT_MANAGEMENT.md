@@ -51,7 +51,7 @@ Do not read the entire vault for every task. Obsidian preserves context by makin
 Use this when starting a fresh thread:
 
 ```text
-Work in /Users/sakibshuvo/projects/Entroping.
+Work in <repo-root>.
 Read AGENTS.md, README.md, 00_INDEX.md, .context/plan.md, docs/product/MVP_PLAN.md, docs/technical/TDS.md, and docs/meta/PROJECT_PROGRESS.md first.
 Preserve the locked v4.1 command surface and implement only the next narrow milestone.
 Follow docs/meta/AUTONOMOUS_DEVELOPMENT.md, docs/meta/FEATURE_DELIVERY_CHECKLIST.md, docs/meta/ISSUE_TRACKING.md, and docs/meta/TEST_STRATEGY.md for the Codex-first workflow, TDD expectations, regression gates, multi-agent guardrails, issue tracking, and context updates.
@@ -96,14 +96,15 @@ Recommended workflow:
 ```bash
 uv tool install graphifyy
 graphify install
-graphify /Users/sakibshuvo/projects/Entroping
+graphify <repo-root>
 ```
 
 Output belongs under `graphify-out/`, which is ignored by Git.
 
 ## Cross-Project Context
 
-Project-specific rules belong in each repo's `AGENTS.md`. Global preferences belong in `/Users/sakibshuvo/.codex/AGENTS.md`.
+Project-specific rules belong in each repo's `AGENTS.md`. Global preferences
+belong in your user-level Codex config, such as `~/.codex/AGENTS.md`.
 
 Do not add a committed project `.codex/` directory unless the repo later needs shareable Codex-specific assets that cannot be represented in `AGENTS.md`, tracked scripts, issue prompts, or docs. For now, `.codex/`, installed skills, plugins, and machine hooks are user-local acceleration layers.
 

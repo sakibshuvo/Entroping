@@ -68,3 +68,19 @@ def test_community_health_files_exist_and_reference_project_gates() -> None:
     assert "security/advisories/new" in security
     assert "scripts/regression.sh --security" in security
     assert "respectful" in conduct.lower()
+
+
+def test_agent_workflow_docs_use_portable_repo_and_source_placeholders() -> None:
+    docs = [
+        REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md",
+        REPO_ROOT / "docs" / "meta" / "CONTEXT_MANAGEMENT.md",
+        REPO_ROOT / "docs" / "meta" / "KNOWLEDGE_BASE_WORKFLOW.md",
+        REPO_ROOT / "docs" / "meta" / "OBSIDIAN_START_HERE.md",
+    ]
+    combined = "\n".join(path.read_text(encoding="utf-8") for path in docs)
+
+    assert "/Users/sakibshuvo/projects/Entroping" not in combined
+    assert "/Users/sakibshuvo/projects/entroping-specs" not in combined
+    assert "<repo-root>" in combined
+    assert "<source-archive>" in combined
+    assert "ENTROPING_SOURCE_ROOT" in combined
