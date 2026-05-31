@@ -1,8 +1,9 @@
 """Interactive read-only Studio TUI adapter."""
 
+import importlib
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, no_type_check
 
 from entroping.core.hurl_runner import redact_hurl_output
 from entroping.studio.status import LatestRunTestStatus, StudioDependencyError, StudioStatus
@@ -126,19 +127,25 @@ def _stderr_preview(stderr: str) -> str:
     return ""
 
 
+@no_type_check
 def _load_textual_types() -> TextualTypes:  # pragma: no cover - optional dependency boundary
-    from textual import app as _textual_app
-    from textual import widgets as _textual_widgets
-
-    _ = (_textual_app, _textual_widgets)
+    importlib.import_module("textual.app")
+    importlib.import_module("textual.widgets")
     return TextualTypes()
 
 
+@no_type_check
 def _create_textual_app(model: StudioViewModel) -> _RunnableApp:  # pragma: no cover - terminal UI
-    from textual.app import App, ComposeResult
-    from textual.widgets import Footer, Header, Static, TabbedContent, TabPane
+    textual_app = importlib.import_module("textual.app")
+    textual_widgets = importlib.import_module("textual.widgets")
+    app_base = textual_app.App
+    footer = textual_widgets.Footer
+    header = textual_widgets.Header
+    static = textual_widgets.Static
+    tabbed_content = textual_widgets.TabbedContent
+    tab_pane = textual_widgets.TabPane
 
-    class EntropingStudioApp(App[None]):
+    class EntropingStudioApp(app_base):  # type: ignore[misc, valid-type]
         """Read-only Textual shell for local Entroping state."""
 
         TITLE = "Entroping Studio"
@@ -156,25 +163,25 @@ def _create_textual_app(model: StudioViewModel) -> _RunnableApp:  # pragma: no c
         }
         """
 
-        def compose(self) -> ComposeResult:
-            yield Header(show_clock=True)
-            with TabbedContent():
-                with TabPane("Summary", id="summary"):
-                    yield Static(_render_table(("Field", "Value"), model.summary_rows))
-                with TabPane("Suite", id="suite"):
-                    yield Static(
+        def compose(self) -> object:
+            yield header(show_clock=True)
+            with tabbed_content():
+                with tab_pane("Summary", id="summary"):
+                    yield static(_render_table(("Field", "Value"), model.summary_rows))
+                with tab_pane("Suite", id="suite"):
+                    yield static(
                         _render_table(
                             ("Path", "Status", "Exit", "Duration", "Rules"),
                             model.suite_rows,
                         )
                     )
-                with TabPane("Failures", id="failures"):
-                    yield Static(_render_table(("Path", "Exit", "Detail"), model.failure_rows))
-                with TabPane("Reports", id="reports"):
-                    yield Static(_render_table(("Artifact",), model.report_rows))
-                with TabPane("Traffic", id="traffic"):
-                    yield Static(_render_table(("Signal", "Status"), model.traffic_rows))
-            yield Footer()
+                with tab_pane("Failures", id="failures"):
+                    yield static(_render_table(("Path", "Exit", "Detail"), model.failure_rows))
+                with tab_pane("Reports", id="reports"):
+                    yield static(_render_table(("Artifact",), model.report_rows))
+                with tab_pane("Traffic", id="traffic"):
+                    yield static(_render_table(("Signal", "Status"), model.traffic_rows))
+            yield footer()
 
     return EntropingStudioApp()
 
