@@ -11,6 +11,8 @@ from entroping.studio.status import (
     StudioAppliedGateStatus,
     StudioDependencyError,
     StudioStatus,
+    StudioTrafficRedactionStatus,
+    StudioTrafficRouteStatus,
 )
 
 TableRows = tuple[tuple[str, ...], ...]
@@ -51,9 +53,7 @@ def build_studio_view_model(status: StudioStatus) -> StudioViewModel:
         failure_rows=_failure_rows(status.latest_run.tests if status.latest_run else ()),
         gate_rows=_gate_rows(status.applied_gates),
         report_rows=_report_rows(status.report_paths),
-        traffic_rows=(
-            ("Traffic state", "available" if status.traffic_state_available else "missing"),
-        ),
+        traffic_rows=_traffic_rows(status),
     )
 
 
@@ -141,6 +141,59 @@ def _gate_rows(applied_gates: Sequence[StudioAppliedGateStatus]) -> TableRows:
     )
 
 
+def _traffic_rows(status: StudioStatus) -> TableRows:
+    if not status.traffic_state_available:
+        return (_traffic_state_row("missing"),)
+    if status.traffic_state_status not in {"ok", "empty"}:
+        return (_traffic_state_row(status.traffic_state_status),)
+
+    rows: list[tuple[str, ...]] = [
+        (
+            "summary",
+            "traffic records",
+            "-",
+            "-",
+            str(status.traffic_record_count),
+            "-",
+            "-",
+            f"{status.traffic_redacted_count}/{status.traffic_record_count} redacted",
+        )
+    ]
+    rows.extend(_traffic_redaction_row(redaction) for redaction in status.traffic_redactions)
+    rows.extend(_traffic_route_row(route) for route in status.traffic_routes)
+    return tuple(rows)
+
+
+def _traffic_state_row(status: str) -> tuple[str, str, str, str, str, str, str, str]:
+    return ("state", status, "", "", "", "", "", "")
+
+
+def _traffic_redaction_row(redaction: StudioTrafficRedactionStatus) -> tuple[str, ...]:
+    return (
+        "redaction",
+        redact_hurl_output(redaction.category)[:120],
+        "-",
+        "-",
+        str(redaction.count),
+        "-",
+        "-",
+        "safe category count",
+    )
+
+
+def _traffic_route_row(route: StudioTrafficRouteStatus) -> tuple[str, ...]:
+    return (
+        route.role,
+        redact_hurl_output(route.destination_host)[:120],
+        route.method,
+        redact_hurl_output(route.path_template)[:120],
+        str(route.call_count),
+        str(route.failure_count),
+        _latency_display(route.latency_average_ms),
+        "redacted",
+    )
+
+
 def _stderr_preview(stderr: str) -> str:
     redacted = redact_hurl_output(stderr)
     for line in redacted.splitlines():
@@ -148,6 +201,10 @@ def _stderr_preview(stderr: str) -> str:
         if stripped:
             return stripped[:120]
     return ""
+
+
+def _latency_display(latency_average_ms: int | None) -> str:
+    return "n/a" if latency_average_ms is None else f"{latency_average_ms} ms"
 
 
 @no_type_check
@@ -210,7 +267,21 @@ def _create_textual_app(model: StudioViewModel) -> _RunnableApp:  # pragma: no c
                 with tab_pane("Reports", id="reports"):
                     yield static(_render_table(("Artifact",), model.report_rows))
                 with tab_pane("Traffic", id="traffic"):
-                    yield static(_render_table(("Signal", "Status"), model.traffic_rows))
+                    yield static(
+                        _render_table(
+                            (
+                                "Group",
+                                "Host/Category",
+                                "Method",
+                                "Path",
+                                "Calls/Count",
+                                "Failures",
+                                "Avg",
+                                "Safety",
+                            ),
+                            model.traffic_rows,
+                        )
+                    )
             yield footer()
 
     return EntropingStudioApp()

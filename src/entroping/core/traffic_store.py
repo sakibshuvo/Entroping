@@ -1,7 +1,9 @@
 """SQLite persistence for redacted Eye traffic state."""
 
 from pathlib import Path
+from urllib.parse import quote
 
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Field, Index, Session, SQLModel, col, create_engine, select
 
 from entroping.models.traffic import TrafficExchange
@@ -111,6 +113,39 @@ class TrafficStore:
             session.delete(row)
 
 
+def list_project_exchanges_readonly(
+    project_root: Path,
+    *,
+    limit: int | None = None,
+) -> tuple[TrafficExchange, ...]:
+    """Return project traffic exchanges without creating or migrating state."""
+
+    if limit is not None and limit <= 0:
+        msg = "limit must be positive"
+        raise TrafficStoreError(msg)
+
+    root = project_root.expanduser().resolve()
+    db_path = root / ".entroping" / "state.db"
+    _reject_symlink_path_components(db_path)
+    if not db_path.is_file():
+        msg = "traffic state not found"
+        raise TrafficStoreError(msg)
+
+    engine = create_engine(_readonly_sqlite_url(db_path))
+    statement = select(TrafficEventRow).order_by(col(TrafficEventRow.id))
+    if limit is not None:
+        statement = statement.limit(limit)
+
+    try:
+        with Session(engine) as session:
+            rows = session.exec(statement).all()
+    except SQLAlchemyError as exc:
+        msg = f"could not read traffic state: {exc}"
+        raise TrafficStoreError(msg) from exc
+
+    return tuple(TrafficExchange.model_validate_json(row.exchange_json) for row in rows)
+
+
 def _reject_symlink_path_components(path: Path) -> None:
     current = Path(path.anchor) if path.is_absolute() else Path(".")
     parts = path.parts[1:] if path.is_absolute() else path.parts
@@ -119,3 +154,8 @@ def _reject_symlink_path_components(path: Path) -> None:
         if current.is_symlink():
             msg = f"Refusing to use symlinked traffic state path component: {current}"
             raise TrafficStoreError(msg)
+
+
+def _readonly_sqlite_url(db_path: Path) -> str:
+    quoted_path = quote(db_path.as_posix(), safe="/")
+    return f"sqlite:///file:{quoted_path}?mode=ro&uri=true"

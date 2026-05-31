@@ -346,6 +346,13 @@ entroping report traceability [--output md]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
 ```
 
+`entroping studio --env local` is a read-only traffic session browser as well
+as a local run/status view. The Traffic tab reads redacted SQLModel-backed state
+from `.entroping/state.db`, shows inferred target/dependency grouping, route
+counts, latency summaries, and safe redaction categories and counts. It does not
+start `watch`, run Hurl, write config, or render raw URLs with query values,
+headers, bodies, cookies, tokens, or secrets.
+
 Deprecated names such as `gen`, `fix`, `scan`, `chaos`, and `report --type`
 are intentionally not primary commands.
 

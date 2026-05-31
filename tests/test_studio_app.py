@@ -13,6 +13,8 @@ from entroping.studio.status import (
     StudioAppliedGateStatus,
     StudioDependencyError,
     StudioStatus,
+    StudioTrafficRedactionStatus,
+    StudioTrafficRouteStatus,
 )
 
 
@@ -77,6 +79,39 @@ def test_build_studio_view_model_exposes_summary_suite_failures_reports_and_traf
                 assertion="unknown",
             ),
         ),
+        traffic_state_status="ok",
+        traffic_record_count=3,
+        traffic_redacted_count=3,
+        traffic_routes=(
+            StudioTrafficRouteStatus(
+                role="target",
+                destination_host="api.example.test",
+                method="GET",
+                path_template="/orders/{id}",
+                call_count=2,
+                failure_count=1,
+                latency_average_ms=150,
+            ),
+            StudioTrafficRouteStatus(
+                role="dependency",
+                destination_host="payments.example.test",
+                method="POST",
+                path_template="/charge",
+                call_count=1,
+                failure_count=0,
+                latency_average_ms=None,
+            ),
+        ),
+        traffic_redactions=(
+            StudioTrafficRedactionStatus(
+                category="request authorization header",
+                count=3,
+            ),
+            StudioTrafficRedactionStatus(
+                category="request password body field",
+                count=3,
+            ),
+        ),
     )
 
     model = build_studio_view_model(status)
@@ -115,7 +150,40 @@ def test_build_studio_view_model_exposes_summary_suite_failures_reports_and_traf
         ),
     )
     assert model.report_rows == (("reports/drift.json",), ("reports/run-latest.json",))
-    assert model.traffic_rows == (("Traffic state", "available"),)
+    assert model.traffic_rows == (
+        ("summary", "traffic records", "-", "-", "3", "-", "-", "3/3 redacted"),
+        (
+            "redaction",
+            "request authorization header",
+            "-",
+            "-",
+            "3",
+            "-",
+            "-",
+            "safe category count",
+        ),
+        (
+            "redaction",
+            "request password body field",
+            "-",
+            "-",
+            "3",
+            "-",
+            "-",
+            "safe category count",
+        ),
+        ("target", "api.example.test", "GET", "/orders/{id}", "2", "1", "150 ms", "redacted"),
+        (
+            "dependency",
+            "payments.example.test",
+            "POST",
+            "/charge",
+            "1",
+            "0",
+            "n/a",
+            "redacted",
+        ),
+    )
 
 
 def test_build_studio_view_model_handles_absent_latest_run_reports_and_traffic() -> None:
@@ -136,7 +204,26 @@ def test_build_studio_view_model_handles_absent_latest_run_reports_and_traffic()
     assert model.failure_rows == (("No failed tests", "", ""),)
     assert model.gate_rows == (("No applied gates found", "", "", "", "", ""),)
     assert model.report_rows == (("No report artifacts found",),)
-    assert model.traffic_rows == (("Traffic state", "missing"),)
+    assert model.traffic_rows == (("state", "missing", "", "", "", "", "", ""),)
+
+
+def test_build_studio_view_model_handles_traffic_state_errors() -> None:
+    status = StudioStatus(
+        environment="default",
+        project="not configured",
+        qanstitution_status="missing",
+        latest_run=None,
+        latest_run_status="none",
+        report_paths=(),
+        traffic_state_available=True,
+        traffic_state_status="error: could not read traffic state",
+    )
+
+    model = build_studio_view_model(status)
+
+    assert model.traffic_rows == (
+        ("state", "error: could not read traffic state", "", "", "", "", "", ""),
+    )
 
 
 def test_build_studio_view_model_handles_failed_test_without_stderr() -> None:

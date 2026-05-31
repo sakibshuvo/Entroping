@@ -43,6 +43,7 @@
 - Added issue #201's reusable policy-pack layout, including a runtime-neutral `POLICY_PACK_LAYOUT.md` design note and a loadable `examples/policy-packs/api-baseline/` pack shape.
 - Added issue #196's Studio mutation workflow design note, keeping v0.3 Studio read-only while documenting future preview, two-step confirmation, no-raw-secret, rollback, and test gates.
 - Added issue #192's read-only Studio applied-gate drilldowns by linking latest-run rule IDs to QAnstitution gate definitions without running Hurl or mutating tests/config.
+- Added issue #190's read-only Studio traffic session browser, using read-only SQLModel-backed state access plus existing traffic session and graph compilers to show target/dependency route summaries and safe redaction category counts without starting capture or rendering raw traffic values.
 
 ## 2026-05-30
 

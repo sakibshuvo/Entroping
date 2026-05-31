@@ -17,6 +17,7 @@
 - Policy packs should start as ordinary QAnstitution imports plus metadata, not a second policy system. Prove the directory shape and examples first; add registry, remote-fetch, or manifest validation only after a focused follow-up issue.
 - Studio mutation must be preview-first, confirmation-gated, and reversible before code. Keep Textual as an adapter over existing CLI/core use cases, not a direct writer or runner.
 - Studio drilldowns should explain existing artifacts, not create new truth. Applied-gate views should derive from latest-run report rule IDs plus loaded QAnstitution definitions while leaving Hurl execution and report generation in the CLI path.
+- Studio traffic inspection should use a read-only database path. Reusing a write-capable store initializer for UI browsing can create or migrate `.entroping/state.db`; add a separate read-only SQLModel query path and keep raw URLs, headers, bodies, cookies, tokens, and secrets out of TUI rows.
 
 ## 2026-05-30
 
