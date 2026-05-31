@@ -22,7 +22,7 @@ from entroping.core.report_writer import ReportWriterError, write_json_report
 from entroping.core.run_workflow import NoHurlTestsMatchedError
 from entroping.core.traffic_proxy import MitmproxyUnavailableError, WatchConfig
 from entroping.models.report import RunReport, RunReportSummary, RunTestReport
-from entroping.studio.status import StudioDependencyError
+from entroping.studio.status import StudioDependencyError, render_studio_status
 
 
 def _accept_architect_hurl_validation(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1919,6 +1919,10 @@ def test_studio_read_only_status_without_latest_run(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("entroping.cli.main.ensure_studio_available", lambda: None)
+    monkeypatch.setattr(
+        "entroping.cli.main.run_studio_app",
+        lambda status: print(render_studio_status(status), end=""),
+    )
     runner = CliRunner()
     runner.invoke(app, ["init", "--minimal"])
 
@@ -1939,6 +1943,10 @@ def test_studio_read_only_status_with_latest_run_and_no_mutation(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("entroping.cli.main.ensure_studio_available", lambda: None)
+    monkeypatch.setattr(
+        "entroping.cli.main.run_studio_app",
+        lambda status: print(render_studio_status(status), end=""),
+    )
     runner = CliRunner()
     runner.invoke(app, ["init", "--minimal"])
     state_dir = Path(".entroping")

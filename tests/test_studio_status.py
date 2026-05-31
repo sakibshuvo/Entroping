@@ -1,4 +1,4 @@
-"""Unit tests for the read-only Studio status shell."""
+"""Unit tests for read-only Studio status collection."""
 
 import json
 from pathlib import Path

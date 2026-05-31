@@ -1,4 +1,4 @@
-"""Read-only local Studio status shell."""
+"""Read-only local Studio status collection and text rendering."""
 
 import importlib.util
 from dataclasses import dataclass
@@ -21,6 +21,18 @@ class StudioDependencyError(RuntimeError):
 
 
 @dataclass(frozen=True)
+class LatestRunTestStatus:
+    """Small read-only latest-run test row for Studio."""
+
+    path: str
+    status: str
+    exit_code: int
+    duration_ms: int
+    rule_ids: tuple[str, ...]
+    stderr: str
+
+
+@dataclass(frozen=True)
 class LatestRunStatus:
     """Small read-only latest-run summary for Studio."""
 
@@ -29,6 +41,7 @@ class LatestRunStatus:
     failed: int
     total: int
     exit_code: int
+    tests: tuple[LatestRunTestStatus, ...]
 
 
 @dataclass(frozen=True)
@@ -73,7 +86,7 @@ def collect_studio_status(*, project_root: Path, environment: str | None) -> Stu
 
 
 def render_studio_status(status: StudioStatus) -> str:
-    """Render the read-only status shell as terminal-friendly text."""
+    """Render the read-only status snapshot as terminal-friendly text."""
 
     lines = [
         "Entroping Studio (read-only)",
@@ -113,6 +126,17 @@ def _load_latest_run_status(root: Path) -> tuple[LatestRunStatus | None, str]:
             failed=report.summary.failed,
             total=report.summary.total,
             exit_code=report.summary.exit_code,
+            tests=tuple(
+                LatestRunTestStatus(
+                    path=test.path,
+                    status=test.status,
+                    exit_code=test.exit_code,
+                    duration_ms=test.duration_ms,
+                    rule_ids=test.rule_ids,
+                    stderr=test.stderr,
+                )
+                for test in report.tests
+            ),
         ),
         "ok",
     )

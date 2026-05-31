@@ -79,8 +79,9 @@ JSON/JUnit/HTML reports, `report bug`, LLM-backed generation/refactor, and
 capture-only `watch` are implemented. Basic `freeze` and Mermaid/DOT/Markdown
 `map` exports are implemented, and `freeze --mock` writes WireMock-compatible
 mappings. PNG map rendering is implemented through optional local Graphviz `dot`.
-Drift reports are implemented for run-report baselines, and Studio has a
-read-only local status shell when optional Studio dependencies are installed.
+Drift reports are implemented for run-report and route-level dependency
+baselines, and Studio has an interactive read-only TUI when optional Studio
+dependencies are installed.
 
 ## Agent Workflow
 

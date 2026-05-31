@@ -90,7 +90,7 @@ bounded `--parallel`, `--drift-check`, `--report html`, `--report json`,
 
 | Command | Purpose |
 | --- | --- |
-| `entroping studio --env <name>` | Open read-only local status shell |
+| `entroping studio --env <name>` | Open read-only local Studio TUI |
 | `entroping run --env <name>` | Run tests with environment variables |
 | `entroping run --tag <tag>` | Run tests matching a tag |
 | `entroping run --ci` | Strict CI mode |

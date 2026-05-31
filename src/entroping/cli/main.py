@@ -66,11 +66,11 @@ from entroping.core.traffic_proxy import (
 )
 from entroping.models.hurl import HurlMetadataSyntaxError
 from entroping.models.qanstitution import AgentRole
+from entroping.studio.app import run_studio_app
 from entroping.studio.status import (
     StudioDependencyError,
     collect_studio_status,
     ensure_studio_available,
-    render_studio_status,
 )
 
 console = Console()
@@ -520,7 +520,7 @@ def studio(
         console.print(f"[yellow]{exc}[/yellow]")
         raise typer.Exit(1) from exc
 
-    console.print(render_studio_status(status), markup=False, end="")
+    run_studio_app(status)
 
 
 @app.command()

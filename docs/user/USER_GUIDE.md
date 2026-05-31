@@ -385,7 +385,7 @@ finished, so Hurl failures are still visible.
 
 ## 12. Studio
 
-Open the read-only local status shell:
+Open the read-only local Studio TUI:
 
 ```bash
 entroping studio --env local
@@ -397,15 +397,19 @@ Install the optional dependency first in a local checkout:
 uv sync --extra studio
 ```
 
-The first Studio slice inspects:
+Studio opens tabbed views for:
 
 - Detected QAnstitution project.
-- Latest run summary when `.entroping/latest-run.json` exists.
+- Latest run summary and suite rows when `.entroping/latest-run.json` exists.
+- Failure details from the sanitized latest run report.
 - Existing report artifact paths.
 - Traffic-state availability.
 
-Future Studio work should add test-suite navigation, applied-gate detail,
-failure drilldown, and traffic-session views.
+Studio is intentionally read-only in the alpha. It does not update tests,
+config, reports, or `.entroping` state.
+
+Future Studio work should add rerun/action workflows, applied-gate detail,
+deeper failure drilldown, and traffic-session navigation.
 
 Studio is a local development interface. CI should use `entroping run`.
 
