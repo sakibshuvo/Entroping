@@ -87,6 +87,40 @@ def test_community_health_files_exist_and_reference_project_gates() -> None:
     assert "respectful" in conduct.lower()
 
 
+def test_good_first_issue_walkthrough_is_linked_and_actionable() -> None:
+    walkthrough_path = (
+        REPO_ROOT / "docs" / "meta" / "GOOD_FIRST_ISSUE_WALKTHROUGH.md"
+    )
+    walkthrough = walkthrough_path.read_text(encoding="utf-8")
+    contributing = (REPO_ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    index = (REPO_ROOT / "00_INDEX.md").read_text(encoding="utf-8")
+
+    assert "[GOOD_FIRST_ISSUE_WALKTHROUGH.md]" in contributing
+    assert "GOOD_FIRST_ISSUE_WALKTHROUGH.md" in readme
+    assert "[[docs/meta/GOOD_FIRST_ISSUE_WALKTHROUGH|GOOD_FIRST_ISSUE_WALKTHROUGH]]" in index
+
+    required_terms = [
+        "good first issue",
+        "status:ready",
+        "milestone",
+        "scripts/start_issue.sh",
+        "--dry-run",
+        "scripts/feature_gate.sh",
+        "scripts/regression.sh",
+        "scripts/doc_governance_check.sh",
+        "docs/technical/TDS.md",
+        "docs/meta/FEATURE_DELIVERY_CHECKLIST.md",
+        "Documentation Impact Declaration",
+    ]
+
+    for term in required_terms:
+        assert term in walkthrough
+
+    assert walkthrough.index("## The Small Path") < walkthrough.index("## Labels")
+    assert walkthrough.index("## Labels") < walkthrough.index("## Validation")
+
+
 def test_agent_workflow_docs_use_portable_repo_and_source_placeholders() -> None:
     docs = [
         REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md",

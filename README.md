@@ -358,6 +358,7 @@ AGENTS.md              Project-local Codex implementation rules
 
 ## Contributing And Community
 
+- [GOOD_FIRST_ISSUE_WALKTHROUGH.md](docs/meta/GOOD_FIRST_ISSUE_WALKTHROUGH.md) gives new contributors a deterministic path from issue selection to local gates.
 - [CONTRIBUTING.md](CONTRIBUTING.md) explains the local development and PR rules.
 - [SECURITY.md](SECURITY.md) explains private vulnerability reporting and security gates.
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) sets the project conduct baseline.

@@ -5,10 +5,12 @@ Entroping is early alpha. Contributions are welcome, but they need to preserve t
 ## Start Here
 
 1. Read `README.md`.
-2. Read `AGENTS.md`.
-3. Read `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`.
-4. Pick or create one GitHub issue.
-5. Keep the change narrow.
+2. For a first contribution, follow
+   [GOOD_FIRST_ISSUE_WALKTHROUGH.md](docs/meta/GOOD_FIRST_ISSUE_WALKTHROUGH.md).
+3. Read `AGENTS.md`.
+4. Read `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`.
+5. Pick or create one GitHub issue.
+6. Keep the change narrow.
 
 ## Local Setup
 
