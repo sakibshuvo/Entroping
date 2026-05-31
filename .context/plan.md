@@ -98,6 +98,9 @@ publish order in the growth plan without committing generated reports, GIFs, or
 PNG screenshots.
 Issue #166 removed maintainer-local temp paths from launch rebuild commands and
 added a regression guard so public launch docs stay copy/paste portable.
+Issue #168 made `scripts/context_pack.sh --mode source` source-archive paths
+configurable through `ENTROPING_SOURCE_ROOT`, with a sibling `../entroping-specs`
+default instead of a maintainer-local script constant.
 Issue #90 moved deterministic run orchestration behind `core.run_workflow`,
 leaving the CLI adapter responsible for option normalization, output, and exit
 mapping.
