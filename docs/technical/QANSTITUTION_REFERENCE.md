@@ -14,6 +14,35 @@ If you are editing your first policy, start with
 [QANSTITUTION_FIRST_HOUR.md](../user/QANSTITUTION_FIRST_HOUR.md). This reference
 is the full schema and advanced behavior.
 
+## Authoring Schema
+
+The committed JSON Schema lives at
+[qanstitution.schema.json](qanstitution.schema.json). It is generated from the
+Pydantic runtime model with:
+
+```bash
+uv run python scripts/update_qanstitution_schema.py
+```
+
+VS Code and YAML language server users can rely on the checked-in
+`.vscode/settings.json` mapping, which associates `qanstitution.yaml` and
+`**/qanstitution.yaml` with that schema:
+
+```json
+{
+  "yaml.schemas": {
+    "./docs/technical/qanstitution.schema.json": [
+      "qanstitution.yaml",
+      "**/qanstitution.yaml"
+    ]
+  }
+}
+```
+
+The schema is an editor and review aid; runtime validation remains authoritative:
+`entroping doctor`, `entroping run`, and Architect commands load the effective
+policy through the Pydantic model and config loader before trusting it.
+
 ## 2. Minimal Example
 
 ```yaml
@@ -112,22 +141,6 @@ settings:
   parallel_workers: 4
   follow_redirects: true
   retry: 2
-  state_retention:
-    max_size_mb: 1024
-    max_age_days: 30
-  env_defaults:
-    base_url: "http://localhost:8080"
-
-redaction:
-  headers:
-    - authorization
-    - cookie
-    - x-api-key
-  json_fields:
-    - password
-    - token
-    - access_token
-    - refresh_token
 ```
 
 ## 4. Top-Level Fields
@@ -144,7 +157,6 @@ redaction:
 | `gates` | Yes | Runtime governance assertions |
 | `ignore_failures` | No | Temporary known-failure exceptions |
 | `settings` | No | Runtime defaults |
-| `redaction` | No | Traffic and log redaction settings |
 
 ## 5. Sources
 
@@ -381,39 +393,28 @@ settings:
   parallel_workers: 4
   follow_redirects: true
   retry: 2
-  state_retention:
-    max_size_mb: 1024
-    max_age_days: 30
-  env_defaults:
-    base_url: "http://localhost:8080"
 ```
 
-Settings are defaults. Command-line flags and environment variables can override them where documented.
+Settings are deterministic runtime defaults. Command-line flags and environment
+variables can override them where documented.
 
-`state_retention` controls `.entroping/state.db` growth for traffic capture, baselines, and run history.
+## 15. Redaction Roadmap
 
-## 15. Redaction
+Traffic and prompt redaction are currently handled by built-in redactors and
+review reports, not a `qanstitution.yaml` field. Do not add `redaction` to the
+current policy file; the JSON Schema and Pydantic model intentionally reject
+unknown top-level keys.
 
-```yaml
-redaction:
-  headers:
-    - authorization
-    - cookie
-    - x-api-key
-  json_fields:
-    - password
-    - token
-    - access_token
-```
-
-Redaction applies to:
+Future policy-backed redaction rules should cover:
 
 - Traffic persistence.
 - Logs.
 - Reports.
 - LLM context preparation.
 
-Raw secrets should not be persisted or sent to model providers.
+Raw secrets should not be persisted or sent to model providers. Adding a
+policy-backed redaction section requires a Pydantic model update, regenerated
+`qanstitution.schema.json`, examples, and tests in the same change.
 
 ## 16. External Business Truth
 

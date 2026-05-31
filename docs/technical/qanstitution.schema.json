@@ -1,0 +1,371 @@
+{
+  "$defs": {
+    "AgentConfig": {
+      "additionalProperties": false,
+      "description": "Model and persona routing for an Architect role.",
+      "properties": {
+        "api_base": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Api Base"
+        },
+        "api_key_env": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Api Key Env"
+        },
+        "max_tokens": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Tokens"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "temperature": {
+          "default": 0.0,
+          "maximum": 2.0,
+          "minimum": 0.0,
+          "title": "Temperature",
+          "type": "number"
+        }
+      },
+      "required": [
+        "source",
+        "model"
+      ],
+      "title": "AgentConfig",
+      "type": "object"
+    },
+    "DependencyConfig": {
+      "additionalProperties": false,
+      "description": "Read-only provider service context.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "spec": {
+          "title": "Spec",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "spec"
+      ],
+      "title": "DependencyConfig",
+      "type": "object"
+    },
+    "GateRule": {
+      "additionalProperties": false,
+      "description": "Runtime governance assertion injected into matching Hurl executions.",
+      "properties": {
+        "condition": {
+          "description": "Deterministic QAnstitution condition DSL.",
+          "pattern": "^(true|(tags|path|url) contains '[^']+'|path startswith '[^']+'|method == '[^']+'|meta\\.[A-Za-z_][A-Za-z0-9_]* == '[^']+')$",
+          "title": "Condition",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "enforcement": {
+          "enum": [
+            "block",
+            "warn",
+            "audit_only"
+          ],
+          "title": "Enforcement",
+          "type": "string"
+        },
+        "final": {
+          "default": false,
+          "title": "Final",
+          "type": "boolean"
+        },
+        "gate": {
+          "title": "Gate",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "condition",
+        "gate",
+        "enforcement"
+      ],
+      "title": "GateRule",
+      "type": "object"
+    },
+    "KnownFailure": {
+      "additionalProperties": false,
+      "description": "Temporary exception that must remain traceable and expiring.",
+      "properties": {
+        "expires": {
+          "title": "Expires",
+          "type": "string"
+        },
+        "issue_id": {
+          "title": "Issue Id",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "rule_id": {
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "test": {
+          "title": "Test",
+          "type": "string"
+        }
+      },
+      "required": [
+        "test",
+        "rule_id",
+        "issue_id",
+        "expires",
+        "reason"
+      ],
+      "title": "KnownFailure",
+      "type": "object"
+    },
+    "RuntimeSettings": {
+      "additionalProperties": false,
+      "description": "Deterministic execution defaults.",
+      "properties": {
+        "follow_redirects": {
+          "default": true,
+          "title": "Follow Redirects",
+          "type": "boolean"
+        },
+        "parallel_workers": {
+          "default": 4,
+          "exclusiveMinimum": 0,
+          "title": "Parallel Workers",
+          "type": "integer"
+        },
+        "retry": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Retry",
+          "type": "integer"
+        },
+        "timeout": {
+          "default": 30000,
+          "exclusiveMinimum": 0,
+          "title": "Timeout",
+          "type": "integer"
+        }
+      },
+      "title": "RuntimeSettings",
+      "type": "object"
+    },
+    "SourceConfig": {
+      "additionalProperties": false,
+      "description": "Source inputs available to Architect commands.",
+      "properties": {
+        "graph": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Graph"
+        },
+        "spec": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Spec"
+        },
+        "stories": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stories"
+        },
+        "traffic": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Traffic"
+        },
+        "types": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Types"
+        }
+      },
+      "title": "SourceConfig",
+      "type": "object"
+    }
+  },
+  "$id": "https://sakibshuvo.github.io/Entroping/technical/qanstitution.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Authoring schema for Entroping qanstitution.yaml files. Runtime Pydantic validation remains authoritative.",
+  "properties": {
+    "agents": {
+      "additionalProperties": {
+        "$ref": "#/$defs/AgentConfig"
+      },
+      "propertyNames": {
+        "enum": [
+          "builder",
+          "auditor",
+          "breaker"
+        ]
+      },
+      "title": "Agents",
+      "type": "object"
+    },
+    "dependencies": {
+      "items": {
+        "$ref": "#/$defs/DependencyConfig"
+      },
+      "title": "Dependencies",
+      "type": "array"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Description"
+    },
+    "gates": {
+      "items": {
+        "$ref": "#/$defs/GateRule"
+      },
+      "title": "Gates",
+      "type": "array"
+    },
+    "ignore_failures": {
+      "items": {
+        "$ref": "#/$defs/KnownFailure"
+      },
+      "title": "Ignore Failures",
+      "type": "array"
+    },
+    "imports": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Imports",
+      "type": "array"
+    },
+    "project": {
+      "title": "Project",
+      "type": "string"
+    },
+    "settings": {
+      "$ref": "#/$defs/RuntimeSettings"
+    },
+    "sources": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SourceConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Version"
+    }
+  },
+  "required": [
+    "project"
+  ],
+  "title": "Qanstitution",
+  "type": "object"
+}
