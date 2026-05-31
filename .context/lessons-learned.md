@@ -122,3 +122,4 @@
 - Public docs deployment needs two gates: PR CI should build the MkDocs site strictly, while the Pages workflow should publish only from `main` after the same strict build.
 - Organization governance should compile into one effective local QAnstitution. Preserve provenance and final-gate behavior before adding remote policy registries, caches, or approval workflows.
 - Do not ship native CI-provider templates just because the shell recipe is portable. Mark GitLab, Buildkite, and CircleCI templates as deferred until their actual runners prove install, Hurl checksum, Entroping run, and artifact behavior.
+- Standalone binaries are a support and security commitment, not just a convenience feature. Require proven package-manager demand, signing/notarization ownership, and native dependency update plans before adding Nuitka or PyInstaller automation.

@@ -103,6 +103,40 @@ extra. Do not let Studio force the default distribution to become heavier.
 
 PyPI/TestPyPI path must land first.
 
+## Standalone Binary Decision
+
+Standalone binary decision: defer.
+
+Do not add binary build/signing automation until after PyPI alpha and Homebrew tap demand are proven.
+A standalone binary can look simpler to users, but it
+would move Entroping from a Python CLI distribution problem into a
+platform-release operation with signing keys, native dependency updates, and
+security-response ownership.
+
+Nuitka and PyInstaller remain the two plausible Python packaging candidates for
+a later review. Neither should enter default development dependencies until a
+release-owner runbook exists and the project has evidence that `uv tool
+install`, PyPI, and Homebrew are not enough for the target users.
+
+The later review must account for:
+
+- macOS signing and notarization;
+- Windows signing and installer reputation;
+- Linux packaging targets, glibc/musl expectations, and artifact hosting;
+- whether to bundle the Hurl binary or require users to install it separately;
+- whether Graphviz remains optional or becomes an external dependency;
+- whether mitmproxy optional proxy support makes artifacts too large or brittle;
+- whether Studio/Textual remains optional or creates a heavier default binary;
+- update cadence and CVE response for bundled Python and native dependencies.
+
+Standalone binaries are worth revisiting only when at least one of these is
+true:
+
+- Homebrew users ask for a non-Homebrew path after the tap is proven;
+- Linux or Windows users cannot adopt `uv tool install` or PyPI;
+- an enterprise/commercial buyer requires signed offline artifacts;
+- support evidence shows install friction is blocking real adoption.
+
 ## Follow-Up Implementation Issues
 
 These follow-up implementation issues were created from this recommendation:
