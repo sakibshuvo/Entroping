@@ -28,6 +28,7 @@
 - Added issue #195's Brain provider setup path with optional `api_base` and `api_key_env` agent metadata, LiteLLM/local Qwen/oMLX setup docs, no-provider CI guidance, and docs/code guard tests.
 - Added issue #186's package-index release runbook for TestPyPI-first Trusted Publishing, PEP 440 alpha naming, token-free GitHub Actions environments, PyPI publish policy, and yank/new-version rollback.
 - Added issue #188's public docs site decision and minimal MkDocs Material scaffold with `mkdocs.yml`, `docs/index.md`, and guard tests, while keeping canonical docs in the existing Markdown tree.
+- Added issue #183's distribution recommendation: keep `uv tool install` first, activate PyPI/TestPyPI next, prototype Homebrew after PyPI alpha, defer standalone binaries, and track follow-up implementation issues #223 through #225.
 
 ## 2026-05-30
 
