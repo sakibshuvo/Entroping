@@ -234,6 +234,11 @@ settings:
 5. Local gates override imported gates with the same ID unless the imported gate is `final: true`.
 6. The effective policy must be inspectable through `doctor` or report output.
 
+Reusable QAnstitution policy packs use the same import boundary and are
+documented in [POLICY_PACK_LAYOUT.md](POLICY_PACK_LAYOUT.md). The pack layout is
+a design contract and example shape; it does not add registry, remote-fetch, or
+runtime manifest behavior by itself.
+
 ### Condition DSL
 
 The first supported condition language should be intentionally small:

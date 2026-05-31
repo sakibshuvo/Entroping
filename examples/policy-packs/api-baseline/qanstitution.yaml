@@ -1,0 +1,7 @@
+project: "entroping-policy-pack-api-baseline"
+version: "4.1"
+description: "Import entrypoint for the API baseline policy pack"
+imports:
+  - "./rules/security.yaml"
+  - "./rules/reliability.yaml"
+gates: []

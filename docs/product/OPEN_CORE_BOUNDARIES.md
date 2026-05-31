@@ -102,6 +102,10 @@ separate issue for the paid surface.
   history can be commercial because they aggregate trusted local artifacts.
 - Starter policy examples are core; deep, maintained policy-pack catalogs can be
   commercial if users can inspect and run them locally.
+- Reusable policy-pack structure is defined in
+  [POLICY_PACK_LAYOUT.md](../technical/POLICY_PACK_LAYOUT.md), with starter
+  examples in core and premium curation kept separate from local runtime
+  enforcement.
 - Public docs and examples should describe the core first. Commercial language
   should be explicit, separate, and never imply that the local CLI is crippled.
 

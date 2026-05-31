@@ -1,0 +1,9 @@
+project: "entroping-policy-pack-api-baseline-reliability"
+version: "4.1"
+description: "Reliability gates for API baseline policy packs"
+gates:
+  - id: "api-reliability.latency"
+    description: "Governed API responses should complete within two seconds"
+    condition: "true"
+    gate: "duration < 2000"
+    enforcement: "block"

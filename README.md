@@ -277,6 +277,7 @@ Technical:
 
 - [TDS.md](docs/technical/TDS.md) - technical design.
 - [QANSTITUTION_REFERENCE.md](docs/technical/QANSTITUTION_REFERENCE.md) - policy schema and examples.
+- [POLICY_PACK_LAYOUT.md](docs/technical/POLICY_PACK_LAYOUT.md) - reusable QAnstitution policy-pack layout and example.
 - [COMMAND_CHEAT_SHEET.md](docs/technical/COMMAND_CHEAT_SHEET.md) - locked CLI namespace.
 - [FREEZE_MAP_PLAN.md](docs/technical/FREEZE_MAP_PLAN.md) - Eye implementation boundaries.
 

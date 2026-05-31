@@ -1,0 +1,10 @@
+project: "checkout-api"
+version: "4.1"
+imports:
+  - "../qanstitution.yaml"
+gates:
+  - id: "checkout.local_latency"
+    description: "Checkout smoke tests should stay fast locally"
+    condition: "tags contains 'smoke'"
+    gate: "duration < 750"
+    enforcement: "block"

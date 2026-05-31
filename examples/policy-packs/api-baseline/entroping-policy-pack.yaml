@@ -1,0 +1,15 @@
+id: "entroping.api-baseline"
+name: "API Baseline"
+version: "0.1.0-alpha"
+license: "Apache-2.0"
+entrypoint: "qanstitution.yaml"
+runtime_contract: "qanstitution-import"
+entroping: ">=0.1.1-alpha,<1.0"
+gate_prefixes:
+  - "api-security"
+  - "api-reliability"
+final_gates:
+  - "api-security.no_5xx"
+maintainers:
+  - "Entroping Core"
+summary: "Starter API security and reliability gates for policy-pack authors."
