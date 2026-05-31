@@ -239,6 +239,12 @@ documented in [POLICY_PACK_LAYOUT.md](POLICY_PACK_LAYOUT.md). The pack layout is
 a design contract and example shape; it does not add registry, remote-fetch, or
 runtime manifest behavior by itself.
 
+Organization QAnstitution import controls are defined by
+[ADR-0011-organization-qanstitution-import-controls.md](https://github.com/sakibshuvo/Entroping/blob/main/decisions/ADR-0011-organization-qanstitution-import-controls.md).
+Remote, registry, signature, and approval workflows must preserve the same
+effective-policy merge, provenance, final-gate, and local-first execution
+boundary before they become runtime features.
+
 ### Condition DSL
 
 The first supported condition language should be intentionally small:

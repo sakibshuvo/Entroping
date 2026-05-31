@@ -137,6 +137,10 @@ tree as the source instead of duplicating docs.
 Issue #228 activates that path: CI now runs `mkdocs build --strict` on pull
 requests and pushes to `main`, while a separate Pages workflow publishes the
 curated `docs/` site from `main`.
+Issue #202 defines organization QAnstitution import controls in ADR-0011:
+central policy imports remain part of the same effective local policy, must
+preserve provenance and `final: true` behavior, and should add effective-policy
+evidence before remote registries or approval workflows become runtime features.
 Issue #183 recommends the distribution sequence: keep `uv tool install` first,
 activate PyPI/TestPyPI next, prototype Homebrew after the PyPI alpha, and defer
 standalone binaries/signing until there is demand.

@@ -46,6 +46,7 @@
 - Added issue #190's read-only Studio traffic session browser, using read-only SQLModel-backed state access plus existing traffic session and graph compilers to show target/dependency route summaries and safe redaction category counts without starting capture or rendering raw traffic values.
 - Added issue #229's Python compatibility policy: package metadata now claims Python 3.12 and 3.13 only, CI runs security regression and optional-extras smoke on both versions, and release docs no longer imply unproven Python 3.14 support.
 - Added issue #228's strict public docs automation: pull requests run `mkdocs build --strict`, `main` publishes through GitHub Pages, and public-site docs now describe the active deployment instead of the old deferred scaffold.
+- Added ADR-0011 for issue #202: organization QAnstitution imports must preserve provenance, final-gate behavior, local-first validation, and effective-policy evidence before remote/registry features are implemented.
 
 ## 2026-05-30
 
