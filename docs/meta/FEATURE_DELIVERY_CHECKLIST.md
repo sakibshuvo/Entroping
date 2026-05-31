@@ -63,6 +63,12 @@ Use this checklist for every non-trivial Entroping feature. It is the executable
 
 ## 5. Local Verification
 
+- [ ] Run the documentation governance gate before final review:
+
+```bash
+scripts/doc_governance_check.sh
+```
+
 - [ ] Run the standard gate:
 
 ```bash
@@ -116,6 +122,8 @@ scripts/audit_quality.sh
 
 ## 8. Documentation And Context Preservation
 
+- [ ] Read `docs/meta/DOCS_GOVERNANCE.md` and identify the canonical documentation owner before editing docs.
+- [ ] Include a Documentation Impact Declaration in the PR or final handoff.
 - [ ] Update `docs/meta/PROJECT_PROGRESS.md` after meaningful feature, bug, or roadmap changes.
 - [ ] Update user-facing docs when behavior or commands change.
 - [ ] Update technical docs when architecture, schemas, boundaries, or gates change.
@@ -141,6 +149,7 @@ No failing or targeted test -> no feature implementation start unless explicitly
 No issue or explicit task source -> no feature branch.
 No regression suite -> no commit.
 No security pass for sensitive boundaries -> no merge.
+No Documentation Impact Declaration -> no PR.
 No context update -> no durable memory.
 No parent integrator approval -> no multi-agent patch lands.
 ```
