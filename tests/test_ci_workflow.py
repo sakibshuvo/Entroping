@@ -66,6 +66,31 @@ def test_ci_workflow_runs_live_demo_smoke_with_pinned_hurl() -> None:
     assert "actions/upload-artifact@v7" in workflow_text
 
 
+def test_ci_workflow_runs_optional_extras_runtime_smoke() -> None:
+    workflow = yaml.safe_load(_WORKFLOW_PATH.read_text(encoding="utf-8"))
+
+    optional_smoke = workflow["jobs"]["optional-extras-smoke"]
+    steps = optional_smoke["steps"]
+    run_blocks = "\n".join(str(step.get("run", "")) for step in steps)
+
+    assert optional_smoke["needs"] == "checks"
+    assert "uv sync --dev --all-extras" in run_blocks
+    assert "scripts/optional_extras_smoke.py" in run_blocks
+    assert "pip-audit" not in run_blocks
+
+
+def test_optional_extras_smoke_script_exercises_optional_runtime_boundaries() -> None:
+    script = (_REPO_ROOT / "scripts" / "optional_extras_smoke.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "_load_completion_func" in script
+    assert "load_mitmproxy_runtime" in script
+    assert "ensure_studio_available" in script
+    assert "textual.app" in script
+    assert "OPENAI_API_KEY" not in script
+
+
 def test_docs_explain_ci_enforced_and_local_only_gates() -> None:
     readme = (_REPO_ROOT / "README.md").read_text(encoding="utf-8")
     test_strategy = (_REPO_ROOT / "docs" / "meta" / "TEST_STRATEGY.md").read_text(
@@ -78,6 +103,7 @@ def test_docs_explain_ci_enforced_and_local_only_gates() -> None:
     assert "GitHub Actions Enforcement" in test_strategy
     assert "`scripts/regression.sh --security`" in test_strategy
     assert "`scripts/audit_quality.sh`" in test_strategy
+    assert "optional-extras-smoke" in test_strategy
 
 
 def test_release_docs_explain_hurl_checksum_bump_process() -> None:

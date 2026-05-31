@@ -78,8 +78,17 @@ security regression job:
 scripts/audit_quality.sh
 ```
 
-CI-enforced commands are `scripts/regression.sh --security` and
-`scripts/audit_quality.sh`.
+The `optional-extras-smoke` job installs all optional extras and exercises the
+Brain/LiteLLM, Eye/mitmproxy, and Studio/Textual import/setup boundaries without
+provider credentials or live traffic capture:
+
+```bash
+uv sync --dev --all-extras
+uv run python scripts/optional_extras_smoke.py
+```
+
+CI-enforced commands are `scripts/regression.sh --security`,
+`scripts/audit_quality.sh`, and the `optional-extras-smoke` lane.
 
 Drift tests must keep response comparison value-free. The structured drift MVP
 compares response status codes, selected stable headers, and JSON body shape
