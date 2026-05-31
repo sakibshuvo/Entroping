@@ -92,6 +92,9 @@ Issue #109 added community-profile auditing and a scheduled/manual OpenSSF
 Scorecard workflow without making Scorecard a required pull-request check.
 Issue #110 extended drift reports with optional value-free response fingerprints
 for status code, selected stable headers, and JSON body shape paths.
+Issue #176 extended drift reports with conservative material latency regression
+warnings from reviewed `duration_ms` baselines, without adding flags or storing
+response values.
 Issue #108 added a text/SVG launch asset kit under `docs/assets/launch/`,
 linked it from the README and Obsidian index, and documented the concrete
 publish order in the growth plan without committing generated reports, GIFs, or
@@ -482,6 +485,21 @@ Implemented boundaries:
 - Volatile headers and full response body values are not drift truth.
 - Missing current response fingerprints are reported when the baseline expected
   one.
+
+## Completed Slice: Issue #176 Latency Regression Drift
+
+Outcome: drift reports can warn when a current Hurl test becomes materially
+slower than a reviewed run baseline.
+
+Implemented boundaries:
+
+- Baselines copied from `.entroping/latest-run.json` now preserve optional
+  `duration_ms` values per test.
+- Latency findings require both a minimum 100 ms increase and a minimum 25
+  percent increase from a positive baseline duration, keeping tiny local timing
+  noise out of drift reports.
+- Findings are warnings and include only duration/increase numbers, never
+  response bodies, captured traffic, cookies, tokens, or raw provider data.
 
 ## Completed Slice: Issue #83 Bounded Parallel Hurl Execution
 

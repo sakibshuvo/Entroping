@@ -14,6 +14,9 @@ from entroping.models.drift import (
 )
 from entroping.models.report import RunReport, RunTestReport
 
+_LATENCY_REGRESSION_MIN_INCREASE_MS = 100
+_LATENCY_REGRESSION_MIN_PERCENT = 25
+
 
 class DriftReportError(ValueError):
     """Raised when a drift baseline or report cannot be handled safely."""
@@ -156,8 +159,41 @@ def _compare_common_test(
                 current={"rule_ids": list(current.rule_ids)},
             )
         )
+    findings.extend(_compare_latency(path, baseline, current))
     findings.extend(_compare_response_fingerprint(path, baseline, current))
     return tuple(findings)
+
+
+def _compare_latency(
+    path: str,
+    baseline: DriftBaselineTest,
+    current: RunTestReport,
+) -> tuple[DriftFinding, ...]:
+    if baseline.duration_ms is None or baseline.duration_ms <= 0:
+        return ()
+
+    increase_ms = current.duration_ms - baseline.duration_ms
+    if increase_ms < _LATENCY_REGRESSION_MIN_INCREASE_MS:
+        return ()
+
+    increase_percent = (increase_ms * 100) // baseline.duration_ms
+    if increase_percent < _LATENCY_REGRESSION_MIN_PERCENT:
+        return ()
+
+    return (
+        DriftFinding(
+            kind="latency_regressed",
+            severity="warning",
+            path=path,
+            message="Current duration materially exceeds the drift baseline.",
+            baseline={"duration_ms": baseline.duration_ms},
+            current={
+                "duration_ms": current.duration_ms,
+                "increase_ms": increase_ms,
+                "increase_percent": increase_percent,
+            },
+        ),
+    )
 
 
 def _compare_response_fingerprint(
@@ -301,10 +337,20 @@ def _parse_baseline_test(item: object) -> DriftBaselineTest:
         status=status,
         exit_code=exit_code,
         rule_ids=tuple(raw_rule_ids),
+        duration_ms=_optional_duration_ms(item.get("duration_ms"), path),
         response_status_code=_optional_response_status(item.get("response"), path),
         response_headers=_optional_response_headers(item.get("response")),
         response_body_shape=_optional_response_body_shape(item.get("response")),
     )
+
+
+def _optional_duration_ms(value: object, path: str) -> int | None:
+    if value is None:
+        return None
+    if type(value) is not int or value < 0:
+        msg = f"Drift baseline test {path!r} duration_ms must be a non-negative integer"
+        raise DriftReportError(msg)
+    return value
 
 
 def _optional_response_status(response: object, path: str) -> int | None:

@@ -3,6 +3,7 @@
 ## 2026-05-31
 
 - The root README is a public product front door, not the full Obsidian vault index. Lead with the problem, promise, and executable demo proof; keep phase inventories, source maps, and agent context lower in the document or in linked docs.
+- Latency drift should be conservative and baseline-backed. Compare only sanitized `duration_ms` values from reviewed run reports, require both absolute and percentage regression thresholds, and report warnings rather than treating tiny local timing noise as product truth.
 
 ## 2026-05-30
 
