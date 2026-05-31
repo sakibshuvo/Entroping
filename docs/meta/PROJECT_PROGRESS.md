@@ -34,9 +34,8 @@ Do not duplicate every issue here. The detailed queue lives in GitHub.
 
 ## Current Target
 
-**Goal:** finish the remaining public-launch preview polish now that the
-clean-checkout onboarding smoke has proven the README and release-gate path from
-a fresh clone.
+**Goal:** move from public-cleanup proof into the v0.2 adoption and onboarding
+queue now that the fresh-clone smoke and curated launch previews are in place.
 
 GitHub Project: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -122,9 +121,10 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Finish-issue workflow](https://github.com/sakibshuvo/Entroping/issues/94) | Done | `scripts/finish_issue.sh` verifies merged PRs, CI, clean issue worktrees, and project hygiene before local cleanup | Make multi-session marathons safer |
 | [Story traceability bridge](https://github.com/sakibshuvo/Entroping/issues/91) | Done | Pure bridge report maps Hurl metadata to stories, owners, docs, tests, tags, and traceability findings | Keep external business-system sync out of scope |
 | [Traceability report CLI](https://github.com/sakibshuvo/Entroping/issues/106) | Done | `entroping report traceability --output md` renders local story/test metadata and fails on missing story IDs or conflicting doc links | Keep output Markdown-only until a downstream consumer needs JSON |
-| [Launch demo assets](https://github.com/sakibshuvo/Entroping/issues/108) | Done | README links a two-minute launch asset hub with real terminal output, an HTML report SVG preview, and a dependency-map example | Record external GIF/PNG media from the same fixture without committing bulky generated assets |
+| [Launch demo assets](https://github.com/sakibshuvo/Entroping/issues/108) | Done | README links a two-minute launch asset hub with real terminal output, curated PNG screenshots, HTML report evidence, and a dependency-map example | Keep launch media small, reproducible, and tied to the checkout fixture |
 | [README open-source front door](https://github.com/sakibshuvo/Entroping/issues/174) | Done | README now leads with the AI-regression hook, two-minute live demo proof, concise value props, launch assets, and alpha boundaries before deep docs | Keep the front page demo-first as the product surface grows |
 | [Public clean-checkout onboarding smoke](https://github.com/sakibshuvo/Entroping/issues/185) | Done | Fresh public clone on macOS 26.5 arm64 completed `uv sync --dev`, verified Hurl 8.0.1 on PATH, ran `scripts/live_demo_smoke.sh`, and passed `scripts/release_check.sh --require-live-demo` | Capture issue evidence and keep README quickstart honest |
+| [Curated public launch previews](https://github.com/sakibshuvo/Entroping/issues/191) | Done | README and launch hub link terminal, HTML report, and dependency-map PNGs generated from live checkout fixture output and redacted traffic state | Replace media only from reproducible source commands |
 | [Run orchestration extraction](https://github.com/sakibshuvo/Entroping/issues/90) | Done | `core.run_workflow` now owns deterministic run orchestration and returns a typed workflow result | Keep future run flags out of the CLI adapter |
 | [Post-alpha security review](https://github.com/sakibshuvo/Entroping/issues/96) | Done | PR #105 merged the local boundary hardening after fixing 14 validated candidates; scan artifacts live under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z/` | Keep security scans tied to concrete remediation branches |
 
@@ -147,7 +147,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | Agent Workflow | Done | Deterministic context packs, configurable source-archive paths, portable cross-agent docs, source-promotion workflow, and community health docs are available | Use issue branches for follow-on automation |
 | Coverage Hardening | Done | `scripts/audit_quality.sh` enforces 100 percent coverage by default; `cli.main`, `core.session_prompt`, `core.config_loader`, `core.config_writer`, `core.dependency_mapper`, `core.drift_report`, `core.env_loader`, `core.freeze`, `core.gate_injector`, `core.openapi_loader`, `core.hurl_discovery`, `core.hurl_runner`, `core.hurl_validator`, `core.report_writer`, `core.safe_write`, `core.traffic_proxy`, `core.traffic_redactor`, `core.traffic_store`, `studio.app`, `studio.status`, `brain.architect_build`, `brain.architect_refactor`, `brain.architect_writer`, `brain.litellm_client`, `brain.output_parser`, `brain.persona_loader`, `brain.prompt_builder`, `brain.safety`, `models.hurl`, `models.traffic`, `bridge.merge`, `bridge.openapi_audit`, `bridge.openapi_to_hurl`, `bridge.policy_to_hurl`, `bridge.story_traceability`, `bridge.traffic_sessions`, `bridge.traffic_to_graph`, `bridge.traffic_to_hurl`, and `bridge.traffic_to_wiremock` have 100 percent module coverage | Keep future gaps explicit and tracked |
 | Public Trust Signals | Done | Community-profile audit script, README Scorecard badge, and scheduled/manual OpenSSF Scorecard workflow are in place | Manually dispatch Scorecard after public repo settings are ready |
-| Launch Assets | Done | Text/SVG launch kit links real checkout demo output, report preview, dependency map example, and portable rebuild commands from README and Obsidian index | Convert to external screenshots/video only after release evidence is current |
+| Launch Assets | Done | Launch kit links curated PNG previews for terminal smoke, HTML report, and dependency map plus portable rebuild/source commands from README and Obsidian index | Keep raw generated media out of Git |
 | Studio | Done | Interactive read-only Textual TUI is available; mutation workflows remain later |
 
 ## Update Rules

@@ -24,6 +24,8 @@ ENTROPING_LIVE_DEMO_ARTIFACT_DIR="$artifact_dir" \
 
 Use these frames for a terminal GIF or a screenshot carousel.
 
+Curated PNG: [terminal-demo-screenshot.png](terminal-demo-screenshot.png)
+
 ## Frame 1: OpenAPI Becomes Hurl
 
 ```text
