@@ -5,6 +5,9 @@ from pathlib import Path
 import yaml
 
 _WORKFLOW_PATH = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml"
+_SCORECARD_WORKFLOW_PATH = (
+    Path(__file__).resolve().parents[1] / ".github" / "workflows" / "scorecard.yml"
+)
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -84,3 +87,38 @@ def test_release_docs_explain_hurl_checksum_bump_process() -> None:
     assert "HURL_SHA256" in checklist
     assert "sha256sum" in checklist
     assert "Update `.github/workflows/ci.yml`" in checklist
+
+
+def test_scorecard_workflow_is_non_blocking_and_least_privilege() -> None:
+    workflow = yaml.safe_load(_SCORECARD_WORKFLOW_PATH.read_text(encoding="utf-8"))
+
+    triggers = workflow["on"]
+    assert "pull_request" not in triggers
+    assert "workflow_dispatch" in triggers
+    assert triggers["schedule"] == [{"cron": "17 9 * * 1"}]
+
+    scorecard = workflow["jobs"]["scorecard"]
+    assert scorecard["runs-on"] == "ubuntu-latest"
+    assert scorecard["permissions"] == {
+        "contents": "read",
+        "id-token": "write",
+    }
+
+    steps = scorecard["steps"]
+    assert any(
+        step.get("uses") == "actions/checkout@v6"
+        and step.get("with", {}).get("persist-credentials") is False
+        for step in steps
+    )
+    assert any(
+        step.get("uses") == "ossf/scorecard-action@v2.4.3"
+        and step.get("with", {}).get("publish_results") is True
+        and step.get("with", {}).get("results_file") == "scorecard-results.json"
+        and step.get("with", {}).get("results_format") == "json"
+        for step in steps
+    )
+    assert any(
+        step.get("uses") == "actions/upload-artifact@v7"
+        and step.get("with", {}).get("path") == "scorecard-results.json"
+        for step in steps
+    )

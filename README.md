@@ -12,6 +12,8 @@ tags:
 
 **AI-native quality governance for API and backend systems.**
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/sakibshuvo/Entroping/badge)](https://scorecard.dev/viewer/?uri=github.com/sakibshuvo/Entroping)
+
 Entroping is a local-first integrity layer for high-velocity AI-assisted development. It lets AI help generate and maintain API tests, but it keeps final enforcement deterministic: committed Hurl files, executable governance rules, and reproducible CI reports.
 
 > AI writes code fast. Entroping makes runtime truth slow enough to trust.
@@ -298,6 +300,7 @@ entroping map [--export <mermaid|dot|md|png>]
 entroping studio [--env <name>]
 entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check]
 entroping report bug
+entroping report traceability [--output md]
 ```
 
 Deprecated names such as `gen`, `fix`, `scan`, `chaos`, and `report --type` are intentionally not primary commands.
@@ -306,7 +309,8 @@ Current implementation supports `init`, `doctor`, deterministic `architect build
 from local OpenAPI files with common parameters and schema examples, deterministic
 non-secret `config list` / `config set`, `run --env`, deterministic `architect audit`
 for OpenAPI coverage, deterministic `run`, JSON/JUnit run reports, HTML run reports,
-`report bug`, and LiteLLM-backed `architect build --prompt` for parser-validated,
+`report bug`, local `report traceability --output md`, and LiteLLM-backed
+`architect build --prompt` for parser-validated,
 Builder-generated Architect-owned Hurl files, prompt-backed `architect build
 --strategy merge` for existing managed regions, plus LiteLLM-backed `architect
 refactor` for selected Architect-owned Hurl files and manual files that opt into
@@ -373,6 +377,12 @@ AGENTS.md              Project-local Codex implementation rules
 
 The open-source growth and monetization strategy lives in
 [GROWTH_AND_MONETIZATION.md](docs/product/GROWTH_AND_MONETIZATION.md).
+
+Public trust signals:
+
+- `scripts/community_profile_audit.sh` verifies local community-health files.
+- `.github/workflows/scorecard.yml` runs OpenSSF Scorecard weekly or manually,
+  publishes results for the README badge, and is not a pull-request gate.
 
 ## Security and Quality Rules
 
