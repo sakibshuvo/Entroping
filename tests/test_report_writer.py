@@ -83,6 +83,191 @@ def test_write_json_report_includes_ci_debug_fields_and_redacts_output(tmp_path:
     assert "token=[REDACTED]" in data["tests"][0]["stderr"]
 
 
+def test_write_json_report_includes_sanitized_response_fingerprint(tmp_path: Path) -> None:
+    source = tmp_path / "tests" / "checkout.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "checkout.hurl"
+    suite = HurlSuiteResult(
+        results=(
+            HurlFileResult(
+                path=execution,
+                command=("/bin/hurl", str(execution)),
+                status="passed",
+                exit_code=0,
+                stdout=(
+                    "HTTP/1.1 201 Created\n"
+                    "Content-Type: application/json; charset=utf-8\n"
+                    "Date: Sun, 31 May 2026 00:00:00 GMT\n"
+                    "X-Request-Id: req_volatile\n"
+                    "\n"
+                    '{"id":"ord_123","approved":true,"items":[{"sku":"abc","qty":2}]}\n'
+                ),
+                stderr="",
+                stdout_truncated=False,
+                stderr_truncated=False,
+                duration_ms=42,
+            ),
+        ),
+    )
+    report = build_run_report(
+        project="checkout-api",
+        environment="local",
+        execution_copies=[_execution_copy(source, execution)],
+        suite=suite,
+        project_root=tmp_path,
+    )
+    output = tmp_path / "reports" / "run-latest.json"
+
+    write_json_report(report, output)
+
+    response = json.loads(output.read_text(encoding="utf-8"))["tests"][0]["response"]
+    assert response == {
+        "status_code": 201,
+        "headers": {"content-type": "application/json; charset=utf-8"},
+        "body_shape": [
+            "$:object",
+            "$.approved:boolean",
+            "$.id:string",
+            "$.items:array",
+            "$.items[]:object",
+            "$.items[].qty:number",
+            "$.items[].sku:string",
+        ],
+    }
+    assert "req_volatile" not in json.dumps(response)
+
+
+def test_build_run_report_omits_response_when_stdout_is_not_structured(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "tests" / "health.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
+    report = build_run_report(
+        project="checkout-api",
+        environment="local",
+        execution_copies=[_execution_copy(source, execution)],
+        suite=_suite_result(execution, "assert failed\n"),
+        project_root=tmp_path,
+    )
+
+    assert report.tests[0].response is None
+    assert "response" not in report_writer._test_report_to_dict(report.tests[0])
+
+
+def test_response_fingerprint_ignores_malformed_http_output_and_shapes_nulls() -> None:
+    status_code, headers, body_shape = report_writer._extract_response_fingerprint(
+        'HTTP 200\nnot-a-header\n{"ok":true}\n',
+    )
+
+    assert status_code == 200
+    assert headers == ()
+    assert body_shape == ()
+    assert report_writer._walk_json_shape(
+        {1: "ignored", "bad\n": "ignored", "ok": None},
+        "$",
+    ) == ["$:object", "$.ok:null"]
+
+
+def test_load_run_report_round_trips_response_fingerprint(tmp_path: Path) -> None:
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(
+        json.dumps(
+            {
+                "project": "checkout-api",
+                "environment": "local",
+                "generated_at": "2026-05-31T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 1, "failed": 0, "exit_code": 0},
+                "tests": [
+                    {
+                        "path": "tests/checkout.hurl",
+                        "execution_path": ".entroping/run/checkout.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 42,
+                        "rule_ids": ["global_latency"],
+                        "stdout": "",
+                        "stderr": "",
+                        "response": {
+                            "status_code": 201,
+                            "headers": {"content-type": "application/json"},
+                            "body_shape": ["$:object", "$.id:string"],
+                        },
+                    },
+                ],
+            },
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = load_run_report(latest)
+
+    response = report.tests[0].response
+    assert response is not None
+    assert response.status_code == 201
+    assert {header.name: header.value for header in response.headers} == {
+        "content-type": "application/json",
+    }
+    assert response.body_shape == ("$:object", "$.id:string")
+
+
+def test_load_run_report_ignores_malformed_optional_response_fields(tmp_path: Path) -> None:
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(
+        json.dumps(
+            {
+                "project": "checkout-api",
+                "environment": "local",
+                "generated_at": "2026-05-31T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 1, "failed": 0, "exit_code": 0},
+                "tests": [
+                    {
+                        "path": "tests/checkout.hurl",
+                        "execution_path": ".entroping/run/checkout.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 42,
+                        "rule_ids": ["global_latency"],
+                        "stdout": "",
+                        "stderr": "",
+                        "response": {
+                            "status_code": "201",
+                            "headers": {
+                                "content-type": 123,
+                                "date": "volatile",
+                                7: "ignored",
+                            },
+                            "body_shape": "not-a-list",
+                        },
+                    },
+                    {
+                        "path": "tests/bad-shape.hurl",
+                        "execution_path": ".entroping/run/bad-shape.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 10,
+                        "rule_ids": [],
+                        "stdout": "",
+                        "stderr": "",
+                        "response": {
+                            "headers": "not-a-dict",
+                            "body_shape": "not-a-list",
+                        },
+                    },
+                ],
+            },
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = load_run_report(latest)
+
+    assert report.tests[0].response is None
+    assert report.tests[1].response is None
+
+
 def test_write_json_report_preserves_existing_target_when_atomic_write_fails(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -351,6 +351,9 @@ The first drift slice compares:
 - New or missing test paths.
 - Hurl result status and exit code changes.
 - Injected QAnstitution rule ID changes.
+- Response status code changes when a response fingerprint is available.
+- Selected stable response header changes such as `content-type`.
+- JSON body shape changes without storing response values.
 
 If the baseline is missing, `--report drift` writes a machine-readable
 `reports/drift.json` with a `missing_baseline` finding. `--drift-check` returns a
@@ -359,8 +362,6 @@ finished, so Hurl failures are still visible.
 
 Future drift slices should add:
 
-- Structured status/header/body assertion changes.
-- Schema/body shape changes.
 - Latency regressions.
 - New or missing dependency calls where traffic baselines exist.
 

@@ -72,6 +72,15 @@ def test_load_drift_baseline_accepts_small_and_run_report_shaped_json(tmp_path: 
                         "rule_ids": ["global_latency"],
                         "stdout": "ignored",
                         "stderr": "ignored",
+                        "response": {
+                            "status_code": 200,
+                            "headers": {
+                                "content-type": "application/json",
+                                "date": "volatile",
+                                "x-request-id": "req_123",
+                            },
+                            "body_shape": ["$.status:string", "$:object"],
+                        },
                     }
                 ],
             }
@@ -89,6 +98,9 @@ def test_load_drift_baseline_accepts_small_and_run_report_shaped_json(tmp_path: 
             status="passed",
             exit_code=0,
             rule_ids=("global_latency",),
+            response_status_code=200,
+            response_headers=(("content-type", "application/json"),),
+            response_body_shape=("$:object", "$.status:string"),
         ),
     )
 
@@ -103,6 +115,60 @@ def test_load_drift_baseline_accepts_missing_optional_project_fields(tmp_path: P
     assert baseline.project == ""
     assert baseline.environment == ""
     assert baseline.tests == ()
+
+
+def test_load_drift_baseline_accepts_absent_and_partial_response_fields(
+    tmp_path: Path,
+) -> None:
+    baseline_path = tmp_path / ".entroping" / "drift-baseline.json"
+    baseline_path.parent.mkdir(parents=True)
+    baseline_path.write_text(
+        json.dumps(
+            {
+                "tests": [
+                    {
+                        "path": "tests/no-response.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                    },
+                    {
+                        "path": "tests/partial-response.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "response": {
+                            "headers": {
+                                "content-type": 123,
+                                "date": "volatile",
+                                7: "ignored",
+                            },
+                            "body_shape": ["$:object", "bad\n"],
+                        },
+                    },
+                    {
+                        "path": "tests/malformed-optional-response.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "response": {
+                            "headers": "not-a-dict",
+                            "body_shape": "not-a-list",
+                        },
+                    },
+                ],
+            },
+        ),
+        encoding="utf-8",
+    )
+
+    baseline = load_drift_baseline(baseline_path)
+
+    assert baseline.tests[0].response_status_code is None
+    assert baseline.tests[0].response_headers == ()
+    assert baseline.tests[0].response_body_shape == ()
+    assert baseline.tests[1].response_status_code is None
+    assert baseline.tests[1].response_headers == ()
+    assert baseline.tests[1].response_body_shape == ("$:object",)
+    assert baseline.tests[2].response_headers == ()
+    assert baseline.tests[2].response_body_shape == ()
 
 
 @pytest.mark.parametrize(
@@ -123,6 +189,16 @@ def test_load_drift_baseline_accepts_missing_optional_project_fields(tmp_path: P
             "non-empty string",
         ),
         ('{"project":123,"tests":[]}', "project/environment fields must be strings"),
+        (
+            '{"tests":[{"path":"tests/health.hurl","status":"passed","exit_code":0,'
+            '"response":[]}]}',
+            "response must be a JSON object",
+        ),
+        (
+            '{"tests":[{"path":"tests/health.hurl","status":"passed","exit_code":0,'
+            '"response":{"status_code":"200"}}]}',
+            "response.status_code must be an integer",
+        ),
     ],
 )
 def test_load_drift_baseline_rejects_malformed_baseline_json(
@@ -189,6 +265,151 @@ def test_build_drift_report_compares_results_in_deterministic_path_order(tmp_pat
     ]
     assert report.summary.drifted == 4
     assert not report.summary.missing_baseline
+
+
+def test_build_drift_report_compares_structured_response_fingerprints(
+    tmp_path: Path,
+) -> None:
+    baseline = DriftBaseline(
+        project="checkout-api",
+        environment="staging",
+        tests=(
+            DriftBaselineTest(
+                path="tests/checkout.hurl",
+                status="passed",
+                exit_code=0,
+                rule_ids=("global_latency",),
+                response_status_code=201,
+                response_headers=(("content-type", "application/json"),),
+                response_body_shape=("$:object", "$.id:string"),
+            ),
+            DriftBaselineTest(
+                path="tests/no-current-response.hurl",
+                status="passed",
+                exit_code=0,
+                rule_ids=("global_latency",),
+                response_status_code=200,
+                response_headers=(("content-type", "application/json"),),
+                response_body_shape=("$:object",),
+            ),
+        ),
+    )
+    current = _run_report(
+        RunTestReport(
+            path="tests/checkout.hurl",
+            execution_path=".entroping/run/checkout.hurl",
+            status="passed",
+            exit_code=0,
+            duration_ms=25,
+            rule_ids=("global_latency",),
+            stdout="",
+            stderr="",
+            response_status_code=500,
+            response_headers=(
+                ("content-type", "application/problem+json"),
+                ("vary", "Accept"),
+            ),
+            response_body_shape=("$:object", "$.error:string"),
+        ),
+        _test_report("tests/no-current-response.hurl"),
+    )
+
+    report = build_drift_report(
+        current=current,
+        baseline=baseline,
+        baseline_path=tmp_path / ".entroping" / "drift-baseline.json",
+    )
+
+    assert [finding.kind for finding in report.findings] == [
+        "response_status_changed",
+        "response_header_changed",
+        "response_body_shape_changed",
+        "response_snapshot_missing",
+    ]
+    assert report.findings[0].baseline == {"response_status_code": 201}
+    assert report.findings[0].current == {"response_status_code": 500}
+    assert report.findings[1].baseline == {
+        "header": "content-type",
+        "value": "application/json",
+    }
+    assert report.findings[1].current == {
+        "header": "content-type",
+        "value": "application/problem+json",
+    }
+    assert report.summary.drifted == 4
+
+    no_change_header_baseline = DriftBaseline(
+        project="checkout-api",
+        environment="staging",
+        tests=(
+            DriftBaselineTest(
+                path="tests/vary.hurl",
+                status="passed",
+                exit_code=0,
+                rule_ids=("global_latency",),
+                response_headers=(("vary", "Accept"),),
+            ),
+        ),
+    )
+    no_change_report = build_drift_report(
+        current=_run_report(
+            RunTestReport(
+                path="tests/vary.hurl",
+                execution_path=".entroping/run/vary.hurl",
+                status="passed",
+                exit_code=0,
+                duration_ms=25,
+                rule_ids=("global_latency",),
+                stdout="",
+                stderr="",
+                response_headers=(("vary", "Accept"),),
+            ),
+        ),
+        baseline=no_change_header_baseline,
+        baseline_path=tmp_path / ".entroping" / "drift-baseline.json",
+    )
+    assert no_change_report.findings == ()
+
+
+def test_build_drift_report_ignores_current_response_when_baseline_has_none(
+    tmp_path: Path,
+) -> None:
+    baseline = DriftBaseline(
+        project="checkout-api",
+        environment="staging",
+        tests=(
+            DriftBaselineTest(
+                path="tests/checkout.hurl",
+                status="passed",
+                exit_code=0,
+                rule_ids=("global_latency",),
+            ),
+        ),
+    )
+    current = _run_report(
+        RunTestReport(
+            path="tests/checkout.hurl",
+            execution_path=".entroping/run/checkout.hurl",
+            status="passed",
+            exit_code=0,
+            duration_ms=25,
+            rule_ids=("global_latency",),
+            stdout="",
+            stderr="",
+            response_status_code=201,
+            response_headers=(("content-type", "application/json"),),
+            response_body_shape=("$:object",),
+        ),
+    )
+
+    report = build_drift_report(
+        current=current,
+        baseline=baseline,
+        baseline_path=tmp_path / ".entroping" / "drift-baseline.json",
+    )
+
+    assert report.findings == ()
+    assert report.summary.drifted == 0
 
 
 def test_write_missing_baseline_drift_report_is_machine_readable(tmp_path: Path) -> None:
