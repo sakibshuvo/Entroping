@@ -41,12 +41,16 @@ from the first public navigation unless they are useful to maintainers.
 
 ## Scaffold
 
-Current scaffold:
+Current automation:
 
 - `mkdocs.yml` defines the public site metadata, Material theme, selected
-  Markdown extensions, and curated navigation.
+  Markdown extensions, strict mode, and curated navigation.
 - `docs/index.md` is the public landing page.
 - `docs/meta/PUBLIC_DOCS_SITE_DECISION.md` records this decision.
+- `.github/workflows/ci.yml` runs a `docs-site` job on pull requests and
+  pushes to `main`.
+- `.github/workflows/pages.yml` publishes the strict build from `main` through
+  GitHub Pages.
 
 Local preview/build command:
 
@@ -60,9 +64,10 @@ Use `mkdocs serve` only for local preview:
 uvx --with 'mkdocs-material==9.*' mkdocs serve
 ```
 
-No active deployment workflow yet. Add GitHub Pages deployment only after the
-curated navigation builds cleanly and the maintainer enables Pages settings for
-the repository.
+GitHub Pages deployment is active at
+`https://sakibshuvo.github.io/Entroping/`. Broken links fail CI through `mkdocs build --strict`
+before deployment, and the Pages workflow only publishes the curated `site/`
+artifact from `main`.
 
 ## Guardrails
 
@@ -73,3 +78,5 @@ the repository.
 - Do not publish Obsidian UI state, Graphify output, reports, `.entroping/`, or
   generated site output.
 - Keep `site/` ignored when local builds are introduced.
+- Keep the public navigation curated; Obsidian-only notes, source exports, and
+  private implementation context should stay out of `mkdocs.yml`.

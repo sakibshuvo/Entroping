@@ -121,9 +121,19 @@ uv run python scripts/optional_extras_smoke.py
 That optional-extras smoke also runs on Python 3.12 and 3.13 so optional
 dependency compatibility is part of the supported-version proof.
 
+The `docs-site` job builds the public documentation with MkDocs strict mode on
+pull requests and pushes to `main`:
+
+```bash
+uvx --with 'mkdocs-material==9.*' mkdocs build --strict
+```
+
+Broken public-docs links, invalid navigation entries, and MkDocs warnings fail
+before the GitHub Pages deployment workflow can publish from `main`.
+
 CI-enforced commands are `scripts/regression.sh --security`,
-`scripts/audit_quality.sh`, the `install-smoke` matrix, and the
-`optional-extras-smoke` lane.
+`scripts/audit_quality.sh`, `uvx --with 'mkdocs-material==9.*' mkdocs build
+--strict`, the `install-smoke` matrix, and the `optional-extras-smoke` lane.
 
 Drift tests must keep response comparison value-free. The structured drift MVP
 compares response status codes, selected stable headers, and JSON body shape

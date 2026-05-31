@@ -134,6 +134,9 @@ versioning, PyPI publish policy, and yank/new-version rollback guidance.
 Issue #188 chooses MkDocs Material for the public docs site, adds a minimal
 `mkdocs.yml` plus `docs/index.md` scaffold, and keeps the canonical Markdown
 tree as the source instead of duplicating docs.
+Issue #228 activates that path: CI now runs `mkdocs build --strict` on pull
+requests and pushes to `main`, while a separate Pages workflow publishes the
+curated `docs/` site from `main`.
 Issue #183 recommends the distribution sequence: keep `uv tool install` first,
 activate PyPI/TestPyPI next, prototype Homebrew after the PyPI alpha, and defer
 standalone binaries/signing until there is demand.

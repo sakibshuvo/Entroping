@@ -79,6 +79,21 @@ def test_ci_workflow_runs_optional_extras_runtime_smoke() -> None:
     assert "pip-audit" not in run_blocks
 
 
+def test_ci_workflow_runs_strict_public_docs_build() -> None:
+    workflow = yaml.safe_load(_WORKFLOW_PATH.read_text(encoding="utf-8"))
+
+    docs_site = workflow["jobs"]["docs-site"]
+    steps = docs_site["steps"]
+    run_blocks = "\n".join(str(step.get("run", "")) for step in steps)
+
+    assert docs_site["runs-on"] == "ubuntu-latest"
+    assert docs_site["needs"] == "checks"
+    assert "uvx --with 'mkdocs-material==9.*' mkdocs build --strict" in run_blocks
+    assert any(step.get("uses") == "actions/checkout@v6" for step in steps)
+    assert any(step.get("uses") == "actions/setup-python@v6" for step in steps)
+    assert any(step.get("uses") == "astral-sh/setup-uv@v8.1.0" for step in steps)
+
+
 def test_optional_extras_smoke_script_exercises_optional_runtime_boundaries() -> None:
     script = (_REPO_ROOT / "scripts" / "optional_extras_smoke.py").read_text(
         encoding="utf-8"
