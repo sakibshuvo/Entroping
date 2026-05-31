@@ -119,5 +119,6 @@ Then create a GitHub release with:
   `scripts/package_check.sh`.
 
 Do not add PyPI/TestPyPI tokens, release signing keys, or package-index
-credentials to the repository. Package-index publishing is a future release
-automation track, not part of the alpha gate.
+credentials to the repository. Package-index publishing is planned through the
+TestPyPI-first Trusted Publishing runbook in
+`docs/meta/PYPI_RELEASE_RUNBOOK.md`, not through long-lived repository secrets.

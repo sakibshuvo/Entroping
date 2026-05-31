@@ -733,6 +733,10 @@ metadata for project name, version, SPDX license expression, license file
 presence, and alpha maturity classifiers. It does not publish to PyPI/TestPyPI
 and must not require package-index credentials.
 
+Package-index publishing is designed in `docs/meta/PYPI_RELEASE_RUNBOOK.md`.
+The preferred path is TestPyPI first, then PyPI, using Trusted Publishing through
+GitHub Actions environments instead of long-lived package-index tokens.
+
 ### Later Distribution
 
 - Nuitka standalone binary.
