@@ -105,6 +105,17 @@ def test_progress_dashboard_marks_license_blocker_done() -> None:
     assert "license/package metadata is the remaining public-release blocker" not in progress
 
 
+def test_clean_checkout_smoke_evidence_is_documented() -> None:
+    progress = (REPO_ROOT / "docs" / "meta" / "PROJECT_PROGRESS.md").read_text(
+        encoding="utf-8"
+    )
+    changelog = (REPO_ROOT / ".context" / "changelog.md").read_text(encoding="utf-8")
+
+    assert "[Public clean-checkout onboarding smoke]" in progress
+    assert "scripts/release_check.sh --require-live-demo" in progress
+    assert "clean-checkout onboarding smoke" in changelog
+
+
 def test_context_plan_does_not_reintroduce_stale_post_alpha_status() -> None:
     plan = (REPO_ROOT / ".context" / "plan.md").read_text(encoding="utf-8")
 
