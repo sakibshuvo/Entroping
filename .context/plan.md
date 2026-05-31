@@ -96,6 +96,8 @@ Issue #108 added a text/SVG launch asset kit under `docs/assets/launch/`,
 linked it from the README and Obsidian index, and documented the concrete
 publish order in the growth plan without committing generated reports, GIFs, or
 PNG screenshots.
+Issue #166 removed maintainer-local temp paths from launch rebuild commands and
+added a regression guard so public launch docs stay copy/paste portable.
 Issue #90 moved deterministic run orchestration behind `core.run_workflow`,
 leaving the CLI adapter responsible for option normalization, output, and exit
 mapping.

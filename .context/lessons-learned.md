@@ -92,3 +92,4 @@
 - Multi-agent scale needs deterministic context packs and one parent integrator. Use helper agents for bounded evidence and review, but promote durable decisions into issues, ADRs, docs, tests, or scripts before implementation follows them.
 - Pydantic and mypy are complementary gates: Pydantic validates runtime data at boundaries, while mypy enforces static type consistency before runtime.
 - Launch assets should be generated from real product paths but committed as small, reviewable text/SVG artifacts. Keep bulky terminal recordings, screenshots, generated reports, and traffic state out of Git unless each asset is deliberately curated.
+- Public launch commands must not bake in maintainer-local paths. Use portable defaults with environment overrides, then test the public docs for path leaks.

@@ -86,3 +86,16 @@ def test_checkout_demo_docs_point_to_launch_asset_generation() -> None:
     assert "scripts/live_demo_smoke.sh" in demo_readme
     assert "ENTROPING_LIVE_DEMO_ARTIFACT_DIR" in demo_readme
     assert "docs/assets/launch/README.md" in demo_readme
+
+
+def test_launch_rebuild_commands_avoid_maintainer_local_temp_paths() -> None:
+    public_docs = [
+        LAUNCH_DIR / "README.md",
+        LAUNCH_DIR / "terminal-demo-screenshot-set.md",
+        REPO_ROOT / "examples" / "checkout-api" / "README.md",
+    ]
+    combined = "\n".join(path.read_text(encoding="utf-8") for path in public_docs)
+
+    assert "/Users/sakibshuvo" not in combined
+    assert "ENTROPING_DEMO_TMP_BASE" in combined
+    assert "$HOME/.cache/entroping-demo" in combined

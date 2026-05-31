@@ -32,13 +32,16 @@ curated and size-checked.
 From the repository root:
 
 ```bash
-artifact_dir="$(mktemp -d /Users/sakibshuvo/projects/entroping-demo-artifacts.XXXXXX)"
-workdir="$(mktemp -d /Users/sakibshuvo/projects/entroping-demo-work.XXXXXX)"
+demo_tmp_base="${ENTROPING_DEMO_TMP_BASE:-$HOME/.cache/entroping-demo}"
+mkdir -p "$demo_tmp_base"
+artifact_dir="$(mktemp -d "$demo_tmp_base/artifacts.XXXXXX")"
+workdir="$(mktemp -d "$demo_tmp_base/work.XXXXXX")"
 ENTROPING_LIVE_DEMO_ARTIFACT_DIR="$artifact_dir" \
   ENTROPING_LIVE_DEMO_WORKDIR="$workdir" \
   scripts/live_demo_smoke.sh
 ```
 
-The smoke script copies only generated report artifacts to the artifact
-directory. Keep those generated files out of Git unless a specific public asset
-has been reviewed.
+The smoke script rejects symlinked or non-empty work directories. If your home
+cache path is symlinked, set `ENTROPING_DEMO_TMP_BASE` to an empty, symlink-free
+directory first. Keep copied report artifacts out of Git unless a specific
+public asset has been reviewed.
