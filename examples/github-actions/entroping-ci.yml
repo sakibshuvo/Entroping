@@ -1,0 +1,70 @@
+name: Entroping API Governance
+
+"on":
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  entroping:
+    runs-on: ubuntu-latest
+    env:
+      HURL_VERSION: "8.0.1"
+      HURL_SHA256: "cac7c4670d69444db120edb21fe06c97ba8c80dcc52279957c8dd18f05fb0c06"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Install Hurl
+        run: |
+          archive="hurl-${HURL_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          base_url="https://github.com/Orange-OpenSource/hurl/releases/download/${HURL_VERSION}"
+          download_with_retry() {
+            local url="$1"
+            local output="$2"
+            for attempt in 1 2 3; do
+              if curl --fail --location --silent --show-error --output "$output" "$url"; then
+                return 0
+              fi
+              if [ "$attempt" -eq 3 ]; then
+                return 1
+              fi
+              sleep $((attempt * 2))
+            done
+          }
+          download_with_retry "$base_url/$archive" "$RUNNER_TEMP/$archive"
+          cd "$RUNNER_TEMP"
+          test "$HURL_SHA256" = "$(sha256sum "$archive" | awk '{print $1}')"
+          tar -xzf "$archive"
+          echo "$RUNNER_TEMP/hurl-${HURL_VERSION}-x86_64-unknown-linux-gnu/bin" >> "$GITHUB_PATH"
+
+      - name: Install Entroping
+        run: |
+          uv tool install git+https://github.com/sakibshuvo/Entroping.git@v0.1.1-alpha
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Verify Entroping setup
+        run: entroping doctor
+
+      - name: Run Entroping gate
+        run: entroping run --ci --report junit --report html
+
+      - name: Upload Entroping reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: entroping-reports
+          path: reports
+          if-no-files-found: ignore

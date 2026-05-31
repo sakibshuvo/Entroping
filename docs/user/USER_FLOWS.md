@@ -43,7 +43,7 @@ entroping run --env local --tag smoke --report html
 - `qanstitution.yaml`
 - `tests/**/*.hurl`
 - `envs/local.env.example`
-- `reports/html/index.html`
+- `reports/run-latest.html`
 
 ### Success Criteria
 
@@ -193,6 +193,9 @@ A pull request or deployment pipeline needs a deterministic API gate.
 entroping doctor
 entroping run --env ci --ci --parallel --report junit --report html
 ```
+
+For a copyable GitHub Actions workflow, use
+`docs/user/GITHUB_ACTIONS_STARTER.md`.
 
 ### Success Criteria
 
