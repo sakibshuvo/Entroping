@@ -6,6 +6,7 @@ from pathlib import Path
 
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
 from entroping.core.report_writer import load_run_report
+from entroping.models.qanstitution import GateRule
 
 _KNOWN_REPORT_PATHS = (
     Path("reports") / "run-latest.json",
@@ -45,6 +46,18 @@ class LatestRunStatus:
 
 
 @dataclass(frozen=True)
+class StudioAppliedGateStatus:
+    """Read-only link between a latest-run test and an applied QAnstitution gate."""
+
+    rule_id: str
+    test_path: str
+    test_status: str
+    enforcement: str
+    condition: str
+    assertion: str
+
+
+@dataclass(frozen=True)
 class StudioStatus:
     """Read-only local state snapshot for Studio."""
 
@@ -55,6 +68,7 @@ class StudioStatus:
     latest_run_status: str
     report_paths: tuple[str, ...]
     traffic_state_available: bool
+    applied_gates: tuple[StudioAppliedGateStatus, ...] = ()
 
 
 def ensure_studio_available() -> None:
@@ -72,7 +86,7 @@ def collect_studio_status(*, project_root: Path, environment: str | None) -> Stu
     """Collect a read-only snapshot of local Entroping state."""
 
     root = project_root.expanduser().resolve()
-    project, qanstitution_status = _load_project_status(root)
+    project, qanstitution_status, gates_by_id = _load_project_status(root)
     latest_run, latest_run_status = _load_latest_run_status(root)
     return StudioStatus(
         environment=environment or "default",
@@ -82,6 +96,7 @@ def collect_studio_status(*, project_root: Path, environment: str | None) -> Stu
         latest_run_status=latest_run_status,
         report_paths=_existing_report_paths(root),
         traffic_state_available=(root / ".entroping" / "state.db").is_file(),
+        applied_gates=_applied_gate_statuses(latest_run, gates_by_id),
     )
 
 
@@ -94,21 +109,22 @@ def render_studio_status(status: StudioStatus) -> str:
         f"Project: {status.project}",
         f"QAnstitution: {status.qanstitution_status}",
         _latest_run_line(status),
+        f"Applied gates: {len(status.applied_gates)}",
         f"Reports: {_reports_line(status.report_paths)}",
         f"Traffic state: {'available' if status.traffic_state_available else 'missing'}",
     ]
     return "\n".join(lines) + "\n"
 
 
-def _load_project_status(root: Path) -> tuple[str, str]:
+def _load_project_status(root: Path) -> tuple[str, str, dict[str, GateRule]]:
     config_path = root / "qanstitution.yaml"
     if not config_path.exists():
-        return "not configured", "missing"
+        return "not configured", "missing", {}
     try:
         law = load_qanstitution(config_path)
     except (QanstitutionLoadError, ValueError) as exc:
-        return "unavailable", f"error: {exc}"
-    return law.project, "ok"
+        return "unavailable", f"error: {exc}", {}
+    return law.project, "ok", {gate.id: gate for gate in law.gates}
 
 
 def _load_latest_run_status(root: Path) -> tuple[LatestRunStatus | None, str]:
@@ -149,6 +165,30 @@ def _existing_report_paths(root: Path) -> tuple[str, ...]:
         if (root / path).is_file()
     ]
     return tuple(sorted(paths))
+
+
+def _applied_gate_statuses(
+    latest_run: LatestRunStatus | None,
+    gates_by_id: dict[str, GateRule],
+) -> tuple[StudioAppliedGateStatus, ...]:
+    if latest_run is None:
+        return ()
+
+    rows: list[StudioAppliedGateStatus] = []
+    for test in latest_run.tests:
+        for rule_id in sorted(test.rule_ids):
+            gate = gates_by_id.get(rule_id)
+            rows.append(
+                StudioAppliedGateStatus(
+                    rule_id=rule_id,
+                    test_path=test.path,
+                    test_status=test.status,
+                    enforcement=gate.enforcement if gate is not None else "unknown",
+                    condition=gate.condition if gate is not None else "unknown",
+                    assertion=gate.gate if gate is not None else "unknown",
+                )
+            )
+    return tuple(rows)
 
 
 def _latest_run_line(status: StudioStatus) -> str:

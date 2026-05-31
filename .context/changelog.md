@@ -42,6 +42,7 @@
 - Added issue #206's cross-platform install smoke matrix with Linux pinned-Hurl, macOS Homebrew-Hurl, Windows doctor-only install proof, and docs that keep platform claims aligned with CI.
 - Added issue #201's reusable policy-pack layout, including a runtime-neutral `POLICY_PACK_LAYOUT.md` design note and a loadable `examples/policy-packs/api-baseline/` pack shape.
 - Added issue #196's Studio mutation workflow design note, keeping v0.3 Studio read-only while documenting future preview, two-step confirmation, no-raw-secret, rollback, and test gates.
+- Added issue #192's read-only Studio applied-gate drilldowns by linking latest-run rule IDs to QAnstitution gate definitions without running Hurl or mutating tests/config.
 
 ## 2026-05-30
 

@@ -6,7 +6,12 @@ from dataclasses import dataclass
 from typing import Protocol, no_type_check
 
 from entroping.core.hurl_runner import redact_hurl_output
-from entroping.studio.status import LatestRunTestStatus, StudioDependencyError, StudioStatus
+from entroping.studio.status import (
+    LatestRunTestStatus,
+    StudioAppliedGateStatus,
+    StudioDependencyError,
+    StudioStatus,
+)
 
 TableRows = tuple[tuple[str, ...], ...]
 
@@ -32,6 +37,7 @@ class StudioViewModel:
     summary_rows: TableRows
     suite_rows: TableRows
     failure_rows: TableRows
+    gate_rows: TableRows
     report_rows: TableRows
     traffic_rows: TableRows
 
@@ -43,6 +49,7 @@ def build_studio_view_model(status: StudioStatus) -> StudioViewModel:
         summary_rows=_summary_rows(status),
         suite_rows=_suite_rows(status.latest_run.tests if status.latest_run else ()),
         failure_rows=_failure_rows(status.latest_run.tests if status.latest_run else ()),
+        gate_rows=_gate_rows(status.applied_gates),
         report_rows=_report_rows(status.report_paths),
         traffic_rows=(
             ("Traffic state", "available" if status.traffic_state_available else "missing"),
@@ -118,6 +125,22 @@ def _report_rows(report_paths: tuple[str, ...]) -> TableRows:
     return tuple((path,) for path in sorted(report_paths))
 
 
+def _gate_rows(applied_gates: Sequence[StudioAppliedGateStatus]) -> TableRows:
+    if not applied_gates:
+        return (("No applied gates found", "", "", "", "", ""),)
+    return tuple(
+        (
+            gate.rule_id,
+            gate.test_path,
+            gate.enforcement,
+            gate.test_status,
+            redact_hurl_output(gate.condition)[:120],
+            redact_hurl_output(gate.assertion)[:120],
+        )
+        for gate in applied_gates
+    )
+
+
 def _stderr_preview(stderr: str) -> str:
     redacted = redact_hurl_output(stderr)
     for line in redacted.splitlines():
@@ -177,6 +200,13 @@ def _create_textual_app(model: StudioViewModel) -> _RunnableApp:  # pragma: no c
                     )
                 with tab_pane("Failures", id="failures"):
                     yield static(_render_table(("Path", "Exit", "Detail"), model.failure_rows))
+                with tab_pane("Gates", id="gates"):
+                    yield static(
+                        _render_table(
+                            ("Rule", "Path", "Enforcement", "Status", "Condition", "Assertion"),
+                            model.gate_rows,
+                        )
+                    )
                 with tab_pane("Reports", id="reports"):
                     yield static(_render_table(("Artifact",), model.report_rows))
                 with tab_pane("Traffic", id="traffic"):

@@ -10,6 +10,7 @@ from entroping.studio.app import TextualTypes, build_studio_view_model, run_stud
 from entroping.studio.status import (
     LatestRunStatus,
     LatestRunTestStatus,
+    StudioAppliedGateStatus,
     StudioDependencyError,
     StudioStatus,
 )
@@ -58,6 +59,24 @@ def test_build_studio_view_model_exposes_summary_suite_failures_reports_and_traf
         latest_run_status="ok",
         report_paths=("reports/run-latest.json", "reports/drift.json"),
         traffic_state_available=True,
+        applied_gates=(
+            StudioAppliedGateStatus(
+                rule_id="global_latency",
+                test_path="tests/health.hurl",
+                test_status="passed",
+                enforcement="block",
+                condition="true",
+                assertion="duration < 2000",
+            ),
+            StudioAppliedGateStatus(
+                rule_id="auth_required",
+                test_path="tests/checkout.hurl",
+                test_status="failed",
+                enforcement="unknown",
+                condition="unknown",
+                assertion="unknown",
+            ),
+        ),
     )
 
     model = build_studio_view_model(status)
@@ -76,6 +95,24 @@ def test_build_studio_view_model_exposes_summary_suite_failures_reports_and_traf
     )
     assert model.failure_rows == (
         ("tests/checkout.hurl", "exit 1", "assertion failed"),
+    )
+    assert model.gate_rows == (
+        (
+            "global_latency",
+            "tests/health.hurl",
+            "block",
+            "passed",
+            "true",
+            "duration < 2000",
+        ),
+        (
+            "auth_required",
+            "tests/checkout.hurl",
+            "unknown",
+            "failed",
+            "unknown",
+            "unknown",
+        ),
     )
     assert model.report_rows == (("reports/drift.json",), ("reports/run-latest.json",))
     assert model.traffic_rows == (("Traffic state", "available"),)
@@ -97,6 +134,7 @@ def test_build_studio_view_model_handles_absent_latest_run_reports_and_traffic()
     assert model.summary_rows[-1] == ("Latest run", "none")
     assert model.suite_rows == (("No latest run found", "", "", "", ""),)
     assert model.failure_rows == (("No failed tests", "", ""),)
+    assert model.gate_rows == (("No applied gates found", "", "", "", "", ""),)
     assert model.report_rows == (("No report artifacts found",),)
     assert model.traffic_rows == (("Traffic state", "missing"),)
 

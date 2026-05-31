@@ -171,6 +171,9 @@ and keeps mutation workflows design-only until a separate accepted decision.
 Issue #196 adds that accepted design gate without changing runtime behavior:
 future Studio write actions must use preview, two-step confirmation, redaction,
 rollback, and existing CLI/core use cases before any mutation code lands.
+Issue #192 adds read-only applied-gate drilldowns over existing deterministic
+artifacts: Studio links latest-run report rule IDs to loaded QAnstitution gate
+definitions without running Hurl, calling providers, or editing tests/config.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
@@ -637,6 +640,23 @@ Implemented boundaries:
   change summary, two-step confirmation, result evidence, and rollback path.
 - Future Studio previews must not render raw secrets, raw captured traffic,
   raw provider output, or unredacted Hurl output.
+
+## Completed Slice: Issue #192 Read-Only Studio Applied-Gate Drilldowns
+
+Outcome: Studio can now explain which QAnstitution gates applied to which tests
+using committed deterministic artifacts, without becoming an execution or edit
+surface.
+
+Implemented boundaries:
+
+- `collect_studio_status` loads latest-run report rule IDs and QAnstitution
+  gate definitions into a read-only applied-gate status model.
+- The Studio view model exposes a Gates tab with rule ID, test path,
+  enforcement, test status, condition, and assertion rows.
+- Missing gate definitions are shown as `unknown` instead of failing the whole
+  Studio view, so old reports remain inspectable.
+- Studio still does not run Hurl, call LLM providers, edit tests, edit config,
+  or mutate reports/runtime state.
 
 ## Completed Slice: Issue #208 Performance Smoke Evidence
 

@@ -86,7 +86,14 @@ def test_collect_studio_status_with_latest_run_reports_and_traffic_state(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "qanstitution.yaml").write_text(
-        'project: "checkout-api"\ngates: []\n',
+        """
+project: "checkout-api"
+gates:
+  - id: "global_latency"
+    condition: "true"
+    gate: "duration < 2000"
+    enforcement: "block"
+""",
         encoding="utf-8",
     )
     state_dir = tmp_path / ".entroping"
@@ -136,7 +143,13 @@ def test_collect_studio_status_with_latest_run_reports_and_traffic_state(
     assert status.environment == "default"
     assert status.latest_run is not None
     assert status.latest_run.failed == 1
+    assert status.applied_gates[0].rule_id == "global_latency"
+    assert status.applied_gates[0].test_path == "tests/health.hurl"
+    assert status.applied_gates[0].enforcement == "block"
+    assert status.applied_gates[0].assertion == "duration < 2000"
+    assert status.applied_gates[1].test_status == "failed"
     assert status.report_paths == ("reports/junit.xml", "reports/run-latest.json")
     assert status.traffic_state_available
     assert "Latest run: 1 passed, 1 failed, 2 total" in rendered
+    assert "Applied gates: 2" in rendered
     assert "Traffic state: available" in rendered
