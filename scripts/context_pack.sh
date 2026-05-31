@@ -116,6 +116,7 @@ case "$mode" in
   source)
     add_file "sources/SOURCE_MAP.md"
     add_file "docs/meta/KNOWLEDGE_BASE_WORKFLOW.md"
+    add_file "docs/meta/OBSIDIAN_CONTEXT_ENGINE_GUIDE.md"
     add_file "docs/evolution/REQUIREMENTS_ANALYSIS.md"
     add_file "docs/evolution/EVOLUTION_TIMELINE.md"
     add_file "docs/evolution/CREATOR_INTENT_AUDIT.md"
@@ -134,6 +135,7 @@ case "$mode" in
     add_file "docs/meta/CONTEXT_MANAGEMENT.md"
     add_file "docs/meta/AGENT_CONTROL_PLANE.md"
     add_file "docs/meta/KNOWLEDGE_BASE_WORKFLOW.md"
+    add_file "docs/meta/OBSIDIAN_CONTEXT_ENGINE_GUIDE.md"
     ;;
 esac
 

@@ -13,7 +13,16 @@ tags:
 
 # Knowledge Base Workflow
 
-Obsidian is the first brain for Entroping. It is where the product story, decisions, issues, source evidence, and implementation context stay navigable after chat context disappears.
+The Git-backed Markdown knowledge base is the first brain for Entroping.
+Obsidian is the preferred local interface for reading, linking, and navigating
+that knowledge base after chat context disappears.
+
+GitHub and the repository remain canonical. Obsidian should not contain private,
+untracked project truth; promote important ideas into GitHub issues, ADRs,
+canonical docs, or `.context/` handoff notes.
+
+For the fuller operating model, read
+[[docs/meta/OBSIDIAN_CONTEXT_ENGINE_GUIDE|OBSIDIAN_CONTEXT_ENGINE_GUIDE]].
 
 ## Vault Rule
 

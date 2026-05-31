@@ -25,7 +25,8 @@ def test_knowledge_base_workflow_documents_source_promotion() -> None:
         encoding="utf-8"
     )
 
-    assert "Obsidian is the first brain" in doc
+    assert "Git-backed Markdown knowledge base is the first brain" in doc
+    assert "OBSIDIAN_CONTEXT_ENGINE_GUIDE" in doc
     assert "notebookLM/2026-05-29 NotebookLM Specs.md" in doc
     assert "Promote source evidence through one of four gates" in doc
     assert "GitHub issue" in doc

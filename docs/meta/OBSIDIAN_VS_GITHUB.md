@@ -29,6 +29,22 @@ Context hands off.
 If something is actionable, it goes to GitHub first. If something explains why
 the product changed, it goes to Obsidian.
 
+## Canonicality Rule
+
+The GitHub repository is canonical. Obsidian is the preferred local interface
+for reading, linking, and navigating the same Git-tracked Markdown.
+
+If GitHub, repo Markdown, and Obsidian ever appear to disagree, use this order:
+
+1. merged repository files and release tags.
+2. GitHub issues, pull requests, milestones, projects, and CI.
+3. local Obsidian view of the same tracked Markdown.
+4. raw source exports and unpromoted brainstorm notes.
+
+Obsidian should not contain private, untracked project truth. If an idea matters
+to execution, promote it into a GitHub issue, ADR, canonical doc, or `.context/`
+handoff note.
+
 ## Where Things Go
 
 | Thing | Put it here | Why |
@@ -41,7 +57,7 @@ the product changed, it goes to Obsidian.
 | Product behavior contract | `docs/product/PRODUCT_SPEC.md` | Defines what Entroping is |
 | Architecture decision | ADR under `decisions/` | Explains a durable choice |
 | Technical design | `docs/technical/TDS.md` | Keeps architecture and boundaries current |
-| Daily dashboard | `docs/meta/PROJECT_PROGRESS.md` | Human orientation in Obsidian |
+| Daily dashboard | `docs/meta/PROJECT_PROGRESS.md` | Human orientation in the repo and Obsidian |
 | Source evidence | `entroping-specs` plus `sources/SOURCE_MAP.md` | Keeps raw history separate |
 | Durable lesson | `.context/lessons-learned.md` | Prevents repeated mistakes |
 | Change history | `.context/changelog.md` | Preserves handoff context |
@@ -128,7 +144,8 @@ to the roadmap.
 
 ## Product Evolution Workflow
 
-Use Obsidian to preserve the story, not to manage every task.
+Use Git-backed Markdown, viewed through Obsidian when helpful, to preserve the
+story. Do not use Obsidian to manage every task.
 
 Update:
 
@@ -166,7 +183,7 @@ Read first:
 
 Rules:
 - GitHub Issues track work.
-- Obsidian explains why.
+- Obsidian explains why, but the GitHub repository stays canonical.
 - Do not edit ROADMAP.md unless release sequence or public scope changed.
 - Run scripts/doc_governance_check.sh and scripts/regression.sh before completion.
 ```

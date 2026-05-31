@@ -39,6 +39,7 @@ Recommended first settings:
 - Use [[00_INDEX]] as the map when you need to navigate beyond current work.
 - Use [[docs/meta/GLOSSARY|GLOSSARY]] when product terms feel unfamiliar.
 - Use [[docs/meta/CONTEXT_MANAGEMENT|CONTEXT_MANAGEMENT]] before starting a new Codex thread.
+- Use [[docs/meta/OBSIDIAN_CONTEXT_ENGINE_GUIDE|OBSIDIAN_CONTEXT_ENGINE_GUIDE]] when you want to use the vault as a context preservation engine.
 - Use [[docs/meta/ISSUE_TRACKING|ISSUE_TRACKING]] to understand what belongs in GitHub Issues versus Obsidian.
 - Use [[docs/meta/TEST_STRATEGY|TEST_STRATEGY]] to understand regression and test-pyramid expectations.
 - Use ADRs for product decisions that should survive context resets.

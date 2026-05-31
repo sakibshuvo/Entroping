@@ -58,6 +58,7 @@ def test_context_pack_source_mode_keeps_source_archive_as_evidence_not_truth() -
     assert "Historical source material is evidence, not automatic current truth" in result.stdout
     assert "### sources/SOURCE_MAP.md" in result.stdout
     assert "### docs/evolution/REQUIREMENTS_ANALYSIS.md" in result.stdout
+    assert "### docs/meta/OBSIDIAN_CONTEXT_ENGINE_GUIDE.md" in result.stdout
 
 
 def test_context_pack_source_root_can_be_overridden_without_hardcoded_maintainer_path() -> None:
