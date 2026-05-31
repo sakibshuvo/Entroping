@@ -5,7 +5,7 @@ repo_url: https://github.com/sakibshuvo/Entroping
 repo_name: sakibshuvo/Entroping
 docs_dir: docs
 site_dir: site
-strict: false
+strict: true
 
 theme:
   name: material

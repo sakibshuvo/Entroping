@@ -311,8 +311,9 @@ Public docs site scaffold:
 uvx --with 'mkdocs-material==9.*' mkdocs build --strict
 ```
 
-The scaffold uses `mkdocs.yml` and the existing `docs/` tree. No deployment
-workflow is active yet.
+The public docs site uses `mkdocs.yml` and the existing `docs/` tree. CI runs a
+strict docs build on pull requests, and GitHub Pages publishes `main` to
+[sakibshuvo.github.io/Entroping](https://sakibshuvo.github.io/Entroping/).
 
 Orientation:
 
