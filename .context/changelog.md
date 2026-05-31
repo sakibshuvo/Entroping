@@ -36,6 +36,7 @@
 - Implemented #106's traceability report CLI so `entroping report traceability --output md` renders local story/test metadata and returns failing exit codes for missing story IDs or conflicting doc links.
 - Implemented #109's public trust hardening with a local community-profile audit script, README OpenSSF Scorecard badge, and scheduled/manual Scorecard workflow that avoids PR gating.
 - Implemented #110's structured response drift MVP with value-free response fingerprints for status code, selected stable headers, and JSON body shape paths.
+- Implemented #108's launch demo asset kit with README links, real checkout smoke terminal frames, a text/SVG HTML report preview, a dependency-map example from redacted traffic, and a concrete growth-plan publish order.
 - Ran issue #96's formal post-alpha security review and fixed 14 validated candidates across Brain prompt redaction, Hurl subprocess env isolation, symlinked path components, traffic redaction/body limits, OpenAPI generation/audit safety, policy gate compilation, Markdown escaping, Architect generated-file writes, and live demo workdir handling.
 - Wrote the consolidated Codex Security scan artifacts under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, including discovery, coverage, reconciliation, validation, attack-path, Markdown, and HTML reports.
 - Refactored issue #90's `entroping run` orchestration into `core.run_workflow`, preserving reports, drift behavior, exit codes, and LLM-free execution while lowering CLI adapter complexity.

@@ -92,6 +92,10 @@ Issue #109 added community-profile auditing and a scheduled/manual OpenSSF
 Scorecard workflow without making Scorecard a required pull-request check.
 Issue #110 extended drift reports with optional value-free response fingerprints
 for status code, selected stable headers, and JSON body shape paths.
+Issue #108 added a text/SVG launch asset kit under `docs/assets/launch/`,
+linked it from the README and Obsidian index, and documented the concrete
+publish order in the growth plan without committing generated reports, GIFs, or
+PNG screenshots.
 Issue #90 moved deterministic run orchestration behind `core.run_workflow`,
 leaving the CLI adapter responsible for option normalization, output, and exit
 mapping.
@@ -743,8 +747,8 @@ Architect writes generated files.
 Use these issues as the next marathon targets. Keep each one narrow, tested, and
 merged through GitHub before starting the next branch:
 
-- [#108](https://github.com/sakibshuvo/Entroping/issues/108): create launch demo
-  assets and public growth kit.
+- Issue #108 is complete: README links a launch asset hub with real checkout
+  terminal output, an HTML report SVG preview, and a dependency-map example.
 - Issue #112 is complete: `scripts/audit_quality.sh` now makes 100 percent
   meaningful coverage the default release gate.
 
