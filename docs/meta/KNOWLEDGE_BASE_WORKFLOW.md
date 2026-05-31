@@ -96,7 +96,7 @@ Do not paste unbounded model output into the vault. Keep the vault curated.
 
 Weekly, or after a large marathon:
 
-- Open `00_INDEX.md`.
+- Open `docs/meta/VAULT_INDEX.md`.
 - Review `docs/meta/PROJECT_PROGRESS.md`.
 - Review `.context/plan.md`.
 - Move completed work from "current" language to done or later.

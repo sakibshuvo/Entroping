@@ -46,7 +46,7 @@ Links: [[docs/evolution/BRAIN_PROVIDER_STRATEGY|BRAIN_PROVIDER_STRATEGY]], [[dec
 
 The Markdown docs became an Obsidian vault so product evolution, decisions, sources, and implementation guidance can remain linked over time.
 
-Links: [[00_INDEX]], [[docs/meta/OBSIDIAN_START_HERE|OBSIDIAN_START_HERE]], [[sources/SOURCE_MAP]]
+Links: [[docs/meta/VAULT_INDEX|VAULT_INDEX]], [[docs/meta/OBSIDIAN_START_HERE|OBSIDIAN_START_HERE]], [[sources/SOURCE_MAP]]
 
 ## Phase 7 - Implementation Scaffold and Security Baseline
 

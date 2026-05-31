@@ -80,7 +80,7 @@ def test_example_policy_pack_shape_is_loadable_and_runtime_neutral() -> None:
 def test_policy_pack_layout_is_linked_from_entrypoints() -> None:
     required_links = {
         "README.md": "POLICY_PACK_LAYOUT.md",
-        "00_INDEX.md": "[[docs/technical/POLICY_PACK_LAYOUT|POLICY_PACK_LAYOUT]]",
+        "docs/meta/VAULT_INDEX.md": "[[docs/technical/POLICY_PACK_LAYOUT|POLICY_PACK_LAYOUT]]",
         "docs/index.md": "technical/POLICY_PACK_LAYOUT.md",
         "mkdocs.yml": "Policy Pack Layout: technical/POLICY_PACK_LAYOUT.md",
         "docs/technical/QANSTITUTION_REFERENCE.md": "POLICY_PACK_LAYOUT.md",

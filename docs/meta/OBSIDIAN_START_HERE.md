@@ -19,7 +19,7 @@ Obsidian makes context preservation easier when the notes are curated. It does n
 1. Launch Obsidian from `/Applications/Obsidian.app`.
 2. Click **Open folder as vault**.
 3. Select the Entroping repository checkout, shown elsewhere as `<repo-root>`.
-4. Open [[00_INDEX]].
+4. Open [[docs/meta/VAULT_INDEX|VAULT_INDEX]].
 
 ## First Graph View
 
@@ -38,7 +38,7 @@ Recommended first settings:
 - To analyze or evolve the project, follow
   [[docs/meta/OBSIDIAN_CONTEXT_ENGINE_GUIDE#Start Analyzing And Evolving|Start Analyzing And Evolving]].
 - Open [[docs/meta/PROJECT_PROGRESS|PROJECT_PROGRESS]] first.
-- Use [[00_INDEX]] as the map when you need to navigate beyond current work.
+- Use [[docs/meta/VAULT_INDEX|VAULT_INDEX]] as the map when you need to navigate beyond current work.
 - Use [[docs/meta/GLOSSARY|GLOSSARY]] when product terms feel unfamiliar.
 - Use [[docs/meta/CONTEXT_MANAGEMENT|CONTEXT_MANAGEMENT]] before starting a new Codex thread.
 - Use [[docs/meta/OBSIDIAN_CONTEXT_ENGINE_GUIDE|OBSIDIAN_CONTEXT_ENGINE_GUIDE]] when you want to use the vault as a context preservation engine.

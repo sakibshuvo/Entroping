@@ -52,7 +52,7 @@ def test_open_core_boundary_document_is_linked_from_entrypoints() -> None:
         REPO_ROOT / "docs" / "product" / "GROWTH_AND_MONETIZATION.md"
     ).read_text(encoding="utf-8")
     docs_index = (REPO_ROOT / "docs" / "index.md").read_text(encoding="utf-8")
-    vault_index = (REPO_ROOT / "00_INDEX.md").read_text(encoding="utf-8")
+    vault_index = (REPO_ROOT / "docs/meta/VAULT_INDEX.md").read_text(encoding="utf-8")
     mkdocs = (REPO_ROOT / "mkdocs.yml").read_text(encoding="utf-8")
 
     assert boundary_link in readme

@@ -17,7 +17,7 @@ def test_repo_hygiene_help_documents_forbidden_tracked_paths() -> None:
 
     assert result.returncode == 0
     assert ".DS_Store" in result.stdout
-    assert ".obsidian/graph.json" in result.stdout
+    assert ".obsidian/" in result.stdout
     assert ".entroping/" in result.stdout
 
 

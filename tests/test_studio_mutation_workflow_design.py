@@ -45,7 +45,7 @@ def test_studio_mutation_design_covers_required_safety_boundaries() -> None:
 def test_studio_mutation_design_is_linked_from_studio_docs() -> None:
     required_links = {
         "README.md": "STUDIO_MUTATION_WORKFLOW_DESIGN.md",
-        "00_INDEX.md": (
+        "docs/meta/VAULT_INDEX.md": (
             "[[docs/technical/STUDIO_MUTATION_WORKFLOW_DESIGN|"
             "STUDIO_MUTATION_WORKFLOW_DESIGN]]"
         ),

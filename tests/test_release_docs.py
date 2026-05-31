@@ -18,7 +18,7 @@ def test_readme_links_alpha_release_gate_and_checklist() -> None:
 def test_public_roadmap_is_linked_from_front_door() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     roadmap = (REPO_ROOT / "ROADMAP.md").read_text(encoding="utf-8")
-    index = (REPO_ROOT / "00_INDEX.md").read_text(encoding="utf-8")
+    index = (REPO_ROOT / "docs/meta/VAULT_INDEX.md").read_text(encoding="utf-8")
 
     assert "[ROADMAP.md](ROADMAP.md)" in readme
     assert "GitHub Project board" in readme
@@ -63,7 +63,7 @@ def test_zero_config_demo_decision_keeps_live_smoke_as_release_gate() -> None:
     decision = (
         REPO_ROOT / "docs" / "meta" / "ZERO_CONFIG_DEMO_ENTRYPOINT.md"
     ).read_text(encoding="utf-8")
-    index = (REPO_ROOT / "00_INDEX.md").read_text(encoding="utf-8")
+    index = (REPO_ROOT / "docs/meta/VAULT_INDEX.md").read_text(encoding="utf-8")
 
     assert "scripts/demo.sh" in decision
     assert "scripts/live_demo_smoke.sh" in decision

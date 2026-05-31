@@ -43,7 +43,7 @@ def test_doc_governance_rejects_missing_required_marker(tmp_path: Path) -> None:
     (tmp_path / "scripts").mkdir()
     (tmp_path / "README.md").write_text("README without roadmap link\n", encoding="utf-8")
     (tmp_path / "ROADMAP.md").write_text("# Roadmap\n", encoding="utf-8")
-    (tmp_path / "00_INDEX.md").write_text("# Index\n", encoding="utf-8")
+    (tmp_path / "docs/meta/VAULT_INDEX.md").write_text("# Index\n", encoding="utf-8")
     (tmp_path / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
     (tmp_path / ".github" / "pull_request_template.md").write_text(
         "## Summary\n",

@@ -41,7 +41,7 @@ Use this short loop when you want to understand, evolve, or restart work on the
 project:
 
 1. Open the repository as the Obsidian vault.
-2. Start from `00_INDEX.md`.
+2. Start from `docs/meta/VAULT_INDEX.md`.
 3. Read `docs/meta/PROJECT_PROGRESS.md` and `ROADMAP.md` for current status.
 4. Read this guide, `docs/meta/OBSIDIAN_VS_GITHUB.md`, and
    `docs/meta/DOCS_GOVERNANCE.md` for operating rules.
@@ -112,7 +112,7 @@ Do not read the whole vault for every session.
 
 For daily work, open:
 
-1. `00_INDEX.md`
+1. `docs/meta/VAULT_INDEX.md`
 2. `docs/meta/PROJECT_PROGRESS.md`
 3. target GitHub issue
 4. related ADR, if any
@@ -342,7 +342,7 @@ When starting an agent session:
 Repo: /Users/sakibshuvo/projects/Entroping
 Read first:
 - AGENTS.md
-- 00_INDEX.md
+- docs/meta/VAULT_INDEX.md
 - docs/meta/OBSIDIAN_CONTEXT_ENGINE_GUIDE.md
 - docs/meta/OBSIDIAN_VS_GITHUB.md
 - docs/meta/DOCS_GOVERNANCE.md
@@ -385,7 +385,7 @@ Use these controls aggressively:
 ### Week 1: Basic Navigation
 
 - Open the repo as the Obsidian vault.
-- Start from `00_INDEX.md`.
+- Start from `docs/meta/VAULT_INDEX.md`.
 - Use backlinks and local graph on ADRs and product docs.
 - Do not install extra plugins yet.
 

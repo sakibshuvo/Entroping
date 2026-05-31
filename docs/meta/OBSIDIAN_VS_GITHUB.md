@@ -64,7 +64,7 @@ handoff note.
 
 ## Daily Workflow
 
-1. Open `00_INDEX.md` in Obsidian.
+1. Open `docs/meta/VAULT_INDEX.md` in Obsidian.
 2. Open `docs/meta/PROJECT_PROGRESS.md`.
 3. Check the GitHub Project board for current work.
 4. Pick exactly one issue.

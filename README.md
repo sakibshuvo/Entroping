@@ -269,7 +269,7 @@ scripts/context_pack.sh --mode handoff
 
 ## Deep Docs
 
-Open this repository in Obsidian and start with [00_INDEX.md](00_INDEX.md).
+Open this repository in Obsidian and start with [docs/meta/VAULT_INDEX.md](docs/meta/VAULT_INDEX.md).
 
 Product:
 
@@ -411,9 +411,8 @@ docs/meta/             Obsidian onboarding, progress, and project operations
 examples/              Minimal fixtures for onboarding and tests
 decisions/             ADRs for durable product decisions
 sources/               Source-material map
-.context/              Working context, changelog, lessons learned
+.context/              Maintainer/agent handoff context, hidden from public docs
 AGENTS.md              Project-local Codex implementation rules
-.obsidian/             Minimal vault configuration
 ```
 
 ## Contributing And Community

@@ -29,7 +29,7 @@ def test_threat_model_covers_current_stable_core_security_boundaries() -> None:
 def test_threat_model_is_visible_from_canonical_indexes() -> None:
     required_targets = {
         "docs/index.md": "technical/THREAT_MODEL.md",
-        "00_INDEX.md": "[[docs/technical/THREAT_MODEL|THREAT_MODEL]]",
+        "docs/meta/VAULT_INDEX.md": "[[docs/technical/THREAT_MODEL|THREAT_MODEL]]",
         "mkdocs.yml": "Threat Model: technical/THREAT_MODEL.md",
         "docs/meta/RELEASE_CHECKLIST.md": "docs/technical/THREAT_MODEL.md",
     }

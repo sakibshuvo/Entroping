@@ -89,7 +89,7 @@ add_file() {
 add_base_files() {
   add_file "AGENTS.md"
   add_file "README.md"
-  add_file "00_INDEX.md"
+  add_file "docs/meta/VAULT_INDEX.md"
   add_file ".context/plan.md"
   add_file "docs/meta/PROJECT_PROGRESS.md"
 }

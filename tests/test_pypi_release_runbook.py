@@ -51,7 +51,7 @@ def test_pypi_release_runbook_documents_versions_and_rollback() -> None:
 
 
 def test_pypi_release_runbook_is_linked_from_release_docs_and_index() -> None:
-    index = (REPO_ROOT / "00_INDEX.md").read_text(encoding="utf-8")
+    index = (REPO_ROOT / "docs/meta/VAULT_INDEX.md").read_text(encoding="utf-8")
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     release_checklist = (
         REPO_ROOT / "docs" / "meta" / "RELEASE_CHECKLIST.md"

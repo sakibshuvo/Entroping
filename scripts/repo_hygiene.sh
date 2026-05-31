@@ -10,12 +10,7 @@ graph output are tracked by Git.
 
 Forbidden tracked paths include:
   .DS_Store
-  .obsidian/appearance.json
-  .obsidian/graph.json
-  .obsidian/workspace*.json
-  .obsidian/cache/
-  .obsidian/plugins/
-  .obsidian/themes/
+  .obsidian/
   .entroping/
   reports/
   graphify-out/
@@ -50,12 +45,7 @@ is_forbidden_path() {
 
   case "$path" in
     .DS_Store|*/.DS_Store|\
-    .obsidian/appearance.json|\
-    .obsidian/graph.json|\
-    .obsidian/workspace*.json|\
-    .obsidian/cache/*|\
-    .obsidian/plugins/*|\
-    .obsidian/themes/*|\
+    .obsidian/*|\
     .entroping/*|\
     reports/*|\
     graphify-out/*|\

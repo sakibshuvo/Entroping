@@ -29,9 +29,4 @@ graphify-out/
 !envs/*.env.example
 
 # Obsidian local UI state. Keep durable vault notes in Git, not machine state.
-.obsidian/appearance.json
-.obsidian/graph.json
-.obsidian/workspace*.json
-.obsidian/cache/
-.obsidian/plugins/
-.obsidian/themes/
+.obsidian/
