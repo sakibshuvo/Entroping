@@ -325,6 +325,7 @@ Orientation:
 - [EVOLUTION_TIMELINE.md](docs/evolution/EVOLUTION_TIMELINE.md) - product history.
 - [ADR-0001](decisions/ADR-0001-hurl-native-governance.md) - first architectural decision.
 - [examples/checkout-api](examples/checkout-api/README.md) - tiny demo fixture.
+- [examples/support-api](examples/support-api/README.md) - second fixture with ticket filters, headers, and mutation audit gates.
 
 ## Locked Alpha CLI Surface
 

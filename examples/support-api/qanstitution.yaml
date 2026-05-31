@@ -1,0 +1,39 @@
+project: "support-api-demo"
+version: "4.1"
+description: "Second Entroping fixture with ticket-list filters and mutation audit rules"
+
+sources:
+  spec: "./openapi.yaml"
+
+gates:
+  - id: "no_server_errors"
+    description: "Fail when a support endpoint returns a server error"
+    condition: "true"
+    gate: "status < 500"
+    enforcement: "block"
+  - id: "ticket_request_id"
+    description: "Ticket endpoints must include a request ID for incident correlation"
+    condition: "path startswith '/tickets'"
+    gate: 'header "X-Request-Id" exists'
+    enforcement: "block"
+  - id: "ticket_creation_location"
+    description: "Ticket creation must return the canonical ticket location"
+    condition: "method == 'POST'"
+    gate: 'header "Location" exists'
+    enforcement: "block"
+  - id: "ticket_mutation_audit"
+    description: "Ticket status mutations must emit an audit header"
+    condition: "method == 'PATCH'"
+    gate: 'header "X-Audit-Id" exists'
+    enforcement: "block"
+  - id: "support_smoke_latency"
+    description: "Support smoke tests should stay fast enough for local iteration"
+    condition: "tags contains 'support'"
+    gate: "duration < 1500"
+    enforcement: "warn"
+
+settings:
+  timeout: 30000
+  parallel_workers: 2
+  follow_redirects: true
+  retry: 0

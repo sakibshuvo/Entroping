@@ -1,0 +1,230 @@
+openapi: "3.1.0"
+info:
+  title: Support Ticket API
+  version: "0.1.0"
+paths:
+  /health:
+    get:
+      operationId: getSupportHealth
+      summary: Check support service health
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - service
+                  - status
+                properties:
+                  service:
+                    type: string
+                    enum:
+                      - support-api
+                  status:
+                    type: string
+                    enum:
+                      - ok
+  /tickets:
+    get:
+      operationId: listTickets
+      summary: List support tickets by status
+      parameters:
+        - name: status
+          in: query
+          required: false
+          example: open
+          schema:
+            type: string
+            enum:
+              - open
+              - triaged
+              - resolved
+        - name: limit
+          in: query
+          required: false
+          example: 2
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+      responses:
+        "200":
+          description: Ticket page
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                  - next_cursor
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - priority
+                        - status
+                        - subject
+                      properties:
+                        id:
+                          type: string
+                        priority:
+                          type: string
+                        status:
+                          type: string
+                        subject:
+                          type: string
+                  next_cursor:
+                    type: string
+    post:
+      operationId: createTicket
+      summary: Create a support ticket
+      parameters:
+        - name: X-Customer-Id
+          in: header
+          required: true
+          example: cust-123
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - subject
+                - priority
+              properties:
+                subject:
+                  type: string
+                  example: Cannot download invoice
+                priority:
+                  type: string
+                  enum:
+                    - low
+                    - normal
+                    - high
+                  example: high
+      responses:
+        "201":
+          description: Ticket created
+          headers:
+            Location:
+              schema:
+                type: string
+            X-Audit-Id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - priority
+                  - status
+                  - subject
+                properties:
+                  id:
+                    type: string
+                  priority:
+                    type: string
+                  status:
+                    type: string
+                    enum:
+                      - open
+                  subject:
+                    type: string
+  /tickets/{ticket_id}/events:
+    get:
+      operationId: listTicketEvents
+      summary: List ticket audit events
+      parameters:
+        - name: ticket_id
+          in: path
+          required: true
+          example: tkt_001
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Ticket events
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - events
+                  - id
+                properties:
+                  events:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - actor
+                        - type
+                      properties:
+                        actor:
+                          type: string
+                        type:
+                          type: string
+                  id:
+                    type: string
+  /tickets/{ticket_id}/status:
+    patch:
+      operationId: updateTicketStatus
+      summary: Update a ticket status
+      parameters:
+        - name: ticket_id
+          in: path
+          required: true
+          example: tkt_cust-123_001
+          schema:
+            type: string
+        - name: X-Agent-Id
+          in: header
+          required: true
+          example: agent-007
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - open
+                    - triaged
+                    - resolved
+                  example: triaged
+      responses:
+        "200":
+          description: Ticket status updated
+          headers:
+            X-Audit-Id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - status
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string

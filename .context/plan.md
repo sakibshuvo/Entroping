@@ -167,6 +167,10 @@ Issue #232 simplifies first-hour QAnstitution onboarding by aligning
 `init --minimal`, the checkout demo fixture, and the new
 `docs/user/QANSTITUTION_FIRST_HOUR.md` guide around three schema-validated
 starter gates: status, latency, and request-ID header.
+Issue #194 adds a second realistic support-ticket fixture so example coverage
+is not overfit to checkout: filtered list reads, required request headers,
+POST/PATCH mutations, OpenAPI examples, Hurl smoke tests, QAnstitution method
+and path gates, and real-run report guidance.
 Issue #205 turns the locked v4.1 CLI surface into an explicit compatibility
 audit before stable-core claims. The audit ties README, TDS, command cheat
 sheet, ADR-0002, Typer help, deprecated aliases, exit-code policy, and report

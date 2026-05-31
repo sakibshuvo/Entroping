@@ -51,6 +51,7 @@
 - Added issue #225's standalone binary distribution decision: defer Nuitka/PyInstaller automation until PyPI alpha, Homebrew tap demand, platform signing/notarization runbooks, and support evidence justify it.
 - Added issue #223's manual PyPI/TestPyPI Trusted Publishing workflow with unprivileged artifact build, protected `testpypi`/`pypi` environments, and token-free OIDC publish jobs.
 - Added issue #224's Homebrew tap prototype with a PyPI-sdist formula template, required Hurl dependency, local audit/install/test smoke commands, and guardrails that keep optional extras out of the default formula.
+- Added issue #194's support-ticket API fixture with a local demo server, OpenAPI spec, Hurl smoke test, QAnstitution gates, README runbook, and real-run report path distinct from checkout.
 
 ## 2026-05-30
 
