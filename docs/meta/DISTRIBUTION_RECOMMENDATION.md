@@ -47,6 +47,10 @@ entry points, and install smoke behavior. Defer standalone binaries until users
 are asking for them or until enterprise/commercial packaging needs justify the
 signing and support burden.
 
+The current Homebrew tap work is a prototype template and runbook, not a public
+install claim. See [HOMEBREW_TAP_PROTOTYPE.md](HOMEBREW_TAP_PROTOTYPE.md) for
+the formula shape, dependency rules, and local tap smoke commands.
+
 Cross-platform install claims are controlled by
 [INSTALL_SMOKE_MATRIX.md](INSTALL_SMOKE_MATRIX.md). The current CI matrix proves
 uv tool installation on Linux, macOS, and Windows, but Windows remains
