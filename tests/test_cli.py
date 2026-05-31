@@ -230,11 +230,12 @@ def test_doctor_reports_valid_config_health(
 ) -> None:
     runner = CliRunner()
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(
-        cli_main,
-        "discover_hurl",
-        lambda: SimpleNamespace(available=True, path="/usr/local/bin/hurl"),
-    )
+
+    def fake_discover_hurl(binary: str = "hurl") -> SimpleNamespace:
+        path = f"/usr/local/bin/{binary}"
+        return SimpleNamespace(available=True, path=path)
+
+    monkeypatch.setattr(cli_main, "discover_hurl", fake_discover_hurl)
 
     runner.invoke(app, ["init", "--minimal"])
 
@@ -242,7 +243,8 @@ def test_doctor_reports_valid_config_health(
 
     assert result.exit_code == 0
     assert "Python:" in result.output
-    assert "Hurl:" in result.output
+    assert "Hurl: found at /usr/local/bin/hurl" in result.output
+    assert "Hurl parser: found at /usr/local/bin/hurlfmt" in result.output
     assert "found" in result.output
     assert "QAnstitution: valid" in result.output
 
@@ -281,7 +283,7 @@ def test_doctor_reports_missing_hurl_and_missing_config(
     monkeypatch.setattr(
         cli_main,
         "discover_hurl",
-        lambda: SimpleNamespace(available=False, path=None),
+        lambda binary="hurl": SimpleNamespace(available=False, path=None),
     )
 
     result = CliRunner().invoke(app, ["doctor"])
@@ -289,8 +291,33 @@ def test_doctor_reports_missing_hurl_and_missing_config(
     assert result.exit_code == 0
     assert "Hurl:" in result.output
     assert "not found" in result.output
+    assert "Hurl parser:" in result.output
+    assert "hurlfmt" in result.output
     assert "QAnstitution:" in result.output
     assert "run entroping init --minimal" in result.output
+
+
+def test_doctor_reports_missing_hurlfmt_for_architect_validation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    def fake_discover_hurl(binary: str = "hurl") -> SimpleNamespace:
+        if binary == "hurl":
+            return SimpleNamespace(available=True, path="/usr/local/bin/hurl")
+        return SimpleNamespace(available=False, path=None)
+
+    monkeypatch.setattr(cli_main, "discover_hurl", fake_discover_hurl)
+    CliRunner().invoke(app, ["init", "--minimal"])
+
+    result = CliRunner().invoke(app, ["doctor"])
+
+    assert result.exit_code == 0
+    assert "Hurl: found at /usr/local/bin/hurl" in result.output
+    assert "Hurl parser: not found" in result.output
+    assert "hurlfmt" in result.output
+    assert "Architect generated-Hurl validation" in " ".join(result.output.split())
 
 
 def test_config_list_prints_resolved_non_secret_config(

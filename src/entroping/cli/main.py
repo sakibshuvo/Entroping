@@ -174,11 +174,19 @@ def doctor() -> None:
     """Check local tool availability without making network calls."""
 
     hurl = discover_hurl()
+    hurl_parser = discover_hurl("hurlfmt")
     console.print(f"Python: {sys.version.split()[0]}")
     if hurl.available:
         console.print(f"Hurl: [green]found[/green] at {hurl.path}")
     else:
         console.print("Hurl: [yellow]not found[/yellow] (install hurl before running suites)")
+    if hurl_parser.available:
+        console.print(f"Hurl parser: [green]found[/green] at {hurl_parser.path}")
+    else:
+        console.print(
+            "Hurl parser: [yellow]not found[/yellow] "
+            "(install hurlfmt before Architect generated-Hurl validation)"
+        )
 
     config_path = Path("qanstitution.yaml")
     if not config_path.exists():
