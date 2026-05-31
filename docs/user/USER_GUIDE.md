@@ -101,6 +101,9 @@ Use strict CI mode in pipelines:
 entroping run --env ci --ci --parallel --report junit
 ```
 
+For a copyable GitHub Actions workflow, see
+`docs/user/GITHUB_ACTIONS_STARTER.md`.
+
 `--parallel` uses `settings.parallel_workers` from `qanstitution.yaml` and keeps
 report ordering stable, so CI output remains deterministic even when files run
 concurrently.
@@ -304,9 +307,9 @@ entroping run --env ci --ci --parallel --report junit --report html
 Expected artifacts:
 
 ```text
-reports/junit/report.xml
-reports/html/index.html
-reports/run.json
+reports/junit.xml
+reports/run-latest.html
+.entroping/latest-run.json
 ```
 
 When a failure needs an issue:

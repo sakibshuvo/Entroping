@@ -24,6 +24,7 @@
 - Ran issue #185's public clean-checkout onboarding smoke from a fresh GitHub clone on macOS 26.5 arm64, proving `uv sync --dev`, Hurl availability, `scripts/live_demo_smoke.sh`, and `scripts/release_check.sh --require-live-demo`.
 - Implemented issue #191's public launch preview upgrade with curated terminal, HTML report, and dependency-map PNGs generated from live checkout fixture output and redacted traffic state.
 - Added issue #184's good-first-issue walkthrough so new contributors can move from labeled issue selection through `scripts/start_issue.sh`, local validation gates, and PR documentation expectations without reading the whole vault first.
+- Added issue #189's downstream GitHub Actions starter workflow with pinned Hurl installation, tagged Entroping install, JUnit/HTML report upload, user docs, and guard tests.
 
 ## 2026-05-30
 
