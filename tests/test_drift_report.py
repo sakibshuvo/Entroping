@@ -98,6 +98,7 @@ def test_load_drift_baseline_accepts_small_and_run_report_shaped_json(tmp_path: 
             status="passed",
             exit_code=0,
             rule_ids=("global_latency",),
+            duration_ms=10,
             response_status_code=200,
             response_headers=(("content-type", "application/json"),),
             response_body_shape=("$:object", "$.status:string"),
@@ -198,6 +199,11 @@ def test_load_drift_baseline_accepts_absent_and_partial_response_fields(
             '{"tests":[{"path":"tests/health.hurl","status":"passed","exit_code":0,'
             '"response":{"status_code":"200"}}]}',
             "response.status_code must be an integer",
+        ),
+        (
+            '{"tests":[{"path":"tests/health.hurl","status":"passed","exit_code":0,'
+            '"duration_ms":"10"}]}',
+            "duration_ms must be a non-negative integer",
         ),
     ],
 )
@@ -410,6 +416,102 @@ def test_build_drift_report_ignores_current_response_when_baseline_has_none(
 
     assert report.findings == ()
     assert report.summary.drifted == 0
+
+
+def test_build_drift_report_flags_material_latency_regressions_without_minor_noise(
+    tmp_path: Path,
+) -> None:
+    baseline = DriftBaseline(
+        project="checkout-api",
+        environment="staging",
+        tests=(
+            DriftBaselineTest(
+                path="tests/regressed.hurl",
+                status="passed",
+                exit_code=0,
+                rule_ids=("global_latency",),
+                duration_ms=400,
+            ),
+            DriftBaselineTest(
+                path="tests/minor-noise.hurl",
+                status="passed",
+                exit_code=0,
+                rule_ids=("global_latency",),
+                duration_ms=400,
+            ),
+            DriftBaselineTest(
+                path="tests/percent-noise.hurl",
+                status="passed",
+                exit_code=0,
+                rule_ids=("global_latency",),
+                duration_ms=1_000,
+            ),
+            DriftBaselineTest(
+                path="tests/no-baseline-duration.hurl",
+                status="passed",
+                exit_code=0,
+                rule_ids=("global_latency",),
+            ),
+        ),
+    )
+    current = _run_report(
+        RunTestReport(
+            path="tests/regressed.hurl",
+            execution_path=".entroping/run/regressed.hurl",
+            status="passed",
+            exit_code=0,
+            duration_ms=625,
+            rule_ids=("global_latency",),
+            stdout="",
+            stderr="",
+        ),
+        RunTestReport(
+            path="tests/minor-noise.hurl",
+            execution_path=".entroping/run/minor-noise.hurl",
+            status="passed",
+            exit_code=0,
+            duration_ms=480,
+            rule_ids=("global_latency",),
+            stdout="",
+            stderr="",
+        ),
+        RunTestReport(
+            path="tests/percent-noise.hurl",
+            execution_path=".entroping/run/percent-noise.hurl",
+            status="passed",
+            exit_code=0,
+            duration_ms=1_200,
+            rule_ids=("global_latency",),
+            stdout="",
+            stderr="",
+        ),
+        RunTestReport(
+            path="tests/no-baseline-duration.hurl",
+            execution_path=".entroping/run/no-baseline-duration.hurl",
+            status="passed",
+            exit_code=0,
+            duration_ms=2_000,
+            rule_ids=("global_latency",),
+            stdout="",
+            stderr="",
+        ),
+    )
+
+    report = build_drift_report(
+        current=current,
+        baseline=baseline,
+        baseline_path=tmp_path / ".entroping" / "drift-baseline.json",
+    )
+
+    assert [finding.kind for finding in report.findings] == ["latency_regressed"]
+    assert report.findings[0].severity == "warning"
+    assert report.findings[0].baseline == {"duration_ms": 400}
+    assert report.findings[0].current == {
+        "duration_ms": 625,
+        "increase_ms": 225,
+        "increase_percent": 56,
+    }
+    assert report.summary.drifted == 1
 
 
 def test_write_missing_baseline_drift_report_is_machine_readable(tmp_path: Path) -> None:

@@ -85,6 +85,9 @@ Drift tests must keep response comparison value-free. The structured drift MVP
 compares response status codes, selected stable headers, and JSON body shape
 paths from sanitized run reports; it must not snapshot full bodies, cookies,
 request IDs, dates, or other volatile values.
+Latency drift tests compare only reviewed `duration_ms` fields from sanitized
+run reports. They should keep conservative thresholds so tiny local timing
+noise does not become a release-blocking regression.
 
 The quality-audit job uploads the generated `reports/` directory as workflow
 artifacts for review. Packaging checks and release/live-demo release decisions

@@ -351,6 +351,7 @@ The first drift slice compares:
 - New or missing test paths.
 - Hurl result status and exit code changes.
 - Injected QAnstitution rule ID changes.
+- Material per-test latency regressions from a reviewed duration baseline.
 - Response status code changes when a response fingerprint is available.
 - Selected stable response header changes such as `content-type`.
 - JSON body shape changes without storing response values.
@@ -362,7 +363,6 @@ finished, so Hurl failures are still visible.
 
 Future drift slices should add:
 
-- Latency regressions.
 - New or missing dependency calls where traffic baselines exist.
 
 ## 12. Studio

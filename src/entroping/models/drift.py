@@ -14,6 +14,7 @@ DriftFindingKind = Literal[
     "response_status_changed",
     "response_header_changed",
     "response_body_shape_changed",
+    "latency_regressed",
 ]
 DriftSeverity = Literal["info", "warning", "error"]
 DriftValue = str | int | list[str] | None
@@ -27,6 +28,7 @@ class DriftBaselineTest:
     status: str
     exit_code: int
     rule_ids: tuple[str, ...]
+    duration_ms: int | None = None
     response_status_code: int | None = None
     response_headers: tuple[tuple[str, str], ...] = ()
     response_body_shape: tuple[str, ...] = ()

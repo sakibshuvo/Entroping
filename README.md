@@ -114,8 +114,7 @@ Built today:
 
 Still alpha:
 
-- Latency trend drift and dependency-call drift are not beyond the current
-  value-free baseline comparison.
+- Dependency-call drift is not beyond the current value-free baseline comparison.
 - Architect UX is functional but intentionally narrow.
 - Studio is a read-only status shell, not a full interactive TUI.
 
