@@ -45,13 +45,14 @@ The core rule is simple: **LLMs may propose tests, but Hurl and the QAnstitution
 
 ## Current Status
 
-This repository is the initial Entroping knowledge base and implementation scaffold.
+This repository is the active alpha implementation and Obsidian-friendly
+knowledge base for Entroping.
 
 Available now:
 
 - Product, technical, user, command, and MVP specifications.
 - Obsidian vault with linked evolution notes and ADRs.
-- Python package scaffold with the locked v4.1 CLI surface.
+- Python package with the locked v4.1 CLI surface.
 - `entroping init --minimal` for a minimal local runtime skeleton and `qanstitution.yaml`.
 - `entroping doctor` for local Python, Hurl availability, and QAnstitution config health checks.
 - `entroping config list` and `entroping config set` for deterministic, non-secret agent model routing plus missing persona-template creation.
@@ -201,7 +202,7 @@ scripts/context_pack.sh --mode growth
 scripts/context_pack.sh --mode handoff
 ```
 
-Try the scaffolded CLI:
+Try the CLI locally:
 
 ```bash
 uv run entroping --help
@@ -369,8 +370,8 @@ Dependency rule: domain modules do not import adapters.
 ## Repository Map
 
 ```text
-src/entroping/         Python implementation scaffold
-tests/                 Fast scaffold tests
+src/entroping/         Python package implementation
+tests/                 Fast regression and boundary tests
 docs/product/          Product spec, MVP plan, and marketing note
 docs/technical/        TDS, QAnstitution, command contract, Codex prompt
 docs/user/             User guide, flows, and use cases

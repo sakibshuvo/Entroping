@@ -104,6 +104,8 @@ default instead of a maintainer-local script constant.
 Issue #170 replaced maintainer-local repo/source paths in agent and Obsidian
 workflow docs with `<repo-root>`, `<source-archive>`, and `ENTROPING_SOURCE_ROOT`
 guidance so external agents and contributors can reuse the same flow.
+Issue #172 refreshed the public README status language so it describes the repo
+as the active alpha implementation without overclaiming production stability.
 Issue #90 moved deterministic run orchestration behind `core.run_workflow`,
 leaving the CLI adapter responsible for option normalization, output, and exit
 mapping.
