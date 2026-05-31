@@ -611,6 +611,28 @@ fingerprints contain only status code, selected stable headers such as
 `content-type`, and JSON body shape paths; full response bodies and volatile
 headers are not stored as drift truth.
 
+If `.entroping/dependency-baseline.json` exists, the same drift run also compares
+current redacted traffic observations from `.entroping/state.db` against reviewed
+dependency routes. The dependency baseline shape is intentionally route-only:
+
+```json
+{
+  "source_label": "client",
+  "routes": [
+    {
+      "destination_host": "payments.example.test",
+      "method": "POST",
+      "path_template": "/charges/{id}"
+    }
+  ]
+}
+```
+
+Dependency drift findings report `missing_dependency_route` and
+`new_dependency_route`. Query strings, headers, cookies, tokens, request bodies,
+response bodies, call counts, and latency values are excluded from dependency
+drift truth.
+
 No additional commands or flags should be implemented without updating the product specification first.
 
 ## 15. Configuration and Secrets

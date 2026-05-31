@@ -5,11 +5,21 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from entroping.bridge.traffic_sessions import (
+    TrafficSessionError,
+    build_traffic_session_candidate,
+)
+from entroping.bridge.traffic_to_graph import (
+    TrafficGraphCompilationError,
+    compile_traffic_dependency_graph,
+)
 from entroping.core.config_loader import load_qanstitution
 from entroping.core.drift_report import (
     DriftBaselineNotFoundError,
+    append_dependency_drift_findings,
     build_drift_report,
     build_missing_baseline_report,
+    load_dependency_drift_baseline,
     load_drift_baseline,
     write_drift_report,
 )
@@ -23,7 +33,8 @@ from entroping.core.report_writer import (
     write_json_report,
     write_junit_report,
 )
-from entroping.models.drift import DriftReport
+from entroping.core.traffic_store import TrafficStore, TrafficStoreError
+from entroping.models.drift import DependencyDriftRoute, DriftReport
 
 
 class NoHurlTestsMatchedError(ValueError):
@@ -120,6 +131,15 @@ def execute_run_workflow(
                 baseline=baseline,
                 baseline_path=baseline_path,
             )
+        dependency_baseline_path = state_dir / "dependency-baseline.json"
+        if dependency_baseline_path.exists() and drift_report is not None:
+            dependency_baseline = load_dependency_drift_baseline(dependency_baseline_path)
+            drift_report = append_dependency_drift_findings(
+                drift_report,
+                baseline=dependency_baseline,
+                current_routes=_load_current_dependency_routes(root),
+                baseline_path=dependency_baseline_path,
+            )
 
     reports_dir = root / "reports"
     if "json" in report_formats:
@@ -137,4 +157,34 @@ def execute_run_workflow(
         artifacts=tuple(artifacts),
         drift_report=drift_report,
         drift_check=drift_check,
+    )
+
+
+def _load_current_dependency_routes(root: Path) -> tuple[DependencyDriftRoute, ...]:
+    state_path = root / ".entroping" / "state.db"
+    if not state_path.exists():
+        return ()
+
+    try:
+        store = TrafficStore.open_project(root)
+        exchanges = store.list_exchanges()
+        if not exchanges:
+            return ()
+        session = build_traffic_session_candidate(
+            exchanges,
+            name="dependency_drift",
+            target_url=None,
+        )
+        graph = compile_traffic_dependency_graph(session)
+    except (TrafficGraphCompilationError, TrafficSessionError, TrafficStoreError) as exc:
+        msg = f"Could not build dependency drift observations: {exc}"
+        raise ValueError(msg) from exc
+
+    return tuple(
+        DependencyDriftRoute(
+            destination_host=route.destination_host,
+            method=route.method,
+            path_template=route.path_template,
+        )
+        for route in graph.routes
     )

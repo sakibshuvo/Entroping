@@ -355,15 +355,33 @@ The first drift slice compares:
 - Response status code changes when a response fingerprint is available.
 - Selected stable response header changes such as `content-type`.
 - JSON body shape changes without storing response values.
+- New or missing dependency routes when `.entroping/dependency-baseline.json`
+  exists.
+
+Dependency-call drift is route-level. The baseline stores only reviewed
+`destination_host`, `method`, and redacted `path_template` values:
+
+```json
+{
+  "source_label": "client",
+  "routes": [
+    {
+      "destination_host": "payments.example.test",
+      "method": "POST",
+      "path_template": "/charges/{id}"
+    }
+  ]
+}
+```
+
+Current observations are read from redacted `.entroping/state.db` traffic and
+compiled through the dependency-map path. Counts, latency, query strings,
+headers, bodies, cookies, and tokens are not dependency drift truth.
 
 If the baseline is missing, `--report drift` writes a machine-readable
 `reports/drift.json` with a `missing_baseline` finding. `--drift-check` returns a
 non-zero exit code for missing baselines or drift findings after Hurl itself has
 finished, so Hurl failures are still visible.
-
-Future drift slices should add:
-
-- New or missing dependency calls where traffic baselines exist.
 
 ## 12. Studio
 

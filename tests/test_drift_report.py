@@ -9,13 +9,20 @@ import entroping.core.drift_report as drift_report
 from entroping.core.drift_report import (
     DriftBaselineNotFoundError,
     DriftReportError,
+    append_dependency_drift_findings,
     build_drift_report,
     build_missing_baseline_report,
+    load_dependency_drift_baseline,
     load_drift_baseline,
     write_drift_report,
 )
 from entroping.core.safe_write import SafeWriteError
-from entroping.models.drift import DriftBaseline, DriftBaselineTest
+from entroping.models.drift import (
+    DependencyDriftBaseline,
+    DependencyDriftRoute,
+    DriftBaseline,
+    DriftBaselineTest,
+)
 from entroping.models.report import RunReport, RunReportSummary, RunTestReport
 
 
@@ -116,6 +123,90 @@ def test_load_drift_baseline_accepts_missing_optional_project_fields(tmp_path: P
     assert baseline.project == ""
     assert baseline.environment == ""
     assert baseline.tests == ()
+
+
+def test_load_dependency_drift_baseline_accepts_stable_route_shape(tmp_path: Path) -> None:
+    baseline_path = tmp_path / ".entroping" / "dependency-baseline.json"
+    baseline_path.parent.mkdir(parents=True)
+    baseline_path.write_text(
+        json.dumps(
+            {
+                "source_label": "checkout-ui",
+                "routes": [
+                    {
+                        "destination_host": "PAYMENTS.EXAMPLE.TEST",
+                        "method": "post",
+                        "path_template": "/charges/{id}",
+                        "call_count": 27,
+                        "latency_average_ms": 35,
+                    }
+                ],
+            },
+        ),
+        encoding="utf-8",
+    )
+
+    baseline = load_dependency_drift_baseline(baseline_path)
+
+    assert baseline == DependencyDriftBaseline(
+        source_label="checkout-ui",
+        routes=(
+            DependencyDriftRoute(
+                destination_host="payments.example.test",
+                method="POST",
+                path_template="/charges/{id}",
+            ),
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    ("payload", "message"),
+    [
+        ("[]", "must be a JSON object"),
+        ('{"source_label":123,"routes":[]}', "source_label"),
+        ('{"source_label":"client"}', "must contain a routes list"),
+        ('{"routes":[null]}', "must be a JSON object"),
+        (
+            '{"routes":[{"destination_host":"","method":"GET","path_template":"/health"}]}',
+            "destination_host",
+        ),
+        (
+            '{"routes":[{"destination_host":"api.example.test","method":"","path_template":"/health"}]}',
+            "method",
+        ),
+        (
+            '{"routes":[{"destination_host":"user:secret@api.example.test",'
+            '"method":"GET","path_template":"/health"}]}',
+            "destination_host",
+        ),
+        (
+            '{"routes":[{"destination_host":"api.example.test","method":"GET POST",'
+            '"path_template":"/health"}]}',
+            "method",
+        ),
+        (
+            '{"routes":[{"destination_host":"api.example.test","method":"GET","path_template":"health"}]}',
+            "path_template",
+        ),
+        (
+            '{"routes":[{"destination_host":"api.example.test","method":"GET",'
+            '"path_template":"/health?token=secret"}]}',
+            "path_template",
+        ),
+    ],
+)
+def test_load_dependency_drift_baseline_rejects_malformed_routes(
+    tmp_path: Path,
+    payload: str,
+    message: str,
+) -> None:
+    baseline_path = tmp_path / ".entroping" / "dependency-baseline.json"
+    baseline_path.parent.mkdir(parents=True)
+    baseline_path.write_text(payload + "\n", encoding="utf-8")
+
+    with pytest.raises(DriftReportError, match=message):
+        load_dependency_drift_baseline(baseline_path)
 
 
 def test_load_drift_baseline_accepts_absent_and_partial_response_fields(
@@ -271,6 +362,77 @@ def test_build_drift_report_compares_results_in_deterministic_path_order(tmp_pat
     ]
     assert report.summary.drifted == 4
     assert not report.summary.missing_baseline
+
+
+def test_append_dependency_drift_findings_compares_routes_in_stable_order(tmp_path: Path) -> None:
+    run_report = build_drift_report(
+        current=_run_report(_test_report("tests/health.hurl")),
+        baseline=DriftBaseline(
+            project="checkout-api",
+            environment="staging",
+            tests=(
+                DriftBaselineTest(
+                    path="tests/health.hurl",
+                    status="passed",
+                    exit_code=0,
+                    rule_ids=("global_latency",),
+                ),
+            ),
+        ),
+        baseline_path=tmp_path / ".entroping" / "drift-baseline.json",
+    )
+    dependency_baseline = DependencyDriftBaseline(
+        source_label="client",
+        routes=(
+            DependencyDriftRoute(
+                destination_host="billing.example.test",
+                method="GET",
+                path_template="/accounts/{id}",
+            ),
+            DependencyDriftRoute(
+                destination_host="payments.example.test",
+                method="POST",
+                path_template="/charges/{id}",
+            ),
+        ),
+    )
+
+    report = append_dependency_drift_findings(
+        run_report,
+        baseline=dependency_baseline,
+        current_routes=(
+            DependencyDriftRoute(
+                destination_host="inventory.example.test",
+                method="GET",
+                path_template="/items/{id}",
+            ),
+            DependencyDriftRoute(
+                destination_host="payments.example.test",
+                method="POST",
+                path_template="/charges/{id}",
+            ),
+        ),
+        baseline_path=tmp_path / ".entroping" / "dependency-baseline.json",
+    )
+
+    assert [finding.kind for finding in report.findings] == [
+        "missing_dependency_route",
+        "new_dependency_route",
+    ]
+    assert [finding.path for finding in report.findings] == [
+        "dependency:billing.example.test GET /accounts/{id}",
+        "dependency:inventory.example.test GET /items/{id}",
+    ]
+    assert report.findings[0].baseline == {
+        "destination_host": "billing.example.test",
+        "method": "GET",
+        "path_template": "/accounts/{id}",
+    }
+    assert report.findings[0].current == {}
+    assert report.summary.baseline_tests == 1
+    assert report.summary.current_tests == 1
+    assert report.summary.drifted == 2
+    assert "dependency-baseline.json" in report.baseline_path
 
 
 def test_build_drift_report_compares_structured_response_fingerprints(

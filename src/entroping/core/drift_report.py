@@ -1,10 +1,13 @@
 """Deterministic drift report comparison for run reports."""
 
 import json
+from collections.abc import Sequence
 from pathlib import Path
 
 from entroping.core.safe_write import SafeWriteError, safe_write_text
 from entroping.models.drift import (
+    DependencyDriftBaseline,
+    DependencyDriftRoute,
     DriftBaseline,
     DriftBaselineTest,
     DriftFinding,
@@ -48,6 +51,26 @@ def load_drift_baseline(path: Path) -> DriftBaseline:
     )
 
 
+def load_dependency_drift_baseline(path: Path) -> DependencyDriftBaseline:
+    """Load the reviewed dependency-call drift baseline from JSON."""
+
+    resolved = _resolve_read_path(path)
+    data = json.loads(resolved.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        msg = "Dependency drift baseline must be a JSON object"
+        raise DriftReportError(msg)
+
+    raw_routes = data.get("routes")
+    if not isinstance(raw_routes, list):
+        msg = "Dependency drift baseline must contain a routes list"
+        raise DriftReportError(msg)
+
+    return DependencyDriftBaseline(
+        source_label=_optional_source_label(data.get("source_label")),
+        routes=tuple(_parse_dependency_route(item) for item in raw_routes),
+    )
+
+
 def build_drift_report(
     *,
     current: RunReport,
@@ -82,6 +105,62 @@ def build_drift_report(
             findings=len(findings),
             drifted=len(findings),
             missing_baseline=False,
+        ),
+        findings=tuple(findings),
+    )
+
+
+def append_dependency_drift_findings(
+    report: DriftReport,
+    *,
+    baseline: DependencyDriftBaseline,
+    current_routes: Sequence[DependencyDriftRoute],
+    baseline_path: Path,
+) -> DriftReport:
+    """Return a drift report with dependency-call route findings appended."""
+
+    baseline_by_key = {_dependency_route_key(route): route for route in baseline.routes}
+    current_by_key = {_dependency_route_key(route): route for route in current_routes}
+    findings = list(report.findings)
+
+    for key in sorted(set(baseline_by_key) - set(current_by_key)):
+        route = baseline_by_key[key]
+        findings.append(
+            DriftFinding(
+                kind="missing_dependency_route",
+                severity="warning",
+                path=_dependency_route_path(route),
+                message="Baseline dependency route is missing from current traffic observations.",
+                baseline=_dependency_route_payload(route),
+                current={},
+            )
+        )
+
+    for key in sorted(set(current_by_key) - set(baseline_by_key)):
+        route = current_by_key[key]
+        findings.append(
+            DriftFinding(
+                kind="new_dependency_route",
+                severity="warning",
+                path=_dependency_route_path(route),
+                message="Current traffic observes a dependency route absent from the baseline.",
+                baseline={},
+                current=_dependency_route_payload(route),
+            )
+        )
+
+    dependency_path = _display_path(baseline_path)
+    return DriftReport(
+        project=report.project,
+        environment=report.environment,
+        generated_at=report.generated_at,
+        baseline_path=f"{report.baseline_path}; dependency={dependency_path}",
+        summary=DriftReportSummary(
+            baseline_tests=report.summary.baseline_tests,
+            current_tests=report.summary.current_tests,
+            findings=len(findings),
+            drifted=len(findings),
+            missing_baseline=report.summary.missing_baseline,
         ),
         findings=tuple(findings),
     )
@@ -344,6 +423,21 @@ def _parse_baseline_test(item: object) -> DriftBaselineTest:
     )
 
 
+def _parse_dependency_route(item: object) -> DependencyDriftRoute:
+    if not isinstance(item, dict):
+        msg = "Each dependency drift route must be a JSON object"
+        raise DriftReportError(msg)
+
+    destination_host = _dependency_host(item.get("destination_host"))
+    method = _dependency_method(item.get("method"))
+    path_template = _dependency_path_template(item.get("path_template"))
+    return DependencyDriftRoute(
+        destination_host=destination_host,
+        method=method,
+        path_template=path_template,
+    )
+
+
 def _optional_duration_ms(value: object, path: str) -> int | None:
     if value is None:
         return None
@@ -422,6 +516,62 @@ def _optional_string(value: object) -> str:
         msg = "Optional drift baseline project/environment fields must be strings"
         raise DriftReportError(msg)
     return value
+
+
+def _optional_source_label(value: object) -> str:
+    if value is None:
+        return "client"
+    if not isinstance(value, str) or not value.strip() or _has_control_character(value):
+        msg = "Dependency drift baseline source_label must be a non-empty string"
+        raise DriftReportError(msg)
+    return " ".join(value.split())
+
+
+def _dependency_host(value: object) -> str:
+    host = _required_string(value, "destination_host").strip().lower()
+    if any(part in host for part in ("/", "\\", "@", "?", "#")) or any(
+        character.isspace() for character in host
+    ):
+        msg = "Dependency drift baseline destination_host is not a safe host"
+        raise DriftReportError(msg)
+    return host
+
+
+def _dependency_method(value: object) -> str:
+    method = _required_string(value, "method").strip().upper()
+    if any(character.isspace() for character in method):
+        msg = "Dependency drift baseline method is not a safe method"
+        raise DriftReportError(msg)
+    return method
+
+
+def _dependency_path_template(value: object) -> str:
+    path_template = _required_string(value, "path_template").strip()
+    if (
+        not path_template.startswith("/")
+        or "?" in path_template
+        or "#" in path_template
+        or "\\" in path_template
+    ):
+        msg = "Dependency drift baseline path_template must be a safe absolute path template"
+        raise DriftReportError(msg)
+    return path_template
+
+
+def _dependency_route_key(route: DependencyDriftRoute) -> tuple[str, str, str]:
+    return (route.destination_host, route.method, route.path_template)
+
+
+def _dependency_route_path(route: DependencyDriftRoute) -> str:
+    return f"dependency:{route.destination_host} {route.method} {route.path_template}"
+
+
+def _dependency_route_payload(route: DependencyDriftRoute) -> dict[str, DriftValue]:
+    return {
+        "destination_host": route.destination_host,
+        "method": route.method,
+        "path_template": route.path_template,
+    }
 
 
 def _has_control_character(value: str) -> bool:

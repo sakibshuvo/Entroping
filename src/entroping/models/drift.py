@@ -8,6 +8,8 @@ DriftFindingKind = Literal[
     "missing_baseline",
     "missing_current_test",
     "new_current_test",
+    "missing_dependency_route",
+    "new_dependency_route",
     "result_changed",
     "assertions_changed",
     "response_snapshot_missing",
@@ -41,6 +43,23 @@ class DriftBaseline:
     project: str
     environment: str
     tests: tuple[DriftBaselineTest, ...]
+
+
+@dataclass(frozen=True)
+class DependencyDriftRoute:
+    """Stable dependency-route identity used for traffic drift checks."""
+
+    destination_host: str
+    method: str
+    path_template: str
+
+
+@dataclass(frozen=True)
+class DependencyDriftBaseline:
+    """Loaded dependency-call baseline derived from redacted traffic."""
+
+    source_label: str
+    routes: tuple[DependencyDriftRoute, ...]
 
 
 @dataclass(frozen=True)

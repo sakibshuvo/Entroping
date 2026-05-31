@@ -88,6 +88,10 @@ request IDs, dates, or other volatile values.
 Latency drift tests compare only reviewed `duration_ms` fields from sanitized
 run reports. They should keep conservative thresholds so tiny local timing
 noise does not become a release-blocking regression.
+Dependency-call drift tests compare only route identity from reviewed
+dependency baselines: `destination_host`, `method`, and `path_template`.
+They must not persist raw URLs, query values, headers, bodies, cookies, tokens,
+call counts, or latency values as dependency drift truth.
 
 The quality-audit job uploads the generated `reports/` directory as workflow
 artifacts for review. Packaging checks and release/live-demo release decisions
