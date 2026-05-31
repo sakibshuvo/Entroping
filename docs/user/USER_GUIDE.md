@@ -432,8 +432,9 @@ Studio opens tabbed views for:
 Studio is intentionally read-only in the alpha. It does not update tests,
 config, reports, or `.entroping` state.
 
-Future Studio work should add rerun/action workflows, applied-gate detail,
-deeper failure drilldown, and traffic-session navigation.
+Near-term Studio work is report-backed and read-only: applied-gate detail,
+deeper failure drilldown, and traffic-session navigation may read sanitized
+artifacts or redacted state. Studio should not rerun suites, edit tests, or change config in the alpha.
 
 Studio is a local development interface. CI should use `entroping run`.
 

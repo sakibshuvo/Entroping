@@ -157,6 +157,10 @@ Issue #227 closes the optional-runtime CI gap by adding a dedicated
 boots the LiteLLM, mitmproxy, and Textual adapter boundaries without provider
 credentials or live capture, while keeping the default regression path
 lightweight.
+Issue #231 settles the next Studio boundary before v0.3 expansion. ADR-0010
+keeps the roadmap CLI/report-first, allows only optional read-only
+report-backed Studio drilldowns over sanitized artifacts or redacted summaries,
+and keeps mutation workflows design-only until a separate accepted decision.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
@@ -837,13 +841,13 @@ merged through GitHub before starting the next branch:
 - Follow-up issue #224: prototype Homebrew tap after PyPI alpha.
 - Follow-up issue #225: evaluate standalone binary after tap demand.
 - After those adoption slices land, move to v0.3 product-depth issues such as
-  Studio drilldowns, reviewed baseline workflows, redaction review UX, and
-  stronger Architect remediation guidance.
+  report-backed Studio drilldowns, reviewed baseline workflows, redaction
+  review UX, and stronger Architect remediation guidance.
 
 ## Explicitly Deferred
 
 - Complete non-prompt `architect build --strategy merge` if product demand justifies it.
-- Full interactive Studio TUI beyond the read-only status shell.
+- Studio mutation workflows beyond read-only report-backed inspection.
 - Nuitka packaging.
 - Hosted/cloud features.
 - Graphify-generated artifacts in Git.
