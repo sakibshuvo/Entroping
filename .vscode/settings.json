@@ -1,0 +1,8 @@
+{
+  "yaml.schemas": {
+    "./docs/technical/qanstitution.schema.json": [
+      "qanstitution.yaml",
+      "**/qanstitution.yaml"
+    ]
+  }
+}

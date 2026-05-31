@@ -66,6 +66,13 @@ _CONTAINS_RE = re.compile(r"^(tags|path|url) contains '([^']+)'$")
 _STARTS_WITH_RE = re.compile(r"^(path) startswith '([^']+)'$")
 _EQUALS_RE = re.compile(r"^(method) == '([^']+)'$")
 _META_EQUALS_RE = re.compile(r"^meta\.([A-Za-z_][A-Za-z0-9_]*) == '([^']+)'$")
+CONDITION_JSON_SCHEMA_PATTERN = (
+    r"^(true|"
+    r"(tags|path|url) contains '[^']+'|"
+    r"path startswith '[^']+'|"
+    r"method == '[^']+'|"
+    r"meta\.[A-Za-z_][A-Za-z0-9_]* == '[^']+')$"
+)
 
 
 def parse_condition(expression: str) -> Condition:

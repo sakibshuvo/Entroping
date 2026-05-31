@@ -30,6 +30,7 @@ Core references:
 - [Technical Design](technical/TDS.md)
 - [Threat Model](technical/THREAT_MODEL.md)
 - [QAnstitution Reference](technical/QANSTITUTION_REFERENCE.md)
+- [QAnstitution JSON Schema](technical/qanstitution.schema.json)
 - [Policy Pack Layout](technical/POLICY_PACK_LAYOUT.md)
 - [Studio Mutation Workflow Design](technical/STUDIO_MUTATION_WORKFLOW_DESIGN.md)
 - [Python Compatibility](technical/PYTHON_COMPATIBILITY.md)

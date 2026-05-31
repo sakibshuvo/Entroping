@@ -120,3 +120,9 @@ entroping run --report html
 
 For the full schema and advanced examples, read
 [QANSTITUTION_REFERENCE.md](../technical/QANSTITUTION_REFERENCE.md).
+
+If your editor supports YAML schemas, Entroping also publishes
+[qanstitution.schema.json](../technical/qanstitution.schema.json) for
+autocomplete and early feedback while editing. The editor schema helps you catch
+shape mistakes quickly; `entroping doctor` still performs the authoritative
+runtime validation.

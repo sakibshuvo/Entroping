@@ -6,7 +6,11 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from entroping.models.conditions import ConditionSyntaxError, parse_condition
+from entroping.models.conditions import (
+    CONDITION_JSON_SCHEMA_PATTERN,
+    ConditionSyntaxError,
+    parse_condition,
+)
 
 Enforcement = Literal["block", "warn", "audit_only"]
 AgentRole = Literal["builder", "auditor", "breaker"]
@@ -125,7 +129,12 @@ class GateRule(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
-    condition: str
+    condition: str = Field(
+        json_schema_extra={
+            "description": "Deterministic QAnstitution condition DSL.",
+            "pattern": CONDITION_JSON_SCHEMA_PATTERN,
+        }
+    )
     gate: str
     enforcement: Enforcement
     description: str | None = None
