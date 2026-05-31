@@ -11,11 +11,11 @@ tags:
 
 # Alpha Release Checklist
 
-This checklist defines the release bar for `v0.1.0-alpha`. It is intentionally stricter than the daily feature gate because the public alpha should prove the deterministic governance loop, not only compile.
+This checklist defines the release bar for the current alpha tag. It is intentionally stricter than the daily feature gate because the public alpha should prove the deterministic governance loop, not only compile.
 
 ## Release Claim
 
-`v0.1.0-alpha` may claim:
+The current alpha may claim:
 
 - Local-first Hurl-native API governance.
 - QAnstitution policy loading, validation, matching, and gate injection.
@@ -104,8 +104,8 @@ Do not imply these are complete in release notes:
 Only after required evidence passes:
 
 ```bash
-git tag -a v0.1.0-alpha -m "Entroping v0.1.0-alpha"
-git push origin v0.1.0-alpha
+git tag -a v0.1.1-alpha -m "Entroping v0.1.1-alpha"
+git push origin v0.1.1-alpha
 ```
 
 Then create a GitHub release with:
@@ -114,7 +114,7 @@ Then create a GitHub release with:
 - The exact verification commands and CI run link.
 - The implemented command list.
 - The "Not Built Yet" section above.
-- A pointer to the next milestone: Eye capture.
+- A pointer to the next milestone from `ROADMAP.md`.
 - Optional manually attached wheel and sdist artifacts built by
   `scripts/package_check.sh`.
 

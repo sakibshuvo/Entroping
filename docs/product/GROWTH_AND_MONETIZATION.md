@@ -36,7 +36,7 @@ The product should not look like a generic test generator. The sharp wedge is ru
 - Clear "current status" and "not built yet" sections.
 - Apache-2.0 public core license.
 - `CONTRIBUTING.md`, `SECURITY.md`, issue templates, PR template, release checklist, and CI.
-- Public roadmap through GitHub issues and milestones.
+- Public roadmap through `ROADMAP.md`, GitHub issues, GitHub milestones, and the project board.
 - Security posture that can be inspected through local gates, `scripts/community_profile_audit.sh`, and OpenSSF Scorecard.
 - Fast first win: run a demo API, generate or run Hurl tests, see a report.
 - Strong visual assets: terminal GIF, dependency map image, report screenshot, architecture diagram.
@@ -55,16 +55,18 @@ Publish order:
 1. Verify community health and Scorecard evidence with
    `scripts/community_profile_audit.sh`, then manually dispatch
    `.github/workflows/scorecard.yml` once the repository is public.
-2. Add two-minute README demo links to the launch asset hub and its three
+2. Keep `ROADMAP.md`, GitHub milestones, and the project board visible before
+   external announcements.
+3. Add two-minute README demo links to the launch asset hub and its three
    public preview files.
-3. Record the terminal screenshot set from `scripts/live_demo_smoke.sh` with
+4. Record the terminal screenshot set from `scripts/live_demo_smoke.sh` with
    `4 passed, 0 failed` visible.
-4. Capture the HTML report screenshot from `reports/run-latest.html`.
-5. Capture or embed the dependency map example from `entroping map --export md`
+5. Capture the HTML report screenshot from `reports/run-latest.html`.
+6. Capture or embed the dependency map example from `entroping map --export md`
    or `entroping map --export png`.
-6. Publish release notes after local `scripts/release_check.sh --require-live-demo`
+7. Publish release notes after local `scripts/release_check.sh --require-live-demo`
    evidence and CI evidence are available.
-7. Publish the launch post after the README, release notes, and asset links are
+8. Publish the launch post after the README, release notes, and asset links are
    already live.
 
 Do not commit generated GIFs, PNGs, `reports/`, or `.entroping/` state unless a

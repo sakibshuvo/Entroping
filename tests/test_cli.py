@@ -139,7 +139,7 @@ def test_version_flag() -> None:
     result = CliRunner().invoke(app, ["--version"])
 
     assert result.exit_code == 0
-    assert "entroping 0.1.0" in result.output
+    assert "entroping 0.1.1" in result.output
 
 
 def test_init_minimal_creates_safe_runtime_skeleton(

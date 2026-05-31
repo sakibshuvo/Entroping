@@ -24,7 +24,7 @@ uv tool install git+https://github.com/sakibshuvo/Entroping.git
 For the published alpha tag:
 
 ```bash
-uv tool install git+https://github.com/sakibshuvo/Entroping.git@v0.1.0-alpha
+uv tool install git+https://github.com/sakibshuvo/Entroping.git@v0.1.1-alpha
 ```
 
 For local solo development:

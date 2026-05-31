@@ -2,6 +2,14 @@
 
 ## 2026-05-31
 
+- Added a public `ROADMAP.md`, linked it from the README and Obsidian index,
+  and reframed the progress dashboard around visible public backlog, project
+  board, and `v0.1.1-alpha` release sync.
+- Made the GitHub Project public as `Entroping Public Roadmap`, enabled
+  Discussions, closed completed empty milestones, and seeded 26 open issues
+  across five public roadmap milestones.
+- Added Dependabot visibility for GitHub Actions and Python dependencies so
+  dependency drift becomes issue/PR-backed instead of ad hoc.
 - Implemented issue #174's README front-door rewrite so the public overview now leads with the sourced AI-regression problem, two-minute live demo proof, launch assets, and concise alpha boundaries before deep Obsidian/spec inventory.
 - Added README guardrail tests that keep the public page demo-first and prevent the old "Available now" knowledge-dump structure from drifting back above the alpha/status sections.
 - Implemented issue #176's latency drift slice so drift baselines preserve optional `duration_ms` values and reports warn on material per-test latency regressions without adding CLI flags or response-value snapshots.

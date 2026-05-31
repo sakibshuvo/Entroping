@@ -93,6 +93,9 @@ flowchart LR
 This repository is the active alpha implementation and Obsidian-friendly
 knowledge base for Entroping.
 
+Public roadmap: [ROADMAP.md](ROADMAP.md) and
+[GitHub Project board](https://github.com/users/sakibshuvo/projects/1).
+
 Built today:
 
 - Locked v4.1 CLI surface for `init`, `doctor`, `config`, `architect`, `watch`,
@@ -133,7 +136,7 @@ uv tool install git+https://github.com/sakibshuvo/Entroping.git
 Install from the alpha tag:
 
 ```bash
-uv tool install git+https://github.com/sakibshuvo/Entroping.git@v0.1.0-alpha
+uv tool install git+https://github.com/sakibshuvo/Entroping.git@v0.1.1-alpha
 ```
 
 For local development in a checkout:
@@ -245,6 +248,7 @@ Open this repository in Obsidian and start with [00_INDEX.md](00_INDEX.md).
 
 Product:
 
+- [ROADMAP.md](ROADMAP.md) - public roadmap and release sequence.
 - [PRODUCT_SPEC.md](docs/product/PRODUCT_SPEC.md) - product contract.
 - [MVP_PLAN.md](docs/product/MVP_PLAN.md) - implementation sequence.
 - [GROWTH_AND_MONETIZATION.md](docs/product/GROWTH_AND_MONETIZATION.md) - open-source growth and open-core path.

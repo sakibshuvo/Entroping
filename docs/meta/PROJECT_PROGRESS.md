@@ -32,22 +32,19 @@ Do not duplicate every issue here. The detailed queue lives in GitHub.
 
 ## Current Target
 
-**Goal:** keep the published `v0.1.0-alpha` backed by local and CI release
-evidence while using the default quality audit as a 100 percent meaningful
-coverage gate.
+**Goal:** sync the public roadmap, issue-backed backlog, project board, and
+`v0.1.1-alpha` release evidence so the public repo is easy to evaluate and the
+next alpha work is visible.
 
-GitHub Project: [Entroping Alpha](https://github.com/users/sakibshuvo/projects/1)
+GitHub Project: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
 GitHub milestones:
 
-- [Alpha: deterministic core](https://github.com/sakibshuvo/Entroping/milestone/1)
-- [MVP: Architect build](https://github.com/sakibshuvo/Entroping/milestone/2)
-- [MVP: Runner usability](https://github.com/sakibshuvo/Entroping/milestone/3)
-- [MVP: Reporting polish](https://github.com/sakibshuvo/Entroping/milestone/4)
-- [MVP: CI proof](https://github.com/sakibshuvo/Entroping/milestone/5)
-- [MVP: Architect minimal](https://github.com/sakibshuvo/Entroping/milestone/7)
-- [v0.1.0-alpha release](https://github.com/sakibshuvo/Entroping/milestone/8)
-- [MVP: Eye capture](https://github.com/sakibshuvo/Entroping/milestone/9)
+- [v0.1.1-alpha public cleanup](https://github.com/sakibshuvo/Entroping/milestone/11)
+- [v0.2.0-alpha adoption and onboarding](https://github.com/sakibshuvo/Entroping/milestone/12)
+- [v0.3.0-alpha product depth](https://github.com/sakibshuvo/Entroping/milestone/14)
+- [v0.4.0-alpha integrations](https://github.com/sakibshuvo/Entroping/milestone/15)
+- [v1.0 stable core](https://github.com/sakibshuvo/Entroping/milestone/13)
 
 ```text
 init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> run Hurl -> JSON/JUnit report
@@ -141,7 +138,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | OpenAPI Depth | Done | Path/query/header/cookie parameters plus schema examples/defaults |
 | Architect Minimal | Done | Prompt generation, prompt-backed build merge, pre-write Hurl validation, Architect-owned refactor, and managed-block manual refactor are available |
 | Delivery Automation | Done | Deterministic repo hygiene, issue worktrees, regression gates, optional local hooks, and release-readiness checks support multi-session development |
-| Alpha Release | Done | `v0.1.0-alpha` prerelease published from `abd08c0` with local release gate and CI evidence | Next release can include post-alpha PNG map rendering and package install polish |
+| Alpha Release | Done | `v0.1.0-alpha` prerelease published from `abd08c0`; `v0.1.1-alpha` sync is the current public-roadmap/release evidence target | Keep public release notes tied to current `main` evidence |
 | Eye Capture Spike | Done | Capture-only `watch` records redacted, bounded traffic through mitmproxy; freeze/map remain separate |
 | Freeze and Map | Done | Basic `freeze`, WireMock dependency mocks, and Mermaid/DOT/Markdown/PNG dependency maps are in place |
 | Agent Workflow | Done | Deterministic context packs, configurable source-archive paths, portable cross-agent docs, source-promotion workflow, and community health docs are available | Use issue branches for follow-on automation |
