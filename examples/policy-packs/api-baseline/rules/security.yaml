@@ -1,0 +1,15 @@
+project: "entroping-policy-pack-api-baseline-security"
+version: "4.1"
+description: "Security and correlation gates for API baseline policy packs"
+gates:
+  - id: "api-security.no_5xx"
+    description: "APIs must not return server errors in governed suites"
+    condition: "true"
+    gate: "status < 500"
+    enforcement: "block"
+    final: true
+  - id: "api-security.request_id"
+    description: "API responses should include a request ID for incident review"
+    condition: "path startswith '/'"
+    gate: 'header "X-Request-Id" exists'
+    enforcement: "warn"

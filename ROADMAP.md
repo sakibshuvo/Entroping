@@ -73,7 +73,7 @@ Goal: deepen the alpha without weakening deterministic execution.
 Goal: connect Entroping to the places teams already review backend behavior.
 
 - Review integrations beyond the local GitHub Actions annotation command.
-- Reusable policy-pack structure for security, latency, compliance, and API governance.
+- Reusable policy-pack structure for security, latency, compliance, and API governance is documented in [POLICY_PACK_LAYOUT.md](docs/technical/POLICY_PACK_LAYOUT.md); follow-up work can add registries or package distribution later.
 - Organization QAnstitution import governance design.
 - Stable report artifact schemas for downstream dashboards.
 - CI examples for GitHub Actions first, then other providers as demand appears.

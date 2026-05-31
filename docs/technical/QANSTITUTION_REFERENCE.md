@@ -205,6 +205,11 @@ Rules:
 
 Phase 1A implementation note: local imports are supported first and must resolve under the root `qanstitution.yaml` directory. Remote HTTP(S) imports and broader local trust roots remain part of the architecture contract but are rejected by the current loader so `doctor` and local validation never make network calls.
 
+Reusable policy-pack structure is documented in
+[POLICY_PACK_LAYOUT.md](POLICY_PACK_LAYOUT.md). Policy packs are currently
+normal local QAnstitution imports plus reviewable metadata and examples, not a
+separate runtime format.
+
 Example imported final rule:
 
 ```yaml

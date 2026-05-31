@@ -37,6 +37,7 @@ project, and a Codex workspace with fast context rehydration.
 - CI includes an `install-smoke` matrix for Linux, macOS, and Windows setup claims. Linux uses a pinned Hurl archive, macOS uses Homebrew Hurl, and Windows is explicitly doctor-only until Hurl-backed execution is reviewed.
 - `scripts/community_profile_audit.sh` and `.github/workflows/scorecard.yml` provide public trust-signal hygiene without adding a pull-request gate.
 - Apache-2.0 licensing and package metadata are in place for the public core; `docs/product/OPEN_CORE_BOUNDARIES.md` now defines what stays core versus what can become commercial.
+- `docs/technical/POLICY_PACK_LAYOUT.md` and `examples/policy-packs/api-baseline/` define reusable QAnstitution policy packs as local importable files plus metadata, without adding registry or runtime manifest behavior.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work; `scripts/finish_issue.sh` verifies merged PRs and safely removes completed local worktrees.
 - Eye capture now has security-first traffic models, pre-persistence redaction, bounded SQLModel-backed SQLite state, and capture-only `watch` wiring through a lazy-loaded mitmproxy adapter.
 - Issues #1 through #85, plus validation fixes #95 and #97, are integrated.
@@ -595,6 +596,27 @@ Implemented boundaries:
   login, or model credentials.
 - Roadmap and growth docs now separate local PR annotations from commercial
   cross-repo/team reporting.
+
+## Completed Slice: Issue #201 Reusable Policy Pack Layout
+
+Outcome: reusable QAnstitution policy packs now have a documented directory
+shape, import contract, versioning policy, conflict/final-gate rules, and
+open-core boundary before any community or premium packs exist.
+
+Implemented boundaries:
+
+- Policy packs are ordinary local QAnstitution imports plus
+  `entroping-policy-pack.yaml` metadata; the current runtime does not read the
+  manifest.
+- The example `examples/policy-packs/api-baseline/` pack is loadable by the
+  existing local import loader and contains no agents, source pointers, secrets,
+  traffic, reports, or provider configuration.
+- Pack imports remain root-bounded, HTTP(S) pack imports remain future work, and
+  no registry, `pack` command, automatic updates, telemetry, or paid-service
+  dependency was added.
+- Starter pack examples stay in the Apache-2.0 public core; deeper curated
+  policy-pack catalogs can be commercial only if they still produce local,
+  auditable QAnstitution files before enforcement.
 
 ## Completed Slice: Issue #208 Performance Smoke Evidence
 
