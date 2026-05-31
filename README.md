@@ -62,7 +62,7 @@ Available now:
 - Runner safety controls for timeouts, bounded output, redaction, non-zero exits, and temporary run-state cleanup.
 - Redacted JSON and JUnit reports through `entroping run --report json --report junit`.
 - Escaped HTML run reports through `entroping run --report html`.
-- Deterministic drift JSON reports through `entroping run --drift-check --report drift`.
+- Deterministic drift JSON reports through `entroping run --drift-check --report drift`, including run results, injected rule IDs, response status codes, selected stable headers, and JSON body shape fingerprints when available.
 - `entroping report bug` for Markdown handoff from the latest failing run.
 - LiteLLM-backed `entroping architect build --prompt` happy path with Builder persona/model loading, structured output parsing, parser-backed Hurl validation, redacted CLI output, and staged Architect-owned Hurl writes.
 - LiteLLM-backed `entroping architect build --strategy merge --prompt` for existing Architect-owned Hurl files and manual managed blocks.
@@ -78,7 +78,7 @@ Available now:
 
 Not built yet:
 
-- Broader structured response/header/schema drift beyond the current result and rule-ID baseline.
+- Latency trend drift and dependency-call drift beyond the current run-report baseline.
 - Broader Architect validation UX.
 - Full interactive Studio TUI beyond the current read-only status shell.
 

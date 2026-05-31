@@ -90,6 +90,8 @@ local report through `entroping report traceability --output md` while keeping
 external sync out of scope.
 Issue #109 added community-profile auditing and a scheduled/manual OpenSSF
 Scorecard workflow without making Scorecard a required pull-request check.
+Issue #110 extended drift reports with optional value-free response fingerprints
+for status code, selected stable headers, and JSON body shape paths.
 Issue #90 moved deterministic run orchestration behind `core.run_workflow`,
 leaving the CLI adapter responsible for option normalization, output, and exit
 mapping.
@@ -442,11 +444,27 @@ Implemented boundaries:
 - The MVP baseline path is `.entroping/drift-baseline.json`; a reviewed
   `.entroping/latest-run.json` can be copied there as the first baseline.
 - Drift comparison is deterministic and limited to current structured run-report
-  fields: test path, Hurl status, exit code, and injected QAnstitution rule IDs.
+  fields: test path, Hurl status, exit code, injected QAnstitution rule IDs,
+  and optional value-free response fingerprints.
 - Missing baselines produce an actionable CLI message and a machine-readable
   `missing_baseline` finding when `--report drift` is requested.
 - `--drift-check` affects the final exit code only after Hurl execution
   completes, so Hurl failures are not hidden by baseline problems.
+
+## Completed Slice: Issue #110 Structured Response Drift
+
+Outcome: drift reports can compare optional response fingerprints without
+storing brittle or sensitive response values.
+
+Implemented boundaries:
+
+- Run reports can include response status code, selected stable headers, and
+  JSON body shape paths when Hurl output provides parseable response detail.
+- Drift comparison ignores response details when the baseline has none, keeping
+  older baselines compatible.
+- Volatile headers and full response body values are not drift truth.
+- Missing current response fingerprints are reported when the baseline expected
+  one.
 
 ## Completed Slice: Issue #83 Bounded Parallel Hurl Execution
 
@@ -725,14 +743,8 @@ Architect writes generated files.
 Use these issues as the next marathon targets. Keep each one narrow, tested, and
 merged through GitHub before starting the next branch:
 
-- [#107](https://github.com/sakibshuvo/Entroping/issues/107): wire context packs
-  into issue-session prompts. **Implemented locally on `feat/context-pack-session-prompts`; validation/PR pending.**
 - [#108](https://github.com/sakibshuvo/Entroping/issues/108): create launch demo
   assets and public growth kit.
-- [#109](https://github.com/sakibshuvo/Entroping/issues/109): add OpenSSF
-  Scorecard and community-profile hardening. **Implemented locally on `security/openssf-community-profile`; validation/PR pending.**
-- [#110](https://github.com/sakibshuvo/Entroping/issues/110): add structured
-  response drift checks.
 - Issue #112 is complete: `scripts/audit_quality.sh` now makes 100 percent
   meaningful coverage the default release gate.
 

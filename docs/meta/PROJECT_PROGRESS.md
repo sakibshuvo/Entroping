@@ -100,7 +100,8 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [PNG dependency map rendering](https://github.com/sakibshuvo/Entroping/issues/80) | Done | `map --export png` writes `reports/dependency-map.png` through local Graphviz `dot` when available | Keep renderer optional and subprocess-bounded |
 | [Distribution and install polish](https://github.com/sakibshuvo/Entroping/issues/82) | Done | GitHub branch/tag install docs plus deterministic wheel/sdist metadata verification | Keep package publishing credentials out of the repo |
 | [Bounded parallel Hurl execution](https://github.com/sakibshuvo/Entroping/issues/83) | Done | `run --parallel` uses QAnstitution worker limits and preserves deterministic result ordering | Keep run path LLM-free |
-| [Deterministic drift report MVP](https://github.com/sakibshuvo/Entroping/issues/84) | Done | `run --drift-check --report drift` compares current run state with `.entroping/drift-baseline.json` | Add structured response drift later |
+| [Deterministic drift report MVP](https://github.com/sakibshuvo/Entroping/issues/84) | Done | `run --drift-check --report drift` compares current run state with `.entroping/drift-baseline.json` | Keep baseline state value-free |
+| [Structured response drift](https://github.com/sakibshuvo/Entroping/issues/110) | Done | Drift reports compare optional response status, selected stable headers, and JSON body shape fingerprints without storing response values | Add latency/dependency drift only with stable baseline data |
 | [Read-only Studio status shell](https://github.com/sakibshuvo/Entroping/issues/85) | Done | `studio --env <name>` inspects QAnstitution, latest run, reports, and traffic-state availability when the optional Studio extra is installed | Add interactive TUI views later |
 | [Architect build mode guidance](https://github.com/sakibshuvo/Entroping/issues/95) | Done | `architect build` without a mode now prints supported-mode guidance instead of scaffold placeholder text | Keep shipped commands actionable |
 | [Coverage artifact hygiene](https://github.com/sakibshuvo/Entroping/issues/97) | Done | `.coverage`, `coverage.xml`, and `htmlcov/` are ignored with a regression test | Add repeatable quality audit gate |
@@ -128,7 +129,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | OpenAPI Build | Done | Dedicated bridge compiler, local loader, and `architect build --new` |
 | Runner Usability | Done | Local env-file loading for generated Hurl variables |
 | Reporting Polish | Done | Dependency-free HTML run reports |
-| Drift Reports | Done | MVP compares test path, Hurl status, exit code, and injected rule IDs |
+| Drift Reports | Done | MVP compares test path, Hurl status, exit code, injected rule IDs, and optional value-free response fingerprints |
 | CI Proof | Done | Live demo smoke with real Hurl in GitHub Actions |
 | Runner Parallelism | Done | Bounded `run --parallel` with deterministic report ordering |
 | OpenAPI Depth | Done | Path/query/header/cookie parameters plus schema examples/defaults |

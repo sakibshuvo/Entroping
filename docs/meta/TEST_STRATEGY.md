@@ -81,6 +81,11 @@ scripts/audit_quality.sh
 CI-enforced commands are `scripts/regression.sh --security` and
 `scripts/audit_quality.sh`.
 
+Drift tests must keep response comparison value-free. The structured drift MVP
+compares response status codes, selected stable headers, and JSON body shape
+paths from sanitized run reports; it must not snapshot full bodies, cookies,
+request IDs, dates, or other volatile values.
+
 The quality-audit job uploads the generated `reports/` directory as workflow
 artifacts for review. Packaging checks and release/live-demo release decisions
 remain local release-owner gates through `scripts/release_check.sh`, because

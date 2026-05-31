@@ -156,6 +156,73 @@ def _compare_common_test(
                 current={"rule_ids": list(current.rule_ids)},
             )
         )
+    findings.extend(_compare_response_fingerprint(path, baseline, current))
+    return tuple(findings)
+
+
+def _compare_response_fingerprint(
+    path: str,
+    baseline: DriftBaselineTest,
+    current: RunTestReport,
+) -> tuple[DriftFinding, ...]:
+    if not _has_response_fingerprint(baseline):
+        return ()
+    if not _has_response_fingerprint(current):
+        return (
+            DriftFinding(
+                kind="response_snapshot_missing",
+                severity="warning",
+                path=path,
+                message="Baseline has structured response data but the current run does not.",
+                baseline=_response_payload(baseline),
+                current={},
+            ),
+        )
+
+    findings: list[DriftFinding] = []
+    if (
+        baseline.response_status_code is not None
+        and baseline.response_status_code != current.response_status_code
+    ):
+        findings.append(
+            DriftFinding(
+                kind="response_status_changed",
+                severity="error",
+                path=path,
+                message="Response status code differs from the drift baseline.",
+                baseline={"response_status_code": baseline.response_status_code},
+                current={"response_status_code": current.response_status_code},
+            )
+        )
+
+    current_headers = dict(current.response_headers)
+    for name, baseline_value in baseline.response_headers:
+        current_value = current_headers.get(name)
+        if current_value == baseline_value:
+            continue
+        findings.append(
+            DriftFinding(
+                kind="response_header_changed",
+                severity="warning",
+                path=path,
+                message=f"Response header {name!r} differs from the drift baseline.",
+                baseline={"header": name, "value": baseline_value},
+                current={"header": name, "value": current_value},
+            )
+        )
+
+    if baseline.response_body_shape and baseline.response_body_shape != current.response_body_shape:
+        findings.append(
+            DriftFinding(
+                kind="response_body_shape_changed",
+                severity="warning",
+                path=path,
+                message="Response JSON body shape differs from the drift baseline.",
+                baseline={"body_shape": list(baseline.response_body_shape)},
+                current={"body_shape": list(current.response_body_shape)},
+            )
+        )
+
     return tuple(findings)
 
 
@@ -189,6 +256,27 @@ def _result_payload(test: DriftBaselineTest | RunTestReport) -> dict[str, DriftV
     }
 
 
+def _response_payload(test: DriftBaselineTest | RunTestReport) -> dict[str, DriftValue]:
+    payload: dict[str, DriftValue] = {}
+    if test.response_status_code is not None:
+        payload["response_status_code"] = test.response_status_code
+    if test.response_headers:
+        payload["response_headers"] = [
+            f"{name}: {value}" for name, value in test.response_headers
+        ]
+    if test.response_body_shape:
+        payload["response_body_shape"] = list(test.response_body_shape)
+    return payload
+
+
+def _has_response_fingerprint(test: DriftBaselineTest | RunTestReport) -> bool:
+    return (
+        test.response_status_code is not None
+        or bool(test.response_headers)
+        or bool(test.response_body_shape)
+    )
+
+
 def _parse_baseline_test(item: object) -> DriftBaselineTest:
     if not isinstance(item, dict):
         msg = "Each drift baseline test must be a JSON object"
@@ -213,7 +301,65 @@ def _parse_baseline_test(item: object) -> DriftBaselineTest:
         status=status,
         exit_code=exit_code,
         rule_ids=tuple(raw_rule_ids),
+        response_status_code=_optional_response_status(item.get("response"), path),
+        response_headers=_optional_response_headers(item.get("response")),
+        response_body_shape=_optional_response_body_shape(item.get("response")),
     )
+
+
+def _optional_response_status(response: object, path: str) -> int | None:
+    if response is None:
+        return None
+    if not isinstance(response, dict):
+        msg = f"Drift baseline test {path!r} response must be a JSON object"
+        raise DriftReportError(msg)
+    status_code = response.get("status_code")
+    if status_code is None:
+        return None
+    if type(status_code) is not int:
+        msg = f"Drift baseline test {path!r} response.status_code must be an integer"
+        raise DriftReportError(msg)
+    return status_code
+
+
+def _optional_response_headers(response: object) -> tuple[tuple[str, str], ...]:
+    if not isinstance(response, dict):
+        return ()
+    raw_headers = response.get("headers")
+    if not isinstance(raw_headers, dict):
+        return ()
+
+    headers: dict[str, str] = {}
+    for raw_name, raw_value in raw_headers.items():
+        if not isinstance(raw_name, str) or not isinstance(raw_value, str):
+            continue
+        name = raw_name.strip().lower()
+        value = raw_value.strip()
+        if (
+            name in {"cache-control", "content-type", "vary"}
+            and value
+            and "[REDACTED]" not in value
+        ):
+            headers[name] = value
+    return tuple(sorted(headers.items()))
+
+
+def _optional_response_body_shape(response: object) -> tuple[str, ...]:
+    if not isinstance(response, dict):
+        return ()
+    raw_shape = response.get("body_shape")
+    if not isinstance(raw_shape, list):
+        return ()
+    shape = {
+        item
+        for item in raw_shape
+        if isinstance(item, str) and item.strip() and not _has_control_character(item)
+    }
+    return tuple(sorted(shape, key=_body_shape_sort_key))
+
+
+def _body_shape_sort_key(item: str) -> tuple[int, str]:
+    return (0 if item.startswith("$:") else 1, item)
 
 
 def _required_string(value: object, field: str) -> str:

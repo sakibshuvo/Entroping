@@ -603,8 +603,10 @@ per-file timeout and output-redaction behavior, and preserves deterministic
 input ordering in reports.
 `--drift-check` and `--report drift` compare the sanitized current run report
 against `.entroping/drift-baseline.json`. The MVP baseline compares test path,
-Hurl result status, exit code, and injected QAnstitution rule IDs; structured
-header/body/schema drift requires future response-detail capture.
+Hurl result status, exit code, injected QAnstitution rule IDs, and optional
+response fingerprints. Response fingerprints contain only status code, selected
+stable headers such as `content-type`, and JSON body shape paths; full response
+bodies and volatile headers are not stored as drift truth.
 
 No additional commands or flags should be implemented without updating the product specification first.
 
