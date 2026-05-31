@@ -227,6 +227,8 @@ The release-candidate evidence checklist lives in
 [docs/meta/RELEASE_CHECKLIST.md](docs/meta/RELEASE_CHECKLIST.md).
 The package-index publishing plan lives in
 [PYPI_RELEASE_RUNBOOK.md](docs/meta/PYPI_RELEASE_RUNBOOK.md).
+The install-channel sequencing lives in
+[DISTRIBUTION_RECOMMENDATION.md](docs/meta/DISTRIBUTION_RECOMMENDATION.md).
 
 Start an isolated issue session:
 
@@ -277,6 +279,7 @@ Operating the project:
 - [GITHUB_ACTIONS_STARTER.md](docs/user/GITHUB_ACTIONS_STARTER.md) - copyable downstream CI workflow.
 - [PYPI_RELEASE_RUNBOOK.md](docs/meta/PYPI_RELEASE_RUNBOOK.md) - TestPyPI-first package-index publishing plan.
 - [PUBLIC_DOCS_SITE_DECISION.md](docs/meta/PUBLIC_DOCS_SITE_DECISION.md) - MkDocs Material public-site decision and scaffold.
+- [DISTRIBUTION_RECOMMENDATION.md](docs/meta/DISTRIBUTION_RECOMMENDATION.md) - uv, PyPI, Homebrew tap, and standalone binary sequencing.
 - [AGENT_CONTROL_PLANE.md](docs/meta/AGENT_CONTROL_PLANE.md) - Codex-first multi-agent workflow.
 - [KNOWLEDGE_BASE_WORKFLOW.md](docs/meta/KNOWLEDGE_BASE_WORKFLOW.md) - Obsidian, Gemini, NotebookLM, and Graphify workflow.
 

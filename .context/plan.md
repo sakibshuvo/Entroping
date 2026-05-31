@@ -127,6 +127,9 @@ versioning, PyPI publish policy, and yank/new-version rollback guidance.
 Issue #188 chooses MkDocs Material for the public docs site, adds a minimal
 `mkdocs.yml` plus `docs/index.md` scaffold, and keeps the canonical Markdown
 tree as the source instead of duplicating docs.
+Issue #183 recommends the distribution sequence: keep `uv tool install` first,
+activate PyPI/TestPyPI next, prototype Homebrew after the PyPI alpha, and defer
+standalone binaries/signing until there is demand.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
@@ -803,7 +806,9 @@ Architect writes generated files.
 Use these issues as the next marathon targets. Keep each one narrow, tested, and
 merged through GitHub before starting the next branch:
 
-- Issue #183: evaluate Homebrew tap or standalone binary distribution.
+- Follow-up issue #223: activate PyPI/TestPyPI Trusted Publishing workflow.
+- Follow-up issue #224: prototype Homebrew tap after PyPI alpha.
+- Follow-up issue #225: evaluate standalone binary after tap demand.
 - After those adoption slices land, move to v0.3 product-depth issues such as
   Studio drilldowns, reviewed baseline workflows, redaction review UX, and
   stronger Architect remediation guidance.

@@ -737,6 +737,12 @@ Package-index publishing is designed in `docs/meta/PYPI_RELEASE_RUNBOOK.md`.
 The preferred path is TestPyPI first, then PyPI, using Trusted Publishing through
 GitHub Actions environments instead of long-lived package-index tokens.
 
+Distribution sequencing is documented in
+`docs/meta/DISTRIBUTION_RECOMMENDATION.md`: keep `uv tool install` as the
+immediate cross-platform path, activate PyPI/TestPyPI next, prototype a Homebrew
+tap after the PyPI alpha is stable, and defer standalone binaries until demand
+justifies signing, notarization, and platform build ownership.
+
 ### Later Distribution
 
 - Nuitka standalone binary.
