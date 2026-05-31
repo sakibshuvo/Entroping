@@ -40,6 +40,7 @@ This gate includes:
 - `scripts/repo_hygiene.sh`
 - `scripts/package_check.sh`
 - `scripts/regression.sh --security`
+- `uv run python scripts/performance_smoke.py`
 - `scripts/live_demo_smoke.sh`
 
 If the local machine does not have Hurl installed, the non-release diagnostic form is:
@@ -94,6 +95,9 @@ Before tagging:
   command, flag, exit-code, or report-artifact claim.
 - Confirm the `optional-extras-smoke` CI lane is passing before making claims
   about Brain/LiteLLM, Eye/mitmproxy, or Studio/Textual optional surfaces.
+- Review `reports/performance-smoke.json` from
+  `uv run python scripts/performance_smoke.py` before making stable-core
+  scalability claims.
 - Confirm no secrets, local env files, `.entroping/`, generated reports, Graphify output, or Obsidian UI state are tracked.
 - Confirm `watch` is described as capture-only, `freeze` is described as Hurl/mock generation from redacted traffic, `map` is described as Mermaid/DOT/Markdown/PNG export with optional Graphviz, and `studio` is clearly presented as an interactive read-only TUI rather than a mutation workflow.
 

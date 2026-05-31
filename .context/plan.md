@@ -33,6 +33,7 @@ project, and a Codex workspace with fast context rehydration.
 - `docs/meta/AUTONOMOUS_DEVELOPMENT.md` defines the Codex-first loop, Spec Kit pilot path, and future OpenCode/oMLX worker plan.
 - `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, `.github/pull_request_template.md`, and `scripts/feature_gate.sh` define the executable delivery gates for feature work.
 - `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, `scripts/regression.sh`, and `scripts/audit_quality.sh` define issue tracking, regression coverage, quality audit coverage, and simple phase-level progress tracking.
+- `scripts/performance_smoke.py` produces local release-owner evidence for large Hurl suites, parallel runner behavior, report size, and SQLModel traffic-store retention.
 - `scripts/community_profile_audit.sh` and `.github/workflows/scorecard.yml` provide public trust-signal hygiene without adding a pull-request gate.
 - Apache-2.0 licensing and package metadata are in place for the public core; `docs/product/OPEN_CORE_BOUNDARIES.md` now defines what stays core versus what can become commercial.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work; `scripts/finish_issue.sh` verifies merged PRs and safely removes completed local worktrees.
@@ -593,6 +594,24 @@ Implemented boundaries:
   login, or model credentials.
 - Roadmap and growth docs now separate local PR annotations from commercial
   cross-repo/team reporting.
+
+## Completed Slice: Issue #208 Performance Smoke Evidence
+
+Outcome: stable-core scalability claims now have a bounded local smoke script
+that produces reviewable JSON evidence instead of relying on intuition.
+
+Implemented boundaries:
+
+- `uv run python scripts/performance_smoke.py` generates a synthetic Hurl suite,
+  injects gates, runs execution copies through a fake Hurl binary with bounded
+  parallel workers, and writes JSON/JUnit/HTML reports.
+- The same script records a larger set of already-redacted traffic exchanges in
+  the SQLModel-backed SQLite store and verifies retention behavior.
+- Evidence is written to ignored `reports/performance-smoke.json` with
+  `entroping.performance-smoke.v1`, per-check durations, thresholds, sizes, and
+  pass/fail status.
+- `scripts/release_check.sh` runs the performance smoke by default and supports
+  `--skip-performance` for local diagnostics.
 
 ## Completed Slice: Issue #110 Structured Response Drift
 

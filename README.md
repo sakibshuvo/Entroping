@@ -230,6 +230,7 @@ Local-only before release:
 
 ```bash
 scripts/package_check.sh
+uv run python scripts/performance_smoke.py
 scripts/release_check.sh --dry-run --require-live-demo
 scripts/release_check.sh --require-live-demo
 ```
