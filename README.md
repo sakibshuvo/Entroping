@@ -166,6 +166,10 @@ entroping init --minimal
 entroping doctor
 ```
 
+The starter policy is intentionally small: status, latency, and request-ID
+header gates. See [QANSTITUTION_FIRST_HOUR.md](docs/user/QANSTITUTION_FIRST_HOUR.md)
+before jumping into the full reference.
+
 Generate tests from OpenAPI:
 
 ```bash

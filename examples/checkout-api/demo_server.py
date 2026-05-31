@@ -112,7 +112,10 @@ def main() -> None:
 def _json_response(status: HTTPStatus, payload: dict[str, str | list[str]]) -> RouteResponse:
     return RouteResponse(
         status=int(status),
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "X-Request-Id": "demo-request",
+        },
         body=json.dumps(payload, sort_keys=True),
     )
 

@@ -16,6 +16,8 @@ Entroping uses a few product-specific names. This glossary keeps those names use
 | Entroping | The local-first quality governance CLI and knowledge base. |
 | QAnstitution | The executable quality policy in `qanstitution.yaml`. It defines gates, imports, agents, settings, and known failures. |
 | Gate | A Hurl-compatible assertion injected into matching test executions. |
+| Condition | The small match expression that decides which tests or requests receive a gate, for example `true` or `tags contains 'smoke'`. |
+| Enforcement | Whether a gate blocks the run, warns without failing, or is tracked for audit only. |
 | Architect | The AI-assisted subsystem for generating, refactoring, and auditing Hurl tests. |
 | Builder | Architect role that creates positive-path and contract tests. |
 | Auditor | Architect role that finds coverage, traceability, and policy gaps. |
@@ -38,4 +40,3 @@ Entroping calls that policy the QAnstitution.
 ```
 
 Links: [[docs/product/PRODUCT_SPEC|PRODUCT_SPEC]], [[docs/technical/COMMAND_CHEAT_SHEET|COMMAND_CHEAT_SHEET]]
-

@@ -10,6 +10,10 @@ The QAnstitution defines what a project must prove before its API behavior is tr
 
 It is not a prose policy document. It is a validated configuration file that Entroping loads, merges, and injects into runtime execution.
 
+If you are editing your first policy, start with
+[QANSTITUTION_FIRST_HOUR.md](../user/QANSTITUTION_FIRST_HOUR.md). This reference
+is the full schema and advanced behavior.
+
 ## 2. Minimal Example
 
 ```yaml
@@ -20,10 +24,21 @@ sources:
   spec: "./openapi.json"
 
 gates:
+  - id: "no_server_errors"
+    description: "Fail when an endpoint returns a server error"
+    condition: "true"
+    gate: "status < 500"
+    enforcement: "block"
   - id: "global_latency"
+    description: "Every endpoint should respond within two seconds"
     condition: "true"
     gate: "duration < 2000"
     enforcement: "block"
+  - id: "request_id_header"
+    description: "Warn when a response is missing a request ID header for debugging"
+    condition: "true"
+    gate: 'header "X-Request-Id" exists'
+    enforcement: "warn"
 ```
 
 ## 3. Full Example
@@ -82,7 +97,7 @@ gates:
   - id: "security_header"
     description: "API responses must include a request ID"
     condition: "path startswith '/api'"
-    gate: "header \"X-Request-Id\" exists"
+    gate: 'header "X-Request-Id" exists'
     enforcement: "warn"
 
 ignore_failures:

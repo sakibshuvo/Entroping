@@ -30,6 +30,7 @@
 - Added issue #188's public docs site decision and minimal MkDocs Material scaffold with `mkdocs.yml`, `docs/index.md`, and guard tests, while keeping canonical docs in the existing Markdown tree.
 - Added issue #183's distribution recommendation: keep `uv tool install` first, activate PyPI/TestPyPI next, prototype Homebrew after PyPI alpha, defer standalone binaries, and track follow-up implementation issues #223 through #225.
 - Added issue #230's zero-config checkout demo entrypoint: `scripts/demo.sh` now provides friendly preflight guidance and delegates to the existing live smoke release gate without expanding the locked CLI surface.
+- Added issue #232's first-hour QAnstitution UX: the starter policy, checkout demo policy, and new user guide now share schema-validated status, latency, and request-ID header gates without adding condition syntax.
 
 ## 2026-05-30
 

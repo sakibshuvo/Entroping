@@ -67,11 +67,22 @@ sources:
   stories: "./docs/stories"
 
 gates:
+  - id: "no_server_errors"
+    condition: "true"
+    gate: "status < 500"
+    enforcement: "block"
   - id: "global_latency"
     condition: "true"
     gate: "duration < 2000"
     enforcement: "block"
+  - id: "request_id_header"
+    condition: "true"
+    gate: 'header "X-Request-Id" exists'
+    enforcement: "warn"
 ```
+
+For a plain-language walkthrough of these starter gates, read
+`docs/user/QANSTITUTION_FIRST_HOUR.md`.
 
 Generate first tests from your API spec:
 
