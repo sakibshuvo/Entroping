@@ -2265,15 +2265,15 @@ def test_run_report_drift_writes_missing_baseline_artifact(
     candidate = json.loads(
         Path("reports/drift-baseline.candidate.json").read_text(encoding="utf-8")
     )
-    assert candidate["tests"] == [
-        {
-            "duration_ms": 0,
-            "exit_code": 0,
-            "path": "tests/health.hurl",
-            "rule_ids": ["no_server_errors", "global_latency", "request_id_header"],
-            "status": "passed",
-        }
-    ]
+    assert len(candidate["tests"]) == 1
+    candidate_test = candidate["tests"][0]
+    assert candidate_test.pop("duration_ms") >= 0
+    assert candidate_test == {
+        "exit_code": 0,
+        "path": "tests/health.hurl",
+        "rule_ids": ["no_server_errors", "global_latency", "request_id_header"],
+        "status": "passed",
+    }
     assert not (Path(".entroping") / "drift-baseline.json").exists()
 
 

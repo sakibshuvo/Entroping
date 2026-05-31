@@ -8,7 +8,11 @@ from dataclasses import dataclass
 from typing import cast
 
 from entroping.brain.prompt_builder import ArchitectPromptPackage
-from entroping.brain.safety import redact_secret_like_values
+from entroping.brain.safety import (
+    contains_secret_like_value,
+    has_disallowed_control,
+    redact_secret_like_values,
+)
 
 CompletionFunc = Callable[..., object]
 
@@ -49,6 +53,7 @@ class LiteLLMClient:
     def complete(self, package: ArchitectPromptPackage) -> LiteLLMCompletionResult:
         """Call LiteLLM with an already validated prompt package."""
 
+        _validate_prompt_package_safe(package)
         completion_func = self._completion_func or _load_completion_func()
         kwargs = _completion_kwargs(package)
         started = time.monotonic()
@@ -84,6 +89,16 @@ def _load_completion_func() -> CompletionFunc:
         msg = "litellm optional dependency does not expose completion"
         raise BrainProviderUnavailableError(msg)
     return cast(CompletionFunc, completion)
+
+
+def _validate_prompt_package_safe(package: ArchitectPromptPackage) -> None:
+    for index, message in enumerate(package.messages, start=1):
+        if has_disallowed_control(message.content):
+            msg = f"prompt message {index} must not contain control characters"
+            raise BrainProviderError(msg)
+        if contains_secret_like_value(message.content):
+            msg = f"prompt message {index} must not contain secret-like values"
+            raise BrainProviderError(msg)
 
 
 def _completion_kwargs(package: ArchitectPromptPackage) -> dict[str, object]:

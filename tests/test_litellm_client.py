@@ -12,7 +12,11 @@ from entroping.brain.litellm_client import (
     LiteLLMClient,
 )
 from entroping.brain.persona_loader import AgentPersona
-from entroping.brain.prompt_builder import ArchitectPromptPackage, build_architect_prompt_package
+from entroping.brain.prompt_builder import (
+    ArchitectPromptPackage,
+    PromptMessage,
+    build_architect_prompt_package,
+)
 from entroping.core.config_loader import load_qanstitution
 
 
@@ -152,6 +156,51 @@ def test_litellm_client_sanitizes_cookie_and_api_key_provider_errors(
     assert "live-session-cookie" not in message
     assert "live-api-key" not in message
     assert "[REDACTED]" in message
+
+
+def test_litellm_client_rejects_unsafe_prompt_before_provider_call(tmp_path: Path) -> None:
+    calls: list[dict[str, object]] = []
+    package = _package(tmp_path).model_copy(
+        update={
+            "messages": (
+                PromptMessage(role="system", content="Build tests."),
+                PromptMessage(role="user", content="Authorization: Bearer live-token"),
+            )
+        }
+    )
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        calls.append(kwargs)
+        return {"choices": [{"message": {"content": '{"summary":"ok","edits":[]}'}}]}
+
+    with pytest.raises(BrainProviderError) as exc_info:
+        LiteLLMClient(completion_func=fake_completion).complete(package)
+
+    assert calls == []
+    message = str(exc_info.value)
+    assert "live-token" not in message
+    assert "secret-like values" in message
+
+
+def test_litellm_client_rejects_control_prompt_before_provider_call(tmp_path: Path) -> None:
+    calls: list[dict[str, object]] = []
+    package = _package(tmp_path).model_copy(
+        update={
+            "messages": (
+                PromptMessage(role="system", content="Build tests."),
+                PromptMessage(role="user", content="bad\x00prompt"),
+            )
+        }
+    )
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        calls.append(kwargs)
+        return {"choices": [{"message": {"content": '{"summary":"ok","edits":[]}'}}]}
+
+    with pytest.raises(BrainProviderError, match="control characters"):
+        LiteLLMClient(completion_func=fake_completion).complete(package)
+
+    assert calls == []
 
 
 def test_litellm_client_rejects_empty_response_content(tmp_path: Path) -> None:

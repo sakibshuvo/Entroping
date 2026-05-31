@@ -1,50 +1,17 @@
 """Redaction pipeline for Eye traffic before local persistence."""
 
 import json
-import re
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+from entroping.models.secrets import (
+    REDACTED,
+    is_sensitive_header_name,
+    is_sensitive_key,
+    redact_secret_like_values,
+)
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
 
-REDACTED = "[REDACTED]"
 DEFAULT_MAX_BODY_CHARS = 4096
-
-_SENSITIVE_HEADER_NAMES = {
-    "authorization",
-    "cookie",
-    "proxy-authorization",
-    "set-cookie",
-    "x-api-key",
-    "x-auth-token",
-    "x-csrf-token",
-}
-_SENSITIVE_KEY_PARTS = (
-    "api_key",
-    "apikey",
-    "auth",
-    "authorization",
-    "client_secret",
-    "cookie",
-    "credential",
-    "jwt",
-    "password",
-    "passwd",
-    "refresh_token",
-    "secret",
-    "session",
-    "token",
-)
-_ASSIGNMENT_RE = re.compile(
-    r"(?i)\b("
-    r"access_token|api[_-]?key|authorization|client_secret|cookie|jwt|"
-    r"password|passwd|refresh_token|secret|session[_-]?id|token"
-    r")=([^\s&;,\"]+)"
-)
-_JSON_PAIR_RE = re.compile(
-    r'(?i)("(?:access_token|api[_-]?key|authorization|client_secret|cookie|jwt|'
-    r'password|passwd|refresh_token|secret|session[_-]?id|token)"\s*:\s*)"[^"]*"'
-)
-_AUTH_VALUE_RE = re.compile(r"(?i)\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+")
 
 
 def redact_traffic_exchange(
@@ -91,7 +58,7 @@ def _redact_response(response: TrafficResponse, *, max_body_chars: int) -> Traff
 def _redact_headers(headers: dict[str, str]) -> dict[str, str]:
     redacted: dict[str, str] = {}
     for name, value in headers.items():
-        if name.lower() in _SENSITIVE_HEADER_NAMES or _is_sensitive_key(name):
+        if is_sensitive_header_name(name):
             redacted[name] = REDACTED
         else:
             redacted[name] = _redact_text(value)
@@ -103,7 +70,7 @@ def _redact_url(url: str) -> str:
     netloc = parsed.netloc.rsplit("@", maxsplit=1)[-1]
     query = urlencode(
         [
-            (key, REDACTED if _is_sensitive_key(key) else _redact_text(value))
+            (key, REDACTED if is_sensitive_key(key) else _redact_text(value))
             for key, value in parse_qsl(parsed.query, keep_blank_values=True)
         ],
         doseq=True,
@@ -146,7 +113,7 @@ def _redact_json_body(text: str) -> str:
 
 
 def _redact_json_value(value: object, *, key: str | None = None) -> object:
-    if key is not None and _is_sensitive_key(key):
+    if key is not None and is_sensitive_key(key):
         return REDACTED
     if isinstance(value, dict):
         redacted: dict[str, object] = {}
@@ -167,15 +134,8 @@ def _redact_plain_text_body(text: str, *, max_body_chars: int) -> str:
 
 
 def _redact_text(text: str) -> str:
-    redacted = _AUTH_VALUE_RE.sub(lambda match: f"{match.group(1)} {REDACTED}", text)
-    redacted = _ASSIGNMENT_RE.sub(lambda match: f"{match.group(1)}={REDACTED}", redacted)
-    return _JSON_PAIR_RE.sub(lambda match: f'{match.group(1)}"{REDACTED}"', redacted)
+    return redact_secret_like_values(text)
 
 
 def _is_json_content_type(content_type: str) -> bool:
     return content_type == "application/json" or content_type.endswith("+json")
-
-
-def _is_sensitive_key(key: str) -> bool:
-    normalized = key.lower().replace("-", "_")
-    return any(part in normalized for part in _SENSITIVE_KEY_PARTS)

@@ -11,14 +11,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO, Literal
 
+from entroping.models.secrets import REDACTED, redact_secret_like_values
+
 _DEFAULT_OUTPUT_LIMIT_BYTES = 64 * 1024
 _TRUNCATION_TEMPLATE = "\n[entroping: {stream_name} truncated]\n"
-_KEY_VALUE_SECRET_RE = re.compile(
-    r"(?i)\b("
-    r"authorization|cookie|set-cookie|x-api-key|api-key|access-token|refresh-token|"
-    r"access_token|refresh_token|api_key|token|password|secret"
-    r")(\s*[:=]\s*)([^\r\n;&\s]+(?:\s+[^\r\n;&\s]+)?)"
-)
 _VARIABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 HurlRunStatus = Literal["passed", "failed", "timeout", "error"]
@@ -266,13 +262,10 @@ def validate_hurl_path(path: Path) -> Path:
 def redact_hurl_output(text: str, extra_secret_values: Sequence[str] = ()) -> str:
     """Redact sensitive values from captured Hurl output."""
 
-    redacted = _KEY_VALUE_SECRET_RE.sub(
-        lambda match: f"{match.group(1)}{match.group(2)}[REDACTED]",
-        text,
-    )
+    redacted = redact_secret_like_values(text)
     for secret_value in extra_secret_values:
         if secret_value:
-            redacted = redacted.replace(secret_value, "[REDACTED]")
+            redacted = redacted.replace(secret_value, REDACTED)
     return redacted
 
 

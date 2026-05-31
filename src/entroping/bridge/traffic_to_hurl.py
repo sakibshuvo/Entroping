@@ -10,9 +10,9 @@ import re
 from dataclasses import dataclass
 
 from entroping.bridge.traffic_sessions import TrafficSessionCandidate, TrafficSessionRecord
+from entroping.models.secrets import REDACTED, is_sensitive_key
 from entroping.models.traffic import TrafficBody, TrafficResponse
 
-_REDACTED = "[REDACTED]"
 _SAFE_FILE_STEM_RE = re.compile(r"[^A-Za-z0-9_.-]+")
 _JSONPATH_FIELD_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _HOP_BY_HOP_REQUEST_HEADERS = frozenset(
@@ -37,22 +37,6 @@ _TEXTUAL_CONTENT_TYPES = frozenset(
         "application/x-www-form-urlencoded",
         "application/xml",
     }
-)
-_SENSITIVE_KEY_PARTS = (
-    "api_key",
-    "apikey",
-    "auth",
-    "authorization",
-    "client_secret",
-    "cookie",
-    "credential",
-    "jwt",
-    "password",
-    "passwd",
-    "refresh_token",
-    "secret",
-    "session",
-    "token",
 )
 _VOLATILE_KEY_PARTS = (
     "timestamp",
@@ -198,7 +182,8 @@ def _is_stable_json_assertion(key: str, value: object) -> bool:
     if (
         normalized == "id"
         or normalized.endswith("_id")
-        or any(part in normalized for part in (*_SENSITIVE_KEY_PARTS, *_VOLATILE_KEY_PARTS))
+        or is_sensitive_key(key)
+        or any(part in normalized for part in _VOLATILE_KEY_PARTS)
     ):
         return False
     if not isinstance(value, str | int | float | bool):
@@ -208,7 +193,7 @@ def _is_stable_json_assertion(key: str, value: object) -> bool:
     return not (
         isinstance(value, str)
         and (
-            value == _REDACTED
+            value == REDACTED
             or _contains_control(value)
             or _has_hurl_template_delimiter(value)
         )
