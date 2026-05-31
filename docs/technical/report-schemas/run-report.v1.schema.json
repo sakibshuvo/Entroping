@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sakibshuvo.github.io/Entroping/schemas/run-report.v1.schema.json",
+  "title": "Entroping Run Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project",
+    "environment",
+    "generated_at",
+    "summary",
+    "tests"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.run-report.v1"
+    },
+    "project": {
+      "type": "string"
+    },
+    "environment": {
+      "type": "string"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "passed", "failed", "exit_code"],
+      "properties": {
+        "total": {"type": "integer", "minimum": 0},
+        "passed": {"type": "integer", "minimum": 0},
+        "failed": {"type": "integer", "minimum": 0},
+        "exit_code": {"type": "integer"}
+      }
+    },
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "execution_path",
+          "status",
+          "exit_code",
+          "duration_ms",
+          "rule_ids",
+          "stdout",
+          "stderr"
+        ],
+        "properties": {
+          "path": {"type": "string"},
+          "execution_path": {"type": "string"},
+          "status": {"type": "string"},
+          "exit_code": {"type": "integer"},
+          "duration_ms": {"type": "integer", "minimum": 0},
+          "rule_ids": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "stdout": {"type": "string"},
+          "stderr": {"type": "string"},
+          "response": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["status_code", "headers", "body_shape"],
+            "properties": {
+              "status_code": {"type": ["integer", "null"]},
+              "headers": {
+                "type": "object",
+                "additionalProperties": {"type": "string"}
+              },
+              "body_shape": {
+                "type": "array",
+                "items": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

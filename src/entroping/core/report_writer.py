@@ -19,6 +19,8 @@ class ReportWriterError(ValueError):
     """Raised when a run report cannot be built or written safely."""
 
 
+RUN_REPORT_SCHEMA_VERSION = "entroping.run-report.v1"
+
 _HTTP_STATUS_RE = re.compile(r"^HTTP(?:/\S+)?\s+(?P<status>\d{3})(?:\s+.*)?$")
 _HEADER_RE = re.compile(r"^(?P<name>[!#$%&'*+\-.^_`|~0-9A-Za-z]+):\s*(?P<value>.*)$")
 _STABLE_RESPONSE_HEADERS = frozenset({"cache-control", "content-type", "vary"})
@@ -81,7 +83,7 @@ def write_json_report(report: RunReport, path: Path) -> Path:
 
     return _write_report_text(
         path,
-        json.dumps(_report_to_dict(report), indent=2, sort_keys=True) + "\n",
+        json.dumps(run_report_to_dict(report), indent=2, sort_keys=True) + "\n",
         artifact="path",
     )
 
@@ -209,8 +211,11 @@ def write_bug_report(report: RunReport, path: Path) -> Path:
     return _write_report_text(path, render_bug_report(report), artifact="path")
 
 
-def _report_to_dict(report: RunReport) -> dict[str, object]:
+def run_report_to_dict(report: RunReport) -> dict[str, object]:
+    """Return the versioned JSON-serializable run report payload."""
+
     return {
+        "schema_version": RUN_REPORT_SCHEMA_VERSION,
         "project": report.project,
         "environment": report.environment,
         "generated_at": report.generated_at,

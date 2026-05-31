@@ -101,6 +101,10 @@ Dependency-call drift tests compare only route identity from reviewed
 dependency baselines: `destination_host`, `method`, and `path_template`.
 They must not persist raw URLs, query values, headers, bodies, cookies, tokens,
 call counts, or latency values as dependency drift truth.
+Report schema contract tests freeze representative v1 JSON payloads for run,
+drift, and traceability reports. A machine-readable report shape change should
+update the serializer, JSON Schema file, compatibility note, and contract test in
+the same pull request.
 
 The quality-audit job uploads the generated `reports/` directory as workflow
 artifacts for review. Packaging checks and release/live-demo release decisions

@@ -157,10 +157,9 @@ Important follow-up issues that keep residual risk visible:
 | Issue | Residual risk tracked |
 | --- | --- |
 | issue #206 | Build a cross-platform install and smoke matrix so release claims are not macOS-only. |
-| issue #203 | Stabilize report artifact schemas before downstream consumers depend on them. |
 
 No new remediation issue is required by this refresh because the current residual
-risks already map to open GitHub issues.
+risk already maps to an open GitHub issue.
 
 ## Stable-Core Security Bar
 

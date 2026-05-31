@@ -37,6 +37,7 @@ Use these first. They are the control panel for current work:
 - [[docs/technical/FREEZE_MAP_PLAN|FREEZE_MAP_PLAN]] - Eye freeze/map boundaries, tests, and implementation issue set.
 - [[docs/technical/COMMAND_CHEAT_SHEET|COMMAND_CHEAT_SHEET]] - locked command surface.
 - [[docs/technical/QANSTITUTION_REFERENCE|QANSTITUTION_REFERENCE]] - executable governance schema.
+- [[docs/technical/REPORT_SCHEMAS|REPORT_SCHEMAS]] - versioned JSON report contracts and compatibility policy.
 - [[docs/architecture/ARCHITECTURE|ARCHITECTURE]] - implementation architecture overview.
 - [[docs/architecture/DEVELOPMENT|DEVELOPMENT]] - local development and verification commands.
 - [[docs/architecture/DIAGRAMS|DIAGRAMS]] - Mermaid and PlantUML diagrams.
@@ -80,6 +81,7 @@ Use these first. They are the control panel for current work:
 - [[docs/meta/GLOSSARY|GLOSSARY]] - plain-language explanation of Entroping terms.
 - [[docs/technical/THREAT_MODEL|THREAT_MODEL]] - stable-core security boundaries, residual risks, and remediation issue map.
 - [[docs/technical/CLI_COMPATIBILITY_AUDIT|CLI_COMPATIBILITY_AUDIT]] - locked alpha command, exit-code, and report-artifact compatibility audit.
+- [[docs/technical/REPORT_SCHEMAS|REPORT_SCHEMAS]] - run, drift, and traceability report schema versions.
 - [[docs/technical/CODEX_PROMPT|CODEX_PROMPT]] - historical implementation-agent prompt; `AGENTS.md` is current.
 - [[examples/checkout-api/README|Checkout API demo fixture]] - minimal example for first-time users.
 - [[sources/SOURCE_MAP]] - where the source materials live.

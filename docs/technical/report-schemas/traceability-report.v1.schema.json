@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sakibshuvo.github.io/Entroping/schemas/traceability-report.v1.schema.json",
+  "title": "Entroping Traceability Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "summary", "stories", "findings"],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.traceability-report.v1"
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stories", "findings", "passed"],
+      "properties": {
+        "stories": {"type": "integer", "minimum": 0},
+        "findings": {"type": "integer", "minimum": 0},
+        "passed": {"type": "boolean"}
+      }
+    },
+    "stories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["story_id", "test_paths", "owners", "doc_urls", "tags"],
+        "properties": {
+          "story_id": {"type": "string"},
+          "test_paths": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "owners": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "doc_urls": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "tags": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "message", "test_path", "doc_url", "story_ids"],
+        "properties": {
+          "kind": {"type": "string"},
+          "message": {"type": "string"},
+          "test_path": {"type": ["string", "null"]},
+          "doc_url": {"type": ["string", "null"]},
+          "story_ids": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}

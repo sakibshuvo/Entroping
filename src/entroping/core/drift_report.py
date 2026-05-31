@@ -19,6 +19,7 @@ from entroping.models.report import RunReport, RunTestReport
 
 _LATENCY_REGRESSION_MIN_INCREASE_MS = 100
 _LATENCY_REGRESSION_MIN_PERCENT = 25
+DRIFT_REPORT_SCHEMA_VERSION = "entroping.drift-report.v1"
 
 
 class DriftReportError(ValueError):
@@ -223,7 +224,7 @@ def write_reviewed_drift_baseline_candidate(current: RunReport, path: Path) -> P
     try:
         return safe_write_text(
             path,
-            json.dumps(_drift_baseline_to_dict(baseline), indent=2, sort_keys=True) + "\n",
+            json.dumps(drift_baseline_to_dict(baseline), indent=2, sort_keys=True) + "\n",
             artifact="drift baseline candidate",
         )
     except SafeWriteError as exc:
@@ -236,7 +237,7 @@ def write_drift_report(report: DriftReport, path: Path) -> Path:
     try:
         return safe_write_text(
             path,
-            json.dumps(_drift_report_to_dict(report), indent=2, sort_keys=True) + "\n",
+            json.dumps(drift_report_to_dict(report), indent=2, sort_keys=True) + "\n",
             artifact="drift report",
         )
     except SafeWriteError as exc:
@@ -661,8 +662,11 @@ def _display_path(path: Path) -> str:
         return str(path)
 
 
-def _drift_report_to_dict(report: DriftReport) -> dict[str, object]:
+def drift_report_to_dict(report: DriftReport) -> dict[str, object]:
+    """Return the versioned JSON-serializable drift report payload."""
+
     return {
+        "schema_version": DRIFT_REPORT_SCHEMA_VERSION,
         "project": report.project,
         "environment": report.environment,
         "generated_at": report.generated_at,
@@ -678,7 +682,9 @@ def _drift_report_to_dict(report: DriftReport) -> dict[str, object]:
     }
 
 
-def _drift_baseline_to_dict(baseline: DriftBaseline) -> dict[str, object]:
+def drift_baseline_to_dict(baseline: DriftBaseline) -> dict[str, object]:
+    """Return the JSON-serializable drift baseline payload."""
+
     return {
         "project": baseline.project,
         "environment": baseline.environment,

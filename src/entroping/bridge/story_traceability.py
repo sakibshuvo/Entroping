@@ -9,6 +9,7 @@ from typing import Literal
 from entroping.models.hurl import HurlTest
 
 TraceabilityFindingKind = Literal["missing_story_id", "duplicate_doc_url"]
+TRACEABILITY_REPORT_SCHEMA_VERSION = "entroping.traceability-report.v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,6 +162,41 @@ def render_story_traceability_markdown(report: StoryTraceabilityReport) -> str:
         )
 
     return "\n".join(lines) + "\n"
+
+
+def story_traceability_report_to_dict(report: StoryTraceabilityReport) -> dict[str, object]:
+    """Return the versioned JSON-serializable traceability report payload."""
+
+    return {
+        "schema_version": TRACEABILITY_REPORT_SCHEMA_VERSION,
+        "summary": {
+            "stories": len(report.stories),
+            "findings": len(report.findings),
+            "passed": report.passed,
+        },
+        "stories": [_story_to_dict(story) for story in report.stories],
+        "findings": [_finding_to_dict(finding) for finding in report.findings],
+    }
+
+
+def _story_to_dict(story: StoryTraceabilityStory) -> dict[str, object]:
+    return {
+        "story_id": story.story_id,
+        "test_paths": [str(path) for path in story.test_paths],
+        "owners": list(story.owners),
+        "doc_urls": list(story.doc_urls),
+        "tags": list(story.tags),
+    }
+
+
+def _finding_to_dict(finding: StoryTraceabilityFinding) -> dict[str, object]:
+    return {
+        "kind": finding.kind,
+        "message": finding.message,
+        "test_path": str(finding.test_path) if finding.test_path is not None else None,
+        "doc_url": finding.doc_url,
+        "story_ids": list(finding.story_ids),
+    }
 
 
 def _table_cell(value: str) -> str:

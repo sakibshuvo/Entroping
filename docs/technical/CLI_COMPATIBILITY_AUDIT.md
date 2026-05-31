@@ -84,6 +84,11 @@ only through a compatibility issue and migration note.
 Report paths are compatibility-relevant because downstream CI, examples, docs,
 and automation scripts can depend on them.
 
+Machine-readable JSON report payloads must also carry the versioned schemas in
+`docs/technical/REPORT_SCHEMAS.md`. Additive optional fields can stay within the
+current schema version; required-field, rename, removal, or type changes need a
+new schema version and migration note.
+
 ## Audit Evidence
 
 | Surface | Evidence |
