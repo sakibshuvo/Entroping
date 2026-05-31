@@ -549,6 +549,7 @@ Reports are written under `reports/`.
 | Drift JSON | `run --drift-check` or `--report drift` | `.entroping/drift-baseline.json` comparison |
 | Audit Markdown | `architect audit --output md` | Gap review |
 | Bug Markdown | `report bug` | Issue tracker handoff |
+| Traceability Markdown | `report traceability --output md` | Local story/test coverage review |
 
 JUnit is required because it is the common denominator for CI. Allure can consume JUnit later. JaCoCo is not a fit because Entroping is black-box runtime testing, not code coverage instrumentation.
 
@@ -590,6 +591,7 @@ entroping map [--export <mermaid|dot|md|png>]
 entroping studio [--env <name>]
 entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check]
 entroping report bug
+entroping report traceability [--output md]
 ```
 
 `studio` is currently a read-only status shell. It requires the optional Studio

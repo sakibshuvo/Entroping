@@ -168,12 +168,12 @@ Add metadata:
 Run audit:
 
 ```bash
-entroping architect audit --focus logic --output md
+entroping report traceability --output md
 ```
 
 ### Expected Artifacts
 
-- Audit report listing covered and uncovered story IDs.
+- Traceability report listing linked stories, owners, docs, tests, tags, and metadata findings.
 - Hurl tests with stable traceability metadata.
 
 ### Value

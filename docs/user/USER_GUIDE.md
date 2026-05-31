@@ -253,8 +253,14 @@ Good tests:
 - Assert contract and business behavior, not only status code.
 
 Entroping can compile discovered Hurl metadata into a local story/test
-traceability report at the bridge layer. The current public CLI does not sync
-Jira, Notion, Linear, or monday.com directly.
+traceability report:
+
+```bash
+entroping report traceability --output md
+```
+
+The command reads local Hurl metadata only. It does not sync Jira, Notion,
+Linear, or monday.com directly.
 
 ## 9. Managing Test Data
 
@@ -318,6 +324,12 @@ The bug report should include:
 - Equivalent curl when possible.
 - Actual vs expected behavior.
 - Relevant sanitized request/response data.
+
+When a review needs story/test evidence:
+
+```bash
+entroping report traceability --output md
+```
 
 ## 11. Drift Detection
 

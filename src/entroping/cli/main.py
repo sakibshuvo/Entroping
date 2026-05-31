@@ -32,6 +32,10 @@ from entroping.bridge.openapi_to_hurl import (
     OpenApiCompilationError,
     compile_openapi_to_hurl,
 )
+from entroping.bridge.story_traceability import (
+    compile_story_traceability,
+    render_story_traceability_markdown,
+)
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
 from entroping.core.config_writer import (
     ConfigUpdateError,
@@ -59,6 +63,7 @@ from entroping.core.traffic_proxy import (
     WatchConfig,
     run_watch,
 )
+from entroping.models.hurl import HurlMetadataSyntaxError
 from entroping.models.qanstitution import AgentRole
 from entroping.studio.status import (
     StudioDependencyError,
@@ -713,6 +718,31 @@ def report_bug() -> None:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
     console.print(f"Wrote bug report: {_display_cli_path(output_path)}")
+
+
+@report_app.command("traceability")
+def report_traceability(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format. Currently: md."),
+    ] = "md",
+) -> None:
+    """Generate a local Markdown story traceability report."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output != "md":
+        console.print(f"[yellow]Unsupported traceability output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        hurl_tests = discover_hurl_tests() if Path("tests").exists() else []
+        report = compile_story_traceability(hurl_tests)
+    except (FileNotFoundError, HurlMetadataSyntaxError, ValueError) as exc:
+        _print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    sys.stdout.write(render_story_traceability_markdown(report))
+    raise typer.Exit(0 if report.passed else 1)
 
 
 def _display_cli_path(path: Path) -> str:

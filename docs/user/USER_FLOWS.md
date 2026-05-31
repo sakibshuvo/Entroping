@@ -12,6 +12,7 @@
 | CI quality gate | Platform team | `doctor`, `run --ci` |
 | Governance rollout | Architect | `config`, QAnstitution imports, `doctor` |
 | Failure handoff | Developer/QA | `run`, `report bug` |
+| Traceability review | Architect/QA | `report traceability` |
 | Production smoke | SRE/platform | `run --tag smoke --ci` |
 
 ## 2. Genesis: New API
@@ -252,7 +253,33 @@ entroping report bug
 - Failure includes expected vs actual behavior.
 - If ignored, the exception has issue ID and expiry.
 
-## 10. Production Smoke
+## 10. Traceability Review
+
+### Trigger
+
+An architect, QA lead, or product stakeholder wants to verify which runtime
+tests are linked to story or business-system references.
+
+### Steps
+
+1. Ensure important Hurl files contain `# entroping: story_id=...`.
+2. Add `# entroping: owner=...` and `# entroping: doc_url=...` where useful.
+3. Generate the local traceability report.
+4. Fix missing story IDs or conflicting doc links before release review.
+
+### Command
+
+```bash
+entroping report traceability --output md
+```
+
+### Success Criteria
+
+- Critical tests are linked to stable story IDs.
+- External document links do not map to conflicting story IDs.
+- No business-system API sync is required for the local review.
+
+## 11. Production Smoke
 
 ### Trigger
 

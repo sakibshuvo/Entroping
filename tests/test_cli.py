@@ -2521,6 +2521,129 @@ def test_report_bug_wraps_writer_errors(
     assert "could not write bug" in result.output
 
 
+def test_report_traceability_outputs_empty_suite_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "traceability", "--output", "md"])
+
+    assert result.exit_code == 0
+    assert "# Story Traceability" in result.output
+    assert "No story-linked tests found." in result.output
+    assert "No traceability findings." in result.output
+
+
+def test_report_traceability_renders_story_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    tests_dir = Path("tests")
+    tests_dir.mkdir()
+    (tests_dir / "checkout.hurl").write_text(
+        "\n".join(
+            [
+                "# entroping: tags=smoke,checkout",
+                "# entroping: story_id=CHK-001",
+                "# entroping: owner=payments",
+                "# entroping: doc_url=https://jira.example.test/browse/CHK-001",
+                "",
+                "GET {{base_url}}/checkout",
+                "HTTP 200",
+            ],
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["report", "traceability", "--output", "md"])
+
+    assert result.exit_code == 0
+    assert "CHK-001" in result.output
+    assert "payments" in result.output
+    assert "https://jira.example.test/browse/CHK-001" in result.output
+    assert "tests/checkout.hurl" in result.output
+    assert "checkout, smoke" in result.output
+
+
+def test_report_traceability_reports_missing_story_ids(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    tests_dir = Path("tests")
+    tests_dir.mkdir()
+    (tests_dir / "missing.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["report", "traceability", "--output", "md"])
+
+    assert result.exit_code == 1
+    assert "missing_story_id" in result.output
+    assert "tests/missing.hurl" in result.output
+
+
+def test_report_traceability_reports_duplicate_doc_links(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    tests_dir = Path("tests")
+    tests_dir.mkdir()
+    for file_name, story_id in (("checkout.hurl", "CHK-001"), ("refund.hurl", "PAY-002")):
+        (tests_dir / file_name).write_text(
+            "\n".join(
+                [
+                    f"# entroping: story_id={story_id}",
+                    "# entroping: doc_url=https://jira.example.test/browse/shared",
+                    "",
+                    "GET {{base_url}}/health",
+                    "HTTP 200",
+                ],
+            ),
+            encoding="utf-8",
+        )
+
+    result = CliRunner().invoke(app, ["report", "traceability", "--output", "md"])
+
+    assert result.exit_code == 1
+    assert "duplicate_doc_url" in result.output
+    assert "CHK-001" in result.output
+    assert "PAY-002" in result.output
+    assert "https://jira.example.test/browse/shared" in result.output
+
+
+def test_report_traceability_wraps_metadata_syntax_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    tests_dir = Path("tests")
+    tests_dir.mkdir()
+    (tests_dir / "broken.hurl").write_text(
+        "# entroping: story_id\n\nGET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["report", "traceability", "--output", "md"])
+
+    assert result.exit_code == 1
+    assert "tests/broken.hurl" in result.output
+    assert "line 1" in result.output
+    assert "expected" in result.output
+    assert "'key=value'" in result.output
+
+
+def test_report_traceability_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["report", "traceability", "--output", "json"])
+
+    assert result.exit_code == 2
+    assert "Unsupported traceability output" in result.output
+
+
 def test_run_rejects_unsupported_report_format() -> None:
     result = CliRunner().invoke(app, ["run", "--report", "xml"])
 
