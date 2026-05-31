@@ -142,6 +142,11 @@ Issue #205 turns the locked v4.1 CLI surface into an explicit compatibility
 audit before stable-core claims. The audit ties README, TDS, command cheat
 sheet, ADR-0002, Typer help, deprecated aliases, exit-code policy, and report
 artifact paths to regression tests so future command drift is caught by CI.
+Issue #207 refreshes the security threat model as a tracked technical document
+instead of leaving it only in `/tmp` scan artifacts. The model now covers the
+implemented Hurl subprocess, Brain/LiteLLM, Eye/traffic redaction, SQLModel
+SQLite state, report, filesystem, dependency, Studio, CI, and residual-risk
+issue boundaries that matter before stable-core claims.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl

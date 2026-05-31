@@ -25,6 +25,7 @@ Start here:
 Core references:
 
 - [Technical Design](technical/TDS.md)
+- [Threat Model](technical/THREAT_MODEL.md)
 - [QAnstitution Reference](technical/QANSTITUTION_REFERENCE.md)
 - [CLI Compatibility Audit](technical/CLI_COMPATIBILITY_AUDIT.md)
 - [Command Cheat Sheet](technical/COMMAND_CHEAT_SHEET.md)
