@@ -264,6 +264,7 @@ Operating the project:
 
 - [PROJECT_PROGRESS.md](docs/meta/PROJECT_PROGRESS.md) - alpha progress dashboard.
 - [ISSUE_TRACKING.md](docs/meta/ISSUE_TRACKING.md) - issue workflow.
+- [DOCS_GOVERNANCE.md](docs/meta/DOCS_GOVERNANCE.md) - documentation owners, roadmap gate, and PR declaration rules.
 - [TEST_STRATEGY.md](docs/meta/TEST_STRATEGY.md) - test pyramid and regression suite.
 - [AGENT_CONTROL_PLANE.md](docs/meta/AGENT_CONTROL_PLANE.md) - Codex-first multi-agent workflow.
 - [KNOWLEDGE_BASE_WORKFLOW.md](docs/meta/KNOWLEDGE_BASE_WORKFLOW.md) - Obsidian, Gemini, NotebookLM, and Graphify workflow.

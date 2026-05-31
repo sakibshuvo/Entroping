@@ -2,6 +2,10 @@
 
 ## 2026-05-31
 
+- Added executable documentation governance through `docs/meta/DOCS_GOVERNANCE.md`,
+  `scripts/doc_governance_check.sh`, CI PR-body validation, PR template
+  documentation-impact declarations, and feature-gate wiring so roadmap and
+  docs ownership rules are enforced for both humans and agents.
 - Added a public `ROADMAP.md`, linked it from the README and Obsidian index,
   and reframed the progress dashboard around visible public backlog, project
   board, and `v0.1.1-alpha` release sync.

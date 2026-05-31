@@ -43,6 +43,14 @@ Commands run:
 - [ ] Hurl remains the API execution boundary.
 - [ ] Docs do not claim unimplemented behavior as complete.
 
+## Documentation Impact Declaration
+
+- [ ] No docs update needed. Reason:
+- [ ] User-facing docs updated:
+- [ ] Technical docs updated:
+- [ ] Roadmap/progress updated:
+- [ ] ADR/spec/context updated:
+
 ## Security Review
 
 - [ ] No secrets, credentials, tokens, cookies, raw traffic, or local env files committed.

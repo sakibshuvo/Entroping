@@ -27,6 +27,10 @@ jobs:
       - name: Install dependencies
         run: uv sync --dev
 
+      - name: Validate PR documentation impact declaration
+        if: github.event_name == 'pull_request'
+        run: scripts/pr_body_check.py "$GITHUB_EVENT_PATH"
+
       - name: Run regression suite
         run: scripts/regression.sh --security
 

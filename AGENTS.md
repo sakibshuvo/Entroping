@@ -41,6 +41,7 @@ These instructions extend the global Codex rules for this repository. If a rule 
 
 ## Documentation and Context
 
+- Follow `docs/meta/DOCS_GOVERNANCE.md` before changing roadmap, progress, product, technical, user, ADR, or context docs.
 - Keep `README.md`, `00_INDEX.md`, `.context/`, and `docs/product/MVP_PLAN.md` aligned with the current implementation milestone.
 - Keep `docs/meta/PROJECT_PROGRESS.md` current after meaningful feature, bug, or roadmap changes.
 - Add or update an ADR when a product or architecture decision should survive context resets.
@@ -65,7 +66,7 @@ These instructions extend the global Codex rules for this repository. If a rule 
 - For normal work, run `scripts/feature_gate.sh`.
 - For regression proof, run `scripts/regression.sh`.
 - For security-sensitive or dependency work, run `scripts/feature_gate.sh --security`.
-- For docs-only changes, `scripts/check.sh` is acceptable when no source, dependency, subprocess, or runtime boundary changed.
+- For docs-only changes, run `scripts/doc_governance_check.sh` plus `scripts/check.sh` when no source, dependency, subprocess, or runtime boundary changed.
 - `scripts/feature_gate.sh` runs `scripts/repo_hygiene.sh`; do not bypass it when local state or generated files are involved.
 - Optional local hooks can be installed with `scripts/install_hooks.sh`, but hooks are convenience only and do not replace CI or the feature gate.
 - Review `git diff` before staging or committing.

@@ -13,6 +13,10 @@ tags:
 
 GitHub Issues are the canonical tracker for bugs, feature slices, regressions, and release blockers. Obsidian tracks strategy and progress; GitHub tracks work items.
 
+Documentation ownership and roadmap update rules live in
+[[docs/meta/DOCS_GOVERNANCE|DOCS_GOVERNANCE]]. Do not duplicate issue-level
+backlog details into Obsidian.
+
 ## Labels
 
 Use a small label system so the queue stays readable:
@@ -121,3 +125,6 @@ Do not duplicate every GitHub issue in Obsidian. Update Obsidian only for:
 - Architecture decisions in ADRs.
 - Durable failures and fixes in `.context/lessons-learned.md`.
 - User-facing behavior changes in user docs.
+
+Run `scripts/doc_governance_check.sh` before merging changes that affect the
+documentation control plane.
