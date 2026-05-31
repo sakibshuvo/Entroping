@@ -50,6 +50,7 @@
 - Added issue #204's non-GitHub CI provider recipes with GitLab CI, Buildkite, CircleCI, and generic shell guidance while deferring untested native templates from `examples/`.
 - Added issue #225's standalone binary distribution decision: defer Nuitka/PyInstaller automation until PyPI alpha, Homebrew tap demand, platform signing/notarization runbooks, and support evidence justify it.
 - Added issue #223's manual PyPI/TestPyPI Trusted Publishing workflow with unprivileged artifact build, protected `testpypi`/`pypi` environments, and token-free OIDC publish jobs.
+- Added issue #224's Homebrew tap prototype with a PyPI-sdist formula template, required Hurl dependency, local audit/install/test smoke commands, and guardrails that keep optional extras out of the default formula.
 
 ## 2026-05-30
 

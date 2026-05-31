@@ -1,0 +1,30 @@
+# Prototype formula for a future sakibshuvo/entroping Homebrew tap.
+# Replace the URL, sha256, version, and resource stanzas only after a PyPI alpha
+# package has passed the TestPyPI/PyPI runbook and install smoke.
+#
+# Generate dependency resource stanzas from the published package metadata:
+#   brew update-python-resources entroping
+
+class Entroping < Formula
+  include Language::Python::Virtualenv
+
+  desc "Runtime governance for AI-assisted backend development"
+  homepage "https://github.com/sakibshuvo/Entroping"
+  url "REPLACE_WITH_PYPI_SDIST_URL"
+  sha256 "REPLACE_WITH_PYPI_SDIST_SHA256"
+  license "Apache-2.0"
+
+  depends_on "python@3.12"
+  depends_on "hurl"
+
+  def install
+    virtualenv_install_with_resources
+  end
+
+  test do
+    system bin/"entroping", "--version"
+    system bin/"entroping", "init", "--minimal"
+    assert_path_exists testpath/"qanstitution.yaml"
+    system bin/"entroping", "doctor"
+  end
+end
