@@ -84,7 +84,9 @@ local quality audit gate for coverage, complexity, maintainability, and
 dead-code discovery checks. Issue #94 added the symmetric finish workflow for
 post-merge worktree, local branch, label, and project-board cleanup.
 Issue #91 implemented the bridge-level story traceability report for Hurl
-metadata without adding business-system API clients.
+metadata without adding business-system API clients. Issue #106 exposed that
+local report through `entroping report traceability --output md` while keeping
+external sync out of scope.
 Issue #90 moved deterministic run orchestration behind `core.run_workflow`,
 leaving the CLI adapter responsible for option normalization, output, and exit
 mapping.
@@ -205,6 +207,21 @@ Implemented boundaries:
 - Markdown rendering escapes table cells for safe local review.
 - No Jira, Notion, Linear, monday.com, or other business-system clients are
   introduced in the bridge layer.
+
+## Completed Slice: Issue #106 Traceability Report CLI
+
+Outcome: the story traceability bridge is available through the reporting CLI
+without expanding into external business-system integrations.
+
+Implemented boundaries:
+
+- `entroping report traceability --output md` renders the local Markdown
+  story/test traceability report from discovered Hurl metadata.
+- Empty suites return a successful report with no story-linked tests.
+- Missing `story_id` metadata and conflicting external `doc_url` links return a
+  failing exit code for CI or reviewer use.
+- Unsupported output formats are rejected; Markdown is the only public format.
+- Focused CLI coverage remains at 100 percent for `entroping.cli.main`.
 
 ## Completed Slice: Issue #94 Finish-Issue Workflow
 
@@ -705,8 +722,6 @@ Architect writes generated files.
 Use these issues as the next marathon targets. Keep each one narrow, tested, and
 merged through GitHub before starting the next branch:
 
-- [#106](https://github.com/sakibshuvo/Entroping/issues/106): expose story
-  traceability through the reporting CLI.
 - [#107](https://github.com/sakibshuvo/Entroping/issues/107): wire context packs
   into issue-session prompts. **Implemented locally on `feat/context-pack-session-prompts`; validation/PR pending.**
 - [#108](https://github.com/sakibshuvo/Entroping/issues/108): create launch demo

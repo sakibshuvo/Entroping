@@ -112,11 +112,13 @@ entroping run --env staging --drift-check --report drift
 | Command | Purpose |
 | --- | --- |
 | `entroping report bug` | Generate a Markdown bug report from the latest failure |
+| `entroping report traceability --output md` | Generate a local Markdown story/test traceability report |
 
 Example:
 
 ```bash
 entroping report bug
+entroping report traceability --output md
 ```
 
 Run artifacts are produced by repeatable `entroping run --report <html|junit|json|drift>` flags. The older `entroping report --type <fmt>` wording from the Gemini transcript is not the v4.1 primary contract.
