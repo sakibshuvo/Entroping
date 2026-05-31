@@ -1,7 +1,7 @@
 ---
 title: PyPI Release Runbook
 type: runbook
-status: draft
+status: active
 tags:
   - release
   - packaging
@@ -12,10 +12,10 @@ tags:
 
 # PyPI Release Runbook
 
-This runbook defines the package-index path for Entroping before the first
-TestPyPI or PyPI publish. It is intentionally not an active publishing workflow.
-The current alpha remains source-distributed until a maintainer explicitly runs
-and reviews this process.
+This runbook defines the package-index path for Entroping. The repository now
+has an active protected manual workflow at
+`.github/workflows/publish-python-package.yml`. The current alpha remains
+source-distributed until a maintainer explicitly runs and reviews this process.
 
 References:
 
@@ -45,6 +45,19 @@ Publishing must use separate GitHub environments:
 Both environments should have GitHub environment required reviewers before they
 are allowed to publish. The publish job should request `id-token: write` only at
 the job level and only in the job that uploads already-built distributions.
+
+Active protected manual workflow:
+
+- `.github/workflows/publish-python-package.yml` is manual-only through
+  `workflow_dispatch`.
+- `testpypi` and `pypi` GitHub environments require reviewer approval and are
+  limited to the `main` branch.
+- The build job has only `contents: read` and uploads `dist/` as a short-lived
+  workflow artifact.
+- The publish jobs request `id-token: write` only after the package artifacts
+  are built and reviewed through the workflow.
+- The workflow still depends on matching Trusted Publisher configuration in
+  TestPyPI and PyPI before either package index will accept an upload.
 
 ## Preflight
 
@@ -115,10 +128,11 @@ point before touching PyPI.
    - repository: `Entroping`
    - workflow filename: `.github/workflows/publish-python-package.yml`
    - environment: `testpypi`
-3. Create the GitHub environment `testpypi` with required reviewers.
-4. Add a reviewed publishing workflow only when ready to test the publish path.
+3. Confirm the GitHub environment `testpypi` still has required reviewers and a
+   `main` deployment branch policy.
+4. Run the reviewed manual publishing workflow with `target: testpypi`.
 
-Future workflow shape:
+Active workflow shape:
 
 ```yaml
 name: Publish Python package
@@ -167,7 +181,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: python-distributions
           path: dist/
@@ -202,12 +216,11 @@ Only proceed after TestPyPI proves the artifact and install path.
    - repository: `Entroping`
    - workflow filename: `.github/workflows/publish-python-package.yml`
    - environment: `pypi`
-2. Create the GitHub environment `pypi` with required reviewers.
-3. Extend the reviewed workflow with a `publish-pypi` job that mirrors the
-   TestPyPI job but omits `repository-url`.
-4. Publish only from the reviewed release commit, never from a dirty local tree.
+2. Confirm the GitHub environment `pypi` still has required reviewers and a
+   `main` deployment branch policy.
+3. Publish only from the reviewed release commit, never from a dirty local tree.
 
-Future PyPI publish job:
+Active PyPI publish job:
 
 ```yaml
 publish-pypi:
@@ -219,7 +232,7 @@ publish-pypi:
     contents: read
     id-token: write
   steps:
-    - uses: actions/download-artifact@v7
+    - uses: actions/download-artifact@v8
       with:
         name: python-distributions
         path: dist/
@@ -250,12 +263,12 @@ Deletion is a last resort. Yanking is the normal non-destructive rollback path
 because downstream users can still diagnose what happened while installers avoid
 the yanked version in ordinary resolution.
 
-## Open Decisions Before Activation
+## Open Decisions Before First Publish
 
 - Choose whether the first PyPI upload is `0.2.0a1` or a later alpha.
 - Decide whether the GitHub release tag should switch from `vX.Y.Z-alpha` to
   PEP 440-like `vX.Y.ZaN` for package-index releases.
-- Add the inactive workflow only after the TestPyPI trusted publisher and
-  GitHub environment protection are configured.
+- Configure the TestPyPI and PyPI Trusted Publishers in the package indexes
+  before running the workflow against either target.
 - Decide whether to attach package artifacts to GitHub releases before or after
   TestPyPI smoke succeeds.

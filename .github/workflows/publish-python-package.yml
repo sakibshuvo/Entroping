@@ -1,0 +1,109 @@
+name: Publish Python package
+
+"on":
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Package index target
+        required: true
+        type: choice
+        default: testpypi
+        options:
+          - testpypi
+          - pypi
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-dist:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run security regression gate
+        run: scripts/regression.sh --security
+
+      - name: Refuse source-distribution version
+        run: |
+          version="$(python - <<'PY'
+          import tomllib
+          from pathlib import Path
+
+          pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+          print(pyproject["project"]["version"])
+          PY
+          )"
+          if [ "$version" = "0.1.1" ]; then
+            echo "Current 0.1.1 must not be published to package indexes."
+            echo "Choose a PEP 440 alpha such as 0.2.0a1 before publishing."
+            exit 1
+          fi
+
+      - name: Build package artifacts
+        run: scripts/package_check.sh
+
+      - name: Verify package metadata rendering
+        run: uvx twine check dist/*
+
+      - name: Upload package distributions
+        uses: actions/upload-artifact@v7
+        with:
+          name: python-distributions
+          path: dist/
+          if-no-files-found: error
+
+  publish-testpypi:
+    if: ${{ github.event.inputs.target == 'testpypi' }}
+    needs: build-dist
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Download package distributions
+        uses: actions/download-artifact@v8
+        with:
+          name: python-distributions
+          path: dist/
+
+      - name: Publish package distributions to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  publish-pypi:
+    if: ${{ github.event.inputs.target == 'pypi' }}
+    needs: build-dist
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Download package distributions
+        uses: actions/download-artifact@v8
+        with:
+          name: python-distributions
+          path: dist/
+
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

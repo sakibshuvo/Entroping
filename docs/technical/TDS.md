@@ -790,9 +790,11 @@ metadata for project name, version, SPDX license expression, license file
 presence, and alpha maturity classifiers. It does not publish to PyPI/TestPyPI
 and must not require package-index credentials.
 
-Package-index publishing is designed in `docs/meta/PYPI_RELEASE_RUNBOOK.md`.
-The preferred path is TestPyPI first, then PyPI, using Trusted Publishing through
-GitHub Actions environments instead of long-lived package-index tokens.
+Package-index publishing is controlled by `docs/meta/PYPI_RELEASE_RUNBOOK.md`
+and the manual `.github/workflows/publish-python-package.yml` workflow. The
+preferred path is TestPyPI first, then PyPI, using Trusted Publishing through
+protected GitHub Actions environments instead of long-lived package-index
+tokens.
 
 Distribution sequencing is documented in
 `docs/meta/DISTRIBUTION_RECOMMENDATION.md`: keep `uv tool install` as the

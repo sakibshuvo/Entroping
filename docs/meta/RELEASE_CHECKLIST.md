@@ -51,10 +51,12 @@ scripts/release_check.sh
 
 That still runs hygiene, package verification, and `scripts/regression.sh --security`, but skips the live demo unless Hurl is available.
 
-Package artifacts are verified locally, not published automatically. The package
-gate removes `dist/`, runs `uv build`, and inspects the wheel and source
+Package artifacts are verified locally before any publish. The package gate
+removes `dist/`, runs `uv build`, and inspects the wheel and source
 distribution for the expected name, version, SPDX `License-Expression`, license
-file metadata, alpha classifier, and root release files.
+file metadata, alpha classifier, and root release files. Package-index upload is
+manual through `.github/workflows/publish-python-package.yml` and protected
+`testpypi`/`pypi` environments.
 
 ## CI Evidence
 

@@ -151,6 +151,9 @@ standalone binaries/signing until there is demand.
 Issue #225 adds the concrete standalone-binary decision: defer Nuitka and
 PyInstaller automation until PyPI alpha, Homebrew tap demand, release-owner
 signing/notarization runbooks, and platform support evidence justify the cost.
+Issue #223 activates the protected manual package-index workflow: build
+distributions without OIDC privileges, then publish to TestPyPI or PyPI through
+reviewer-gated GitHub environments and PyPI Trusted Publishing.
 Issue #230 chooses `scripts/demo.sh` as the friendly v0.2 checkout demo
 entrypoint while preserving `scripts/live_demo_smoke.sh` as the CI/release
 primitive and deferring product-level demo commands until packaging can carry
