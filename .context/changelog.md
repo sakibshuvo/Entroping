@@ -21,6 +21,7 @@
 - Added README guardrail tests that keep the public page demo-first and prevent the old "Available now" knowledge-dump structure from drifting back above the alpha/status sections.
 - Implemented issue #176's latency drift slice so drift baselines preserve optional `duration_ms` values and reports warn on material per-test latency regressions without adding CLI flags or response-value snapshots.
 - Implemented issue #179's Architect validation UX slice so invalid provider JSON and parser-rejected Hurl print actionable no-write guidance without echoing raw provider or parser streams.
+- Ran issue #185's public clean-checkout onboarding smoke from a fresh GitHub clone on macOS 26.5 arm64, proving `uv sync --dev`, Hurl availability, `scripts/live_demo_smoke.sh`, and `scripts/release_check.sh --require-live-demo`.
 
 ## 2026-05-30
 
