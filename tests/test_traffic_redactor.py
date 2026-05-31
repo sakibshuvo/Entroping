@@ -183,6 +183,31 @@ def test_redactor_redacts_secret_values_inside_json_arrays() -> None:
     assert "inline-secret" not in redacted.model_dump_json()
 
 
+def test_redactor_redacts_token_shaped_values_in_non_sensitive_fields() -> None:
+    exchange = _raw_exchange().model_copy(
+        update={
+            "request": _raw_exchange().request.model_copy(
+                update={
+                    "headers": {"X-Request-ID": "req-sk-proj-live-secret"},
+                    "body": TrafficBody(
+                        content_type="application/json",
+                        size_bytes=64,
+                        text='{"note":"sk-proj-live-secret","safe":"ok"}',
+                    ),
+                },
+            ),
+        },
+    )
+
+    redacted = redact_traffic_exchange(exchange)
+
+    serialized = redacted.model_dump_json()
+    assert "sk-proj-live-secret" not in serialized
+    assert redacted.request.headers["X-Request-ID"] == "req-[REDACTED]"
+    assert redacted.request.body is not None
+    assert redacted.request.body.text == '{"note":"[REDACTED]","safe":"ok"}'
+
+
 def test_redactor_removes_url_userinfo_credentials() -> None:
     exchange = _raw_exchange().model_copy(
         update={
