@@ -308,7 +308,9 @@ Orientation:
 - [ADR-0001](decisions/ADR-0001-hurl-native-governance.md) - first architectural decision.
 - [examples/checkout-api](examples/checkout-api/README.md) - tiny demo fixture.
 
-## Planned CLI Surface
+## Locked Alpha CLI Surface
+
+Compatibility details live in [CLI_COMPATIBILITY_AUDIT.md](docs/technical/CLI_COMPATIBILITY_AUDIT.md).
 
 ```text
 entroping init [--minimal]

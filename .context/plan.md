@@ -138,6 +138,10 @@ Issue #232 simplifies first-hour QAnstitution onboarding by aligning
 `init --minimal`, the checkout demo fixture, and the new
 `docs/user/QANSTITUTION_FIRST_HOUR.md` guide around three schema-validated
 starter gates: status, latency, and request-ID header.
+Issue #205 turns the locked v4.1 CLI surface into an explicit compatibility
+audit before stable-core claims. The audit ties README, TDS, command cheat
+sheet, ADR-0002, Typer help, deprecated aliases, exit-code policy, and report
+artifact paths to regression tests so future command drift is caught by CI.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl

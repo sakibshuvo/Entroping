@@ -13,9 +13,12 @@ tags:
 
 ## Decision
 
-The v4.1 command surface is intentionally small:
+The v4.1 command surface is intentionally small and compatibility-reviewed in
+`docs/technical/CLI_COMPATIBILITY_AUDIT.md`:
 
-`init`, `doctor`, `config`, `architect build`, `architect refactor`, `architect audit`, `watch`, `freeze`, `map`, `studio`, `run`, and `report bug`.
+`init`, `doctor`, `config list`, `config set`, `architect build`,
+`architect refactor`, `architect audit`, `watch`, `freeze`, `map`, `studio`,
+`run`, `report bug`, and `report traceability`.
 
 ## Context
 
@@ -28,5 +31,4 @@ The source conversation included older names such as `gen`, `fix`, `ui`, `scan`,
 - `report bug` generates bug handoff Markdown.
 - New flags such as `--dry-run` or `--verbose` require a spec update before implementation.
 
-Links: [[docs/technical/COMMAND_CHEAT_SHEET|COMMAND_CHEAT_SHEET]], [[docs/product/PRODUCT_SPEC|PRODUCT_SPEC]], [[docs/evolution/CREATOR_INTENT_AUDIT|CREATOR_INTENT_AUDIT]]
-
+Links: [[docs/technical/CLI_COMPATIBILITY_AUDIT|CLI_COMPATIBILITY_AUDIT]], [[docs/technical/COMMAND_CHEAT_SHEET|COMMAND_CHEAT_SHEET]], [[docs/product/PRODUCT_SPEC|PRODUCT_SPEC]], [[docs/evolution/CREATOR_INTENT_AUDIT|CREATOR_INTENT_AUDIT]]

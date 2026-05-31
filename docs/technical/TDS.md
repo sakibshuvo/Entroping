@@ -558,6 +558,8 @@ JUnit is required because it is the common denominator for CI. Allure can consum
 
 ## 14. CLI Contracts
 
+Compatibility audit: [CLI_COMPATIBILITY_AUDIT.md](CLI_COMPATIBILITY_AUDIT.md).
+
 ### Setup
 
 ```text
@@ -614,6 +616,18 @@ run baselines and reports only conservative warning findings. Response
 fingerprints contain only status code, selected stable headers such as
 `content-type`, and JSON body shape paths; full response bodies and volatile
 headers are not stored as drift truth.
+
+### Report Artifact Contracts
+
+| Command | Artifact | Stability note |
+| --- | --- | --- |
+| `entroping run` | `.entroping/latest-run.json` | Runtime state for follow-up report commands; not committed. |
+| `entroping run --report json` | `reports/run-latest.json` | Machine-readable run report. |
+| `entroping run --report junit` | `reports/junit.xml` | CI-compatible test report. |
+| `entroping run --report html` | `reports/run-latest.html` | Human-readable local report. |
+| `entroping run --report drift` | `reports/drift.json` | Machine-readable drift findings. |
+| `entroping report bug` | `reports/bug.md` | Markdown handoff for issue trackers. |
+| `entroping report traceability --output md` | `stdout Markdown` | Local story/test coverage report. |
 
 If `.entroping/dependency-baseline.json` exists, the same drift run also compares
 current redacted traffic observations from `.entroping/state.db` against reviewed
