@@ -77,6 +77,14 @@ LOCKED_CLI_CONTRACTS = (
         ("report", "traceability", "--help"),
         ("--output",),
     ),
+    CliContract(
+        (
+            "entroping report github-annotations "
+            "[--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]"
+        ),
+        ("report", "github-annotations", "--help"),
+        ("--junit", "--drift", "--traceability", "--max-annotations"),
+    ),
 )
 
 DEPRECATED_INVOCATIONS = (
@@ -103,6 +111,7 @@ REPORT_ARTIFACTS = (
     "reports/redaction-review.md",
     "reports/redaction-review.html",
     "stdout Markdown",
+    "stdout GitHub Actions annotations",
 )
 
 

@@ -336,6 +336,7 @@ entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|j
 entroping report bug
 entroping report redaction [--output <md|html>]
 entroping report traceability [--output md]
+entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
 ```
 
 Deprecated names such as `gen`, `fix`, `scan`, `chaos`, and `report --type`

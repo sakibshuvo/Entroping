@@ -26,6 +26,7 @@ entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|j
 entroping report bug
 entroping report redaction [--output <md|html>]
 entroping report traceability [--output md]
+entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
 ```
 
 ## Setup
@@ -144,6 +145,7 @@ copying it to `.entroping/drift-baseline.json`.
 | `entroping report redaction --output md` | Write a counts-only captured-traffic redaction review to `reports/redaction-review.md` |
 | `entroping report redaction --output html` | Write a browser-readable redaction review to `reports/redaction-review.html` |
 | `entroping report traceability --output md` | Generate a local Markdown story/test traceability report |
+| `entroping report github-annotations` | Emit GitHub Actions workflow-command annotations from local reports |
 
 Example:
 
@@ -151,6 +153,7 @@ Example:
 entroping report bug
 entroping report redaction --output md
 entroping report traceability --output md
+entroping report github-annotations --traceability
 ```
 
 Run artifacts are produced by repeatable `entroping run --report <html|junit|json|drift>` flags. The older `entroping report --type <fmt>` wording from the Gemini transcript is not the v4.1 primary contract.

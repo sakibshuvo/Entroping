@@ -36,6 +36,7 @@ def test_downstream_github_actions_starter_is_copyable_and_pinned() -> None:
     assert 'echo "$HOME/.local/bin" >> "$GITHUB_PATH"' in run_blocks
     assert "entroping doctor" in run_blocks
     assert "entroping run --ci --report junit --report html" in run_blocks
+    assert "entroping report github-annotations" in run_blocks
     assert "secrets." not in workflow_text
 
     uses = [step.get("uses") for step in job["steps"]]
@@ -59,6 +60,7 @@ def test_downstream_github_actions_docs_link_required_files_and_assumptions() ->
     assert "envs/ci.env" in doc
     assert "No GitHub secrets are required by the starter workflow" in doc
     assert "entroping run --ci --report junit --report html" in doc
+    assert "entroping report github-annotations" in doc
     assert "HURL_SHA256" in doc
     assert "v0.1.1-alpha" in doc
     assert "GITHUB_ACTIONS_STARTER.md" in readme

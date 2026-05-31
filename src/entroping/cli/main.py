@@ -45,6 +45,12 @@ from entroping.core.dependency_mapper import DependencyMapError, run_dependency_
 from entroping.core.drift_report import DriftReportError
 from entroping.core.freeze import FreezeError, run_freeze, run_freeze_mock
 from entroping.core.gate_injector import GateInjectionError
+from entroping.core.github_annotations import (
+    GitHubAnnotation,
+    GitHubAnnotationError,
+    collect_github_annotations,
+    render_github_annotation,
+)
 from entroping.core.hurl_discovery import discover_hurl_tests, normalize_tag_filters
 from entroping.core.hurl_runner import (
     HurlBinaryNotFoundError,
@@ -771,6 +777,54 @@ def report_redaction(
         f"{noun}.[/green]"
     )
     console.print(f"Wrote redaction review: {_display_cli_path(result.output_path)}")
+
+
+@report_app.command("github-annotations")
+def report_github_annotations(
+    junit: Annotated[
+        Path,
+        typer.Option("--junit", help="JUnit XML report path."),
+    ] = Path("reports") / "junit.xml",
+    drift: Annotated[
+        Path,
+        typer.Option("--drift", help="Drift JSON report path."),
+    ] = Path("reports") / "drift.json",
+    traceability: Annotated[
+        bool,
+        typer.Option("--traceability", help="Annotate local story traceability findings."),
+    ] = False,
+    max_annotations: Annotated[
+        int,
+        typer.Option("--max-annotations", min=0, help="Maximum annotations to emit."),
+    ] = 50,
+) -> None:
+    """Emit GitHub Actions workflow-command annotations from local reports."""
+
+    try:
+        annotations = collect_github_annotations(
+            junit_path=junit,
+            drift_path=drift,
+            include_traceability=traceability,
+        )
+    except (GitHubAnnotationError, HurlMetadataSyntaxError, ValueError) as exc:
+        _print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    for annotation in annotations[:max_annotations]:
+        sys.stdout.write(render_github_annotation(annotation) + "\n")
+    if len(annotations) > max_annotations:
+        omitted = len(annotations) - max_annotations
+        sys.stdout.write(
+            render_github_annotation(
+                GitHubAnnotation(
+                    level="notice",
+                    title="Entroping annotations truncated",
+                    message=f"{omitted} annotation(s) omitted by --max-annotations.",
+                )
+            )
+            + "\n"
+        )
+    raise typer.Exit(0)
 
 
 @report_app.command("traceability")

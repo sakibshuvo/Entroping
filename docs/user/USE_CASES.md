@@ -70,12 +70,14 @@ imports:
 ```bash
 entroping doctor
 entroping run --env ci --ci --parallel --report junit
+entroping report github-annotations
 ```
 
 ### Expected Artifacts
 
 - Effective policy summary.
 - JUnit report with rule IDs on failure.
+- GitHub PR annotations for failed Hurl files.
 - CI failure for blocking rules.
 
 ### Value

@@ -554,6 +554,7 @@ Reports are written under `reports/`.
 | Bug Markdown | `report bug` | Issue tracker handoff |
 | Redaction Review | `report redaction --output md|html` | Captured-traffic redaction coverage review |
 | Traceability Markdown | `report traceability --output md` | Local story/test coverage review |
+| GitHub Annotations | `report github-annotations` | Pull request workflow-command annotations |
 
 JUnit is required because it is the common denominator for CI. Allure can consume JUnit later. JaCoCo is not a fit because Entroping is black-box runtime testing, not code coverage instrumentation.
 
@@ -599,6 +600,7 @@ entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|j
 entroping report bug
 entroping report redaction [--output <md|html>]
 entroping report traceability [--output md]
+entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
 ```
 
 `studio` is an interactive read-only Textual TUI. It requires the optional
@@ -640,6 +642,7 @@ candidate is sanitized and reviewable; the active
 | `entroping report redaction --output md` | `reports/redaction-review.md` | Counts-only captured-traffic redaction review. |
 | `entroping report redaction --output html` | `reports/redaction-review.html` | Browser-readable captured-traffic redaction review. |
 | `entroping report traceability --output md` | `stdout Markdown` | Local story/test coverage report. |
+| `entroping report github-annotations` | `stdout GitHub Actions annotations` | Workflow-command annotations from JUnit, drift, and optional traceability findings. |
 
 Versioned report schema contracts are documented in
 `docs/technical/REPORT_SCHEMAS.md`. JSON report writers must include

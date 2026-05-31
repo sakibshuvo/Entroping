@@ -42,6 +42,7 @@
 - Hurl is the enforcement boundary. Python orchestrates but must not replace Hurl as the API execution engine.
 - Reports need both machine formats and human formats: JUnit for CI, JSON for tooling, HTML/Markdown for review and bug handoff.
 - Machine-readable reports need explicit schema versions before external dashboards or PR annotation tools depend on them. Additive optional fields can remain in v1, but required-field, rename, removal, or type changes need a new schema version and migration note.
+- GitHub PR annotations should be emitted as local workflow commands, not GitHub API mutations. This keeps downstream CI token-light, preserves local-first behavior, and lets existing report artifacts remain the durable source of truth.
 - The creator intent is solo-first but not toy-grade: use `uv` and source debugging now, defer binary packaging and Cloud until the core governance loop is real.
 - The Brain must be local-first and LiteLLM-routed; do not depend on external provider CLIs, and do not put API keys in plaintext config.
 - `entroping run` must remain deterministic and should not call the LLM; AI-generated Breaker work must become committed Hurl tests before it can govern CI.

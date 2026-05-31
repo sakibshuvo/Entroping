@@ -41,25 +41,26 @@ entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|j
 entroping report bug
 entroping report redaction [--output <md|html>]
 entroping report traceability [--output md]
+entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
 ```
 
 ## Compatibility Decisions
 
 | Area | Decision |
 | --- | --- |
-| Command naming | Keep the nested noun/verb shape: `architect build`, `architect refactor`, `report bug`, `report redaction`, `report traceability`. |
+| Command naming | Keep the nested noun/verb shape: `architect build`, `architect refactor`, `report bug`, `report redaction`, `report traceability`, `report github-annotations`. |
 | Aliases | No alias is compatibility-supported. Deprecated brainstorm names such as `gen`, `fix`, `scan`, `chaos`, `verify`, top-level `build`, `auth`, and `report --type` remain unavailable. |
 | Global flags | Only Typer completion helpers and `--version` are current global flags. `--verbose` and `--dry-run` are not product flags. |
 | Determinism | `entroping run` remains deterministic, Hurl-backed, and LLM-free. |
 | Prompted generation | Prompt-backed `architect build` and `architect refactor` may call LiteLLM, but generated files must pass validation before write. |
 | Studio | `studio` is read-only until mutation workflows are designed and accepted separately. |
-| Report formats | `run --report` is repeatable and owns run artifact creation. `report bug`, `report redaction`, and `report traceability` are handoff/reporting commands, not test execution commands. |
+| Report formats | `run --report` is repeatable and owns run artifact creation. `report bug`, `report redaction`, `report traceability`, and `report github-annotations` are handoff/reporting commands, not test execution commands. |
 
 ## Exit Code Contract
 
 | Exit code | Meaning | Examples |
 | --- | --- | --- |
-| `0` | Successful command, successful run, or non-CI no-match run that is informational. | `--help`, `--version`, passing `run`, passing `report redaction`, passing `report traceability`. |
+| `0` | Successful command, successful run, or non-CI no-match run that is informational. | `--help`, `--version`, passing `run`, passing `report redaction`, passing `report traceability`, passing `report github-annotations`. |
 | `1` | Runtime, configuration, report, Hurl, drift, or quality failure. | Invalid QAnstitution, missing Hurl, failing Hurl suite, drift finding with `--drift-check`, no failure available for `report bug`, missing traffic state for `report redaction`. |
 | `2` | CLI usage or unsupported-mode error. | Unknown commands, unsupported `architect build --strategy`, unsupported `report redaction --output`, unsupported `report traceability --output`, unsupported `run --report`. |
 
@@ -80,6 +81,7 @@ only through a compatibility issue and migration note.
 | `entroping report redaction --output md` | `reports/redaction-review.md` |
 | `entroping report redaction --output html` | `reports/redaction-review.html` |
 | `entroping report traceability --output md` | `stdout Markdown` |
+| `entroping report github-annotations` | `stdout GitHub Actions annotations` |
 
 Report paths are compatibility-relevant because downstream CI, examples, docs,
 and automation scripts can depend on them.

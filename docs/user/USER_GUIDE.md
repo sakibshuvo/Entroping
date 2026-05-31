@@ -355,6 +355,15 @@ When a review needs story/test evidence:
 entroping report traceability --output md
 ```
 
+In GitHub Actions, emit PR annotations from local reports:
+
+```bash
+entroping report github-annotations
+```
+
+Add `--traceability` only after the repository uses `story_id` metadata and you
+want missing or conflicting story links to show as annotations.
+
 ## 11. Drift Detection
 
 Use drift detection when you have a baseline and want to know whether runtime behavior changed:
