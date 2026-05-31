@@ -65,7 +65,7 @@ def test_growth_and_monetization_plan_keeps_open_core_boundary() -> None:
 
 
 def test_index_and_readme_link_agent_and_growth_docs() -> None:
-    index = (REPO_ROOT / "00_INDEX.md").read_text(encoding="utf-8")
+    index = (REPO_ROOT / "docs/meta/VAULT_INDEX.md").read_text(encoding="utf-8")
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
     assert "[[docs/meta/AGENT_CONTROL_PLANE|AGENT_CONTROL_PLANE]]" in index
@@ -94,7 +94,7 @@ def test_good_first_issue_walkthrough_is_linked_and_actionable() -> None:
     walkthrough = walkthrough_path.read_text(encoding="utf-8")
     contributing = (REPO_ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-    index = (REPO_ROOT / "00_INDEX.md").read_text(encoding="utf-8")
+    index = (REPO_ROOT / "docs/meta/VAULT_INDEX.md").read_text(encoding="utf-8")
 
     assert "[GOOD_FIRST_ISSUE_WALKTHROUGH.md]" in contributing
     assert "GOOD_FIRST_ISSUE_WALKTHROUGH.md" in readme

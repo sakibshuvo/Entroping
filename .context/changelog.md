@@ -46,6 +46,10 @@
 - Added issue #190's read-only Studio traffic session browser, using read-only SQLModel-backed state access plus existing traffic session and graph compilers to show target/dependency route summaries and safe redaction category counts without starting capture or rendering raw traffic values.
 - Added issue #229's Python compatibility policy: package metadata now claims Python 3.12 and 3.13 only, CI runs security regression and optional-extras smoke on both versions, and release docs no longer imply unproven Python 3.14 support.
 - Added issue #228's strict public docs automation: pull requests run `mkdocs build --strict`, `main` publishes through GitHub Pages, and public-site docs now describe the active deployment instead of the old deferred scaffold.
+- Added issue #259's centralized secret-safety boundary so Brain prompt packaging, Hurl runner output, traffic redaction, and traffic-to-Hurl compilation share one redaction model before provider or report boundaries.
+- Added issue #261's `hurlfmt` doctor check so the Hurl executor and Architect parser dependency are reported separately.
+- Added issue #267's QAnstitution authoring schema: `docs/technical/qanstitution.schema.json`, VS Code/YAML-language-server mapping, schema drift tests, and docs that keep runtime validation authoritative.
+- Added issue #266's public repo surface hygiene by moving the Obsidian vault index to `docs/meta/VAULT_INDEX.md`, removing tracked `.obsidian/` machine state, and documenting why `.context/` remains tracked as maintainer/agent handoff material.
 - Added ADR-0011 for issue #202: organization QAnstitution imports must preserve provenance, final-gate behavior, local-first validation, and effective-policy evidence before remote/registry features are implemented.
 - Added issue #204's non-GitHub CI provider recipes with GitLab CI, Buildkite, CircleCI, and generic shell guidance while deferring untested native templates from `examples/`.
 - Added issue #225's standalone binary distribution decision: defer Nuitka/PyInstaller automation until PyPI alpha, Homebrew tap demand, platform signing/notarization runbooks, and support evidence justify it.

@@ -104,7 +104,7 @@ def test_pages_workflow_builds_strict_mkdocs_and_deploys_with_least_privilege() 
 
 def test_public_docs_landing_is_linked_from_project_entrypoints() -> None:
     landing = (REPO_ROOT / "docs" / "index.md").read_text(encoding="utf-8")
-    index = (REPO_ROOT / "00_INDEX.md").read_text(encoding="utf-8")
+    index = (REPO_ROOT / "docs/meta/VAULT_INDEX.md").read_text(encoding="utf-8")
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     progress = (REPO_ROOT / "docs" / "meta" / "PROJECT_PROGRESS.md").read_text(
         encoding="utf-8"

@@ -37,7 +37,7 @@ def test_ai_provider_setup_guide_covers_local_cloud_and_no_provider_paths() -> N
 
 def test_ai_provider_setup_is_linked_from_canonical_docs() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-    index = (REPO_ROOT / "00_INDEX.md").read_text(encoding="utf-8")
+    index = (REPO_ROOT / "docs/meta/VAULT_INDEX.md").read_text(encoding="utf-8")
     user_guide = (REPO_ROOT / "docs" / "user" / "USER_GUIDE.md").read_text(
         encoding="utf-8"
     )

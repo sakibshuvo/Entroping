@@ -31,7 +31,7 @@ Decision: MkDocs Material.
 Use `mkdocs.yml` at the repository root, keep `docs_dir: docs`, and add a small
 `docs/index.md` public landing page. Do not duplicate canonical docs into a
 second docs tree. The canonical docs stay in `docs/`, while root `README.md`,
-`ROADMAP.md`, and `00_INDEX.md` remain repository and Obsidian entry points.
+`ROADMAP.md`, and `docs/meta/VAULT_INDEX.md` remain repository and Obsidian entry points.
 
 Obsidian links remain source-friendly. Public-site pages should prefer normal
 Markdown links when they are meant for first-time readers, but the vault does

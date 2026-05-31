@@ -40,7 +40,9 @@ def test_org_qanstitution_import_controls_adr_covers_required_boundaries() -> No
 
 def test_org_qanstitution_import_controls_are_linked_from_policy_docs() -> None:
     required_links = {
-        "00_INDEX.md": "[[decisions/ADR-0011-organization-qanstitution-import-controls|ADR-0011]]",
+        "docs/meta/VAULT_INDEX.md": (
+            "[[decisions/ADR-0011-organization-qanstitution-import-controls|ADR-0011]]"
+        ),
         "docs/technical/QANSTITUTION_REFERENCE.md": (
             "ADR-0011-organization-qanstitution-import-controls.md"
         ),

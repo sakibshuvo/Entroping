@@ -39,7 +39,7 @@ def test_ci_provider_recipes_cover_requested_providers_without_untested_template
 def test_ci_provider_recipes_are_linked_from_entrypoints() -> None:
     required_links = {
         "README.md": "CI_PROVIDER_RECIPES.md",
-        "00_INDEX.md": "[[docs/user/CI_PROVIDER_RECIPES|CI_PROVIDER_RECIPES]]",
+        "docs/meta/VAULT_INDEX.md": "[[docs/user/CI_PROVIDER_RECIPES|CI_PROVIDER_RECIPES]]",
         "docs/index.md": "user/CI_PROVIDER_RECIPES.md",
         "docs/user/USER_GUIDE.md": "docs/user/CI_PROVIDER_RECIPES.md",
         "docs/user/USER_FLOWS.md": "docs/user/CI_PROVIDER_RECIPES.md",

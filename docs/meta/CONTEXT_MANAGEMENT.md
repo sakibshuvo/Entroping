@@ -35,7 +35,7 @@ Do not read the entire vault for every task. Obsidian preserves context by makin
 ### Read When Reviewing Or Handing Off
 
 - `README.md` - public project overview and quickstart.
-- `00_INDEX.md` - Obsidian vault map.
+- `docs/meta/VAULT_INDEX.md` - Obsidian vault map.
 - `.context/changelog.md` - recent work.
 - `.context/lessons-learned.md` - durable pitfalls and decisions.
 - `docs/meta/ISSUE_TRACKING.md` - GitHub issue tracking rules.
@@ -52,7 +52,7 @@ Use this when starting a fresh thread:
 
 ```text
 Work in <repo-root>.
-Read AGENTS.md, README.md, 00_INDEX.md, .context/plan.md, docs/product/MVP_PLAN.md, docs/technical/TDS.md, and docs/meta/PROJECT_PROGRESS.md first.
+Read AGENTS.md, README.md, docs/meta/VAULT_INDEX.md, .context/plan.md, docs/product/MVP_PLAN.md, docs/technical/TDS.md, and docs/meta/PROJECT_PROGRESS.md first.
 Preserve the locked v4.1 command surface and implement only the next narrow milestone.
 Follow docs/meta/AUTONOMOUS_DEVELOPMENT.md, docs/meta/FEATURE_DELIVERY_CHECKLIST.md, docs/meta/ISSUE_TRACKING.md, and docs/meta/TEST_STRATEGY.md for the Codex-first workflow, TDD expectations, regression gates, multi-agent guardrails, issue tracking, and context updates.
 ```

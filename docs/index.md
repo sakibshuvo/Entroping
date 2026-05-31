@@ -42,4 +42,4 @@ Core references:
 - [Install Smoke Matrix](meta/INSTALL_SMOKE_MATRIX.md)
 
 Canonical source still lives in the repository Markdown. The Obsidian vault
-entry point remains `00_INDEX.md`; this page is only the public web landing page.
+entry point remains `docs/meta/VAULT_INDEX.md`; this page is only the public web landing page.

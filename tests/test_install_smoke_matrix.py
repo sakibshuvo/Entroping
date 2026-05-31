@@ -37,7 +37,7 @@ def test_install_smoke_matrix_doc_matches_ci_and_support_claims() -> None:
         encoding="utf-8"
     )
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-    index = (REPO_ROOT / "00_INDEX.md").read_text(encoding="utf-8")
+    index = (REPO_ROOT / "docs/meta/VAULT_INDEX.md").read_text(encoding="utf-8")
     release_checklist = (
         REPO_ROOT / "docs" / "meta" / "RELEASE_CHECKLIST.md"
     ).read_text(encoding="utf-8")

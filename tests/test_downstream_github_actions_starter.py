@@ -49,7 +49,7 @@ def test_downstream_github_actions_starter_is_copyable_and_pinned() -> None:
 def test_downstream_github_actions_docs_link_required_files_and_assumptions() -> None:
     doc = STARTER_DOC.read_text(encoding="utf-8")
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-    index = (REPO_ROOT / "00_INDEX.md").read_text(encoding="utf-8")
+    index = (REPO_ROOT / "docs/meta/VAULT_INDEX.md").read_text(encoding="utf-8")
     user_flows = (REPO_ROOT / "docs" / "user" / "USER_FLOWS.md").read_text(
         encoding="utf-8"
     )

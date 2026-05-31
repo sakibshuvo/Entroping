@@ -66,7 +66,7 @@ def test_first_hour_policy_doc_is_visible_from_public_onboarding_surfaces() -> N
     ).read_text(encoding="utf-8")
     docs_index = (REPO_ROOT / "docs" / "index.md").read_text(encoding="utf-8")
     mkdocs = (REPO_ROOT / "mkdocs.yml").read_text(encoding="utf-8")
-    vault_index = (REPO_ROOT / "00_INDEX.md").read_text(encoding="utf-8")
+    vault_index = (REPO_ROOT / "docs/meta/VAULT_INDEX.md").read_text(encoding="utf-8")
 
     assert required_link in readme
     assert "QANSTITUTION_FIRST_HOUR.md" in user_guide

@@ -57,6 +57,7 @@ Use these first. They are the control panel for current work:
 - [[docs/meta/RELEASE_CHECKLIST|RELEASE_CHECKLIST]] - alpha release bar, required evidence, and known-not-built boundaries.
 - [[docs/meta/PYPI_RELEASE_RUNBOOK|PYPI_RELEASE_RUNBOOK]] - TestPyPI-first and PyPI Trusted Publishing plan.
 - [[docs/meta/PUBLIC_DOCS_SITE_DECISION|PUBLIC_DOCS_SITE_DECISION]] - MkDocs Material public docs site decision and scaffold.
+- [[docs/meta/PUBLIC_REPO_SURFACE|PUBLIC_REPO_SURFACE]] - what belongs in the public clone, maintainer context, and local-only Obsidian state.
 - [[docs/meta/INSTALL_SMOKE_MATRIX|INSTALL_SMOKE_MATRIX]] - Linux, macOS, and Windows install-smoke claims and non-claims.
 - [[docs/meta/ZERO_CONFIG_DEMO_ENTRYPOINT|ZERO_CONFIG_DEMO_ENTRYPOINT]] - why `scripts/demo.sh` is the v0.2 checkout demo entrypoint.
 - [[docs/meta/DISTRIBUTION_RECOMMENDATION|DISTRIBUTION_RECOMMENDATION]] - uv, PyPI, Homebrew tap, and standalone binary sequencing.
