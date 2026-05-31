@@ -95,3 +95,4 @@
 - Public launch commands must not bake in maintainer-local paths. Use portable defaults with environment overrides, then test the public docs for path leaks.
 - Agent handoff scripts should prefer repository-relative defaults plus environment overrides over hardcoded workstation paths.
 - Agent workflow docs should be portable even when the maintainer has a known local checkout. Use placeholders in committed docs and keep machine-specific paths in local prompts or environment variables.
+- Public README status language needs the same regression protection as code: stale "scaffold" wording can quietly undercut a real alpha.

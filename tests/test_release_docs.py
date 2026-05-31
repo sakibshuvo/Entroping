@@ -15,6 +15,25 @@ def test_readme_links_alpha_release_gate_and_checklist() -> None:
     assert "docs/meta/RELEASE_CHECKLIST.md" in readme
 
 
+def test_readme_current_status_does_not_understate_alpha_as_scaffold() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    current_status = readme.split("## Current Status", maxsplit=1)[1].split(
+        "## Quick Start",
+        maxsplit=1,
+    )[0]
+    repo_map = readme.split("## Repository Map", maxsplit=1)[1].split(
+        "## Contributing And Community",
+        maxsplit=1,
+    )[0]
+
+    assert "active alpha implementation" in current_status
+    assert "initial Entroping knowledge base and implementation scaffold" not in readme
+    assert "Python package scaffold" not in readme
+    assert "Try the scaffolded CLI" not in readme
+    assert "Python implementation scaffold" not in repo_map
+    assert "Fast scaffold tests" not in repo_map
+
+
 def test_alpha_release_checklist_documents_required_evidence() -> None:
     checklist = (REPO_ROOT / "docs" / "meta" / "RELEASE_CHECKLIST.md").read_text(
         encoding="utf-8"
