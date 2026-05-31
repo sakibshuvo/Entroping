@@ -104,6 +104,10 @@ Do not launch broadly until the install, demo, and first issue contribution path
 
 ## Open-Core Monetization
 
+The detailed maintainer boundary lives in
+[OPEN_CORE_BOUNDARIES.md](OPEN_CORE_BOUNDARIES.md). This section is the growth
+strategy; the boundary document is the guardrail for issue and roadmap reviews.
+
 Keep the public core strong:
 
 - Local CLI.
@@ -113,11 +117,12 @@ Keep the public core strong:
 - OpenAPI generation.
 - Traffic capture/freeze/map MVP.
 - Local-first Brain integration.
+- Local PR annotations from report artifacts.
 
 Commercial surfaces can sit around the core:
 
 - hosted team dashboard.
-- PR annotations and organization policy reporting.
+- organization policy reporting and cross-repo team summaries.
 - Premium policy packs for security, latency, SOC2-style controls, and API governance.
 - Managed QAnstitution registry and import governance.
 - Team collaboration, audit history, and drift dashboards.

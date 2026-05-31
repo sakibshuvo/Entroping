@@ -269,6 +269,7 @@ Product:
 - [PRODUCT_SPEC.md](docs/product/PRODUCT_SPEC.md) - product contract.
 - [MVP_PLAN.md](docs/product/MVP_PLAN.md) - implementation sequence.
 - [GROWTH_AND_MONETIZATION.md](docs/product/GROWTH_AND_MONETIZATION.md) - open-source growth and open-core path.
+- [OPEN_CORE_BOUNDARIES.md](docs/product/OPEN_CORE_BOUNDARIES.md) - public-core versus commercial-surface guardrails.
 
 Technical:
 
@@ -403,7 +404,9 @@ AGENTS.md              Project-local Codex implementation rules
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) sets the project conduct baseline.
 
 The open-source growth and monetization strategy lives in
-[GROWTH_AND_MONETIZATION.md](docs/product/GROWTH_AND_MONETIZATION.md).
+[GROWTH_AND_MONETIZATION.md](docs/product/GROWTH_AND_MONETIZATION.md), with
+maintainer guardrails in
+[OPEN_CORE_BOUNDARIES.md](docs/product/OPEN_CORE_BOUNDARIES.md).
 
 Public trust signals:
 
@@ -430,4 +433,5 @@ Entroping Core is licensed under Apache-2.0. See [LICENSE](LICENSE).
 
 The public core is intended to stay adoption-friendly and genuinely open source.
 Future hosted, team, enterprise, model, policy-pack, or support offerings may be
-distributed separately under commercial terms.
+distributed separately under commercial terms as defined by
+[OPEN_CORE_BOUNDARIES.md](docs/product/OPEN_CORE_BOUNDARIES.md).

@@ -37,6 +37,7 @@
 - Added issue #227's optional-extras runtime smoke lane: CI installs all extras and runs `scripts/optional_extras_smoke.py` against LiteLLM, mitmproxy, and Textual boundaries without credentials or live capture.
 - Added ADR-0010 for issue #231: v0.3 stays CLI/report-first, Studio remains optional/read-only/report-backed, and mutation workflows remain design-only.
 - Added issue #199's Architect remediation guidance: invalid provider JSON and parser-rejected Hurl now print safe retry constraints while preserving no-write behavior and raw-output redaction.
+- Added issue #209's open-core boundary audit with a maintainer-facing `OPEN_CORE_BOUNDARIES.md`, entrypoint links, and guard tests that keep the Apache-2.0 local CLI strong while separating paid policy-pack, hosted, audit-history, and service surfaces.
 
 ## 2026-05-30
 

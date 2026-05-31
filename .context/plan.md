@@ -34,7 +34,7 @@ project, and a Codex workspace with fast context rehydration.
 - `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, `.github/pull_request_template.md`, and `scripts/feature_gate.sh` define the executable delivery gates for feature work.
 - `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, `scripts/regression.sh`, and `scripts/audit_quality.sh` define issue tracking, regression coverage, quality audit coverage, and simple phase-level progress tracking.
 - `scripts/community_profile_audit.sh` and `.github/workflows/scorecard.yml` provide public trust-signal hygiene without adding a pull-request gate.
-- Apache-2.0 licensing and package metadata are in place for the public core; keep future commercial cloud, model, policy-pack, or enterprise surfaces outside the open core unless explicitly relicensed.
+- Apache-2.0 licensing and package metadata are in place for the public core; `docs/product/OPEN_CORE_BOUNDARIES.md` now defines what stays core versus what can become commercial.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work; `scripts/finish_issue.sh` verifies merged PRs and safely removes completed local worktrees.
 - Eye capture now has security-first traffic models, pre-persistence redaction, bounded SQLModel-backed SQLite state, and capture-only `watch` wiring through a lazy-loaded mitmproxy adapter.
 - Issues #1 through #85, plus validation fixes #95 and #97, are integrated.
@@ -574,6 +574,25 @@ Implemented boundaries:
   and applies Hurl output redaction before emitting text.
 - The downstream GitHub Actions starter runs the annotation step with
   `if: always()` so failed Entroping runs still produce inline PR feedback.
+
+## Completed Slice: Issue #209 Open-Core Boundary Audit
+
+Outcome: monetization work now has a maintainer-facing boundary document that
+keeps the Apache-2.0 local CLI useful while reserving hosted, team, policy-pack,
+audit-history, and services layers for paid offerings.
+
+Implemented boundaries:
+
+- Local CLI, Hurl execution, QAnstitution parsing, local gates, basic reports,
+  OpenAPI generation, traffic capture/freeze/map MVP, local-first Brain, and
+  local PR annotations stay in the public core.
+- Premium policy packs, hosted dashboards, organization policy reporting, team
+  audit history, enterprise SSO/RBAC, scheduled monitors, and support services
+  can be commercial.
+- Local runtime governance must not require paid services, telemetry, hosted
+  login, or model credentials.
+- Roadmap and growth docs now separate local PR annotations from commercial
+  cross-repo/team reporting.
 
 ## Completed Slice: Issue #110 Structured Response Drift
 

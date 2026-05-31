@@ -30,6 +30,7 @@ Use these first. They are the control panel for current work:
 - [[docs/user/DRIFT_BASELINE_WORKFLOW|DRIFT_BASELINE_WORKFLOW]] - reviewed candidate-to-baseline drift workflow.
 - [[docs/product/MVP_PLAN|MVP_PLAN]] - implementation sequence.
 - [[docs/product/MARKETING_NOTE|MARKETING_NOTE]] - positioning and go-to-market language.
+- [[docs/product/OPEN_CORE_BOUNDARIES|OPEN_CORE_BOUNDARIES]] - what stays in the Apache core and what can become commercial.
 
 ## Technical Contract
 

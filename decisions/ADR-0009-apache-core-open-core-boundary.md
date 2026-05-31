@@ -50,4 +50,4 @@ useful for enterprise-oriented developer tooling.
 - Any future change to AGPL, BSL, FSL, dual licensing, or a contributor CLA
   requires a new explicit decision.
 
-Links: [[README]], [[docs/meta/PROJECT_PROGRESS|PROJECT_PROGRESS]], [[docs/product/MARKETING_NOTE|MARKETING_NOTE]]
+Links: [[README]], [[docs/meta/PROJECT_PROGRESS|PROJECT_PROGRESS]], [[docs/product/MARKETING_NOTE|MARKETING_NOTE]], [[docs/product/OPEN_CORE_BOUNDARIES|OPEN_CORE_BOUNDARIES]]
