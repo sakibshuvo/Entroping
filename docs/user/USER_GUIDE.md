@@ -446,13 +446,19 @@ Studio opens tabbed views for:
 - Detected QAnstitution project.
 - Latest run summary and suite rows when `.entroping/latest-run.json` exists.
 - Failure details from the sanitized latest run report.
+- Applied-gate drilldowns from latest-run report rule IDs and QAnstitution gate definitions.
 - Existing report artifact paths.
 - Traffic-state availability.
 
 Studio is intentionally read-only in the alpha. It does not update tests,
 config, reports, or `.entroping` state.
 
-Near-term Studio work is report-backed and read-only: applied-gate detail,
+The applied-gate drilldowns explain which QAnstitution gates were applied to
+which tests by reading latest-run report rule IDs and QAnstitution gate
+definitions. The view does not run Hurl, does not edit tests or config, and
+does not replace the report artifacts as the durable evidence.
+
+Near-term Studio work is report-backed and read-only: applied-gate drilldowns,
 deeper failure drilldown, and traffic-session navigation may read sanitized
 artifacts or redacted state. Studio should not rerun suites, edit tests, or change config in the alpha.
 Future write actions must follow

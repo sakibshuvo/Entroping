@@ -16,6 +16,7 @@
 - Cross-platform install claims need explicit non-claims. It is better to prove Windows CLI installation and `doctor` guidance than imply Hurl-backed Windows execution before the Windows Hurl path is reviewed.
 - Policy packs should start as ordinary QAnstitution imports plus metadata, not a second policy system. Prove the directory shape and examples first; add registry, remote-fetch, or manifest validation only after a focused follow-up issue.
 - Studio mutation must be preview-first, confirmation-gated, and reversible before code. Keep Textual as an adapter over existing CLI/core use cases, not a direct writer or runner.
+- Studio drilldowns should explain existing artifacts, not create new truth. Applied-gate views should derive from latest-run report rule IDs plus loaded QAnstitution definitions while leaving Hurl execution and report generation in the CLI path.
 
 ## 2026-05-30
 
