@@ -114,6 +114,8 @@ entroping run --env ci --ci --parallel --report junit
 
 For a copyable GitHub Actions workflow, see
 `docs/user/GITHUB_ACTIONS_STARTER.md`.
+For GitLab CI, Buildkite, CircleCI, or a generic shell runner, see
+`docs/user/CI_PROVIDER_RECIPES.md`.
 
 `--parallel` uses `settings.parallel_workers` from `qanstitution.yaml` and keeps
 report ordering stable, so CI output remains deterministic even when files run

@@ -81,6 +81,7 @@ Use these first. They are the control panel for current work:
 - [[docs/user/DRIFT_BASELINE_WORKFLOW|DRIFT_BASELINE_WORKFLOW]] - safe drift baseline creation and update workflow.
 - [[docs/user/AI_PROVIDER_SETUP|AI_PROVIDER_SETUP]] - LiteLLM, local Qwen/oMLX, cloud model, and no-provider CI setup.
 - [[docs/user/GITHUB_ACTIONS_STARTER|GITHUB_ACTIONS_STARTER]] - copyable downstream GitHub Actions CI gate.
+- [[docs/user/CI_PROVIDER_RECIPES|CI_PROVIDER_RECIPES]] - GitLab CI, Buildkite, CircleCI, and generic shell guidance.
 - [[docs/meta/OBSIDIAN_START_HERE|OBSIDIAN_START_HERE]] - first-time Obsidian workflow for this vault.
 - [[docs/meta/GLOSSARY|GLOSSARY]] - plain-language explanation of Entroping terms.
 - [[docs/technical/THREAT_MODEL|THREAT_MODEL]] - stable-core security boundaries, residual risks, and remediation issue map.
