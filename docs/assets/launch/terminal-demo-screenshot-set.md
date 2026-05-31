@@ -10,7 +10,9 @@ tags:
 
 # Terminal Demo Screenshot Set
 
-Captured from the real checkout fixture path:
+Captured from the real checkout fixture path. The public command is
+`scripts/demo.sh`; it delegates to the same `scripts/live_demo_smoke.sh` path
+used by release automation.
 
 ```bash
 demo_tmp_base="${ENTROPING_DEMO_TMP_BASE:-$HOME/.cache/entroping-demo}"
@@ -19,7 +21,7 @@ artifact_dir="$(mktemp -d "$demo_tmp_base/artifacts.XXXXXX")"
 workdir="$(mktemp -d "$demo_tmp_base/work.XXXXXX")"
 ENTROPING_LIVE_DEMO_ARTIFACT_DIR="$artifact_dir" \
   ENTROPING_LIVE_DEMO_WORKDIR="$workdir" \
-  scripts/live_demo_smoke.sh
+  scripts/demo.sh
 ```
 
 Use these frames for a terminal GIF or a screenshot carousel.
@@ -55,7 +57,7 @@ run-latest.html  - human-readable report screenshot source
 
 ## Screenshot Notes
 
-- Show the command and output together; do not crop away `scripts/live_demo_smoke.sh`.
+- Show the command and output together; do not crop away `scripts/demo.sh`.
 - Keep `4 passed, 0 failed` visible.
 - Avoid showing local temp directory names in external posts.
 - Do not show `.entroping/` internals except the latest-run path printed by the CLI.

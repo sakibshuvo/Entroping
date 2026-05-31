@@ -32,7 +32,7 @@ The product should not look like a generic test generator. The sharp wedge is ru
 ## World-Class Open Source Checklist
 
 - README that shows the real product in the first screen.
-- One-command install path and one-command demo path.
+- One-command install path and checkout demo path through `scripts/demo.sh`.
 - Clear "current status" and "not built yet" sections.
 - Apache-2.0 public core license.
 - `CONTRIBUTING.md`, `SECURITY.md`, issue templates, PR template, release checklist, and CI.
@@ -59,7 +59,7 @@ Publish order:
    external announcements.
 3. Add two-minute README demo links to the launch asset hub and its curated
    public preview PNGs.
-4. Record the terminal screenshot from `scripts/live_demo_smoke.sh` with
+4. Record the terminal screenshot from `scripts/demo.sh` with
    `4 passed, 0 failed` visible.
 5. Capture the HTML report screenshot from `reports/run-latest.html`.
 6. Capture or embed the dependency map example from `entroping map --export md`

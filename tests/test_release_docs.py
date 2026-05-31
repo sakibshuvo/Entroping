@@ -43,6 +43,35 @@ def test_readme_is_demo_first_open_source_front_door() -> None:
     assert first_read.count("\n- ") <= 18
 
 
+def test_readme_promotes_demo_wrapper_without_expanding_cli_surface() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    command_cheat_sheet = (
+        REPO_ROOT / "docs" / "technical" / "COMMAND_CHEAT_SHEET.md"
+    ).read_text(encoding="utf-8")
+
+    try_it = readme.split("## Try It In Two Minutes", maxsplit=1)[1].split(
+        "## What You Get",
+        maxsplit=1,
+    )[0]
+
+    assert "scripts/demo.sh" in try_it
+    assert "scripts/live_demo_smoke.sh" in try_it
+    assert "entroping demo" not in command_cheat_sheet
+
+
+def test_zero_config_demo_decision_keeps_live_smoke_as_release_gate() -> None:
+    decision = (
+        REPO_ROOT / "docs" / "meta" / "ZERO_CONFIG_DEMO_ENTRYPOINT.md"
+    ).read_text(encoding="utf-8")
+    index = (REPO_ROOT / "00_INDEX.md").read_text(encoding="utf-8")
+
+    assert "scripts/demo.sh" in decision
+    assert "scripts/live_demo_smoke.sh" in decision
+    assert "Do not add `entroping demo`" in decision
+    assert "Do not add `init --demo`" in decision
+    assert "[[docs/meta/ZERO_CONFIG_DEMO_ENTRYPOINT|ZERO_CONFIG_DEMO_ENTRYPOINT]]" in index
+
+
 def test_readme_current_alpha_does_not_understate_alpha_as_scaffold() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     current_alpha = readme.split("## Current Alpha", maxsplit=1)[1].split(

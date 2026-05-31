@@ -37,14 +37,13 @@ Entroping gives that workflow a hard guardrail:
 
 ## Try It In Two Minutes
 
-Clone the repo, install dev dependencies, and run the live checkout demo:
+Clone the repo, install `uv` and Hurl, and run the checkout demo:
 
 ```bash
 git clone https://github.com/sakibshuvo/Entroping.git
 cd Entroping
-uv sync --dev
-brew install hurl # macOS; use your package manager elsewhere
-scripts/live_demo_smoke.sh
+brew install uv hurl # macOS; use your package manager elsewhere
+scripts/demo.sh
 ```
 
 Expected proof:
@@ -56,11 +55,15 @@ Wrote report: reports/junit.xml
 Wrote report: reports/run-latest.html
 ```
 
+`scripts/demo.sh` is the friendly checkout entrypoint. It delegates to the
+same deterministic `scripts/live_demo_smoke.sh` release gate used by CI and
+launch-asset rebuilds.
+
 For public launch previews, use the
 [Two-Minute Demo Assets](docs/assets/launch/README.md):
 
 - [Terminal demo screenshot](docs/assets/launch/terminal-demo-screenshot.png)
-  from `scripts/live_demo_smoke.sh`.
+  from the same live smoke path used by `scripts/demo.sh`.
 - [HTML report screenshot](docs/assets/launch/html-report-screenshot.png)
   captured from `reports/run-latest.html`.
 - [Dependency map screenshot](docs/assets/launch/dependency-map-screenshot.png)

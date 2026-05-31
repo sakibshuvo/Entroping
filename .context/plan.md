@@ -130,6 +130,10 @@ tree as the source instead of duplicating docs.
 Issue #183 recommends the distribution sequence: keep `uv tool install` first,
 activate PyPI/TestPyPI next, prototype Homebrew after the PyPI alpha, and defer
 standalone binaries/signing until there is demand.
+Issue #230 chooses `scripts/demo.sh` as the friendly v0.2 checkout demo
+entrypoint while preserving `scripts/live_demo_smoke.sh` as the CI/release
+primitive and deferring product-level demo commands until packaging can carry
+fixtures cleanly.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
