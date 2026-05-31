@@ -44,6 +44,7 @@
 - Added issue #196's Studio mutation workflow design note, keeping v0.3 Studio read-only while documenting future preview, two-step confirmation, no-raw-secret, rollback, and test gates.
 - Added issue #192's read-only Studio applied-gate drilldowns by linking latest-run rule IDs to QAnstitution gate definitions without running Hurl or mutating tests/config.
 - Added issue #190's read-only Studio traffic session browser, using read-only SQLModel-backed state access plus existing traffic session and graph compilers to show target/dependency route summaries and safe redaction category counts without starting capture or rendering raw traffic values.
+- Added issue #229's Python compatibility policy: package metadata now claims Python 3.12 and 3.13 only, CI runs security regression and optional-extras smoke on both versions, and release docs no longer imply unproven Python 3.14 support.
 
 ## 2026-05-30
 

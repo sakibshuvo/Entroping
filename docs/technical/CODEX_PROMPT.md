@@ -56,7 +56,7 @@ Dependencies point inward. Domain code must not depend on adapters.
 
 ## Type and Validation Rules
 
-- Use Python 3.12+ typing.
+- Use Python 3.12-compatible typing. CI proves Python 3.12 and 3.13, but 3.12 remains the syntax and mypy floor.
 - Use Pydantic v2 for external-facing schemas.
 - Avoid `Any` in application logic.
 - Validate `qanstitution.yaml` before use.

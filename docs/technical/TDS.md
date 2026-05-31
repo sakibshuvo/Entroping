@@ -22,7 +22,7 @@ The implementation should prefer boring, inspectable, strongly typed modules ove
 
 | Layer | Technology | Requirement |
 | --- | --- | --- |
-| Language | Python 3.12+ | Strict typing for application code |
+| Language | Python 3.12 or 3.13 | Strict typing for application code; CI proves Python 3.12 and 3.13, while 3.12 remains the syntax and mypy floor |
 | CLI | Typer + Rich | Human-friendly commands and errors |
 | TUI | Textual/Rich | `studio` local mission control |
 | Domain schemas | Pydantic v2 | Validated immutable-ish data models |

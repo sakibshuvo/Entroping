@@ -467,22 +467,34 @@ def test_read_merge_target_rejects_unsafe_or_unreadable_targets(
         architect_build._read_merge_target("tests/escape.hurl", root=tmp_path)
 
     monkeypatch.setattr(architect_build, "_reject_symlink_path", original_reject_symlink_path)
+    original_exists = Path.exists
+    original_is_file = Path.is_file
     original_stat = Path.stat
     target_resolved = target.resolve()
-    target_default_stat_calls = 0
 
     def fail_stat(self: Path, *, follow_symlinks: bool = True) -> os.stat_result:
-        nonlocal target_default_stat_calls
         if self == target_resolved and follow_symlinks:
-            target_default_stat_calls += 1
-        if self == target_resolved and follow_symlinks and target_default_stat_calls >= 4:
             raise OSError("stat failed")
         return original_stat(self, follow_symlinks=follow_symlinks)
 
+    def target_exists(self: Path) -> bool:
+        if self == target_resolved:
+            return True
+        return original_exists(self)
+
+    def target_is_file(self: Path) -> bool:
+        if self == target_resolved:
+            return True
+        return original_is_file(self)
+
+    monkeypatch.setattr(Path, "exists", target_exists)
+    monkeypatch.setattr(Path, "is_file", target_is_file)
     monkeypatch.setattr(Path, "stat", fail_stat)
     with pytest.raises(ValueError, match="Could not inspect"):
         architect_build._read_merge_target("tests/manual.hurl", root=tmp_path)
 
+    monkeypatch.setattr(Path, "exists", original_exists)
+    monkeypatch.setattr(Path, "is_file", original_is_file)
     monkeypatch.setattr(Path, "stat", original_stat)
     original_read_text = Path.read_text
 

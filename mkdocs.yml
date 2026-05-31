@@ -39,6 +39,7 @@ nav:
   - QAnstitution Reference: technical/QANSTITUTION_REFERENCE.md
   - Policy Pack Layout: technical/POLICY_PACK_LAYOUT.md
   - Studio Mutation Workflow Design: technical/STUDIO_MUTATION_WORKFLOW_DESIGN.md
+  - Python Compatibility: technical/PYTHON_COMPATIBILITY.md
   - Report Schemas: technical/REPORT_SCHEMAS.md
   - CLI Compatibility Audit: technical/CLI_COMPATIBILITY_AUDIT.md
   - Command Cheat Sheet: technical/COMMAND_CHEAT_SHEET.md

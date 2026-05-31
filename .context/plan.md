@@ -179,6 +179,10 @@ SQLModel-backed state: Studio uses a read-only query path plus existing traffic
 session and dependency-graph compilers to show inferred target/dependency route
 summaries and safe redaction categories without starting `watch`, rendering raw
 traffic values, or mutating runtime state.
+Issue #229 defines the alpha Python compatibility policy: Entroping supports
+Python 3.12 and 3.13, keeps 3.12 as the syntax and mypy floor, proves both
+versions in CI for security regression and optional-extras smoke, and does not
+claim Python 3.14 until a future compatibility issue adds evidence.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
@@ -679,6 +683,24 @@ Implemented boundaries:
 - Studio does not start `watch`, control capture, run Hurl, write config, edit
   tests, mutate reports, or render raw URLs with query values, headers, bodies,
   cookies, tokens, or secrets.
+
+## Completed Slice: Issue #229 Python Compatibility Policy
+
+Outcome: Entroping's alpha runtime support promise is explicit, package-level,
+and CI-proven.
+
+Implemented boundaries:
+
+- `pyproject.toml` now claims Python `>=3.12,<3.14` and advertises Python 3.12
+  plus 3.13 classifiers only.
+- The main CI security regression job runs on Python 3.12 and 3.13.
+- The optional-extras smoke job runs on Python 3.12 and 3.13 so LiteLLM,
+  mitmproxy, and Textual dependency surfaces are included in compatibility
+  proof.
+- Ruff and mypy remain anchored to Python 3.12 because it is the lowest
+  supported runtime and syntax floor.
+- Docs and release checklist explicitly avoid Python 3.14 claims until a future
+  compatibility issue adds CI evidence.
 
 ## Completed Slice: Issue #208 Performance Smoke Evidence
 

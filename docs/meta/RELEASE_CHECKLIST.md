@@ -60,11 +60,15 @@ file metadata, alpha classifier, and root release files.
 
 Before tagging, the latest `main` commit must have passing GitHub Actions jobs:
 
-- `checks`
+- `checks` on Python 3.12 and Python 3.13
 - `install-smoke`
 - `live-demo-smoke`
-- `optional-extras-smoke`
+- `optional-extras-smoke` on Python 3.12 and Python 3.13
 - `quality-audit`
+
+CI proves Python 3.12 and 3.13 for the security regression suite and optional
+extras smoke before release. Python 3.12 remains the syntax and mypy floor, and
+the package is not claimed for Python 3.14 until CI evidence is added.
 
 The `live-demo-smoke` job installs a pinned Hurl binary, verifies the archive
 against the reviewed `HURL_SHA256` value in `.github/workflows/ci.yml`,
@@ -96,6 +100,8 @@ Before tagging:
   posture claim.
 - Review `docs/technical/CLI_COMPATIBILITY_AUDIT.md` before any stable-core
   command, flag, exit-code, or report-artifact claim.
+- Review `docs/technical/PYTHON_COMPATIBILITY.md` before any supported-runtime
+  claim.
 - Confirm the `optional-extras-smoke` CI lane is passing before making claims
   about Brain/LiteLLM, Eye/mitmproxy, or Studio/Textual optional surfaces.
 - Confirm the `install-smoke` CI matrix is passing before making Linux, macOS,
