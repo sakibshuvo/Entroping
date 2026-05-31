@@ -22,6 +22,7 @@ Start here:
 - [GitHub Actions Starter](user/GITHUB_ACTIONS_STARTER.md)
 - [AI Provider Setup](user/AI_PROVIDER_SETUP.md)
 - [Use Cases](user/USE_CASES.md)
+- [Open-Core Boundaries](product/OPEN_CORE_BOUNDARIES.md)
 
 Core references:
 

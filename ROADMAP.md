@@ -72,7 +72,7 @@ Goal: deepen the alpha without weakening deterministic execution.
 
 Goal: connect Entroping to the places teams already review backend behavior.
 
-- GitHub PR annotations from JUnit, HTML, drift, and traceability reports.
+- Review integrations beyond the local GitHub Actions annotation command.
 - Reusable policy-pack structure for security, latency, compliance, and API governance.
 - Organization QAnstitution import governance design.
 - Stable report artifact schemas for downstream dashboards.
@@ -99,17 +99,20 @@ The Apache-2.0 public core should stay genuinely useful:
 - traffic capture, freeze, map
 - local reports
 - local-first Brain integration
+- local GitHub Actions PR annotations
 
 Commercial surfaces should sit around the core:
 
 - hosted team dashboard
 - organization policy registry
 - premium policy packs
-- PR annotations and team reporting
+- cross-repo team reporting
 - audit history and scheduled monitors
 - paid onboarding, support, and custom policy/test generation
 
-Do not make the free tool weak to force monetization. Adoption comes first.
+The detailed maintainer boundary lives in
+[OPEN_CORE_BOUNDARIES.md](docs/product/OPEN_CORE_BOUNDARIES.md). Do not make the
+free tool weak to force monetization. Adoption comes first.
 
 ## Explicitly Not Near-Term
 

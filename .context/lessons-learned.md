@@ -11,6 +11,7 @@
 - Optional dependency audits and optional runtime smokes are different gates. Keep the all-extras dependency audit in the security gate, and keep adapter boot checks in a separate CI job so default regression remains lightweight.
 - TUI polish should trail durable artifacts. Studio can make local inspection nicer, but the product truth needs to land first in CLI commands, sanitized reports, and CI-friendly files that agents and users can review without a custom UI.
 - Architect remediation hints should be constraints, not copied provider text. Tell users how to retry safely, but keep raw model output and parser streams out of the terminal.
+- Open-core monetization should distinguish local proof from team aggregation. Keep local runtime gates, reports, and PR annotations core; monetize hosted history, organization reporting, curated policy depth, and services.
 
 ## 2026-05-30
 
