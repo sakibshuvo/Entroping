@@ -106,6 +106,9 @@ workflow docs with `<repo-root>`, `<source-archive>`, and `ENTROPING_SOURCE_ROOT
 guidance so external agents and contributors can reuse the same flow.
 Issue #172 refreshed the public README status language so it describes the repo
 as the active alpha implementation without overclaiming production stability.
+Issue #174 rewrote the README as a public open-source front door: sourced hype
+and runtime-governance positioning first, two-minute live demo proof next, and
+deep Obsidian/spec inventory later.
 Issue #90 moved deterministic run orchestration behind `core.run_workflow`,
 leaving the CLI adapter responsible for option normalization, output, and exit
 mapping.

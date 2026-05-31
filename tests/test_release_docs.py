@@ -15,10 +15,25 @@ def test_readme_links_alpha_release_gate_and_checklist() -> None:
     assert "docs/meta/RELEASE_CHECKLIST.md" in readme
 
 
-def test_readme_current_status_does_not_understate_alpha_as_scaffold() -> None:
+def test_readme_is_demo_first_open_source_front_door() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-    current_status = readme.split("## Current Status", maxsplit=1)[1].split(
-        "## Quick Start",
+
+    assert "Code at the speed of AI. Don't crash at the speed of AI." in readme
+    assert "## Try It In Two Minutes" in readme
+    assert "## Deep Docs" in readme
+    assert "## Current Alpha" in readme
+    assert readme.index("## Try It In Two Minutes") < readme.index("## Current Alpha")
+    assert readme.index("## Try It In Two Minutes") < readme.index("## Deep Docs")
+
+    first_read = readme.split("## Current Alpha", maxsplit=1)[0]
+    assert "Available now:" not in first_read
+    assert first_read.count("\n- ") <= 18
+
+
+def test_readme_current_alpha_does_not_understate_alpha_as_scaffold() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    current_alpha = readme.split("## Current Alpha", maxsplit=1)[1].split(
+        "## Install",
         maxsplit=1,
     )[0]
     repo_map = readme.split("## Repository Map", maxsplit=1)[1].split(
@@ -26,7 +41,7 @@ def test_readme_current_status_does_not_understate_alpha_as_scaffold() -> None:
         maxsplit=1,
     )[0]
 
-    assert "active alpha implementation" in current_status
+    assert "active alpha implementation" in current_alpha
     assert "initial Entroping knowledge base and implementation scaffold" not in readme
     assert "Python package scaffold" not in readme
     assert "Try the scaffolded CLI" not in readme

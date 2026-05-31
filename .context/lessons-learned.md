@@ -1,5 +1,9 @@
 # Entroping Lessons Learned
 
+## 2026-05-31
+
+- The root README is a public product front door, not the full Obsidian vault index. Lead with the problem, promise, and executable demo proof; keep phase inventories, source maps, and agent context lower in the document or in linked docs.
+
 ## 2026-05-30
 
 - Security-sensitive path checks need component-level symlink rejection, not only final-path checks. Env loading, report writes, drift reports, state files, and generated Hurl writes all need to reject symlinked ancestors before resolving.
