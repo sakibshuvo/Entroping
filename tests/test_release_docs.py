@@ -11,8 +11,21 @@ def test_readme_links_alpha_release_gate_and_checklist() -> None:
 
     assert "scripts/release_check.sh" in readme
     assert "scripts/package_check.sh" in readme
-    assert "git+https://github.com/sakibshuvo/Entroping.git@v0.1.0-alpha" in readme
+    assert "git+https://github.com/sakibshuvo/Entroping.git@v0.1.1-alpha" in readme
     assert "docs/meta/RELEASE_CHECKLIST.md" in readme
+
+
+def test_public_roadmap_is_linked_from_front_door() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    roadmap = (REPO_ROOT / "ROADMAP.md").read_text(encoding="utf-8")
+    index = (REPO_ROOT / "00_INDEX.md").read_text(encoding="utf-8")
+
+    assert "[ROADMAP.md](ROADMAP.md)" in readme
+    assert "GitHub Project board" in readme
+    assert "[[ROADMAP|ROADMAP]]" in index
+    assert "v0.1.1-alpha Public Cleanup" in roadmap
+    assert "v1.0 Stable Core" in roadmap
+    assert "Explicitly Not Near-Term" in roadmap
 
 
 def test_readme_is_demo_first_open_source_front_door() -> None:
@@ -54,7 +67,7 @@ def test_alpha_release_checklist_documents_required_evidence() -> None:
         encoding="utf-8"
     )
 
-    assert "v0.1.0-alpha" in checklist
+    assert "v0.1.1-alpha" in checklist
     assert "scripts/package_check.sh" in checklist
     assert "License-Expression" in checklist
     assert "PyPI/TestPyPI tokens" in checklist

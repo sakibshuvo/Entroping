@@ -24,6 +24,7 @@ Use these first. They are the control panel for current work:
 
 ## Product Contract
 
+- [[ROADMAP|ROADMAP]] - public roadmap, release sequence, and open-core boundary.
 - [[docs/product/PRODUCT_SPEC|PRODUCT_SPEC]] - what Entroping is and what v4.1 must do.
 - [[docs/user/USER_GUIDE|USER_GUIDE]] - how a developer uses Entroping.
 - [[docs/product/MVP_PLAN|MVP_PLAN]] - implementation sequence.
@@ -42,6 +43,7 @@ Use these first. They are the control panel for current work:
 ## Work Management
 
 - [[docs/meta/ISSUE_TRACKING|ISSUE_TRACKING]] - GitHub issue tracking rules for bugs, features, and regressions.
+- [[ROADMAP|ROADMAP]] - public milestones and near-term sequencing.
 - [[docs/meta/TEST_STRATEGY|TEST_STRATEGY]] - regression suite and test-pyramid policy.
 - [[docs/meta/RELEASE_CHECKLIST|RELEASE_CHECKLIST]] - alpha release bar, required evidence, and known-not-built boundaries.
 - [[docs/meta/AUTONOMOUS_DEVELOPMENT|AUTONOMOUS_DEVELOPMENT]] - Codex-first autonomous workflow and future OpenCode/oMLX plan.

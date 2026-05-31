@@ -714,7 +714,7 @@ Use source/GitHub distribution first:
 ```text
 uv tool install -e .
 uv tool install git+https://github.com/sakibshuvo/Entroping.git
-uv tool install git+https://github.com/sakibshuvo/Entroping.git@v0.1.0-alpha
+uv tool install git+https://github.com/sakibshuvo/Entroping.git@v0.1.1-alpha
 ```
 
 Before any release claim, verify local artifacts:
