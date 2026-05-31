@@ -166,6 +166,16 @@ maps from redacted traffic; `freeze --mock <service>` writes WireMock-compatible
 dependency mappings. PNG export requires local Graphviz `dot`; use Mermaid, DOT,
 or Markdown export when Graphviz is not installed.
 
+Review what redaction categories fired before freezing or mapping:
+
+```bash
+entroping report redaction --output md
+```
+
+The redaction review writes `reports/redaction-review.md` by default and can
+write `reports/redaction-review.html` with `--output html`. It contains counts
+and categories only, not raw header, query, or body values.
+
 Freeze the session into tests:
 
 ```bash

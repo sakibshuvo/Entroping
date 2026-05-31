@@ -552,6 +552,7 @@ Reports are written under `reports/`.
 | Drift JSON | `run --drift-check` or `--report drift` | `.entroping/drift-baseline.json` comparison |
 | Audit Markdown | `architect audit --output md` | Gap review |
 | Bug Markdown | `report bug` | Issue tracker handoff |
+| Redaction Review | `report redaction --output md|html` | Captured-traffic redaction coverage review |
 | Traceability Markdown | `report traceability --output md` | Local story/test coverage review |
 
 JUnit is required because it is the common denominator for CI. Allure can consume JUnit later. JaCoCo is not a fit because Entroping is black-box runtime testing, not code coverage instrumentation.
@@ -596,6 +597,7 @@ entroping map [--export <mermaid|dot|md|png>]
 entroping studio [--env <name>]
 entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check]
 entroping report bug
+entroping report redaction [--output <md|html>]
 entroping report traceability [--output md]
 ```
 
@@ -627,6 +629,8 @@ headers are not stored as drift truth.
 | `entroping run --report html` | `reports/run-latest.html` | Human-readable local report. |
 | `entroping run --report drift` | `reports/drift.json` | Machine-readable drift findings. |
 | `entroping report bug` | `reports/bug.md` | Markdown handoff for issue trackers. |
+| `entroping report redaction --output md` | `reports/redaction-review.md` | Counts-only captured-traffic redaction review. |
+| `entroping report redaction --output html` | `reports/redaction-review.html` | Browser-readable captured-traffic redaction review. |
 | `entroping report traceability --output md` | `stdout Markdown` | Local story/test coverage report. |
 
 If `.entroping/dependency-baseline.json` exists, the same drift run also compares

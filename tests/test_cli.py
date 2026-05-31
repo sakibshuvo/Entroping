@@ -2565,6 +2565,81 @@ def test_report_bug_wraps_writer_errors(
     assert "could not write bug" in result.output
 
 
+def test_report_redaction_writes_markdown_without_raw_secret(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    _record_freeze_exchange(tmp_path, secret="redaction-secret")
+
+    result = runner.invoke(app, ["report", "redaction"])
+
+    assert result.exit_code == 0
+    assert "reports/redaction-review.md" in result.output
+    content = Path("reports/redaction-review.md").read_text(encoding="utf-8")
+    assert "# Entroping Redaction Review" in content
+    assert "request authorization header" in content
+    assert "request password body field" in content
+    assert "redaction-secret" not in content
+    assert "[REDACTED]" not in content
+
+
+def test_report_redaction_writes_html_without_raw_secret(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    _record_freeze_exchange(tmp_path, secret="redaction-html-secret")
+
+    result = runner.invoke(app, ["report", "redaction", "--output", "html"])
+
+    assert result.exit_code == 0
+    assert "reports/redaction-review.html" in result.output
+    content = Path("reports/redaction-review.html").read_text(encoding="utf-8")
+    assert "<h1>Entroping Redaction Review</h1>" in content
+    assert "request authorization header" in content
+    assert "redaction-html-secret" not in content
+    assert "[REDACTED]" not in content
+
+
+def test_report_redaction_reports_missing_traffic_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "redaction"])
+
+    assert result.exit_code == 1
+    assert "No traffic state found" in result.output
+    assert not (tmp_path / "reports" / "redaction-review.md").exists()
+
+
+def test_report_redaction_reports_empty_traffic_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from entroping.core.traffic_store import TrafficStore
+
+    monkeypatch.chdir(tmp_path)
+    TrafficStore.open_project(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "redaction"])
+
+    assert result.exit_code == 1
+    assert "contains no traffic records" in result.output
+    assert not (tmp_path / "reports" / "redaction-review.md").exists()
+
+
+def test_report_redaction_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["report", "redaction", "--output", "json"])
+
+    assert result.exit_code == 2
+    assert "Unsupported redaction output" in result.output
+
+
 def test_report_traceability_outputs_empty_suite_markdown(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

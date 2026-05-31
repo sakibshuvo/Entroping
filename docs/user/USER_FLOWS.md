@@ -7,7 +7,7 @@
 | Flow | User | Primary Commands |
 | --- | --- | --- |
 | Genesis for a new API | Developer | `init`, `architect build`, `run` |
-| Legacy rescue | QA/SDET | `watch`, `freeze`, `map`, `run` |
+| Legacy rescue | QA/SDET | `watch`, `report redaction`, `freeze`, `map`, `run` |
 | Active feature development | Developer | `architect build`, `architect refactor`, `run` |
 | CI quality gate | Platform team | `doctor`, `run --ci` |
 | Governance rollout | Architect | `config`, QAnstitution imports, `doctor` |
@@ -125,15 +125,17 @@ An API lacks reliable tests or complete specs.
 1. Start `watch`.
 2. Route traffic through proxy.
 3. Exercise important user journeys.
-4. Freeze captured session.
-5. Review generated Hurl.
-6. Run regression suite.
-7. Export dependency map.
+4. Review redaction coverage.
+5. Freeze captured session.
+6. Review generated Hurl.
+7. Run regression suite.
+8. Export dependency map.
 
 ### Commands
 
 ```bash
 entroping watch --port 8080 --target http://localhost:3000
+entroping report redaction --output md
 entroping freeze --name checkout_flow --golden
 entroping run --env local --tag regression --report html
 entroping map --export mermaid
@@ -142,6 +144,7 @@ entroping map --export mermaid
 ### Success Criteria
 
 - Captured traffic is redacted.
+- Redaction review reports counts and categories only.
 - Generated tests are parameterized.
 - Golden assertions avoid unstable fields unless explicitly locked.
 - Dependency map reveals external services.

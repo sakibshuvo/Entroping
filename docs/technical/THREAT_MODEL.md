@@ -138,9 +138,9 @@ The **Dependency policy** is local-first and conservative:
 | QAnstitution | Pydantic models forbid extras, validate condition DSL at load time, and reject malformed policies. |
 | Hurl execution | Subprocess adapter uses argument arrays, timeouts, redaction, minimal environment, temp execution copies, and deterministic report ordering. |
 | Filesystem | Safe writes reject symlinked path components and preserve existing artifacts on atomic-write failure. |
-| Reports | JSON, JUnit, HTML, Markdown, audit, and traceability outputs escape or redact untrusted values. |
+| Reports | JSON, JUnit, HTML, Markdown, audit, redaction, and traceability outputs escape or redact untrusted values. |
 | Brain | Prompt builder rejects secret-like context, provider errors are redacted, output is parsed before write, and Hurl validation runs before generated files land. |
-| Traffic | Redaction covers sensitive headers, URL userinfo/query values, JSON fields, token-like text, and bounded body summaries before SQLModel persistence. |
+| Traffic | Redaction covers sensitive headers, URL userinfo/query values, JSON fields, token-like text, and bounded body summaries before SQLModel persistence; `report redaction` lets users inspect counts-only coverage before freezing or mapping. |
 | CI | Pull requests run `scripts/regression.sh --security`, `scripts/audit_quality.sh`, and live demo smoke. |
 
 ## Validated Findings And Remediation Status
@@ -148,12 +148,14 @@ The **Dependency policy** is local-first and conservative:
 The last full post-alpha security review was issue #96. It validated 14
 candidates and fixed all 14 before merge. **No open validated security findings**
 remain from that scan.
+The remediation tracked by issue #198 implemented the counts-only
+captured-traffic redaction review report so users can inspect redaction coverage
+before freezing or mapping traffic.
 
 Important follow-up issues that keep residual risk visible:
 
 | Issue | Residual risk tracked |
 | --- | --- |
-| issue #198 | Add a redaction review report for captured traffic so users can inspect what was kept or removed. |
 | issue #227 | Add optional-extras runtime smoke coverage for Brain/LiteLLM, Eye/mitmproxy, and Studio/Textual dependency surfaces. |
 | issue #206 | Build a cross-platform install and smoke matrix so release claims are not macOS-only. |
 | issue #203 | Stabilize report artifact schemas before downstream consumers depend on them. |
