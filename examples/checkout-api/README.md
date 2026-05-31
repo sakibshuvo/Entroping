@@ -81,6 +81,7 @@ PNGs out of Git unless a launch asset is intentionally curated and size-checked.
 - `smoke` tests should remain idempotent.
 - Hurl metadata uses comments so the Hurl parser can safely ignore Entroping-specific data.
 - The QAnstitution condition examples stay inside the supported small DSL.
+- The demo server returns `X-Request-Id` so the first-hour request-ID header gate is runnable.
 - The checked-in `.hurl` file uses a literal local URL so the alpha quickstart does not depend on environment-variable loading.
 - `envs/local.env.example` is safe to commit; copy it to the gitignored `envs/local.env` before running generated tests.
 - Generated OpenAPI tests are written under `tests/generated/` and use `{{base_url}}` from `--env local`.

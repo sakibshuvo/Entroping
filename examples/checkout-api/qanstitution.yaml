@@ -6,20 +6,20 @@ sources:
   spec: "./openapi.yaml"
 
 gates:
+  - id: "no_server_errors"
+    description: "Fail when an endpoint returns a server error"
+    condition: "true"
+    gate: "status < 500"
+    enforcement: "block"
   - id: "global_latency"
     description: "Every endpoint should respond within two seconds"
     condition: "true"
     gate: "duration < 2000"
     enforcement: "block"
-  - id: "smoke_latency"
-    description: "Smoke checks should stay fast"
-    condition: "tags contains 'smoke'"
-    gate: "duration < 500"
-    enforcement: "warn"
-  - id: "checkout_post_policy"
-    description: "Checkout creation receives stricter policy attention"
-    condition: "method == 'POST'"
-    gate: "header \"Content-Type\" contains \"application/json\""
+  - id: "request_id_header"
+    description: "Warn when a response is missing a request ID header for debugging"
+    condition: "true"
+    gate: 'header "X-Request-Id" exists'
     enforcement: "warn"
 
 settings:
@@ -27,4 +27,3 @@ settings:
   parallel_workers: 2
   follow_redirects: true
   retry: 0
-

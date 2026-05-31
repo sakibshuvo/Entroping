@@ -29,6 +29,7 @@ def test_demo_server_routes_health_response() -> None:
     assert response.status == 200
     assert json.loads(response.body) == {"status": "ok"}
     assert response.headers["Content-Type"] == "application/json"
+    assert response.headers["X-Request-Id"] == "demo-request"
 
 
 def test_demo_server_routes_checkout_response() -> None:
@@ -41,6 +42,7 @@ def test_demo_server_routes_checkout_response() -> None:
         "id": "chk_demo-cart-001",
         "status": "accepted",
     }
+    assert response.headers["X-Request-Id"] == "demo-request"
 
 
 def test_demo_server_routes_checkout_lookup_with_query() -> None:

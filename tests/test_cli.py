@@ -161,6 +161,33 @@ def test_init_minimal_creates_safe_runtime_skeleton(
     assert "global_latency" in Path("qanstitution.yaml").read_text(encoding="utf-8")
 
 
+def test_init_minimal_policy_starts_with_first_hour_gates(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["init", "--minimal"])
+
+    assert result.exit_code == 0
+    policy = yaml.safe_load(Path("qanstitution.yaml").read_text(encoding="utf-8"))
+    gates = policy["gates"]
+    assert [gate["id"] for gate in gates] == [
+        "no_server_errors",
+        "global_latency",
+        "request_id_header",
+    ]
+    assert [gate["gate"] for gate in gates] == [
+        "status < 500",
+        "duration < 2000",
+        'header "X-Request-Id" exists',
+    ]
+    assert gates[0]["enforcement"] == "block"
+    assert gates[1]["enforcement"] == "block"
+    assert gates[2]["enforcement"] == "warn"
+
+
 def test_init_creates_standard_runtime_skeleton(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

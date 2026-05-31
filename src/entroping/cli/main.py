@@ -89,11 +89,21 @@ version: "4.1"
 description: "Minimal Entroping governance policy"
 
 gates:
+  - id: "no_server_errors"
+    description: "Fail when an endpoint returns a server error"
+    condition: "true"
+    gate: "status < 500"
+    enforcement: "block"
   - id: "global_latency"
     description: "Every endpoint should respond within two seconds"
     condition: "true"
     gate: "duration < 2000"
     enforcement: "block"
+  - id: "request_id_header"
+    description: "Warn when a response is missing a request ID header for debugging"
+    condition: "true"
+    gate: 'header "X-Request-Id" exists'
+    enforcement: "warn"
 
 settings:
   timeout: 30000
