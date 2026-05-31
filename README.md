@@ -10,17 +10,71 @@ tags:
 
 # Entroping
 
-**AI-native quality governance for API and backend systems.**
+**Code at the speed of AI. Don't crash at the speed of AI.**
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/sakibshuvo/Entroping/badge)](https://scorecard.dev/viewer/?uri=github.com/sakibshuvo/Entroping)
 
-Entroping is a local-first integrity layer for high-velocity AI-assisted development. It lets AI help generate and maintain API tests, but it keeps final enforcement deterministic: committed Hurl files, executable governance rules, and reproducible CI reports.
+Entroping is a local-first runtime governance layer for AI-assisted backend
+development. Let agents generate code, propose tests, and refactor APIs; keep
+the merge decision deterministic with Hurl, executable policy gates, and
+CI-ready reports.
 
-> AI writes code fast. Entroping makes runtime truth slow enough to trust.
+The core rule is simple: **AI can suggest. Runtime truth decides.**
 
-## What It Is
+## Why Entroping
 
-Entroping turns product intent, API specifications, live traffic, and policy rules into a governance loop:
+AI can now ship backend changes faster than humans can fully review them. The
+hard failures rarely show up in static review: wrong status codes, broken auth,
+schema drift, undocumented dependencies, slow endpoints, and "looks fine" code
+that quietly breaks production behavior.
+
+Entroping gives that workflow a hard guardrail:
+
+- **QAnstitution is Law:** define security, latency, schema, and ownership rules once.
+- **Traffic is Truth:** capture real HTTP behavior and freeze it into regression coverage.
+- **Hurl is the Enforcer:** execute committed `.hurl` tests through a deterministic Rust binary.
+- **CI stays LLM-free:** generation can use AI, but `entroping run` is reproducible.
+
+## Try It In Two Minutes
+
+Clone the repo, install dev dependencies, and run the live checkout demo:
+
+```bash
+git clone https://github.com/sakibshuvo/Entroping.git
+cd Entroping
+uv sync --dev
+brew install hurl # macOS; use your package manager elsewhere
+scripts/live_demo_smoke.sh
+```
+
+Expected proof:
+
+```text
+Hurl run: 4 passed, 0 failed
+Wrote report: reports/run-latest.json
+Wrote report: reports/junit.xml
+Wrote report: reports/run-latest.html
+```
+
+For public launch previews, use the
+[Two-Minute Demo Assets](docs/assets/launch/README.md):
+
+- [Terminal demo screenshot set](docs/assets/launch/terminal-demo-screenshot-set.md)
+  from `scripts/live_demo_smoke.sh`.
+- [HTML report screenshot](docs/assets/launch/html-report-screenshot.svg)
+  derived from `reports/run-latest.html`.
+- [Dependency map example](docs/assets/launch/dependency-map-example.md)
+  generated from redacted traffic state.
+
+## What You Get
+
+Entroping is not another AI chat wrapper. It is an execution boundary for API
+quality:
+
+- Turn OpenAPI specs into reviewable Hurl regression tests.
+- Inject global QAnstitution gates into every run without mutating source tests.
+- Capture and redact live traffic, then freeze flows or dependency mocks.
+- Emit JSON, JUnit, HTML, drift, bug, and traceability reports for local review and CI.
 
 ```mermaid
 flowchart LR
@@ -30,85 +84,42 @@ flowchart LR
   Eye --> Tests
   Law["qanstitution.yaml"] --> Enforcer["Enforcer: entroping run"]
   Tests --> Enforcer
-  Enforcer --> Reports["JUnit, HTML, JSON, drift, bug reports"]
+  Enforcer --> Reports["Reports: JSON, JUnit, HTML, drift"]
   Reports --> CI["Local dev and CI gates"]
 ```
 
-The core rule is simple: **LLMs may propose tests, but Hurl and the QAnstitution decide pass or fail.**
-
-## Four Pillars
-
-- **Architect:** AI-assisted generation, refactoring, and audit of Hurl tests.
-- **Eye:** mitmproxy-powered traffic capture, golden flows, mocks, and dependency maps.
-- **Enforcer:** deterministic Hurl execution with QAnstitution gate injection.
-- **Lifecycle:** Git-native traceability through tags, story IDs, ADRs, reports, and CI artifacts.
-
-## Current Status
+## Current Alpha
 
 This repository is the active alpha implementation and Obsidian-friendly
 knowledge base for Entroping.
 
-Available now:
+Built today:
 
-- Product, technical, user, command, and MVP specifications.
-- Obsidian vault with linked evolution notes and ADRs.
-- Python package with the locked v4.1 CLI surface.
-- `entroping init --minimal` for a minimal local runtime skeleton and `qanstitution.yaml`.
-- `entroping doctor` for local Python, Hurl availability, and QAnstitution config health checks.
-- `entroping config list` and `entroping config set` for deterministic, non-secret agent model routing plus missing persona-template creation.
-- QAnstitution loading with root-bounded local imports, condition validation, duplicate gate checks, and final imported gate protection.
-- Hurl discovery, `# entroping:` metadata parsing, generated-state ignores, and tag-filter validation.
-- Bridge-level story traceability reports from discovered Hurl metadata, including missing story IDs and conflicting external doc links.
-- QAnstitution gate matching, temporary execution-copy injection, and deterministic Hurl subprocess execution through `entroping run`, including bounded `--parallel` execution.
-- Runner safety controls for timeouts, bounded output, redaction, non-zero exits, and temporary run-state cleanup.
-- Redacted JSON and JUnit reports through `entroping run --report json --report junit`.
-- Escaped HTML run reports through `entroping run --report html`.
-- Deterministic drift JSON reports through `entroping run --drift-check --report drift`, including run results, injected rule IDs, response status codes, selected stable headers, and JSON body shape fingerprints when available.
-- `entroping report bug` for Markdown handoff from the latest failing run.
-- LiteLLM-backed `entroping architect build --prompt` happy path with Builder persona/model loading, structured output parsing, parser-backed Hurl validation, redacted CLI output, and staged Architect-owned Hurl writes.
-- LiteLLM-backed `entroping architect build --strategy merge --prompt` for existing Architect-owned Hurl files and manual managed blocks.
-- LiteLLM-backed `entroping architect refactor` for selected Architect-owned Hurl files and manual Hurl files with explicit managed blocks, with safe target discovery, parser-backed validation, and manual-content preservation.
-- Eye capture-safe traffic models, redaction, and bounded local SQLite/SQLModel state under `.entroping/state.db`.
-- Capture-only `entroping watch` with lazy mitmproxy loading, target-scope filtering, pre-persistence redaction, and bounded local traffic state.
-- Basic `entroping freeze --name <flow> [--golden]` from redacted traffic state into validated generated Hurl files.
-- `entroping freeze --mock <service>` WireMock-compatible mappings from redacted dependency traffic.
-- `entroping map --export <mermaid|dot|md|png>` host-level dependency maps from redacted traffic state, with escaped labels, route latency/failure summaries, and optional Graphviz-backed PNG output.
-- Read-only `entroping studio --env <name>` status shell for latest run, reports, QAnstitution project, and traffic-state availability when the optional Studio extra is installed.
-- CI-ready local checks through `uv`, `ruff`, `mypy`, and `pytest`.
-- Local package artifact verification with wheel/sdist metadata checks through `scripts/package_check.sh`.
+- Locked v4.1 CLI surface for `init`, `doctor`, `config`, `architect`, `watch`,
+  `freeze`, `map`, `run`, `studio`, and `report`.
+- QAnstitution loading with safe local imports, typed condition validation,
+  duplicate gate checks, and final imported gate protection.
+- Hurl discovery, metadata parsing, tag filters, gate matching, temporary
+  execution-copy injection, subprocess timeouts, output redaction, and bounded
+  parallel execution.
+- JSON, JUnit, HTML, drift, bug, and traceability reporting.
+- Deterministic OpenAPI-to-Hurl generation plus Architect prompt build,
+  merge, refactor, audit, persona loading, LiteLLM routing, structured output
+  parsing, and pre-write Hurl validation.
+- Eye capture/freeze/map foundation with mitmproxy capture, SQLModel-backed
+  SQLite state, redaction before persistence, generated Hurl flows, WireMock
+  mappings, and Mermaid/DOT/Markdown/PNG dependency maps.
+- Local and CI quality gates through `uv`, `ruff`, `mypy`, `pytest`, coverage,
+  package verification, security checks, live demo smoke, and quality audit.
 
-Not built yet:
+Still alpha:
 
-- Latency trend drift and dependency-call drift beyond the current run-report baseline.
-- Broader Architect validation UX.
-- Full interactive Studio TUI beyond the current read-only status shell.
+- Latency trend drift and dependency-call drift are not beyond the current
+  value-free baseline comparison.
+- Architect UX is functional but intentionally narrow.
+- Studio is a read-only status shell, not a full interactive TUI.
 
-## Quick Start
-
-### Read the Product
-
-Open this repository in Obsidian and start with [00_INDEX.md](00_INDEX.md).
-
-Important docs:
-
-- [PRODUCT_SPEC.md](docs/product/PRODUCT_SPEC.md) - product contract.
-- [TDS.md](docs/technical/TDS.md) - technical design.
-- [FREEZE_MAP_PLAN.md](docs/technical/FREEZE_MAP_PLAN.md) - post-watch Eye implementation boundaries.
-- [COMMAND_CHEAT_SHEET.md](docs/technical/COMMAND_CHEAT_SHEET.md) - locked CLI namespace.
-- [MVP_PLAN.md](docs/product/MVP_PLAN.md) - implementation sequence.
-- [PROJECT_PROGRESS.md](docs/meta/PROJECT_PROGRESS.md) - current alpha progress dashboard.
-- [ISSUE_TRACKING.md](docs/meta/ISSUE_TRACKING.md) - bug, feature, and regression tracking workflow.
-- [TEST_STRATEGY.md](docs/meta/TEST_STRATEGY.md) - test pyramid and regression suite.
-- [RELEASE_CHECKLIST.md](docs/meta/RELEASE_CHECKLIST.md) - alpha release quality bar and evidence checklist.
-- [AGENT_CONTROL_PLANE.md](docs/meta/AGENT_CONTROL_PLANE.md) - Codex-first multi-agent workflow.
-- [KNOWLEDGE_BASE_WORKFLOW.md](docs/meta/KNOWLEDGE_BASE_WORKFLOW.md) - Obsidian, Gemini, NotebookLM, and Graphify source workflow.
-- [GROWTH_AND_MONETIZATION.md](docs/product/GROWTH_AND_MONETIZATION.md) - open-source growth and open-core monetization path.
-- [GLOSSARY.md](docs/meta/GLOSSARY.md) - plain-language terminology guide.
-- [EVOLUTION_TIMELINE.md](docs/evolution/EVOLUTION_TIMELINE.md) - product history.
-- [ADR-0001](decisions/ADR-0001-hurl-native-governance.md) - first architectural decision.
-- [examples/checkout-api](examples/checkout-api/README.md) - tiny demo fixture.
-
-### Install The CLI
+## Install
 
 The alpha is source-distributed first. PyPI, Homebrew, and standalone binaries
 are later distribution tracks.
@@ -131,14 +142,50 @@ For local development in a checkout:
 uv tool install -e .
 ```
 
-### Set Up Development
-
 Requirements:
 
 - Python 3.12+
 - [`uv`](https://docs.astral.sh/uv/)
-- [`hurl`](https://hurl.dev/) for the deterministic runner and demo
-- Optional for later roadmap work: `mitmproxy`, Ollama
+- [`hurl`](https://hurl.dev/) for deterministic execution and the live demo
+- Optional extras: `mitmproxy` for `watch`, LiteLLM providers for prompt-backed Architect work, Graphviz for PNG maps
+
+## Use The CLI
+
+Create a minimal local project:
+
+```bash
+entroping init --minimal
+entroping doctor
+```
+
+Generate tests from OpenAPI:
+
+```bash
+entroping architect build --new --tag smoke
+```
+
+Run deterministic tests and reports:
+
+```bash
+entroping run --env local --tag smoke --report json --report junit --report html
+```
+
+Capture and freeze legacy behavior:
+
+```bash
+entroping watch --target http://localhost:3000
+entroping freeze --name checkout_flow --golden
+entroping map --export mermaid
+```
+
+Route AI generation without putting the LLM in CI:
+
+```bash
+entroping config set --agent builder --model openai/gpt-4.1-mini
+entroping architect build --prompt "Generate checkout smoke coverage" --tag ai
+```
+
+## Develop Locally
 
 Install dependencies:
 
@@ -146,13 +193,13 @@ Install dependencies:
 uv sync --dev
 ```
 
-Run checks:
+Run the normal regression gate:
 
 ```bash
 scripts/regression.sh
 ```
 
-For security-sensitive or dependency work:
+Run security-sensitive gates:
 
 ```bash
 scripts/feature_gate.sh --security
@@ -161,17 +208,9 @@ scripts/regression.sh --security
 
 CI enforces `scripts/regression.sh --security` for pull requests and pushes to
 `main`. CI enforces `scripts/audit_quality.sh` as a separate quality-audit job
-after the fast security regression job, then uploads generated audit reports as
-workflow artifacts.
+and uploads generated reports as workflow artifacts.
 
 Local-only before release:
-
-```bash
-scripts/package_check.sh
-scripts/release_check.sh --require-live-demo
-```
-
-For alpha release readiness:
 
 ```bash
 scripts/package_check.sh
@@ -179,9 +218,7 @@ scripts/release_check.sh --dry-run --require-live-demo
 scripts/release_check.sh --require-live-demo
 ```
 
-If Hurl is not installed locally, `scripts/release_check.sh` still runs hygiene,
-package verification, and the security regression suite, then skips the live
-demo with an explicit message. The release-candidate form is documented in
+The release-candidate evidence checklist lives in
 [docs/meta/RELEASE_CHECKLIST.md](docs/meta/RELEASE_CHECKLIST.md).
 
 Start an isolated issue session:
@@ -202,101 +239,39 @@ scripts/context_pack.sh --mode growth
 scripts/context_pack.sh --mode handoff
 ```
 
-Try the CLI locally:
+## Deep Docs
 
-```bash
-uv run entroping --help
-repo_dir="$PWD"
-tmpdir="$(mktemp -d)"
-cd "$tmpdir"
-uv run --project "$repo_dir" entroping init --minimal
-uv run --project "$repo_dir" entroping doctor
-```
+Open this repository in Obsidian and start with [00_INDEX.md](00_INDEX.md).
 
-If `hurl` is installed and the project has `.hurl` tests:
+Product:
 
-```bash
-uv run --project "$repo_dir" entroping run --tag smoke
-```
+- [PRODUCT_SPEC.md](docs/product/PRODUCT_SPEC.md) - product contract.
+- [MVP_PLAN.md](docs/product/MVP_PLAN.md) - implementation sequence.
+- [GROWTH_AND_MONETIZATION.md](docs/product/GROWTH_AND_MONETIZATION.md) - open-source growth and open-core path.
 
-### Run the Alpha Demo
+Technical:
 
-Terminal 1:
+- [TDS.md](docs/technical/TDS.md) - technical design.
+- [QANSTITUTION_REFERENCE.md](docs/technical/QANSTITUTION_REFERENCE.md) - policy schema and examples.
+- [COMMAND_CHEAT_SHEET.md](docs/technical/COMMAND_CHEAT_SHEET.md) - locked CLI namespace.
+- [FREEZE_MAP_PLAN.md](docs/technical/FREEZE_MAP_PLAN.md) - Eye implementation boundaries.
 
-```bash
-python examples/checkout-api/demo_server.py --port 18080
-```
+Operating the project:
 
-Terminal 2:
+- [PROJECT_PROGRESS.md](docs/meta/PROJECT_PROGRESS.md) - alpha progress dashboard.
+- [ISSUE_TRACKING.md](docs/meta/ISSUE_TRACKING.md) - issue workflow.
+- [TEST_STRATEGY.md](docs/meta/TEST_STRATEGY.md) - test pyramid and regression suite.
+- [AGENT_CONTROL_PLANE.md](docs/meta/AGENT_CONTROL_PLANE.md) - Codex-first multi-agent workflow.
+- [KNOWLEDGE_BASE_WORKFLOW.md](docs/meta/KNOWLEDGE_BASE_WORKFLOW.md) - Obsidian, Gemini, NotebookLM, and Graphify workflow.
 
-```bash
-cd examples/checkout-api
-uv run --project ../.. entroping doctor
-uv run --project ../.. entroping run --tag smoke --report json --report junit
-```
+Orientation:
 
-Expected result:
-
-```text
-Hurl run: 1 passed, 0 failed
-Wrote latest run state: .entroping/latest-run.json
-Wrote report: reports/run-latest.json
-Wrote report: reports/junit.xml
-```
-
-Generate reviewable Hurl tests from the fixture OpenAPI source:
-
-```bash
-cd examples/checkout-api
-uv run --project ../.. entroping architect build --new --tag smoke
-cp envs/local.env.example envs/local.env
-uv run --project ../.. entroping run --env local --tag smoke --report html --report json --report junit
-ls tests/generated
-uv run --project ../.. entroping architect audit --output md
-```
-
-Current generation is deterministic and local-file only. It reads `sources.spec` from
-`qanstitution.yaml`, writes under `tests/generated/`, and does not call an LLM.
-It supports common path, query, header, and cookie parameters plus schema examples,
-defaults, constants, and enums for JSON request bodies. `--env local` loads
-`envs/local.env` and passes variables such as `base_url` to Hurl.
-
-Prompt-based Architect generation is available after you configure a non-secret
-model route and install optional AI dependencies. `config set` creates a safe local
-persona template when the configured persona file is missing. The checkout fixture
-does not ship provider credentials. The command also requires `hurlfmt` so generated
-Hurl can be parser-validated before files are written.
-
-```bash
-cd examples/checkout-api
-uv run --project ../.. entroping config set --agent builder --model openai/gpt-4.1-mini
-cd ../..
-uv sync --dev --extra ai
-cd examples/checkout-api
-uv run --project ../.. entroping architect build --prompt "Generate checkout smoke coverage" --tag ai
-```
-
-CI also runs the same live demo path with a pinned Hurl binary:
-
-```bash
-scripts/live_demo_smoke.sh
-```
-
-### Two-Minute Demo Assets
-
-For public launch previews, use the
-[Two-Minute Demo Assets](docs/assets/launch/README.md):
-
-- [Terminal demo screenshot set](docs/assets/launch/terminal-demo-screenshot-set.md)
-  from `scripts/live_demo_smoke.sh`.
-- [HTML report screenshot](docs/assets/launch/html-report-screenshot.svg)
-  derived from `reports/run-latest.html`.
-- [Dependency map example](docs/assets/launch/dependency-map-example.md)
-  generated from redacted traffic state.
-
-The committed launch kit stays text/SVG-first. Generated report files, terminal
-recordings, GIFs, PNGs, and local traffic state remain untracked unless a
-specific asset is curated and size-checked for release.
+- [USER_GUIDE.md](docs/user/USER_GUIDE.md) - practical user guide.
+- [USE_CASES.md](docs/user/USE_CASES.md) - concrete usage scenarios.
+- [GLOSSARY.md](docs/meta/GLOSSARY.md) - plain-language terminology guide.
+- [EVOLUTION_TIMELINE.md](docs/evolution/EVOLUTION_TIMELINE.md) - product history.
+- [ADR-0001](decisions/ADR-0001-hurl-native-governance.md) - first architectural decision.
+- [examples/checkout-api](examples/checkout-api/README.md) - tiny demo fixture.
 
 ## Planned CLI Surface
 
@@ -320,18 +295,8 @@ entroping report bug
 entroping report traceability [--output md]
 ```
 
-Deprecated names such as `gen`, `fix`, `scan`, `chaos`, and `report --type` are intentionally not primary commands.
-
-Current implementation supports `init`, `doctor`, deterministic `architect build --new`
-from local OpenAPI files with common parameters and schema examples, deterministic
-non-secret `config list` / `config set`, `run --env`, deterministic `architect audit`
-for OpenAPI coverage, deterministic `run`, JSON/JUnit run reports, HTML run reports,
-`report bug`, local `report traceability --output md`, and LiteLLM-backed
-`architect build --prompt` for parser-validated,
-Builder-generated Architect-owned Hurl files, prompt-backed `architect build
---strategy merge` for existing managed regions, plus LiteLLM-backed `architect
-refactor` for selected Architect-owned Hurl files and manual files that opt into
-managed-block replacement.
+Deprecated names such as `gen`, `fix`, `scan`, `chaos`, and `report --type`
+are intentionally not primary commands.
 
 ## Architecture
 
@@ -377,8 +342,8 @@ docs/technical/        TDS, QAnstitution, command contract, Codex prompt
 docs/user/             User guide, flows, and use cases
 docs/evolution/        Timeline, requirements analysis, and creator intent
 docs/architecture/     Architecture, diagrams, and development guide
-docs/meta/             Obsidian onboarding notes
-examples/              Minimal fixtures for onboarding and future tests
+docs/meta/             Obsidian onboarding, progress, and project operations
+examples/              Minimal fixtures for onboarding and tests
 decisions/             ADRs for durable product decisions
 sources/               Source-material map
 .context/              Working context, changelog, lessons learned
@@ -418,4 +383,6 @@ uv run --all-extras --with pip-audit pip-audit --progress-spinner off
 
 Entroping Core is licensed under Apache-2.0. See [LICENSE](LICENSE).
 
-The public core is intended to stay adoption-friendly and genuinely open source. Future hosted, team, enterprise, model, policy-pack, or support offerings may be distributed separately under commercial terms.
+The public core is intended to stay adoption-friendly and genuinely open source.
+Future hosted, team, enterprise, model, policy-pack, or support offerings may be
+distributed separately under commercial terms.

@@ -1,5 +1,10 @@
 # Entroping Changelog
 
+## 2026-05-31
+
+- Implemented issue #174's README front-door rewrite so the public overview now leads with the sourced AI-regression problem, two-minute live demo proof, launch assets, and concise alpha boundaries before deep Obsidian/spec inventory.
+- Added README guardrail tests that keep the public page demo-first and prevent the old "Available now" knowledge-dump structure from drifting back above the alpha/status sections.
+
 ## 2026-05-30
 
 - Promoted the 2026-05-29 NotebookLM Markdown export as the final current source snapshot for reconciliation, while keeping older Gemini and dated NotebookLM files archival.
