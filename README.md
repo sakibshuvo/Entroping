@@ -298,6 +298,7 @@ Operating the project:
 - [DOCS_GOVERNANCE.md](docs/meta/DOCS_GOVERNANCE.md) - documentation owners, roadmap gate, and PR declaration rules.
 - [TEST_STRATEGY.md](docs/meta/TEST_STRATEGY.md) - test pyramid and regression suite.
 - [GITHUB_ACTIONS_STARTER.md](docs/user/GITHUB_ACTIONS_STARTER.md) - copyable downstream CI workflow.
+- [CI_PROVIDER_RECIPES.md](docs/user/CI_PROVIDER_RECIPES.md) - GitLab CI, Buildkite, CircleCI, and generic shell guidance.
 - [PYPI_RELEASE_RUNBOOK.md](docs/meta/PYPI_RELEASE_RUNBOOK.md) - TestPyPI-first package-index publishing plan.
 - [PUBLIC_DOCS_SITE_DECISION.md](docs/meta/PUBLIC_DOCS_SITE_DECISION.md) - MkDocs Material public-site decision and scaffold.
 - [INSTALL_SMOKE_MATRIX.md](docs/meta/INSTALL_SMOKE_MATRIX.md) - Linux, macOS, and Windows install-smoke support claims.

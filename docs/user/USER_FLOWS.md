@@ -201,6 +201,8 @@ entroping report github-annotations
 
 For a copyable GitHub Actions workflow, use
 `docs/user/GITHUB_ACTIONS_STARTER.md`.
+For GitLab CI, Buildkite, CircleCI, or a generic shell runner, use
+`docs/user/CI_PROVIDER_RECIPES.md`.
 
 ### Success Criteria
 

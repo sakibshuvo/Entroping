@@ -31,6 +31,7 @@ nav:
   - Drift Baseline Workflow: user/DRIFT_BASELINE_WORKFLOW.md
   - Launch Demo Assets: assets/launch/README.md
   - GitHub Actions Starter: user/GITHUB_ACTIONS_STARTER.md
+  - CI Provider Recipes: user/CI_PROVIDER_RECIPES.md
   - AI Provider Setup: user/AI_PROVIDER_SETUP.md
   - Use Cases: user/USE_CASES.md
   - Open-Core Boundaries: product/OPEN_CORE_BOUNDARIES.md

@@ -141,6 +141,10 @@ Issue #202 defines organization QAnstitution import controls in ADR-0011:
 central policy imports remain part of the same effective local policy, must
 preserve provenance and `final: true` behavior, and should add effective-policy
 evidence before remote registries or approval workflows become runtime features.
+Issue #204 documents non-GitHub CI provider recipes without committing untested
+native templates: GitLab CI, Buildkite, and CircleCI should start from the same
+pinned-Hurl, tagged-Entroping, `doctor`, and `run --ci` shell sequence until a
+real provider runner proves a copyable template.
 Issue #183 recommends the distribution sequence: keep `uv tool install` first,
 activate PyPI/TestPyPI next, prototype Homebrew after the PyPI alpha, and defer
 standalone binaries/signing until there is demand.
