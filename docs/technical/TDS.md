@@ -371,6 +371,11 @@ merge --prompt` reuses the same managed-block and prepared-write boundaries for
 existing files only. Provider summaries, warnings, parser failures, and errors are
 redacted or summarized before CLI output. `entroping run` remains LLM-free.
 
+The deterministic `architect build --new` OpenAPI path also validates every
+compiled Hurl file through the same parser-backed Hurl validation boundary
+before writing any generated file. If one compiled file fails validation, no
+partial generated files are left behind.
+
 ### Provider Strategy
 
 The Brain is local-first and cloud-second:

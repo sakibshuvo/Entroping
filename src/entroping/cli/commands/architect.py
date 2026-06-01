@@ -2,6 +2,8 @@
 
 import json
 import sys
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
 from urllib.parse import urlparse
@@ -36,9 +38,19 @@ from entroping.cli.shared import (
 )
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
 from entroping.core.hurl_discovery import discover_hurl_tests, normalize_tag_filters
+from entroping.core.hurl_validator import validate_hurl_content
 from entroping.core.openapi_loader import OpenApiLoadError, load_openapi_document
 
 app = typer.Typer(help="Generate, refactor, and audit Hurl tests.")
+HurlValidator = Callable[[str, str], None]
+
+
+@dataclass(frozen=True)
+class PreparedGeneratedHurlFile:
+    """OpenAPI-generated Hurl content after path and parser validation."""
+
+    generated: GeneratedHurlFile
+    output_path: Path
 
 
 @app.command("build")
@@ -84,7 +96,8 @@ def architect_build(
             raise ValueError(msg)
         document = load_openapi_document(_configured_spec_reference(law.sources.spec))
         generated = compile_openapi_to_hurl(document, tags=tag_filters)
-        written = [_write_generated_hurl_file(item) for item in generated]
+        prepared = _prepare_generated_hurl_files(generated)
+        written = [_write_prepared_generated_hurl_file(item) for item in prepared]
     except (QanstitutionLoadError, OpenApiLoadError, OpenApiCompilationError, ValueError) as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
@@ -240,6 +253,23 @@ def _configured_spec_reference(spec: str) -> str | Path:
 
 
 def _write_generated_hurl_file(generated: GeneratedHurlFile) -> Path:
+    prepared = _prepare_generated_hurl_file(generated)
+    return _write_prepared_generated_hurl_file(prepared)
+
+
+def _prepare_generated_hurl_files(
+    generated: Sequence[GeneratedHurlFile],
+    *,
+    hurl_validator: HurlValidator | None = None,
+) -> tuple[PreparedGeneratedHurlFile, ...]:
+    prepared = tuple(_prepare_generated_hurl_file(item) for item in generated)
+    active_validator = hurl_validator or validate_hurl_content
+    for item in prepared:
+        active_validator(item.generated.content, item.generated.relative_path)
+    return prepared
+
+
+def _prepare_generated_hurl_file(generated: GeneratedHurlFile) -> PreparedGeneratedHurlFile:
     relative_path = Path(generated.relative_path)
     if relative_path.is_absolute() or ".." in relative_path.parts:
         msg = f"Generated Hurl path must stay inside the project: {generated.relative_path}"
@@ -264,8 +294,13 @@ def _write_generated_hurl_file(generated: GeneratedHurlFile) -> Path:
             msg = f"Refusing to overwrite non-OpenAPI Hurl file: {display_cli_path(output_path)}"
             raise ValueError(msg)
 
+    return PreparedGeneratedHurlFile(generated=generated, output_path=output_path)
+
+
+def _write_prepared_generated_hurl_file(prepared: PreparedGeneratedHurlFile) -> Path:
+    output_path = prepared.output_path
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(generated.content, encoding="utf-8")
+    output_path.write_text(prepared.generated.content, encoding="utf-8")
     return output_path
 
 

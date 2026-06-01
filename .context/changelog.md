@@ -2,6 +2,10 @@
 
 ## 2026-06-01
 
+- Added issue #342's OpenAPI-generated Hurl validation so
+  `architect build --new` validates every compiled Hurl file through the
+  parser-backed Hurl validator before writing and leaves no partial generated
+  files behind when validation fails.
 - Added issue #352's progress and agent-control cleanup so
   `docs/meta/PROJECT_PROGRESS.md` is a short daily dashboard again,
   `ROADMAP.md` separates product direction from backlog tracking,

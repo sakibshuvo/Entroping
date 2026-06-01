@@ -137,6 +137,7 @@ Deliverables:
 Exit criteria:
 
 - A fixture OpenAPI spec generates passing syntax.
+- Generated OpenAPI Hurl is parser-validated before any file is written.
 - Generated tests include tags and story metadata where available.
 - Merge strategy avoids unrelated rewrites.
 
