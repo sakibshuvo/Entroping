@@ -34,9 +34,11 @@ Do not duplicate every issue here. The detailed queue lives in GitHub.
 
 ## Current Target
 
-**Goal:** finish the v0.2 adoption path by turning the proven public demo,
-contributor path, downstream CI gate, and provider setup into clear packaging
-and docs-site decisions.
+**Goal:** finish the v0.4 integration path without reopening completed
+onboarding/product-depth work: keep GitHub Actions annotations as the proven
+integration, add new review or policy-pack integrations only through
+artifact-backed issues, and keep stable-core claims tied to repeated release,
+package-index, compatibility, security, and real-user evidence.
 
 GitHub Project: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 

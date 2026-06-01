@@ -6,6 +6,9 @@
   `entroping doctor` reports missing, readable, and incompatible
   `.entroping/state.db` state through the read-only SQLModel traffic-store
   boundary without creating runtime state.
+- Reconciled issue #277's public roadmap drift so completed v0.2 adoption and
+  v0.3 CLI/report-first depth are no longer presented as future work, and
+  v0.4 integration plus v1.0 stable-core evidence are the clear next frontier.
 
 ## 2026-05-31
 
