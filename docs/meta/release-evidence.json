@@ -34,21 +34,28 @@
   ],
   "latest_main_ci": {
     "workflow": "CI",
-    "run_id": 26734067652,
-    "created_at": "2026-06-01T03:48:09Z",
+    "run_id": 26736334578,
+    "created_at": "2026-06-01T05:08:06Z",
     "event": "push",
     "conclusion": "success",
-    "commit": "e667e438f6ebc95a9cf4d4c350b433e175ae0184",
-    "url": "https://github.com/sakibshuvo/Entroping/actions/runs/26734067652"
+    "commit": "24644cb0065dbe4eff6bf66fcc3237771d8ee2c6",
+    "url": "https://github.com/sakibshuvo/Entroping/actions/runs/26736334578"
   },
   "latest_pages_ci": {
     "workflow": "Pages",
-    "run_id": 26734067634,
-    "created_at": "2026-06-01T03:48:09Z",
+    "run_id": 26736334569,
+    "created_at": "2026-06-01T05:08:06Z",
     "event": "push",
     "conclusion": "success",
-    "commit": "e667e438f6ebc95a9cf4d4c350b433e175ae0184",
-    "url": "https://github.com/sakibshuvo/Entroping/actions/runs/26734067634"
+    "commit": "24644cb0065dbe4eff6bf66fcc3237771d8ee2c6",
+    "url": "https://github.com/sakibshuvo/Entroping/actions/runs/26736334569"
+  },
+  "downstream_smoke": {
+    "status": "local-pass",
+    "schema_version": "entroping.downstream-smoke.v1",
+    "recorded_at": "2026-06-01T05:02:00Z",
+    "command": "uv run python scripts/downstream_smoke.py --format json --artifact-dir <artifact-dir>",
+    "stable_boundary": "maintainer-controlled local smoke evidence only; not real downstream user feedback"
   },
   "package_index": {
     "status": "not-published",

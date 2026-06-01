@@ -28,6 +28,7 @@ The ledger records:
 - the release commits those tags point at;
 - last reviewed `main` CI evidence as of the ledger update;
 - last reviewed Pages deployment evidence as of the ledger update;
+- maintainer-controlled local smoke evidence from `scripts/downstream_smoke.py`;
 - package-index status;
 - explicit blockers that keep `stable_core_ready` false.
 
@@ -63,8 +64,8 @@ uv run python scripts/stable_core_readiness.py --strict
 ## Stable-Core Boundary
 
 Passing release evidence does not make Entroping stable-core ready. It only
-proves that the current alpha releases and recorded `main` CI evidence are
-recorded in a reviewed format.
+proves that the current alpha releases, recorded CI evidence, recorded Pages
+evidence, and local downstream smoke evidence are recorded in a reviewed format.
 
 `stable_core_ready` must remain `false` until the project has:
 
@@ -72,6 +73,10 @@ recorded in a reviewed format.
 - package-index proof from TestPyPI/PyPI Trusted Publishing;
 - a stable-core compatibility decision;
 - real downstream user feedback from projects outside this repository.
+
+The downstream smoke entry is maintainer-controlled local smoke evidence. It
+does not replace real downstream user feedback, package-index proof, or a user
+report from a project outside this repository.
 
 ## Update Workflow
 

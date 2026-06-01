@@ -28,7 +28,14 @@ def test_release_evidence_json_reports_alpha_ci_and_stable_blockers() -> None:
     assert payload["release_count"] >= 2
     assert payload["latest_release"] == "v0.1.1-alpha"
     assert payload["latest_main_ci"]["conclusion"] == "success"
-    assert payload["latest_main_ci"]["commit"] == "e667e438f6ebc95a9cf4d4c350b433e175ae0184"
+    assert payload["latest_main_ci"]["commit"] == "24644cb0065dbe4eff6bf66fcc3237771d8ee2c6"
+    assert payload["latest_pages_ci"]["conclusion"] == "success"
+    assert payload["latest_pages_ci"]["workflow"] == "Pages"
+    assert payload["downstream_smoke"]["status"] == "local-pass"
+    assert payload["downstream_smoke"]["schema_version"] == "entroping.downstream-smoke.v1"
+    assert payload["downstream_smoke"]["stable_boundary"].startswith(
+        "maintainer-controlled local smoke"
+    )
     assert "package-index proof" in payload["stable_core_blockers"]
     assert "real downstream user feedback" in payload["stable_core_blockers"]
     assert payload["ledger_path"] == "docs/meta/release-evidence.json"
@@ -41,6 +48,8 @@ def test_release_evidence_markdown_is_maintainer_readable() -> None:
     assert "# Release Evidence" in result.stdout
     assert "v0.1.1-alpha" in result.stdout
     assert "Recorded main CI evidence" in result.stdout
+    assert "Recorded Pages evidence" in result.stdout
+    assert "Downstream smoke evidence" in result.stdout
     assert "Latest main CI" not in result.stdout
     assert "Stable-core ready: `false`" in result.stdout
 
@@ -51,6 +60,8 @@ def test_release_evidence_docs_explain_ci_evidence_is_recorded() -> None:
     )
 
     assert "last reviewed `main` CI evidence" in docs
+    assert "last reviewed Pages deployment evidence" in docs
+    assert "maintainer-controlled local smoke evidence" in docs
     assert "does not automatically prove the current `main` HEAD" in docs
 
 
@@ -80,6 +91,22 @@ def test_release_evidence_strict_rejects_malformed_ledger(tmp_path: Path) -> Non
                     "commit": "short",
                     "url": "not-a-url",
                 },
+                "latest_pages_ci": {
+                    "workflow": "Wrong",
+                    "run_id": 0,
+                    "conclusion": "pending",
+                    "event": "workflow_dispatch",
+                    "created_at": "not-a-date",
+                    "commit": "short",
+                    "url": "not-a-url",
+                },
+                "downstream_smoke": {
+                    "status": "real-user-feedback",
+                    "schema_version": "wrong",
+                    "command": "python smoke.py",
+                    "recorded_at": "not-a-date",
+                    "stable_boundary": "stable",
+                },
             }
         ),
         encoding="utf-8",
@@ -92,6 +119,12 @@ def test_release_evidence_strict_rejects_malformed_ledger(tmp_path: Path) -> Non
     assert "stable_core_ready must remain false" in result.stderr
     assert "releases must contain at least two entries" in result.stderr
     assert "latest_main_ci.conclusion must be success" in result.stderr
+    assert "latest_pages_ci.workflow must be Pages" in result.stderr
+    assert "downstream_smoke.schema_version must be entroping.downstream-smoke.v1" in result.stderr
+    assert (
+        "downstream_smoke.stable_boundary must say it is not real downstream user feedback"
+        in result.stderr
+    )
 
 
 def test_release_check_runs_release_evidence_validator() -> None:
