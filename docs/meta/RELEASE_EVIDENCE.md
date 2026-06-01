@@ -55,6 +55,28 @@ For machine-readable output:
 uv run python scripts/release_evidence.py --format json --strict
 ```
 
+For a maintainer-only freshness check against the latest successful GitHub
+Actions runs on `main`, use:
+
+```bash
+uv run python scripts/release_evidence.py --check-freshness --strict
+```
+
+That optional check uses `gh run list` when GitHub CLI is installed and
+authenticated. If `gh` is missing, unauthenticated, or unavailable, the command
+reports `freshness.status=unavailable` and leaves normal offline ledger
+validation intact. It does not mutate the ledger; stale output names the exact
+recorded fields to refresh, such as `latest_main_ci.run_id`,
+`latest_main_ci.commit`, `latest_pages_ci.run_id`, and
+`latest_pages_ci.commit`.
+
+Tests and offline reviews can provide equivalent latest-run evidence through a
+fixture:
+
+```bash
+uv run python scripts/release_evidence.py --check-freshness --freshness-input freshness.json --strict
+```
+
 The stable-core readiness gate also validates this ledger through:
 
 ```bash
@@ -83,9 +105,12 @@ report from a project outside this repository.
 1. Create or verify the release/tag/CI evidence from GitHub.
 2. Update `docs/meta/release-evidence.json`.
 3. Run `uv run python scripts/release_evidence.py --strict`.
-4. Run `uv run python scripts/stable_core_readiness.py --strict`.
-5. Update `docs/meta/RELEASE_CHECKLIST.md` only if the release gate changes.
-6. Update `docs/meta/PROJECT_PROGRESS.md` only for phase-level status changes.
+4. Run `uv run python scripts/release_evidence.py --check-freshness --strict`
+   when the release or stable-core claim depends on the latest successful
+   `main` CI and Pages runs.
+5. Run `uv run python scripts/stable_core_readiness.py --strict`.
+6. Update `docs/meta/RELEASE_CHECKLIST.md` only if the release gate changes.
+7. Update `docs/meta/PROJECT_PROGRESS.md` only for phase-level status changes.
 
 ## Non-Goals
 

@@ -240,6 +240,10 @@ depending on TestPyPI, PyPI, or registry credentials.
 Issue #314 runs the downstream smoke harness from the release gate when Hurl is
 available, keeping local external-project proof fresh without treating it as
 real downstream user feedback.
+Issue #315 adds an optional release-evidence freshness check that compares the
+committed CI and Pages run IDs/commits with latest successful `main` runs
+through `gh`, or fixture JSON in tests, while keeping normal strict validation
+offline and read-only.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
@@ -247,20 +251,22 @@ subprocess isolation, filesystem symlink boundaries, traffic redaction/body
 limits, OpenAPI compilation/audit safety, policy gate semantics, Markdown
 escaping, generated Hurl writes, and live-demo workdir safety.
 
-## Current Slice: Issue #314 Downstream Smoke Release Gate
+## Current Slice: Issue #315 Release Evidence Freshness Check
 
-Issue #314 closes a release-gate freshness gap: the downstream smoke harness and
-release-evidence ledger exist, but the release gate did not execute the
-external temporary project proof during release checks.
+Issue #315 closes a maintainer-feedback gap: the release-evidence ledger records
+reviewed CI and Pages evidence, but there was no deterministic way to ask
+whether those recorded runs are behind the latest successful `main` workflows.
 
 Implementation focus:
 
-- Run `scripts/downstream_smoke.py` from `scripts/release_check.sh` when Hurl is
-  available.
-- Add an explicit `--skip-downstream-smoke` diagnostic option.
-- Keep dry-run output complete and missing-Hurl, fixture, and Entroping run
-  failures distinguishable.
-- Keep local downstream smoke separate from real downstream user feedback.
+- Add an explicit `scripts/release_evidence.py --check-freshness` mode.
+- Keep the default `scripts/release_evidence.py --strict` path offline and free
+  of GitHub API/GitHub CLI dependencies.
+- Compare `latest_main_ci` and `latest_pages_ci` run IDs and commits against
+  latest successful `main` runs when `gh` is available and authenticated.
+- Report unavailable `gh` or auth states clearly without mutating
+  `docs/meta/release-evidence.json`.
+- Support fixture input for deterministic tests and offline review.
 
 Completed security-review context: repository-wide scan artifacts were written
 under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, all
@@ -882,6 +888,26 @@ Implemented boundaries:
 - `scripts/release_check.sh` runs the smoke after `scripts/package_check.sh`
   with `--skip-build`, leaving package-index proof as an unresolved
   stable-core blocker until Trusted Publishing runs.
+
+## Completed Slice: Issue #315 Release Evidence Freshness Check
+
+Outcome: maintainers can ask whether committed release evidence is behind the
+latest successful `main` CI and Pages runs without turning normal offline
+validation into a network-dependent gate.
+
+Implemented boundaries:
+
+- `scripts/release_evidence.py --check-freshness` compares recorded
+  `latest_main_ci` and `latest_pages_ci` `run_id` and `commit` values with
+  latest successful `main` runs.
+- `--freshness-input <json>` allows deterministic fixture-backed checks for
+  tests and offline review.
+- Missing or unauthenticated `gh` is reported as `freshness.status=unavailable`
+  instead of failing normal ledger validation.
+- Stale evidence reports the exact ledger fields to refresh and exits non-zero
+  only when combined with `--strict`.
+- The check never mutates `docs/meta/release-evidence.json`; release owners
+  still refresh the ledger deliberately.
 
 ## Completed Slice: Issue #314 Downstream Smoke Release Gate
 

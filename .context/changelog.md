@@ -2,6 +2,10 @@
 
 ## 2026-06-01
 
+- Added issue #315's optional release-evidence freshness check so maintainers
+  can compare committed CI/Pages run IDs and commits with latest successful
+  `main` runs through `gh`, or fixture input in tests, without mutating the
+  ledger or making normal release validation network-dependent.
 - Added issue #314's downstream smoke release-gate wiring so
   `scripts/release_check.sh` runs `scripts/downstream_smoke.py` when Hurl is
   available, supports `--skip-downstream-smoke` for diagnostics, and reports

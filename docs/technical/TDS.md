@@ -822,6 +822,15 @@ The downstream smoke creates a separate temporary API project and executes
 release-gate proof that the core works outside its own checkout, while real
 downstream user feedback remains a separate stable-core blocker.
 
+Release evidence is recorded in `docs/meta/release-evidence.json` and validated
+offline with `uv run python scripts/release_evidence.py --strict`. Maintainers
+can optionally run
+`uv run python scripts/release_evidence.py --check-freshness --strict` to
+compare recorded CI and Pages run IDs/commits against the latest successful
+GitHub Actions runs on `main`. That freshness path is read-only, reports
+unavailable GitHub CLI/auth states clearly, and never updates the ledger
+automatically.
+
 Package-index publishing is controlled by `docs/meta/PYPI_RELEASE_RUNBOOK.md`
 and the manual `.github/workflows/publish-python-package.yml` workflow. The
 preferred path is TestPyPI first, then PyPI, using Trusted Publishing through

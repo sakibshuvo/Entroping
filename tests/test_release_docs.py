@@ -134,6 +134,7 @@ def test_alpha_release_checklist_documents_required_evidence() -> None:
     assert "v0.1.1-alpha" in checklist
     assert "RELEASE_EVIDENCE.md" in checklist
     assert "scripts/release_evidence.py --strict" in checklist
+    assert "scripts/release_evidence.py --check-freshness" in checklist
     assert "scripts/package_check.sh" in checklist
     assert "scripts/local_wheel_install_smoke.py --skip-build" in checklist
     assert "scripts/downstream_smoke.py" in checklist
@@ -207,4 +208,6 @@ def test_release_evidence_ledger_is_discoverable_from_vault_and_docs() -> None:
     assert "[[docs/meta/RELEASE_EVIDENCE|RELEASE_EVIDENCE]]" in index
     assert "docs/meta/release-evidence.json" in release_evidence
     assert "scripts/release_evidence.py --strict" in release_evidence
+    assert "scripts/release_evidence.py --check-freshness" in release_evidence
+    assert "does not mutate the ledger" in release_evidence
     assert "release-evidence.json" in stable_readiness
