@@ -511,7 +511,7 @@ def _render_html_report(report: RunReport) -> str:
     <dt>Project</dt><dd>{escape(report.project)}</dd>
     <dt>Environment</dt><dd>{escape(report.environment)}</dd>
     <dt>Generated</dt><dd>{escape(report.generated_at)}</dd>
-    <dt>Summary</dt><dd>{summary}</dd>
+    <dt>Summary</dt><dd>{escape(summary)}</dd>
   </dl>
   <table>
     <thead>

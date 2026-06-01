@@ -2,6 +2,9 @@
 
 ## 2026-06-01
 
+- Added issue #343's HTML run-summary escaping so the local HTML report now
+  escapes the summary header consistently with project, environment, generated
+  timestamp, rule IDs, known-failure summaries, and captured output.
 - Added issue #342's OpenAPI-generated Hurl validation so
   `architect build --new` validates every compiled Hurl file through the
   parser-backed Hurl validator before writing and leaves no partial generated

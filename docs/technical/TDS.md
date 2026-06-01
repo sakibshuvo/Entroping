@@ -589,6 +589,9 @@ Reports are written under `reports/`.
 | Review Summary | `report review-summary` | Provider-neutral Markdown from local report artifacts |
 
 JUnit is required because it is the common denominator for CI. Allure can consume JUnit later. JaCoCo is not a fit because Entroping is black-box runtime testing, not code coverage instrumentation.
+HTML report rendering must escape all dynamic header and row content, including
+project, environment, generated timestamp, summary text, test paths, statuses,
+rule IDs, known-failure summaries, and captured Hurl output.
 
 ## 14. CLI Contracts
 

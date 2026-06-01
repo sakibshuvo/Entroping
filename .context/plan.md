@@ -28,6 +28,8 @@ project, and a Codex workspace with fast context rehydration.
   copies, and expired entries block before Hurl execution.
 - Deterministic OpenAPI generation now validates every compiled Hurl file
   before writing and avoids partial generated output on parser failure.
+- HTML run reports escape header fields, summary text, rule IDs,
+  known-failure summaries, and captured Hurl output before rendering.
 - Example coverage includes REST-style checkout/support fixtures plus
   GraphQL-over-HTTP and SOAP-over-HTTP fixtures that use ordinary Hurl
   assertions instead of adding protocol-specific runtime engines.
