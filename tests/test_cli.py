@@ -253,6 +253,87 @@ def test_doctor_reports_valid_config_health(
     assert "QAnstitution: valid" in result.output
 
 
+def test_doctor_reports_missing_traffic_state_without_creating_it(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        project_cli,
+        "discover_hurl",
+        lambda binary="hurl": SimpleNamespace(available=True, path=f"/usr/local/bin/{binary}"),
+    )
+    runner.invoke(app, ["init", "--minimal"])
+    state_path = tmp_path / ".entroping" / "state.db"
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 0
+    assert "Traffic state: not found" in result.output
+    assert "capture traffic with entroping watch" in result.output
+    assert not state_path.exists()
+
+
+def test_doctor_reports_valid_traffic_state_exchange_count(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        project_cli,
+        "discover_hurl",
+        lambda binary="hurl": SimpleNamespace(available=True, path=f"/usr/local/bin/{binary}"),
+    )
+    runner.invoke(app, ["init", "--minimal"])
+    _record_freeze_exchange(tmp_path)
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 0
+    assert "Traffic state: valid (.entroping/state.db, 1 exchange)" in result.output
+
+
+def test_doctor_fails_on_unsupported_traffic_state_schema(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from sqlmodel import Session, SQLModel, create_engine
+
+    from entroping.core.traffic_store import (
+        TRAFFIC_STORE_SCHEMA_VERSION,
+        TrafficStoreMetadataRow,
+    )
+
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        project_cli,
+        "discover_hurl",
+        lambda binary="hurl": SimpleNamespace(available=True, path=f"/usr/local/bin/{binary}"),
+    )
+    runner.invoke(app, ["init", "--minimal"])
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir(exist_ok=True)
+    engine = create_engine(f"sqlite:///{state_dir / 'state.db'}")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        session.add(
+            TrafficStoreMetadataRow(
+                key="schema_version",
+                value=str(TRAFFIC_STORE_SCHEMA_VERSION + 1),
+            )
+        )
+        session.commit()
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 1
+    assert "Traffic state: invalid" in result.output
+    assert "newer than supported" in result.output
+
+
 def test_doctor_fails_with_actionable_invalid_config(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

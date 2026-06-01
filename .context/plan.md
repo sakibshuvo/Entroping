@@ -228,6 +228,8 @@ Implementation focus:
 - Use SQLModel as the typed persistence layer for traffic state.
 - Keep traffic-store schema evolution explicit through version metadata,
   fail-closed future-version handling, and reviewed migrations.
+- Keep `entroping doctor` as the non-mutating local health check for existing
+  traffic-store compatibility.
 - Keep the Typer entrypoint small by routing command groups through focused
   CLI adapter modules.
 - Keep Studio optional and typed without disabling static checking at the
