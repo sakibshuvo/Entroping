@@ -258,6 +258,10 @@ Issue #318 adds a downstream feedback evidence kit so real external-user
 feedback can be collected safely without secrets, private URLs, raw traffic, or
 proprietary payloads, while keeping local downstream smoke separate from real
 user evidence.
+Issue #312 defines the policy-pack distribution path so versioning, imports,
+verification, attribution, open-core/premium boundaries, minimum smoke evidence,
+and follow-up implementation work are explicit before registries or hosted
+catalogs.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
@@ -312,6 +316,23 @@ Implemented boundaries:
   index, public docs index, and MkDocs navigation link to the kit.
 - `scripts/stable_core_readiness.py` keeps the real feedback blocker open but
   marks #318 as done in the blocker issue map.
+
+## Completed Slice: Issue #312 Policy-Pack Distribution And Provenance Path
+
+Outcome: reusable policy packs now have a local-first distribution decision
+before any registry, hosted catalog, or premium pack implementation exists.
+
+Implemented boundaries:
+
+- `docs/technical/POLICY_PACK_DISTRIBUTION.md` defines versioning, distribution
+  modes, local import verification, provenance, attribution, open-core versus
+  premium boundaries, and minimum smoke evidence.
+- Distributed packs must become local, inspectable QAnstitution imports before
+  deterministic runtime.
+- The decision explicitly keeps no registry fetch, no telemetry, no
+  paid-service dependency, and no runtime manifest dependency out of
+  `entroping run`.
+- Follow-up implementation work remains issue-backed.
 
 ## Completed Slice: Issue #319 Stable-Core Blocker Issue Map
 

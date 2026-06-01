@@ -106,6 +106,9 @@ separate issue for the paid surface.
   [POLICY_PACK_LAYOUT.md](../technical/POLICY_PACK_LAYOUT.md), with starter
   examples in core and premium curation kept separate from local runtime
   enforcement.
+- Policy-pack distribution, provenance, attribution, and premium-pack
+  boundaries are defined in
+  [POLICY_PACK_DISTRIBUTION.md](../technical/POLICY_PACK_DISTRIBUTION.md).
 - Public docs and examples should describe the core first. Commercial language
   should be explicit, separate, and never imply that the local CLI is crippled.
 

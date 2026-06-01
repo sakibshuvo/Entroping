@@ -2,6 +2,10 @@
 
 ## 2026-06-01
 
+- Policy-pack distribution should be a file provenance problem before it is a
+  registry problem. Define versioning, attribution, local verification, and
+  open-core/premium boundaries first; only then add pack commands, checksums,
+  signatures, external repo smoke, or hosted catalog exports.
 - Real downstream feedback needs a sanitized intake template before users show
   up. Ask for install path, environment, commands, outcome, friction, and
   short redacted logs; explicitly reject secrets, private URLs, raw traffic,

@@ -15,6 +15,8 @@ This note defines the reusable QAnstitution policy-pack shape before community
 or premium packs exist. It is intentionally local-first: packs are ordinary
 files, the runtime still consumes only QAnstitution imports, and provenance is
 validated by release-owner smoke evidence before any registry behavior exists.
+Distribution and attribution rules live in
+[POLICY_PACK_DISTRIBUTION.md](POLICY_PACK_DISTRIBUTION.md).
 
 ## Decision
 
