@@ -86,6 +86,7 @@ Pack verification should happen before advertising or upgrading a pack:
 
 ```bash
 uv run python scripts/policy_pack_smoke.py --pack examples/policy-packs/api-baseline --strict
+uv run python scripts/policy_pack_smoke.py --pack ./vendor/acme-strict-api --format json --strict > policy-pack-evidence.json
 entroping report policy --output md
 entroping doctor
 ```
@@ -94,6 +95,21 @@ The smoke command proves that manifest-declared gates, local gate files, final
 flags, entrypoint imports, and the consumer example match the loaded
 QAnstitution evidence. `entroping report policy` shows the effective gate
 provenance in the consumer project.
+
+The reusable evidence payload is intentionally attachable to issues, releases,
+or pack reviews. JSON output uses schema `entroping.policy-pack-smoke.v1` and
+artifact type `policy-pack-verification`. Markdown output renders the same
+information for human review. The payload includes:
+
+- pack ID, local path, entrypoint, runtime contract, loaded imports, gate IDs,
+  and final gate IDs;
+- provenance source, license, supported Entroping range, evidence command, and
+  manifest-declared gate source files;
+- attribution source, license, README, maintainers, and optional publisher;
+- consumer-example evidence showing the local import path, local consumer gates,
+  and effective gates after the pack is vendored into a temporary local project;
+- explicit failures when manifest, entrypoint, final-gate, consumer-example, or
+  attribution evidence drifts.
 
 Verification must preserve final-gate behavior. If a pack marks a gate
 `final: true`, consumers cannot override it by redefining the same gate ID.
@@ -139,8 +155,12 @@ final-gate enforcement.
 Do not advertise a policy pack until the maintainer can show:
 
 - `scripts/policy_pack_smoke.py --strict` passes for the pack;
+- `scripts/policy_pack_smoke.py --format json --strict` emits
+  `artifact_type: policy-pack-verification` evidence that can be attached to a
+  release, issue, or external pack review;
 - the manifest has ID, version, policy-pack source, license, Entroping
   compatibility, evidence command, gate list, and final-gate declarations;
+- the manifest has attribution through at least one maintainer or publisher;
 - the entrypoint loads through local imports only;
 - a consumer example imports the pack and adds at least one local override or
   local project gate;
@@ -158,8 +178,8 @@ consumer should accept the pack without reading the gates.
 Implementation work should stay issue-backed and separate from this decision.
 Follow-up issues should cover:
 
-- reusable pack verification command or report artifact for arbitrary external
-  pack directories: [#329](https://github.com/sakibshuvo/Entroping/issues/329);
+- reusable pack verification artifact for arbitrary local pack directories:
+  [#329](https://github.com/sakibshuvo/Entroping/issues/329);
 - checksum/signature guidance for release archives once package-index proof
   exists: [#330](https://github.com/sakibshuvo/Entroping/issues/330);
 - external pack repository smoke evidence before claiming third-party pack

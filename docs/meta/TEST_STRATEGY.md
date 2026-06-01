@@ -98,14 +98,18 @@ Policy-pack smoke proof:
 
 ```bash
 uv run python scripts/policy_pack_smoke.py --strict
+uv run python scripts/policy_pack_smoke.py --pack ./vendor/acme-strict-api --format json --strict
 ```
 
 This local proof validates the example API-baseline policy pack through the
-current local QAnstitution import mechanism. It checks the provenance manifest
-shape, local source metadata, supported Entroping range, evidence command,
-manifest-declared gates, gate source files, final flags, entrypoint, imported
-gates, documented final gates, and copyable consumer example evidence without
-adding remote registries or pack-install behavior.
+current local QAnstitution import mechanism, and it can validate arbitrary local
+policy-pack directories supplied with `--pack`. It checks the provenance
+manifest shape, local source metadata, attribution, supported Entroping range,
+evidence command, manifest-declared gates, gate source files, final flags,
+entrypoint, imported gates, documented final gates, and copyable consumer
+example evidence without adding remote registries or pack-install behavior.
+JSON output emits the reusable `policy-pack-verification` artifact for release,
+issue, or external pack review.
 
 Alpha launch-readiness proof:
 

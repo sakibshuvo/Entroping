@@ -190,3 +190,10 @@
 - Do not ship native CI-provider templates just because the shell recipe is portable. Mark GitLab, Buildkite, and CircleCI templates as deferred until their actual runners prove install, Hurl checksum, Entroping run, and artifact behavior.
 - Standalone binaries are a support and security commitment, not just a convenience feature. Require proven package-manager demand, signing/notarization ownership, and native dependency update plans before adding Nuitka or PyInstaller automation.
 - Package-index publishing should split build and publish privileges. Build artifacts with read-only contents permission, then expose OIDC only in protected environment publish jobs after reviewer approval.
+- Policy-pack verification must not bake in the example pack name or folder
+  shape. Vendor arbitrary packs into a temporary local project under their own
+  directory name, rewrite only the disposable consumer import path, and validate
+  manifest attribution plus local consumer gates before advertising the pack.
+- Do not run environment-mutating gates such as `scripts/audit_quality.sh` in
+  parallel with `scripts/regression.sh --security`; both can touch `.venv`, so
+  run them sequentially before treating a failure as product evidence.
