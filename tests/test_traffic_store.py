@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import Session, SQLModel, col, create_engine, select
 
 from entroping.core import traffic_store
 from entroping.core.traffic_redactor import redact_traffic_exchange
@@ -323,8 +323,17 @@ def test_store_persists_events_through_sqlmodel_mapping(tmp_path: Path) -> None:
     assert "live-secret" not in rows[0].exchange_json
 
 
-def test_store_retention_keeps_latest_redacted_events(tmp_path: Path) -> None:
+def test_store_retention_keeps_latest_redacted_events_with_sql_delete(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     store = TrafficStore.open_project(tmp_path, max_events=2)
+
+    def fail_row_delete(self: Session, instance: object) -> None:
+        _ = self, instance
+        raise AssertionError("retention should use SQL-level delete")
+
+    monkeypatch.setattr(Session, "delete", fail_row_delete)
 
     for index in range(3):
         exchange = _exchange(secret=f"secret-{index}").model_copy(
@@ -335,9 +344,15 @@ def test_store_retention_keeps_latest_redacted_events(tmp_path: Path) -> None:
         store.record_exchange(redact_traffic_exchange(exchange))
 
     loaded = store.list_exchanges()
+    engine = create_engine(f"sqlite:///{store.db_path}")
+    with Session(engine) as session:
+        retained_rows = session.exec(
+            select(TrafficEventRow).order_by(col(TrafficEventRow.id))
+        ).all()
 
     assert len(loaded) == 2
     assert [item.captured_at.minute for item in loaded] == [1, 2]
+    assert [row.id for row in retained_rows] == [2, 3]
     assert "secret-" not in store.db_path.read_bytes().decode("utf-8", errors="ignore")
 
 

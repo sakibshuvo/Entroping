@@ -2,6 +2,9 @@
 
 ## 2026-06-01
 
+- Added issue #345's traffic-store retention optimization so pruning now uses
+  a SQL-level delete for stale event IDs while preserving newest-event
+  retention semantics and insertion-order reads.
 - Added issue #344's shared path-safety helper so common symlink component
   traversal lives in `entroping.core.path_safety`, config imports reject
   symlinked local imports, and existing adapters keep their domain-specific

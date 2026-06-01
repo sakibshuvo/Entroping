@@ -3,6 +3,7 @@
 from pathlib import Path
 from urllib.parse import quote
 
+from sqlalchemy import delete
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Field, Index, Session, SQLModel, col, create_engine, select
@@ -127,11 +128,20 @@ class TrafficStore:
             raise TrafficStoreError(msg) from exc
 
     def _enforce_retention(self, session: Session) -> None:
-        stale_rows = session.exec(
-            select(TrafficEventRow).order_by(col(TrafficEventRow.id).desc()).offset(self.max_events),
-        ).all()
-        for row in stale_rows:
-            session.delete(row)
+        stale_ids = tuple(
+            row_id
+            for row_id in session.exec(
+                select(TrafficEventRow.id)
+                .order_by(col(TrafficEventRow.id).desc())
+                .offset(self.max_events),
+            ).all()
+            if row_id is not None
+        )
+        if not stale_ids:
+            return
+        session.execute(
+            delete(TrafficEventRow).where(col(TrafficEventRow.id).in_(stale_ids))
+        )
 
 
 def list_project_exchanges_readonly(
