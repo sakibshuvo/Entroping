@@ -2,6 +2,9 @@
 
 ## 2026-06-01
 
+- Provider-neutral CI summaries should be artifacts, not integrations. Let
+  Entroping write redacted Markdown from local reports, and let downstream CI
+  decide whether to upload, print, or post it.
 - Stable-core blockers need direct issue links in machine-readable evidence.
   Otherwise future marathon sessions can invent duplicate work or overclaim
   readiness from green local tests instead of following the tracked blocker

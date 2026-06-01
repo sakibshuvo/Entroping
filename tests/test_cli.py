@@ -3049,6 +3049,71 @@ def test_report_github_annotations_truncates_annotations(
     assert "1 annotation(s) omitted" in result.output
 
 
+def test_report_review_summary_writes_provider_neutral_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports_dir = Path("reports")
+    reports_dir.mkdir()
+    (reports_dir / "run-latest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "checkout-api",
+                "environment": "ci",
+                "generated_at": "2026-06-01T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 0, "failed": 1, "exit_code": 1},
+                "tests": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (reports_dir / "junit.xml").write_text(
+        """<?xml version="1.0" encoding="utf-8"?>
+<testsuite name="Entroping checkout-api" tests="1" failures="1" errors="0">
+  <testcase classname="tests" name="health.hurl" time="0.010">
+    <failure message="failed" type="entroping.hurl">path: tests/health.hurl
+secret=live-secret</failure>
+  </testcase>
+</testsuite>
+""",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["report", "review-summary"])
+
+    assert result.exit_code == 0
+    assert "Wrote review summary: reports/review-summary.md" in result.output
+    summary = (reports_dir / "review-summary.md").read_text(encoding="utf-8")
+    assert "# Entroping Review Summary" in summary
+    assert "| JUnit | error | tests/health.hurl |" in summary
+    assert "live-secret" not in summary
+    assert "secret=[REDACTED]" in summary
+
+
+def test_report_review_summary_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["report", "review-summary", "--output", "json"])
+
+    assert result.exit_code == 2
+    assert "Unsupported review summary output" in result.output
+
+
+def test_report_review_summary_wraps_report_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports_dir = Path("reports")
+    reports_dir.mkdir()
+    (reports_dir / "drift.json").write_text("{", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["report", "review-summary"])
+
+    assert result.exit_code == 1
+    assert "Could not parse drift report" in result.output
+
+
 def test_report_github_annotations_rejects_malformed_reports(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

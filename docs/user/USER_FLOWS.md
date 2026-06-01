@@ -195,8 +195,9 @@ A pull request or deployment pipeline needs a deterministic API gate.
 
 ```bash
 entroping doctor
-entroping run --env ci --ci --parallel --report junit --report html
+entroping run --env ci --ci --parallel --report json --report junit --report html
 entroping report github-annotations
+entroping report review-summary
 ```
 
 For a copyable GitHub Actions workflow, use

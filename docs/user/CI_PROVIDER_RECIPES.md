@@ -47,7 +47,8 @@ export PATH="${HOME}/.local/bin:${PATH}"
 
 uv tool install git+https://github.com/sakibshuvo/Entroping.git@v0.1.1-alpha
 entroping doctor
-entroping run --ci --report junit --report html
+entroping run --ci --report json --report junit --report html
+entroping report review-summary
 ```
 
 Upload `reports/` as the provider artifact directory. Keep `.entroping/` out of
@@ -94,6 +95,7 @@ true:
 - Hurl is pinned and checksum-verified;
 - Entroping is installed from a tag or reviewed source ref;
 - `entroping doctor` runs before `entroping run`;
-- `entroping run --ci --report junit --report html` is the deterministic gate;
+- `entroping run --ci --report json --report junit --report html` is the deterministic gate;
+- `entroping report review-summary` writes provider-neutral Markdown from local artifacts;
 - `reports/` is uploaded and `.entroping/` is not uploaded by default;
 - provider secrets are optional and never required by Entroping itself.
