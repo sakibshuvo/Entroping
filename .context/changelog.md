@@ -2,6 +2,10 @@
 
 ## 2026-06-01
 
+- Added issue #340's public-docs discoverability cleanup so the README links
+  the MkDocs site before deep context, the MkDocs landing page explains how it
+  relates to GitHub Issues, ROADMAP, Obsidian, and docs governance, and the
+  documentation control plane names each canonical surface.
 - Added issue #337's GraphQL and SOAP Hurl-over-HTTP fixtures with local demo
   servers, QAnstitution gates, env examples, protocol-specific Hurl assertions,
   and README/Vault discoverability without adding new protocol engines.

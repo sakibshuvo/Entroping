@@ -23,6 +23,19 @@ GitHub tracks work. Obsidian explains why. README sells. Roadmap sequences. Spec
 For the practical day-to-day distinction between GitHub and Obsidian, read
 [[docs/meta/OBSIDIAN_VS_GITHUB|OBSIDIAN_VS_GITHUB]].
 
+## Canonical Surfaces
+
+| Surface | Owner job |
+| --- | --- |
+| `README.md` | Public front door, product promise, quick demo path |
+| MkDocs site | Public reading path generated from `docs/` |
+| GitHub Issues | Bugs, feature slices, chores, regressions, and action items |
+| `ROADMAP.md` | Release sequence and public scope, not the full backlog |
+| `docs/meta/PROJECT_PROGRESS.md` | Current phase dashboard and stable-core blocker status |
+| `docs/meta/VAULT_INDEX.md` | Obsidian vault map and historical/product context entry point |
+| `.context/` | Maintainer and agent handoff state |
+| `decisions/` | Durable product and architecture decisions |
+
 ## Update Matrix
 
 | Change type | Required update | Usually do not update |

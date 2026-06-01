@@ -28,6 +28,47 @@ def test_public_roadmap_is_linked_from_front_door() -> None:
     assert "Explicitly Not Near-Term" in roadmap
 
 
+def test_readme_surfaces_public_docs_before_deep_context() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+
+    public_docs_link = "[Public Docs](https://sakibshuvo.github.io/Entroping/)"
+    assert public_docs_link in readme
+    assert "[Two-Minute Demo](#try-it-in-two-minutes)" in readme
+    assert "[Roadmap](ROADMAP.md)" in readme
+    assert "[Vault Index](docs/meta/VAULT_INDEX.md)" in readme
+    assert readme.index(public_docs_link) < readme.index("## Why Entroping")
+
+    deep_docs = readme.split("## Deep Docs", maxsplit=1)[1].split(
+        "## Locked Alpha CLI Surface",
+        maxsplit=1,
+    )[0]
+    expected_ownership_lines = [
+        "README sells and orients.",
+        "MkDocs is the public reading path",
+        "GitHub Issues track work",
+        "`ROADMAP.md` sequences releases",
+        "`docs/meta/VAULT_INDEX.md` maps the Obsidian vault",
+        "`docs/meta/DOCS_GOVERNANCE.md` decides which docs must change",
+    ]
+    for ownership_line in expected_ownership_lines:
+        assert ownership_line in deep_docs
+
+
+def test_mkdocs_home_explains_repository_context_surfaces() -> None:
+    index = (REPO_ROOT / "docs" / "index.md").read_text(encoding="utf-8")
+
+    assert "How This Site Fits" in index
+    expected_surfaces = [
+        "public reading path",
+        "GitHub Issues track work",
+        "`ROADMAP.md` sequences releases",
+        "`docs/meta/VAULT_INDEX.md` maps the Obsidian vault",
+        "`docs/meta/DOCS_GOVERNANCE.md` defines update rules",
+    ]
+    for surface in expected_surfaces:
+        assert surface in index
+
+
 def test_public_roadmap_does_not_reopen_completed_alpha_phases() -> None:
     roadmap = (REPO_ROOT / "ROADMAP.md").read_text(encoding="utf-8")
     progress = (REPO_ROOT / "docs" / "meta" / "PROJECT_PROGRESS.md").read_text(

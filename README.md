@@ -21,6 +21,10 @@ CI-ready reports.
 
 The core rule is simple: **AI can suggest. Runtime truth decides.**
 
+**Start here:** [Public Docs](https://sakibshuvo.github.io/Entroping/) ·
+[Two-Minute Demo](#try-it-in-two-minutes) · [Roadmap](ROADMAP.md) ·
+[Vault Index](docs/meta/VAULT_INDEX.md)
+
 ## Why Entroping
 
 AI can now ship backend changes faster than humans can fully review them. The
@@ -284,6 +288,16 @@ scripts/context_pack.sh --mode handoff
 ```
 
 ## Deep Docs
+
+Use the smallest surface that answers the question:
+
+- README sells and orients.
+- MkDocs is the public reading path at [Public Docs](https://sakibshuvo.github.io/Entroping/).
+- GitHub Issues track work.
+- `ROADMAP.md` sequences releases.
+- `docs/meta/VAULT_INDEX.md` maps the Obsidian vault.
+- `.context/` keeps maintainer and agent handoff state.
+- `docs/meta/DOCS_GOVERNANCE.md` decides which docs must change.
 
 Open this repository in Obsidian and start with [docs/meta/VAULT_INDEX.md](docs/meta/VAULT_INDEX.md).
 
