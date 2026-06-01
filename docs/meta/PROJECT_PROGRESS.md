@@ -31,7 +31,9 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#347 Mention Typer shell completion in onboarding](https://github.com/sakibshuvo/Entroping/issues/347)
+Current issue: none. The local-ready queue is empty; remaining stable-core work
+requires external package-index, downstream-user, compatibility, or CI-runner
+evidence.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -42,6 +44,8 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 ```
 
 ## Next Three Issues
+
+These are blocked evidence issues, not autonomous local marathon targets.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
