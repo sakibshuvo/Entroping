@@ -15,6 +15,7 @@ LEDGER_RELATIVE_PATH = Path("docs") / "meta" / "release-evidence.json"
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 GITHUB_URL_RE = re.compile(r"^https://github\.com/sakibshuvo/Entroping/")
 REQUIRED_BLOCKERS = (
+    "repeated release evidence",
     "package-index proof",
     "real downstream user feedback",
     "stable-core compatibility decision",

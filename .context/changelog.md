@@ -2,6 +2,9 @@
 
 ## 2026-06-01
 
+- Aligned issue #301's release-evidence blocker list with stable-core
+  readiness so repeated release evidence, package-index proof, real downstream
+  feedback, and compatibility decision remain consistent across both gates.
 - Expanded issue #299's release-evidence validator so Pages CI and local
   downstream smoke evidence are strict ledger fields, while the ledger still
   states that stable-core remains blocked by package-index proof,

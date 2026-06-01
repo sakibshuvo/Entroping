@@ -36,9 +36,27 @@ def test_release_evidence_json_reports_alpha_ci_and_stable_blockers() -> None:
     assert payload["downstream_smoke"]["stable_boundary"].startswith(
         "maintainer-controlled local smoke"
     )
+    assert "repeated release evidence" in payload["stable_core_blockers"]
     assert "package-index proof" in payload["stable_core_blockers"]
     assert "real downstream user feedback" in payload["stable_core_blockers"]
     assert payload["ledger_path"] == "docs/meta/release-evidence.json"
+
+
+def test_release_evidence_blockers_match_stable_core_readiness() -> None:
+    release_result = run_release_evidence("--format", "json", "--strict")
+    readiness_result = subprocess.run(
+        ["python", str(REPO_ROOT / "scripts" / "stable_core_readiness.py"), "--format", "json"],
+        check=False,
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    assert release_result.returncode == 0, release_result.stderr
+    assert readiness_result.returncode == 0, readiness_result.stderr
+    release_payload = json.loads(release_result.stdout)
+    readiness_payload = json.loads(readiness_result.stdout)
+    assert release_payload["stable_core_blockers"] == readiness_payload["blockers"]
 
 
 def test_release_evidence_markdown_is_maintainer_readable() -> None:
