@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the local example policy pack as release evidence."""
+"""Validate local policy packs as reusable release evidence."""
 
 from __future__ import annotations
 
@@ -17,13 +17,11 @@ import yaml
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution_evidence
 
 SCHEMA_VERSION = "entroping.policy-pack-smoke.v1"
+ARTIFACT_TYPE = "policy-pack-verification"
 DEFAULT_PACK = Path("examples/policy-packs/api-baseline")
 REQUIRED_FILES = (
     "README.md",
     "entroping-policy-pack.yaml",
-    "qanstitution.yaml",
-    "rules/security.yaml",
-    "rules/reliability.yaml",
     "examples/consumer-qanstitution.yaml",
 )
 
@@ -46,6 +44,26 @@ class PackProvenance(TypedDict):
     supported_entroping: str
     evidence_command: str
     gates: list[GateProvenance]
+
+
+class AttributionEvidence(TypedDict):
+    """Human attribution evidence for a policy pack."""
+
+    source: str
+    license: str
+    maintainers: list[str]
+    publisher: str
+    readme: str
+
+
+class ConsumerExampleEvidence(TypedDict):
+    """Evidence that a policy pack can be consumed as a local import."""
+
+    path: str
+    import_path: str
+    local_gate_count: int
+    local_gate_ids: list[str]
+    gate_ids: list[str]
 
 
 def main() -> int:
@@ -123,8 +141,15 @@ def _build_payload(*, pack_path: Path, root: Path) -> dict[str, object]:
     )
     runtime_contract = _string_field(manifest, "runtime_contract", failures)
     entrypoint = _string_field(manifest, "entrypoint", failures)
+    entrypoint = _pack_relative_path_field(
+        field="entrypoint",
+        value=entrypoint,
+        failures=failures,
+    )
     gate_prefixes = _string_list_field(manifest, "gate_prefixes", failures)
     documented_final_gates = _string_list_field(manifest, "final_gates", failures)
+    maintainers = _optional_string_list_field(manifest, "maintainers", failures)
+    publisher = _optional_string_field(manifest, "publisher", failures)
     _require_string_fields(
         manifest,
         fields=("name", "version"),
@@ -167,7 +192,21 @@ def _build_payload(*, pack_path: Path, root: Path) -> dict[str, object]:
             failures.append(f"documented final gate {final_gate_id!r} is not marked final")
     _validate_gate_provenance(gate_provenance, gate_ids, final_gate_ids, failures)
 
-    consumer_gate_ids = _load_consumer_gate_ids(pack_path=pack_path, failures=failures)
+    consumer_example = _load_consumer_example_evidence(
+        pack_path=pack_path,
+        entrypoint=entrypoint,
+        failures=failures,
+    )
+    attribution: AttributionEvidence = {
+        "source": source,
+        "license": license_id,
+        "maintainers": maintainers,
+        "publisher": publisher,
+        "readme": "README.md",
+    }
+    if not maintainers and not publisher:
+        failures.append("manifest attribution must include at least one maintainer or publisher")
+
     status: Status = "fail" if failures else "pass"
     provenance: PackProvenance = {
         "source": source,
@@ -178,17 +217,20 @@ def _build_payload(*, pack_path: Path, root: Path) -> dict[str, object]:
     }
     return {
         "schema_version": SCHEMA_VERSION,
+        "artifact_type": ARTIFACT_TYPE,
         "status": status,
         "pack_path": _display_path(pack_path, root=root),
         "pack_id": pack_id,
         "runtime_contract": runtime_contract,
         "entrypoint": entrypoint,
+        "attribution": attribution,
         "provenance": provenance,
         "imports": import_paths,
         "gate_count": len(gate_ids),
         "gate_ids": gate_ids,
         "final_gate_ids": final_gate_ids,
-        "consumer_gate_ids": consumer_gate_ids,
+        "consumer_example": consumer_example,
+        "consumer_gate_ids": consumer_example["gate_ids"],
         "failures": failures,
     }
 
@@ -253,6 +295,55 @@ def _string_list_field(
     return items
 
 
+def _optional_string_field(
+    document: Mapping[str, object],
+    field: str,
+    failures: list[str],
+) -> str:
+    value = document.get(field)
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value.strip()
+    failures.append(f"manifest field {field!r} must be a string when present")
+    return ""
+
+
+def _optional_string_list_field(
+    document: Mapping[str, object],
+    field: str,
+    failures: list[str],
+) -> list[str]:
+    value = document.get(field)
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        failures.append(f"manifest field {field!r} must be a list of strings when present")
+        return []
+    items: list[str] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, str) or not item.strip():
+            failures.append(f"manifest field {field!r} item {index} must be a non-empty string")
+            continue
+        items.append(item.strip())
+    return items
+
+
+def _pack_relative_path_field(
+    *,
+    field: str,
+    value: str,
+    failures: list[str],
+) -> str:
+    if not value:
+        return ""
+    path = Path(value)
+    if path.is_absolute() or ".." in path.parts:
+        failures.append(f"manifest field {field!r} must be a local path under the pack")
+        return ""
+    return path.as_posix()
+
+
 def _local_source_field(
     document: Mapping[str, object],
     failures: list[str],
@@ -292,12 +383,14 @@ def _gate_provenance_field(
         if not isinstance(final_value, bool):
             failures.append(f"manifest field 'gates' item {index}.final must be a boolean")
             continue
-        file_path = Path(file_value)
-        if file_path.is_absolute() or ".." in file_path.parts:
-            failures.append(
-                f"manifest gate {gate_id!r} file must be a local path under the pack"
-            )
+        normalized_file = _pack_relative_path_field(
+            field=f"gates[{index}].file",
+            value=file_value,
+            failures=failures,
+        )
+        if not normalized_file:
             continue
+        file_path = Path(normalized_file)
         resolved_file = pack_path / file_path
         if not resolved_file.is_file():
             failures.append(
@@ -305,7 +398,7 @@ def _gate_provenance_field(
                 f"{gate_id!r} file is missing: {_display_path(resolved_file, root=root)}"
             )
             continue
-        records.append({"id": gate_id, "file": file_path.as_posix(), "final": final_value})
+        records.append({"id": gate_id, "file": normalized_file, "final": final_value})
     return sorted(records, key=lambda record: record["id"])
 
 
@@ -344,22 +437,41 @@ def _require_string_fields(
             failures.append(f"manifest field {field!r} must be a non-empty string")
 
 
-def _load_consumer_gate_ids(*, pack_path: Path, failures: list[str]) -> list[str]:
+def _load_consumer_example_evidence(
+    *,
+    pack_path: Path,
+    entrypoint: str,
+    failures: list[str],
+) -> ConsumerExampleEvidence:
     consumer_path = pack_path / "examples" / "consumer-qanstitution.yaml"
+    default_evidence: ConsumerExampleEvidence = {
+        "path": "examples/consumer-qanstitution.yaml",
+        "import_path": "",
+        "local_gate_count": 0,
+        "local_gate_ids": [],
+        "gate_ids": [],
+    }
     if not consumer_path.is_file():
         failures.append("consumer example missing: examples/consumer-qanstitution.yaml")
-        return []
+        return default_evidence
     try:
         consumer_document = _read_yaml_mapping(consumer_path)
     except ValueError as exc:
         failures.append(str(exc))
-        return []
+        return default_evidence
+
+    _validate_consumer_imports(consumer_document, failures)
+    local_gate_ids = _consumer_local_gate_ids(consumer_document, failures)
+    if not local_gate_ids:
+        failures.append("consumer example must define at least one local gate")
 
     with tempfile.TemporaryDirectory(prefix="entroping-policy-pack-smoke-") as temp_dir:
         temp_root = Path(temp_dir)
-        vendored_pack = temp_root / "policy-packs" / "api-baseline"
+        vendor_name = _vendor_directory_name(pack_path)
+        vendored_pack = temp_root / "policy-packs" / vendor_name
         shutil.copytree(pack_path, vendored_pack)
-        consumer_document["imports"] = ["./policy-packs/api-baseline/qanstitution.yaml"]
+        import_path = f"./policy-packs/{vendor_name}/{entrypoint or 'qanstitution.yaml'}"
+        consumer_document["imports"] = [import_path]
         consumer_config = temp_root / "qanstitution.yaml"
         with consumer_config.open("w", encoding="utf-8") as handle:
             yaml.safe_dump(consumer_document, handle, sort_keys=False)
@@ -367,8 +479,68 @@ def _load_consumer_gate_ids(*, pack_path: Path, failures: list[str]) -> list[str
             evidence = load_qanstitution_evidence(consumer_config)
         except QanstitutionLoadError as exc:
             failures.append(f"consumer example failed to load: {exc}")
-            return []
-    return sorted(gate.rule.id for gate in evidence.gates)
+            return {
+                **default_evidence,
+                "import_path": import_path,
+                "local_gate_count": len(local_gate_ids),
+                "local_gate_ids": local_gate_ids,
+            }
+    return {
+        "path": "examples/consumer-qanstitution.yaml",
+        "import_path": import_path,
+        "local_gate_count": len(local_gate_ids),
+        "local_gate_ids": local_gate_ids,
+        "gate_ids": sorted(gate.rule.id for gate in evidence.gates),
+    }
+
+
+def _validate_consumer_imports(
+    document: Mapping[str, object],
+    failures: list[str],
+) -> None:
+    imports = document.get("imports")
+    if not isinstance(imports, list) or not imports:
+        failures.append("consumer example must declare at least one local import")
+        return
+    for index, import_ref in enumerate(imports):
+        if not isinstance(import_ref, str) or not import_ref.strip():
+            failures.append(f"consumer example import {index} must be a non-empty string")
+            continue
+        if "://" in import_ref or import_ref.startswith("git@"):
+            failures.append("consumer example imports must be local paths")
+
+
+def _consumer_local_gate_ids(
+    document: Mapping[str, object],
+    failures: list[str],
+) -> list[str]:
+    gates = document.get("gates")
+    if not isinstance(gates, list):
+        failures.append("consumer example field 'gates' must be a list")
+        return []
+    gate_ids: list[str] = []
+    for index, item in enumerate(gates):
+        if not isinstance(item, Mapping):
+            failures.append(f"consumer example gate {index} must be an object")
+            continue
+        gate_id = item.get("id")
+        if not isinstance(gate_id, str) or not gate_id.strip():
+            failures.append(f"consumer example gate {index}.id must be a non-empty string")
+            continue
+        gate_ids.append(gate_id.strip())
+    return sorted(gate_ids)
+
+
+def _vendor_directory_name(pack_path: Path) -> str:
+    name = pack_path.name.strip()
+    if not name:
+        return "policy-pack"
+    safe_characters = [
+        character if character.isalnum() or character in "-_." else "-"
+        for character in name
+    ]
+    safe_name = "".join(safe_characters).strip(".-_")
+    return safe_name or "policy-pack"
 
 
 def _display_path(path: Path, *, root: Path) -> str:
@@ -396,17 +568,22 @@ def _render_markdown(payload: Mapping[str, object]) -> str:
     consumer_gate_ids = _string_sequence(payload.get("consumer_gate_ids"))
     provenance = _provenance_mapping(payload)
     provenance_gates = _gate_provenance_sequence(provenance.get("gates"))
+    attribution = _mapping_field(payload.get("attribution"))
+    consumer_example = _mapping_field(payload.get("consumer_example"))
     failures = _payload_failures(payload)
     lines = [
         "# Policy-Pack Smoke Evidence",
         "",
         f"- Schema: `{payload.get('schema_version', '')}`",
+        f"- Artifact: `{payload.get('artifact_type', '')}`",
         f"- Status: `{payload.get('status', '')}`",
         f"- Pack: `{payload.get('pack_id', '')}`",
         f"- Path: `{payload.get('pack_path', '')}`",
         f"- Runtime contract: `{payload.get('runtime_contract', '')}`",
         f"- Source: `{provenance.get('source', '')}`",
         f"- License: `{provenance.get('license', '')}`",
+        f"- Maintainers: `{', '.join(_string_sequence(attribution.get('maintainers')))}`",
+        f"- Publisher: `{attribution.get('publisher', '')}`",
         f"- Supported Entroping: `{provenance.get('supported_entroping', '')}`",
         f"- Evidence command: `{provenance.get('evidence_command', '')}`",
         f"- Gates: `{payload.get('gate_count', 0)}`",
@@ -431,6 +608,16 @@ def _render_markdown(payload: Mapping[str, object]) -> str:
     lines.extend(f"- `{gate_id}`" for gate_id in gate_ids)
     lines.extend(["", "## Final Gates", ""])
     lines.extend(f"- `{gate_id}`" for gate_id in final_gate_ids)
+    lines.extend(
+        [
+            "",
+            "## Consumer Example",
+            "",
+            f"- Path: `{consumer_example.get('path', '')}`",
+            f"- Import path: `{consumer_example.get('import_path', '')}`",
+            f"- Local gates: `{consumer_example.get('local_gate_count', 0)}`",
+        ]
+    )
     lines.extend(["", "## Consumer Example Gates", ""])
     lines.extend(f"- `{gate_id}`" for gate_id in consumer_gate_ids)
     lines.extend(["", "## Failures", ""])
@@ -449,8 +636,12 @@ def _string_sequence(value: object) -> list[str]:
 
 def _provenance_mapping(payload: Mapping[str, object]) -> Mapping[str, object]:
     provenance = payload.get("provenance")
-    if isinstance(provenance, Mapping):
-        return provenance
+    return _mapping_field(provenance)
+
+
+def _mapping_field(value: object) -> Mapping[str, object]:
+    if isinstance(value, Mapping):
+        return value
     return {}
 
 

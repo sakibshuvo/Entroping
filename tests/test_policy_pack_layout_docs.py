@@ -34,6 +34,7 @@ def test_policy_pack_layout_design_covers_required_boundaries() -> None:
         "examples/consumer-qanstitution.yaml",
         "local provenance evidence",
         "scripts/policy_pack_smoke.py --strict",
+        "policy-pack-verification",
         "It does not fetch from a remote registry",
         "Local imports remain root-bounded",
         "HTTP(S) policy-pack imports remain future work",

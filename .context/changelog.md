@@ -2,6 +2,12 @@
 
 ## 2026-06-01
 
+- Added issue #329's reusable policy-pack verification artifact so
+  `scripts/policy_pack_smoke.py --pack <local-pack> --format json --strict`
+  validates arbitrary local pack directories, emits attachable
+  `policy-pack-verification` evidence, and checks attribution, entrypoint
+  imports, final gates, and consumer examples without registry or runtime
+  manifest behavior.
 - Added issue #312's policy-pack distribution decision so packs have a
   local-first path for versioning, distribution, import verification,
   provenance, attribution, open-core/premium boundaries, minimum smoke evidence,

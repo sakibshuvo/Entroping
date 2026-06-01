@@ -101,10 +101,13 @@ Required manifest fields for the current layout:
 | `final_gates` | Gate IDs that consumers cannot override |
 | `gates` | Manifest-declared gate IDs, source files, and final flags |
 
-`scripts/policy_pack_smoke.py --strict` validates the example manifest today.
-It checks required fields, local source shape, local gate files, manifest gate
+`scripts/policy_pack_smoke.py --strict` validates local policy-pack manifests
+today, including arbitrary pack directories supplied with `--pack`. It checks
+required fields, local source shape, attribution, local gate files, manifest gate
 IDs, manifest final flags, loaded QAnstitution gate IDs, documented final gates,
-and the copyable consumer example. It does not fetch from a remote registry, run
+and the copyable consumer example. JSON output emits a reusable
+`policy-pack-verification` artifact that maintainers can attach to releases,
+issues, or external pack reviews. It does not fetch from a remote registry, run
 the evidence command recursively, prove package authenticity, sign packs, or
 replace human review of policy intent.
 
