@@ -29,6 +29,52 @@ def test_stable_core_readiness_json_reports_alpha_blockers() -> None:
     assert payload["evidence"]["release_evidence_ledger"]["status"] == "present"
     assert payload["evidence"]["release_check"]["status"] == "present"
     assert payload["evidence"]["security_threat_model"]["status"] == "present"
+    assert set(payload["blocker_issue_map"]) == set(payload["blockers"])
+    assert payload["blocker_issue_map"]["repeated release evidence"] == [
+        {
+            "number": 307,
+            "title": "stable-core: repeat alpha release evidence cycle",
+            "url": "https://github.com/sakibshuvo/Entroping/issues/307",
+            "status": "ready",
+        }
+    ]
+    assert [
+        issue["number"]
+        for issue in payload["blocker_issue_map"]["package-index proof"]
+    ] == [303, 304, 305]
+    assert [
+        issue["number"]
+        for issue in payload["blocker_issue_map"]["real downstream user feedback"]
+    ] == [306, 318]
+    assert [
+        issue["number"]
+        for issue in payload["blocker_issue_map"]["stable-core compatibility decision"]
+    ] == [308]
+
+
+def test_stable_core_readiness_markdown_links_blocker_issues() -> None:
+    result = run_stable_core_readiness()
+
+    assert result.returncode == 0, result.stderr
+    assert "## Blocker Issue Map" in result.stdout
+    assert (
+        "- repeated release evidence: "
+        "[#307](https://github.com/sakibshuvo/Entroping/issues/307)"
+        in result.stdout
+    )
+    assert (
+        "- package-index proof: "
+        "[#303](https://github.com/sakibshuvo/Entroping/issues/303), "
+        "[#304](https://github.com/sakibshuvo/Entroping/issues/304), "
+        "[#305](https://github.com/sakibshuvo/Entroping/issues/305)"
+        in result.stdout
+    )
+    assert (
+        "- real downstream user feedback: "
+        "[#306](https://github.com/sakibshuvo/Entroping/issues/306), "
+        "[#318](https://github.com/sakibshuvo/Entroping/issues/318)"
+        in result.stdout
+    )
 
 
 def test_stable_core_readiness_strict_rejects_missing_evidence(tmp_path: Path) -> None:

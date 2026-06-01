@@ -25,6 +25,19 @@ class EvidenceCheck:
     description: str
 
 
+@dataclass(frozen=True)
+class IssueRef:
+    """One tracked GitHub issue that advances a stable-core blocker."""
+
+    number: int
+    title: str
+    status: str
+
+    @property
+    def url(self) -> str:
+        return f"https://github.com/sakibshuvo/Entroping/issues/{self.number}"
+
+
 EVIDENCE_CHECKS = (
     EvidenceCheck(
         key="readme_alpha_boundary",
@@ -112,6 +125,51 @@ STABLE_CORE_BLOCKERS = (
     "real downstream user feedback",
     "stable-core compatibility decision",
 )
+STABLE_CORE_BLOCKER_ISSUES = {
+    "repeated release evidence": (
+        IssueRef(
+            number=307,
+            title="stable-core: repeat alpha release evidence cycle",
+            status="ready",
+        ),
+    ),
+    "package-index proof": (
+        IssueRef(
+            number=303,
+            title="stable-core: configure TestPyPI Trusted Publisher",
+            status="blocked",
+        ),
+        IssueRef(
+            number=304,
+            title="stable-core: publish first TestPyPI alpha and smoke install",
+            status="blocked",
+        ),
+        IssueRef(
+            number=305,
+            title="stable-core: publish first PyPI alpha after TestPyPI proof",
+            status="blocked",
+        ),
+    ),
+    "real downstream user feedback": (
+        IssueRef(
+            number=306,
+            title="stable-core: collect first real downstream user feedback",
+            status="blocked",
+        ),
+        IssueRef(
+            number=318,
+            title="adoption: add downstream feedback evidence kit",
+            status="ready",
+        ),
+    ),
+    "stable-core compatibility decision": (
+        IssueRef(
+            number=308,
+            title="stable-core: make compatibility graduation decision",
+            status="blocked",
+        ),
+    ),
+}
 
 
 def main() -> int:
@@ -173,8 +231,24 @@ def _build_payload(root: Path) -> dict[str, object]:
         "schema_version": SCHEMA_VERSION,
         "stable_core_ready": False,
         "blockers": list(STABLE_CORE_BLOCKERS),
+        "blocker_issue_map": _blocker_issue_map_payload(),
         "evidence": evidence,
     }
+
+
+def _blocker_issue_map_payload() -> dict[str, list[dict[str, object]]]:
+    blocker_issue_map: dict[str, list[dict[str, object]]] = {}
+    for blocker in STABLE_CORE_BLOCKERS:
+        blocker_issue_map[blocker] = [
+            {
+                "number": issue.number,
+                "title": issue.title,
+                "url": issue.url,
+                "status": issue.status,
+            }
+            for issue in STABLE_CORE_BLOCKER_ISSUES[blocker]
+        ]
+    return blocker_issue_map
 
 
 def _check_evidence(root: Path, check: EvidenceCheck) -> CheckStatus:
@@ -224,6 +298,18 @@ def _render_markdown(payload: dict[str, object]) -> str:
     blockers = payload["blockers"]
     assert isinstance(blockers, list)
     lines.extend(f"- {blocker}" for blocker in blockers)
+    lines.extend(["", "## Blocker Issue Map", ""])
+    blocker_issue_map = payload["blocker_issue_map"]
+    assert isinstance(blocker_issue_map, dict)
+    for blocker in blockers:
+        assert isinstance(blocker, str)
+        raw_issues = blocker_issue_map[blocker]
+        assert isinstance(raw_issues, list)
+        links = []
+        for raw_issue in raw_issues:
+            assert isinstance(raw_issue, dict)
+            links.append(f"[#{raw_issue['number']}]({raw_issue['url']})")
+        lines.append(f"- {blocker}: {', '.join(links)}")
     lines.extend(["", "## Evidence", ""])
     for key, raw_entry in evidence.items():
         assert isinstance(raw_entry, dict)

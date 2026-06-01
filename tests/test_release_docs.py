@@ -210,4 +210,6 @@ def test_release_evidence_ledger_is_discoverable_from_vault_and_docs() -> None:
     assert "scripts/release_evidence.py --strict" in release_evidence
     assert "scripts/release_evidence.py --check-freshness" in release_evidence
     assert "does not mutate the ledger" in release_evidence
+    assert "scripts/stable_core_readiness.py --format json" in release_evidence
+    assert "blocker_issue_map" in release_evidence
     assert "release-evidence.json" in stable_readiness

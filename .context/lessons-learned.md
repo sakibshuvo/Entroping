@@ -2,6 +2,10 @@
 
 ## 2026-06-01
 
+- Stable-core blockers need direct issue links in machine-readable evidence.
+  Otherwise future marathon sessions can invent duplicate work or overclaim
+  readiness from green local tests instead of following the tracked blocker
+  chain.
 - Release evidence freshness should be an explicit maintainer check, not a
   default offline gate. Querying GitHub can prove that recorded CI/Page runs are
   stale, but missing `gh` or auth should not block normal ledger validation.
