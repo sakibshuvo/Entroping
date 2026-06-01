@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from entroping.core.path_safety import first_symlink_path_component
 from entroping.models import ArchitectEdit, ArchitectEditSet
 
 _ARCHITECT_SOURCE_MARKER = "# entroping: source=architect"
@@ -122,12 +123,10 @@ def _resolve_refactor_path(display_path: str, *, root: Path) -> Path:
 
 
 def _reject_symlink_path(candidate: Path, *, root: Path) -> None:
-    current = root
-    for part in candidate.relative_to(root).parts:
-        current = current / part
-        if current.is_symlink():
-            msg = f"Refusing to write symlinked Hurl file: {current}"
-            raise ArchitectWriteError(msg)
+    symlink_component = first_symlink_path_component(candidate, root=root)
+    if symlink_component is not None:
+        msg = f"Refusing to write symlinked Hurl file: {symlink_component}"
+        raise ArchitectWriteError(msg)
 
 
 def _architect_owned_content(content: str) -> str:

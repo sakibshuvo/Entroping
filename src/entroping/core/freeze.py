@@ -20,6 +20,7 @@ from entroping.bridge.traffic_to_wiremock import (
     compile_traffic_session_to_wiremock,
 )
 from entroping.core.hurl_validator import HurlValidationError, validate_hurl_content
+from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.safe_write import SafeWriteError, safe_write_text
 from entroping.core.traffic_store import TrafficStore, TrafficStoreError
 
@@ -239,12 +240,10 @@ def _reject_symlink_path(
     root: Path,
     artifact: str = "generated Hurl file",
 ) -> None:
-    current = root
-    for part in candidate.relative_to(root).parts:
-        current = current / part
-        if current.is_symlink():
-            msg = f"Refusing to write symlinked {artifact}: {current}"
-            raise FreezeError(msg)
+    symlink_component = first_symlink_path_component(candidate, root=root)
+    if symlink_component is not None:
+        msg = f"Refusing to write symlinked {artifact}: {symlink_component}"
+        raise FreezeError(msg)
 
 
 def _write_text_atomically(

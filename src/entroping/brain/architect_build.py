@@ -20,6 +20,7 @@ from entroping.bridge.merge import (
     merge_managed_hurl_blocks,
 )
 from entroping.core.hurl_validator import validate_hurl_content
+from entroping.core.path_safety import first_symlink_path_component
 from entroping.models import ArchitectEdit, ArchitectEditSet, parse_hurl_metadata
 from entroping.models.qanstitution import Qanstitution
 
@@ -263,9 +264,10 @@ def _read_merge_target(display_path: str, *, root: Path) -> str:
 
 
 def _reject_symlink_path(candidate: Path, *, root: Path) -> None:
-    current = root
-    for part in candidate.relative_to(root).parts:
-        current = current / part
-        if current.is_symlink():
-            msg = f"Merge target must not use symlinks: {current.relative_to(root).as_posix()}"
-            raise ValueError(msg)
+    symlink_component = first_symlink_path_component(candidate, root=root)
+    if symlink_component is not None:
+        msg = (
+            "Merge target must not use symlinks: "
+            f"{symlink_component.relative_to(root).as_posix()}"
+        )
+        raise ValueError(msg)

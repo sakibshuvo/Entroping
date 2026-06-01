@@ -17,6 +17,7 @@ from entroping.bridge.merge import (
     merge_managed_hurl_blocks,
 )
 from entroping.core.hurl_validator import validate_hurl_content
+from entroping.core.path_safety import first_symlink_path_component
 from entroping.models import ArchitectEditSet
 from entroping.models.qanstitution import Qanstitution
 
@@ -168,12 +169,13 @@ def _load_refactor_target(path: Path, *, root: Path) -> RefactorTarget:
 
 
 def _reject_symlink_path(candidate: Path, *, root: Path) -> None:
-    current = root
-    for part in candidate.relative_to(root).parts:
-        current = current / part
-        if current.is_symlink():
-            msg = f"Refactor target must not use symlinks: {_display_path(current, root=root)}"
-            raise ArchitectRefactorError(msg)
+    symlink_component = first_symlink_path_component(candidate, root=root)
+    if symlink_component is not None:
+        msg = (
+            "Refactor target must not use symlinks: "
+            f"{_display_path(symlink_component, root=root)}"
+        )
+        raise ArchitectRefactorError(msg)
 
 
 def _read_refactor_target(path: Path, *, display_path: str) -> str:

@@ -7,6 +7,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Field, Index, Session, SQLModel, col, create_engine, select
 
+from entroping.core.path_safety import first_symlink_path_component
 from entroping.models.traffic import TrafficExchange
 
 TRAFFIC_STORE_SCHEMA_VERSION = 1
@@ -225,13 +226,13 @@ def _validate_schema_version(raw_value: str) -> None:
 
 
 def _reject_symlink_path_components(path: Path) -> None:
-    current = Path(path.anchor) if path.is_absolute() else Path(".")
-    parts = path.parts[1:] if path.is_absolute() else path.parts
-    for part in parts:
-        current = current / part
-        if current.is_symlink():
-            msg = f"Refusing to use symlinked traffic state path component: {current}"
-            raise TrafficStoreError(msg)
+    symlink_component = first_symlink_path_component(path)
+    if symlink_component is not None:
+        msg = (
+            "Refusing to use symlinked traffic state path component: "
+            f"{symlink_component}"
+        )
+        raise TrafficStoreError(msg)
 
 
 def _readonly_sqlite_url(db_path: Path) -> str:

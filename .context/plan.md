@@ -30,6 +30,9 @@ project, and a Codex workspace with fast context rehydration.
   before writing and avoids partial generated output on parser failure.
 - HTML run reports escape header fields, summary text, rule IDs,
   known-failure summaries, and captured Hurl output before rendering.
+- Common filesystem symlink component traversal is centralized in
+  `entroping.core.path_safety`; adapters keep local exception types and
+  user-facing messages while sharing the same traversal primitive.
 - Public onboarding is launch-first: README points new users to the demo,
   public docs, roadmap, and a short project-context handoff, while MkDocs groups
   deeper references by reader task instead of exposing maintainer memory as a

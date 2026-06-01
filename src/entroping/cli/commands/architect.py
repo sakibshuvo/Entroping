@@ -40,6 +40,7 @@ from entroping.core.config_loader import QanstitutionLoadError, load_qanstitutio
 from entroping.core.hurl_discovery import discover_hurl_tests, normalize_tag_filters
 from entroping.core.hurl_validator import validate_hurl_content
 from entroping.core.openapi_loader import OpenApiLoadError, load_openapi_document
+from entroping.core.path_safety import first_symlink_path_component
 
 app = typer.Typer(help="Generate, refactor, and audit Hurl tests.")
 HurlValidator = Callable[[str, str], None]
@@ -305,9 +306,10 @@ def _write_prepared_generated_hurl_file(prepared: PreparedGeneratedHurlFile) -> 
 
 
 def _reject_symlink_path_components(path: Path, *, root: Path) -> None:
-    current = root
-    for part in path.relative_to(root).parts:
-        current = current / part
-        if current.is_symlink():
-            msg = f"Refusing to write symlinked generated Hurl path component: {current}"
-            raise ValueError(msg)
+    symlink_component = first_symlink_path_component(path, root=root)
+    if symlink_component is not None:
+        msg = (
+            "Refusing to write symlinked generated Hurl path component: "
+            f"{symlink_component}"
+        )
+        raise ValueError(msg)

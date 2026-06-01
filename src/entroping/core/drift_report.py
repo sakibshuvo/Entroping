@@ -4,6 +4,7 @@ import json
 from collections.abc import Sequence
 from pathlib import Path
 
+from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.safe_write import SafeWriteError, safe_write_text
 from entroping.models.drift import (
     DependencyDriftBaseline,
@@ -646,13 +647,13 @@ def _resolve_read_path(path: Path) -> Path:
 
 
 def _reject_symlink_path_components(path: Path, *, action: str) -> None:
-    current = Path(path.anchor) if path.is_absolute() else Path(".")
-    parts = path.parts[1:] if path.is_absolute() else path.parts
-    for part in parts:
-        current = current / part
-        if current.is_symlink():
-            msg = f"Refusing to {action} through symlinked path component: {current}"
-            raise DriftReportError(msg)
+    symlink_component = first_symlink_path_component(path)
+    if symlink_component is not None:
+        msg = (
+            f"Refusing to {action} through symlinked path component: "
+            f"{symlink_component}"
+        )
+        raise DriftReportError(msg)
 
 
 def _display_path(path: Path) -> str:

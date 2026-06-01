@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 import yaml
 from pydantic import ValidationError
 
+from entroping.core.path_safety import first_symlink_path_component
 from entroping.models.qanstitution import GateRule, Qanstitution
 from entroping.models.qanstitution_evidence import EffectiveGateEvidence, QanstitutionEvidence
 
@@ -138,7 +139,15 @@ def _resolve_import(import_ref: str, base_dir: Path, root_dir: Path) -> Path:
         msg = f"Unsupported QAnstitution import scheme {parsed.scheme!r}: {import_ref}"
         raise QanstitutionLoadError(msg)
 
-    candidate = (base_dir / import_ref).expanduser().resolve()
+    raw_candidate = (base_dir / import_ref).expanduser()
+    symlink_component = None
+    if raw_candidate.is_relative_to(root_dir):
+        symlink_component = first_symlink_path_component(raw_candidate, root=root_dir)
+    if symlink_component is not None:
+        msg = f"Import {import_ref!r} must not use symlinks: {symlink_component}"
+        raise QanstitutionLoadError(msg)
+
+    candidate = raw_candidate.resolve()
     if not candidate.is_file():
         msg = f"Import not found: {import_ref} resolved to {candidate}"
         raise QanstitutionLoadError(msg)

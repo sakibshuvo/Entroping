@@ -4,6 +4,8 @@ import os
 import tempfile
 from pathlib import Path
 
+from entroping.core.path_safety import first_symlink_path_component
+
 
 class SafeWriteError(ValueError):
     """Raised when an artifact cannot be written safely."""
@@ -95,21 +97,17 @@ def _reject_symlink_path_components(
     artifact: str,
     root: Path | None,
 ) -> None:
-    if root is not None:
-        parts = path.relative_to(root).parts
-        current = root
+    symlink_component = first_symlink_path_component(path, root=root)
+    if symlink_component is None:
+        return
+    if symlink_component == path:
+        msg = f"Refusing to overwrite symlinked {artifact}: {symlink_component}"
     else:
-        current = Path(path.anchor) if path.is_absolute() else Path(".")
-        parts = path.parts[1:] if path.is_absolute() else path.parts
-
-    for part in parts:
-        current = current / part
-        if current.is_symlink():
-            if current == path:
-                msg = f"Refusing to overwrite symlinked {artifact}: {current}"
-            else:
-                msg = f"Refusing to write {artifact} through symlinked path component: {current}"
-            raise SafeWriteError(msg)
+        msg = (
+            f"Refusing to write {artifact} through symlinked path component: "
+            f"{symlink_component}"
+        )
+    raise SafeWriteError(msg)
 
 
 def _write_temporary_file(path: Path, content: bytes) -> Path:

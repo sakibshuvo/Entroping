@@ -8,6 +8,7 @@ from hashlib import sha256
 from pathlib import Path
 
 from entroping.bridge.policy_to_hurl import HurlGateAssertion, compile_matching_gates
+from entroping.core.path_safety import first_symlink_path_component
 from entroping.models.hurl import HurlExchange, HurlTest, parse_hurl_exchanges
 from entroping.models.qanstitution import GateRule, KnownFailure
 
@@ -249,8 +250,9 @@ def _to_applied_known_failure(known_failure: KnownFailure) -> AppliedKnownFailur
 
 def _validate_source_path(path: Path) -> Path:
     expanded = path.expanduser()
-    if expanded.is_symlink():
-        msg = f"Refusing to inject gates into symlinked Hurl file: {expanded}"
+    symlink_component = first_symlink_path_component(expanded)
+    if symlink_component is not None:
+        msg = f"Refusing to inject gates into symlinked Hurl file: {symlink_component}"
         raise GateInjectionError(msg)
 
     resolved = expanded.resolve()
@@ -264,8 +266,12 @@ def _validate_source_path(path: Path) -> Path:
 
 
 def _validate_execution_path(path: Path) -> None:
-    if path.is_symlink():
-        msg = f"Refusing to write Hurl execution copy through symlinked execution path: {path}"
+    symlink_component = first_symlink_path_component(path)
+    if symlink_component is not None:
+        msg = (
+            "Refusing to write Hurl execution copy through symlinked execution path: "
+            f"{symlink_component}"
+        )
         raise GateInjectionError(msg)
 
 
