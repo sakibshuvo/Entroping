@@ -15,6 +15,19 @@ def test_readme_links_alpha_release_gate_and_checklist() -> None:
     assert "docs/meta/RELEASE_CHECKLIST.md" in readme
 
 
+def test_onboarding_documents_typer_shell_completion_global_options() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    user_guide = (REPO_ROOT / "docs" / "user" / "USER_GUIDE.md").read_text(
+        encoding="utf-8"
+    )
+
+    for document in (readme, user_guide):
+        assert "entroping --install-completion" in document
+        assert "entroping --show-completion" in document
+        assert "Typer global option" in document
+        assert "not an Entroping subcommand" in document
+
+
 def test_public_roadmap_is_linked_from_front_door() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     roadmap = (REPO_ROOT / "ROADMAP.md").read_text(encoding="utf-8")

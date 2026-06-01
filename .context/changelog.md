@@ -2,6 +2,9 @@
 
 ## 2026-06-01
 
+- Added issue #347's shell-completion onboarding note for Typer's existing
+  `--install-completion` and `--show-completion` global options without
+  expanding Entroping's locked command namespace.
 - Added issue #346's no-Hurl CLI smoke script so constrained agent or
   downstream sessions can prove CLI boot, version, minimal init, and doctor
   behavior without installing or executing Hurl.

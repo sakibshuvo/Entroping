@@ -46,6 +46,9 @@ project, and a Codex workspace with fast context rehydration.
 - Constrained agent or downstream sessions can run `scripts/cli_smoke.sh` to
   prove the CLI boots, reports a version, initializes minimal governance, and
   runs `doctor` without requiring Hurl runtime execution.
+- Shell-completion onboarding should point to Typer's existing global
+  `entroping --install-completion` and `entroping --show-completion` options;
+  it must not introduce a custom Entroping completion command.
 - Brand terminology is intentional: `qanstitution.yaml` remains the canonical
   policy filename, the QAnstitution/Traffic/Hurl philosophy is preserved, and
   public copy must not imply Entroping is an autonomous agent swarm.

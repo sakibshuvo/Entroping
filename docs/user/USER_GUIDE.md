@@ -33,6 +33,16 @@ For local solo development:
 uv tool install -e .
 ```
 
+Optional shell completion comes from Typer's existing global options:
+
+```bash
+entroping --install-completion
+entroping --show-completion
+```
+
+This is a Typer global option, not an Entroping subcommand, so it does not
+change the locked CLI namespace.
+
 Required external tools:
 
 - `hurl`
