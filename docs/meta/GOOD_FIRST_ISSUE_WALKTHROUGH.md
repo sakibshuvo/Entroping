@@ -105,6 +105,11 @@ For docs work, update only the canonical docs required by
 explain phase-level progress, product decisions, architecture, and durable
 workflow rules.
 
+If a contributor is reporting Entroping from a project outside this repository,
+use [DOWNSTREAM_FEEDBACK_KIT.md](DOWNSTREAM_FEEDBACK_KIT.md) so the report
+captures install path, environment, command used, success/failure, friction, and
+sanitized logs without private data.
+
 ## Minimal Link Map
 
 - Contribution rules: `CONTRIBUTING.md`
@@ -113,3 +118,4 @@ workflow rules.
 - Issue lifecycle: `docs/meta/ISSUE_TRACKING.md`
 - Architecture contract: `docs/technical/TDS.md`
 - Public roadmap: `ROADMAP.md`
+- Downstream feedback: `docs/meta/DOWNSTREAM_FEEDBACK_KIT.md`

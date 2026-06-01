@@ -64,6 +64,7 @@ Use these first. They are the control panel for current work:
 - [[docs/meta/PUBLIC_REPO_SURFACE|PUBLIC_REPO_SURFACE]] - what belongs in the public clone, maintainer context, and local-only Obsidian state.
 - [[docs/meta/INSTALL_SMOKE_MATRIX|INSTALL_SMOKE_MATRIX]] - Linux, macOS, and Windows install-smoke claims and non-claims.
 - [[docs/meta/DOWNSTREAM_SMOKE_EVIDENCE|DOWNSTREAM_SMOKE_EVIDENCE]] - local external-project smoke evidence and its stable-core limits.
+- [[docs/meta/DOWNSTREAM_FEEDBACK_KIT|DOWNSTREAM_FEEDBACK_KIT]] - sanitized real-user feedback template for stable-core downstream evidence.
 - [[docs/meta/ZERO_CONFIG_DEMO_ENTRYPOINT|ZERO_CONFIG_DEMO_ENTRYPOINT]] - why `scripts/demo.sh` is the v0.2 checkout demo entrypoint.
 - [[docs/meta/DISTRIBUTION_RECOMMENDATION|DISTRIBUTION_RECOMMENDATION]] - uv, PyPI, Homebrew tap, and standalone binary sequencing.
 - [[docs/meta/AUTONOMOUS_DEVELOPMENT|AUTONOMOUS_DEVELOPMENT]] - Codex-first autonomous workflow and future OpenCode/oMLX plan.

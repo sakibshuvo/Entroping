@@ -2,6 +2,10 @@
 
 ## 2026-06-01
 
+- Real downstream feedback needs a sanitized intake template before users show
+  up. Ask for install path, environment, commands, outcome, friction, and
+  short redacted logs; explicitly reject secrets, private URLs, raw traffic,
+  proprietary payloads, and customer data.
 - Policy-pack provenance should be validated against loaded local
   QAnstitution gates, not trusted as catalog copy. The manifest can prove
   source paths, license, compatibility range, evidence command, gate files, and

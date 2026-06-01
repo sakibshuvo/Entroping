@@ -65,5 +65,9 @@ maintainer-controlled integration proof. Stable-core remains blocked until at
 least one project outside this repository runs Entroping, reports friction, and
 that feedback is recorded as release evidence.
 
+Use [DOWNSTREAM_FEEDBACK_KIT.md](DOWNSTREAM_FEEDBACK_KIT.md) to collect that
+external feedback without secrets, raw traffic, private URLs, or proprietary API
+payloads.
+
 It also does not prove package-index installation. The package-index blocker
 still requires TestPyPI/PyPI Trusted Publishing proof.

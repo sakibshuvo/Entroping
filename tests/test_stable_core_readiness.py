@@ -46,6 +46,7 @@ def test_stable_core_readiness_json_reports_alpha_blockers() -> None:
         issue["number"]
         for issue in payload["blocker_issue_map"]["real downstream user feedback"]
     ] == [306, 318]
+    assert payload["blocker_issue_map"]["real downstream user feedback"][1]["status"] == "done"
     assert [
         issue["number"]
         for issue in payload["blocker_issue_map"]["stable-core compatibility decision"]
