@@ -2,6 +2,10 @@
 
 ## 2026-06-01
 
+- Added issue #312's policy-pack distribution decision so packs have a
+  local-first path for versioning, distribution, import verification,
+  provenance, attribution, open-core/premium boundaries, minimum smoke evidence,
+  and follow-up implementation issues before registries or hosted catalogs.
 - Added issue #318's downstream feedback evidence kit so real external-user
   feedback can be collected with install path, OS, Python, Hurl, command,
   success/failure, friction, and sanitized logs while excluding secrets,

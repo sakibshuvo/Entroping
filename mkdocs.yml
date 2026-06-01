@@ -39,6 +39,7 @@ nav:
   - Threat Model: technical/THREAT_MODEL.md
   - QAnstitution Reference: technical/QANSTITUTION_REFERENCE.md
   - Policy Pack Layout: technical/POLICY_PACK_LAYOUT.md
+  - Policy Pack Distribution: technical/POLICY_PACK_DISTRIBUTION.md
   - Studio Mutation Workflow Design: technical/STUDIO_MUTATION_WORKFLOW_DESIGN.md
   - Python Compatibility: technical/PYTHON_COMPATIBILITY.md
   - Report Schemas: technical/REPORT_SCHEMAS.md
