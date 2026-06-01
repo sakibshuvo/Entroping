@@ -5,6 +5,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from entroping.brain.safety import contains_secret_like_value, has_disallowed_control
+from entroping.core.path_safety import first_symlink_path_component
 from entroping.models.qanstitution import AgentRole, Qanstitution
 
 _MAX_PERSONA_BYTES = 128_000
@@ -83,12 +84,10 @@ def _resolve_persona_path(source: str, *, root: Path) -> Path:
 
 
 def _reject_symlink_path(candidate: Path, *, root: Path) -> None:
-    current = root
-    for part in candidate.relative_to(root).parts:
-        current = current / part
-        if current.is_symlink():
-            msg = f"Agent persona source must not use symlinks: {current}"
-            raise PersonaLoadError(msg)
+    symlink_component = first_symlink_path_component(candidate, root=root)
+    if symlink_component is not None:
+        msg = f"Agent persona source must not use symlinks: {symlink_component}"
+        raise PersonaLoadError(msg)
 
 
 def _read_persona(path: Path) -> str:

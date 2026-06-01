@@ -270,6 +270,39 @@ gates:
         load_qanstitution(tmp_path / "project" / "qanstitution.yaml")
 
 
+def test_load_qanstitution_rejects_symlinked_local_import(tmp_path: Path) -> None:
+    write_yaml(
+        tmp_path / "rules" / "real-security.yaml",
+        """
+project: imported-security
+gates:
+  - id: security_header
+    condition: "true"
+    gate: header "X-Request-Id" exists
+    enforcement: warn
+""",
+    )
+    (tmp_path / "rules" / "linked-security.yaml").symlink_to(
+        tmp_path / "rules" / "real-security.yaml"
+    )
+    write_yaml(
+        tmp_path / "qanstitution.yaml",
+        """
+project: checkout-api
+imports:
+  - ./rules/linked-security.yaml
+gates:
+  - id: global_latency
+    condition: "true"
+    gate: duration < 2000
+    enforcement: block
+""",
+    )
+
+    with pytest.raises(QanstitutionLoadError, match="must not use symlinks"):
+        load_qanstitution(tmp_path / "qanstitution.yaml")
+
+
 def test_load_qanstitution_rejects_duplicate_local_gate_ids(tmp_path: Path) -> None:
     write_yaml(
         tmp_path / "qanstitution.yaml",

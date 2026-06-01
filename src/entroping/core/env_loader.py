@@ -5,6 +5,8 @@ import re
 from collections.abc import Mapping
 from pathlib import Path
 
+from entroping.core.path_safety import first_symlink_path_component
+
 _ENV_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 _VARIABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -77,10 +79,10 @@ def _read_env_file(path: Path) -> dict[str, str]:
 
 
 def _reject_symlink_path_components(path: Path) -> None:
-    current = Path(path.anchor) if path.is_absolute() else Path(".")
-    parts = path.parts[1:] if path.is_absolute() else path.parts
-    for part in parts:
-        current = current / part
-        if current.is_symlink():
-            msg = f"Refusing to load symlinked environment path component: {current}"
-            raise EnvironmentLoadError(msg)
+    symlink_component = first_symlink_path_component(path)
+    if symlink_component is not None:
+        msg = (
+            "Refusing to load symlinked environment path component: "
+            f"{symlink_component}"
+        )
+        raise EnvironmentLoadError(msg)

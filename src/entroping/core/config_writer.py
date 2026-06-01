@@ -11,6 +11,7 @@ import yaml
 from pydantic import ValidationError
 
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
+from entroping.core.path_safety import first_symlink_path_component
 from entroping.models.qanstitution import AgentRole, Qanstitution
 
 
@@ -249,12 +250,10 @@ def _resolve_persona_template_path(source: str, *, root: Path) -> Path:
 
 
 def _reject_symlink_persona_path(candidate: Path, *, root: Path) -> None:
-    current = root
-    for part in candidate.relative_to(root).parts:
-        current = current / part
-        if current.is_symlink():
-            msg = f"Agent persona source must not use symlinks: {current}"
-            raise ConfigUpdateError(msg)
+    symlink_component = first_symlink_path_component(candidate, root=root)
+    if symlink_component is not None:
+        msg = f"Agent persona source must not use symlinks: {symlink_component}"
+        raise ConfigUpdateError(msg)
 
 
 def _write_missing_persona_template(

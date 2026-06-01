@@ -2,6 +2,10 @@
 
 ## 2026-06-01
 
+- Added issue #344's shared path-safety helper so common symlink component
+  traversal lives in `entroping.core.path_safety`, config imports reject
+  symlinked local imports, and existing adapters keep their domain-specific
+  error messages.
 - Added issue #351's OWASP API Security Top 10-inspired starter policy pack
   under `examples/policy-packs/owasp-api-top-10/`, with local QAnstitution
   imports, provenance metadata, smoke evidence, honest non-compliance claims,
