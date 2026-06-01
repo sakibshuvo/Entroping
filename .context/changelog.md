@@ -2,6 +2,10 @@
 
 ## 2026-06-01
 
+- Added issue #350's practical `watch` limits guidance so the user guide now
+  warns about per-client mitmproxy CA setup, corporate VPN/proxy conflicts,
+  certificate pinning, proxy bypass, session headers, and capture authorization
+  before users try real traffic interception.
 - Added issue #349's brand-integrity audit: ADR-0012 keeps
   `qanstitution.yaml` canonical, preserves "The QAnstitution is Law. Traffic
   is Truth. Hurl is the Enforcer.", rejects unplanned `entroping.yaml` aliases,

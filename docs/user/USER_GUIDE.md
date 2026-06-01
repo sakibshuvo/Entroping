@@ -163,6 +163,30 @@ entroping watch --port 8080 --target http://localhost:3000
 
 Route a browser, curl, Postman, Bruno, Insomnia, or another client through the proxy. Exercise the workflow manually.
 
+### Practical `watch` Limits
+
+Start with a local demo, test fixture, or development environment before
+attempting capture against corporate, shared, staging, or production systems.
+
+`entroping watch` uses mitmproxy, so HTTPS capture may require client-specific
+setup. Install the mitmproxy CA certificate for each client, browser, or runtime
+that you route through the proxy. Browser profiles, mobile simulators, JVMs,
+Node runtimes, containers, and CLI tools can each have different certificate and
+proxy trust stores.
+
+Common real-environment failure modes include corporate VPNs or upstream
+proxies, certificate pinning, clients that bypass system proxy settings, and
+applications that refresh authentication and session headers outside the flow
+you are exercising. If a client ignores the proxy, rejects the mitmproxy CA, or
+pins a certificate, Entroping cannot truthfully observe that traffic through
+`watch`.
+
+Do not capture traffic unless you have permission. Entroping redaction happens
+before persistence, but you are still responsible for capture authorization and review:
+confirm that the environment is approved for interception, avoid collecting
+third-party or user-private traffic, run `entroping report redaction` before
+freezing tests, and inspect generated artifacts before committing them.
+
 Current alpha status: `watch` records redacted, bounded traffic locally under
 `.entroping/state.db`; basic `freeze --name <flow> [--golden]` writes validated
 generated Hurl files; `map --export mermaid|dot|md|png` emits host-level dependency
@@ -579,6 +603,8 @@ can accept generated Hurl.
 ### mitmproxy Certificate Errors
 
 Install the mitmproxy CA certificate for the client that is routed through `watch`.
+For browser, runtime, VPN, proxy, and permission limits, see the Practical
+`watch` Limits section in the legacy rescue workflow.
 
 ### Tests Pass Locally but Fail in CI
 
