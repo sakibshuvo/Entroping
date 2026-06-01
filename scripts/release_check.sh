@@ -121,6 +121,7 @@ cd "$repo_root"
 run_or_print scripts/repo_hygiene.sh
 run_or_print uv run python scripts/policy_pack_smoke.py --strict
 run_or_print uv run python scripts/launch_readiness.py --strict
+run_or_print uv run python scripts/release_evidence.py --strict
 run_or_print uv run python scripts/stable_core_readiness.py --strict
 run_or_print scripts/package_check.sh
 

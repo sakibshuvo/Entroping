@@ -41,6 +41,7 @@ This gate includes:
 - `uv run python scripts/policy_pack_smoke.py --strict`
 - `uv run python scripts/launch_readiness.py --strict`
 - `uv run python scripts/stable_core_readiness.py --strict`
+- `uv run python scripts/release_evidence.py --strict`
 - `scripts/package_check.sh`
 - `scripts/regression.sh --security`
 - `uv run python scripts/performance_smoke.py`
@@ -111,6 +112,9 @@ Before tagging:
   command, flag, exit-code, or report-artifact claim.
 - Review `docs/technical/PYTHON_COMPATIBILITY.md` before any supported-runtime
   claim.
+- Review `docs/meta/RELEASE_EVIDENCE.md` and run
+  `uv run python scripts/release_evidence.py --strict` before any repeated
+  release, package-index, or stable-core evidence claim.
 - Review the `scripts/stable_core_readiness.py --format json` output before any
   v1 or stable-core claim.
 - Run `scripts/demo_matrix.sh --dry-run` before launch copy review to inspect

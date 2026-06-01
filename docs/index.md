@@ -38,6 +38,7 @@ Core references:
 - [CLI Compatibility Audit](technical/CLI_COMPATIBILITY_AUDIT.md)
 - [Command Cheat Sheet](technical/COMMAND_CHEAT_SHEET.md)
 - [Release Checklist](meta/RELEASE_CHECKLIST.md)
+- [Release Evidence](meta/RELEASE_EVIDENCE.md)
 - [PyPI Release Runbook](meta/PYPI_RELEASE_RUNBOOK.md)
 - [Install Smoke Matrix](meta/INSTALL_SMOKE_MATRIX.md)
 

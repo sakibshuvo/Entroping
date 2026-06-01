@@ -132,6 +132,8 @@ def test_alpha_release_checklist_documents_required_evidence() -> None:
     )
 
     assert "v0.1.1-alpha" in checklist
+    assert "RELEASE_EVIDENCE.md" in checklist
+    assert "scripts/release_evidence.py --strict" in checklist
     assert "scripts/package_check.sh" in checklist
     assert "License-Expression" in checklist
     assert "PyPI/TestPyPI tokens" in checklist
@@ -186,3 +188,18 @@ def test_context_plan_does_not_reintroduce_stale_post_alpha_status() -> None:
     assert "Bridge compiler boundary modules exist but are mostly placeholders" not in plan
     assert "Next Slice: Architect Minimal Hardening" not in plan
     assert "Current Validation Queue" in plan
+
+
+def test_release_evidence_ledger_is_discoverable_from_vault_and_docs() -> None:
+    index = (REPO_ROOT / "docs" / "meta" / "VAULT_INDEX.md").read_text(encoding="utf-8")
+    release_evidence = (
+        REPO_ROOT / "docs" / "meta" / "RELEASE_EVIDENCE.md"
+    ).read_text(encoding="utf-8")
+    stable_readiness = (
+        REPO_ROOT / "scripts" / "stable_core_readiness.py"
+    ).read_text(encoding="utf-8")
+
+    assert "[[docs/meta/RELEASE_EVIDENCE|RELEASE_EVIDENCE]]" in index
+    assert "docs/meta/release-evidence.json" in release_evidence
+    assert "scripts/release_evidence.py --strict" in release_evidence
+    assert "release-evidence.json" in stable_readiness

@@ -1,0 +1,58 @@
+{
+  "schema_version": "entroping.release-evidence.v1",
+  "stable_core_ready": false,
+  "stable_core_blockers": [
+    "package-index proof",
+    "real downstream user feedback",
+    "stable-core compatibility decision"
+  ],
+  "releases": [
+    {
+      "tag": "v0.1.1-alpha",
+      "kind": "github-prerelease",
+      "published_at": "2026-05-31T11:22:04Z",
+      "commit": "79c7083669be5166a792fd9e965986e63fe9dc00",
+      "url": "https://github.com/sakibshuvo/Entroping/releases/tag/v0.1.1-alpha",
+      "evidence": {
+        "release_gate": "scripts/release_check.sh --require-live-demo",
+        "release_type": "source-distributed GitHub prerelease",
+        "stable_boundary": "alpha release evidence only; not package-index or stable-core proof"
+      }
+    },
+    {
+      "tag": "v0.1.0-alpha",
+      "kind": "github-prerelease",
+      "published_at": "2026-05-30T08:54:33Z",
+      "commit": "abd08c0ba1c44703ce03e012cd945f077c93cf7b",
+      "url": "https://github.com/sakibshuvo/Entroping/releases/tag/v0.1.0-alpha",
+      "evidence": {
+        "release_gate": "scripts/release_check.sh --require-live-demo",
+        "release_type": "source-distributed GitHub prerelease",
+        "stable_boundary": "first alpha release evidence only"
+      }
+    }
+  ],
+  "latest_main_ci": {
+    "workflow": "CI",
+    "run_id": 26734067652,
+    "created_at": "2026-06-01T03:48:09Z",
+    "event": "push",
+    "conclusion": "success",
+    "commit": "e667e438f6ebc95a9cf4d4c350b433e175ae0184",
+    "url": "https://github.com/sakibshuvo/Entroping/actions/runs/26734067652"
+  },
+  "latest_pages_ci": {
+    "workflow": "Pages",
+    "run_id": 26734067634,
+    "created_at": "2026-06-01T03:48:09Z",
+    "event": "push",
+    "conclusion": "success",
+    "commit": "e667e438f6ebc95a9cf4d4c350b433e175ae0184",
+    "url": "https://github.com/sakibshuvo/Entroping/actions/runs/26734067634"
+  },
+  "package_index": {
+    "status": "not-published",
+    "blocked_by": "TestPyPI/PyPI Trusted Publishing proof has not run yet",
+    "runbook": "docs/meta/PYPI_RELEASE_RUNBOOK.md"
+  }
+}
