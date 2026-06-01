@@ -47,11 +47,29 @@ def test_readme_is_demo_first_open_source_front_door() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
     assert "Code at the speed of AI. Don't crash at the speed of AI." in readme
+    assert "## Use Entroping When" in readme
     assert "## Try It In Two Minutes" in readme
     assert "## Deep Docs" in readme
     assert "## Current Alpha" in readme
+    assert readme.index("## Use Entroping When") < readme.index(
+        "## Try It In Two Minutes"
+    )
     assert readme.index("## Try It In Two Minutes") < readme.index("## Current Alpha")
     assert readme.index("## Try It In Two Minutes") < readme.index("## Deep Docs")
+
+    use_cases = readme.split("## Use Entroping When", maxsplit=1)[1].split(
+        "## Try It In Two Minutes",
+        maxsplit=1,
+    )[0]
+    expected_use_cases = [
+        "AI changed your API",
+        "Your spec exists but tests do not",
+        "Legacy behavior is undocumented",
+        "Rules should apply everywhere",
+        "PRs need evidence",
+    ]
+    for use_case in expected_use_cases:
+        assert use_case in use_cases
 
     first_read = readme.split("## Current Alpha", maxsplit=1)[0]
     assert "Available now:" not in first_read
@@ -71,6 +89,8 @@ def test_readme_promotes_demo_wrapper_without_expanding_cli_surface() -> None:
 
     assert "scripts/demo.sh" in try_it
     assert "scripts/live_demo_smoke.sh" in try_it
+    assert "docs/assets/launch/checkout-demo.gif" in try_it
+    assert "docs/assets/launch/ai-regression-proof.gif" in try_it
     assert "entroping demo" not in command_cheat_sheet
 
 

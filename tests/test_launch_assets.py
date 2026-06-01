@@ -10,6 +10,8 @@ def test_readme_links_two_minute_launch_assets() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
     assert "[Two-Minute Demo Assets](docs/assets/launch/README.md)" in readme
+    assert "docs/assets/launch/checkout-demo.gif" in readme
+    assert "docs/assets/launch/ai-regression-proof.gif" in readme
     assert "docs/assets/launch/terminal-demo-screenshot.png" in readme
     assert "docs/assets/launch/html-report-screenshot.png" in readme
     assert "docs/assets/launch/dependency-map-screenshot.png" in readme
@@ -23,13 +25,15 @@ def test_launch_asset_kit_is_curated_and_reproducible() -> None:
         "terminal-demo-screenshot.png",
         "html-report-screenshot.png",
         "dependency-map-screenshot.png",
+        "checkout-demo.gif",
+        "ai-regression-proof.gif",
         "dependency-map-example.md",
     }
     discovered = {path.name for path in LAUNCH_DIR.iterdir() if path.is_file()}
 
     assert expected_files <= discovered
 
-    allowed_suffixes = {".md", ".png"}
+    allowed_suffixes = {".md", ".png", ".gif"}
     for path in LAUNCH_DIR.rglob("*"):
         if not path.is_file():
             continue
@@ -38,6 +42,11 @@ def test_launch_asset_kit_is_curated_and_reproducible() -> None:
         assert len(content) < 200_000, f"launch asset is too large for Git: {path}"
         if path.suffix == ".png":
             assert content.startswith(b"\x89PNG\r\n\x1a\n"), f"invalid PNG launch asset: {path}"
+        elif path.suffix == ".gif":
+            assert content[:6] in {
+                b"GIF87a",
+                b"GIF89a",
+            }, f"invalid GIF launch asset: {path}"
         else:
             assert b"\x00" not in content, f"binary launch asset needs explicit review: {path}"
 
@@ -51,8 +60,11 @@ def test_launch_asset_kit_is_curated_and_reproducible() -> None:
 
     assert "Generated from real checkout fixture output" in asset_readme
     assert "Curated PNG" in asset_readme
+    assert "Curated GIF" in asset_readme
     assert "scripts/live_demo_smoke.sh" in terminal_demo
     assert "Hurl run: 4 passed, 0 failed" in terminal_demo
+    assert (LAUNCH_DIR / "checkout-demo.gif").stat().st_size > 8_000
+    assert (LAUNCH_DIR / "ai-regression-proof.gif").stat().st_size > 8_000
     assert (LAUNCH_DIR / "terminal-demo-screenshot.png").stat().st_size > 50_000
     assert (LAUNCH_DIR / "html-report-screenshot.png").stat().st_size > 50_000
     assert (LAUNCH_DIR / "dependency-map-screenshot.png").stat().st_size > 50_000

@@ -10,14 +10,21 @@ tags:
 
 # Launch Demo Assets
 
-Generated from real checkout fixture output, not from mocked product copy.
+Generated from real checkout fixture output, not from mocked product copy. The
+animated previews are rendered from reviewed launch proof frames for the
+checkout happy path and AI-regression failure path.
 
-These assets are intentionally small and reproducible. Curated PNGs are checked
-in for public launch previews; raw generated reports, temp workdirs, GIFs, and
-recording sources stay out of Git unless a specific artifact is reviewed.
+These assets are intentionally small and reproducible. Curated PNG and Curated
+GIF files are checked in for public launch previews; raw generated reports, temp
+workdirs, and recording sources stay out of Git unless a specific artifact is
+reviewed.
 
 ## Asset Index
 
+- [Checkout demo GIF](checkout-demo.gif) - Curated GIF showing the
+  `scripts/demo.sh` happy path, policy injection, Hurl pass result, and reports.
+- [AI regression proof GIF](ai-regression-proof.gif) - Curated GIF showing a
+  missing request-id header blocked by a QAnstitution gate.
 - [Terminal demo screenshot](terminal-demo-screenshot.png) - curated PNG from
   the two-minute checkout demo.
 - [HTML report screenshot](html-report-screenshot.png) - curated PNG captured
@@ -50,3 +57,12 @@ cache path is symlinked, set `ENTROPING_DEMO_TMP_BASE` to an empty, symlink-free
 directory first. Use `scripts/live_demo_smoke.sh` directly for lower-level
 release automation. Keep copied report artifacts out of Git unless a specific
 public asset has been reviewed and size-checked.
+
+Render the reviewed GIF previews with Pillow supplied by `uv`:
+
+```bash
+uv run --with pillow python scripts/render_launch_gifs.py
+```
+
+The GIF renderer is intentionally separate from runtime dependencies. It should
+only be used when replacing the curated README preview assets.

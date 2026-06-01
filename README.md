@@ -35,6 +35,14 @@ Entroping gives that workflow a hard guardrail:
 - **Hurl is the Enforcer:** execute committed `.hurl` tests through a deterministic Rust binary.
 - **CI stays LLM-free:** generation can use AI, but `entroping run` is reproducible.
 
+## Use Entroping When
+
+- **AI changed your API:** prove runtime behavior still passes committed Hurl tests before merge.
+- **Your spec exists but tests do not:** generate reviewable Hurl coverage from OpenAPI.
+- **Legacy behavior is undocumented:** watch real traffic, redact it, and freeze regression tests or mocks.
+- **Rules should apply everywhere:** enforce status, latency, headers, and policy-pack gates through `qanstitution.yaml`.
+- **PRs need evidence:** emit JSON, JUnit, HTML, drift, traceability, and GitHub annotations.
+
 ## Try It In Two Minutes
 
 Clone the repo, install `uv` and Hurl, and run the checkout demo:
@@ -58,6 +66,12 @@ Wrote report: reports/run-latest.html
 `scripts/demo.sh` is the friendly checkout entrypoint. It delegates to the
 same deterministic `scripts/live_demo_smoke.sh` release gate used by CI and
 launch-asset rebuilds.
+
+Animated previews show the happy path and the failure path:
+
+![Checkout demo: Hurl run passes and reports are emitted](docs/assets/launch/checkout-demo.gif)
+
+![AI regression proof: QAnstitution blocks a missing request-id header](docs/assets/launch/ai-regression-proof.gif)
 
 For public launch previews, use the
 [Two-Minute Demo Assets](docs/assets/launch/README.md):
