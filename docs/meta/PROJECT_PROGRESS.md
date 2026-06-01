@@ -31,7 +31,7 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#342 Architect validates OpenAPI-generated Hurl before write](https://github.com/sakibshuvo/Entroping/issues/342)
+Current issue: [#343 Escape HTML review-summary and run-summary paths](https://github.com/sakibshuvo/Entroping/issues/343)
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -45,9 +45,9 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#343 Escape HTML review-summary and run-summary paths](https://github.com/sakibshuvo/Entroping/issues/343) | Keep report surfaces safe when they render failure details. |
-| 2 | [#348 Slim public README/MkDocs launch path](https://github.com/sakibshuvo/Entroping/issues/348) | Keep first-time user orientation sharp instead of doc-heavy. |
-| 3 | [#349 Audit public terminology and config naming before stable](https://github.com/sakibshuvo/Entroping/issues/349) | Reduce terminology friction before stable-core positioning hardens. |
+| 1 | [#348 Slim public README/MkDocs launch path](https://github.com/sakibshuvo/Entroping/issues/348) | Keep first-time user orientation sharp instead of doc-heavy. |
+| 2 | [#349 Audit public terminology and config naming before stable](https://github.com/sakibshuvo/Entroping/issues/349) | Reduce terminology friction before stable-core positioning hardens. |
+| 3 | [#350 Document watch TLS and proxy limits for real environments](https://github.com/sakibshuvo/Entroping/issues/350) | Keep Eye onboarding honest before users try real proxy capture. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -78,6 +78,7 @@ entirely inside this repo.
 | Non-GitHub CI provider recipes | Done | Provider docs exist; native templates wait for real runner evidence. |
 | Organization QAnstitution import controls | Done | ADR-0011 defines local-first import provenance and final-gate behavior. |
 | [OpenAPI-generated Hurl pre-write validation](https://github.com/sakibshuvo/Entroping/issues/342) | Done | `architect build --new` validates every compiled Hurl file before writing and leaves no partial files on parser failure. |
+| [HTML run-summary escaping](https://github.com/sakibshuvo/Entroping/issues/343) | Done | `run --report html` escapes the summary header consistently with other rendered report fields. |
 | [Read-only Studio applied-gate drilldowns](https://github.com/sakibshuvo/Entroping/issues/192) | Done | Studio links latest-run report rule IDs to QAnstitution gate definitions. |
 | Read-only Studio traffic session browser | Done | The read-only traffic session browser uses redacted SQLModel-backed state, target/dependency grouping, and safe redaction categories and counts. It does not start `watch` and does not expose raw URLs with query values, headers, bodies, cookies, tokens, or secrets. |
 

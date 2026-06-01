@@ -3,6 +3,7 @@
 import json
 from collections.abc import Mapping
 from pathlib import Path
+from typing import cast
 from xml.etree import ElementTree
 
 import pytest
@@ -22,6 +23,7 @@ from entroping.core.report_writer import (
     write_junit_report,
 )
 from entroping.core.safe_write import SafeWriteError
+from entroping.models.report import RunReport, RunReportSummary
 
 
 def _execution_copy(
@@ -563,6 +565,31 @@ def test_write_html_report_escapes_failure_output(tmp_path: Path) -> None:
     assert "<script>" not in html
     assert "&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;" in html
     assert "live-secret" not in html
+
+
+def test_write_html_report_escapes_summary_text_defensively(tmp_path: Path) -> None:
+    report = RunReport(
+        project="checkout-api",
+        environment="local",
+        generated_at="2026-06-01T00:00:00+00:00",
+        summary=RunReportSummary(
+            passed=cast(int, "0 <em>passed</em>"),
+            failed=cast(int, "1 & failed"),
+            total=cast(int, "1 <script>alert('x')</script>"),
+            exit_code=1,
+        ),
+        tests=(),
+    )
+    output = tmp_path / "reports" / "run-latest.html"
+
+    write_html_report(report, output)
+
+    html = output.read_text(encoding="utf-8")
+    assert "<script>" not in html
+    assert "<em>passed</em>" not in html
+    assert "0 &lt;em&gt;passed&lt;/em&gt; passed" in html
+    assert "1 &amp; failed failed" in html
+    assert "1 &lt;script&gt;alert(&#x27;x&#x27;)&lt;/script&gt; total" in html
 
 
 def test_latest_run_state_round_trips_and_renders_bug_report(tmp_path: Path) -> None:
