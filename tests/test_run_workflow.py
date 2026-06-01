@@ -163,6 +163,78 @@ def test_execute_run_workflow_writes_reports_and_cleans_execution_state(
     assert latest["tests"][0]["path"] == "tests/health.hurl"
 
 
+def test_execute_run_workflow_applies_known_failure_gate_exceptions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / "qanstitution.yaml").write_text(
+        "\n".join(
+            [
+                "project: entroping-project",
+                "gates:",
+                "  - id: latency",
+                '    condition: "true"',
+                "    gate: duration < 2000",
+                "    enforcement: block",
+                "  - id: status_ceiling",
+                '    condition: "true"',
+                "    gate: status < 500",
+                "    enforcement: block",
+                "ignore_failures:",
+                "  - test: tests/health.hurl",
+                "    rule_id: latency",
+                "    issue_id: GH-123",
+                "    expires: '2999-01-01'",
+                "    reason: Temporary upstream latency regression.",
+            ],
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "health.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+    ) -> HurlSuiteResult:
+        _ = (options, max_workers)
+        for path in paths:
+            content = path.read_text(encoding="utf-8")
+            assert "duration < 2000" not in content
+            assert "status < 500" in content
+        return HurlSuiteResult(results=tuple(_passed_result(path) for path in paths))
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
+
+    result = execute_run_workflow(
+        project_root=tmp_path,
+        environment=None,
+        tag_filters=("smoke",),
+        report_formats=(),
+        parallel=False,
+        drift_check=False,
+    )
+
+    latest = json.loads(result.latest_state_path.read_text(encoding="utf-8"))
+    assert latest["tests"][0]["rule_ids"] == ["status_ceiling"]
+    assert latest["tests"][0]["known_failures"] == [
+        {
+            "expires": "2999-01-01",
+            "issue_id": "GH-123",
+            "reason": "Temporary upstream latency regression.",
+            "rule_id": "latency",
+            "test": "tests/health.hurl",
+        }
+    ]
+
+
 def test_execute_run_workflow_reports_no_matching_hurl_tests(tmp_path: Path) -> None:
     _write_project(tmp_path)
 

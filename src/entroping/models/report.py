@@ -21,6 +21,17 @@ class ResponseSnapshot:
 
 
 @dataclass(frozen=True)
+class KnownFailureEvidence:
+    """Known-failure exception applied during deterministic gate injection."""
+
+    test: str
+    rule_id: str
+    issue_id: str
+    expires: str
+    reason: str
+
+
+@dataclass(frozen=True)
 class RunTestReport:
     """Report row for one source Hurl test."""
 
@@ -35,6 +46,7 @@ class RunTestReport:
     response_status_code: int | None = None
     response_headers: tuple[tuple[str, str], ...] = ()
     response_body_shape: tuple[str, ...] = ()
+    known_failures: tuple[KnownFailureEvidence, ...] = ()
 
     @property
     def passed(self) -> bool:

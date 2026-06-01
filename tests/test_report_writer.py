@@ -1,6 +1,7 @@
 """Unit and adapter tests for deterministic run report writers."""
 
 import json
+from collections.abc import Mapping
 from pathlib import Path
 from xml.etree import ElementTree
 
@@ -8,7 +9,7 @@ import pytest
 
 import entroping.core.report_writer as report_writer
 from entroping.bridge.policy_to_hurl import HurlGateAssertion
-from entroping.core.gate_injector import HurlExecutionCopy
+from entroping.core.gate_injector import AppliedKnownFailure, HurlExecutionCopy
 from entroping.core.hurl_runner import HurlFileResult, HurlSuiteResult
 from entroping.core.report_writer import (
     ReportWriterError,
@@ -23,7 +24,11 @@ from entroping.core.report_writer import (
 from entroping.core.safe_write import SafeWriteError
 
 
-def _execution_copy(source: Path, execution: Path) -> HurlExecutionCopy:
+def _execution_copy(
+    source: Path,
+    execution: Path,
+    known_failures: tuple[AppliedKnownFailure, ...] = (),
+) -> HurlExecutionCopy:
     return HurlExecutionCopy(
         source_path=source,
         execution_path=execution,
@@ -35,6 +40,7 @@ def _execution_copy(source: Path, execution: Path) -> HurlExecutionCopy:
                 condition="true",
             ),
         ),
+        known_failures=known_failures,
     )
 
 
@@ -81,6 +87,61 @@ def test_write_json_report_includes_ci_debug_fields_and_redacts_output(tmp_path:
     assert "live-secret" not in output.read_text(encoding="utf-8")
     assert "Authorization: [REDACTED]" in data["tests"][0]["stdout"]
     assert "token=[REDACTED]" in data["tests"][0]["stderr"]
+
+
+def test_reports_include_applied_known_failure_evidence(tmp_path: Path) -> None:
+    source = tmp_path / "tests" / "health.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
+    known_failure = AppliedKnownFailure(
+        test="tests/health.hurl",
+        rule_id="global_latency",
+        issue_id="GH-123",
+        expires="2026-06-30",
+        reason="Temporary upstream latency regression.",
+    )
+    report = build_run_report(
+        project="checkout-api",
+        environment="local",
+        execution_copies=[_execution_copy(source, execution, (known_failure,))],
+        suite=_suite_result(execution, "assert failed\n"),
+        project_root=tmp_path,
+    )
+
+    payload = report_writer.run_report_to_dict(report)
+    tests_payload = payload["tests"]
+    assert isinstance(tests_payload, list)
+    first_test = tests_payload[0]
+    assert isinstance(first_test, Mapping)
+    assert first_test["known_failures"] == [
+        {
+            "test": "tests/health.hurl",
+            "rule_id": "global_latency",
+            "issue_id": "GH-123",
+            "expires": "2026-06-30",
+            "reason": "Temporary upstream latency regression.",
+        }
+    ]
+
+    junit_path = tmp_path / "reports" / "junit.xml"
+    write_junit_report(report, junit_path)
+    testcase = ElementTree.parse(junit_path).getroot().find("testcase")
+    assert testcase is not None
+    properties = testcase.find("properties")
+    assert properties is not None
+    values = {
+        property_node.attrib["name"]: property_node.attrib["value"]
+        for property_node in properties.findall("property")
+    }
+    assert values["entroping.known_failure.global_latency"] == (
+        "GH-123 expires 2026-06-30: Temporary upstream latency regression."
+    )
+
+    html_path = tmp_path / "reports" / "run-latest.html"
+    write_html_report(report, html_path)
+    html = html_path.read_text(encoding="utf-8")
+    assert "Known failures" in html
+    assert "GH-123" in html
+    assert "Temporary upstream latency regression." in html
 
 
 def test_write_json_report_includes_sanitized_response_fingerprint(tmp_path: Path) -> None:
@@ -266,6 +327,101 @@ def test_load_run_report_ignores_malformed_optional_response_fields(tmp_path: Pa
 
     assert report.tests[0].response is None
     assert report.tests[1].response is None
+
+
+def test_load_run_report_round_trips_valid_known_failures_and_ignores_malformed_entries(
+    tmp_path: Path,
+) -> None:
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(
+        json.dumps(
+            {
+                "project": "checkout-api",
+                "environment": "local",
+                "generated_at": "2026-05-31T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 1, "failed": 0, "exit_code": 0},
+                "tests": [
+                    {
+                        "path": "tests/health.hurl",
+                        "execution_path": ".entroping/run/health.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 42,
+                        "rule_ids": [],
+                        "stdout": "",
+                        "stderr": "",
+                        "known_failures": [
+                            "not-a-dict",
+                            {
+                                "test": 123,
+                                "rule_id": "latency",
+                                "issue_id": "GH-001",
+                                "expires": "2026-06-30",
+                                "reason": "wrong type",
+                            },
+                            {
+                                "test": "",
+                                "rule_id": "latency",
+                                "issue_id": "GH-002",
+                                "expires": "2026-06-30",
+                                "reason": "empty test",
+                            },
+                            {
+                                "test": "tests/bad\n.hurl",
+                                "rule_id": "latency",
+                                "issue_id": "GH-003",
+                                "expires": "2026-06-30",
+                                "reason": "control character",
+                            },
+                            {
+                                "test": " tests/health.hurl ",
+                                "rule_id": " latency ",
+                                "issue_id": " GH-123 ",
+                                "expires": " 2026-06-30 ",
+                                "reason": " Temporary upstream latency regression. ",
+                            },
+                        ],
+                    },
+                    {
+                        "path": "tests/checkout.hurl",
+                        "execution_path": ".entroping/run/checkout.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 10,
+                        "rule_ids": [],
+                        "stdout": "",
+                        "stderr": "",
+                        "known_failures": "not-a-list",
+                    },
+                ],
+            },
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = load_run_report(latest)
+
+    assert [
+        (
+            known_failure.test,
+            known_failure.rule_id,
+            known_failure.issue_id,
+            known_failure.expires,
+            known_failure.reason,
+        )
+        for known_failure in report.tests[0].known_failures
+    ] == [
+        (
+            "tests/health.hurl",
+            "latency",
+            "GH-123",
+            "2026-06-30",
+            "Temporary upstream latency regression.",
+        )
+    ]
+    assert report.tests[1].known_failures == ()
 
 
 def test_write_json_report_preserves_existing_target_when_atomic_write_fails(

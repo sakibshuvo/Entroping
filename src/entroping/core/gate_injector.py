@@ -3,12 +3,13 @@
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import date
 from hashlib import sha256
 from pathlib import Path
 
 from entroping.bridge.policy_to_hurl import HurlGateAssertion, compile_matching_gates
 from entroping.models.hurl import HurlExchange, HurlTest, parse_hurl_exchanges
-from entroping.models.qanstitution import GateRule
+from entroping.models.qanstitution import GateRule, KnownFailure
 
 _REQUEST_LINE_RE = re.compile(
     r"^(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|CONNECT|TRACE)\s+\S+(?:\s+.*)?$",
@@ -21,12 +22,24 @@ class GateInjectionError(ValueError):
 
 
 @dataclass(frozen=True)
+class AppliedKnownFailure:
+    """Known-failure exception applied to one injected governance gate."""
+
+    test: str
+    rule_id: str
+    issue_id: str
+    expires: str
+    reason: str
+
+
+@dataclass(frozen=True)
 class HurlExecutionCopy:
     """Temporary Hurl file prepared for execution."""
 
     source_path: Path
     execution_path: Path
     injected_gates: tuple[HurlGateAssertion, ...]
+    known_failures: tuple[AppliedKnownFailure, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -41,10 +54,14 @@ def write_injected_execution_copy(
     gates: Sequence[GateRule],
     *,
     execution_root: Path,
+    known_failures: Sequence[KnownFailure] = (),
+    project_root: Path | None = None,
+    today: date | None = None,
 ) -> HurlExecutionCopy:
     """Write a temporary execution copy for one Hurl test without mutating source."""
 
     source_path = _validate_source_path(hurl_test.path)
+    _validate_known_failure_expiries(known_failures, today=today)
     try:
         content = source_path.read_text(encoding="utf-8")
     except UnicodeDecodeError as exc:
@@ -59,7 +76,13 @@ def write_injected_execution_copy(
         metadata=hurl_test.metadata,
         exchanges=parse_hurl_exchanges(content),
     )
-    injected_content, injected_gates = inject_gate_assertions(content, parsed_test, gates)
+    injected_content, injected_gates, applied_known_failures = _inject_gate_assertions(
+        content,
+        parsed_test,
+        gates,
+        known_failures=known_failures,
+        project_root=project_root,
+    )
 
     resolved_root = execution_root.expanduser().resolve()
     if resolved_root.exists() and not resolved_root.is_dir():
@@ -74,6 +97,7 @@ def write_injected_execution_copy(
         source_path=source_path,
         execution_path=execution_path,
         injected_gates=injected_gates,
+        known_failures=applied_known_failures,
     )
 
 
@@ -84,6 +108,26 @@ def inject_gate_assertions(
 ) -> tuple[str, tuple[HurlGateAssertion, ...]]:
     """Return Hurl content with matching gate assertions injected."""
 
+    injected_content, injected_gates, _applied_known_failures = _inject_gate_assertions(
+        content,
+        hurl_test,
+        gates,
+        known_failures=(),
+        project_root=None,
+    )
+    return injected_content, injected_gates
+
+
+def _inject_gate_assertions(
+    content: str,
+    hurl_test: HurlTest,
+    gates: Sequence[GateRule],
+    *,
+    known_failures: Sequence[KnownFailure],
+    project_root: Path | None,
+) -> tuple[str, tuple[HurlGateAssertion, ...], tuple[AppliedKnownFailure, ...]]:
+    """Return Hurl content with matching active known-failure gates omitted."""
+
     lines = content.splitlines()
     response_blocks = _find_response_blocks(lines, hurl_test.exchanges)
     if not response_blocks and gates:
@@ -93,9 +137,24 @@ def inject_gate_assertions(
     output: list[str] = []
     cursor = 0
     injected_by_id: dict[str, HurlGateAssertion] = {}
+    applied_by_rule_id: dict[str, AppliedKnownFailure] = {}
+    active_known_failures = _matching_known_failures_by_rule_id(
+        source_path=hurl_test.path,
+        project_root=project_root,
+        known_failures=known_failures,
+    )
 
     for block in response_blocks:
         matching_gates = compile_matching_gates(gates, hurl_test, exchange=block.exchange)
+        injectable_gates: list[HurlGateAssertion] = []
+        for gate in matching_gates:
+            known_failure = active_known_failures.get(gate.rule_id)
+            if known_failure is None:
+                injectable_gates.append(gate)
+                continue
+            applied_by_rule_id.setdefault(gate.rule_id, _to_applied_known_failure(known_failure))
+
+        matching_gates = tuple(injectable_gates)
         if not matching_gates:
             continue
 
@@ -116,7 +175,76 @@ def inject_gate_assertions(
     rendered = "\n".join(output)
     if content.endswith("\n"):
         rendered += "\n"
-    return rendered, tuple(injected_by_id.values())
+    return rendered, tuple(injected_by_id.values()), tuple(applied_by_rule_id.values())
+
+
+def _validate_known_failure_expiries(
+    known_failures: Sequence[KnownFailure],
+    *,
+    today: date | None,
+) -> None:
+    reference_date = today or date.today()
+    for known_failure in known_failures:
+        expires = _parse_known_failure_expiry(known_failure)
+        if expires < reference_date:
+            msg = (
+                "Known failure exception expired "
+                f"for {known_failure.issue_id} on {known_failure.test} "
+                f"rule {known_failure.rule_id}: expired {known_failure.expires}"
+            )
+            raise GateInjectionError(msg)
+
+
+def _parse_known_failure_expiry(known_failure: KnownFailure) -> date:
+    try:
+        return date.fromisoformat(known_failure.expires)
+    except ValueError as exc:
+        msg = (
+            "Known failure exception expiry must be YYYY-MM-DD "
+            f"for {known_failure.issue_id} on {known_failure.test} "
+            f"rule {known_failure.rule_id}: {known_failure.expires}"
+        )
+        raise GateInjectionError(msg) from exc
+
+
+def _matching_known_failures_by_rule_id(
+    *,
+    source_path: Path,
+    project_root: Path | None,
+    known_failures: Sequence[KnownFailure],
+) -> dict[str, KnownFailure]:
+    test_key = _test_path_key(source_path, project_root)
+    matches: dict[str, KnownFailure] = {}
+    for known_failure in known_failures:
+        if _normalize_known_failure_test(known_failure.test) != test_key:
+            continue
+        matches.setdefault(known_failure.rule_id, known_failure)
+    return matches
+
+
+def _test_path_key(source_path: Path, project_root: Path | None) -> str:
+    resolved = source_path.expanduser().resolve()
+    if project_root is not None:
+        root = project_root.expanduser().resolve()
+        try:
+            return resolved.relative_to(root).as_posix()
+        except ValueError:
+            pass
+    return resolved.as_posix()
+
+
+def _normalize_known_failure_test(test: str) -> str:
+    return test.strip().replace("\\", "/")
+
+
+def _to_applied_known_failure(known_failure: KnownFailure) -> AppliedKnownFailure:
+    return AppliedKnownFailure(
+        test=_normalize_known_failure_test(known_failure.test),
+        rule_id=known_failure.rule_id,
+        issue_id=known_failure.issue_id,
+        expires=known_failure.expires,
+        reason=known_failure.reason,
+    )
 
 
 def _validate_source_path(path: Path) -> Path:

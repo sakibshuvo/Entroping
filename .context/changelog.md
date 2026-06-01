@@ -2,6 +2,11 @@
 
 ## 2026-06-01
 
+- Added issue #336's runtime known-failure semantics so active
+  `ignore_failures` entries skip only matching Entroping-injected QAnstitution
+  gates by exact test path and rule ID, expired exceptions block before Hurl
+  execution, and JSON/JUnit/HTML run reports expose the applied exception
+  evidence.
 - Added issue #329's reusable policy-pack verification artifact so
   `scripts/policy_pack_smoke.py --pack <local-pack> --format json --strict`
   validates arbitrary local pack directories, emits attachable

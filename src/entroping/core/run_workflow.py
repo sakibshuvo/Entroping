@@ -106,6 +106,8 @@ def execute_run_workflow(
                 hurl_test,
                 law.gates,
                 execution_root=Path(execution_root),
+                known_failures=law.ignore_failures,
+                project_root=root,
             )
             for hurl_test in hurl_tests
         ]

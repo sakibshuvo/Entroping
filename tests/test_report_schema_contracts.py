@@ -16,7 +16,12 @@ from entroping.models.drift import (
     DriftReportSummary,
 )
 from entroping.models.hurl import HurlMetadata, HurlTest
-from entroping.models.report import RunReport, RunReportSummary, RunTestReport
+from entroping.models.report import (
+    KnownFailureEvidence,
+    RunReport,
+    RunReportSummary,
+    RunTestReport,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_DIR = REPO_ROOT / "docs" / "technical" / "report-schemas"
@@ -41,6 +46,15 @@ def test_run_report_v1_schema_contract_is_versioned_and_stable() -> None:
                 response_status_code=200,
                 response_headers=(("content-type", "application/json"),),
                 response_body_shape=("$:object", "$.ok:boolean"),
+                known_failures=(
+                    KnownFailureEvidence(
+                        test="tests/health.hurl",
+                        rule_id="global_latency",
+                        issue_id="GH-123",
+                        expires="2026-06-30",
+                        reason="Temporary upstream latency regression.",
+                    ),
+                ),
             ),
         ),
     )
@@ -63,6 +77,15 @@ def test_run_report_v1_schema_contract_is_versioned_and_stable() -> None:
                 "rule_ids": ["global_latency"],
                 "stdout": "HTTP 200\n\n{\"ok\":true}\n",
                 "stderr": "",
+                "known_failures": [
+                    {
+                        "test": "tests/health.hurl",
+                        "rule_id": "global_latency",
+                        "issue_id": "GH-123",
+                        "expires": "2026-06-30",
+                        "reason": "Temporary upstream latency regression.",
+                    }
+                ],
                 "response": {
                     "status_code": 200,
                     "headers": {"content-type": "application/json"},
