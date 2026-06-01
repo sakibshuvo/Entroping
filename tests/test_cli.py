@@ -36,6 +36,13 @@ def _accept_architect_hurl_validation(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
+def _accept_openapi_hurl_validation(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "entroping.cli.commands.architect.validate_hurl_content",
+        lambda content, display_path: None,
+    )
+
+
 def _accept_architect_refactor_hurl_validation(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "entroping.brain.architect_refactor.validate_hurl_content",
@@ -663,6 +670,7 @@ def test_architect_build_new_generates_hurl_from_configured_openapi(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
+    _accept_openapi_hurl_validation(monkeypatch)
     Path("qanstitution.yaml").write_text(
         """
 project: checkout-api
@@ -715,6 +723,7 @@ def test_architect_build_new_writes_parameterized_generated_hurl(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
+    _accept_openapi_hurl_validation(monkeypatch)
     Path("qanstitution.yaml").write_text(
         """
 project: orders-api
@@ -794,6 +803,116 @@ paths:
     assert result.exit_code == 1
     assert "symlinked generated Hurl path component" in result.output
     assert not (outside_dir / "get_health.hurl").exists()
+
+
+def test_architect_build_new_validates_each_generated_file_before_write(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+sources:
+  spec: ./openapi.yaml
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    Path("openapi.yaml").write_text(
+        """
+openapi: "3.1.0"
+paths: {}
+""".lstrip(),
+        encoding="utf-8",
+    )
+    generated = (
+        GeneratedHurlFile(
+            relative_path="tests/generated/health.hurl",
+            content="# entroping: source=openapi\nGET {{base_url}}/health\nHTTP 200\n",
+        ),
+        GeneratedHurlFile(
+            relative_path="tests/generated/orders.hurl",
+            content="# entroping: source=openapi\nGET {{base_url}}/orders\nHTTP 200\n",
+        ),
+    )
+    validated: list[tuple[str, str]] = []
+
+    monkeypatch.setattr(
+        architect_cli,
+        "compile_openapi_to_hurl",
+        lambda document, tags: generated,
+    )
+    monkeypatch.setattr(
+        architect_cli,
+        "validate_hurl_content",
+        lambda content, display_path: validated.append((content, display_path)),
+        raising=False,
+    )
+
+    result = CliRunner().invoke(app, ["architect", "build", "--new"])
+
+    assert result.exit_code == 0
+    assert [display_path for _, display_path in validated] == [
+        "tests/generated/health.hurl",
+        "tests/generated/orders.hurl",
+    ]
+    assert Path("tests/generated/health.hurl").is_file()
+    assert Path("tests/generated/orders.hurl").is_file()
+
+
+def test_architect_build_new_validation_failure_does_not_write_partial_files(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+sources:
+  spec: ./openapi.yaml
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    Path("openapi.yaml").write_text(
+        """
+openapi: "3.1.0"
+paths: {}
+""".lstrip(),
+        encoding="utf-8",
+    )
+    generated = (
+        GeneratedHurlFile(
+            relative_path="tests/generated/health.hurl",
+            content="# entroping: source=openapi\nGET {{base_url}}/health\nHTTP 200\n",
+        ),
+        GeneratedHurlFile(
+            relative_path="tests/generated/bad.hurl",
+            content="# entroping: source=openapi\nGET {{base_url}}/secret\nBAD\n",
+        ),
+    )
+
+    def fail_validation(content: str, display_path: str) -> None:
+        if display_path == "tests/generated/bad.hurl":
+            raise HurlValidationError(f"Generated Hurl failed parser validation: {display_path}")
+        _ = content
+
+    monkeypatch.setattr(
+        architect_cli,
+        "compile_openapi_to_hurl",
+        lambda document, tags: generated,
+    )
+    monkeypatch.setattr(architect_cli, "validate_hurl_content", fail_validation, raising=False)
+
+    result = CliRunner().invoke(app, ["architect", "build", "--new"])
+
+    assert result.exit_code == 1
+    assert "Generated Hurl failed parser validation: tests/generated/bad.hurl" in result.output
+    assert "GET {{base_url}}/secret" not in result.output
+    assert "BAD" not in result.output
+    assert not Path("tests/generated/health.hurl").exists()
+    assert not Path("tests/generated/bad.hurl").exists()
 
 
 def test_architect_build_new_requires_configured_spec(
@@ -3153,6 +3272,25 @@ def test_configured_spec_reference_preserves_remote_and_absolute_paths(tmp_path:
 
     assert remote == "https://example.test/openapi.yaml"
     assert absolute == tmp_path / "openapi.yaml"
+
+
+def test_write_generated_hurl_file_writes_openapi_generated_content(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    output_path = architect_cli._write_generated_hurl_file(
+        GeneratedHurlFile(
+            relative_path="tests/generated/health.hurl",
+            content="# entroping: source=openapi\nGET /health\nHTTP 200\n",
+        )
+    )
+
+    assert output_path == (tmp_path / "tests" / "generated" / "health.hurl")
+    assert output_path.read_text(encoding="utf-8") == (
+        "# entroping: source=openapi\nGET /health\nHTTP 200\n"
+    )
 
 
 @pytest.mark.parametrize(

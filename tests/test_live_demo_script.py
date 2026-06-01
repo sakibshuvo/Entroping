@@ -48,10 +48,25 @@ echo "fake hurl ok"
     )
 
 
+def _write_live_demo_fake_hurlfmt(path: Path) -> None:
+    _write_executable(
+        path,
+        """#!/usr/bin/env bash
+set -euo pipefail
+
+test "$1" = "--out"
+test "$2" = "json"
+test -f "$3"
+echo "[]"
+""",
+    )
+
+
 def test_demo_script_delegates_to_live_demo_smoke_and_keeps_reports(tmp_path: Path) -> None:
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     _write_live_demo_fake_hurl(fake_bin / "hurl")
+    _write_live_demo_fake_hurlfmt(fake_bin / "hurlfmt")
 
     artifact_dir = tmp_path / "artifacts"
     env = os.environ.copy()
@@ -134,6 +149,7 @@ def test_live_demo_smoke_script_uses_hurl_and_copies_artifacts(tmp_path: Path) -
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     _write_live_demo_fake_hurl(fake_bin / "hurl")
+    _write_live_demo_fake_hurlfmt(fake_bin / "hurlfmt")
 
     artifact_dir = tmp_path / "artifacts"
     env = os.environ.copy()
