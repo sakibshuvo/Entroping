@@ -220,6 +220,11 @@ The release check also runs `uv run python scripts/downstream_smoke.py` when
 Hurl is available, proving the local CLI can govern an external temporary
 project from outside the repository. `--skip-downstream-smoke` is a diagnostic
 escape hatch; release-candidate proof should keep the downstream smoke enabled.
+The optional freshness command
+`uv run python scripts/release_evidence.py --check-freshness --strict` is a
+maintainer convenience for comparing the committed ledger with latest
+successful GitHub Actions runs. It is intentionally outside the offline release
+gate and does not mutate `docs/meta/release-evidence.json`.
 
 ## Coverage Expectations
 

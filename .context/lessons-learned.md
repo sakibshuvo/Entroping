@@ -2,6 +2,9 @@
 
 ## 2026-06-01
 
+- Release evidence freshness should be an explicit maintainer check, not a
+  default offline gate. Querying GitHub can prove that recorded CI/Page runs are
+  stale, but missing `gh` or auth should not block normal ledger validation.
 - Release gates should refresh local downstream proof, not only record that a
   harness exists. Keep maintainer-controlled downstream smoke enabled by
   default when Hurl is present, but continue separating it from real downstream

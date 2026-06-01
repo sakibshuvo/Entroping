@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Validate and summarize committed release evidence without GitHub API access."""
+"""Validate release evidence offline, with optional GitHub CLI freshness checks."""
 
 from __future__ import annotations
 
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,10 @@ REQUIRED_BLOCKERS = (
     "stable-core compatibility decision",
 )
 DOWNSTREAM_SMOKE_SCHEMA_VERSION = "entroping.downstream-smoke.v1"
+ACTIONS_WORKFLOWS = {
+    "latest_main_ci": "CI",
+    "latest_pages_ci": "Pages",
+}
 
 
 def main() -> int:
@@ -46,6 +51,21 @@ def main() -> int:
         action="store_true",
         help="Exit non-zero when the ledger is missing or invalid.",
     )
+    parser.add_argument(
+        "--check-freshness",
+        action="store_true",
+        help="Optionally compare recorded CI/Pages evidence with latest successful main runs.",
+    )
+    parser.add_argument(
+        "--freshness-input",
+        type=Path,
+        help="Read latest CI/Pages run evidence from a fixture JSON file instead of gh.",
+    )
+    parser.add_argument(
+        "--repo",
+        default="sakibshuvo/Entroping",
+        help="GitHub repository for optional gh freshness checks.",
+    )
     args = parser.parse_args()
 
     root = args.root.expanduser().resolve()
@@ -69,15 +89,33 @@ def main() -> int:
             return 1
         return 0
 
-    failures = _validation_failures(ledger)
-    payload = _summary_payload(ledger, failures)
+    validation_failures = _validation_failures(ledger)
+    freshness = _freshness_not_checked()
+    freshness_failures: list[str] = []
+    if args.check_freshness:
+        freshness = _freshness_report(
+            ledger,
+            repo=args.repo,
+            input_path=args.freshness_input,
+        )
+        if freshness["status"] == "stale":
+            freshness_failures = [
+                failure
+                for failure in freshness["failures"]
+                if isinstance(failure, str)
+            ]
+    failures = [*validation_failures, *freshness_failures]
+    payload = _summary_payload(ledger, failures, freshness)
     if args.format == "json":
         print(json.dumps(payload, indent=2, sort_keys=True))
     else:
         print(_render_markdown(payload))
 
     if args.strict and failures:
-        print("release evidence check failed:", file=sys.stderr)
+        if freshness_failures and not validation_failures:
+            print("release evidence freshness check failed:", file=sys.stderr)
+        else:
+            print("release evidence check failed:", file=sys.stderr)
         for failure in failures:
             print(f"  {failure}", file=sys.stderr)
         return 1
@@ -218,7 +256,162 @@ def _valid_iso_z(value: object) -> bool:
     return bool(re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", value))
 
 
-def _summary_payload(ledger: dict[str, Any], failures: list[str]) -> dict[str, Any]:
+def _freshness_not_checked() -> dict[str, Any]:
+    return {
+        "status": "not_checked",
+        "source": "",
+        "message": (
+            "Run with --check-freshness to compare against latest successful "
+            "main CI and Pages runs."
+        ),
+        "latest": {},
+        "failures": [],
+    }
+
+
+def _freshness_report(
+    ledger: dict[str, Any],
+    *,
+    repo: str,
+    input_path: Path | None,
+) -> dict[str, Any]:
+    if input_path is not None:
+        source = str(input_path)
+        latest, unavailable = _load_freshness_fixture(input_path)
+    else:
+        source = f"gh run list --repo {repo}"
+        latest, unavailable = _load_latest_runs_from_gh(repo)
+    if unavailable:
+        return {
+            "status": "unavailable",
+            "source": source,
+            "message": unavailable,
+            "latest": {},
+            "failures": [],
+        }
+
+    failures = _freshness_failures(ledger, latest)
+    return {
+        "status": "stale" if failures else "current",
+        "source": source,
+        "message": (
+            "Recorded evidence is behind the latest successful main runs."
+            if failures
+            else "Recorded evidence matches the latest successful main runs."
+        ),
+        "latest": latest,
+        "failures": failures,
+    }
+
+
+def _load_freshness_fixture(path: Path) -> tuple[dict[str, dict[str, Any]], str]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {}, f"freshness fixture unavailable: {exc}"
+    if not isinstance(payload, dict):
+        return {}, "freshness fixture root must be an object"
+    latest: dict[str, dict[str, Any]] = {}
+    for field_name in ACTIONS_WORKFLOWS:
+        entry = payload.get(field_name)
+        if not isinstance(entry, dict):
+            return {}, f"freshness fixture missing {field_name} object"
+        latest[field_name] = entry
+    return latest, ""
+
+
+def _load_latest_runs_from_gh(repo: str) -> tuple[dict[str, dict[str, Any]], str]:
+    latest: dict[str, dict[str, Any]] = {}
+    for field_name, workflow in ACTIONS_WORKFLOWS.items():
+        entry, unavailable = _load_latest_workflow_from_gh(repo=repo, workflow=workflow)
+        if unavailable:
+            return {}, unavailable
+        latest[field_name] = entry
+    return latest, ""
+
+
+def _load_latest_workflow_from_gh(
+    *,
+    repo: str,
+    workflow: str,
+) -> tuple[dict[str, Any], str]:
+    command = [
+        "gh",
+        "run",
+        "list",
+        "--repo",
+        repo,
+        "--workflow",
+        workflow,
+        "--branch",
+        "main",
+        "--status",
+        "success",
+        "--limit",
+        "1",
+        "--json",
+        "databaseId,workflowName,headSha,conclusion,event,createdAt,url",
+    ]
+    try:
+        completed = subprocess.run(  # nosec B603
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except OSError as exc:
+        return {}, f"gh executable unavailable: {exc}"
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or completed.stdout.strip() or "gh run list failed"
+        return {}, f"gh run list failed for {workflow}: {detail}"
+    try:
+        payload = json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:
+        return {}, f"gh run list returned invalid JSON for {workflow}: {exc}"
+    if not isinstance(payload, list) or not payload or not isinstance(payload[0], dict):
+        return {}, f"gh run list returned no successful main {workflow} runs"
+    return _normalise_gh_run(payload[0], workflow), ""
+
+
+def _normalise_gh_run(run: dict[str, Any], workflow: str) -> dict[str, Any]:
+    return {
+        "workflow": workflow,
+        "run_id": run.get("databaseId"),
+        "created_at": run.get("createdAt"),
+        "event": run.get("event"),
+        "conclusion": run.get("conclusion"),
+        "commit": run.get("headSha"),
+        "url": run.get("url"),
+    }
+
+
+def _freshness_failures(
+    ledger: dict[str, Any],
+    latest: dict[str, dict[str, Any]],
+) -> list[str]:
+    failures: list[str] = []
+    for field_name in ACTIONS_WORKFLOWS:
+        recorded = ledger.get(field_name)
+        current = latest.get(field_name)
+        if not isinstance(recorded, dict) or not isinstance(current, dict):
+            continue
+        for key in ("run_id", "commit"):
+            recorded_value = recorded.get(key)
+            current_value = current.get(key)
+            if recorded_value != current_value:
+                failures.append(
+                    f"{field_name}.{key} is {recorded_value} "
+                    f"but latest successful main run is {current_value}"
+                )
+    return failures
+
+
+def _summary_payload(
+    ledger: dict[str, Any],
+    failures: list[str],
+    freshness: dict[str, Any],
+) -> dict[str, Any]:
     releases = ledger.get("releases")
     release_list = releases if isinstance(releases, list) else []
     release_tags = [
@@ -242,6 +435,7 @@ def _summary_payload(ledger: dict[str, Any], failures: list[str]) -> dict[str, A
         "latest_main_ci": latest_main_ci if isinstance(latest_main_ci, dict) else {},
         "latest_pages_ci": latest_pages_ci if isinstance(latest_pages_ci, dict) else {},
         "downstream_smoke": downstream_smoke if isinstance(downstream_smoke, dict) else {},
+        "freshness": freshness,
         "failures": failures,
     }
 
@@ -259,6 +453,7 @@ def _error_payload(message: str) -> dict[str, Any]:
         "latest_main_ci": {},
         "latest_pages_ci": {},
         "downstream_smoke": {},
+        "freshness": _freshness_not_checked(),
         "failures": [message],
     }
 
@@ -319,6 +514,18 @@ def _render_markdown(payload: dict[str, Any]) -> str:
         )
     else:
         lines.extend(["- No recorded downstream smoke evidence.", ""])
+
+    freshness = payload["freshness"]
+    lines.extend(["## Freshness", ""])
+    if isinstance(freshness, dict):
+        lines.extend(
+            [
+                f"- Status: `{freshness.get('status', '')}`",
+                f"- Source: `{freshness.get('source', '')}`",
+                f"- Message: {freshness.get('message', '')}",
+                "",
+            ]
+        )
 
     lines.extend(["## Stable-Core Blockers", ""])
     blockers = payload["stable_core_blockers"]

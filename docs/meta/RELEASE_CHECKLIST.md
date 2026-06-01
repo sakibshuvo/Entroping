@@ -131,6 +131,11 @@ Before tagging:
 - Review `docs/meta/RELEASE_EVIDENCE.md` and run
   `uv run python scripts/release_evidence.py --strict` before any repeated
   release, package-index, or stable-core evidence claim.
+- Run `uv run python scripts/release_evidence.py --check-freshness --strict`
+  when a release or stable-core claim depends on the latest successful `main`
+  CI and Pages runs. This optional GitHub CLI check is read-only, degrades when
+  `gh` is unavailable or unauthenticated, and never updates the committed
+  ledger automatically.
 - Review the `scripts/stable_core_readiness.py --format json` output before any
   v1 or stable-core claim.
 - Run `scripts/demo_matrix.sh --dry-run` before launch copy review to inspect
