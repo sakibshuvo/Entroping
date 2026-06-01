@@ -2,14 +2,26 @@ id: "entroping.api-baseline"
 name: "API Baseline"
 version: "0.1.0-alpha"
 license: "Apache-2.0"
+source: "examples/policy-packs/api-baseline"
 entrypoint: "qanstitution.yaml"
 runtime_contract: "qanstitution-import"
 entroping: ">=0.1.1-alpha,<1.0"
+evidence_command: "uv run python scripts/policy_pack_smoke.py --strict"
 gate_prefixes:
   - "api-security"
   - "api-reliability"
 final_gates:
   - "api-security.no_5xx"
+gates:
+  - id: "api-security.no_5xx"
+    file: "rules/security.yaml"
+    final: true
+  - id: "api-security.request_id"
+    file: "rules/security.yaml"
+    final: false
+  - id: "api-reliability.latency"
+    file: "rules/reliability.yaml"
+    final: false
 maintainers:
   - "Entroping Core"
 summary: "Starter API security and reliability gates for policy-pack authors."
