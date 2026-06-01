@@ -158,7 +158,11 @@ turn `qanstitution.yaml` into a credential store.
 
 ## 6. QAnstitution Design
 
-`qanstitution.yaml` is the executable law. It is YAML because it must be schema-validatable, diffable, easy to import, and safe for deterministic runtime parsing.
+`qanstitution.yaml` is the executable law and canonical policy filename. It is
+YAML because it must be schema-validatable, diffable, easy to import, and safe
+for deterministic runtime parsing. Compatibility aliases such as
+`entroping.yaml` or `entroping-policy.yaml` are not supported unless a future
+ADR accepts a migration and backward-compatibility plan.
 
 Example:
 

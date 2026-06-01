@@ -5,7 +5,7 @@
 
 ## 1. What Entroping Does
 
-Entroping helps you turn backend intent into enforced API quality. You define policy in `qanstitution.yaml`, keep tests as Hurl files, record real traffic when needed, and run deterministic checks locally or in CI.
+Entroping helps you turn backend intent into enforced API quality. You define policy in `qanstitution.yaml`, the canonical QAnstitution file, keep tests as Hurl files, record real traffic when needed, and run deterministic checks locally or in CI.
 
 The normal loop is:
 

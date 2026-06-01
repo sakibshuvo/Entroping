@@ -34,6 +34,9 @@ project, and a Codex workspace with fast context rehydration.
   public docs, roadmap, and a short project-context handoff, while MkDocs groups
   deeper references by reader task instead of exposing maintainer memory as a
   flat nav.
+- Brand terminology is intentional: `qanstitution.yaml` remains the canonical
+  policy filename, the QAnstitution/Traffic/Hurl philosophy is preserved, and
+  public copy must not imply Entroping is an autonomous agent swarm.
 - Example coverage includes REST-style checkout/support fixtures plus
   GraphQL-over-HTTP and SOAP-over-HTTP fixtures that use ordinary Hurl
   assertions instead of adding protocol-specific runtime engines.

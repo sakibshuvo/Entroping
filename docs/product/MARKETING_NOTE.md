@@ -16,7 +16,9 @@ Entroping gives AI-assisted teams a runtime safety layer. It records real API be
 
 The AI can write the test. Hurl decides whether the system is actually correct.
 
-The long-term buyer is not only the individual developer. Entroping is built to be invoked by CI systems and autonomous coding agents as the deterministic governor before generated code can merge.
+The QAnstitution is Law. Traffic is Truth. Hurl is the Enforcer.
+
+The long-term buyer is not only the individual developer. Entroping is built to be invoked by CI systems and coding agents as the deterministic governor before generated code can merge; it is not an autonomous coding-agent orchestrator.
 
 ## The Problem
 
@@ -113,7 +115,7 @@ Use these phrases consistently:
 
 ## Launch Narrative
 
-Developers are no longer only writing code. They are directing fleets of coding agents. That changes the bottleneck from implementation speed to trust.
+Developers are no longer only writing code. They are directing AI-assisted changes at higher volume. That changes the bottleneck from implementation speed to trust.
 
 Entroping is built for that shift. It gives teams a local-first way to capture behavior, define quality law, and enforce it every time code runs.
 

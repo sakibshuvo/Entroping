@@ -11,6 +11,8 @@ Entroping is an AI-first quality governance platform for API and backend systems
 
 The product is not a general chatbot, a static analyzer, or a replacement for all testing. Entroping is a local-first integrity agent for runtime behavior. It lets AI generate and maintain tests, but it relies on the Rust `hurl` binary to enforce the final pass/fail result.
 
+In public positioning, Entroping is a runtime governance and compliance-evidence layer for AI-assisted backend/API changes. It is not an autonomous agent swarm, and it does not approve behavior through model judgment.
+
 ## 2. Product Thesis
 
 AI coding tools can generate code faster than teams can manually validate it. Static review catches only part of the risk because many regressions are runtime problems: wrong status codes, broken auth flows, schema drift, latency breaches, missing headers, data exposure, and undocumented service dependencies.
@@ -48,7 +50,7 @@ Entroping is best described as:
 - A runtime governance layer for AI-generated code.
 - A CI/CD firewall for backend behavior.
 - Git-native API quality infrastructure.
-- A governor that autonomous coding agents can invoke before code is allowed to merge.
+- A deterministic governor that coding agents and CI systems can invoke before code is allowed to merge.
 
 It is not primarily:
 
@@ -83,6 +85,8 @@ It is not primarily:
 ## 7. The Four Pillars
 
 ### 7.1 Intelligence: The Architect
+
+The Architect is an AI-assisted subsystem.
 
 The Architect converts structured and unstructured intent into Hurl tests. It uses role-specific agents defined in `qanstitution.yaml`:
 

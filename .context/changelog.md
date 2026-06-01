@@ -2,6 +2,10 @@
 
 ## 2026-06-01
 
+- Added issue #349's brand-integrity audit: ADR-0012 keeps
+  `qanstitution.yaml` canonical, preserves "The QAnstitution is Law. Traffic
+  is Truth. Hurl is the Enforcer.", rejects unplanned `entroping.yaml` aliases,
+  and tightens public positioning away from autonomous-agent-swarm claims.
 - Added issue #348's public-docs launch-path cleanup so README uses a concise
   `Project Context` handoff instead of a deep-docs inventory, MkDocs navigation
   is grouped by reader task, and documentation governance blocks casual
