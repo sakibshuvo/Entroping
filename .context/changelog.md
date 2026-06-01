@@ -19,6 +19,15 @@
   wiring so v1/stable claims stay tied to explicit evidence and blockers.
 - Added issue #285's backlog health guard for checking GitHub issue labels and
   milestones before or after marathons.
+- Added issue #287's policy-pack smoke evidence so the example API-baseline
+  pack is validated through local QAnstitution imports before policy-pack
+  claims.
+- Added issue #288's alpha launch-readiness aggregator and wired it into the
+  release check so public demo, release, policy-pack, backlog, and stability
+  boundary evidence cannot silently drift.
+- Added issue #289's demo proof matrix so maintainers can rehearse the checkout
+  happy path, AI-regression failure proof, policy-pack smoke, launch readiness,
+  and backlog health from one wrapper.
 - Implemented issue #275's doctor traffic-state health check so
   `entroping doctor` reports missing, readable, and incompatible
   `.entroping/state.db` state through the read-only SQLModel traffic-store

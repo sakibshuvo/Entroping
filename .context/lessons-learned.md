@@ -15,6 +15,12 @@
 - Backlog hygiene needs a script because marathon sessions create many issues
   quickly. Labels and milestones are the minimum context that lets fresh agents
   continue without reopening old chat history.
+- Launch-readiness checks should execute core proof scripts in the release gate,
+  not only look for their files. Static markers catch documentation drift, but
+  release checks should run the fast local evidence when it is deterministic.
+- Policy-pack consumer examples are easiest to prove by vendoring the pack into
+  a temporary consumer root and loading a normal `qanstitution.yaml`. That keeps
+  root-bounded import semantics intact while still testing copyable examples.
 - The root README is a public product front door, not the full Obsidian vault index. Lead with the problem, promise, and executable demo proof; keep phase inventories, source maps, and agent context lower in the document or in linked docs.
 - Run mypy through the repo target, not isolated test-file imports. `uv run mypy tests/<file>.py` can analyze the installed package and report missing `py.typed`, while `uv run mypy src tests/<file>.py` or the normal feature gate checks the local source tree correctly.
 - CLI help-output tests should normalize Rich/Typer rendering. Pin `COLUMNS` and strip ANSI escape sequences before asserting command or flag names, otherwise CI terminal rendering can truncate or style option names while local tests still pass.

@@ -11,8 +11,8 @@ Runs the local alpha release-readiness gate.
 
 By default this requires a clean Git worktree, rejects tracked local/generated
 state, verifies package artifacts, runs the security regression suite, runs the
-bounded performance smoke, checks stable-core evidence, and runs the live demo
-smoke when the Hurl binary is available.
+bounded performance smoke, checks alpha launch and stable-core evidence, and
+runs the live demo smoke when the Hurl binary is available.
 
 Options:
   --dry-run            Show the planned release gate without running commands.
@@ -119,6 +119,8 @@ fi
 cd "$repo_root"
 
 run_or_print scripts/repo_hygiene.sh
+run_or_print uv run python scripts/policy_pack_smoke.py --strict
+run_or_print uv run python scripts/launch_readiness.py --strict
 run_or_print uv run python scripts/stable_core_readiness.py --strict
 run_or_print scripts/package_check.sh
 

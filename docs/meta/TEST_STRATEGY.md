@@ -94,6 +94,30 @@ This local proof starts the intentionally broken `examples/ai-regression-demo`
 API and succeeds only when Entroping blocks the missing `X-Request-Id` response
 header through QAnstitution and Hurl.
 
+Policy-pack smoke proof:
+
+```bash
+uv run python scripts/policy_pack_smoke.py --strict
+```
+
+This local proof validates the example API-baseline policy pack through the
+current local QAnstitution import mechanism. It checks the manifest shape,
+entrypoint, imported gates, documented final gates, and copyable consumer
+example evidence without adding remote registries or pack-install behavior.
+
+Alpha launch-readiness proof:
+
+```bash
+uv run python scripts/launch_readiness.py --strict
+scripts/demo_matrix.sh --dry-run
+```
+
+The launch-readiness script aggregates the public/demo/release/backlog evidence
+needed for alpha launch review while still reporting stable-core blockers. The
+demo matrix is a maintainer rehearsal wrapper for the checkout happy path,
+AI-regression failure proof, policy-pack smoke, launch-readiness, and backlog
+health commands; it does not replace the regression or security gates.
+
 ## GitHub Actions Enforcement
 
 GitHub Actions enforces the same security-sensitive gate used for local release
@@ -185,7 +209,8 @@ remain local release-owner gates through `scripts/release_check.sh`, because
 they depend on the release context and whether local Hurl is installed.
 `scripts/release_check.sh` also runs `uv run python scripts/performance_smoke.py`
 unless `--skip-performance` is used for a local diagnostic pass. The release
-check now runs `uv run python scripts/stable_core_readiness.py --strict` so
+check now runs `uv run python scripts/launch_readiness.py --strict` and
+`uv run python scripts/stable_core_readiness.py --strict` so alpha launch and
 stable-core evidence files and markers cannot silently disappear.
 
 ## Coverage Expectations

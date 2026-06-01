@@ -215,6 +215,10 @@ policy, downstream integration-example guardrails, AI-regression failure proof,
 stable-core evidence checks, and backlog-health checks are now implemented as
 scripts, tests, docs, and report artifacts rather than prompt-only workflow
 rules.
+Issues #287 through #289 add the next launch-proof layer: policy-pack smoke
+evidence, alpha launch-readiness aggregation, and a demo proof matrix for the
+checkout happy path, AI-regression failure proof, policy-pack smoke,
+launch-readiness, and backlog-health rehearsal.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
