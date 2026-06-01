@@ -26,6 +26,7 @@ def test_stable_core_readiness_json_reports_alpha_blockers() -> None:
     assert payload["schema_version"] == "entroping.stable-core-readiness.v1"
     assert payload["stable_core_ready"] is False
     assert "repeated release evidence" in payload["blockers"]
+    assert payload["evidence"]["release_evidence_ledger"]["status"] == "present"
     assert payload["evidence"]["release_check"]["status"] == "present"
     assert payload["evidence"]["security_threat_model"]["status"] == "present"
 

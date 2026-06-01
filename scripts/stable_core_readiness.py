@@ -5,12 +5,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
 SCHEMA_VERSION = "entroping.stable-core-readiness.v1"
+CheckStatus = Literal["present", "missing", "marker-missing", "invalid"]
 
 
 @dataclass(frozen=True)
@@ -84,6 +86,15 @@ EVIDENCE_CHECKS = (
         marker="Public claims audit OK",
         description="Public claims are checked for unsupported production/security language.",
     ),
+    EvidenceCheck(
+        key="release_evidence_ledger",
+        path="docs/meta/release-evidence.json",
+        marker="entroping.release-evidence.v1",
+        description=(
+            "Release evidence ledger records alpha releases, main CI, and "
+            "stable-core blockers."
+        ),
+    ),
 )
 
 STABLE_CORE_BLOCKERS = (
@@ -142,13 +153,7 @@ def main() -> int:
 def _build_payload(root: Path) -> dict[str, object]:
     evidence: dict[str, dict[str, str]] = {}
     for check in EVIDENCE_CHECKS:
-        target = root / check.path
-        status: Literal["present", "missing", "marker-missing"]
-        if not target.is_file():
-            status = "missing"
-        else:
-            content = target.read_text(encoding="utf-8", errors="replace")
-            status = "present" if check.marker in content else "marker-missing"
+        status = _check_evidence(root, check)
         evidence[check.key] = {
             "path": check.path,
             "status": status,
@@ -161,6 +166,38 @@ def _build_payload(root: Path) -> dict[str, object]:
         "blockers": list(STABLE_CORE_BLOCKERS),
         "evidence": evidence,
     }
+
+
+def _check_evidence(root: Path, check: EvidenceCheck) -> CheckStatus:
+    target = root / check.path
+    if not target.is_file():
+        return "missing"
+    content = target.read_text(encoding="utf-8", errors="replace")
+    if check.marker not in content:
+        return "marker-missing"
+    if check.key != "release_evidence_ledger":
+        return "present"
+
+    release_evidence_script = root / "scripts" / "release_evidence.py"
+    if not release_evidence_script.is_file():
+        return "invalid"
+    try:
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(release_evidence_script),
+                "--root",
+                str(root),
+                "--strict",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return "invalid"
+    return "present" if result.returncode == 0 else "invalid"
 
 
 def _render_markdown(payload: dict[str, object]) -> str:

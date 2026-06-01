@@ -57,6 +57,7 @@ Use these first. They are the control panel for current work:
 - [[docs/meta/DOCS_GOVERNANCE|DOCS_GOVERNANCE]] - documentation owners, roadmap-change gate, and PR declaration rules.
 - [[docs/meta/TEST_STRATEGY|TEST_STRATEGY]] - regression suite and test-pyramid policy.
 - [[docs/meta/RELEASE_CHECKLIST|RELEASE_CHECKLIST]] - alpha release bar, required evidence, and known-not-built boundaries.
+- [[docs/meta/RELEASE_EVIDENCE|RELEASE_EVIDENCE]] - committed alpha release, main CI, package-index, and stable-core blocker evidence.
 - `docs/meta/dependency-license-policy.json` - reviewed direct dependency license policy used by the security gate.
 - [[docs/meta/PYPI_RELEASE_RUNBOOK|PYPI_RELEASE_RUNBOOK]] - TestPyPI-first and PyPI Trusted Publishing plan.
 - [[docs/meta/PUBLIC_DOCS_SITE_DECISION|PUBLIC_DOCS_SITE_DECISION]] - MkDocs Material public docs site decision and scaffold.

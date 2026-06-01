@@ -219,6 +219,9 @@ Issues #287 through #291 add the next launch-proof layer: policy-pack smoke
 evidence, alpha launch-readiness aggregation, a demo proof matrix for checkout,
 AI-regression, policy-pack, launch-readiness, and backlog-health rehearsals, and
 README-facing developer use cases plus curated animated previews.
+Issue #293 adds a committed release-evidence ledger and validator so repeated
+alpha release, latest `main` CI, package-index, and stable-core blocker evidence
+is visible without relying on chat memory or live GitHub API calls.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
@@ -226,21 +229,23 @@ subprocess isolation, filesystem symlink boundaries, traffic redaction/body
 limits, OpenAPI compilation/audit safety, policy gate semantics, Markdown
 escaping, generated Hurl writes, and live-demo workdir safety.
 
-## Current Slice: README Launch Polish
+## Current Slice: Stable-Core Release Evidence
 
-Issue #291 closes the current public-front-door feedback: first-time developers
-should see concrete Entroping use cases immediately, then see both the happy
-path and the AI-regression failure path before the deeper alpha inventory.
+Issue #293 closes the next evidence gap: alpha release history and latest
+`main` CI should be captured in a committed, validated ledger so stable-core
+readiness remains evidence-gated instead of prompt-gated.
 
 Implementation focus:
 
-- Front-load a concise "Use Entroping When" section before the two-minute demo.
-- Embed curated animated previews for the checkout happy path and missing
-  request-id regression proof.
-- Keep launch GIFs small, reviewed, reproducible, and separate from raw
-  recordings or generated report directories.
-- Guard the README structure, asset signatures, asset size, and asset
-  documentation with tests.
+- Add `docs/meta/release-evidence.json` as the machine-readable ledger for
+  alpha releases, latest main CI, package-index status, and stable-core blockers.
+- Add `scripts/release_evidence.py --strict` so maintainers and agents can
+  validate the ledger without network access.
+- Wire the ledger into `scripts/stable_core_readiness.py` and
+  `scripts/release_check.sh`.
+- Make the release-evidence workflow discoverable from the public docs site,
+  Obsidian vault index, release checklist, project progress dashboard, and
+  changelog.
 
 Completed security-review context: repository-wide scan artifacts were written
 under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, all
