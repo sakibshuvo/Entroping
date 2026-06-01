@@ -232,6 +232,8 @@ feedback as an unsatisfied stable-core blocker.
 Issue #299 expands the release-evidence ledger so Pages CI and local downstream
 smoke evidence are validated alongside main CI and release entries, without
 turning maintainer-controlled smoke proof into real downstream user feedback.
+Issue #301 aligns release-evidence blockers with stable-core readiness so both
+gates report the same four unresolved stable-core requirements.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
@@ -239,22 +241,20 @@ subprocess isolation, filesystem symlink boundaries, traffic redaction/body
 limits, OpenAPI compilation/audit safety, policy gate semantics, Markdown
 escaping, generated Hurl writes, and live-demo workdir safety.
 
-## Current Slice: Release Evidence Pages And Downstream Coverage
+## Current Slice: Stable-Core Blocker Alignment
 
-Issue #299 closes a validation gap in the committed release-evidence ledger:
-`latest_pages_ci` was recorded but not strict-validated, and downstream smoke
-evidence was discoverable through stable-core readiness but not represented in
-the release ledger summary.
+Issue #301 closes a drift gap between `scripts/release_evidence.py` and
+`scripts/stable_core_readiness.py`: stable-core readiness reported repeated
+release evidence as a blocker, but the release-evidence ledger did not.
 
 Implementation focus:
 
-- Validate `latest_pages_ci` with the same strict Actions-run shape as
-  `latest_main_ci`, but require workflow `Pages`.
-- Add a `downstream_smoke` ledger entry with schema, command, timestamp, and an
-  explicit stable-boundary statement.
-- Render Pages and downstream smoke evidence in JSON and Markdown summaries.
-- Keep `stable_core_ready` false and preserve package-index, compatibility, and
-  real downstream user feedback blockers.
+- Add release-evidence regression coverage that compares its blocker list with
+  stable-core readiness output.
+- Add `repeated release evidence` back to the committed release-evidence ledger
+  and strict validator requirements.
+- Keep `stable_core_ready` false and avoid treating the existing alpha releases
+  as enough for v1 stable-core readiness.
 
 Completed security-review context: repository-wide scan artifacts were written
 under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, all

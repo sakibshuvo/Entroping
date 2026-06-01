@@ -2,6 +2,7 @@
   "schema_version": "entroping.release-evidence.v1",
   "stable_core_ready": false,
   "stable_core_blockers": [
+    "repeated release evidence",
     "package-index proof",
     "real downstream user feedback",
     "stable-core compatibility decision"
