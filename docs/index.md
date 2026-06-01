@@ -25,6 +25,19 @@ Start here:
 - [Use Cases](user/USE_CASES.md)
 - [Open-Core Boundaries](product/OPEN_CORE_BOUNDARIES.md)
 
+## How This Site Fits
+
+This site is the public reading path generated from the repository's Markdown.
+It should help new users learn and evaluate Entroping without opening the
+Obsidian vault.
+
+- README sells and orients.
+- MkDocs is the public reading path.
+- GitHub Issues track work.
+- `ROADMAP.md` sequences releases.
+- `docs/meta/VAULT_INDEX.md` maps the Obsidian vault.
+- `docs/meta/DOCS_GOVERNANCE.md` defines update rules.
+
 Core references:
 
 - [Technical Design](technical/TDS.md)
