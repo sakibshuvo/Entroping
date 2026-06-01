@@ -171,6 +171,16 @@ For local development in a checkout:
 uv tool install -e .
 ```
 
+Optional shell completion comes from Typer's existing global options:
+
+```bash
+entroping --install-completion
+entroping --show-completion
+```
+
+This is a Typer global option, not an Entroping subcommand, so it does not
+change the locked CLI namespace.
+
 Requirements:
 
 - Python 3.12 or 3.13

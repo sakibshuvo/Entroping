@@ -31,7 +31,7 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#346 Add no-Hurl CLI smoke script](https://github.com/sakibshuvo/Entroping/issues/346)
+Current issue: [#347 Mention Typer shell completion in onboarding](https://github.com/sakibshuvo/Entroping/issues/347)
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -45,9 +45,9 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#347 Mention Typer shell completion in onboarding](https://github.com/sakibshuvo/Entroping/issues/347) | Improve CLI ergonomics without expanding the locked command surface. |
-| 2 | [#303 Configure TestPyPI Trusted Publisher](https://github.com/sakibshuvo/Entroping/issues/303) | External package-index proof remains the next stable-core blocker once local ready items are done. |
-| 3 | [#304 Publish first TestPyPI alpha and smoke install](https://github.com/sakibshuvo/Entroping/issues/304) | Package-index smoke evidence is required before stable-core readiness can move. |
+| 1 | [#303 Configure TestPyPI Trusted Publisher](https://github.com/sakibshuvo/Entroping/issues/303) | External package-index proof remains the next stable-core blocker once local ready items are done. |
+| 2 | [#304 Publish first TestPyPI alpha and smoke install](https://github.com/sakibshuvo/Entroping/issues/304) | Package-index smoke evidence is required before stable-core readiness can move. |
+| 3 | [#305 Publish first PyPI alpha after TestPyPI proof](https://github.com/sakibshuvo/Entroping/issues/305) | Public package availability should wait for TestPyPI proof. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -86,6 +86,7 @@ entirely inside this repo.
 | [Shared symlink component path-safety helper](https://github.com/sakibshuvo/Entroping/issues/344) | Done | Common symlink component traversal is centralized while config imports now reject symlinked local imports and adapters keep domain-specific errors. |
 | [Traffic-store retention SQL pruning](https://github.com/sakibshuvo/Entroping/issues/345) | Done | Local Eye state now deletes stale traffic rows with a SQL-level delete while keeping newest-event retention and insertion-order reads. |
 | [No-Hurl CLI smoke script](https://github.com/sakibshuvo/Entroping/issues/346) | Done | `scripts/cli_smoke.sh` proves CLI boot, version, minimal init, and doctor behavior without requiring Hurl runtime execution. |
+| [Typer shell-completion onboarding](https://github.com/sakibshuvo/Entroping/issues/347) | Done | README and user guide now point to Typer's existing completion global options without adding an Entroping subcommand. |
 | [Read-only Studio applied-gate drilldowns](https://github.com/sakibshuvo/Entroping/issues/192) | Done | Studio links latest-run report rule IDs to QAnstitution gate definitions. |
 | Read-only Studio traffic session browser | Done | The read-only traffic session browser uses redacted SQLModel-backed state, target/dependency grouping, and safe redaction categories and counts. It does not start `watch` and does not expose raw URLs with query values, headers, bodies, cookies, tokens, or secrets. |
 
