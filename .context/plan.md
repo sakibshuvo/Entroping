@@ -1,7 +1,7 @@
 # Entroping Implementation Plan
 
 **Date:** 2026-05-31
-**Status:** v0.2 adoption and onboarding track
+**Status:** v0.4 integration and stable-core evidence track
 
 ## Objective
 
@@ -216,11 +216,12 @@ subprocess isolation, filesystem symlink boundaries, traffic redaction/body
 limits, OpenAPI compilation/audit safety, policy gate semantics, Markdown
 escaping, generated Hurl writes, and live-demo workdir safety.
 
-## Current Slice: Source Reconciliation, SQLModel State, And Agent Workflow Alignment
+## Current Slice: Roadmap Reconciliation And Integration Readiness
 
-The 2026-05-29 NotebookLM Markdown export is the final current source snapshot.
-Keep older Gemini and dated NotebookLM files as historical evidence unless a
-specific contradiction is promoted into the canonical product docs or an ADR.
+The 2026-05-29 NotebookLM Markdown export remains the final current source
+snapshot. Keep older Gemini and dated NotebookLM files as historical evidence
+unless a specific contradiction is promoted into canonical product docs, tests,
+issues, or an ADR.
 
 Implementation focus:
 
@@ -245,6 +246,9 @@ Implementation focus:
   promoted into issues, ADRs, canonical docs, tests, or scripts.
 - Document the open-source growth and open-core monetization path without
   weakening the Apache-2.0 public core.
+- Keep the public roadmap clear that v0.2 onboarding and v0.3 CLI/report-first
+  depth are completed alpha evidence, while v0.4 integration work and v1.0
+  stable-core proof remain issue-backed future/current work.
 
 Completed security-review context: repository-wide scan artifacts were written
 under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, all

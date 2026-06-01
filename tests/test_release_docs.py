@@ -28,6 +28,21 @@ def test_public_roadmap_is_linked_from_front_door() -> None:
     assert "Explicitly Not Near-Term" in roadmap
 
 
+def test_public_roadmap_does_not_reopen_completed_alpha_phases() -> None:
+    roadmap = (REPO_ROOT / "ROADMAP.md").read_text(encoding="utf-8")
+    progress = (REPO_ROOT / "docs" / "meta" / "PROJECT_PROGRESS.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "## Completed: v0.2.0-alpha Adoption And Onboarding" in roadmap
+    assert "## Completed: v0.3.0-alpha CLI/report-first Product Depth" in roadmap
+    assert "## Current: v0.4.0-alpha Integrations" in roadmap
+    assert "## Next: v0.2.0-alpha Adoption And Onboarding" not in roadmap
+    assert "## Next: v0.3.0-alpha CLI/report-first product depth" not in roadmap
+    assert "finish the v0.4 integration path" in progress
+    assert "finish the v0.2 adoption path" not in progress
+
+
 def test_readme_is_demo_first_open_source_front_door() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 

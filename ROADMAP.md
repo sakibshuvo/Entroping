@@ -13,8 +13,8 @@ tags:
 
 Entroping is an early alpha runtime-governance tool for AI-assisted backend
 development. The public roadmap is intentionally narrow: keep the deterministic
-Hurl and QAnstitution core strong, make onboarding frictionless, then add depth
-around traffic evidence, Studio, integrations, and open-core surfaces.
+Hurl and QAnstitution core strong, preserve the completed onboarding and product
+depth evidence, then move carefully into integrations and stable-core proof.
 
 Canonical work tracking lives in:
 
@@ -23,36 +23,38 @@ Canonical work tracking lives in:
 - GitHub Project board for visible sequencing.
 - Obsidian docs for product history, source evidence, ADRs, and phase-level context.
 
-## Now: v0.1.1-alpha Public Cleanup
+## Completed: v0.1.1-alpha Public Cleanup
 
 Goal: make the current alpha credible to a first-time open-source visitor.
 
-- Keep the README demo-first and clear about alpha boundaries.
-- Publish a public roadmap, visible milestones, and issue-backed backlog.
-- Sync the current release tag with the implemented `main` branch.
-- Keep install, live demo, release, community-profile, Scorecard, security, and
-  quality gates reproducible.
-- Add dependency-update visibility for GitHub Actions and Python dependencies.
+- README is demo-first and clear about alpha boundaries.
+- Public roadmap, visible milestones, GitHub Project, and issue-backed workflow
+  are in place.
+- `v0.1.1-alpha` was published from verified `main` evidence.
+- Install, live demo, release, community-profile, Scorecard, security, and
+  quality gates are reproducible.
+- Dependency-update visibility exists for GitHub Actions and Python dependencies.
 
-Exit proof:
+Proof:
 
 - `scripts/release_check.sh --require-live-demo`
 - Passing required GitHub Actions checks on `main`
-- A current alpha GitHub release with explicit "not built yet" boundaries
+- `v0.1.1-alpha` GitHub prerelease with explicit "not built yet" boundaries
 
-## Next: v0.2.0-alpha Adoption And Onboarding
+## Completed: v0.2.0-alpha Adoption And Onboarding
 
 Goal: make the first hour with Entroping smooth enough for real users.
 
 - Fresh clone smoke test from the public README.
 - Contributor-friendly good-first-issue path.
-- Better demo media: terminal recording, HTML report screenshot, and dependency map.
-- Public docs site decision and first pass.
-- Packaging plan for PyPI, Homebrew, or standalone binaries.
+- Better demo media: terminal output, HTML report preview, and dependency map.
+- Public docs site decision and strict MkDocs deployment.
+- Packaging plan for PyPI/TestPyPI, Homebrew, and deferred standalone binaries.
 - GitHub Actions template for running Entroping in downstream repos.
 - Provider setup guide for LiteLLM, local Qwen/oMLX, and no-provider CI.
+- First-hour QAnstitution guide and zero-config checkout demo entrypoint.
 
-## Next: v0.3.0-alpha CLI/report-first product depth
+## Completed: v0.3.0-alpha CLI/report-first Product Depth
 
 Goal: deepen the alpha without weakening deterministic execution.
 
@@ -67,26 +69,41 @@ Goal: deepen the alpha without weakening deterministic execution.
 - Redaction review UX for captured traffic.
 - Better Architect feedback when provider output is invalid or incomplete.
 - More realistic example apps beyond the checkout fixture.
+- `doctor` validates existing traffic-state compatibility without creating
+  runtime state.
 
-## Later: v0.4.0-alpha Integrations
+## Current: v0.4.0-alpha Integrations
 
 Goal: connect Entroping to the places teams already review backend behavior.
 
-- Review integrations beyond the local GitHub Actions annotation command.
-- Reusable policy-pack structure for security, latency, compliance, and API governance is documented in [POLICY_PACK_LAYOUT.md](docs/technical/POLICY_PACK_LAYOUT.md); follow-up work can add registries or package distribution later.
-- Organization QAnstitution import governance design.
-- Stable report artifact schemas for downstream dashboards.
-- CI examples for GitHub Actions first, then other providers as demand appears.
+- Keep the local GitHub Actions annotation command as the proven integration.
+- Add review integrations beyond local annotations only through issue-backed,
+  artifact-backed slices.
+- Reusable policy-pack structure for security, latency, compliance, and API
+  governance is documented in [POLICY_PACK_LAYOUT.md](docs/technical/POLICY_PACK_LAYOUT.md);
+  follow-up work can add registries or package distribution later.
+- Organization QAnstitution import governance design is recorded in ADR-0011;
+  runtime provenance/effective-policy evidence should come before remote
+  registries.
+- Report artifact schemas are versioned for run, drift, and traceability
+  reports; downstream dashboard schemas should remain explicit and compatible.
+- CI examples should stay GitHub Actions first, with other providers promoted
+  only after real runner proof.
 
 ## Future: v1.0 Stable Core
 
 Goal: make the local deterministic core safe to depend on.
 
-- Command compatibility audit and documented stability policy.
-- Cross-platform install and smoke matrix.
-- Security threat-model refresh and dependency-policy review.
-- Performance smoke for large test suites and traffic stores.
-- Clear extension boundaries for open-core offerings.
+- Command compatibility audit and documented stability policy exist.
+- Cross-platform install and smoke matrix exists for Linux, macOS, and
+  Windows doctor-only claims.
+- Security threat-model refresh, dependency-policy review, and security gates
+  exist.
+- Performance smoke exists for large test suites and traffic stores.
+- Clear extension boundaries for open-core offerings exist.
+- Stable-core claims still require repeated release evidence, package-index
+  proof, compatibility discipline, and real-user feedback. Do not call the
+  project stable just because alpha gates are green.
 
 ## Open-Core Path
 

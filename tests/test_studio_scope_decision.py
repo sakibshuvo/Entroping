@@ -20,7 +20,7 @@ def test_studio_scope_decision_is_recorded_as_an_adr() -> None:
 def test_roadmap_frames_studio_as_report_backed_secondary_surface() -> None:
     roadmap = (_REPO_ROOT / "ROADMAP.md").read_text(encoding="utf-8")
 
-    assert "CLI/report-first product depth" in roadmap
+    assert "CLI/report-first Product Depth" in roadmap
     assert "Studio stays optional, read-only, and report-backed" in roadmap
     assert "No Studio mutation implementation is planned for v0.3" in roadmap
 
