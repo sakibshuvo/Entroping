@@ -19,7 +19,7 @@ project, and a Codex workspace with fast context rehydration.
 ## Current Baseline
 
 - Product, technical, user, architecture, and evolution docs are organized under `docs/`.
-- Root `README.md` and `00_INDEX.md` are the main public and vault entry points.
+- Root `README.md` and `docs/meta/VAULT_INDEX.md` are the main public and vault entry points.
 - Python package and CLI implementation exist under `src/entroping/`.
 - CLI command surface is locked to v4.1.
 - Pydantic QAnstitution models and typed condition parsing are in place.
@@ -1325,7 +1325,7 @@ At the start of a new Codex thread, read:
 
 1. `AGENTS.md`
 2. `README.md`
-3. `00_INDEX.md`
+3. `docs/meta/VAULT_INDEX.md`
 4. `.context/plan.md`
 5. `docs/product/MVP_PLAN.md`
 6. `docs/technical/TDS.md`
@@ -1334,8 +1334,10 @@ At the start of a new Codex thread, read:
 9. `docs/meta/PROJECT_PROGRESS.md`
 10. `docs/meta/ISSUE_TRACKING.md`
 11. `docs/meta/TEST_STRATEGY.md`
+12. `docs/meta/DOCS_GOVERNANCE.md`
+13. `docs/meta/AGENT_CONTROL_PLANE.md`
 
-For product history, open Obsidian and start with `00_INDEX.md`.
+For product history, open Obsidian and start with `docs/meta/VAULT_INDEX.md`.
 
 To start an implementation or review session from an issue, dry-run the launcher first:
 

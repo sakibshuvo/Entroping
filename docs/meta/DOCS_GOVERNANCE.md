@@ -36,6 +36,25 @@ For the practical day-to-day distinction between GitHub and Obsidian, read
 | `.context/` | Maintainer and agent handoff state |
 | `decisions/` | Durable product and architecture decisions |
 
+## Anti-Sprawl Rule
+
+Do not create a new strategy document when an existing canonical owner can hold
+the decision, evidence, or workflow. Update the existing canonical owner first:
+`ROADMAP.md` for release sequence, GitHub Issues for actionable work,
+`docs/meta/PROJECT_PROGRESS.md` for the daily dashboard, ADRs for durable
+decisions, and `.context/changelog.md` for chronological handoff.
+
+Only add a new document when all of these are true:
+
+- no existing canonical owner can hold the information cleanly.
+- the new file has a stable owner and expected reader.
+- the file is linked from the vault index, README, MkDocs, or another canonical
+  entry point as appropriate.
+- the PR explains why the information could not live in an existing file.
+
+GitHub Issues remain the backlog. Obsidian can explain why a decision happened,
+but it must not become a second issue tracker.
+
 ## Update Matrix
 
 | Change type | Required update | Usually do not update |

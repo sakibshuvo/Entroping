@@ -20,6 +20,23 @@ def test_agent_control_plane_documents_cross_agent_guardrails() -> None:
     assert "No helper agent is a source of truth" in doc
 
 
+def test_agent_control_plane_defines_codex_first_software_factory() -> None:
+    doc = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
+        encoding="utf-8"
+    )
+
+    required_terms = [
+        "## Software Factory Operating Model",
+        "Codex owns integration and merge readiness",
+        "OpenCode and free-model workers receive bounded issue prompts",
+        "local Qwen/oMLX handles private summarization, triage, and low-risk review",
+        "Generated codegraph, Graphify, and Obsidian graph output is evidence, not authority",
+        "One write agent per issue-scoped worktree",
+    ]
+    for term in required_terms:
+        assert term in doc
+
+
 def test_knowledge_base_workflow_documents_source_promotion() -> None:
     doc = (REPO_ROOT / "docs" / "meta" / "KNOWLEDGE_BASE_WORKFLOW.md").read_text(
         encoding="utf-8"

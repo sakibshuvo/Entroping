@@ -28,6 +28,29 @@ No helper agent is a source of truth. The hierarchy is:
 4. Source exports under `<source-archive>`, usually `../entroping-specs` or `ENTROPING_SOURCE_ROOT`.
 5. Agent summaries, chat context, NotebookLM answers, Gemini answers, Claude Code output, OpenCode output, and local Qwen output.
 
+## Software Factory Operating Model
+
+Codex owns integration and merge readiness. Treat the parent Codex thread as
+the control room: it chooses the issue, verifies local files, runs tests,
+updates required docs, opens the PR, waits for CI, and merges only when the
+evidence is clean.
+
+OpenCode and free-model workers receive bounded issue prompts. They can propose
+tests, patches, review notes, alternate designs, and documentation drafts, but
+their output is untrusted until Codex validates it against the repo, issue, and
+gates.
+
+local Qwen/oMLX handles private summarization, triage, and low-risk review. Use
+it for source-archive summarization, duplicate-finding, wording variants, and
+offline review prompts before sending anything sensitive to cloud models.
+
+Generated codegraph, Graphify, and Obsidian graph output is evidence, not authority.
+They can help humans and agents navigate relationships, but local tests, source
+files, ADRs, GitHub Issues, and CI decide truth.
+
+One write agent per issue-scoped worktree. Parallelism comes from independent
+issues, not from multiple agents editing the same files.
+
 ## Context Pack
 
 Every agent session should start with a deterministic context pack instead of a vague chat summary.
