@@ -2,6 +2,10 @@
 
 ## 2026-06-01
 
+- Added issue #313's local wheel install smoke so release checks can install
+  the built wheel into a temporary venv, run only installed public CLI commands
+  from a temporary project, and emit machine-readable evidence without
+  PyPI/TestPyPI or network registry access.
 - Aligned issue #301's release-evidence blocker list with stable-core
   readiness so repeated release evidence, package-index proof, real downstream
   feedback, and compatibility decision remain consistent across both gates.

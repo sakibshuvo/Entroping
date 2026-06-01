@@ -212,6 +212,10 @@ unless `--skip-performance` is used for a local diagnostic pass. The release
 check now runs `uv run python scripts/launch_readiness.py --strict` and
 `uv run python scripts/stable_core_readiness.py --strict` so alpha launch and
 stable-core evidence files and markers cannot silently disappear.
+After `scripts/package_check.sh`, the release check also runs
+`uv run python scripts/local_wheel_install_smoke.py --skip-build` so a locally
+built wheel is installed into a fresh temporary venv and exercised only through
+the installed public CLI without package-index access.
 
 ## Coverage Expectations
 

@@ -21,6 +21,7 @@ def test_pypi_release_runbook_defines_token_free_testpypi_first_path() -> None:
         "GitHub environment required reviewers",
         "scripts/release_check.sh --require-live-demo",
         "scripts/package_check.sh",
+        "scripts/local_wheel_install_smoke.py --skip-build",
         "uv build",
         "uvx twine check dist/*",
     ]

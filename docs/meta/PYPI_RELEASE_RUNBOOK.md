@@ -68,6 +68,7 @@ git status --short
 git log -1 --oneline
 scripts/release_check.sh --require-live-demo
 scripts/package_check.sh
+uv run python scripts/local_wheel_install_smoke.py --skip-build
 uv build
 uvx twine check dist/*
 ```
@@ -76,6 +77,12 @@ uvx twine check dist/*
 wheel/sdist metadata. The extra `uvx twine check dist/*` step validates package
 metadata and README rendering with the upload toolchain before a registry sees
 the artifacts.
+
+`scripts/local_wheel_install_smoke.py --skip-build` must pass after
+`scripts/package_check.sh`. It installs the locally built wheel into a temporary
+venv using `uv pip install --offline` and runs the installed public CLI from a
+temporary project, proving the wheel path without PyPI, TestPyPI, or network
+registry access.
 
 Do not publish if:
 
