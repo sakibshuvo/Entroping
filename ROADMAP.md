@@ -23,6 +23,34 @@ Canonical work tracking lives in:
 - GitHub Project board for visible sequencing.
 - Obsidian docs for product history, source evidence, ADRs, and phase-level context.
 
+GitHub Issues remain the backlog. This roadmap explains public direction and
+release sequence; it should not become a duplicated task list.
+
+## Product Direction
+
+Entroping is not a generic test generator or a chat-first QA assistant. The core
+product is local-first runtime governance for AI-assisted backend development:
+LLMs may generate or repair tests, but Hurl execution and QAnstitution gates
+decide pass or fail.
+
+The public core stays useful on its own: local CLI, deterministic Hurl runner,
+QAnstitution policy loading, OpenAPI generation, captured-traffic freeze/map,
+local reports, and provider-neutral review artifacts. Monetization should wrap
+the core through hosted aggregation, organization policy distribution, premium
+policy packs, services, and team workflows without weakening the free tool.
+
+## Near-Term Sequence
+
+1. Keep correctness and report safety tight: generated Hurl validation, escaped
+   human-readable reports, and regression coverage for every changed runtime
+   boundary.
+2. Keep the public entry points sharp: README, MkDocs, demo media, and first-hour
+   QAnstitution guidance should stay welcoming instead of encyclopedic.
+3. Keep policy-pack and organization-governance work local-first until package
+   indexes, provenance, and external user feedback prove the distribution path.
+4. Keep multi-agent development issue-scoped and evidence-backed through
+   `AGENTS.md`, `docs/meta/AGENT_CONTROL_PLANE.md`, context packs, and CI.
+
 ## Completed: v0.1.1-alpha Public Cleanup
 
 Goal: make the current alpha credible to a first-time open-source visitor.
@@ -90,6 +118,20 @@ Goal: connect Entroping to the places teams already review backend behavior.
 - CI examples should stay GitHub Actions first, with other providers promoted
   only after real runner proof.
 
+## External Stable-Core Blockers
+
+Stable-core completion requires proof outside the local repo:
+
+- package-index proof from TestPyPI/PyPI publish and install smoke.
+- repeated release evidence across supported Python/platform combinations.
+- a documented compatibility policy that constrains future CLI/report changes.
+- real downstream user feedback from at least one external project.
+- provider-specific CI templates only after real GitLab/Buildkite/CircleCI
+  runner evidence.
+
+These blockers are tracked in GitHub Issues and the release-evidence ledger.
+Do not call the project stable just because alpha gates are green.
+
 ## Future: v1.0 Stable Core
 
 Goal: make the local deterministic core safe to depend on.
@@ -106,7 +148,6 @@ Goal: make the local deterministic core safe to depend on.
 - Stable-core claims still require package-index proof, compatibility
   discipline, and real-user feedback. Repeated alpha release-candidate evidence
   is tracked separately in the release-evidence ledger.
-- Do not call the project stable just because alpha gates are green.
 
 ## Open-Core Path
 

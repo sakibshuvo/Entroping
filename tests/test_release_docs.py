@@ -28,6 +28,54 @@ def test_public_roadmap_is_linked_from_front_door() -> None:
     assert "Explicitly Not Near-Term" in roadmap
 
 
+def test_project_progress_stays_a_short_daily_dashboard() -> None:
+    progress = (REPO_ROOT / "docs" / "meta" / "PROJECT_PROGRESS.md").read_text(
+        encoding="utf-8"
+    )
+
+    required_sections = [
+        "## Daily Dashboard",
+        "## Current Target",
+        "## Next Three Issues",
+        "## External Stable-Core Blockers",
+        "## Latest Evidence",
+        "## Source Of Truth",
+        "## Update Rules",
+    ]
+    for section in required_sections:
+        assert section in progress
+
+    assert "## Milestone Progress" not in progress
+    assert "## Later Roadmap" not in progress
+    assert len(progress.splitlines()) <= 150
+
+
+def test_roadmap_separates_direction_sequence_and_external_blockers() -> None:
+    roadmap = (REPO_ROOT / "ROADMAP.md").read_text(encoding="utf-8")
+
+    required_sections = [
+        "## Product Direction",
+        "## Near-Term Sequence",
+        "## External Stable-Core Blockers",
+        "## Explicitly Not Near-Term",
+    ]
+    for section in required_sections:
+        assert section in roadmap
+
+    assert "GitHub Issues remain the backlog" in roadmap
+    assert "Do not call the project stable just because alpha gates are green" in roadmap
+
+
+def test_doc_governance_blocks_strategy_doc_sprawl() -> None:
+    governance = (REPO_ROOT / "docs" / "meta" / "DOCS_GOVERNANCE.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "Do not create a new strategy document" in governance
+    assert "existing canonical owner" in governance
+    assert "GitHub Issues remain the backlog" in governance
+
+
 def test_readme_surfaces_public_docs_before_deep_context() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 

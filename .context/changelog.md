@@ -2,6 +2,12 @@
 
 ## 2026-06-01
 
+- Added issue #352's progress and agent-control cleanup so
+  `docs/meta/PROJECT_PROGRESS.md` is a short daily dashboard again,
+  `ROADMAP.md` separates product direction from backlog tracking,
+  `docs/meta/DOCS_GOVERNANCE.md` blocks new strategy-doc sprawl, and
+  `docs/meta/AGENT_CONTROL_PLANE.md` defines the Codex-first software-factory
+  model for OpenCode/free-model/local-Qwen workers.
 - Added issue #340's public-docs discoverability cleanup so the README links
   the MkDocs site before deep context, the MkDocs landing page explains how it
   relates to GitHub Issues, ROADMAP, Obsidian, and docs governance, and the
