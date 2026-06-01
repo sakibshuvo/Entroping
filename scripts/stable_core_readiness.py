@@ -95,6 +95,15 @@ EVIDENCE_CHECKS = (
             "and stable-core blockers."
         ),
     ),
+    EvidenceCheck(
+        key="downstream_smoke_evidence",
+        path="scripts/downstream_smoke.py",
+        marker="entroping.downstream-smoke.v1",
+        description=(
+            "Downstream smoke harness proves the CLI can run from an external "
+            "temporary project."
+        ),
+    ),
 )
 
 STABLE_CORE_BLOCKERS = (

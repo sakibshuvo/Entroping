@@ -49,3 +49,4 @@ nav:
   - PyPI Release Runbook: meta/PYPI_RELEASE_RUNBOOK.md
   - Homebrew Tap Prototype: meta/HOMEBREW_TAP_PROTOTYPE.md
   - Install Smoke Matrix: meta/INSTALL_SMOKE_MATRIX.md
+  - Downstream Smoke Evidence: meta/DOWNSTREAM_SMOKE_EVIDENCE.md

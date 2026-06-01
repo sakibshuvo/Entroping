@@ -2,6 +2,9 @@
 
 ## 2026-06-01
 
+- Added issue #297's downstream smoke evidence harness so maintainers can prove
+  Entroping runs through the public CLI from an external temporary project while
+  keeping real downstream user feedback as a separate stable-core blocker.
 - Clarified issue #295's release-evidence wording so committed CI evidence is
   treated as last reviewed release evidence, not a self-updating current-HEAD
   assertion.
