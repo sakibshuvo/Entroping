@@ -1,5 +1,12 @@
 # Entroping Changelog
 
+## 2026-06-01
+
+- Implemented issue #275's doctor traffic-state health check so
+  `entroping doctor` reports missing, readable, and incompatible
+  `.entroping/state.db` state through the read-only SQLModel traffic-store
+  boundary without creating runtime state.
+
 ## 2026-05-31
 
 - Implemented issue #260's CLI adapter split so `cli.main` is now a small

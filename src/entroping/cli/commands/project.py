@@ -9,6 +9,7 @@ import typer
 from entroping.cli.shared import console
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
 from entroping.core.hurl_runner import discover_hurl
+from entroping.core.traffic_store import TrafficStoreError, list_project_exchanges_readonly
 
 MINIMAL_QANSTITUTION = """project: "entroping-project"
 version: "4.1"
@@ -83,6 +84,7 @@ def doctor() -> None:
             "Hurl parser: [yellow]not found[/yellow] "
             "(install hurlfmt before Architect generated-Hurl validation)"
         )
+    _report_traffic_state_health()
 
     config_path = Path("qanstitution.yaml")
     if not config_path.exists():
@@ -99,4 +101,27 @@ def doctor() -> None:
     console.print(
         f"QAnstitution: [green]valid[/green] ({len(law.gates)} gates, "
         f"{len(law.imports)} imports)"
+    )
+
+
+def _report_traffic_state_health() -> None:
+    state_path = Path(".entroping") / "state.db"
+    if not state_path.exists():
+        console.print(
+            "Traffic state: [yellow]not found[/yellow] "
+            "(capture traffic with entroping watch)"
+        )
+        return
+
+    try:
+        exchanges = list_project_exchanges_readonly(Path.cwd())
+    except TrafficStoreError as exc:
+        console.print("[red]Traffic state: invalid[/red]")
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+
+    suffix = "exchange" if len(exchanges) == 1 else "exchanges"
+    console.print(
+        "[green]Traffic state: valid[/green] "
+        f"(.entroping/state.db, {len(exchanges)} {suffix})"
     )

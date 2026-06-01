@@ -48,7 +48,7 @@ After installation:
 entroping doctor
 ```
 
-`doctor` should tell you whether Hurl, `hurlfmt`, local config, and QAnstitution files are usable.
+`doctor` should tell you whether Hurl, `hurlfmt`, local traffic state, local config, and QAnstitution files are usable.
 
 For local solo development, keep the install editable with `uv tool install -e .`. Homebrew, Nuitka binaries, Docker, and PyPI are distribution targets after the CLI is stable.
 
