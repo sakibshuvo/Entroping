@@ -4,6 +4,9 @@
 **Purpose:** Executable quality law for Entroping  
 **Version:** 4.1
 
+`qanstitution.yaml` is the canonical policy filename. `entroping.yaml` and
+`entroping-policy.yaml` are not compatibility aliases.
+
 ## 1. Design Intent
 
 The QAnstitution defines what a project must prove before its API behavior is trusted.

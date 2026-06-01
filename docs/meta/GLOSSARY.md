@@ -11,10 +11,12 @@ tags:
 
 Entroping uses a few product-specific names. This glossary keeps those names useful without forcing new users to learn them by guessing.
 
+Project philosophy: **The QAnstitution is Law. Traffic is Truth. Hurl is the Enforcer.**
+
 | Term | Plain meaning |
 | --- | --- |
 | Entroping | The local-first quality governance CLI and knowledge base. |
-| QAnstitution | The executable quality policy in `qanstitution.yaml`. It defines gates, imports, agents, settings, and known failures. |
+| QAnstitution | The executable quality policy in `qanstitution.yaml`, the canonical policy filename. It defines gates, imports, agents, settings, and known failures. |
 | Gate | A Hurl-compatible assertion injected into matching test executions. |
 | Condition | The small match expression that decides which tests or requests receive a gate, for example `true` or `tags contains 'smoke'`. |
 | Enforcement | Whether a gate blocks the run, warns without failing, or is tracked for audit only. |
@@ -30,7 +32,7 @@ Entroping uses a few product-specific names. This glossary keeps those names use
 
 ## Naming Rule
 
-Use product names in docs after introducing the plain meaning. In quick-start material, prefer the command and outcome first, then the branded term.
+Use product names in docs after introducing the plain meaning. In quick-start material, prefer the command and outcome first, then the branded term. QAnstitution is not a placeholder name; explain it, do not rename it away.
 
 Example:
 

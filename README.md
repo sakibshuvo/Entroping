@@ -21,6 +21,8 @@ CI-ready reports.
 
 The core rule is simple: **AI can suggest. Runtime truth decides.**
 
+Project philosophy: **The QAnstitution is Law. Traffic is Truth. Hurl is the Enforcer.**
+
 **Start here:** [Public Docs](https://sakibshuvo.github.io/Entroping/) ·
 [Two-Minute Demo](#try-it-in-two-minutes) · [Roadmap](ROADMAP.md) ·
 [Project Context](#project-context)
