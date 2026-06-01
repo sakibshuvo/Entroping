@@ -220,8 +220,11 @@ evidence, alpha launch-readiness aggregation, a demo proof matrix for checkout,
 AI-regression, policy-pack, launch-readiness, and backlog-health rehearsals, and
 README-facing developer use cases plus curated animated previews.
 Issue #293 adds a committed release-evidence ledger and validator so repeated
-alpha release, latest `main` CI, package-index, and stable-core blocker evidence
-is visible without relying on chat memory or live GitHub API calls.
+alpha release, last reviewed `main` CI, package-index, and stable-core blocker
+evidence is visible without relying on chat memory or live GitHub API calls.
+Issue #295 clarifies that committed CI evidence is reviewed evidence as of the
+ledger update, not an automatically current assertion about the latest `main`
+HEAD.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
@@ -238,7 +241,8 @@ readiness remains evidence-gated instead of prompt-gated.
 Implementation focus:
 
 - Add `docs/meta/release-evidence.json` as the machine-readable ledger for
-  alpha releases, latest main CI, package-index status, and stable-core blockers.
+  alpha releases, recorded main CI, package-index status, and stable-core
+  blockers.
 - Add `scripts/release_evidence.py --strict` so maintainers and agents can
   validate the ledger without network access.
 - Wire the ledger into `scripts/stable_core_readiness.py` and

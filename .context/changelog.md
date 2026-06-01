@@ -2,10 +2,13 @@
 
 ## 2026-06-01
 
-- Added issue #293's release-evidence ledger so alpha releases, latest `main`
-  CI, package-index status, and stable-core blockers are committed and validated
-  by `scripts/release_evidence.py --strict`, `scripts/stable_core_readiness.py`,
-  and the release gate.
+- Clarified issue #295's release-evidence wording so committed CI evidence is
+  treated as last reviewed release evidence, not a self-updating current-HEAD
+  assertion.
+- Added issue #293's release-evidence ledger so alpha releases, last reviewed
+  `main` CI, package-index status, and stable-core blockers are committed and
+  validated by `scripts/release_evidence.py --strict`,
+  `scripts/stable_core_readiness.py`, and the release gate.
 - Added issue #291's README launch-polish slice: concrete "Use Entroping
   When" scenarios now appear before the demo, and reviewed animated GIF
   previews show the checkout happy path plus AI-regression failure proof.

@@ -223,7 +223,7 @@ def _render_markdown(payload: dict[str, Any]) -> str:
         f"- Release count: `{payload['release_count']}`",
         f"- Latest release: `{payload['latest_release']}`",
         "",
-        "## Latest main CI",
+        "## Recorded main CI evidence",
         "",
     ]
     latest_main_ci = payload["latest_main_ci"]
@@ -238,7 +238,7 @@ def _render_markdown(payload: dict[str, Any]) -> str:
             ]
         )
     else:
-        lines.extend(["- No latest main CI evidence recorded.", ""])
+        lines.extend(["- No recorded main CI evidence.", ""])
 
     lines.extend(["## Stable-Core Blockers", ""])
     blockers = payload["stable_core_blockers"]

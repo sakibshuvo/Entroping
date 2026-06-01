@@ -91,8 +91,8 @@ EVIDENCE_CHECKS = (
         path="docs/meta/release-evidence.json",
         marker="entroping.release-evidence.v1",
         description=(
-            "Release evidence ledger records alpha releases, main CI, and "
-            "stable-core blockers."
+            "Release evidence ledger records alpha releases, recorded main CI, "
+            "and stable-core blockers."
         ),
     ),
 )
