@@ -226,6 +226,14 @@ Implementation focus:
 
 - Preserve SQLite as local `.entroping/state.db` runtime state.
 - Use SQLModel as the typed persistence layer for traffic state.
+- Keep traffic-store schema evolution explicit through version metadata,
+  fail-closed future-version handling, and reviewed migrations.
+- Keep the Typer entrypoint small by routing command groups through focused
+  CLI adapter modules.
+- Keep Studio optional and typed without disabling static checking at the
+  Textual boundary.
+- Keep live-demo messaging honest: Python `urlopen` is only fixture readiness;
+  Entroping and Hurl remain the API assertion path.
 - Keep traffic persistence redaction-first and bounded by retention.
 - Refresh source-map and progress docs so future sessions do not follow stale
   paths or stale current-issue markers.
@@ -1084,12 +1092,13 @@ Architect writes generated files.
 Use these issues as the next marathon targets. Keep each one narrow, tested, and
 merged through GitHub before starting the next branch:
 
-- Follow-up issue #223: activate PyPI/TestPyPI Trusted Publishing workflow.
-- Follow-up issue #224: prototype Homebrew tap after PyPI alpha.
-- Follow-up issue #225: evaluate standalone binary after tap demand.
-- After those adoption slices land, move to v0.3 product-depth issues such as
-  report-backed Studio drilldowns, reviewed baseline workflows, redaction
-  review UX, and stronger Architect remediation guidance.
+- Current branch target: close #260 and #262 through #265 with focused tests,
+  docs, and the full feature gate.
+- Packaging issue #268 is intentionally gated on package-index alpha evidence:
+  publish TestPyPI/PyPI through the protected workflow first, then promote the
+  Homebrew tap from prototype to supported install path.
+- After local gates pass, dogfood the public install/demo flow with the
+  maintainer before changing release status language.
 
 ## Explicitly Deferred
 

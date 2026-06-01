@@ -114,6 +114,17 @@
 - WireMock generation should match dependencies by a narrow safe service selector and avoid request-header/body matching in the MVP. Method plus URL path and redacted response payloads give useful mocks without replaying captured secrets.
 - Release smoke jobs that download pinned external binaries still need bounded retries. Keep checksum verification strict, but do not let a single transient 5xx from a release host fail an otherwise valid PR.
 - SQLModel is the typed persistence layer, not a replacement for SQLite. Keep `.entroping/state.db` as local-first runtime state, and use SQLModel where relational state needs clearer schema, tests, and future migration paths.
+- Local SQLite state needs its own schema contract, not only SQLModel classes.
+  Store a schema version in the database, fail closed on future versions, and
+  require a reviewed migration before accepting explicit older versions.
+- Large Typer apps should not stay in one module after the command surface
+  stabilizes. Split command adapters by namespace while keeping `cli.main` as
+  the small registration entrypoint and preserving compatibility tests.
+- Optional UI adapters can stay lazy without disabling type checks. Use a narrow
+  runtime protocol and focused mypy coverage at the optional dependency
+  boundary.
+- Demo scripts may use Python HTTP calls for fixture readiness, but API
+  correctness claims must remain tied to Entroping plus Hurl execution.
 - Multi-agent scale needs deterministic context packs and one parent integrator. Use helper agents for bounded evidence and review, but promote durable decisions into issues, ADRs, docs, tests, or scripts before implementation follows them.
 - Pydantic and mypy are complementary gates: Pydantic validates runtime data at boundaries, while mypy enforces static type consistency before runtime.
 - Launch assets should be generated from real product paths but committed as small, reviewable text/SVG artifacts. Keep bulky terminal recordings, screenshots, generated reports, and traffic state out of Git unless each asset is deliberately curated.

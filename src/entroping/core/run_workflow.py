@@ -38,8 +38,16 @@ from entroping.core.traffic_store import TrafficStore, TrafficStoreError
 from entroping.models.drift import DependencyDriftRoute, DriftReport
 
 
-class NoHurlTestsMatchedError(ValueError):
+class RunWorkflowError(ValueError):
+    """Base error for deterministic run workflow failures."""
+
+
+class NoHurlTestsMatchedError(RunWorkflowError):
     """Raised when discovery finds no executable Hurl tests."""
+
+
+class DependencyDriftObservationError(RunWorkflowError):
+    """Raised when current dependency routes cannot be observed safely."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -186,7 +194,7 @@ def _load_current_dependency_routes(root: Path) -> tuple[DependencyDriftRoute, .
         graph = compile_traffic_dependency_graph(session)
     except (TrafficGraphCompilationError, TrafficSessionError, TrafficStoreError) as exc:
         msg = f"Could not build dependency drift observations: {exc}"
-        raise ValueError(msg) from exc
+        raise DependencyDriftObservationError(msg) from exc
 
     return tuple(
         DependencyDriftRoute(

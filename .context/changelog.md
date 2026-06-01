@@ -2,6 +2,19 @@
 
 ## 2026-05-31
 
+- Implemented issue #260's CLI adapter split so `cli.main` is now a small
+  entrypoint and project, config, architect, execution, and report commands live
+  in focused modules with architecture regression coverage.
+- Implemented issue #262's traffic-store schema policy with
+  `schema_version=1`, future-version fail-closed behavior, and TDS migration
+  guidance for `.entroping/state.db`.
+- Implemented issue #263's typed dependency-drift run failures with
+  `DependencyDriftObservationError` under `RunWorkflowError`.
+- Implemented issue #264's Studio typing cleanup by removing `no_type_check`
+  from the lazy Textual app boundary while keeping optional imports lazy.
+- Implemented issue #265's live-demo guidance cleanup so the smoke script
+  distinguishes the HTTP readiness probe from Hurl-backed API assertions and
+  gives direct Hurl install guidance.
 - Added `docs/meta/OBSIDIAN_VS_GITHUB.md` as the internal maintainer guide
   for choosing between Obsidian, GitHub Issues, GitHub Project, roadmap, ADRs,
   source archives, and context files.

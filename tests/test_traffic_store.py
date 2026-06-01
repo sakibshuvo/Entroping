@@ -4,14 +4,18 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from sqlmodel import Session, create_engine, select
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlmodel import Session, SQLModel, create_engine, select
 
 from entroping.core import traffic_store
 from entroping.core.traffic_redactor import redact_traffic_exchange
 from entroping.core.traffic_store import (
+    TRAFFIC_STORE_SCHEMA_VERSION,
     TrafficEventRow,
     TrafficStore,
     TrafficStoreError,
+    TrafficStoreMetadataRow,
     list_project_exchanges_readonly,
 )
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
@@ -40,6 +44,78 @@ def test_store_uses_entroping_state_db_by_default(tmp_path: Path) -> None:
 
     assert store.db_path == tmp_path / ".entroping" / "state.db"
     assert store.db_path.parent.is_dir()
+
+
+def test_store_records_current_schema_version(tmp_path: Path) -> None:
+    store = TrafficStore.open_project(tmp_path)
+    engine = create_engine(f"sqlite:///{store.db_path}")
+
+    with Session(engine) as session:
+        rows = session.exec(select(TrafficStoreMetadataRow)).all()
+
+    assert [(row.key, row.value) for row in rows] == [
+        ("schema_version", str(TRAFFIC_STORE_SCHEMA_VERSION))
+    ]
+
+
+def test_store_wraps_schema_initialization_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_schema_version(engine: object) -> None:
+        _ = engine
+        raise SQLAlchemyError("metadata unavailable")
+
+    monkeypatch.setattr(traffic_store, "_ensure_schema_version", fail_schema_version)
+
+    with pytest.raises(TrafficStoreError, match="could not initialize traffic state"):
+        TrafficStore.open_project(tmp_path)
+
+
+def test_store_rejects_future_schema_version(tmp_path: Path) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    db_path = state_dir / "state.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        session.add(
+            TrafficStoreMetadataRow(
+                key="schema_version",
+                value=str(TRAFFIC_STORE_SCHEMA_VERSION + 1),
+            )
+        )
+        session.commit()
+
+    with pytest.raises(TrafficStoreError, match="newer than supported"):
+        TrafficStore.open_project(tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("schema_version", "message"),
+    [
+        ("not-an-integer", "schema version is invalid"),
+        ("0", "older than supported"),
+    ],
+)
+def test_store_rejects_invalid_or_unsupported_schema_versions(
+    tmp_path: Path,
+    schema_version: str,
+    message: str,
+) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    db_path = state_dir / "state.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        session.add(TrafficStoreMetadataRow(key="schema_version", value=schema_version))
+        session.commit()
+
+    with pytest.raises(TrafficStoreError, match=message):
+        TrafficStore.open_project(tmp_path)
 
 
 def test_store_rejects_non_positive_retention_limit(tmp_path: Path) -> None:
@@ -118,6 +194,102 @@ def test_readonly_project_exchange_listing_preserves_existing_state_file(
     assert len(loaded) == 1
     assert loaded[0].request.headers["Authorization"] == "[REDACTED]"
     assert after == before
+
+
+def test_readonly_project_exchange_listing_accepts_legacy_store_without_metadata(
+    tmp_path: Path,
+) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    db_path = state_dir / "state.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                """
+                CREATE TABLE traffic_events (
+                    id INTEGER PRIMARY KEY,
+                    captured_at VARCHAR NOT NULL,
+                    method VARCHAR NOT NULL,
+                    url VARCHAR NOT NULL,
+                    host VARCHAR NOT NULL,
+                    path VARCHAR NOT NULL,
+                    status_code INTEGER,
+                    duration_ms INTEGER,
+                    exchange_json VARCHAR NOT NULL
+                )
+                """
+            )
+        )
+
+    assert list_project_exchanges_readonly(tmp_path) == ()
+
+
+def test_readonly_project_exchange_listing_wraps_schema_version_read_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    (state_dir / "state.db").write_text("placeholder\n", encoding="utf-8")
+
+    class FailingSchemaSession:
+        def __init__(self, engine: object) -> None:
+            _ = engine
+
+        def __enter__(self) -> "FailingSchemaSession":
+            return self
+
+        def __exit__(
+            self,
+            exc_type: object,
+            exc_value: object,
+            traceback: object,
+        ) -> None:
+            _ = (exc_type, exc_value, traceback)
+
+        def exec(self, statement: object) -> object:
+            _ = statement
+            raise SQLAlchemyError("schema read failed")
+
+    monkeypatch.setattr(traffic_store, "Session", FailingSchemaSession)
+
+    with pytest.raises(TrafficStoreError, match="could not read traffic store schema version"):
+        list_project_exchanges_readonly(tmp_path)
+
+
+def test_readonly_project_exchange_listing_wraps_sqlalchemy_read_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    (state_dir / "state.db").write_text("placeholder\n", encoding="utf-8")
+
+    class FailingReadSession:
+        def __init__(self, engine: object) -> None:
+            _ = engine
+
+        def __enter__(self) -> "FailingReadSession":
+            return self
+
+        def __exit__(
+            self,
+            exc_type: object,
+            exc_value: object,
+            traceback: object,
+        ) -> None:
+            _ = (exc_type, exc_value, traceback)
+
+        def exec(self, statement: object) -> object:
+            _ = statement
+            raise SQLAlchemyError("read failed")
+
+    monkeypatch.setattr(traffic_store, "_validate_existing_schema_version", lambda engine: None)
+    monkeypatch.setattr(traffic_store, "Session", FailingReadSession)
+
+    with pytest.raises(TrafficStoreError, match="could not read traffic state"):
+        list_project_exchanges_readonly(tmp_path)
 
 
 def test_readonly_project_exchange_listing_applies_limit(tmp_path: Path) -> None:

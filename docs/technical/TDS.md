@@ -480,12 +480,26 @@ The SQLite database under `.entroping/state.db` should be treated as local runti
 Current foundation:
 
 - `TrafficStore.open_project(<root>)` opens `.entroping/state.db`.
+- `traffic_store_metadata` stores `schema_version=1` through
+  `TrafficStoreMetadataRow`.
 - `TrafficEventRow` maps the `traffic_events` table through SQLModel.
 - `traffic_events` stores only redacted `TrafficExchange` JSON plus indexed method, URL, host, path, status, duration, and capture time.
 - Persistence refuses any exchange whose `redacted` flag is false.
 - Retention keeps local growth bounded by a configurable event count.
 - Traffic state modules are covered by import-boundary tests so they do not call Brain/LiteLLM providers.
 - Proxy capture modules are adapter-only and should not send captured traffic to Brain/LiteLLM providers.
+
+Traffic-store schema policy:
+
+- Current schema version is `1`.
+- Write-capable opens create missing metadata for pre-version alpha stores.
+- Read-only Studio/status paths validate existing metadata without creating or
+  migrating `.entroping/state.db`; older alpha stores with no metadata are
+  treated as version 1 for read compatibility.
+- A store with a future schema version fails closed with an upgrade-required
+  error before traffic rows are read or written.
+- Explicit older schema versions fail until a reviewed migration is added. Do
+  not silently rewrite state with an unknown schema contract.
 
 Suggested future tables:
 

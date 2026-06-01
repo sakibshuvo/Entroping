@@ -65,7 +65,9 @@ cleanup() {
 trap cleanup EXIT
 
 if ! command -v hurl >/dev/null 2>&1; then
-  echo "Hurl binary not found. Install hurl before running the live demo smoke." >&2
+  echo "Hurl is required for the live demo smoke." >&2
+  echo "Install Hurl directly, for example: brew install hurl" >&2
+  echo "For the guided demo entry point, run: scripts/demo.sh" >&2
   exit 1
 fi
 
@@ -74,6 +76,8 @@ cp -R "$repo_root/examples/checkout-api/." "$workdir/"
 python "$repo_root/examples/checkout-api/demo_server.py" --port "$demo_port" &
 server_pid="$!"
 
+# This urlopen call is only a local readiness probe for the fixture server.
+# API assertions still run through Entroping and Hurl below.
 python - "$demo_port" <<'PY'
 import sys
 import time
