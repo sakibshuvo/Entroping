@@ -74,32 +74,39 @@ def test_doc_governance_blocks_strategy_doc_sprawl() -> None:
     assert "Do not create a new strategy document" in governance
     assert "existing canonical owner" in governance
     assert "GitHub Issues remain the backlog" in governance
+    assert "Public Docs Curation Rule" in governance
+    assert "Do not expose maintainer memory as first-level public navigation" in governance
 
 
-def test_readme_surfaces_public_docs_before_deep_context() -> None:
+def test_readme_surfaces_public_docs_before_project_context() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
     public_docs_link = "[Public Docs](https://sakibshuvo.github.io/Entroping/)"
     assert public_docs_link in readme
     assert "[Two-Minute Demo](#try-it-in-two-minutes)" in readme
     assert "[Roadmap](ROADMAP.md)" in readme
+    assert "[Project Context](#project-context)" in readme
     assert "[Vault Index](docs/meta/VAULT_INDEX.md)" in readme
     assert readme.index(public_docs_link) < readme.index("## Why Entroping")
 
-    deep_docs = readme.split("## Deep Docs", maxsplit=1)[1].split(
+    assert "## Deep Docs" not in readme
+    project_context = readme.split("## Project Context", maxsplit=1)[1].split(
         "## Locked Alpha CLI Surface",
         maxsplit=1,
     )[0]
     expected_ownership_lines = [
-        "README sells and orients.",
-        "MkDocs is the public reading path",
+        "Public Docs are the adoption path",
         "GitHub Issues track work",
-        "`ROADMAP.md` sequences releases",
-        "`docs/meta/VAULT_INDEX.md` maps the Obsidian vault",
+        "Obsidian is project memory, not the backlog",
         "`docs/meta/DOCS_GOVERNANCE.md` decides which docs must change",
     ]
     for ownership_line in expected_ownership_lines:
-        assert ownership_line in deep_docs
+        assert ownership_line in project_context
+    assert "Product:" not in project_context
+    assert "Technical:" not in project_context
+    assert "Operating the project:" not in project_context
+    assert project_context.count("\n- ") <= 8
+    assert len(project_context.splitlines()) <= 45
 
 
 def test_mkdocs_home_explains_repository_context_surfaces() -> None:
@@ -138,13 +145,13 @@ def test_readme_is_demo_first_open_source_front_door() -> None:
     assert "Code at the speed of AI. Don't crash at the speed of AI." in readme
     assert "## Use Entroping When" in readme
     assert "## Try It In Two Minutes" in readme
-    assert "## Deep Docs" in readme
+    assert "## Project Context" in readme
     assert "## Current Alpha" in readme
     assert readme.index("## Use Entroping When") < readme.index(
         "## Try It In Two Minutes"
     )
     assert readme.index("## Try It In Two Minutes") < readme.index("## Current Alpha")
-    assert readme.index("## Try It In Two Minutes") < readme.index("## Deep Docs")
+    assert readme.index("## Try It In Two Minutes") < readme.index("## Project Context")
 
     use_cases = readme.split("## Use Entroping When", maxsplit=1)[1].split(
         "## Try It In Two Minutes",

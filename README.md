@@ -23,7 +23,7 @@ The core rule is simple: **AI can suggest. Runtime truth decides.**
 
 **Start here:** [Public Docs](https://sakibshuvo.github.io/Entroping/) ·
 [Two-Minute Demo](#try-it-in-two-minutes) · [Roadmap](ROADMAP.md) ·
-[Vault Index](docs/meta/VAULT_INDEX.md)
+[Project Context](#project-context)
 
 ## Why Entroping
 
@@ -287,78 +287,50 @@ scripts/context_pack.sh --mode growth
 scripts/context_pack.sh --mode handoff
 ```
 
-## Deep Docs
+## Project Context
 
-Use the smallest surface that answers the question:
+Public Docs are the adoption path. Project memory stays available, but it is
+kept backstage so new users do not have to read the whole vault before trying
+the tool.
 
-- README sells and orients.
-- MkDocs is the public reading path at [Public Docs](https://sakibshuvo.github.io/Entroping/).
-- GitHub Issues track work.
-- `ROADMAP.md` sequences releases.
-- `docs/meta/VAULT_INDEX.md` maps the Obsidian vault.
-- `.context/` keeps maintainer and agent handoff state.
-- `docs/meta/DOCS_GOVERNANCE.md` decides which docs must change.
+- Public path: [Public Docs](https://sakibshuvo.github.io/Entroping/),
+  [USER_GUIDE.md](docs/user/USER_GUIDE.md),
+  [QANSTITUTION_FIRST_HOUR.md](docs/user/QANSTITUTION_FIRST_HOUR.md), and
+  [USE_CASES.md](docs/user/USE_CASES.md). Provider setup lives in
+  [AI_PROVIDER_SETUP.md](docs/user/AI_PROVIDER_SETUP.md).
+- GitHub Issues track work; [ROADMAP.md](ROADMAP.md) sequences releases, and
+  [PROJECT_PROGRESS.md](docs/meta/PROJECT_PROGRESS.md) keeps the short daily
+  dashboard.
+- Obsidian is project memory, not the backlog. Open the vault at
+  [Vault Index](docs/meta/VAULT_INDEX.md), and use [DOCS_GOVERNANCE.md](docs/meta/DOCS_GOVERNANCE.md);
+  `docs/meta/DOCS_GOVERNANCE.md` decides which docs must change.
+- Agent handoff uses `scripts/context_pack.sh --mode implementation`,
+  `--mode review`, `--mode source`, `--mode growth`, and `--mode handoff`.
+- Architecture and command reference live in [TDS.md](docs/technical/TDS.md),
+  [QANSTITUTION_REFERENCE.md](docs/technical/QANSTITUTION_REFERENCE.md),
+  [COMMAND_CHEAT_SHEET.md](docs/technical/COMMAND_CHEAT_SHEET.md),
+  [CLI_COMPATIBILITY_AUDIT.md](docs/technical/CLI_COMPATIBILITY_AUDIT.md),
+  [POLICY_PACK_LAYOUT.md](docs/technical/POLICY_PACK_LAYOUT.md), and
+  [THREAT_MODEL.md](docs/technical/THREAT_MODEL.md).
+- Release and distribution evidence lives in
+  [RELEASE_CHECKLIST.md](docs/meta/RELEASE_CHECKLIST.md),
+  [PYPI_RELEASE_RUNBOOK.md](docs/meta/PYPI_RELEASE_RUNBOOK.md),
+  [INSTALL_SMOKE_MATRIX.md](docs/meta/INSTALL_SMOKE_MATRIX.md),
+  [DISTRIBUTION_RECOMMENDATION.md](docs/meta/DISTRIBUTION_RECOMMENDATION.md),
+  [GITHUB_ACTIONS_STARTER.md](docs/user/GITHUB_ACTIONS_STARTER.md), and
+  [CI_PROVIDER_RECIPES.md](docs/user/CI_PROVIDER_RECIPES.md).
+- Growth, open-core, and examples are in
+  [GROWTH_AND_MONETIZATION.md](docs/product/GROWTH_AND_MONETIZATION.md),
+  [OPEN_CORE_BOUNDARIES.md](docs/product/OPEN_CORE_BOUNDARIES.md),
+  [examples/checkout-api](examples/checkout-api/README.md),
+  [examples/support-api](examples/support-api/README.md),
+  [examples/graphql-api](examples/graphql-api/README.md),
+  [examples/soap-api](examples/soap-api/README.md), and
+  [examples/ai-regression-demo](examples/ai-regression-demo/README.md).
 
-Open this repository in Obsidian and start with [docs/meta/VAULT_INDEX.md](docs/meta/VAULT_INDEX.md).
-
-Product:
-
-- [ROADMAP.md](ROADMAP.md) - public roadmap and release sequence.
-- [PRODUCT_SPEC.md](docs/product/PRODUCT_SPEC.md) - product contract.
-- [MVP_PLAN.md](docs/product/MVP_PLAN.md) - implementation sequence.
-- [GROWTH_AND_MONETIZATION.md](docs/product/GROWTH_AND_MONETIZATION.md) - open-source growth and open-core path.
-- [OPEN_CORE_BOUNDARIES.md](docs/product/OPEN_CORE_BOUNDARIES.md) - public-core versus commercial-surface guardrails.
-
-Technical:
-
-- [TDS.md](docs/technical/TDS.md) - technical design.
-- [QANSTITUTION_REFERENCE.md](docs/technical/QANSTITUTION_REFERENCE.md) - policy schema and examples.
-- [POLICY_PACK_LAYOUT.md](docs/technical/POLICY_PACK_LAYOUT.md) - reusable QAnstitution policy-pack layout and example.
-- [COMMAND_CHEAT_SHEET.md](docs/technical/COMMAND_CHEAT_SHEET.md) - locked CLI namespace.
-- [FREEZE_MAP_PLAN.md](docs/technical/FREEZE_MAP_PLAN.md) - Eye implementation boundaries.
-
-User workflows:
-
-- [AI_PROVIDER_SETUP.md](docs/user/AI_PROVIDER_SETUP.md) - LiteLLM, local Qwen/oMLX, cloud model, and LLM-free CI setup.
-
-Operating the project:
-
-- [PROJECT_PROGRESS.md](docs/meta/PROJECT_PROGRESS.md) - alpha progress dashboard.
-- [ISSUE_TRACKING.md](docs/meta/ISSUE_TRACKING.md) - issue workflow.
-- [DOCS_GOVERNANCE.md](docs/meta/DOCS_GOVERNANCE.md) - documentation owners, roadmap gate, and PR declaration rules.
-- [TEST_STRATEGY.md](docs/meta/TEST_STRATEGY.md) - test pyramid and regression suite.
-- [GITHUB_ACTIONS_STARTER.md](docs/user/GITHUB_ACTIONS_STARTER.md) - copyable downstream CI workflow.
-- [CI_PROVIDER_RECIPES.md](docs/user/CI_PROVIDER_RECIPES.md) - GitLab CI, Buildkite, CircleCI, and generic shell guidance.
-- [PYPI_RELEASE_RUNBOOK.md](docs/meta/PYPI_RELEASE_RUNBOOK.md) - TestPyPI-first package-index publishing plan.
-- [PUBLIC_DOCS_SITE_DECISION.md](docs/meta/PUBLIC_DOCS_SITE_DECISION.md) - MkDocs Material public-site decision and scaffold.
-- [INSTALL_SMOKE_MATRIX.md](docs/meta/INSTALL_SMOKE_MATRIX.md) - Linux, macOS, and Windows install-smoke support claims.
-- [DISTRIBUTION_RECOMMENDATION.md](docs/meta/DISTRIBUTION_RECOMMENDATION.md) - uv, PyPI, Homebrew tap, and standalone binary sequencing.
-- [AGENT_CONTROL_PLANE.md](docs/meta/AGENT_CONTROL_PLANE.md) - Codex-first multi-agent workflow.
-- [KNOWLEDGE_BASE_WORKFLOW.md](docs/meta/KNOWLEDGE_BASE_WORKFLOW.md) - Obsidian, Gemini, NotebookLM, and Graphify workflow.
-
-Public docs site scaffold:
-
-```bash
-uvx --with 'mkdocs-material==9.*' mkdocs build --strict
-```
-
-The public docs site uses `mkdocs.yml` and the existing `docs/` tree. CI runs a
-strict docs build on pull requests, and GitHub Pages publishes `main` to
+The public docs site is generated by `mkdocs.yml`; CI runs a strict docs build
+on pull requests, and GitHub Pages publishes `main` to
 [sakibshuvo.github.io/Entroping](https://sakibshuvo.github.io/Entroping/).
-
-Orientation:
-
-- [USER_GUIDE.md](docs/user/USER_GUIDE.md) - practical user guide.
-- [USE_CASES.md](docs/user/USE_CASES.md) - concrete usage scenarios.
-- [GLOSSARY.md](docs/meta/GLOSSARY.md) - plain-language terminology guide.
-- [THREAT_MODEL.md](docs/technical/THREAT_MODEL.md) - security boundaries and residual-risk map.
-- [EVOLUTION_TIMELINE.md](docs/evolution/EVOLUTION_TIMELINE.md) - product history.
-- [ADR-0001](decisions/ADR-0001-hurl-native-governance.md) - first architectural decision.
-- [examples/checkout-api](examples/checkout-api/README.md) - tiny demo fixture.
-- [examples/support-api](examples/support-api/README.md) - second fixture with ticket filters, headers, and mutation audit gates.
-- [examples/graphql-api](examples/graphql-api/README.md) - GraphQL-over-HTTP fixture with top-level `errors` governance.
-- [examples/soap-api](examples/soap-api/README.md) - SOAP-over-HTTP fixture with XML envelope assertions.
-- [examples/ai-regression-demo](examples/ai-regression-demo/README.md) - failure proof for a missing `X-Request-Id` regression.
 
 ## Locked Alpha CLI Surface
 

@@ -55,6 +55,27 @@ Only add a new document when all of these are true:
 GitHub Issues remain the backlog. Obsidian can explain why a decision happened,
 but it must not become a second issue tracker.
 
+## Public Docs Curation Rule
+
+Public docs should lead with the shortest path to understanding, installing,
+and trying Entroping. Do not expose maintainer memory as first-level public navigation
+just because the file is useful to agents or future maintainers.
+
+Use this order for public onboarding surfaces:
+
+1. Product promise and two-minute proof.
+2. Getting started and user workflow docs.
+3. QAnstitution, policy, CI, and report references.
+4. Roadmap and release-status evidence.
+5. Technical reference.
+
+Historical exports, evolution notes, source maps, Obsidian workflow notes,
+agent-control notes, and `.context/` handoff files should stay linked from the
+vault or relevant maintainer docs unless they directly help a new user adopt
+the tool. New MkDocs top-level nav entries require a public-reader reason in
+the PR; otherwise place the document under an existing group or leave it out of
+the public nav.
+
 ## Update Matrix
 
 | Change type | Required update | Usually do not update |

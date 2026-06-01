@@ -2,6 +2,10 @@
 
 ## 2026-06-01
 
+- Added issue #348's public-docs launch-path cleanup so README uses a concise
+  `Project Context` handoff instead of a deep-docs inventory, MkDocs navigation
+  is grouped by reader task, and documentation governance blocks casual
+  first-level public-nav expansion.
 - Added issue #343's HTML run-summary escaping so the local HTML report now
   escapes the summary header consistently with project, environment, generated
   timestamp, rule IDs, known-failure summaries, and captured output.
