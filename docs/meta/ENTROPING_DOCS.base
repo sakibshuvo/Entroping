@@ -1,0 +1,59 @@
+filters:
+  or:
+    - 'file.inFolder("docs")'
+    - 'file.inFolder("decisions")'
+    - 'file.inFolder("examples")'
+    - 'file.name == "README"'
+    - 'file.name == "ROADMAP"'
+    - 'file.name == "VAULT_INDEX"'
+    - 'file.name == "AGENTS"'
+
+properties:
+  file.name:
+    displayName: File
+  file.folder:
+    displayName: Folder
+  type:
+    displayName: Type
+  status:
+    displayName: Status
+  tags:
+    displayName: Tags
+
+views:
+  - type: table
+    name: Canonical Docs
+    order:
+      - file.name
+      - file.folder
+      - type
+      - status
+      - tags
+  - type: table
+    name: Decisions
+    filters:
+      and:
+        - 'file.inFolder("decisions")'
+    order:
+      - file.name
+      - status
+      - tags
+  - type: table
+    name: Workflows
+    filters:
+      or:
+        - 'file.inFolder("docs/meta")'
+        - 'file.name == "AGENTS"'
+    order:
+      - file.name
+      - type
+      - status
+      - tags
+  - type: table
+    name: Examples
+    filters:
+      and:
+        - 'file.inFolder("examples")'
+    order:
+      - file.name
+      - file.folder

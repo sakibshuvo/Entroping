@@ -51,6 +51,8 @@ Use these first. They are the control panel for current work:
 - [[docs/meta/ISSUE_TRACKING|ISSUE_TRACKING]] - GitHub issue tracking rules for bugs, features, and regressions.
 - [[docs/meta/OBSIDIAN_VS_GITHUB|OBSIDIAN_VS_GITHUB]] - practical guide for where ideas, bugs, roadmap, and context belong.
 - [[docs/meta/OBSIDIAN_CONTEXT_ENGINE_GUIDE|OBSIDIAN_CONTEXT_ENGINE_GUIDE]] - how to use Obsidian as an agent-friendly context preservation engine.
+- [[docs/meta/ENTROPING_PRODUCT_MAP.canvas|ENTROPING_PRODUCT_MAP]] - visual product/context map for the vault.
+- [[docs/meta/ENTROPING_DOCS.base|ENTROPING_DOCS]] - table views over canonical docs, decisions, workflows, and examples.
 - [[ROADMAP|ROADMAP]] - public milestones and near-term sequencing.
 - [[docs/meta/DOCS_GOVERNANCE|DOCS_GOVERNANCE]] - documentation owners, roadmap-change gate, and PR declaration rules.
 - [[docs/meta/TEST_STRATEGY|TEST_STRATEGY]] - regression suite and test-pyramid policy.

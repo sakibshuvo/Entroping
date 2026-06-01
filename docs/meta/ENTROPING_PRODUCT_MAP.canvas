@@ -1,0 +1,360 @@
+{
+  "nodes": [
+    {
+      "id": "group-start",
+      "type": "group",
+      "x": -980,
+      "y": -540,
+      "width": 580,
+      "height": 440,
+      "label": "Start Here"
+    },
+    {
+      "id": "group-product",
+      "type": "group",
+      "x": -300,
+      "y": -540,
+      "width": 620,
+      "height": 440,
+      "label": "Product Direction"
+    },
+    {
+      "id": "group-runtime",
+      "type": "group",
+      "x": 420,
+      "y": -540,
+      "width": 640,
+      "height": 440,
+      "label": "Runtime Governance Core"
+    },
+    {
+      "id": "group-delivery",
+      "type": "group",
+      "x": -980,
+      "y": 0,
+      "width": 620,
+      "height": 430,
+      "label": "Delivery System"
+    },
+    {
+      "id": "group-evidence",
+      "type": "group",
+      "x": -260,
+      "y": 0,
+      "width": 600,
+      "height": 430,
+      "label": "Evidence And Evolution"
+    },
+    {
+      "id": "group-examples",
+      "type": "group",
+      "x": 440,
+      "y": 0,
+      "width": 620,
+      "height": 430,
+      "label": "Runnable Fixtures"
+    },
+    {
+      "id": "start-index",
+      "type": "file",
+      "file": "docs/meta/VAULT_INDEX.md",
+      "x": -940,
+      "y": -460,
+      "width": 240,
+      "height": 140
+    },
+    {
+      "id": "start-readme",
+      "type": "file",
+      "file": "README.md",
+      "x": -660,
+      "y": -460,
+      "width": 220,
+      "height": 140
+    },
+    {
+      "id": "start-guide",
+      "type": "file",
+      "file": "docs/meta/OBSIDIAN_START_HERE.md",
+      "x": -940,
+      "y": -270,
+      "width": 240,
+      "height": 140
+    },
+    {
+      "id": "context-workflow",
+      "type": "file",
+      "file": "docs/meta/KNOWLEDGE_BASE_WORKFLOW.md",
+      "x": -660,
+      "y": -270,
+      "width": 220,
+      "height": 140
+    },
+    {
+      "id": "product-spec",
+      "type": "file",
+      "file": "docs/product/PRODUCT_SPEC.md",
+      "x": -260,
+      "y": -460,
+      "width": 240,
+      "height": 140
+    },
+    {
+      "id": "roadmap",
+      "type": "file",
+      "file": "ROADMAP.md",
+      "x": 40,
+      "y": -460,
+      "width": 240,
+      "height": 140
+    },
+    {
+      "id": "mvp-plan",
+      "type": "file",
+      "file": "docs/product/MVP_PLAN.md",
+      "x": -260,
+      "y": -270,
+      "width": 240,
+      "height": 140
+    },
+    {
+      "id": "open-core",
+      "type": "file",
+      "file": "docs/product/OPEN_CORE_BOUNDARIES.md",
+      "x": 40,
+      "y": -270,
+      "width": 240,
+      "height": 140
+    },
+    {
+      "id": "tds",
+      "type": "file",
+      "file": "docs/technical/TDS.md",
+      "x": 460,
+      "y": -460,
+      "width": 240,
+      "height": 140
+    },
+    {
+      "id": "qanstitution",
+      "type": "file",
+      "file": "docs/technical/QANSTITUTION_REFERENCE.md",
+      "x": 760,
+      "y": -460,
+      "width": 240,
+      "height": 140
+    },
+    {
+      "id": "threat-model",
+      "type": "file",
+      "file": "docs/technical/THREAT_MODEL.md",
+      "x": 460,
+      "y": -270,
+      "width": 240,
+      "height": 140
+    },
+    {
+      "id": "cli-audit",
+      "type": "file",
+      "file": "docs/technical/CLI_COMPATIBILITY_AUDIT.md",
+      "x": 760,
+      "y": -270,
+      "width": 240,
+      "height": 140
+    },
+    {
+      "id": "agents",
+      "type": "file",
+      "file": "AGENTS.md",
+      "x": -940,
+      "y": 80,
+      "width": 240,
+      "height": 140
+    },
+    {
+      "id": "progress",
+      "type": "file",
+      "file": "docs/meta/PROJECT_PROGRESS.md",
+      "x": -640,
+      "y": 80,
+      "width": 240,
+      "height": 140
+    },
+    {
+      "id": "checklist",
+      "type": "file",
+      "file": "docs/meta/FEATURE_DELIVERY_CHECKLIST.md",
+      "x": -940,
+      "y": 270,
+      "width": 240,
+      "height": 120
+    },
+    {
+      "id": "issue-tracking",
+      "type": "file",
+      "file": "docs/meta/ISSUE_TRACKING.md",
+      "x": -640,
+      "y": 270,
+      "width": 240,
+      "height": 120
+    },
+    {
+      "id": "timeline",
+      "type": "file",
+      "file": "docs/evolution/EVOLUTION_TIMELINE.md",
+      "x": -220,
+      "y": 80,
+      "width": 240,
+      "height": 140
+    },
+    {
+      "id": "requirements",
+      "type": "file",
+      "file": "docs/evolution/REQUIREMENTS_ANALYSIS.md",
+      "x": 60,
+      "y": 80,
+      "width": 240,
+      "height": 140
+    },
+    {
+      "id": "creator",
+      "type": "file",
+      "file": "docs/evolution/CREATOR_INTENT_AUDIT.md",
+      "x": -220,
+      "y": 270,
+      "width": 240,
+      "height": 120
+    },
+    {
+      "id": "source-map",
+      "type": "file",
+      "file": "sources/SOURCE_MAP.md",
+      "x": 60,
+      "y": 270,
+      "width": 240,
+      "height": 120
+    },
+    {
+      "id": "checkout",
+      "type": "file",
+      "file": "examples/checkout-api/README.md",
+      "x": 500,
+      "y": 80,
+      "width": 240,
+      "height": 140
+    },
+    {
+      "id": "support",
+      "type": "file",
+      "file": "examples/support-api/README.md",
+      "x": 780,
+      "y": 80,
+      "width": 240,
+      "height": 140
+    },
+    {
+      "id": "launch-assets",
+      "type": "file",
+      "file": "docs/assets/launch/README.md",
+      "x": 500,
+      "y": 270,
+      "width": 240,
+      "height": 120
+    },
+    {
+      "id": "release-checklist",
+      "type": "file",
+      "file": "docs/meta/RELEASE_CHECKLIST.md",
+      "x": 780,
+      "y": 270,
+      "width": 240,
+      "height": 120
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-index-product",
+      "fromNode": "start-index",
+      "fromSide": "right",
+      "toNode": "product-spec",
+      "toSide": "left"
+    },
+    {
+      "id": "e-readme-roadmap",
+      "fromNode": "start-readme",
+      "fromSide": "right",
+      "toNode": "roadmap",
+      "toSide": "left"
+    },
+    {
+      "id": "e-product-tds",
+      "fromNode": "product-spec",
+      "fromSide": "right",
+      "toNode": "tds",
+      "toSide": "left"
+    },
+    {
+      "id": "e-mvp-qanstitution",
+      "fromNode": "mvp-plan",
+      "fromSide": "right",
+      "toNode": "qanstitution",
+      "toSide": "left"
+    },
+    {
+      "id": "e-tds-threat",
+      "fromNode": "tds",
+      "fromSide": "bottom",
+      "toNode": "threat-model",
+      "toSide": "top"
+    },
+    {
+      "id": "e-agents-progress",
+      "fromNode": "agents",
+      "fromSide": "right",
+      "toNode": "progress",
+      "toSide": "left"
+    },
+    {
+      "id": "e-progress-checklist",
+      "fromNode": "progress",
+      "fromSide": "bottom",
+      "toNode": "checklist",
+      "toSide": "top"
+    },
+    {
+      "id": "e-timeline-requirements",
+      "fromNode": "timeline",
+      "fromSide": "right",
+      "toNode": "requirements",
+      "toSide": "left"
+    },
+    {
+      "id": "e-creator-source",
+      "fromNode": "creator",
+      "fromSide": "right",
+      "toNode": "source-map",
+      "toSide": "left"
+    },
+    {
+      "id": "e-checkout-support",
+      "fromNode": "checkout",
+      "fromSide": "right",
+      "toNode": "support",
+      "toSide": "left"
+    },
+    {
+      "id": "e-examples-launch",
+      "fromNode": "checkout",
+      "fromSide": "bottom",
+      "toNode": "launch-assets",
+      "toSide": "top"
+    },
+    {
+      "id": "e-roadmap-progress",
+      "fromNode": "roadmap",
+      "fromSide": "bottom",
+      "toNode": "progress",
+      "toSide": "top"
+    }
+  ]
+}

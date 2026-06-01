@@ -22,6 +22,7 @@ tool first: README, roadmap, docs, package code, tests, examples, ADRs, and CI.
 | `ROADMAP.md` | Public roadmap | Milestones and active issue sequencing |
 | `docs/` | Public and maintainer docs | Curated Markdown source for MkDocs and Obsidian |
 | `docs/meta/VAULT_INDEX.md` | Obsidian vault entry | Durable navigation map, not root-level public landing |
+| `docs/meta/*.canvas` and `docs/meta/*.base` | Curated Obsidian helpers | Tracked only when they point at repo files and improve navigation |
 | `.context/plan.md` | Maintainer/agent handoff | Tracked because Codex/OpenCode sessions need fast rehydration |
 | `.context/changelog.md` | Maintainer/agent handoff | Tracked chronological implementation log |
 | `.context/lessons-learned.md` | Maintainer/agent handoff | Tracked durable failure and decision memory |
@@ -39,6 +40,8 @@ tool first: README, roadmap, docs, package code, tests, examples, ADRs, and CI.
   surface.
 - Remove tracked Obsidian machine state. A user can reopen the repo as a vault
   and let Obsidian recreate `.obsidian/` locally.
+- Track curated Canvas/Base files only when they are intentionally maintained
+  as durable navigation aids under `docs/meta/`.
 - Preserve durable knowledge by moving or documenting it before deleting
   anything. Machine/UI state does not count as durable product knowledge.
 
