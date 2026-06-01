@@ -26,14 +26,19 @@ The ledger records:
 
 - published GitHub prerelease tags and release URLs;
 - the release commits those tags point at;
-- latest passing `main` CI evidence;
-- latest Pages deployment evidence;
+- last reviewed `main` CI evidence as of the ledger update;
+- last reviewed Pages deployment evidence as of the ledger update;
 - package-index status;
 - explicit blockers that keep `stable_core_ready` false.
 
 The ledger is intentionally committed because it is release-owner evidence, not
 runtime state. It should not contain secrets, tokens, raw local paths, or private
 user data.
+
+Committed CI evidence does not automatically prove the current `main` HEAD. A
+new merge can trigger a newer successful run immediately after this file is
+updated. Treat the ledger as reviewed release evidence, then refresh it when a
+release or stable-core claim depends on a newer run.
 
 ## Validation
 
@@ -58,7 +63,7 @@ uv run python scripts/stable_core_readiness.py --strict
 ## Stable-Core Boundary
 
 Passing release evidence does not make Entroping stable-core ready. It only
-proves that the current alpha releases and latest `main` CI evidence are
+proves that the current alpha releases and recorded `main` CI evidence are
 recorded in a reviewed format.
 
 `stable_core_ready` must remain `false` until the project has:

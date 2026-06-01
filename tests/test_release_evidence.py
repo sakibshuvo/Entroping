@@ -40,8 +40,18 @@ def test_release_evidence_markdown_is_maintainer_readable() -> None:
     assert result.returncode == 0, result.stderr
     assert "# Release Evidence" in result.stdout
     assert "v0.1.1-alpha" in result.stdout
-    assert "Latest main CI" in result.stdout
+    assert "Recorded main CI evidence" in result.stdout
+    assert "Latest main CI" not in result.stdout
     assert "Stable-core ready: `false`" in result.stdout
+
+
+def test_release_evidence_docs_explain_ci_evidence_is_recorded() -> None:
+    docs = (REPO_ROOT / "docs" / "meta" / "RELEASE_EVIDENCE.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "last reviewed `main` CI evidence" in docs
+    assert "does not automatically prove the current `main` HEAD" in docs
 
 
 def test_release_evidence_strict_rejects_malformed_ledger(tmp_path: Path) -> None:
