@@ -43,6 +43,7 @@ This gate includes:
 - `uv run python scripts/stable_core_readiness.py --strict`
 - `uv run python scripts/release_evidence.py --strict`
 - `scripts/package_check.sh`
+- `uv run python scripts/local_wheel_install_smoke.py --skip-build`
 - `scripts/regression.sh --security`
 - `uv run python scripts/performance_smoke.py`
 - `scripts/live_demo_smoke.sh`
@@ -65,6 +66,13 @@ distribution for the expected name, version, SPDX `License-Expression`, license
 file metadata, alpha classifier, and root release files. Package-index upload is
 manual through `.github/workflows/publish-python-package.yml` and protected
 `testpypi`/`pypi` environments.
+
+The local wheel install smoke reuses the built wheel, creates a temporary
+virtual environment and temporary project outside the repository, installs the
+wheel with `uv pip install --offline`, then runs only public installed CLI
+commands: `entroping --version`, `entroping init --minimal`, and
+`entroping doctor`. It emits machine-readable evidence and does not require
+PyPI, TestPyPI, registry credentials, or committed `dist/` artifacts.
 
 ## CI Evidence
 

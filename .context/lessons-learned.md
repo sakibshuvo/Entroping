@@ -1,5 +1,12 @@
 # Entroping Lessons Learned
 
+## 2026-06-01
+
+- Local package proof should install the built wheel, not the source checkout.
+  Use a temporary venv and temporary project outside the repository, install
+  with `uv pip install --offline`, run only public console-script commands, and
+  keep PyPI/TestPyPI proof as a separate package-index blocker.
+
 ## 2026-05-31
 
 - Public launch language needs an executable claim audit. Unsupported phrases

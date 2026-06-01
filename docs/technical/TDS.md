@@ -801,12 +801,20 @@ Before any release claim, verify local artifacts:
 
 ```text
 scripts/package_check.sh
+uv run python scripts/local_wheel_install_smoke.py --skip-build
 ```
 
 The package check builds wheel/sdist artifacts with `uv build` and inspects
 metadata for project name, version, SPDX license expression, license file
 presence, and alpha maturity classifiers. It does not publish to PyPI/TestPyPI
 and must not require package-index credentials.
+
+The local wheel install smoke reuses the built wheel, creates an external
+temporary virtual environment and project, installs the wheel through
+`uv pip install --offline`, and runs only installed public CLI commands:
+`entroping --version`, `entroping init --minimal`, and `entroping doctor`.
+The smoke emits `entroping.local-wheel-install-smoke.v1` evidence and remains
+separate from TestPyPI/PyPI package-index proof.
 
 Package-index publishing is controlled by `docs/meta/PYPI_RELEASE_RUNBOOK.md`
 and the manual `.github/workflows/publish-python-package.yml` workflow. The

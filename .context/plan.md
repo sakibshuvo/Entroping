@@ -234,6 +234,9 @@ smoke evidence are validated alongside main CI and release entries, without
 turning maintainer-controlled smoke proof into real downstream user feedback.
 Issue #301 aligns release-evidence blockers with stable-core readiness so both
 gates report the same four unresolved stable-core requirements.
+Issue #313 adds a local wheel install smoke that installs the built artifact
+into a temporary venv and runs only installed public CLI commands without
+depending on TestPyPI, PyPI, or registry credentials.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
@@ -241,20 +244,22 @@ subprocess isolation, filesystem symlink boundaries, traffic redaction/body
 limits, OpenAPI compilation/audit safety, policy gate semantics, Markdown
 escaping, generated Hurl writes, and live-demo workdir safety.
 
-## Current Slice: Stable-Core Blocker Alignment
+## Current Slice: Issue #313 Local Wheel Install Smoke
 
-Issue #301 closes a drift gap between `scripts/release_evidence.py` and
-`scripts/stable_core_readiness.py`: stable-core readiness reported repeated
-release evidence as a blocker, but the release-evidence ledger did not.
+Issue #313 closes a local packaging proof gap: `scripts/package_check.sh`
+verifies wheel/sdist metadata, but the release gate also needs proof that the
+built wheel installs into a fresh environment and exposes the public CLI without
+using editable-source behavior.
 
 Implementation focus:
 
-- Add release-evidence regression coverage that compares its blocker list with
-  stable-core readiness output.
-- Add `repeated release evidence` back to the committed release-evidence ledger
-  and strict validator requirements.
-- Keep `stable_core_ready` false and avoid treating the existing alpha releases
-  as enough for v1 stable-core readiness.
+- Add a local wheel install smoke with JSON/Markdown evidence.
+- Create a temporary virtual environment and temporary project outside the
+  repository, install the wheel offline through `uv`, and run only installed
+  public CLI commands.
+- Wire the smoke into the release gate after package artifact verification.
+- Keep `stable_core_ready` false and keep package-index proof separate from
+  local wheel proof.
 
 Completed security-review context: repository-wide scan artifacts were written
 under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, all
@@ -857,6 +862,25 @@ Implemented boundaries:
 - README, user guide, TDS, and release checklist document GitHub branch/tag
   install paths, local editable installs, and the fact that package-index
   publishing is not automated yet.
+
+## Completed Slice: Issue #313 Local Wheel Install Smoke
+
+Outcome: release checks can prove the locally built wheel installs and exposes
+the public console script without waiting on TestPyPI/PyPI proof.
+
+Implemented boundaries:
+
+- `scripts/local_wheel_install_smoke.py` builds or reuses `dist/`, creates a
+  temporary venv and temporary project outside the repository, installs the
+  wheel with `uv pip install --offline`, and runs `entroping --version`,
+  `entroping init --minimal`, and `entroping doctor` from the installed CLI.
+- The smoke emits `entroping.local-wheel-install-smoke.v1` JSON or Markdown
+  evidence and can copy JSON evidence to an artifact directory.
+- Unit coverage proves dry-run, fake-installer success, and missing-wheel
+  failure without performing a real wheel install.
+- `scripts/release_check.sh` runs the smoke after `scripts/package_check.sh`
+  with `--skip-build`, leaving package-index proof as an unresolved
+  stable-core blocker until Trusted Publishing runs.
 
 ## Completed Slice: Issue #80 PNG Dependency Map Rendering
 

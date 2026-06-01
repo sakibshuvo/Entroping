@@ -124,6 +124,7 @@ run_or_print uv run python scripts/launch_readiness.py --strict
 run_or_print uv run python scripts/release_evidence.py --strict
 run_or_print uv run python scripts/stable_core_readiness.py --strict
 run_or_print scripts/package_check.sh
+run_or_print uv run python scripts/local_wheel_install_smoke.py --skip-build
 
 if ((skip_security)); then
   run_or_print scripts/regression.sh
