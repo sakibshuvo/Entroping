@@ -41,6 +41,7 @@ Core references:
 - [Release Evidence](meta/RELEASE_EVIDENCE.md)
 - [PyPI Release Runbook](meta/PYPI_RELEASE_RUNBOOK.md)
 - [Install Smoke Matrix](meta/INSTALL_SMOKE_MATRIX.md)
+- [Downstream Smoke Evidence](meta/DOWNSTREAM_SMOKE_EVIDENCE.md)
 
 Canonical source still lives in the repository Markdown. The Obsidian vault
 entry point remains `docs/meta/VAULT_INDEX.md`; this page is only the public web landing page.

@@ -225,6 +225,10 @@ evidence is visible without relying on chat memory or live GitHub API calls.
 Issue #295 clarifies that committed CI evidence is reviewed evidence as of the
 ledger update, not an automatically current assertion about the latest `main`
 HEAD.
+Issue #297 adds a downstream smoke evidence harness that creates an external
+temporary project and runs Entroping through the public CLI, proving the local
+core can operate outside its own repository while keeping real downstream user
+feedback as an unsatisfied stable-core blocker.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
@@ -232,24 +236,23 @@ subprocess isolation, filesystem symlink boundaries, traffic redaction/body
 limits, OpenAPI compilation/audit safety, policy gate semantics, Markdown
 escaping, generated Hurl writes, and live-demo workdir safety.
 
-## Current Slice: Stable-Core Release Evidence
+## Current Slice: Downstream Smoke Evidence
 
-Issue #293 closes the next evidence gap: alpha release history and latest
-`main` CI should be captured in a committed, validated ledger so stable-core
-readiness remains evidence-gated instead of prompt-gated.
+Issue #297 closes the next stable-core evidence gap that can be handled without
+external accounts: Entroping should prove it can run from a downstream project
+directory through the public CLI, not only from its own examples and tests.
 
 Implementation focus:
 
-- Add `docs/meta/release-evidence.json` as the machine-readable ledger for
-  alpha releases, recorded main CI, package-index status, and stable-core
-  blockers.
-- Add `scripts/release_evidence.py --strict` so maintainers and agents can
-  validate the ledger without network access.
-- Wire the ledger into `scripts/stable_core_readiness.py` and
-  `scripts/release_check.sh`.
-- Make the release-evidence workflow discoverable from the public docs site,
-  Obsidian vault index, release checklist, project progress dashboard, and
-  changelog.
+- Add `scripts/downstream_smoke.py` to create a temporary external API project,
+  start a local fixture server, run `entroping run --ci` through
+  `uv run --project <repo-root>`, and optionally copy evidence artifacts.
+- Keep API assertions Hurl-backed; Python readiness probes are only local
+  server liveness checks.
+- Wire the harness into stable-core readiness as present evidence while keeping
+  `stable_core_ready` false.
+- Document that this does not satisfy real downstream user feedback or
+  package-index proof.
 
 Completed security-review context: repository-wide scan artifacts were written
 under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, all

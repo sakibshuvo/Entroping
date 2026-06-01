@@ -100,6 +100,8 @@ Goal: make the local deterministic core safe to depend on.
 - Security threat-model refresh, dependency-policy review, and security gates
   exist.
 - Performance smoke exists for large test suites and traffic stores.
+- A downstream smoke harness exists for local external-project proof, but this
+  is not a substitute for feedback from a real project outside this repository.
 - Clear extension boundaries for open-core offerings exist.
 - Stable-core claims still require repeated release evidence, package-index
   proof, compatibility discipline, and real-user feedback. Do not call the
