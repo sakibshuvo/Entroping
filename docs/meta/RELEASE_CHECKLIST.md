@@ -38,6 +38,8 @@ scripts/release_check.sh --require-live-demo
 This gate includes:
 
 - `scripts/repo_hygiene.sh`
+- `uv run python scripts/policy_pack_smoke.py --strict`
+- `uv run python scripts/launch_readiness.py --strict`
 - `uv run python scripts/stable_core_readiness.py --strict`
 - `scripts/package_check.sh`
 - `scripts/regression.sh --security`
@@ -111,6 +113,11 @@ Before tagging:
   claim.
 - Review the `scripts/stable_core_readiness.py --format json` output before any
   v1 or stable-core claim.
+- Run `scripts/demo_matrix.sh --dry-run` before launch copy review to inspect
+  the checkout happy path, AI-regression failure proof, policy-pack smoke,
+  launch-readiness, and backlog-health commands from one place.
+- Run `uv run python scripts/policy_pack_smoke.py --strict` before making
+  policy-pack import claims.
 - Run `scripts/ai_regression_demo.sh` when launch messaging needs a concrete
   failure proof instead of only the happy-path checkout demo.
 - Confirm the `optional-extras-smoke` CI lane is passing before making claims
