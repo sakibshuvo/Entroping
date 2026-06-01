@@ -244,6 +244,10 @@ Issue #315 adds an optional release-evidence freshness check that compares the
 committed CI and Pages run IDs/commits with latest successful `main` runs
 through `gh`, or fixture JSON in tests, while keeping normal strict validation
 offline and read-only.
+Issue #319 exposes the stable-core blocker issue map directly from
+`scripts/stable_core_readiness.py --format json` and Markdown output so future
+agents can jump from each unresolved blocker to the tracked GitHub issues that
+advance it.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
@@ -251,22 +255,55 @@ subprocess isolation, filesystem symlink boundaries, traffic redaction/body
 limits, OpenAPI compilation/audit safety, policy gate semantics, Markdown
 escaping, generated Hurl writes, and live-demo workdir safety.
 
-## Current Slice: Issue #315 Release Evidence Freshness Check
+## Current Slice: Issue #319 Stable-Core Blocker Issue Map
 
-Issue #315 closes a maintainer-feedback gap: the release-evidence ledger records
-reviewed CI and Pages evidence, but there was no deterministic way to ask
-whether those recorded runs are behind the latest successful `main` workflows.
+Issue #319 closes a context-preservation gap: stable-core readiness reports the
+right blocker names, but future agents still needed a direct, machine-readable
+way to map each blocker to the GitHub issues that can satisfy it.
 
 Implementation focus:
 
-- Add an explicit `scripts/release_evidence.py --check-freshness` mode.
-- Keep the default `scripts/release_evidence.py --strict` path offline and free
-  of GitHub API/GitHub CLI dependencies.
-- Compare `latest_main_ci` and `latest_pages_ci` run IDs and commits against
-  latest successful `main` runs when `gh` is available and authenticated.
-- Report unavailable `gh` or auth states clearly without mutating
-  `docs/meta/release-evidence.json`.
-- Support fixture input for deterministic tests and offline review.
+- Expose a `blocker_issue_map` field from
+  `scripts/stable_core_readiness.py --format json`.
+- Keep blocker names aligned with the existing stable-core readiness blockers.
+- Link repeated release evidence, package-index proof, downstream feedback, and
+  compatibility decision blockers to their tracked GitHub issues.
+- Render the same map in Markdown output for human review.
+- Keep `stable_core_ready` false until the actual evidence exists.
+
+## Completed Slice: Issue #319 Stable-Core Blocker Issue Map
+
+Outcome: stable-core blockers now point to tracked GitHub issues instead of
+depending on chat memory or ad hoc roadmap interpretation.
+
+Implemented boundaries:
+
+- `scripts/stable_core_readiness.py --format json` includes
+  `blocker_issue_map`, keyed by the exact blocker names in the readiness report.
+- Markdown readiness output includes a `Blocker Issue Map` section with issue
+  numbers, titles, URLs, and current dependency status.
+- Tests assert that blocker names cannot drift away from the map, and that the
+  four stable-core blockers still resolve to the intended issue clusters.
+- The readiness result remains blocked until package-index proof, repeated
+  release evidence, compatibility discipline, and real downstream feedback are
+  actually available.
+
+## Completed Slice: Issue #315 Release Evidence Freshness Check
+
+Outcome: maintainers can ask whether the release-evidence ledger's reviewed CI
+and Pages runs are stale without making normal release validation
+network-dependent.
+
+Implemented boundaries:
+
+- `scripts/release_evidence.py --check-freshness --strict` compares recorded
+  `latest_main_ci` and `latest_pages_ci` run IDs/commits against latest
+  successful `main` runs when `gh` is available and authenticated.
+- Fixture input keeps freshness checks deterministic in tests and offline review.
+- Missing or unauthenticated `gh` reports `freshness.status=unavailable` without
+  failing the default offline strict validation path.
+- The command never mutates `docs/meta/release-evidence.json`; maintainers must
+  refresh the ledger deliberately after reviewing new evidence.
 
 Completed security-review context: repository-wide scan artifacts were written
 under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, all
@@ -1174,8 +1211,8 @@ Architect writes generated files.
 Use these issues as the next marathon targets. Keep each one narrow, tested, and
 merged through GitHub before starting the next branch:
 
-- Current branch target: close #291 with README use-case guardrails, curated
-  animated launch previews, launch-asset docs, and the full feature gate.
+- Current branch target: close #319 with stable-core blocker issue-map evidence,
+  focused readiness tests, context updates, and the full feature gate.
 - Packaging issue #268 is intentionally gated on package-index alpha evidence:
   publish TestPyPI/PyPI through the protected workflow first, then promote the
   Homebrew tap from prototype to supported install path.

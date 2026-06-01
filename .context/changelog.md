@@ -2,6 +2,10 @@
 
 ## 2026-06-01
 
+- Added issue #319's stable-core blocker issue map so
+  `scripts/stable_core_readiness.py --format json` and Markdown output link
+  each unresolved stable-core blocker to the GitHub issues that can satisfy it,
+  without changing `stable_core_ready=false`.
 - Added issue #315's optional release-evidence freshness check so maintainers
   can compare committed CI/Pages run IDs and commits with latest successful
   `main` runs through `gh`, or fixture input in tests, without mutating the

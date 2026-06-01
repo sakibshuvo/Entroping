@@ -83,6 +83,17 @@ The stable-core readiness gate also validates this ledger through:
 uv run python scripts/stable_core_readiness.py --strict
 ```
 
+For a machine-readable blocker-to-issue map, use:
+
+```bash
+uv run python scripts/stable_core_readiness.py --format json
+```
+
+The JSON payload includes `blocker_issue_map`, which links each stable-core
+blocker name to the tracked GitHub issues that can advance it. Keep those
+blocker names aligned with `docs/meta/release-evidence.json` so future agents
+do not invent replacement work or overclaim stable readiness.
+
 ## Stable-Core Boundary
 
 Passing release evidence does not make Entroping stable-core ready. It only
