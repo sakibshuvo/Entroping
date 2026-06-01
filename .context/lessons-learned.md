@@ -2,6 +2,19 @@
 
 ## 2026-05-31
 
+- Public launch language needs an executable claim audit. Unsupported phrases
+  like production-ready or guaranteed secure should fail in a script, not depend
+  on a tired reviewer noticing them in Markdown.
+- Direct dependency license review should be tied to `pyproject.toml`, not a
+  one-time memory of package choices. A static reviewed policy file gives agents
+  a deterministic reason to stop when adding dependencies.
+- Stable-core readiness is a separate artifact from alpha test success. Green
+  tests can prove the current implementation, while a readiness report should
+  keep repeated releases, package-index proof, compatibility discipline, and
+  user feedback visible as blockers.
+- Backlog hygiene needs a script because marathon sessions create many issues
+  quickly. Labels and milestones are the minimum context that lets fresh agents
+  continue without reopening old chat history.
 - The root README is a public product front door, not the full Obsidian vault index. Lead with the problem, promise, and executable demo proof; keep phase inventories, source maps, and agent context lower in the document or in linked docs.
 - Run mypy through the repo target, not isolated test-file imports. `uv run mypy tests/<file>.py` can analyze the installed package and report missing `py.typed`, while `uv run mypy src tests/<file>.py` or the normal feature gate checks the local source tree correctly.
 - CLI help-output tests should normalize Rich/Typer rendering. Pin `COLUMNS` and strip ANSI escape sequences before asserting command or flag names, otherwise CI terminal rendering can truncate or style option names while local tests still pass.

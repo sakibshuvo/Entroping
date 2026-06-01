@@ -11,6 +11,11 @@ from entroping.bridge.story_traceability import (
     render_story_traceability_markdown,
 )
 from entroping.cli.shared import console, display_cli_path, print_cli_error
+from entroping.core.effective_policy_report import (
+    EffectivePolicyOutput,
+    EffectivePolicyReportError,
+    run_effective_policy_report,
+)
 from entroping.core.github_annotations import (
     GitHubAnnotation,
     GitHubAnnotationError,
@@ -85,6 +90,34 @@ def report_redaction(
         f"{noun}.[/green]"
     )
     console.print(f"Wrote redaction review: {display_cli_path(result.output_path)}")
+
+
+@app.command("policy")
+def report_policy(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Generate local evidence for the resolved QAnstitution policy."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported policy output: {output}[/yellow]")
+        raise typer.Exit(2)
+    policy_output = cast(EffectivePolicyOutput, normalized_output)
+
+    try:
+        result = run_effective_policy_report(project_root=Path.cwd(), output=policy_output)
+    except EffectivePolicyReportError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    noun = "gate" if len(result.report.gates) == 1 else "gates"
+    console.print(
+        f"[green]Resolved effective policy with {len(result.report.gates)} {noun}.[/green]"
+    )
+    console.print(f"Wrote effective policy report: {display_cli_path(result.output_path)}")
 
 
 @app.command("github-annotations")

@@ -1,0 +1,116 @@
+{
+  "schema_version": "entroping.dependency-license-policy.v1",
+  "reviewed_at": "2026-05-31",
+  "allowed_license_families": [
+    "Apache-2.0",
+    "BSD",
+    "MIT"
+  ],
+  "dependencies": [
+    {
+      "group": "dependencies/default",
+      "name": "pydantic",
+      "license_family": "MIT",
+      "spdx": "MIT",
+      "notes": "Direct runtime dependency; package metadata advertises MIT license."
+    },
+    {
+      "group": "dependencies/default",
+      "name": "pyyaml",
+      "license_family": "MIT",
+      "spdx": "MIT",
+      "notes": "Direct runtime dependency; package metadata advertises MIT license."
+    },
+    {
+      "group": "dependencies/default",
+      "name": "rich",
+      "license_family": "MIT",
+      "spdx": "MIT",
+      "notes": "Direct runtime dependency; package metadata advertises MIT license."
+    },
+    {
+      "group": "dependencies/default",
+      "name": "sqlmodel",
+      "license_family": "MIT",
+      "spdx": "MIT",
+      "notes": "Direct runtime dependency; reviewed as MIT-family before adding the gate."
+    },
+    {
+      "group": "dependencies/default",
+      "name": "typer",
+      "license_family": "MIT",
+      "spdx": "MIT",
+      "notes": "Direct runtime dependency; reviewed as MIT-family before adding the gate."
+    },
+    {
+      "group": "optional-dependencies/ai",
+      "name": "litellm",
+      "license_family": "MIT",
+      "spdx": "MIT",
+      "notes": "Optional AI adapter dependency; reviewed as MIT-family before adding the gate."
+    },
+    {
+      "group": "optional-dependencies/proxy",
+      "name": "mitmproxy",
+      "license_family": "MIT",
+      "spdx": "MIT",
+      "notes": "Optional proxy adapter dependency; reviewed as MIT-family before adding the gate."
+    },
+    {
+      "group": "optional-dependencies/studio",
+      "name": "textual",
+      "license_family": "MIT",
+      "spdx": "MIT",
+      "notes": "Optional Studio adapter dependency; reviewed as MIT-family before adding the gate."
+    },
+    {
+      "group": "dependency-groups/dev",
+      "name": "mypy",
+      "license_family": "MIT",
+      "spdx": "MIT",
+      "notes": "Development type-checking dependency."
+    },
+    {
+      "group": "dependency-groups/dev",
+      "name": "pytest",
+      "license_family": "MIT",
+      "spdx": "MIT",
+      "notes": "Development test runner dependency."
+    },
+    {
+      "group": "dependency-groups/dev",
+      "name": "pytest-cov",
+      "license_family": "MIT",
+      "spdx": "MIT",
+      "notes": "Development coverage dependency; package metadata advertises MIT license."
+    },
+    {
+      "group": "dependency-groups/dev",
+      "name": "radon",
+      "license_family": "MIT",
+      "spdx": "MIT",
+      "notes": "Development quality-audit dependency; package metadata advertises MIT license."
+    },
+    {
+      "group": "dependency-groups/dev",
+      "name": "ruff",
+      "license_family": "MIT",
+      "spdx": "MIT",
+      "notes": "Development lint dependency."
+    },
+    {
+      "group": "dependency-groups/dev",
+      "name": "types-pyyaml",
+      "license_family": "Apache-2.0",
+      "spdx": "Apache-2.0",
+      "notes": "Development typing stub dependency from the typeshed ecosystem."
+    },
+    {
+      "group": "dependency-groups/dev",
+      "name": "vulture",
+      "license_family": "MIT",
+      "spdx": "MIT",
+      "notes": "Development dead-code audit dependency; package metadata advertises MIT license."
+    }
+  ]
+}

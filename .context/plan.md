@@ -209,6 +209,12 @@ Issue #229 defines the alpha Python compatibility policy: Entroping supports
 Python 3.12 and 3.13, keeps 3.12 as the syntax and mypy floor, proves both
 versions in CI for security regression and optional-extras smoke, and does not
 claim Python 3.14 until a future compatibility issue adds evidence.
+Issues #279 through #285 close the integration/stable-proof wave: effective
+QAnstitution policy reports, public-claims audit, direct dependency license
+policy, downstream integration-example guardrails, AI-regression failure proof,
+stable-core evidence checks, and backlog-health checks are now implemented as
+scripts, tests, docs, and report artifacts rather than prompt-only workflow
+rules.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl

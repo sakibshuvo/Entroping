@@ -38,6 +38,7 @@ scripts/release_check.sh --require-live-demo
 This gate includes:
 
 - `scripts/repo_hygiene.sh`
+- `uv run python scripts/stable_core_readiness.py --strict`
 - `scripts/package_check.sh`
 - `scripts/regression.sh --security`
 - `uv run python scripts/performance_smoke.py`
@@ -50,6 +51,10 @@ scripts/release_check.sh
 ```
 
 That still runs hygiene, package verification, and `scripts/regression.sh --security`, but skips the live demo unless Hurl is available.
+
+The security regression path includes the direct dependency license policy gate.
+Review `docs/meta/dependency-license-policy.json` whenever `pyproject.toml`
+adds, removes, or changes direct dependencies.
 
 Package artifacts are verified locally before any publish. The package gate
 removes `dist/`, runs `uv build`, and inspects the wheel and source
@@ -104,6 +109,10 @@ Before tagging:
   command, flag, exit-code, or report-artifact claim.
 - Review `docs/technical/PYTHON_COMPATIBILITY.md` before any supported-runtime
   claim.
+- Review the `scripts/stable_core_readiness.py --format json` output before any
+  v1 or stable-core claim.
+- Run `scripts/ai_regression_demo.sh` when launch messaging needs a concrete
+  failure proof instead of only the happy-path checkout demo.
 - Confirm the `optional-extras-smoke` CI lane is passing before making claims
   about Brain/LiteLLM, Eye/mitmproxy, or Studio/Textual optional surfaces.
 - Confirm the `install-smoke` CI matrix is passing before making Linux, macOS,
@@ -113,6 +122,8 @@ Before tagging:
   `uv run python scripts/performance_smoke.py` before making stable-core
   scalability claims.
 - Confirm no secrets, local env files, `.entroping/`, generated reports, Graphify output, or Obsidian UI state are tracked.
+- Confirm public Markdown passes `python scripts/public_claims_audit.py` before
+  publishing release notes, launch copy, or README changes.
 - Confirm `watch` is described as capture-only, `freeze` is described as Hurl/mock generation from redacted traffic, `map` is described as Mermaid/DOT/Markdown/PNG export with optional Graphviz, and `studio` is clearly presented as an interactive read-only TUI rather than a mutation workflow.
 
 ## Not Built Yet

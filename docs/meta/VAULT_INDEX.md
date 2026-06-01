@@ -57,6 +57,7 @@ Use these first. They are the control panel for current work:
 - [[docs/meta/DOCS_GOVERNANCE|DOCS_GOVERNANCE]] - documentation owners, roadmap-change gate, and PR declaration rules.
 - [[docs/meta/TEST_STRATEGY|TEST_STRATEGY]] - regression suite and test-pyramid policy.
 - [[docs/meta/RELEASE_CHECKLIST|RELEASE_CHECKLIST]] - alpha release bar, required evidence, and known-not-built boundaries.
+- `docs/meta/dependency-license-policy.json` - reviewed direct dependency license policy used by the security gate.
 - [[docs/meta/PYPI_RELEASE_RUNBOOK|PYPI_RELEASE_RUNBOOK]] - TestPyPI-first and PyPI Trusted Publishing plan.
 - [[docs/meta/PUBLIC_DOCS_SITE_DECISION|PUBLIC_DOCS_SITE_DECISION]] - MkDocs Material public docs site decision and scaffold.
 - [[docs/meta/PUBLIC_REPO_SURFACE|PUBLIC_REPO_SURFACE]] - what belongs in the public clone, maintainer context, and local-only Obsidian state.
@@ -90,10 +91,11 @@ Use these first. They are the control panel for current work:
 - [[docs/technical/THREAT_MODEL|THREAT_MODEL]] - stable-core security boundaries, residual risks, and remediation issue map.
 - [[docs/technical/CLI_COMPATIBILITY_AUDIT|CLI_COMPATIBILITY_AUDIT]] - locked alpha command, exit-code, and report-artifact compatibility audit.
 - [[docs/technical/PYTHON_COMPATIBILITY|PYTHON_COMPATIBILITY]] - CI-proven Python runtime support policy.
-- [[docs/technical/REPORT_SCHEMAS|REPORT_SCHEMAS]] - run, drift, and traceability report schema versions.
+- [[docs/technical/REPORT_SCHEMAS|REPORT_SCHEMAS]] - run, drift, effective-policy, and traceability report schema versions.
 - [[docs/technical/CODEX_PROMPT|CODEX_PROMPT]] - historical implementation-agent prompt; `AGENTS.md` is current.
 - [[examples/checkout-api/README|Checkout API demo fixture]] - minimal example for first-time users.
 - [[examples/support-api/README|Support API demo fixture]] - second fixture with ticket filters, request headers, and mutation audit gates.
+- [[examples/ai-regression-demo/README|AI regression demo fixture]] - failure proof for missing `X-Request-Id` governance.
 - [[sources/SOURCE_MAP]] - where the source materials live.
 
 ## Decision Trail

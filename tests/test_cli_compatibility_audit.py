@@ -73,6 +73,11 @@ LOCKED_CLI_CONTRACTS = (
         ("--output",),
     ),
     CliContract(
+        "entroping report policy [--output <md|json>]",
+        ("report", "policy", "--help"),
+        ("--output",),
+    ),
+    CliContract(
         "entroping report traceability [--output md]",
         ("report", "traceability", "--help"),
         ("--output",),
@@ -110,6 +115,8 @@ REPORT_ARTIFACTS = (
     "reports/bug.md",
     "reports/redaction-review.md",
     "reports/redaction-review.html",
+    "reports/effective-policy.md",
+    "reports/effective-policy.json",
     "stdout Markdown",
     "stdout GitHub Actions annotations",
 )

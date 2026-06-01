@@ -7,6 +7,7 @@ Usage: scripts/doc_governance_check.sh [--root <path>]
 
 Validates the documentation control plane so humans and agents cannot silently
 remove roadmap, progress, PR, or agent-governance guardrails.
+It also runs the public claims audit when that script is present.
 
 Required anchors include:
   README.md links ROADMAP.md
@@ -90,10 +91,20 @@ require_marker "docs/meta/DOCS_GOVERNANCE.md" "Documentation Impact Declaration"
 require_marker ".github/pull_request_template.md" "## Documentation Impact Declaration"
 require_marker ".github/pull_request_template.md" "Roadmap/progress updated:"
 require_marker "scripts/feature_gate.sh" "scripts/doc_governance_check.sh"
+require_marker "scripts/public_claims_audit.py" "Public claims audit OK"
 require_marker "docs/meta/FEATURE_DELIVERY_CHECKLIST.md" "scripts/doc_governance_check.sh"
 require_marker "docs/meta/FEATURE_DELIVERY_CHECKLIST.md" "Documentation Impact Declaration"
 require_marker "docs/meta/PROJECT_PROGRESS.md" "DOCS_GOVERNANCE"
 require_marker "AGENTS.md" "docs/meta/DOCS_GOVERNANCE.md"
+
+if [[ -s "$repo_root/scripts/public_claims_audit.py" ]]; then
+  if ! claims_output="$(python3 "$repo_root/scripts/public_claims_audit.py" --root "$repo_root" 2>&1)"; then
+    failures+=("scripts/public_claims_audit.py: failed public claims audit")
+    while IFS= read -r line; do
+      failures+=("public claims audit: $line")
+    done <<< "$claims_output"
+  fi
+fi
 
 if ((${#failures[@]})); then
   echo "Documentation governance failed:" >&2

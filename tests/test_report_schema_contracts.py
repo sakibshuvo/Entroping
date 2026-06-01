@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+from entroping.bridge.effective_policy import EffectivePolicyGateReport, EffectivePolicyReport
 from entroping.bridge.story_traceability import (
     compile_story_traceability,
     story_traceability_report_to_dict,
@@ -172,12 +173,54 @@ def test_traceability_report_v1_schema_contract_is_versioned_and_stable() -> Non
     }
 
 
+def test_effective_policy_report_v1_schema_contract_is_versioned_and_stable() -> None:
+    report = EffectivePolicyReport(
+        project="checkout-api",
+        config_path="qanstitution.yaml",
+        imports=("rules/security.yaml",),
+        gates=(
+            EffectivePolicyGateReport(
+                id="request_id_header",
+                source_path="rules/security.yaml",
+                condition="true",
+                gate='header "X-Request-Id" exists',
+                enforcement="block",
+                final=True,
+                description="Require request IDs",
+            ),
+        ),
+    )
+
+    payload = report.model_dump(mode="json")
+
+    assert payload == {
+        "schema_version": "entroping.effective-policy-report.v1",
+        "project": "checkout-api",
+        "config_path": "qanstitution.yaml",
+        "imports": ["rules/security.yaml"],
+        "gates": [
+            {
+                "id": "request_id_header",
+                "source_path": "rules/security.yaml",
+                "condition": "true",
+                "gate": 'header "X-Request-Id" exists',
+                "enforcement": "block",
+                "final": True,
+                "description": "Require request IDs",
+            }
+        ],
+    }
+
+
 def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
     versions = {
         "entroping.run-report.v1": SCHEMA_DIR / "run-report.v1.schema.json",
         "entroping.drift-report.v1": SCHEMA_DIR / "drift-report.v1.schema.json",
         "entroping.traceability-report.v1": (
             SCHEMA_DIR / "traceability-report.v1.schema.json"
+        ),
+        "entroping.effective-policy-report.v1": (
+            SCHEMA_DIR / "effective-policy-report.v1.schema.json"
         ),
     }
     schema_doc = (REPO_ROOT / "docs" / "technical" / "REPORT_SCHEMAS.md").read_text(

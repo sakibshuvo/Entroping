@@ -578,6 +578,7 @@ Reports are written under `reports/`.
 | Audit Markdown | `architect audit --output md` | Gap review |
 | Bug Markdown | `report bug` | Issue tracker handoff |
 | Redaction Review | `report redaction --output md|html` | Captured-traffic redaction coverage review |
+| Effective Policy | `report policy --output md|json` | Resolved QAnstitution gate provenance |
 | Traceability Markdown | `report traceability --output md` | Local story/test coverage review |
 | GitHub Annotations | `report github-annotations` | Pull request workflow-command annotations |
 
@@ -624,6 +625,7 @@ entroping studio [--env <name>]
 entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check]
 entroping report bug
 entroping report redaction [--output <md|html>]
+entroping report policy [--output <md|json>]
 entroping report traceability [--output md]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
 ```
@@ -675,6 +677,8 @@ candidate is sanitized and reviewable; the active
 | `entroping report bug` | `reports/bug.md` | Markdown handoff for issue trackers. |
 | `entroping report redaction --output md` | `reports/redaction-review.md` | Counts-only captured-traffic redaction review. |
 | `entroping report redaction --output html` | `reports/redaction-review.html` | Browser-readable captured-traffic redaction review. |
+| `entroping report policy --output md` | `reports/effective-policy.md` | Human-readable resolved QAnstitution gate provenance. |
+| `entroping report policy --output json` | `reports/effective-policy.json` | Machine-readable effective policy evidence using `entroping.effective-policy-report.v1`. |
 | `entroping report traceability --output md` | `stdout Markdown` | Local story/test coverage report. |
 | `entroping report github-annotations` | `stdout GitHub Actions annotations` | Workflow-command annotations from JUnit, drift, and optional traceability findings. |
 
