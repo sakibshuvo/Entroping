@@ -31,7 +31,7 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#345 Optimize traffic-store retention pruning](https://github.com/sakibshuvo/Entroping/issues/345)
+Current issue: [#346 Add no-Hurl CLI smoke script](https://github.com/sakibshuvo/Entroping/issues/346)
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -45,9 +45,9 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#346 Add no-Hurl CLI smoke script](https://github.com/sakibshuvo/Entroping/issues/346) | Give downstream users a fast CLI sanity check before Hurl is installed. |
-| 2 | [#347 Mention Typer shell completion in onboarding](https://github.com/sakibshuvo/Entroping/issues/347) | Improve CLI ergonomics without expanding the locked command surface. |
-| 3 | [#303 Configure TestPyPI Trusted Publisher](https://github.com/sakibshuvo/Entroping/issues/303) | External package-index proof remains the next stable-core blocker once local ready items are done. |
+| 1 | [#347 Mention Typer shell completion in onboarding](https://github.com/sakibshuvo/Entroping/issues/347) | Improve CLI ergonomics without expanding the locked command surface. |
+| 2 | [#303 Configure TestPyPI Trusted Publisher](https://github.com/sakibshuvo/Entroping/issues/303) | External package-index proof remains the next stable-core blocker once local ready items are done. |
+| 3 | [#304 Publish first TestPyPI alpha and smoke install](https://github.com/sakibshuvo/Entroping/issues/304) | Package-index smoke evidence is required before stable-core readiness can move. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -85,6 +85,7 @@ entirely inside this repo.
 | [OWASP API Top 10 starter policy pack](https://github.com/sakibshuvo/Entroping/issues/351) | Done | A local OWASP API Security Top 10-inspired starter pack now proves the policy-pack path without claiming endorsement, certification, or complete compliance. |
 | [Shared symlink component path-safety helper](https://github.com/sakibshuvo/Entroping/issues/344) | Done | Common symlink component traversal is centralized while config imports now reject symlinked local imports and adapters keep domain-specific errors. |
 | [Traffic-store retention SQL pruning](https://github.com/sakibshuvo/Entroping/issues/345) | Done | Local Eye state now deletes stale traffic rows with a SQL-level delete while keeping newest-event retention and insertion-order reads. |
+| [No-Hurl CLI smoke script](https://github.com/sakibshuvo/Entroping/issues/346) | Done | `scripts/cli_smoke.sh` proves CLI boot, version, minimal init, and doctor behavior without requiring Hurl runtime execution. |
 | [Read-only Studio applied-gate drilldowns](https://github.com/sakibshuvo/Entroping/issues/192) | Done | Studio links latest-run report rule IDs to QAnstitution gate definitions. |
 | Read-only Studio traffic session browser | Done | The read-only traffic session browser uses redacted SQLModel-backed state, target/dependency grouping, and safe redaction categories and counts. It does not start `watch` and does not expose raw URLs with query values, headers, bodies, cookies, tokens, or secrets. |
 

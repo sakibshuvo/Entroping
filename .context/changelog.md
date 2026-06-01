@@ -2,6 +2,9 @@
 
 ## 2026-06-01
 
+- Added issue #346's no-Hurl CLI smoke script so constrained agent or
+  downstream sessions can prove CLI boot, version, minimal init, and doctor
+  behavior without installing or executing Hurl.
 - Added issue #345's traffic-store retention optimization so pruning now uses
   a SQL-level delete for stale event IDs while preserving newest-event
   retention semantics and insertion-order reads.

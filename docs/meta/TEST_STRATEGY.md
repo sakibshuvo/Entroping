@@ -28,6 +28,19 @@ that the governance loop works.
 
 ## Required Commands
 
+Smallest no-Hurl CLI smoke for constrained agent sessions:
+
+```bash
+scripts/cli_smoke.sh
+```
+
+Use this when you only need to prove that the installed or development CLI
+boots, reports a version, can initialize a minimal project, and can run
+`doctor` without requiring Hurl. It is intentionally narrower than
+`scripts/check.sh` and `scripts/feature_gate.sh`; it does not replace linting,
+typing, unit coverage, security audits, or `scripts/live_demo_smoke.sh` for
+runtime Hurl execution evidence.
+
 Fast feature gate:
 
 ```bash

@@ -43,6 +43,9 @@ project, and a Codex workspace with fast context rehydration.
 - Eye traffic-state retention keeps local SQLite state bounded with SQL-level
   stale-row deletion while preserving insertion-order reads for retained
   events.
+- Constrained agent or downstream sessions can run `scripts/cli_smoke.sh` to
+  prove the CLI boots, reports a version, initializes minimal governance, and
+  runs `doctor` without requiring Hurl runtime execution.
 - Brand terminology is intentional: `qanstitution.yaml` remains the canonical
   policy filename, the QAnstitution/Traffic/Hurl philosophy is preserved, and
   public copy must not imply Entroping is an autonomous agent swarm.
