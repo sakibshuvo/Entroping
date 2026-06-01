@@ -1,0 +1,9 @@
+project: "entroping-policy-pack-owasp-api-top-10-inventory"
+version: "4.1"
+description: "Starter inventory and lifecycle gates inspired by OWASP API9"
+gates:
+  - id: "owasp-api.inventory.deprecated_endpoint_header"
+    description: "Deprecated endpoint tests should expose a deprecation signal"
+    condition: "tags contains 'deprecated'"
+    gate: 'header "Deprecation" exists'
+    enforcement: "warn"

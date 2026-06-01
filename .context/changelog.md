@@ -2,6 +2,10 @@
 
 ## 2026-06-01
 
+- Added issue #351's OWASP API Security Top 10-inspired starter policy pack
+  under `examples/policy-packs/owasp-api-top-10/`, with local QAnstitution
+  imports, provenance metadata, smoke evidence, honest non-compliance claims,
+  and open-core boundary notes for deeper maintained packs and support.
 - Added issue #350's practical `watch` limits guidance so the user guide now
   warns about per-client mitmproxy CA setup, corporate VPN/proxy conflicts,
   certificate pinning, proxy bypass, session headers, and capture authorization

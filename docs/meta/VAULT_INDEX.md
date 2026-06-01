@@ -102,6 +102,8 @@ Use these first. They are the control panel for current work:
 - [[examples/graphql-api/README|GraphQL API demo fixture]] - Hurl-over-HTTP GraphQL example with top-level `errors` governance.
 - [[examples/soap-api/README|SOAP API demo fixture]] - Hurl-over-HTTP SOAP example with XML envelope assertions.
 - [[examples/ai-regression-demo/README|AI regression demo fixture]] - failure proof for missing `X-Request-Id` governance.
+- [[examples/policy-packs/api-baseline/README|API baseline policy pack]] - minimal reusable QAnstitution pack shape.
+- [[examples/policy-packs/owasp-api-top-10/README|OWASP API Top 10 starter pack]] - honest starter gates inspired by recognizable API security concerns.
 - [[sources/SOURCE_MAP]] - where the source materials live.
 
 ## Decision Trail

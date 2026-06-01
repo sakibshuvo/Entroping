@@ -57,7 +57,10 @@ project, and a Codex workspace with fast context rehydration.
 - CI includes an `install-smoke` matrix for Linux, macOS, and Windows setup claims. Linux uses a pinned Hurl archive, macOS uses Homebrew Hurl, and Windows is explicitly doctor-only until Hurl-backed execution is reviewed.
 - `scripts/community_profile_audit.sh` and `.github/workflows/scorecard.yml` provide public trust-signal hygiene without adding a pull-request gate.
 - Apache-2.0 licensing and package metadata are in place for the public core; `docs/product/OPEN_CORE_BOUNDARIES.md` now defines what stays core versus what can become commercial.
-- `docs/technical/POLICY_PACK_LAYOUT.md` and `examples/policy-packs/api-baseline/` define reusable QAnstitution policy packs as local importable files plus provenance metadata, without adding registry or runtime manifest dependency.
+- `docs/technical/POLICY_PACK_LAYOUT.md`, `examples/policy-packs/api-baseline/`,
+  and `examples/policy-packs/owasp-api-top-10/` define reusable QAnstitution
+  policy packs as local importable files plus provenance metadata, without
+  adding registry or runtime manifest dependency.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work; `scripts/finish_issue.sh` verifies merged PRs and safely removes completed local worktrees.
 - Eye capture now has security-first traffic models, pre-persistence redaction, bounded SQLModel-backed SQLite state, and capture-only `watch` wiring through a lazy-loaded mitmproxy adapter.
 - Issues #1 through #85, plus validation fixes #95 and #97, are integrated.

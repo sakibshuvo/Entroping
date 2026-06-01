@@ -1,0 +1,15 @@
+project: "entroping-policy-pack-owasp-api-top-10-resource-protection"
+version: "4.1"
+description: "Starter resource-consumption gates inspired by OWASP API4 and API6"
+gates:
+  - id: "owasp-api.resources.no_server_errors"
+    description: "Governed API tests should not return server errors"
+    condition: "true"
+    gate: "status < 500"
+    enforcement: "block"
+    final: true
+  - id: "owasp-api.resources.latency_budget"
+    description: "Governed API responses should stay within a starter latency budget"
+    condition: "true"
+    gate: "duration < 2000"
+    enforcement: "warn"

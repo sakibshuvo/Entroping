@@ -1,0 +1,9 @@
+project: "entroping-policy-pack-owasp-api-top-10-authentication"
+version: "4.1"
+description: "Starter authentication gates inspired by OWASP API2"
+gates:
+  - id: "owasp-api.authn.unauthenticated_denied"
+    description: "Authentication-negative tests should prove unauthenticated calls do not succeed"
+    condition: "tags contains 'authn'"
+    gate: "status != 200"
+    enforcement: "block"

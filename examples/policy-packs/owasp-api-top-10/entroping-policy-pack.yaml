@@ -1,0 +1,39 @@
+id: "entroping.owasp-api-top-10"
+name: "OWASP API Top 10 Starter"
+version: "0.1.0-alpha"
+license: "Apache-2.0"
+source: "examples/policy-packs/owasp-api-top-10"
+entrypoint: "qanstitution.yaml"
+runtime_contract: "qanstitution-import"
+entroping: ">=0.1.1-alpha,<1.0"
+evidence_command: "uv run python scripts/policy_pack_smoke.py --pack examples/policy-packs/owasp-api-top-10 --strict"
+gate_prefixes:
+  - "owasp-api.authn"
+  - "owasp-api.authz"
+  - "owasp-api.inventory"
+  - "owasp-api.misconfig"
+  - "owasp-api.resources"
+final_gates:
+  - "owasp-api.resources.no_server_errors"
+gates:
+  - id: "owasp-api.authn.unauthenticated_denied"
+    file: "rules/authentication.yaml"
+    final: false
+  - id: "owasp-api.authz.object_access_denied"
+    file: "rules/authorization.yaml"
+    final: false
+  - id: "owasp-api.inventory.deprecated_endpoint_header"
+    file: "rules/inventory.yaml"
+    final: false
+  - id: "owasp-api.misconfig.request_id"
+    file: "rules/misconfiguration.yaml"
+    final: false
+  - id: "owasp-api.resources.latency_budget"
+    file: "rules/resource-protection.yaml"
+    final: false
+  - id: "owasp-api.resources.no_server_errors"
+    file: "rules/resource-protection.yaml"
+    final: true
+maintainers:
+  - "Entroping Core"
+summary: "Starter runtime gates inspired by the OWASP API Security Top 10 2023."

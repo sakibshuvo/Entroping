@@ -1,0 +1,10 @@
+project: "checkout-api"
+version: "4.1"
+imports:
+  - "../qanstitution.yaml"
+gates:
+  - id: "checkout.local_owasp_latency"
+    description: "Checkout smoke tests use a stricter local latency target"
+    condition: "tags contains 'smoke'"
+    gate: "duration < 750"
+    enforcement: "block"

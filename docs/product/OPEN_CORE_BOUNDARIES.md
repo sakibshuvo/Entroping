@@ -106,6 +106,11 @@ separate issue for the paid surface.
   [POLICY_PACK_LAYOUT.md](../technical/POLICY_PACK_LAYOUT.md), with starter
   examples in core and premium curation kept separate from local runtime
   enforcement.
+- Core starter packs include `examples/policy-packs/api-baseline/` and
+  `examples/policy-packs/owasp-api-top-10/`. They teach and prove local pack
+  imports; deeper maintained packs and support can be commercial when they add
+  review cadence, organization controls, reports, and expert help without
+  weakening local QAnstitution execution.
 - Policy-pack distribution, provenance, attribution, and premium-pack
   boundaries are defined in
   [POLICY_PACK_DISTRIBUTION.md](../technical/POLICY_PACK_DISTRIBUTION.md).

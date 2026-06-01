@@ -1,0 +1,9 @@
+project: "entroping-policy-pack-owasp-api-top-10-misconfiguration"
+version: "4.1"
+description: "Starter hardening gates inspired by OWASP API8"
+gates:
+  - id: "owasp-api.misconfig.request_id"
+    description: "Governed API responses should include a request ID for incident review"
+    condition: "true"
+    gate: 'header "X-Request-Id" exists'
+    enforcement: "warn"
