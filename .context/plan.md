@@ -229,6 +229,9 @@ Issue #297 adds a downstream smoke evidence harness that creates an external
 temporary project and runs Entroping through the public CLI, proving the local
 core can operate outside its own repository while keeping real downstream user
 feedback as an unsatisfied stable-core blocker.
+Issue #299 expands the release-evidence ledger so Pages CI and local downstream
+smoke evidence are validated alongside main CI and release entries, without
+turning maintainer-controlled smoke proof into real downstream user feedback.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
@@ -236,23 +239,22 @@ subprocess isolation, filesystem symlink boundaries, traffic redaction/body
 limits, OpenAPI compilation/audit safety, policy gate semantics, Markdown
 escaping, generated Hurl writes, and live-demo workdir safety.
 
-## Current Slice: Downstream Smoke Evidence
+## Current Slice: Release Evidence Pages And Downstream Coverage
 
-Issue #297 closes the next stable-core evidence gap that can be handled without
-external accounts: Entroping should prove it can run from a downstream project
-directory through the public CLI, not only from its own examples and tests.
+Issue #299 closes a validation gap in the committed release-evidence ledger:
+`latest_pages_ci` was recorded but not strict-validated, and downstream smoke
+evidence was discoverable through stable-core readiness but not represented in
+the release ledger summary.
 
 Implementation focus:
 
-- Add `scripts/downstream_smoke.py` to create a temporary external API project,
-  start a local fixture server, run `entroping run --ci` through
-  `uv run --project <repo-root>`, and optionally copy evidence artifacts.
-- Keep API assertions Hurl-backed; Python readiness probes are only local
-  server liveness checks.
-- Wire the harness into stable-core readiness as present evidence while keeping
-  `stable_core_ready` false.
-- Document that this does not satisfy real downstream user feedback or
-  package-index proof.
+- Validate `latest_pages_ci` with the same strict Actions-run shape as
+  `latest_main_ci`, but require workflow `Pages`.
+- Add a `downstream_smoke` ledger entry with schema, command, timestamp, and an
+  explicit stable-boundary statement.
+- Render Pages and downstream smoke evidence in JSON and Markdown summaries.
+- Keep `stable_core_ready` false and preserve package-index, compatibility, and
+  real downstream user feedback blockers.
 
 Completed security-review context: repository-wide scan artifacts were written
 under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, all

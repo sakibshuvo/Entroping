@@ -2,6 +2,10 @@
 
 ## 2026-06-01
 
+- Expanded issue #299's release-evidence validator so Pages CI and local
+  downstream smoke evidence are strict ledger fields, while the ledger still
+  states that stable-core remains blocked by package-index proof,
+  compatibility decision, and real downstream user feedback.
 - Added issue #297's downstream smoke evidence harness so maintainers can prove
   Entroping runs through the public CLI from an external temporary project while
   keeping real downstream user feedback as a separate stable-core blocker.

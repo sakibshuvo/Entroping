@@ -19,6 +19,7 @@ REQUIRED_BLOCKERS = (
     "real downstream user feedback",
     "stable-core compatibility decision",
 )
+DOWNSTREAM_SMOKE_SCHEMA_VERSION = "entroping.downstream-smoke.v1"
 
 
 def main() -> int:
@@ -125,7 +126,19 @@ def _validation_failures(ledger: dict[str, Any]) -> list[str]:
     if not isinstance(latest_main_ci, dict):
         failures.append("latest_main_ci must be an object")
     else:
-        _validate_latest_main_ci(latest_main_ci, failures)
+        _validate_actions_run(latest_main_ci, "latest_main_ci", "CI", failures)
+
+    latest_pages_ci = ledger.get("latest_pages_ci")
+    if not isinstance(latest_pages_ci, dict):
+        failures.append("latest_pages_ci must be an object")
+    else:
+        _validate_actions_run(latest_pages_ci, "latest_pages_ci", "Pages", failures)
+
+    downstream_smoke = ledger.get("downstream_smoke")
+    if not isinstance(downstream_smoke, dict):
+        failures.append("downstream_smoke must be an object")
+    else:
+        _validate_downstream_smoke(downstream_smoke, failures)
     return failures
 
 
@@ -148,24 +161,54 @@ def _validate_release(release: dict[str, Any], index: int, failures: list[str]) 
         failures.append(f"releases[{index}].evidence must be a non-empty object")
 
 
-def _validate_latest_main_ci(latest_main_ci: dict[str, Any], failures: list[str]) -> None:
-    if latest_main_ci.get("workflow") != "CI":
-        failures.append("latest_main_ci.workflow must be CI")
-    run_id = latest_main_ci.get("run_id")
+def _validate_actions_run(
+    entry: dict[str, Any],
+    field_name: str,
+    workflow: str,
+    failures: list[str],
+) -> None:
+    if entry.get("workflow") != workflow:
+        failures.append(f"{field_name}.workflow must be {workflow}")
+    run_id = entry.get("run_id")
     if not isinstance(run_id, int) or run_id <= 0:
-        failures.append("latest_main_ci.run_id must be a positive integer")
-    if latest_main_ci.get("conclusion") != "success":
-        failures.append("latest_main_ci.conclusion must be success")
-    if latest_main_ci.get("event") != "push":
-        failures.append("latest_main_ci.event must be push")
-    if not _valid_iso_z(latest_main_ci.get("created_at")):
-        failures.append("latest_main_ci.created_at must be an ISO UTC timestamp")
-    commit = latest_main_ci.get("commit")
+        failures.append(f"{field_name}.run_id must be a positive integer")
+    if entry.get("conclusion") != "success":
+        failures.append(f"{field_name}.conclusion must be success")
+    if entry.get("event") != "push":
+        failures.append(f"{field_name}.event must be push")
+    if not _valid_iso_z(entry.get("created_at")):
+        failures.append(f"{field_name}.created_at must be an ISO UTC timestamp")
+    commit = entry.get("commit")
     if not isinstance(commit, str) or COMMIT_RE.fullmatch(commit) is None:
-        failures.append("latest_main_ci.commit must be a 40-character git SHA")
-    url = latest_main_ci.get("url")
+        failures.append(f"{field_name}.commit must be a 40-character git SHA")
+    url = entry.get("url")
     if not isinstance(url, str) or GITHUB_URL_RE.match(url) is None or "/actions/runs/" not in url:
-        failures.append("latest_main_ci.url must be a GitHub Actions run URL")
+        failures.append(f"{field_name}.url must be a GitHub Actions run URL")
+
+
+def _validate_downstream_smoke(
+    downstream_smoke: dict[str, Any],
+    failures: list[str],
+) -> None:
+    if downstream_smoke.get("status") != "local-pass":
+        failures.append("downstream_smoke.status must be local-pass")
+    if downstream_smoke.get("schema_version") != DOWNSTREAM_SMOKE_SCHEMA_VERSION:
+        failures.append(
+            f"downstream_smoke.schema_version must be {DOWNSTREAM_SMOKE_SCHEMA_VERSION}"
+        )
+    command = downstream_smoke.get("command")
+    if not isinstance(command, str) or "scripts/downstream_smoke.py" not in command:
+        failures.append("downstream_smoke.command must run scripts/downstream_smoke.py")
+    if not _valid_iso_z(downstream_smoke.get("recorded_at")):
+        failures.append("downstream_smoke.recorded_at must be an ISO UTC timestamp")
+    stable_boundary = downstream_smoke.get("stable_boundary")
+    if (
+        not isinstance(stable_boundary, str)
+        or "not real downstream user feedback" not in stable_boundary
+    ):
+        failures.append(
+            "downstream_smoke.stable_boundary must say it is not real downstream user feedback"
+        )
 
 
 def _valid_iso_z(value: object) -> bool:
@@ -184,6 +227,8 @@ def _summary_payload(ledger: dict[str, Any], failures: list[str]) -> dict[str, A
     ]
     latest_release = release_tags[0] if release_tags else ""
     latest_main_ci = ledger.get("latest_main_ci")
+    latest_pages_ci = ledger.get("latest_pages_ci")
+    downstream_smoke = ledger.get("downstream_smoke")
     return {
         "schema_version": SCHEMA_VERSION,
         "ledger_path": LEDGER_RELATIVE_PATH.as_posix(),
@@ -194,6 +239,8 @@ def _summary_payload(ledger: dict[str, Any], failures: list[str]) -> dict[str, A
         "latest_release": latest_release,
         "release_tags": release_tags,
         "latest_main_ci": latest_main_ci if isinstance(latest_main_ci, dict) else {},
+        "latest_pages_ci": latest_pages_ci if isinstance(latest_pages_ci, dict) else {},
+        "downstream_smoke": downstream_smoke if isinstance(downstream_smoke, dict) else {},
         "failures": failures,
     }
 
@@ -209,6 +256,8 @@ def _error_payload(message: str) -> dict[str, Any]:
         "latest_release": "",
         "release_tags": [],
         "latest_main_ci": {},
+        "latest_pages_ci": {},
+        "downstream_smoke": {},
         "failures": [message],
     }
 
@@ -239,6 +288,36 @@ def _render_markdown(payload: dict[str, Any]) -> str:
         )
     else:
         lines.extend(["- No recorded main CI evidence.", ""])
+
+    lines.extend(["## Recorded Pages evidence", ""])
+    latest_pages_ci = payload["latest_pages_ci"]
+    if isinstance(latest_pages_ci, dict) and latest_pages_ci:
+        lines.extend(
+            [
+                f"- Workflow: `{latest_pages_ci.get('workflow', '')}`",
+                f"- Conclusion: `{latest_pages_ci.get('conclusion', '')}`",
+                f"- Commit: `{latest_pages_ci.get('commit', '')}`",
+                f"- URL: {latest_pages_ci.get('url', '')}",
+                "",
+            ]
+        )
+    else:
+        lines.extend(["- No recorded Pages evidence.", ""])
+
+    lines.extend(["## Downstream smoke evidence", ""])
+    downstream_smoke = payload["downstream_smoke"]
+    if isinstance(downstream_smoke, dict) and downstream_smoke:
+        lines.extend(
+            [
+                f"- Status: `{downstream_smoke.get('status', '')}`",
+                f"- Schema: `{downstream_smoke.get('schema_version', '')}`",
+                f"- Command: `{downstream_smoke.get('command', '')}`",
+                f"- Stable boundary: {downstream_smoke.get('stable_boundary', '')}",
+                "",
+            ]
+        )
+    else:
+        lines.extend(["- No recorded downstream smoke evidence.", ""])
 
     lines.extend(["## Stable-Core Blockers", ""])
     blockers = payload["stable_core_blockers"]
