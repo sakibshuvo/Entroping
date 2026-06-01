@@ -30,6 +30,10 @@ project, and a Codex workspace with fast context rehydration.
   before writing and avoids partial generated output on parser failure.
 - HTML run reports escape header fields, summary text, rule IDs,
   known-failure summaries, and captured Hurl output before rendering.
+- Public onboarding is launch-first: README points new users to the demo,
+  public docs, roadmap, and a short project-context handoff, while MkDocs groups
+  deeper references by reader task instead of exposing maintainer memory as a
+  flat nav.
 - Example coverage includes REST-style checkout/support fixtures plus
   GraphQL-over-HTTP and SOAP-over-HTTP fixtures that use ordinary Hurl
   assertions instead of adding protocol-specific runtime engines.

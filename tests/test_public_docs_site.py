@@ -46,6 +46,22 @@ def test_mkdocs_scaffold_uses_existing_docs_tree_with_strict_deploy() -> None:
     assert "docs-site" not in config.values()
     assert "pages.yml" in workflows
 
+    nav = config["nav"]
+    top_level = [
+        next(iter(item)) if isinstance(item, dict) else item
+        for item in nav
+    ]
+    assert top_level[:6] == [
+        "Introduction",
+        "Getting Started",
+        "User Guide",
+        "Policy / QAnstitution Reference",
+        "CI / Reports",
+        "Roadmap / Status",
+    ]
+    assert all(not str(item).startswith("meta/") for item in top_level)
+    assert all(not str(item).startswith("technical/") for item in top_level)
+
     nav_text = repr(config["nav"])
     assert "index.md" in nav_text
     assert "user/USER_GUIDE.md" in nav_text
@@ -111,6 +127,7 @@ def test_public_docs_landing_is_linked_from_project_entrypoints() -> None:
     )
 
     assert "Entroping Documentation" in landing
+    assert "Project Context" in landing
     assert "[User Guide](user/USER_GUIDE.md)" in landing
     assert "[GitHub Actions Starter](user/GITHUB_ACTIONS_STARTER.md)" in landing
     assert "[QAnstitution Reference](technical/QANSTITUTION_REFERENCE.md)" in landing
