@@ -40,6 +40,9 @@ project, and a Codex workspace with fast context rehydration.
 - Eye onboarding is honest about real proxy constraints: `watch` users should
   start in local/dev environments, expect per-client mitmproxy CA setup, and
   treat capture authorization and artifact review as their responsibility.
+- Eye traffic-state retention keeps local SQLite state bounded with SQL-level
+  stale-row deletion while preserving insertion-order reads for retained
+  events.
 - Brand terminology is intentional: `qanstitution.yaml` remains the canonical
   policy filename, the QAnstitution/Traffic/Hurl philosophy is preserved, and
   public copy must not imply Entroping is an autonomous agent swarm.
