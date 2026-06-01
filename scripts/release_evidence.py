@@ -16,12 +16,13 @@ LEDGER_RELATIVE_PATH = Path("docs") / "meta" / "release-evidence.json"
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 GITHUB_URL_RE = re.compile(r"^https://github\.com/sakibshuvo/Entroping/")
 REQUIRED_BLOCKERS = (
-    "repeated release evidence",
     "package-index proof",
     "real downstream user feedback",
     "stable-core compatibility decision",
 )
 DOWNSTREAM_SMOKE_SCHEMA_VERSION = "entroping.downstream-smoke.v1"
+RELEASE_CANDIDATE_KIND = "local-release-candidate"
+RELEASE_CANDIDATE_GATE = "scripts/release_check.sh --require-live-demo"
 ACTIONS_WORKFLOWS = {
     "latest_main_ci": "CI",
     "latest_pages_ci": "Pages",
@@ -161,6 +162,18 @@ def _validation_failures(ledger: dict[str, Any]) -> list[str]:
             continue
         _validate_release(release, index, failures)
 
+    release_candidates = ledger.get("release_candidates")
+    if not isinstance(release_candidates, list):
+        failures.append("release_candidates must be a list")
+        release_candidates = []
+    if not release_candidates:
+        failures.append("release_candidates must contain at least one entry")
+    for index, candidate in enumerate(release_candidates):
+        if not isinstance(candidate, dict):
+            failures.append(f"release_candidates[{index}] must be an object")
+            continue
+        _validate_release_candidate(candidate, index, failures)
+
     latest_main_ci = ledger.get("latest_main_ci")
     if not isinstance(latest_main_ci, dict):
         failures.append("latest_main_ci must be an object")
@@ -198,6 +211,51 @@ def _validate_release(release: dict[str, Any], index: int, failures: list[str]) 
     evidence = release.get("evidence")
     if not isinstance(evidence, dict) or not evidence:
         failures.append(f"releases[{index}].evidence must be a non-empty object")
+
+
+def _validate_release_candidate(
+    candidate: dict[str, Any],
+    index: int,
+    failures: list[str],
+) -> None:
+    name = candidate.get("name")
+    if not isinstance(name, str) or not name.startswith("v"):
+        failures.append(f"release_candidates[{index}].name must start with v")
+    if candidate.get("kind") != RELEASE_CANDIDATE_KIND:
+        failures.append(
+            f"release_candidates[{index}].kind must be {RELEASE_CANDIDATE_KIND}"
+        )
+    if not _valid_iso_z(candidate.get("recorded_at")):
+        failures.append(
+            f"release_candidates[{index}].recorded_at must be an ISO UTC timestamp"
+        )
+    commit = candidate.get("commit")
+    if not isinstance(commit, str) or COMMIT_RE.fullmatch(commit) is None:
+        failures.append(f"release_candidates[{index}].commit must be a 40-character git SHA")
+    if candidate.get("release_gate") != RELEASE_CANDIDATE_GATE:
+        failures.append(
+            f"release_candidates[{index}].release_gate must be {RELEASE_CANDIDATE_GATE}"
+        )
+    if candidate.get("release_gate_result") != "pass":
+        failures.append(f"release_candidates[{index}].release_gate_result must be pass")
+    for field_name in ("ci_run_id", "pages_run_id"):
+        value = candidate.get(field_name)
+        if not isinstance(value, int) or value <= 0:
+            failures.append(f"release_candidates[{index}].{field_name} must be a positive integer")
+    release_notes = candidate.get("release_notes")
+    if not isinstance(release_notes, str) or "not stable-core" not in release_notes:
+        failures.append(
+            f"release_candidates[{index}].release_notes must preserve alpha/stable-core boundaries"
+        )
+    stable_boundary = candidate.get("stable_boundary")
+    if (
+        not isinstance(stable_boundary, str)
+        or "not package-index" not in stable_boundary
+        or "not stable-core" not in stable_boundary
+    ):
+        failures.append(
+            f"release_candidates[{index}].stable_boundary must avoid stable-core overclaims"
+        )
 
 
 def _validate_actions_run(
@@ -414,6 +472,8 @@ def _summary_payload(
 ) -> dict[str, Any]:
     releases = ledger.get("releases")
     release_list = releases if isinstance(releases, list) else []
+    release_candidates = ledger.get("release_candidates")
+    release_candidate_list = release_candidates if isinstance(release_candidates, list) else []
     release_tags = [
         release.get("tag")
         for release in release_list
@@ -430,8 +490,10 @@ def _summary_payload(
         "stable_core_ready": False,
         "stable_core_blockers": ledger.get("stable_core_blockers", []),
         "release_count": len(release_tags),
+        "release_candidate_count": len(release_candidate_list),
         "latest_release": latest_release,
         "release_tags": release_tags,
+        "release_candidates": release_candidate_list,
         "latest_main_ci": latest_main_ci if isinstance(latest_main_ci, dict) else {},
         "latest_pages_ci": latest_pages_ci if isinstance(latest_pages_ci, dict) else {},
         "downstream_smoke": downstream_smoke if isinstance(downstream_smoke, dict) else {},
@@ -448,8 +510,10 @@ def _error_payload(message: str) -> dict[str, Any]:
         "stable_core_ready": False,
         "stable_core_blockers": [],
         "release_count": 0,
+        "release_candidate_count": 0,
         "latest_release": "",
         "release_tags": [],
+        "release_candidates": [],
         "latest_main_ci": {},
         "latest_pages_ci": {},
         "downstream_smoke": {},
@@ -466,6 +530,7 @@ def _render_markdown(payload: dict[str, Any]) -> str:
         f"- Status: `{payload['status']}`",
         f"- Stable-core ready: `{str(payload['stable_core_ready']).lower()}`",
         f"- Release count: `{payload['release_count']}`",
+        f"- Release candidate count: `{payload['release_candidate_count']}`",
         f"- Latest release: `{payload['latest_release']}`",
         "",
         "## Recorded main CI evidence",
@@ -535,6 +600,16 @@ def _render_markdown(payload: dict[str, Any]) -> str:
     release_tags = payload["release_tags"]
     if isinstance(release_tags, list):
         lines.extend(f"- `{tag}`" for tag in release_tags)
+    release_candidates = payload["release_candidates"]
+    lines.extend(["", "## Release candidates", ""])
+    if isinstance(release_candidates, list):
+        for candidate in release_candidates:
+            if not isinstance(candidate, dict):
+                continue
+            lines.append(
+                f"- `{candidate.get('name', '')}` at `{candidate.get('commit', '')}` "
+                f"({candidate.get('release_gate_result', '')})"
+            )
     failures = payload["failures"]
     if isinstance(failures, list) and failures:
         lines.extend(["", "## Failures", ""])

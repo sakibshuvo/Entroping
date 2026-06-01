@@ -26,7 +26,11 @@ def test_launch_readiness_json_distinguishes_alpha_from_stable_core() -> None:
     assert payload["schema_version"] == "entroping.alpha-launch-readiness.v1"
     assert payload["alpha_launch_ready"] is True
     assert payload["stable_core_ready"] is False
-    assert "stable-core still requires repeated release evidence" in payload["stable_core_blockers"]
+    assert (
+        "stable-core still requires repeated release evidence"
+        not in payload["stable_core_blockers"]
+    )
+    assert "stable-core still requires package-index proof" in payload["stable_core_blockers"]
     assert payload["checks"]["policy_pack_smoke"]["status"] == "present"
     assert payload["checks"]["demo_matrix"]["status"] == "present"
     assert payload["checks"]["public_claims_audit"]["status"] == "present"

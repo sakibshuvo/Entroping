@@ -47,7 +47,6 @@ def write_release_evidence_ledger(
                 "schema_version": LEDGER_SCHEMA,
                 "stable_core_ready": False,
                 "stable_core_blockers": [
-                    "repeated release evidence",
                     "package-index proof",
                     "real downstream user feedback",
                     "stable-core compatibility decision",
@@ -69,6 +68,27 @@ def write_release_evidence_ledger(
                         "url": "https://github.com/sakibshuvo/Entroping/releases/tag/v0.1.0-alpha",
                         "evidence": {"release_gate": "scripts/release_check.sh"},
                     },
+                ],
+                "release_candidates": [
+                    {
+                        "name": "v0.1.2-alpha-rc.1",
+                        "kind": "local-release-candidate",
+                        "recorded_at": "2026-06-01T11:25:51Z",
+                        "commit": COMMIT_A,
+                        "release_gate": "scripts/release_check.sh --require-live-demo",
+                        "release_gate_result": "pass",
+                        "ci_run_id": ci_run_id,
+                        "pages_run_id": pages_run_id,
+                        "release_notes": (
+                            "Release-candidate notes preserve the alpha boundary: "
+                            "this is not stable-core, not package-index proof, "
+                            "and not real downstream user feedback."
+                        ),
+                        "stable_boundary": (
+                            "alpha release-candidate evidence only; not package-index "
+                            "proof and not stable-core proof"
+                        ),
+                    }
                 ],
                 "latest_main_ci": {
                     "workflow": "CI",
@@ -154,18 +174,24 @@ def test_release_evidence_json_reports_alpha_ci_and_stable_blockers() -> None:
     assert payload["schema_version"] == "entroping.release-evidence.v1"
     assert payload["stable_core_ready"] is False
     assert payload["release_count"] >= 2
+    assert payload["release_candidate_count"] >= 1
     assert payload["latest_release"] == "v0.1.1-alpha"
     assert payload["latest_main_ci"]["conclusion"] == "success"
-    assert payload["latest_main_ci"]["commit"] == "24644cb0065dbe4eff6bf66fcc3237771d8ee2c6"
+    assert payload["latest_main_ci"]["commit"] == "1e8125489a8b3fe7a8d4a2112c80b172c17cf693"
+    assert payload["latest_main_ci"]["run_id"] == 26751047871
     assert payload["latest_pages_ci"]["conclusion"] == "success"
     assert payload["latest_pages_ci"]["workflow"] == "Pages"
+    assert payload["latest_pages_ci"]["commit"] == "1e8125489a8b3fe7a8d4a2112c80b172c17cf693"
+    assert payload["latest_pages_ci"]["run_id"] == 26751047840
+    assert payload["release_candidates"][0]["name"] == "v0.1.2-alpha-rc.1"
+    assert payload["release_candidates"][0]["release_gate_result"] == "pass"
     assert payload["downstream_smoke"]["status"] == "local-pass"
     assert payload["downstream_smoke"]["schema_version"] == "entroping.downstream-smoke.v1"
     assert payload["downstream_smoke"]["stable_boundary"].startswith(
         "maintainer-controlled local smoke"
     )
     assert payload["freshness"]["status"] == "not_checked"
-    assert "repeated release evidence" in payload["stable_core_blockers"]
+    assert "repeated release evidence" not in payload["stable_core_blockers"]
     assert "package-index proof" in payload["stable_core_blockers"]
     assert "real downstream user feedback" in payload["stable_core_blockers"]
     assert payload["ledger_path"] == "docs/meta/release-evidence.json"
@@ -196,6 +222,8 @@ def test_release_evidence_markdown_is_maintainer_readable() -> None:
     assert "v0.1.1-alpha" in result.stdout
     assert "Recorded main CI evidence" in result.stdout
     assert "Recorded Pages evidence" in result.stdout
+    assert "Release candidates" in result.stdout
+    assert "v0.1.2-alpha-rc.1" in result.stdout
     assert "Downstream smoke evidence" in result.stdout
     assert "Latest main CI" not in result.stdout
     assert "Stable-core ready: `false`" in result.stdout
@@ -208,6 +236,7 @@ def test_release_evidence_docs_explain_ci_evidence_is_recorded() -> None:
 
     assert "last reviewed `main` CI evidence" in docs
     assert "last reviewed Pages deployment evidence" in docs
+    assert "local alpha release-candidate rehearsal evidence" in docs
     assert "maintainer-controlled local smoke evidence" in docs
     assert "does not automatically prove the current `main` HEAD" in docs
 
@@ -229,6 +258,20 @@ def test_release_evidence_strict_rejects_malformed_ledger(tmp_path: Path) -> Non
                         "commit": "short",
                         "url": "not-a-url",
                         "evidence": {},
+                    }
+                ],
+                "release_candidates": [
+                    {
+                        "name": "",
+                        "kind": "wrong",
+                        "recorded_at": "not-a-date",
+                        "commit": "short",
+                        "release_gate": "pytest",
+                        "release_gate_result": "failed",
+                        "ci_run_id": "not-an-int",
+                        "pages_run_id": 0,
+                        "release_notes": "stable",
+                        "stable_boundary": "stable",
                     }
                 ],
                 "latest_main_ci": {
@@ -265,6 +308,16 @@ def test_release_evidence_strict_rejects_malformed_ledger(tmp_path: Path) -> Non
     assert "release evidence check failed" in result.stderr
     assert "stable_core_ready must remain false" in result.stderr
     assert "releases must contain at least two entries" in result.stderr
+    assert "release_candidates[0].kind must be local-release-candidate" in result.stderr
+    assert (
+        "release_candidates[0].release_gate must be scripts/release_check.sh"
+        " --require-live-demo"
+        in result.stderr
+    )
+    assert (
+        "release_candidates[0].release_notes must preserve alpha/stable-core boundaries"
+        in result.stderr
+    )
     assert "latest_main_ci.conclusion must be success" in result.stderr
     assert "latest_pages_ci.workflow must be Pages" in result.stderr
     assert "downstream_smoke.schema_version must be entroping.downstream-smoke.v1" in result.stderr
