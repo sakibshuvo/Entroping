@@ -111,6 +111,10 @@ The downstream smoke entry is maintainer-controlled local smoke evidence. It
 does not replace real downstream user feedback, package-index proof, or a user
 report from a project outside this repository.
 
+When real users or external repositories try Entroping, collect sanitized
+evidence with [DOWNSTREAM_FEEDBACK_KIT.md](DOWNSTREAM_FEEDBACK_KIT.md) before
+using it to reduce the real downstream user feedback blocker.
+
 ## Update Workflow
 
 1. Create or verify the release/tag/CI evidence from GitHub.

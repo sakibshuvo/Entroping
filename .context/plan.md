@@ -254,6 +254,10 @@ evidence without calling CI provider APIs or model providers.
 Issue #317 extends policy-pack smoke evidence with local provenance manifest
 validation for source, license, supported Entroping version, evidence command,
 gate files, gate IDs, and final flags without fetching registries.
+Issue #318 adds a downstream feedback evidence kit so real external-user
+feedback can be collected safely without secrets, private URLs, raw traffic, or
+proprietary payloads, while keeping local downstream smoke separate from real
+user evidence.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
@@ -291,6 +295,23 @@ Implemented boundaries:
   against local files and loaded QAnstitution gates.
 - Validation remains local-only: no registry fetch, pack install command,
   package signing, or runtime manifest dependency was added.
+
+## Completed Slice: Issue #318 Downstream Feedback Evidence Kit
+
+Outcome: maintainers now have a sanitized intake path for real external-user
+feedback, which is different from maintainer-controlled downstream smoke.
+
+Implemented boundaries:
+
+- `docs/meta/DOWNSTREAM_FEEDBACK_KIT.md` asks for install path, OS, Python,
+  Hurl, command used, success or failure, friction, and sanitized logs.
+- The kit explicitly rejects secrets, private URLs, raw traffic, proprietary API
+  payloads, customer data, unredacted request/response bodies, and internal
+  hostnames.
+- Release evidence, downstream smoke evidence, contributor guidance, vault
+  index, public docs index, and MkDocs navigation link to the kit.
+- `scripts/stable_core_readiness.py` keeps the real feedback blocker open but
+  marks #318 as done in the blocker issue map.
 
 ## Completed Slice: Issue #319 Stable-Core Blocker Issue Map
 
@@ -1232,7 +1253,9 @@ Architect writes generated files.
 Use these issues as the next marathon targets. Keep each one narrow, tested, and
 merged through GitHub before starting the next branch:
 
-- Next local-only branch target: #318 downstream feedback evidence kit.
+- Next target should come from the remaining stable-core blockers: package-index
+  proof (#303-#305), repeated release evidence (#307), real downstream user
+  feedback (#306), or compatibility decision (#308).
 - Packaging issue #268 is intentionally gated on package-index alpha evidence:
   publish TestPyPI/PyPI through the protected workflow first, then promote the
   Homebrew tap from prototype to supported install path.

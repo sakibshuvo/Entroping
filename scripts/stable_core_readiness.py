@@ -159,7 +159,7 @@ STABLE_CORE_BLOCKER_ISSUES = {
         IssueRef(
             number=318,
             title="adoption: add downstream feedback evidence kit",
-            status="ready",
+            status="done",
         ),
     ),
     "stable-core compatibility decision": (

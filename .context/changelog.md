@@ -2,6 +2,10 @@
 
 ## 2026-06-01
 
+- Added issue #318's downstream feedback evidence kit so real external-user
+  feedback can be collected with install path, OS, Python, Hurl, command,
+  success/failure, friction, and sanitized logs while excluding secrets,
+  private URLs, raw traffic, and proprietary payloads.
 - Added issue #317's policy-pack provenance validation so the example
   API-baseline manifest declares local source, license, supported Entroping
   range, evidence command, gate files, gate IDs, and final flags, and
