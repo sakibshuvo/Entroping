@@ -248,6 +248,9 @@ Issue #319 exposes the stable-core blocker issue map directly from
 `scripts/stable_core_readiness.py --format json` and Markdown output so future
 agents can jump from each unresolved blocker to the tracked GitHub issues that
 advance it.
+Issue #316 adds `entroping report review-summary`, a provider-neutral Markdown
+artifact rendered from local run JSON, JUnit, drift, and optional traceability
+evidence without calling CI provider APIs or model providers.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
@@ -255,21 +258,22 @@ subprocess isolation, filesystem symlink boundaries, traffic redaction/body
 limits, OpenAPI compilation/audit safety, policy gate semantics, Markdown
 escaping, generated Hurl writes, and live-demo workdir safety.
 
-## Current Slice: Issue #319 Stable-Core Blocker Issue Map
+## Completed Slice: Issue #316 Artifact-Backed Review Summary
 
-Issue #319 closes a context-preservation gap: stable-core readiness reports the
-right blocker names, but future agents still needed a direct, machine-readable
-way to map each blocker to the GitHub issues that can satisfy it.
+Outcome: downstream CI systems now have a provider-neutral Entroping review
+artifact without adding GitHub, GitLab, Buildkite, CircleCI, Jira, Linear, or
+model-provider API calls to the deterministic run path.
 
-Implementation focus:
+Implemented boundaries:
 
-- Expose a `blocker_issue_map` field from
-  `scripts/stable_core_readiness.py --format json`.
-- Keep blocker names aligned with the existing stable-core readiness blockers.
-- Link repeated release evidence, package-index proof, downstream feedback, and
-  compatibility decision blockers to their tracked GitHub issues.
-- Render the same map in Markdown output for human review.
-- Keep `stable_core_ready` false until the actual evidence exists.
+- `entroping report review-summary` writes `reports/review-summary.md`.
+- The summary reads existing local JSON run reports, JUnit XML, drift JSON, and
+  optional local traceability metadata.
+- Missing artifacts are listed as missing so the command can still run in
+  `if: always()` style CI steps; malformed artifacts fail with clear errors.
+- Findings are redacted and Markdown-escaped before rendering.
+- The GitHub Actions starter now runs `--report json --report junit --report html`,
+  emits annotations, writes the review summary, and uploads `reports/`.
 
 ## Completed Slice: Issue #319 Stable-Core Blocker Issue Map
 
@@ -1211,8 +1215,8 @@ Architect writes generated files.
 Use these issues as the next marathon targets. Keep each one narrow, tested, and
 merged through GitHub before starting the next branch:
 
-- Current branch target: close #319 with stable-core blocker issue-map evidence,
-  focused readiness tests, context updates, and the full feature gate.
+- Next local-only branch targets: #317 policy-pack provenance manifest
+  validation, then #318 downstream feedback evidence kit.
 - Packaging issue #268 is intentionally gated on package-index alpha evidence:
   publish TestPyPI/PyPI through the protected workflow first, then promote the
   Homebrew tap from prototype to supported install path.

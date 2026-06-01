@@ -337,13 +337,14 @@ HTTP 200
 Generate reports during a run:
 
 ```bash
-entroping run --env ci --ci --parallel --report junit --report html
+entroping run --env ci --ci --parallel --report json --report junit --report html
 ```
 
 Expected artifacts:
 
 ```text
 reports/junit.xml
+reports/run-latest.json
 reports/run-latest.html
 .entroping/latest-run.json
 ```
@@ -378,6 +379,17 @@ entroping report github-annotations
 
 Add `--traceability` only after the repository uses `story_id` metadata and you
 want missing or conflicting story links to show as annotations.
+
+For provider-neutral CI review text that can be uploaded as an artifact or
+posted by any CI system, write a Markdown summary from the local artifacts:
+
+```bash
+entroping report review-summary --traceability
+```
+
+This writes `reports/review-summary.md` from the JSON run report, JUnit XML,
+drift JSON, and optional local traceability metadata. Entroping does not call
+GitHub, GitLab, Buildkite, Jira, Linear, or model providers to post it.
 
 ## 11. Drift Detection
 

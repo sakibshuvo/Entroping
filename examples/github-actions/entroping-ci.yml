@@ -59,11 +59,15 @@ jobs:
         run: entroping doctor
 
       - name: Run Entroping gate
-        run: entroping run --ci --report junit --report html
+        run: entroping run --ci --report json --report junit --report html
 
       - name: Annotate Entroping findings
         if: always()
         run: entroping report github-annotations
+
+      - name: Summarize Entroping findings
+        if: always()
+        run: entroping report review-summary
 
       - name: Upload Entroping reports
         if: always()

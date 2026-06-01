@@ -33,6 +33,7 @@ from entroping.core.report_writer import (
     load_run_report,
     write_bug_report,
 )
+from entroping.core.review_summary import ReviewSummaryError, run_review_summary
 from entroping.models.hurl import HurlMetadataSyntaxError
 
 app = typer.Typer(help="Generate human handoff artifacts.")
@@ -165,6 +166,52 @@ def report_github_annotations(
             )
             + "\n"
         )
+    raise typer.Exit(0)
+
+
+@app.command("review-summary")
+def report_review_summary(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format. Currently: md."),
+    ] = "md",
+    junit: Annotated[
+        Path,
+        typer.Option("--junit", help="JUnit XML report path."),
+    ] = Path("reports") / "junit.xml",
+    run_json: Annotated[
+        Path,
+        typer.Option("--run-json", help="JSON run report path."),
+    ] = Path("reports") / "run-latest.json",
+    drift: Annotated[
+        Path,
+        typer.Option("--drift", help="Drift JSON report path."),
+    ] = Path("reports") / "drift.json",
+    traceability: Annotated[
+        bool,
+        typer.Option("--traceability", help="Include local story traceability findings."),
+    ] = False,
+) -> None:
+    """Write a provider-neutral Markdown review summary from local artifacts."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output != "md":
+        console.print(f"[yellow]Unsupported review summary output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_review_summary(
+            project_root=Path.cwd(),
+            run_json_path=run_json,
+            junit_path=junit,
+            drift_path=drift,
+            include_traceability=traceability,
+        )
+    except (ReviewSummaryError, HurlMetadataSyntaxError, ValueError) as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote review summary: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 

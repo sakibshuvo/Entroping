@@ -58,14 +58,15 @@ uv tool install git+https://github.com/sakibshuvo/Entroping.git@v0.1.1-alpha
 entroping doctor
 ```
 
-7. Runs the deterministic CI gate and writes JUnit plus HTML reports:
+7. Runs the deterministic CI gate and writes JSON, JUnit, and HTML reports:
 
 ```bash
-entroping run --ci --report junit --report html
+entroping run --ci --report json --report junit --report html
 ```
 
 8. Emits GitHub Actions annotations from local Entroping reports.
-9. Uploads `reports/` as a GitHub Actions artifact.
+9. Writes a provider-neutral Markdown review summary from local artifacts.
+10. Uploads `reports/` as a GitHub Actions artifact.
 
 ## Common Variants
 
@@ -79,13 +80,13 @@ uv tool install git+https://github.com/sakibshuvo/Entroping.git
 To use a committed CI environment file, change the run step to:
 
 ```bash
-entroping run --env ci --ci --report junit --report html
+entroping run --env ci --ci --report json --report junit --report html
 ```
 
 To run only a tagged suite:
 
 ```bash
-entroping run --ci --tag smoke --report junit --report html
+entroping run --ci --tag smoke --report json --report junit --report html
 ```
 
 To include story traceability findings as PR annotations after you have adopted
@@ -95,18 +96,28 @@ To include story traceability findings as PR annotations after you have adopted
 entroping report github-annotations --traceability
 ```
 
+To publish provider-neutral Markdown that a GitHub Action, GitLab job, Buildkite
+step, or CircleCI command can upload or post itself, add:
+
+```bash
+entroping report review-summary --traceability
+```
+
 ## Expected Artifacts
 
 The run writes the same report paths Entroping uses locally:
 
 ```text
 reports/junit.xml
+reports/run-latest.json
 reports/run-latest.html
+reports/review-summary.md
 .entroping/latest-run.json
 ```
 
 The annotation step reads local reports and prints GitHub workflow-command
-annotations to stdout. The workflow uploads `reports/`. It does not upload
+annotations to stdout. The review-summary step writes provider-neutral Markdown
+under `reports/`. The workflow uploads `reports/`. It does not upload
 `.entroping/` because that directory is local runtime state and can contain
 baselines or machine-local history.
 

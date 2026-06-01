@@ -2,6 +2,10 @@
 
 ## 2026-06-01
 
+- Added issue #316's artifact-backed review summary:
+  `entroping report review-summary` writes provider-neutral Markdown from local
+  JSON, JUnit, drift, and optional traceability evidence, and the downstream
+  GitHub Actions starter now generates JSON before uploading `reports/`.
 - Added issue #319's stable-core blocker issue map so
   `scripts/stable_core_readiness.py --format json` and Markdown output link
   each unresolved stable-core blocker to the GitHub issues that can satisfy it,
