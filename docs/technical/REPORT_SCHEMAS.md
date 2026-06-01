@@ -20,7 +20,19 @@ annotation tools, hosted surfaces, and scripts should key off
 | --- | --- | --- | --- |
 | JSON run report | `entroping.run-report.v1` | `reports/run-latest.json`, `.entroping/latest-run.json` | [run-report.v1.schema.json](report-schemas/run-report.v1.schema.json) |
 | Drift report | `entroping.drift-report.v1` | `reports/drift.json` | [drift-report.v1.schema.json](report-schemas/drift-report.v1.schema.json) |
+| Effective policy report | `entroping.effective-policy-report.v1` | `reports/effective-policy.json` | [effective-policy-report.v1.schema.json](report-schemas/effective-policy-report.v1.schema.json) |
 | Traceability report | `entroping.traceability-report.v1` | `story_traceability_report_to_dict` | [traceability-report.v1.schema.json](report-schemas/traceability-report.v1.schema.json) |
+
+The effective policy CLI can emit Markdown or JSON:
+
+```bash
+entroping report policy --output md
+entroping report policy --output json
+```
+
+The JSON report is local-only policy provenance. It records config/import/gate
+paths and effective assertions, not traffic values, prompts, credentials, or
+provider data.
 
 The traceability CLI currently emits Markdown only:
 

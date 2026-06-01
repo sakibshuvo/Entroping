@@ -1,0 +1,21 @@
+project: "ai-regression-demo"
+version: "4.1"
+description: "Failure proof for a missing observability header regression"
+
+gates:
+  - id: "no_server_errors"
+    description: "Fail when an endpoint returns a server error"
+    condition: "true"
+    gate: "status < 500"
+    enforcement: "block"
+  - id: "request_id_header"
+    description: "Block response paths that drop the request correlation header"
+    condition: "tags contains 'ai-regression'"
+    gate: 'header "X-Request-Id" exists'
+    enforcement: "block"
+
+settings:
+  timeout: 30000
+  parallel_workers: 1
+  follow_redirects: true
+  retry: 0

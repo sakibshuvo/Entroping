@@ -40,6 +40,7 @@ entroping studio [--env <name>]
 entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check]
 entroping report bug
 entroping report redaction [--output <md|html>]
+entroping report policy [--output <md|json>]
 entroping report traceability [--output md]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
 ```
@@ -54,7 +55,7 @@ entroping report github-annotations [--junit <path>] [--drift <path>] [--traceab
 | Determinism | `entroping run` remains deterministic, Hurl-backed, and LLM-free. |
 | Prompted generation | Prompt-backed `architect build` and `architect refactor` may call LiteLLM, but generated files must pass validation before write. |
 | Studio | `studio` is read-only until mutation workflows are designed and accepted separately. |
-| Report formats | `run --report` is repeatable and owns run artifact creation. `report bug`, `report redaction`, `report traceability`, and `report github-annotations` are handoff/reporting commands, not test execution commands. |
+| Report formats | `run --report` is repeatable and owns run artifact creation. `report bug`, `report redaction`, `report policy`, `report traceability`, and `report github-annotations` are handoff/reporting commands, not test execution commands. |
 
 ## Exit Code Contract
 
@@ -80,6 +81,8 @@ only through a compatibility issue and migration note.
 | `entroping report bug` | `reports/bug.md` |
 | `entroping report redaction --output md` | `reports/redaction-review.md` |
 | `entroping report redaction --output html` | `reports/redaction-review.html` |
+| `entroping report policy --output md` | `reports/effective-policy.md` |
+| `entroping report policy --output json` | `reports/effective-policy.json` |
 | `entroping report traceability --output md` | `stdout Markdown` |
 | `entroping report github-annotations` | `stdout GitHub Actions annotations` |
 

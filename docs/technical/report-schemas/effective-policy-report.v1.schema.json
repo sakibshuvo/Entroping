@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/sakibshuvo/Entroping/docs/technical/report-schemas/effective-policy-report.v1.schema.json",
+  "title": "Entroping Effective Policy Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project",
+    "config_path",
+    "imports",
+    "gates"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.effective-policy-report.v1"
+    },
+    "project": {
+      "type": "string"
+    },
+    "config_path": {
+      "type": "string"
+    },
+    "imports": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "gates": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/gate"
+      }
+    }
+  },
+  "$defs": {
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source_path",
+        "condition",
+        "gate",
+        "enforcement",
+        "final",
+        "description"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "source_path": {
+          "type": "string"
+        },
+        "condition": {
+          "type": "string"
+        },
+        "gate": {
+          "type": "string"
+        },
+        "enforcement": {
+          "enum": [
+            "block",
+            "warn",
+            "audit_only"
+          ]
+        },
+        "final": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

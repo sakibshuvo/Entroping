@@ -2,6 +2,23 @@
 
 ## 2026-06-01
 
+- Added issue #279's effective policy evidence command:
+  `entroping report policy --output md|json` writes resolved QAnstitution
+  gate provenance, including imports and local overrides.
+- Added issue #280's public claims audit so documentation governance blocks
+  unsupported production-readiness and security-guarantee language before it
+  reaches public Markdown.
+- Added issue #281's direct dependency license policy gate with reviewed
+  runtime, optional, and dev dependency entries plus security-gate wiring.
+- Added issue #282's downstream integration guardrails so only the proven
+  GitHub Actions template is committed and other CI providers require real
+  runner evidence before native examples land.
+- Added issue #283's AI-regression failure proof fixture and script, showing
+  Entroping blocking a body-correct API that drops `X-Request-Id`.
+- Added issue #284's stable-core readiness evidence check and release-gate
+  wiring so v1/stable claims stay tied to explicit evidence and blockers.
+- Added issue #285's backlog health guard for checking GitHub issue labels and
+  milestones before or after marathons.
 - Implemented issue #275's doctor traffic-state health check so
   `entroping doctor` reports missing, readable, and incompatible
   `.entroping/state.db` state through the read-only SQLModel traffic-store

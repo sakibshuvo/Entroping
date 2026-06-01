@@ -44,6 +44,7 @@ git diff --check
 git diff --cached --check
 
 if ((run_security)); then
+  uv run python scripts/dependency_license_check.py
   uvx bandit -q -r src
   uv run --with pip-audit pip-audit --local --progress-spinner off
   uv run --all-extras --with pip-audit pip-audit --progress-spinner off

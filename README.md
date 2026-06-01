@@ -328,6 +328,7 @@ Orientation:
 - [ADR-0001](decisions/ADR-0001-hurl-native-governance.md) - first architectural decision.
 - [examples/checkout-api](examples/checkout-api/README.md) - tiny demo fixture.
 - [examples/support-api](examples/support-api/README.md) - second fixture with ticket filters, headers, and mutation audit gates.
+- [examples/ai-regression-demo](examples/ai-regression-demo/README.md) - failure proof for a missing `X-Request-Id` regression.
 
 ## Locked Alpha CLI Surface
 
@@ -351,6 +352,7 @@ entroping studio [--env <name>]
 entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check]
 entroping report bug
 entroping report redaction [--output <md|html>]
+entroping report policy [--output <md|json>]
 entroping report traceability [--output md]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
 ```

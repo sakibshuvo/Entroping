@@ -119,6 +119,26 @@ The finish script:
 
 Use `--dry-run` first when cleaning up a batch of sessions.
 
+## Backlog Health
+
+Before starting or ending a marathon, check that open issues still have the
+minimum labels and milestone context needed for multi-session handoff:
+
+```bash
+python scripts/backlog_health.py
+```
+
+The script shells out to `gh issue list` by default. For reviews or tests, pass
+a fixture exported from GitHub:
+
+```bash
+python scripts/backlog_health.py --input /path/to/issues.json
+```
+
+Open issues should have at least one `type:*`, one `priority:*`, one
+`status:*`, and a milestone. The script is intentionally about queue hygiene,
+not product priority judgment.
+
 ## Obsidian Boundary
 
 Do not duplicate every GitHub issue in Obsidian. Update Obsidian only for:

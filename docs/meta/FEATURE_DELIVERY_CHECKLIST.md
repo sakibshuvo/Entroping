@@ -110,6 +110,7 @@ scripts/audit_quality.sh
 - [ ] When package boundaries are touched, confirm `tests/test_architecture_boundaries.py` still covers the relevant import direction and provider boundary.
 - [ ] Check command names and flags against `docs/technical/COMMAND_CHEAT_SHEET.md`.
 - [ ] Check docs for claims that are not implemented yet.
+- [ ] For public docs or launch copy, confirm `python scripts/public_claims_audit.py` passes.
 - [ ] If the feature touches a boundary listed in `AGENTS.md`, request independent review before commit.
 
 ## 7. Security Review
@@ -118,6 +119,7 @@ scripts/audit_quality.sh
 - [ ] Re-check path handling for traversal, glob overreach, symlink surprises, and destructive writes.
 - [ ] Re-check subprocess calls for argument arrays, timeouts, bounded output, and no shell interpolation.
 - [ ] Re-check dependency changes with default and all-extras audits.
+- [ ] Re-check direct dependency license coverage with `uv run python scripts/dependency_license_check.py`.
 - [ ] Re-check LLM flows for redaction, structured validation, and no provider-specific SDK drift.
 
 ## 8. Documentation And Context Preservation

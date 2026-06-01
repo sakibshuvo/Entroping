@@ -2917,6 +2917,49 @@ def test_report_traceability_rejects_unsupported_output() -> None:
     assert "Unsupported traceability output" in result.output
 
 
+def test_report_policy_writes_effective_policy_report(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+gates:
+  - id: global_latency
+    condition: "true"
+    gate: duration < 2000
+    enforcement: block
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["report", "policy", "--output", "md"])
+
+    assert result.exit_code == 0
+    assert "Wrote effective policy report: reports/effective-policy.md" in result.output
+    assert "global_latency" in Path("reports/effective-policy.md").read_text(encoding="utf-8")
+
+
+def test_report_policy_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["report", "policy", "--output", "html"])
+
+    assert result.exit_code == 2
+    assert "Unsupported policy output" in result.output
+
+
+def test_report_policy_wraps_effective_policy_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "policy"])
+
+    assert result.exit_code == 1
+    assert "QAnstitution file not found" in result.output
+
+
 def test_report_github_annotations_emits_report_and_traceability_annotations(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

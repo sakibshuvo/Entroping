@@ -35,6 +35,7 @@ For the practical day-to-day distinction between GitHub and Obsidian, read
 | Product contract changes | `PRODUCT_SPEC.md`, roadmap if priority changes, ADR if durable | Low-level implementation docs |
 | Bug fix with durable lesson | GitHub issue, regression test, `.context/changelog.md`, `.context/lessons-learned.md` if reusable | Roadmap unless priority changed |
 | Source-material reconciliation | Evolution docs, source map, issue if action is needed | Runtime docs until validated |
+| Public launch or README claim | README, roadmap/progress if scope changed, `scripts/public_claims_audit.py` evidence | TDS unless behavior changed |
 
 Most feature branches should touch one to three documentation surfaces. If a
 branch touches more than that, the PR must explain why.
@@ -76,7 +77,9 @@ Agents must do the following before patching documentation:
 2. Update the smallest set of docs that preserves truth.
 3. Avoid duplicating GitHub issue details in Obsidian.
 4. Run `scripts/doc_governance_check.sh`.
-5. Include the Documentation Impact Declaration in the PR or handoff.
+5. Run `python scripts/public_claims_audit.py` directly when changing public
+   launch copy, README positioning, roadmap status, or release notes.
+6. Include the Documentation Impact Declaration in the PR or handoff.
 
 Agents must not update `ROADMAP.md` just because code changed. Roadmap edits
 require roadmap-change-gate evidence.
@@ -101,6 +104,8 @@ PR template -> PR body check in CI -> doc governance check -> feature gate -> re
 - `.github/pull_request_template.md` forces the declaration.
 - `scripts/pr_body_check.py` validates the declaration on pull requests.
 - `scripts/doc_governance_check.sh` validates the documentation control plane.
+- `scripts/public_claims_audit.py` rejects unsupported production-readiness and
+  security-guarantee claims in public Markdown.
 - `scripts/feature_gate.sh` runs the documentation governance check.
 - `scripts/regression.sh` runs the feature gate.
 

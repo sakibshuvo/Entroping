@@ -43,6 +43,16 @@ The schema is an editor and review aid; runtime validation remains authoritative
 `entroping doctor`, `entroping run`, and Architect commands load the effective
 policy through the Pydantic model and config loader before trusting it.
 
+To inspect the effective local policy after imports and local overrides, run:
+
+```bash
+entroping report policy --output md
+```
+
+Use `--output json` when a downstream review tool needs the versioned
+`entroping.effective-policy-report.v1` payload at
+`reports/effective-policy.json`.
+
 ## 2. Minimal Example
 
 ```yaml

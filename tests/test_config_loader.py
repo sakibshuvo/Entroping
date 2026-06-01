@@ -4,7 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
+from entroping.core.config_loader import (
+    QanstitutionLoadError,
+    load_qanstitution,
+    load_qanstitution_evidence,
+)
 
 
 def write_yaml(path: Path, body: str) -> None:
@@ -55,6 +59,106 @@ gates:
     ]
     assert law.gates[1].gate == "duration < 500"
     assert law.gates[1].enforcement == "block"
+
+
+def test_load_qanstitution_evidence_tracks_effective_gate_provenance(tmp_path: Path) -> None:
+    write_yaml(
+        tmp_path / "rules" / "security.yaml",
+        """
+project: imported-security
+gates:
+  - id: security_header
+    condition: path startswith '/api'
+    gate: header "X-Request-Id" exists
+    enforcement: warn
+  - id: smoke_latency
+    condition: tags contains 'smoke'
+    gate: duration < 700
+    enforcement: warn
+""",
+    )
+    write_yaml(
+        tmp_path / "qanstitution.yaml",
+        """
+project: checkout-api
+imports:
+  - ./rules/security.yaml
+gates:
+  - id: smoke_latency
+    condition: tags contains 'smoke'
+    gate: duration < 500
+    enforcement: block
+  - id: global_latency
+    condition: "true"
+    gate: duration < 2000
+    enforcement: block
+""",
+    )
+
+    evidence = load_qanstitution_evidence(tmp_path / "qanstitution.yaml")
+
+    assert evidence.root_path == (tmp_path / "qanstitution.yaml").resolve()
+    assert evidence.import_paths == ((tmp_path / "rules" / "security.yaml").resolve(),)
+    assert [gate.rule.id for gate in evidence.gates] == [
+        "security_header",
+        "smoke_latency",
+        "global_latency",
+    ]
+    assert {
+        gate.rule.id: gate.source_path.relative_to(tmp_path).as_posix()
+        for gate in evidence.gates
+    } == {
+        "security_header": "rules/security.yaml",
+        "smoke_latency": "qanstitution.yaml",
+        "global_latency": "qanstitution.yaml",
+    }
+    assert evidence.policy.gates[1].gate == "duration < 500"
+
+
+def test_load_qanstitution_evidence_tracks_nested_import_paths(tmp_path: Path) -> None:
+    write_yaml(
+        tmp_path / "rules" / "base.yaml",
+        """
+project: base
+gates:
+  - id: base_latency
+    condition: "true"
+    gate: duration < 2000
+    enforcement: warn
+""",
+    )
+    write_yaml(
+        tmp_path / "rules" / "security.yaml",
+        """
+project: imported-security
+imports:
+  - ./base.yaml
+gates:
+  - id: security_header
+    condition: "true"
+    gate: header "X-Request-Id" exists
+    enforcement: block
+""",
+    )
+    write_yaml(
+        tmp_path / "qanstitution.yaml",
+        """
+project: checkout-api
+imports:
+  - ./rules/security.yaml
+""",
+    )
+
+    evidence = load_qanstitution_evidence(tmp_path / "qanstitution.yaml")
+
+    assert evidence.import_paths == (
+        (tmp_path / "rules" / "security.yaml").resolve(),
+        (tmp_path / "rules" / "base.yaml").resolve(),
+    )
+    assert [gate.rule.id for gate in evidence.gates] == [
+        "base_latency",
+        "security_header",
+    ]
 
 
 def test_load_qanstitution_rejects_missing_import(tmp_path: Path) -> None:

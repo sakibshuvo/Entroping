@@ -70,5 +70,5 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: entroping-reports
-          path: reports
+          path: reports/
           if-no-files-found: ignore

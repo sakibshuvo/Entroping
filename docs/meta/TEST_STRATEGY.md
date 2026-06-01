@@ -51,6 +51,15 @@ scripts/feature_gate.sh --security
 scripts/regression.sh --security
 ```
 
+The security feature gate also checks direct dependency license policy coverage:
+
+```bash
+uv run python scripts/dependency_license_check.py
+```
+
+Every declared direct runtime, optional, and development dependency must have a
+reviewed entry in `docs/meta/dependency-license-policy.json` before it can land.
+
 Validation or release-hardening audit:
 
 ```bash
@@ -74,6 +83,16 @@ many Hurl files, bounded parallel runner behavior, gate injection, JSON/JUnit/HT
 report generation, and a larger SQLModel-backed traffic store with retention.
 It writes reviewable evidence to `reports/performance-smoke.json`, which stays
 ignored like other generated reports.
+
+AI-regression proof:
+
+```bash
+scripts/ai_regression_demo.sh
+```
+
+This local proof starts the intentionally broken `examples/ai-regression-demo`
+API and succeeds only when Entroping blocks the missing `X-Request-Id` response
+header through QAnstitution and Hurl.
 
 ## GitHub Actions Enforcement
 
@@ -131,6 +150,15 @@ uvx --with 'mkdocs-material==9.*' mkdocs build --strict
 Broken public-docs links, invalid navigation entries, and MkDocs warnings fail
 before the GitHub Pages deployment workflow can publish from `main`.
 
+The documentation governance gate also runs:
+
+```bash
+python scripts/public_claims_audit.py
+```
+
+Unsupported public claims such as production readiness or guaranteed security
+must fail before review.
+
 CI-enforced commands are `scripts/regression.sh --security`,
 `scripts/audit_quality.sh`, `uvx --with 'mkdocs-material==9.*' mkdocs build
 --strict`, the `install-smoke` matrix, and the `optional-extras-smoke` lane.
@@ -147,7 +175,7 @@ dependency baselines: `destination_host`, `method`, and `path_template`.
 They must not persist raw URLs, query values, headers, bodies, cookies, tokens,
 call counts, or latency values as dependency drift truth.
 Report schema contract tests freeze representative v1 JSON payloads for run,
-drift, and traceability reports. A machine-readable report shape change should
+drift, effective-policy, and traceability reports. A machine-readable report shape change should
 update the serializer, JSON Schema file, compatibility note, and contract test in
 the same pull request.
 
@@ -156,7 +184,9 @@ artifacts for review. Packaging checks and release/live-demo release decisions
 remain local release-owner gates through `scripts/release_check.sh`, because
 they depend on the release context and whether local Hurl is installed.
 `scripts/release_check.sh` also runs `uv run python scripts/performance_smoke.py`
-unless `--skip-performance` is used for a local diagnostic pass.
+unless `--skip-performance` is used for a local diagnostic pass. The release
+check now runs `uv run python scripts/stable_core_readiness.py --strict` so
+stable-core evidence files and markers cannot silently disappear.
 
 ## Coverage Expectations
 

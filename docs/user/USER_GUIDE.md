@@ -180,6 +180,17 @@ The redaction review writes `reports/redaction-review.md` by default and can
 write `reports/redaction-review.html` with `--output html`. It contains counts
 and categories only, not raw header, query, or body values.
 
+Review the effective QAnstitution after local imports and overrides:
+
+```bash
+entroping report policy --output md
+```
+
+The policy report writes `reports/effective-policy.md` by default and can write
+`reports/effective-policy.json` with `--output json`. It shows which file
+supplied each effective gate, including imported policy packs and local
+overrides.
+
 Freeze the session into tests:
 
 ```bash

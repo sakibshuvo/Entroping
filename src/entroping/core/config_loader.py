@@ -8,6 +8,7 @@ import yaml
 from pydantic import ValidationError
 
 from entroping.models.qanstitution import GateRule, Qanstitution
+from entroping.models.qanstitution_evidence import EffectiveGateEvidence, QanstitutionEvidence
 
 
 class QanstitutionLoadError(ValueError):
@@ -17,11 +18,21 @@ class QanstitutionLoadError(ValueError):
 def load_qanstitution(path: str | Path = "qanstitution.yaml") -> Qanstitution:
     """Load and validate a QAnstitution file with local imports merged first."""
 
+    return load_qanstitution_evidence(path).policy
+
+
+def load_qanstitution_evidence(path: str | Path = "qanstitution.yaml") -> QanstitutionEvidence:
+    """Load a QAnstitution file and retain provenance for the effective gates."""
+
     resolved = _resolve_existing_file(Path(path))
-    return _load_effective(resolved, stack=(), root_dir=resolved.parent)
+    return _load_effective_with_evidence(resolved, stack=(), root_dir=resolved.parent)
 
 
-def _load_effective(path: Path, stack: tuple[Path, ...], root_dir: Path) -> Qanstitution:
+def _load_effective_with_evidence(
+    path: Path,
+    stack: tuple[Path, ...],
+    root_dir: Path,
+) -> QanstitutionEvidence:
     resolved = _resolve_existing_file(path)
     if resolved in stack:
         cycle = " -> ".join(str(item) for item in (*stack, resolved))
@@ -32,27 +43,45 @@ def _load_effective(path: Path, stack: tuple[Path, ...], root_dir: Path) -> Qans
     law = _validate_document(raw_document, resolved)
     _reject_duplicate_gate_ids(law.gates, resolved)
 
-    merged_gates: list[GateRule] = []
+    merged_gates: list[EffectiveGateEvidence] = []
+    import_paths: list[Path] = []
     next_stack = (*stack, resolved)
     for import_ref in law.imports:
         imported_path = _resolve_import(import_ref, resolved.parent, root_dir)
-        imported_law = _load_effective(imported_path, stack=next_stack, root_dir=root_dir)
-        merged_gates = _merge_gates(
+        imported = _load_effective_with_evidence(
+            imported_path,
+            stack=next_stack,
+            root_dir=root_dir,
+        )
+        _append_unique_path(import_paths, imported.root_path)
+        for nested_import in imported.import_paths:
+            _append_unique_path(import_paths, nested_import)
+        merged_gates = _merge_gate_evidence(
             merged_gates,
-            imported_law.gates,
+            list(imported.gates),
             incoming_source=imported_path,
         )
 
-    merged_gates = _merge_gates(
+    local_gates = [
+        EffectiveGateEvidence(rule=gate, source_path=resolved)
+        for gate in law.gates
+    ]
+    merged_gates = _merge_gate_evidence(
         merged_gates,
-        law.gates,
+        local_gates,
         incoming_source=resolved,
         overriding_local=True,
     )
 
     effective_data = law.model_dump()
-    effective_data["gates"] = [gate.model_dump() for gate in merged_gates]
-    return _validate_document(effective_data, resolved)
+    effective_data["gates"] = [gate.rule.model_dump() for gate in merged_gates]
+    policy = _validate_document(effective_data, resolved)
+    return QanstitutionEvidence(
+        policy=policy,
+        root_path=resolved,
+        import_paths=tuple(import_paths),
+        gates=tuple(merged_gates),
+    )
 
 
 def _resolve_existing_file(path: Path) -> Path:
@@ -131,31 +160,36 @@ def _reject_duplicate_gate_ids(gates: list[GateRule], path: Path) -> None:
         seen.add(gate.id)
 
 
-def _merge_gates(
-    existing: list[GateRule],
-    incoming: list[GateRule],
+def _merge_gate_evidence(
+    existing: list[EffectiveGateEvidence],
+    incoming: list[EffectiveGateEvidence],
     *,
     incoming_source: Path,
     overriding_local: bool = False,
-) -> list[GateRule]:
+) -> list[EffectiveGateEvidence]:
     merged = list(existing)
-    positions = {gate.id: index for index, gate in enumerate(merged)}
+    positions = {gate.rule.id: index for index, gate in enumerate(merged)}
 
-    for gate in incoming:
-        existing_index = positions.get(gate.id)
+    for gate_evidence in incoming:
+        existing_index = positions.get(gate_evidence.rule.id)
         if existing_index is None:
-            positions[gate.id] = len(merged)
-            merged.append(gate)
+            positions[gate_evidence.rule.id] = len(merged)
+            merged.append(gate_evidence)
             continue
 
         previous = merged[existing_index]
-        if previous.final:
+        if previous.rule.final:
             source_kind = "local" if overriding_local else "imported"
             msg = (
-                f"Cannot override final imported gate {gate.id!r} while merging "
+                f"Cannot override final imported gate {gate_evidence.rule.id!r} while merging "
                 f"{source_kind} gate from {incoming_source}"
             )
             raise QanstitutionLoadError(msg)
-        merged[existing_index] = gate
+        merged[existing_index] = gate_evidence
 
     return merged
+
+
+def _append_unique_path(paths: list[Path], path: Path) -> None:
+    if path not in paths:
+        paths.append(path)
