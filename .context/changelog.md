@@ -2,6 +2,9 @@
 
 ## 2026-06-01
 
+- Added issue #291's README launch-polish slice: concrete "Use Entroping
+  When" scenarios now appear before the demo, and reviewed animated GIF
+  previews show the checkout happy path plus AI-regression failure proof.
 - Added issue #279's effective policy evidence command:
   `entroping report policy --output md|json` writes resolved QAnstitution
   gate provenance, including imports and local overrides.

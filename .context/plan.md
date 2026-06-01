@@ -98,10 +98,10 @@ for status code, selected stable headers, and JSON body shape paths.
 Issue #176 extended drift reports with conservative material latency regression
 warnings from reviewed `duration_ms` baselines, without adding flags or storing
 response values.
-Issue #108 added a text/SVG launch asset kit under `docs/assets/launch/`,
-linked it from the README and Obsidian index, and documented the concrete
-publish order in the growth plan without committing generated reports, GIFs, or
-PNG screenshots.
+Issue #108 added a launch asset kit under `docs/assets/launch/`, linked it from
+the README and Obsidian index, and documented the concrete publish order in the
+growth plan while keeping raw generated reports and recording sources out of
+Git.
 Issue #166 removed maintainer-local temp paths from launch rebuild commands and
 added a regression guard so public launch docs stay copy/paste portable.
 Issue #168 made `scripts/context_pack.sh --mode source` source-archive paths
@@ -215,10 +215,10 @@ policy, downstream integration-example guardrails, AI-regression failure proof,
 stable-core evidence checks, and backlog-health checks are now implemented as
 scripts, tests, docs, and report artifacts rather than prompt-only workflow
 rules.
-Issues #287 through #289 add the next launch-proof layer: policy-pack smoke
-evidence, alpha launch-readiness aggregation, and a demo proof matrix for the
-checkout happy path, AI-regression failure proof, policy-pack smoke,
-launch-readiness, and backlog-health rehearsal.
+Issues #287 through #291 add the next launch-proof layer: policy-pack smoke
+evidence, alpha launch-readiness aggregation, a demo proof matrix for checkout,
+AI-regression, policy-pack, launch-readiness, and backlog-health rehearsals, and
+README-facing developer use cases plus curated animated previews.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
@@ -226,39 +226,21 @@ subprocess isolation, filesystem symlink boundaries, traffic redaction/body
 limits, OpenAPI compilation/audit safety, policy gate semantics, Markdown
 escaping, generated Hurl writes, and live-demo workdir safety.
 
-## Current Slice: Roadmap Reconciliation And Integration Readiness
+## Current Slice: README Launch Polish
 
-The 2026-05-29 NotebookLM Markdown export remains the final current source
-snapshot. Keep older Gemini and dated NotebookLM files as historical evidence
-unless a specific contradiction is promoted into canonical product docs, tests,
-issues, or an ADR.
+Issue #291 closes the current public-front-door feedback: first-time developers
+should see concrete Entroping use cases immediately, then see both the happy
+path and the AI-regression failure path before the deeper alpha inventory.
 
 Implementation focus:
 
-- Preserve SQLite as local `.entroping/state.db` runtime state.
-- Use SQLModel as the typed persistence layer for traffic state.
-- Keep traffic-store schema evolution explicit through version metadata,
-  fail-closed future-version handling, and reviewed migrations.
-- Keep `entroping doctor` as the non-mutating local health check for existing
-  traffic-store compatibility.
-- Keep the Typer entrypoint small by routing command groups through focused
-  CLI adapter modules.
-- Keep Studio optional and typed without disabling static checking at the
-  Textual boundary.
-- Keep live-demo messaging honest: Python `urlopen` is only fixture readiness;
-  Entroping and Hurl remain the API assertion path.
-- Keep traffic persistence redaction-first and bounded by retention.
-- Refresh source-map and progress docs so future sessions do not follow stale
-  paths or stale current-issue markers.
-- Add deterministic context packs so Codex, Claude Code, OpenCode, Gemini,
-  NotebookLM, and local Qwen can start from the same curated repo evidence.
-- Keep Obsidian as the first brain while source exports remain archival until
-  promoted into issues, ADRs, canonical docs, tests, or scripts.
-- Document the open-source growth and open-core monetization path without
-  weakening the Apache-2.0 public core.
-- Keep the public roadmap clear that v0.2 onboarding and v0.3 CLI/report-first
-  depth are completed alpha evidence, while v0.4 integration work and v1.0
-  stable-core proof remain issue-backed future/current work.
+- Front-load a concise "Use Entroping When" section before the two-minute demo.
+- Embed curated animated previews for the checkout happy path and missing
+  request-id regression proof.
+- Keep launch GIFs small, reviewed, reproducible, and separate from raw
+  recordings or generated report directories.
+- Guard the README structure, asset signatures, asset size, and asset
+  documentation with tests.
 
 Completed security-review context: repository-wide scan artifacts were written
 under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, all
@@ -1108,8 +1090,8 @@ Architect writes generated files.
 Use these issues as the next marathon targets. Keep each one narrow, tested, and
 merged through GitHub before starting the next branch:
 
-- Current branch target: close #260 and #262 through #265 with focused tests,
-  docs, and the full feature gate.
+- Current branch target: close #291 with README use-case guardrails, curated
+  animated launch previews, launch-asset docs, and the full feature gate.
 - Packaging issue #268 is intentionally gated on package-index alpha evidence:
   publish TestPyPI/PyPI through the protected workflow first, then promote the
   Homebrew tap from prototype to supported install path.

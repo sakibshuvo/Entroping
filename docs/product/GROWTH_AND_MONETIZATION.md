@@ -48,7 +48,8 @@ GitHub's community profile checklist expects health files such as README, CODE_O
 ## Launch Asset Checklist
 
 The committed asset hub lives at `docs/assets/launch/README.md`. It should stay
-small, text/SVG-first, and generated from real checkout fixture output.
+small, generated from real checkout fixture output or reviewed launch proof
+frames, and focused on product behavior rather than decorative media.
 
 Publish order:
 
@@ -57,16 +58,18 @@ Publish order:
    `.github/workflows/scorecard.yml` once the repository is public.
 2. Keep `ROADMAP.md`, GitHub milestones, and the project board visible before
    external announcements.
-3. Add two-minute README demo links to the launch asset hub and its curated
-   public preview PNGs.
-4. Record the terminal screenshot from `scripts/demo.sh` with
+3. Add two-minute README demo links to the launch asset hub, including curated
+   public preview GIFs and PNGs.
+4. Render the happy-path and AI-regression animated GIF previews from reviewed
+   launch proof frames.
+5. Record the terminal screenshot from `scripts/demo.sh` with
    `4 passed, 0 failed` visible.
-5. Capture the HTML report screenshot from `reports/run-latest.html`.
-6. Capture or embed the dependency map example from `entroping map --export md`
+6. Capture the HTML report screenshot from `reports/run-latest.html`.
+7. Capture or embed the dependency map example from `entroping map --export md`
    or `entroping map --export png`.
-7. Publish release notes after local `scripts/release_check.sh --require-live-demo`
+8. Publish release notes after local `scripts/release_check.sh --require-live-demo`
    evidence and CI evidence are available.
-8. Publish the launch post after the README, release notes, and asset links are
+9. Publish the launch post after the README, release notes, and asset links are
    already live.
 
 Do not commit generated GIFs, PNGs, `reports/`, or `.entroping/` state unless a
