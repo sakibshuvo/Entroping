@@ -4,14 +4,16 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from sqlmodel import Session, create_engine, select
+from sqlmodel import Session, SQLModel, create_engine, select
 
 from entroping.core import traffic_store
 from entroping.core.traffic_redactor import redact_traffic_exchange
 from entroping.core.traffic_store import (
+    TRAFFIC_STORE_SCHEMA_VERSION,
     TrafficEventRow,
     TrafficStore,
     TrafficStoreError,
+    TrafficStoreMetadataRow,
     list_project_exchanges_readonly,
 )
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
@@ -40,6 +42,38 @@ def test_store_uses_entroping_state_db_by_default(tmp_path: Path) -> None:
 
     assert store.db_path == tmp_path / ".entroping" / "state.db"
     assert store.db_path.parent.is_dir()
+
+
+def test_store_records_current_schema_version(tmp_path: Path) -> None:
+    store = TrafficStore.open_project(tmp_path)
+    engine = create_engine(f"sqlite:///{store.db_path}")
+
+    with Session(engine) as session:
+        rows = session.exec(select(TrafficStoreMetadataRow)).all()
+
+    assert [(row.key, row.value) for row in rows] == [
+        ("schema_version", str(TRAFFIC_STORE_SCHEMA_VERSION))
+    ]
+
+
+def test_store_rejects_future_schema_version(tmp_path: Path) -> None:
+    state_dir = tmp_path / ".entroping"
+    state_dir.mkdir()
+    db_path = state_dir / "state.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        session.add(
+            TrafficStoreMetadataRow(
+                key="schema_version",
+                value=str(TRAFFIC_STORE_SCHEMA_VERSION + 1),
+            )
+        )
+        session.commit()
+
+    with pytest.raises(TrafficStoreError, match="newer than supported"):
+        TrafficStore.open_project(tmp_path)
 
 
 def test_store_rejects_non_positive_retention_limit(tmp_path: Path) -> None:

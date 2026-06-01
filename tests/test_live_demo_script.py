@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+SYSTEM_SHELL_PATH = os.pathsep.join(("/usr/bin", "/bin", "/usr/sbin", "/sbin"))
 
 
 def _write_executable(path: Path, content: str) -> None:
@@ -82,7 +83,7 @@ def test_demo_script_explains_missing_hurl_before_running_demo(tmp_path: Path) -
     fake_bin.mkdir()
     _write_executable(fake_bin / "uv", "#!/usr/bin/env bash\nexit 0\n")
     env = os.environ.copy()
-    env["PATH"] = str(fake_bin)
+    env["PATH"] = f"{fake_bin}{os.pathsep}{SYSTEM_SHELL_PATH}"
 
     result = subprocess.run(
         ["/bin/bash", "scripts/demo.sh"],
@@ -97,6 +98,36 @@ def test_demo_script_explains_missing_hurl_before_running_demo(tmp_path: Path) -
     assert result.returncode == 1
     assert "Hurl is required" in result.stderr
     assert "https://hurl.dev/docs/installation.html" in result.stderr
+
+
+def test_live_demo_smoke_script_explains_missing_hurl_install_options(tmp_path: Path) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    _write_executable(fake_bin / "uv", "#!/usr/bin/env bash\nexit 0\n")
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}{os.pathsep}{SYSTEM_SHELL_PATH}"
+
+    result = subprocess.run(
+        ["/bin/bash", "scripts/live_demo_smoke.sh"],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=30,
+    )
+
+    assert result.returncode == 1
+    assert "Hurl is required" in result.stderr
+    assert "brew install hurl" in result.stderr
+    assert "scripts/demo.sh" in result.stderr
+
+
+def test_live_demo_smoke_documents_readiness_probe_boundary() -> None:
+    source = (REPO_ROOT / "scripts" / "live_demo_smoke.sh").read_text(encoding="utf-8")
+
+    assert "readiness probe" in source
+    assert "API assertions still run through Entroping and Hurl" in source
 
 
 def test_live_demo_smoke_script_uses_hurl_and_copies_artifacts(tmp_path: Path) -> None:

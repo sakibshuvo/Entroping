@@ -156,6 +156,8 @@ Requirements:
 - Python 3.12 or 3.13
 - [`uv`](https://docs.astral.sh/uv/)
 - [`hurl`](https://hurl.dev/) for deterministic execution and the live demo
+  (`brew install hurl` on macOS, or use the
+  [official Hurl install guide](https://hurl.dev/docs/installation.html))
 - Optional extras: `mitmproxy` for `watch`, LiteLLM providers for prompt-backed Architect work, Graphviz for PNG maps
   ([AI_PROVIDER_SETUP.md](docs/user/AI_PROVIDER_SETUP.md) covers LiteLLM,
   local Qwen/oMLX, and no-provider CI)

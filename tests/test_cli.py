@@ -11,6 +11,10 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
+import entroping.cli.commands.architect as architect_cli
+import entroping.cli.commands.execution as execution_cli
+import entroping.cli.commands.project as project_cli
+import entroping.cli.commands.report as report_cli
 import entroping.cli.main as cli_main
 from entroping.brain.litellm_client import BrainProviderError, LiteLLMCompletionResult, LiteLLMUsage
 from entroping.brain.prompt_builder import ArchitectPromptPackage
@@ -19,7 +23,7 @@ from entroping.cli.main import app
 from entroping.core.hurl_runner import HurlFileResult, HurlRunOptions, HurlSuiteResult
 from entroping.core.hurl_validator import HurlValidationError
 from entroping.core.report_writer import ReportWriterError, write_json_report
-from entroping.core.run_workflow import NoHurlTestsMatchedError
+from entroping.core.run_workflow import DependencyDriftObservationError, NoHurlTestsMatchedError
 from entroping.core.traffic_proxy import MitmproxyUnavailableError, WatchConfig
 from entroping.models.report import RunReport, RunReportSummary, RunTestReport
 from entroping.studio.status import StudioDependencyError, render_studio_status
@@ -235,7 +239,7 @@ def test_doctor_reports_valid_config_health(
         path = f"/usr/local/bin/{binary}"
         return SimpleNamespace(available=True, path=path)
 
-    monkeypatch.setattr(cli_main, "discover_hurl", fake_discover_hurl)
+    monkeypatch.setattr(project_cli, "discover_hurl", fake_discover_hurl)
 
     runner.invoke(app, ["init", "--minimal"])
 
@@ -281,7 +285,7 @@ def test_doctor_reports_missing_hurl_and_missing_config(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(
-        cli_main,
+        project_cli,
         "discover_hurl",
         lambda binary="hurl": SimpleNamespace(available=False, path=None),
     )
@@ -308,7 +312,7 @@ def test_doctor_reports_missing_hurlfmt_for_architect_validation(
             return SimpleNamespace(available=True, path="/usr/local/bin/hurl")
         return SimpleNamespace(available=False, path=None)
 
-    monkeypatch.setattr(cli_main, "discover_hurl", fake_discover_hurl)
+    monkeypatch.setattr(project_cli, "discover_hurl", fake_discover_hurl)
     CliRunner().invoke(app, ["init", "--minimal"])
 
     result = CliRunner().invoke(app, ["doctor"])
@@ -1656,7 +1660,7 @@ def test_watch_invokes_capture_workflow(
         calls.append(config)
 
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("entroping.cli.main.run_watch", fake_run_watch)
+    monkeypatch.setattr("entroping.cli.commands.execution.run_watch", fake_run_watch)
 
     result = CliRunner().invoke(
         app,
@@ -1684,7 +1688,7 @@ def test_watch_prints_actionable_missing_proxy_dependency(
         raise MitmproxyUnavailableError("mitmproxy is required; run uv sync --extra proxy")
 
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("entroping.cli.main.run_watch", fail_run_watch)
+    monkeypatch.setattr("entroping.cli.commands.execution.run_watch", fail_run_watch)
 
     result = CliRunner().invoke(app, ["watch"])
 
@@ -1702,7 +1706,7 @@ def test_watch_handles_keyboard_interrupt(
         raise KeyboardInterrupt
 
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("entroping.cli.main.run_watch", interrupt_run_watch)
+    monkeypatch.setattr("entroping.cli.commands.execution.run_watch", interrupt_run_watch)
 
     result = CliRunner().invoke(app, ["watch"])
 
@@ -1966,7 +1970,10 @@ def test_studio_missing_optional_dependency_returns_setup_guidance(
     def fail_dependency_check() -> None:
         raise StudioDependencyError("Install Studio dependencies with: uv sync --extra studio")
 
-    monkeypatch.setattr("entroping.cli.main.ensure_studio_available", fail_dependency_check)
+    monkeypatch.setattr(
+        "entroping.cli.commands.execution.ensure_studio_available",
+        fail_dependency_check,
+    )
 
     result = CliRunner().invoke(app, ["studio", "--env", "local"])
 
@@ -1980,9 +1987,9 @@ def test_studio_read_only_status_without_latest_run(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("entroping.cli.main.ensure_studio_available", lambda: None)
+    monkeypatch.setattr("entroping.cli.commands.execution.ensure_studio_available", lambda: None)
     monkeypatch.setattr(
-        "entroping.cli.main.run_studio_app",
+        "entroping.cli.commands.execution.run_studio_app",
         lambda status: print(render_studio_status(status), end=""),
     )
     runner = CliRunner()
@@ -2004,9 +2011,9 @@ def test_studio_read_only_status_with_latest_run_and_no_mutation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("entroping.cli.main.ensure_studio_available", lambda: None)
+    monkeypatch.setattr("entroping.cli.commands.execution.ensure_studio_available", lambda: None)
     monkeypatch.setattr(
-        "entroping.cli.main.run_studio_app",
+        "entroping.cli.commands.execution.run_studio_app",
         lambda status: print(render_studio_status(status), end=""),
     )
     runner = CliRunner()
@@ -2438,7 +2445,7 @@ def test_run_reports_no_matching_hurl_tests_with_ci_exit_policy(
         _ = kwargs
         raise NoHurlTestsMatchedError("no matches")
 
-    monkeypatch.setattr(cli_main, "execute_run_workflow", fake_execute_run_workflow)
+    monkeypatch.setattr(execution_cli, "execute_run_workflow", fake_execute_run_workflow)
 
     local_result = CliRunner().invoke(app, ["run", "--tag", "smoke"])
     ci_result = CliRunner().invoke(app, ["run", "--tag", "smoke", "--ci"])
@@ -2476,13 +2483,34 @@ def test_run_prints_failed_stdout_from_workflow_result(
             exit_code=1,
         )
 
-    monkeypatch.setattr(cli_main, "execute_run_workflow", fake_execute_run_workflow)
+    monkeypatch.setattr(execution_cli, "execute_run_workflow", fake_execute_run_workflow)
 
     result = CliRunner().invoke(app, ["run"])
 
     assert result.exit_code == 1
     assert "health.hurl: failed" in result.output
     assert "assertion failed on stdout" in result.output
+
+
+def test_run_prints_typed_dependency_drift_observation_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    def fake_execute_run_workflow(**kwargs: object) -> object:
+        _ = kwargs
+        raise DependencyDriftObservationError(
+            "Could not build dependency drift observations: traffic state unavailable"
+        )
+
+    monkeypatch.setattr(execution_cli, "execute_run_workflow", fake_execute_run_workflow)
+
+    result = CliRunner().invoke(app, ["run", "--report", "drift"])
+
+    assert result.exit_code == 1
+    assert "Could not build dependency drift observations" in result.output
+    assert "traffic state unavailable" in result.output
 
 
 def test_report_bug_generates_markdown_from_latest_failing_run(
@@ -2602,7 +2630,7 @@ def test_report_bug_wraps_writer_errors(
         _ = report, path
         raise ReportWriterError("could not write bug")
 
-    monkeypatch.setattr(cli_main, "write_bug_report", fail_write_bug_report)
+    monkeypatch.setattr(report_cli, "write_bug_report", fail_write_bug_report)
 
     result = CliRunner().invoke(app, ["report", "bug"])
 
@@ -2927,12 +2955,12 @@ def test_run_rejects_empty_tag_filter() -> None:
 
 
 def test_cli_helper_normalizes_supported_audit_focus() -> None:
-    assert cli_main._normalize_architect_audit_focus(" LoGiC ") == "logic"
+    assert architect_cli._normalize_architect_audit_focus(" LoGiC ") == "logic"
 
 
 def test_configured_spec_reference_preserves_remote_and_absolute_paths(tmp_path: Path) -> None:
-    remote = cli_main._configured_spec_reference("https://example.test/openapi.yaml")
-    absolute = cli_main._configured_spec_reference(str(tmp_path / "openapi.yaml"))
+    remote = architect_cli._configured_spec_reference("https://example.test/openapi.yaml")
+    absolute = architect_cli._configured_spec_reference(str(tmp_path / "openapi.yaml"))
 
     assert remote == "https://example.test/openapi.yaml"
     assert absolute == tmp_path / "openapi.yaml"
@@ -2954,7 +2982,7 @@ def test_write_generated_hurl_file_rejects_unsafe_paths(
     monkeypatch.chdir(tmp_path)
 
     with pytest.raises(ValueError, match=message):
-        cli_main._write_generated_hurl_file(
+        architect_cli._write_generated_hurl_file(
             GeneratedHurlFile(
                 relative_path=relative_path,
                 content="# entroping: source=openapi\nGET /health\nHTTP 200\n",
@@ -2979,11 +3007,11 @@ def test_write_generated_hurl_file_rejects_symlinked_output_after_resolution(
             return True
         return original_is_symlink(self)
 
-    monkeypatch.setattr(cli_main, "_reject_symlink_path_components", allow_symlink_components)
+    monkeypatch.setattr(architect_cli, "_reject_symlink_path_components", allow_symlink_components)
     monkeypatch.setattr(Path, "is_symlink", fake_is_symlink)
 
     with pytest.raises(ValueError, match="symlinked generated Hurl file"):
-        cli_main._write_generated_hurl_file(
+        architect_cli._write_generated_hurl_file(
             GeneratedHurlFile(
                 relative_path="tests/generated/health.hurl",
                 content="# entroping: source=openapi\nGET /health\nHTTP 200\n",
@@ -3001,7 +3029,7 @@ def test_write_generated_hurl_file_rejects_existing_non_openapi_target(
     target.write_text("# manual\nGET /health\nHTTP 200\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="non-OpenAPI Hurl file"):
-        cli_main._write_generated_hurl_file(
+        architect_cli._write_generated_hurl_file(
             GeneratedHurlFile(
                 relative_path="tests/generated/health.hurl",
                 content="# entroping: source=openapi\nGET /health\nHTTP 200\n",

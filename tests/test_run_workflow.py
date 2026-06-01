@@ -7,7 +7,12 @@ from pathlib import Path
 import pytest
 
 from entroping.core.hurl_runner import HurlFileResult, HurlRunOptions, HurlSuiteResult
-from entroping.core.run_workflow import NoHurlTestsMatchedError, execute_run_workflow
+from entroping.core.run_workflow import (
+    DependencyDriftObservationError,
+    NoHurlTestsMatchedError,
+    RunWorkflowError,
+    execute_run_workflow,
+)
 from entroping.core.traffic_redactor import redact_traffic_exchange
 from entroping.core.traffic_store import TrafficStore, TrafficStoreError
 from entroping.models.traffic import TrafficExchange, TrafficRequest, TrafficResponse
@@ -477,7 +482,10 @@ def test_execute_run_workflow_dependency_observation_errors_are_actionable(
     monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
     monkeypatch.setattr(TrafficStore, "open_project", fail_open_project)
 
-    with pytest.raises(ValueError, match="Could not build dependency drift observations"):
+    with pytest.raises(
+        DependencyDriftObservationError,
+        match="Could not build dependency drift observations",
+    ) as exc_info:
         execute_run_workflow(
             project_root=tmp_path,
             environment=None,
@@ -486,3 +494,5 @@ def test_execute_run_workflow_dependency_observation_errors_are_actionable(
             parallel=False,
             drift_check=True,
         )
+
+    assert isinstance(exc_info.value, RunWorkflowError)

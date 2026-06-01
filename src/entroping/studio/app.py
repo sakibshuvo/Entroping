@@ -3,7 +3,7 @@
 import importlib
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Protocol, no_type_check
+from typing import Protocol
 
 from entroping.core.hurl_runner import redact_hurl_output
 from entroping.studio.status import (
@@ -207,14 +207,12 @@ def _latency_display(latency_average_ms: int | None) -> str:
     return "n/a" if latency_average_ms is None else f"{latency_average_ms} ms"
 
 
-@no_type_check
 def _load_textual_types() -> TextualTypes:  # pragma: no cover - optional dependency boundary
     importlib.import_module("textual.app")
     importlib.import_module("textual.widgets")
     return TextualTypes()
 
 
-@no_type_check
 def _create_textual_app(model: StudioViewModel) -> _RunnableApp:  # pragma: no cover - terminal UI
     textual_app = importlib.import_module("textual.app")
     textual_widgets = importlib.import_module("textual.widgets")

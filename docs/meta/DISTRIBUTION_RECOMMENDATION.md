@@ -148,13 +148,16 @@ These follow-up implementation issues were created from this recommendation:
 - [#223 packaging: activate PyPI/TestPyPI trusted publishing workflow](https://github.com/sakibshuvo/Entroping/issues/223)
 - [#224 packaging: prototype Homebrew tap formula after PyPI alpha](https://github.com/sakibshuvo/Entroping/issues/224)
 - [#225 packaging: evaluate standalone binary only after tap demand](https://github.com/sakibshuvo/Entroping/issues/225)
+- [#268 packaging: promote Homebrew tap after package-index alpha proof](https://github.com/sakibshuvo/Entroping/issues/268)
 
 Order:
 
 1. Activate the Trusted Publishing workflow after TestPyPI/PyPI environments are
    configured outside the repo.
 2. Prototype the Homebrew tap from the stable package-index artifact path.
-3. Revisit standalone binary packaging only after the first two paths show real
+3. Promote the public Homebrew tap only after a package-index alpha is published
+   and the clean macOS tap smoke passes.
+4. Revisit standalone binary packaging only after the first two paths show real
    adoption or commercial need.
 
 ## External Notes

@@ -2,6 +2,7 @@
 
 import importlib
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -16,6 +17,12 @@ from entroping.studio.status import (
     StudioTrafficRedactionStatus,
     StudioTrafficRouteStatus,
 )
+
+
+def test_studio_app_does_not_disable_type_checking() -> None:
+    source = Path(studio_app.__file__).read_text(encoding="utf-8")
+
+    assert "no_type_check" not in source
 
 
 def test_studio_app_module_does_not_import_textual_at_import_time(

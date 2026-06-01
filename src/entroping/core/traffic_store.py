@@ -3,14 +3,27 @@
 from pathlib import Path
 from urllib.parse import quote
 
+from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Field, Index, Session, SQLModel, col, create_engine, select
 
 from entroping.models.traffic import TrafficExchange
 
+TRAFFIC_STORE_SCHEMA_VERSION = 1
+_SCHEMA_VERSION_KEY = "schema_version"
+
 
 class TrafficStoreError(ValueError):
     """Raised when traffic state cannot be persisted safely."""
+
+
+class TrafficStoreMetadataRow(SQLModel, table=True):
+    """SQLModel row for traffic-store metadata."""
+
+    __tablename__ = "traffic_store_metadata"
+
+    key: str = Field(primary_key=True)
+    value: str
 
 
 class TrafficEventRow(SQLModel, table=True):
@@ -103,7 +116,14 @@ class TrafficStore:
         return tuple(TrafficExchange.model_validate_json(row.exchange_json) for row in rows)
 
     def _initialize(self) -> None:
-        SQLModel.metadata.create_all(self._engine)
+        try:
+            SQLModel.metadata.create_all(self._engine)
+            _ensure_schema_version(self._engine)
+        except TrafficStoreError:
+            raise
+        except SQLAlchemyError as exc:
+            msg = f"could not initialize traffic state: {exc}"
+            raise TrafficStoreError(msg) from exc
 
     def _enforce_retention(self, session: Session) -> None:
         stale_rows = session.exec(
@@ -132,6 +152,7 @@ def list_project_exchanges_readonly(
         raise TrafficStoreError(msg)
 
     engine = create_engine(_readonly_sqlite_url(db_path))
+    _validate_existing_schema_version(engine)
     statement = select(TrafficEventRow).order_by(col(TrafficEventRow.id))
     if limit is not None:
         statement = statement.limit(limit)
@@ -144,6 +165,63 @@ def list_project_exchanges_readonly(
         raise TrafficStoreError(msg) from exc
 
     return tuple(TrafficExchange.model_validate_json(row.exchange_json) for row in rows)
+
+
+def _ensure_schema_version(engine: Engine) -> None:
+    with Session(engine) as session:
+        row = _get_schema_version_row(session)
+        if row is None:
+            session.add(
+                TrafficStoreMetadataRow(
+                    key=_SCHEMA_VERSION_KEY,
+                    value=str(TRAFFIC_STORE_SCHEMA_VERSION),
+                )
+            )
+            session.commit()
+            return
+        _validate_schema_version(row.value)
+
+
+def _validate_existing_schema_version(engine: Engine) -> None:
+    try:
+        with Session(engine) as session:
+            row = _get_schema_version_row(session)
+    except SQLAlchemyError as exc:
+        if "no such table: traffic_store_metadata" in str(exc):
+            return
+        msg = f"could not read traffic store schema version: {exc}"
+        raise TrafficStoreError(msg) from exc
+
+    if row is not None:
+        _validate_schema_version(row.value)
+
+
+def _get_schema_version_row(session: Session) -> TrafficStoreMetadataRow | None:
+    statement = select(TrafficStoreMetadataRow).where(
+        col(TrafficStoreMetadataRow.key) == _SCHEMA_VERSION_KEY
+    )
+    return session.exec(statement).first()
+
+
+def _validate_schema_version(raw_value: str) -> None:
+    try:
+        version = int(raw_value)
+    except ValueError as exc:
+        msg = f"traffic store schema version is invalid: {raw_value!r}"
+        raise TrafficStoreError(msg) from exc
+
+    if version > TRAFFIC_STORE_SCHEMA_VERSION:
+        msg = (
+            f"traffic store schema version {version} is newer than supported "
+            f"version {TRAFFIC_STORE_SCHEMA_VERSION}; upgrade Entroping before reading state.db"
+        )
+        raise TrafficStoreError(msg)
+    if version < TRAFFIC_STORE_SCHEMA_VERSION:
+        msg = (
+            f"traffic store schema version {version} is older than supported "
+            f"version {TRAFFIC_STORE_SCHEMA_VERSION}; no automatic migration is available"
+        )
+        raise TrafficStoreError(msg)
 
 
 def _reject_symlink_path_components(path: Path) -> None:
