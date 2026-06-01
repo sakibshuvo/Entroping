@@ -216,3 +216,7 @@ QAnstitution import semantics unless a new ADR changes them.
 
 See `examples/policy-packs/api-baseline/` for a minimal pack shape that can be
 loaded through the current local import mechanism.
+
+See `examples/policy-packs/owasp-api-top-10/` for an OWASP API Security Top 10
+2023-inspired starter pack. It is intentionally framed as starter examples, not
+official endorsement, complete compliance coverage, or certification evidence.

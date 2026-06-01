@@ -1,0 +1,10 @@
+project: "entroping-policy-pack-owasp-api-top-10"
+version: "4.1"
+description: "Import entrypoint for the OWASP API Security Top 10-inspired starter pack"
+imports:
+  - "./rules/authentication.yaml"
+  - "./rules/authorization.yaml"
+  - "./rules/inventory.yaml"
+  - "./rules/misconfiguration.yaml"
+  - "./rules/resource-protection.yaml"
+gates: []

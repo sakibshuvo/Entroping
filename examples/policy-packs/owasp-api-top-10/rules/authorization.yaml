@@ -1,0 +1,9 @@
+project: "entroping-policy-pack-owasp-api-top-10-authorization"
+version: "4.1"
+description: "Starter authorization gates inspired by OWASP API1 and API5"
+gates:
+  - id: "owasp-api.authz.object_access_denied"
+    description: "Authorization-negative tests should prove cross-object or cross-tenant access does not succeed"
+    condition: "tags contains 'authz'"
+    gate: "status != 200"
+    enforcement: "block"

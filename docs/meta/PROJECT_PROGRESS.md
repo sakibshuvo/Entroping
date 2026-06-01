@@ -31,7 +31,7 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#350 Document watch TLS and proxy limits for real environments](https://github.com/sakibshuvo/Entroping/issues/350)
+Current issue: [#351 Prototype OWASP API Top 10 starter pack](https://github.com/sakibshuvo/Entroping/issues/351)
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -45,9 +45,9 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#351 Prototype OWASP API Top 10 starter pack](https://github.com/sakibshuvo/Entroping/issues/351) | Turn the policy-pack path into a concrete adoption example. |
-| 2 | [#344 Centralize symlink component rejection](https://github.com/sakibshuvo/Entroping/issues/344) | Reduce path-safety drift across filesystem boundaries. |
-| 3 | [#345 Optimize traffic-store retention pruning](https://github.com/sakibshuvo/Entroping/issues/345) | Keep Eye state bounded and predictable as capture sessions grow. |
+| 1 | [#344 Centralize symlink component rejection](https://github.com/sakibshuvo/Entroping/issues/344) | Reduce path-safety drift across filesystem boundaries. |
+| 2 | [#345 Optimize traffic-store retention pruning](https://github.com/sakibshuvo/Entroping/issues/345) | Keep Eye state bounded and predictable as capture sessions grow. |
+| 3 | [#346 Add no-Hurl CLI smoke script](https://github.com/sakibshuvo/Entroping/issues/346) | Give downstream users a fast CLI sanity check before Hurl is installed. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -82,6 +82,7 @@ entirely inside this repo.
 | [Slim public launch docs path](https://github.com/sakibshuvo/Entroping/issues/348) | Done | README and MkDocs lead with demo/user/policy/CI paths while vault/internal memory stays preserved behind project context. |
 | [Brand terminology and QAnstitution naming decision](https://github.com/sakibshuvo/Entroping/issues/349) | Done | ADR-0012 keeps `qanstitution.yaml` canonical, preserves the core philosophy, and rejects unplanned aliases or autonomous-swarm positioning. |
 | [Practical watch TLS and proxy limits](https://github.com/sakibshuvo/Entroping/issues/350) | Done | User docs now set expectations for mitmproxy CA setup, corporate VPN/proxy conflicts, certificate pinning, proxy bypass, session headers, and capture authorization. |
+| [OWASP API Top 10 starter policy pack](https://github.com/sakibshuvo/Entroping/issues/351) | Done | A local OWASP API Security Top 10-inspired starter pack now proves the policy-pack path without claiming endorsement, certification, or complete compliance. |
 | [Read-only Studio applied-gate drilldowns](https://github.com/sakibshuvo/Entroping/issues/192) | Done | Studio links latest-run report rule IDs to QAnstitution gate definitions. |
 | Read-only Studio traffic session browser | Done | The read-only traffic session browser uses redacted SQLModel-backed state, target/dependency grouping, and safe redaction categories and counts. It does not start `watch` and does not expose raw URLs with query values, headers, bodies, cookies, tokens, or secrets. |
 

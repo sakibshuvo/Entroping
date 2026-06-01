@@ -2,6 +2,10 @@
 
 ## 2026-06-01
 
+- Do not run environment-mutating gates in parallel. `scripts/audit_quality.sh`
+  can resync optional extras in `.venv`, so run `scripts/regression.sh
+  --security` after it rather than at the same time or file-walking docs checks
+  can observe a half-mutated virtualenv.
 - Policy-pack distribution should be a file provenance problem before it is a
   registry problem. Define versioning, attribution, local verification, and
   open-core/premium boundaries first; only then add pack commands, checksums,
