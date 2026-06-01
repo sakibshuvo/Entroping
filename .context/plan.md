@@ -26,6 +26,9 @@ project, and a Codex workspace with fast context rehydration.
 - Runtime `ignore_failures` exceptions are deterministic: active entries skip
   only matching Entroping-injected QAnstitution gates in temporary execution
   copies, and expired entries block before Hurl execution.
+- Example coverage includes REST-style checkout/support fixtures plus
+  GraphQL-over-HTTP and SOAP-over-HTTP fixtures that use ordinary Hurl
+  assertions instead of adding protocol-specific runtime engines.
 - Bridge compiler boundaries are implemented for OpenAPI-to-Hurl, policy-to-Hurl,
   traffic-to-Hurl, traffic-to-WireMock, traffic-to-graph, story traceability,
   and managed-block Hurl merges.

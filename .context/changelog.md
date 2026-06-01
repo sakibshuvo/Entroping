@@ -2,6 +2,9 @@
 
 ## 2026-06-01
 
+- Added issue #337's GraphQL and SOAP Hurl-over-HTTP fixtures with local demo
+  servers, QAnstitution gates, env examples, protocol-specific Hurl assertions,
+  and README/Vault discoverability without adding new protocol engines.
 - Added issue #336's runtime known-failure semantics so active
   `ignore_failures` entries skip only matching Entroping-injected QAnstitution
   gates by exact test path and rule ID, expired exceptions block before Hurl

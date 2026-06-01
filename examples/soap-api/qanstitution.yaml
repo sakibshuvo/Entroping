@@ -1,0 +1,31 @@
+project: "soap-api-demo"
+version: "4.1"
+description: "SOAP-over-HTTP Entroping fixture with XML response governance"
+
+gates:
+  - id: "soap_no_server_errors"
+    description: "SOAP transport should not return server errors"
+    condition: "path startswith '/soap'"
+    gate: "status < 500"
+    enforcement: "block"
+  - id: "soap_request_id"
+    description: "SOAP responses must include request IDs for traceability"
+    condition: "path startswith '/soap'"
+    gate: 'header "X-Request-Id" exists'
+    enforcement: "block"
+  - id: "soap_envelope_success"
+    description: "SOAP order lookups must return a paid order in the response envelope"
+    condition: "path startswith '/soap'"
+    gate: 'xpath "string(//*[local-name()=''status''])" == "paid"'
+    enforcement: "block"
+  - id: "soap_smoke_latency"
+    description: "SOAP smoke tests should stay fast enough for local iteration"
+    condition: "tags contains 'soap'"
+    gate: "duration < 1500"
+    enforcement: "warn"
+
+settings:
+  timeout: 30000
+  parallel_workers: 2
+  follow_redirects: true
+  retry: 0
