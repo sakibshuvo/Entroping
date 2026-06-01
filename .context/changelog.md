@@ -2,6 +2,10 @@
 
 ## 2026-06-01
 
+- Added issue #314's downstream smoke release-gate wiring so
+  `scripts/release_check.sh` runs `scripts/downstream_smoke.py` when Hurl is
+  available, supports `--skip-downstream-smoke` for diagnostics, and reports
+  missing-Hurl versus Entroping-run failures distinctly.
 - Added issue #313's local wheel install smoke so release checks can install
   the built wheel into a temporary venv, run only installed public CLI commands
   from a temporary project, and emit machine-readable evidence without

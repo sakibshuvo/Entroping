@@ -21,6 +21,15 @@ Run it from the Entroping repository:
 uv run python scripts/downstream_smoke.py
 ```
 
+The alpha release gate runs this smoke by default when Hurl is available:
+
+```bash
+scripts/release_check.sh --require-live-demo
+```
+
+Use `scripts/release_check.sh --skip-downstream-smoke` only for local
+diagnostics when the downstream fixture is not the target of the check.
+
 For machine-readable output:
 
 ```bash

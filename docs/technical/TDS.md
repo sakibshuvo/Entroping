@@ -802,6 +802,7 @@ Before any release claim, verify local artifacts:
 ```text
 scripts/package_check.sh
 uv run python scripts/local_wheel_install_smoke.py --skip-build
+uv run python scripts/downstream_smoke.py
 ```
 
 The package check builds wheel/sdist artifacts with `uv build` and inspects
@@ -815,6 +816,11 @@ temporary virtual environment and project, installs the wheel through
 `entroping --version`, `entroping init --minimal`, and `entroping doctor`.
 The smoke emits `entroping.local-wheel-install-smoke.v1` evidence and remains
 separate from TestPyPI/PyPI package-index proof.
+
+The downstream smoke creates a separate temporary API project and executes
+`entroping run --ci` from that project through the public CLI. It is a local
+release-gate proof that the core works outside its own checkout, while real
+downstream user feedback remains a separate stable-core blocker.
 
 Package-index publishing is controlled by `docs/meta/PYPI_RELEASE_RUNBOOK.md`
 and the manual `.github/workflows/publish-python-package.yml` workflow. The

@@ -46,6 +46,7 @@ This gate includes:
 - `uv run python scripts/local_wheel_install_smoke.py --skip-build`
 - `scripts/regression.sh --security`
 - `uv run python scripts/performance_smoke.py`
+- `uv run python scripts/downstream_smoke.py`
 - `scripts/live_demo_smoke.sh`
 
 If the local machine does not have Hurl installed, the non-release diagnostic form is:
@@ -73,6 +74,13 @@ wheel with `uv pip install --offline`, then runs only public installed CLI
 commands: `entroping --version`, `entroping init --minimal`, and
 `entroping doctor`. It emits machine-readable evidence and does not require
 PyPI, TestPyPI, registry credentials, or committed `dist/` artifacts.
+
+The downstream smoke creates a separate temporary API project, starts a local
+fixture server, and runs Entroping through the public CLI from that external
+project. The release gate skips it when Hurl is unavailable unless
+`--require-live-demo` is used, and `--skip-downstream-smoke` is available for
+local diagnostics. This is maintainer-controlled smoke evidence; it still does
+not satisfy real downstream user feedback.
 
 ## CI Evidence
 

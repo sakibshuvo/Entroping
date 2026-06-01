@@ -237,6 +237,9 @@ gates report the same four unresolved stable-core requirements.
 Issue #313 adds a local wheel install smoke that installs the built artifact
 into a temporary venv and runs only installed public CLI commands without
 depending on TestPyPI, PyPI, or registry credentials.
+Issue #314 runs the downstream smoke harness from the release gate when Hurl is
+available, keeping local external-project proof fresh without treating it as
+real downstream user feedback.
 
 Issue #96 is complete. PR #105 merged the post-alpha security review hardening on
 2026-05-30 after fixing 14 validated candidates across Brain redaction, Hurl
@@ -244,22 +247,20 @@ subprocess isolation, filesystem symlink boundaries, traffic redaction/body
 limits, OpenAPI compilation/audit safety, policy gate semantics, Markdown
 escaping, generated Hurl writes, and live-demo workdir safety.
 
-## Current Slice: Issue #313 Local Wheel Install Smoke
+## Current Slice: Issue #314 Downstream Smoke Release Gate
 
-Issue #313 closes a local packaging proof gap: `scripts/package_check.sh`
-verifies wheel/sdist metadata, but the release gate also needs proof that the
-built wheel installs into a fresh environment and exposes the public CLI without
-using editable-source behavior.
+Issue #314 closes a release-gate freshness gap: the downstream smoke harness and
+release-evidence ledger exist, but the release gate did not execute the
+external temporary project proof during release checks.
 
 Implementation focus:
 
-- Add a local wheel install smoke with JSON/Markdown evidence.
-- Create a temporary virtual environment and temporary project outside the
-  repository, install the wheel offline through `uv`, and run only installed
-  public CLI commands.
-- Wire the smoke into the release gate after package artifact verification.
-- Keep `stable_core_ready` false and keep package-index proof separate from
-  local wheel proof.
+- Run `scripts/downstream_smoke.py` from `scripts/release_check.sh` when Hurl is
+  available.
+- Add an explicit `--skip-downstream-smoke` diagnostic option.
+- Keep dry-run output complete and missing-Hurl, fixture, and Entroping run
+  failures distinguishable.
+- Keep local downstream smoke separate from real downstream user feedback.
 
 Completed security-review context: repository-wide scan artifacts were written
 under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, all
@@ -881,6 +882,25 @@ Implemented boundaries:
 - `scripts/release_check.sh` runs the smoke after `scripts/package_check.sh`
   with `--skip-build`, leaving package-index proof as an unresolved
   stable-core blocker until Trusted Publishing runs.
+
+## Completed Slice: Issue #314 Downstream Smoke Release Gate
+
+Outcome: release checks now refresh local external-project proof instead of
+only validating that the downstream smoke harness exists.
+
+Implemented boundaries:
+
+- `scripts/release_check.sh` runs `uv run python scripts/downstream_smoke.py`
+  when Hurl is available and shows the step in dry-run output.
+- `--skip-downstream-smoke` skips only the downstream smoke for local
+  diagnostics; `--skip-live-demo` remains scoped to the checkout live demo.
+- Missing Hurl is reported by the release gate before attempting downstream or
+  live Hurl smokes when `--require-live-demo` is used.
+- `scripts/downstream_smoke.py` now reports Entroping-run failures on stderr
+  with the failing exit code while keeping machine-readable failure details in
+  JSON/Markdown output.
+- The smoke remains maintainer-controlled local evidence and does not satisfy
+  the stable-core real-user-feedback blocker.
 
 ## Completed Slice: Issue #80 PNG Dependency Map Rendering
 
