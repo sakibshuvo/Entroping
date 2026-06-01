@@ -37,8 +37,8 @@ Do not duplicate every issue here. The detailed queue lives in GitHub.
 **Goal:** finish the v0.4 integration path without reopening completed
 onboarding/product-depth work: keep GitHub Actions annotations as the proven
 integration, add new review or policy-pack integrations only through
-artifact-backed issues, and keep stable-core claims tied to repeated release,
-package-index, compatibility, security, and real-user evidence.
+artifact-backed issues, and keep stable-core claims tied to package-index,
+compatibility, security, and real-user evidence.
 
 GitHub Project: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -187,7 +187,8 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 | [Downstream smoke release gate](https://github.com/sakibshuvo/Entroping/issues/314) | Done | `scripts/release_check.sh` now runs `scripts/downstream_smoke.py` when Hurl is available, exposes `--skip-downstream-smoke` for diagnostics, and keeps missing-Hurl versus run-failure messages distinct | Keep this as local proof, not real downstream user feedback |
 | [Downstream feedback evidence kit](https://github.com/sakibshuvo/Entroping/issues/318) | Done | `docs/meta/DOWNSTREAM_FEEDBACK_KIT.md` gives a sanitized real-user feedback template and links it from release, downstream smoke, contributor, vault, and public docs | Keep real feedback separate from maintainer-controlled downstream smoke and redact private data before recording evidence |
 | [Release evidence freshness check](https://github.com/sakibshuvo/Entroping/issues/315) | Done | `scripts/release_evidence.py --check-freshness --strict` can compare recorded CI and Pages run IDs/commits with latest successful `main` runs through `gh`, or fixture input in tests, without mutating the ledger | Keep this optional so normal release evidence validation remains offline |
-| [Stable-core blocker alignment](https://github.com/sakibshuvo/Entroping/issues/301) | Done | Release evidence and stable-core readiness now report the same four unresolved stable-core blockers | Keep blocker changes covered by cross-surface regression tests |
+| [Stable-core blocker alignment](https://github.com/sakibshuvo/Entroping/issues/301) | Done | Release evidence and stable-core readiness now report the same unresolved stable-core blockers | Keep blocker changes covered by cross-surface regression tests |
+| [Repeated alpha release evidence](https://github.com/sakibshuvo/Entroping/issues/307) | Done | The release-evidence ledger records `v0.1.2-alpha-rc.1` local release-candidate rehearsal evidence with reviewed CI/Pages run IDs and the live demo release gate result | Keep package-index proof, compatibility discipline, and real downstream user feedback as separate stable-core blockers |
 | [Backlog health guard](https://github.com/sakibshuvo/Entroping/issues/285) | Done | `scripts/backlog_health.py` checks open issues for type, priority, status, and milestone labels from fixtures or `gh issue list` | Use before and after marathons so work does not disappear into chat memory |
 | [Captured-traffic redaction review](https://github.com/sakibshuvo/Entroping/issues/198) | Done | `entroping report redaction --output md|html` writes counts-only reports for header, query, body-field, and body-summary redaction categories | Keep reports free of raw captured values |
 | [Optional-extras runtime smoke](https://github.com/sakibshuvo/Entroping/issues/227) | Done | GitHub Actions installs all optional extras and runs `scripts/optional_extras_smoke.py` against LiteLLM, mitmproxy, and Textual boundaries without credentials or live capture | Keep default regression lightweight while proving optional adapters boot |

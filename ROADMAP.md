@@ -103,9 +103,10 @@ Goal: make the local deterministic core safe to depend on.
 - A downstream smoke harness exists for local external-project proof, but this
   is not a substitute for feedback from a real project outside this repository.
 - Clear extension boundaries for open-core offerings exist.
-- Stable-core claims still require repeated release evidence, package-index
-  proof, compatibility discipline, and real-user feedback. Do not call the
-  project stable just because alpha gates are green.
+- Stable-core claims still require package-index proof, compatibility
+  discipline, and real-user feedback. Repeated alpha release-candidate evidence
+  is tracked separately in the release-evidence ledger.
+- Do not call the project stable just because alpha gates are green.
 
 ## Open-Core Path
 

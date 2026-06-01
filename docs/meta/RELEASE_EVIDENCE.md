@@ -26,6 +26,7 @@ The ledger records:
 
 - published GitHub prerelease tags and release URLs;
 - the release commits those tags point at;
+- local alpha release-candidate rehearsal evidence from the release gate;
 - last reviewed `main` CI evidence as of the ledger update;
 - last reviewed Pages deployment evidence as of the ledger update;
 - maintainer-controlled local smoke evidence from `scripts/downstream_smoke.py`;
@@ -97,12 +98,12 @@ do not invent replacement work or overclaim stable readiness.
 ## Stable-Core Boundary
 
 Passing release evidence does not make Entroping stable-core ready. It only
-proves that the current alpha releases, recorded CI evidence, recorded Pages
-evidence, and local downstream smoke evidence are recorded in a reviewed format.
+proves that the current alpha releases, release-candidate rehearsals, recorded
+CI evidence, recorded Pages evidence, and local downstream smoke evidence are
+recorded in a reviewed format.
 
 `stable_core_ready` must remain `false` until the project has:
 
-- repeated release evidence across real release cycles;
 - package-index proof from TestPyPI/PyPI Trusted Publishing;
 - a stable-core compatibility decision;
 - real downstream user feedback from projects outside this repository.

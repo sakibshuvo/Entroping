@@ -25,19 +25,11 @@ def test_stable_core_readiness_json_reports_alpha_blockers() -> None:
     payload = json.loads(result.stdout)
     assert payload["schema_version"] == "entroping.stable-core-readiness.v1"
     assert payload["stable_core_ready"] is False
-    assert "repeated release evidence" in payload["blockers"]
+    assert "repeated release evidence" not in payload["blockers"]
     assert payload["evidence"]["release_evidence_ledger"]["status"] == "present"
     assert payload["evidence"]["release_check"]["status"] == "present"
     assert payload["evidence"]["security_threat_model"]["status"] == "present"
     assert set(payload["blocker_issue_map"]) == set(payload["blockers"])
-    assert payload["blocker_issue_map"]["repeated release evidence"] == [
-        {
-            "number": 307,
-            "title": "stable-core: repeat alpha release evidence cycle",
-            "url": "https://github.com/sakibshuvo/Entroping/issues/307",
-            "status": "ready",
-        }
-    ]
     assert [
         issue["number"]
         for issue in payload["blocker_issue_map"]["package-index proof"]
@@ -58,11 +50,7 @@ def test_stable_core_readiness_markdown_links_blocker_issues() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "## Blocker Issue Map" in result.stdout
-    assert (
-        "- repeated release evidence: "
-        "[#307](https://github.com/sakibshuvo/Entroping/issues/307)"
-        in result.stdout
-    )
+    assert "repeated release evidence" not in result.stdout
     assert (
         "- package-index proof: "
         "[#303](https://github.com/sakibshuvo/Entroping/issues/303), "

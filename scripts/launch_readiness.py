@@ -104,7 +104,6 @@ EVIDENCE_CHECKS = (
 )
 
 STABLE_CORE_BLOCKERS = (
-    "stable-core still requires repeated release evidence",
     "stable-core still requires package-index proof",
     "stable-core still requires compatibility discipline across real releases",
     "stable-core still requires real-user feedback",

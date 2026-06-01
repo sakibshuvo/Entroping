@@ -233,7 +233,11 @@ Issue #299 expands the release-evidence ledger so Pages CI and local downstream
 smoke evidence are validated alongside main CI and release entries, without
 turning maintainer-controlled smoke proof into real downstream user feedback.
 Issue #301 aligns release-evidence blockers with stable-core readiness so both
-gates report the same four unresolved stable-core requirements.
+gates report the same unresolved stable-core requirements.
+Issue #307 records a repeated alpha release-candidate rehearsal in the
+release-evidence ledger, including reviewed CI/Pages run IDs and a passing
+`scripts/release_check.sh --require-live-demo` gate, without treating it as
+package-index proof, compatibility discipline, or real downstream feedback.
 Issue #313 adds a local wheel install smoke that installs the built artifact
 into a temporary venv and runs only installed public CLI commands without
 depending on TestPyPI, PyPI, or registry credentials.
@@ -346,10 +350,28 @@ Implemented boundaries:
 - Markdown readiness output includes a `Blocker Issue Map` section with issue
   numbers, titles, URLs, and current dependency status.
 - Tests assert that blocker names cannot drift away from the map, and that the
-  four stable-core blockers still resolve to the intended issue clusters.
-- The readiness result remains blocked until package-index proof, repeated
-  release evidence, compatibility discipline, and real downstream feedback are
-  actually available.
+  stable-core blockers still resolve to the intended issue clusters.
+- The readiness result remains blocked until package-index proof,
+  compatibility discipline, and real downstream feedback are actually
+  available.
+
+## Completed Slice: Issue #307 Repeated Alpha Release Evidence
+
+Outcome: release evidence now includes a second reviewed alpha release cycle
+without pretending a new public GitHub release or package-index publish
+happened.
+
+Implemented boundaries:
+
+- `docs/meta/release-evidence.json` records `v0.1.2-alpha-rc.1` as a local
+  release-candidate rehearsal tied to the latest reviewed CI and Pages runs.
+- `scripts/release_evidence.py --strict` validates release-candidate evidence,
+  including the exact release gate, pass result, CI/Pages run IDs, release
+  notes, and alpha/stable-core boundary language.
+- `scripts/stable_core_readiness.py` and `scripts/launch_readiness.py` no
+  longer report repeated release evidence as an unresolved blocker.
+- Stable-core remains false until package-index proof, compatibility
+  discipline, and real downstream user feedback exist.
 
 ## Completed Slice: Issue #315 Release Evidence Freshness Check
 
@@ -1275,8 +1297,8 @@ Use these issues as the next marathon targets. Keep each one narrow, tested, and
 merged through GitHub before starting the next branch:
 
 - Next target should come from the remaining stable-core blockers: package-index
-  proof (#303-#305), repeated release evidence (#307), real downstream user
-  feedback (#306), or compatibility decision (#308).
+  proof (#303-#305), real downstream user feedback (#306), or compatibility
+  decision (#308).
 - Packaging issue #268 is intentionally gated on package-index alpha evidence:
   publish TestPyPI/PyPI through the protected workflow first, then promote the
   Homebrew tap from prototype to supported install path.

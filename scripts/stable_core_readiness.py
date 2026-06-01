@@ -120,19 +120,11 @@ EVIDENCE_CHECKS = (
 )
 
 STABLE_CORE_BLOCKERS = (
-    "repeated release evidence",
     "package-index proof",
     "real downstream user feedback",
     "stable-core compatibility decision",
 )
 STABLE_CORE_BLOCKER_ISSUES = {
-    "repeated release evidence": (
-        IssueRef(
-            number=307,
-            title="stable-core: repeat alpha release evidence cycle",
-            status="ready",
-        ),
-    ),
     "package-index proof": (
         IssueRef(
             number=303,
