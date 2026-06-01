@@ -23,6 +23,9 @@ project, and a Codex workspace with fast context rehydration.
 - Python package and CLI implementation exist under `src/entroping/`.
 - CLI command surface is locked to v4.1.
 - Pydantic QAnstitution models and typed condition parsing are in place.
+- Runtime `ignore_failures` exceptions are deterministic: active entries skip
+  only matching Entroping-injected QAnstitution gates in temporary execution
+  copies, and expired entries block before Hurl execution.
 - Bridge compiler boundaries are implemented for OpenAPI-to-Hurl, policy-to-Hurl,
   traffic-to-Hurl, traffic-to-WireMock, traffic-to-graph, story traceability,
   and managed-block Hurl merges.

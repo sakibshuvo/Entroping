@@ -1,5 +1,6 @@
 """Adapter tests for temporary Hurl gate injection."""
 
+from datetime import date
 from pathlib import Path
 from textwrap import dedent
 
@@ -12,7 +13,7 @@ from entroping.core.gate_injector import (
 )
 from entroping.core.hurl_discovery import discover_hurl_tests
 from entroping.models.hurl import HurlExchange, HurlMetadata, HurlTest
-from entroping.models.qanstitution import Enforcement, GateRule
+from entroping.models.qanstitution import Enforcement, GateRule, KnownFailure
 
 
 def _write_hurl(path: Path, body: str) -> Path:
@@ -122,6 +123,29 @@ def test_write_injected_execution_copy_creates_asserts_block_when_missing(
     ) in execution.execution_path.read_text(encoding="utf-8")
 
 
+def test_inject_gate_assertions_keeps_public_api_without_known_failures() -> None:
+    content = "GET {{base_url}}/health\nHTTP 200\n"
+
+    injected, gates = inject_gate_assertions(
+        content,
+        HurlTest(
+            path=Path("tests/health.hurl"),
+            metadata=HurlMetadata(),
+            exchanges=(
+                HurlExchange(
+                    method="GET",
+                    url="{{base_url}}/health",
+                    path="/health",
+                ),
+            ),
+        ),
+        [_gate("latency", "true", "duration < 2000")],
+    )
+
+    assert "duration < 2000" in injected
+    assert [gate.rule_id for gate in gates] == ["latency"]
+
+
 def test_write_injected_execution_copy_inserts_after_response_headers(tmp_path: Path) -> None:
     source = _write_hurl(
         tmp_path / "tests" / "health.hurl",
@@ -174,6 +198,204 @@ def test_write_injected_copy_preserves_content_when_no_gates_match(tmp_path: Pat
 
     assert execution.injected_gates == ()
     assert execution.execution_path.read_text(encoding="utf-8") == source_content
+
+
+def test_write_injected_execution_copy_skips_only_matching_known_failure_gate(
+    tmp_path: Path,
+) -> None:
+    source = _write_hurl(
+        tmp_path / "tests" / "health.hurl",
+        """
+        # entroping: tags=smoke
+
+        GET {{base_url}}/health
+        HTTP 200
+        """,
+    )
+
+    execution = write_injected_execution_copy(
+        discover_hurl_tests([source])[0],
+        [
+            _gate("latency", "true", "duration < 2000"),
+            _gate("status_ceiling", "true", "status < 500"),
+        ],
+        execution_root=tmp_path / "execution",
+        project_root=tmp_path,
+        known_failures=(
+            KnownFailure(
+                test="tests/health.hurl",
+                rule_id="latency",
+                issue_id="GH-123",
+                expires="2026-06-30",
+                reason="Temporary upstream latency regression.",
+            ),
+        ),
+        today=date(2026, 6, 1),
+    )
+
+    injected = execution.execution_path.read_text(encoding="utf-8")
+    assert "duration < 2000" not in injected
+    assert "# entroping-gate: latency enforcement=block" not in injected
+    assert "status < 500" in injected
+    assert [gate.rule_id for gate in execution.injected_gates] == ["status_ceiling"]
+    assert [
+        (
+            exception.test,
+            exception.rule_id,
+            exception.issue_id,
+            exception.expires,
+            exception.reason,
+        )
+        for exception in execution.known_failures
+    ] == [
+        (
+            "tests/health.hurl",
+            "latency",
+            "GH-123",
+            "2026-06-30",
+            "Temporary upstream latency regression.",
+        )
+    ]
+
+
+def test_write_injected_execution_copy_does_not_broaden_known_failure_match(
+    tmp_path: Path,
+) -> None:
+    source = _write_hurl(
+        tmp_path / "tests" / "health.hurl",
+        """
+        # entroping: tags=smoke
+
+        GET {{base_url}}/health
+        HTTP 200
+        """,
+    )
+
+    execution = write_injected_execution_copy(
+        discover_hurl_tests([source])[0],
+        [_gate("latency", "true", "duration < 2000")],
+        execution_root=tmp_path / "execution",
+        project_root=tmp_path,
+        known_failures=(
+            KnownFailure(
+                test="tests/checkout.hurl",
+                rule_id="latency",
+                issue_id="GH-124",
+                expires="2026-06-30",
+                reason="Different test must not bypass health gate.",
+            ),
+        ),
+        today=date(2026, 6, 1),
+    )
+
+    injected = execution.execution_path.read_text(encoding="utf-8")
+    assert "duration < 2000" in injected
+    assert [gate.rule_id for gate in execution.injected_gates] == ["latency"]
+    assert execution.known_failures == ()
+
+
+def test_write_injected_execution_copy_rejects_expired_known_failure(
+    tmp_path: Path,
+) -> None:
+    source = _write_hurl(
+        tmp_path / "tests" / "health.hurl",
+        """
+        # entroping: tags=smoke
+
+        GET {{base_url}}/health
+        HTTP 200
+        """,
+    )
+
+    with pytest.raises(
+        GateInjectionError,
+        match="Known failure exception expired.*GH-125.*tests/health\\.hurl.*latency",
+    ):
+        write_injected_execution_copy(
+            discover_hurl_tests([source])[0],
+            [_gate("latency", "true", "duration < 2000")],
+            execution_root=tmp_path / "execution",
+            project_root=tmp_path,
+            known_failures=(
+                KnownFailure(
+                    test="tests/health.hurl",
+                    rule_id="latency",
+                    issue_id="GH-125",
+                    expires="2026-05-31",
+                    reason="Expired exceptions must force review.",
+                ),
+            ),
+            today=date(2026, 6, 1),
+        )
+
+
+def test_write_injected_execution_copy_rejects_malformed_known_failure_expiry(
+    tmp_path: Path,
+) -> None:
+    source = _write_hurl(
+        tmp_path / "tests" / "health.hurl",
+        """
+        # entroping: tags=smoke
+
+        GET {{base_url}}/health
+        HTTP 200
+        """,
+    )
+
+    with pytest.raises(
+        GateInjectionError,
+        match="Known failure exception expiry must be YYYY-MM-DD.*GH-126",
+    ):
+        write_injected_execution_copy(
+            discover_hurl_tests([source])[0],
+            [_gate("latency", "true", "duration < 2000")],
+            execution_root=tmp_path / "execution",
+            project_root=tmp_path,
+            known_failures=(
+                KnownFailure(
+                    test="tests/health.hurl",
+                    rule_id="latency",
+                    issue_id="GH-126",
+                    expires="next-week",
+                    reason="Malformed dates must fail closed.",
+                ),
+            ),
+            today=date(2026, 6, 1),
+        )
+
+
+def test_write_injected_execution_copy_matches_absolute_known_failure_for_external_root(
+    tmp_path: Path,
+) -> None:
+    source = _write_hurl(
+        tmp_path / "tests" / "health.hurl",
+        """
+        # entroping: tags=smoke
+
+        GET {{base_url}}/health
+        HTTP 200
+        """,
+    )
+
+    execution = write_injected_execution_copy(
+        discover_hurl_tests([source])[0],
+        [_gate("latency", "true", "duration < 2000")],
+        execution_root=tmp_path / "execution",
+        project_root=tmp_path / "other-project-root",
+        known_failures=(
+            KnownFailure(
+                test=source.resolve().as_posix(),
+                rule_id="latency",
+                issue_id="GH-127",
+                expires="2026-06-30",
+                reason="External roots require exact absolute path matching.",
+            ),
+        ),
+        today=date(2026, 6, 1),
+    )
+
+    assert "duration < 2000" not in execution.execution_path.read_text(encoding="utf-8")
+    assert [exception.issue_id for exception in execution.known_failures] == ["GH-127"]
 
 
 def test_write_injected_execution_copy_rejects_non_utf8_source(tmp_path: Path) -> None:

@@ -59,6 +59,11 @@ Within a v1 schema:
 Breaking changes require a new schema version, a migration note, and an issue
 that names downstream consumers affected by the change.
 
+`entroping.run-report.v1` includes optional `known_failures` entries per test
+when an active QAnstitution exception skipped an injected gate. These entries
+must stay issue-linked, expiring, and value-free; they are evidence of a scoped
+policy exception, not a general pass/fail override.
+
 ## Producer Rules
 
 - Writers must include `schema_version` on versioned JSON report payloads.

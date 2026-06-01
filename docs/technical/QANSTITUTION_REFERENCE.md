@@ -395,6 +395,16 @@ Required fields:
 
 Expired exceptions must fail validation before execution. If a compatibility mode is ever added, expired exceptions must still be reported as blocking configuration errors, not silently ignored.
 
+Current runtime semantics:
+
+- `test` matches the exact project-relative Hurl source path, for example `tests/payments/refund.hurl`.
+- `rule_id` matches the exact QAnstitution gate ID.
+- A matching active exception skips only that Entroping-injected gate in the temporary execution copy.
+- Source `.hurl` files are never modified.
+- Authored Hurl assertions, unrelated QAnstitution gates, and unrelated Hurl failures still run and still fail normally.
+- JSON, JUnit, and HTML run reports include the applied exception's test path, rule ID, issue ID, expiry, and reason.
+- `expires` must use `YYYY-MM-DD`; invalid or expired exceptions fail before Hurl execution.
+
 ## 14. Settings
 
 ```yaml

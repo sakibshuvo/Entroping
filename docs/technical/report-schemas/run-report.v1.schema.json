@@ -63,6 +63,21 @@
           },
           "stdout": {"type": "string"},
           "stderr": {"type": "string"},
+          "known_failures": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["test", "rule_id", "issue_id", "expires", "reason"],
+              "properties": {
+                "test": {"type": "string", "minLength": 1},
+                "rule_id": {"type": "string", "minLength": 1},
+                "issue_id": {"type": "string", "minLength": 1},
+                "expires": {"type": "string", "minLength": 1},
+                "reason": {"type": "string", "minLength": 1}
+              }
+            }
+          },
           "response": {
             "type": "object",
             "additionalProperties": false,

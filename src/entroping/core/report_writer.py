@@ -12,7 +12,12 @@ from xml.etree import ElementTree  # nosec B405
 from entroping.core.gate_injector import HurlExecutionCopy
 from entroping.core.hurl_runner import HurlSuiteResult, redact_hurl_output
 from entroping.core.safe_write import SafeWriteError, safe_write_bytes, safe_write_text
-from entroping.models.report import RunReport, RunReportSummary, RunTestReport
+from entroping.models.report import (
+    KnownFailureEvidence,
+    RunReport,
+    RunReportSummary,
+    RunTestReport,
+)
 
 
 class ReportWriterError(ValueError):
@@ -61,6 +66,16 @@ def build_run_report(
                 response_status_code=response_status_code,
                 response_headers=response_headers,
                 response_body_shape=response_body_shape,
+                known_failures=tuple(
+                    KnownFailureEvidence(
+                        test=known_failure.test,
+                        rule_id=known_failure.rule_id,
+                        issue_id=known_failure.issue_id,
+                        expires=known_failure.expires,
+                        reason=known_failure.reason,
+                    )
+                    for known_failure in execution_copy.known_failures
+                ),
             )
         )
 
@@ -106,6 +121,7 @@ def load_run_report(path: Path) -> RunReport:
             response_status_code=_serialized_response_status(item.get("response")),
             response_headers=_serialized_response_headers(item.get("response")),
             response_body_shape=_serialized_response_body_shape(item.get("response")),
+            known_failures=_serialized_known_failures(item.get("known_failures")),
         )
         for item in data["tests"]
     )
@@ -157,6 +173,17 @@ def write_junit_report(report: RunReport, path: Path) -> Path:
                 },
             )
             failure.text = _failure_text(test)
+        if test.known_failures:
+            properties = ElementTree.SubElement(testcase, "properties")
+            for known_failure in test.known_failures:
+                ElementTree.SubElement(
+                    properties,
+                    "property",
+                    {
+                        "name": f"entroping.known_failure.{known_failure.rule_id}",
+                        "value": _known_failure_summary(known_failure),
+                    },
+                )
 
     tree = ElementTree.ElementTree(testsuite)
     ElementTree.indent(tree, space="  ")
@@ -243,6 +270,17 @@ def _test_report_to_dict(test: RunTestReport) -> dict[str, object]:
     response = _response_to_dict(test)
     if response is not None:
         payload["response"] = response
+    if test.known_failures:
+        payload["known_failures"] = [
+            {
+                "test": known_failure.test,
+                "rule_id": known_failure.rule_id,
+                "issue_id": known_failure.issue_id,
+                "expires": known_failure.expires,
+                "reason": known_failure.reason,
+            }
+            for known_failure in test.known_failures
+        ]
     return payload
 
 
@@ -384,6 +422,41 @@ def _serialized_response_body_shape(response: object) -> tuple[str, ...]:
     return tuple(sorted(shape, key=_body_shape_sort_key))
 
 
+def _serialized_known_failures(raw_known_failures: object) -> tuple[KnownFailureEvidence, ...]:
+    if not isinstance(raw_known_failures, list):
+        return ()
+    known_failures: list[KnownFailureEvidence] = []
+    for item in raw_known_failures:
+        if not isinstance(item, Mapping):
+            continue
+        test = item.get("test")
+        rule_id = item.get("rule_id")
+        issue_id = item.get("issue_id")
+        expires = item.get("expires")
+        reason = item.get("reason")
+        if (
+            not isinstance(test, str)
+            or not isinstance(rule_id, str)
+            or not isinstance(issue_id, str)
+            or not isinstance(expires, str)
+            or not isinstance(reason, str)
+        ):
+            continue
+        values = (test.strip(), rule_id.strip(), issue_id.strip(), expires.strip(), reason.strip())
+        if not all(values) or any(_has_control_character(value) for value in values):
+            continue
+        known_failures.append(
+            KnownFailureEvidence(
+                test=values[0],
+                rule_id=values[1],
+                issue_id=values[2],
+                expires=values[3],
+                reason=values[4],
+            )
+        )
+    return tuple(known_failures)
+
+
 def _body_shape_sort_key(item: str) -> tuple[int, str]:
     return (0 if item.startswith("$:") else 1, item)
 
@@ -395,6 +468,14 @@ def _failure_text(test: RunTestReport) -> str:
         f"exit_code: {test.exit_code}",
         f"rule_ids: {', '.join(test.rule_ids) if test.rule_ids else 'none'}",
     ]
+    if test.known_failures:
+        parts.append(
+            "known_failures: "
+            + "; ".join(
+                _known_failure_summary(known_failure)
+                for known_failure in test.known_failures
+            )
+        )
     if test.stdout:
         parts.extend(("", "stdout:", test.stdout))
     if test.stderr:
@@ -460,11 +541,23 @@ def _html_test_row(test: RunTestReport) -> str:
 
 def _html_output(test: RunTestReport) -> str:
     parts: list[str] = []
+    if test.known_failures:
+        items = "".join(
+            f"<li>{escape(_known_failure_summary(known_failure))}</li>"
+            for known_failure in test.known_failures
+        )
+        parts.append(f"<strong>Known failures</strong><ul>{items}</ul>")
     if test.stdout:
         parts.append(f"<strong>stdout</strong><pre>{escape(test.stdout)}</pre>")
     if test.stderr:
         parts.append(f"<strong>stderr</strong><pre>{escape(test.stderr)}</pre>")
     return "".join(parts) if parts else "&nbsp;"
+
+
+def _known_failure_summary(known_failure: KnownFailureEvidence) -> str:
+    return (
+        f"{known_failure.issue_id} expires {known_failure.expires}: {known_failure.reason}"
+    )
 
 
 def _display_path(path: Path, root: Path) -> str:
