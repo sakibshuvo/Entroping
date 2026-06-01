@@ -1,0 +1,31 @@
+project: "graphql-api-demo"
+version: "4.1"
+description: "GraphQL-over-HTTP Entroping fixture with response error governance"
+
+gates:
+  - id: "graphql_no_server_errors"
+    description: "GraphQL transport should not return server errors"
+    condition: "path startswith '/graphql'"
+    gate: "status < 500"
+    enforcement: "block"
+  - id: "graphql_request_id"
+    description: "GraphQL responses must include request IDs for traceability"
+    condition: "path startswith '/graphql'"
+    gate: 'header "X-Request-Id" exists'
+    enforcement: "block"
+  - id: "graphql_no_top_level_errors"
+    description: "Successful GraphQL smoke operations must not include top-level errors"
+    condition: "path startswith '/graphql'"
+    gate: 'jsonpath "$.errors" not exists'
+    enforcement: "block"
+  - id: "graphql_smoke_latency"
+    description: "GraphQL smoke tests should stay fast enough for local iteration"
+    condition: "tags contains 'graphql'"
+    gate: "duration < 1500"
+    enforcement: "warn"
+
+settings:
+  timeout: 30000
+  parallel_workers: 2
+  follow_redirects: true
+  retry: 0

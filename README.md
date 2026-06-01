@@ -342,6 +342,8 @@ Orientation:
 - [ADR-0001](decisions/ADR-0001-hurl-native-governance.md) - first architectural decision.
 - [examples/checkout-api](examples/checkout-api/README.md) - tiny demo fixture.
 - [examples/support-api](examples/support-api/README.md) - second fixture with ticket filters, headers, and mutation audit gates.
+- [examples/graphql-api](examples/graphql-api/README.md) - GraphQL-over-HTTP fixture with top-level `errors` governance.
+- [examples/soap-api](examples/soap-api/README.md) - SOAP-over-HTTP fixture with XML envelope assertions.
 - [examples/ai-regression-demo](examples/ai-regression-demo/README.md) - failure proof for a missing `X-Request-Id` regression.
 
 ## Locked Alpha CLI Surface

@@ -99,6 +99,8 @@ Use these first. They are the control panel for current work:
 - [[docs/technical/CODEX_PROMPT|CODEX_PROMPT]] - historical implementation-agent prompt; `AGENTS.md` is current.
 - [[examples/checkout-api/README|Checkout API demo fixture]] - minimal example for first-time users.
 - [[examples/support-api/README|Support API demo fixture]] - second fixture with ticket filters, request headers, and mutation audit gates.
+- [[examples/graphql-api/README|GraphQL API demo fixture]] - Hurl-over-HTTP GraphQL example with top-level `errors` governance.
+- [[examples/soap-api/README|SOAP API demo fixture]] - Hurl-over-HTTP SOAP example with XML envelope assertions.
 - [[examples/ai-regression-demo/README|AI regression demo fixture]] - failure proof for missing `X-Request-Id` governance.
 - [[sources/SOURCE_MAP]] - where the source materials live.
 
