@@ -83,6 +83,11 @@ Raw ideas are allowed to be messy. Promotion must be strict.
 Raw thought -> source note -> GitHub issue or ADR -> implementation -> changelog -> roadmap only if sequence changed
 ```
 
+Use Obsidian first when the idea is still unclear. Create a short thinking note
+in the most relevant existing area, usually `docs/evolution/` for product
+evolution or `docs/meta/` for project/process workflow. Do not create a GitHub
+issue until you can describe the user problem, scope, proof, and non-goals.
+
 Use this template when brainstorming:
 
 ```text
@@ -97,6 +102,34 @@ Security or quality risk:
 Docs impact:
 Roadmap impact: yes/no
 ```
+
+When the idea becomes actionable, create a GitHub issue with:
+
+```text
+## Context
+Where did this idea come from and why does it matter?
+
+## Scope
+What exactly should change?
+
+## Acceptance Criteria
+- Observable outcome
+- Tests/docs required
+- Compatibility/security constraints
+
+## Non-Goals
+What this issue must not do
+```
+
+Then add a link back in the Obsidian note:
+
+```text
+Promoted to: https://github.com/sakibshuvo/Entroping/issues/<number>
+Status: promoted
+```
+
+After promotion, stop managing the task in Obsidian. GitHub owns status,
+priority, branch, PR, checks, and closure.
 
 Promotion rules:
 

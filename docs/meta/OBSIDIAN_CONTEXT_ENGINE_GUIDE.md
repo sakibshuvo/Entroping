@@ -35,6 +35,29 @@ on GitHub, Git history, Markdown docs, ADRs, `.context/`, issues, PRs, CI, and
 release tags. Obsidian improves navigation and context recovery on top of those
 assets.
 
+## Second Brain Discipline
+
+Obsidian is just linked Markdown unless the notes follow a repeatable loop.
+For Entroping, the loop is:
+
+```text
+Capture -> connect -> distill -> retrieve -> promote
+```
+
+- **Capture:** write raw ideas, doubts, review notes, and source findings before
+  they are clean enough for GitHub.
+- **Connect:** link the note to source exports, ADRs, product docs, affected
+  modules, tests, and related issues.
+- **Distill:** reduce the note to a decision, open question, accepted finding,
+  rejected finding, or follow-up.
+- **Retrieve:** keep enough links and summary context that future you or an
+  agent can recover the product reasoning quickly.
+- **Promote:** move actionable work into a GitHub issue, durable decisions into
+  ADRs, current behavior into canonical docs, and handoff facts into `.context/`.
+
+The graph view is only a navigation aid. It does not decide truth, priority, or
+implementation scope.
+
 ## Start Analyzing And Evolving
 
 Use this short loop when you want to understand, evolve, or restart work on the

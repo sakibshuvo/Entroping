@@ -59,13 +59,25 @@ def test_obsidian_context_engine_documents_project_evolution_loop() -> None:
     start_here = (
         REPO_ROOT / "docs" / "meta" / "OBSIDIAN_START_HERE.md"
     ).read_text(encoding="utf-8")
+    obsidian_vs_github = (
+        REPO_ROOT / "docs" / "meta" / "OBSIDIAN_VS_GITHUB.md"
+    ).read_text(encoding="utf-8")
 
     assert "Start Analyzing And Evolving" in doc
+    assert "Second Brain Discipline" in doc
+    assert "Capture -> connect -> distill -> retrieve -> promote" in doc
     assert "Brainstorm in Obsidian" in doc
     assert "Promote actionable work to GitHub issue" in doc
     assert "GitHub is the factory floor" in doc
     assert "Obsidian is the memory palace" in doc
+    assert 'What "Second Brain" Means Here' in start_here
+    assert "Obsidian is where you think" in start_here
+    assert "GitHub Issues are where work executes" in start_here
     assert "Start Analyzing And Evolving" in start_here
+    assert "Promoted to: https://github.com/sakibshuvo/Entroping/issues/<number>" in (
+        obsidian_vs_github
+    )
+    assert "After promotion, stop managing the task in Obsidian" in obsidian_vs_github
 
 
 def test_growth_and_monetization_plan_keeps_open_core_boundary() -> None:

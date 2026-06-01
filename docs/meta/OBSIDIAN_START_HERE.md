@@ -14,6 +14,29 @@ This vault is a local folder of Markdown files. Obsidian adds navigation, backli
 
 Obsidian makes context preservation easier when the notes are curated. It does not mean every idea should become a permanent file or that every agent should read every note.
 
+## What "Second Brain" Means Here
+
+Obsidian is not valuable because the files are linked. It becomes useful only
+when you use it as a disciplined thinking system:
+
+1. Capture messy thoughts before they are ready for GitHub.
+2. Connect those thoughts to source exports, ADRs, product docs, issues, and
+   lessons learned.
+3. Distill the mess into a short decision, open question, or rejected idea.
+4. Retrieve the context later without rereading old chats or every Markdown
+   file.
+
+For Entroping:
+
+```text
+Obsidian is where you think.
+GitHub Issues are where work executes.
+ADRs are where durable decisions live.
+```
+
+If a note does not help capture, connect, distill, or retrieve context, do not
+keep expanding it.
+
 ## Open the Vault
 
 1. Launch Obsidian from `/Applications/Obsidian.app`.
@@ -43,6 +66,7 @@ Recommended first settings:
 - Use [[docs/meta/CONTEXT_MANAGEMENT|CONTEXT_MANAGEMENT]] before starting a new Codex thread.
 - Use [[docs/meta/OBSIDIAN_CONTEXT_ENGINE_GUIDE|OBSIDIAN_CONTEXT_ENGINE_GUIDE]] when you want to use the vault as a context preservation engine.
 - Use [[docs/meta/ISSUE_TRACKING|ISSUE_TRACKING]] to understand what belongs in GitHub Issues versus Obsidian.
+- Use [[docs/meta/OBSIDIAN_VS_GITHUB#Brainstorming Workflow|OBSIDIAN_VS_GITHUB]] when you have a raw feature idea and need to decide whether to promote it to GitHub.
 - Use [[docs/meta/TEST_STRATEGY|TEST_STRATEGY]] to understand regression and test-pyramid expectations.
 - Use ADRs for product decisions that should survive context resets.
 - Use `.context/changelog.md` for short operational notes.
