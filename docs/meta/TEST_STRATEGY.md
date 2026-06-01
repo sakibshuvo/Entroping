@@ -101,9 +101,11 @@ uv run python scripts/policy_pack_smoke.py --strict
 ```
 
 This local proof validates the example API-baseline policy pack through the
-current local QAnstitution import mechanism. It checks the manifest shape,
-entrypoint, imported gates, documented final gates, and copyable consumer
-example evidence without adding remote registries or pack-install behavior.
+current local QAnstitution import mechanism. It checks the provenance manifest
+shape, local source metadata, supported Entroping range, evidence command,
+manifest-declared gates, gate source files, final flags, entrypoint, imported
+gates, documented final gates, and copyable consumer example evidence without
+adding remote registries or pack-install behavior.
 
 Alpha launch-readiness proof:
 

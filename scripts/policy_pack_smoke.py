@@ -10,7 +10,7 @@ import sys
 import tempfile
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TypedDict
 
 import yaml
 
@@ -28,6 +28,24 @@ REQUIRED_FILES = (
 )
 
 Status = Literal["pass", "fail"]
+
+
+class GateProvenance(TypedDict):
+    """Manifest-declared local source evidence for one policy-pack gate."""
+
+    id: str
+    file: str
+    final: bool
+
+
+class PackProvenance(TypedDict):
+    """Manifest-declared local provenance evidence for a policy pack."""
+
+    source: str
+    license: str
+    supported_entroping: str
+    evidence_command: str
+    gates: list[GateProvenance]
 
 
 def main() -> int:
@@ -93,13 +111,23 @@ def _build_payload(*, pack_path: Path, root: Path) -> dict[str, object]:
     manifest = _read_manifest(manifest_path, failures)
 
     pack_id = _string_field(manifest, "id", failures)
+    license_id = _string_field(manifest, "license", failures)
+    source = _local_source_field(manifest, failures)
+    supported_entroping = _string_field(manifest, "entroping", failures)
+    evidence_command = _string_field(manifest, "evidence_command", failures)
+    gate_provenance = _gate_provenance_field(
+        manifest,
+        failures,
+        pack_path=pack_path,
+        root=root,
+    )
     runtime_contract = _string_field(manifest, "runtime_contract", failures)
     entrypoint = _string_field(manifest, "entrypoint", failures)
     gate_prefixes = _string_list_field(manifest, "gate_prefixes", failures)
     documented_final_gates = _string_list_field(manifest, "final_gates", failures)
     _require_string_fields(
         manifest,
-        fields=("name", "version", "license", "entroping"),
+        fields=("name", "version"),
         failures=failures,
     )
 
@@ -137,9 +165,17 @@ def _build_payload(*, pack_path: Path, root: Path) -> dict[str, object]:
             failures.append(f"documented final gate {final_gate_id!r} is not loaded")
         elif final_gate_id not in final_gate_ids:
             failures.append(f"documented final gate {final_gate_id!r} is not marked final")
+    _validate_gate_provenance(gate_provenance, gate_ids, final_gate_ids, failures)
 
     consumer_gate_ids = _load_consumer_gate_ids(pack_path=pack_path, failures=failures)
     status: Status = "fail" if failures else "pass"
+    provenance: PackProvenance = {
+        "source": source,
+        "license": license_id,
+        "supported_entroping": supported_entroping,
+        "evidence_command": evidence_command,
+        "gates": gate_provenance,
+    }
     return {
         "schema_version": SCHEMA_VERSION,
         "status": status,
@@ -147,6 +183,7 @@ def _build_payload(*, pack_path: Path, root: Path) -> dict[str, object]:
         "pack_id": pack_id,
         "runtime_contract": runtime_contract,
         "entrypoint": entrypoint,
+        "provenance": provenance,
         "imports": import_paths,
         "gate_count": len(gate_ids),
         "gate_ids": gate_ids,
@@ -216,6 +253,85 @@ def _string_list_field(
     return items
 
 
+def _local_source_field(
+    document: Mapping[str, object],
+    failures: list[str],
+) -> str:
+    source = _string_field(document, "source", failures)
+    if source and ("://" in source or source.startswith("git@")):
+        failures.append("manifest field 'source' must be a local inspectable path")
+    return source
+
+
+def _gate_provenance_field(
+    document: Mapping[str, object],
+    failures: list[str],
+    *,
+    pack_path: Path,
+    root: Path,
+) -> list[GateProvenance]:
+    value = document.get("gates")
+    if not isinstance(value, list):
+        failures.append("manifest field 'gates' must be a list of gate provenance objects")
+        return []
+
+    records: list[GateProvenance] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, Mapping):
+            failures.append(f"manifest field 'gates' item {index} must be an object")
+            continue
+        gate_id = item.get("id")
+        file_value = item.get("file")
+        final_value = item.get("final")
+        if not isinstance(gate_id, str) or not gate_id.strip():
+            failures.append(f"manifest field 'gates' item {index}.id must be a non-empty string")
+            continue
+        if not isinstance(file_value, str) or not file_value.strip():
+            failures.append(f"manifest field 'gates' item {index}.file must be a non-empty string")
+            continue
+        if not isinstance(final_value, bool):
+            failures.append(f"manifest field 'gates' item {index}.final must be a boolean")
+            continue
+        file_path = Path(file_value)
+        if file_path.is_absolute() or ".." in file_path.parts:
+            failures.append(
+                f"manifest gate {gate_id!r} file must be a local path under the pack"
+            )
+            continue
+        resolved_file = pack_path / file_path
+        if not resolved_file.is_file():
+            failures.append(
+                "manifest gate "
+                f"{gate_id!r} file is missing: {_display_path(resolved_file, root=root)}"
+            )
+            continue
+        records.append({"id": gate_id, "file": file_path.as_posix(), "final": final_value})
+    return sorted(records, key=lambda record: record["id"])
+
+
+def _validate_gate_provenance(
+    gate_provenance: list[GateProvenance],
+    gate_ids: list[str],
+    final_gate_ids: list[str],
+    failures: list[str],
+) -> None:
+    manifest_gate_ids = sorted(record["id"] for record in gate_provenance)
+    if manifest_gate_ids != gate_ids:
+        failures.append("manifest gate ids must match loaded gate ids")
+
+    final_gate_id_set = set(final_gate_ids)
+    loaded_gate_id_set = set(gate_ids)
+    for record in gate_provenance:
+        gate_id = record["id"]
+        if gate_id not in loaded_gate_id_set:
+            continue
+        expected_final = gate_id in final_gate_id_set
+        if record["final"] is not expected_final:
+            failures.append(
+                f"manifest gate {gate_id!r} final flag must match loaded QAnstitution gate"
+            )
+
+
 def _require_string_fields(
     document: Mapping[str, object],
     *,
@@ -278,6 +394,8 @@ def _render_markdown(payload: Mapping[str, object]) -> str:
     gate_ids = _string_sequence(payload.get("gate_ids"))
     final_gate_ids = _string_sequence(payload.get("final_gate_ids"))
     consumer_gate_ids = _string_sequence(payload.get("consumer_gate_ids"))
+    provenance = _provenance_mapping(payload)
+    provenance_gates = _gate_provenance_sequence(provenance.get("gates"))
     failures = _payload_failures(payload)
     lines = [
         "# Policy-Pack Smoke Evidence",
@@ -287,11 +405,29 @@ def _render_markdown(payload: Mapping[str, object]) -> str:
         f"- Pack: `{payload.get('pack_id', '')}`",
         f"- Path: `{payload.get('pack_path', '')}`",
         f"- Runtime contract: `{payload.get('runtime_contract', '')}`",
+        f"- Source: `{provenance.get('source', '')}`",
+        f"- License: `{provenance.get('license', '')}`",
+        f"- Supported Entroping: `{provenance.get('supported_entroping', '')}`",
+        f"- Evidence command: `{provenance.get('evidence_command', '')}`",
         f"- Gates: `{payload.get('gate_count', 0)}`",
         "",
-        "## Effective Gates",
+        "## Provenance Gates",
         "",
     ]
+    lines.extend(
+        (
+            f"- `{record['id']}` from `{record['file']}` "
+            f"(final: `{str(record['final']).lower()}`)"
+        )
+        for record in provenance_gates
+    )
+    lines.extend(
+        [
+            "",
+            "## Effective Gates",
+            "",
+        ]
+    )
     lines.extend(f"- `{gate_id}`" for gate_id in gate_ids)
     lines.extend(["", "## Final Gates", ""])
     lines.extend(f"- `{gate_id}`" for gate_id in final_gate_ids)
@@ -309,6 +445,32 @@ def _string_sequence(value: object) -> list[str]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, str)]
+
+
+def _provenance_mapping(payload: Mapping[str, object]) -> Mapping[str, object]:
+    provenance = payload.get("provenance")
+    if isinstance(provenance, Mapping):
+        return provenance
+    return {}
+
+
+def _gate_provenance_sequence(value: object) -> list[GateProvenance]:
+    if not isinstance(value, list):
+        return []
+    records: list[GateProvenance] = []
+    for item in value:
+        if not isinstance(item, Mapping):
+            continue
+        gate_id = item.get("id")
+        file_value = item.get("file")
+        final_value = item.get("final")
+        if (
+            isinstance(gate_id, str)
+            and isinstance(file_value, str)
+            and isinstance(final_value, bool)
+        ):
+            records.append({"id": gate_id, "file": file_value, "final": final_value})
+    return records
 
 
 if __name__ == "__main__":

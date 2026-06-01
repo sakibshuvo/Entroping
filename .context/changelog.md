@@ -2,6 +2,11 @@
 
 ## 2026-06-01
 
+- Added issue #317's policy-pack provenance validation so the example
+  API-baseline manifest declares local source, license, supported Entroping
+  range, evidence command, gate files, gate IDs, and final flags, and
+  `scripts/policy_pack_smoke.py --strict` verifies those claims against loaded
+  QAnstitution gates without adding registry behavior.
 - Added issue #316's artifact-backed review summary:
   `entroping report review-summary` writes provider-neutral Markdown from local
   JSON, JUnit, drift, and optional traceability evidence, and the downstream

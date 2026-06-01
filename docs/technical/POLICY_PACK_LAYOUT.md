@@ -1,7 +1,7 @@
 ---
 title: Policy Pack Layout
 type: technical
-status: proposed
+status: active
 tags:
   - qanstitution
   - policy-packs
@@ -12,13 +12,14 @@ tags:
 # Policy Pack Layout
 
 This note defines the reusable QAnstitution policy-pack shape before community
-or premium packs exist. It is intentionally a design and example-pack artifact.
-No runtime behavior changes are introduced by this design note.
+or premium packs exist. It is intentionally local-first: packs are ordinary
+files, the runtime still consumes only QAnstitution imports, and provenance is
+validated by release-owner smoke evidence before any registry behavior exists.
 
 ## Decision
 
 A policy pack is a plain, reviewable directory or repository that exposes a
-normal QAnstitution import entrypoint plus optional catalog metadata. Entroping
+normal QAnstitution import entrypoint plus catalog metadata. Entroping
 Core should be able to consume the entrypoint through the existing
 `imports` mechanism when the pack is vendored into the project root. Future
 pack discovery, registries, remote imports, or install commands must build on
@@ -31,8 +32,8 @@ policy pack = files + manifest + qanstitution.yaml import entrypoint
 ```
 
 The runtime source of truth remains `qanstitution.yaml`. The manifest helps
-humans, docs, catalogs, package managers, and future registries understand the
-pack, but the current loader does not read it.
+humans, docs, catalogs, package managers, future registries, and local smoke
+evidence understand the pack. `entroping run` does not read the manifest.
 
 ## Pack Layout
 
@@ -55,7 +56,7 @@ Required files:
 | Path | Purpose |
 | --- | --- |
 | `README.md` | Human-readable purpose, included gates, compatibility, and override guidance |
-| `entroping-policy-pack.yaml` | Pack metadata for catalogs, package managers, and future validation |
+| `entroping-policy-pack.yaml` | Pack metadata and local provenance evidence for catalogs, package managers, and release validation |
 | `qanstitution.yaml` | Runtime import entrypoint that imports pack-owned rule files |
 | `rules/` | One or more schema-valid QAnstitution fragments containing gates |
 | `examples/consumer-qanstitution.yaml` | Copyable consumer config showing how to import the pack |
@@ -76,9 +77,12 @@ Policy packs should avoid:
 
 ## Manifest
 
-`entroping-policy-pack.yaml` is metadata, not executable law.
+`entroping-policy-pack.yaml` is metadata and provenance evidence, not executable
+law. Local validation reads it to prove that the manifest still matches the
+actual QAnstitution gates, but runtime governance still comes from the pack
+entrypoint and imported rule files.
 
-Required manifest fields for the proposed layout:
+Required manifest fields for the current layout:
 
 | Field | Purpose |
 | --- | --- |
@@ -86,14 +90,21 @@ Required manifest fields for the proposed layout:
 | `name` | Human-readable pack name |
 | `version` | Pack version, independent from Entroping's package version |
 | `license` | License for the pack content |
+| `source` | Local inspectable source path for the pack evidence |
 | `entrypoint` | Relative path to the importable QAnstitution file |
 | `runtime_contract` | Current value: `qanstitution-import` |
 | `entroping` | Compatible Entroping version range |
+| `evidence_command` | Local command maintainers run to reproduce pack validation |
 | `gate_prefixes` | Gate ID prefixes reserved by the pack |
 | `final_gates` | Gate IDs that consumers cannot override |
+| `gates` | Manifest-declared gate IDs, source files, and final flags |
 
-Future validators may read this file, but current runtime behavior must not
-depend on it.
+`scripts/policy_pack_smoke.py --strict` validates the example manifest today.
+It checks required fields, local source shape, local gate files, manifest gate
+IDs, manifest final flags, loaded QAnstitution gate IDs, documented final gates,
+and the copyable consumer example. It does not fetch from a remote registry, run
+the evidence command recursively, prove package authenticity, sign packs, or
+replace human review of policy intent.
 
 ## Import Semantics
 
@@ -186,7 +197,7 @@ This issue does not add:
 - a `pack` command;
 - remote policy-pack fetching;
 - registry authentication;
-- manifest validation;
+- runtime manifest dependency;
 - package installation;
 - automatic update checks;
 - telemetry;

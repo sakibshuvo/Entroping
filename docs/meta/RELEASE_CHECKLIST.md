@@ -142,7 +142,7 @@ Before tagging:
   the checkout happy path, AI-regression failure proof, policy-pack smoke,
   launch-readiness, and backlog-health commands from one place.
 - Run `uv run python scripts/policy_pack_smoke.py --strict` before making
-  policy-pack import claims.
+  policy-pack import or provenance claims.
 - Run `scripts/ai_regression_demo.sh` when launch messaging needs a concrete
   failure proof instead of only the happy-path checkout demo.
 - Confirm the `optional-extras-smoke` CI lane is passing before making claims

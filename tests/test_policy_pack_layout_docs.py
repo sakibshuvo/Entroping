@@ -27,11 +27,14 @@ def test_policy_pack_layout_design_covers_required_boundaries() -> None:
         assert section in design
 
     required_terms = [
-        "No runtime behavior changes are introduced by this design note.",
+        "the runtime still consumes only QAnstitution imports",
         "entroping-policy-pack.yaml",
         "qanstitution.yaml",
         "rules/",
         "examples/consumer-qanstitution.yaml",
+        "local provenance evidence",
+        "scripts/policy_pack_smoke.py --strict",
+        "It does not fetch from a remote registry",
         "Local imports remain root-bounded",
         "HTTP(S) policy-pack imports remain future work",
         "Semantic Versioning",
@@ -52,8 +55,16 @@ def test_example_policy_pack_shape_is_loadable_and_runtime_neutral() -> None:
     assert manifest["id"] == "entroping.api-baseline"
     assert manifest["version"] == "0.1.0-alpha"
     assert manifest["license"] == "Apache-2.0"
+    assert manifest["source"] == "examples/policy-packs/api-baseline"
     assert manifest["entrypoint"] == "qanstitution.yaml"
     assert manifest["runtime_contract"] == "qanstitution-import"
+    assert manifest["entroping"] == ">=0.1.1-alpha,<1.0"
+    assert manifest["evidence_command"] == "uv run python scripts/policy_pack_smoke.py --strict"
+    assert {gate["id"] for gate in manifest["gates"]} == {
+        "api-security.no_5xx",
+        "api-security.request_id",
+        "api-reliability.latency",
+    }
 
     expected_files = [
         "README.md",

@@ -2,6 +2,11 @@
 
 ## 2026-06-01
 
+- Policy-pack provenance should be validated against loaded local
+  QAnstitution gates, not trusted as catalog copy. The manifest can prove
+  source paths, license, compatibility range, evidence command, gate files, and
+  final flags match local files; it still does not prove remote registry
+  authenticity or commercial policy review.
 - Provider-neutral CI summaries should be artifacts, not integrations. Let
   Entroping write redacted Markdown from local reports, and let downstream CI
   decide whether to upload, print, or post it.
