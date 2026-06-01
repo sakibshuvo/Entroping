@@ -216,6 +216,10 @@ After `scripts/package_check.sh`, the release check also runs
 `uv run python scripts/local_wheel_install_smoke.py --skip-build` so a locally
 built wheel is installed into a fresh temporary venv and exercised only through
 the installed public CLI without package-index access.
+The release check also runs `uv run python scripts/downstream_smoke.py` when
+Hurl is available, proving the local CLI can govern an external temporary
+project from outside the repository. `--skip-downstream-smoke` is a diagnostic
+escape hatch; release-candidate proof should keep the downstream smoke enabled.
 
 ## Coverage Expectations
 

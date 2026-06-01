@@ -37,6 +37,23 @@ printf 'fake downstream hurl ok\\n'
     )
 
 
+def _write_failing_hurl(path: Path) -> None:
+    _write_executable(
+        path,
+        """#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "--version" ]]; then
+  printf 'hurl fake-failing\\n'
+  exit 0
+fi
+
+printf 'fake downstream hurl failure\\n' >&2
+exit 42
+""",
+    )
+
+
 def run_downstream_smoke(
     *args: str,
     env: dict[str, str] | None = None,
@@ -118,6 +135,47 @@ def test_downstream_smoke_rejects_repo_workdir(tmp_path: Path) -> None:
     assert "Refusing unsafe downstream workdir" in result.stderr
 
 
+def test_downstream_smoke_reports_missing_hurl_before_entroping_run(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env["PATH"] = SYSTEM_SHELL_PATH
+
+    result = run_downstream_smoke(
+        "--format",
+        "json",
+        "--workdir",
+        str(tmp_path / "missing-hurl-project"),
+        env=env,
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "fail"
+    assert "Hurl is required for downstream smoke evidence" in payload["failure"]
+    assert "downstream smoke failed" in result.stderr
+
+
+def test_downstream_smoke_reports_entroping_run_failure(tmp_path: Path) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    _write_failing_hurl(fake_bin / "hurl")
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
+
+    result = run_downstream_smoke(
+        "--format",
+        "json",
+        "--workdir",
+        str(tmp_path / "run-failure-project"),
+        env=env,
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "fail"
+    assert "fake downstream hurl failure" in payload["failure"]
+    assert "Entroping run failed with exit code" in result.stderr
+
+
 def test_stable_core_readiness_knows_downstream_smoke_harness_exists() -> None:
     source = (REPO_ROOT / "scripts" / "stable_core_readiness.py").read_text(
         encoding="utf-8"
@@ -135,4 +193,6 @@ def test_release_docs_link_downstream_smoke_evidence() -> None:
 
     assert "[[docs/meta/DOWNSTREAM_SMOKE_EVIDENCE|DOWNSTREAM_SMOKE_EVIDENCE]]" in index
     assert "scripts/downstream_smoke.py" in docs
+    assert "scripts/release_check.sh --require-live-demo" in docs
+    assert "--skip-downstream-smoke" in docs
     assert "does not satisfy real downstream user feedback" in docs

@@ -120,6 +120,11 @@ def main() -> int:
             shutil.rmtree(workdir, ignore_errors=True)
 
     _print_payload(payload, args.format)
+    if payload["status"] != "pass":
+        print(
+            f"downstream smoke failed: Entroping run failed with exit code {payload['exit_code']}",
+            file=sys.stderr,
+        )
     return 0 if payload["status"] == "pass" else 1
 
 

@@ -2,6 +2,10 @@
 
 ## 2026-06-01
 
+- Release gates should refresh local downstream proof, not only record that a
+  harness exists. Keep maintainer-controlled downstream smoke enabled by
+  default when Hurl is present, but continue separating it from real downstream
+  user feedback in stable-core readiness.
 - Local package proof should install the built wheel, not the source checkout.
   Use a temporary venv and temporary project outside the repository, install
   with `uv pip install --offline`, run only public console-script commands, and
