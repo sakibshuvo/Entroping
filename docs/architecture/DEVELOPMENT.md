@@ -34,17 +34,22 @@ scripts/feature_gate.sh
 
 The feature gate runs:
 
-1. `uv run ruff check .`
-2. `uv run mypy src tests`
-3. `uv run pytest`
-4. `git diff --check`
-5. `git diff --cached --check`
+1. `scripts/repo_hygiene.sh`
+2. `scripts/doc_governance_check.sh`
+3. `scripts/shell_quality.sh`
+4. `scripts/check.sh`
+5. `git diff --check`
+6. `git diff --cached --check`
 
 For the underlying fast scaffold gate, run:
 
 ```bash
 scripts/check.sh
 ```
+
+`scripts/check.sh` runs Ruff, mypy, and pytest. `scripts/shell_quality.sh`
+always runs `bash -n` over tracked shell scripts and runs ShellCheck when the
+`shellcheck` binary is available.
 
 ## Regression Suite
 
