@@ -2,6 +2,10 @@
 
 ## 2026-06-02
 
+- Added issue #371's vault/context cleanup so completed one-off demo context is
+  marked archival, evolution docs are labeled historical evidence rather than
+  current product truth, and Obsidian/GitHub/source-promotion guides have
+  explicit ownership boundaries.
 - Added issue #370's report writer module split so the public
   `entroping.core.report_writer` facade remains stable while response
   fingerprinting, JSON serialization, JUnit/HTML/bug rendering, and report

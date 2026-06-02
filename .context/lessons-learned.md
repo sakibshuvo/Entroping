@@ -2,6 +2,9 @@
 
 ## 2026-06-02
 
+- Obsidian cleanup should mark ownership and archival status before deleting
+  context. Historical product evidence remains useful when the vault clearly
+  says which notes explain history and which files define current truth.
 - A report writer facade can preserve imports for CLI/tests while separating
   format-specific internals. Keep schema serialization, response
   fingerprinting, rendering, and safe-write error handling distinct so future

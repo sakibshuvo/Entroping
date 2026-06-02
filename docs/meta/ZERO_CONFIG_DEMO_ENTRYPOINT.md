@@ -1,7 +1,7 @@
 ---
 title: Zero Config Demo Entrypoint
 type: decision
-status: active
+status: archival
 tags:
   - onboarding
   - demo
@@ -9,6 +9,15 @@ tags:
 ---
 
 # Zero Config Demo Entrypoint
+
+## Archived Outcome
+
+Archived outcome: `scripts/demo.sh` is the checkout demo entrypoint.
+
+This is a completed v0.2 decision note retained for traceability. The durable
+current guidance lives in `README.md`, `docs/user/USER_GUIDE.md`, and
+`scripts/demo.sh`; do not treat this note as an active roadmap or command
+proposal.
 
 ## Problem
 
