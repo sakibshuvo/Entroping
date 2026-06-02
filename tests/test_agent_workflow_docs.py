@@ -50,6 +50,20 @@ def test_knowledge_base_workflow_documents_source_promotion() -> None:
     assert "ADR" in doc
     assert "canonical product or technical doc" in doc
     assert "hallucination" in doc.lower()
+    assert "OBSIDIAN_VS_GITHUB owns day-to-day placement rules" in doc
+    assert "KNOWLEDGE_BASE_WORKFLOW owns source promotion" in doc
+
+
+def test_vault_index_marks_archival_context_and_history() -> None:
+    index = (REPO_ROOT / "docs" / "meta" / "VAULT_INDEX.md").read_text(encoding="utf-8")
+    zero_config = (
+        REPO_ROOT / "docs" / "meta" / "ZERO_CONFIG_DEMO_ENTRYPOINT.md"
+    ).read_text(encoding="utf-8")
+
+    assert "historical source evidence, not current product truth" in index
+    assert "Archived Decision Notes" in index
+    assert "status: archival" in zero_config
+    assert "Archived outcome" in zero_config
 
 
 def test_obsidian_context_engine_documents_project_evolution_loop() -> None:

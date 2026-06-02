@@ -66,7 +66,6 @@ Use these first. They are the control panel for current work:
 - [[docs/meta/INSTALL_SMOKE_MATRIX|INSTALL_SMOKE_MATRIX]] - Linux, macOS, and Windows install-smoke claims and non-claims.
 - [[docs/meta/DOWNSTREAM_SMOKE_EVIDENCE|DOWNSTREAM_SMOKE_EVIDENCE]] - local external-project smoke evidence and its stable-core limits.
 - [[docs/meta/DOWNSTREAM_FEEDBACK_KIT|DOWNSTREAM_FEEDBACK_KIT]] - sanitized real-user feedback template for stable-core downstream evidence.
-- [[docs/meta/ZERO_CONFIG_DEMO_ENTRYPOINT|ZERO_CONFIG_DEMO_ENTRYPOINT]] - why `scripts/demo.sh` is the v0.2 checkout demo entrypoint.
 - [[docs/meta/DISTRIBUTION_RECOMMENDATION|DISTRIBUTION_RECOMMENDATION]] - uv, PyPI, Homebrew tap, and standalone binary sequencing.
 - [[docs/meta/AUTONOMOUS_DEVELOPMENT|AUTONOMOUS_DEVELOPMENT]] - Codex-first autonomous workflow and future OpenCode/oMLX plan.
 - [[docs/meta/AGENT_CONTROL_PLANE|AGENT_CONTROL_PLANE]] - Codex-first multi-agent control plane for Codex, Claude Code, OpenCode, Gemini, NotebookLM, and local Qwen.
@@ -76,10 +75,21 @@ Use these first. They are the control panel for current work:
 
 ## Product History
 
+These notes are historical source evidence, not current product truth. Use them
+to recover why Entroping changed; use `PRODUCT_SPEC`, `TDS`, `ROADMAP.md`, ADRs,
+and current user docs for today's behavior and promises.
+
 - [[docs/evolution/EVOLUTION_TIMELINE|EVOLUTION_TIMELINE]] - how the product idea evolved.
 - [[docs/evolution/REQUIREMENTS_ANALYSIS|REQUIREMENTS_ANALYSIS]] - extracted requirements from source materials.
 - [[docs/evolution/CREATOR_INTENT_AUDIT|CREATOR_INTENT_AUDIT]] - creator corrections and non-negotiables.
 - [[docs/evolution/BRAIN_PROVIDER_STRATEGY|BRAIN_PROVIDER_STRATEGY]] - local-first/cloud-second model strategy.
+
+## Archived Decision Notes
+
+These completed one-off notes are retained for traceability, not active
+instructions.
+
+- [[docs/meta/ZERO_CONFIG_DEMO_ENTRYPOINT|ZERO_CONFIG_DEMO_ENTRYPOINT]] - archived v0.2 decision explaining why `scripts/demo.sh` became the checkout demo entrypoint without expanding the CLI command surface.
 
 ## Reference Library
 

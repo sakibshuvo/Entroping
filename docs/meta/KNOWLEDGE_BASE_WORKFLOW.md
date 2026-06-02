@@ -24,6 +24,18 @@ canonical docs, or `.context/` handoff notes.
 For the fuller operating model, read
 [[docs/meta/OBSIDIAN_CONTEXT_ENGINE_GUIDE|OBSIDIAN_CONTEXT_ENGINE_GUIDE]].
 
+## Ownership Split
+
+OBSIDIAN_VS_GITHUB owns day-to-day placement rules: where bugs, feature ideas,
+roadmap changes, and current work status go.
+
+KNOWLEDGE_BASE_WORKFLOW owns source promotion: how Gemini, NotebookLM, Graphify,
+source exports, and historical brainstorms become issues, ADRs, canonical docs,
+or archival evidence.
+
+When the two guides overlap, keep operational task status in
+`OBSIDIAN_VS_GITHUB` and keep source-evidence/hallucination-control rules here.
+
 ## Vault Rule
 
 The active vault is the repo:
