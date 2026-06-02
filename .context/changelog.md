@@ -2,6 +2,9 @@
 
 ## 2026-06-02
 
+- Added issue #368's CLI adapter test split so the former 3,374-line
+  `tests/test_cli.py` is now organized by command area, with shared CLI test
+  helpers and the existing 113 assertions preserved.
 - Added issue #369's shell script quality gate so tracked `.sh` files are
   checked with `bash -n`, ShellCheck runs when available with an explicit skip
   message otherwise, and `scripts/feature_gate.sh` executes the shell gate
