@@ -2,6 +2,9 @@
 
 ## 2026-06-02
 
+- Once CLI production modules are split by namespace, the adapter tests should
+  follow the same map. A single mega-file makes command behavior harder to
+  review even when coverage is strong.
 - Optional local tools should fail loudly when required and skip explicitly
   when optional. `scripts/shell_quality.sh` always enforces `bash -n`, but
   ShellCheck remains opportunistic until the repo deliberately installs it in
