@@ -78,6 +78,28 @@ def test_annotations_from_junit_report_handles_missing_and_malformed_reports(
         annotations_from_junit_report(malformed)
 
 
+@pytest.mark.security
+@pytest.mark.regression
+def test_annotations_from_junit_report_rejects_entity_bearing_xml(tmp_path: Path) -> None:
+    junit = tmp_path / "junit.xml"
+    junit.write_text(
+        """<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE testsuite [
+  <!ENTITY leaked "secret-from-entity">
+]>
+<testsuite name="Entroping unsafe xml" tests="1" failures="1" errors="0">
+  <testcase classname="tests" name="unsafe.hurl" time="0.001">
+    <failure message="failed" type="entroping.hurl">&leaked;</failure>
+  </testcase>
+</testsuite>
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(GitHubAnnotationError, match="unsafe XML"):
+        annotations_from_junit_report(junit)
+
+
 def test_annotations_from_junit_report_uses_fallback_paths(tmp_path: Path) -> None:
     junit = tmp_path / "junit.xml"
     junit.write_text(

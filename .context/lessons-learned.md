@@ -1,5 +1,13 @@
 # Entroping Lessons Learned
 
+## 2026-06-02
+
+- Report artifacts are still untrusted inputs when read back into Entroping.
+  Generated JUnit XML can be safe to write with stdlib `ElementTree`, but any
+  JUnit XML accepted from disk for annotations, review summaries, or CI handoff
+  should use a hardened parser and reject DTD/entity constructs before rendering
+  findings.
+
 ## 2026-06-01
 
 - Do not run environment-mutating gates in parallel. `scripts/audit_quality.sh`

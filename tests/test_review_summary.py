@@ -229,6 +229,27 @@ def test_review_summary_handles_junit_fallback_paths_and_parse_errors(
 
     junit.write_text(
         """<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE testsuite [
+  <!ENTITY leaked "secret-from-entity">
+]>
+<testsuite name="Entroping unsafe xml" tests="1" failures="1" errors="0">
+  <testcase classname="tests" name="unsafe.hurl" time="0.001">
+    <failure message="failed" type="entroping.hurl">&leaked;</failure>
+  </testcase>
+</testsuite>
+""",
+        encoding="utf-8",
+    )
+    with pytest.raises(ReviewSummaryError, match="unsafe XML"):
+        build_review_summary(
+            run_json_path=reports_dir / "run-latest.json",
+            junit_path=junit,
+            drift_path=reports_dir / "drift.json",
+            traceability_report=None,
+        )
+
+    junit.write_text(
+        """<?xml version="1.0" encoding="utf-8"?>
 <testsuite name="Entroping fallback paths" tests="3" failures="2" errors="1">
   <testcase classname="." name="plain.hurl" time="0.001">
     <failure message="plain failure" type="entroping.hurl" />

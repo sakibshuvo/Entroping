@@ -33,7 +33,10 @@ def test_dependency_license_policy_covers_all_declared_dependency_groups() -> No
     groups = {entry["group"] for entry in payload["dependencies"]}
 
     assert {"dependencies/default", "optional-dependencies/ai", "dependency-groups/dev"} <= groups
-    assert payload["allowed_license_families"] == ["Apache-2.0", "BSD", "MIT"]
+    assert payload["allowed_license_families"] == ["Apache-2.0", "BSD", "MIT", "PSF"]
+    assert ("dependencies/default", "defusedxml") in {
+        (entry["group"], entry["name"]) for entry in payload["dependencies"]
+    }
     assert "reviewed_at" in payload
 
 

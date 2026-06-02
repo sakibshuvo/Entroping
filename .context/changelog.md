@@ -1,5 +1,12 @@
 # Entroping Changelog
 
+## 2026-06-02
+
+- Added issue #364's hardened XML report parsing so JUnit inputs consumed by
+  GitHub annotations and review summaries use `defusedxml`, reject DTD/entity
+  constructs as unsafe XML, keep valid JUnit behavior intact, and include
+  `defusedxml` in the reviewed direct dependency license policy.
+
 ## 2026-06-01
 
 - Added issue #347's shell-completion onboarding note for Typer's existing
