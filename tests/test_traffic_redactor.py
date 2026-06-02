@@ -184,15 +184,16 @@ def test_redactor_redacts_secret_values_inside_json_arrays() -> None:
 
 
 def test_redactor_redacts_token_shaped_values_in_non_sensitive_fields() -> None:
+    token = "sk-proj-" + ("a" * 24)
     exchange = _raw_exchange().model_copy(
         update={
             "request": _raw_exchange().request.model_copy(
                 update={
-                    "headers": {"X-Request-ID": "req-sk-proj-live-secret"},
+                    "headers": {"X-Request-ID": f"req-{token}"},
                     "body": TrafficBody(
                         content_type="application/json",
                         size_bytes=64,
-                        text='{"note":"sk-proj-live-secret","safe":"ok"}',
+                        text=f'{{"note":"{token}","safe":"ok"}}',
                     ),
                 },
             ),
@@ -202,10 +203,90 @@ def test_redactor_redacts_token_shaped_values_in_non_sensitive_fields() -> None:
     redacted = redact_traffic_exchange(exchange)
 
     serialized = redacted.model_dump_json()
-    assert "sk-proj-live-secret" not in serialized
+    assert token not in serialized
     assert redacted.request.headers["X-Request-ID"] == "req-[REDACTED]"
     assert redacted.request.body is not None
     assert redacted.request.body.text == '{"note":"[REDACTED]","safe":"ok"}'
+
+
+def test_redactor_fully_summarizes_multipart_bodies_before_persistence() -> None:
+    request_secret = "multipart-request-secret"
+    response_secret = "multipart-response-secret"
+    harmless_note = "customer asked for a blue receipt"
+    file_content = "invoice file contents with private customer data"
+    request_multipart = "\r\n".join(
+        [
+            "----entroping",
+            'Content-Disposition: form-data; name="description"',
+            "",
+            harmless_note,
+            "----entroping",
+            'Content-Disposition: form-data; name="token"',
+            "",
+            request_secret,
+            "----entroping",
+            'Content-Disposition: form-data; name="file"; filename="invoice.txt"',
+            "Content-Type: text/plain",
+            "",
+            file_content,
+            "----entroping--",
+        ]
+    )
+    response_content_type = "multipart/form-data; boundary=--entroping-response"
+    response_multipart = "\r\n".join(
+        [
+            "----entroping-response",
+            'Content-Disposition: form-data; name="status"',
+            "",
+            "uploaded",
+            "----entroping-response",
+            'Content-Disposition: form-data; name="access_token"',
+            "",
+            response_secret,
+            "----entroping-response--",
+        ]
+    )
+    base = _raw_exchange()
+    assert base.response is not None
+    exchange = base.model_copy(
+        update={
+            "request": base.request.model_copy(
+                update={
+                    "headers": {"Content-Type": "multipart/form-data; boundary=--entroping"},
+                    "body": TrafficBody(
+                        content_type="multipart/form-data; boundary=--entroping",
+                        size_bytes=len(request_multipart),
+                        text=request_multipart,
+                    ),
+                },
+            ),
+            "response": base.response.model_copy(
+                update={
+                    "headers": {"Content-Type": response_content_type},
+                    "body": TrafficBody(
+                        content_type=response_content_type,
+                        size_bytes=len(response_multipart),
+                        text=response_multipart,
+                    ),
+                },
+            ),
+        },
+    )
+
+    redacted = redact_traffic_exchange(exchange)
+
+    serialized = redacted.model_dump_json()
+    assert request_secret not in serialized
+    assert response_secret not in serialized
+    assert harmless_note not in serialized
+    assert file_content not in serialized
+    assert redacted.request.body is not None
+    assert redacted.request.body.text == "[REDACTED multipart/form-data body]"
+    assert redacted.request.body.truncated is True
+    assert redacted.response is not None
+    assert redacted.response.body is not None
+    assert redacted.response.body.text == "[REDACTED multipart/form-data body]"
+    assert redacted.response.body.truncated is True
 
 
 def test_redactor_removes_url_userinfo_credentials() -> None:

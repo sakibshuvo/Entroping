@@ -451,7 +451,10 @@ Current implementation:
 - `core.traffic_proxy` lazy-loads mitmproxy so default installs can fail with an actionable optional-dependency message.
 - `TrafficCaptureAddon.response()` records completed HTTP flows only after converting them into `TrafficExchange` models, redacting them, and persisting through `TrafficStore`.
 - `watch --target <url>` scopes capture to the exact target scheme and host.
-- Request and response body summaries decode textual media types, keep binary bodies as size-only records, and reuse the global traffic body limit.
+- Request and response body summaries decode textual media types, summarize
+  multipart bodies with a redacted media-type placeholder before persistence,
+  keep binary bodies as size-only records, and reuse the global traffic body
+  limit.
 - `freeze` and `map` are intentionally not coupled to capture startup.
 
 ### Captured Data
@@ -479,6 +482,9 @@ Default redactions must cover:
 - Password-like fields.
 - Session IDs where unsafe.
 - Large binary bodies.
+- Multipart request and response bodies. File fields, token fields, and
+  harmless text fields are not persisted; the body text is replaced with a
+  redacted media-type summary.
 
 Users can extend redaction rules in QAnstitution or local config.
 

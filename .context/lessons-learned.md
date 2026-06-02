@@ -2,6 +2,10 @@
 
 ## 2026-06-02
 
+- Multipart captured bodies are too risky to preserve as text, even after
+  field-level redaction. Treat mixed file/form payloads as untrusted binary-ish
+  material and persist only a redacted media-type summary with the original
+  size metadata.
 - Report artifacts are still untrusted inputs when read back into Entroping.
   Generated JUnit XML can be safe to write with stdlib `ElementTree`, but any
   JUnit XML accepted from disk for annotations, review summaries, or CI handoff

@@ -9,12 +9,14 @@ from entroping.models.secrets import (
 
 
 def test_shared_secret_helpers_redact_common_literal_credentials() -> None:
+    openai_token = "sk-proj-" + ("a" * 24)
+    github_token = "github_pat_" + ("b" * 32)
     text = "\n".join(
         [
             "Authorization: Bearer live-token",
             "Cookie: session_id=live-session",
-            "note=sk-proj-live-secret",
-            '{"metadata":"github_pat_live_secret"}',
+            f"note={openai_token}",
+            f'{{"metadata":"{github_token}"}}',
         ]
     )
 
@@ -23,9 +25,23 @@ def test_shared_secret_helpers_redact_common_literal_credentials() -> None:
     assert contains_secret_like_value(text) is True
     assert "live-token" not in redacted
     assert "live-session" not in redacted
-    assert "sk-proj-live-secret" not in redacted
-    assert "github_pat_live_secret" not in redacted
+    assert openai_token not in redacted
+    assert github_token not in redacted
     assert REDACTED in redacted
+
+
+def test_shared_secret_helpers_preserve_harmless_token_shape_placeholders() -> None:
+    text = "\n".join(
+        [
+            "Docs mention ghp_example as a placeholder.",
+            "Use github_pat_example in tutorials, not production.",
+            "The Hugging Face prefix hf_model is not a token.",
+            "Bearer docs is ordinary prose.",
+        ]
+    )
+
+    assert contains_secret_like_value(text) is False
+    assert redact_secret_like_values(text) == text
 
 
 def test_shared_secret_helpers_preserve_templates_and_redacted_values() -> None:

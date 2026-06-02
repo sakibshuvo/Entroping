@@ -12,6 +12,7 @@ from entroping.models.secrets import (
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
 
 DEFAULT_MAX_BODY_CHARS = 4096
+_MULTIPART_BODY_SUMMARY_TEMPLATE = "[REDACTED {content_type} body]"
 
 
 def redact_traffic_exchange(
@@ -85,6 +86,14 @@ def _redact_body(body: TrafficBody | None, *, max_body_chars: int) -> TrafficBod
         return body.model_copy(update={"truncated": body.truncated})
 
     content_type = (body.content_type or "").split(";", maxsplit=1)[0].lower().strip()
+    if _is_multipart_content_type(content_type):
+        return TrafficBody(
+            content_type=body.content_type,
+            size_bytes=body.size_bytes,
+            text=_MULTIPART_BODY_SUMMARY_TEMPLATE.format(content_type=content_type),
+            truncated=True,
+        )
+
     redacted_text = (
         _redact_json_body(body.text)
         if _is_json_content_type(content_type)
@@ -139,3 +148,7 @@ def _redact_text(text: str) -> str:
 
 def _is_json_content_type(content_type: str) -> bool:
     return content_type == "application/json" or content_type.endswith("+json")
+
+
+def _is_multipart_content_type(content_type: str) -> bool:
+    return content_type.startswith("multipart/")

@@ -7,14 +7,14 @@ REDACTED = "[REDACTED]"
 _TOKEN_SECRET_PATTERNS = (
     re.compile(r"sk-(?:proj-)?[A-Za-z0-9_-]+"),
     re.compile(r"sk_proj_[A-Za-z0-9_-]+"),
-    re.compile(r"ghp_[A-Za-z0-9_]+"),
-    re.compile(r"github_pat_[A-Za-z0-9_]+"),
-    re.compile(r"glpat-[A-Za-z0-9_-]+"),
-    re.compile(r"hf_[A-Za-z0-9_-]+"),
-    re.compile(r"xox[abprs]-[A-Za-z0-9-]+"),
-    re.compile(r"AIza[A-Za-z0-9_-]+"),
-    re.compile(r"ya29\.[A-Za-z0-9._-]+"),
-    re.compile(r"\bA[KS]IA[A-Z0-9]{8,}\b"),
+    re.compile(r"\bghp_[A-Za-z0-9_]{20,}\b"),
+    re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b"),
+    re.compile(r"\bglpat-[A-Za-z0-9_-]{12,}\b"),
+    re.compile(r"\bhf_[A-Za-z0-9_-]{12,}\b"),
+    re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}\b"),
+    re.compile(r"\bAIza[A-Za-z0-9_-]{16,}\b"),
+    re.compile(r"\bya29\.[A-Za-z0-9._-]{20,}\b"),
+    re.compile(r"\bA[KS]IA[A-Z0-9]{16}\b"),
     re.compile(r"BEGIN [A-Z ]*PRIVATE KEY"),
 )
 _SENSITIVE_HEADER_NAMES = {
@@ -64,7 +64,7 @@ _JSON_PAIR_SECRET_RE = re.compile(
     r'(?i)("(?:access_token|api[_-]?key|authorization|client_secret|cookie|jwt|'
     r'password|passwd|refresh_token|secret|session[_-]?id|token)"\s*:\s*)"[^"]*"'
 )
-_AUTH_VALUE_RE = re.compile(r"(?i)\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+")
+_AUTH_VALUE_RE = re.compile(r"(?i)\b(Bearer|Basic)\s+([A-Za-z0-9._~+/=-]{10,})")
 
 
 def contains_secret_like_value(value: str) -> bool:
