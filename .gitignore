@@ -30,3 +30,6 @@ graphify-out/
 
 # Obsidian local UI state. Keep durable vault notes in Git, not machine state.
 .obsidian/
+
+# IDE local project state
+.idea/
