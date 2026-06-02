@@ -50,8 +50,7 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#370 Split report writer into focused modules](https://github.com/sakibshuvo/Entroping/issues/370) | Report maintainability improves before adding more review surfaces. |
-| 2 | [#371 Archive stale context notes and reduce Obsidian overlap](https://github.com/sakibshuvo/Entroping/issues/371) | Keeps the knowledge base useful without weakening the public docs or GitHub backlog split. |
+| 1 | [#371 Archive stale context notes and reduce Obsidian overlap](https://github.com/sakibshuvo/Entroping/issues/371) | Keeps the knowledge base useful without weakening the public docs or GitHub backlog split. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -97,6 +96,7 @@ entirely inside this repo.
 | [Run workflow integration proof](https://github.com/sakibshuvo/Entroping/issues/367) | Done | A Python integration test invokes `entroping run` with a fake `hurl` executable, proving discovery, gate injection, subprocess execution, source immutability, and JSON/JUnit reports together. |
 | [Shell script quality gate](https://github.com/sakibshuvo/Entroping/issues/369) | Done | `scripts/shell_quality.sh` now runs `bash -n` over tracked shell scripts, runs ShellCheck when available, and is wired into the feature gate before Python checks. |
 | [CLI adapter test split](https://github.com/sakibshuvo/Entroping/issues/368) | Done | The former 3,374-line CLI adapter test file is split into command-focused files with shared CLI test helpers and the same 113 assertions preserved. |
+| [Report writer module split](https://github.com/sakibshuvo/Entroping/issues/370) | Done | Report building keeps the existing facade while JSON serialization, response fingerprinting, JUnit/HTML/bug rendering, and report errors now live in focused modules. |
 | [Read-only Studio applied-gate drilldowns](https://github.com/sakibshuvo/Entroping/issues/192) | Done | Studio links latest-run report rule IDs to QAnstitution gate definitions. |
 | Read-only Studio traffic session browser | Done | The read-only traffic session browser uses redacted SQLModel-backed state, target/dependency grouping, and safe redaction categories and counts. It does not start `watch` and does not expose raw URLs with query values, headers, bodies, cookies, tokens, or secrets. |
 

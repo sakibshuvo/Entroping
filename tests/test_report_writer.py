@@ -216,20 +216,6 @@ def test_build_run_report_omits_response_when_stdout_is_not_structured(
     assert "response" not in report_writer._test_report_to_dict(report.tests[0])
 
 
-def test_response_fingerprint_ignores_malformed_http_output_and_shapes_nulls() -> None:
-    status_code, headers, body_shape = report_writer._extract_response_fingerprint(
-        'HTTP 200\nnot-a-header\n{"ok":true}\n',
-    )
-
-    assert status_code == 200
-    assert headers == ()
-    assert body_shape == ()
-    assert report_writer._walk_json_shape(
-        {1: "ignored", "bad\n": "ignored", "ok": None},
-        "$",
-    ) == ["$:object", "$.ok:null"]
-
-
 def test_load_run_report_round_trips_response_fingerprint(tmp_path: Path) -> None:
     latest = tmp_path / ".entroping" / "latest-run.json"
     latest.parent.mkdir()

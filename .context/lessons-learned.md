@@ -2,6 +2,10 @@
 
 ## 2026-06-02
 
+- A report writer facade can preserve imports for CLI/tests while separating
+  format-specific internals. Keep schema serialization, response
+  fingerprinting, rendering, and safe-write error handling distinct so future
+  report formats do not pile onto one module.
 - Once CLI production modules are split by namespace, the adapter tests should
   follow the same map. A single mega-file makes command behavior harder to
   review even when coverage is strong.
