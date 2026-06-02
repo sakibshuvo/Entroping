@@ -196,6 +196,9 @@ before persistence, but you are still responsible for capture authorization and 
 confirm that the environment is approved for interception, avoid collecting
 third-party or user-private traffic, run `entroping report redaction` before
 freezing tests, and inspect generated artifacts before committing them.
+Multipart request and response bodies are fully summarized before persistence;
+file fields, token fields, and harmless text fields are not stored as captured
+body text.
 
 Current alpha status: `watch` records redacted, bounded traffic locally under
 `.entroping/state.db`; basic `freeze --name <flow> [--golden]` writes validated

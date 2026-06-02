@@ -2,6 +2,11 @@
 
 ## 2026-06-02
 
+- Added issue #365's captured-traffic redaction hardening so multipart request
+  and response bodies are replaced with redacted media-type summaries before
+  persistence, broad token prefix patterns avoid short documentation
+  placeholders, and harmless Bearer prose is preserved while common credential
+  coverage remains tested.
 - Added issue #364's hardened XML report parsing so JUnit inputs consumed by
   GitHub annotations and review summaries use `defusedxml`, reject DTD/entity
   constructs as unsafe XML, keep valid JUnit behavior intact, and include
