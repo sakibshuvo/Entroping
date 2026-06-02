@@ -10,7 +10,8 @@ Usage: scripts/package_check.sh [OPTIONS]
 Builds local package artifacts and verifies release-critical metadata.
 
 The check removes dist/, runs uv build, then inspects the wheel and sdist for
-expected project metadata, including License-Expression and license files.
+expected project metadata, including License-Expression, license files, and the
+PEP 561 py.typed marker.
 
 Options:
   --dry-run   Show deterministic package verification steps without running them.
@@ -45,7 +46,7 @@ log() {
 if ((dry_run)); then
   log "Would remove dist/"
   log "Would run: uv build"
-  log "Would verify wheel metadata and sdist contents"
+  log "Would verify wheel metadata, py.typed marker, and sdist contents"
   exit 0
 fi
 
@@ -76,6 +77,7 @@ version = project["version"]
 
 expected_wheel = dist_dir / f"{name}-{version}-py3-none-any.whl"
 expected_sdist = dist_dir / f"{name}-{version}.tar.gz"
+expected_typing_marker = "entroping/py.typed"
 
 
 def fail(message: str) -> None:
@@ -106,6 +108,8 @@ with zipfile.ZipFile(expected_wheel) as wheel:
     expected_license_path = f"{name}-{version}.dist-info/licenses/LICENSE"
     if expected_license_path not in names:
         fail(f"wheel is missing {expected_license_path}")
+    if expected_typing_marker not in names:
+        fail(f"wheel is missing {expected_typing_marker}")
 
 metadata_name = metadata.get("Name")
 metadata_version = metadata.get("Version")
@@ -131,7 +135,7 @@ if any(classifier.startswith("License ::") for classifier in classifiers):
 with tarfile.open(expected_sdist, "r:gz") as sdist:
     names = set(sdist.getnames())
     root = f"{name}-{version}"
-    for required in ("LICENSE", "README.md", "pyproject.toml"):
+    for required in ("LICENSE", "README.md", "pyproject.toml", "src/entroping/py.typed"):
         path = f"{root}/{required}"
         if path not in names:
             fail(f"sdist is missing {path}")
@@ -140,4 +144,5 @@ print("Package artifacts OK")
 print(f"Wheel: {expected_wheel.relative_to(repo_root)}")
 print(f"Sdist: {expected_sdist.relative_to(repo_root)}")
 print("License-Expression: Apache-2.0")
+print(f"Typing marker: {expected_typing_marker}")
 PY

@@ -64,9 +64,10 @@ adds, removes, or changes direct dependencies.
 Package artifacts are verified locally before any publish. The package gate
 removes `dist/`, runs `uv build`, and inspects the wheel and source
 distribution for the expected name, version, SPDX `License-Expression`, license
-file metadata, alpha classifier, and root release files. Package-index upload is
-manual through `.github/workflows/publish-python-package.yml` and protected
-`testpypi`/`pypi` environments.
+file metadata, alpha classifier, root release files, and the
+`entroping/py.typed` PEP 561 marker. Package-index upload is manual through
+`.github/workflows/publish-python-package.yml` and protected `testpypi`/`pypi`
+environments.
 
 The local wheel install smoke reuses the built wheel, creates a temporary
 virtual environment and temporary project outside the repository, installs the

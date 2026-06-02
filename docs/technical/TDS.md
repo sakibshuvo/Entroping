@@ -838,8 +838,9 @@ uv run python scripts/downstream_smoke.py
 
 The package check builds wheel/sdist artifacts with `uv build` and inspects
 metadata for project name, version, SPDX license expression, license file
-presence, and alpha maturity classifiers. It does not publish to PyPI/TestPyPI
-and must not require package-index credentials.
+presence, alpha maturity classifiers, and the `entroping/py.typed` PEP 561
+marker in both artifacts. It does not publish to PyPI/TestPyPI and must not
+require package-index credentials.
 
 The local wheel install smoke reuses the built wheel, creates an external
 temporary virtual environment and project, installs the wheel through
