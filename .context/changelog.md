@@ -2,6 +2,10 @@
 
 ## 2026-06-02
 
+- Added issue #367's Python integration proof for `entroping run`, using a
+  fake `hurl` executable on `PATH` to exercise CLI wiring, discovery, gate
+  injection, variables-file passing, subprocess execution, source immutability,
+  and JSON/JUnit report writing without network access.
 - Added issue #366's PEP 561 package marker so `src/entroping/py.typed` ships
   with the wheel and sdist, while `scripts/package_check.sh` and its tests now
   fail if package artifacts omit `entroping/py.typed`.
