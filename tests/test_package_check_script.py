@@ -23,6 +23,7 @@ def test_package_check_help_documents_build_and_metadata_verification() -> None:
     assert result.returncode == 0
     assert "uv build" in result.stdout
     assert "License-Expression" in result.stdout
+    assert "py.typed" in result.stdout
     assert "--dry-run" in result.stdout
 
 
@@ -32,7 +33,7 @@ def test_package_check_dry_run_shows_deterministic_steps() -> None:
     assert result.returncode == 0, result.stderr
     assert "Would remove dist/" in result.stdout
     assert "Would run: uv build" in result.stdout
-    assert "Would verify wheel metadata and sdist contents" in result.stdout
+    assert "Would verify wheel metadata, py.typed marker, and sdist contents" in result.stdout
 
 
 def test_package_check_builds_and_verifies_artifacts() -> None:
@@ -41,5 +42,6 @@ def test_package_check_builds_and_verifies_artifacts() -> None:
     assert result.returncode == 0, result.stderr
     assert "Package artifacts OK" in result.stdout
     assert "License-Expression: Apache-2.0" in result.stdout
+    assert "Typing marker: entroping/py.typed" in result.stdout
     assert (REPO_ROOT / "dist" / "entroping-0.1.1-py3-none-any.whl").is_file()
     assert (REPO_ROOT / "dist" / "entroping-0.1.1.tar.gz").is_file()

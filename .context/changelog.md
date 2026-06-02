@@ -2,6 +2,9 @@
 
 ## 2026-06-02
 
+- Added issue #366's PEP 561 package marker so `src/entroping/py.typed` ships
+  with the wheel and sdist, while `scripts/package_check.sh` and its tests now
+  fail if package artifacts omit `entroping/py.typed`.
 - Added issue #365's captured-traffic redaction hardening so multipart request
   and response bodies are replaced with redacted media-type summaries before
   persistence, broad token prefix patterns avoid short documentation
