@@ -2,6 +2,9 @@
 
 ## 2026-06-02
 
+- Python integration tests can prove Hurl orchestration without a real API by
+  placing a fake executable named `hurl` on `PATH`. This keeps the subprocess
+  boundary real while avoiding broad monkeypatching of the run workflow.
 - Multipart captured bodies are too risky to preserve as text, even after
   field-level redaction. Treat mixed file/form payloads as untrusted binary-ish
   material and persist only a redacted media-type summary with the original

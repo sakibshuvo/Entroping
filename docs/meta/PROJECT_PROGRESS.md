@@ -50,9 +50,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#367 Add Python integration proof for run workflow wiring](https://github.com/sakibshuvo/Entroping/issues/367) | Stable-core confidence benefits from a direct Python-level integration proof around the run workflow. |
-| 2 | [#368 Split large CLI adapter test file](https://github.com/sakibshuvo/Entroping/issues/368) | Test maintainability improves future command-surface work without changing product behavior. |
-| 3 | [#369 Add shell script syntax and ShellCheck gate](https://github.com/sakibshuvo/Entroping/issues/369) | Script quality gates reduce automation drift in the growing agent workflow. |
+| 1 | [#368 Split large CLI adapter test file](https://github.com/sakibshuvo/Entroping/issues/368) | Test maintainability improves future command-surface work without changing product behavior. |
+| 2 | [#369 Add shell script syntax and ShellCheck gate](https://github.com/sakibshuvo/Entroping/issues/369) | Script quality gates reduce automation drift in the growing agent workflow. |
+| 3 | [#370 Split report writer into focused modules](https://github.com/sakibshuvo/Entroping/issues/370) | Report maintainability improves before adding more review surfaces. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -95,6 +95,7 @@ entirely inside this repo.
 | [Hardened XML report parsing](https://github.com/sakibshuvo/Entroping/issues/364) | Done | JUnit XML read paths for GitHub annotations and review summaries use `defusedxml` and reject DTD/entity constructs before rendering findings. |
 | [Captured-traffic redaction hardening](https://github.com/sakibshuvo/Entroping/issues/365) | Done | Multipart request and response bodies are persisted only as redacted media-type summaries, and broad token patterns avoid short documentation placeholders. |
 | [`py.typed` package marker](https://github.com/sakibshuvo/Entroping/issues/366) | Done | Built wheel and sdist artifacts now include `entroping/py.typed`, and `scripts/package_check.sh` fails if either artifact omits it. |
+| [Run workflow integration proof](https://github.com/sakibshuvo/Entroping/issues/367) | Done | A Python integration test invokes `entroping run` with a fake `hurl` executable, proving discovery, gate injection, subprocess execution, source immutability, and JSON/JUnit reports together. |
 | [Read-only Studio applied-gate drilldowns](https://github.com/sakibshuvo/Entroping/issues/192) | Done | Studio links latest-run report rule IDs to QAnstitution gate definitions. |
 | Read-only Studio traffic session browser | Done | The read-only traffic session browser uses redacted SQLModel-backed state, target/dependency grouping, and safe redaction categories and counts. It does not start `watch` and does not expose raw URLs with query values, headers, bodies, cookies, tokens, or secrets. |
 
