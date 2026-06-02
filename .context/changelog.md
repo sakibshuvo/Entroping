@@ -2,6 +2,10 @@
 
 ## 2026-06-02
 
+- Added issue #369's shell script quality gate so tracked `.sh` files are
+  checked with `bash -n`, ShellCheck runs when available with an explicit skip
+  message otherwise, and `scripts/feature_gate.sh` executes the shell gate
+  before Python lint/type/test checks.
 - Added issue #367's Python integration proof for `entroping run`, using a
   fake `hurl` executable on `PATH` to exercise CLI wiring, discovery, gate
   injection, variables-file passing, subprocess execution, source immutability,

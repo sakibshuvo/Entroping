@@ -2,6 +2,10 @@
 
 ## 2026-06-02
 
+- Optional local tools should fail loudly when required and skip explicitly
+  when optional. `scripts/shell_quality.sh` always enforces `bash -n`, but
+  ShellCheck remains opportunistic until the repo deliberately installs it in
+  local setup or CI.
 - Python integration tests can prove Hurl orchestration without a real API by
   placing a fake executable named `hurl` on `PATH`. This keeps the subprocess
   boundary real while avoiding broad monkeypatching of the run workflow.

@@ -165,9 +165,9 @@ cat <<'EOF'
 EOF
 
 if [[ -n "$status" ]]; then
-  printf '```text\n%s\n```\n\n' "$status"
+  printf "\`\`\`text\n%s\n\`\`\`\n\n" "$status"
 else
-  printf '```text\nworking tree clean\n```\n\n'
+  printf "\`\`\`text\nworking tree clean\n\`\`\`\n\n"
 fi
 
 if [[ "$mode" == "source" ]]; then

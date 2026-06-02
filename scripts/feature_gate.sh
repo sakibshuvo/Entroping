@@ -39,6 +39,7 @@ done
 
 scripts/repo_hygiene.sh
 scripts/doc_governance_check.sh
+scripts/shell_quality.sh
 scripts/check.sh
 git diff --check
 git diff --cached --check

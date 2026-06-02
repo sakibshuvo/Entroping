@@ -159,7 +159,10 @@ PR template -> PR body check in CI -> doc governance check -> feature gate -> re
 - `scripts/doc_governance_check.sh` validates the documentation control plane.
 - `scripts/public_claims_audit.py` rejects unsupported production-readiness and
   security-guarantee claims in public Markdown.
-- `scripts/feature_gate.sh` runs the documentation governance check.
+- `scripts/shell_quality.sh` validates tracked shell script syntax and runs
+  ShellCheck when available.
+- `scripts/feature_gate.sh` runs the documentation governance and shell quality
+  checks before Python checks.
 - `scripts/regression.sh` runs the feature gate.
 
 If a future change weakens this chain, local gates and CI should fail.

@@ -49,7 +49,11 @@ scripts/feature_gate.sh
 
 The feature gate starts with `scripts/repo_hygiene.sh`, which fails if local machine
 state, runtime state, generated reports, graph output, virtualenvs, or tool caches
-are tracked by Git.
+are tracked by Git. It also runs `scripts/doc_governance_check.sh` and
+`scripts/shell_quality.sh` before the Python lint, type, and test gate.
+`scripts/shell_quality.sh` always runs `bash -n` over tracked shell scripts and
+runs ShellCheck when `shellcheck` is available; if ShellCheck is not installed,
+the skip is printed explicitly.
 
 Regression suite:
 
@@ -205,6 +209,8 @@ must fail before review.
 CI-enforced commands are `scripts/regression.sh --security`,
 `scripts/audit_quality.sh`, `uvx --with 'mkdocs-material==9.*' mkdocs build
 --strict`, the `install-smoke` matrix, and the `optional-extras-smoke` lane.
+Because the regression gate runs the feature gate, CI also runs shell syntax
+validation through `scripts/shell_quality.sh`.
 
 Drift tests must keep response comparison value-free. The structured drift MVP
 compares response status codes, selected stable headers, and JSON body shape
