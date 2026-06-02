@@ -5,10 +5,13 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
-from xml.etree import ElementTree  # nosec B405
+from typing import Literal, Protocol, cast
+
+from defusedxml import ElementTree
+from defusedxml.common import DefusedXmlException
 
 from entroping.bridge.story_traceability import (
     StoryTraceabilityReport,
@@ -18,6 +21,14 @@ from entroping.core.hurl_discovery import discover_hurl_tests
 from entroping.core.hurl_runner import redact_hurl_output
 
 AnnotationLevel = Literal["error", "warning", "notice"]
+
+
+class _XmlElement(Protocol):
+    text: str | None
+
+    def get(self, key: str) -> str | None: ...
+
+    def findall(self, path: str) -> Sequence[_XmlElement]: ...
 
 
 class GitHubAnnotationError(ValueError):
@@ -62,11 +73,13 @@ def annotations_from_junit_report(path: Path) -> tuple[GitHubAnnotation, ...]:
         return ()
 
     try:
-        root = ElementTree.parse(path).getroot()  # nosec B314
+        root = cast(_XmlElement, ElementTree.parse(path).getroot())
+    except DefusedXmlException as exc:
+        msg = f"Could not parse JUnit report {path}: unsafe XML construct: {exc}"
+        raise GitHubAnnotationError(msg) from exc
     except ElementTree.ParseError as exc:
         msg = f"Could not parse JUnit report {path}: {exc}"
         raise GitHubAnnotationError(msg) from exc
-
     annotations: list[GitHubAnnotation] = []
     for testcase in root.findall(".//testcase"):
         for element_name, title in (
@@ -200,7 +213,7 @@ def _load_json_object(path: Path, *, artifact: str) -> dict[str, object]:
     return data
 
 
-def _junit_test_path(testcase: ElementTree.Element, message: str) -> str | None:
+def _junit_test_path(testcase: _XmlElement, message: str) -> str | None:
     for line in message.splitlines():
         if line.startswith("path: "):
             return _safe_file(line.removeprefix("path: "))

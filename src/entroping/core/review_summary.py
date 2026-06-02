@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from html import escape
 from pathlib import Path
-from typing import Literal
-from xml.etree import ElementTree  # nosec B405
+from typing import Literal, Protocol, cast
+
+from defusedxml import ElementTree
+from defusedxml.common import DefusedXmlException
 
 from entroping.bridge.story_traceability import (
     StoryTraceabilityReport,
@@ -20,6 +23,14 @@ from entroping.core.safe_write import SafeWriteError, safe_write_text
 ReviewStatus = Literal["pass", "attention", "fail"]
 FindingSeverity = Literal["error", "warning", "notice"]
 ArtifactState = Literal["present", "missing", "disabled"]
+
+
+class _XmlElement(Protocol):
+    text: str | None
+
+    def get(self, key: str) -> str | None: ...
+
+    def findall(self, path: str) -> Sequence[_XmlElement]: ...
 
 
 class ReviewSummaryError(ValueError):
@@ -233,11 +244,13 @@ def _findings_from_junit(
         return ()
 
     try:
-        root_element = ElementTree.parse(path).getroot()  # nosec B314
+        root_element = cast(_XmlElement, ElementTree.parse(path).getroot())
+    except DefusedXmlException as exc:
+        msg = f"Could not parse JUnit report {path}: unsafe XML construct: {exc}"
+        raise ReviewSummaryError(msg) from exc
     except ElementTree.ParseError as exc:
         msg = f"Could not parse JUnit report {path}: {exc}"
         raise ReviewSummaryError(msg) from exc
-
     findings: list[ReviewFinding] = []
     for testcase in root_element.findall(".//testcase"):
         for element_name, title in (
@@ -350,7 +363,7 @@ def _artifact_state(path: Path) -> ArtifactState:
     return "present" if path.exists() else "missing"
 
 
-def _junit_test_path(testcase: ElementTree.Element, message: str) -> Path | None:
+def _junit_test_path(testcase: _XmlElement, message: str) -> Path | None:
     for line in message.splitlines():
         if line.startswith("path: "):
             return Path(line.removeprefix("path: ").strip())

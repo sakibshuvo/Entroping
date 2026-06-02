@@ -4,9 +4,17 @@
   "allowed_license_families": [
     "Apache-2.0",
     "BSD",
-    "MIT"
+    "MIT",
+    "PSF"
   ],
   "dependencies": [
+    {
+      "group": "dependencies/default",
+      "name": "defusedxml",
+      "license_family": "PSF",
+      "spdx": "PSF-2.0",
+      "notes": "Direct runtime dependency used to parse untrusted XML report artifacts safely; package metadata advertises PSFL."
+    },
     {
       "group": "dependencies/default",
       "name": "pydantic",
@@ -97,6 +105,13 @@
       "license_family": "MIT",
       "spdx": "MIT",
       "notes": "Development lint dependency."
+    },
+    {
+      "group": "dependency-groups/dev",
+      "name": "types-defusedxml",
+      "license_family": "Apache-2.0",
+      "spdx": "Apache-2.0",
+      "notes": "Development typing stub dependency from the typeshed ecosystem."
     },
     {
       "group": "dependency-groups/dev",
