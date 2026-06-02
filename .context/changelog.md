@@ -2,6 +2,10 @@
 
 ## 2026-06-02
 
+- Added issue #370's report writer module split so the public
+  `entroping.core.report_writer` facade remains stable while response
+  fingerprinting, JSON serialization, JUnit/HTML/bug rendering, and report
+  errors move into focused core modules.
 - Added issue #368's CLI adapter test split so the former 3,374-line
   `tests/test_cli.py` is now organized by command area, with shared CLI test
   helpers and the existing 113 assertions preserved.
