@@ -9,7 +9,7 @@ Compatibility audit: [CLI_COMPATIBILITY_AUDIT.md](CLI_COMPATIBILITY_AUDIT.md).
 
 ```text
 entroping init [--minimal]
-entroping doctor
+entroping doctor [--output <text|json>]
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
 
@@ -46,6 +46,7 @@ values or contacting providers.
 | `entroping init` | Create a standard Entroping project layout |
 | `entroping init --minimal` | Create only the minimum required files |
 | `entroping doctor` | Validate local setup, tools, config, and policies |
+| `entroping doctor --output json` | Emit versioned machine-readable setup health |
 | `entroping config list` | Show effective non-secret configuration |
 | `entroping config set --agent <name> --model <id>` | Configure model routing for an agent role |
 

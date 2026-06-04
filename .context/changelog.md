@@ -2,6 +2,10 @@
 
 ## 2026-06-03
 
+- Added issue #395's machine-readable doctor output so
+  `entroping doctor --output json` emits schema version
+  `entroping.doctor.v1` with tool, traffic-state, QAnstitution, and
+  agent-readiness health while preserving human doctor exit semantics.
 - Added issue #394's doctor agent-readiness validation so configured
   Builder/Auditor/Breaker persona files are checked through the runtime persona
   loader, unsafe persona setup fails locally, and configured `api_key_env`

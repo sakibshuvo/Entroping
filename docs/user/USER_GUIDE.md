@@ -62,6 +62,8 @@ entroping doctor
 config, QAnstitution files, and any configured AI agent personas are usable.
 It checks whether configured `api_key_env` variables are present without
 printing their values, and it does not call model providers.
+Use `entroping doctor --output json` when CI jobs or coding agents need the
+same health signal as versioned JSON instead of human text.
 
 For local solo development, keep the install editable with `uv tool install -e .`. Homebrew, Nuitka binaries, Docker, and PyPI are distribution targets after the CLI is stable.
 

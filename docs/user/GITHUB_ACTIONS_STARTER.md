@@ -56,6 +56,8 @@ uv tool install git+https://github.com/sakibshuvo/Entroping.git@v0.1.1-alpha
 
 ```bash
 entroping doctor
+mkdir -p reports
+entroping doctor --output json > reports/doctor-health.json
 ```
 
 7. Runs the deterministic CI gate and writes JSON, JUnit, and HTML reports:

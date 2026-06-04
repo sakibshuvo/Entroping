@@ -12,6 +12,14 @@ from entroping.cli.shared import console, display_cli_path, safe_cli_text
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
 from entroping.core.hurl_runner import discover_hurl
 from entroping.core.traffic_store import TrafficStoreError, list_project_exchanges_readonly
+from entroping.models.doctor import (
+    DoctorAgentHealth,
+    DoctorHealthReport,
+    DoctorHealthStatus,
+    DoctorQanstitutionHealth,
+    DoctorToolHealth,
+    DoctorTrafficStateHealth,
+)
 from entroping.models.qanstitution import AgentRole, Qanstitution
 
 MINIMAL_QANSTITUTION = """project: "entroping-project"
@@ -42,6 +50,7 @@ settings:
   retry: 0
 """
 _AGENT_ROLE_ORDER: tuple[AgentRole, ...] = ("builder", "auditor", "breaker")
+_DOCTOR_OUTPUTS = frozenset({"text", "json"})
 
 
 def register_project_commands(root_app: typer.Typer) -> None:
@@ -71,104 +80,281 @@ def init(
     console.print("[green]Initialized Entroping project structure.[/green]")
 
 
-def doctor() -> None:
+def doctor(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: text or json."),
+    ] = "text",
+) -> None:
     """Check local tool availability without making network calls."""
 
+    normalized_output = output.strip().lower()
+    if normalized_output not in _DOCTOR_OUTPUTS:
+        console.print(f"[yellow]Unsupported doctor output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    report = _collect_doctor_health()
+    if normalized_output == "json":
+        sys.stdout.write(report.model_dump_json(indent=2) + "\n")
+    else:
+        _render_doctor_health(report)
+
+    if report.status == "error":
+        raise typer.Exit(1)
+
+
+def _collect_doctor_health() -> DoctorHealthReport:
     hurl = discover_hurl()
     hurl_parser = discover_hurl("hurlfmt")
-    console.print(f"Python: {sys.version.split()[0]}")
-    if hurl.available:
-        console.print(f"Hurl: [green]found[/green] at {hurl.path}")
-    else:
-        console.print("Hurl: [yellow]not found[/yellow] (install hurl before running suites)")
-    if hurl_parser.available:
-        console.print(f"Hurl parser: [green]found[/green] at {hurl_parser.path}")
-    else:
-        console.print(
-            "Hurl parser: [yellow]not found[/yellow] "
-            "(install hurlfmt before Architect generated-Hurl validation)"
-        )
-    _report_traffic_state_health()
-
+    hurl_health = _tool_health("hurl", hurl.available, hurl.path)
+    hurl_parser_health = _tool_health("hurlfmt", hurl_parser.available, hurl_parser.path)
+    traffic_state = _collect_traffic_state_health()
     config_path = Path("qanstitution.yaml")
+    qanstitution, law = _collect_qanstitution_health(config_path)
+    agents = _collect_agent_readiness(law, config_path=config_path) if law is not None else []
+    statuses = [
+        hurl_health.status,
+        hurl_parser_health.status,
+        traffic_state.status,
+        qanstitution.status,
+        *(agent.status for agent in agents),
+    ]
+    return DoctorHealthReport(
+        status=_overall_status(statuses),
+        python_version=sys.version.split()[0],
+        tools={
+            "hurl": hurl_health,
+            "hurl_parser": hurl_parser_health,
+        },
+        traffic_state=traffic_state,
+        qanstitution=qanstitution,
+        agents=agents,
+    )
+
+
+def _tool_health(name: str, available: bool, path: str | None) -> DoctorToolHealth:
+    if available:
+        return DoctorToolHealth(
+            status="ok",
+            available=True,
+            path=path,
+            message=f"{name} found",
+        )
+    return DoctorToolHealth(
+        status="warn",
+        available=False,
+        path=None,
+        message=f"{name} not found",
+    )
+
+
+def _collect_qanstitution_health(
+    config_path: Path,
+) -> tuple[DoctorQanstitutionHealth, Qanstitution | None]:
     if not config_path.exists():
-        console.print("QAnstitution: [yellow]not found[/yellow] (run entroping init --minimal)")
-        return
+        return (
+            DoctorQanstitutionHealth(
+                status="warn",
+                path=str(config_path),
+                message="qanstitution.yaml not found",
+            ),
+            None,
+        )
 
     try:
         law = load_qanstitution(config_path)
     except QanstitutionLoadError as exc:
-        console.print("[red]QAnstitution: invalid[/red]")
-        console.print(f"[red]{exc}[/red]")
-        raise typer.Exit(1) from exc
+        return (
+            DoctorQanstitutionHealth(
+                status="error",
+                path=str(config_path),
+                message=safe_cli_text(exc),
+            ),
+            None,
+        )
 
-    console.print(
-        f"QAnstitution: [green]valid[/green] ({len(law.gates)} gates, "
-        f"{len(law.imports)} imports)"
+    return (
+        DoctorQanstitutionHealth(
+            status="ok",
+            path=str(config_path),
+            project=law.project,
+            gate_count=len(law.gates),
+            import_count=len(law.imports),
+            message="qanstitution.yaml valid",
+        ),
+        law,
     )
-    _report_agent_readiness(law, config_path=config_path)
 
 
-def _report_traffic_state_health() -> None:
+def _collect_traffic_state_health() -> DoctorTrafficStateHealth:
     state_path = Path(".entroping") / "state.db"
     if not state_path.exists():
+        return DoctorTrafficStateHealth(
+            status="warn",
+            path=str(state_path),
+            message="traffic state not found",
+        )
+
+    try:
+        exchanges = list_project_exchanges_readonly(Path.cwd())
+    except TrafficStoreError as exc:
+        return DoctorTrafficStateHealth(
+            status="error",
+            path=str(state_path),
+            message=safe_cli_text(exc),
+        )
+
+    return DoctorTrafficStateHealth(
+        status="ok",
+        path=str(state_path),
+        exchange_count=len(exchanges),
+        message="traffic state valid",
+    )
+
+
+def _collect_agent_readiness(law: Qanstitution, *, config_path: Path) -> list[DoctorAgentHealth]:
+    agents: list[DoctorAgentHealth] = []
+    for role in _AGENT_ROLE_ORDER:
+        if role not in law.agents:
+            continue
+        agent_config = law.agents[role]
+        try:
+            persona = load_agent_persona(law, role, config_path=config_path)
+        except PersonaLoadError as exc:
+            agents.append(
+                DoctorAgentHealth(
+                    role=role,
+                    status="error",
+                    model=safe_cli_text(agent_config.model),
+                    source=safe_cli_text(agent_config.source),
+                    api_key_env=agent_config.api_key_env,
+                    api_key_env_present=(
+                        None
+                        if agent_config.api_key_env is None
+                        else agent_config.api_key_env in os.environ
+                    ),
+                    message=safe_cli_text(exc),
+                )
+            )
+            continue
+
+        api_key_env_present = (
+            None if persona.api_key_env is None else persona.api_key_env in os.environ
+        )
+        agents.append(
+            DoctorAgentHealth(
+                role=role,
+                status="warn"
+                if persona.api_key_env is not None and not api_key_env_present
+                else "ok",
+                model=safe_cli_text(persona.model),
+                source=display_cli_path(persona.source_path),
+                api_key_env=persona.api_key_env,
+                api_key_env_present=api_key_env_present,
+                message="api_key_env not set"
+                if persona.api_key_env is not None and not api_key_env_present
+                else "agent ready",
+            )
+        )
+    return agents
+
+
+def _render_doctor_health(report: DoctorHealthReport) -> None:
+    console.print(f"Python: {report.python_version}")
+    _render_tool_health(
+        "Hurl",
+        report.tools["hurl"],
+        missing_guidance="install hurl before running suites",
+    )
+    _render_tool_health(
+        "Hurl parser",
+        report.tools["hurl_parser"],
+        missing_guidance="install hurlfmt before Architect generated-Hurl validation",
+    )
+    _render_traffic_state_health(report.traffic_state)
+    _render_qanstitution_health(report.qanstitution)
+    if report.qanstitution.status == "ok":
+        _render_agent_readiness(report.agents)
+
+
+def _render_tool_health(label: str, tool: DoctorToolHealth, *, missing_guidance: str) -> None:
+    if tool.status == "ok":
+        console.print(f"{label}: [green]found[/green] at {tool.path}")
+        return
+    console.print(f"{label}: [yellow]not found[/yellow] ({missing_guidance})")
+
+
+def _render_traffic_state_health(traffic_state: DoctorTrafficStateHealth) -> None:
+    if traffic_state.status == "warn":
         console.print(
             "Traffic state: [yellow]not found[/yellow] "
             "(capture traffic with entroping watch)"
         )
         return
-
-    try:
-        exchanges = list_project_exchanges_readonly(Path.cwd())
-    except TrafficStoreError as exc:
+    if traffic_state.status == "error":
         console.print("[red]Traffic state: invalid[/red]")
-        console.print(f"[red]{exc}[/red]")
-        raise typer.Exit(1) from exc
+        console.print(traffic_state.message, style="red", markup=False)
+        return
 
-    suffix = "exchange" if len(exchanges) == 1 else "exchanges"
+    exchange_count = traffic_state.exchange_count or 0
+    suffix = "exchange" if exchange_count == 1 else "exchanges"
     console.print(
         "[green]Traffic state: valid[/green] "
-        f"(.entroping/state.db, {len(exchanges)} {suffix})"
+        f"(.entroping/state.db, {exchange_count} {suffix})"
     )
 
 
-def _report_agent_readiness(law: Qanstitution, *, config_path: Path) -> None:
-    if not law.agents:
+def _render_qanstitution_health(qanstitution: DoctorQanstitutionHealth) -> None:
+    if qanstitution.status == "warn":
+        console.print("QAnstitution: [yellow]not found[/yellow] (run entroping init --minimal)")
+        return
+    if qanstitution.status == "error":
+        console.print("[red]QAnstitution: invalid[/red]")
+        console.print(qanstitution.message, style="red", markup=False)
+        return
+
+    console.print(
+        f"QAnstitution: [green]valid[/green] ({qanstitution.gate_count or 0} gates, "
+        f"{qanstitution.import_count or 0} imports)"
+    )
+
+
+def _render_agent_readiness(agents: list[DoctorAgentHealth]) -> None:
+    if not agents:
         console.print("Agents: [yellow]none configured[/yellow] (AI commands optional)")
         return
 
-    noun = "agent" if len(law.agents) == 1 else "agents"
-    console.print(f"Agents: {len(law.agents)} configured {noun}")
-    invalid = False
-    for role in _AGENT_ROLE_ORDER:
-        if role not in law.agents:
+    noun = "agent" if len(agents) == 1 else "agents"
+    console.print(f"Agents: {len(agents)} configured {noun}")
+    for agent in agents:
+        if agent.status == "error":
+            console.print(f"[red]Agent {agent.role}: invalid[/red]")
+            console.print(agent.message, style="red", markup=False)
             continue
-        try:
-            persona = load_agent_persona(law, role, config_path=config_path)
-        except PersonaLoadError as exc:
-            invalid = True
-            console.print(f"[red]Agent {role}: invalid[/red]")
-            console.print(safe_cli_text(exc), style="red", markup=False)
-            continue
-
         console.print(
-            f"Agent {role}: ready "
-            f"(model {safe_cli_text(persona.model)}, "
-            f"persona {display_cli_path(persona.source_path)})",
+            f"Agent {agent.role}: ready "
+            f"(model {agent.model}, persona {agent.source})",
             style="green",
             markup=False,
         )
-        _report_agent_api_key_env(role, persona.api_key_env)
-
-    if invalid:
-        raise typer.Exit(1)
+        _render_agent_api_key_env(agent)
 
 
-def _report_agent_api_key_env(role: AgentRole, api_key_env: str | None) -> None:
-    if api_key_env is None:
-        console.print(f"Agent {role} api_key_env: [yellow]not configured[/yellow]")
+def _render_agent_api_key_env(agent: DoctorAgentHealth) -> None:
+    if agent.api_key_env is None:
+        console.print(f"Agent {agent.role} api_key_env: [yellow]not configured[/yellow]")
         return
-    if api_key_env in os.environ:
-        console.print(f"Agent {role} api_key_env {api_key_env}: [green]set[/green]")
+    if agent.api_key_env_present:
+        console.print(f"Agent {agent.role} api_key_env {agent.api_key_env}: [green]set[/green]")
     else:
-        console.print(f"Agent {role} api_key_env {api_key_env}: [yellow]not set[/yellow]")
+        console.print(
+            f"Agent {agent.role} api_key_env {agent.api_key_env}: [yellow]not set[/yellow]"
+        )
+
+
+def _overall_status(statuses: list[DoctorHealthStatus]) -> DoctorHealthStatus:
+    if "error" in statuses:
+        return "error"
+    if "warn" in statuses:
+        return "warn"
+    return "ok"
