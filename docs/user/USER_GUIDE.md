@@ -448,6 +448,7 @@ When a failure needs an issue:
 
 ```bash
 entroping report bug
+entroping report failure-bundle
 ```
 
 The bug report should include:
@@ -459,6 +460,14 @@ The bug report should include:
 - Equivalent curl when possible.
 - Actual vs expected behavior.
 - Relevant sanitized request/response data.
+
+Use `entroping report failure-bundle` when the handoff needs attachable local
+evidence instead of a single Markdown body. The bundle writes
+`reports/failure-bundle/manifest.json`, sanitized latest-run JSON, generated bug
+Markdown, failed-test Hurl metadata, and any already-reviewed JUnit, HTML,
+effective-policy, or redaction-review artifacts that exist. It refuses missing
+latest runs, passing runs, raw traffic state, local env files, and unsafe
+artifact paths.
 
 When a review needs story/test evidence:
 

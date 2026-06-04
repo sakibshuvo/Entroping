@@ -76,6 +76,11 @@ project, and a Codex workspace with fast context rehydration.
   manifests with schema `entroping.suite.v1`, root-bounded path globs, tags,
   env, reports, parallel, and drift settings without changing default `run`
   behavior or calling providers.
+- `entroping report failure-bundle` writes a sanitized local handoff directory
+  with manifest schema `entroping.failure-bundle.v1`, sanitized run JSON,
+  generated bug Markdown, failed-test Hurl metadata, and already-reviewed local
+  report artifacts. It refuses missing/latest-passing runs, raw traffic state,
+  local env files, source Hurl contents, and unsafe artifact paths.
 - `entroping report sarif` writes SARIF 2.1.0 from local JUnit, drift, and
   optional traceability findings for code-scanning import. It does not execute
   Hurl, call providers, or upload results.

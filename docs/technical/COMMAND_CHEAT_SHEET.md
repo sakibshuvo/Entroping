@@ -186,6 +186,7 @@ Variables can come from `envs/<name>.env`, explicit shell
 | Command | Purpose |
 | --- | --- |
 | `entroping report bug` | Generate a Markdown bug report from the latest failure |
+| `entroping report failure-bundle` | Write a sanitized issue handoff bundle to `reports/failure-bundle/manifest.json` |
 | `entroping report redaction --output md` | Write a counts-only captured-traffic redaction review to `reports/redaction-review.md` |
 | `entroping report redaction --output html` | Write a browser-readable redaction review to `reports/redaction-review.html` |
 | `entroping report policy --output md` | Write effective QAnstitution gate provenance to `reports/effective-policy.md` |
@@ -200,6 +201,7 @@ Example:
 
 ```bash
 entroping report bug
+entroping report failure-bundle
 entroping report redaction --output md
 entroping report policy --output md
 entroping report traceability --output md

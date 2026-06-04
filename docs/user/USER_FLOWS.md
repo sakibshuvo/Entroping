@@ -252,19 +252,21 @@ An Entroping run fails and needs a bug ticket.
 
 1. Run or inspect latest report.
 2. Generate bug report.
-3. Attach sanitized request/response evidence.
+3. Generate a sanitized bundle if the issue needs attachable evidence.
 4. Link issue to known failure only if a temporary exception is approved.
 
 ### Commands
 
 ```bash
 entroping report bug
+entroping report failure-bundle
 ```
 
 ### Success Criteria
 
 - Bug includes exact repro command.
 - Failure includes expected vs actual behavior.
+- Bundle manifest lists sanitized included artifacts and hashes when generated.
 - If ignored, the exception has issue ID and expiry.
 
 ## 10. Traceability Review

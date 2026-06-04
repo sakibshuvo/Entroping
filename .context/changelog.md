@@ -1,5 +1,14 @@
 # Entroping Changelog
 
+## 2026-06-04
+
+- Added issue #403's sanitized failure-bundle workflow so
+  `entroping report failure-bundle` writes `reports/failure-bundle/manifest.json`
+  with `entroping.failure-bundle.v1`, sanitized latest-run JSON, generated bug
+  Markdown, failed-test Hurl metadata, optional reviewed report artifacts,
+  artifact sizes/hashes, and guardrails against missing/passing runs, raw local
+  state, env files, symlinked artifacts, and source Hurl contents.
+
 ## 2026-06-03
 
 - Added issue #402's named suite manifests so `entroping run --suite <name>`

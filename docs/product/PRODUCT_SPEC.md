@@ -140,7 +140,7 @@ The v4.1 command namespace is intentionally small and stable:
 | Intelligence | `architect build`, `architect refactor`, `architect audit` |
 | Observation | `watch`, `freeze`, `map` |
 | Execution | `run`, `studio` |
-| Reporting | `report bug`, `report redaction`, `report traceability` |
+| Reporting | `report bug`, `report failure-bundle`, `report redaction`, `report policy`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary` |
 
 Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `verify`, `explain`, and `chaos` must not be treated as primary v4.1 commands. They can exist only as explicit backwards-compatible aliases or future roadmap items.
 
@@ -213,14 +213,15 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | EXE-006 | Emit reports | Repeatable `--report html`, `--report junit`, `--report json`, and `--report drift` flags write reports under `reports/` |
 | EXE-007 | Detect drift | `--drift-check` compares current behavior against baselines and reports breaking changes |
 | EXE-008 | Generate bug reports | `entroping report bug` creates a Markdown bug template with exact Hurl/curl repro details |
-| EXE-009 | Generate redaction review reports | `entroping report redaction --output md` and `--output html` summarize captured traffic redaction categories and counts without raw secrets |
-| EXE-010 | Run changed Hurl tests locally | `entroping run --changed-from <ref>` selects existing changed `.hurl` files from Git diff for fast feedback while full-suite `run` remains the default |
-| EXE-011 | Generate traceability reports | `entroping report traceability --output md` maps local Hurl metadata to stories, owners, docs, tests, tags, and findings |
-| EXE-012 | Generate SARIF reports | `entroping report sarif` writes SARIF 2.1.0 from local JUnit, drift, and optional traceability findings without uploading results |
-| EXE-013 | Promote reviewed drift baselines | `entroping report promote-drift-baseline` validates a reviewed candidate before atomically writing `.entroping/drift-baseline.json` |
-| EXE-014 | Provide read-only TUI workflow | `entroping studio --env local` opens optional Textual/Rich local inspection over sanitized reports and redacted state |
-| EXE-015 | Preserve execution reproducibility | All blocking CI behavior must be explainable from committed Hurl files, env data, effective QAnstitution, and Hurl output |
-| EXE-016 | Run named committed suites | `entroping run --suite smoke` loads `suites/smoke.yaml`, validates schema `entroping.suite.v1`, resolves root-bounded local path globs, and applies suite-defined env, tags, reports, parallel, and drift settings without changing default `run` behavior |
+| EXE-009 | Generate failure bundles | `entroping report failure-bundle` creates a sanitized local bundle with a versioned manifest, latest failed run evidence, bug Markdown, failed-test Hurl metadata, and reviewed local report artifacts without raw traffic, env files, uploads, or source Hurl contents |
+| EXE-010 | Generate redaction review reports | `entroping report redaction --output md` and `--output html` summarize captured traffic redaction categories and counts without raw secrets |
+| EXE-011 | Run changed Hurl tests locally | `entroping run --changed-from <ref>` selects existing changed `.hurl` files from Git diff for fast feedback while full-suite `run` remains the default |
+| EXE-012 | Generate traceability reports | `entroping report traceability --output md` maps local Hurl metadata to stories, owners, docs, tests, tags, and findings |
+| EXE-013 | Generate SARIF reports | `entroping report sarif` writes SARIF 2.1.0 from local JUnit, drift, and optional traceability findings without uploading results |
+| EXE-014 | Promote reviewed drift baselines | `entroping report promote-drift-baseline` validates a reviewed candidate before atomically writing `.entroping/drift-baseline.json` |
+| EXE-015 | Provide read-only TUI workflow | `entroping studio --env local` opens optional Textual/Rich local inspection over sanitized reports and redacted state |
+| EXE-016 | Preserve execution reproducibility | All blocking CI behavior must be explainable from committed Hurl files, env data, effective QAnstitution, and Hurl output |
+| EXE-017 | Run named committed suites | `entroping run --suite smoke` loads `suites/smoke.yaml`, validates schema `entroping.suite.v1`, resolves root-bounded local path globs, and applies suite-defined env, tags, reports, parallel, and drift settings without changing default `run` behavior |
 
 ## 10. Supported Test Types
 
