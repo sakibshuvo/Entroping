@@ -398,6 +398,77 @@ def test_report_delta_wraps_report_load_errors(
     assert "Could not compare run reports" in result.output
 
 
+def test_report_badges_writes_shields_endpoint_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports_dir = Path("reports")
+    reports_dir.mkdir()
+    (reports_dir / "run-latest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "tests": [{"path": "tests/health.hurl", "rule_ids": ["latency"]}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (reports_dir / "effective-policy.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.effective-policy-report.v1",
+                "gates": [{"id": "latency"}, {"id": "auth_required"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (reports_dir / "openapi-audit.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.openapi-audit.v1",
+                "summary": {"total_operations": 2, "covered_operations": 2},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (reports_dir / "traceability.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.traceability-report.v1",
+                "stories": [{"story_id": "CHK-001", "test_paths": ["tests/health.hurl"]}],
+                "findings": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["report", "badges"])
+
+    assert result.exit_code == 0
+    assert "reports/badges/policy-gates.json" in result.output
+    policy_badge = json.loads((reports_dir / "badges" / "policy-gates.json").read_text())
+    assert policy_badge == {
+        "schemaVersion": 1,
+        "label": "policy gates",
+        "message": "1/2 (50%)",
+        "color": "yellow",
+    }
+
+
+def test_report_badges_reports_missing_source_without_writes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "badges"])
+
+    assert result.exit_code == 1
+    assert "Missing run report" in result.output
+    assert not (tmp_path / "reports" / "badges").exists()
+
+
 def test_report_redaction_writes_markdown_without_raw_secret(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -519,6 +590,36 @@ def test_report_traceability_renders_story_metadata(
     assert "checkout, smoke" in result.output
 
 
+def test_report_traceability_outputs_json_for_badge_sources(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    tests_dir = Path("tests")
+    tests_dir.mkdir()
+    (tests_dir / "checkout.hurl").write_text(
+        "\n".join(
+            [
+                "# entroping: tags=smoke,checkout",
+                "# entroping: story_id=CHK-001",
+                "# entroping: owner=payments",
+                "",
+                "GET {{base_url}}/checkout",
+                "HTTP 200",
+            ],
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["report", "traceability", "--output", "json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["schema_version"] == "entroping.traceability-report.v1"
+    assert payload["summary"] == {"stories": 1, "findings": 0, "passed": True}
+    assert payload["stories"][0]["story_id"] == "CHK-001"
+
+
 def test_report_traceability_reports_missing_story_ids(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -590,7 +691,7 @@ def test_report_traceability_wraps_metadata_syntax_errors(
 
 
 def test_report_traceability_rejects_unsupported_output() -> None:
-    result = CliRunner().invoke(app, ["report", "traceability", "--output", "json"])
+    result = CliRunner().invoke(app, ["report", "traceability", "--output", "html"])
 
     assert result.exit_code == 2
     assert "Unsupported traceability output" in result.output

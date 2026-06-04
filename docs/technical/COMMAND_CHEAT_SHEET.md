@@ -27,9 +27,10 @@ entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <e
 entroping report bug
 entroping report failure-bundle [--output <directory>]
 entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
+entroping report badges [--output <directory>] [--run-json <path>] [--policy-json <path>] [--openapi-json <path>] [--traceability-json <path>]
 entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
-entroping report traceability [--output md]
+entroping report traceability [--output <md|json>]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
 entroping report sarif [--output <path>] [--junit <path>] [--drift <path>] [--traceability]
 entroping report promote-drift-baseline [--candidate <path>] [--output <path>]
@@ -227,11 +228,13 @@ Variables can come from `envs/<name>.env`, explicit shell
 | `entroping report bug` | Generate a Markdown bug report from the latest failure |
 | `entroping report failure-bundle` | Write a sanitized issue handoff bundle to `reports/failure-bundle/manifest.json` |
 | `entroping report delta --base <path> --current <path>` | Compare two JSON run reports and emit deterministic Markdown or JSON delta output |
+| `entroping report badges` | Write local Shields endpoint JSON badges to `reports/badges/` |
 | `entroping report redaction --output md` | Write a counts-only captured-traffic redaction review to `reports/redaction-review.md` |
 | `entroping report redaction --output html` | Write a browser-readable redaction review to `reports/redaction-review.html` |
 | `entroping report policy --output md` | Write effective QAnstitution gate provenance to `reports/effective-policy.md` |
 | `entroping report policy --output json` | Write machine-readable effective policy evidence to `reports/effective-policy.json` |
 | `entroping report traceability --output md` | Generate a local Markdown story/test traceability report |
+| `entroping report traceability --output json` | Emit machine-readable traceability JSON for badges or downstream tools |
 | `entroping report github-annotations` | Emit GitHub Actions workflow-command annotations from local reports |
 | `entroping report sarif` | Write SARIF 2.1.0 code-scanning evidence to `reports/entroping.sarif` |
 | `entroping report promote-drift-baseline` | Promote a reviewed drift baseline candidate into `.entroping/drift-baseline.json` |
@@ -243,9 +246,11 @@ Example:
 entroping report bug
 entroping report failure-bundle
 entroping report delta --base reports/run-base.json --current reports/run-latest.json
+entroping report badges
 entroping report redaction --output md
 entroping report policy --output md
 entroping report traceability --output md
+entroping report traceability --output json > reports/traceability.json
 entroping report github-annotations --traceability
 entroping report sarif --traceability
 entroping report promote-drift-baseline

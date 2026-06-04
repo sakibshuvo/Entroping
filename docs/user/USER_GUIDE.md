@@ -515,6 +515,21 @@ without executing Hurl or rendering raw stdout/stderr. It exits `1` when the
 current run introduces added or changed failures, which makes it suitable for a
 CI PR-comment step after `entroping run --report json`.
 
+Generate local Shields-compatible coverage badges from existing reports:
+
+```bash
+entroping report policy --output json
+entroping architect audit --focus logic --output json > reports/openapi-audit.json
+entroping report traceability --output json > reports/traceability.json
+entroping report badges
+```
+
+This writes `reports/badges/policy-gates.json`,
+`reports/badges/openapi-operations.json`, and
+`reports/badges/story-traceability.json`. Badge generation is local and
+report-backed: it reads the JSON reports above, fails clearly if a source report
+is missing or malformed, and does not call shields.io or any hosted service.
+
 When a failure needs an issue:
 
 ```bash
@@ -544,6 +559,7 @@ When a review needs story/test evidence:
 
 ```bash
 entroping report traceability --output md
+entroping report traceability --output json > reports/traceability.json
 ```
 
 In GitHub Actions, emit PR annotations from local reports:

@@ -2,6 +2,11 @@
 
 ## 2026-06-04
 
+- Added issue #445's local coverage badge report so `entroping report badges`
+  writes Shields endpoint JSON for policy-gate, OpenAPI operation, and
+  story-traceability coverage from existing local reports. `report traceability`
+  now supports `--output json` so badge generation can stay report-backed
+  without calling shields.io or any hosted service.
 - Added issue #444's run-to-run regression delta report so
   `entroping report delta --base <path> --current <path> --output md|json`
   compares existing JSON run reports, emits deterministic added/resolved/
