@@ -58,6 +58,18 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 | Studio | `studio` is read-only until mutation workflows are designed and accepted separately. |
 | Report formats | `run --report` is repeatable and owns run artifact creation. `report bug`, `report redaction`, `report policy`, `report traceability`, `report github-annotations`, and `report review-summary` are handoff/reporting commands, not test execution commands. |
 
+## Post-Alpha UX Decision Queue
+
+These decisions close the current post-alpha UX questions without changing the
+locked alpha command surface.
+
+| Question | Decision | Rationale | Future change gate |
+| --- | --- | --- | --- |
+| Environment input | Named environments remain the supported runtime contract. `--env <name>` resolves reviewed `envs/<name>.env` presets; arbitrary env-file paths remain deferred. | Named presets keep CI reproducible, avoid accidental local secret paths in copied commands, and match current tests/docs. | A future `--env-file` or equivalent needs a compatibility issue, path-safety tests, secret-handling docs, and explicit precedence rules. |
+| Generated Hurl output | `tests/generated/` remains the only generated Hurl output root for Architect and freeze output. | A single reviewed root makes path validation, symlink defense, human review, and cleanup predictable. | A configurable output root needs a QAnstitution setting or reviewed config field, migration notes, and tests proving generated files cannot escape the project. |
+| Historical brainstorm commands | Historical brainstorm commands remain unavailable. Deprecated names such as `gen`, `fix`, `scan`, `chaos`, and `report --type` are documented for translation only. | The nested v4.1 shape is deliberate; aliases increase support surface and weaken compatibility evidence. | Friendly guidance may be added without adding aliases if it preserves exit code `2`, does not execute hidden behavior, and has regression tests for each rejected invocation. |
+| QAnstitution schema migration | QAnstitution schema compatibility is not package versioning. Policy-file migration rules live in [QANSTITUTION_REFERENCE.md](QANSTITUTION_REFERENCE.md), while Python/package releases follow `pyproject.toml` and PEP 440. | Policy authors need clear validation and migration behavior independent of install-channel versions. | Any breaking policy shape change needs a migration issue, regenerated schema, examples, tests, and release notes. |
+
 ## Exit Code Contract
 
 | Exit code | Meaning | Examples |

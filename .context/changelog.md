@@ -19,6 +19,9 @@
 - Added issue #384's launch-copy cleanup so the public first story stays
   focused on REST/OpenAPI, QAnstitution, Hurl, and CI reports while advanced
   surfaces remain documented as optional or deeper examples.
+- Added issue #372's post-alpha CLI UX decision queue so env-file paths,
+  generated output roots, deprecated command guidance, and QAnstitution policy
+  migration rules are documented before any command-surface change.
 
 ## 2026-06-02
 
