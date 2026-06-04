@@ -25,7 +25,8 @@ project, and a Codex workspace with fast context rehydration.
 - Pydantic QAnstitution models and typed condition parsing are in place.
 - Runtime `ignore_failures` exceptions are deterministic: active entries skip
   only matching Entroping-injected QAnstitution gates in temporary execution
-  copies, and expired entries block before Hurl execution.
+  copies, expired entries block before Hurl execution, and entries targeting
+  selected tests fail closed when no injected gate matches.
 - Deterministic OpenAPI generation now validates every compiled Hurl file
   before writing, avoids partial generated output on parser failure, and can
   focus regeneration to operations changed from a Git base ref.

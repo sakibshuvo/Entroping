@@ -2,6 +2,10 @@
 
 ## 2026-06-04
 
+- Added issue #436's known-failure runtime guardrail so selected-test
+  `ignore_failures` entries now fail before Hurl execution when their rule ID
+  does not match any injected QAnstitution gate, while filtered-out test
+  exceptions stay outside the current subset.
 - Added issue #437's deterministic OpenAPI breaking-change diff audit so
   `architect audit --focus logic --changed-from <ref> --output md|json`
   compares the configured local OpenAPI spec with the same file at a Git base

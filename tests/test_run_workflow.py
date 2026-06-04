@@ -12,6 +12,7 @@ from entroping.core.run_workflow import (
     HurlVariablePreflightError,
     NoHurlTestsMatchedError,
     RunWorkflowError,
+    _known_failure_source_key,
     execute_run_workflow,
 )
 from entroping.core.traffic_redactor import redact_traffic_exchange
@@ -70,6 +71,14 @@ def _failed_result(path: Path) -> HurlFileResult:
         stdout_truncated=False,
         stderr_truncated=False,
         duration_ms=12,
+    )
+
+
+def test_known_failure_source_key_keeps_external_absolute_path(tmp_path: Path) -> None:
+    external_path = tmp_path.parent / "external.hurl"
+
+    assert _known_failure_source_key(external_path, project_root=tmp_path) == (
+        external_path.resolve().as_posix()
     )
 
 
@@ -234,6 +243,129 @@ def test_execute_run_workflow_applies_known_failure_gate_exceptions(
             "test": "tests/health.hurl",
         }
     ]
+
+
+def test_execute_run_workflow_rejects_unmatched_known_failure_for_selected_test(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / "qanstitution.yaml").write_text(
+        "\n".join(
+            [
+                "project: entroping-project",
+                "gates:",
+                "  - id: latency",
+                '    condition: "true"',
+                "    gate: duration < 2000",
+                "    enforcement: block",
+                "ignore_failures:",
+                "  - test: tests/health.hurl",
+                "    rule_id: missing_latency",
+                "    issue_id: GH-404",
+                "    expires: '2999-01-01'",
+                "    reason: Stale rule id should fail closed.",
+            ],
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "health.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET http://localhost:18080/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    hurl_called = False
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+    ) -> HurlSuiteResult:
+        nonlocal hurl_called
+        _ = (paths, options, max_workers)
+        hurl_called = True
+        raise AssertionError("Hurl should not run with unmatched known failure")
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
+
+    with pytest.raises(
+        RunWorkflowError,
+        match="Known failure exception did not match.*GH-404.*tests/health\\.hurl.*missing_latency",
+    ):
+        execute_run_workflow(
+            project_root=tmp_path,
+            environment=None,
+            tag_filters=("smoke",),
+            report_formats=(),
+            parallel=False,
+            drift_check=False,
+        )
+
+    assert hurl_called is False
+    assert not (tmp_path / ".entroping" / "latest-run.json").exists()
+
+
+def test_execute_run_workflow_ignores_known_failure_for_filtered_out_test(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / "qanstitution.yaml").write_text(
+        "\n".join(
+            [
+                "project: entroping-project",
+                "gates:",
+                "  - id: latency",
+                '    condition: "true"',
+                "    gate: duration < 2000",
+                "    enforcement: block",
+                "ignore_failures:",
+                "  - test: tests/slow.hurl",
+                "    rule_id: latency",
+                "    issue_id: GH-405",
+                "    expires: '2999-01-01'",
+                "    reason: Slow test is outside this filtered run.",
+            ],
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "health.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET http://localhost:18080/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    (tests_dir / "slow.hurl").write_text(
+        "# entroping: tags=slow\n\nGET http://localhost:18080/slow\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+    ) -> HurlSuiteResult:
+        _ = (options, max_workers)
+        return HurlSuiteResult(results=tuple(_passed_result(path) for path in paths))
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
+
+    result = execute_run_workflow(
+        project_root=tmp_path,
+        environment=None,
+        tag_filters=("smoke",),
+        report_formats=(),
+        parallel=False,
+        drift_check=False,
+    )
+
+    assert result.exit_code == 0
+    latest = json.loads(result.latest_state_path.read_text(encoding="utf-8"))
+    assert latest["tests"][0]["path"] == "tests/health.hurl"
+    assert "known_failures" not in latest["tests"][0]
 
 
 def test_execute_run_workflow_reports_no_matching_hurl_tests(tmp_path: Path) -> None:

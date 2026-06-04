@@ -499,9 +499,11 @@ Current runtime semantics:
 - `test` matches the exact project-relative Hurl source path, for example `tests/payments/refund.hurl`.
 - `rule_id` matches the exact QAnstitution gate ID.
 - A matching active exception skips only that Entroping-injected gate in the temporary execution copy.
+- An active exception that targets a selected test but does not match any injected gate fails before Hurl execution with issue, test, and rule evidence.
+- Exceptions for tests outside the selected run subset are not evaluated for that subset.
 - Source `.hurl` files are never modified.
 - Authored Hurl assertions, unrelated QAnstitution gates, and unrelated Hurl failures still run and still fail normally.
-- JSON, JUnit, and HTML run reports include the applied exception's test path, rule ID, issue ID, expiry, and reason.
+- JSON, JUnit, and HTML run reports include only applied exceptions with test path, rule ID, issue ID, expiry, and reason.
 - `expires` must use `YYYY-MM-DD`; invalid or expired exceptions fail before Hurl execution.
 
 ## 15. Settings

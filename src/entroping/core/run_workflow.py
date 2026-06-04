@@ -25,7 +25,7 @@ from entroping.core.drift_report import (
     write_reviewed_drift_baseline_candidate,
 )
 from entroping.core.env_loader import load_environment_variables, load_process_hurl_variables
-from entroping.core.gate_injector import write_injected_execution_copy
+from entroping.core.gate_injector import HurlExecutionCopy, write_injected_execution_copy
 from entroping.core.git_changed_hurl import select_changed_hurl_tests
 from entroping.core.hurl_discovery import HurlTestSelection, discover_hurl_test_selection
 from entroping.core.hurl_runner import HurlRunOptions, HurlSuiteResult, run_hurl_files
@@ -42,6 +42,8 @@ from entroping.core.report_writer import (
 from entroping.core.tag_expression import compile_tag_expression
 from entroping.core.traffic_store import TrafficStore, TrafficStoreError
 from entroping.models.drift import DependencyDriftRoute, DriftReport
+from entroping.models.hurl import HurlTest
+from entroping.models.qanstitution import KnownFailure
 
 __all__ = [
     "DependencyDriftObservationError",
@@ -164,6 +166,12 @@ def execute_run_workflow(
             )
             for hurl_test in hurl_tests
         ]
+        _reject_unmatched_selected_known_failures(
+            known_failures=law.ignore_failures,
+            hurl_tests=hurl_tests,
+            execution_copies=execution_copies,
+            project_root=root,
+        )
         preflight_hurl_variables(
             execution_copies,
             variables=env_variables,
@@ -257,6 +265,62 @@ def _no_match_message(label: str, *, selection: HurlTestSelection) -> str:
         f"({selection.selected_count} selected, {selection.skipped_count} skipped "
         f"from {selection.discovered_count} discovered)."
     )
+
+
+def _reject_unmatched_selected_known_failures(
+    *,
+    known_failures: Sequence[KnownFailure],
+    hurl_tests: Sequence[HurlTest],
+    execution_copies: Sequence[HurlExecutionCopy],
+    project_root: Path,
+) -> None:
+    selected_test_keys = {
+        _known_failure_source_key(hurl_test.path, project_root=project_root)
+        for hurl_test in hurl_tests
+    }
+    expected = [
+        known_failure
+        for known_failure in known_failures
+        if _normalize_known_failure_test(known_failure.test) in selected_test_keys
+    ]
+    if not expected:
+        return
+
+    applied_keys = {
+        (known_failure.test, known_failure.rule_id)
+        for execution_copy in execution_copies
+        for known_failure in execution_copy.known_failures
+    }
+    unmatched = [
+        known_failure
+        for known_failure in expected
+        if (
+            _normalize_known_failure_test(known_failure.test),
+            known_failure.rule_id,
+        )
+        not in applied_keys
+    ]
+    if not unmatched:
+        return
+
+    details = "; ".join(
+        f"{known_failure.issue_id} {known_failure.test} rule {known_failure.rule_id}"
+        for known_failure in unmatched
+    )
+    msg = f"Known failure exception did not match any selected injected gate: {details}"
+    raise RunWorkflowError(msg)
+
+
+def _known_failure_source_key(path: Path, *, project_root: Path) -> str:
+    resolved = path.expanduser().resolve()
+    try:
+        return resolved.relative_to(project_root).as_posix()
+    except ValueError:
+        return resolved.as_posix()
+
+
+def _normalize_known_failure_test(test: str) -> str:
+    return test.strip().replace("\\", "/")
 
 
 def _load_current_dependency_routes(root: Path) -> tuple[DependencyDriftRoute, ...]:

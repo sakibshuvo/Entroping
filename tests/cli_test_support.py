@@ -28,7 +28,11 @@ from entroping.cli.main import app
 from entroping.core.hurl_runner import HurlFileResult, HurlRunOptions, HurlSuiteResult
 from entroping.core.hurl_validator import HurlValidationError
 from entroping.core.report_writer import ReportWriterError, write_json_report
-from entroping.core.run_workflow import DependencyDriftObservationError, NoHurlTestsMatchedError
+from entroping.core.run_workflow import (
+    DependencyDriftObservationError,
+    NoHurlTestsMatchedError,
+    RunWorkflowError,
+)
 from entroping.core.traffic_proxy import MitmproxyUnavailableError, WatchConfig
 from entroping.models.report import RunReport, RunReportSummary, RunTestReport
 from entroping.studio.status import StudioDependencyError, render_studio_status
@@ -172,6 +176,7 @@ __all__ = [
     "write_json_report",
     "DependencyDriftObservationError",
     "NoHurlTestsMatchedError",
+    "RunWorkflowError",
     "MitmproxyUnavailableError",
     "WatchConfig",
     "RunReport",

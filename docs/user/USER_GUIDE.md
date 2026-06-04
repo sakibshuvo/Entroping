@@ -877,5 +877,7 @@ expected `api_key_env` names are set without exposing secret values.
 - Keep real env files out of Git.
 - Commit generated tests only after review.
 - Prefer `warn` or `audit_only` for new broad rules before switching them to `block`.
-- Require expiry dates for known failures.
+- Require expiry dates for known failures and keep them exact: a selected
+  known-failure entry must match a selected Hurl test path and injected
+  QAnstitution gate ID, or `entroping run --ci` fails before Hurl execution.
 - Keep smoke tests fast and deterministic.
