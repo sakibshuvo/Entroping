@@ -1,8 +1,10 @@
 """Filesystem discovery for Entroping Hurl tests."""
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
+from entroping.core.tag_expression import CompiledTagExpression
 from entroping.models.hurl import (
     HurlMetadataSyntaxError,
     HurlTest,
@@ -30,6 +32,26 @@ _IGNORED_DIRECTORY_NAMES = frozenset(
 )
 
 
+@dataclass(frozen=True, slots=True)
+class HurlTestSelection:
+    """Discovered Hurl tests plus deterministic selection evidence."""
+
+    tests: tuple[HurlTest, ...]
+    discovered_count: int
+
+    @property
+    def selected_count(self) -> int:
+        """Return the number of tests selected for execution."""
+
+        return len(self.tests)
+
+    @property
+    def skipped_count(self) -> int:
+        """Return the number of discovered tests excluded by selection filters."""
+
+        return self.discovered_count - self.selected_count
+
+
 def normalize_tag_filters(tag_filters: Sequence[str] | None) -> frozenset[str]:
     """Normalize user-provided tag filters and reject empty values."""
 
@@ -54,9 +76,25 @@ def discover_hurl_tests(
 ) -> list[HurlTest]:
     """Discover Hurl tests under roots and parse Entroping metadata comments."""
 
+    return list(discover_hurl_test_selection(roots, tag_filters=tag_filters).tests)
+
+
+def discover_hurl_test_selection(
+    roots: Sequence[Path] | None = None,
+    *,
+    tag_filters: Sequence[str] | None = None,
+    tag_expression: CompiledTagExpression | None = None,
+) -> HurlTestSelection:
+    """Discover Hurl tests and return selected/skipped evidence."""
+
     filters = normalize_tag_filters(tag_filters)
+    if filters and tag_expression is not None:
+        msg = "cannot combine tag filters with tag expressions"
+        raise ValueError(msg)
+
     candidates = _discover_hurl_files(roots or _DEFAULT_ROOTS)
     discovered: list[HurlTest] = []
+    discovered_count = 0
 
     for path in candidates:
         try:
@@ -66,7 +104,10 @@ def discover_hurl_tests(
             raise HurlMetadataSyntaxError(msg) from exc
 
         metadata = parse_hurl_metadata(content, source=path)
+        discovered_count += 1
         if filters and metadata.tags.isdisjoint(filters):
+            continue
+        if tag_expression is not None and not tag_expression.matches(metadata.tags):
             continue
         discovered.append(
             HurlTest(
@@ -76,7 +117,7 @@ def discover_hurl_tests(
             ),
         )
 
-    return discovered
+    return HurlTestSelection(tests=tuple(discovered), discovered_count=discovered_count)
 
 
 def _discover_hurl_files(roots: Sequence[Path]) -> list[Path]:

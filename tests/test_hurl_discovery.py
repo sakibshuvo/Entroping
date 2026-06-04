@@ -4,7 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from entroping.core.hurl_discovery import discover_hurl_tests, normalize_tag_filters
+from entroping.core.hurl_discovery import (
+    discover_hurl_test_selection,
+    discover_hurl_tests,
+    normalize_tag_filters,
+)
+from entroping.core.tag_expression import compile_tag_expression
 from entroping.models.hurl import HurlMetadataSyntaxError
 
 
@@ -55,6 +60,47 @@ def test_discover_hurl_tests_filters_by_any_requested_tag(tmp_path: Path) -> Non
     discovered = discover_hurl_tests([tmp_path / "tests"], tag_filters=["smoke", "critical"])
 
     assert [test.path for test in discovered] == [checkout]
+
+
+def test_discover_hurl_test_selection_filters_by_tag_expression(tmp_path: Path) -> None:
+    checkout = _write_hurl(
+        tmp_path / "tests" / "checkout.hurl",
+        "# entroping: tags=smoke,checkout\nGET /checkout\nHTTP 200\n",
+    )
+    _write_hurl(
+        tmp_path / "tests" / "slow.hurl",
+        "# entroping: tags=smoke,slow\nGET /slow\nHTTP 200\n",
+    )
+    _write_hurl(
+        tmp_path / "tests" / "billing.hurl",
+        "# entroping: tags=regression,billing\nGET /billing\nHTTP 200\n",
+    )
+
+    selected = discover_hurl_test_selection(
+        [tmp_path / "tests"],
+        tag_expression=compile_tag_expression("smoke and not slow"),
+    )
+
+    assert [test.path for test in selected.tests] == [checkout]
+    assert selected.discovered_count == 3
+    assert selected.selected_count == 1
+    assert selected.skipped_count == 2
+
+
+def test_discover_hurl_test_selection_rejects_tag_filter_and_expression_mix(
+    tmp_path: Path,
+) -> None:
+    _write_hurl(
+        tmp_path / "tests" / "checkout.hurl",
+        "# entroping: tags=smoke,checkout\nGET /checkout\nHTTP 200\n",
+    )
+
+    with pytest.raises(ValueError, match="cannot combine tag filters with tag expressions"):
+        discover_hurl_test_selection(
+            [tmp_path / "tests"],
+            tag_filters=("smoke",),
+            tag_expression=compile_tag_expression("checkout"),
+        )
 
 
 def test_discover_hurl_tests_accepts_single_hurl_file_root(tmp_path: Path) -> None:

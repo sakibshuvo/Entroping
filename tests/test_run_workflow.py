@@ -250,6 +250,86 @@ def test_execute_run_workflow_reports_no_matching_hurl_tests(tmp_path: Path) -> 
         )
 
 
+def test_execute_run_workflow_selects_by_tag_expression_with_counts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_project(tmp_path)
+    tests_dir = tmp_path / "tests"
+    (tests_dir / "slow.hurl").write_text(
+        "# entroping: tags=smoke,slow\n\nGET http://localhost:18080/slow\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    (tests_dir / "billing.hurl").write_text(
+        "# entroping: tags=regression,billing\n\nGET http://localhost:18080/billing\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    captured_paths: list[Path] = []
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+    ) -> HurlSuiteResult:
+        _ = (options, max_workers)
+        captured_paths.extend(paths)
+        return HurlSuiteResult(results=tuple(_passed_result(path) for path in paths))
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
+
+    result = execute_run_workflow(
+        project_root=tmp_path,
+        environment=None,
+        tag_filters=(),
+        tag_expression="smoke and not slow",
+        report_formats=(),
+        parallel=False,
+        drift_check=False,
+    )
+
+    assert result.selection.discovered_count == 3
+    assert result.selection.selected_count == 1
+    assert result.selection.skipped_count == 2
+    assert len(captured_paths) == 1
+    latest = json.loads(result.latest_state_path.read_text(encoding="utf-8"))
+    assert latest["tests"][0]["path"] == "tests/health.hurl"
+
+
+def test_execute_run_workflow_reports_no_matching_tag_expression_with_counts(
+    tmp_path: Path,
+) -> None:
+    _write_project(tmp_path)
+
+    with pytest.raises(NoHurlTestsMatchedError, match="0 selected, 1 skipped"):
+        execute_run_workflow(
+            project_root=tmp_path,
+            environment=None,
+            tag_filters=(),
+            tag_expression="critical and not slow",
+            report_formats=(),
+            parallel=False,
+            drift_check=False,
+        )
+
+
+def test_execute_run_workflow_rejects_tag_filter_and_expression_mix(
+    tmp_path: Path,
+) -> None:
+    _write_project(tmp_path)
+
+    with pytest.raises(RunWorkflowError, match="tag filters cannot be combined"):
+        execute_run_workflow(
+            project_root=tmp_path,
+            environment=None,
+            tag_filters=("smoke",),
+            tag_expression="checkout",
+            report_formats=(),
+            parallel=False,
+            drift_check=False,
+        )
+
+
 def test_execute_run_workflow_uses_custom_discovery_roots(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -393,6 +473,29 @@ def test_execute_run_workflow_reports_empty_changed_selection(
             project_root=tmp_path,
             environment=None,
             tag_filters=(),
+            report_formats=(),
+            parallel=False,
+            drift_check=False,
+            changed_from="main",
+        )
+
+
+def test_execute_run_workflow_reports_empty_changed_tag_expression_selection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_project(tmp_path)
+    monkeypatch.setattr(
+        "entroping.core.run_workflow.select_changed_hurl_tests",
+        lambda *, project_root, base_ref: (),
+    )
+
+    with pytest.raises(NoHurlTestsMatchedError, match="matching tag expression 'smoke'"):
+        execute_run_workflow(
+            project_root=tmp_path,
+            environment=None,
+            tag_filters=(),
+            tag_expression="smoke",
             report_formats=(),
             parallel=False,
             drift_check=False,

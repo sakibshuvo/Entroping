@@ -78,6 +78,10 @@ project, and a Codex workspace with fast context rehydration.
 - `entroping run --changed-from <ref>` selects existing changed `.hurl` files
   from Git diff for fast local or agent feedback; it is not a replacement for
   full-suite release gates.
+- `entroping run --tag-expression <expr>` selects Hurl tests with a
+  deterministic `and`/`or`/`not` parser over Entroping metadata tags, reports
+  selected/skipped counts, rejects invalid expressions before Hurl execution,
+  and preserves repeatable `--tag` OR semantics.
 - `entroping run --suite <name>` loads committed `suites/<name>.yaml`
   manifests with schema `entroping.suite.v1`, root-bounded path globs, tags,
   env, reports, parallel, and drift settings without changing default `run`
@@ -1515,8 +1519,9 @@ without making deterministic `run` depend on AI or manifests.
 Use these issues as the next marathon targets. Keep each one narrow, tested, and
 merged through GitHub before starting the next branch:
 
-- Next local targets are #440 tag-expression test selection, #441 explicit
-  timeout evidence per test, and #442 security-scheme coverage generation.
+- Next local targets are #441 explicit timeout evidence per test, #442
+  security-scheme coverage generation, and #443 undocumented live-traffic route
+  audit evidence.
 - Packaging issue #268 is intentionally gated on package-index alpha evidence:
   publish TestPyPI/PyPI through the protected workflow first, then promote the
   Homebrew tap from prototype to supported install path.

@@ -2,6 +2,11 @@
 
 ## 2026-06-04
 
+- Added issue #440's deterministic tag-expression run selection so
+  `entroping run --tag-expression "smoke and not slow"` selects Hurl tests with
+  a safe `and`/`or`/`not` parser over Entroping metadata tags, reports
+  selected/skipped counts without file contents, rejects invalid expressions
+  before Hurl execution, and preserves repeatable `--tag` OR semantics.
 - Added issue #427's sanitized agent run manifests so prompt-backed Architect
   build, Breaker build, merge-build, refactor, and Auditor review paths write
   `.entroping/agent-runs/*.json` with value-free role/model/persona/prompt-hash,

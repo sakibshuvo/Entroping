@@ -27,7 +27,7 @@ from entroping.core.drift_report import (
 from entroping.core.env_loader import load_environment_variables, load_process_hurl_variables
 from entroping.core.gate_injector import write_injected_execution_copy
 from entroping.core.git_changed_hurl import select_changed_hurl_tests
-from entroping.core.hurl_discovery import discover_hurl_tests
+from entroping.core.hurl_discovery import HurlTestSelection, discover_hurl_test_selection
 from entroping.core.hurl_runner import HurlRunOptions, HurlSuiteResult, run_hurl_files
 from entroping.core.hurl_variable_preflight import (
     HurlVariablePreflightError,
@@ -39,6 +39,7 @@ from entroping.core.report_writer import (
     write_json_report,
     write_junit_report,
 )
+from entroping.core.tag_expression import compile_tag_expression
 from entroping.core.traffic_store import TrafficStore, TrafficStoreError
 from entroping.models.drift import DependencyDriftRoute, DriftReport
 
@@ -73,6 +74,7 @@ class RunWorkflowResult:
     artifacts: tuple[Path, ...]
     drift_report: DriftReport | None
     drift_check: bool
+    selection: HurlTestSelection
 
     @property
     def exit_code(self) -> int:
@@ -94,6 +96,7 @@ def execute_run_workflow(
     project_root: Path,
     environment: str | None,
     tag_filters: Sequence[str],
+    tag_expression: str | None = None,
     report_formats: Sequence[str],
     parallel: bool,
     drift_check: bool,
@@ -104,6 +107,12 @@ def execute_run_workflow(
     """Execute the deterministic Hurl governance loop without CLI concerns."""
 
     root = project_root.expanduser().resolve()
+    if tag_filters and tag_expression is not None:
+        msg = "tag filters cannot be combined with tag expressions"
+        raise RunWorkflowError(msg)
+    compiled_tag_expression = (
+        compile_tag_expression(tag_expression) if tag_expression is not None else None
+    )
     law = load_qanstitution(root / "qanstitution.yaml")
     selected_roots: Sequence[Path]
     if changed_from is not None and discovery_roots is not None:
@@ -112,22 +121,33 @@ def execute_run_workflow(
     if changed_from is None:
         selected_roots = discovery_roots if discovery_roots is not None else (root / "tests",)
         if selection_label is None:
-            no_match_message = "No Hurl tests matched the requested filters."
+            no_match_label = _default_no_match_label(tag_expression=tag_expression)
         else:
-            no_match_message = f"No Hurl tests matched {selection_label}."
+            no_match_label = selection_label
     else:
         changed_paths = select_changed_hurl_tests(project_root=root, base_ref=changed_from)
         selected_roots = changed_paths
-        no_match_message = f"No changed Hurl tests matched from base ref {changed_from!r}."
+        if tag_expression is None:
+            no_match_label = f"changed Hurl tests matched from base ref {changed_from!r}"
+        else:
+            no_match_label = (
+                f"changed Hurl tests matching tag expression {tag_expression!r} "
+                f"from base ref {changed_from!r}"
+            )
 
-    hurl_tests = discover_hurl_tests(selected_roots, tag_filters=tuple(tag_filters))
+    selection = discover_hurl_test_selection(
+        selected_roots,
+        tag_filters=tuple(tag_filters),
+        tag_expression=compiled_tag_expression,
+    )
+    hurl_tests = selection.tests
     env_variables = (
         load_environment_variables(environment, root=root) if environment is not None else {}
     )
     env_variables.update(load_process_hurl_variables())
 
     if not hurl_tests:
-        raise NoHurlTestsMatchedError(no_match_message)
+        raise NoHurlTestsMatchedError(_no_match_message(no_match_label, selection=selection))
 
     hurl_workers = law.settings.parallel_workers if parallel else 1
     state_dir = root / ".entroping"
@@ -217,6 +237,25 @@ def execute_run_workflow(
         artifacts=tuple(artifacts),
         drift_report=drift_report,
         drift_check=drift_check,
+        selection=selection,
+    )
+
+
+def _default_no_match_label(*, tag_expression: str | None) -> str:
+    if tag_expression is None:
+        return "the requested filters"
+    return f"tag expression {tag_expression!r}"
+
+
+def _no_match_message(label: str, *, selection: HurlTestSelection) -> str:
+    if label.startswith("changed Hurl tests"):
+        prefix = f"No {label}"
+    else:
+        prefix = f"No Hurl tests matched {label}"
+    return (
+        f"{prefix} "
+        f"({selection.selected_count} selected, {selection.skipped_count} skipped "
+        f"from {selection.discovered_count} discovered)."
     )
 
 
