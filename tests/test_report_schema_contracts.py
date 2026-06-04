@@ -432,6 +432,7 @@ def test_openapi_audit_v1_schema_contract_is_versioned_and_stable() -> None:
                 "test_path": "tests/generated/stale_checkout.hurl",
             }
         ],
+        "traffic_routes": None,
     }
 
 

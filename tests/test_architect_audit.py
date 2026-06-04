@@ -11,6 +11,10 @@ from entroping.bridge.openapi_audit import (
     render_audit_markdown,
 )
 from entroping.bridge.openapi_to_hurl import OpenApiCompilationError
+from entroping.bridge.traffic_openapi_audit import (
+    TrafficOpenApiAuditReport,
+    TrafficUndocumentedRoute,
+)
 from entroping.models.hurl import HurlExchange, HurlMetadata, HurlTest
 
 
@@ -384,3 +388,38 @@ def test_render_audit_markdown_escapes_table_cells() -> None:
     assert "/health\\|checks&lt;svg&gt;" in markdown
     assert "<img>" not in markdown
     assert "<svg>" not in markdown
+
+
+def test_render_audit_markdown_includes_traffic_route_section() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+    report = audit_openapi_coverage(
+        document,
+        [],
+        traffic_routes=TrafficOpenApiAuditReport(
+            documented=(),
+            undocumented=(
+                TrafficUndocumentedRoute(
+                    method="POST",
+                    path_template="/debug",
+                    call_count=1,
+                    failure_count=0,
+                ),
+            ),
+            spec_only=(),
+        ),
+    )
+
+    markdown = render_audit_markdown(report)
+
+    assert "## Traffic vs OpenAPI Routes" in markdown
+    assert "POST /debug" in markdown

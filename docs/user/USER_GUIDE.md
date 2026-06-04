@@ -792,7 +792,12 @@ entroping architect audit --focus auditor --output md
 
 The deterministic logic audit shows an operation-to-Hurl matrix: covered,
 uncovered, and ambiguous OpenAPI operations, plus stale committed
-`operation_id` metadata that no longer exists in the configured spec.
+`operation_id` metadata that no longer exists in the configured spec. If you
+have captured redacted traffic with `entroping watch`, the same logic audit
+also flags live routes that appeared in traffic but are missing from OpenAPI,
+and shows spec-only operations that were not observed. The traffic route audit
+uses method, path templates, counts, and operation IDs only; it does not print
+raw query strings, headers, cookies, bodies, tokens, or captured values.
 
 Then refine with a narrower prompt. If `hurlfmt` is not installed, use the project's configured Hurl parser-backed validation step before accepting generated files.
 When Architect provider output is not valid JSON or generated Hurl fails parser

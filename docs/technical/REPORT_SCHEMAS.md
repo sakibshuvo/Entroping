@@ -87,6 +87,15 @@ committed Hurl `operation_id` metadata that no longer exists in the configured
 spec. Paths are project-relative when the CLI discovers tests from the current
 project.
 
+When redacted Eye traffic state is available, the same payload includes an
+optional `traffic_routes` object with schema version
+`entroping.traffic-openapi-audit.v1`. It compares captured route summaries to
+OpenAPI operations and reports documented observed routes, undocumented
+observed routes, and spec-only operations. It records only method,
+path-template, count, failure-count, and operation identifiers; it must not
+include raw query strings, headers, cookies, bodies, host userinfo, credentials,
+or captured values.
+
 The traceability CLI currently emits Markdown only:
 
 ```bash
