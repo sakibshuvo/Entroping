@@ -1,6 +1,7 @@
 """Domain models for Architect-generated edits."""
 
 from pathlib import PurePosixPath
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -96,6 +97,105 @@ class ArchitectEditSet(BaseModel):
     @field_validator("warnings")
     @classmethod
     def validate_warnings(cls, value: list[str]) -> list[str]:
+        """Reject binary-like warning text."""
+
+        for warning in value:
+            if _has_disallowed_control(warning):
+                msg = "warning must not contain control characters"
+                raise ValueError(msg)
+        return value
+
+
+class ArchitectAuditReviewFinding(BaseModel):
+    """One actionable Auditor finding parsed from provider output."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    severity: Literal["info", "warn", "error"]
+    title: str
+    detail: str
+    recommendation: str
+    evidence: list[str] = Field(default_factory=list)
+
+    @field_validator("code")
+    @classmethod
+    def validate_code(cls, value: str) -> str:
+        """Require stable machine-readable finding codes."""
+
+        code = value.strip()
+        if not code:
+            msg = "code must not be empty"
+            raise ValueError(msg)
+        if _has_disallowed_control(code):
+            msg = "code must not contain control characters"
+            raise ValueError(msg)
+        return code
+
+    @field_validator("title", "detail", "recommendation")
+    @classmethod
+    def validate_text(cls, value: str) -> str:
+        """Reject empty or binary-like review text."""
+
+        text = value.strip()
+        if not text:
+            msg = "text must not be empty"
+            raise ValueError(msg)
+        if _has_disallowed_control(text):
+            msg = "text must not contain control characters"
+            raise ValueError(msg)
+        return text
+
+    @field_validator("evidence")
+    @classmethod
+    def validate_evidence(cls, value: list[str]) -> list[str]:
+        """Reject binary-like evidence labels."""
+
+        clean: list[str] = []
+        for item in value:
+            evidence = item.strip()
+            if not evidence:
+                msg = "evidence must not be empty"
+                raise ValueError(msg)
+            if _has_disallowed_control(evidence):
+                msg = "evidence must not contain control characters"
+                raise ValueError(msg)
+            clean.append(evidence)
+        return clean
+
+
+class ArchitectAuditReview(BaseModel):
+    """Structured Auditor review output parsed before display."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    summary: str
+    findings: list[ArchitectAuditReviewFinding]
+    warnings: list[str] = Field(default_factory=list)
+
+    @property
+    def passed(self) -> bool:
+        """Return true when the Auditor found no blocking issues."""
+
+        return all(finding.severity != "error" for finding in self.findings)
+
+    @field_validator("summary")
+    @classmethod
+    def validate_summary(cls, value: str) -> str:
+        """Require a human-readable review summary."""
+
+        summary = value.strip()
+        if not summary:
+            msg = "summary must not be empty"
+            raise ValueError(msg)
+        if _has_disallowed_control(summary):
+            msg = "summary must not contain control characters"
+            raise ValueError(msg)
+        return summary
+
+    @field_validator("warnings")
+    @classmethod
+    def validate_review_warnings(cls, value: list[str]) -> list[str]:
         """Reject binary-like warning text."""
 
         for warning in value:

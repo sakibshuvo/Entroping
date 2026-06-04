@@ -15,7 +15,7 @@ entroping config set --agent <builder|auditor|breaker> --model <model-id>
 
 entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
 entroping architect refactor --target <glob> --prompt <text>
-entroping architect audit [--focus logic] [--output <json|md>]
+entroping architect audit [--focus <logic|auditor>] [--output <json|md>]
 
 entroping watch [--port <port>] [--target <url>]
 entroping freeze --name <flow> [--golden] [--mock <service>]
@@ -60,10 +60,11 @@ entroping config set --agent auditor --model openai/auditor-model
 Current alpha implementation supports deterministic `architect build --new` from a local
 OpenAPI file configured at `sources.spec` in `qanstitution.yaml`, prompt-backed
 `architect build --prompt`, Breaker-backed hostile prompt generation through
-`architect build --agent breaker --prompt`, deterministic `architect audit`, and
-prompt-backed `architect refactor` for Architect-owned Hurl files and manual files
-with explicit managed blocks. Prompt-backed `architect build --strategy merge` is
-available for existing Hurl targets. Remote specs remain planned.
+`architect build --agent breaker --prompt`, deterministic `architect audit --focus
+logic`, Auditor-backed `architect audit --focus auditor`, and prompt-backed
+`architect refactor` for Architect-owned Hurl files and manual files with explicit
+managed blocks. Prompt-backed `architect build --strategy merge` is available for
+existing Hurl targets. Remote specs remain planned.
 
 | Command | Purpose |
 | --- | --- |
@@ -74,6 +75,7 @@ available for existing Hurl targets. Remote specs remain planned.
 | `entroping architect build --tag <tag>` | Add a tag to generated tests |
 | `entroping architect refactor --target <glob> --prompt "<text>"` | Safely update existing Hurl tests |
 | `entroping architect audit --focus logic` | Audit OpenAPI coverage gaps |
+| `entroping architect audit --focus auditor` | Run an explicit Auditor model review of coverage and policy risk |
 | `entroping architect audit --output <json|md>` | Select audit output format |
 
 Examples:
@@ -85,6 +87,7 @@ entroping architect build --agent breaker --prompt "Generate hostile auth bypass
 entroping architect build --strategy merge --prompt "Cover the new refund endpoint"
 entroping architect refactor --target "tests/payments/*.hurl" --prompt "Add X-Tenant-Id header"
 entroping architect audit --focus logic --output md
+entroping architect audit --focus auditor --output json
 ```
 
 ## Observation

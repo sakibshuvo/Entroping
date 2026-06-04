@@ -78,6 +78,51 @@ def build_architect_prompt_package(
     )
 
 
+def build_auditor_prompt_package(
+    *,
+    law: Qanstitution,
+    persona: AgentPersona,
+    source_context: Mapping[str, str],
+) -> ArchitectPromptPackage:
+    """Build a deterministic, redaction-checked Auditor review prompt package."""
+
+    clean_context = _validate_source_context(source_context)
+    persona_content = _validate_text(persona.content, field="persona")
+    policy_summary = _validate_text(_render_policy_summary(law), field="QAnstitution summary")
+    system_content = "\n\n".join(
+        [
+            persona_content,
+            "The QAnstitution is law. Return structured JSON matching the Auditor review schema.",
+            (
+                "Auditor schema: {summary: string, findings: [{code: string, "
+                "severity: 'info'|'warn'|'error', title: string, detail: string, "
+                "recommendation: string, evidence?: string[]}], warnings?: string[]}."
+            ),
+            "Do not propose file edits. Do not include secrets or raw private data.",
+            policy_summary,
+        ]
+    )
+    user_content = "\n\n".join(
+        [
+            "Audit committed Hurl coverage, QAnstitution policy risk, and actionable gaps.",
+            "Return only the Auditor JSON object. Do not wrap it in Markdown fences.",
+            _render_source_context(clean_context),
+        ]
+    )
+    return ArchitectPromptPackage(
+        role=persona.role,
+        model=persona.model,
+        api_base=persona.api_base,
+        api_key_env=persona.api_key_env,
+        temperature=persona.temperature,
+        max_tokens=persona.max_tokens,
+        messages=(
+            PromptMessage(role="system", content=system_content),
+            PromptMessage(role="user", content=user_content),
+        ),
+    )
+
+
 def _validate_text(value: str, *, field: str) -> str:
     text = value.strip()
     if not text:

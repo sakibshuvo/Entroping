@@ -43,7 +43,7 @@ LOCKED_CLI_CONTRACTS = (
         ("--target", "--prompt"),
     ),
     CliContract(
-        "entroping architect audit [--focus logic] [--output <json|md>]",
+        "entroping architect audit [--focus <logic|auditor>] [--output <json|md>]",
         ("architect", "audit", "--help"),
         ("--focus", "--output"),
     ),

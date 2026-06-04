@@ -1,5 +1,12 @@
 """AI adapter boundary for LiteLLM-backed Architect roles."""
 
+from entroping.brain.architect_audit import (
+    ArchitectAuditorReviewResult,
+    ArchitectAuditReviewParseError,
+    render_auditor_review_json,
+    render_auditor_review_markdown,
+    run_architect_auditor_review,
+)
 from entroping.brain.architect_build import ArchitectPromptBuildResult, run_architect_prompt_build
 from entroping.brain.architect_refactor import (
     ArchitectRefactorError,
@@ -26,6 +33,8 @@ from entroping.brain.prompt_builder import (
 
 __all__ = [
     "AgentPersona",
+    "ArchitectAuditReviewParseError",
+    "ArchitectAuditorReviewResult",
     "ArchitectOutputParseError",
     "ArchitectPromptBuildResult",
     "ArchitectPromptPackage",
@@ -44,6 +53,9 @@ __all__ = [
     "discover_refactor_targets",
     "load_agent_persona",
     "parse_architect_edit_set",
+    "render_auditor_review_json",
+    "render_auditor_review_markdown",
+    "run_architect_auditor_review",
     "run_architect_prompt_build",
     "run_architect_refactor",
     "write_architect_edits",

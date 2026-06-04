@@ -30,7 +30,7 @@ entroping config set --agent <builder|auditor|breaker> --model <model-id>
 
 entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
 entroping architect refactor --target <glob> --prompt <text>
-entroping architect audit [--focus logic] [--output <json|md>]
+entroping architect audit [--focus <logic|auditor>] [--output <json|md>]
 
 entroping watch [--port <port>] [--target <url>]
 entroping freeze --name <flow> [--golden] [--mock <service>]
@@ -54,7 +54,7 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 | Aliases | No alias is compatibility-supported. Deprecated brainstorm names such as `gen`, `fix`, `scan`, `chaos`, `verify`, top-level `build`, `auth`, and `report --type` remain unavailable. |
 | Global flags | Only Typer completion helpers and `--version` are current global flags. `--verbose` and `--dry-run` are not product flags. |
 | Determinism | `entroping run` remains deterministic, Hurl-backed, and LLM-free. |
-| Prompted generation | Prompt-backed `architect build` and `architect refactor` may call LiteLLM, but generated files must pass validation before write. `architect build` defaults to Builder and accepts `--agent breaker` for hostile/security generation; Auditor is reserved for audit workflows. |
+| Prompted generation | Prompt-backed `architect build` and `architect refactor` may call LiteLLM, but generated files must pass validation before write. `architect build` defaults to Builder and accepts `--agent breaker` for hostile/security generation; `architect audit --focus auditor` is the explicit Auditor review path. |
 | Studio | `studio` is read-only until mutation workflows are designed and accepted separately. |
 | Report formats | `run --report` is repeatable and owns run artifact creation. `report bug`, `report redaction`, `report policy`, `report traceability`, `report github-annotations`, and `report review-summary` are handoff/reporting commands, not test execution commands. |
 
