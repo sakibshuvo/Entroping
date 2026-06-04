@@ -42,9 +42,10 @@ entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <e
 entroping report bug
 entroping report failure-bundle [--output <directory>]
 entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
+entroping report badges [--output <directory>] [--run-json <path>] [--policy-json <path>] [--openapi-json <path>] [--traceability-json <path>]
 entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
-entroping report traceability [--output md]
+entroping report traceability [--output <md|json>]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
 entroping report sarif [--output <path>] [--junit <path>] [--drift <path>] [--traceability]
 entroping report promote-drift-baseline [--candidate <path>] [--output <path>]
@@ -55,7 +56,7 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 
 | Area | Decision |
 | --- | --- |
-| Command naming | Keep the nested noun/verb shape: `config vendor-policy-pack`, `architect build`, `architect refactor`, `report bug`, `report failure-bundle`, `report delta`, `report redaction`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary`. |
+| Command naming | Keep the nested noun/verb shape: `config vendor-policy-pack`, `architect build`, `architect refactor`, `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary`. |
 | Aliases | No alias is compatibility-supported. Deprecated brainstorm names such as `gen`, `fix`, `scan`, `chaos`, `verify`, top-level `build`, `auth`, and `report --type` remain unavailable. |
 | Global flags | Only Typer completion helpers and `--version` are current global flags. `--verbose` and `--dry-run` are not product flags. |
 | Determinism | `entroping run` remains deterministic, Hurl-backed, and LLM-free. |
@@ -64,7 +65,7 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 | Policy-pack vendoring | `config vendor-policy-pack` accepts reviewed local pack directories only. It copies the pack under `policy-packs/`, validates the manifest and QAnstitution entrypoint, appends a local import, and does not fetch from registries or remote URLs. |
 | Capture filters | `freeze`, `freeze --mock`, and `map` accept repeatable `--include-host`, `--exclude-host`, `--include-method`, `--exclude-method`, `--include-path`, and `--exclude-path` options. Filters apply only to already-redacted captured traffic; exclude rules win; path filters match request paths, not query strings. |
 | Studio | `studio` is read-only until mutation workflows are designed and accepted separately. |
-| Report formats | `run --report` is repeatable and owns run artifact creation. `report bug`, `report failure-bundle`, `report delta`, `report redaction`, `report policy`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, and `report review-summary` are handoff/reporting commands, not test execution commands. |
+| Report formats | `run --report` is repeatable and owns run artifact creation. `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report policy`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, and `report review-summary` are handoff/reporting commands, not test execution commands. |
 
 ## Post-Alpha UX Decision Queue
 
@@ -82,8 +83,8 @@ locked alpha command surface.
 
 | Exit code | Meaning | Examples |
 | --- | --- | --- |
-| `0` | Successful command, successful run, or non-CI no-match run that is informational. | `--help`, `--version`, passing `run`, passing `report delta` with no added/changed failures, passing `report failure-bundle`, passing `report redaction`, passing `report traceability`, passing `report github-annotations`, passing `report sarif`, passing `report promote-drift-baseline`, passing `report review-summary`. |
-| `1` | Runtime, configuration, report, Hurl, drift, or quality failure. | Invalid QAnstitution, missing Hurl, failing Hurl suite, drift finding with `--drift-check`, `report delta` with added or changed failures, no failure available for `report bug` or `report failure-bundle`, missing traffic state for `report redaction`. |
+| `0` | Successful command, successful run, or non-CI no-match run that is informational. | `--help`, `--version`, passing `run`, passing `report delta` with no added/changed failures, passing `report badges`, passing `report failure-bundle`, passing `report redaction`, passing `report traceability`, passing `report github-annotations`, passing `report sarif`, passing `report promote-drift-baseline`, passing `report review-summary`. |
+| `1` | Runtime, configuration, report, Hurl, drift, or quality failure. | Invalid QAnstitution, missing Hurl, failing Hurl suite, drift finding with `--drift-check`, `report delta` with added or changed failures, missing source report for `report badges`, no failure available for `report bug` or `report failure-bundle`, missing traffic state for `report redaction`. |
 | `2` | CLI usage or unsupported-mode error. | Unknown commands, unsupported `architect build --strategy`, unsupported `report delta --output`, unsupported `report redaction --output`, unsupported `report traceability --output`, unsupported `report review-summary --output`, unsupported `run --report`. |
 
 This contract is intentionally small. More granular exit codes can be introduced
@@ -104,12 +105,13 @@ only through a compatibility issue and migration note.
 | `entroping report bug` | `reports/bug.md` |
 | `entroping report failure-bundle` | `reports/failure-bundle/manifest.json` |
 | `entroping report delta --output md|json` | `stdout Run Delta Markdown/JSON` |
+| `entroping report badges` | `reports/badges/*.json` |
 | `entroping report redaction --output md` | `reports/redaction-review.md` |
 | `entroping report redaction --output html` | `reports/redaction-review.html` |
 | `entroping report policy --output md` | `reports/effective-policy.md` |
 | `entroping report policy --output json` | `reports/effective-policy.json` |
 | `entroping architect audit --output json` | `stdout Architect OpenAPI audit JSON` |
-| `entroping report traceability --output md` | `stdout Markdown` |
+| `entroping report traceability --output md|json` | `stdout Markdown/JSON` |
 | `entroping report github-annotations` | `stdout GitHub Actions annotations` |
 | `entroping report sarif` | `reports/entroping.sarif` |
 | `entroping report review-summary` | `reports/review-summary.md` |

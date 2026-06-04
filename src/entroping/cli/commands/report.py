@@ -10,8 +10,10 @@ import typer
 from entroping.bridge.story_traceability import (
     compile_story_traceability,
     render_story_traceability_markdown,
+    story_traceability_report_to_dict,
 )
 from entroping.cli.shared import console, display_cli_path, print_cli_error
+from entroping.core.coverage_badges import BadgeReportError, write_coverage_badges
 from entroping.core.drift_report import (
     DriftReportError,
     promote_reviewed_drift_baseline_candidate,
@@ -111,6 +113,48 @@ def report_delta(
     else:
         sys.stdout.write(render_run_delta_markdown(report))
     raise typer.Exit(0 if report.passed else 1)
+
+
+@app.command("badges")
+def report_badges(
+    output: Annotated[
+        Path,
+        typer.Option("--output", help="Coverage badge output directory."),
+    ] = Path("reports") / "badges",
+    run_json: Annotated[
+        Path,
+        typer.Option("--run-json", help="JSON run report path."),
+    ] = Path("reports") / "run-latest.json",
+    policy_json: Annotated[
+        Path,
+        typer.Option("--policy-json", help="Effective policy JSON report path."),
+    ] = Path("reports") / "effective-policy.json",
+    openapi_json: Annotated[
+        Path,
+        typer.Option("--openapi-json", help="OpenAPI audit JSON report path."),
+    ] = Path("reports") / "openapi-audit.json",
+    traceability_json: Annotated[
+        Path,
+        typer.Option("--traceability-json", help="Traceability JSON report path."),
+    ] = Path("reports") / "traceability.json",
+) -> None:
+    """Write local shields-compatible coverage badge JSON files."""
+
+    try:
+        result = write_coverage_badges(
+            run_json_path=run_json,
+            policy_json_path=policy_json,
+            openapi_json_path=openapi_json,
+            traceability_json_path=traceability_json,
+            output_dir=output,
+        )
+    except BadgeReportError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    for artifact in result.artifacts:
+        console.print(f"Wrote coverage badge: {display_cli_path(artifact)}")
+    raise typer.Exit(0)
 
 
 @app.command("failure-bundle")
@@ -361,13 +405,13 @@ def report_review_summary(
 def report_traceability(
     output: Annotated[
         str,
-        typer.Option("--output", help="Output format. Currently: md."),
+        typer.Option("--output", help="Output format: md or json."),
     ] = "md",
 ) -> None:
-    """Generate a local Markdown story traceability report."""
+    """Generate a local story traceability report."""
 
     normalized_output = output.strip().lower()
-    if normalized_output != "md":
+    if normalized_output not in {"md", "json"}:
         console.print(f"[yellow]Unsupported traceability output: {output}[/yellow]")
         raise typer.Exit(2)
 
@@ -378,5 +422,9 @@ def report_traceability(
         print_cli_error(exc)
         raise typer.Exit(1) from exc
 
-    sys.stdout.write(render_story_traceability_markdown(report))
+    if normalized_output == "json":
+        sys.stdout.write(json.dumps(story_traceability_report_to_dict(report), indent=2))
+        sys.stdout.write("\n")
+    else:
+        sys.stdout.write(render_story_traceability_markdown(report))
     raise typer.Exit(0 if report.passed else 1)

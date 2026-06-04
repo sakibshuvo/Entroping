@@ -618,9 +618,10 @@ Reports are written under `reports/`.
 | Drift Baseline Promotion | `report promote-drift-baseline` | Reviewed candidate promotion |
 | Bug Markdown | `report bug` | Issue tracker handoff |
 | Run Delta | `report delta` | Run-to-run regression delta for PR review |
+| Coverage Badges | `report badges` | Local Shields endpoint JSON from existing reports |
 | Redaction Review | `report redaction --output md|html` | Captured-traffic redaction coverage review |
 | Effective Policy | `report policy --output md|json` | Resolved QAnstitution gate provenance |
-| Traceability Markdown | `report traceability --output md` | Local story/test coverage review |
+| Traceability Markdown/JSON | `report traceability --output md|json` | Local story/test coverage review |
 | GitHub Annotations | `report github-annotations` | Pull request workflow-command annotations |
 | SARIF | `report sarif` | Code-scanning import for local Entroping findings |
 | Review Summary | `report review-summary` | Provider-neutral Markdown from local report artifacts |
@@ -717,9 +718,10 @@ entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <e
 entroping report bug
 entroping report failure-bundle [--output <directory>]
 entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
+entroping report badges [--output <directory>] [--run-json <path>] [--policy-json <path>] [--openapi-json <path>] [--traceability-json <path>]
 entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
-entroping report traceability [--output md]
+entroping report traceability [--output <md|json>]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
 entroping report sarif [--output <path>] [--junit <path>] [--drift <path>] [--traceability]
 entroping report promote-drift-baseline [--candidate <path>] [--output <path>]
@@ -800,6 +802,17 @@ or changed failures, exits `0` when failures only resolve or stay unchanged,
 and never renders raw stdout, stderr, headers, bodies, prompts, provider data,
 or secrets.
 
+`entroping report badges` writes local Shields endpoint JSON files under
+`reports/badges/` by default. It reads existing local reports only:
+`reports/run-latest.json`, `reports/effective-policy.json`,
+`reports/openapi-audit.json`, and `reports/traceability.json`. Policy-gate
+coverage is the number of effective QAnstitution gate IDs observed in the run
+report, OpenAPI coverage comes from the deterministic OpenAPI audit summary,
+and story-link coverage comes from traceability JSON. Missing or malformed
+source reports fail before badge files are written. The command does not call
+shields.io, host a badge service, upload artifacts, execute Hurl, or render raw
+report stdout/stderr.
+
 `entroping report review-summary` writes a provider-neutral Markdown artifact
 from local reports only. It reads the JSON run report, JUnit XML, drift JSON,
 and optional local traceability metadata, then writes `reports/review-summary.md`
@@ -844,11 +857,12 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report bug` | `reports/bug.md` | Markdown handoff for issue trackers. |
 | `entroping report failure-bundle` | `reports/failure-bundle/manifest.json` | Sanitized local handoff bundle using `entroping.failure-bundle.v1`. |
 | `entroping report delta --output md|json` | `stdout Run Delta Markdown/JSON` | Run-to-run regression delta using `entroping.run-delta-report.v1`. |
+| `entroping report badges` | `reports/badges/*.json` | Local Shields endpoint JSON for policy, OpenAPI, and traceability coverage. |
 | `entroping report redaction --output md` | `reports/redaction-review.md` | Counts-only captured-traffic redaction review. |
 | `entroping report redaction --output html` | `reports/redaction-review.html` | Browser-readable captured-traffic redaction review. |
 | `entroping report policy --output md` | `reports/effective-policy.md` | Human-readable resolved QAnstitution gate provenance. |
 | `entroping report policy --output json` | `reports/effective-policy.json` | Machine-readable effective policy evidence using `entroping.effective-policy-report.v1`. |
-| `entroping report traceability --output md` | `stdout Markdown` | Local story/test coverage report. |
+| `entroping report traceability --output md|json` | `stdout Markdown/JSON` | Local story/test coverage report. |
 | `entroping report github-annotations` | `stdout GitHub Actions annotations` | Workflow-command annotations from JUnit, drift, and optional traceability findings. |
 | `entroping report sarif` | `reports/entroping.sarif` | SARIF 2.1.0 code-scanning evidence from JUnit, drift, and optional traceability findings. |
 | `entroping report review-summary` | `reports/review-summary.md` | Provider-neutral Markdown summary from local JSON, JUnit, drift, and optional traceability evidence. |

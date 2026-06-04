@@ -104,6 +104,11 @@ project, and a Codex workspace with fast context rehydration.
   providers, or uploading results. It emits schema
   `entroping.run-delta-report.v1` with added, resolved, changed, unchanged,
   latency, and policy-gate deltas, and it never renders raw stdout/stderr.
+- `entroping report badges` writes local Shields endpoint JSON files from
+  existing run, effective-policy, OpenAPI audit, and traceability JSON reports.
+  `entroping report traceability --output json` provides the story-traceability
+  source report; badge generation fails before writes when source reports are
+  missing or malformed and does not call hosted badge services.
 - `entroping report sarif` writes SARIF 2.1.0 from local JUnit, drift, and
   optional traceability findings for code-scanning import. It does not execute
   Hurl, call providers, or upload results.

@@ -24,9 +24,10 @@ annotation tools, hosted surfaces, and scripts should key off
 | Drift report | `entroping.drift-report.v1` | `reports/drift.json` | [drift-report.v1.schema.json](report-schemas/drift-report.v1.schema.json) |
 | Effective policy report | `entroping.effective-policy-report.v1` | `reports/effective-policy.json` | [effective-policy-report.v1.schema.json](report-schemas/effective-policy-report.v1.schema.json) |
 | Failure bundle manifest | `entroping.failure-bundle.v1` | `reports/failure-bundle/manifest.json` | Inline contract |
+| Coverage badges | Shields endpoint schema v1 | `reports/badges/*.json` | External Shields endpoint format |
 | Agent run manifest | `entroping.agent-run-manifest.v1` | `.entroping/agent-runs/*.json` | [agent-run-manifest.v1.schema.json](report-schemas/agent-run-manifest.v1.schema.json) |
 | Architect OpenAPI audit | `entroping.openapi-audit.v1` | `architect audit --output json` stdout | Inline contract |
-| Traceability report | `entroping.traceability-report.v1` | `story_traceability_report_to_dict` | [traceability-report.v1.schema.json](report-schemas/traceability-report.v1.schema.json) |
+| Traceability report | `entroping.traceability-report.v1` | `entroping report traceability --output json` stdout | [traceability-report.v1.schema.json](report-schemas/traceability-report.v1.schema.json) |
 | SARIF report | SARIF 2.1.0 | `reports/entroping.sarif` | External SARIF schema |
 
 The effective policy CLI can emit Markdown or JSON:
@@ -56,6 +57,19 @@ resolved, changed, and unchanged failures; latency deltas; and policy-gate
 deltas. It is intended for PR comments, CI logs, or downstream automation. It
 does not execute Hurl, call providers, upload results, or include raw stdout,
 stderr, headers, bodies, prompts, provider data, or secrets.
+
+Coverage badges are written by:
+
+```bash
+entroping report badges
+```
+
+They use the Shields endpoint JSON shape with `schemaVersion: 1`, `label`,
+`message`, and `color`. Entroping generates three local files by default:
+`reports/badges/policy-gates.json`, `reports/badges/openapi-operations.json`,
+and `reports/badges/story-traceability.json`. Badge generation reads existing
+local report files and fails before writing if any required source report is
+missing or malformed. It does not call shields.io or host a badge service.
 
 The failure bundle manifest is written by:
 
@@ -109,15 +123,15 @@ path-template, count, failure-count, and operation identifiers; it must not
 include raw query strings, headers, cookies, bodies, host userinfo, credentials,
 or captured values.
 
-The traceability CLI currently emits Markdown only:
+The traceability CLI emits Markdown or JSON:
 
 ```bash
 entroping report traceability --output md
+entroping report traceability --output json > reports/traceability.json
 ```
 
-The v1 traceability JSON contract exists so internal consumers, future PR
-annotations, and a future compatibility-reviewed JSON output can share one
-stable shape.
+The v1 traceability JSON contract lets coverage badges, internal consumers,
+future PR annotations, and downstream tools share one stable shape.
 
 The SARIF report follows the external SARIF 2.1.0 contract:
 

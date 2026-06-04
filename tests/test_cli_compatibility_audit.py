@@ -113,6 +113,14 @@ LOCKED_CLI_CONTRACTS = (
         ("--base", "--current", "--output"),
     ),
     CliContract(
+        (
+            "entroping report badges [--output <directory>] [--run-json <path>] "
+            "[--policy-json <path>] [--openapi-json <path>] [--traceability-json <path>]"
+        ),
+        ("report", "badges", "--help"),
+        ("--output", "--run-json", "--policy-json", "--openapi-json", "--traceability-json"),
+    ),
+    CliContract(
         "entroping report redaction [--output <md|html>]",
         ("report", "redaction", "--help"),
         ("--output",),
@@ -123,7 +131,7 @@ LOCKED_CLI_CONTRACTS = (
         ("--output",),
     ),
     CliContract(
-        "entroping report traceability [--output md]",
+        "entroping report traceability [--output <md|json>]",
         ("report", "traceability", "--help"),
         ("--output",),
     ),
@@ -189,6 +197,7 @@ REPORT_ARTIFACTS = (
     "reports/redaction-review.html",
     "reports/effective-policy.md",
     "reports/effective-policy.json",
+    "reports/badges/*.json",
     "reports/review-summary.md",
     "reports/entroping.sarif",
     "stdout Run Delta Markdown/JSON",

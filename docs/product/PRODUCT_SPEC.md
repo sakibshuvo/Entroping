@@ -140,7 +140,7 @@ The v4.1 command namespace is intentionally small and stable:
 | Intelligence | `architect build`, `architect refactor`, `architect audit` |
 | Observation | `watch`, `freeze`, `map` |
 | Execution | `run`, `studio` |
-| Reporting | `report bug`, `report failure-bundle`, `report delta`, `report redaction`, `report policy`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary` |
+| Reporting | `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report policy`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary` |
 
 Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `verify`, `explain`, and `chaos` must not be treated as primary v4.1 commands. They can exist only as explicit backwards-compatible aliases or future roadmap items.
 
@@ -216,7 +216,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | EXE-009 | Generate failure bundles | `entroping report failure-bundle` creates a sanitized local bundle with a versioned manifest, latest failed run evidence, bug Markdown, failed-test Hurl metadata, and reviewed local report artifacts without raw traffic, env files, uploads, or source Hurl contents |
 | EXE-010 | Generate redaction review reports | `entroping report redaction --output md` and `--output html` summarize captured traffic redaction categories and counts without raw secrets |
 | EXE-011 | Run changed Hurl tests locally | `entroping run --changed-from <ref>` selects existing changed `.hurl` files from Git diff for fast feedback while full-suite `run` remains the default |
-| EXE-012 | Generate traceability reports | `entroping report traceability --output md` maps local Hurl metadata to stories, owners, docs, tests, tags, and findings |
+| EXE-012 | Generate traceability reports | `entroping report traceability --output md|json` maps local Hurl metadata to stories, owners, docs, tests, tags, and findings |
 | EXE-013 | Generate SARIF reports | `entroping report sarif` writes SARIF 2.1.0 from local JUnit, drift, and optional traceability findings without uploading results |
 | EXE-014 | Promote reviewed drift baselines | `entroping report promote-drift-baseline` validates a reviewed candidate before atomically writing `.entroping/drift-baseline.json` |
 | EXE-015 | Provide read-only TUI workflow | `entroping studio --env local` opens optional Textual/Rich local inspection over sanitized reports and redacted state |
@@ -224,6 +224,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | EXE-017 | Run named committed suites | `entroping run --suite smoke` loads `suites/smoke.yaml`, validates schema `entroping.suite.v1`, resolves root-bounded local path globs, and applies suite-defined env, tags, reports, parallel, and drift settings without changing default `run` behavior |
 | EXE-018 | Report timeout evidence | JSON, JUnit, HTML, and review-summary artifacts show effective per-test `timeout_ms` and distinguish subprocess timeouts from Hurl assertion failures |
 | EXE-019 | Compare run reports | `entroping report delta --base <path> --current <path> --output md|json` compares two local JSON run reports without executing Hurl, emits schema-versioned added/resolved/changed/unchanged failure, latency, and policy-gate deltas, and omits raw stdout/stderr |
+| EXE-020 | Generate coverage badges | `entroping report badges` reads local run, effective-policy, OpenAPI audit, and traceability JSON reports and writes Shields-compatible badge JSON under `reports/badges/` without calling a hosted badge service |
 
 ## 10. Supported Test Types
 
