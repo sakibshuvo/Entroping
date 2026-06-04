@@ -183,7 +183,7 @@ def architect_audit(
             raise ValueError(msg)
         document = load_openapi_document(_configured_spec_reference(law.sources.spec))
         hurl_tests = discover_hurl_tests() if Path("tests").exists() else []
-        report = audit_openapi_coverage(document, hurl_tests)
+        report = audit_openapi_coverage(document, hurl_tests, project_root=Path.cwd())
     except (QanstitutionLoadError, OpenApiLoadError, OpenApiCompilationError, ValueError) as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc

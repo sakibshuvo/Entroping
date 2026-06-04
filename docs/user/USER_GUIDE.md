@@ -680,6 +680,10 @@ entroping architect audit --focus logic --output md
 entroping architect audit --focus auditor --output md
 ```
 
+The deterministic logic audit shows an operation-to-Hurl matrix: covered,
+uncovered, and ambiguous OpenAPI operations, plus stale committed
+`operation_id` metadata that no longer exists in the configured spec.
+
 Then refine with a narrower prompt. If `hurlfmt` is not installed, use the project's configured Hurl parser-backed validation step before accepting generated files.
 When Architect provider output is not valid JSON or generated Hurl fails parser
 validation, Entroping stops before writing files and prints a short validation

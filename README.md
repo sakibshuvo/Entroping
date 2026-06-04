@@ -373,6 +373,10 @@ entroping report promote-drift-baseline [--candidate <path>] [--output <path>]
 entroping report review-summary [--output md] [--junit <path>] [--run-json <path>] [--drift <path>] [--traceability]
 ```
 
+`architect audit --focus logic` is deterministic: it compares the configured
+OpenAPI document with committed Hurl metadata, reports uncovered operations,
+and includes an operation-to-test matrix with stale `operation_id` references.
+
 `entroping studio --env local` is a read-only traffic session browser as well
 as a local run/status view. The Traffic tab reads redacted SQLModel-backed state
 from `.entroping/state.db`, shows inferred target/dependency grouping, route

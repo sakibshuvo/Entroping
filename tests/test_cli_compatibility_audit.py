@@ -148,6 +148,7 @@ REPORT_ARTIFACTS = (
     "reports/effective-policy.json",
     "reports/review-summary.md",
     "reports/entroping.sarif",
+    "stdout Architect OpenAPI audit JSON",
     "stdout Markdown",
     "stdout GitHub Actions annotations",
 )
