@@ -133,6 +133,12 @@ array with attempt number, status, exit code, duration, and truncation flags.
 The retry block must not include raw per-attempt stdout, stderr, headers,
 bodies, prompts, provider data, or secrets.
 
+`entroping.run-report.v1` includes optional per-test `timeout_ms` evidence for
+the effective Hurl subprocess timeout. New writers emit it on every test row;
+loaders keep treating missing or malformed values from older local reports as
+`0`. Timeout failures use status `timeout`, exit code `124`, and distinct JUnit
+failure type `entroping.hurl.timeout`.
+
 ## Producer Rules
 
 - Writers must include `schema_version` on versioned JSON report payloads.

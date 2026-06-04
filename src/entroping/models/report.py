@@ -64,6 +64,7 @@ class RunTestReport:
     rule_ids: tuple[str, ...]
     stdout: str
     stderr: str
+    timeout_ms: int = 0
     response_status_code: int | None = None
     response_headers: tuple[tuple[str, str], ...] = ()
     response_body_shape: tuple[str, ...] = ()

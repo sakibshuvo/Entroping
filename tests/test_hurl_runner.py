@@ -399,8 +399,10 @@ def test_run_hurl_file_returns_timeout_result_with_redacted_partial_output(
     assert not result.passed
     assert result.status == "timeout"
     assert result.exit_code == 124
+    assert result.timeout_ms == 250
     assert "live-secret" not in result.stdout
     assert "Cookie: [REDACTED]" in result.stdout
+    assert "timed out after 250 ms" in result.stderr
 
 
 @pytest.mark.security

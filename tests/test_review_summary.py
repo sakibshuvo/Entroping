@@ -143,6 +143,60 @@ def test_review_summary_includes_retry_and_unstable_run_evidence(tmp_path: Path)
     assert "token=live-secret" not in markdown
 
 
+def test_review_summary_includes_timeout_run_evidence(tmp_path: Path) -> None:
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    (reports_dir / "run-latest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "checkout-api",
+                "environment": "ci",
+                "generated_at": "2026-06-03T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 0, "failed": 1, "exit_code": 1},
+                "tests": [
+                    {
+                        "path": "tests/slow.hurl",
+                        "execution_path": ".entroping/run/slow.hurl",
+                        "status": "timeout",
+                        "exit_code": 124,
+                        "duration_ms": 251,
+                        "timeout_ms": 250,
+                        "rule_ids": [],
+                        "stdout": "",
+                        "stderr": "token=live-secret",
+                        "retry": {"retry_count": 0, "unstable": False, "attempts": []},
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    summary = build_review_summary(
+        run_json_path=reports_dir / "run-latest.json",
+        junit_path=reports_dir / "junit.xml",
+        drift_path=reports_dir / "drift.json",
+        traceability_report=None,
+    )
+
+    markdown = render_review_summary_markdown(summary)
+    assert summary.status == "fail"
+    assert [
+        (finding.source, finding.severity, finding.path, finding.message)
+        for finding in summary.findings
+    ] == [
+        (
+            "Run JSON",
+            "error",
+            "tests/slow.hurl",
+            "timed out after 250 ms; final status timeout exit=124",
+        )
+    ]
+    assert "| Run JSON | error | tests/slow.hurl | timed out after 250 ms;" in markdown
+    assert "live-secret" not in markdown
+
+
 def test_review_summary_ignores_malformed_retry_entries_and_reports_stable_retries(
     tmp_path: Path,
 ) -> None:

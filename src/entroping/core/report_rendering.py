@@ -43,12 +43,21 @@ def render_junit_report(report: RunReport) -> bytes:
                 "failure",
                 {
                     "message": test.status,
-                    "type": "entroping.hurl",
+                    "type": _failure_type(test),
                 },
             )
             failure.text = _failure_text(test)
-        if test.known_failures or test.retry.retry_count > 0 or test.retry.unstable:
+        if _has_test_properties(test):
             properties = ElementTree.SubElement(testcase, "properties")
+            if test.timeout_ms > 0:
+                ElementTree.SubElement(
+                    properties,
+                    "property",
+                    {
+                        "name": "entroping.timeout_ms",
+                        "value": str(test.timeout_ms),
+                    },
+                )
             for known_failure in test.known_failures:
                 ElementTree.SubElement(
                     properties,
@@ -128,7 +137,7 @@ def render_html_report(report: RunReport) -> str:
   </dl>
   <table>
     <thead>
-      <tr><th>Test</th><th>Status</th><th>Duration</th><th>Rules</th><th>Output</th></tr>
+      <tr><th>Test</th><th>Status</th><th>Duration</th><th>Timeout</th><th>Rules</th><th>Output</th></tr>
     </thead>
     <tbody>
 {rows}
@@ -180,6 +189,7 @@ def _html_test_row(test: RunTestReport) -> str:
         f"<td>{escape(test.path)}</td>"
         f'<td class="{escape(test.status)}">{escape(test.status)}</td>'
         f"<td>{test.duration_ms} ms</td>"
+        f"<td>{test.timeout_ms} ms</td>"
         f"<td>{escape(', '.join(test.rule_ids) if test.rule_ids else 'none')}</td>"
         f"<td>{output}</td>"
         "</tr>"
@@ -223,6 +233,7 @@ def _failure_text(test: RunTestReport) -> str:
         f"path: {test.path}",
         f"status: {test.status}",
         f"exit_code: {test.exit_code}",
+        f"timeout_ms: {test.timeout_ms}",
         f"rule_ids: {', '.join(test.rule_ids) if test.rule_ids else 'none'}",
     ]
     if test.known_failures:
@@ -256,6 +267,19 @@ def _failure_text(test: RunTestReport) -> str:
 
 def _known_failure_summary(known_failure: KnownFailureEvidence) -> str:
     return f"{known_failure.issue_id} expires {known_failure.expires}: {known_failure.reason}"
+
+
+def _has_test_properties(test: RunTestReport) -> bool:
+    return (
+        test.timeout_ms > 0
+        or bool(test.known_failures)
+        or test.retry.retry_count > 0
+        or test.retry.unstable
+    )
+
+
+def _failure_type(test: RunTestReport) -> str:
+    return "entroping.hurl.timeout" if test.status == "timeout" else "entroping.hurl"
 
 
 def _attempt_summary(*, status: str, exit_code: int, duration_ms: int) -> str:

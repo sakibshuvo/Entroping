@@ -171,6 +171,9 @@ only passes if its final Hurl attempt passes; Entroping does not hide flaky
 failures. JSON, JUnit, HTML, and review-summary reports show retry count,
 attempt status, final status, and unstable pass-after-retry evidence without
 copying raw per-attempt output.
+Run reports also show the effective `timeout_ms` for each test. If Hurl exceeds
+that subprocess budget, Entroping marks the row as `timeout`, uses exit code
+`124`, and renders timeout findings separately from ordinary failed assertions.
 
 ## 4. Existing Hurl Project
 

@@ -75,6 +75,10 @@ project, and a Codex workspace with fast context rehydration.
   JSON/JUnit/HTML/review-summary artifacts expose retry count, attempt status,
   exit code, duration, and unstable pass-after-retry signals without raw
   per-attempt output.
+- `entroping run` records the effective per-test `timeout_ms` in
+  JSON/JUnit/HTML/review-summary evidence. Hurl subprocess timeouts use status
+  `timeout`, exit code `124`, and timeout-specific report findings so time
+  budget failures are distinct from assertion failures.
 - `entroping run --changed-from <ref>` selects existing changed `.hurl` files
   from Git diff for fast local or agent feedback; it is not a replacement for
   full-suite release gates.

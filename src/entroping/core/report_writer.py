@@ -90,6 +90,7 @@ def build_run_report(
                 rule_ids=tuple(gate.rule_id for gate in execution_copy.injected_gates),
                 stdout=stdout,
                 stderr=stderr,
+                timeout_ms=result.timeout_ms,
                 response_status_code=response_status_code,
                 response_headers=response_headers,
                 response_body_shape=response_body_shape,

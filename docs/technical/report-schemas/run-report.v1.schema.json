@@ -57,6 +57,7 @@
           "status": {"type": "string"},
           "exit_code": {"type": "integer"},
           "duration_ms": {"type": "integer", "minimum": 0},
+          "timeout_ms": {"type": "integer", "minimum": 0},
           "rule_ids": {
             "type": "array",
             "items": {"type": "string"}

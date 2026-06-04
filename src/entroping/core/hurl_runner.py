@@ -94,6 +94,7 @@ class HurlFileResult:
     stdout_truncated: bool
     stderr_truncated: bool
     duration_ms: int
+    timeout_ms: int = 0
     attempts: tuple[HurlAttemptEvidence, ...] = ()
 
     @property
@@ -257,6 +258,7 @@ def run_hurl_file(
         stdout_truncated=final_stdout_truncated,
         stderr_truncated=final_stderr_truncated,
         duration_ms=max(0, int((time.perf_counter() - total_start) * 1000)),
+        timeout_ms=run_options.timeout_ms,
         attempts=tuple(attempts),
     )
 
@@ -307,6 +309,7 @@ def _run_hurl_attempt(
         except subprocess.TimeoutExpired:
             status = "timeout"
             exit_code = 124
+            extra_stderr = f"Hurl subprocess timed out after {options.timeout_ms} ms"
         except OSError as exc:
             status = "error"
             exit_code = 126

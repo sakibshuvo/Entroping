@@ -222,6 +222,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | EXE-015 | Provide read-only TUI workflow | `entroping studio --env local` opens optional Textual/Rich local inspection over sanitized reports and redacted state |
 | EXE-016 | Preserve execution reproducibility | All blocking CI behavior must be explainable from committed Hurl files, env data, effective QAnstitution, and Hurl output |
 | EXE-017 | Run named committed suites | `entroping run --suite smoke` loads `suites/smoke.yaml`, validates schema `entroping.suite.v1`, resolves root-bounded local path globs, and applies suite-defined env, tags, reports, parallel, and drift settings without changing default `run` behavior |
+| EXE-018 | Report timeout evidence | JSON, JUnit, HTML, and review-summary artifacts show effective per-test `timeout_ms` and distinguish subprocess timeouts from Hurl assertion failures |
 
 ## 10. Supported Test Types
 
