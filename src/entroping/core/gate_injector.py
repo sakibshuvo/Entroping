@@ -41,6 +41,7 @@ class HurlExecutionCopy:
     execution_path: Path
     injected_gates: tuple[HurlGateAssertion, ...]
     known_failures: tuple[AppliedKnownFailure, ...] = ()
+    operation_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -99,6 +100,7 @@ def write_injected_execution_copy(
         execution_path=execution_path,
         injected_gates=injected_gates,
         known_failures=applied_known_failures,
+        operation_id=parsed_test.metadata.operation_id,
     )
 
 

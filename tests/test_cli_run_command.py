@@ -604,6 +604,82 @@ def test_run_forwards_changed_from_to_workflow(
     assert captured_kwargs["changed_from"] == "origin/main"
 
 
+def test_run_forwards_operation_id_filters_to_workflow(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    captured_kwargs: dict[str, object] = {}
+
+    def fake_execute_run_workflow(**kwargs: object) -> object:
+        captured_kwargs.update(kwargs)
+        return SimpleNamespace(
+            suite=HurlSuiteResult(results=()),
+            drift_report=None,
+            latest_state_path=tmp_path / ".entroping" / "latest-run.json",
+            artifacts=(),
+            exit_code=0,
+            selection=SimpleNamespace(selected_count=2, skipped_count=1),
+        )
+
+    monkeypatch.setattr(execution_cli, "execute_run_workflow", fake_execute_run_workflow)
+
+    result = CliRunner().invoke(
+        app,
+        ["run", "--operation-id", "createCheckout", "--operation-id", "createRefund"],
+    )
+
+    assert result.exit_code == 0
+    assert captured_kwargs["operation_ids"] == ("createCheckout", "createRefund")
+    assert "Hurl selection: 2 selected, 1 skipped by operation ID" in result.output
+
+
+def test_run_prints_tag_filter_selection_counts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    def fake_execute_run_workflow(**kwargs: object) -> object:
+        _ = kwargs
+        return SimpleNamespace(
+            suite=HurlSuiteResult(results=()),
+            drift_report=None,
+            latest_state_path=tmp_path / ".entroping" / "latest-run.json",
+            artifacts=(),
+            exit_code=0,
+            selection=SimpleNamespace(selected_count=1, skipped_count=2),
+        )
+
+    monkeypatch.setattr(execution_cli, "execute_run_workflow", fake_execute_run_workflow)
+
+    result = CliRunner().invoke(app, ["run", "--tag", "smoke"])
+
+    assert result.exit_code == 0
+    assert "Hurl selection: 1 selected, 2 skipped by tag filters" in result.output
+
+
+def test_run_operation_id_no_matches_respects_ci_exit_policy(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    def fake_execute_run_workflow(**kwargs: object) -> object:
+        _ = kwargs
+        raise NoHurlTestsMatchedError("No Hurl tests matched OpenAPI operation IDs 'missing'.")
+
+    monkeypatch.setattr(execution_cli, "execute_run_workflow", fake_execute_run_workflow)
+
+    local_result = CliRunner().invoke(app, ["run", "--operation-id", "missing"])
+    ci_result = CliRunner().invoke(app, ["run", "--operation-id", "missing", "--ci"])
+
+    assert local_result.exit_code == 0
+    assert ci_result.exit_code == 1
+    assert "No Hurl tests matched OpenAPI operation IDs" in local_result.output
+    assert "No Hurl tests matched OpenAPI operation IDs" in ci_result.output
+
+
 def test_run_loads_named_suite_manifest(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -662,6 +738,7 @@ drift_check: true
     [
         ["run", "--suite", "smoke", "--tag", "security"],
         ["run", "--suite", "smoke", "--tag-expression", "smoke and not slow"],
+        ["run", "--suite", "smoke", "--operation-id", "createCheckout"],
         ["run", "--suite", "smoke", "--env", "local"],
         ["run", "--suite", "smoke", "--report", "json"],
         ["run", "--suite", "smoke", "--changed-from", "main"],
@@ -679,6 +756,33 @@ def test_run_rejects_suite_ad_hoc_selector_conflicts(args: list[str]) -> None:
 
     assert result.exit_code == 2
     assert f"{args[3]} cannot be combined with --suite" in plain_output
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["run", "--operation-id", "createCheckout", "--tag", "smoke"],
+        ["run", "--operation-id", "createCheckout", "--tag-expression", "smoke"],
+        ["run", "--operation-id", "createCheckout", "--changed-from", "main"],
+    ],
+)
+def test_run_rejects_operation_id_ad_hoc_selector_conflicts(args: list[str]) -> None:
+    result = CliRunner().invoke(
+        app,
+        args,
+        env={"CI": "true", "GITHUB_ACTIONS": "true", "TERM": "xterm-256color"},
+    )
+    plain_output = ANSI_RE.sub("", result.output)
+
+    assert result.exit_code == 2
+    assert "--operation-id cannot be combined with" in plain_output
+
+
+def test_run_rejects_empty_operation_id_filter() -> None:
+    result = CliRunner().invoke(app, ["run", "--operation-id", ""])
+
+    assert result.exit_code == 2
+    assert "Operation ID filters must not be empty" in result.output
 
 
 def test_run_named_suite_no_matches_respects_ci_exit_policy(

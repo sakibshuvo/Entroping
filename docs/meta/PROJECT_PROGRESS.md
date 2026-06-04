@@ -31,9 +31,8 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#435](https://github.com/sakibshuvo/Entroping/issues/435)
-selects tests by OpenAPI operation ID after the known-failure runtime
-guardrail slice.
+Current issue: [#434](https://github.com/sakibshuvo/Entroping/issues/434)
+summarizes story traceability gaps after the OpenAPI operation selector slice.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -50,9 +49,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#435](https://github.com/sakibshuvo/Entroping/issues/435) | Select tests by OpenAPI operation ID. |
-| 2 | [#434](https://github.com/sakibshuvo/Entroping/issues/434) | Summarize story traceability gaps. |
-| 3 | [#433](https://github.com/sakibshuvo/Entroping/issues/433) | Enforce explicit watch capture scope allowlists. |
+| 1 | [#434](https://github.com/sakibshuvo/Entroping/issues/434) | Summarize story traceability gaps. |
+| 2 | [#433](https://github.com/sakibshuvo/Entroping/issues/433) | Enforce explicit watch capture scope allowlists. |
+| 3 | [#432](https://github.com/sakibshuvo/Entroping/issues/432) | Preview freeze writes before generating artifacts. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -73,6 +72,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [OpenAPI operation run selection](https://github.com/sakibshuvo/Entroping/issues/435) | Done | `entroping run --operation-id <id>` now selects existing Hurl tests by exact committed `operation_id` metadata, rejects selector conflicts before execution, and records operation ID evidence in JSON/JUnit/HTML reports. |
 | [Runtime known-failure guardrails](https://github.com/sakibshuvo/Entroping/issues/436) | Done | Selected-test `ignore_failures` entries now fail before Hurl execution when their rule ID does not match an injected QAnstitution gate; filtered-out test exceptions remain outside the current subset. |
 | [OpenAPI breaking-change diff audit](https://github.com/sakibshuvo/Entroping/issues/437) | Done | `architect audit --focus logic --changed-from <ref>` now attaches `entroping.openapi-breaking-diff.v1` findings for deterministic OpenAPI evolution review without generating or deleting tests. |
 | [Captured-artifact approval manifests](https://github.com/sakibshuvo/Entroping/issues/449) | Done | `freeze`, `freeze --mock`, and `map --export png` now write value-free approval manifests under `reports/approvals/` with generated paths, checksums, deterministic source fingerprints, and counts-only redaction summaries without raw traffic values. |
@@ -86,7 +86,6 @@ entirely inside this repo.
 | [Timeout evidence per test](https://github.com/sakibshuvo/Entroping/issues/441) | Done | JSON/JUnit/HTML/review-summary artifacts now include effective per-test `timeout_ms`; Hurl subprocess timeouts use status `timeout`, exit code `124`, timeout-specific JUnit failure typing, and timeout findings distinct from assertion failures. |
 | [Tag-expression run selection](https://github.com/sakibshuvo/Entroping/issues/440) | Done | `entroping run --tag-expression "smoke and not slow"` now uses a deterministic `and`/`or`/`not` parser over Hurl metadata tags, reports selected/skipped counts, rejects invalid expressions before Hurl execution, and preserves repeatable `--tag` OR semantics. |
 | [Sanitized agent run manifests](https://github.com/sakibshuvo/Entroping/issues/427) | Done | Prompt-backed Architect build, Breaker build, merge-build, refactor, and Auditor review paths now write `.entroping/agent-runs/*.json` with value-free role/model/persona/prompt-hash/output/validation/usage evidence. |
-| [Retry and flake evidence](https://github.com/sakibshuvo/Entroping/issues/405) | Done | `settings.retry` now drives bounded per-file Hurl subprocess retries, final attempt status remains authoritative, and JSON/JUnit/HTML/review-summary artifacts expose retry count, attempt status, exit code, duration, and unstable pass-after-retry signals without raw per-attempt output. |
 | [Changed OpenAPI operation generation](https://github.com/sakibshuvo/Entroping/issues/404) | Done | `architect build --new --changed-from <ref>` compares the configured local OpenAPI spec with the same file at a Git base ref, regenerates only current added/modified/renamed operations, and reports removed operations for manual review. |
 | [Named suite manifests](https://github.com/sakibshuvo/Entroping/issues/402) | Done | `run --suite <name>` loads committed `suites/<name>.yaml` manifests, validates `entroping.suite.v1`, resolves root-bounded Hurl path globs, and applies suite-defined env, tags, reports, parallel, and drift settings. |
 | [Local policy-pack vendoring](https://github.com/sakibshuvo/Entroping/issues/401) | Done | `config vendor-policy-pack` copies reviewed local packs under `policy-packs/`, validates manifest/entrypoint evidence, preserves final-gate behavior, and appends a local import without remote registry coupling. |

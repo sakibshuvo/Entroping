@@ -1,6 +1,6 @@
 """Filesystem discovery for Entroping Hurl tests."""
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -69,14 +69,41 @@ def normalize_tag_filters(tag_filters: Sequence[str] | None) -> frozenset[str]:
     return frozenset(normalized)
 
 
+def normalize_operation_id_filters(operation_ids: Collection[str] | None) -> frozenset[str]:
+    """Normalize operation ID filters and reject unsafe values."""
+
+    if operation_ids is None:
+        return frozenset()
+
+    normalized: set[str] = set()
+    for raw_filter in operation_ids:
+        operation_id = raw_filter.strip()
+        if operation_id == "":
+            msg = "Operation ID filters must not be empty"
+            raise ValueError(msg)
+        if any(ord(character) < 32 or ord(character) == 127 for character in operation_id):
+            msg = "Operation ID filters must not contain control characters"
+            raise ValueError(msg)
+        normalized.add(operation_id)
+
+    return frozenset(normalized)
+
+
 def discover_hurl_tests(
     roots: Sequence[Path] | None = None,
     *,
     tag_filters: Sequence[str] | None = None,
+    operation_id_filters: Collection[str] | None = None,
 ) -> list[HurlTest]:
     """Discover Hurl tests under roots and parse Entroping metadata comments."""
 
-    return list(discover_hurl_test_selection(roots, tag_filters=tag_filters).tests)
+    return list(
+        discover_hurl_test_selection(
+            roots,
+            tag_filters=tag_filters,
+            operation_id_filters=operation_id_filters,
+        ).tests
+    )
 
 
 def discover_hurl_test_selection(
@@ -84,12 +111,20 @@ def discover_hurl_test_selection(
     *,
     tag_filters: Sequence[str] | None = None,
     tag_expression: CompiledTagExpression | None = None,
+    operation_id_filters: Collection[str] | None = None,
 ) -> HurlTestSelection:
     """Discover Hurl tests and return selected/skipped evidence."""
 
     filters = normalize_tag_filters(tag_filters)
+    operation_filters = normalize_operation_id_filters(operation_id_filters)
     if filters and tag_expression is not None:
         msg = "cannot combine tag filters with tag expressions"
+        raise ValueError(msg)
+    if operation_filters and filters:
+        msg = "cannot combine operation ID filters with tag filters"
+        raise ValueError(msg)
+    if operation_filters and tag_expression is not None:
+        msg = "cannot combine operation ID filters with tag expressions"
         raise ValueError(msg)
 
     candidates = _discover_hurl_files(roots or _DEFAULT_ROOTS)
@@ -108,6 +143,8 @@ def discover_hurl_test_selection(
         if filters and metadata.tags.isdisjoint(filters):
             continue
         if tag_expression is not None and not tag_expression.matches(metadata.tags):
+            continue
+        if operation_filters and metadata.operation_id not in operation_filters:
             continue
         discovered.append(
             HurlTest(

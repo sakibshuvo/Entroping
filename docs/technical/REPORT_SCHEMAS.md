@@ -211,6 +211,12 @@ loaders keep treating missing or malformed values from older local reports as
 `0`. Timeout failures use status `timeout`, exit code `124`, and distinct JUnit
 failure type `entroping.hurl.timeout`.
 
+`entroping.run-report.v1` includes optional per-test `operation_id` evidence
+when the source Hurl file has safe `# entroping: operation_id=<id>` metadata.
+Writers include it in JSON, JUnit properties, and HTML output; loaders ignore
+missing, empty, or control-character values from older or malformed local
+reports.
+
 ## Producer Rules
 
 - Writers must include `schema_version` on versioned JSON report payloads.

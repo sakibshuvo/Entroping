@@ -185,6 +185,16 @@ copying raw per-attempt output.
 Run reports also show the effective `timeout_ms` for each test. If Hurl exceeds
 that subprocess budget, Entroping marks the row as `timeout`, uses exit code
 `124`, and renders timeout findings separately from ordinary failed assertions.
+To run by API intent instead of tags, use committed OpenAPI metadata:
+
+```bash
+entroping run --operation-id createCheckout --operation-id createRefund --report json
+```
+
+This selects existing `.hurl` files with exact
+`# entroping: operation_id=<id>` metadata and records the operation ID in JSON,
+JUnit, and HTML run reports. It cannot be combined with `--tag`,
+`--tag-expression`, `--suite`, or `--changed-from`.
 
 ## 4. Existing Hurl Project
 

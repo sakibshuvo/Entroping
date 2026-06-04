@@ -30,6 +30,7 @@ def _execution_copy(
     source: Path,
     execution: Path,
     known_failures: tuple[AppliedKnownFailure, ...] = (),
+    operation_id: str | None = None,
 ) -> HurlExecutionCopy:
     return HurlExecutionCopy(
         source_path=source,
@@ -43,6 +44,7 @@ def _execution_copy(
             ),
         ),
         known_failures=known_failures,
+        operation_id=operation_id,
     )
 
 
@@ -107,6 +109,41 @@ def test_write_json_report_includes_ci_debug_fields_and_redacts_output(tmp_path:
     html = html_path.read_text(encoding="utf-8")
     assert "<th>Timeout</th>" in html
     assert "<td>2500 ms</td>" in html
+
+
+def test_reports_include_operation_id_evidence(tmp_path: Path) -> None:
+    source = tmp_path / "tests" / "checkout.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "checkout.hurl"
+    report = build_run_report(
+        project="checkout-api",
+        environment="local",
+        execution_copies=[_execution_copy(source, execution, operation_id="createCheckout")],
+        suite=_suite_result(execution, ""),
+        project_root=tmp_path,
+    )
+
+    payload = report_writer.run_report_to_dict(report)
+    tests_payload = payload["tests"]
+    assert isinstance(tests_payload, list)
+    first_test = tests_payload[0]
+    assert isinstance(first_test, Mapping)
+    assert first_test["operation_id"] == "createCheckout"
+
+    junit_path = tmp_path / "reports" / "junit.xml"
+    write_junit_report(report, junit_path)
+    properties = ElementTree.parse(junit_path).getroot().find("testcase/properties")
+    assert properties is not None
+    values = {
+        property_node.attrib["name"]: property_node.attrib["value"]
+        for property_node in properties.findall("property")
+    }
+    assert values["entroping.operation_id"] == "createCheckout"
+
+    html_path = tmp_path / "reports" / "run-latest.html"
+    write_html_report(report, html_path)
+    html = html_path.read_text(encoding="utf-8")
+    assert "<th>Operation</th>" in html
+    assert "createCheckout" in html
 
 
 def test_reports_include_applied_known_failure_evidence(tmp_path: Path) -> None:
@@ -716,6 +753,64 @@ def test_load_run_report_round_trips_valid_known_failures_and_ignores_malformed_
         )
     ]
     assert report.tests[1].known_failures == ()
+
+
+def test_load_run_report_trims_valid_operation_ids_and_ignores_malformed_values(
+    tmp_path: Path,
+) -> None:
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    tests = [
+        {
+            "path": "tests/not-string.hurl",
+            "execution_path": ".entroping/run/not-string.hurl",
+            "status": "passed",
+            "exit_code": 0,
+            "duration_ms": 1,
+            "rule_ids": [],
+            "stdout": "",
+            "stderr": "",
+            "operation_id": 123,
+        },
+        {
+            "path": "tests/control.hurl",
+            "execution_path": ".entroping/run/control.hurl",
+            "status": "passed",
+            "exit_code": 0,
+            "duration_ms": 1,
+            "rule_ids": [],
+            "stdout": "",
+            "stderr": "",
+            "operation_id": "create\nCheckout",
+        },
+        {
+            "path": "tests/valid.hurl",
+            "execution_path": ".entroping/run/valid.hurl",
+            "status": "passed",
+            "exit_code": 0,
+            "duration_ms": 1,
+            "rule_ids": [],
+            "stdout": "",
+            "stderr": "",
+            "operation_id": " createCheckout ",
+        },
+    ]
+    latest.write_text(
+        json.dumps(
+            {
+                "project": "checkout-api",
+                "environment": "local",
+                "generated_at": "2026-05-31T00:00:00+00:00",
+                "summary": {"total": 3, "passed": 3, "failed": 0, "exit_code": 0},
+                "tests": tests,
+            },
+        ),
+        encoding="utf-8",
+    )
+
+    report = load_run_report(latest)
+
+    assert [test.operation_id for test in report.tests] == [None, None, "createCheckout"]
 
 
 def test_write_json_report_preserves_existing_target_when_atomic_write_fails(

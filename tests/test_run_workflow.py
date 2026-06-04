@@ -245,6 +245,128 @@ def test_execute_run_workflow_applies_known_failure_gate_exceptions(
     ]
 
 
+def test_execute_run_workflow_selects_by_operation_id_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_project(tmp_path)
+    tests_dir = tmp_path / "tests"
+    (tests_dir / "health.hurl").write_text(
+        "# entroping: operation_id=getHealth\n\nGET http://localhost:18080/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    (tests_dir / "checkout.hurl").write_text(
+        "# entroping: operation_id=createCheckout\n\n"
+        "POST http://localhost:18080/checkout\nHTTP 201\n",
+        encoding="utf-8",
+    )
+    captured_paths: list[Path] = []
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+    ) -> HurlSuiteResult:
+        _ = (options, max_workers)
+        captured_paths.extend(paths)
+        return HurlSuiteResult(results=tuple(_passed_result(path) for path in paths))
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
+
+    result = execute_run_workflow(
+        project_root=tmp_path,
+        environment=None,
+        tag_filters=(),
+        operation_ids=("createCheckout",),
+        report_formats=("json",),
+        parallel=False,
+        drift_check=False,
+    )
+
+    assert result.selection.selected_count == 1
+    assert result.selection.skipped_count == 1
+    assert captured_paths and captured_paths[0].name.startswith("checkout-")
+    latest = json.loads(result.latest_state_path.read_text(encoding="utf-8"))
+    assert latest["tests"][0]["path"] == "tests/checkout.hurl"
+    assert latest["tests"][0]["operation_id"] == "createCheckout"
+
+
+def test_execute_run_workflow_reports_no_matching_operation_ids(tmp_path: Path) -> None:
+    _write_project(tmp_path)
+
+    with pytest.raises(NoHurlTestsMatchedError, match="OpenAPI operation IDs 'createCheckout'"):
+        execute_run_workflow(
+            project_root=tmp_path,
+            environment=None,
+            tag_filters=(),
+            operation_ids=("createCheckout",),
+            report_formats=(),
+            parallel=False,
+            drift_check=False,
+        )
+
+
+def test_execute_run_workflow_rejects_operation_id_and_tag_filter_mix(
+    tmp_path: Path,
+) -> None:
+    _write_project(tmp_path)
+
+    with pytest.raises(
+        RunWorkflowError,
+        match="operation ID filters cannot be combined with tag filters",
+    ):
+        execute_run_workflow(
+            project_root=tmp_path,
+            environment=None,
+            tag_filters=("smoke",),
+            operation_ids=("createCheckout",),
+            report_formats=(),
+            parallel=False,
+            drift_check=False,
+        )
+
+
+def test_execute_run_workflow_rejects_operation_id_and_tag_expression_mix(
+    tmp_path: Path,
+) -> None:
+    _write_project(tmp_path)
+
+    with pytest.raises(
+        RunWorkflowError,
+        match="operation ID filters cannot be combined with tag expressions",
+    ):
+        execute_run_workflow(
+            project_root=tmp_path,
+            environment=None,
+            tag_filters=(),
+            tag_expression="smoke",
+            operation_ids=("createCheckout",),
+            report_formats=(),
+            parallel=False,
+            drift_check=False,
+        )
+
+
+def test_execute_run_workflow_rejects_changed_from_with_operation_ids(tmp_path: Path) -> None:
+    _write_project(tmp_path)
+
+    with pytest.raises(
+        RunWorkflowError,
+        match="changed-from cannot be combined with operation ID filters",
+    ):
+        execute_run_workflow(
+            project_root=tmp_path,
+            environment=None,
+            tag_filters=(),
+            operation_ids=("createCheckout",),
+            report_formats=(),
+            parallel=False,
+            drift_check=False,
+            changed_from="origin/main",
+        )
+
+
 def test_execute_run_workflow_rejects_unmatched_known_failure_for_selected_test(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -1,7 +1,7 @@
 """Deterministic run workflow use case."""
 
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -27,7 +27,11 @@ from entroping.core.drift_report import (
 from entroping.core.env_loader import load_environment_variables, load_process_hurl_variables
 from entroping.core.gate_injector import HurlExecutionCopy, write_injected_execution_copy
 from entroping.core.git_changed_hurl import select_changed_hurl_tests
-from entroping.core.hurl_discovery import HurlTestSelection, discover_hurl_test_selection
+from entroping.core.hurl_discovery import (
+    HurlTestSelection,
+    discover_hurl_test_selection,
+    normalize_operation_id_filters,
+)
 from entroping.core.hurl_runner import HurlRunOptions, HurlSuiteResult, run_hurl_files
 from entroping.core.hurl_variable_preflight import (
     HurlVariablePreflightError,
@@ -99,6 +103,7 @@ def execute_run_workflow(
     environment: str | None,
     tag_filters: Sequence[str],
     tag_expression: str | None = None,
+    operation_ids: Collection[str] | None = None,
     report_formats: Sequence[str],
     parallel: bool,
     drift_check: bool,
@@ -112,6 +117,13 @@ def execute_run_workflow(
     if tag_filters and tag_expression is not None:
         msg = "tag filters cannot be combined with tag expressions"
         raise RunWorkflowError(msg)
+    operation_filters = normalize_operation_id_filters(operation_ids)
+    if operation_filters and tag_filters:
+        msg = "operation ID filters cannot be combined with tag filters"
+        raise RunWorkflowError(msg)
+    if operation_filters and tag_expression is not None:
+        msg = "operation ID filters cannot be combined with tag expressions"
+        raise RunWorkflowError(msg)
     compiled_tag_expression = (
         compile_tag_expression(tag_expression) if tag_expression is not None else None
     )
@@ -120,10 +132,16 @@ def execute_run_workflow(
     if changed_from is not None and discovery_roots is not None:
         msg = "changed-from cannot be combined with custom Hurl discovery roots"
         raise RunWorkflowError(msg)
+    if changed_from is not None and operation_filters:
+        msg = "changed-from cannot be combined with operation ID filters"
+        raise RunWorkflowError(msg)
     if changed_from is None:
         selected_roots = discovery_roots if discovery_roots is not None else (root / "tests",)
         if selection_label is None:
-            no_match_label = _default_no_match_label(tag_expression=tag_expression)
+            no_match_label = _default_no_match_label(
+                tag_expression=tag_expression,
+                operation_ids=operation_filters,
+            )
         else:
             no_match_label = selection_label
     else:
@@ -141,6 +159,7 @@ def execute_run_workflow(
         selected_roots,
         tag_filters=tuple(tag_filters),
         tag_expression=compiled_tag_expression,
+        operation_id_filters=operation_filters,
     )
     hurl_tests = selection.tests
     env_variables = (
@@ -249,7 +268,13 @@ def execute_run_workflow(
     )
 
 
-def _default_no_match_label(*, tag_expression: str | None) -> str:
+def _default_no_match_label(
+    *,
+    tag_expression: str | None,
+    operation_ids: Collection[str],
+) -> str:
+    if operation_ids:
+        return "OpenAPI operation IDs " + ", ".join(repr(item) for item in sorted(operation_ids))
     if tag_expression is None:
         return "the requested filters"
     return f"tag expression {tag_expression!r}"

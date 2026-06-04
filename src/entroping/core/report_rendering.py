@@ -58,6 +58,15 @@ def render_junit_report(report: RunReport) -> bytes:
                         "value": str(test.timeout_ms),
                     },
                 )
+            if test.operation_id is not None:
+                ElementTree.SubElement(
+                    properties,
+                    "property",
+                    {
+                        "name": "entroping.operation_id",
+                        "value": test.operation_id,
+                    },
+                )
             for known_failure in test.known_failures:
                 ElementTree.SubElement(
                     properties,
@@ -137,7 +146,7 @@ def render_html_report(report: RunReport) -> str:
   </dl>
   <table>
     <thead>
-      <tr><th>Test</th><th>Status</th><th>Duration</th><th>Timeout</th><th>Rules</th><th>Output</th></tr>
+      <tr><th>Test</th><th>Status</th><th>Duration</th><th>Timeout</th><th>Operation</th><th>Rules</th><th>Output</th></tr>
     </thead>
     <tbody>
 {rows}
@@ -190,6 +199,7 @@ def _html_test_row(test: RunTestReport) -> str:
         f'<td class="{escape(test.status)}">{escape(test.status)}</td>'
         f"<td>{test.duration_ms} ms</td>"
         f"<td>{test.timeout_ms} ms</td>"
+        f"<td>{escape(test.operation_id or 'none')}</td>"
         f"<td>{escape(', '.join(test.rule_ids) if test.rule_ids else 'none')}</td>"
         f"<td>{output}</td>"
         "</tr>"
@@ -234,6 +244,7 @@ def _failure_text(test: RunTestReport) -> str:
         f"status: {test.status}",
         f"exit_code: {test.exit_code}",
         f"timeout_ms: {test.timeout_ms}",
+        f"operation_id: {test.operation_id or 'none'}",
         f"rule_ids: {', '.join(test.rule_ids) if test.rule_ids else 'none'}",
     ]
     if test.known_failures:
@@ -272,6 +283,7 @@ def _known_failure_summary(known_failure: KnownFailureEvidence) -> str:
 def _has_test_properties(test: RunTestReport) -> bool:
     return (
         test.timeout_ms > 0
+        or test.operation_id is not None
         or bool(test.known_failures)
         or test.retry.retry_count > 0
         or test.retry.unstable
