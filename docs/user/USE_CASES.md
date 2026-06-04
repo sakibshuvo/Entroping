@@ -179,6 +179,15 @@ Add metadata:
 # entroping: story_id=CHK-001
 ```
 
+Add a matching local story document:
+
+```markdown
+---
+story_id: CHK-001
+title: Checkout accepts payment
+---
+```
+
 Run audit:
 
 ```bash
@@ -187,7 +196,8 @@ entroping report traceability --output md
 
 ### Expected Artifacts
 
-- Traceability report listing linked stories, owners, docs, tests, tags, and metadata findings.
+- Traceability report listing linked stories, local story Markdown files, owners, docs, tests, tags, and metadata findings.
+- Gap findings for tests without `story_id`, Hurl story IDs missing local Markdown, Markdown stories without tests, duplicate story IDs, malformed story metadata, and unsafe story paths.
 - Hurl tests with stable traceability metadata.
 
 ### Value

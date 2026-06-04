@@ -620,6 +620,74 @@ def test_report_traceability_outputs_json_for_badge_sources(
     assert payload["stories"][0]["story_id"] == "CHK-001"
 
 
+def test_report_traceability_links_markdown_story_documents(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    tests_dir = Path("tests")
+    tests_dir.mkdir()
+    (tests_dir / "checkout.hurl").write_text(
+        "# entroping: story_id=CHK-001\n\nGET {{base_url}}/checkout\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    stories_dir = Path("docs") / "stories"
+    stories_dir.mkdir(parents=True)
+    (stories_dir / "checkout.md").write_text(
+        "---\nstory_id: CHK-001\ntitle: Checkout accepts payment\n---\n",
+        encoding="utf-8",
+    )
+
+    md_result = CliRunner().invoke(app, ["report", "traceability", "--output", "md"])
+    json_result = CliRunner().invoke(app, ["report", "traceability", "--output", "json"])
+
+    assert md_result.exit_code == 0
+    assert "docs/stories/checkout.md" in md_result.output
+    assert "Checkout accepts payment" in md_result.output
+    assert json_result.exit_code == 0
+    payload = json.loads(json_result.output)
+    assert payload["stories"][0]["story_paths"] == ["docs/stories/checkout.md"]
+    assert payload["stories"][0]["titles"] == ["Checkout accepts payment"]
+
+
+def test_report_traceability_reports_malformed_story_documents(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    stories_dir = Path("docs") / "stories"
+    stories_dir.mkdir(parents=True)
+    (stories_dir / "broken.md").write_text("# Broken story\n", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["report", "traceability", "--output", "json"])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["findings"][0]["kind"] == "malformed_story_metadata"
+    assert payload["findings"][0]["story_path"] == "docs/stories/broken.md"
+
+
+def test_report_traceability_reports_missing_story_when_story_directory_is_empty(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    tests_dir = Path("tests")
+    tests_dir.mkdir()
+    (tests_dir / "checkout.hurl").write_text(
+        "# entroping: story_id=CHK-001\n\nGET {{base_url}}/checkout\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    (Path("docs") / "stories").mkdir(parents=True)
+
+    result = CliRunner().invoke(app, ["report", "traceability", "--output", "json"])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["findings"][0]["kind"] == "missing_story"
+    assert payload["findings"][0]["story_ids"] == ["CHK-001"]
+
+
 def test_report_traceability_reports_missing_story_ids(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

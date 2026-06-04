@@ -2,6 +2,12 @@
 
 ## 2026-06-04
 
+- Added issue #434's story traceability gap summary so
+  `entroping report traceability --output md|json` links Hurl `story_id`
+  metadata to local `docs/stories/*.md` story documents, reports missing
+  local stories, stories without tests, duplicate story IDs, malformed story
+  metadata, and unsafe story paths, and keeps the workflow local-only with no
+  business-system API calls.
 - Added issue #435's OpenAPI operation selector so `entroping run
   --operation-id <id>` executes existing Hurl files with exact committed
   `operation_id` metadata, rejects selector conflicts before execution, and

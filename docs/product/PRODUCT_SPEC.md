@@ -126,7 +126,7 @@ Entroping manages the QA lifecycle as Git-native assets:
 
 - Tests are `.hurl` files.
 - Tags define virtual suites.
-- Markdown user stories link to tests through Entroping-readable Hurl comments such as `# entroping: story_id=CHK-001`; the shipped bridge compiles this metadata into local traceability reports without calling external business-system APIs.
+- Markdown user stories under `docs/stories/*.md` link to tests through Entroping-readable Hurl comments such as `# entroping: story_id=CHK-001`; the shipped bridge compiles this local metadata into traceability reports and gap summaries without calling external business-system APIs.
 - Known failures require issue IDs, reasons, and expiry dates.
 - Reports provide machine-readable and human-readable evidence.
 
@@ -219,7 +219,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | EXE-009 | Generate failure bundles | `entroping report failure-bundle` creates a sanitized local bundle with a versioned manifest, latest failed run evidence, bug Markdown, failed-test Hurl metadata, and reviewed local report artifacts without raw traffic, env files, uploads, or source Hurl contents |
 | EXE-010 | Generate redaction review reports | `entroping report redaction --output md` and `--output html` summarize captured traffic redaction categories and counts without raw secrets |
 | EXE-011 | Run changed Hurl tests locally | `entroping run --changed-from <ref>` selects existing changed `.hurl` files from Git diff for fast feedback while full-suite `run` remains the default |
-| EXE-012 | Generate traceability reports | `entroping report traceability --output md|json` maps local Hurl metadata to stories, owners, docs, tests, tags, and findings |
+| EXE-012 | Generate traceability reports | `entroping report traceability --output md|json` maps local Hurl metadata and `docs/stories/*.md` story files to stories, owners, docs, tests, tags, local story paths, and gap findings |
 | EXE-013 | Generate SARIF reports | `entroping report sarif` writes SARIF 2.1.0 from local JUnit, drift, and optional traceability findings without uploading results |
 | EXE-014 | Promote reviewed drift baselines | `entroping report promote-drift-baseline` validates a reviewed candidate before atomically writing `.entroping/drift-baseline.json` |
 | EXE-015 | Provide read-only TUI workflow | `entroping studio --env local` opens optional Textual/Rich local inspection over sanitized reports and redacted state |

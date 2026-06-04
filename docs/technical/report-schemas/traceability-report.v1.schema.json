@@ -24,10 +24,26 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["story_id", "test_paths", "owners", "doc_urls", "tags"],
+        "required": [
+          "story_id",
+          "test_paths",
+          "story_paths",
+          "titles",
+          "owners",
+          "doc_urls",
+          "tags"
+        ],
         "properties": {
           "story_id": {"type": "string"},
           "test_paths": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "story_paths": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "titles": {
             "type": "array",
             "items": {"type": "string"}
           },
@@ -51,11 +67,19 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["kind", "message", "test_path", "doc_url", "story_ids"],
+        "required": [
+          "kind",
+          "message",
+          "test_path",
+          "story_path",
+          "doc_url",
+          "story_ids"
+        ],
         "properties": {
           "kind": {"type": "string"},
           "message": {"type": "string"},
           "test_path": {"type": ["string", "null"]},
+          "story_path": {"type": ["string", "null"]},
           "doc_url": {"type": ["string", "null"]},
           "story_ids": {
             "type": "array",

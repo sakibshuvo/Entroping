@@ -445,6 +445,8 @@ def test_traceability_report_v1_schema_contract_is_versioned_and_stable() -> Non
             {
                 "story_id": "CHK-001",
                 "test_paths": ["tests/checkout.hurl"],
+                "story_paths": [],
+                "titles": [],
                 "owners": ["payments"],
                 "doc_urls": ["https://jira.example.com/browse/CHK-001"],
                 "tags": ["smoke"],
@@ -455,6 +457,7 @@ def test_traceability_report_v1_schema_contract_is_versioned_and_stable() -> Non
                 "kind": "missing_story_id",
                 "message": "tests/unlinked.hurl has no # entroping: story_id metadata.",
                 "test_path": "tests/unlinked.hurl",
+                "story_path": None,
                 "doc_url": None,
                 "story_ids": [],
             }

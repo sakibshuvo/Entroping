@@ -463,8 +463,23 @@ traceability report:
 entroping report traceability --output md
 ```
 
-The command reads local Hurl metadata only. It does not sync Jira, Notion,
-Linear, or monday.com directly.
+By convention, local story documents live under `docs/stories/*.md` and declare
+their ID with a frontmatter-style line:
+
+```markdown
+---
+story_id: CHK-001
+title: Checkout accepts payment
+---
+
+# Checkout accepts payment
+```
+
+The report links matching Hurl `story_id` metadata to those Markdown documents
+and flags missing story IDs, Hurl tests that reference stories without local
+Markdown, Markdown stories without tests, duplicate story IDs, malformed story
+metadata, and unsafe story paths. The command reads local files only. It does
+not sync Jira, Notion, Linear, or monday.com directly.
 
 ## 9. Managing Test Data
 
