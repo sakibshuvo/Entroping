@@ -31,8 +31,8 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#402](https://github.com/sakibshuvo/Entroping/issues/402)
-adds named suite manifests from committed YAML after local policy-pack vendoring
+Current issue: [#403](https://github.com/sakibshuvo/Entroping/issues/403)
+adds sanitized failure bundles for bug handoff after named suite manifests
 landed.
 Next local slices should keep moving useful runtime and developer workflow
 features before returning to blocked external stable-core proof.
@@ -52,9 +52,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#402](https://github.com/sakibshuvo/Entroping/issues/402) | Support named suite manifests from committed YAML. |
-| 2 | [#403](https://github.com/sakibshuvo/Entroping/issues/403) | Create sanitized failure bundles for bug handoff. |
-| 3 | [#404](https://github.com/sakibshuvo/Entroping/issues/404) | Generate tests only for changed OpenAPI operations. |
+| 1 | [#403](https://github.com/sakibshuvo/Entroping/issues/403) | Create sanitized failure bundles for bug handoff. |
+| 2 | [#404](https://github.com/sakibshuvo/Entroping/issues/404) | Generate tests only for changed OpenAPI operations. |
+| 3 | [#405](https://github.com/sakibshuvo/Entroping/issues/405) | Add flake and retry evidence for unstable endpoints. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -75,6 +75,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Named suite manifests](https://github.com/sakibshuvo/Entroping/issues/402) | Done | `run --suite <name>` loads committed `suites/<name>.yaml` manifests, validates `entroping.suite.v1`, resolves root-bounded Hurl path globs, and applies suite-defined env, tags, reports, parallel, and drift settings. |
 | [Local policy-pack vendoring](https://github.com/sakibshuvo/Entroping/issues/401) | Done | `config vendor-policy-pack` copies reviewed local packs under `policy-packs/`, validates manifest/entrypoint evidence, preserves final-gate behavior, and appends a local import without remote registry coupling. |
 | [Open-source license and package metadata](https://github.com/sakibshuvo/Entroping/issues/58) | Done | Apache-2.0 public core and package metadata are explicit. |
 | [Public clean-checkout onboarding smoke](https://github.com/sakibshuvo/Entroping/issues/185) | Done | `scripts/release_check.sh --require-live-demo` passed from a fresh public clone. |

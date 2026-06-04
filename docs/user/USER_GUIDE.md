@@ -346,6 +346,39 @@ Good tests:
 - Link external business systems with `# entroping: doc_url=...` when Jira, Notion, Linear, or monday.com remains the business source of truth.
 - Assert contract and business behavior, not only status code.
 
+When tags alone are not enough, commit named suite manifests under `suites/`.
+They make the selected env, tags, paths, reports, parallel mode, and drift
+policy reviewable:
+
+```yaml
+# suites/smoke.yaml
+version: entroping.suite.v1
+name: smoke
+env: ci
+tags:
+  - smoke
+paths:
+  - tests/**/*.hurl
+reports:
+  - json
+  - junit
+  - html
+parallel: true
+drift_check: false
+```
+
+Run the committed suite:
+
+```bash
+entroping run --suite smoke --ci
+```
+
+Create separate manifests such as `suites/regression.yaml` and
+`suites/security.yaml` when a suite needs different paths, reports, or drift
+settings. `--suite` cannot be combined with ad hoc selectors such as `--env`,
+`--tag`, `--report`, `--parallel`, `--drift-check`, or `--changed-from`; use
+`--ci` only to choose strict exit behavior.
+
 Entroping can compile discovered Hurl metadata into a local story/test
 traceability report:
 

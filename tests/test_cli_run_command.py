@@ -1,5 +1,7 @@
 """CLI adapter tests for run command behavior."""
 
+import re
+
 from cli_test_support import (
     ArchitectPromptPackage,
     BinaryIO,
@@ -19,6 +21,8 @@ from cli_test_support import (
     pytest,
     subprocess,
 )
+
+ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
 def test_run_executes_discovered_hurl_with_injected_gates_and_cleans_temp_state(
@@ -460,6 +464,122 @@ def test_run_forwards_changed_from_to_workflow(
 
     assert result.exit_code == 0
     assert captured_kwargs["changed_from"] == "origin/main"
+
+
+def test_run_loads_named_suite_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "suites").mkdir()
+    (tmp_path / "tests").mkdir()
+    selected = tmp_path / "tests" / "health.hurl"
+    selected.write_text("# entroping: tags=smoke\n", encoding="utf-8")
+    (tmp_path / "suites" / "smoke.yaml").write_text(
+        """
+version: entroping.suite.v1
+name: smoke
+env: local
+tags:
+  - smoke
+paths:
+  - tests/*.hurl
+reports:
+  - json
+  - junit
+parallel: true
+drift_check: true
+""".lstrip(),
+        encoding="utf-8",
+    )
+    captured_kwargs: dict[str, object] = {}
+
+    def fake_execute_run_workflow(**kwargs: object) -> object:
+        captured_kwargs.update(kwargs)
+        return SimpleNamespace(
+            suite=HurlSuiteResult(results=()),
+            drift_report=None,
+            latest_state_path=tmp_path / ".entroping" / "latest-run.json",
+            artifacts=(),
+            exit_code=0,
+        )
+
+    monkeypatch.setattr(execution_cli, "execute_run_workflow", fake_execute_run_workflow)
+
+    result = CliRunner().invoke(app, ["run", "--suite", "smoke", "--ci"])
+
+    assert result.exit_code == 0
+    assert captured_kwargs["environment"] == "local"
+    assert captured_kwargs["tag_filters"] == ("smoke",)
+    assert captured_kwargs["report_formats"] == ("json", "junit")
+    assert captured_kwargs["parallel"] is True
+    assert captured_kwargs["drift_check"] is True
+    assert captured_kwargs["changed_from"] is None
+    assert captured_kwargs["selection_label"] == "suite 'smoke'"
+    assert captured_kwargs["discovery_roots"] == (selected.resolve(),)
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["run", "--suite", "smoke", "--tag", "security"],
+        ["run", "--suite", "smoke", "--env", "local"],
+        ["run", "--suite", "smoke", "--report", "json"],
+        ["run", "--suite", "smoke", "--changed-from", "main"],
+        ["run", "--suite", "smoke", "--parallel"],
+        ["run", "--suite", "smoke", "--drift-check"],
+    ],
+)
+def test_run_rejects_suite_ad_hoc_selector_conflicts(args: list[str]) -> None:
+    result = CliRunner().invoke(
+        app,
+        args,
+        env={"CI": "true", "GITHUB_ACTIONS": "true", "TERM": "xterm-256color"},
+    )
+    plain_output = ANSI_RE.sub("", result.output)
+
+    assert result.exit_code == 2
+    assert f"{args[3]} cannot be combined with --suite" in plain_output
+
+
+def test_run_named_suite_no_matches_respects_ci_exit_policy(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "suites").mkdir()
+    (tmp_path / "suites" / "empty.yaml").write_text(
+        "version: entroping.suite.v1\nname: empty\npaths:\n  - tests/nope*.hurl\n",
+        encoding="utf-8",
+    )
+
+    def fake_execute_run_workflow(**kwargs: object) -> object:
+        _ = kwargs
+        raise NoHurlTestsMatchedError("No Hurl tests matched suite 'empty'.")
+
+    monkeypatch.setattr(execution_cli, "execute_run_workflow", fake_execute_run_workflow)
+
+    local_result = CliRunner().invoke(app, ["run", "--suite", "empty"])
+    ci_result = CliRunner().invoke(app, ["run", "--suite", "empty", "--ci"])
+
+    assert local_result.exit_code == 0
+    assert ci_result.exit_code == 1
+    assert "No Hurl tests matched suite 'empty'" in local_result.output
+    assert "No Hurl tests matched suite 'empty'" in ci_result.output
+
+
+def test_run_named_suite_reports_manifest_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "suites").mkdir()
+    (tmp_path / "suites" / "smoke.yaml").write_text("[", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["run", "--suite", "smoke"])
+
+    assert result.exit_code == 1
+    assert "Invalid YAML" in result.output
 
 
 def test_run_reports_empty_changed_selection_with_ci_exit_policy(

@@ -38,7 +38,7 @@ entroping freeze --name <flow> [--golden] [--mock <service>]
 entroping map [--export <mermaid|dot|md|png>]
 
 entroping studio [--env <name>]
-entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
+entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
 entroping report bug
 entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
@@ -57,6 +57,7 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 | Aliases | No alias is compatibility-supported. Deprecated brainstorm names such as `gen`, `fix`, `scan`, `chaos`, `verify`, top-level `build`, `auth`, and `report --type` remain unavailable. |
 | Global flags | Only Typer completion helpers and `--version` are current global flags. `--verbose` and `--dry-run` are not product flags. |
 | Determinism | `entroping run` remains deterministic, Hurl-backed, and LLM-free. |
+| Named suites | `run --suite <name>` loads committed `suites/<name>.yaml` manifests with schema `entroping.suite.v1`, root-bounded local path globs, tags, env, reports, parallel, and drift settings. It cannot be combined with ad hoc selectors; `--ci` remains allowed for exit behavior. |
 | Prompted generation | Prompt-backed `architect build` and `architect refactor` may call LiteLLM, but generated files must pass validation before write. `architect build` defaults to Builder and accepts `--agent breaker` for hostile/security generation; deterministic `architect audit --focus logic --output json` emits `entroping.openapi-audit.v1`; `architect audit --focus auditor` is the explicit Auditor review path. |
 | Policy-pack vendoring | `config vendor-policy-pack` accepts reviewed local pack directories only. It copies the pack under `policy-packs/`, validates the manifest and QAnstitution entrypoint, appends a local import, and does not fetch from registries or remote URLs. |
 | Studio | `studio` is read-only until mutation workflows are designed and accepted separately. |

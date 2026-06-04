@@ -675,7 +675,7 @@ entroping map [--export <mermaid|dot|md|png>]
 
 ```text
 entroping studio [--env <name>]
-entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
+entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
 entroping report bug
 entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
@@ -712,6 +712,13 @@ input ordering in reports.
 used, and paths outside the project root are rejected before discovery. This is
 for fast local and agent feedback only; CI release gates should keep running the
 full deterministic suite.
+`--suite <name>` loads a committed `suites/<name>.yaml` manifest with schema
+version `entroping.suite.v1`. A suite can define `env`, `tags`, root-bounded
+`paths` globs, `reports`, `parallel`, and `drift_check`. The suite manifest
+feeds the same deterministic run workflow; it does not change default
+`entroping run` behavior, and it cannot be combined with ad hoc selectors such
+as `--env`, `--tag`, `--report`, `--parallel`, `--drift-check`, or
+`--changed-from`.
 Before Hurl starts, the run workflow scans selected temporary execution copies
 for unresolved `{{variable}}` references. Resolved variables can come from
 `envs/<name>.env`, explicit shell `HURL_VARIABLE_<name>` values, Hurl

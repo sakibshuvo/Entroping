@@ -250,6 +250,85 @@ def test_execute_run_workflow_reports_no_matching_hurl_tests(tmp_path: Path) -> 
         )
 
 
+def test_execute_run_workflow_uses_custom_discovery_roots(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_project(tmp_path)
+    (tmp_path / "tests" / "health.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET http://localhost:18080/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    selected = tmp_path / "tests" / "regression.hurl"
+    selected.write_text(
+        "# entroping: tags=regression\n\nGET http://localhost:18080/regression\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    captured_paths: list[Path] = []
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+    ) -> HurlSuiteResult:
+        _ = (options, max_workers)
+        captured_paths.extend(paths)
+        return HurlSuiteResult(results=tuple(_passed_result(path) for path in paths))
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
+
+    result = execute_run_workflow(
+        project_root=tmp_path,
+        environment=None,
+        tag_filters=("regression",),
+        report_formats=(),
+        parallel=False,
+        drift_check=False,
+        discovery_roots=(selected,),
+        selection_label="suite 'regression'",
+    )
+
+    assert result.exit_code == 0
+    latest = json.loads(result.latest_state_path.read_text(encoding="utf-8"))
+    assert latest["tests"][0]["path"] == "tests/regression.hurl"
+    assert len(captured_paths) == 1
+
+
+def test_execute_run_workflow_reports_empty_custom_selection(tmp_path: Path) -> None:
+    _write_project(tmp_path)
+
+    with pytest.raises(NoHurlTestsMatchedError, match="suite 'empty'"):
+        execute_run_workflow(
+            project_root=tmp_path,
+            environment=None,
+            tag_filters=(),
+            report_formats=(),
+            parallel=False,
+            drift_check=False,
+            discovery_roots=(),
+            selection_label="suite 'empty'",
+        )
+
+
+def test_execute_run_workflow_rejects_changed_ref_with_custom_discovery_roots(
+    tmp_path: Path,
+) -> None:
+    _write_project(tmp_path)
+
+    with pytest.raises(RunWorkflowError, match="changed-from"):
+        execute_run_workflow(
+            project_root=tmp_path,
+            environment=None,
+            tag_filters=(),
+            report_formats=(),
+            parallel=False,
+            drift_check=False,
+            changed_from="main",
+            discovery_roots=(tmp_path / "tests" / "health.hurl",),
+        )
+
+
 def test_execute_run_workflow_runs_only_changed_hurl_tests(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
