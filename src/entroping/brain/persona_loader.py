@@ -27,6 +27,8 @@ class AgentPersona:
     api_key_env: str | None
     temperature: float
     max_tokens: int | None
+    input_cost_per_1m_tokens_usd: float | None = None
+    output_cost_per_1m_tokens_usd: float | None = None
 
 
 def load_agent_persona(
@@ -52,6 +54,8 @@ def load_agent_persona(
         model=agent.model,
         api_base=agent.api_base,
         api_key_env=agent.api_key_env,
+        input_cost_per_1m_tokens_usd=agent.input_cost_per_1m_tokens_usd,
+        output_cost_per_1m_tokens_usd=agent.output_cost_per_1m_tokens_usd,
         temperature=agent.temperature,
         max_tokens=agent.max_tokens,
     )

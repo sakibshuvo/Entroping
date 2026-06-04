@@ -186,6 +186,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | INT-008 | Use configured model routing | Builder and Breaker load persona files and models for prompt builds; Auditor loads persona/model routing for explicit audit reviews |
 | INT-009 | Enforce source grounding | Generated endpoints and assertions must be traceable to OpenAPI, GraphQL schema, stories, observed traffic, dependencies, or explicit prompt context |
 | INT-010 | Keep AI out of deterministic runs | `entroping run` must not call the LLM; Breaker output is generated through Architect commands and committed as tests before execution |
+| INT-011 | Record sanitized AI budget evidence | Prompt-backed Architect build, refactor, and Auditor review outputs expose provider, latency, token counts when available, and estimated cost when local rate hints are configured, without storing prompts, secrets, or raw provider responses |
 
 ### 9.4 Traffic Observation
 

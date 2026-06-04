@@ -11,6 +11,7 @@ import pytest
 import entroping.core.agent_manifest as agent_manifest
 from entroping.core.agent_manifest import (
     AGENT_RUN_MANIFEST_SCHEMA_VERSION,
+    AgentRunCostEvidence,
     AgentRunManifestError,
     AgentRunManifestInput,
     AgentRunUsageEvidence,
@@ -36,6 +37,7 @@ def test_write_agent_run_manifest_records_value_free_evidence(tmp_path: Path) ->
             mode="create",
             agent="builder",
             model="openai/gpt-4.1-mini",
+            provider="openai",
             persona_source_path=persona_path,
             persona_content=persona_content,
             prompt_intent=intent,
@@ -49,6 +51,11 @@ def test_write_agent_run_manifest_records_value_free_evidence(tmp_path: Path) ->
             structured_output_validated=True,
             hurl_validated=True,
             latency_ms=42,
+            cost=AgentRunCostEvidence(
+                estimated_usd=0.000042,
+                input_cost_per_1m_tokens_usd=0.25,
+                output_cost_per_1m_tokens_usd=1.25,
+            ),
             usage=AgentRunUsageEvidence(
                 prompt_tokens=20,
                 completion_tokens=30,
@@ -78,6 +85,7 @@ def test_write_agent_run_manifest_records_value_free_evidence(tmp_path: Path) ->
             "sha256": hashlib.sha256(persona_content.encode("utf-8")).hexdigest(),
             "source_path": "agents/builder.md",
         },
+        "provider": "openai",
         "prompt": {
             "intent_sha256": hashlib.sha256(intent.encode("utf-8")).hexdigest(),
             "package_sha256": hashlib.sha256(
@@ -86,6 +94,11 @@ def test_write_agent_run_manifest_records_value_free_evidence(tmp_path: Path) ->
         },
         "schema_version": AGENT_RUN_MANIFEST_SCHEMA_VERSION,
         "tags": ["ai", "smoke"],
+        "cost": {
+            "estimated_usd": 0.000042,
+            "input_cost_per_1m_tokens_usd": 0.25,
+            "output_cost_per_1m_tokens_usd": 1.25,
+        },
         "usage": {
             "completion_tokens": 30,
             "prompt_tokens": 20,
@@ -100,6 +113,34 @@ def test_write_agent_run_manifest_records_value_free_evidence(tmp_path: Path) ->
     assert "sk-live-secret" not in raw_manifest
     assert "private checkout detail" not in raw_manifest
     assert "Build checkout Hurl tests." not in raw_manifest
+
+
+def test_write_agent_run_manifest_rejects_invalid_cost_evidence(tmp_path: Path) -> None:
+    with pytest.raises(AgentRunManifestError, match="estimated cost must be finite"):
+        write_agent_run_manifest(
+            replace(
+                _base_manifest_input(tmp_path),
+                cost=AgentRunCostEvidence(
+                    estimated_usd=float("nan"),
+                    input_cost_per_1m_tokens_usd=None,
+                    output_cost_per_1m_tokens_usd=None,
+                ),
+            )
+        )
+    with pytest.raises(
+        AgentRunManifestError,
+        match="input cost per 1M tokens must be greater than or equal to 0",
+    ):
+        write_agent_run_manifest(
+            replace(
+                _base_manifest_input(tmp_path),
+                cost=AgentRunCostEvidence(
+                    estimated_usd=None,
+                    input_cost_per_1m_tokens_usd=-0.01,
+                    output_cost_per_1m_tokens_usd=None,
+                ),
+            )
+        )
 
 
 def test_write_agent_run_manifest_rejects_paths_outside_project(tmp_path: Path) -> None:
@@ -198,6 +239,7 @@ def _base_manifest_input(tmp_path: Path) -> AgentRunManifestInput:
         mode="create",
         agent="builder",
         model="openai/gpt-4.1-mini",
+        provider=None,
         persona_source_path=persona_path,
         persona_content="Build tests.",
         prompt_intent="Generate coverage.",

@@ -227,6 +227,7 @@ def architect_refactor(
     console.print(f"[green]Refactored {len(result.written_paths)} Architect Hurl {noun}.[/green]")
     console.print(f"Summary: {safe_cli_text(result.summary)}", markup=False)
     console.print(f"Model: {safe_cli_text(result.model)} ({result.latency_ms} ms)", markup=False)
+    _print_budget_evidence(provider=result.provider, estimated_cost_usd=result.cost.estimated_usd)
     for warning in result.warnings:
         console.print(f"Warning: {safe_cli_text(warning)}", style="yellow", markup=False)
     for path in result.written_paths:
@@ -338,6 +339,7 @@ def _run_architect_prompt_build(
     console.print(f"Summary: {safe_cli_text(result.summary)}", markup=False)
     console.print(f"Agent: {safe_cli_text(result.agent)}", markup=False)
     console.print(f"Model: {safe_cli_text(result.model)} ({result.latency_ms} ms)", markup=False)
+    _print_budget_evidence(provider=result.provider, estimated_cost_usd=result.cost.estimated_usd)
     for warning in result.warnings:
         console.print(f"Warning: {safe_cli_text(warning)}", style="yellow", markup=False)
     for path in result.written_paths:
@@ -363,6 +365,20 @@ def _normalize_architect_build_agent(agent: str | None) -> ArchitectBuildAgent:
         markup=False,
     )
     raise typer.Exit(2)
+
+
+def _print_budget_evidence(*, provider: str | None, estimated_cost_usd: float | None) -> None:
+    console.print(f"Provider: {safe_cli_text(provider or 'unknown')}", markup=False)
+    console.print(
+        f"Estimated cost: {safe_cli_text(_format_estimated_cost(estimated_cost_usd))}",
+        markup=False,
+    )
+
+
+def _format_estimated_cost(value: float | None) -> str:
+    if value is None:
+        return "unknown"
+    return f"${value:.8f}".rstrip("0").rstrip(".")
 
 
 def _normalize_architect_audit_focus(focus: str | None) -> ArchitectAuditFocus:

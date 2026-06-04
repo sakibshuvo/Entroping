@@ -86,7 +86,8 @@ and prompt-backed `architect refactor` for Architect-owned Hurl files and manual
 files with explicit managed blocks. Prompt-backed `architect build --strategy
 merge` is available for existing Hurl targets. Successful prompt-backed
 Builder, Breaker, refactor, merge, and Auditor review runs write value-free
-manifests under `.entroping/agent-runs/`. Remote specs remain planned.
+manifests under `.entroping/agent-runs/` with provider, latency, token, and
+configured cost-estimate evidence. Remote specs remain planned.
 For OpenAPI operations with security requirements and an explicit `401` or
 `403` response, `architect build --new` also emits auth-negative tests under
 `tests/generated/security/` for supported HTTP bearer/basic and API-key

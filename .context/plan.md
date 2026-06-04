@@ -63,6 +63,9 @@ project, and a Codex workspace with fast context rehydration.
 - Auditor reviews are explicit through `architect audit --focus auditor`; they
   validate provider JSON before display, write no files, and never affect
   deterministic `run`.
+- Prompt-backed Architect build, refactor, and Auditor review evidence includes
+  provider, latency, token counts when available, and estimated cost when local
+  QAnstitution rate hints are configured, while manifests remain value-free.
 - `entroping doctor` validates configured Builder/Auditor/Breaker persona files
   through the same root-bounded persona loader used at runtime and reports
   `api_key_env` readiness without printing values or calling providers.

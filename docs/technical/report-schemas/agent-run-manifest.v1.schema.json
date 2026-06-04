@@ -26,6 +26,7 @@
     "mode": {"enum": ["create", "merge", "refactor", "review"]},
     "agent": {"type": "string", "minLength": 1},
     "model": {"type": "string", "minLength": 1},
+    "provider": {"type": ["string", "null"]},
     "persona": {
       "type": "object",
       "additionalProperties": false,
@@ -63,6 +64,20 @@
       }
     },
     "latency_ms": {"type": "integer", "minimum": 0},
+    "cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "estimated_usd",
+        "input_cost_per_1m_tokens_usd",
+        "output_cost_per_1m_tokens_usd"
+      ],
+      "properties": {
+        "estimated_usd": {"type": ["number", "null"], "minimum": 0},
+        "input_cost_per_1m_tokens_usd": {"type": ["number", "null"], "minimum": 0},
+        "output_cost_per_1m_tokens_usd": {"type": ["number", "null"], "minimum": 0}
+      }
+    },
     "usage": {
       "type": "object",
       "additionalProperties": false,

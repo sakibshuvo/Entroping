@@ -98,11 +98,13 @@ entroping architect audit --focus auditor --output md
 
 They live under `.entroping/agent-runs/` and record value-free evidence: agent
 role, model ID, persona source path plus digest, prompt intent/package hashes,
-output paths, tags, validation status, latency, and token usage. They do not
-store raw prompts, persona content, provider keys, environment values, raw
-traffic, raw Hurl contents, provider output, or approval decisions. A manifest
-proves an AI-assisted command ran through validation; it does not mean the model
-approved the change or that generated tests are correct without review.
+output paths, tags, validation status, provider name, latency, token usage, and
+estimated cost when QAnstitution rate hints and provider usage metadata are
+available. They do not store raw prompts, persona content, provider keys,
+environment values, raw traffic, raw Hurl contents, provider output, or approval
+decisions. A manifest proves an AI-assisted command ran through validation; it
+does not mean the model approved the change or that generated tests are correct
+without review.
 
 The Architect OpenAPI audit JSON is written to stdout:
 

@@ -10,6 +10,7 @@ from entroping.brain.litellm_client import (
     BrainProviderError,
     BrainProviderUnavailableError,
     LiteLLMClient,
+    LiteLLMCostEstimate,
 )
 from entroping.brain.persona_loader import AgentPersona
 from entroping.brain.prompt_builder import (
@@ -74,8 +75,117 @@ def test_litellm_client_calls_injected_completion_without_network(tmp_path: Path
     assert "api_base" not in calls[0]
     assert "api_key" not in calls[0]
     assert result.content == '{"summary":"ok","edits":[]}'
+    assert result.provider == "openai"
     assert result.usage.total_tokens == 17
+    assert result.cost == LiteLLMCostEstimate(
+        estimated_usd=None,
+        input_cost_per_1m_tokens_usd=None,
+        output_cost_per_1m_tokens_usd=None,
+    )
     assert result.latency_ms >= 0
+
+
+def test_litellm_client_estimates_cost_when_rates_and_usage_are_available(
+    tmp_path: Path,
+) -> None:
+    package = _package(tmp_path).model_copy(
+        update={
+            "input_cost_per_1m_tokens_usd": 0.25,
+            "output_cost_per_1m_tokens_usd": 1.25,
+        }
+    )
+    calls: list[dict[str, object]] = []
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        calls.append(kwargs)
+        return {
+            "model": "openai/gpt-4.1-mini",
+            "choices": [{"message": {"content": '{"summary":"ok","edits":[]}'}}],
+            "usage": {
+                "prompt_tokens": 2_000,
+                "completion_tokens": 4_000,
+                "total_tokens": 6_000,
+            },
+        }
+
+    result = LiteLLMClient(completion_func=fake_completion).complete(package)
+
+    assert "input_cost_per_1m_tokens_usd" not in calls[0]
+    assert "output_cost_per_1m_tokens_usd" not in calls[0]
+    assert result.provider == "openai"
+    assert result.cost == LiteLLMCostEstimate(
+        estimated_usd=0.0055,
+        input_cost_per_1m_tokens_usd=0.25,
+        output_cost_per_1m_tokens_usd=1.25,
+    )
+
+
+def test_litellm_client_degrades_malformed_usage_metadata_to_unknown_cost(
+    tmp_path: Path,
+) -> None:
+    package = _package(tmp_path).model_copy(
+        update={
+            "input_cost_per_1m_tokens_usd": 0.25,
+            "output_cost_per_1m_tokens_usd": 1.25,
+        }
+    )
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        _ = kwargs
+        return {
+            "choices": [{"message": {"content": '{"summary":"ok","edits":[]}'}}],
+            "usage": {
+                "prompt_tokens": "2000",
+                "completion_tokens": True,
+                "total_tokens": -1,
+            },
+        }
+
+    result = LiteLLMClient(completion_func=fake_completion).complete(package)
+
+    assert result.provider == "openai"
+    assert result.usage.prompt_tokens is None
+    assert result.usage.completion_tokens is None
+    assert result.usage.total_tokens is None
+    assert result.cost == LiteLLMCostEstimate(
+        estimated_usd=None,
+        input_cost_per_1m_tokens_usd=0.25,
+        output_cost_per_1m_tokens_usd=1.25,
+    )
+
+
+def test_litellm_client_reports_unknown_provider_for_unqualified_models(
+    tmp_path: Path,
+) -> None:
+    package = _package(tmp_path).model_copy(update={"model": "gpt-4.1-mini"})
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        _ = kwargs
+        return {"choices": [{"message": {"content": '{"summary":"ok","edits":[]}'}}]}
+
+    result = LiteLLMClient(completion_func=fake_completion).complete(package)
+
+    assert result.provider is None
+
+
+def test_litellm_client_drops_non_finite_cost_estimates(tmp_path: Path) -> None:
+    package = _package(tmp_path).model_copy(
+        update={
+            "input_cost_per_1m_tokens_usd": float("inf"),
+            "output_cost_per_1m_tokens_usd": 1.25,
+        }
+    )
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        _ = kwargs
+        return {
+            "choices": [{"message": {"content": '{"summary":"ok","edits":[]}'}}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+        }
+
+    result = LiteLLMClient(completion_func=fake_completion).complete(package)
+
+    assert result.cost.estimated_usd is None
 
 
 def test_litellm_client_passes_openai_compatible_provider_metadata(

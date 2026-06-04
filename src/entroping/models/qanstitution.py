@@ -57,6 +57,16 @@ class AgentConfig(BaseModel):
     model: str
     api_base: str | None = None
     api_key_env: str | None = None
+    input_cost_per_1m_tokens_usd: float | None = Field(
+        default=None,
+        ge=0.0,
+        allow_inf_nan=False,
+    )
+    output_cost_per_1m_tokens_usd: float | None = Field(
+        default=None,
+        ge=0.0,
+        allow_inf_nan=False,
+    )
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     max_tokens: int | None = Field(default=None, gt=0)
 

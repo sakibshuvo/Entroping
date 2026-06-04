@@ -14,7 +14,12 @@ from entroping.brain.architect_audit import (
     render_auditor_review_markdown,
     run_architect_auditor_review,
 )
-from entroping.brain.litellm_client import LiteLLMClient, LiteLLMCompletionResult, LiteLLMUsage
+from entroping.brain.litellm_client import (
+    LiteLLMClient,
+    LiteLLMCompletionResult,
+    LiteLLMCostEstimate,
+    LiteLLMUsage,
+)
 from entroping.brain.prompt_builder import ArchitectPromptPackage
 from entroping.bridge.openapi_audit import OpenApiAuditFinding, OpenApiAuditReport
 from entroping.core.config_loader import load_qanstitution
@@ -36,6 +41,8 @@ agents:
   auditor:
     source: agents/auditor.md
     model: openai/auditor-model
+    input_cost_per_1m_tokens_usd: 0.25
+    output_cost_per_1m_tokens_usd: 1.25
     temperature: 0.0
 gates:
   - id: global_latency
@@ -124,6 +131,12 @@ def test_run_architect_auditor_review_parses_provider_findings_without_writing(
 
     assert result.agent == "auditor"
     assert result.model == "openai/auditor-model"
+    assert result.provider == "openai"
+    assert result.cost == LiteLLMCostEstimate(
+        estimated_usd=0.00002175,
+        input_cost_per_1m_tokens_usd=0.25,
+        output_cost_per_1m_tokens_usd=1.25,
+    )
     assert result.usage.total_tokens == 27
     assert not result.passed
     assert result.review.summary == "Auth coverage is too thin."
@@ -132,6 +145,8 @@ def test_run_architect_auditor_review_parses_provider_findings_without_writing(
     assert packages
     assert packages[0].role == "auditor"
     assert packages[0].model == "openai/auditor-model"
+    assert packages[0].input_cost_per_1m_tokens_usd == 0.25
+    assert packages[0].output_cost_per_1m_tokens_usd == 1.25
     assert "Review test coverage and policy risk" in packages[0].messages[0].content
     assert "Return structured JSON matching the Auditor review schema" in (
         packages[0].messages[0].content
@@ -141,12 +156,16 @@ def test_run_architect_auditor_review_parses_provider_findings_without_writing(
 
     markdown = render_auditor_review_markdown(result)
     assert "# Architect Auditor Review" in markdown
+    assert "Provider: openai" in markdown
+    assert "Estimated cost: $0.00002175" in markdown
     assert "AUTH_NEGATIVE_COVERAGE" in markdown
     assert "Missing unauthorized checkout test" in markdown
 
     payload = json.loads(render_auditor_review_json(result))
     assert payload["status"] == "fail"
     assert payload["agent"] == "auditor"
+    assert payload["provider"] == "openai"
+    assert payload["cost"]["estimated_usd"] == 0.00002175
     assert payload["summary"] == "Auth coverage is too thin."
     assert payload["findings"][0]["recommendation"].startswith("Add a Breaker")
 

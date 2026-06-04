@@ -38,10 +38,29 @@ def test_agent_config_accepts_provider_connection_metadata() -> None:
         model="openai/qwen3-coder",
         api_base="http://127.0.0.1:8000/v1",
         api_key_env="ENTROPING_OMLX_API_KEY",
+        input_cost_per_1m_tokens_usd=0.25,
+        output_cost_per_1m_tokens_usd=1.25,
     )
 
     assert config.api_base == "http://127.0.0.1:8000/v1"
     assert config.api_key_env == "ENTROPING_OMLX_API_KEY"
+    assert config.input_cost_per_1m_tokens_usd == 0.25
+    assert config.output_cost_per_1m_tokens_usd == 1.25
+
+
+def test_agent_config_rejects_negative_cost_metadata() -> None:
+    with pytest.raises(ValidationError, match="greater than or equal to 0"):
+        AgentConfig(
+            source="agents/builder.md",
+            model="openai/qwen3-coder",
+            input_cost_per_1m_tokens_usd=-0.01,
+        )
+    with pytest.raises(ValidationError, match="greater than or equal to 0"):
+        AgentConfig(
+            source="agents/builder.md",
+            model="openai/qwen3-coder",
+            output_cost_per_1m_tokens_usd=-0.01,
+        )
 
 
 @pytest.mark.parametrize(
