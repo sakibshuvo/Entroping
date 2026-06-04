@@ -2,7 +2,7 @@
 
 import json
 import sys
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Literal
@@ -40,6 +40,19 @@ from entroping.bridge.openapi_to_hurl import (
     OpenApiSecurityCoverageFinding,
     compile_openapi_to_hurl_with_report,
 )
+from entroping.bridge.traffic_openapi_audit import (
+    TrafficOpenApiAuditError,
+    TrafficOpenApiAuditReport,
+    audit_traffic_routes_against_openapi,
+)
+from entroping.bridge.traffic_sessions import (
+    TrafficSessionError,
+    build_traffic_session_candidate,
+)
+from entroping.bridge.traffic_to_graph import (
+    TrafficGraphCompilationError,
+    compile_traffic_dependency_graph,
+)
 from entroping.cli.shared import (
     console,
     display_cli_path,
@@ -52,6 +65,7 @@ from entroping.core.hurl_discovery import discover_hurl_tests, normalize_tag_fil
 from entroping.core.hurl_validator import validate_hurl_content
 from entroping.core.openapi_loader import OpenApiLoadError, load_openapi_document
 from entroping.core.path_safety import first_symlink_path_component
+from entroping.core.traffic_store import TrafficStoreError, list_project_exchanges_readonly
 
 app = typer.Typer(help="Generate, refactor, and audit Hurl tests.")
 HurlValidator = Callable[[str, str], None]
@@ -242,7 +256,13 @@ def architect_audit(
             raise ValueError(msg)
         document = load_openapi_document(_configured_spec_reference(law.sources.spec))
         hurl_tests = discover_hurl_tests() if Path("tests").exists() else []
-        report = audit_openapi_coverage(document, hurl_tests, project_root=Path.cwd())
+        traffic_routes = _load_traffic_openapi_audit(document)
+        report = audit_openapi_coverage(
+            document,
+            hurl_tests,
+            project_root=Path.cwd(),
+            traffic_routes=traffic_routes,
+        )
     except (QanstitutionLoadError, OpenApiLoadError, OpenApiCompilationError, ValueError) as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
@@ -410,6 +430,36 @@ def _print_security_coverage_findings(
             markup=False,
             soft_wrap=True,
         )
+
+
+def _load_traffic_openapi_audit(
+    document: Mapping[str, object],
+) -> TrafficOpenApiAuditReport | None:
+    try:
+        exchanges = list_project_exchanges_readonly(Path.cwd())
+    except TrafficStoreError as exc:
+        if str(exc) == "traffic state not found":
+            return None
+        msg = f"could not read traffic state for architect audit: {exc}"
+        raise ValueError(msg) from exc
+    if not exchanges:
+        return None
+
+    try:
+        session = build_traffic_session_candidate(
+            exchanges,
+            name="architect_audit",
+            target_url=None,
+        )
+        graph = compile_traffic_dependency_graph(session)
+        return audit_traffic_routes_against_openapi(document, graph)
+    except (
+        TrafficGraphCompilationError,
+        TrafficOpenApiAuditError,
+        TrafficSessionError,
+    ) as exc:
+        msg = f"could not audit traffic routes against OpenAPI: {exc}"
+        raise ValueError(msg) from exc
 
 
 def _configured_spec_reference(spec: str) -> str | Path:

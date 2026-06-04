@@ -385,6 +385,9 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 `architect audit --focus logic` is deterministic: it compares the configured
 OpenAPI document with committed Hurl metadata, reports uncovered operations,
 and includes an operation-to-test matrix with stale `operation_id` references.
+When redacted Eye traffic exists, it also flags captured routes that are not in
+the OpenAPI contract without printing raw query strings, headers, cookies,
+bodies, or captured values.
 
 `entroping studio --env local` is a read-only traffic session browser as well
 as a local run/status view. The Traffic tab reads redacted SQLModel-backed state

@@ -679,8 +679,12 @@ entroping architect audit [--focus <logic|auditor>] [--output <json|md>]
 `architect audit --focus logic` is a deterministic bridge report. It compares
 OpenAPI operations with committed Hurl metadata and request lines, emits
 covered, uncovered, and ambiguous operation rows, and lists stale
-`operation_id` references. JSON output carries schema marker
-`entroping.openapi-audit.v1`.
+`operation_id` references. When `.entroping/state.db` contains redacted Eye
+traffic, the same audit also compares captured route summaries against OpenAPI
+path templates and reports documented, undocumented, and spec-only routes
+without raw query strings, headers, cookies, bodies, host userinfo, or captured
+values. JSON output carries schema marker `entroping.openapi-audit.v1`; the
+nested traffic route section uses `entroping.traffic-openapi-audit.v1`.
 
 `architect build --new --changed-from <ref>` compares the configured local
 OpenAPI spec against the same spec at a Git base ref, classifies added,

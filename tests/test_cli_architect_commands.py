@@ -1558,6 +1558,186 @@ paths:
     assert str(tmp_path) not in result.output
 
 
+def test_architect_audit_reports_traffic_routes_without_leaking_query_values(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from datetime import UTC, datetime
+
+    from entroping.core.traffic_redactor import redact_traffic_exchange
+    from entroping.core.traffic_store import TrafficStore
+    from entroping.models.traffic import TrafficExchange, TrafficRequest, TrafficResponse
+
+    monkeypatch.chdir(tmp_path)
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+sources:
+  spec: ./openapi.yaml
+  traffic: .entroping/state.db
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    Path("openapi.yaml").write_text(
+        """
+openapi: "3.1.0"
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: ok
+  /orders/{order_id}:
+    get:
+      operationId: getOrder
+      responses:
+        "200":
+          description: ok
+""".lstrip(),
+        encoding="utf-8",
+    )
+    generated = Path("tests/generated")
+    generated.mkdir(parents=True)
+    (generated / "get_health.hurl").write_text(
+        "\n".join(
+            [
+                "# entroping: source=openapi",
+                "# entroping: operation_id=getHealth",
+                "",
+                "GET {{base_url}}/health",
+                "HTTP 200",
+            ],
+        ),
+        encoding="utf-8",
+    )
+    (generated / "get_order.hurl").write_text(
+        "\n".join(
+            [
+                "# entroping: source=openapi",
+                "# entroping: operation_id=getOrder",
+                "",
+                "GET {{base_url}}/orders/123",
+                "HTTP 200",
+            ],
+        ),
+        encoding="utf-8",
+    )
+    store = TrafficStore.open_project(tmp_path)
+    for method, url in (
+        ("GET", "https://api.example.test/health"),
+        ("GET", "https://api.example.test/orders/123"),
+        ("POST", "https://api.example.test/internal-debug?token=live-secret"),
+    ):
+        store.record_exchange(
+            redact_traffic_exchange(
+                TrafficExchange(
+                    captured_at=datetime(2026, 6, 4, 8, 0, tzinfo=UTC),
+                    duration_ms=20,
+                    request=TrafficRequest(method=method, url=url),
+                    response=TrafficResponse(status_code=200),
+                )
+            )
+        )
+
+    result = CliRunner().invoke(app, ["architect", "audit", "--output", "json"])
+
+    assert result.exit_code == 1
+    assert "live-secret" not in result.output
+    assert "token" not in result.output
+    payload = json.loads(result.output)
+    assert payload["summary"]["missing_operations"] == 0
+    traffic_routes = payload["traffic_routes"]
+    assert traffic_routes["summary"] == {
+        "documented_routes": 2,
+        "undocumented_routes": 1,
+        "spec_only_routes": 0,
+    }
+    assert traffic_routes["documented_routes"][1]["operation_ids"] == ["getOrder"]
+    assert traffic_routes["undocumented_routes"] == [
+        {
+            "method": "POST",
+            "path_template": "/internal-debug",
+            "call_count": 1,
+            "failure_count": 0,
+        }
+    ]
+
+
+def test_architect_audit_traffic_helper_skips_missing_or_empty_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from entroping.core.traffic_store import TrafficStoreError
+
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+
+    def missing_state(root: Path) -> tuple[object, ...]:
+        _ = root
+        raise TrafficStoreError("traffic state not found")
+
+    monkeypatch.setattr(architect_cli, "list_project_exchanges_readonly", missing_state)
+    assert architect_cli._load_traffic_openapi_audit(document) is None
+
+    monkeypatch.setattr(
+        architect_cli,
+        "list_project_exchanges_readonly",
+        lambda root: (),
+    )
+    assert architect_cli._load_traffic_openapi_audit(document) is None
+
+
+def test_architect_audit_traffic_helper_wraps_store_and_compilation_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from entroping.bridge.traffic_sessions import TrafficSessionError
+    from entroping.core.traffic_store import TrafficStoreError
+
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+
+    def broken_state(root: Path) -> tuple[object, ...]:
+        _ = root
+        raise TrafficStoreError("schema broken")
+
+    monkeypatch.setattr(architect_cli, "list_project_exchanges_readonly", broken_state)
+    with pytest.raises(ValueError, match="could not read traffic state"):
+        architect_cli._load_traffic_openapi_audit(document)
+
+    monkeypatch.setattr(
+        architect_cli,
+        "list_project_exchanges_readonly",
+        lambda root: ("record",),
+    )
+
+    def unsafe_session(*args: object, **kwargs: object) -> object:
+        _ = (args, kwargs)
+        raise TrafficSessionError("requires redacted traffic")
+
+    monkeypatch.setattr(architect_cli, "build_traffic_session_candidate", unsafe_session)
+    with pytest.raises(ValueError, match="could not audit traffic routes"):
+        architect_cli._load_traffic_openapi_audit(document)
+
+
 def test_architect_audit_passes_when_openapi_operations_are_covered(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

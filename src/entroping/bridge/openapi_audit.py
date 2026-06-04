@@ -12,6 +12,11 @@ from html import escape
 from pathlib import Path
 
 from entroping.bridge.openapi_to_hurl import OpenApiCompilationError
+from entroping.bridge.traffic_openapi_audit import (
+    TrafficOpenApiAuditReport,
+    render_traffic_openapi_markdown,
+    traffic_openapi_report_to_dict,
+)
 from entroping.models.hurl import HurlExchange, HurlTest
 
 _HTTP_METHODS = frozenset({"get", "post", "put", "patch", "delete", "head", "options", "trace"})
@@ -59,12 +64,15 @@ class OpenApiAuditReport:
     findings: tuple[OpenApiAuditFinding, ...]
     operation_matrix: tuple[OpenApiOperationCoverage, ...] = ()
     stale_references: tuple[OpenApiStaleOperationReference, ...] = ()
+    traffic_routes: TrafficOpenApiAuditReport | None = None
 
     @property
     def passed(self) -> bool:
         """Return true when the audit found no coverage gaps."""
 
-        return not self.findings
+        return not self.findings and (
+            self.traffic_routes is None or self.traffic_routes.passed
+        )
 
 
 @dataclass(frozen=True)
@@ -79,6 +87,7 @@ def audit_openapi_coverage(
     hurl_tests: Sequence[HurlTest],
     *,
     project_root: Path | None = None,
+    traffic_routes: TrafficOpenApiAuditReport | None = None,
 ) -> OpenApiAuditReport:
     """Report OpenAPI operations missing committed Hurl coverage."""
 
@@ -108,6 +117,7 @@ def audit_openapi_coverage(
             expected_by_id,
             project_root=project_root,
         ),
+        traffic_routes=traffic_routes,
     )
 
 
@@ -179,6 +189,8 @@ def render_audit_markdown(report: OpenApiAuditReport) -> str:
                 f"{_markdown_table_cell(reference.operation_id)} | "
                 f"{_markdown_table_cell(reference.test_path)} |"
             )
+    if report.traffic_routes is not None:
+        lines.extend(["", render_traffic_openapi_markdown(report.traffic_routes)])
     return "\n".join(lines)
 
 
@@ -225,6 +237,11 @@ def audit_report_to_dict(report: OpenApiAuditReport) -> dict[str, object]:
             }
             for reference in report.stale_references
         ],
+        "traffic_routes": (
+            None
+            if report.traffic_routes is None
+            else traffic_openapi_report_to_dict(report.traffic_routes)
+        ),
     }
 
 

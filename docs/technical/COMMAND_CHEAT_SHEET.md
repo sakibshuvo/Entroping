@@ -95,7 +95,7 @@ not guessed tests.
 | `entroping architect build --strategy merge` | Merge generated changes into existing tests |
 | `entroping architect build --tag <tag>` | Add a tag to generated tests |
 | `entroping architect refactor --target <glob> --prompt "<text>"` | Safely update existing Hurl tests |
-| `entroping architect audit --focus logic` | Audit OpenAPI coverage gaps with an operation-to-Hurl matrix |
+| `entroping architect audit --focus logic` | Audit OpenAPI coverage gaps and, when redacted traffic exists, undocumented live routes |
 | `entroping architect audit --focus auditor` | Run an explicit Auditor model review of coverage and policy risk |
 | `entroping architect audit --output <json|md>` | Select audit output format |
 | `.entroping/agent-runs/*.json` | Local value-free evidence for prompt-backed Architect runs |
@@ -114,8 +114,12 @@ entroping architect audit --focus auditor --output json
 ```
 
 Logic audit output includes covered, uncovered, and ambiguous operation rows
-plus stale committed `operation_id` references. JSON output uses
-`schema_version: entroping.openapi-audit.v1`.
+plus stale committed `operation_id` references. If redacted Eye traffic state
+exists, it also reports documented observed routes, undocumented observed
+routes, and spec-only OpenAPI operations without raw query strings, headers,
+cookies, bodies, or captured values. JSON output uses
+`schema_version: entroping.openapi-audit.v1` with an optional nested
+`entroping.traffic-openapi-audit.v1` route section.
 
 ## Observation
 

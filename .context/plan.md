@@ -109,6 +109,11 @@ project, and a Codex workspace with fast context rehydration.
   `entroping.openapi-audit.v1` operation-to-Hurl matrix covering covered,
   uncovered, ambiguous, and stale OpenAPI operation mappings without calling
   providers.
+- When redacted Eye traffic state exists, `architect audit --focus logic` also
+  attaches an `entroping.traffic-openapi-audit.v1` traffic-vs-OpenAPI route
+  section that flags undocumented observed routes and lists documented/spec-only
+  route evidence without raw query strings, headers, cookies, bodies, host
+  userinfo, or captured values.
 - Example coverage includes REST-style checkout/support fixtures plus
   GraphQL-over-HTTP and SOAP-over-HTTP fixtures that use ordinary Hurl
   assertions instead of adding protocol-specific runtime engines.

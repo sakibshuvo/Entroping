@@ -2,6 +2,12 @@
 
 ## 2026-06-04
 
+- Added issue #443's traffic-vs-OpenAPI route audit so
+  `architect audit --focus logic --output md|json` opportunistically compares
+  redacted Eye traffic route summaries against OpenAPI templates, flags
+  undocumented observed routes, lists documented and spec-only routes, and keeps
+  raw query strings, headers, cookies, bodies, host userinfo, credentials, and
+  captured values out of audit output.
 - Added issue #442's OpenAPI security-scheme coverage generation so
   `architect build --new` writes deterministic missing/invalid auth Hurl tests
   under `tests/generated/security/` for supported HTTP bearer/basic and API-key
