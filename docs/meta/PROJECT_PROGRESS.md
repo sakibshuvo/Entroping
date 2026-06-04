@@ -31,8 +31,9 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#434](https://github.com/sakibshuvo/Entroping/issues/434)
-summarizes story traceability gaps after the OpenAPI operation selector slice.
+Current issue: [#433](https://github.com/sakibshuvo/Entroping/issues/433)
+enforces explicit watch capture scope allowlists after the story traceability
+gap-summary slice.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -49,9 +50,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#434](https://github.com/sakibshuvo/Entroping/issues/434) | Summarize story traceability gaps. |
-| 2 | [#433](https://github.com/sakibshuvo/Entroping/issues/433) | Enforce explicit watch capture scope allowlists. |
-| 3 | [#432](https://github.com/sakibshuvo/Entroping/issues/432) | Preview freeze writes before generating artifacts. |
+| 1 | [#433](https://github.com/sakibshuvo/Entroping/issues/433) | Enforce explicit watch capture scope allowlists. |
+| 2 | [#432](https://github.com/sakibshuvo/Entroping/issues/432) | Preview freeze writes before generating artifacts. |
+| 3 | [#431](https://github.com/sakibshuvo/Entroping/issues/431) | Self-test local policy packs before reuse. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -72,6 +73,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Story traceability gap summary](https://github.com/sakibshuvo/Entroping/issues/434) | Done | `entroping report traceability --output md|json` now links Hurl `story_id` metadata to local `docs/stories/*.md` story documents and reports missing local stories, Markdown stories without tests, duplicate story IDs, malformed story metadata, and unsafe story paths without business-system API calls. |
 | [OpenAPI operation run selection](https://github.com/sakibshuvo/Entroping/issues/435) | Done | `entroping run --operation-id <id>` now selects existing Hurl tests by exact committed `operation_id` metadata, rejects selector conflicts before execution, and records operation ID evidence in JSON/JUnit/HTML reports. |
 | [Runtime known-failure guardrails](https://github.com/sakibshuvo/Entroping/issues/436) | Done | Selected-test `ignore_failures` entries now fail before Hurl execution when their rule ID does not match an injected QAnstitution gate; filtered-out test exceptions remain outside the current subset. |
 | [OpenAPI breaking-change diff audit](https://github.com/sakibshuvo/Entroping/issues/437) | Done | `architect audit --focus logic --changed-from <ref>` now attaches `entroping.openapi-breaking-diff.v1` findings for deterministic OpenAPI evolution review without generating or deleting tests. |

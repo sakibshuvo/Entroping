@@ -301,13 +301,16 @@ Implementation rule: keep the YAML-facing `GateRule.condition` field as the orig
 | `traffic_to_wiremock.py` | Redacted dependency traffic to WireMock mappings | Filesystem writes, mock server runtime |
 | `traffic_to_graph.py` | Redacted traffic to dependency graph models | SQLite reads, renderer invocation |
 | `policy_to_hurl.py` | QAnstitution gate to Hurl assertions | Hurl subprocess execution |
-| `story_traceability.py` | Story IDs, owners, external doc URLs | Business-system API clients |
+| `story_traceability.py` | Story IDs, local story Markdown files, owners, external doc URLs | Business-system API clients |
 | `merge.py` | Manual-edit-preserving Hurl merge/refactor logic | Test generation strategy |
 
 The shipped `story_traceability.py` bridge compiles discovered Hurl metadata
-into local story/test reports. It validates missing `story_id` comments and
-flags external `doc_url` values that point to multiple story IDs; it does not
-call Jira, Notion, Linear, monday.com, or other business-system APIs.
+and core-discovered `docs/stories/*.md` story documents into local story/test
+reports. It validates missing `story_id` comments, Hurl story IDs with no local
+story Markdown, Markdown stories without tests, duplicate Markdown story IDs,
+malformed story metadata, unsafe story paths, and external `doc_url` values that
+point to multiple story IDs. It does not call Jira, Notion, Linear, monday.com,
+or other business-system APIs.
 
 ## 7. Hurl Execution Design
 
@@ -861,10 +864,11 @@ or secrets.
 `reports/openapi-audit.json`, and `reports/traceability.json`. Policy-gate
 coverage is the number of effective QAnstitution gate IDs observed in the run
 report, OpenAPI coverage comes from the deterministic OpenAPI audit summary,
-and story-link coverage comes from traceability JSON. Missing or malformed
-source reports fail before badge files are written. The command does not call
-shields.io, host a badge service, upload artifacts, execute Hurl, or render raw
-report stdout/stderr.
+and story-link coverage comes from traceability JSON over local Hurl metadata
+and `docs/stories/*.md` story documents. Missing or malformed source reports
+fail before badge files are written. The command does not call shields.io, host
+a badge service, upload artifacts, execute Hurl, or render raw report
+stdout/stderr.
 
 `entroping report review-summary` writes a provider-neutral Markdown artifact
 from local reports only. It reads the JSON run report, JUnit XML, drift JSON,

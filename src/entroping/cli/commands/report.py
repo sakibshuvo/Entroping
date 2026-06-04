@@ -49,6 +49,7 @@ from entroping.core.run_delta import (
     run_delta_report_to_dict,
 )
 from entroping.core.sarif_report import SarifReportError, run_sarif_report
+from entroping.core.story_documents import discover_story_documents
 from entroping.models.hurl import HurlMetadataSyntaxError
 
 app = typer.Typer(help="Generate human handoff artifacts.")
@@ -417,7 +418,13 @@ def report_traceability(
 
     try:
         hurl_tests = discover_hurl_tests() if Path("tests").exists() else []
-        report = compile_story_traceability(hurl_tests)
+        story_documents = discover_story_documents(project_root=Path.cwd())
+        report = compile_story_traceability(
+            hurl_tests,
+            story_documents=story_documents.documents,
+            story_findings=story_documents.findings,
+            story_document_scope_present=story_documents.scope_present,
+        )
     except (FileNotFoundError, HurlMetadataSyntaxError, ValueError) as exc:
         print_cli_error(exc)
         raise typer.Exit(1) from exc

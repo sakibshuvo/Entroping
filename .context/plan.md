@@ -128,6 +128,11 @@ project, and a Codex workspace with fast context rehydration.
   `entroping report traceability --output json` provides the story-traceability
   source report; badge generation fails before writes when source reports are
   missing or malformed and does not call hosted badge services.
+- `entroping report traceability --output md|json` now links Hurl `story_id`
+  metadata to local `docs/stories/*.md` story documents, reports missing local
+  stories, Markdown stories without tests, duplicate story IDs, malformed story
+  metadata, and unsafe story paths, and remains local-only with no Jira,
+  Notion, Linear, or monday.com calls.
 - `entroping report sarif` writes SARIF 2.1.0 from local JUnit, drift, and
   optional traceability findings for code-scanning import. It does not execute
   Hurl, call providers, or upload results.

@@ -164,7 +164,9 @@ entroping report traceability --output md
 entroping report traceability --output json > reports/traceability.json
 ```
 
-The v1 traceability JSON contract lets coverage badges, internal consumers,
+The v1 traceability JSON contract includes linked Hurl test paths, local
+`docs/stories/*.md` paths, optional story titles, owners, external doc URLs,
+tags, and finding locations. It lets coverage badges, internal consumers,
 future PR annotations, and downstream tools share one stable shape.
 
 The SARIF report follows the external SARIF 2.1.0 contract:

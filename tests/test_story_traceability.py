@@ -3,6 +3,10 @@
 from pathlib import Path
 
 from entroping.bridge.story_traceability import (
+    StoryTraceabilityDocument,
+    StoryTraceabilityFinding,
+    StoryTraceabilityReport,
+    StoryTraceabilityStory,
     compile_story_traceability,
     render_story_traceability_markdown,
 )
@@ -98,6 +102,76 @@ def test_compile_story_traceability_reports_duplicate_external_links() -> None:
     assert report.findings[0].story_ids == ("CHK-001", "PAY-002")
 
 
+def test_compile_story_traceability_links_markdown_story_documents() -> None:
+    report = compile_story_traceability(
+        [
+            _test("tests/checkout.hurl", meta={"story_id": "CHK-001"}),
+        ],
+        story_documents=(
+            StoryTraceabilityDocument(
+                story_id="CHK-001",
+                path=Path("docs/stories/checkout.md"),
+                title="Checkout flow",
+            ),
+        ),
+    )
+
+    assert report.passed
+    assert report.stories[0].story_paths == (Path("docs/stories/checkout.md"),)
+    assert "Checkout flow" in render_story_traceability_markdown(report)
+
+
+def test_compile_story_traceability_reports_missing_story_documents() -> None:
+    report = compile_story_traceability(
+        [
+            _test("tests/checkout.hurl", meta={"story_id": "CHK-001"}),
+        ],
+        story_documents=(
+            StoryTraceabilityDocument(story_id="PAY-002", path=Path("docs/stories/pay.md")),
+        ),
+    )
+
+    assert not report.passed
+    assert [finding.kind for finding in report.findings] == [
+        "missing_story",
+        "story_without_tests",
+    ]
+    assert report.findings[0].story_ids == ("CHK-001",)
+    assert report.findings[1].story_path == Path("docs/stories/pay.md")
+
+
+def test_compile_story_traceability_reports_missing_story_when_story_scope_exists() -> None:
+    report = compile_story_traceability(
+        [
+            _test("tests/checkout.hurl", meta={"story_id": "CHK-001"}),
+        ],
+        story_document_scope_present=True,
+    )
+
+    assert not report.passed
+    assert report.findings[0].kind == "missing_story"
+    assert report.findings[0].story_ids == ("CHK-001",)
+
+
+def test_compile_story_traceability_reports_duplicate_markdown_story_ids() -> None:
+    report = compile_story_traceability(
+        [],
+        story_documents=(
+            StoryTraceabilityDocument(story_id="CHK-001", path=Path("docs/stories/a.md")),
+            StoryTraceabilityDocument(story_id="CHK-001", path=Path("docs/stories/b.md")),
+        ),
+    )
+
+    assert not report.passed
+    assert [finding.kind for finding in report.findings] == [
+        "duplicate_story_id",
+        "story_without_tests",
+    ]
+    assert report.findings[0].story_ids == ("CHK-001",)
+    assert "docs/stories/a.md" in report.findings[0].message
+    assert "docs/stories/b.md" in report.findings[0].message
+
+
 def test_render_story_traceability_markdown_escapes_table_cells() -> None:
     report = compile_story_traceability(
         [
@@ -157,3 +231,55 @@ def test_render_story_traceability_markdown_renders_findings_table() -> None:
     assert "tests/checkout.hurl" in markdown
     assert "duplicate_doc_url" in markdown
     assert "https://jira.example.com/browse/shared\\|doc" in markdown
+
+
+def test_render_story_traceability_markdown_renders_story_path_locations() -> None:
+    report = compile_story_traceability(
+        [],
+        story_documents=(
+            StoryTraceabilityDocument(story_id="CHK-001", path=Path("docs/stories/checkout.md")),
+        ),
+    )
+
+    markdown = render_story_traceability_markdown(report)
+
+    assert "story_without_tests" in markdown
+    assert "docs/stories/checkout.md" in markdown
+
+
+def test_render_story_traceability_markdown_renders_story_id_fallback_location() -> None:
+    report = StoryTraceabilityReport(
+        stories=(
+            StoryTraceabilityStory(
+                story_id="CHK-001",
+                test_paths=(),
+            ),
+        ),
+        findings=(
+            StoryTraceabilityFinding(
+                kind="missing_story",
+                message="Story is missing local Markdown.",
+                story_ids=("CHK-001",),
+            ),
+        ),
+    )
+
+    markdown = render_story_traceability_markdown(report)
+
+    assert "| missing_story | CHK-001 | Story is missing local Markdown. |" in markdown
+
+
+def test_render_story_traceability_markdown_renders_empty_finding_location() -> None:
+    report = StoryTraceabilityReport(
+        stories=(),
+        findings=(
+            StoryTraceabilityFinding(
+                kind="malformed_story_metadata",
+                message="Story metadata is malformed.",
+            ),
+        ),
+    )
+
+    markdown = render_story_traceability_markdown(report)
+
+    assert "| malformed_story_metadata | - | Story metadata is malformed. |" in markdown

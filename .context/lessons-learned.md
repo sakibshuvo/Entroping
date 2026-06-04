@@ -230,3 +230,6 @@
 - Do not run environment-mutating gates such as `scripts/audit_quality.sh` in
   parallel with `scripts/regression.sh --security`; both can touch `.venv`, so
   run them sequentially before treating a failure as product evidence.
+- Report-only filesystem discovery can surface malformed local inputs as
+  findings instead of crashing, but unsafe symlinked paths should still be
+  skipped and reported before file reads.
