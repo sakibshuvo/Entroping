@@ -26,6 +26,7 @@ from entroping.core.drift_report import (
 )
 from entroping.core.env_loader import load_environment_variables, load_process_hurl_variables
 from entroping.core.gate_injector import write_injected_execution_copy
+from entroping.core.git_changed_hurl import select_changed_hurl_tests
 from entroping.core.hurl_discovery import discover_hurl_tests
 from entroping.core.hurl_runner import HurlRunOptions, HurlSuiteResult, run_hurl_files
 from entroping.core.hurl_variable_preflight import (
@@ -96,19 +97,29 @@ def execute_run_workflow(
     report_formats: Sequence[str],
     parallel: bool,
     drift_check: bool,
+    changed_from: str | None = None,
 ) -> RunWorkflowResult:
     """Execute the deterministic Hurl governance loop without CLI concerns."""
 
     root = project_root.expanduser().resolve()
     law = load_qanstitution(root / "qanstitution.yaml")
-    hurl_tests = discover_hurl_tests([root / "tests"], tag_filters=tuple(tag_filters))
+    discovery_roots: Sequence[Path]
+    if changed_from is None:
+        discovery_roots = (root / "tests",)
+        no_match_message = "No Hurl tests matched the requested filters."
+    else:
+        changed_paths = select_changed_hurl_tests(project_root=root, base_ref=changed_from)
+        discovery_roots = changed_paths
+        no_match_message = f"No changed Hurl tests matched from base ref {changed_from!r}."
+
+    hurl_tests = discover_hurl_tests(discovery_roots, tag_filters=tuple(tag_filters))
     env_variables = (
         load_environment_variables(environment, root=root) if environment is not None else {}
     )
     env_variables.update(load_process_hurl_variables())
 
     if not hurl_tests:
-        raise NoHurlTestsMatchedError("No Hurl tests matched the requested filters.")
+        raise NoHurlTestsMatchedError(no_match_message)
 
     hurl_workers = law.settings.parallel_workers if parallel else 1
     state_dir = root / ".entroping"

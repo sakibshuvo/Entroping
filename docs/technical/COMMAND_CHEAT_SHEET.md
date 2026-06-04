@@ -22,7 +22,7 @@ entroping freeze --name <flow> [--golden] [--mock <service>]
 entroping map [--export <mermaid|dot|md|png>]
 
 entroping studio [--env <name>]
-entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check]
+entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
 entroping report bug
 entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
@@ -124,9 +124,10 @@ entroping map --export mermaid
 
 Current alpha implementation supports deterministic `run`, `--env`, `--tag`, `--ci`,
 bounded `--parallel`, `--drift-check`, `--report html`, `--report json`,
-`--report junit`, and `--report drift`. Before invoking Hurl, `run` checks
-selected execution copies for unresolved `{{variable}}` references and reports
-missing variable names without printing values.
+`--report junit`, `--report drift`, and `--changed-from <ref>` for changed Hurl
+files from Git diff. Before invoking Hurl, `run` checks selected execution
+copies for unresolved `{{variable}}` references and reports missing variable
+names without printing values.
 
 | Command | Purpose |
 | --- | --- |
@@ -137,15 +138,20 @@ missing variable names without printing values.
 | `entroping run --parallel` | Bounded parallel execution |
 | `entroping run --report <html|junit|json|drift>` | Write report artifact; repeat for multiple formats |
 | `entroping run --drift-check` | Compare runtime behavior against baseline |
+| `entroping run --changed-from <ref>` | Fast local run for existing changed `.hurl` files |
 
 Examples:
 
 ```bash
 entroping studio --env local
 entroping run --env local --tag smoke --report html --report json --report junit
+entroping run --changed-from origin/main --tag smoke
 entroping run --env ci --ci --parallel --report junit
 entroping run --env staging --drift-check --report drift
 ```
+
+`--changed-from` is a developer and agent feedback shortcut. Keep full-suite
+`entroping run --ci` as the release gate.
 
 `--report drift` writes both `reports/drift.json` and, when the Hurl suite
 passes, `reports/drift-baseline.candidate.json`. Review the candidate before

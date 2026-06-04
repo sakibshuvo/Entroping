@@ -250,6 +250,77 @@ def test_execute_run_workflow_reports_no_matching_hurl_tests(tmp_path: Path) -> 
         )
 
 
+def test_execute_run_workflow_runs_only_changed_hurl_tests(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_project(tmp_path)
+    changed = tmp_path / "tests" / "checkout.hurl"
+    changed.write_text(
+        "# entroping: tags=changed\n\nGET http://localhost:18080/checkout\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    captured_paths: list[Path] = []
+
+    def fake_select_changed_hurl_tests(*, project_root: Path, base_ref: str) -> tuple[Path, ...]:
+        assert project_root == tmp_path.resolve()
+        assert base_ref == "main"
+        return (changed.resolve(),)
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+    ) -> HurlSuiteResult:
+        _ = (options, max_workers)
+        captured_paths.extend(paths)
+        return HurlSuiteResult(results=tuple(_passed_result(path) for path in paths))
+
+    monkeypatch.setattr(
+        "entroping.core.run_workflow.select_changed_hurl_tests",
+        fake_select_changed_hurl_tests,
+    )
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
+
+    result = execute_run_workflow(
+        project_root=tmp_path,
+        environment=None,
+        tag_filters=(),
+        report_formats=(),
+        parallel=False,
+        drift_check=False,
+        changed_from="main",
+    )
+
+    assert result.exit_code == 0
+    assert captured_paths
+    latest = json.loads(result.latest_state_path.read_text(encoding="utf-8"))
+    assert [test["path"] for test in latest["tests"]] == ["tests/checkout.hurl"]
+
+
+def test_execute_run_workflow_reports_empty_changed_selection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_project(tmp_path)
+    monkeypatch.setattr(
+        "entroping.core.run_workflow.select_changed_hurl_tests",
+        lambda *, project_root, base_ref: (),
+    )
+
+    with pytest.raises(NoHurlTestsMatchedError, match="No changed Hurl tests matched"):
+        execute_run_workflow(
+            project_root=tmp_path,
+            environment=None,
+            tag_filters=(),
+            report_formats=(),
+            parallel=False,
+            drift_check=False,
+            changed_from="main",
+        )
+
+
 def test_execute_run_workflow_preflights_missing_hurl_variables_before_subprocess(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

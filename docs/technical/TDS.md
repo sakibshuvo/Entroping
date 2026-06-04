@@ -659,7 +659,7 @@ entroping map [--export <mermaid|dot|md|png>]
 
 ```text
 entroping studio [--env <name>]
-entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check]
+entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
 entroping report bug
 entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
@@ -689,6 +689,11 @@ accepted. The accepted design gate for any future write action lives in
 `--parallel` uses `settings.parallel_workers` from `qanstitution.yaml`, keeps the
 per-file timeout and output-redaction behavior, and preserves deterministic
 input ordering in reports.
+`--changed-from <ref>` uses `git diff --name-status` to select existing changed
+`.hurl` files from a base ref. Deleted files are skipped, rename targets are
+used, and paths outside the project root are rejected before discovery. This is
+for fast local and agent feedback only; CI release gates should keep running the
+full deterministic suite.
 Before Hurl starts, the run workflow scans selected temporary execution copies
 for unresolved `{{variable}}` references. Resolved variables can come from
 `envs/<name>.env`, explicit shell `HURL_VARIABLE_<name>` values, Hurl
