@@ -106,6 +106,94 @@ def test_report_bug_returns_actionable_message_without_failures(
     assert "no failures to report" in result.output
 
 
+def test_report_failure_bundle_writes_sanitized_bundle(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    latest_state = Path(".entroping") / "latest-run.json"
+    tests_dir = Path("tests")
+    tests_dir.mkdir()
+    (tests_dir / "health.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    report = RunReport(
+        project="checkout-api",
+        environment="default",
+        generated_at="2026-06-04T00:00:00+00:00",
+        summary=RunReportSummary(total=1, passed=0, failed=1, exit_code=1),
+        tests=(
+            RunTestReport(
+                path="tests/health.hurl",
+                execution_path=".entroping/run/health.hurl",
+                status="failed",
+                exit_code=1,
+                duration_ms=10,
+                rule_ids=("global_latency",),
+                stdout="Authorization: Bearer bundle-secret\n",
+                stderr="token=bundle-secret\nassert failed",
+            ),
+        ),
+    )
+    write_json_report(report, latest_state)
+
+    result = CliRunner().invoke(app, ["report", "failure-bundle"])
+
+    assert result.exit_code == 0
+    assert "reports/failure-bundle/manifest.json" in result.output
+    manifest = json.loads(Path("reports/failure-bundle/manifest.json").read_text(encoding="utf-8"))
+    assert manifest["schema_version"] == "entroping.failure-bundle.v1"
+    assert "bundle-secret" not in (Path("reports/failure-bundle") / "run-latest.json").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_report_failure_bundle_returns_actionable_message_without_latest_run(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "failure-bundle"])
+
+    assert result.exit_code == 1
+    assert "Run entroping run before report failure-bundle" in result.output
+    assert not (tmp_path / "reports" / "failure-bundle").exists()
+
+
+def test_report_failure_bundle_returns_actionable_message_without_failures(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    latest_state = Path(".entroping") / "latest-run.json"
+    report = RunReport(
+        project="checkout-api",
+        environment="default",
+        generated_at="2026-06-04T00:00:00+00:00",
+        summary=RunReportSummary(total=1, passed=1, failed=0, exit_code=0),
+        tests=(
+            RunTestReport(
+                path="tests/health.hurl",
+                execution_path=".entroping/run/health.hurl",
+                status="passed",
+                exit_code=0,
+                duration_ms=10,
+                rule_ids=(),
+                stdout="",
+                stderr="",
+            ),
+        ),
+    )
+    write_json_report(report, latest_state)
+
+    result = CliRunner().invoke(app, ["report", "failure-bundle"])
+
+    assert result.exit_code == 1
+    assert "no failures to bundle" in result.output
+
+
 def test_report_bug_wraps_writer_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

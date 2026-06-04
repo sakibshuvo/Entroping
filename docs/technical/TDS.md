@@ -677,6 +677,7 @@ entroping map [--export <mermaid|dot|md|png>]
 entroping studio [--env <name>]
 entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
 entroping report bug
+entroping report failure-bundle [--output <directory>]
 entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
 entroping report traceability [--output md]
@@ -751,6 +752,15 @@ step. Missing artifacts are recorded as missing instead of failing the command,
 while malformed artifacts fail with a clear report error. Rendered findings are
 redacted and Markdown-escaped.
 
+`entroping report failure-bundle` writes a sanitized local handoff directory at
+`reports/failure-bundle` by default. It requires a latest failed run, refuses
+passing runs, and includes a manifest, sanitized run JSON, generated bug
+Markdown, selected failed-test Hurl metadata, and any already-reviewed local
+JUnit, HTML, effective-policy, or redaction-review artifacts that exist. It does
+not include raw traffic databases, local env files, source Hurl contents, or
+upload anything to external services. The manifest records included artifact
+paths, source paths, schema versions, sizes, and SHA-256 hashes.
+
 `entroping report sarif` writes SARIF 2.1.0 to `reports/entroping.sarif` by
 default. It converts the same local JUnit, drift, and optional traceability
 findings used by GitHub annotation output into stable SARIF rule IDs, severity,
@@ -771,6 +781,7 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping run --report drift` | `reports/drift-baseline.candidate.json` | Reviewable sanitized baseline candidate after a passing Hurl suite. |
 | `entroping report promote-drift-baseline` | `.entroping/drift-baseline.json` | Active local drift baseline promoted from a reviewed candidate. |
 | `entroping report bug` | `reports/bug.md` | Markdown handoff for issue trackers. |
+| `entroping report failure-bundle` | `reports/failure-bundle/manifest.json` | Sanitized local handoff bundle using `entroping.failure-bundle.v1`. |
 | `entroping report redaction --output md` | `reports/redaction-review.md` | Counts-only captured-traffic redaction review. |
 | `entroping report redaction --output html` | `reports/redaction-review.html` | Browser-readable captured-traffic redaction review. |
 | `entroping report policy --output md` | `reports/effective-policy.md` | Human-readable resolved QAnstitution gate provenance. |

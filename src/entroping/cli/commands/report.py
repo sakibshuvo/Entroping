@@ -20,6 +20,7 @@ from entroping.core.effective_policy_report import (
     EffectivePolicyReportError,
     run_effective_policy_report,
 )
+from entroping.core.failure_bundle import FailureBundleError, create_failure_bundle
 from entroping.core.github_annotations import (
     GitHubAnnotation,
     GitHubAnnotationError,
@@ -64,6 +65,28 @@ def report_bug() -> None:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
     console.print(f"Wrote bug report: {display_cli_path(output_path)}")
+
+
+@app.command("failure-bundle")
+def report_failure_bundle(
+    output: Annotated[
+        Path,
+        typer.Option("--output", help="Failure bundle output directory."),
+    ] = Path("reports") / "failure-bundle",
+) -> None:
+    """Generate a sanitized local failure bundle for issue tracker handoff."""
+
+    try:
+        result = create_failure_bundle(project_root=Path.cwd(), output_dir=output)
+    except FailureBundleError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    noun = "artifact" if len(result.artifacts) == 1 else "artifacts"
+    console.print(
+        f"Wrote failure bundle: {display_cli_path(result.manifest_path)} "
+        f"({len(result.artifacts)} {noun})"
+    )
 
 
 @app.command("redaction")

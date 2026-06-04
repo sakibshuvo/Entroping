@@ -22,6 +22,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Drift baseline | `entroping.drift-baseline.v1` | `reports/drift-baseline.candidate.json`, `.entroping/drift-baseline.json` | Inline contract |
 | Drift report | `entroping.drift-report.v1` | `reports/drift.json` | [drift-report.v1.schema.json](report-schemas/drift-report.v1.schema.json) |
 | Effective policy report | `entroping.effective-policy-report.v1` | `reports/effective-policy.json` | [effective-policy-report.v1.schema.json](report-schemas/effective-policy-report.v1.schema.json) |
+| Failure bundle manifest | `entroping.failure-bundle.v1` | `reports/failure-bundle/manifest.json` | Inline contract |
 | Architect OpenAPI audit | `entroping.openapi-audit.v1` | `architect audit --output json` stdout | Inline contract |
 | Traceability report | `entroping.traceability-report.v1` | `story_traceability_report_to_dict` | [traceability-report.v1.schema.json](report-schemas/traceability-report.v1.schema.json) |
 | SARIF report | SARIF 2.1.0 | `reports/entroping.sarif` | External SARIF schema |
@@ -41,6 +42,19 @@ The drift baseline candidate and active drift baseline share
 `entroping.drift-baseline.v1`. Candidates are written by `run --report drift`;
 the active baseline is written only by `entroping report promote-drift-baseline`
 after human review.
+
+The failure bundle manifest is written by:
+
+```bash
+entroping report failure-bundle
+```
+
+Its v1 payload records project/environment/summary, failed-test metadata, and a
+list of included sanitized artifacts with bundle path, source path, schema
+version, size, and SHA-256 hash. The bundle may include sanitized run JSON, bug
+Markdown, failed-test Hurl metadata, JUnit, HTML, effective-policy, and
+redaction-review artifacts. It must not include raw traffic state, local env
+files, raw source Hurl contents, provider credentials, or unredacted secrets.
 
 The Architect OpenAPI audit JSON is written to stdout:
 
