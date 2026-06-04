@@ -19,7 +19,13 @@ from entroping.bridge.traffic_to_graph import (
     render_dependency_graph_mermaid,
 )
 from entroping.core.safe_write import SafeWriteError, safe_write_bytes
+from entroping.core.traffic_filters import (
+    TrafficCaptureFilters,
+    TrafficFilterError,
+    filter_traffic_exchanges,
+)
 from entroping.core.traffic_store import TrafficStore, TrafficStoreError
+from entroping.models.traffic import TrafficExchange
 
 MapExportFormat = Literal["mermaid", "dot", "md", "png"]
 _SUPPORTED_EXPORTS: tuple[MapExportFormat, ...] = ("mermaid", "dot", "md", "png")
@@ -45,6 +51,7 @@ def run_dependency_map(
     *,
     project_root: Path,
     export_format: str | None,
+    capture_filters: TrafficCaptureFilters | None = None,
 ) -> DependencyMapResult:
     """Read redacted traffic state and render a dependency map export."""
 
@@ -57,13 +64,19 @@ def run_dependency_map(
 
     try:
         store = TrafficStore.open_project(root)
+        exchanges = _filtered_exchanges(store.list_exchanges(), capture_filters)
         session = build_traffic_session_candidate(
-            store.list_exchanges(),
+            exchanges,
             name="dependency_map",
             target_url=None,
         )
         graph = compile_traffic_dependency_graph(session)
-    except (TrafficGraphCompilationError, TrafficSessionError, TrafficStoreError) as exc:
+    except (
+        TrafficFilterError,
+        TrafficGraphCompilationError,
+        TrafficSessionError,
+        TrafficStoreError,
+    ) as exc:
         raise DependencyMapError(str(exc)) from exc
 
     if normalized_export == "png":
@@ -81,6 +94,19 @@ def run_dependency_map(
         content=_render_printable_export(graph, normalized_export),
         route_count=len(graph.routes),
     )
+
+
+def _filtered_exchanges(
+    exchanges: tuple[TrafficExchange, ...],
+    capture_filters: TrafficCaptureFilters | None,
+) -> tuple[TrafficExchange, ...]:
+    if capture_filters is None or not capture_filters.is_active:
+        return exchanges
+    filtered = filter_traffic_exchanges(exchanges, capture_filters)
+    if not filtered:
+        msg = "No traffic records matched capture filters."
+        raise TrafficFilterError(msg)
+    return filtered
 
 
 def _normalize_export_format(export_format: str | None) -> MapExportFormat:

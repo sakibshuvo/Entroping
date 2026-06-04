@@ -22,7 +22,13 @@ from entroping.bridge.traffic_to_wiremock import (
 from entroping.core.hurl_validator import HurlValidationError, validate_hurl_content
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.safe_write import SafeWriteError, safe_write_text
+from entroping.core.traffic_filters import (
+    TrafficCaptureFilters,
+    TrafficFilterError,
+    filter_traffic_exchanges,
+)
 from entroping.core.traffic_store import TrafficStore, TrafficStoreError
+from entroping.models.traffic import TrafficExchange
 
 
 class FreezeError(ValueError):
@@ -53,6 +59,7 @@ def run_freeze(
     project_root: Path,
     name: str,
     golden: bool,
+    capture_filters: TrafficCaptureFilters | None = None,
     hurl_validator: HurlContentValidator | None = None,
 ) -> FreezeResult:
     """Compile redacted local traffic into one validated generated Hurl file."""
@@ -67,7 +74,7 @@ def run_freeze(
 
     try:
         store = TrafficStore.open_project(root)
-        exchanges = store.list_exchanges()
+        exchanges = _filtered_exchanges(store.list_exchanges(), capture_filters)
         session = build_traffic_session_candidate(
             exchanges,
             name=freeze_name,
@@ -80,6 +87,7 @@ def run_freeze(
     except (
         HurlValidationError,
         TrafficHurlCompilationError,
+        TrafficFilterError,
         TrafficSessionError,
         TrafficStoreError,
     ) as exc:
@@ -93,6 +101,7 @@ def run_freeze_mock(
     project_root: Path,
     name: str,
     service: str,
+    capture_filters: TrafficCaptureFilters | None = None,
 ) -> FreezeMockResult:
     """Compile redacted local traffic into WireMock-compatible mappings."""
 
@@ -107,7 +116,7 @@ def run_freeze_mock(
     try:
         store = TrafficStore.open_project(root)
         session = build_traffic_session_candidate(
-            store.list_exchanges(),
+            _filtered_exchanges(store.list_exchanges(), capture_filters),
             name=freeze_name,
             target_url=None,
         )
@@ -130,6 +139,7 @@ def run_freeze_mock(
             )
     except (
         json.JSONDecodeError,
+        TrafficFilterError,
         TrafficSessionError,
         TrafficStoreError,
         TrafficWireMockCompilationError,
@@ -137,6 +147,19 @@ def run_freeze_mock(
         raise FreezeError(str(exc)) from exc
 
     return FreezeMockResult(output_paths=output_paths, record_count=len(generated_mappings))
+
+
+def _filtered_exchanges(
+    exchanges: tuple[TrafficExchange, ...],
+    capture_filters: TrafficCaptureFilters | None,
+) -> tuple[TrafficExchange, ...]:
+    if capture_filters is None or not capture_filters.is_active:
+        return exchanges
+    filtered = filter_traffic_exchanges(exchanges, capture_filters)
+    if not filtered:
+        msg = "No traffic records matched capture filters."
+        raise TrafficFilterError(msg)
+    return filtered
 
 
 def _validate_freeze_name(name: str) -> str:

@@ -58,14 +58,35 @@ LOCKED_CLI_CONTRACTS = (
         ("--port", "--target"),
     ),
     CliContract(
-        "entroping freeze --name <flow> [--golden] [--mock <service>]",
+        (
+            "entroping freeze --name <flow> [--golden] [--mock <service>] "
+            "[capture filters]"
+        ),
         ("freeze", "--help"),
-        ("--name", "--golden", "--mock"),
+        (
+            "--name",
+            "--golden",
+            "--mock",
+            "--include-host",
+            "--exclude-host",
+            "--include-method",
+            "--exclude-method",
+            "--include-path",
+            "--exclude-path",
+        ),
     ),
     CliContract(
-        "entroping map [--export <mermaid|dot|md|png>]",
+        "entroping map [--export <mermaid|dot|md|png>] [capture filters]",
         ("map", "--help"),
-        ("--export",),
+        (
+            "--export",
+            "--include-host",
+            "--exclude-host",
+            "--include-method",
+            "--exclude-method",
+            "--include-path",
+            "--exclude-path",
+        ),
     ),
     CliContract("entroping studio [--env <name>]", ("studio", "--help"), ("--env",)),
     CliContract(

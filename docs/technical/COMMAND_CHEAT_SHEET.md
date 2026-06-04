@@ -19,8 +19,8 @@ entroping architect refactor --target <glob> --prompt <text>
 entroping architect audit [--focus <logic|auditor>] [--output <json|md>]
 
 entroping watch [--port <port>] [--target <url>]
-entroping freeze --name <flow> [--golden] [--mock <service>]
-entroping map [--export <mermaid|dot|md|png>]
+entroping freeze --name <flow> [--golden] [--mock <service>] [capture filters]
+entroping map [--export <mermaid|dot|md|png>] [capture filters]
 
 entroping studio [--env <name>]
 entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
@@ -115,7 +115,16 @@ Current alpha implementation supports capture-only `watch`, basic Hurl
 generation through `freeze --name <flow> [--golden]`, and dependency map export
 through `map --export mermaid|dot|md|png`. `freeze --mock <service>` writes
 WireMock-compatible mappings from redacted dependency traffic. PNG map rendering
-uses local Graphviz `dot` when it is available.
+uses local Graphviz `dot` when it is available. `freeze`, `freeze --mock`, and
+`map` accept repeatable capture filters:
+
+- `--include-host` / `--exclude-host`
+- `--include-method` / `--exclude-method`
+- `--include-path` / `--exclude-path`
+
+Include filters narrow the capture by host, method, and path; exclude filters
+win. Host filters are exact, methods are normalized, and path filters match the
+request path only, not query strings, headers, cookies, or bodies.
 
 | Command | Purpose |
 | --- | --- |
@@ -124,15 +133,19 @@ uses local Graphviz `dot` when it is available.
 | `entroping freeze --name <flow>` | Convert captured session into Hurl tests |
 | `entroping freeze --golden` | Add golden master assertions |
 | `entroping freeze --mock <service>` | Generate WireMock mappings for a dependency |
+| `entroping freeze --include-host <host>` | Freeze only traffic for a captured host |
+| `entroping freeze --exclude-path <path>` | Remove noisy request paths before artifact generation |
 | `entroping map --export <fmt>` | Export dependency map |
+| `entroping map --include-method <method>` | Map only matching HTTP methods |
 
 Examples:
 
 ```bash
 entroping watch --port 8080 --target http://localhost:3000
 entroping freeze --name checkout_flow --golden
+entroping freeze --name checkout_flow --include-host api.example.test --exclude-path "/assets/*"
 entroping freeze --name refund_flow --mock payments
-entroping map --export mermaid
+entroping map --export mermaid --include-host api.example.test
 ```
 
 ## Execution

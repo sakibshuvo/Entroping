@@ -230,6 +230,22 @@ maps from redacted traffic; `freeze --mock <service>` writes WireMock-compatible
 dependency mappings. PNG export requires local Graphviz `dot`; use Mermaid, DOT,
 or Markdown export when Graphviz is not installed.
 
+Use capture filters when the recorded session contains noise or multiple flows:
+
+```bash
+entroping freeze --name checkout_flow --golden \
+  --include-host api.example.test \
+  --include-method POST \
+  --include-path /checkout \
+  --exclude-path "/checkout/internal/*"
+entroping map --export mermaid --include-host api.example.test
+```
+
+The same filters work with `freeze --mock <service>`. Include filters narrow by
+host, method, and path; exclude filters win. Filters apply to already-redacted
+traffic and match request paths only, so query strings, headers, cookies, and
+bodies are not used as filter output or copied into errors.
+
 Review what redaction categories fired before freezing or mapping:
 
 ```bash

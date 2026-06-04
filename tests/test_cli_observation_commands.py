@@ -133,6 +133,80 @@ def test_freeze_writes_validated_hurl_from_redacted_traffic(
     assert 'jsonpath "$.status" == "accepted"' in content
 
 
+def test_freeze_applies_cli_capture_filters_before_hurl_generation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_freeze_exchange(tmp_path, secret="checkout-secret")
+    _record_mock_exchange(tmp_path, secret="wire-secret")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "entroping.core.freeze.validate_hurl_content",
+        lambda content, display_path: None,
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "freeze",
+            "--name",
+            "checkout_flow",
+            "--include-host",
+            "api.example.test",
+            "--include-method",
+            "post",
+            "--include-path",
+            "/checkout",
+            "--exclude-host",
+            "payments.example.test",
+        ],
+    )
+
+    output = Path("tests/generated/checkout_flow.hurl")
+    assert result.exit_code == 0
+    assert "Froze 1 traffic record into Hurl" in result.output
+    content = output.read_text(encoding="utf-8")
+    assert "POST https://api.example.test/checkout?token=%5BREDACTED%5D" in content
+    assert "payments.example.test" not in content
+    assert "checkout-secret" not in content
+    assert "wire-secret" not in content
+
+
+def test_freeze_reports_empty_cli_capture_filters_without_writing_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_freeze_exchange(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["freeze", "--name", "checkout_flow", "--include-host", "missing.example.test"],
+    )
+
+    assert result.exit_code == 1
+    assert "No traffic records matched capture filters" in result.output
+    assert not Path("tests/generated/checkout_flow.hurl").exists()
+
+
+def test_freeze_rejects_unsafe_cli_capture_filter_without_leaking_value(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_freeze_exchange(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["freeze", "--name", "checkout_flow", "--include-path", "/checkout?token=secret"],
+    )
+
+    assert result.exit_code == 1
+    assert "path" in result.output
+    assert "secret" not in result.output
+    assert not Path("tests/generated/checkout_flow.hurl").exists()
+
+
 def test_freeze_validation_failure_does_not_write_partial_output(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -216,6 +290,39 @@ def test_freeze_mock_writes_wiremock_mapping_without_raw_secret(
     assert payload["response"]["status"] == 201
     assert payload["response"]["headers"] == {"Content-Type": "application/json"}
     assert payload["response"]["jsonBody"]["token"] == "[REDACTED]"
+    assert "wire-secret" not in content
+
+
+def test_freeze_mock_applies_cli_capture_filters_before_mapping_generation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_freeze_exchange(tmp_path, secret="checkout-secret")
+    _record_mock_exchange(tmp_path, secret="wire-secret")
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "freeze",
+            "--name",
+            "refund_flow",
+            "--mock",
+            "payments",
+            "--include-host",
+            "payments.example.test",
+            "--include-path",
+            "/charge",
+        ],
+    )
+
+    output = Path("mocks/payments/refund_flow-001.json")
+    assert result.exit_code == 0
+    assert "Froze 1 traffic mapping into WireMock" in result.output
+    content = output.read_text(encoding="utf-8")
+    assert "payments.example.test" not in content
+    assert "checkout" not in content
+    assert "checkout-secret" not in content
     assert "wire-secret" not in content
 
 
@@ -326,6 +433,34 @@ def test_map_outputs_markdown_from_redacted_traffic_without_raw_secret(
     assert "| api.example.test | POST | /checkout | 1 | 0 | 25 | 25 | 25 |" in result.output
     assert "flowchart LR" in result.output
     assert "map-secret" not in result.output
+
+
+def test_map_applies_cli_capture_filters_before_graph_export(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_freeze_exchange(tmp_path, secret="map-secret")
+    _record_mock_exchange(tmp_path, secret="wire-secret")
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "map",
+            "--export",
+            "md",
+            "--include-host",
+            "api.example.test",
+            "--exclude-path",
+            "/charge",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "| api.example.test | POST | /checkout | 1 | 0 | 25 | 25 | 25 |" in result.output
+    assert "payments.example.test" not in result.output
+    assert "map-secret" not in result.output
+    assert "wire-secret" not in result.output
 
 
 def test_studio_missing_optional_dependency_returns_setup_guidance(

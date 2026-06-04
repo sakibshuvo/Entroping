@@ -34,8 +34,8 @@ entroping architect refactor --target <glob> --prompt <text>
 entroping architect audit [--focus <logic|auditor>] [--output <json|md>]
 
 entroping watch [--port <port>] [--target <url>]
-entroping freeze --name <flow> [--golden] [--mock <service>]
-entroping map [--export <mermaid|dot|md|png>]
+entroping freeze --name <flow> [--golden] [--mock <service>] [capture filters]
+entroping map [--export <mermaid|dot|md|png>] [capture filters]
 
 entroping studio [--env <name>]
 entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
@@ -61,6 +61,7 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 | Named suites | `run --suite <name>` loads committed `suites/<name>.yaml` manifests with schema `entroping.suite.v1`, root-bounded local path globs, tags, env, reports, parallel, and drift settings. It cannot be combined with ad hoc selectors; `--ci` remains allowed for exit behavior. |
 | Architect generation | Deterministic `architect build --new` reads the configured local OpenAPI spec and validates generated Hurl before write. `--changed-from <ref>` limits that deterministic path to current added, modified, or renamed operations relative to the same spec at a Git base ref and reports removed operations for manual review. Prompt-backed `architect build` and `architect refactor` may call LiteLLM, but generated files must pass validation before write. `architect build` defaults to Builder and accepts `--agent breaker` for hostile/security generation; deterministic `architect audit --focus logic --output json` emits `entroping.openapi-audit.v1`; `architect audit --focus auditor` is the explicit Auditor review path. |
 | Policy-pack vendoring | `config vendor-policy-pack` accepts reviewed local pack directories only. It copies the pack under `policy-packs/`, validates the manifest and QAnstitution entrypoint, appends a local import, and does not fetch from registries or remote URLs. |
+| Capture filters | `freeze`, `freeze --mock`, and `map` accept repeatable `--include-host`, `--exclude-host`, `--include-method`, `--exclude-method`, `--include-path`, and `--exclude-path` options. Filters apply only to already-redacted captured traffic; exclude rules win; path filters match request paths, not query strings. |
 | Studio | `studio` is read-only until mutation workflows are designed and accepted separately. |
 | Report formats | `run --report` is repeatable and owns run artifact creation. `report bug`, `report failure-bundle`, `report redaction`, `report policy`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, and `report review-summary` are handoff/reporting commands, not test execution commands. |
 

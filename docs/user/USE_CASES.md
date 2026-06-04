@@ -37,8 +37,8 @@ A legacy checkout API has no reliable tests and incomplete documentation.
 ```bash
 entroping watch --port 8080 --target http://localhost:3000
 entroping report redaction --output md
-entroping freeze --name checkout_flow --golden
-entroping map --export mermaid
+entroping freeze --name checkout_flow --golden --include-host api.example.test --exclude-path "/assets/*"
+entroping map --export mermaid --include-host api.example.test
 entroping run --env local --tag regression --report html
 ```
 
@@ -48,6 +48,7 @@ entroping run --env local --tag regression --report html
 - Golden assertions.
 - Counts-only redaction review.
 - Dependency map.
+- Capture filters for noisy hosts, methods, and paths.
 - Local traffic records in `.entroping/state.db`.
 
 ### Value
