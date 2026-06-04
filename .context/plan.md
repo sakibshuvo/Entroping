@@ -78,6 +78,10 @@ project, and a Codex workspace with fast context rehydration.
 - `entroping report promote-drift-baseline` validates a reviewed
   `reports/drift-baseline.candidate.json` before atomically writing the active
   `.entroping/drift-baseline.json`; `run` still never auto-approves drift.
+- `entroping architect audit --focus logic` emits an
+  `entroping.openapi-audit.v1` operation-to-Hurl matrix covering covered,
+  uncovered, ambiguous, and stale OpenAPI operation mappings without calling
+  providers.
 - Example coverage includes REST-style checkout/support fixtures plus
   GraphQL-over-HTTP and SOAP-over-HTTP fixtures that use ordinary Hurl
   assertions instead of adding protocol-specific runtime engines.
@@ -322,6 +326,9 @@ local JUnit, drift, and optional traceability evidence without changing
 Issue #399 adds `entroping report promote-drift-baseline`, an explicit reviewed
 promotion command that validates the drift-baseline candidate schema and writes
 the active local baseline atomically without changing `run` auto-approval rules.
+Issue #400 extends deterministic `architect audit --focus logic` output with a
+versioned OpenAPI operation-to-Hurl coverage matrix, including ambiguous
+multi-test mappings and stale committed `operation_id` references.
 Issue #317 extends policy-pack smoke evidence with local provenance manifest
 validation for source, license, supported Entroping version, evidence command,
 gate files, gate IDs, and final flags without fetching registries.
@@ -394,6 +401,24 @@ Implemented boundaries:
 - Active baseline writes remain atomic through the shared safe artifact writer.
 - `entroping run` still never promotes or overwrites the active drift baseline;
   it only writes reviewable candidate evidence after passing Hurl suites.
+
+## Completed Slice: Issue #400 OpenAPI Operation Coverage Matrix
+
+Outcome: deterministic Architect logic audits now show which committed Hurl
+files cover each OpenAPI operation instead of reporting only missing coverage.
+
+Implemented boundaries:
+
+- `architect audit --focus logic --output json` emits
+  `schema_version: entroping.openapi-audit.v1`.
+- JSON output includes an `operation_matrix` with covered, uncovered, and
+  ambiguous operation rows plus project-relative Hurl test paths.
+- Markdown output includes the same compact matrix for PR review.
+- Stale committed `operation_id` metadata is listed as review evidence without
+  changing the existing uncovered-operation pass/fail boundary.
+- The deterministic audit remains a pure bridge comparison over OpenAPI
+  metadata and discovered Hurl tests; it does not invoke Hurl or model
+  providers.
 
 ## Completed Slice: Issue #317 Policy-Pack Provenance Manifest Validation
 

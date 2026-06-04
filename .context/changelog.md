@@ -2,6 +2,10 @@
 
 ## 2026-06-03
 
+- Added issue #400's OpenAPI operation-to-Hurl coverage matrix so
+  `architect audit --focus logic --output md|json` now reports covered,
+  uncovered, ambiguous, and stale operation mappings with
+  `entroping.openapi-audit.v1` JSON output and project-relative Hurl paths.
 - Added issue #399's reviewed drift-baseline promotion command so
   `entroping report promote-drift-baseline` validates
   `entroping.drift-baseline.v1` candidates, rejects unsafe paths and

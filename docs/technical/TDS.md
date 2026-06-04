@@ -594,7 +594,7 @@ Reports are written under `reports/`.
 | JUnit XML | `run --report junit` | CI systems |
 | JSON | `run --report json` | Tooling integration |
 | Drift JSON | `run --drift-check` or `--report drift` | `.entroping/drift-baseline.json` comparison |
-| Audit Markdown | `architect audit --output md` | Gap review |
+| Audit Markdown/JSON | `architect audit --output md|json` | OpenAPI operation-to-Hurl coverage matrix |
 | Drift Baseline Promotion | `report promote-drift-baseline` | Reviewed candidate promotion |
 | Bug Markdown | `report bug` | Issue tracker handoff |
 | Redaction Review | `report redaction --output md|html` | Captured-traffic redaction coverage review |
@@ -648,6 +648,12 @@ entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <t
 entroping architect refactor --target <glob> --prompt <text>
 entroping architect audit [--focus <logic|auditor>] [--output <json|md>]
 ```
+
+`architect audit --focus logic` is a deterministic bridge report. It compares
+OpenAPI operations with committed Hurl metadata and request lines, emits
+covered, uncovered, and ambiguous operation rows, and lists stale
+`operation_id` references. JSON output carries schema marker
+`entroping.openapi-audit.v1`.
 
 ### Observation
 

@@ -9,11 +9,13 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from html import escape
+from pathlib import Path
 
 from entroping.bridge.openapi_to_hurl import OpenApiCompilationError
 from entroping.models.hurl import HurlExchange, HurlTest
 
 _HTTP_METHODS = frozenset({"get", "post", "put", "patch", "delete", "head", "options", "trace"})
+OPENAPI_AUDIT_SCHEMA_VERSION = "entroping.openapi-audit.v1"
 
 
 @dataclass(frozen=True)
@@ -29,6 +31,25 @@ class OpenApiAuditFinding:
 
 
 @dataclass(frozen=True)
+class OpenApiOperationCoverage:
+    """How a single OpenAPI operation maps to committed Hurl tests."""
+
+    operation_id: str
+    method: str
+    path: str
+    status: str
+    test_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class OpenApiStaleOperationReference:
+    """Committed Hurl metadata that points at an operation absent from the spec."""
+
+    operation_id: str
+    test_path: str
+
+
+@dataclass(frozen=True)
 class OpenApiAuditReport:
     """OpenAPI coverage audit result."""
 
@@ -36,6 +57,8 @@ class OpenApiAuditReport:
     covered_operations: int
     missing_operations: int
     findings: tuple[OpenApiAuditFinding, ...]
+    operation_matrix: tuple[OpenApiOperationCoverage, ...] = ()
+    stale_references: tuple[OpenApiStaleOperationReference, ...] = ()
 
     @property
     def passed(self) -> bool:
@@ -54,22 +77,37 @@ class _ExpectedOperation:
 def audit_openapi_coverage(
     document: Mapping[str, object],
     hurl_tests: Sequence[HurlTest],
+    *,
+    project_root: Path | None = None,
 ) -> OpenApiAuditReport:
     """Report OpenAPI operations missing committed Hurl coverage."""
 
     expected_operations = _expected_operations(document)
     expected_by_id = {operation.operation_id: operation for operation in expected_operations}
-    covered_operation_ids = _covered_openapi_operation_ids(hurl_tests, expected_by_id)
+    operation_matrix = tuple(
+        _operation_coverage_row(
+            operation,
+            hurl_tests,
+            project_root=project_root,
+        )
+        for operation in expected_operations
+    )
     findings = tuple(
         _missing_coverage_finding(operation)
-        for operation in expected_operations
-        if operation.operation_id not in covered_operation_ids
+        for operation, row in zip(expected_operations, operation_matrix, strict=True)
+        if row.status == "uncovered"
     )
     return OpenApiAuditReport(
         total_operations=len(expected_operations),
-        covered_operations=len(expected_operations) - len(findings),
+        covered_operations=sum(1 for row in operation_matrix if row.status != "uncovered"),
         missing_operations=len(findings),
         findings=findings,
+        operation_matrix=operation_matrix,
+        stale_references=_stale_operation_references(
+            hurl_tests,
+            expected_by_id,
+            project_root=project_root,
+        ),
     )
 
 
@@ -89,23 +127,58 @@ def render_audit_markdown(report: OpenApiAuditReport) -> str:
     ]
     if report.passed:
         lines.append("No OpenAPI coverage gaps found.")
-        return "\n".join(lines)
+    else:
+        lines.extend(
+            [
+                "| Severity | Code | Operation | Method | Path |",
+                "| --- | --- | --- | --- | --- |",
+            ]
+        )
+        for finding in report.findings:
+            lines.append(
+                "| "
+                f"{_markdown_table_cell(finding.severity)} | "
+                f"{_markdown_table_cell(finding.code)} | "
+                f"{_markdown_table_cell(finding.operation_id)} | "
+                f"{_markdown_table_cell(finding.method)} | "
+                f"{_markdown_table_cell(finding.path)} |"
+            )
+        lines.append("")
 
     lines.extend(
         [
-            "| Severity | Code | Operation | Method | Path |",
+            "## Operation Coverage Matrix",
+            "",
+            "| Operation | Method | Path | Status | Tests |",
             "| --- | --- | --- | --- | --- |",
         ]
     )
-    for finding in report.findings:
+    for row in report.operation_matrix:
+        tests = ", ".join(row.test_paths) if row.test_paths else "-"
         lines.append(
             "| "
-            f"{_markdown_table_cell(finding.severity)} | "
-            f"{_markdown_table_cell(finding.code)} | "
-            f"{_markdown_table_cell(finding.operation_id)} | "
-            f"{_markdown_table_cell(finding.method)} | "
-            f"{_markdown_table_cell(finding.path)} |"
+            f"{_markdown_table_cell(row.operation_id)} | "
+            f"{_markdown_table_cell(row.method)} | "
+            f"{_markdown_table_cell(row.path)} | "
+            f"{_markdown_table_cell(row.status)} | "
+            f"{_markdown_table_cell(tests)} |"
         )
+    if report.stale_references:
+        lines.extend(
+            [
+                "",
+                "## Stale OpenAPI References",
+                "",
+                "| Operation | Test |",
+                "| --- | --- |",
+            ]
+        )
+        for reference in report.stale_references:
+            lines.append(
+                "| "
+                f"{_markdown_table_cell(reference.operation_id)} | "
+                f"{_markdown_table_cell(reference.test_path)} |"
+            )
     return "\n".join(lines)
 
 
@@ -113,12 +186,27 @@ def audit_report_to_dict(report: OpenApiAuditReport) -> dict[str, object]:
     """Return a deterministic JSON-serializable audit payload."""
 
     return {
+        "schema_version": OPENAPI_AUDIT_SCHEMA_VERSION,
         "status": "pass" if report.passed else "fail",
         "summary": {
             "total_operations": report.total_operations,
             "covered_operations": report.covered_operations,
             "missing_operations": report.missing_operations,
+            "ambiguous_operations": sum(
+                1 for row in report.operation_matrix if row.status == "ambiguous"
+            ),
+            "stale_references": len(report.stale_references),
         },
+        "operation_matrix": [
+            {
+                "operation_id": row.operation_id,
+                "method": row.method,
+                "path": row.path,
+                "status": row.status,
+                "tests": list(row.test_paths),
+            }
+            for row in report.operation_matrix
+        ],
         "findings": [
             {
                 "code": finding.code,
@@ -129,6 +217,13 @@ def audit_report_to_dict(report: OpenApiAuditReport) -> dict[str, object]:
                 "message": finding.message,
             }
             for finding in report.findings
+        ],
+        "stale_references": [
+            {
+                "operation_id": reference.operation_id,
+                "test_path": reference.test_path,
+            }
+            for reference in report.stale_references
         ],
     }
 
@@ -168,25 +263,84 @@ def _expected_operations(document: Mapping[str, object]) -> tuple[_ExpectedOpera
     return tuple(expected)
 
 
-def _covered_openapi_operation_ids(
+def _operation_coverage_row(
+    operation: _ExpectedOperation,
+    hurl_tests: Sequence[HurlTest],
+    *,
+    project_root: Path | None,
+) -> OpenApiOperationCoverage:
+    matching_paths = tuple(
+        sorted(
+            {
+                _hurl_test_path(hurl_test, project_root=project_root)
+                for hurl_test in hurl_tests
+                if _hurl_test_covers_operation(hurl_test, operation)
+            }
+        )
+    )
+    if not matching_paths:
+        status = "uncovered"
+    elif len(matching_paths) == 1:
+        status = "covered"
+    else:
+        status = "ambiguous"
+    return OpenApiOperationCoverage(
+        operation_id=operation.operation_id,
+        method=operation.method,
+        path=operation.path,
+        status=status,
+        test_paths=matching_paths,
+    )
+
+
+def _stale_operation_references(
     hurl_tests: Sequence[HurlTest],
     expected_by_id: Mapping[str, _ExpectedOperation],
-) -> frozenset[str]:
-    covered: set[str] = set()
+    *,
+    project_root: Path | None,
+) -> tuple[OpenApiStaleOperationReference, ...]:
+    references: list[OpenApiStaleOperationReference] = []
     for hurl_test in hurl_tests:
         if hurl_test.metadata.meta.get("source") != "openapi":
-            continue
-        if not hurl_test.exchanges:
             continue
         operation_id = hurl_test.metadata.meta.get("operation_id")
         if operation_id is None:
             continue
-        expected = expected_by_id.get(operation_id)
-        if expected is None:
-            continue
-        if any(_exchange_covers_operation(exchange, expected) for exchange in hurl_test.exchanges):
-            covered.add(operation_id)
-    return frozenset(covered)
+        if operation_id not in expected_by_id:
+            references.append(
+                OpenApiStaleOperationReference(
+                    operation_id=operation_id,
+                    test_path=_hurl_test_path(hurl_test, project_root=project_root),
+                )
+            )
+    return tuple(
+        sorted(references, key=lambda reference: (reference.operation_id, reference.test_path))
+    )
+
+
+def _hurl_test_covers_operation(hurl_test: HurlTest, expected: _ExpectedOperation) -> bool:
+    if hurl_test.metadata.meta.get("source") != "openapi":
+        return False
+    if not hurl_test.exchanges:
+        return False
+    operation_id = hurl_test.metadata.meta.get("operation_id")
+    if operation_id != expected.operation_id:
+        return False
+    return any(_exchange_covers_operation(exchange, expected) for exchange in hurl_test.exchanges)
+
+
+def _hurl_test_path(hurl_test: HurlTest, *, project_root: Path | None) -> str:
+    path = hurl_test.path
+    if not path.is_absolute():
+        return path.as_posix()
+    if project_root is not None:
+        root = project_root.expanduser().resolve()
+        resolved = path.expanduser().resolve()
+        try:
+            return resolved.relative_to(root).as_posix()
+        except ValueError:
+            return path.name
+    return path.as_posix()
 
 
 def _exchange_covers_operation(exchange: HurlExchange, expected: _ExpectedOperation) -> bool:

@@ -1220,14 +1220,52 @@ paths:
         ),
         encoding="utf-8",
     )
+    (generated / "stale_checkout.hurl").write_text(
+        "\n".join(
+            [
+                "# entroping: source=openapi",
+                "# entroping: operation_id=staleCheckout",
+                "",
+                "GET {{base_url}}/stale-checkout",
+                "HTTP 200",
+            ],
+        ),
+        encoding="utf-8",
+    )
 
     result = CliRunner().invoke(app, ["architect", "audit", "--output", "json"])
 
     assert result.exit_code == 1
     payload = json.loads(result.output)
+    assert payload["schema_version"] == "entroping.openapi-audit.v1"
     assert payload["status"] == "fail"
     assert payload["summary"]["missing_operations"] == 1
+    assert payload["summary"]["ambiguous_operations"] == 0
+    assert payload["summary"]["stale_references"] == 1
     assert payload["findings"][0]["operation_id"] == "createCheckout"
+    assert payload["operation_matrix"] == [
+        {
+            "operation_id": "getHealth",
+            "method": "GET",
+            "path": "/health",
+            "status": "covered",
+            "tests": ["tests/generated/get_health.hurl"],
+        },
+        {
+            "operation_id": "createCheckout",
+            "method": "POST",
+            "path": "/checkout",
+            "status": "uncovered",
+            "tests": [],
+        },
+    ]
+    assert payload["stale_references"] == [
+        {
+            "operation_id": "staleCheckout",
+            "test_path": "tests/generated/stale_checkout.hurl",
+        }
+    ]
+    assert str(tmp_path) not in result.output
 
 
 def test_architect_audit_passes_when_openapi_operations_are_covered(
@@ -1276,6 +1314,11 @@ paths:
 
     assert result.exit_code == 0
     assert "Architect Audit" in result.output
+    assert "## Operation Coverage Matrix" in result.output
+    assert (
+        "| getHealth | GET | /health | covered | tests/generated/get_health.hurl |"
+        in result.output
+    )
     assert "No OpenAPI coverage gaps found." in result.output
 
 

@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from entroping.bridge.openapi_audit import (
+    OPENAPI_AUDIT_SCHEMA_VERSION,
     audit_openapi_coverage,
     audit_report_to_dict,
     render_audit_markdown,
@@ -49,6 +50,128 @@ def test_audit_openapi_coverage_reports_missing_operations() -> None:
     assert [finding.operation_id for finding in report.findings] == ["createCheckout"]
     assert audit_report_to_dict(report)["status"] == "fail"
     assert "createCheckout" in render_audit_markdown(report)
+
+
+def test_audit_openapi_coverage_reports_operation_matrix_and_stale_references() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+            "/checkout": {
+                "post": {
+                    "operationId": "createCheckout",
+                    "responses": {"201": {"description": "created"}},
+                },
+            },
+            "/orders/{order_id}": {
+                "get": {
+                    "operationId": "getOrder",
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+    health = HurlTest(
+        path=Path("tests/generated/get_health.hurl"),
+        metadata=HurlMetadata(meta={"source": "openapi", "operation_id": "getHealth"}),
+        exchanges=(HurlExchange(method="GET", url="{{base_url}}/health", path="/health"),),
+    )
+    order_generated = HurlTest(
+        path=Path("tests/generated/get_order.hurl"),
+        metadata=HurlMetadata(meta={"source": "openapi", "operation_id": "getOrder"}),
+        exchanges=(HurlExchange(method="GET", url="{{base_url}}/orders/123", path="/orders/123"),),
+    )
+    order_manual = HurlTest(
+        path=Path("tests/manual/get_order_smoke.hurl"),
+        metadata=HurlMetadata(meta={"source": "openapi", "operation_id": "getOrder"}),
+        exchanges=(HurlExchange(method="GET", url="{{base_url}}/orders/456", path="/orders/456"),),
+    )
+    stale = HurlTest(
+        path=Path("tests/generated/delete_order.hurl"),
+        metadata=HurlMetadata(meta={"source": "openapi", "operation_id": "deleteOrder"}),
+        exchanges=(
+            HurlExchange(method="DELETE", url="{{base_url}}/orders/123", path="/orders/123"),
+        ),
+    )
+
+    report = audit_openapi_coverage(
+        document,
+        [health, order_manual, stale, order_generated],
+    )
+
+    assert report.covered_operations == 2
+    assert report.missing_operations == 1
+    assert [(row.operation_id, row.status, row.test_paths) for row in report.operation_matrix] == [
+        ("getHealth", "covered", ("tests/generated/get_health.hurl",)),
+        ("createCheckout", "uncovered", ()),
+        (
+            "getOrder",
+            "ambiguous",
+            ("tests/generated/get_order.hurl", "tests/manual/get_order_smoke.hurl"),
+        ),
+    ]
+    assert report.stale_references[0].operation_id == "deleteOrder"
+    assert report.stale_references[0].test_path == "tests/generated/delete_order.hurl"
+
+    payload = audit_report_to_dict(report)
+    assert payload["schema_version"] == OPENAPI_AUDIT_SCHEMA_VERSION
+    summary = payload["summary"]
+    matrix = payload["operation_matrix"]
+    stale_references = payload["stale_references"]
+    assert isinstance(summary, dict)
+    assert isinstance(matrix, list)
+    assert isinstance(stale_references, list)
+    assert summary["ambiguous_operations"] == 1
+    assert summary["stale_references"] == 1
+    assert matrix[2] == {
+        "operation_id": "getOrder",
+        "method": "GET",
+        "path": "/orders/{order_id}",
+        "status": "ambiguous",
+        "tests": ["tests/generated/get_order.hurl", "tests/manual/get_order_smoke.hurl"],
+    }
+    assert stale_references == [
+        {
+            "operation_id": "deleteOrder",
+            "test_path": "tests/generated/delete_order.hurl",
+        }
+    ]
+    markdown = render_audit_markdown(report)
+    assert "## Operation Coverage Matrix" in markdown
+    assert "| getOrder | GET | /orders/{order_id} | ambiguous |" in markdown
+    assert "## Stale OpenAPI References" in markdown
+
+
+def test_audit_openapi_coverage_does_not_leak_external_absolute_paths(tmp_path: Path) -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+    outside_path = tmp_path.parent / "outside_health.hurl"
+    covered = HurlTest(
+        path=outside_path,
+        metadata=HurlMetadata(meta={"source": "openapi", "operation_id": "getHealth"}),
+        exchanges=(HurlExchange(method="GET", url="{{base_url}}/health", path="/health"),),
+    )
+
+    report = audit_openapi_coverage(document, [covered], project_root=tmp_path)
+
+    assert report.operation_matrix[0].test_paths == ("outside_health.hurl",)
+
+    bridge_report = audit_openapi_coverage(document, [covered])
+    assert bridge_report.operation_matrix[0].test_paths == (outside_path.as_posix(),)
 
 
 def test_audit_openapi_coverage_passes_when_all_operations_are_covered() -> None:

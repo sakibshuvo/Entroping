@@ -56,7 +56,7 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 | Aliases | No alias is compatibility-supported. Deprecated brainstorm names such as `gen`, `fix`, `scan`, `chaos`, `verify`, top-level `build`, `auth`, and `report --type` remain unavailable. |
 | Global flags | Only Typer completion helpers and `--version` are current global flags. `--verbose` and `--dry-run` are not product flags. |
 | Determinism | `entroping run` remains deterministic, Hurl-backed, and LLM-free. |
-| Prompted generation | Prompt-backed `architect build` and `architect refactor` may call LiteLLM, but generated files must pass validation before write. `architect build` defaults to Builder and accepts `--agent breaker` for hostile/security generation; `architect audit --focus auditor` is the explicit Auditor review path. |
+| Prompted generation | Prompt-backed `architect build` and `architect refactor` may call LiteLLM, but generated files must pass validation before write. `architect build` defaults to Builder and accepts `--agent breaker` for hostile/security generation; deterministic `architect audit --focus logic --output json` emits `entroping.openapi-audit.v1`; `architect audit --focus auditor` is the explicit Auditor review path. |
 | Studio | `studio` is read-only until mutation workflows are designed and accepted separately. |
 | Report formats | `run --report` is repeatable and owns run artifact creation. `report bug`, `report redaction`, `report policy`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, and `report review-summary` are handoff/reporting commands, not test execution commands. |
 
@@ -99,6 +99,7 @@ only through a compatibility issue and migration note.
 | `entroping report redaction --output html` | `reports/redaction-review.html` |
 | `entroping report policy --output md` | `reports/effective-policy.md` |
 | `entroping report policy --output json` | `reports/effective-policy.json` |
+| `entroping architect audit --output json` | `stdout Architect OpenAPI audit JSON` |
 | `entroping report traceability --output md` | `stdout Markdown` |
 | `entroping report github-annotations` | `stdout GitHub Actions annotations` |
 | `entroping report sarif` | `reports/entroping.sarif` |

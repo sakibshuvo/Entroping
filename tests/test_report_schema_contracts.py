@@ -4,6 +4,11 @@ import json
 from pathlib import Path
 
 from entroping.bridge.effective_policy import EffectivePolicyGateReport, EffectivePolicyReport
+from entroping.bridge.openapi_audit import (
+    OPENAPI_AUDIT_SCHEMA_VERSION,
+    audit_openapi_coverage,
+    audit_report_to_dict,
+)
 from entroping.bridge.story_traceability import (
     compile_story_traceability,
     story_traceability_report_to_dict,
@@ -21,7 +26,7 @@ from entroping.models.drift import (
     DriftReport,
     DriftReportSummary,
 )
-from entroping.models.hurl import HurlMetadata, HurlTest
+from entroping.models.hurl import HurlExchange, HurlMetadata, HurlTest
 from entroping.models.report import (
     KnownFailureEvidence,
     RunReport,
@@ -277,6 +282,95 @@ def test_effective_policy_report_v1_schema_contract_is_versioned_and_stable() ->
                 "enforcement": "block",
                 "final": True,
                 "description": "Require request IDs",
+            }
+        ],
+    }
+
+
+def test_openapi_audit_v1_schema_contract_is_versioned_and_stable() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "responses": {"200": {"description": "ok"}},
+                }
+            },
+            "/checkout": {
+                "post": {
+                    "operationId": "createCheckout",
+                    "responses": {"201": {"description": "created"}},
+                }
+            },
+        },
+    }
+    report = audit_openapi_coverage(
+        document,
+        [
+            HurlTest(
+                path=Path("tests/generated/get_health.hurl"),
+                metadata=HurlMetadata(meta={"source": "openapi", "operation_id": "getHealth"}),
+                exchanges=(
+                    HurlExchange(method="GET", url="{{base_url}}/health", path="/health"),
+                ),
+            ),
+            HurlTest(
+                path=Path("tests/generated/stale_checkout.hurl"),
+                metadata=HurlMetadata(
+                    meta={"source": "openapi", "operation_id": "staleCheckout"}
+                ),
+                exchanges=(
+                    HurlExchange(method="GET", url="{{base_url}}/stale", path="/stale"),
+                ),
+            ),
+        ],
+    )
+
+    payload = audit_report_to_dict(report)
+
+    assert payload == {
+        "schema_version": OPENAPI_AUDIT_SCHEMA_VERSION,
+        "status": "fail",
+        "summary": {
+            "total_operations": 2,
+            "covered_operations": 1,
+            "missing_operations": 1,
+            "ambiguous_operations": 0,
+            "stale_references": 1,
+        },
+        "operation_matrix": [
+            {
+                "operation_id": "getHealth",
+                "method": "GET",
+                "path": "/health",
+                "status": "covered",
+                "tests": ["tests/generated/get_health.hurl"],
+            },
+            {
+                "operation_id": "createCheckout",
+                "method": "POST",
+                "path": "/checkout",
+                "status": "uncovered",
+                "tests": [],
+            },
+        ],
+        "findings": [
+            {
+                "code": "OPENAPI_COVERAGE_MISSING",
+                "severity": "error",
+                "operation_id": "createCheckout",
+                "method": "POST",
+                "path": "/checkout",
+                "message": (
+                    "OpenAPI operation 'createCheckout' has no committed Hurl coverage."
+                ),
+            }
+        ],
+        "stale_references": [
+            {
+                "operation_id": "staleCheckout",
+                "test_path": "tests/generated/stale_checkout.hurl",
             }
         ],
     }
