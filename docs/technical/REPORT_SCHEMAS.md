@@ -28,6 +28,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Agent run manifest | `entroping.agent-run-manifest.v1` | `.entroping/agent-runs/*.json` | [agent-run-manifest.v1.schema.json](report-schemas/agent-run-manifest.v1.schema.json) |
 | Traffic artifact approval | `entroping.traffic-artifact-approval.v1` | `reports/approvals/*.json` | [traffic-artifact-approval.v1.schema.json](report-schemas/traffic-artifact-approval.v1.schema.json) |
 | Architect OpenAPI audit | `entroping.openapi-audit.v1` | `architect audit --output json` stdout | Inline contract |
+| Architect OpenAPI breaking diff | `entroping.openapi-breaking-diff.v1` | Optional nested `openapi_diff` in `architect audit --changed-from <ref> --output json` | Inline contract |
 | Traceability report | `entroping.traceability-report.v1` | `entroping report traceability --output json` stdout | [traceability-report.v1.schema.json](report-schemas/traceability-report.v1.schema.json) |
 | SARIF report | SARIF 2.1.0 | `reports/entroping.sarif` | External SARIF schema |
 
@@ -145,6 +146,16 @@ observed routes, and spec-only operations. It records only method,
 path-template, count, failure-count, and operation identifiers; it must not
 include raw query strings, headers, cookies, bodies, host userinfo, credentials,
 or captured values.
+
+When `architect audit --focus logic --changed-from <ref> --output json` is used,
+the same payload includes an optional `openapi_diff` object with schema version
+`entroping.openapi-breaking-diff.v1`. It reports deterministic OpenAPI
+evolution findings for removed and added operations, method/path moves, response
+status changes, newly required request inputs, and practical top-level JSON
+response-shape changes. Findings include operation IDs, methods, paths, stable
+codes/severities, evidence strings, and project-relative Hurl test paths when
+committed OpenAPI metadata links exist. The diff report does not contain raw
+traffic, prompts, provider output, or generated Hurl content.
 
 The traceability CLI emits Markdown or JSON:
 

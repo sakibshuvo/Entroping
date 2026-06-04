@@ -2,6 +2,12 @@
 
 ## 2026-06-04
 
+- Added issue #437's deterministic OpenAPI breaking-change diff audit so
+  `architect audit --focus logic --changed-from <ref> --output md|json`
+  compares the configured local OpenAPI spec with the same file at a Git base
+  ref, reports removed/added operations, status-code changes, newly required
+  request inputs, and practical JSON response-shape changes, and links findings
+  to committed OpenAPI Hurl metadata without generating or deleting tests.
 - Added issue #449's captured-artifact approval manifests so `freeze`,
   `freeze --mock`, and `map --export png` write
   `reports/approvals/*.json` with schema
