@@ -124,8 +124,7 @@ flowchart LR
 
 ## Current Alpha
 
-This repository is the active alpha implementation and Obsidian-friendly
-knowledge base for Entroping.
+This repository is the active alpha implementation for Entroping.
 
 Public roadmap: [ROADMAP.md](ROADMAP.md) and
 [GitHub Project board](https://github.com/users/sakibshuvo/projects/1).
@@ -285,36 +284,13 @@ scripts/release_check.sh --dry-run --require-live-demo
 scripts/release_check.sh --require-live-demo
 ```
 
-The release-candidate evidence checklist lives in
-[docs/meta/RELEASE_CHECKLIST.md](docs/meta/RELEASE_CHECKLIST.md).
-The package-index publishing plan lives in
-[PYPI_RELEASE_RUNBOOK.md](docs/meta/PYPI_RELEASE_RUNBOOK.md).
-The install-channel sequencing lives in
-[DISTRIBUTION_RECOMMENDATION.md](docs/meta/DISTRIBUTION_RECOMMENDATION.md).
-
-Start an isolated issue session:
-
-```bash
-scripts/start_issue.sh <issue-number> <type>/<short-kebab-description> --dry-run
-scripts/start_issue.sh <issue-number> <type>/<short-kebab-description>
-```
-
-Generate a deterministic context pack for Codex, Claude Code, OpenCode, Gemini,
-NotebookLM, local Qwen, or another reviewer:
-
-```bash
-scripts/context_pack.sh --mode implementation
-scripts/context_pack.sh --mode review
-scripts/context_pack.sh --mode source
-scripts/context_pack.sh --mode growth
-scripts/context_pack.sh --mode handoff
-```
+Release-owner checklists, package-index publishing, install-channel sequencing,
+and agent handoff are backstage maintainer context linked below.
 
 ## Project Context
 
-Public Docs are the adoption path. Project memory stays available, but it is
-kept backstage so new users do not have to read the whole vault before trying
-the tool.
+Public Docs are the adoption path. Maintainer and agent context is backstage and
+not required for first use.
 
 - Public path: [Public Docs](https://sakibshuvo.github.io/Entroping/),
   [USER_GUIDE.md](docs/user/USER_GUIDE.md),
@@ -327,8 +303,9 @@ the tool.
 - Obsidian is project memory, not the backlog. Open the vault at
   [Vault Index](docs/meta/VAULT_INDEX.md), and use [DOCS_GOVERNANCE.md](docs/meta/DOCS_GOVERNANCE.md);
   `docs/meta/DOCS_GOVERNANCE.md` decides which docs must change.
-- Agent handoff uses `scripts/context_pack.sh --mode implementation`,
-  `--mode review`, `--mode source`, `--mode growth`, and `--mode handoff`.
+- Agent handoff uses `scripts/start_issue.sh <issue-number> <branch>`,
+  `scripts/context_pack.sh --mode implementation`, `--mode review`,
+  `--mode source`, `--mode growth`, and `--mode handoff`.
 - Architecture and command reference live in [TDS.md](docs/technical/TDS.md),
   [QANSTITUTION_REFERENCE.md](docs/technical/QANSTITUTION_REFERENCE.md),
   [COMMAND_CHEAT_SHEET.md](docs/technical/COMMAND_CHEAT_SHEET.md),

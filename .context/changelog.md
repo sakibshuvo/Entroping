@@ -10,6 +10,9 @@
   highlights the local starter pack as runtime security governance while
   preserving explicit non-endorsement, non-compliance, and non-certification
   boundaries.
+- Added issue #382's README backstage-context cleanup so first-time users see
+  the product, demo, install, and CI path before maintainer vault, release, and
+  agent-handoff material.
 
 ## 2026-06-02
 
