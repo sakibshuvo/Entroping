@@ -2,6 +2,11 @@
 
 ## 2026-06-03
 
+- Added issue #396's Hurl variable preflight so `entroping run` scans
+  selected temporary execution copies before invoking Hurl, fails early with
+  missing variable names only, accepts `envs/<name>.env`, shell
+  `HURL_VARIABLE_<name>`, Hurl `[Options] variable`, captures, and safe Hurl
+  built-ins, and keeps variable values out of CLI errors.
 - Added issue #393's Auditor-backed Architect audit route so
   `architect audit --focus auditor` loads the configured Auditor persona/model,
   sends deterministic coverage and path-only Hurl inventory context, validates

@@ -675,6 +675,11 @@ accepted. The accepted design gate for any future write action lives in
 `--parallel` uses `settings.parallel_workers` from `qanstitution.yaml`, keeps the
 per-file timeout and output-redaction behavior, and preserves deterministic
 input ordering in reports.
+Before Hurl starts, the run workflow scans selected temporary execution copies
+for unresolved `{{variable}}` references. Resolved variables can come from
+`envs/<name>.env`, explicit shell `HURL_VARIABLE_<name>` values, Hurl
+`[Options] variable` entries, captures, or known Hurl built-ins. Missing-variable
+errors must list names and paths only; they must not print variable values.
 `--drift-check` and `--report drift` compare the sanitized current run report
 against `.entroping/drift-baseline.json`. The MVP baseline compares test path,
 Hurl result status, exit code, injected QAnstitution rule IDs, material
@@ -763,6 +768,8 @@ No additional commands or flags should be implemented without updating the produ
 Errors must be explicit and actionable:
 
 - Missing Hurl binary: tell user how to install or configure it.
+- Missing Hurl variables: fail before subprocess execution and list missing
+  names without values.
 - Invalid QAnstitution: identify path and field.
 - Bad gate condition: identify rule ID and invalid expression.
 - Hurl validation failure: show the generated file path and retry guidance

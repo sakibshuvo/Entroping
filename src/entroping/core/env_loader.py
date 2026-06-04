@@ -40,6 +40,25 @@ def load_environment_variables(
     return variables
 
 
+def load_process_hurl_variables(
+    *,
+    environ: Mapping[str, str] | None = None,
+) -> dict[str, str]:
+    """Load explicit ``HURL_VARIABLE_<name>`` process variables for Hurl."""
+
+    process_environ = os.environ if environ is None else environ
+    variables: dict[str, str] = {}
+    for env_key, value in process_environ.items():
+        if not env_key.startswith("HURL_VARIABLE_"):
+            continue
+        variable_name = env_key.removeprefix("HURL_VARIABLE_")
+        if _VARIABLE_NAME_RE.fullmatch(variable_name) is None:
+            msg = f"Invalid Hurl environment variable name {env_key!r}"
+            raise EnvironmentLoadError(msg)
+        variables[variable_name] = value
+    return variables
+
+
 def _read_env_file(path: Path) -> dict[str, str]:
     expanded = path.expanduser()
     _reject_symlink_path_components(expanded)

@@ -120,7 +120,9 @@ entroping map --export mermaid
 
 Current alpha implementation supports deterministic `run`, `--env`, `--tag`, `--ci`,
 bounded `--parallel`, `--drift-check`, `--report html`, `--report json`,
-`--report junit`, and `--report drift`.
+`--report junit`, and `--report drift`. Before invoking Hurl, `run` checks
+selected execution copies for unresolved `{{variable}}` references and reports
+missing variable names without printing values.
 
 | Command | Purpose |
 | --- | --- |
@@ -144,6 +146,9 @@ entroping run --env staging --drift-check --report drift
 `--report drift` writes both `reports/drift.json` and, when the Hurl suite
 passes, `reports/drift-baseline.candidate.json`. Review the candidate before
 copying it to `.entroping/drift-baseline.json`.
+
+Variables can come from `envs/<name>.env`, explicit shell
+`HURL_VARIABLE_<name>` entries, Hurl `[Options] variable` entries, or captures.
 
 ## Reporting
 

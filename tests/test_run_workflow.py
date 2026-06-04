@@ -9,6 +9,7 @@ import pytest
 from entroping.core.hurl_runner import HurlFileResult, HurlRunOptions, HurlSuiteResult
 from entroping.core.run_workflow import (
     DependencyDriftObservationError,
+    HurlVariablePreflightError,
     NoHurlTestsMatchedError,
     RunWorkflowError,
     execute_run_workflow,
@@ -39,7 +40,7 @@ def _write_project(tmp_path: Path) -> None:
     tests_dir = tmp_path / "tests"
     tests_dir.mkdir()
     (tests_dir / "health.hurl").write_text(
-        "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
+        "# entroping: tags=smoke\n\nGET http://localhost:18080/health\nHTTP 200\n",
         encoding="utf-8",
     )
 
@@ -194,7 +195,7 @@ def test_execute_run_workflow_applies_known_failure_gate_exceptions(
     tests_dir = tmp_path / "tests"
     tests_dir.mkdir()
     (tests_dir / "health.hurl").write_text(
-        "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
+        "# entroping: tags=smoke\n\nGET http://localhost:18080/health\nHTTP 200\n",
         encoding="utf-8",
     )
 
@@ -247,6 +248,125 @@ def test_execute_run_workflow_reports_no_matching_hurl_tests(tmp_path: Path) -> 
             parallel=False,
             drift_check=False,
         )
+
+
+def test_execute_run_workflow_preflights_missing_hurl_variables_before_subprocess(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_project(tmp_path)
+    env_dir = tmp_path / "envs"
+    env_dir.mkdir()
+    (env_dir / "local.env").write_text("base_url=http://localhost:18080\n", encoding="utf-8")
+    (tmp_path / "tests" / "health.hurl").write_text(
+        "\n".join(
+            [
+                "# entroping: tags=smoke",
+                "",
+                "GET {{base_url}}/health/{{api_token}}/{{api_token}}",
+                "HTTP 200",
+            ],
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    subprocess_called = False
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+    ) -> HurlSuiteResult:
+        nonlocal subprocess_called
+        _ = (paths, options, max_workers)
+        subprocess_called = True
+        raise AssertionError("Hurl should not run when variables are missing")
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
+
+    with pytest.raises(HurlVariablePreflightError) as excinfo:
+        execute_run_workflow(
+            project_root=tmp_path,
+            environment="local",
+            tag_filters=("smoke",),
+            report_formats=(),
+            parallel=False,
+            drift_check=False,
+        )
+
+    message = str(excinfo.value)
+    assert subprocess_called is False
+    assert "Unresolved Hurl variables before execution" in message
+    assert "api_token" in message
+    assert "base_url" not in message
+    assert "http://localhost:18080" not in message
+
+
+def test_execute_run_workflow_accepts_env_file_shell_env_and_local_hurl_definitions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_project(tmp_path)
+    env_dir = tmp_path / "envs"
+    env_dir.mkdir()
+    (env_dir / "local.env").write_text("base_url=http://localhost:18080\n", encoding="utf-8")
+    monkeypatch.setenv("HURL_VARIABLE_api_token", "secret-token")
+    (tmp_path / "tests" / "health.hurl").write_text(
+        "\n".join(
+            [
+                "# entroping: note={{ignored_metadata_variable}}",
+                "# comment {{ignored_comment_variable}}",
+                "# entroping: tags=smoke",
+                "",
+                "GET {{base_url}}/health/{{checkout_id}}",
+                "[Options]",
+                "variable: checkout_id=demo-checkout",
+                "HTTP 200",
+                "[Captures]",
+                "csrf_token: header \"x-csrf-token\"",
+                "",
+                "POST {{base_url}}/checkout",
+                "Authorization: Bearer {{api_token}}",
+                "X-CSRF-Token: {{csrf_token}}",
+                "{",
+                '  "request_id": "{{newUuid}}",',
+                '  "requested_at": "{{newDate}}"',
+                "}",
+                "HTTP 201",
+            ],
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    captured_options: list[HurlRunOptions] = []
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+    ) -> HurlSuiteResult:
+        _ = max_workers
+        captured_options.append(options)
+        return HurlSuiteResult(results=tuple(_passed_result(path) for path in paths))
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
+
+    result = execute_run_workflow(
+        project_root=tmp_path,
+        environment="local",
+        tag_filters=("smoke",),
+        report_formats=(),
+        parallel=False,
+        drift_check=False,
+    )
+
+    assert result.exit_code == 0
+    assert captured_options[0].variables == {
+        "api_token": "secret-token",
+        "base_url": "http://localhost:18080",
+    }
 
 
 def test_execute_run_workflow_drift_findings_affect_exit_code(

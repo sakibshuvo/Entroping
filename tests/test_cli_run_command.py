@@ -33,6 +33,7 @@ def test_run_executes_discovered_hurl_with_injected_gates_and_cleans_temp_state(
         "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
         encoding="utf-8",
     )
+    monkeypatch.setenv("HURL_VARIABLE_base_url", "http://localhost:18080")
     executed_paths: list[Path] = []
 
     def fake_run(
@@ -83,6 +84,7 @@ def test_run_returns_non_zero_when_hurl_execution_fails(
         "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
         encoding="utf-8",
     )
+    monkeypatch.setenv("HURL_VARIABLE_base_url", "http://localhost:18080")
 
     def fake_run(
         args: list[str],
@@ -120,6 +122,7 @@ def test_run_reports_missing_hurl_binary(
         "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
         encoding="utf-8",
     )
+    monkeypatch.setenv("HURL_VARIABLE_base_url", "http://localhost:18080")
     monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: None)
 
     result = runner.invoke(app, ["run", "--tag", "smoke"])
@@ -224,6 +227,7 @@ def test_run_report_drift_writes_missing_baseline_artifact(
         "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
         encoding="utf-8",
     )
+    monkeypatch.setenv("HURL_VARIABLE_base_url", "http://localhost:18080")
 
     def fake_run(
         args: list[str],
@@ -276,6 +280,7 @@ def test_run_drift_check_fails_when_current_run_differs_from_baseline(
         "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
         encoding="utf-8",
     )
+    monkeypatch.setenv("HURL_VARIABLE_base_url", "http://localhost:18080")
     baseline = Path(".entroping") / "drift-baseline.json"
     baseline.write_text(
         json.dumps(
@@ -335,6 +340,7 @@ def test_run_parallel_uses_qanstitution_worker_limit(
         "# entroping: tags=smoke\n\nGET {{base_url}}/checkout\nHTTP 200\n",
         encoding="utf-8",
     )
+    monkeypatch.setenv("HURL_VARIABLE_base_url", "http://localhost:18080")
     captured: dict[str, object] = {}
 
     def fake_run_hurl_files(
@@ -387,6 +393,27 @@ def test_run_env_fails_with_actionable_missing_env_file(
 
     assert result.exit_code == 1
     assert "Environment file not found" in result.output
+
+
+def test_run_preflights_missing_variables_before_hurl_binary_resolution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    (Path("tests") / "health.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: None)
+
+    result = runner.invoke(app, ["run", "--tag", "smoke"])
+
+    assert result.exit_code == 1
+    assert "Unresolved Hurl variables before execution" in result.output
+    assert "base_url" in result.output
+    assert "Hurl binary not found" not in result.output
 
 
 def test_run_reports_no_matching_hurl_tests_with_ci_exit_policy(

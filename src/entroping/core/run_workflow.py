@@ -24,10 +24,14 @@ from entroping.core.drift_report import (
     write_drift_report,
     write_reviewed_drift_baseline_candidate,
 )
-from entroping.core.env_loader import load_environment_variables
+from entroping.core.env_loader import load_environment_variables, load_process_hurl_variables
 from entroping.core.gate_injector import write_injected_execution_copy
 from entroping.core.hurl_discovery import discover_hurl_tests
 from entroping.core.hurl_runner import HurlRunOptions, HurlSuiteResult, run_hurl_files
+from entroping.core.hurl_variable_preflight import (
+    HurlVariablePreflightError,
+    preflight_hurl_variables,
+)
 from entroping.core.report_writer import (
     build_run_report,
     write_html_report,
@@ -36,6 +40,15 @@ from entroping.core.report_writer import (
 )
 from entroping.core.traffic_store import TrafficStore, TrafficStoreError
 from entroping.models.drift import DependencyDriftRoute, DriftReport
+
+__all__ = [
+    "DependencyDriftObservationError",
+    "HurlVariablePreflightError",
+    "NoHurlTestsMatchedError",
+    "RunWorkflowError",
+    "RunWorkflowResult",
+    "execute_run_workflow",
+]
 
 
 class RunWorkflowError(ValueError):
@@ -92,6 +105,7 @@ def execute_run_workflow(
     env_variables = (
         load_environment_variables(environment, root=root) if environment is not None else {}
     )
+    env_variables.update(load_process_hurl_variables())
 
     if not hurl_tests:
         raise NoHurlTestsMatchedError("No Hurl tests matched the requested filters.")
@@ -111,6 +125,11 @@ def execute_run_workflow(
             )
             for hurl_test in hurl_tests
         ]
+        preflight_hurl_variables(
+            execution_copies,
+            variables=env_variables,
+            project_root=root,
+        )
         suite = run_hurl_files(
             [execution.execution_path for execution in execution_copies],
             HurlRunOptions(timeout_ms=law.settings.timeout, variables=env_variables),

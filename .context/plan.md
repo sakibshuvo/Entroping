@@ -58,6 +58,11 @@ project, and a Codex workspace with fast context rehydration.
 - Auditor reviews are explicit through `architect audit --focus auditor`; they
   validate provider JSON before display, write no files, and never affect
   deterministic `run`.
+- `entroping run` preflights unresolved Hurl `{{variable}}` references in
+  selected temporary execution copies before invoking Hurl. It accepts resolved
+  variables from env files, shell `HURL_VARIABLE_<name>` values, local Hurl
+  `[Options] variable` entries, captures, and known Hurl built-ins, while
+  reporting only missing names.
 - Example coverage includes REST-style checkout/support fixtures plus
   GraphQL-over-HTTP and SOAP-over-HTTP fixtures that use ordinary Hurl
   assertions instead of adding protocol-specific runtime engines.

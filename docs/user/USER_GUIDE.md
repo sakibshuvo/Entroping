@@ -350,6 +350,10 @@ envs/ci.env
 envs/prod-smoke.env
 ```
 
+`entroping run --env <name>` loads `envs/<name>.env`, then applies explicit
+shell `HURL_VARIABLE_<name>` values. Missing `{{variable}}` references fail
+before Hurl starts, and the error lists variable names only, not values.
+
 Commit examples, not secrets:
 
 ```text
@@ -357,9 +361,12 @@ envs/local.env.example
 envs/ci.env.example
 ```
 
-For dynamic workflows, use Hurl captures:
+For dynamic workflows, use Hurl `[Options] variable` entries or captures:
 
 ```hurl
+[Options]
+variable: base_url=http://localhost:18080
+
 [Captures]
 order_id: jsonpath "$.order.id"
 ```
@@ -626,7 +633,7 @@ For browser, runtime, VPN, proxy, and permission limits, see the Practical
 Check:
 
 - `--env` value.
-- Environment variables.
+- Environment variables, including `HURL_VARIABLE_<name>` overrides.
 - Base URLs.
 - Secret availability.
 - Network access to dependent services.

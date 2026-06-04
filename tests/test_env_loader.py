@@ -4,7 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from entroping.core.env_loader import EnvironmentLoadError, load_environment_variables
+from entroping.core.env_loader import (
+    EnvironmentLoadError,
+    load_environment_variables,
+    load_process_hurl_variables,
+)
 
 
 def test_load_environment_variables_reads_file_and_process_overrides(
@@ -35,6 +39,26 @@ cart_id=demo-cart-001
 def test_load_environment_variables_rejects_missing_env_file(tmp_path: Path) -> None:
     with pytest.raises(EnvironmentLoadError, match="Environment file not found"):
         load_environment_variables("local", root=tmp_path)
+
+
+def test_load_process_hurl_variables_reads_prefixed_environment_only() -> None:
+    variables = load_process_hurl_variables(
+        environ={
+            "HURL_VARIABLE_base_url": "http://localhost:18080",
+            "HURL_VARIABLE_api_token": "secret-token",
+            "UNRELATED_SECRET": "must-not-load",
+        }
+    )
+
+    assert variables == {
+        "api_token": "secret-token",
+        "base_url": "http://localhost:18080",
+    }
+
+
+def test_load_process_hurl_variables_rejects_invalid_variable_names() -> None:
+    with pytest.raises(EnvironmentLoadError, match="Invalid Hurl environment variable name"):
+        load_process_hurl_variables(environ={"HURL_VARIABLE_": "empty-name"})
 
 
 def test_load_environment_variables_rejects_invalid_env_names(tmp_path: Path) -> None:
