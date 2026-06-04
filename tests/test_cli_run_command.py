@@ -424,7 +424,7 @@ def test_run_reports_no_matching_hurl_tests_with_ci_exit_policy(
 
     def fake_execute_run_workflow(**kwargs: object) -> object:
         _ = kwargs
-        raise NoHurlTestsMatchedError("no matches")
+        raise NoHurlTestsMatchedError("No Hurl tests matched the requested filters.")
 
     monkeypatch.setattr(execution_cli, "execute_run_workflow", fake_execute_run_workflow)
 
@@ -435,6 +435,52 @@ def test_run_reports_no_matching_hurl_tests_with_ci_exit_policy(
     assert ci_result.exit_code == 1
     assert "No Hurl tests matched" in local_result.output
     assert "No Hurl tests matched" in ci_result.output
+
+
+def test_run_forwards_changed_from_to_workflow(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    captured_kwargs: dict[str, object] = {}
+
+    def fake_execute_run_workflow(**kwargs: object) -> object:
+        captured_kwargs.update(kwargs)
+        return SimpleNamespace(
+            suite=HurlSuiteResult(results=()),
+            drift_report=None,
+            latest_state_path=tmp_path / ".entroping" / "latest-run.json",
+            artifacts=(),
+            exit_code=0,
+        )
+
+    monkeypatch.setattr(execution_cli, "execute_run_workflow", fake_execute_run_workflow)
+
+    result = CliRunner().invoke(app, ["run", "--changed-from", "origin/main"])
+
+    assert result.exit_code == 0
+    assert captured_kwargs["changed_from"] == "origin/main"
+
+
+def test_run_reports_empty_changed_selection_with_ci_exit_policy(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    def fake_execute_run_workflow(**kwargs: object) -> object:
+        _ = kwargs
+        raise NoHurlTestsMatchedError("No changed Hurl tests matched from base ref 'main'.")
+
+    monkeypatch.setattr(execution_cli, "execute_run_workflow", fake_execute_run_workflow)
+
+    local_result = CliRunner().invoke(app, ["run", "--changed-from", "main"])
+    ci_result = CliRunner().invoke(app, ["run", "--changed-from", "main", "--ci"])
+
+    assert local_result.exit_code == 0
+    assert ci_result.exit_code == 1
+    assert "No changed Hurl tests matched" in local_result.output
+    assert "No changed Hurl tests matched" in ci_result.output
 
 
 def test_run_prints_failed_stdout_from_workflow_result(

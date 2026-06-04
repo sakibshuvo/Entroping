@@ -31,8 +31,8 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#397](https://github.com/sakibshuvo/Entroping/issues/397)
-selects impacted Hurl tests from git diff to speed local regression loops.
+Current issue: [#398](https://github.com/sakibshuvo/Entroping/issues/398)
+emits SARIF reports for security/code-scanning integrations.
 Next local slices should keep moving useful runtime and developer workflow
 features before returning to blocked external stable-core proof.
 
@@ -51,9 +51,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#397](https://github.com/sakibshuvo/Entroping/issues/397) | Select impacted Hurl tests from git diff to speed local regression loops. |
-| 2 | [#398](https://github.com/sakibshuvo/Entroping/issues/398) | Emit SARIF reports for security/code-scanning integrations. |
-| 3 | [#399](https://github.com/sakibshuvo/Entroping/issues/399) | Add reviewed drift-baseline promotion to reduce accidental baseline churn. |
+| 1 | [#398](https://github.com/sakibshuvo/Entroping/issues/398) | Emit SARIF reports for security/code-scanning integrations. |
+| 2 | [#399](https://github.com/sakibshuvo/Entroping/issues/399) | Add reviewed drift-baseline promotion to reduce accidental baseline churn. |
+| 3 | [#400](https://github.com/sakibshuvo/Entroping/issues/400) | Add OpenAPI operation-to-Hurl coverage matrix evidence. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -100,6 +100,7 @@ entirely inside this repo.
 | [Doctor agent readiness](https://github.com/sakibshuvo/Entroping/issues/394) | Done | `entroping doctor` validates configured agent persona files and reports configured `api_key_env` readiness without printing values or calling providers. |
 | [Doctor JSON health output](https://github.com/sakibshuvo/Entroping/issues/395) | Done | `entroping doctor --output json` emits schema version `entroping.doctor.v1` for CI and agent setup health without provider calls. |
 | [Hurl variable preflight](https://github.com/sakibshuvo/Entroping/issues/396) | Done | `entroping run` fails before Hurl execution when selected tests reference unresolved variables, while reporting only missing names. |
+| [Changed Hurl test runs](https://github.com/sakibshuvo/Entroping/issues/397) | Done | `entroping run --changed-from <ref>` selects existing changed `.hurl` files from Git diff for fast local or agent feedback. |
 | [`py.typed` package marker](https://github.com/sakibshuvo/Entroping/issues/366) | Done | Built wheel and sdist artifacts now include `entroping/py.typed`, and `scripts/package_check.sh` fails if either artifact omits it. |
 | [Run workflow integration proof](https://github.com/sakibshuvo/Entroping/issues/367) | Done | A Python integration test invokes `entroping run` with a fake `hurl` executable, proving discovery, gate injection, subprocess execution, source immutability, and JSON/JUnit reports together. |
 | [Shell script quality gate](https://github.com/sakibshuvo/Entroping/issues/369) | Done | `scripts/shell_quality.sh` now runs `bash -n` over tracked shell scripts, runs ShellCheck when available, and is wired into the feature gate before Python checks. |

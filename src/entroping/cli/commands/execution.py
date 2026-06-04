@@ -154,6 +154,13 @@ def run(
         bool,
         typer.Option("--drift-check", help="Compare against baseline."),
     ] = False,
+    changed_from: Annotated[
+        str | None,
+        typer.Option(
+            "--changed-from",
+            help="Run existing changed .hurl files from a Git base ref.",
+        ),
+    ] = None,
 ) -> None:
     """Run Hurl suites with QAnstitution gates."""
 
@@ -175,9 +182,10 @@ def run(
             report_formats=report_formats,
             parallel=parallel,
             drift_check=drift_check,
+            changed_from=changed_from,
         )
     except NoHurlTestsMatchedError as exc:
-        console.print("[yellow]No Hurl tests matched the requested filters.[/yellow]")
+        console.print(safe_cli_text(exc), style="yellow", markup=False)
         raise typer.Exit(1 if ci else 0) from exc
     except (
         DriftReportError,

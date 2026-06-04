@@ -69,6 +69,9 @@ project, and a Codex workspace with fast context rehydration.
   variables from env files, shell `HURL_VARIABLE_<name>` values, local Hurl
   `[Options] variable` entries, captures, and known Hurl built-ins, while
   reporting only missing names.
+- `entroping run --changed-from <ref>` selects existing changed `.hurl` files
+  from Git diff for fast local or agent feedback; it is not a replacement for
+  full-suite release gates.
 - Example coverage includes REST-style checkout/support fixtures plus
   GraphQL-over-HTTP and SOAP-over-HTTP fixtures that use ordinary Hurl
   assertions instead of adding protocol-specific runtime engines.

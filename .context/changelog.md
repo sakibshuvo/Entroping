@@ -2,6 +2,10 @@
 
 ## 2026-06-03
 
+- Added issue #397's changed-test run mode so
+  `entroping run --changed-from <ref>` selects existing changed `.hurl` files
+  from Git diff for fast local or agent feedback while preserving full-suite
+  `run` as the default release gate.
 - Added issue #395's machine-readable doctor output so
   `entroping doctor --output json` emits schema version
   `entroping.doctor.v1` with tool, traffic-state, QAnstitution, and

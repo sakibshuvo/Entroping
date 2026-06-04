@@ -505,6 +505,18 @@ If the baseline is missing, `--report drift` writes a machine-readable
 findings after Hurl itself has finished, so Hurl failures are still visible. See
 [Drift Baseline Workflow](DRIFT_BASELINE_WORKFLOW.md) for the full review path.
 
+### Fast Changed-Test Runs
+
+Use changed-test selection when you are iterating locally on a small branch:
+
+```bash
+entroping run --changed-from origin/main --tag smoke
+```
+
+This mode selects existing changed `.hurl` files from Git diff, skips deleted
+files, and follows rename targets. It is a fast feedback shortcut for developers
+and agents, not a release gate. Keep full-suite `entroping run --ci` in CI.
+
 ## 12. Studio
 
 Open the read-only local Studio TUI:
