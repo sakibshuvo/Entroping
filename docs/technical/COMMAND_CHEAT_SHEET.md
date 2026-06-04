@@ -134,9 +134,12 @@ cookies, bodies, or captured values. JSON output uses
 Current alpha implementation supports capture-only `watch`, basic Hurl
 generation through `freeze --name <flow> [--golden]`, and dependency map export
 through `map --export mermaid|dot|md|png`. `freeze --mock <service>` writes
-WireMock-compatible mappings from redacted dependency traffic. PNG map rendering
-uses local Graphviz `dot` when it is available. `freeze`, `freeze --mock`, and
-`map` accept repeatable capture filters:
+WireMock-compatible mappings from redacted dependency traffic. Written Hurl,
+WireMock, and PNG dependency-map artifacts also get value-free approval
+manifests under `reports/approvals/` with checksums, source fingerprints, and
+counts-only redaction summaries. PNG map rendering uses local Graphviz `dot`
+when it is available. `freeze`, `freeze --mock`, and `map` accept repeatable
+capture filters:
 
 - `--include-host` / `--exclude-host`
 - `--include-method` / `--exclude-method`
@@ -157,6 +160,7 @@ request path only, not query strings, headers, cookies, or bodies.
 | `entroping freeze --exclude-path <path>` | Remove noisy request paths before artifact generation |
 | `entroping map --export <fmt>` | Export dependency map |
 | `entroping map --include-method <method>` | Map only matching HTTP methods |
+| `reports/approvals/*.json` | Local approval manifests for written traffic-derived artifacts |
 
 Examples:
 

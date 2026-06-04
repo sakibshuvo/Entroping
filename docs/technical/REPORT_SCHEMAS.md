@@ -26,6 +26,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Failure bundle manifest | `entroping.failure-bundle.v1` | `reports/failure-bundle/manifest.json` | Inline contract |
 | Coverage badges | Shields endpoint schema v1 | `reports/badges/*.json` | External Shields endpoint format |
 | Agent run manifest | `entroping.agent-run-manifest.v1` | `.entroping/agent-runs/*.json` | [agent-run-manifest.v1.schema.json](report-schemas/agent-run-manifest.v1.schema.json) |
+| Traffic artifact approval | `entroping.traffic-artifact-approval.v1` | `reports/approvals/*.json` | [traffic-artifact-approval.v1.schema.json](report-schemas/traffic-artifact-approval.v1.schema.json) |
 | Architect OpenAPI audit | `entroping.openapi-audit.v1` | `architect audit --output json` stdout | Inline contract |
 | Traceability report | `entroping.traceability-report.v1` | `entroping report traceability --output json` stdout | [traceability-report.v1.schema.json](report-schemas/traceability-report.v1.schema.json) |
 | SARIF report | SARIF 2.1.0 | `reports/entroping.sarif` | External SARIF schema |
@@ -85,6 +86,24 @@ version, size, and SHA-256 hash. The bundle may include sanitized run JSON, bug
 Markdown, failed-test Hurl metadata, JUnit, HTML, effective-policy, and
 redaction-review artifacts. It must not include raw traffic state, local env
 files, raw source Hurl contents, provider credentials, or unredacted secrets.
+
+Traffic artifact approval manifests are written by artifact-generating Eye
+commands:
+
+```bash
+entroping freeze --name checkout_flow --golden
+entroping freeze --name refund_flow --mock payments
+entroping map --export png
+```
+
+They live under `reports/approvals/` and record workflow, deterministic source
+session fingerprint, source record fingerprints, generated artifact paths,
+sizes, SHA-256 checksums, and counts-only redaction summaries. They do not store
+raw traffic state, URLs, headers, query values, request/response bodies, local
+env files, source artifact contents, provider credentials, or approval
+decisions. A manifest proves generated artifacts can be reviewed against
+redaction and checksum evidence; it does not mean the artifacts are safe to
+commit without human review.
 
 Agent run manifests are written by prompt-backed Architect commands:
 

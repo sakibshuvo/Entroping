@@ -19,6 +19,11 @@ from entroping.bridge.traffic_to_graph import (
     render_dependency_graph_mermaid,
 )
 from entroping.core.safe_write import SafeWriteError, safe_write_bytes
+from entroping.core.traffic_artifact_manifest import (
+    TrafficArtifactApprovalError,
+    TrafficArtifactManifestArtifact,
+    write_traffic_artifact_approval_manifest,
+)
 from entroping.core.traffic_filters import (
     TrafficCaptureFilters,
     TrafficFilterError,
@@ -45,6 +50,7 @@ class DependencyMapResult:
     content: str
     route_count: int
     output_path: Path | None = None
+    manifest_path: Path | None = None
 
 
 def run_dependency_map(
@@ -82,11 +88,28 @@ def run_dependency_map(
     if normalized_export == "png":
         output_path = root / "reports" / "dependency-map.png"
         _render_png_export(graph, output_path=output_path, root=root)
+        try:
+            manifest = write_traffic_artifact_approval_manifest(
+                project_root=root,
+                manifest_name="dependency-map-png",
+                workflow="dependency-map",
+                source_session_name=session.name,
+                source_records=tuple(record.exchange for record in session.records),
+                artifacts=(
+                    TrafficArtifactManifestArtifact(
+                        kind="dependency_map",
+                        path=output_path,
+                    ),
+                ),
+            )
+        except TrafficArtifactApprovalError as exc:
+            raise DependencyMapError(str(exc)) from exc
         return DependencyMapResult(
             export_format=normalized_export,
             content="",
             route_count=len(graph.routes),
             output_path=output_path,
+            manifest_path=manifest.manifest_path,
         )
 
     return DependencyMapResult(

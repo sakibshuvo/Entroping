@@ -259,6 +259,11 @@ generated Hurl files; `map --export mermaid|dot|md|png` emits host-level depende
 maps from redacted traffic; `freeze --mock <service>` writes WireMock-compatible
 dependency mappings. PNG export requires local Graphviz `dot`; use Mermaid, DOT,
 or Markdown export when Graphviz is not installed.
+Written Hurl, WireMock, and PNG dependency-map artifacts also write approval
+manifests under `reports/approvals/`. These manifests contain generated paths,
+checksums, deterministic source fingerprints, and counts-only redaction
+summaries; they do not contain raw traffic values or approve the artifact for
+commit by themselves.
 
 Use capture filters when the recorded session contains noise or multiple flows:
 

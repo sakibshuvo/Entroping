@@ -562,6 +562,7 @@ Suggested future tables:
 | `run_history` | Last run summary used by reports and bug templates |
 | `ai_edit_audit` | AI generation/refactor metadata, prompts, file paths, and validation status |
 | `agent_run_manifest` | Value-free AI-assisted Architect run evidence |
+| `traffic_artifact_approval` | Value-free approval evidence for generated traffic-derived artifacts |
 | `baseline_snapshot` | Drift and golden-master comparison metadata |
 
 Retention must be configurable. A safe default is bounded local growth, such as size-based rotation around 1 GB or age-based cleanup, with explicit export commands later if needed.
@@ -592,6 +593,14 @@ Mock generation selects records by safe service selector, matching either an
 exact host such as `payments.example.test` or the first host label such as
 `payments`. Entroping generates mappings for standard mock servers such as
 WireMock; it does not become the mock server itself.
+
+`freeze` and `freeze --mock` write review manifests under `reports/approvals/`.
+The manifest uses schema `entroping.traffic-artifact-approval.v1` and records
+generated artifact paths, SHA-256 checksums, deterministic source session
+fingerprints, source record fingerprints, and counts-only redaction summaries.
+It must not store raw traffic state, URLs, headers, query values, request or
+response bodies, local env files, generated artifact contents, provider
+credentials, or approval decisions.
 
 Capture filters are applied after redaction and before Hurl, WireMock, or graph
 compilation. Include filters narrow by host, method, and path; exclude filters
@@ -627,7 +636,9 @@ Current implementation note: Mermaid, DOT, Markdown, and PNG exports are impleme
 through a pure `bridge.traffic_to_graph` compiler and `core.dependency_mapper`
 adapter. PNG export renders through local Graphviz `dot` when available and fails
 with an actionable missing-renderer message otherwise. The same capture filters
-used by `freeze` can narrow map exports before graph compilation.
+used by `freeze` can narrow map exports before graph compilation. PNG exports
+also write `reports/approvals/dependency-map-png.json` with the same
+value-free traffic artifact approval schema used by `freeze`.
 
 ## 13. Reporting Design
 
@@ -769,8 +780,7 @@ to build this view. The traffic browser reads
 redacted SQLModel-backed state from `.entroping/state.db` through a read-only
 query path, infers target/dependency grouping from filtered captured traffic,
 and displays route summaries plus safe redaction categories and counts. It does
-not start `watch`, control live capture, or render raw URLs with query values,
-headers, bodies, cookies, tokens, or secrets.
+not start `watch`, control live capture, or render raw URLs with query values, headers, bodies, cookies, tokens, or secrets.
 It must not mutate tests, config, reports, or runtime state. Near-term Studio
 work is report-backed: CLI and report artifacts remain the primary workflow,
 and Studio may only add read-only views over sanitized reports, applied gate
@@ -880,6 +890,7 @@ redacted before serialization, and absolute project-root paths are relativized.
 | --- | --- | --- |
 | `entroping run` | `.entroping/latest-run.json` | Runtime state for follow-up report commands; uses `entroping.run-report.v1`; not committed. |
 | Prompt-backed `entroping architect ...` | `.entroping/agent-runs/*.json` | Value-free AI run evidence using `entroping.agent-run-manifest.v1`; not committed and not read by `run`. |
+| `entroping freeze` / `freeze --mock` / `map --export png` | `reports/approvals/*.json` | Value-free approval evidence for generated traffic artifacts using `entroping.traffic-artifact-approval.v1`. |
 | `entroping run --report json` | `reports/run-latest.json` | Machine-readable run report using `entroping.run-report.v1`. |
 | `entroping run --report junit` | `reports/junit.xml` | CI-compatible test report. |
 | `entroping run --report html` | `reports/run-latest.html` | Human-readable local report. |

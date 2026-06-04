@@ -122,14 +122,19 @@ def test_freeze_writes_validated_hurl_from_redacted_traffic(
     result = CliRunner().invoke(app, ["freeze", "--name", "checkout_flow", "--golden"])
 
     output = Path("tests/generated/checkout_flow.hurl")
+    manifest = Path("reports/approvals/freeze-checkout_flow.json")
     assert result.exit_code == 0
     assert "Wrote Hurl test: tests/generated/checkout_flow.hurl" in result.output
+    assert "Wrote approval manifest: reports/approvals/freeze-checkout_flow.json" in result.output
     assert output.is_file()
+    assert manifest.is_file()
     content = output.read_text(encoding="utf-8")
+    manifest_content = manifest.read_text(encoding="utf-8")
     assert "# entroping: source=traffic" in content
     assert "POST https://api.example.test/checkout?token=%5BREDACTED%5D" in content
     assert "Authorization: [REDACTED]" in content
     assert "live-secret" not in content
+    assert "live-secret" not in manifest_content
     assert 'jsonpath "$.status" == "accepted"' in content
 
 
@@ -281,15 +286,23 @@ def test_freeze_mock_writes_wiremock_mapping_without_raw_secret(
     result = CliRunner().invoke(app, ["freeze", "--name", "refund_flow", "--mock", "payments"])
 
     output = Path("mocks/payments/refund_flow-001.json")
+    manifest = Path("reports/approvals/freeze-refund_flow-mock-payments.json")
     assert result.exit_code == 0
     assert "Wrote WireMock mapping: mocks/payments/refund_flow-001.json" in result.output
+    assert (
+        "Wrote approval manifest: reports/approvals/freeze-refund_flow-mock-payments.json"
+        in result.output
+    )
     assert output.is_file()
+    assert manifest.is_file()
     content = output.read_text(encoding="utf-8")
+    manifest_content = manifest.read_text(encoding="utf-8")
     payload = json.loads(content)
     assert payload["request"] == {"method": "POST", "urlPath": "/charge"}
     assert payload["response"]["status"] == 201
     assert payload["response"]["headers"] == {"Content-Type": "application/json"}
     assert payload["response"]["jsonBody"]["token"] == "[REDACTED]"
+    assert "wire-secret" not in manifest_content
     assert "wire-secret" not in content
 
 
@@ -416,6 +429,8 @@ def test_map_png_writes_dependency_map_without_raw_secret(
     assert result.exit_code == 0
     assert Path("reports/dependency-map.png").read_bytes() == b"\x89PNG\r\n"
     assert "Wrote dependency map: reports/dependency-map.png" in result.output
+    assert "Wrote approval manifest: reports/approvals/dependency-map-png.json" in result.output
+    assert Path("reports/approvals/dependency-map-png.json").is_file()
     assert "png-secret" not in result.output
 
 

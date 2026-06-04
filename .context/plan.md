@@ -66,6 +66,10 @@ project, and a Codex workspace with fast context rehydration.
 - Prompt-backed Architect build, refactor, and Auditor review evidence includes
   provider, latency, token counts when available, and estimated cost when local
   QAnstitution rate hints are configured, while manifests remain value-free.
+- Traffic-derived written artifacts from `freeze`, `freeze --mock`, and
+  `map --export png` now get value-free approval manifests under
+  `reports/approvals/` with generated paths, checksums, deterministic source
+  fingerprints, and counts-only redaction summaries.
 - `entroping doctor` validates configured Builder/Auditor/Breaker persona files
   through the same root-bounded persona loader used at runtime and reports
   `api_key_env` readiness without printing values or calling providers.

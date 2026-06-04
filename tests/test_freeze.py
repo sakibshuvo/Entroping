@@ -1,5 +1,6 @@
 """Tests for the freeze workflow filesystem boundary."""
 
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -120,6 +121,14 @@ def test_run_freeze_writes_generated_hurl(tmp_path: Path) -> None:
     assert "GET https://api.example.test/checkout" in result.output_path.read_text(
         encoding="utf-8"
     )
+    assert result.manifest_path == tmp_path / "reports" / "approvals" / "freeze-checkout_flow.json"
+    manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    assert manifest["schema_version"] == "entroping.traffic-artifact-approval.v1"
+    assert manifest["workflow"] == "freeze-hurl"
+    assert manifest["source"]["session_name"] == "checkout_flow"
+    assert manifest["source"]["record_count"] == 1
+    assert manifest["artifacts"][0]["kind"] == "hurl"
+    assert manifest["artifacts"][0]["path"] == "tests/generated/checkout_flow.hurl"
 
 
 def test_run_freeze_applies_capture_filters_before_hurl_generation(tmp_path: Path) -> None:
@@ -268,6 +277,17 @@ def test_run_freeze_mock_reports_missing_state_and_writes_mappings(tmp_path: Pat
     assert result.record_count == 1
     assert result.output_paths == (tmp_path / "mocks" / "payments" / "refund_flow-001.json",)
     assert '"request"' in result.output_paths[0].read_text(encoding="utf-8")
+    assert (
+        result.manifest_path
+        == tmp_path / "reports" / "approvals" / "freeze-refund_flow-mock-payments.json"
+    )
+    manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    assert manifest["schema_version"] == "entroping.traffic-artifact-approval.v1"
+    assert manifest["workflow"] == "freeze-wiremock"
+    assert manifest["source"]["session_name"] == "refund_flow"
+    assert manifest["source"]["record_count"] == 1
+    assert manifest["artifacts"][0]["kind"] == "wiremock"
+    assert manifest["artifacts"][0]["path"] == "mocks/payments/refund_flow-001.json"
 
 
 def test_run_freeze_mock_applies_capture_filters_before_wiremock_generation(

@@ -25,6 +25,7 @@ from entroping.core.run_delta import (
     build_run_delta_report,
     run_delta_report_to_dict,
 )
+from entroping.core.traffic_artifact_manifest import TRAFFIC_ARTIFACT_APPROVAL_SCHEMA_VERSION
 from entroping.models.drift import (
     DriftBaseline,
     DriftBaselineTest,
@@ -299,6 +300,23 @@ def test_agent_run_manifest_v1_schema_declares_versioned_value_free_fields() -> 
     assert "package_sha256" in schema["properties"]["prompt"]["properties"]
     assert "raw_prompt" not in json.dumps(schema)
     assert "api_key" not in json.dumps(schema)
+
+
+def test_traffic_artifact_approval_v1_schema_declares_value_free_fields() -> None:
+    schema = json.loads(
+        (SCHEMA_DIR / "traffic-artifact-approval.v1.schema.json").read_text()
+    )
+
+    assert (
+        schema["properties"]["schema_version"]["const"]
+        == TRAFFIC_ARTIFACT_APPROVAL_SCHEMA_VERSION
+    )
+    assert "record_fingerprints" in schema["properties"]["source"]["properties"]
+    assert "sha256" in schema["properties"]["artifacts"]["items"]["properties"]
+    serialized = json.dumps(schema)
+    assert "raw_url" not in serialized
+    assert "headers" not in serialized
+    assert "body_text" not in serialized
 
 
 def test_drift_report_v1_schema_contract_is_versioned_and_stable() -> None:
@@ -584,6 +602,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         ),
         "entroping.effective-policy-report.v1": (
             SCHEMA_DIR / "effective-policy-report.v1.schema.json"
+        ),
+        "entroping.traffic-artifact-approval.v1": (
+            SCHEMA_DIR / "traffic-artifact-approval.v1.schema.json"
         ),
     }
     schema_doc = (REPO_ROOT / "docs" / "technical" / "REPORT_SCHEMAS.md").read_text(
