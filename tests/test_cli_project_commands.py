@@ -136,6 +136,165 @@ def test_doctor_reports_valid_config_health(
     assert "QAnstitution: valid" in result.output
 
 
+def test_doctor_reports_configured_agent_readiness_without_secret_values(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ENTROPING_BUILDER_KEY", "sk-proj-live-secret")
+    monkeypatch.setattr(
+        project_cli,
+        "discover_hurl",
+        lambda binary="hurl": SimpleNamespace(available=True, path=f"/usr/local/bin/{binary}"),
+    )
+    (tmp_path / "agents").mkdir()
+    (tmp_path / "agents" / "builder.md").write_text("Build focused Hurl tests.", encoding="utf-8")
+    (tmp_path / "agents" / "auditor.md").write_text(
+        "Review Hurl coverage and policy risk.",
+        encoding="utf-8",
+    )
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/builder.md
+    model: openai/builder-model
+    api_key_env: ENTROPING_BUILDER_KEY
+  auditor:
+    source: agents/auditor.md
+    model: openai/auditor-model
+    api_key_env: ENTROPING_MISSING_AUDITOR_KEY
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 0
+    assert "Agents: 2 configured" in result.output
+    assert "Agent builder: ready" in result.output
+    assert "model openai/builder-model" in result.output
+    assert "api_key_env ENTROPING_BUILDER_KEY: set" in result.output
+    assert "sk-proj-live-secret" not in result.output
+    assert "Agent auditor: ready" in result.output
+    assert "api_key_env ENTROPING_MISSING_AUDITOR_KEY: not set" in result.output
+    assert "Agent breaker:" not in result.output
+
+
+def test_doctor_reports_no_configured_agents_as_optional(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        project_cli,
+        "discover_hurl",
+        lambda binary="hurl": SimpleNamespace(available=True, path=f"/usr/local/bin/{binary}"),
+    )
+    runner.invoke(app, ["init", "--minimal"])
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 0
+    assert "Agents: none configured" in result.output
+
+
+def test_doctor_reports_agent_without_api_key_env_as_local_ready(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        project_cli,
+        "discover_hurl",
+        lambda binary="hurl": SimpleNamespace(available=True, path=f"/usr/local/bin/{binary}"),
+    )
+    (tmp_path / "agents").mkdir()
+    (tmp_path / "agents" / "breaker.md").write_text(
+        "Draft hostile local checks.",
+        encoding="utf-8",
+    )
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  breaker:
+    source: agents/breaker.md
+    model: ollama/qwen-local
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 0
+    assert "Agents: 1 configured agent" in result.output
+    assert "Agent breaker: ready" in result.output
+    assert "api_key_env: not configured" in result.output
+
+
+def test_doctor_fails_for_configured_missing_agent_persona(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/missing.md
+    model: openai/builder-model
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 1
+    assert "Agent builder: invalid" in result.output
+    assert "Agent persona file not found" in result.output
+
+
+def test_doctor_fails_for_secret_like_agent_persona_without_printing_secret(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "agents").mkdir()
+    (tmp_path / "agents" / "builder.md").write_text(
+        "Use sk-proj-live-secret while testing.",
+        encoding="utf-8",
+    )
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/builder.md
+    model: openai/builder-model
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 1
+    assert "Agent builder: invalid" in result.output
+    assert "must not contain secret-like values" in result.output
+    assert "sk-proj-live-secret" not in result.output
+
+
 def test_doctor_reports_missing_traffic_state_without_creating_it(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

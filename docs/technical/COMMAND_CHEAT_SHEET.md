@@ -36,7 +36,10 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 Current alpha implementation supports `init`, `doctor`, `config list`, and
 `config set` for non-secret Builder/Auditor/Breaker model routing. `config set`
 updates `qanstitution.yaml`, creates a missing local persona Markdown template,
-and does not store credentials or call model providers.
+and does not store credentials or call model providers. `doctor` validates any
+configured agent persona files with the same safety rules used by Architect and
+reports whether configured `api_key_env` names are present without printing
+values or contacting providers.
 
 | Command | Purpose |
 | --- | --- |

@@ -625,6 +625,13 @@ persona file is missing, it creates a local Markdown template under the configur
 relative source path after rejecting absolute paths, traversal, symlinks, non-Markdown
 paths, URLs, and control characters.
 
+`doctor` validates configured agent persona files through the same root-bounded
+persona loader used by Architect commands. It reports unsafe, missing,
+oversized, unreadable, non-Markdown, control-character, and secret-like persona
+content as setup failures. It may report whether configured `api_key_env`
+environment-variable names are present, but it must not print values or call
+providers.
+
 ### Intelligence
 
 ```text

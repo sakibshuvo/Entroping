@@ -169,6 +169,10 @@ entroping run --ci --report junit --report html
 ```
 
 This path should work with no LiteLLM installation and no model credentials.
+When agents are configured, `doctor` verifies persona files and reports whether
+named `api_key_env` variables are set, but it does not print values or call the
+provider. Missing `api_key_env` values are readiness warnings for AI commands,
+not blockers for deterministic `run`.
 Commit generated Hurl files after review, then let CI run the deterministic
 suite. If an automated workflow wants to generate new tests with AI, make it a
 scheduled or manual workflow that uploads diffs for review instead of merging
@@ -197,6 +201,8 @@ actual key.
 If Architect fails before calling the model:
 
 - Run `entroping config list` and confirm the selected agent has a model.
+- Run `entroping doctor` and fix any unsafe, missing, oversized, non-Markdown,
+  or secret-like persona file warnings.
 - Check that the persona file exists under the project root.
 - Check that `api_base` is an `http` or `https` URL without userinfo, query
   parameters, or fragments.

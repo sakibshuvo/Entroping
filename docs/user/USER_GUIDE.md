@@ -58,7 +58,10 @@ After installation:
 entroping doctor
 ```
 
-`doctor` should tell you whether Hurl, `hurlfmt`, local traffic state, local config, and QAnstitution files are usable.
+`doctor` should tell you whether Hurl, `hurlfmt`, local traffic state, local
+config, QAnstitution files, and any configured AI agent personas are usable.
+It checks whether configured `api_key_env` variables are present without
+printing their values, and it does not call model providers.
 
 For local solo development, keep the install editable with `uv tool install -e .`. Homebrew, Nuitka binaries, Docker, and PyPI are distribution targets after the CLI is stable.
 
@@ -663,6 +666,8 @@ for secrets.
 ### Local Brain Feels Slow
 
 Check whether the local Ollama model is installed and running. If the machine is memory-constrained, configure a smaller local model or explicitly switch the agent model to a cloud provider.
+Run `entroping doctor` to confirm configured persona files are safe and the
+expected `api_key_env` names are set without exposing secret values.
 
 ## 16. Safe Defaults
 

@@ -152,7 +152,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | --- | --- | --- |
 | SET-001 | Initialize a project with standard Entroping files | `entroping init` creates `qanstitution.yaml`, `tests/`, `envs/`, `agents/`, `rules/`, `.entroping/`, and starter docs |
 | SET-002 | Support minimal initialization | `entroping init --minimal` creates only required runtime files |
-| SET-003 | Validate local toolchain | `entroping doctor` checks Python runtime, Hurl binary, mitmproxy, SQLite state, config, and readable rules |
+| SET-003 | Validate local toolchain | `entroping doctor` checks Python runtime, Hurl binary, mitmproxy, SQLite state, config, readable rules, configured agent persona safety, and non-secret provider env readiness |
 | SET-004 | Configure agent model routing | `entroping config set --agent auditor --model <id>` updates local configuration without printing secrets |
 | SET-005 | List effective config | `entroping config list` shows resolved non-secret configuration and imported rules |
 | SET-006 | Support local-first brain setup | AI commands can use an Ollama-backed local model by default and cloud models only through explicit configuration |

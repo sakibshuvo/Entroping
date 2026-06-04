@@ -2,6 +2,10 @@
 
 ## 2026-06-03
 
+- Added issue #394's doctor agent-readiness validation so configured
+  Builder/Auditor/Breaker persona files are checked through the runtime persona
+  loader, unsafe persona setup fails locally, and configured `api_key_env`
+  names are reported without printing secret values or calling providers.
 - Added issue #396's Hurl variable preflight so `entroping run` scans
   selected temporary execution copies before invoking Hurl, fails early with
   missing variable names only, accepts `envs/<name>.env`, shell
