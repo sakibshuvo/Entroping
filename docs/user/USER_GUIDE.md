@@ -224,6 +224,17 @@ The redaction review writes `reports/redaction-review.md` by default and can
 write `reports/redaction-review.html` with `--output html`. It contains counts
 and categories only, not raw header, query, or body values.
 
+Vendor a reviewed local policy pack when you want reusable gates without
+hand-editing the import path:
+
+```bash
+entroping config vendor-policy-pack --pack ../entroping-policy-pack-api-baseline --name api-baseline
+```
+
+The command copies the pack under `policy-packs/`, validates the manifest and
+QAnstitution entrypoint, and appends a local import. It does not fetch from
+remote registries or make `entroping run` depend on a paid service.
+
 Review the effective QAnstitution after local imports and overrides:
 
 ```bash

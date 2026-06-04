@@ -257,6 +257,9 @@ Reusable policy-pack structure is documented in
 [POLICY_PACK_LAYOUT.md](POLICY_PACK_LAYOUT.md). Policy packs are currently
 normal local QAnstitution imports plus reviewable metadata and examples, not a
 separate runtime format.
+Use `entroping config vendor-policy-pack --pack <path> [--name <dir>]` to copy a
+reviewed local pack under `policy-packs/`, validate its manifest and entrypoint,
+and append the local import without fetching from a remote registry.
 
 Organization import controls are defined in
 [ADR-0011-organization-qanstitution-import-controls.md](https://github.com/sakibshuvo/Entroping/blob/main/decisions/ADR-0011-organization-qanstitution-import-controls.md).

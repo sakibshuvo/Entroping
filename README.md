@@ -352,6 +352,7 @@ entroping init [--minimal]
 entroping doctor [--output <text|json>]
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
+entroping config vendor-policy-pack --pack <path> [--name <dir>]
 
 entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
 entroping architect refactor --target <glob> --prompt <text>

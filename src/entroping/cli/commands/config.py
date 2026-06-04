@@ -11,6 +11,7 @@ from entroping.core.config_writer import (
     ConfigUpdateError,
     update_agent_model_with_persona_template,
 )
+from entroping.core.policy_pack_vendor import PolicyPackVendorError, vendor_policy_pack
 from entroping.models.qanstitution import AgentRole
 
 app = typer.Typer(help="Inspect or update non-secret configuration.")
@@ -100,6 +101,36 @@ def config_set(
     if result.persona_template_path is not None:
         created_path = display_cli_path(result.persona_template_path)
         console.print(f"Created persona template: {created_path}")
+
+
+@app.command("vendor-policy-pack")
+def config_vendor_policy_pack(
+    pack: Annotated[Path, typer.Option("--pack", help="Local policy-pack directory.")],
+    name: Annotated[
+        str | None,
+        typer.Option("--name", help="Destination directory under policy-packs/."),
+    ] = None,
+) -> None:
+    """Vendor a reviewed local policy pack into this project."""
+
+    try:
+        result = vendor_policy_pack(
+            project_root=Path.cwd(),
+            config_path=Path("qanstitution.yaml"),
+            pack_path=pack,
+            name=name,
+        )
+    except PolicyPackVendorError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+
+    noun = "gate" if len(result.gate_ids) == 1 else "gates"
+    console.print(f"[green]Vendored policy pack {result.pack_id}[/green]")
+    console.print(f"Destination: {display_cli_path(result.destination)}")
+    console.print(f"Import: {result.import_ref}")
+    console.print(f"Gates: {len(result.gate_ids)} {noun}")
+    if result.final_gate_ids:
+        console.print(f"Final gates: {', '.join(result.final_gate_ids)}")
 
 
 def _agent_role_order() -> tuple[AgentRole, ...]:

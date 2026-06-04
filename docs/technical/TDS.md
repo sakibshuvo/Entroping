@@ -240,8 +240,9 @@ settings:
 
 Reusable QAnstitution policy packs use the same import boundary and are
 documented in [POLICY_PACK_LAYOUT.md](POLICY_PACK_LAYOUT.md). The pack layout is
-a design contract and example shape; it does not add registry, remote-fetch, or
-runtime manifest behavior by itself.
+a design contract and example shape; `config vendor-policy-pack` can copy a
+reviewed local pack into `policy-packs/` and append a local import, but it does
+not add registry, remote-fetch, or runtime manifest behavior.
 
 Organization QAnstitution import controls are defined by
 [ADR-0011-organization-qanstitution-import-controls.md](https://github.com/sakibshuvo/Entroping/blob/main/decisions/ADR-0011-organization-qanstitution-import-controls.md).
@@ -620,6 +621,7 @@ entroping init [--minimal]
 entroping doctor [--output <text|json>]
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
+entroping config vendor-policy-pack --pack <path> [--name <dir>]
 ```
 
 `doctor --output json` emits schema version `entroping.doctor.v1` with overall
@@ -633,6 +635,12 @@ traffic state, or unsafe configured personas exit `1`.
 persona file is missing, it creates a local Markdown template under the configured
 relative source path after rejecting absolute paths, traversal, symlinks, non-Markdown
 paths, URLs, and control characters.
+
+`config vendor-policy-pack` copies a reviewed local policy-pack directory under
+`policy-packs/<name>/`, validates its `entroping-policy-pack.yaml` manifest and
+QAnstitution entrypoint before writing, then appends a local import to
+`qanstitution.yaml`. It is local-only: it does not fetch HTTP imports, consult a
+registry, authenticate to a catalog, or add runtime manifest dependency.
 
 `doctor` validates configured agent persona files through the same root-bounded
 persona loader used by Architect commands. It reports unsafe, missing,

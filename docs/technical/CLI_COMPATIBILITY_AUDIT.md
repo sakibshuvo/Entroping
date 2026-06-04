@@ -27,6 +27,7 @@ entroping init [--minimal]
 entroping doctor [--output <text|json>]
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
+entroping config vendor-policy-pack --pack <path> [--name <dir>]
 
 entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
 entroping architect refactor --target <glob> --prompt <text>
@@ -52,11 +53,12 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 
 | Area | Decision |
 | --- | --- |
-| Command naming | Keep the nested noun/verb shape: `architect build`, `architect refactor`, `report bug`, `report redaction`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary`. |
+| Command naming | Keep the nested noun/verb shape: `config vendor-policy-pack`, `architect build`, `architect refactor`, `report bug`, `report redaction`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary`. |
 | Aliases | No alias is compatibility-supported. Deprecated brainstorm names such as `gen`, `fix`, `scan`, `chaos`, `verify`, top-level `build`, `auth`, and `report --type` remain unavailable. |
 | Global flags | Only Typer completion helpers and `--version` are current global flags. `--verbose` and `--dry-run` are not product flags. |
 | Determinism | `entroping run` remains deterministic, Hurl-backed, and LLM-free. |
 | Prompted generation | Prompt-backed `architect build` and `architect refactor` may call LiteLLM, but generated files must pass validation before write. `architect build` defaults to Builder and accepts `--agent breaker` for hostile/security generation; deterministic `architect audit --focus logic --output json` emits `entroping.openapi-audit.v1`; `architect audit --focus auditor` is the explicit Auditor review path. |
+| Policy-pack vendoring | `config vendor-policy-pack` accepts reviewed local pack directories only. It copies the pack under `policy-packs/`, validates the manifest and QAnstitution entrypoint, appends a local import, and does not fetch from registries or remote URLs. |
 | Studio | `studio` is read-only until mutation workflows are designed and accepted separately. |
 | Report formats | `run --report` is repeatable and owns run artifact creation. `report bug`, `report redaction`, `report policy`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, and `report review-summary` are handoff/reporting commands, not test execution commands. |
 

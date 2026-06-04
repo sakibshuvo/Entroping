@@ -12,6 +12,7 @@ entroping init [--minimal]
 entroping doctor [--output <text|json>]
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
+entroping config vendor-policy-pack --pack <path> [--name <dir>]
 
 entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
 entroping architect refactor --target <glob> --prompt <text>
@@ -35,13 +36,16 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 
 ## Setup
 
-Current alpha implementation supports `init`, `doctor`, `config list`, and
-`config set` for non-secret Builder/Auditor/Breaker model routing. `config set`
-updates `qanstitution.yaml`, creates a missing local persona Markdown template,
-and does not store credentials or call model providers. `doctor` validates any
-configured agent persona files with the same safety rules used by Architect and
-reports whether configured `api_key_env` names are present without printing
-values or contacting providers.
+Current alpha implementation supports `init`, `doctor`, `config list`,
+`config set`, and `config vendor-policy-pack`. `config set` updates
+`qanstitution.yaml`, creates a missing local persona Markdown template, and does
+not store credentials or call model providers. `config vendor-policy-pack`
+copies a reviewed local pack under `policy-packs/`, validates its manifest and
+QAnstitution entrypoint, then appends a local import without remote fetches or
+registry behavior. `doctor` validates any configured agent persona files with
+the same safety rules used by Architect and reports whether configured
+`api_key_env` names are present without printing values or contacting
+providers.
 
 | Command | Purpose |
 | --- | --- |
@@ -51,6 +55,7 @@ values or contacting providers.
 | `entroping doctor --output json` | Emit versioned machine-readable setup health |
 | `entroping config list` | Show effective non-secret configuration |
 | `entroping config set --agent <name> --model <id>` | Configure model routing for an agent role |
+| `entroping config vendor-policy-pack --pack <path>` | Vendor a reviewed local policy pack and append a local import |
 
 Examples:
 
@@ -59,6 +64,7 @@ entroping init
 entroping doctor
 entroping config list
 entroping config set --agent auditor --model openai/auditor-model
+entroping config vendor-policy-pack --pack ../entroping-policy-pack-api-baseline --name api-baseline
 ```
 
 ## Architect

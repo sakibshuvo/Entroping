@@ -75,7 +75,13 @@ rule files, README, and examples before it is used by Entroping Core.
 
 ## Import And Verification
 
-Consumers import packs through local QAnstitution imports:
+Consumers can vendor a reviewed local pack and append the local import with:
+
+```bash
+entroping config vendor-policy-pack --pack ../entroping-policy-pack-api-baseline --name api-baseline
+```
+
+The resulting consumer project still uses ordinary local QAnstitution imports:
 
 ```yaml
 imports:
