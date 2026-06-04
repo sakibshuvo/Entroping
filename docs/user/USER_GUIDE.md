@@ -64,6 +64,11 @@ It checks whether configured `api_key_env` variables are present without
 printing their values, and it does not call model providers.
 Use `entroping doctor --output json` when CI jobs or coding agents need the
 same health signal as versioned JSON instead of human text.
+Before relying on Entroping in a PR gate, run `entroping doctor --ci` or
+`entroping doctor --ci --output json`. CI readiness is stricter: missing Hurl,
+unsafe `.entroping/` or `reports/` paths, empty suite manifests, unresolved
+Hurl variables, and assumptions that `run --ci` needs model-provider access are
+reported before test execution.
 
 For local solo development, keep the install editable with `uv tool install -e .`. Homebrew, Nuitka binaries, Docker, and PyPI are distribution targets after the CLI is stable.
 
@@ -489,6 +494,7 @@ HTTP 200
 Generate reports during a run:
 
 ```bash
+entroping doctor --ci
 entroping run --env ci --ci --parallel --report json --report junit --report html
 ```
 

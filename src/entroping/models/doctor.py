@@ -58,6 +58,30 @@ class DoctorAgentHealth(BaseModel):
     message: str
 
 
+class DoctorCiReadinessCheck(BaseModel):
+    """One CI-readiness check for deterministic PR-gate setup."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    status: DoctorHealthStatus
+    message: str
+    path: str | None = None
+    suites: list[str] = Field(default_factory=list)
+    required_env_names: list[str] = Field(default_factory=list)
+
+
+class DoctorCiReadiness(BaseModel):
+    """CI-focused doctor evidence without provider calls or secret values."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: DoctorHealthStatus
+    provider_free_run: bool = True
+    message: str
+    checks: list[DoctorCiReadinessCheck] = Field(default_factory=list)
+
+
 class DoctorHealthReport(BaseModel):
     """Machine-readable doctor output contract."""
 
@@ -70,3 +94,4 @@ class DoctorHealthReport(BaseModel):
     traffic_state: DoctorTrafficStateHealth
     qanstitution: DoctorQanstitutionHealth
     agents: list[DoctorAgentHealth] = Field(default_factory=list)
+    ci_readiness: DoctorCiReadiness | None = None

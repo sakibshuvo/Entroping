@@ -9,11 +9,14 @@ import typer
 
 from entroping.brain.persona_loader import PersonaLoadError, load_agent_persona
 from entroping.cli.shared import console, display_cli_path, safe_cli_text
+from entroping.core.ci_readiness import collect_ci_readiness
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
 from entroping.core.hurl_runner import discover_hurl
 from entroping.core.traffic_store import TrafficStoreError, list_project_exchanges_readonly
 from entroping.models.doctor import (
     DoctorAgentHealth,
+    DoctorCiReadiness,
+    DoctorCiReadinessCheck,
     DoctorHealthReport,
     DoctorHealthStatus,
     DoctorQanstitutionHealth,
@@ -81,6 +84,10 @@ def init(
 
 
 def doctor(
+    ci: Annotated[
+        bool,
+        typer.Option("--ci", help="Run strict CI-readiness checks without provider calls."),
+    ] = False,
     output: Annotated[
         str,
         typer.Option("--output", help="Output format: text or json."),
@@ -93,7 +100,7 @@ def doctor(
         console.print(f"[yellow]Unsupported doctor output: {output}[/yellow]")
         raise typer.Exit(2)
 
-    report = _collect_doctor_health()
+    report = _collect_doctor_health(ci=ci)
     if normalized_output == "json":
         sys.stdout.write(report.model_dump_json(indent=2) + "\n")
     else:
@@ -103,7 +110,7 @@ def doctor(
         raise typer.Exit(1)
 
 
-def _collect_doctor_health() -> DoctorHealthReport:
+def _collect_doctor_health(*, ci: bool = False) -> DoctorHealthReport:
     hurl = discover_hurl()
     hurl_parser = discover_hurl("hurlfmt")
     hurl_health = _tool_health("hurl", hurl.available, hurl.path)
@@ -112,6 +119,15 @@ def _collect_doctor_health() -> DoctorHealthReport:
     config_path = Path("qanstitution.yaml")
     qanstitution, law = _collect_qanstitution_health(config_path)
     agents = _collect_agent_readiness(law, config_path=config_path) if law is not None else []
+    ci_readiness = (
+        collect_ci_readiness(
+            project_root=Path.cwd(),
+            hurl_available=hurl.available,
+            law=law,
+        )
+        if ci
+        else None
+    )
     statuses = [
         hurl_health.status,
         hurl_parser_health.status,
@@ -119,6 +135,8 @@ def _collect_doctor_health() -> DoctorHealthReport:
         qanstitution.status,
         *(agent.status for agent in agents),
     ]
+    if ci_readiness is not None:
+        statuses.append(ci_readiness.status)
     return DoctorHealthReport(
         status=_overall_status(statuses),
         python_version=sys.version.split()[0],
@@ -129,6 +147,7 @@ def _collect_doctor_health() -> DoctorHealthReport:
         traffic_state=traffic_state,
         qanstitution=qanstitution,
         agents=agents,
+        ci_readiness=ci_readiness,
     )
 
 
@@ -275,6 +294,8 @@ def _render_doctor_health(report: DoctorHealthReport) -> None:
     _render_qanstitution_health(report.qanstitution)
     if report.qanstitution.status == "ok":
         _render_agent_readiness(report.agents)
+    if report.ci_readiness is not None:
+        _render_ci_readiness(report.ci_readiness)
 
 
 def _render_tool_health(label: str, tool: DoctorToolHealth, *, missing_guidance: str) -> None:
@@ -350,6 +371,32 @@ def _render_agent_api_key_env(agent: DoctorAgentHealth) -> None:
         console.print(
             f"Agent {agent.role} api_key_env {agent.api_key_env}: [yellow]not set[/yellow]"
         )
+
+
+def _render_ci_readiness(readiness: DoctorCiReadiness) -> None:
+    if readiness.status == "error":
+        console.print("[red]CI readiness: invalid[/red]")
+    elif readiness.status == "warn":
+        console.print("[yellow]CI readiness: warnings[/yellow]")
+    else:
+        console.print("[green]CI readiness: ready[/green]")
+
+    for check in readiness.checks:
+        _render_ci_readiness_check(check)
+
+
+def _render_ci_readiness_check(check: DoctorCiReadinessCheck) -> None:
+    label = check.id.replace("_", " ")
+    label = f"{label[:1].upper()}{label[1:]}"
+    if check.status == "error":
+        console.print(f"[red]{label}: invalid[/red]")
+        console.print(check.message, style="red", markup=False)
+        return
+    if check.status == "warn":
+        console.print(f"[yellow]{label}: warning[/yellow]")
+        console.print(check.message, style="yellow", markup=False)
+        return
+    console.print(f"{label}: [green]ok[/green]")
 
 
 def _overall_status(statuses: list[DoctorHealthStatus]) -> DoctorHealthStatus:

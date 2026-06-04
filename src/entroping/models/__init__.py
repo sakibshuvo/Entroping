@@ -9,6 +9,8 @@ from entroping.models.architect import (
 from entroping.models.conditions import Condition, ConditionSyntaxError, parse_condition
 from entroping.models.doctor import (
     DoctorAgentHealth,
+    DoctorCiReadiness,
+    DoctorCiReadinessCheck,
     DoctorHealthReport,
     DoctorQanstitutionHealth,
     DoctorToolHealth,
@@ -43,6 +45,8 @@ __all__ = [
     "Condition",
     "ConditionSyntaxError",
     "DoctorAgentHealth",
+    "DoctorCiReadiness",
+    "DoctorCiReadinessCheck",
     "DoctorHealthReport",
     "DoctorQanstitutionHealth",
     "DoctorToolHealth",

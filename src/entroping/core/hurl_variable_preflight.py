@@ -34,6 +34,23 @@ def preflight_hurl_variables(
 ) -> None:
     """Fail before subprocess execution when selected Hurl files need variables."""
 
+    missing = find_missing_hurl_variables(
+        execution_copies,
+        variables=variables,
+        project_root=project_root,
+    )
+    if missing:
+        raise HurlVariablePreflightError(_format_missing_variables(missing, project_root))
+
+
+def find_missing_hurl_variables(
+    execution_copies: Sequence[HurlExecutionCopy],
+    *,
+    variables: Mapping[str, str],
+    project_root: Path,
+) -> tuple[MissingHurlVariable, ...]:
+    """Return unresolved Hurl template variables without raising."""
+
     missing: list[MissingHurlVariable] = []
     available_variables = set(variables)
     for execution_copy in execution_copies:
@@ -44,8 +61,9 @@ def preflight_hurl_variables(
         for name in sorted(unresolved):
             missing.append(MissingHurlVariable(path=execution_copy.source_path, name=name))
 
-    if missing:
-        raise HurlVariablePreflightError(_format_missing_variables(missing, project_root))
+    return tuple(
+        sorted(missing, key=lambda item: (_display_path(item.path, project_root), item.name))
+    )
 
 
 def _read_execution_content(path: Path) -> str:
