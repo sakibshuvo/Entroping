@@ -28,6 +28,19 @@
           "default": null,
           "title": "Api Key Env"
         },
+        "input_cost_per_1m_tokens_usd": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Input Cost Per 1M Tokens Usd"
+        },
         "max_tokens": {
           "anyOf": [
             {
@@ -44,6 +57,19 @@
         "model": {
           "title": "Model",
           "type": "string"
+        },
+        "output_cost_per_1m_tokens_usd": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Cost Per 1M Tokens Usd"
         },
         "source": {
           "title": "Source",

@@ -292,6 +292,9 @@ def test_agent_run_manifest_v1_schema_declares_versioned_value_free_fields() -> 
     schema = json.loads((SCHEMA_DIR / "agent-run-manifest.v1.schema.json").read_text())
 
     assert schema["properties"]["schema_version"]["const"] == AGENT_RUN_MANIFEST_SCHEMA_VERSION
+    assert "provider" in schema["properties"]
+    assert "cost" in schema["properties"]
+    assert "estimated_usd" in schema["properties"]["cost"]["properties"]
     assert "intent_sha256" in schema["properties"]["prompt"]["properties"]
     assert "package_sha256" in schema["properties"]["prompt"]["properties"]
     assert "raw_prompt" not in json.dumps(schema)

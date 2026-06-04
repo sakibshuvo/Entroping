@@ -31,9 +31,9 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#448](https://github.com/sakibshuvo/Entroping/issues/448)
-adds provider cost and latency budget evidence after the reusable QAnstitution
-gate-group slice.
+Current issue: [#449](https://github.com/sakibshuvo/Entroping/issues/449)
+adds approval manifests for captured artifacts after the provider budget
+evidence slice.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -50,9 +50,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#448](https://github.com/sakibshuvo/Entroping/issues/448) | Add provider cost and latency budget evidence. |
-| 2 | [#449](https://github.com/sakibshuvo/Entroping/issues/449) | Generate approval manifests for captured artifacts. |
-| 3 | [#437](https://github.com/sakibshuvo/Entroping/issues/437) | Report OpenAPI breaking-change diffs. |
+| 1 | [#449](https://github.com/sakibshuvo/Entroping/issues/449) | Generate approval manifests for captured artifacts. |
+| 2 | [#437](https://github.com/sakibshuvo/Entroping/issues/437) | Report OpenAPI breaking-change diffs. |
+| 3 | [#436](https://github.com/sakibshuvo/Entroping/issues/436) | Enforce runtime known-failure semantics with expiry evidence. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -73,6 +73,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Provider budget evidence](https://github.com/sakibshuvo/Entroping/issues/448) | Done | Prompt-backed Architect build, refactor, and Auditor review paths expose provider, latency, token counts when available, and configured cost estimates in CLI/review output and value-free agent run manifests without prompts, secrets, or raw provider responses. |
 | [Reusable QAnstitution gate groups](https://github.com/sakibshuvo/Entroping/issues/447) | Done | `gate_groups` expands local reusable gates into ordinary runtime rules, rejects missing references and cycles before execution, preserves import/final semantics, and shows source group provenance in effective-policy reports. |
 | [CI-readiness doctor mode](https://github.com/sakibshuvo/Entroping/issues/446) | Done | `entroping doctor --ci` validates Hurl availability, safe `.entroping/` and `reports/` paths, suite manifests, required Hurl variables, and provider-free `run --ci` expectations without CI provider APIs, workflow mutation, or env-value disclosure. |
 | [Coverage badges from local reports](https://github.com/sakibshuvo/Entroping/issues/445) | Done | `entroping report badges` writes local Shields endpoint JSON for policy-gate, OpenAPI operation, and story-traceability coverage from existing JSON reports; `report traceability --output json` provides the badge source without hosted services or network calls. |

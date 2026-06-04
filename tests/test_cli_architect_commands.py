@@ -7,6 +7,7 @@ from cli_test_support import (
     GeneratedHurlFile,
     HurlValidationError,
     LiteLLMCompletionResult,
+    LiteLLMCostEstimate,
     LiteLLMUsage,
     OpenApiHurlCompilationResult,
     Path,
@@ -575,6 +576,8 @@ agents:
   builder:
     source: agents/builder.md
     model: openai/gpt-4.1-mini
+    input_cost_per_1m_tokens_usd: 0.25
+    output_cost_per_1m_tokens_usd: 1.25
     temperature: 0.1
 gates:
   - id: global_latency
@@ -609,6 +612,12 @@ gates:
             model="openai/gpt-4.1-mini",
             latency_ms=42,
             usage=LiteLLMUsage(prompt_tokens=20, completion_tokens=30, total_tokens=50),
+            provider="openai",
+            cost=LiteLLMCostEstimate(
+                estimated_usd=0.000042,
+                input_cost_per_1m_tokens_usd=0.25,
+                output_cost_per_1m_tokens_usd=1.25,
+            ),
         )
 
     monkeypatch.setattr("entroping.brain.litellm_client.LiteLLMClient.complete", fake_complete)
@@ -622,9 +631,13 @@ gates:
     assert "Generated 1 Architect Hurl test" in result.output
     assert "Add checkout smoke coverage" in result.output
     assert "Review generated assertions before committing." in result.output
+    assert "Provider: openai" in result.output
+    assert "Estimated cost: $0.000042" in result.output
     assert packages
     assert packages[0].role == "builder"
     assert packages[0].model == "openai/gpt-4.1-mini"
+    assert packages[0].input_cost_per_1m_tokens_usd == 0.25
+    assert packages[0].output_cost_per_1m_tokens_usd == 1.25
     assert packages[0].temperature == 0.1
     assert "Build minimal checkout Hurl tests." in packages[0].messages[0].content
     assert "global_latency" in packages[0].messages[0].content
@@ -646,6 +659,12 @@ gates:
     assert manifest["mode"] == "create"
     assert manifest["agent"] == "builder"
     assert manifest["model"] == "openai/gpt-4.1-mini"
+    assert manifest["provider"] == "openai"
+    assert manifest["cost"] == {
+        "estimated_usd": 0.000042,
+        "input_cost_per_1m_tokens_usd": 0.25,
+        "output_cost_per_1m_tokens_usd": 1.25,
+    }
     assert manifest["output_paths"] == ["tests/generated/ai_checkout.hurl"]
     assert manifest["tags"] == ["ai"]
     assert manifest["validation"] == {

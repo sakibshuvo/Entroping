@@ -1,12 +1,12 @@
 """Architect refactor orchestration for existing Architect-owned Hurl files."""
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Literal
 
 from entroping.brain.architect_writer import PreparedHurlWrite, write_refactor_hurl_edits
-from entroping.brain.litellm_client import LiteLLMClient, LiteLLMUsage
+from entroping.brain.litellm_client import LiteLLMClient, LiteLLMCostEstimate, LiteLLMUsage
 from entroping.brain.output_parser import parse_architect_edit_set
 from entroping.brain.persona_loader import load_agent_persona
 from entroping.brain.prompt_builder import build_architect_prompt_package
@@ -17,6 +17,7 @@ from entroping.bridge.merge import (
     merge_managed_hurl_blocks,
 )
 from entroping.core.agent_manifest import (
+    AgentRunCostEvidence,
     AgentRunManifestInput,
     AgentRunUsageEvidence,
     write_agent_run_manifest,
@@ -46,6 +47,8 @@ class ArchitectRefactorResult:
     latency_ms: int
     usage: LiteLLMUsage
     manifest_path: Path
+    provider: str | None = None
+    cost: LiteLLMCostEstimate = field(default_factory=LiteLLMCostEstimate.empty)
 
 
 @dataclass(frozen=True)
@@ -94,6 +97,7 @@ def run_architect_refactor(
             mode="refactor",
             agent="builder",
             model=completion.model,
+            provider=completion.provider,
             persona_source_path=persona.source_path,
             persona_content=persona.content,
             prompt_intent=prompt,
@@ -109,6 +113,11 @@ def run_architect_refactor(
                 completion_tokens=completion.usage.completion_tokens,
                 total_tokens=completion.usage.total_tokens,
             ),
+            cost=AgentRunCostEvidence(
+                estimated_usd=completion.cost.estimated_usd,
+                input_cost_per_1m_tokens_usd=completion.cost.input_cost_per_1m_tokens_usd,
+                output_cost_per_1m_tokens_usd=completion.cost.output_cost_per_1m_tokens_usd,
+            ),
         )
     )
     return ArchitectRefactorResult(
@@ -119,6 +128,8 @@ def run_architect_refactor(
         latency_ms=completion.latency_ms,
         usage=completion.usage,
         manifest_path=manifest.manifest_path,
+        provider=completion.provider,
+        cost=completion.cost,
     )
 
 

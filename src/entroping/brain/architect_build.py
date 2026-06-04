@@ -1,7 +1,7 @@
 """Architect prompt-build orchestration."""
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
@@ -10,7 +10,7 @@ from entroping.brain.architect_writer import (
     write_architect_edits,
     write_refactor_hurl_edits,
 )
-from entroping.brain.litellm_client import LiteLLMClient, LiteLLMUsage
+from entroping.brain.litellm_client import LiteLLMClient, LiteLLMCostEstimate, LiteLLMUsage
 from entroping.brain.output_parser import parse_architect_edit_set
 from entroping.brain.persona_loader import load_agent_persona
 from entroping.brain.prompt_builder import build_architect_prompt_package
@@ -20,6 +20,7 @@ from entroping.bridge.merge import (
     merge_managed_hurl_blocks,
 )
 from entroping.core.agent_manifest import (
+    AgentRunCostEvidence,
     AgentRunManifestInput,
     AgentRunUsageEvidence,
     write_agent_run_manifest,
@@ -48,6 +49,8 @@ class ArchitectPromptBuildResult:
     usage: LiteLLMUsage
     agent: ArchitectBuildAgent
     manifest_path: Path
+    provider: str | None = None
+    cost: LiteLLMCostEstimate = field(default_factory=LiteLLMCostEstimate.empty)
 
 
 def run_architect_prompt_build(
@@ -89,6 +92,7 @@ def run_architect_prompt_build(
             mode=strategy,
             agent=agent,
             model=completion.model,
+            provider=completion.provider,
             persona_source_path=persona.source_path,
             persona_content=persona.content,
             prompt_intent=intent,
@@ -104,6 +108,11 @@ def run_architect_prompt_build(
                 completion_tokens=completion.usage.completion_tokens,
                 total_tokens=completion.usage.total_tokens,
             ),
+            cost=AgentRunCostEvidence(
+                estimated_usd=completion.cost.estimated_usd,
+                input_cost_per_1m_tokens_usd=completion.cost.input_cost_per_1m_tokens_usd,
+                output_cost_per_1m_tokens_usd=completion.cost.output_cost_per_1m_tokens_usd,
+            ),
         )
     )
     return ArchitectPromptBuildResult(
@@ -115,6 +124,8 @@ def run_architect_prompt_build(
         usage=completion.usage,
         agent=agent,
         manifest_path=manifest.manifest_path,
+        provider=completion.provider,
+        cost=completion.cost,
     )
 
 

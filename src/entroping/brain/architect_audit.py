@@ -2,19 +2,20 @@
 
 import json
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from html import escape
 from pathlib import Path
 
 from pydantic import ValidationError
 
-from entroping.brain.litellm_client import LiteLLMClient, LiteLLMUsage
+from entroping.brain.litellm_client import LiteLLMClient, LiteLLMCostEstimate, LiteLLMUsage
 from entroping.brain.output_parser import _format_validation_error
 from entroping.brain.persona_loader import load_agent_persona
 from entroping.brain.prompt_builder import build_auditor_prompt_package
 from entroping.brain.safety import contains_secret_like_value, redact_secret_like_values
 from entroping.bridge.openapi_audit import OpenApiAuditReport, audit_report_to_dict
 from entroping.core.agent_manifest import (
+    AgentRunCostEvidence,
     AgentRunManifestInput,
     AgentRunUsageEvidence,
     write_agent_run_manifest,
@@ -39,6 +40,8 @@ class ArchitectAuditorReviewResult:
     usage: LiteLLMUsage
     manifest_path: Path
     agent: str = "auditor"
+    provider: str | None = None
+    cost: LiteLLMCostEstimate = field(default_factory=LiteLLMCostEstimate.empty)
 
     @property
     def passed(self) -> bool:
@@ -75,6 +78,7 @@ def run_architect_auditor_review(
             mode="review",
             agent="auditor",
             model=completion.model,
+            provider=completion.provider,
             persona_source_path=persona.source_path,
             persona_content=persona.content,
             prompt_intent="architect audit --focus auditor",
@@ -90,6 +94,11 @@ def run_architect_auditor_review(
                 completion_tokens=completion.usage.completion_tokens,
                 total_tokens=completion.usage.total_tokens,
             ),
+            cost=AgentRunCostEvidence(
+                estimated_usd=completion.cost.estimated_usd,
+                input_cost_per_1m_tokens_usd=completion.cost.input_cost_per_1m_tokens_usd,
+                output_cost_per_1m_tokens_usd=completion.cost.output_cost_per_1m_tokens_usd,
+            ),
         )
     )
     return ArchitectAuditorReviewResult(
@@ -98,6 +107,8 @@ def run_architect_auditor_review(
         latency_ms=completion.latency_ms,
         usage=completion.usage,
         manifest_path=manifest.manifest_path,
+        provider=completion.provider,
+        cost=completion.cost,
     )
 
 
@@ -139,8 +150,14 @@ def render_auditor_review_json(result: ArchitectAuditorReviewResult) -> str:
         "findings": [finding.model_dump() for finding in result.review.findings],
         "latency_ms": result.latency_ms,
         "model": result.model,
+        "provider": result.provider,
         "status": "pass" if result.passed else "fail",
         "summary": result.review.summary,
+        "cost": {
+            "estimated_usd": result.cost.estimated_usd,
+            "input_cost_per_1m_tokens_usd": result.cost.input_cost_per_1m_tokens_usd,
+            "output_cost_per_1m_tokens_usd": result.cost.output_cost_per_1m_tokens_usd,
+        },
         "usage": {
             "completion_tokens": result.usage.completion_tokens,
             "prompt_tokens": result.usage.prompt_tokens,
@@ -160,6 +177,8 @@ def render_auditor_review_markdown(result: ArchitectAuditorReviewResult) -> str:
         f"Status: {'pass' if result.passed else 'fail'}",
         f"Agent: {result.agent}",
         f"Model: {result.model} ({result.latency_ms} ms)",
+        f"Provider: {result.provider or 'unknown'}",
+        f"Estimated cost: {_format_cost(result.cost.estimated_usd)}",
         "",
         "## Summary",
         "",
@@ -232,3 +251,9 @@ def _markdown_cell(value: str) -> str:
 
 def _markdown_text(value: str) -> str:
     return escape(value, quote=True)
+
+
+def _format_cost(value: float | None) -> str:
+    if value is None:
+        return "unknown"
+    return f"${value:.8f}".rstrip("0").rstrip(".")

@@ -16,7 +16,12 @@ import entroping.cli.commands.execution as execution_cli
 import entroping.cli.commands.project as project_cli
 import entroping.cli.commands.report as report_cli
 import entroping.cli.main as cli_main
-from entroping.brain.litellm_client import BrainProviderError, LiteLLMCompletionResult, LiteLLMUsage
+from entroping.brain.litellm_client import (
+    BrainProviderError,
+    LiteLLMCompletionResult,
+    LiteLLMCostEstimate,
+    LiteLLMUsage,
+)
 from entroping.brain.prompt_builder import ArchitectPromptPackage
 from entroping.bridge.openapi_to_hurl import GeneratedHurlFile, OpenApiHurlCompilationResult
 from entroping.cli.main import app
@@ -153,6 +158,7 @@ __all__ = [
     "cli_main",
     "BrainProviderError",
     "LiteLLMCompletionResult",
+    "LiteLLMCostEstimate",
     "LiteLLMUsage",
     "ArchitectPromptPackage",
     "GeneratedHurlFile",

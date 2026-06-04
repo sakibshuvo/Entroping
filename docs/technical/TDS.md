@@ -406,9 +406,11 @@ remains LLM-free.
 Prompt-backed Architect build, merge, refactor, and Auditor review paths also
 write value-free manifests under `.entroping/agent-runs/` with schema
 `entroping.agent-run-manifest.v1`. These manifests record role, model, persona
-path/digest, prompt hashes, output paths, tags, validation status, latency, and
-token counts. They are audit evidence only; they do not store raw prompts,
-provider output, persona content, secrets, traffic, or model approval.
+path/digest, prompt hashes, output paths, tags, validation status, provider,
+latency, token counts, and estimated cost when per-million-token rates are
+configured and provider usage metadata is available. They are audit evidence
+only; they do not store raw prompts, provider output, persona content, secrets,
+traffic, or model approval.
 
 The deterministic `architect build --new` OpenAPI path also validates every
 compiled Hurl file through the same parser-backed Hurl validation boundary

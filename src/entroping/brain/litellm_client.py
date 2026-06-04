@@ -1,10 +1,11 @@
 """Lazy LiteLLM adapter for Architect model calls."""
 
 import importlib
+import math
 import os
 import time
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import cast
 
 from entroping.brain.prompt_builder import ArchitectPromptPackage
@@ -35,6 +36,25 @@ class LiteLLMUsage:
 
 
 @dataclass(frozen=True)
+class LiteLLMCostEstimate:
+    """Configured provider cost estimate when enough metadata is available."""
+
+    estimated_usd: float | None
+    input_cost_per_1m_tokens_usd: float | None
+    output_cost_per_1m_tokens_usd: float | None
+
+    @classmethod
+    def empty(cls) -> "LiteLLMCostEstimate":
+        """Return an empty cost estimate for tests and missing metadata."""
+
+        return cls(
+            estimated_usd=None,
+            input_cost_per_1m_tokens_usd=None,
+            output_cost_per_1m_tokens_usd=None,
+        )
+
+
+@dataclass(frozen=True)
 class LiteLLMCompletionResult:
     """Normalized completion result for Brain callers."""
 
@@ -42,6 +62,8 @@ class LiteLLMCompletionResult:
     model: str
     latency_ms: int
     usage: LiteLLMUsage
+    provider: str | None = None
+    cost: LiteLLMCostEstimate = field(default_factory=LiteLLMCostEstimate.empty)
 
 
 class LiteLLMClient:
@@ -70,11 +92,15 @@ class LiteLLMClient:
         if not content.strip():
             msg = "LiteLLM completion returned empty content"
             raise BrainProviderError(msg)
+        model = _string_or_default(_get_field(response, "model"), package.model)
+        usage = _extract_usage(response)
         return LiteLLMCompletionResult(
             content=content,
-            model=_string_or_default(_get_field(response, "model"), package.model),
+            model=model,
             latency_ms=latency_ms,
-            usage=_extract_usage(response),
+            usage=usage,
+            provider=_provider_from_model(model) or _provider_from_model(package.model),
+            cost=_estimate_cost(package, usage),
         )
 
 
@@ -154,7 +180,7 @@ def _get_field(value: object, field: str) -> object | None:
 
 
 def _int_or_none(value: object | None) -> int | None:
-    if isinstance(value, int):
+    if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
         return value
     return None
 
@@ -163,3 +189,38 @@ def _string_or_default(value: object | None, default: str) -> str:
     if isinstance(value, str) and value:
         return value
     return default
+
+
+def _provider_from_model(model: str) -> str | None:
+    provider, separator, _ = model.partition("/")
+    normalized = provider.strip()
+    if not separator or not normalized:
+        return None
+    return normalized
+
+
+def _estimate_cost(
+    package: ArchitectPromptPackage,
+    usage: LiteLLMUsage,
+) -> LiteLLMCostEstimate:
+    input_rate = package.input_cost_per_1m_tokens_usd
+    output_rate = package.output_cost_per_1m_tokens_usd
+    estimated: float | None = None
+    if (
+        usage.prompt_tokens is not None
+        and usage.completion_tokens is not None
+        and input_rate is not None
+        and output_rate is not None
+    ):
+        estimated = round(
+            (usage.prompt_tokens / 1_000_000 * input_rate)
+            + (usage.completion_tokens / 1_000_000 * output_rate),
+            8,
+        )
+        if not math.isfinite(estimated):
+            estimated = None
+    return LiteLLMCostEstimate(
+        estimated_usd=estimated,
+        input_cost_per_1m_tokens_usd=input_rate,
+        output_cost_per_1m_tokens_usd=output_rate,
+    )

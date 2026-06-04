@@ -33,6 +33,16 @@ class ArchitectPromptPackage(BaseModel):
     model: str
     api_base: str | None = None
     api_key_env: str | None = None
+    input_cost_per_1m_tokens_usd: float | None = Field(
+        default=None,
+        ge=0.0,
+        allow_inf_nan=False,
+    )
+    output_cost_per_1m_tokens_usd: float | None = Field(
+        default=None,
+        ge=0.0,
+        allow_inf_nan=False,
+    )
     temperature: float = Field(ge=0.0, le=2.0)
     max_tokens: int | None = Field(default=None, gt=0)
     messages: tuple[PromptMessage, ...] = Field(min_length=2)
@@ -69,6 +79,8 @@ def build_architect_prompt_package(
         model=persona.model,
         api_base=persona.api_base,
         api_key_env=persona.api_key_env,
+        input_cost_per_1m_tokens_usd=persona.input_cost_per_1m_tokens_usd,
+        output_cost_per_1m_tokens_usd=persona.output_cost_per_1m_tokens_usd,
         temperature=persona.temperature,
         max_tokens=persona.max_tokens,
         messages=(
@@ -114,6 +126,8 @@ def build_auditor_prompt_package(
         model=persona.model,
         api_base=persona.api_base,
         api_key_env=persona.api_key_env,
+        input_cost_per_1m_tokens_usd=persona.input_cost_per_1m_tokens_usd,
+        output_cost_per_1m_tokens_usd=persona.output_cost_per_1m_tokens_usd,
         temperature=persona.temperature,
         max_tokens=persona.max_tokens,
         messages=(

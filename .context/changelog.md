@@ -2,6 +2,11 @@
 
 ## 2026-06-04
 
+- Added issue #448's provider budget evidence so prompt-backed Architect build,
+  refactor, and Auditor review paths expose provider, latency, token counts
+  when available, and estimated cost when local QAnstitution rate hints are
+  configured. Agent run manifests stay value-free and do not store prompts,
+  secrets, raw provider responses, or approval decisions.
 - Added issue #447's reusable QAnstitution gate groups so local policy authors
   can define `gate_groups`, reference them from top-level `gates`, expand nested
   groups deterministically, reject missing references and cycles before

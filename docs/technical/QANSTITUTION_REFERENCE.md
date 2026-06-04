@@ -365,13 +365,17 @@ agents:
     model: "openai/<local-qwen-model>"
     api_base: "http://127.0.0.1:8000/v1"
     api_key_env: "ENTROPING_OMLX_API_KEY"
+    input_cost_per_1m_tokens_usd: 0.25
+    output_cost_per_1m_tokens_usd: 1.25
     temperature: 0.1
     max_tokens: 4096
 ```
 
 `api_base` must be an `http` or `https` URL without userinfo, query
 parameters, or fragments. `api_key_env` must be a valid environment variable
-name. No API keys in qanstitution.yaml.
+name. Optional `input_cost_per_1m_tokens_usd` and
+`output_cost_per_1m_tokens_usd` are local estimation hints used in value-free
+Architect run evidence when providers return token usage. No API keys in qanstitution.yaml.
 
 The runtime prompt is composed from:
 

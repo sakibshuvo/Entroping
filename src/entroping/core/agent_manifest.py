@@ -2,7 +2,8 @@
 
 import hashlib
 import json
-from dataclasses import dataclass
+import math
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final, Literal
@@ -31,6 +32,25 @@ class AgentRunUsageEvidence:
 
 
 @dataclass(frozen=True, slots=True)
+class AgentRunCostEvidence:
+    """Value-free provider cost estimate evidence."""
+
+    estimated_usd: float | None
+    input_cost_per_1m_tokens_usd: float | None
+    output_cost_per_1m_tokens_usd: float | None
+
+    @classmethod
+    def empty(cls) -> "AgentRunCostEvidence":
+        """Return empty cost evidence when rates or usage are unavailable."""
+
+        return cls(
+            estimated_usd=None,
+            input_cost_per_1m_tokens_usd=None,
+            output_cost_per_1m_tokens_usd=None,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class AgentRunManifestInput:
     """Input required to write one sanitized agent run manifest."""
 
@@ -50,6 +70,8 @@ class AgentRunManifestInput:
     hurl_validated: bool
     latency_ms: int
     usage: AgentRunUsageEvidence
+    provider: str | None = None
+    cost: AgentRunCostEvidence = field(default_factory=AgentRunCostEvidence.empty)
     generated_at: datetime | None = None
 
 
@@ -73,6 +95,7 @@ def write_agent_run_manifest(input_data: AgentRunManifestInput) -> AgentRunManif
         "mode": _validate_plain_text(input_data.mode, field="mode"),
         "agent": _validate_plain_text(input_data.agent, field="agent"),
         "model": _validate_plain_text(input_data.model, field="model"),
+        "provider": _validate_optional_plain_text(input_data.provider, field="provider"),
         "persona": {
             "source_path": _display_project_path(input_data.persona_source_path, root=root),
             "sha256": _sha256(input_data.persona_content),
@@ -92,6 +115,20 @@ def write_agent_run_manifest(input_data: AgentRunManifestInput) -> AgentRunManif
             "hurl_validated": input_data.hurl_validated,
         },
         "latency_ms": input_data.latency_ms,
+        "cost": {
+            "estimated_usd": _validate_optional_cost(
+                input_data.cost.estimated_usd,
+                field="estimated cost",
+            ),
+            "input_cost_per_1m_tokens_usd": _validate_optional_cost(
+                input_data.cost.input_cost_per_1m_tokens_usd,
+                field="input cost per 1M tokens",
+            ),
+            "output_cost_per_1m_tokens_usd": _validate_optional_cost(
+                input_data.cost.output_cost_per_1m_tokens_usd,
+                field="output cost per 1M tokens",
+            ),
+        },
         "usage": {
             "prompt_tokens": input_data.usage.prompt_tokens,
             "completion_tokens": input_data.usage.completion_tokens,
@@ -158,6 +195,24 @@ def _validate_plain_text(value: str, *, field: str) -> str:
         msg = f"{field} must not contain control characters"
         raise AgentRunManifestError(msg)
     return text
+
+
+def _validate_optional_plain_text(value: str | None, *, field: str) -> str | None:
+    if value is None:
+        return None
+    return _validate_plain_text(value, field=field)
+
+
+def _validate_optional_cost(value: float | None, *, field: str) -> float | None:
+    if value is None:
+        return None
+    if not math.isfinite(value):
+        msg = f"{field} must be finite"
+        raise AgentRunManifestError(msg)
+    if value < 0:
+        msg = f"{field} must be greater than or equal to 0"
+        raise AgentRunManifestError(msg)
+    return value
 
 
 def _sha256(value: str) -> str:
