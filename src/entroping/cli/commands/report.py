@@ -1,5 +1,6 @@
 """Report command adapter."""
 
+import json
 import sys
 from pathlib import Path
 from typing import Annotated, cast
@@ -39,6 +40,12 @@ from entroping.core.report_writer import (
     write_bug_report,
 )
 from entroping.core.review_summary import ReviewSummaryError, run_review_summary
+from entroping.core.run_delta import (
+    RunDeltaError,
+    build_run_delta_report,
+    render_run_delta_markdown,
+    run_delta_report_to_dict,
+)
 from entroping.core.sarif_report import SarifReportError, run_sarif_report
 from entroping.models.hurl import HurlMetadataSyntaxError
 
@@ -65,6 +72,45 @@ def report_bug() -> None:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
     console.print(f"Wrote bug report: {display_cli_path(output_path)}")
+
+
+@app.command("delta")
+def report_delta(
+    base: Annotated[
+        Path,
+        typer.Option("--base", help="Baseline JSON run report path."),
+    ] = Path("reports") / "run-base.json",
+    current: Annotated[
+        Path,
+        typer.Option("--current", help="Current JSON run report path."),
+    ] = Path("reports") / "run-latest.json",
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Compare two local run JSON reports without executing Hurl."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported delta output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        report = build_run_delta_report(
+            base=load_run_report(base),
+            current=load_run_report(current),
+        )
+    except (OSError, KeyError, TypeError, ValueError, RunDeltaError) as exc:
+        print_cli_error(RuntimeError(f"Could not compare run reports: {exc}"))
+        raise typer.Exit(1) from exc
+
+    if normalized_output == "json":
+        sys.stdout.write(json.dumps(run_delta_report_to_dict(report), indent=2, sort_keys=True))
+        sys.stdout.write("\n")
+    else:
+        sys.stdout.write(render_run_delta_markdown(report))
+    raise typer.Exit(0 if report.passed else 1)
 
 
 @app.command("failure-bundle")

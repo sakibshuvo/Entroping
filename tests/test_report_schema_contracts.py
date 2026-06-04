@@ -20,6 +20,11 @@ from entroping.core.drift_report import (
     drift_report_to_dict,
 )
 from entroping.core.report_writer import run_report_to_dict
+from entroping.core.run_delta import (
+    RUN_DELTA_REPORT_SCHEMA_VERSION,
+    build_run_delta_report,
+    run_delta_report_to_dict,
+)
 from entroping.models.drift import (
     DriftBaseline,
     DriftBaselineTest,
@@ -151,6 +156,133 @@ def test_run_report_v1_schema_contract_is_versioned_and_stable() -> None:
                     "headers": {"content-type": "application/json"},
                     "body_shape": ["$:object", "$.ok:boolean"],
                 },
+            }
+        ],
+    }
+
+
+def test_run_delta_report_v1_schema_contract_is_versioned_and_stable() -> None:
+    base = RunReport(
+        project="checkout-api",
+        environment="ci",
+        generated_at="2026-06-04T00:00:00+00:00",
+        summary=RunReportSummary(total=2, passed=1, failed=1, exit_code=1),
+        tests=(
+            RunTestReport(
+                path="tests/health.hurl",
+                execution_path=".entroping/run/health.hurl",
+                status="passed",
+                exit_code=0,
+                duration_ms=10,
+                rule_ids=(),
+                stdout="Authorization: Bearer hidden",
+                stderr="token=hidden",
+            ),
+            RunTestReport(
+                path="tests/refund.hurl",
+                execution_path=".entroping/run/refund.hurl",
+                status="failed",
+                exit_code=1,
+                duration_ms=12,
+                rule_ids=("old_gate",),
+                stdout="",
+                stderr="assert failed",
+            ),
+        ),
+    )
+    current = RunReport(
+        project="checkout-api",
+        environment="ci",
+        generated_at="2026-06-04T00:01:00+00:00",
+        summary=RunReportSummary(total=2, passed=0, failed=2, exit_code=1),
+        tests=(
+            RunTestReport(
+                path="tests/health.hurl",
+                execution_path=".entroping/run/health.hurl",
+                status="failed",
+                exit_code=1,
+                duration_ms=18,
+                rule_ids=("global_latency",),
+                stdout="Authorization: Bearer hidden",
+                stderr="token=hidden",
+            ),
+            RunTestReport(
+                path="tests/refund.hurl",
+                execution_path=".entroping/run/refund.hurl",
+                status="timeout",
+                exit_code=124,
+                duration_ms=12,
+                rule_ids=("old_gate",),
+                stdout="",
+                stderr="timeout",
+            ),
+        ),
+    )
+
+    payload = run_delta_report_to_dict(build_run_delta_report(base=base, current=current))
+
+    assert payload == {
+        "schema_version": RUN_DELTA_REPORT_SCHEMA_VERSION,
+        "status": "fail",
+        "base": {
+            "project": "checkout-api",
+            "environment": "ci",
+            "generated_at": "2026-06-04T00:00:00+00:00",
+            "total": 2,
+        },
+        "current": {
+            "project": "checkout-api",
+            "environment": "ci",
+            "generated_at": "2026-06-04T00:01:00+00:00",
+            "total": 2,
+        },
+        "summary": {
+            "base_total": 2,
+            "current_total": 2,
+            "added_failures": 1,
+            "resolved_failures": 0,
+            "changed_failures": 1,
+            "unchanged_failures": 0,
+            "latency_deltas": 1,
+            "policy_gate_deltas": 1,
+        },
+        "added_failures": [
+            {
+                "path": "tests/health.hurl",
+                "base_status": "passed",
+                "current_status": "failed",
+                "base_exit_code": 0,
+                "current_exit_code": 1,
+                "base_rule_ids": [],
+                "current_rule_ids": ["global_latency"],
+            }
+        ],
+        "resolved_failures": [],
+        "changed_failures": [
+            {
+                "path": "tests/refund.hurl",
+                "base_status": "failed",
+                "current_status": "timeout",
+                "base_exit_code": 1,
+                "current_exit_code": 124,
+                "base_rule_ids": ["old_gate"],
+                "current_rule_ids": ["old_gate"],
+            }
+        ],
+        "unchanged_failures": [],
+        "latency_deltas": [
+            {
+                "path": "tests/health.hurl",
+                "base_duration_ms": 10,
+                "current_duration_ms": 18,
+                "delta_ms": 8,
+            }
+        ],
+        "policy_gate_deltas": [
+            {
+                "path": "tests/health.hurl",
+                "added_rule_ids": ["global_latency"],
+                "resolved_rule_ids": [],
             }
         ],
     }
@@ -439,6 +571,9 @@ def test_openapi_audit_v1_schema_contract_is_versioned_and_stable() -> None:
 def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
     versions = {
         "entroping.run-report.v1": SCHEMA_DIR / "run-report.v1.schema.json",
+        "entroping.run-delta-report.v1": (
+            SCHEMA_DIR / "run-delta-report.v1.schema.json"
+        ),
         "entroping.drift-report.v1": SCHEMA_DIR / "drift-report.v1.schema.json",
         "entroping.traceability-report.v1": (
             SCHEMA_DIR / "traceability-report.v1.schema.json"

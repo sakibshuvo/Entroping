@@ -19,6 +19,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Report | Schema version | Artifact or producer | Schema file |
 | --- | --- | --- | --- |
 | JSON run report | `entroping.run-report.v1` | `reports/run-latest.json`, `.entroping/latest-run.json` | [run-report.v1.schema.json](report-schemas/run-report.v1.schema.json) |
+| Run delta report | `entroping.run-delta-report.v1` | `entroping report delta --output json` stdout | [run-delta-report.v1.schema.json](report-schemas/run-delta-report.v1.schema.json) |
 | Drift baseline | `entroping.drift-baseline.v1` | `reports/drift-baseline.candidate.json`, `.entroping/drift-baseline.json` | Inline contract |
 | Drift report | `entroping.drift-report.v1` | `reports/drift.json` | [drift-report.v1.schema.json](report-schemas/drift-report.v1.schema.json) |
 | Effective policy report | `entroping.effective-policy-report.v1` | `reports/effective-policy.json` | [effective-policy-report.v1.schema.json](report-schemas/effective-policy-report.v1.schema.json) |
@@ -43,6 +44,18 @@ The drift baseline candidate and active drift baseline share
 `entroping.drift-baseline.v1`. Candidates are written by `run --report drift`;
 the active baseline is written only by `entroping report promote-drift-baseline`
 after human review.
+
+The run delta report is written to stdout:
+
+```bash
+entroping report delta --base reports/run-base.json --current reports/run-latest.json --output json
+```
+
+Its v1 payload compares two existing JSON run reports and records added,
+resolved, changed, and unchanged failures; latency deltas; and policy-gate
+deltas. It is intended for PR comments, CI logs, or downstream automation. It
+does not execute Hurl, call providers, upload results, or include raw stdout,
+stderr, headers, bodies, prompts, provider data, or secrets.
 
 The failure bundle manifest is written by:
 

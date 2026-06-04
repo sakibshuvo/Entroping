@@ -501,6 +501,20 @@ reports/run-latest.html
 .entroping/latest-run.json
 ```
 
+Compare a previous known-good JSON report with the current JSON report before
+posting review evidence:
+
+```bash
+entroping report delta --base reports/run-base.json --current reports/run-latest.json
+entroping report delta --base reports/run-base.json --current reports/run-latest.json --output json
+```
+
+The delta command reads existing local reports only. It reports added failures,
+resolved failures, status changes, latency deltas, and policy-gate deltas
+without executing Hurl or rendering raw stdout/stderr. It exits `1` when the
+current run introduces added or changed failures, which makes it suitable for a
+CI PR-comment step after `entroping run --report json`.
+
 When a failure needs an issue:
 
 ```bash

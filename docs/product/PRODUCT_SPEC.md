@@ -140,7 +140,7 @@ The v4.1 command namespace is intentionally small and stable:
 | Intelligence | `architect build`, `architect refactor`, `architect audit` |
 | Observation | `watch`, `freeze`, `map` |
 | Execution | `run`, `studio` |
-| Reporting | `report bug`, `report failure-bundle`, `report redaction`, `report policy`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary` |
+| Reporting | `report bug`, `report failure-bundle`, `report delta`, `report redaction`, `report policy`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary` |
 
 Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `verify`, `explain`, and `chaos` must not be treated as primary v4.1 commands. They can exist only as explicit backwards-compatible aliases or future roadmap items.
 
@@ -223,6 +223,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | EXE-016 | Preserve execution reproducibility | All blocking CI behavior must be explainable from committed Hurl files, env data, effective QAnstitution, and Hurl output |
 | EXE-017 | Run named committed suites | `entroping run --suite smoke` loads `suites/smoke.yaml`, validates schema `entroping.suite.v1`, resolves root-bounded local path globs, and applies suite-defined env, tags, reports, parallel, and drift settings without changing default `run` behavior |
 | EXE-018 | Report timeout evidence | JSON, JUnit, HTML, and review-summary artifacts show effective per-test `timeout_ms` and distinguish subprocess timeouts from Hurl assertion failures |
+| EXE-019 | Compare run reports | `entroping report delta --base <path> --current <path> --output md|json` compares two local JSON run reports without executing Hurl, emits schema-versioned added/resolved/changed/unchanged failure, latency, and policy-gate deltas, and omits raw stdout/stderr |
 
 ## 10. Supported Test Types
 

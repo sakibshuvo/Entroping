@@ -2,6 +2,12 @@
 
 ## 2026-06-04
 
+- Added issue #444's run-to-run regression delta report so
+  `entroping report delta --base <path> --current <path> --output md|json`
+  compares existing JSON run reports, emits deterministic added/resolved/
+  changed/unchanged failure, latency, and policy-gate deltas with schema
+  `entroping.run-delta-report.v1`, exits nonzero for added or changed failures,
+  and never renders raw stdout/stderr.
 - Added issue #443's traffic-vs-OpenAPI route audit so
   `architect audit --focus logic --output md|json` opportunistically compares
   redacted Eye traffic route summaries against OpenAPI templates, flags

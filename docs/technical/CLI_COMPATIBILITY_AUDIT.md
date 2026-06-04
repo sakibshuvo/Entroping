@@ -41,6 +41,7 @@ entroping studio [--env <name>]
 entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
 entroping report bug
 entroping report failure-bundle [--output <directory>]
+entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
 entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
 entroping report traceability [--output md]
@@ -54,7 +55,7 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 
 | Area | Decision |
 | --- | --- |
-| Command naming | Keep the nested noun/verb shape: `config vendor-policy-pack`, `architect build`, `architect refactor`, `report bug`, `report failure-bundle`, `report redaction`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary`. |
+| Command naming | Keep the nested noun/verb shape: `config vendor-policy-pack`, `architect build`, `architect refactor`, `report bug`, `report failure-bundle`, `report delta`, `report redaction`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary`. |
 | Aliases | No alias is compatibility-supported. Deprecated brainstorm names such as `gen`, `fix`, `scan`, `chaos`, `verify`, top-level `build`, `auth`, and `report --type` remain unavailable. |
 | Global flags | Only Typer completion helpers and `--version` are current global flags. `--verbose` and `--dry-run` are not product flags. |
 | Determinism | `entroping run` remains deterministic, Hurl-backed, and LLM-free. |
@@ -63,7 +64,7 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 | Policy-pack vendoring | `config vendor-policy-pack` accepts reviewed local pack directories only. It copies the pack under `policy-packs/`, validates the manifest and QAnstitution entrypoint, appends a local import, and does not fetch from registries or remote URLs. |
 | Capture filters | `freeze`, `freeze --mock`, and `map` accept repeatable `--include-host`, `--exclude-host`, `--include-method`, `--exclude-method`, `--include-path`, and `--exclude-path` options. Filters apply only to already-redacted captured traffic; exclude rules win; path filters match request paths, not query strings. |
 | Studio | `studio` is read-only until mutation workflows are designed and accepted separately. |
-| Report formats | `run --report` is repeatable and owns run artifact creation. `report bug`, `report failure-bundle`, `report redaction`, `report policy`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, and `report review-summary` are handoff/reporting commands, not test execution commands. |
+| Report formats | `run --report` is repeatable and owns run artifact creation. `report bug`, `report failure-bundle`, `report delta`, `report redaction`, `report policy`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, and `report review-summary` are handoff/reporting commands, not test execution commands. |
 
 ## Post-Alpha UX Decision Queue
 
@@ -81,9 +82,9 @@ locked alpha command surface.
 
 | Exit code | Meaning | Examples |
 | --- | --- | --- |
-| `0` | Successful command, successful run, or non-CI no-match run that is informational. | `--help`, `--version`, passing `run`, passing `report failure-bundle`, passing `report redaction`, passing `report traceability`, passing `report github-annotations`, passing `report sarif`, passing `report promote-drift-baseline`, passing `report review-summary`. |
-| `1` | Runtime, configuration, report, Hurl, drift, or quality failure. | Invalid QAnstitution, missing Hurl, failing Hurl suite, drift finding with `--drift-check`, no failure available for `report bug` or `report failure-bundle`, missing traffic state for `report redaction`. |
-| `2` | CLI usage or unsupported-mode error. | Unknown commands, unsupported `architect build --strategy`, unsupported `report redaction --output`, unsupported `report traceability --output`, unsupported `report review-summary --output`, unsupported `run --report`. |
+| `0` | Successful command, successful run, or non-CI no-match run that is informational. | `--help`, `--version`, passing `run`, passing `report delta` with no added/changed failures, passing `report failure-bundle`, passing `report redaction`, passing `report traceability`, passing `report github-annotations`, passing `report sarif`, passing `report promote-drift-baseline`, passing `report review-summary`. |
+| `1` | Runtime, configuration, report, Hurl, drift, or quality failure. | Invalid QAnstitution, missing Hurl, failing Hurl suite, drift finding with `--drift-check`, `report delta` with added or changed failures, no failure available for `report bug` or `report failure-bundle`, missing traffic state for `report redaction`. |
+| `2` | CLI usage or unsupported-mode error. | Unknown commands, unsupported `architect build --strategy`, unsupported `report delta --output`, unsupported `report redaction --output`, unsupported `report traceability --output`, unsupported `report review-summary --output`, unsupported `run --report`. |
 
 This contract is intentionally small. More granular exit codes can be introduced
 only through a compatibility issue and migration note.
@@ -102,6 +103,7 @@ only through a compatibility issue and migration note.
 | `entroping report promote-drift-baseline` | `.entroping/drift-baseline.json` |
 | `entroping report bug` | `reports/bug.md` |
 | `entroping report failure-bundle` | `reports/failure-bundle/manifest.json` |
+| `entroping report delta --output md|json` | `stdout Run Delta Markdown/JSON` |
 | `entroping report redaction --output md` | `reports/redaction-review.md` |
 | `entroping report redaction --output html` | `reports/redaction-review.html` |
 | `entroping report policy --output md` | `reports/effective-policy.md` |
