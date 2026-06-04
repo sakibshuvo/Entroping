@@ -34,6 +34,7 @@ from entroping.core.report_writer import (
     write_bug_report,
 )
 from entroping.core.review_summary import ReviewSummaryError, run_review_summary
+from entroping.core.sarif_report import SarifReportError, run_sarif_report
 from entroping.models.hurl import HurlMetadataSyntaxError
 
 app = typer.Typer(help="Generate human handoff artifacts.")
@@ -166,6 +167,43 @@ def report_github_annotations(
             )
             + "\n"
         )
+    raise typer.Exit(0)
+
+
+@app.command("sarif")
+def report_sarif(
+    output: Annotated[
+        Path,
+        typer.Option("--output", help="SARIF output path."),
+    ] = Path("reports") / "entroping.sarif",
+    junit: Annotated[
+        Path,
+        typer.Option("--junit", help="JUnit XML report path."),
+    ] = Path("reports") / "junit.xml",
+    drift: Annotated[
+        Path,
+        typer.Option("--drift", help="Drift JSON report path."),
+    ] = Path("reports") / "drift.json",
+    traceability: Annotated[
+        bool,
+        typer.Option("--traceability", help="Include local story traceability findings."),
+    ] = False,
+) -> None:
+    """Write a SARIF report from local Entroping findings."""
+
+    try:
+        result = run_sarif_report(
+            project_root=Path.cwd(),
+            output_path=output,
+            junit_path=junit,
+            drift_path=drift,
+            include_traceability=traceability,
+        )
+    except (GitHubAnnotationError, HurlMetadataSyntaxError, SarifReportError, ValueError) as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote SARIF report: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 

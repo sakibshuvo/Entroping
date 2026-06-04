@@ -65,6 +65,10 @@ jobs:
         if: always()
         run: entroping report github-annotations
 
+      - name: Write Entroping SARIF
+        if: always()
+        run: entroping report sarif
+
       - name: Summarize Entroping findings
         if: always()
         run: entroping report review-summary

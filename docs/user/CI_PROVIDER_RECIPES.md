@@ -50,6 +50,7 @@ entroping doctor
 mkdir -p reports
 entroping doctor --output json > reports/doctor-health.json
 entroping run --ci --report json --report junit --report html
+entroping report sarif
 entroping report review-summary
 ```
 
@@ -98,6 +99,7 @@ true:
 - Entroping is installed from a tag or reviewed source ref;
 - `entroping doctor` runs before `entroping run`;
 - `entroping run --ci --report json --report junit --report html` is the deterministic gate;
+- `entroping report sarif` writes SARIF 2.1.0 under `reports/` when code-scanning import is desired;
 - `entroping report review-summary` writes provider-neutral Markdown from local artifacts;
 - `reports/` is uploaded and `.entroping/` is not uploaded by default;
 - provider secrets are optional and never required by Entroping itself.

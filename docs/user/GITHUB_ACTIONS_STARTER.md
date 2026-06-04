@@ -67,8 +67,9 @@ entroping run --ci --report json --report junit --report html
 ```
 
 8. Emits GitHub Actions annotations from local Entroping reports.
-9. Writes a provider-neutral Markdown review summary from local artifacts.
-10. Uploads `reports/` as a GitHub Actions artifact.
+9. Writes SARIF 2.1.0 under `reports/` for optional code-scanning upload.
+10. Writes a provider-neutral Markdown review summary from local artifacts.
+11. Uploads `reports/` as a GitHub Actions artifact.
 
 ## Common Variants
 
@@ -98,6 +99,37 @@ To include story traceability findings as PR annotations after you have adopted
 entroping report github-annotations --traceability
 ```
 
+To write SARIF for code scanning from the same local JUnit, drift, and optional
+traceability findings, add:
+
+```bash
+entroping report sarif --traceability
+```
+
+To upload that SARIF file to GitHub code scanning, the workflow needs
+`security-events: write` in `permissions`, and then an upload step such as:
+
+```yaml
+permissions:
+  contents: read
+  security-events: write
+
+steps:
+  - name: Write Entroping SARIF
+    if: always()
+    run: entroping report sarif --traceability
+
+  - name: Upload Entroping SARIF
+    if: always()
+    uses: github/codeql-action/upload-sarif@v4
+    with:
+      sarif_file: reports/entroping.sarif
+```
+
+Use this only where code scanning is enabled and the workflow has the right
+repository permissions. Keeping the default starter to `contents: read` is the
+least-privilege path for teams that only need artifacts and annotations.
+
 To publish provider-neutral Markdown that a GitHub Action, GitLab job, Buildkite
 step, or CircleCI command can upload or post itself, add:
 
@@ -113,13 +145,16 @@ The run writes the same report paths Entroping uses locally:
 reports/junit.xml
 reports/run-latest.json
 reports/run-latest.html
+reports/entroping.sarif
 reports/review-summary.md
 .entroping/latest-run.json
 ```
 
 The annotation step reads local reports and prints GitHub workflow-command
-annotations to stdout. The review-summary step writes provider-neutral Markdown
-under `reports/`. The workflow uploads `reports/`. It does not upload
+annotations to stdout. The SARIF step writes `reports/entroping.sarif` but does
+not upload it to code scanning unless you add the optional upload step above.
+The review-summary step writes provider-neutral Markdown under `reports/`.
+The workflow uploads `reports/`. It does not upload
 `.entroping/` because that directory is local runtime state and can contain
 baselines or machine-local history.
 

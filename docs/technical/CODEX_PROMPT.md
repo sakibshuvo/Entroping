@@ -35,8 +35,14 @@ entroping freeze --name <flow> [--golden] [--mock <service>]
 entroping map [--export <mermaid|dot|md|png>]
 
 entroping studio [--env <name>]
-entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check]
+entroping run [--env <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
 entroping report bug
+entroping report redaction [--output <md|html>]
+entroping report policy [--output <md|json>]
+entroping report traceability [--output md]
+entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
+entroping report sarif [--output <path>] [--junit <path>] [--drift <path>] [--traceability]
+entroping report review-summary [--output md] [--junit <path>] [--run-json <path>] [--drift <path>] [--traceability]
 ```
 
 Do not invent commands such as `scan`, `verify`, `explain`, `chaos`, `debug`, or top-level `build`. If a legacy alias is desired, implement it only after an explicit compatibility decision.

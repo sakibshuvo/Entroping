@@ -72,6 +72,7 @@ imports:
 entroping doctor
 entroping run --env ci --ci --parallel --report junit
 entroping report github-annotations
+entroping report sarif
 ```
 
 ### Expected Artifacts
@@ -79,6 +80,7 @@ entroping report github-annotations
 - Effective policy summary.
 - JUnit report with rule IDs on failure.
 - GitHub PR annotations for failed Hurl files.
+- SARIF code-scanning artifact for policy and security findings.
 - CI failure for blocking rules.
 
 ### Value

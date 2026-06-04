@@ -188,8 +188,9 @@ A pull request or deployment pipeline needs a deterministic API gate.
 2. Run `doctor`.
 3. Run suite in CI mode.
 4. Emit GitHub PR annotations from local reports.
-5. Publish JUnit and HTML reports.
-6. Block merge on failures.
+5. Optionally write SARIF for code scanning.
+6. Publish JUnit, HTML, SARIF, and review-summary reports.
+7. Block merge on failures.
 
 ### Commands
 
@@ -197,6 +198,7 @@ A pull request or deployment pipeline needs a deterministic API gate.
 entroping doctor
 entroping run --env ci --ci --parallel --report json --report junit --report html
 entroping report github-annotations
+entroping report sarif
 entroping report review-summary
 ```
 

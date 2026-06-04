@@ -33,7 +33,8 @@ These features should remain available in Entroping Core under Apache-2.0:
 - OpenAPI generation.
 - Traffic capture, freeze, and map MVP.
 - Local-first Brain integration.
-- Local GitHub Actions PR annotations from committed report artifacts.
+- Local GitHub Actions PR annotations and SARIF code-scanning artifacts from
+  committed report artifacts.
 - Local documentation, examples, and deterministic validation scripts.
 
 The core must stay strong enough that an individual developer or small team can
@@ -74,8 +75,8 @@ expertise. It should not come from making the local developer loop incomplete.
   surface without explicit user intent.
 - Do keep premium packages and hosted integrations separable from the local CLI
   so downstream users can audit what is installed and what leaves the machine.
-- Do keep local PR annotations in the public core; hosted organization reporting
-  and cross-repo analytics can be commercial.
+- Do keep local PR annotations and SARIF artifacts in the public core; hosted
+  organization reporting and cross-repo analytics can be commercial.
 
 ## Decision Checklist
 
@@ -96,8 +97,9 @@ separate issue for the paid surface.
 ## Current Interpretation
 
 - Local report generation is core.
-- Local `entroping report github-annotations` is core because it converts local
-  artifacts into review evidence without a hosted service.
+- Local `entroping report github-annotations` and `entroping report sarif` are
+  core because they convert local artifacts into review evidence without a
+  hosted service.
 - Organization-level policy reporting, team dashboards, and long-term audit
   history can be commercial because they aggregate trusted local artifacts.
 - Starter policy examples are core; deep, maintained policy-pack catalogs can be

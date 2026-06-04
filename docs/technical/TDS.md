@@ -600,6 +600,7 @@ Reports are written under `reports/`.
 | Effective Policy | `report policy --output md|json` | Resolved QAnstitution gate provenance |
 | Traceability Markdown | `report traceability --output md` | Local story/test coverage review |
 | GitHub Annotations | `report github-annotations` | Pull request workflow-command annotations |
+| SARIF | `report sarif` | Code-scanning import for local Entroping findings |
 | Review Summary | `report review-summary` | Provider-neutral Markdown from local report artifacts |
 
 JUnit is required because it is the common denominator for CI. Allure can consume JUnit later. JaCoCo is not a fit because Entroping is black-box runtime testing, not code coverage instrumentation.
@@ -665,6 +666,7 @@ entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
 entroping report traceability [--output md]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
+entroping report sarif [--output <path>] [--junit <path>] [--drift <path>] [--traceability]
 entroping report review-summary [--output md] [--junit <path>] [--run-json <path>] [--drift <path>] [--traceability]
 ```
 
@@ -722,6 +724,14 @@ step. Missing artifacts are recorded as missing instead of failing the command,
 while malformed artifacts fail with a clear report error. Rendered findings are
 redacted and Markdown-escaped.
 
+`entroping report sarif` writes SARIF 2.1.0 to `reports/entroping.sarif` by
+default. It converts the same local JUnit, drift, and optional traceability
+findings used by GitHub annotation output into stable SARIF rule IDs, severity,
+message text, and best-effort file locations. The command does not execute
+Hurl, call providers, or upload results; downstream CI remains responsible for
+uploading the SARIF artifact to code scanning. Finding text and locations are
+redacted before serialization, and absolute project-root paths are relativized.
+
 ### Report Artifact Contracts
 
 | Command | Artifact | Stability note |
@@ -739,6 +749,7 @@ redacted and Markdown-escaped.
 | `entroping report policy --output json` | `reports/effective-policy.json` | Machine-readable effective policy evidence using `entroping.effective-policy-report.v1`. |
 | `entroping report traceability --output md` | `stdout Markdown` | Local story/test coverage report. |
 | `entroping report github-annotations` | `stdout GitHub Actions annotations` | Workflow-command annotations from JUnit, drift, and optional traceability findings. |
+| `entroping report sarif` | `reports/entroping.sarif` | SARIF 2.1.0 code-scanning evidence from JUnit, drift, and optional traceability findings. |
 | `entroping report review-summary` | `reports/review-summary.md` | Provider-neutral Markdown summary from local JSON, JUnit, drift, and optional traceability evidence. |
 
 Versioned report schema contracts are documented in

@@ -28,6 +28,7 @@ entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
 entroping report traceability [--output md]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
+entroping report sarif [--output <path>] [--junit <path>] [--drift <path>] [--traceability]
 entroping report review-summary [--output md] [--junit <path>] [--run-json <path>] [--drift <path>] [--traceability]
 ```
 
@@ -171,6 +172,7 @@ Variables can come from `envs/<name>.env`, explicit shell
 | `entroping report policy --output json` | Write machine-readable effective policy evidence to `reports/effective-policy.json` |
 | `entroping report traceability --output md` | Generate a local Markdown story/test traceability report |
 | `entroping report github-annotations` | Emit GitHub Actions workflow-command annotations from local reports |
+| `entroping report sarif` | Write SARIF 2.1.0 code-scanning evidence to `reports/entroping.sarif` |
 | `entroping report review-summary --output md` | Write a provider-neutral Markdown review summary to `reports/review-summary.md` |
 
 Example:
@@ -181,6 +183,7 @@ entroping report redaction --output md
 entroping report policy --output md
 entroping report traceability --output md
 entroping report github-annotations --traceability
+entroping report sarif --traceability
 entroping report review-summary --traceability
 ```
 

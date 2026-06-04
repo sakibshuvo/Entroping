@@ -43,6 +43,7 @@ entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
 entroping report traceability [--output md]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
+entroping report sarif [--output <path>] [--junit <path>] [--drift <path>] [--traceability]
 entroping report review-summary [--output md] [--junit <path>] [--run-json <path>] [--drift <path>] [--traceability]
 ```
 
@@ -50,13 +51,13 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 
 | Area | Decision |
 | --- | --- |
-| Command naming | Keep the nested noun/verb shape: `architect build`, `architect refactor`, `report bug`, `report redaction`, `report traceability`, `report github-annotations`, `report review-summary`. |
+| Command naming | Keep the nested noun/verb shape: `architect build`, `architect refactor`, `report bug`, `report redaction`, `report traceability`, `report github-annotations`, `report sarif`, `report review-summary`. |
 | Aliases | No alias is compatibility-supported. Deprecated brainstorm names such as `gen`, `fix`, `scan`, `chaos`, `verify`, top-level `build`, `auth`, and `report --type` remain unavailable. |
 | Global flags | Only Typer completion helpers and `--version` are current global flags. `--verbose` and `--dry-run` are not product flags. |
 | Determinism | `entroping run` remains deterministic, Hurl-backed, and LLM-free. |
 | Prompted generation | Prompt-backed `architect build` and `architect refactor` may call LiteLLM, but generated files must pass validation before write. `architect build` defaults to Builder and accepts `--agent breaker` for hostile/security generation; `architect audit --focus auditor` is the explicit Auditor review path. |
 | Studio | `studio` is read-only until mutation workflows are designed and accepted separately. |
-| Report formats | `run --report` is repeatable and owns run artifact creation. `report bug`, `report redaction`, `report policy`, `report traceability`, `report github-annotations`, and `report review-summary` are handoff/reporting commands, not test execution commands. |
+| Report formats | `run --report` is repeatable and owns run artifact creation. `report bug`, `report redaction`, `report policy`, `report traceability`, `report github-annotations`, `report sarif`, and `report review-summary` are handoff/reporting commands, not test execution commands. |
 
 ## Post-Alpha UX Decision Queue
 
@@ -74,7 +75,7 @@ locked alpha command surface.
 
 | Exit code | Meaning | Examples |
 | --- | --- | --- |
-| `0` | Successful command, successful run, or non-CI no-match run that is informational. | `--help`, `--version`, passing `run`, passing `report redaction`, passing `report traceability`, passing `report github-annotations`, passing `report review-summary`. |
+| `0` | Successful command, successful run, or non-CI no-match run that is informational. | `--help`, `--version`, passing `run`, passing `report redaction`, passing `report traceability`, passing `report github-annotations`, passing `report sarif`, passing `report review-summary`. |
 | `1` | Runtime, configuration, report, Hurl, drift, or quality failure. | Invalid QAnstitution, missing Hurl, failing Hurl suite, drift finding with `--drift-check`, no failure available for `report bug`, missing traffic state for `report redaction`. |
 | `2` | CLI usage or unsupported-mode error. | Unknown commands, unsupported `architect build --strategy`, unsupported `report redaction --output`, unsupported `report traceability --output`, unsupported `report review-summary --output`, unsupported `run --report`. |
 
@@ -98,6 +99,7 @@ only through a compatibility issue and migration note.
 | `entroping report policy --output json` | `reports/effective-policy.json` |
 | `entroping report traceability --output md` | `stdout Markdown` |
 | `entroping report github-annotations` | `stdout GitHub Actions annotations` |
+| `entroping report sarif` | `reports/entroping.sarif` |
 | `entroping report review-summary` | `reports/review-summary.md` |
 
 Report paths are compatibility-relevant because downstream CI, examples, docs,

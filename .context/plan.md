@@ -72,6 +72,9 @@ project, and a Codex workspace with fast context rehydration.
 - `entroping run --changed-from <ref>` selects existing changed `.hurl` files
   from Git diff for fast local or agent feedback; it is not a replacement for
   full-suite release gates.
+- `entroping report sarif` writes SARIF 2.1.0 from local JUnit, drift, and
+  optional traceability findings for code-scanning import. It does not execute
+  Hurl, call providers, or upload results.
 - Example coverage includes REST-style checkout/support fixtures plus
   GraphQL-over-HTTP and SOAP-over-HTTP fixtures that use ordinary Hurl
   assertions instead of adding protocol-specific runtime engines.
@@ -310,6 +313,9 @@ advance it.
 Issue #316 adds `entroping report review-summary`, a provider-neutral Markdown
 artifact rendered from local run JSON, JUnit, drift, and optional traceability
 evidence without calling CI provider APIs or model providers.
+Issue #398 adds `entroping report sarif`, a SARIF 2.1.0 artifact rendered from
+local JUnit, drift, and optional traceability evidence without changing
+`run --report`, executing Hurl, calling providers, or uploading results.
 Issue #317 extends policy-pack smoke evidence with local provenance manifest
 validation for source, license, supported Entroping version, evidence command,
 gate files, gate IDs, and final flags without fetching registries.
@@ -344,6 +350,25 @@ Implemented boundaries:
 - Findings are redacted and Markdown-escaped before rendering.
 - The GitHub Actions starter now runs `--report json --report junit --report html`,
   emits annotations, writes the review summary, and uploads `reports/`.
+
+## Completed Slice: Issue #398 SARIF Report Output
+
+Outcome: downstream code-scanning systems can consume Entroping security,
+policy, drift, and traceability findings through SARIF without replacing JUnit,
+GitHub annotations, or review summaries.
+
+Implemented boundaries:
+
+- `entroping report sarif` writes `reports/entroping.sarif` by default and
+  accepts `--output`, `--junit`, `--drift`, and `--traceability`.
+- SARIF results reuse the existing local GitHub annotation collector for JUnit,
+  drift, and optional traceability evidence.
+- Rule IDs are stable, severities map to SARIF `error`, `warning`, and `note`,
+  and locations are best-effort path/line references.
+- Finding titles, messages, and locations are redacted before serialization;
+  absolute project-root paths are relativized.
+- The command writes only local artifacts. CI-specific code-scanning upload
+  remains an explicit downstream workflow step.
 
 ## Completed Slice: Issue #317 Policy-Pack Provenance Manifest Validation
 

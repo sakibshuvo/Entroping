@@ -552,3 +552,106 @@ def test_report_github_annotations_rejects_malformed_reports(
 
     assert result.exit_code == 1
     assert "Could not parse drift report" in result.output
+
+
+def test_report_sarif_writes_code_scanning_artifact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports_dir = Path("reports")
+    reports_dir.mkdir()
+    (reports_dir / "junit.xml").write_text(
+        """<?xml version="1.0" encoding="utf-8"?>
+<testsuite name="Entroping checkout-api" tests="1" failures="1" errors="0">
+  <testcase classname="tests" name="health.hurl" time="0.010">
+    <failure message="failed" type="entroping.hurl">path: tests/health.hurl
+status: failed
+token=live-secret</failure>
+  </testcase>
+</testsuite>
+""",
+        encoding="utf-8",
+    )
+    (reports_dir / "drift.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.drift-report.v1",
+                "findings": [
+                    {
+                        "kind": "response_status_changed",
+                        "severity": "error",
+                        "path": "tests/health.hurl",
+                        "message": "Response status changed.",
+                        "baseline": {},
+                        "current": {},
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["report", "sarif"])
+
+    assert result.exit_code == 0
+    assert "Wrote SARIF report: reports/entroping.sarif" in result.output
+    sarif = json.loads((reports_dir / "entroping.sarif").read_text(encoding="utf-8"))
+    assert sarif["version"] == "2.1.0"
+    assert len(sarif["runs"][0]["results"]) == 2
+    assert "live-secret" not in json.dumps(sarif)
+    assert "token=[REDACTED]" in json.dumps(sarif)
+
+
+def test_report_sarif_accepts_custom_output_and_traceability(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    tests_dir = Path("tests")
+    tests_dir.mkdir()
+    (tests_dir / "missing.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "sarif", "--traceability", "--output", "reports/security.sarif"],
+    )
+
+    assert result.exit_code == 0
+    assert "reports/security.sarif" in result.output
+    sarif = json.loads(Path("reports/security.sarif").read_text(encoding="utf-8"))
+    assert sarif["runs"][0]["results"] == [
+        {
+            "ruleId": "entroping.traceability.missing_story_id",
+            "level": "error",
+            "message": {
+                "text": "tests/missing.hurl has no # entroping: story_id metadata."
+            },
+            "locations": [
+                {
+                    "physicalLocation": {
+                        "artifactLocation": {"uri": "tests/missing.hurl"},
+                        "region": {"startLine": 1},
+                    }
+                }
+            ],
+        }
+    ]
+
+
+def test_report_sarif_wraps_report_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports_dir = Path("reports")
+    reports_dir.mkdir()
+    (reports_dir / "drift.json").write_text("{", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["report", "sarif"])
+
+    assert result.exit_code == 1
+    assert "Could not parse drift report" in result.output

@@ -37,6 +37,7 @@ def test_downstream_github_actions_starter_is_copyable_and_pinned() -> None:
     assert "entroping doctor" in run_blocks
     assert "entroping run --ci --report json --report junit --report html" in run_blocks
     assert "entroping report github-annotations" in run_blocks
+    assert "entroping report sarif" in run_blocks
     assert "entroping report review-summary" in run_blocks
     assert "secrets." not in workflow_text
 
@@ -62,6 +63,9 @@ def test_downstream_github_actions_docs_link_required_files_and_assumptions() ->
     assert "No GitHub secrets are required by the starter workflow" in doc
     assert "entroping run --ci --report json --report junit --report html" in doc
     assert "entroping report github-annotations" in doc
+    assert "entroping report sarif" in doc
+    assert "github/codeql-action/upload-sarif@v4" in doc
+    assert "reports/entroping.sarif" in doc
     assert "entroping report review-summary" in doc
     assert "reports/review-summary.md" in doc
     assert "HURL_SHA256" in doc
