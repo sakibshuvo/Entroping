@@ -1495,13 +1495,28 @@ WireMock mappings, or dependency maps.
 - Rejected unsafe filter values and avoided query, header, cookie, or body
   values in filter errors and generated artifacts.
 
+## Completed Slice: Issue #427 Agent Run Manifests
+
+Outcome: make prompt-backed Architect runs leave local value-free audit evidence
+without making deterministic `run` depend on AI or manifests.
+
+- Added `core.agent_manifest` with schema version
+  `entroping.agent-run-manifest.v1`.
+- Wrote manifests under `.entroping/agent-runs/` for Builder prompt-build,
+  Breaker prompt-build, prompt merge-build, Architect refactor, and Auditor
+  review paths.
+- Recorded role, model, persona path/digest, prompt intent/package hashes,
+  output paths, tags, validation status, latency, and token counts.
+- Kept raw prompts, provider outputs, provider keys, env values, persona
+  content, Hurl contents, raw traffic, and model approval out of the manifest.
+
 ## Current Validation Queue
 
 Use these issues as the next marathon targets. Keep each one narrow, tested, and
 merged through GitHub before starting the next branch:
 
-- Next local targets are #427 sanitized agent run manifests, #440 tag-expression
-  test selection, and #441 explicit timeout evidence per test.
+- Next local targets are #440 tag-expression test selection, #441 explicit
+  timeout evidence per test, and #442 security-scheme coverage generation.
 - Packaging issue #268 is intentionally gated on package-index alpha evidence:
   publish TestPyPI/PyPI through the protected workflow first, then promote the
   Homebrew tap from prototype to supported install path.

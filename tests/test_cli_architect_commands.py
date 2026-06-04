@@ -20,6 +20,13 @@ from cli_test_support import (
 )
 
 
+def _agent_run_manifest_payloads() -> list[dict[str, object]]:
+    return [
+        json.loads(path.read_text(encoding="utf-8"))
+        for path in sorted((Path(".entroping") / "agent-runs").glob("*.json"))
+    ]
+
+
 def test_architect_build_new_generates_hurl_from_configured_openapi(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -568,6 +575,24 @@ gates:
         "POST {{base_url}}/checkout\n"
         "HTTP 201\n"
     )
+    manifests = _agent_run_manifest_payloads()
+    assert len(manifests) == 1
+    manifest = manifests[0]
+    assert manifest["schema_version"] == "entroping.agent-run-manifest.v1"
+    assert manifest["command"] == "architect build"
+    assert manifest["mode"] == "create"
+    assert manifest["agent"] == "builder"
+    assert manifest["model"] == "openai/gpt-4.1-mini"
+    assert manifest["output_paths"] == ["tests/generated/ai_checkout.hurl"]
+    assert manifest["tags"] == ["ai"]
+    assert manifest["validation"] == {
+        "hurl_validated": True,
+        "status": "passed",
+        "structured_output_validated": True,
+    }
+    raw_manifest = json.dumps(manifest, sort_keys=True)
+    assert "Generate checkout smoke coverage." not in raw_manifest
+    assert "Build minimal checkout Hurl tests." not in raw_manifest
 
 
 def test_architect_build_prompt_can_use_breaker_agent(
@@ -659,6 +684,13 @@ gates: []
         "Authorization: Bearer invalid\n"
         "HTTP 401\n"
     )
+    manifests = _agent_run_manifest_payloads()
+    assert len(manifests) == 1
+    assert manifests[0]["command"] == "architect build"
+    assert manifests[0]["mode"] == "create"
+    assert manifests[0]["agent"] == "breaker"
+    assert manifests[0]["model"] == "deepseek/deepseek-r1"
+    assert manifests[0]["tags"] == ["security"]
 
 
 def test_architect_build_prompt_rejects_auditor_agent_until_audit_mode_exists() -> None:
@@ -767,6 +799,12 @@ gates: []
         "# entroping: managed-end checkout-auth\n"
         "# manual footer stays\n"
     )
+    manifests = _agent_run_manifest_payloads()
+    assert len(manifests) == 1
+    assert manifests[0]["command"] == "architect build"
+    assert manifests[0]["mode"] == "merge"
+    assert manifests[0]["agent"] == "builder"
+    assert manifests[0]["output_paths"] == ["tests/manual/checkout.hurl"]
 
 
 def test_architect_build_prompt_rejects_missing_builder_config(
@@ -1597,6 +1635,19 @@ paths:
     assert packages[0].role == "auditor"
     assert "OPENAPI_COVERAGE_MISSING" in packages[0].messages[1].content
     assert not Path("reports").exists()
+    manifests = _agent_run_manifest_payloads()
+    assert len(manifests) == 1
+    manifest = manifests[0]
+    assert manifest["command"] == "architect audit"
+    assert manifest["mode"] == "review"
+    assert manifest["agent"] == "auditor"
+    assert manifest["model"] == "openai/auditor-model"
+    assert manifest["output_paths"] == []
+    assert manifest["validation"] == {
+        "hurl_validated": False,
+        "status": "passed",
+        "structured_output_validated": True,
+    }
 
 
 def test_architect_audit_auditor_focus_outputs_validated_markdown(

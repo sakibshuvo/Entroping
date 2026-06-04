@@ -170,6 +170,7 @@ DEPRECATED_INVOCATIONS = (
 
 REPORT_ARTIFACTS = (
     ".entroping/latest-run.json",
+    ".entroping/agent-runs/*.json",
     "reports/run-latest.json",
     "reports/junit.xml",
     "reports/run-latest.html",

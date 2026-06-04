@@ -380,6 +380,13 @@ CLI output. `architect audit --focus auditor` uses the configured Auditor route
 to produce validated review findings without writing files. `entroping run`
 remains LLM-free.
 
+Prompt-backed Architect build, merge, refactor, and Auditor review paths also
+write value-free manifests under `.entroping/agent-runs/` with schema
+`entroping.agent-run-manifest.v1`. These manifests record role, model, persona
+path/digest, prompt hashes, output paths, tags, validation status, latency, and
+token counts. They are audit evidence only; they do not store raw prompts,
+provider output, persona content, secrets, traffic, or model approval.
+
 The deterministic `architect build --new` OpenAPI path also validates every
 compiled Hurl file through the same parser-backed Hurl validation boundary
 before writing any generated file. If one compiled file fails validation, no
@@ -529,6 +536,7 @@ Suggested future tables:
 | `traffic_session` | User-flow grouping for freeze operations |
 | `run_history` | Last run summary used by reports and bug templates |
 | `ai_edit_audit` | AI generation/refactor metadata, prompts, file paths, and validation status |
+| `agent_run_manifest` | Value-free AI-assisted Architect run evidence |
 | `baseline_snapshot` | Drift and golden-master comparison metadata |
 
 Retention must be configurable. A safe default is bounded local growth, such as size-based rotation around 1 GB or age-based cleanup, with explicit export commands later if needed.
@@ -799,6 +807,7 @@ redacted before serialization, and absolute project-root paths are relativized.
 | Command | Artifact | Stability note |
 | --- | --- | --- |
 | `entroping run` | `.entroping/latest-run.json` | Runtime state for follow-up report commands; uses `entroping.run-report.v1`; not committed. |
+| Prompt-backed `entroping architect ...` | `.entroping/agent-runs/*.json` | Value-free AI run evidence using `entroping.agent-run-manifest.v1`; not committed and not read by `run`. |
 | `entroping run --report json` | `reports/run-latest.json` | Machine-readable run report using `entroping.run-report.v1`. |
 | `entroping run --report junit` | `reports/junit.xml` | CI-compatible test report. |
 | `entroping run --report html` | `reports/run-latest.html` | Human-readable local report. |

@@ -23,6 +23,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Drift report | `entroping.drift-report.v1` | `reports/drift.json` | [drift-report.v1.schema.json](report-schemas/drift-report.v1.schema.json) |
 | Effective policy report | `entroping.effective-policy-report.v1` | `reports/effective-policy.json` | [effective-policy-report.v1.schema.json](report-schemas/effective-policy-report.v1.schema.json) |
 | Failure bundle manifest | `entroping.failure-bundle.v1` | `reports/failure-bundle/manifest.json` | Inline contract |
+| Agent run manifest | `entroping.agent-run-manifest.v1` | `.entroping/agent-runs/*.json` | [agent-run-manifest.v1.schema.json](report-schemas/agent-run-manifest.v1.schema.json) |
 | Architect OpenAPI audit | `entroping.openapi-audit.v1` | `architect audit --output json` stdout | Inline contract |
 | Traceability report | `entroping.traceability-report.v1` | `story_traceability_report_to_dict` | [traceability-report.v1.schema.json](report-schemas/traceability-report.v1.schema.json) |
 | SARIF report | SARIF 2.1.0 | `reports/entroping.sarif` | External SARIF schema |
@@ -55,6 +56,24 @@ version, size, and SHA-256 hash. The bundle may include sanitized run JSON, bug
 Markdown, failed-test Hurl metadata, JUnit, HTML, effective-policy, and
 redaction-review artifacts. It must not include raw traffic state, local env
 files, raw source Hurl contents, provider credentials, or unredacted secrets.
+
+Agent run manifests are written by prompt-backed Architect commands:
+
+```bash
+entroping architect build --prompt "Generate checkout smoke coverage"
+entroping architect build --agent breaker --prompt "Generate invalid-token tests"
+entroping architect build --strategy merge --prompt "Update checkout coverage"
+entroping architect refactor --target "tests/**/*.hurl" --prompt "Add auth header variables"
+entroping architect audit --focus auditor --output md
+```
+
+They live under `.entroping/agent-runs/` and record value-free evidence: agent
+role, model ID, persona source path plus digest, prompt intent/package hashes,
+output paths, tags, validation status, latency, and token usage. They do not
+store raw prompts, persona content, provider keys, environment values, raw
+traffic, raw Hurl contents, provider output, or approval decisions. A manifest
+proves an AI-assisted command ran through validation; it does not mean the model
+approved the change or that generated tests are correct without review.
 
 The Architect OpenAPI audit JSON is written to stdout:
 
@@ -121,6 +140,9 @@ bodies, prompts, provider data, or secrets.
   predate the contract.
 - Report payloads must remain redacted according to the report writer and traffic
   redaction rules.
+- Agent run manifests must stay value-free; adding raw prompt text, provider
+  output, source Hurl content, or captured traffic is a schema-breaking security
+  regression.
 - Markdown and HTML reports are human-readable views, not schema contracts.
 - JUnit XML follows the external JUnit ecosystem contract and is not versioned by
   Entroping.
