@@ -195,7 +195,9 @@ that names downstream consumers affected by the change.
 `entroping.run-report.v1` includes optional `known_failures` entries per test
 when an active QAnstitution exception skipped an injected gate. These entries
 must stay issue-linked, expiring, and value-free; they are evidence of a scoped
-policy exception, not a general pass/fail override.
+policy exception, not a general pass/fail override. Unmatched known-failure
+entries for selected tests fail before Hurl execution and before run-report
+creation; they are configuration errors, not serialized run evidence.
 
 `entroping.run-report.v1` also includes a per-test `retry` object. It records
 `retry_count`, whether the test was `unstable`, and a value-free `attempts`

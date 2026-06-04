@@ -14,6 +14,7 @@ from cli_test_support import (
     LiteLLMCompletionResult,
     NoHurlTestsMatchedError,
     Path,
+    RunWorkflowError,
     SimpleNamespace,
     app,
     execution_cli,
@@ -796,6 +797,29 @@ def test_run_prints_typed_dependency_drift_observation_errors(
     assert result.exit_code == 1
     assert "Could not build dependency drift observations" in result.output
     assert "traffic state unavailable" in result.output
+
+
+def test_run_known_failure_configuration_errors_exit_nonzero_in_ci(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    def fake_execute_run_workflow(**kwargs: object) -> object:
+        _ = kwargs
+        raise RunWorkflowError(
+            "Known failure exception did not match any selected injected gate: "
+            "GH-404 tests/health.hurl rule missing_latency"
+        )
+
+    monkeypatch.setattr(execution_cli, "execute_run_workflow", fake_execute_run_workflow)
+
+    result = CliRunner().invoke(app, ["run", "--ci"])
+
+    assert result.exit_code == 1
+    assert "Known failure exception did not match" in result.output
+    assert "GH-404" in result.output
+    assert "missing_latency" in result.output
 
 
 def test_run_rejects_unsupported_report_format() -> None:
