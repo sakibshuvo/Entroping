@@ -8,9 +8,15 @@ from entroping.bridge.story_traceability import (
     compile_story_traceability,
     story_traceability_report_to_dict,
 )
-from entroping.core.drift_report import drift_report_to_dict
+from entroping.core.drift_report import (
+    DRIFT_BASELINE_SCHEMA_VERSION,
+    drift_baseline_to_dict,
+    drift_report_to_dict,
+)
 from entroping.core.report_writer import run_report_to_dict
 from entroping.models.drift import (
+    DriftBaseline,
+    DriftBaselineTest,
     DriftFinding,
     DriftReport,
     DriftReportSummary,
@@ -144,6 +150,47 @@ def test_drift_report_v1_schema_contract_is_versioned_and_stable() -> None:
                 "message": "Injected QAnstitution rule IDs differ from the drift baseline.",
                 "baseline": {"rule_ids": ["global_latency"]},
                 "current": {"rule_ids": ["global_latency", "request_id_header"]},
+            }
+        ],
+    }
+
+
+def test_drift_baseline_v1_schema_contract_is_versioned_and_stable() -> None:
+    baseline = DriftBaseline(
+        project="checkout-api",
+        environment="ci",
+        tests=(
+            DriftBaselineTest(
+                path="tests/health.hurl",
+                status="passed",
+                exit_code=0,
+                rule_ids=("global_latency",),
+                duration_ms=12,
+                response_status_code=200,
+                response_headers=(("content-type", "application/json"),),
+                response_body_shape=("$:object", "$.ok:boolean"),
+            ),
+        ),
+    )
+
+    payload = drift_baseline_to_dict(baseline)
+
+    assert payload == {
+        "schema_version": DRIFT_BASELINE_SCHEMA_VERSION,
+        "project": "checkout-api",
+        "environment": "ci",
+        "tests": [
+            {
+                "path": "tests/health.hurl",
+                "status": "passed",
+                "exit_code": 0,
+                "duration_ms": 12,
+                "rule_ids": ["global_latency"],
+                "response": {
+                    "status_code": 200,
+                    "headers": {"content-type": "application/json"},
+                    "body_shape": ["$:object", "$.ok:boolean"],
+                },
             }
         ],
     }

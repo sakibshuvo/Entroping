@@ -655,3 +655,58 @@ def test_report_sarif_wraps_report_errors(
 
     assert result.exit_code == 1
     assert "Could not parse drift report" in result.output
+
+
+def test_report_promote_drift_baseline_writes_active_baseline(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports_dir = Path("reports")
+    reports_dir.mkdir()
+    candidate = reports_dir / "drift-baseline.candidate.json"
+    candidate.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.drift-baseline.v1",
+                "project": "checkout-api",
+                "environment": "staging",
+                "tests": [
+                    {
+                        "path": "tests/health.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 25,
+                        "rule_ids": ["global_latency"],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["report", "promote-drift-baseline"])
+
+    assert result.exit_code == 0
+    assert "Promoted drift baseline: .entroping/drift-baseline.json" in result.output
+    assert "1 test" in result.output
+    active = json.loads(
+        (Path(".entroping") / "drift-baseline.json").read_text(encoding="utf-8")
+    )
+    assert active == json.loads(candidate.read_text(encoding="utf-8"))
+
+
+def test_report_promote_drift_baseline_wraps_candidate_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports_dir = Path("reports")
+    reports_dir.mkdir()
+    (reports_dir / "drift-baseline.candidate.json").write_text("{", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["report", "promote-drift-baseline"])
+
+    assert result.exit_code == 1
+    assert "Could not parse drift baseline candidate" in result.output
+    assert not (Path(".entroping") / "drift-baseline.json").exists()

@@ -36,7 +36,7 @@ python -m json.tool reports/drift-baseline.candidate.json
 Promote it after review:
 
 ```bash
-cp reports/drift-baseline.candidate.json .entroping/drift-baseline.json
+entroping report promote-drift-baseline
 ```
 
 The first run also writes `reports/drift.json` with a `missing_baseline` finding.
@@ -65,7 +65,7 @@ git diff --no-index -- .entroping/drift-baseline.json reports/drift-baseline.can
 If the behavior change is intentional, promote the candidate:
 
 ```bash
-cp reports/drift-baseline.candidate.json .entroping/drift-baseline.json
+entroping report promote-drift-baseline
 ```
 
 If the behavior change is not intentional, fix the API or Hurl test and rerun
@@ -84,6 +84,10 @@ The candidate is intentionally value-free. It includes only:
 
 It does not include stdout, stderr, execution paths, cookies, authorization
 headers, request IDs, volatile headers, full response bodies, or raw secrets.
+
+Promotion validates the candidate schema before writing the active baseline. It
+rejects missing, malformed, stale, future-version, symlinked, or outside-project
+candidate paths and writes the active baseline atomically.
 
 ## Git Policy
 
