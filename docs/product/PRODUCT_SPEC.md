@@ -206,7 +206,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | ID | Requirement | Acceptance Criteria |
 | --- | --- | --- |
 | EXE-001 | Run suites by environment | `entroping run --env local` loads `envs/local.env` and environment variables |
-| EXE-002 | Filter by tags | `entroping run --tag smoke` runs matching tests across folders |
+| EXE-002 | Filter by tags | `entroping run --tag smoke` runs matching tests across folders; `--tag-expression "smoke and not slow"` supports deterministic ad hoc boolean selection |
 | EXE-003 | Run in CI mode | `entroping run --ci` emits strict exit codes and CI-friendly logs |
 | EXE-004 | Run in parallel | `entroping run --parallel` uses bounded workers and deterministic aggregation |
 | EXE-005 | Inject gates | Matching QAnstitution gates are injected into execution copies without mutating source tests |

@@ -23,7 +23,7 @@ entroping freeze --name <flow> [--golden] [--mock <service>] [capture filters]
 entroping map [--export <mermaid|dot|md|png>] [capture filters]
 
 entroping studio [--env <name>]
-entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
+entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
 entroping report bug
 entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
@@ -154,9 +154,9 @@ entroping map --export mermaid --include-host api.example.test
 ## Execution
 
 Current alpha implementation supports deterministic `run`, `--env`, `--suite`,
-`--tag`, `--ci`, bounded `--parallel`, `--drift-check`, `--report html`,
-`--report json`, `--report junit`, `--report drift`, and `--changed-from <ref>`
-for changed Hurl files from Git diff. Before invoking Hurl, `run` checks
+`--tag`, `--tag-expression`, `--ci`, bounded `--parallel`, `--drift-check`,
+`--report html`, `--report json`, `--report junit`, `--report drift`, and
+`--changed-from <ref>` for changed Hurl files from Git diff. Before invoking Hurl, `run` checks
 selected execution copies for unresolved `{{variable}}` references and reports
 missing variable names without printing values.
 
@@ -166,6 +166,7 @@ missing variable names without printing values.
 | `entroping run --env <name>` | Run tests with environment variables |
 | `entroping run --suite <name>` | Run a committed suite manifest from `suites/<name>.yaml` |
 | `entroping run --tag <tag>` | Run tests matching a tag |
+| `entroping run --tag-expression <expr>` | Run tests matching a boolean tag expression such as `smoke and not slow` |
 | `entroping run --ci` | Strict CI mode |
 | `entroping run --parallel` | Bounded parallel execution |
 | `entroping run --report <html|junit|json|drift>` | Write report artifact; repeat for multiple formats |
@@ -178,6 +179,7 @@ Examples:
 entroping studio --env local
 entroping run --suite smoke --ci
 entroping run --env local --tag smoke --report html --report json --report junit
+entroping run --tag-expression "smoke and not slow" --report json
 entroping run --changed-from origin/main --tag smoke
 entroping run --env ci --ci --parallel --report junit
 entroping run --env staging --drift-check --report drift
@@ -187,8 +189,11 @@ entroping run --env staging --drift-check --report drift
 `entroping.suite.v1`. Suite manifests can define `env`, `tags`, `paths`,
 `reports`, `parallel`, and `drift_check`. Suite paths are root-bounded local
 globs. `--suite` cannot be combined with ad hoc run selectors such as `--env`,
-`--tag`, `--report`, `--parallel`, `--drift-check`, or `--changed-from`; keep
-`--ci` for strict exit behavior.
+`--tag`, `--tag-expression`, `--report`, `--parallel`, `--drift-check`, or
+`--changed-from`; keep `--ci` for strict exit behavior. `--tag-expression`
+supports `and`, `or`, `not`, and parentheses over Entroping metadata tags. It
+cannot be combined with repeatable `--tag`; use `--tag` for simple OR selection
+and `--tag-expression` for ad hoc boolean selection.
 
 `--changed-from` is a developer and agent feedback shortcut. Keep full-suite
 `entroping run --ci` as the release gate.

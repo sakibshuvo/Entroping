@@ -21,6 +21,7 @@ from entroping.core.run_workflow import (
     RunWorkflowError,
     execute_run_workflow,
 )
+from entroping.core.tag_expression import TagExpressionSyntaxError, compile_tag_expression
 from entroping.core.traffic_filters import TrafficCaptureFilters, TrafficFilterError
 from entroping.core.traffic_proxy import (
     DEFAULT_WATCH_PORT,
@@ -249,6 +250,13 @@ def run(
         list[str] | None,
         typer.Option("--tag", help="Tag filter; repeat for multiple tags."),
     ] = None,
+    tag_expression: Annotated[
+        str | None,
+        typer.Option(
+            "--tag-expression",
+            help="Boolean tag expression using and/or/not, for example: smoke and not slow.",
+        ),
+    ] = None,
     ci: Annotated[bool, typer.Option("--ci", help="Strict CI mode.")] = False,
     parallel: Annotated[
         bool,
@@ -273,10 +281,23 @@ def run(
     """Run Hurl suites with QAnstitution gates."""
 
     if suite is None:
+        if tag and tag_expression is not None:
+            raise typer.BadParameter(
+                "--tag cannot be combined with --tag-expression",
+                param_hint="--tag-expression",
+            )
         try:
             tag_filters = tuple(normalize_tag_filters(tag))
         except ValueError as exc:
             raise typer.BadParameter(str(exc), param_hint="--tag") from exc
+        if tag_expression is not None:
+            try:
+                compile_tag_expression(tag_expression)
+            except TagExpressionSyntaxError as exc:
+                raise typer.BadParameter(
+                    f"Invalid tag expression: {exc}",
+                    param_hint="--tag-expression",
+                ) from exc
 
         try:
             report_formats = _normalize_report_formats(report)
@@ -292,6 +313,7 @@ def run(
         _reject_suite_conflicts(
             env=env,
             tag=tag,
+            tag_expression=tag_expression,
             report=report,
             parallel=parallel,
             drift_check=drift_check,
@@ -316,6 +338,7 @@ def run(
             project_root=Path.cwd(),
             environment=run_environment,
             tag_filters=tag_filters,
+            tag_expression=tag_expression,
             report_formats=report_formats,
             parallel=run_parallel,
             drift_check=run_drift_check,
@@ -341,6 +364,16 @@ def run(
 
     hurl_suite = workflow_result.suite
     drift_report = workflow_result.drift_report
+    selection = getattr(workflow_result, "selection", None)
+    if selection is not None and (tag_expression is not None or selection.skipped_count > 0):
+        reason = " by tag expression" if tag_expression is not None else " by tag filters"
+        console.print(
+            (
+                f"Hurl selection: {selection.selected_count} selected, "
+                f"{selection.skipped_count} skipped{reason}"
+            ),
+            markup=False,
+        )
     console.print(f"Hurl run: {hurl_suite.passed} passed, {hurl_suite.failed} failed")
     if drift_report is not None:
         if drift_report.summary.missing_baseline:
@@ -389,6 +422,7 @@ def _reject_suite_conflicts(
     *,
     env: str | None,
     tag: list[str] | None,
+    tag_expression: str | None,
     report: list[str] | None,
     parallel: bool,
     drift_check: bool,
@@ -399,6 +433,8 @@ def _reject_suite_conflicts(
         conflicts.append("--env")
     if tag:
         conflicts.append("--tag")
+    if tag_expression is not None:
+        conflicts.append("--tag-expression")
     if report:
         conflicts.append("--report")
     if parallel:

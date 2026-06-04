@@ -142,6 +142,16 @@ Run the suite:
 entroping run --env local --tag smoke --report html
 ```
 
+For a fast ad hoc subset, use a boolean tag expression:
+
+```bash
+entroping run --tag-expression "smoke and not slow" --report json
+```
+
+`--tag-expression` supports `and`, `or`, `not`, and parentheses over
+Entroping metadata tags. It cannot be combined with repeatable `--tag` or
+committed `--suite` manifests.
+
 Use strict CI mode in pipelines:
 
 ```bash
@@ -414,8 +424,8 @@ entroping run --suite smoke --ci
 Create separate manifests such as `suites/regression.yaml` and
 `suites/security.yaml` when a suite needs different paths, reports, or drift
 settings. `--suite` cannot be combined with ad hoc selectors such as `--env`,
-`--tag`, `--report`, `--parallel`, `--drift-check`, or `--changed-from`; use
-`--ci` only to choose strict exit behavior.
+`--tag`, `--tag-expression`, `--report`, `--parallel`, `--drift-check`, or
+`--changed-from`; use `--ci` only to choose strict exit behavior.
 
 Entroping can compile discovered Hurl metadata into a local story/test
 traceability report:

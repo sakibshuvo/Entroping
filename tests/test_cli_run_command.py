@@ -390,6 +390,134 @@ def test_run_parallel_uses_qanstitution_worker_limit(
     assert "Hurl run: 2 passed, 0 failed" in result.output
 
 
+def test_run_selects_by_tag_expression_and_prints_selection_counts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    (Path("tests") / "health.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET http://localhost:18080/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    (Path("tests") / "slow.hurl").write_text(
+        "# entroping: tags=smoke,slow\n\nGET http://localhost:18080/slow\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    (Path("tests") / "billing.hurl").write_text(
+        "# entroping: tags=regression,billing\n\nGET http://localhost:18080/billing\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+    ) -> HurlSuiteResult:
+        _ = (options, max_workers)
+        return HurlSuiteResult(
+            results=tuple(
+                HurlFileResult(
+                    path=path,
+                    command=("hurl", str(path)),
+                    status="passed",
+                    exit_code=0,
+                    stdout="",
+                    stderr="",
+                    stdout_truncated=False,
+                    stderr_truncated=False,
+                    duration_ms=1,
+                )
+                for path in paths
+            )
+        )
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
+
+    result = runner.invoke(app, ["run", "--tag-expression", "smoke and not slow"])
+
+    assert result.exit_code == 0
+    assert "Hurl selection: 1 selected, 2 skipped by tag expression" in result.output
+    latest = json.loads(Path(".entroping/latest-run.json").read_text(encoding="utf-8"))
+    assert latest["tests"][0]["path"] == "tests/health.hurl"
+
+
+def test_run_tag_expression_prints_zero_skipped_selection_counts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    (Path("tests") / "health.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET http://localhost:18080/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+    ) -> HurlSuiteResult:
+        _ = (options, max_workers)
+        return HurlSuiteResult(
+            results=tuple(
+                HurlFileResult(
+                    path=path,
+                    command=("hurl", str(path)),
+                    status="passed",
+                    exit_code=0,
+                    stdout="",
+                    stderr="",
+                    stdout_truncated=False,
+                    stderr_truncated=False,
+                    duration_ms=1,
+                )
+                for path in paths
+            )
+        )
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
+
+    result = runner.invoke(app, ["run", "--tag-expression", "smoke"])
+
+    assert result.exit_code == 0
+    assert "Hurl selection: 1 selected, 0 skipped by tag expression" in result.output
+
+
+def test_run_tag_expression_no_matches_reports_counts_without_hurl_execution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    (Path("tests") / "health.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    def fail_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+    ) -> HurlSuiteResult:
+        _ = (paths, options, max_workers)
+        raise AssertionError("no-match tag expression must fail before Hurl execution")
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fail_run_hurl_files)
+
+    result = runner.invoke(app, ["run", "--tag-expression", "critical and not slow"])
+
+    assert result.exit_code == 0
+    assert "No Hurl tests matched tag expression 'critical and not slow'" in result.output
+    assert "0 selected, 1 skipped" in " ".join(result.output.split())
+
+
 def test_run_env_fails_with_actionable_missing_env_file(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -532,6 +660,7 @@ drift_check: true
     "args",
     [
         ["run", "--suite", "smoke", "--tag", "security"],
+        ["run", "--suite", "smoke", "--tag-expression", "smoke and not slow"],
         ["run", "--suite", "smoke", "--env", "local"],
         ["run", "--suite", "smoke", "--report", "json"],
         ["run", "--suite", "smoke", "--changed-from", "main"],
@@ -681,3 +810,30 @@ def test_run_rejects_empty_tag_filter() -> None:
 
     assert result.exit_code == 2
     assert "Tag filters must not be empty" in result.output
+
+
+def test_run_rejects_tag_filter_and_tag_expression_mix() -> None:
+    result = CliRunner().invoke(
+        app,
+        ["run", "--tag", "smoke", "--tag-expression", "checkout"],
+    )
+
+    assert result.exit_code == 2
+    plain_output = " ".join(ANSI_RE.sub("", result.output).split())
+    assert "--tag cannot be combined with" in plain_output
+    assert "--tag-expression" in plain_output
+
+
+def test_run_rejects_invalid_tag_expression_before_workflow(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_execute_run_workflow(**kwargs: object) -> object:
+        _ = kwargs
+        raise AssertionError("invalid tag expressions must fail before workflow execution")
+
+    monkeypatch.setattr(execution_cli, "execute_run_workflow", fail_execute_run_workflow)
+
+    result = CliRunner().invoke(app, ["run", "--tag-expression", "smoke and"])
+
+    assert result.exit_code == 2
+    assert "Invalid tag expression" in result.output
