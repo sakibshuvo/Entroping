@@ -5,18 +5,22 @@ import sys
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 from urllib.parse import urlparse
 
 import typer
 
 from entroping.brain import (
+    ArchitectAuditReviewParseError,
     ArchitectOutputParseError,
     ArchitectRefactorError,
     ArchitectWriteError,
     BrainProviderError,
     PersonaLoadError,
     PromptBuildError,
+    render_auditor_review_json,
+    render_auditor_review_markdown,
+    run_architect_auditor_review,
     run_architect_prompt_build,
     run_architect_refactor,
 )
@@ -45,6 +49,7 @@ from entroping.core.path_safety import first_symlink_path_component
 
 app = typer.Typer(help="Generate, refactor, and audit Hurl tests.")
 HurlValidator = Callable[[str, str], None]
+ArchitectAuditFocus = Literal["logic", "auditor"]
 
 
 @dataclass(frozen=True)
@@ -163,7 +168,7 @@ def architect_refactor(
 def architect_audit(
     focus: Annotated[
         str | None,
-        typer.Option("--focus", help="Audit focus. Currently: logic."),
+        typer.Option("--focus", help="Audit focus: logic or auditor."),
     ] = None,
     output: Annotated[str | None, typer.Option("--output", help="json or md.")] = None,
 ) -> None:
@@ -183,7 +188,31 @@ def architect_audit(
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
 
-    _ = audit_focus
+    if audit_focus == "auditor":
+        try:
+            auditor_result = run_architect_auditor_review(
+                law=law,
+                deterministic_report=report,
+                project_root=Path.cwd(),
+                config_path=Path("qanstitution.yaml"),
+            )
+        except (
+            ArchitectAuditReviewParseError,
+            BrainProviderError,
+            PersonaLoadError,
+            PromptBuildError,
+            ValueError,
+        ) as exc:
+            print_architect_error(exc)
+            raise typer.Exit(1) from exc
+
+        if audit_output == "json":
+            sys.stdout.write(render_auditor_review_json(auditor_result))
+        else:
+            sys.stdout.write(render_auditor_review_markdown(auditor_result))
+            sys.stdout.write("\n")
+        raise typer.Exit(0 if auditor_result.passed else 1)
+
     if audit_output == "json":
         sys.stdout.write(json.dumps(audit_report_to_dict(report), indent=2, sort_keys=True))
         sys.stdout.write("\n")
@@ -253,14 +282,16 @@ def _normalize_architect_build_agent(agent: str | None) -> ArchitectBuildAgent:
     raise typer.Exit(2)
 
 
-def _normalize_architect_audit_focus(focus: str | None) -> str:
+def _normalize_architect_audit_focus(focus: str | None) -> ArchitectAuditFocus:
     if focus is None:
         return "logic"
     normalized = focus.strip().lower()
-    if normalized != "logic":
-        msg = f"Unsupported architect audit focus {focus!r}; supported focus: logic"
-        raise ValueError(msg)
-    return normalized
+    if normalized == "logic":
+        return "logic"
+    if normalized == "auditor":
+        return "auditor"
+    msg = f"Unsupported architect audit focus {focus!r}; supported focus: logic, auditor"
+    raise ValueError(msg)
 
 
 def _normalize_architect_audit_output(output: str | None) -> str:

@@ -152,8 +152,9 @@ being sent.
 
 `architect build` defaults to the Builder route. Use
 `architect build --agent breaker --prompt "<intent>"` for hostile test generation.
-The Auditor route is configured the same way, but it is reserved for audit
-workflows rather than prompt-backed file generation.
+Use `architect audit --focus auditor --output md` or
+`architect audit --focus auditor --output json` for explicit Auditor-backed
+review findings. Auditor reviews do not modify Hurl or policy files.
 
 Provider-specific environment variable names are handled by LiteLLM and the
 provider SDK stack. Entroping only stores non-secret routing metadata.

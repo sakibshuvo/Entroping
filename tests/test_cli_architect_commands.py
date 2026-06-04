@@ -1279,11 +1279,267 @@ paths:
     assert "No OpenAPI coverage gaps found." in result.output
 
 
+def test_architect_audit_auditor_focus_outputs_validated_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("agents").mkdir()
+    Path("agents/auditor.md").write_text(
+        "Review committed tests for coverage and policy gaps.",
+        encoding="utf-8",
+    )
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+sources:
+  spec: ./openapi.yaml
+agents:
+  auditor:
+    source: agents/auditor.md
+    model: openai/auditor-model
+gates:
+  - id: global_latency
+    condition: "true"
+    gate: duration < 2000
+    enforcement: block
+""".lstrip(),
+        encoding="utf-8",
+    )
+    Path("openapi.yaml").write_text(
+        """
+openapi: "3.1.0"
+paths:
+  /checkout:
+    post:
+      operationId: createCheckout
+      responses:
+        "201":
+          description: created
+""".lstrip(),
+        encoding="utf-8",
+    )
+    packages: list[ArchitectPromptPackage] = []
+
+    def fake_complete(
+        self: object,
+        package: ArchitectPromptPackage,
+    ) -> LiteLLMCompletionResult:
+        _ = self
+        packages.append(package)
+        return LiteLLMCompletionResult(
+            content=json.dumps(
+                {
+                    "summary": "Checkout authorization is under-tested.",
+                    "findings": [
+                        {
+                            "code": "AUTH_NEGATIVE_COVERAGE",
+                            "severity": "error",
+                            "title": "Missing unauthorized checkout test",
+                            "detail": "No committed Hurl test asserts 401 or 403.",
+                            "recommendation": "Generate a Breaker invalid-token test.",
+                            "evidence": ["operation:createCheckout"],
+                        }
+                    ],
+                },
+            ),
+            model="openai/auditor-model",
+            latency_ms=33,
+            usage=LiteLLMUsage(prompt_tokens=11, completion_tokens=22, total_tokens=33),
+        )
+
+    monkeypatch.setattr("entroping.brain.litellm_client.LiteLLMClient.complete", fake_complete)
+
+    result = CliRunner().invoke(
+        app,
+        ["architect", "audit", "--focus", "auditor", "--output", "json"],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["status"] == "fail"
+    assert payload["agent"] == "auditor"
+    assert payload["model"] == "openai/auditor-model"
+    assert payload["findings"][0]["code"] == "AUTH_NEGATIVE_COVERAGE"
+    assert packages
+    assert packages[0].role == "auditor"
+    assert "OPENAPI_COVERAGE_MISSING" in packages[0].messages[1].content
+    assert not Path("reports").exists()
+
+
+def test_architect_audit_auditor_focus_outputs_validated_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("agents").mkdir()
+    Path("agents/auditor.md").write_text("Review committed tests.", encoding="utf-8")
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+sources:
+  spec: ./openapi.yaml
+agents:
+  auditor:
+    source: agents/auditor.md
+    model: openai/auditor-model
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    Path("openapi.yaml").write_text(
+        """
+openapi: "3.1.0"
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: ok
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    def fake_complete(
+        self: object,
+        package: ArchitectPromptPackage,
+    ) -> LiteLLMCompletionResult:
+        _ = (self, package)
+        return LiteLLMCompletionResult(
+            content=json.dumps(
+                {
+                    "summary": "Coverage is acceptable.",
+                    "findings": [],
+                    "warnings": ["Keep generated tests reviewed."],
+                },
+            ),
+            model="openai/auditor-model",
+            latency_ms=15,
+            usage=LiteLLMUsage(prompt_tokens=5, completion_tokens=7, total_tokens=12),
+        )
+
+    monkeypatch.setattr("entroping.brain.litellm_client.LiteLLMClient.complete", fake_complete)
+
+    result = CliRunner().invoke(
+        app,
+        ["architect", "audit", "--focus", "auditor", "--output", "md"],
+    )
+
+    assert result.exit_code == 0
+    assert "# Architect Auditor Review" in result.output
+    assert "Status: pass" in result.output
+    assert "Coverage is acceptable." in result.output
+    assert "No Auditor findings." in result.output
+
+
+def test_architect_audit_auditor_focus_rejects_missing_agent_config(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+sources:
+  spec: ./openapi.yaml
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    Path("openapi.yaml").write_text(
+        """
+openapi: "3.1.0"
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: ok
+""".lstrip(),
+        encoding="utf-8",
+    )
+    provider_called = False
+
+    def fake_complete(self: object, package: ArchitectPromptPackage) -> LiteLLMCompletionResult:
+        nonlocal provider_called
+        _ = (self, package)
+        provider_called = True
+        raise AssertionError("provider should not be called")
+
+    monkeypatch.setattr("entroping.brain.litellm_client.LiteLLMClient.complete", fake_complete)
+
+    result = CliRunner().invoke(app, ["architect", "audit", "--focus", "auditor"])
+
+    assert result.exit_code == 1
+    assert "No agent config found for role auditor" in result.output
+    assert provider_called is False
+
+
+def test_architect_audit_auditor_focus_rejects_invalid_provider_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("agents").mkdir()
+    Path("agents/auditor.md").write_text("Review committed tests.", encoding="utf-8")
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+sources:
+  spec: ./openapi.yaml
+agents:
+  auditor:
+    source: agents/auditor.md
+    model: openai/auditor-model
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    Path("openapi.yaml").write_text(
+        """
+openapi: "3.1.0"
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: ok
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    def fake_complete(
+        self: object,
+        package: ArchitectPromptPackage,
+    ) -> LiteLLMCompletionResult:
+        _ = (self, package)
+        return LiteLLMCompletionResult(
+            content="not-json sk-proj-live-secret",
+            model="openai/auditor-model",
+            latency_ms=1,
+            usage=LiteLLMUsage(prompt_tokens=None, completion_tokens=None, total_tokens=None),
+        )
+
+    monkeypatch.setattr("entroping.brain.litellm_client.LiteLLMClient.complete", fake_complete)
+
+    result = CliRunner().invoke(app, ["architect", "audit", "--focus", "auditor"])
+
+    assert result.exit_code == 1
+    assert "sk-proj-live-secret" not in result.output
+    assert "[REDACTED]" in result.output
+    assert "Auditor output validation failed before display." in result.output
+    assert "No files were written." in result.output
+
+
 def test_architect_audit_rejects_unsupported_focus() -> None:
     result = CliRunner().invoke(app, ["architect", "audit", "--focus", "security"])
 
     assert result.exit_code == 1
     assert "Unsupported architect audit focus" in result.output
+    assert "supported focus: logic, auditor" in result.output
 
 
 def test_architect_audit_rejects_unsupported_output() -> None:

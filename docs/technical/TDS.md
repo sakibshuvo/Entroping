@@ -375,9 +375,9 @@ writer. `architect refactor` also supports manual Hurl files that opt into
 managed-block replacement. `architect build --strategy merge --prompt` reuses the
 same managed-block and prepared-write boundaries for existing files only. Provider
 summaries, warnings, parser failures, and errors are redacted or summarized before
-CLI output. `entroping run` remains LLM-free. Auditor routing is configured in
-QAnstitution but is reserved for `architect audit` workflows rather than prompt
-build generation.
+CLI output. `architect audit --focus auditor` uses the configured Auditor route
+to produce validated review findings without writing files. `entroping run`
+remains LLM-free.
 
 The deterministic `architect build --new` OpenAPI path also validates every
 compiled Hurl file through the same parser-backed Hurl validation boundary
@@ -630,7 +630,7 @@ paths, URLs, and control characters.
 ```text
 entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
 entroping architect refactor --target <glob> --prompt <text>
-entroping architect audit [--focus logic] [--output <json|md>]
+entroping architect audit [--focus <logic|auditor>] [--output <json|md>]
 ```
 
 ### Observation

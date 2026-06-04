@@ -55,6 +55,9 @@ project, and a Codex workspace with fast context rehydration.
 - Prompt-backed Architect generation defaults to Builder and can select Breaker
   with `architect build --agent breaker --prompt ...`; Breaker output is
   generated before review and committed as deterministic Hurl before `run`.
+- Auditor reviews are explicit through `architect audit --focus auditor`; they
+  validate provider JSON before display, write no files, and never affect
+  deterministic `run`.
 - Example coverage includes REST-style checkout/support fixtures plus
   GraphQL-over-HTTP and SOAP-over-HTTP fixtures that use ordinary Hurl
   assertions instead of adding protocol-specific runtime engines.

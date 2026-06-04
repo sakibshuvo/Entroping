@@ -639,6 +639,7 @@ Run:
 ```bash
 hurlfmt --out json tests/path/to/test.hurl >/dev/null
 entroping architect audit --focus logic --output md
+entroping architect audit --focus auditor --output md
 ```
 
 Then refine with a narrower prompt. If `hurlfmt` is not installed, use the project's configured Hurl parser-backed validation step before accepting generated files.

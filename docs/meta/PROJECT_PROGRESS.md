@@ -31,8 +31,8 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#392](https://github.com/sakibshuvo/Entroping/issues/392)
-turns Breaker from configured persona metadata into a real prompt-build route.
+Current issue: [#393](https://github.com/sakibshuvo/Entroping/issues/393)
+turns Auditor from configured persona metadata into an explicit review workflow.
 Next local slices should keep moving useful runtime and developer workflow
 features before returning to blocked external stable-core proof.
 
@@ -51,9 +51,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#392](https://github.com/sakibshuvo/Entroping/issues/392) | Finish Breaker-backed prompt generation so multi-agent QAnstitution routing is executable, not decorative. |
-| 2 | [#393](https://github.com/sakibshuvo/Entroping/issues/393) | Add Auditor-backed review mode for coverage and policy findings. |
-| 3 | [#396](https://github.com/sakibshuvo/Entroping/issues/396) | Preflight unresolved Hurl variables before subprocess execution to catch common local and CI failures earlier. |
+| 1 | [#393](https://github.com/sakibshuvo/Entroping/issues/393) | Finish Auditor-backed review mode for coverage and policy findings. |
+| 2 | [#396](https://github.com/sakibshuvo/Entroping/issues/396) | Preflight unresolved Hurl variables before subprocess execution to catch common local and CI failures earlier. |
+| 3 | [#394](https://github.com/sakibshuvo/Entroping/issues/394) | Validate configured agent personas and provider environment readiness in `doctor`. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -95,6 +95,7 @@ entirely inside this repo.
 | [Typer shell-completion onboarding](https://github.com/sakibshuvo/Entroping/issues/347) | Done | README and user guide now point to Typer's existing completion global options without adding an Entroping subcommand. |
 | [Hardened XML report parsing](https://github.com/sakibshuvo/Entroping/issues/364) | Done | JUnit XML read paths for GitHub annotations and review summaries use `defusedxml` and reject DTD/entity constructs before rendering findings. |
 | [Captured-traffic redaction hardening](https://github.com/sakibshuvo/Entroping/issues/365) | Done | Multipart request and response bodies are persisted only as redacted media-type summaries, and broad token patterns avoid short documentation placeholders. |
+| [Breaker-backed prompt generation](https://github.com/sakibshuvo/Entroping/issues/392) | Done | `architect build --agent breaker --prompt ...` loads the configured Breaker persona/model and tags generated Hurl with `breaker`. |
 | [`py.typed` package marker](https://github.com/sakibshuvo/Entroping/issues/366) | Done | Built wheel and sdist artifacts now include `entroping/py.typed`, and `scripts/package_check.sh` fails if either artifact omits it. |
 | [Run workflow integration proof](https://github.com/sakibshuvo/Entroping/issues/367) | Done | A Python integration test invokes `entroping run` with a fake `hurl` executable, proving discovery, gate injection, subprocess execution, source immutability, and JSON/JUnit reports together. |
 | [Shell script quality gate](https://github.com/sakibshuvo/Entroping/issues/369) | Done | `scripts/shell_quality.sh` now runs `bash -n` over tracked shell scripts, runs ShellCheck when available, and is wired into the feature gate before Python checks. |

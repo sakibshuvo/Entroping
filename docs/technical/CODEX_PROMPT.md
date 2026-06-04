@@ -28,7 +28,7 @@ entroping config set --agent <builder|auditor|breaker> --model <model-id>
 
 entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
 entroping architect refactor --target <glob> --prompt <text>
-entroping architect audit [--focus logic] [--output <json|md>]
+entroping architect audit [--focus <logic|auditor>] [--output <json|md>]
 
 entroping watch [--port <port>] [--target <url>]
 entroping freeze --name <flow> [--golden] [--mock <service>]

@@ -328,8 +328,8 @@ Current role behavior:
 - `architect build --prompt` defaults to the Builder persona.
 - `architect build --agent breaker --prompt` selects the Breaker persona,
   model route, and automatically marks generated tests with the `breaker` tag.
-- Auditor routing is validated and configurable, but Auditor-backed execution is
-  reserved for audit workflows instead of prompt-backed test generation.
+- `architect audit --focus auditor` selects the Auditor persona and model route
+  for provider-backed review findings. Auditor does not edit files.
 
 Current implementation note: `entroping config list` prints this routing metadata,
 and `entroping config set --agent <builder|auditor|breaker> --model <provider/model>`
