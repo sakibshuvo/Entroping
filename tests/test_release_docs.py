@@ -122,6 +122,28 @@ def test_readme_surfaces_public_docs_before_project_context() -> None:
     assert len(project_context.splitlines()) <= 45
 
 
+def test_readme_keeps_backstage_context_out_of_product_pitch() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    public_pitch = readme.split("## Project Context", maxsplit=1)[0]
+    project_context = readme.split("## Project Context", maxsplit=1)[1].split(
+        "## Locked Alpha CLI Surface",
+        maxsplit=1,
+    )[0]
+
+    backstage_terms = [
+        "Obsidian",
+        "knowledge base",
+        ".context",
+        "docs/meta/",
+        "VAULT_INDEX",
+    ]
+    for term in backstage_terms:
+        assert term not in public_pitch
+
+    assert "Maintainer and agent context is backstage" in project_context
+    assert "not required for first use" in project_context
+
+
 def test_mkdocs_home_explains_repository_context_surfaces() -> None:
     index = (REPO_ROOT / "docs" / "index.md").read_text(encoding="utf-8")
 
