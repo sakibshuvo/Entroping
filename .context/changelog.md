@@ -2,6 +2,12 @@
 
 ## 2026-06-04
 
+- Added issue #446's CI-readiness doctor mode so `entroping doctor --ci`
+  validates Hurl availability, safe `.entroping/` and `reports/` artifact
+  paths, committed suite manifests, required Hurl variables, and provider-free
+  `run --ci` expectations without CI provider API calls, workflow mutation, or
+  env-value disclosure. JSON output extends `entroping.doctor.v1` with optional
+  `ci_readiness` evidence.
 - Added issue #445's local coverage badge report so `entroping report badges`
   writes Shields endpoint JSON for policy-gate, OpenAPI operation, and
   story-traceability coverage from existing local reports. `report traceability`

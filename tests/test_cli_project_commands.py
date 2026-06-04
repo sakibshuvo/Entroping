@@ -517,6 +517,194 @@ gates: []
     assert "sk-proj-live-secret" not in result.output
 
 
+def test_doctor_ci_json_reports_ready_suite_env_and_report_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        project_cli,
+        "discover_hurl",
+        lambda binary="hurl": SimpleNamespace(available=True, path=f"/usr/local/bin/{binary}"),
+    )
+    CliRunner().invoke(app, ["init"])
+    (tmp_path / "tests" / "checkout.hurl").write_text(
+        "GET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "envs" / "ci.env").write_text(
+        "base_url=http://localhost:18080\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "suites").mkdir()
+    (tmp_path / "suites" / "ci.yaml").write_text(
+        """
+version: entroping.suite.v1
+name: ci
+env: ci
+paths:
+  - tests/*.hurl
+reports:
+  - json
+  - junit
+  - html
+parallel: true
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["doctor", "--ci", "--output", "json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["schema_version"] == "entroping.doctor.v1"
+    assert payload["ci_readiness"]["status"] == "ok"
+    assert payload["ci_readiness"]["provider_free_run"] is True
+    checks = {check["id"]: check for check in payload["ci_readiness"]["checks"]}
+    assert checks["hurl_available"]["status"] == "ok"
+    assert checks["report_paths"]["status"] == "ok"
+    assert checks["suite_manifests"]["suites"] == ["ci"]
+    assert checks["env_variables"]["required_env_names"] == []
+    assert "http://localhost:18080" not in result.output
+
+
+def test_doctor_ci_reports_ready_human_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        project_cli,
+        "discover_hurl",
+        lambda binary="hurl": SimpleNamespace(available=True, path=f"/usr/local/bin/{binary}"),
+    )
+    CliRunner().invoke(app, ["init"])
+    (tmp_path / "tests" / "health.hurl").write_text(
+        "GET http://localhost:18080/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "suites").mkdir()
+    (tmp_path / "suites" / "ci.yaml").write_text(
+        "version: entroping.suite.v1\nname: ci\npaths:\n  - tests/*.hurl\n",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["doctor", "--ci"])
+
+    assert result.exit_code == 0
+    assert "CI readiness: ready" in result.output
+    assert "Suite manifests: ok" in result.output
+    assert "Provider free run: ok" in result.output
+
+
+def test_doctor_ci_reports_warning_human_output_without_suite_manifests(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        project_cli,
+        "discover_hurl",
+        lambda binary="hurl": SimpleNamespace(available=True, path=f"/usr/local/bin/{binary}"),
+    )
+    CliRunner().invoke(app, ["init", "--minimal"])
+    (tmp_path / "tests" / "health.hurl").write_text(
+        "GET http://localhost:18080/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["doctor", "--ci"])
+
+    assert result.exit_code == 0
+    assert "CI readiness: warnings" in result.output
+    assert "Suite manifests: warning" in result.output
+    assert "No suite manifests found" in result.output
+
+
+def test_doctor_ci_json_fails_for_missing_hurl_missing_suite_files_and_variables(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        project_cli,
+        "discover_hurl",
+        lambda binary="hurl": SimpleNamespace(available=False, path=None),
+    )
+    CliRunner().invoke(app, ["init", "--minimal"])
+    (tmp_path / "tests" / "checkout.hurl").write_text(
+        "GET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "suites").mkdir()
+    (tmp_path / "suites" / "ci.yaml").write_text(
+        """
+version: entroping.suite.v1
+name: ci
+paths:
+  - tests/*.hurl
+reports:
+  - json
+""".lstrip(),
+        encoding="utf-8",
+    )
+    (tmp_path / "suites" / "missing.yaml").write_text(
+        """
+version: entroping.suite.v1
+name: missing
+paths:
+  - tests/missing/*.hurl
+reports:
+  - junit
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["doctor", "--ci", "--output", "json"])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["ci_readiness"]["status"] == "error"
+    checks = {check["id"]: check for check in payload["ci_readiness"]["checks"]}
+    assert checks["hurl_available"]["status"] == "error"
+    assert checks["suite_manifests"]["status"] == "error"
+    assert checks["suite_manifests"]["suites"] == ["ci", "missing"]
+    assert "No Hurl tests matched suite 'missing'" in checks["suite_manifests"]["message"]
+    assert checks["env_variables"]["status"] == "error"
+    assert checks["env_variables"]["required_env_names"] == ["base_url"]
+    assert "HURL_VARIABLE_base_url" not in result.output
+
+
+def test_doctor_ci_fails_for_unsafe_report_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        project_cli,
+        "discover_hurl",
+        lambda binary="hurl": SimpleNamespace(available=True, path=f"/usr/local/bin/{binary}"),
+    )
+    CliRunner().invoke(app, ["init", "--minimal"])
+    (tmp_path / "tests" / "health.hurl").write_text(
+        "GET http://localhost:18080/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    outside_reports = tmp_path / "outside-reports"
+    outside_reports.mkdir()
+    reports = tmp_path / "reports"
+    if reports.exists():
+        reports.rmdir()
+    reports.symlink_to(outside_reports, target_is_directory=True)
+
+    result = CliRunner().invoke(app, ["doctor", "--ci"])
+
+    assert result.exit_code == 1
+    assert "CI readiness: invalid" in result.output
+    assert "Report paths: invalid" in result.output
+    assert "must not use symlinks" in result.output
+
+
 def test_doctor_json_keeps_warning_exit_compatible(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

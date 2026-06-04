@@ -31,13 +31,9 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#446](https://github.com/sakibshuvo/Entroping/issues/446)
-validates CI environment readiness in `doctor` after local coverage badges,
-run-to-run regression delta reporting, live traffic route audit,
-security-scheme coverage generation, explicit timeout evidence, tag-expression
-run selection, sanitized agent run manifests, bounded retry/flake evidence, and
-capture filters landed.
-Next local slices should keep useful runtime and developer workflow momentum.
+Current issue: [#447](https://github.com/sakibshuvo/Entroping/issues/447)
+adds reusable QAnstitution gate groups after the recent CI-readiness, reporting,
+audit, generation, runner-evidence, agent-manifest, and Eye-filter slices landed.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -54,9 +50,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#446](https://github.com/sakibshuvo/Entroping/issues/446) | Validate CI environment readiness in doctor. |
-| 2 | [#447](https://github.com/sakibshuvo/Entroping/issues/447) | Add reusable QAnstitution gate groups. |
-| 3 | [#448](https://github.com/sakibshuvo/Entroping/issues/448) | Add provider cost and latency budget evidence. |
+| 1 | [#447](https://github.com/sakibshuvo/Entroping/issues/447) | Add reusable QAnstitution gate groups. |
+| 2 | [#448](https://github.com/sakibshuvo/Entroping/issues/448) | Add provider cost and latency budget evidence. |
+| 3 | [#449](https://github.com/sakibshuvo/Entroping/issues/449) | Generate approval manifests for captured artifacts. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -77,6 +73,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [CI-readiness doctor mode](https://github.com/sakibshuvo/Entroping/issues/446) | Done | `entroping doctor --ci` validates Hurl availability, safe `.entroping/` and `reports/` paths, suite manifests, required Hurl variables, and provider-free `run --ci` expectations without CI provider APIs, workflow mutation, or env-value disclosure. |
 | [Coverage badges from local reports](https://github.com/sakibshuvo/Entroping/issues/445) | Done | `entroping report badges` writes local Shields endpoint JSON for policy-gate, OpenAPI operation, and story-traceability coverage from existing JSON reports; `report traceability --output json` provides the badge source without hosted services or network calls. |
 | [Run-to-run regression delta](https://github.com/sakibshuvo/Entroping/issues/444) | Done | `entroping report delta --base <path> --current <path> --output md|json` compares two local JSON run reports, emits schema-versioned added/resolved/changed/unchanged failure, latency, and policy-gate deltas, exits nonzero for added or changed failures, and never renders raw stdout/stderr. |
 | [Traffic-vs-OpenAPI route audit](https://github.com/sakibshuvo/Entroping/issues/443) | Done | `architect audit --focus logic` now opportunistically reads redacted Eye traffic state, compares captured route summaries to OpenAPI templates, flags undocumented observed routes, and reports documented/spec-only route evidence without raw query strings, headers, cookies, bodies, host userinfo, or captured values. |

@@ -22,7 +22,7 @@ Implement only this command surface unless the specs are explicitly updated:
 
 ```text
 entroping init [--minimal]
-entroping doctor
+entroping doctor [--ci] [--output <text|json>]
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
 entroping config vendor-policy-pack --pack <path> [--name <dir>]

@@ -639,7 +639,7 @@ Compatibility audit: [CLI_COMPATIBILITY_AUDIT.md](CLI_COMPATIBILITY_AUDIT.md).
 
 ```text
 entroping init [--minimal]
-entroping doctor [--output <text|json>]
+entroping doctor [--ci] [--output <text|json>]
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
 entroping config vendor-policy-pack --pack <path> [--name <dir>]
@@ -651,6 +651,13 @@ QAnstitution health, and agent-readiness entries. Warning states such as missing
 Hurl, missing config, missing traffic state, or missing configured `api_key_env`
 values keep the human-compatible `0` exit code; invalid QAnstitution, invalid
 traffic state, or unsafe configured personas exit `1`.
+
+`doctor --ci` adds strict CI-readiness evidence to the same human and JSON
+doctor contract. It validates Hurl availability, safe `.entroping/` and
+`reports/` artifact paths, committed suite manifests, required Hurl variables
+from suite env files or `HURL_VARIABLE_*`, and the provider-free `run --ci`
+boundary. It does not call external CI provider APIs, mutate workflow files,
+print env values, or require Architect provider keys.
 
 `config set` updates non-secret routing metadata only. If the selected agent's
 persona file is missing, it creates a local Markdown template under the configured

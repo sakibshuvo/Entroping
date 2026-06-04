@@ -218,6 +218,10 @@ entroping doctor
 
 For automation, use `entroping doctor --output json` to get versioned setup
 health without scraping human output.
+Before wiring a PR gate, run `entroping doctor --ci` or
+`entroping doctor --ci --output json` to validate Hurl availability, safe local
+artifact paths, suite manifests, required Hurl variables, and the provider-free
+`run --ci` boundary.
 
 The starter policy is intentionally small: status, latency, and request-ID
 header gates. See [QANSTITUTION_FIRST_HOUR.md](docs/user/QANSTITUTION_FIRST_HOUR.md)
@@ -356,7 +360,7 @@ Compatibility details live in [CLI_COMPATIBILITY_AUDIT.md](docs/technical/CLI_CO
 
 ```text
 entroping init [--minimal]
-entroping doctor [--output <text|json>]
+entroping doctor [--ci] [--output <text|json>]
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
 entroping config vendor-policy-pack --pack <path> [--name <dir>]

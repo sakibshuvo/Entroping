@@ -169,14 +169,14 @@ provider SDK stack. Entroping only stores non-secret routing metadata.
 The default CI posture is no provider at all:
 
 ```bash
-entroping doctor
+entroping doctor --ci
 entroping run --ci --report junit --report html
 ```
 
 Agents and CI workers can use:
 
 ```bash
-entroping doctor --output json
+entroping doctor --ci --output json
 ```
 
 The JSON output uses schema version `entroping.doctor.v1` and preserves the same

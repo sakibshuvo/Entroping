@@ -46,9 +46,9 @@ curl --fail --location --silent --show-error \
 export PATH="${HOME}/.local/bin:${PATH}"
 
 uv tool install git+https://github.com/sakibshuvo/Entroping.git@v0.1.1-alpha
-entroping doctor
+entroping doctor --ci
 mkdir -p reports
-entroping doctor --output json > reports/doctor-health.json
+entroping doctor --ci --output json > reports/doctor-health.json
 entroping run --ci --report json --report junit --report html
 entroping report sarif
 entroping report review-summary

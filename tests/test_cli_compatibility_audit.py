@@ -22,7 +22,11 @@ class CliContract:
 
 LOCKED_CLI_CONTRACTS = (
     CliContract("entroping init [--minimal]", ("init", "--help"), ("--minimal",)),
-    CliContract("entroping doctor [--output <text|json>]", ("doctor", "--help"), ("--output",)),
+    CliContract(
+        "entroping doctor [--ci] [--output <text|json>]",
+        ("doctor", "--help"),
+        ("--ci", "--output"),
+    ),
     CliContract("entroping config list", ("config", "list", "--help"), ()),
     CliContract(
         "entroping config set --agent <builder|auditor|breaker> --model <model-id>",

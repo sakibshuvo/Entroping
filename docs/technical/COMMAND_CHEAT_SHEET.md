@@ -9,7 +9,7 @@ Compatibility audit: [CLI_COMPATIBILITY_AUDIT.md](CLI_COMPATIBILITY_AUDIT.md).
 
 ```text
 entroping init [--minimal]
-entroping doctor [--output <text|json>]
+entroping doctor [--ci] [--output <text|json>]
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
 entroping config vendor-policy-pack --pack <path> [--name <dir>]
@@ -48,7 +48,10 @@ QAnstitution entrypoint, then appends a local import without remote fetches or
 registry behavior. `doctor` validates any configured agent persona files with
 the same safety rules used by Architect and reports whether configured
 `api_key_env` names are present without printing values or contacting
-providers.
+providers. Add `--ci` to fail fast on CI-breaking setup such as missing Hurl,
+unsafe report paths, invalid or empty suite manifests, unresolved Hurl
+variables, or accidental assumptions that `run --ci` needs model-provider
+access.
 
 | Command | Purpose |
 | --- | --- |
@@ -56,6 +59,7 @@ providers.
 | `entroping init --minimal` | Create only the minimum required files |
 | `entroping doctor` | Validate local setup, tools, config, and policies |
 | `entroping doctor --output json` | Emit versioned machine-readable setup health |
+| `entroping doctor --ci --output json` | Emit strict CI-readiness evidence without provider calls |
 | `entroping config list` | Show effective non-secret configuration |
 | `entroping config set --agent <name> --model <id>` | Configure model routing for an agent role |
 | `entroping config vendor-policy-pack --pack <path>` | Vendor a reviewed local policy pack and append a local import |
