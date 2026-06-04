@@ -118,7 +118,7 @@ Old docs used `entroping chaos`. Final command discipline removes it.
 
 Current interpretation:
 
-- Use `architect build --prompt "<breaker intent>" --tag security`.
+- Use `architect build --agent breaker --prompt "<breaker intent>" --tag security`.
 - Run generated tests with `entroping run`.
 - No separate `chaos` command in v4.1.
 

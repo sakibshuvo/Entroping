@@ -250,6 +250,8 @@ Route AI generation without putting the LLM in CI:
 ```bash
 entroping config set --agent builder --model openai/gpt-4.1-mini
 entroping architect build --prompt "Generate checkout smoke coverage" --tag ai
+entroping config set --agent breaker --model deepseek/deepseek-r1
+entroping architect build --agent breaker --prompt "Generate hostile auth and IDOR tests" --tag security
 ```
 
 ## Develop Locally
@@ -348,7 +350,7 @@ entroping doctor
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
 
-entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>]
+entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
 entroping architect refactor --target <glob> --prompt <text>
 entroping architect audit [--focus logic] [--output <json|md>]
 

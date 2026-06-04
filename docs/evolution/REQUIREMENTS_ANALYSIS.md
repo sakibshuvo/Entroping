@@ -224,7 +224,7 @@ The shorter v4.1 docs were directionally correct but missed important requiremen
 | `entroping fix` | Alias only if needed | Primary command is `architect refactor` |
 | `entroping ui` | Alias only if needed | Primary command is `studio` |
 | `entroping scan` | Not v4.1 | Use `architect audit` |
-| `entroping chaos` | Not v4.1 | Use Breaker through `architect build --prompt` |
+| `entroping chaos` | Not v4.1 | Use Breaker through `architect build --agent breaker --prompt` |
 | `entroping report --type` | Not primary v4.1 | Use `run --report` for artifacts and `report bug` for bug templates |
 | `entroping auth` | Future | Useful credential UX, but not in the frozen command set |
 | `--verbose` / `--dry-run` | Future | Mentioned after the strict table, so treat as spec-update-only |

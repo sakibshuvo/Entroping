@@ -2,6 +2,10 @@
 
 ## 2026-06-03
 
+- Added issue #392's Breaker-backed Architect prompt build route so
+  `architect build --agent breaker --prompt ...` loads the configured Breaker
+  persona/model, adds Breaker-specific generation instructions, tags generated
+  Hurl with `breaker`, and keeps Auditor reserved for audit workflows.
 - Added issue #385's transitive dependency security refresh so `uv.lock` moves
   optional `litellm`'s `aiohttp` dependency from vulnerable `3.13.5` to
   `3.14.0`, restoring the all-extras dependency audit gate without adding a

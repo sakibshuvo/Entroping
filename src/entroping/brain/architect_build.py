@@ -28,6 +28,7 @@ _ARCHITECT_SOURCE_MARKER = "# entroping: source=architect"
 _MAX_MERGE_TARGET_BYTES = 256_000
 HurlValidator = Callable[[str, str], None]
 BuildStrategy = Literal["create", "merge"]
+ArchitectBuildAgent = Literal["builder", "breaker"]
 
 
 @dataclass(frozen=True)
@@ -40,12 +41,14 @@ class ArchitectPromptBuildResult:
     model: str
     latency_ms: int
     usage: LiteLLMUsage
+    agent: ArchitectBuildAgent
 
 
 def run_architect_prompt_build(
     *,
     law: Qanstitution,
     intent: str,
+    agent: ArchitectBuildAgent = "builder",
     tags: Sequence[str] = (),
     strategy: BuildStrategy = "create",
     project_root: str | Path = ".",
@@ -53,18 +56,18 @@ def run_architect_prompt_build(
     client: LiteLLMClient | None = None,
     hurl_validator: HurlValidator | None = None,
 ) -> ArchitectPromptBuildResult:
-    """Generate Architect-owned Hurl files from a Builder prompt."""
+    """Generate Architect-owned Hurl files from a Builder or Breaker prompt."""
 
-    persona = load_agent_persona(law, "builder", config_path=config_path)
+    persona = load_agent_persona(law, agent, config_path=config_path)
     package = build_architect_prompt_package(
         law=law,
         persona=persona,
-        intent=_render_prompt_intent(intent, tags=tags, strategy=strategy),
+        intent=_render_prompt_intent(intent, agent=agent, tags=tags, strategy=strategy),
         source_context={},
     )
     completion = (client or LiteLLMClient()).complete(package)
     edit_set = parse_architect_edit_set(completion.content)
-    edit_set = _apply_requested_tags(edit_set, tags=tags)
+    edit_set = _apply_requested_tags(edit_set, tags=tags, agent=agent)
     if strategy == "merge":
         writes = _prepare_merge_writes(edit_set, project_root=project_root)
         _validate_prepared_hurl(writes, hurl_validator=hurl_validator or validate_hurl_content)
@@ -79,16 +82,27 @@ def run_architect_prompt_build(
         model=completion.model,
         latency_ms=completion.latency_ms,
         usage=completion.usage,
+        agent=agent,
     )
 
 
 def _render_prompt_intent(
     intent: str,
     *,
+    agent: ArchitectBuildAgent = "builder",
     tags: Sequence[str],
     strategy: BuildStrategy,
 ) -> str:
     parts = [intent]
+    if agent == "breaker":
+        parts.append(
+            "Breaker role: generate negative, abuse-case, authorization, boundary, "
+            "and policy-bypass tests. Prefer hostile inputs, missing or invalid "
+            "credentials, tenant-boundary checks, malformed payloads, and security "
+            "regression cases. Do not invent secrets or print sensitive values. "
+            "Keep every edit valid Hurl and distinguish generated tests with the "
+            "`breaker` Entroping tag."
+        )
     if strategy == "merge":
         parts.append(
             "Merge strategy: return edits for existing Hurl files only. "
@@ -101,8 +115,13 @@ def _render_prompt_intent(
     return "\n\n".join(parts)
 
 
-def _apply_requested_tags(edit_set: ArchitectEditSet, *, tags: Sequence[str]) -> ArchitectEditSet:
-    requested_tags = tuple(sorted(set(tags)))
+def _apply_requested_tags(
+    edit_set: ArchitectEditSet,
+    *,
+    tags: Sequence[str],
+    agent: ArchitectBuildAgent = "builder",
+) -> ArchitectEditSet:
+    requested_tags = tuple(sorted({*tags, *(("breaker",) if agent == "breaker" else ())}))
     if not requested_tags:
         return edit_set
 

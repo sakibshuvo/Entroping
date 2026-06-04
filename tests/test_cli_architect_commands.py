@@ -381,6 +381,115 @@ gates:
     )
 
 
+def test_architect_build_prompt_can_use_breaker_agent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _accept_architect_hurl_validation(monkeypatch)
+    Path("agents").mkdir()
+    Path("agents/builder.md").write_text("Build minimal checkout Hurl tests.", encoding="utf-8")
+    Path("agents/breaker.md").write_text(
+        "Generate hostile checkout Hurl tests.",
+        encoding="utf-8",
+    )
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/builder.md
+    model: openai/gpt-4.1-mini
+    temperature: 0.1
+  breaker:
+    source: agents/breaker.md
+    model: deepseek/deepseek-r1
+    temperature: 0.3
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    packages: list[ArchitectPromptPackage] = []
+
+    def fake_complete(
+        self: object,
+        package: ArchitectPromptPackage,
+    ) -> LiteLLMCompletionResult:
+        _ = self
+        packages.append(package)
+        return LiteLLMCompletionResult(
+            content=json.dumps(
+                {
+                    "summary": "Add hostile checkout coverage",
+                    "edits": [
+                        {
+                            "path": "tests/generated/breaker_checkout.hurl",
+                            "content": (
+                                "POST {{base_url}}/checkout\n"
+                                "Authorization: Bearer invalid\n"
+                                "HTTP 401\n"
+                            ),
+                        }
+                    ],
+                },
+            ),
+            model="deepseek/deepseek-r1",
+            latency_ms=42,
+            usage=LiteLLMUsage(prompt_tokens=20, completion_tokens=30, total_tokens=50),
+        )
+
+    monkeypatch.setattr("entroping.brain.litellm_client.LiteLLMClient.complete", fake_complete)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "architect",
+            "build",
+            "--agent",
+            "breaker",
+            "--prompt",
+            "Generate auth bypass tests.",
+            "--tag",
+            "security",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Generated 1 Architect Hurl test" in result.output
+    assert "Agent: breaker" in result.output
+    assert packages
+    assert packages[0].role == "breaker"
+    assert packages[0].model == "deepseek/deepseek-r1"
+    assert "Generate hostile checkout Hurl tests." in packages[0].messages[0].content
+    assert "Breaker role" in packages[0].messages[1].content
+    output_path = Path("tests/generated/breaker_checkout.hurl")
+    assert output_path.read_text(encoding="utf-8") == (
+        "# entroping: source=architect\n"
+        "# entroping: tags=breaker,security\n"
+        "POST {{base_url}}/checkout\n"
+        "Authorization: Bearer invalid\n"
+        "HTTP 401\n"
+    )
+
+
+def test_architect_build_prompt_rejects_auditor_agent_until_audit_mode_exists() -> None:
+    result = CliRunner().invoke(
+        app,
+        ["architect", "build", "--agent", "auditor", "--prompt", "Review generated tests."],
+    )
+
+    assert result.exit_code == 2
+    assert "Unsupported architect build agent: auditor" in result.output
+    assert "supported agents: builder, breaker" in result.output
+
+
+def test_architect_build_rejects_agent_without_prompt() -> None:
+    result = CliRunner().invoke(app, ["architect", "build", "--new", "--agent", "breaker"])
+
+    assert result.exit_code == 2
+    assert "--agent applies only to prompt-backed architect build" in result.output
+
+
 def test_architect_build_prompt_merge_preserves_manual_content(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1206,6 +1315,11 @@ def test_architect_build_merge_strategy_requires_prompt_for_now() -> None:
 
 def test_cli_helper_normalizes_supported_audit_focus() -> None:
     assert architect_cli._normalize_architect_audit_focus(" LoGiC ") == "logic"
+
+
+def test_cli_helper_normalizes_supported_architect_build_agent() -> None:
+    assert architect_cli._normalize_architect_build_agent(" BUILDER ") == "builder"
+    assert architect_cli._normalize_architect_build_agent(" BrEaKeR ") == "breaker"
 
 
 def test_configured_spec_reference_preserves_remote_and_absolute_paths(tmp_path: Path) -> None:

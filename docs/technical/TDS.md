@@ -365,15 +365,19 @@ Separate:
 Prompts should include only necessary context. Secrets and raw sensitive traffic must not be sent to models.
 
 Current implementation note: `architect build --prompt` now wires the CLI to the
-Brain foundation for the Builder happy path. The command loads the configured Builder
-persona, builds a redaction-checked prompt package, invokes LiteLLM through the lazy
-adapter, parses provider JSON into validated Architect edits, injects requested tags,
-validates generated Hurl through `hurlfmt --out json`, and writes Architect-owned
-Hurl files through the staged writer. `architect refactor` also supports manual
-Hurl files that opt into managed-block replacement. `architect build --strategy
-merge --prompt` reuses the same managed-block and prepared-write boundaries for
-existing files only. Provider summaries, warnings, parser failures, and errors are
-redacted or summarized before CLI output. `entroping run` remains LLM-free.
+Brain foundation for Builder generation by default and Breaker generation when
+`--agent breaker` is selected. The command loads the configured role persona,
+builds a redaction-checked prompt package, invokes LiteLLM through the lazy adapter,
+parses provider JSON into validated Architect edits, injects requested tags, adds
+the `breaker` tag for Breaker output, validates generated Hurl through
+`hurlfmt --out json`, and writes Architect-owned Hurl files through the staged
+writer. `architect refactor` also supports manual Hurl files that opt into
+managed-block replacement. `architect build --strategy merge --prompt` reuses the
+same managed-block and prepared-write boundaries for existing files only. Provider
+summaries, warnings, parser failures, and errors are redacted or summarized before
+CLI output. `entroping run` remains LLM-free. Auditor routing is configured in
+QAnstitution but is reserved for `architect audit` workflows rather than prompt
+build generation.
 
 The deterministic `architect build --new` OpenAPI path also validates every
 compiled Hurl file through the same parser-backed Hurl validation boundary
@@ -624,7 +628,7 @@ paths, URLs, and control characters.
 ### Intelligence
 
 ```text
-entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>]
+entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
 entroping architect refactor --target <glob> --prompt <text>
 entroping architect audit [--focus logic] [--output <json|md>]
 ```

@@ -323,6 +323,14 @@ Agent output must be parsed into structured data and validated before writing fi
 
 Model IDs are provider-specific and change over time. Treat the examples as routing placeholders and verify current access before committing a default.
 
+Current role behavior:
+
+- `architect build --prompt` defaults to the Builder persona.
+- `architect build --agent breaker --prompt` selects the Breaker persona,
+  model route, and automatically marks generated tests with the `breaker` tag.
+- Auditor routing is validated and configurable, but Auditor-backed execution is
+  reserved for audit workflows instead of prompt-backed test generation.
+
 Current implementation note: `entroping config list` prints this routing metadata,
 and `entroping config set --agent <builder|auditor|breaker> --model <provider/model>`
 updates only the selected agent model. If the selected persona source is missing,

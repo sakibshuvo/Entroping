@@ -11,7 +11,8 @@ A coding agent adds a new payment refund endpoint. The developer wants confidenc
 ### Entroping Workflow
 
 ```bash
-entroping architect build --prompt "Create tests for the new refund endpoint, including invalid amount and missing auth." --tag payments
+entroping architect build --prompt "Create happy-path tests for the new refund endpoint." --tag payments
+entroping architect build --agent breaker --prompt "Create invalid amount and missing-auth refund tests." --tag payments
 entroping run --env local --tag payments --report html
 ```
 
@@ -141,6 +142,7 @@ The team wants hostile tests for auth bypass, IDOR, and invalid roles without ad
 
 ```bash
 entroping architect build \
+  --agent breaker \
   --prompt "Generate hostile tests for auth bypass, IDOR, missing tenant ID, and invalid role escalation." \
   --tag security
 entroping run --env local --tag security --report html
@@ -195,7 +197,7 @@ A service exposes GraphQL over HTTP and must ensure queries do not return top-le
 ### Entroping Workflow
 
 ```bash
-entroping architect build --prompt "Generate GraphQL tests for user lookup and permission denial." --tag graphql
+entroping architect build --agent breaker --prompt "Generate GraphQL tests for user lookup permission denial." --tag graphql
 entroping run --env local --tag graphql --report html
 ```
 
