@@ -13,6 +13,7 @@ from entroping.bridge.story_traceability import (
     compile_story_traceability,
     story_traceability_report_to_dict,
 )
+from entroping.core.agent_manifest import AGENT_RUN_MANIFEST_SCHEMA_VERSION
 from entroping.core.drift_report import (
     DRIFT_BASELINE_SCHEMA_VERSION,
     drift_baseline_to_dict,
@@ -151,6 +152,16 @@ def test_run_report_v1_schema_contract_is_versioned_and_stable() -> None:
             }
         ],
     }
+
+
+def test_agent_run_manifest_v1_schema_declares_versioned_value_free_fields() -> None:
+    schema = json.loads((SCHEMA_DIR / "agent-run-manifest.v1.schema.json").read_text())
+
+    assert schema["properties"]["schema_version"]["const"] == AGENT_RUN_MANIFEST_SCHEMA_VERSION
+    assert "intent_sha256" in schema["properties"]["prompt"]["properties"]
+    assert "package_sha256" in schema["properties"]["prompt"]["properties"]
+    assert "raw_prompt" not in json.dumps(schema)
+    assert "api_key" not in json.dumps(schema)
 
 
 def test_drift_report_v1_schema_contract_is_versioned_and_stable() -> None:

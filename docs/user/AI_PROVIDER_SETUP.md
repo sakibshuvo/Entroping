@@ -156,6 +156,11 @@ Use `architect audit --focus auditor --output md` or
 `architect audit --focus auditor --output json` for explicit Auditor-backed
 review findings. Auditor reviews do not modify Hurl or policy files.
 
+Successful prompt-backed Architect commands write local value-free manifests
+under `.entroping/agent-runs/`. Use them as audit evidence for role/model,
+persona source, prompt hashes, output paths, validation status, latency, and
+token counts. Do not treat them as model approval.
+
 Provider-specific environment variable names are handled by LiteLLM and the
 provider SDK stack. Entroping only stores non-secret routing metadata.
 

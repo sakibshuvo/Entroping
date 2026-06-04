@@ -19,6 +19,11 @@ from entroping.bridge.merge import (
     list_managed_hurl_block_ids,
     merge_managed_hurl_blocks,
 )
+from entroping.core.agent_manifest import (
+    AgentRunManifestInput,
+    AgentRunUsageEvidence,
+    write_agent_run_manifest,
+)
 from entroping.core.hurl_validator import validate_hurl_content
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.models import ArchitectEdit, ArchitectEditSet, parse_hurl_metadata
@@ -42,6 +47,7 @@ class ArchitectPromptBuildResult:
     latency_ms: int
     usage: LiteLLMUsage
     agent: ArchitectBuildAgent
+    manifest_path: Path
 
 
 def run_architect_prompt_build(
@@ -68,13 +74,38 @@ def run_architect_prompt_build(
     completion = (client or LiteLLMClient()).complete(package)
     edit_set = parse_architect_edit_set(completion.content)
     edit_set = _apply_requested_tags(edit_set, tags=tags, agent=agent)
+    root = Path(project_root).expanduser().resolve()
     if strategy == "merge":
-        writes = _prepare_merge_writes(edit_set, project_root=project_root)
+        writes = _prepare_merge_writes(edit_set, project_root=root)
         _validate_prepared_hurl(writes, hurl_validator=hurl_validator or validate_hurl_content)
-        written_paths = write_refactor_hurl_edits(writes, project_root=project_root)
+        written_paths = write_refactor_hurl_edits(writes, project_root=root)
     else:
         _validate_architect_hurl(edit_set, hurl_validator=hurl_validator or validate_hurl_content)
-        written_paths = write_architect_edits(edit_set, project_root=project_root)
+        written_paths = write_architect_edits(edit_set, project_root=root)
+    manifest = write_agent_run_manifest(
+        AgentRunManifestInput(
+            project_root=root,
+            command="architect build",
+            mode=strategy,
+            agent=agent,
+            model=completion.model,
+            persona_source_path=persona.source_path,
+            persona_content=persona.content,
+            prompt_intent=intent,
+            prompt_package_messages=tuple(message.content for message in package.messages),
+            output_paths=written_paths,
+            tags=tuple(tags),
+            validation_status="passed",
+            structured_output_validated=True,
+            hurl_validated=True,
+            latency_ms=completion.latency_ms,
+            usage=AgentRunUsageEvidence(
+                prompt_tokens=completion.usage.prompt_tokens,
+                completion_tokens=completion.usage.completion_tokens,
+                total_tokens=completion.usage.total_tokens,
+            ),
+        )
+    )
     return ArchitectPromptBuildResult(
         summary=edit_set.summary,
         warnings=tuple(edit_set.warnings),
@@ -83,6 +114,7 @@ def run_architect_prompt_build(
         latency_ms=completion.latency_ms,
         usage=completion.usage,
         agent=agent,
+        manifest_path=manifest.manifest_path,
     )
 
 

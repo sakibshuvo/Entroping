@@ -223,7 +223,7 @@ def test_parse_auditor_review_rejects_non_object_json() -> None:
         parse_auditor_review('["not", "an", "object"]')
 
 
-def test_render_auditor_review_markdown_handles_no_findings() -> None:
+def test_render_auditor_review_markdown_handles_no_findings(tmp_path: Path) -> None:
     result = ArchitectAuditorReviewResult(
         review=ArchitectAuditReview(
             summary="Coverage looks clean.",
@@ -232,6 +232,7 @@ def test_render_auditor_review_markdown_handles_no_findings() -> None:
         model="openai/auditor-model",
         latency_ms=25,
         usage=LiteLLMUsage(prompt_tokens=0, completion_tokens=0, total_tokens=0),
+        manifest_path=tmp_path / ".entroping" / "agent-runs" / "auditor.json",
     )
 
     assert render_auditor_review_markdown(result).endswith("No Auditor findings.")

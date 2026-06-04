@@ -215,6 +215,10 @@ def architect_refactor(
         console.print(f"Warning: {safe_cli_text(warning)}", style="yellow", markup=False)
     for path in result.written_paths:
         console.print(f"Wrote Hurl test: {safe_cli_text(display_cli_path(path))}", markup=False)
+    console.print(
+        f"Wrote agent run manifest: {safe_cli_text(display_cli_path(result.manifest_path))}",
+        markup=False,
+    )
 
 
 @app.command("audit")
@@ -316,6 +320,10 @@ def _run_architect_prompt_build(
         console.print(f"Warning: {safe_cli_text(warning)}", style="yellow", markup=False)
     for path in result.written_paths:
         console.print(f"Wrote Hurl test: {safe_cli_text(display_cli_path(path))}", markup=False)
+    console.print(
+        f"Wrote agent run manifest: {safe_cli_text(display_cli_path(result.manifest_path))}",
+        markup=False,
+    )
 
 
 def _normalize_architect_build_agent(agent: str | None) -> ArchitectBuildAgent:

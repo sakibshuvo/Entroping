@@ -2,6 +2,11 @@
 
 ## 2026-06-04
 
+- Added issue #427's sanitized agent run manifests so prompt-backed Architect
+  build, Breaker build, merge-build, refactor, and Auditor review paths write
+  `.entroping/agent-runs/*.json` with value-free role/model/persona/prompt-hash,
+  output-path, tag, validation, latency, and token evidence without raw prompts,
+  provider output, persona content, secrets, Hurl contents, or traffic.
 - Added issue #414's include/exclude capture filters so `freeze`,
   `freeze --mock`, and `map` narrow already-redacted traffic by host, method,
   and request path before generating Hurl, WireMock, or dependency-map

@@ -16,6 +16,11 @@ from entroping.bridge.merge import (
     list_managed_hurl_block_ids,
     merge_managed_hurl_blocks,
 )
+from entroping.core.agent_manifest import (
+    AgentRunManifestInput,
+    AgentRunUsageEvidence,
+    write_agent_run_manifest,
+)
 from entroping.core.hurl_validator import validate_hurl_content
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.models import ArchitectEditSet
@@ -40,6 +45,7 @@ class ArchitectRefactorResult:
     model: str
     latency_ms: int
     usage: LiteLLMUsage
+    manifest_path: Path
 
 
 @dataclass(frozen=True)
@@ -81,6 +87,30 @@ def run_architect_refactor(
     writes = _prepare_refactor_writes(edit_set, targets=targets)
     _validate_refactored_hurl(writes, hurl_validator=hurl_validator or validate_hurl_content)
     written_paths = write_refactor_hurl_edits(writes, project_root=root)
+    manifest = write_agent_run_manifest(
+        AgentRunManifestInput(
+            project_root=root,
+            command="architect refactor",
+            mode="refactor",
+            agent="builder",
+            model=completion.model,
+            persona_source_path=persona.source_path,
+            persona_content=persona.content,
+            prompt_intent=prompt,
+            prompt_package_messages=tuple(message.content for message in package.messages),
+            output_paths=written_paths,
+            tags=(),
+            validation_status="passed",
+            structured_output_validated=True,
+            hurl_validated=True,
+            latency_ms=completion.latency_ms,
+            usage=AgentRunUsageEvidence(
+                prompt_tokens=completion.usage.prompt_tokens,
+                completion_tokens=completion.usage.completion_tokens,
+                total_tokens=completion.usage.total_tokens,
+            ),
+        )
+    )
     return ArchitectRefactorResult(
         summary=edit_set.summary,
         warnings=tuple(edit_set.warnings),
@@ -88,6 +118,7 @@ def run_architect_refactor(
         model=completion.model,
         latency_ms=completion.latency_ms,
         usage=completion.usage,
+        manifest_path=manifest.manifest_path,
     )
 
 

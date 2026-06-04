@@ -130,6 +130,12 @@ managed blocks; use prompt build without `--strategy merge` for new files. Build
 is the default prompt role, while `--agent breaker` selects the Breaker persona
 for hostile auth, boundary, and policy-bypass coverage.
 
+Successful prompt-backed Architect runs write value-free manifests under
+`.entroping/agent-runs/`. These files record role, model ID, persona path/digest,
+prompt hashes, output paths, tags, validation status, latency, and token counts.
+They are audit evidence, not model approval, and they do not store raw prompts,
+provider output, provider keys, persona content, raw traffic, or Hurl contents.
+
 Run the suite:
 
 ```bash

@@ -77,7 +77,9 @@ generation through `architect build --agent breaker --prompt`, deterministic
 `architect audit --focus logic`, Auditor-backed `architect audit --focus auditor`,
 and prompt-backed `architect refactor` for Architect-owned Hurl files and manual
 files with explicit managed blocks. Prompt-backed `architect build --strategy
-merge` is available for existing Hurl targets. Remote specs remain planned.
+merge` is available for existing Hurl targets. Successful prompt-backed
+Builder, Breaker, refactor, merge, and Auditor review runs write value-free
+manifests under `.entroping/agent-runs/`. Remote specs remain planned.
 
 | Command | Purpose |
 | --- | --- |
@@ -91,6 +93,7 @@ merge` is available for existing Hurl targets. Remote specs remain planned.
 | `entroping architect audit --focus logic` | Audit OpenAPI coverage gaps with an operation-to-Hurl matrix |
 | `entroping architect audit --focus auditor` | Run an explicit Auditor model review of coverage and policy risk |
 | `entroping architect audit --output <json|md>` | Select audit output format |
+| `.entroping/agent-runs/*.json` | Local value-free evidence for prompt-backed Architect runs |
 
 Examples:
 

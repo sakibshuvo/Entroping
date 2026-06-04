@@ -14,6 +14,11 @@ from entroping.brain.persona_loader import load_agent_persona
 from entroping.brain.prompt_builder import build_auditor_prompt_package
 from entroping.brain.safety import contains_secret_like_value, redact_secret_like_values
 from entroping.bridge.openapi_audit import OpenApiAuditReport, audit_report_to_dict
+from entroping.core.agent_manifest import (
+    AgentRunManifestInput,
+    AgentRunUsageEvidence,
+    write_agent_run_manifest,
+)
 from entroping.models import ArchitectAuditReview
 from entroping.models.qanstitution import Qanstitution
 
@@ -32,6 +37,7 @@ class ArchitectAuditorReviewResult:
     model: str
     latency_ms: int
     usage: LiteLLMUsage
+    manifest_path: Path
     agent: str = "auditor"
 
     @property
@@ -62,11 +68,36 @@ def run_architect_auditor_review(
     )
     completion = (client or LiteLLMClient()).complete(package)
     review = parse_auditor_review(completion.content)
+    manifest = write_agent_run_manifest(
+        AgentRunManifestInput(
+            project_root=Path(project_root),
+            command="architect audit",
+            mode="review",
+            agent="auditor",
+            model=completion.model,
+            persona_source_path=persona.source_path,
+            persona_content=persona.content,
+            prompt_intent="architect audit --focus auditor",
+            prompt_package_messages=tuple(message.content for message in package.messages),
+            output_paths=(),
+            tags=(),
+            validation_status="passed",
+            structured_output_validated=True,
+            hurl_validated=False,
+            latency_ms=completion.latency_ms,
+            usage=AgentRunUsageEvidence(
+                prompt_tokens=completion.usage.prompt_tokens,
+                completion_tokens=completion.usage.completion_tokens,
+                total_tokens=completion.usage.total_tokens,
+            ),
+        )
+    )
     return ArchitectAuditorReviewResult(
         review=review,
         model=completion.model,
         latency_ms=completion.latency_ms,
         usage=completion.usage,
+        manifest_path=manifest.manifest_path,
     )
 
 

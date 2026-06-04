@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sakibshuvo.github.io/Entroping/schemas/agent-run-manifest.v1.schema.json",
+  "title": "Entroping Agent Run Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "command",
+    "mode",
+    "agent",
+    "model",
+    "persona",
+    "prompt",
+    "output_paths",
+    "tags",
+    "validation",
+    "latency_ms",
+    "usage"
+  ],
+  "properties": {
+    "schema_version": {"const": "entroping.agent-run-manifest.v1"},
+    "generated_at": {"type": "string"},
+    "command": {"enum": ["architect build", "architect refactor", "architect audit"]},
+    "mode": {"enum": ["create", "merge", "refactor", "review"]},
+    "agent": {"type": "string", "minLength": 1},
+    "model": {"type": "string", "minLength": 1},
+    "persona": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_path", "sha256"],
+      "properties": {
+        "source_path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "prompt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intent_sha256", "package_sha256"],
+      "properties": {
+        "intent_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "package_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "output_paths": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "tags": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "structured_output_validated", "hurl_validated"],
+      "properties": {
+        "status": {"enum": ["passed", "failed"]},
+        "structured_output_validated": {"type": "boolean"},
+        "hurl_validated": {"type": "boolean"}
+      }
+    },
+    "latency_ms": {"type": "integer", "minimum": 0},
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prompt_tokens", "completion_tokens", "total_tokens"],
+      "properties": {
+        "prompt_tokens": {"type": ["integer", "null"], "minimum": 0},
+        "completion_tokens": {"type": ["integer", "null"], "minimum": 0},
+        "total_tokens": {"type": ["integer", "null"], "minimum": 0}
+      }
+    }
+  }
+}
