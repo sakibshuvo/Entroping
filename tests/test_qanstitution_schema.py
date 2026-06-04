@@ -120,6 +120,7 @@ def test_qanstitution_schema_authoring_guidance_is_public_and_editor_ready() -> 
     first_hour = (REPO_ROOT / "docs" / "user" / "QANSTITUTION_FIRST_HOUR.md").read_text(
         encoding="utf-8"
     )
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     docs_index = (REPO_ROOT / "docs" / "index.md").read_text(encoding="utf-8")
     mkdocs = (REPO_ROOT / "mkdocs.yml").read_text(encoding="utf-8")
 
@@ -129,5 +130,9 @@ def test_qanstitution_schema_authoring_guidance_is_public_and_editor_ready() -> 
     assert ".vscode/settings.json" in reference
     assert "runtime validation remains authoritative" in reference
     assert "qanstitution.schema.json" in first_hour
+    assert "docs/technical/qanstitution.schema.json" in readme
+    assert "QANSTITUTION_FIRST_HOUR.md" in readme
+    assert "QANSTITUTION_REFERENCE.md" in readme
+    assert "`entroping doctor` remains the authoritative runtime validation" in readme
     assert "technical/qanstitution.schema.json" in docs_index
     assert "QAnstitution Reference: technical/QANSTITUTION_REFERENCE.md" in mkdocs
