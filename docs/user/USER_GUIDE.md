@@ -473,8 +473,12 @@ promote it only after accepting the behavior:
 
 ```bash
 git diff --no-index -- .entroping/drift-baseline.json reports/drift-baseline.candidate.json
-cp reports/drift-baseline.candidate.json .entroping/drift-baseline.json
+entroping report promote-drift-baseline
 ```
+
+Promotion validates the candidate schema and writes the active baseline
+atomically. It still represents human approval; do not run it until the
+candidate diff is accepted.
 
 The first drift slice compares:
 

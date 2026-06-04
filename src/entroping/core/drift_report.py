@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
 from entroping.core.path_safety import first_symlink_path_component
@@ -20,6 +21,7 @@ from entroping.models.report import RunReport, RunTestReport
 
 _LATENCY_REGRESSION_MIN_INCREASE_MS = 100
 _LATENCY_REGRESSION_MIN_PERCENT = 25
+DRIFT_BASELINE_SCHEMA_VERSION = "entroping.drift-baseline.v1"
 DRIFT_REPORT_SCHEMA_VERSION = "entroping.drift-report.v1"
 
 
@@ -29,6 +31,15 @@ class DriftReportError(ValueError):
 
 class DriftBaselineNotFoundError(DriftReportError):
     """Raised when drift checking is requested without a local baseline."""
+
+
+@dataclass(frozen=True, slots=True)
+class DriftBaselinePromotionResult:
+    """Result of promoting a reviewed drift baseline candidate."""
+
+    candidate_path: Path
+    output_path: Path
+    test_count: int
 
 
 def load_drift_baseline(path: Path) -> DriftBaseline:
@@ -173,8 +184,9 @@ def build_missing_baseline_report(*, current: RunReport, baseline_path: Path) ->
 
     message = (
         "Drift baseline not found. Run entroping run --report drift, review "
-        "reports/drift-baseline.candidate.json, then copy it to "
-        ".entroping/drift-baseline.json only after accepting the behavior."
+        "reports/drift-baseline.candidate.json, then run "
+        "entroping report promote-drift-baseline "
+        "only after accepting the behavior."
     )
     finding = DriftFinding(
         kind="missing_baseline",
@@ -230,6 +242,39 @@ def write_reviewed_drift_baseline_candidate(current: RunReport, path: Path) -> P
         )
     except SafeWriteError as exc:
         raise DriftReportError(str(exc)) from exc
+
+
+def promote_reviewed_drift_baseline_candidate(
+    *,
+    project_root: Path,
+    candidate_path: Path,
+    output_path: Path,
+) -> DriftBaselinePromotionResult:
+    """Promote a reviewed candidate into the active drift baseline path."""
+
+    root = project_root.expanduser().resolve()
+    candidate = _rooted_path(candidate_path, root)
+    output = _rooted_path(output_path, root)
+    _reject_symlink_path_components(candidate, action="read drift baseline candidate")
+    _ensure_under_root(candidate, root, artifact="candidate")
+    _ensure_under_root(output, root, artifact="active drift baseline")
+
+    baseline = _load_reviewed_drift_baseline_candidate(candidate)
+    try:
+        written = safe_write_text(
+            output,
+            json.dumps(drift_baseline_to_dict(baseline), indent=2, sort_keys=True) + "\n",
+            artifact="active drift baseline",
+            root=root,
+        )
+    except SafeWriteError as exc:
+        raise DriftReportError(str(exc)) from exc
+
+    return DriftBaselinePromotionResult(
+        candidate_path=candidate,
+        output_path=written,
+        test_count=len(baseline.tests),
+    )
 
 
 def write_drift_report(report: DriftReport, path: Path) -> Path:
@@ -646,6 +691,67 @@ def _resolve_read_path(path: Path) -> Path:
     return expanded.resolve()
 
 
+def _load_reviewed_drift_baseline_candidate(path: Path) -> DriftBaseline:
+    resolved = _resolve_candidate_read_path(path)
+    try:
+        data = json.loads(resolved.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        msg = f"Could not parse drift baseline candidate {_display_path(resolved)}: {exc}"
+        raise DriftReportError(msg) from exc
+    if not isinstance(data, dict):
+        msg = "Drift baseline candidate must be a JSON object"
+        raise DriftReportError(msg)
+
+    schema_version = data.get("schema_version")
+    if not isinstance(schema_version, str) or not schema_version.strip():
+        msg = "Drift baseline candidate must contain schema_version"
+        raise DriftReportError(msg)
+    if schema_version != DRIFT_BASELINE_SCHEMA_VERSION:
+        msg = (
+            "Unsupported drift baseline candidate schema_version "
+            f"{schema_version!r}; expected {DRIFT_BASELINE_SCHEMA_VERSION!r}"
+        )
+        raise DriftReportError(msg)
+
+    raw_tests = data.get("tests")
+    if not isinstance(raw_tests, list):
+        msg = "Drift baseline candidate must contain a tests list"
+        raise DriftReportError(msg)
+
+    tests = tuple(_parse_baseline_test(item) for item in raw_tests)
+    return DriftBaseline(
+        project=_optional_string(data.get("project")),
+        environment=_optional_string(data.get("environment")),
+        tests=tests,
+    )
+
+
+def _resolve_candidate_read_path(path: Path) -> Path:
+    if not path.exists():
+        msg = f"Drift baseline candidate not found: {_display_path(path)}"
+        raise DriftBaselineNotFoundError(msg)
+    if not path.is_file():
+        msg = f"Drift baseline candidate path is not a file: {_display_path(path)}"
+        raise DriftReportError(msg)
+    return path.resolve()
+
+
+def _rooted_path(path: Path, root: Path) -> Path:
+    expanded = path.expanduser()
+    if expanded.is_absolute():
+        return expanded
+    return root / expanded
+
+
+def _ensure_under_root(path: Path, root: Path, *, artifact: str) -> None:
+    resolved = path.resolve(strict=False)
+    try:
+        resolved.relative_to(root)
+    except ValueError as exc:
+        msg = f"{artifact} path must stay under {root}: {path}"
+        raise DriftReportError(msg) from exc
+
+
 def _reject_symlink_path_components(path: Path, *, action: str) -> None:
     symlink_component = first_symlink_path_component(path)
     if symlink_component is not None:
@@ -687,6 +793,7 @@ def drift_baseline_to_dict(baseline: DriftBaseline) -> dict[str, object]:
     """Return the JSON-serializable drift baseline payload."""
 
     return {
+        "schema_version": DRIFT_BASELINE_SCHEMA_VERSION,
         "project": baseline.project,
         "environment": baseline.environment,
         "tests": [_drift_baseline_test_to_dict(test) for test in baseline.tests],

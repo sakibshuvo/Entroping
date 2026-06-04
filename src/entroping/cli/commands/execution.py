@@ -208,7 +208,7 @@ def run(
             console.print(
                 "[yellow]Drift baseline not found: .entroping/drift-baseline.json. "
                 "Run with --report drift to review reports/drift-baseline.candidate.json "
-                "before copying it into .entroping/drift-baseline.json.[/yellow]"
+                "before running entroping report promote-drift-baseline.[/yellow]"
             )
         else:
             noun = "finding" if drift_report.summary.drifted == 1 else "findings"

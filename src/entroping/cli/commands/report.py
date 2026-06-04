@@ -11,6 +11,10 @@ from entroping.bridge.story_traceability import (
     render_story_traceability_markdown,
 )
 from entroping.cli.shared import console, display_cli_path, print_cli_error
+from entroping.core.drift_report import (
+    DriftReportError,
+    promote_reviewed_drift_baseline_candidate,
+)
 from entroping.core.effective_policy_report import (
     EffectivePolicyOutput,
     EffectivePolicyReportError,
@@ -204,6 +208,37 @@ def report_sarif(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote SARIF report: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("promote-drift-baseline")
+def report_promote_drift_baseline(
+    candidate: Annotated[
+        Path,
+        typer.Option("--candidate", help="Reviewed drift baseline candidate path."),
+    ] = Path("reports") / "drift-baseline.candidate.json",
+    output: Annotated[
+        Path,
+        typer.Option("--output", help="Active drift baseline output path."),
+    ] = Path(".entroping") / "drift-baseline.json",
+) -> None:
+    """Promote a reviewed drift baseline candidate into active local state."""
+
+    try:
+        result = promote_reviewed_drift_baseline_candidate(
+            project_root=Path.cwd(),
+            candidate_path=candidate,
+            output_path=output,
+        )
+    except DriftReportError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    noun = "test" if result.test_count == 1 else "tests"
+    console.print(
+        f"Promoted drift baseline: {display_cli_path(result.output_path)} "
+        f"({result.test_count} {noun})"
+    )
     raise typer.Exit(0)
 
 

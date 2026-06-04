@@ -7,6 +7,7 @@ import pytest
 
 import entroping.core.drift_report as drift_report
 from entroping.core.drift_report import (
+    DRIFT_BASELINE_SCHEMA_VERSION,
     DriftBaselineNotFoundError,
     DriftReportError,
     append_dependency_drift_findings,
@@ -15,6 +16,7 @@ from entroping.core.drift_report import (
     build_reviewed_drift_baseline,
     load_dependency_drift_baseline,
     load_drift_baseline,
+    promote_reviewed_drift_baseline_candidate,
     write_drift_report,
     write_reviewed_drift_baseline_candidate,
 )
@@ -770,6 +772,7 @@ def test_write_reviewed_drift_baseline_candidate_is_safe_and_sanitized(
     assert data == {
         "environment": "staging",
         "project": "checkout-api",
+        "schema_version": DRIFT_BASELINE_SCHEMA_VERSION,
         "tests": [
             {
                 "duration_ms": 25,
@@ -790,6 +793,227 @@ def test_write_reviewed_drift_baseline_candidate_is_safe_and_sanitized(
     assert "execution_path" not in content
     assert "set-cookie" not in content
     assert "live-secret" not in content
+
+
+def test_promote_reviewed_drift_baseline_candidate_writes_active_baseline(
+    tmp_path: Path,
+) -> None:
+    candidate = tmp_path / "reports" / "drift-baseline.candidate.json"
+    active = tmp_path / ".entroping" / "drift-baseline.json"
+    candidate.parent.mkdir()
+    candidate.write_text(
+        json.dumps(
+            {
+                "schema_version": DRIFT_BASELINE_SCHEMA_VERSION,
+                "project": "checkout-api",
+                "environment": "staging",
+                "tests": [
+                    {
+                        "path": "tests/health.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 25,
+                        "rule_ids": ["global_latency"],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = promote_reviewed_drift_baseline_candidate(
+        project_root=tmp_path,
+        candidate_path=Path("reports") / "drift-baseline.candidate.json",
+        output_path=Path(".entroping") / "drift-baseline.json",
+    )
+
+    assert result.candidate_path == candidate
+    assert result.output_path == active
+    assert result.test_count == 1
+    assert json.loads(active.read_text(encoding="utf-8")) == json.loads(
+        candidate.read_text(encoding="utf-8")
+    )
+    assert load_drift_baseline(active).tests == (
+        DriftBaselineTest(
+            path="tests/health.hurl",
+            status="passed",
+            exit_code=0,
+            duration_ms=25,
+            rule_ids=("global_latency",),
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    ("payload", "message"),
+    [
+        ("{", "Could not parse drift baseline candidate"),
+        ('[]', "must be a JSON object"),
+        ('{"tests":[]}', "schema_version"),
+        (
+            json.dumps({"schema_version": "entroping.drift-baseline.v0", "tests": []}),
+            "Unsupported drift baseline candidate schema_version",
+        ),
+        (
+            json.dumps({"schema_version": "entroping.drift-baseline.v999", "tests": []}),
+            "Unsupported drift baseline candidate schema_version",
+        ),
+        (
+            json.dumps({"schema_version": DRIFT_BASELINE_SCHEMA_VERSION, "tests": {}}),
+            "must contain a tests list",
+        ),
+    ],
+)
+def test_promote_reviewed_drift_baseline_candidate_rejects_invalid_candidates(
+    tmp_path: Path,
+    payload: str,
+    message: str,
+) -> None:
+    candidate = tmp_path / "reports" / "drift-baseline.candidate.json"
+    candidate.parent.mkdir()
+    candidate.write_text(payload + "\n", encoding="utf-8")
+
+    with pytest.raises(DriftReportError, match=message):
+        promote_reviewed_drift_baseline_candidate(
+            project_root=tmp_path,
+            candidate_path=Path("reports") / "drift-baseline.candidate.json",
+            output_path=Path(".entroping") / "drift-baseline.json",
+        )
+
+    assert not (tmp_path / ".entroping" / "drift-baseline.json").exists()
+
+
+def test_promote_reviewed_drift_baseline_candidate_rejects_unsafe_paths(
+    tmp_path: Path,
+) -> None:
+    outside = tmp_path.parent / "outside-candidate.json"
+    outside.write_text(
+        json.dumps({"schema_version": DRIFT_BASELINE_SCHEMA_VERSION, "tests": []}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(DriftReportError, match="candidate path must stay under"):
+        promote_reviewed_drift_baseline_candidate(
+            project_root=tmp_path,
+            candidate_path=outside,
+            output_path=Path(".entroping") / "drift-baseline.json",
+        )
+
+    candidate = tmp_path / "reports" / "drift-baseline.candidate.json"
+    candidate.parent.mkdir()
+    candidate.write_text(
+        json.dumps({"schema_version": DRIFT_BASELINE_SCHEMA_VERSION, "tests": []}),
+        encoding="utf-8",
+    )
+    with pytest.raises(DriftReportError, match="active drift baseline path must stay under"):
+        promote_reviewed_drift_baseline_candidate(
+            project_root=tmp_path,
+            candidate_path=Path("reports") / "drift-baseline.candidate.json",
+            output_path=tmp_path.parent / "outside-baseline.json",
+        )
+
+
+def test_promote_reviewed_drift_baseline_candidate_rejects_missing_candidate(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(DriftBaselineNotFoundError, match="candidate not found"):
+        promote_reviewed_drift_baseline_candidate(
+            project_root=tmp_path,
+            candidate_path=Path("reports") / "drift-baseline.candidate.json",
+            output_path=Path(".entroping") / "drift-baseline.json",
+        )
+
+    assert not (tmp_path / ".entroping" / "drift-baseline.json").exists()
+
+
+def test_promote_reviewed_drift_baseline_candidate_rejects_candidate_directory(
+    tmp_path: Path,
+) -> None:
+    candidate_dir = tmp_path / "reports" / "drift-baseline.candidate.json"
+    candidate_dir.mkdir(parents=True)
+
+    with pytest.raises(DriftReportError, match="candidate path is not a file"):
+        promote_reviewed_drift_baseline_candidate(
+            project_root=tmp_path,
+            candidate_path=Path("reports") / "drift-baseline.candidate.json",
+            output_path=Path(".entroping") / "drift-baseline.json",
+        )
+
+    assert not (tmp_path / ".entroping" / "drift-baseline.json").exists()
+
+
+def test_promote_reviewed_drift_baseline_candidate_rejects_symlinked_paths(
+    tmp_path: Path,
+) -> None:
+    outside_reports = tmp_path / "outside-reports"
+    outside_reports.mkdir()
+    (outside_reports / "drift-baseline.candidate.json").write_text(
+        json.dumps({"schema_version": DRIFT_BASELINE_SCHEMA_VERSION, "tests": []}),
+        encoding="utf-8",
+    )
+    (tmp_path / "reports").symlink_to(outside_reports, target_is_directory=True)
+
+    with pytest.raises(DriftReportError, match="symlinked path component"):
+        promote_reviewed_drift_baseline_candidate(
+            project_root=tmp_path,
+            candidate_path=Path("reports") / "drift-baseline.candidate.json",
+            output_path=Path(".entroping") / "drift-baseline.json",
+        )
+
+    (tmp_path / "reports").unlink()
+    reports = tmp_path / "reports"
+    reports.mkdir()
+    (reports / "drift-baseline.candidate.json").write_text(
+        json.dumps({"schema_version": DRIFT_BASELINE_SCHEMA_VERSION, "tests": []}),
+        encoding="utf-8",
+    )
+    outside_state = tmp_path / "outside-state"
+    outside_state.mkdir()
+    (tmp_path / ".entroping").symlink_to(outside_state, target_is_directory=True)
+
+    with pytest.raises(DriftReportError, match="symlinked path component"):
+        promote_reviewed_drift_baseline_candidate(
+            project_root=tmp_path,
+            candidate_path=Path("reports") / "drift-baseline.candidate.json",
+            output_path=Path(".entroping") / "drift-baseline.json",
+        )
+    assert not (outside_state / "drift-baseline.json").exists()
+
+
+def test_promote_reviewed_drift_baseline_candidate_preserves_active_on_write_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    candidate = tmp_path / "reports" / "drift-baseline.candidate.json"
+    active = tmp_path / ".entroping" / "drift-baseline.json"
+    candidate.parent.mkdir()
+    active.parent.mkdir()
+    candidate.write_text(
+        json.dumps({"schema_version": DRIFT_BASELINE_SCHEMA_VERSION, "tests": []}),
+        encoding="utf-8",
+    )
+    active.write_text("old-baseline\n", encoding="utf-8")
+
+    def fail_safe_write(
+        path: Path,
+        content: str,
+        *,
+        artifact: str,
+        root: Path | None = None,
+    ) -> Path:
+        _ = path, content, artifact, root
+        raise SafeWriteError("temporary write failed")
+
+    monkeypatch.setattr(drift_report, "safe_write_text", fail_safe_write)
+
+    with pytest.raises(DriftReportError, match="temporary write failed"):
+        promote_reviewed_drift_baseline_candidate(
+            project_root=tmp_path,
+            candidate_path=Path("reports") / "drift-baseline.candidate.json",
+            output_path=Path(".entroping") / "drift-baseline.json",
+        )
+
+    assert active.read_text(encoding="utf-8") == "old-baseline\n"
 
 
 def test_write_reviewed_drift_baseline_candidate_rejects_final_baseline_path(

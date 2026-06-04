@@ -103,6 +103,14 @@ LOCKED_CLI_CONTRACTS = (
     ),
     CliContract(
         (
+            "entroping report promote-drift-baseline "
+            "[--candidate <path>] [--output <path>]"
+        ),
+        ("report", "promote-drift-baseline", "--help"),
+        ("--candidate", "--output"),
+    ),
+    CliContract(
+        (
             "entroping report review-summary "
             "[--output md] [--junit <path>] [--run-json <path>] [--drift <path>] "
             "[--traceability]"
@@ -132,6 +140,7 @@ REPORT_ARTIFACTS = (
     "reports/run-latest.html",
     "reports/drift.json",
     "reports/drift-baseline.candidate.json",
+    ".entroping/drift-baseline.json",
     "reports/bug.md",
     "reports/redaction-review.md",
     "reports/redaction-review.html",

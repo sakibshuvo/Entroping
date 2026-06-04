@@ -2,6 +2,11 @@
 
 ## 2026-06-03
 
+- Added issue #399's reviewed drift-baseline promotion command so
+  `entroping report promote-drift-baseline` validates
+  `entroping.drift-baseline.v1` candidates, rejects unsafe paths and
+  stale/future schemas, and atomically writes `.entroping/drift-baseline.json`
+  only after human review.
 - Added issue #398's SARIF report output so `entroping report sarif` writes
   `reports/entroping.sarif` from local JUnit, drift, and optional traceability
   findings with stable rule IDs, SARIF severities, best-effort locations,

@@ -121,7 +121,10 @@ Staging behavior changes after a deployment. The team wants to know whether resp
 
 ```bash
 entroping run --env staging --drift-check --report drift
+entroping report promote-drift-baseline
 ```
+
+Run the promotion command only after reviewing and accepting the candidate diff.
 
 ### Expected Artifacts
 

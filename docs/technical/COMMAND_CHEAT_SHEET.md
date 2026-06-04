@@ -29,6 +29,7 @@ entroping report policy [--output <md|json>]
 entroping report traceability [--output md]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
 entroping report sarif [--output <path>] [--junit <path>] [--drift <path>] [--traceability]
+entroping report promote-drift-baseline [--candidate <path>] [--output <path>]
 entroping report review-summary [--output md] [--junit <path>] [--run-json <path>] [--drift <path>] [--traceability]
 ```
 
@@ -156,7 +157,7 @@ entroping run --env staging --drift-check --report drift
 
 `--report drift` writes both `reports/drift.json` and, when the Hurl suite
 passes, `reports/drift-baseline.candidate.json`. Review the candidate before
-copying it to `.entroping/drift-baseline.json`.
+promoting it to `.entroping/drift-baseline.json`.
 
 Variables can come from `envs/<name>.env`, explicit shell
 `HURL_VARIABLE_<name>` entries, Hurl `[Options] variable` entries, or captures.
@@ -173,6 +174,7 @@ Variables can come from `envs/<name>.env`, explicit shell
 | `entroping report traceability --output md` | Generate a local Markdown story/test traceability report |
 | `entroping report github-annotations` | Emit GitHub Actions workflow-command annotations from local reports |
 | `entroping report sarif` | Write SARIF 2.1.0 code-scanning evidence to `reports/entroping.sarif` |
+| `entroping report promote-drift-baseline` | Promote a reviewed drift baseline candidate into `.entroping/drift-baseline.json` |
 | `entroping report review-summary --output md` | Write a provider-neutral Markdown review summary to `reports/review-summary.md` |
 
 Example:
@@ -184,6 +186,7 @@ entroping report policy --output md
 entroping report traceability --output md
 entroping report github-annotations --traceability
 entroping report sarif --traceability
+entroping report promote-drift-baseline
 entroping report review-summary --traceability
 ```
 

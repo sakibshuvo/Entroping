@@ -75,6 +75,9 @@ project, and a Codex workspace with fast context rehydration.
 - `entroping report sarif` writes SARIF 2.1.0 from local JUnit, drift, and
   optional traceability findings for code-scanning import. It does not execute
   Hurl, call providers, or upload results.
+- `entroping report promote-drift-baseline` validates a reviewed
+  `reports/drift-baseline.candidate.json` before atomically writing the active
+  `.entroping/drift-baseline.json`; `run` still never auto-approves drift.
 - Example coverage includes REST-style checkout/support fixtures plus
   GraphQL-over-HTTP and SOAP-over-HTTP fixtures that use ordinary Hurl
   assertions instead of adding protocol-specific runtime engines.
@@ -316,6 +319,9 @@ evidence without calling CI provider APIs or model providers.
 Issue #398 adds `entroping report sarif`, a SARIF 2.1.0 artifact rendered from
 local JUnit, drift, and optional traceability evidence without changing
 `run --report`, executing Hurl, calling providers, or uploading results.
+Issue #399 adds `entroping report promote-drift-baseline`, an explicit reviewed
+promotion command that validates the drift-baseline candidate schema and writes
+the active local baseline atomically without changing `run` auto-approval rules.
 Issue #317 extends policy-pack smoke evidence with local provenance manifest
 validation for source, license, supported Entroping version, evidence command,
 gate files, gate IDs, and final flags without fetching registries.
@@ -369,6 +375,25 @@ Implemented boundaries:
   absolute project-root paths are relativized.
 - The command writes only local artifacts. CI-specific code-scanning upload
   remains an explicit downstream workflow step.
+
+## Completed Slice: Issue #399 Reviewed Drift Baseline Promotion
+
+Outcome: accepted drift-baseline candidates now have a deterministic promotion
+command instead of manual copy instructions.
+
+Implemented boundaries:
+
+- `entroping report promote-drift-baseline` reads
+  `reports/drift-baseline.candidate.json` by default and writes
+  `.entroping/drift-baseline.json` by default.
+- Promotion requires the `entroping.drift-baseline.v1` schema marker and
+  rejects malformed, stale, future-version, non-object, and non-list-test
+  candidates before writing.
+- Candidate and output paths must stay under the project root and reject
+  symlink component traversal.
+- Active baseline writes remain atomic through the shared safe artifact writer.
+- `entroping run` still never promotes or overwrites the active drift baseline;
+  it only writes reviewable candidate evidence after passing Hurl suites.
 
 ## Completed Slice: Issue #317 Policy-Pack Provenance Manifest Validation
 

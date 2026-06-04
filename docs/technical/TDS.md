@@ -595,6 +595,7 @@ Reports are written under `reports/`.
 | JSON | `run --report json` | Tooling integration |
 | Drift JSON | `run --drift-check` or `--report drift` | `.entroping/drift-baseline.json` comparison |
 | Audit Markdown | `architect audit --output md` | Gap review |
+| Drift Baseline Promotion | `report promote-drift-baseline` | Reviewed candidate promotion |
 | Bug Markdown | `report bug` | Issue tracker handoff |
 | Redaction Review | `report redaction --output md|html` | Captured-traffic redaction coverage review |
 | Effective Policy | `report policy --output md|json` | Resolved QAnstitution gate provenance |
@@ -667,6 +668,7 @@ entroping report policy [--output <md|json>]
 entroping report traceability [--output md]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
 entroping report sarif [--output <path>] [--junit <path>] [--drift <path>] [--traceability]
+entroping report promote-drift-baseline [--candidate <path>] [--output <path>]
 entroping report review-summary [--output md] [--junit <path>] [--run-json <path>] [--drift <path>] [--traceability]
 ```
 
@@ -713,6 +715,10 @@ headers are not stored as drift truth. `--report drift` also writes
 `reports/drift-baseline.candidate.json` after a passing Hurl suite. That
 candidate is sanitized and reviewable; the active
 `.entroping/drift-baseline.json` file is never written automatically.
+`entroping report promote-drift-baseline` is the explicit human-reviewed
+promotion step. It reads `reports/drift-baseline.candidate.json` by default,
+requires the current `entroping.drift-baseline.v1` schema, rejects unsafe paths
+and malformed candidates, then atomically writes `.entroping/drift-baseline.json`.
 
 `entroping report review-summary` writes a provider-neutral Markdown artifact
 from local reports only. It reads the JSON run report, JUnit XML, drift JSON,
@@ -742,6 +748,7 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping run --report html` | `reports/run-latest.html` | Human-readable local report. |
 | `entroping run --report drift` | `reports/drift.json` | Machine-readable drift findings using `entroping.drift-report.v1`. |
 | `entroping run --report drift` | `reports/drift-baseline.candidate.json` | Reviewable sanitized baseline candidate after a passing Hurl suite. |
+| `entroping report promote-drift-baseline` | `.entroping/drift-baseline.json` | Active local drift baseline promoted from a reviewed candidate. |
 | `entroping report bug` | `reports/bug.md` | Markdown handoff for issue trackers. |
 | `entroping report redaction --output md` | `reports/redaction-review.md` | Counts-only captured-traffic redaction review. |
 | `entroping report redaction --output html` | `reports/redaction-review.html` | Browser-readable captured-traffic redaction review. |
