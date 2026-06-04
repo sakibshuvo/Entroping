@@ -1,5 +1,12 @@
 # Entroping Changelog
 
+## 2026-06-03
+
+- Added issue #385's transitive dependency security refresh so `uv.lock` moves
+  optional `litellm`'s `aiohttp` dependency from vulnerable `3.13.5` to
+  `3.14.0`, restoring the all-extras dependency audit gate without adding a
+  direct runtime dependency.
+
 ## 2026-06-02
 
 - Added issue #371's vault/context cleanup so completed one-off demo context is
