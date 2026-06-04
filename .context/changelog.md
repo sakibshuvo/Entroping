@@ -2,6 +2,11 @@
 
 ## 2026-06-04
 
+- Added issue #405's bounded retry and flake evidence so
+  `settings.retry` drives deterministic per-file Hurl subprocess retries,
+  final attempt status remains authoritative, and JSON/JUnit/HTML/review-summary
+  artifacts expose retry count, attempt status, exit code, duration, and
+  unstable pass-after-retry signals without raw per-attempt output.
 - Added issue #404's changed OpenAPI operation generation so
   `entroping architect build --new --changed-from <ref>` compares the configured
   local OpenAPI spec with the same file at a Git base ref, classifies added,

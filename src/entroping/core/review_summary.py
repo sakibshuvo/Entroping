@@ -141,6 +141,7 @@ def build_review_summary(
     findings: list[ReviewFinding] = []
 
     run = _load_run_summary(run_json_path, artifacts)
+    findings.extend(_findings_from_run_json(run_json_path, root=root))
     findings.extend(_findings_from_junit(junit_path, artifacts, root=root))
     findings.extend(_findings_from_drift(drift_path, artifacts, root=root))
 
@@ -270,6 +271,54 @@ def _findings_from_junit(
                         message=message,
                     )
                 )
+    return tuple(findings)
+
+
+def _findings_from_run_json(path: Path, *, root: Path | None) -> tuple[ReviewFinding, ...]:
+    if not path.exists():
+        return ()
+
+    data = _load_json_object(path, artifact="run report")
+    raw_tests = data.get("tests", [])
+    if not isinstance(raw_tests, list):
+        return ()
+
+    findings: list[ReviewFinding] = []
+    for raw_test in raw_tests:
+        if not isinstance(raw_test, dict):
+            continue
+        retry = raw_test.get("retry")
+        if not isinstance(retry, dict):
+            continue
+        retry_count = retry.get("retry_count")
+        unstable = retry.get("unstable")
+        if not isinstance(retry_count, int) or retry_count <= 0:
+            continue
+        path_value = _finding_path(raw_test.get("path"))
+        status = _string_field(raw_test.get("status"), fallback="unknown")
+        exit_code = raw_test.get("exit_code")
+        exit_code_text = str(exit_code) if isinstance(exit_code, int) else "unknown"
+        retry_word = "retry" if retry_count == 1 else "retries"
+        if unstable is True:
+            severity: FindingSeverity = "warning"
+            message = (
+                f"unstable after {retry_count} {retry_word}; "
+                f"final status {status} exit={exit_code_text}"
+            )
+        else:
+            severity = "notice"
+            message = (
+                f"retried {retry_count} {retry_word}; "
+                f"final status {status} exit={exit_code_text}"
+            )
+        findings.append(
+            ReviewFinding(
+                source="Run JSON",
+                severity=severity,
+                path=_display_path(path_value, root=root),
+                message=_redacted_one_line(message),
+            )
+        )
     return tuple(findings)
 
 

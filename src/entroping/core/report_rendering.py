@@ -5,7 +5,12 @@ from io import BytesIO
 from pathlib import Path
 from xml.etree import ElementTree  # nosec B405
 
-from entroping.models.report import KnownFailureEvidence, RunReport, RunTestReport
+from entroping.models.report import (
+    KnownFailureEvidence,
+    RunAttemptEvidence,
+    RunReport,
+    RunTestReport,
+)
 
 
 def render_junit_report(report: RunReport) -> bytes:
@@ -42,7 +47,7 @@ def render_junit_report(report: RunReport) -> bytes:
                 },
             )
             failure.text = _failure_text(test)
-        if test.known_failures:
+        if test.known_failures or test.retry.retry_count > 0 or test.retry.unstable:
             properties = ElementTree.SubElement(testcase, "properties")
             for known_failure in test.known_failures:
                 ElementTree.SubElement(
@@ -53,6 +58,36 @@ def render_junit_report(report: RunReport) -> bytes:
                         "value": _known_failure_summary(known_failure),
                     },
                 )
+            if test.retry.retry_count > 0 or test.retry.unstable:
+                ElementTree.SubElement(
+                    properties,
+                    "property",
+                    {
+                        "name": "entroping.retry_count",
+                        "value": str(test.retry.retry_count),
+                    },
+                )
+                ElementTree.SubElement(
+                    properties,
+                    "property",
+                    {
+                        "name": "entroping.unstable",
+                        "value": str(test.retry.unstable).lower(),
+                    },
+                )
+                for attempt in test.retry.attempts:
+                    ElementTree.SubElement(
+                        properties,
+                        "property",
+                        {
+                            "name": f"entroping.attempt.{attempt.attempt}",
+                            "value": _attempt_summary(
+                                status=attempt.status,
+                                exit_code=attempt.exit_code,
+                                duration_ms=attempt.duration_ms,
+                            ),
+                        },
+                    )
 
     tree = ElementTree.ElementTree(testsuite)
     ElementTree.indent(tree, space="  ")
@@ -159,11 +194,28 @@ def _html_output(test: RunTestReport) -> str:
             for known_failure in test.known_failures
         )
         parts.append(f"<strong>Known failures</strong><ul>{items}</ul>")
+    if test.retry.retry_count > 0 or test.retry.unstable:
+        items = "".join(_html_attempt_item(attempt) for attempt in test.retry.attempts)
+        parts.append(
+            "<strong>Retry evidence</strong>"
+            f"<p>retry_count: {test.retry.retry_count}; "
+            f"unstable: {str(test.retry.unstable).lower()}</p>"
+            f"<ul>{items}</ul>"
+        )
     if test.stdout:
         parts.append(f"<strong>stdout</strong><pre>{escape(test.stdout)}</pre>")
     if test.stderr:
         parts.append(f"<strong>stderr</strong><pre>{escape(test.stderr)}</pre>")
     return "".join(parts) if parts else "&nbsp;"
+
+
+def _html_attempt_item(attempt: RunAttemptEvidence) -> str:
+    summary = _attempt_summary(
+        status=attempt.status,
+        exit_code=attempt.exit_code,
+        duration_ms=attempt.duration_ms,
+    )
+    return f"<li>attempt {attempt.attempt}: {escape(summary)}</li>"
 
 
 def _failure_text(test: RunTestReport) -> str:
@@ -180,6 +232,21 @@ def _failure_text(test: RunTestReport) -> str:
                 _known_failure_summary(known_failure) for known_failure in test.known_failures
             )
         )
+    if test.retry.retry_count > 0 or test.retry.unstable:
+        parts.append(
+            "retry: "
+            f"count={test.retry.retry_count}; "
+            f"unstable={str(test.retry.unstable).lower()}; "
+            + "; ".join(
+                f"attempt {attempt.attempt} "
+                + _attempt_summary(
+                    status=attempt.status,
+                    exit_code=attempt.exit_code,
+                    duration_ms=attempt.duration_ms,
+                )
+                for attempt in test.retry.attempts
+            )
+        )
     if test.stdout:
         parts.extend(("", "stdout:", test.stdout))
     if test.stderr:
@@ -189,3 +256,7 @@ def _failure_text(test: RunTestReport) -> str:
 
 def _known_failure_summary(known_failure: KnownFailureEvidence) -> str:
     return f"{known_failure.issue_id} expires {known_failure.expires}: {known_failure.reason}"
+
+
+def _attempt_summary(*, status: str, exit_code: int, duration_ms: int) -> str:
+    return f"{status} exit={exit_code} duration_ms={duration_ms}"

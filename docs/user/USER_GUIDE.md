@@ -150,6 +150,11 @@ For GitLab CI, Buildkite, CircleCI, or a generic shell runner, see
 `--parallel` uses `settings.parallel_workers` from `qanstitution.yaml` and keeps
 report ordering stable, so CI output remains deterministic even when files run
 concurrently.
+`settings.retry` gives each selected Hurl file a bounded retry budget. A test
+only passes if its final Hurl attempt passes; Entroping does not hide flaky
+failures. JSON, JUnit, HTML, and review-summary reports show retry count,
+attempt status, final status, and unstable pass-after-retry evidence without
+copying raw per-attempt output.
 
 ## 4. Existing Hurl Project
 

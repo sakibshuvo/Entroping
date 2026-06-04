@@ -336,6 +336,14 @@ def test_run_parallel_uses_qanstitution_worker_limit(
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
     runner.invoke(app, ["init", "--minimal"])
+    qanstitution = Path("qanstitution.yaml")
+    qanstitution.write_text(
+        qanstitution.read_text(encoding="utf-8").replace(
+            "  retry: 0\n",
+            "  retry: 2\n",
+        ),
+        encoding="utf-8",
+    )
     (Path("tests") / "health.hurl").write_text(
         "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
         encoding="utf-8",
@@ -355,6 +363,7 @@ def test_run_parallel_uses_qanstitution_worker_limit(
     ) -> HurlSuiteResult:
         captured["max_workers"] = max_workers
         captured["timeout_ms"] = options.timeout_ms
+        captured["retry"] = options.retry
         return HurlSuiteResult(
             results=tuple(
                 HurlFileResult(
@@ -377,7 +386,7 @@ def test_run_parallel_uses_qanstitution_worker_limit(
     result = runner.invoke(app, ["run", "--tag", "smoke", "--parallel"])
 
     assert result.exit_code == 0
-    assert captured == {"max_workers": 2, "timeout_ms": 30_000}
+    assert captured == {"max_workers": 2, "timeout_ms": 30_000, "retry": 2}
     assert "Hurl run: 2 passed, 0 failed" in result.output
 
 

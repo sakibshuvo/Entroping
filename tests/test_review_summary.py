@@ -79,6 +79,145 @@ token=live-secret</failure>
     assert "token=[REDACTED]" in markdown
 
 
+def test_review_summary_includes_retry_and_unstable_run_evidence(tmp_path: Path) -> None:
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    (reports_dir / "run-latest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "checkout-api",
+                "environment": "ci",
+                "generated_at": "2026-06-03T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 1, "failed": 0, "exit_code": 0},
+                "tests": [
+                    {
+                        "path": "tests/eventual.hurl",
+                        "execution_path": ".entroping/run/eventual.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 50,
+                        "rule_ids": [],
+                        "stdout": "token=live-secret",
+                        "stderr": "",
+                        "retry": {
+                            "retry_count": 1,
+                            "unstable": True,
+                            "attempts": [
+                                {
+                                    "attempt": 1,
+                                    "status": "failed",
+                                    "exit_code": 42,
+                                    "duration_ms": 20,
+                                    "stdout_truncated": False,
+                                    "stderr_truncated": False,
+                                },
+                                {
+                                    "attempt": 2,
+                                    "status": "passed",
+                                    "exit_code": 0,
+                                    "duration_ms": 30,
+                                    "stdout_truncated": False,
+                                    "stderr_truncated": False,
+                                },
+                            ],
+                        },
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    summary = build_review_summary(
+        run_json_path=reports_dir / "run-latest.json",
+        junit_path=reports_dir / "junit.xml",
+        drift_path=reports_dir / "drift.json",
+        traceability_report=None,
+    )
+
+    markdown = render_review_summary_markdown(summary)
+    assert summary.status == "attention"
+    assert "| Run JSON | warning | tests/eventual.hurl |" in markdown
+    assert "unstable after 1 retry" in markdown
+    assert "token=live-secret" not in markdown
+
+
+def test_review_summary_ignores_malformed_retry_entries_and_reports_stable_retries(
+    tmp_path: Path,
+) -> None:
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    run_json = reports_dir / "run-latest.json"
+    run_json.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "checkout-api",
+                "environment": "ci",
+                "generated_at": "2026-06-03T00:00:00+00:00",
+                "summary": {"total": 4, "passed": 4, "failed": 0, "exit_code": 0},
+                "tests": [
+                    "skip-me",
+                    {"path": "tests/no-retry.hurl", "retry": "not-a-dict"},
+                    {
+                        "path": "tests/zero-retry.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "retry": {"retry_count": 0, "unstable": False, "attempts": []},
+                    },
+                    {
+                        "path": "tests/stable-retry.hurl",
+                        "status": "",
+                        "exit_code": "unknown",
+                        "retry": {"retry_count": 2, "unstable": False, "attempts": []},
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    summary = build_review_summary(
+        run_json_path=run_json,
+        junit_path=reports_dir / "junit.xml",
+        drift_path=reports_dir / "drift.json",
+        traceability_report=None,
+    )
+
+    assert summary.status == "pass"
+    assert [
+        (finding.severity, finding.path, finding.message) for finding in summary.findings
+    ] == [
+        (
+            "notice",
+            "tests/stable-retry.hurl",
+            "retried 2 retries; final status unknown exit=unknown",
+        )
+    ]
+
+    run_json.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "checkout-api",
+                "environment": "ci",
+                "generated_at": "2026-06-03T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 1, "failed": 0, "exit_code": 0},
+                "tests": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+    summary_without_tests = build_review_summary(
+        run_json_path=run_json,
+        junit_path=reports_dir / "junit.xml",
+        drift_path=reports_dir / "drift.json",
+        traceability_report=None,
+    )
+    assert summary_without_tests.findings == ()
+
+
 def test_review_summary_includes_drift_and_traceability_findings(
     tmp_path: Path,
 ) -> None:

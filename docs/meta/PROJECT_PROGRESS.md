@@ -31,9 +31,9 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#405](https://github.com/sakibshuvo/Entroping/issues/405)
-adds flake and retry evidence for unstable endpoints after changed OpenAPI
-operation generation landed.
+Current issue: [#414](https://github.com/sakibshuvo/Entroping/issues/414)
+supports include and exclude capture filters after bounded retry and flake
+evidence landed.
 Next local slices should keep moving useful runtime and developer workflow
 features before returning to blocked external stable-core proof.
 
@@ -52,9 +52,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#405](https://github.com/sakibshuvo/Entroping/issues/405) | Add flake and retry evidence for unstable endpoints. |
-| 2 | [#414](https://github.com/sakibshuvo/Entroping/issues/414) | Support include and exclude capture filters. |
-| 3 | [#427](https://github.com/sakibshuvo/Entroping/issues/427) | Write sanitized agent run manifests. |
+| 1 | [#414](https://github.com/sakibshuvo/Entroping/issues/414) | Support include and exclude capture filters. |
+| 2 | [#427](https://github.com/sakibshuvo/Entroping/issues/427) | Write sanitized agent run manifests. |
+| 3 | [#440](https://github.com/sakibshuvo/Entroping/issues/440) | Add tag-expression test selection for faster local loops. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -75,6 +75,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Retry and flake evidence](https://github.com/sakibshuvo/Entroping/issues/405) | Done | `settings.retry` now drives bounded per-file Hurl subprocess retries, final attempt status remains authoritative, and JSON/JUnit/HTML/review-summary artifacts expose retry count, attempt status, exit code, duration, and unstable pass-after-retry signals without raw per-attempt output. |
 | [Changed OpenAPI operation generation](https://github.com/sakibshuvo/Entroping/issues/404) | Done | `architect build --new --changed-from <ref>` compares the configured local OpenAPI spec with the same file at a Git base ref, regenerates only current added/modified/renamed operations, and reports removed operations for manual review. |
 | [Sanitized failure bundles](https://github.com/sakibshuvo/Entroping/issues/403) | Done | `report failure-bundle` writes a local sanitized handoff directory with manifest, run JSON, bug Markdown, failed-test Hurl metadata, and reviewed report artifacts while refusing missing/passing runs, raw traffic state, env files, and unsafe artifact paths. |
 | [Named suite manifests](https://github.com/sakibshuvo/Entroping/issues/402) | Done | `run --suite <name>` loads committed `suites/<name>.yaml` manifests, validates `entroping.suite.v1`, resolves root-bounded Hurl path globs, and applies suite-defined env, tags, reports, parallel, and drift settings. |

@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from entroping.core.gate_injector import HurlExecutionCopy
-from entroping.core.hurl_runner import HurlSuiteResult, redact_hurl_output
+from entroping.core.hurl_runner import HurlFileResult, HurlSuiteResult, redact_hurl_output
 from entroping.core.report_errors import ReportWriterError
 from entroping.core.report_fingerprint import (
     _extract_response_fingerprint,
@@ -28,7 +28,14 @@ from entroping.core.report_serialization import (
     run_report_to_dict,
 )
 from entroping.core.safe_write import SafeWriteError, safe_write_bytes, safe_write_text
-from entroping.models.report import KnownFailureEvidence, RunReport, RunReportSummary, RunTestReport
+from entroping.models.report import (
+    KnownFailureEvidence,
+    RunAttemptEvidence,
+    RunReport,
+    RunReportSummary,
+    RunRetryEvidence,
+    RunTestReport,
+)
 
 __all__ = [
     "RUN_REPORT_SCHEMA_VERSION",
@@ -86,6 +93,7 @@ def build_run_report(
                 response_status_code=response_status_code,
                 response_headers=response_headers,
                 response_body_shape=response_body_shape,
+                retry=_retry_evidence_from_result(result),
                 known_failures=tuple(
                     KnownFailureEvidence(
                         test=known_failure.test,
@@ -110,6 +118,38 @@ def build_run_report(
             exit_code=suite.exit_code,
         ),
         tests=tuple(tests),
+    )
+
+
+def _retry_evidence_from_result(result: HurlFileResult) -> RunRetryEvidence:
+    attempts = result.attempts
+    if not attempts:
+        return RunRetryEvidence(
+            attempts=(
+                RunAttemptEvidence(
+                    attempt=1,
+                    status=result.status,
+                    exit_code=result.exit_code,
+                    duration_ms=result.duration_ms,
+                    stdout_truncated=result.stdout_truncated,
+                    stderr_truncated=result.stderr_truncated,
+                ),
+            )
+        )
+    return RunRetryEvidence(
+        retry_count=result.retry_count,
+        unstable=result.unstable,
+        attempts=tuple(
+            RunAttemptEvidence(
+                attempt=attempt.attempt,
+                status=attempt.status,
+                exit_code=attempt.exit_code,
+                duration_ms=attempt.duration_ms,
+                stdout_truncated=attempt.stdout_truncated,
+                stderr_truncated=attempt.stderr_truncated,
+            )
+            for attempt in attempts
+        ),
     )
 
 

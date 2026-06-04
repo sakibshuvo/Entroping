@@ -50,6 +50,7 @@ def test_discover_hurl_reports_binary_availability(monkeypatch: pytest.MonkeyPat
             lambda: HurlRunOptions(output_limit_bytes=0),
             "Hurl output limit must be greater than zero",
         ),
+        (lambda: HurlRunOptions(retry=-1), "Hurl retry count must not be negative"),
         (lambda: HurlRunOptions(variables={"bad-name": "value"}), "Invalid Hurl variable name"),
         (lambda: HurlRunOptions(variables={"token": "line1\nline2"}), "must be single-line"),
     ],
@@ -245,6 +246,93 @@ def test_run_hurl_file_returns_failed_result_for_non_zero_exit(
     assert result.status == "failed"
     assert result.exit_code == 42
     assert "Assert status < 500 failed" in result.stderr
+    assert result.retry_count == 0
+    assert not result.unstable
+    assert [attempt.status for attempt in result.attempts] == ["failed"]
+
+
+def test_run_hurl_file_retries_until_pass_and_marks_unstable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "eventual.hurl")
+    return_codes = [7, 0]
+    calls: list[list[str]] = []
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (timeout, check, env, shell)
+        calls.append(args)
+        return_code = return_codes.pop(0)
+        stdout.write(f"attempt={len(calls)} secret=live-secret\n".encode())
+        stderr.write(f"stderr attempt={len(calls)}\n".encode())
+        return subprocess.CompletedProcess(args=args, returncode=return_code)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(
+        hurl_file,
+        HurlRunOptions(binary="hurl", retry=2, redacted_values=("live-secret",)),
+    )
+
+    assert len(calls) == 2
+    assert result.passed
+    assert result.status == "passed"
+    assert result.exit_code == 0
+    assert result.retry_count == 1
+    assert result.unstable
+    assert [attempt.attempt for attempt in result.attempts] == [1, 2]
+    assert [attempt.status for attempt in result.attempts] == ["failed", "passed"]
+    assert [attempt.exit_code for attempt in result.attempts] == [7, 0]
+    assert result.stdout == "attempt=2 secret=[REDACTED]\n"
+    assert "live-secret" not in result.stdout
+
+
+def test_run_hurl_file_exhausts_retry_budget_without_hiding_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "always-fails.hurl")
+    calls = 0
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        nonlocal calls
+        _ = (stdout, timeout, check, env, shell)
+        calls += 1
+        stderr.write(f"failed attempt {calls}\n".encode())
+        return subprocess.CompletedProcess(args=args, returncode=42)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(hurl_file, HurlRunOptions(binary="hurl", retry=2))
+
+    assert calls == 3
+    assert not result.passed
+    assert result.status == "failed"
+    assert result.exit_code == 42
+    assert result.retry_count == 2
+    assert not result.unstable
+    assert [attempt.status for attempt in result.attempts] == ["failed", "failed", "failed"]
+    assert result.stderr == "failed attempt 3\n"
 
 
 def test_run_hurl_file_returns_error_result_for_subprocess_oserror(

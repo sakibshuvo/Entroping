@@ -42,6 +42,7 @@ class HurlRunOptions:
 
     binary: str = "hurl"
     timeout_ms: int = 30_000
+    retry: int = 0
     output_limit_bytes: int = _DEFAULT_OUTPUT_LIMIT_BYTES
     redacted_values: tuple[str, ...] = ()
     variables: Mapping[str, str] | None = None
@@ -53,6 +54,9 @@ class HurlRunOptions:
         if self.timeout_ms <= 0:
             msg = "Hurl timeout must be greater than zero"
             raise ValueError(msg)
+        if self.retry < 0:
+            msg = "Hurl retry count must not be negative"
+            raise ValueError(msg)
         if self.output_limit_bytes <= 0:
             msg = "Hurl output limit must be greater than zero"
             raise ValueError(msg)
@@ -63,6 +67,18 @@ class HurlRunOptions:
         """Return subprocess timeout in seconds."""
 
         return self.timeout_ms / 1000
+
+
+@dataclass(frozen=True)
+class HurlAttemptEvidence:
+    """Sanitized evidence for one bounded Hurl subprocess attempt."""
+
+    attempt: int
+    status: HurlRunStatus
+    exit_code: int
+    duration_ms: int
+    stdout_truncated: bool
+    stderr_truncated: bool
 
 
 @dataclass(frozen=True)
@@ -78,12 +94,26 @@ class HurlFileResult:
     stdout_truncated: bool
     stderr_truncated: bool
     duration_ms: int
+    attempts: tuple[HurlAttemptEvidence, ...] = ()
 
     @property
     def passed(self) -> bool:
         """Return whether Hurl reported success."""
 
         return self.status == "passed" and self.exit_code == 0
+
+    @property
+    def retry_count(self) -> int:
+        """Return how many retry attempts were needed or exhausted."""
+
+        return max(0, len(self.attempts) - 1)
+
+    @property
+    def unstable(self) -> bool:
+        """Return whether attempts changed status or exit code during retry."""
+
+        observed = {(attempt.status, attempt.exit_code) for attempt in self.attempts}
+        return len(observed) > 1
 
 
 @dataclass(frozen=True)
@@ -177,67 +207,57 @@ def run_hurl_file(
     command = (binary_path, *_variables_file_args(variables_file), str(hurl_path))
     subprocess_env = _minimal_subprocess_env(binary_path)
 
-    start = time.perf_counter()
-    status: HurlRunStatus = "error"
-    exit_code = 126
-    extra_stderr = ""
+    total_start = time.perf_counter()
+    attempts: list[HurlAttemptEvidence] = []
+    final_status: HurlRunStatus = "error"
+    final_exit_code = 126
+    final_stdout = ""
+    final_stderr = ""
+    final_stdout_truncated = False
+    final_stderr_truncated = False
 
     try:
-        with (
-            tempfile.TemporaryFile(mode="w+b") as stdout_file,
-            tempfile.TemporaryFile(mode="w+b") as stderr_file,
-        ):
-            try:
-                # Uses a resolved binary, argument array, timeout, and shell=False.
-                completed = subprocess.run(  # nosec B603
-                    list(command),
-                    stdout=stdout_file,
-                    stderr=stderr_file,
-                    timeout=run_options.timeout_seconds,
-                    check=False,
-                    env=subprocess_env,
-                    shell=False,
+        for attempt_number in range(1, run_options.retry + 2):
+            attempt_start = time.perf_counter()
+            (
+                final_status,
+                final_exit_code,
+                final_stdout,
+                final_stderr,
+                final_stdout_truncated,
+                final_stderr_truncated,
+            ) = _run_hurl_attempt(
+                command=command,
+                subprocess_env=subprocess_env,
+                options=run_options,
+            )
+            attempts.append(
+                HurlAttemptEvidence(
+                    attempt=attempt_number,
+                    status=final_status,
+                    exit_code=final_exit_code,
+                    duration_ms=max(0, int((time.perf_counter() - attempt_start) * 1000)),
+                    stdout_truncated=final_stdout_truncated,
+                    stderr_truncated=final_stderr_truncated,
                 )
-            except subprocess.TimeoutExpired:
-                status = "timeout"
-                exit_code = 124
-            except OSError as exc:
-                status = "error"
-                exit_code = 126
-                extra_stderr = f"Hurl subprocess failed: {exc}"
-            else:
-                exit_code = completed.returncode
-                status = "passed" if completed.returncode == 0 else "failed"
-
-            stdout, stdout_truncated = _read_process_output(
-                stdout_file,
-                stream_name="stdout",
-                limit_bytes=run_options.output_limit_bytes,
-                redacted_values=_redaction_values(run_options),
             )
-            stderr, stderr_truncated = _read_process_output(
-                stderr_file,
-                stream_name="stderr",
-                limit_bytes=run_options.output_limit_bytes,
-                redacted_values=_redaction_values(run_options),
-            )
+            if final_status == "passed":
+                break
     finally:
         if variables_file is not None:
             variables_file.unlink(missing_ok=True)
 
-    if extra_stderr:
-        stderr = f"{stderr}\n{extra_stderr}" if stderr else extra_stderr
-
     return HurlFileResult(
         path=hurl_path,
         command=command,
-        status=status,
-        exit_code=exit_code,
-        stdout=stdout,
-        stderr=stderr,
-        stdout_truncated=stdout_truncated,
-        stderr_truncated=stderr_truncated,
-        duration_ms=max(0, int((time.perf_counter() - start) * 1000)),
+        status=final_status,
+        exit_code=final_exit_code,
+        stdout=final_stdout,
+        stderr=final_stderr,
+        stdout_truncated=final_stdout_truncated,
+        stderr_truncated=final_stderr_truncated,
+        duration_ms=max(0, int((time.perf_counter() - total_start) * 1000)),
+        attempts=tuple(attempts),
     )
 
 
@@ -257,6 +277,60 @@ def validate_hurl_path(path: Path) -> Path:
         msg = f"Hurl file not found: {resolved}"
         raise ValueError(msg)
     return resolved
+
+
+def _run_hurl_attempt(
+    *,
+    command: tuple[str, ...],
+    subprocess_env: dict[str, str],
+    options: HurlRunOptions,
+) -> tuple[HurlRunStatus, int, str, str, bool, bool]:
+    status: HurlRunStatus = "error"
+    exit_code = 126
+    extra_stderr = ""
+
+    with (
+        tempfile.TemporaryFile(mode="w+b") as stdout_file,
+        tempfile.TemporaryFile(mode="w+b") as stderr_file,
+    ):
+        try:
+            # Uses a resolved binary, argument array, timeout, and shell=False.
+            completed = subprocess.run(  # nosec B603
+                list(command),
+                stdout=stdout_file,
+                stderr=stderr_file,
+                timeout=options.timeout_seconds,
+                check=False,
+                env=subprocess_env,
+                shell=False,
+            )
+        except subprocess.TimeoutExpired:
+            status = "timeout"
+            exit_code = 124
+        except OSError as exc:
+            status = "error"
+            exit_code = 126
+            extra_stderr = f"Hurl subprocess failed: {exc}"
+        else:
+            exit_code = completed.returncode
+            status = "passed" if completed.returncode == 0 else "failed"
+
+        stdout, stdout_truncated = _read_process_output(
+            stdout_file,
+            stream_name="stdout",
+            limit_bytes=options.output_limit_bytes,
+            redacted_values=_redaction_values(options),
+        )
+        stderr, stderr_truncated = _read_process_output(
+            stderr_file,
+            stream_name="stderr",
+            limit_bytes=options.output_limit_bytes,
+            redacted_values=_redaction_values(options),
+        )
+
+    if extra_stderr:
+        stderr = f"{stderr}\n{extra_stderr}" if stderr else extra_stderr
+    return status, exit_code, stdout, stderr, stdout_truncated, stderr_truncated
 
 
 def redact_hurl_output(text: str, extra_secret_values: Sequence[str] = ()) -> str:

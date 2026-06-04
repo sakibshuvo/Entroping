@@ -1,6 +1,6 @@
 """Pure report models for deterministic Entroping runs."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -32,6 +32,27 @@ class KnownFailureEvidence:
 
 
 @dataclass(frozen=True)
+class RunAttemptEvidence:
+    """Report-safe evidence for one Hurl execution attempt."""
+
+    attempt: int
+    status: str
+    exit_code: int
+    duration_ms: int
+    stdout_truncated: bool
+    stderr_truncated: bool
+
+
+@dataclass(frozen=True)
+class RunRetryEvidence:
+    """Bounded retry evidence for one run-report test row."""
+
+    retry_count: int = 0
+    unstable: bool = False
+    attempts: tuple[RunAttemptEvidence, ...] = ()
+
+
+@dataclass(frozen=True)
 class RunTestReport:
     """Report row for one source Hurl test."""
 
@@ -47,6 +68,7 @@ class RunTestReport:
     response_headers: tuple[tuple[str, str], ...] = ()
     response_body_shape: tuple[str, ...] = ()
     known_failures: tuple[KnownFailureEvidence, ...] = ()
+    retry: RunRetryEvidence = field(default_factory=RunRetryEvidence)
 
     @property
     def passed(self) -> bool:

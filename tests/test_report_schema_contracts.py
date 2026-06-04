@@ -29,8 +29,10 @@ from entroping.models.drift import (
 from entroping.models.hurl import HurlExchange, HurlMetadata, HurlTest
 from entroping.models.report import (
     KnownFailureEvidence,
+    RunAttemptEvidence,
     RunReport,
     RunReportSummary,
+    RunRetryEvidence,
     RunTestReport,
 )
 
@@ -66,6 +68,28 @@ def test_run_report_v1_schema_contract_is_versioned_and_stable() -> None:
                         reason="Temporary upstream latency regression.",
                     ),
                 ),
+                retry=RunRetryEvidence(
+                    retry_count=1,
+                    unstable=True,
+                    attempts=(
+                        RunAttemptEvidence(
+                            attempt=1,
+                            status="failed",
+                            exit_code=42,
+                            duration_ms=20,
+                            stdout_truncated=False,
+                            stderr_truncated=True,
+                        ),
+                        RunAttemptEvidence(
+                            attempt=2,
+                            status="passed",
+                            exit_code=0,
+                            duration_ms=12,
+                            stdout_truncated=False,
+                            stderr_truncated=False,
+                        ),
+                    ),
+                ),
             ),
         ),
     )
@@ -97,6 +121,28 @@ def test_run_report_v1_schema_contract_is_versioned_and_stable() -> None:
                         "reason": "Temporary upstream latency regression.",
                     }
                 ],
+                "retry": {
+                    "retry_count": 1,
+                    "unstable": True,
+                    "attempts": [
+                        {
+                            "attempt": 1,
+                            "status": "failed",
+                            "exit_code": 42,
+                            "duration_ms": 20,
+                            "stdout_truncated": False,
+                            "stderr_truncated": True,
+                        },
+                        {
+                            "attempt": 2,
+                            "status": "passed",
+                            "exit_code": 0,
+                            "duration_ms": 12,
+                            "stdout_truncated": False,
+                            "stderr_truncated": False,
+                        },
+                    ],
+                },
                 "response": {
                     "status_code": 200,
                     "headers": {"content-type": "application/json"},

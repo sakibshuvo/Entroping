@@ -151,7 +151,11 @@ def execute_run_workflow(
         )
         suite = run_hurl_files(
             [execution.execution_path for execution in execution_copies],
-            HurlRunOptions(timeout_ms=law.settings.timeout, variables=env_variables),
+            HurlRunOptions(
+                timeout_ms=law.settings.timeout,
+                retry=law.settings.retry,
+                variables=env_variables,
+            ),
             max_workers=hurl_workers,
         )
         run_report = build_run_report(

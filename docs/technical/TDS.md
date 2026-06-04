@@ -714,6 +714,12 @@ accepted. The accepted design gate for any future write action lives in
 `--parallel` uses `settings.parallel_workers` from `qanstitution.yaml`, keeps the
 per-file timeout and output-redaction behavior, and preserves deterministic
 input ordering in reports.
+`settings.retry` is a bounded per-file subprocess retry budget. `entroping run`
+stops retrying as soon as a Hurl file passes, never hides a final failure, and
+records retry evidence in JSON, JUnit, HTML, and review-summary artifacts.
+Retry evidence contains attempt number, status, exit code, duration, and
+truncation flags only; it must not copy raw per-attempt stdout or stderr into
+the evidence block.
 `--changed-from <ref>` uses `git diff --name-status` to select existing changed
 `.hurl` files from a base ref. Deleted files are skipped, rename targets are
 used, and paths outside the project root are rejected before discovery. This is
@@ -757,6 +763,8 @@ any model provider; posting or uploading the Markdown remains a downstream CI
 step. Missing artifacts are recorded as missing instead of failing the command,
 while malformed artifacts fail with a clear report error. Rendered findings are
 redacted and Markdown-escaped.
+Unstable pass-after-retry run evidence is rendered as a warning; retried tests
+with unchanged final failure/pass state are rendered as notice-level context.
 
 `entroping report failure-bundle` writes a sanitized local handoff directory at
 `reports/failure-bundle` by default. It requires a latest failed run, refuses
