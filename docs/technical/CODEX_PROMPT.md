@@ -27,7 +27,7 @@ entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
 entroping config vendor-policy-pack --pack <path> [--name <dir>]
 
-entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
+entroping architect build [--new] [--changed-from <ref>] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
 entroping architect refactor --target <glob> --prompt <text>
 entroping architect audit [--focus <logic|auditor>] [--output <json|md>]
 

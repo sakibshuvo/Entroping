@@ -107,6 +107,17 @@ Generate first tests from your API spec:
 entroping architect build --new --tag smoke
 ```
 
+When the API spec changes on a feature branch, focus generation to changed
+operations from a reviewed base ref:
+
+```bash
+entroping architect build --new --changed-from origin/main --tag smoke
+```
+
+This mode writes tests only for current added, modified, or renamed OpenAPI
+operations. Removed operations are reported for manual review; Entroping does
+not delete existing Hurl tests automatically.
+
 Generate or merge scoped prompt-backed coverage:
 
 ```bash

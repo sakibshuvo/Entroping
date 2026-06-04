@@ -123,6 +123,44 @@ def test_compile_openapi_generates_deterministic_hurl_files() -> None:
     assert 'jsonpath "$.status" == "accepted"' in checkout
 
 
+def test_compile_openapi_can_filter_to_selected_operation_ids() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/health": {"get": _ok_operation("getHealth")},
+            "/checkout": {"post": _ok_operation("createCheckout")},
+            "/refunds": {"post": _ok_operation("createRefund")},
+        },
+    }
+
+    generated = compile_openapi_to_hurl(
+        document,
+        tags=frozenset({"smoke"}),
+        operation_ids=frozenset({"createCheckout", "createRefund"}),
+    )
+
+    assert [item.relative_path for item in generated] == [
+        "tests/generated/create_checkout.hurl",
+        "tests/generated/create_refund.hurl",
+    ]
+    assert all("# entroping: tags=generated,smoke" in item.content for item in generated)
+    assert "getHealth" not in "\n".join(item.content for item in generated)
+
+
+def test_compile_openapi_rejects_selected_operation_ids_that_match_nothing() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {"/health": {"get": _ok_operation("getHealth")}},
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="selected operations"):
+        compile_openapi_to_hurl(
+            document,
+            tags=frozenset(),
+            operation_ids=frozenset({"createCheckout"}),
+        )
+
+
 def test_compile_openapi_renders_parameters_and_schema_examples() -> None:
     document: dict[str, object] = {
         "openapi": "3.1.0",

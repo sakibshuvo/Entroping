@@ -30,6 +30,10 @@ from entroping.bridge.openapi_audit import (
     audit_report_to_dict,
     render_audit_markdown,
 )
+from entroping.bridge.openapi_diff import (
+    OpenApiOperationChanges,
+    detect_openapi_operation_changes,
+)
 from entroping.bridge.openapi_to_hurl import (
     GeneratedHurlFile,
     OpenApiCompilationError,
@@ -42,6 +46,7 @@ from entroping.cli.shared import (
     safe_cli_text,
 )
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
+from entroping.core.git_openapi import GitOpenApiError, load_openapi_document_at_ref
 from entroping.core.hurl_discovery import discover_hurl_tests, normalize_tag_filters
 from entroping.core.hurl_validator import validate_hurl_content
 from entroping.core.openapi_loader import OpenApiLoadError, load_openapi_document
@@ -73,6 +78,13 @@ def architect_build(
         str | None,
         typer.Option("--agent", help="Prompt generation agent: builder or breaker."),
     ] = None,
+    changed_from: Annotated[
+        str | None,
+        typer.Option(
+            "--changed-from",
+            help="Generate only OpenAPI operations changed from a Git ref.",
+        ),
+    ] = None,
 ) -> None:
     """Generate Hurl tests from configured sources or prompts."""
 
@@ -84,6 +96,9 @@ def architect_build(
             raise typer.Exit(2)
     build_agent = _normalize_architect_build_agent(agent)
     if prompt is not None:
+        if changed_from is not None:
+            console.print("[yellow]--changed-from applies only to architect build --new.[/yellow]")
+            raise typer.Exit(2)
         _run_architect_prompt_build(
             prompt=prompt,
             tag=tag,
@@ -96,6 +111,9 @@ def architect_build(
         raise typer.Exit(2)
     if normalized_strategy == "merge":
         console.print("[yellow]--strategy merge requires --prompt in the current alpha.[/yellow]")
+        raise typer.Exit(2)
+    if changed_from is not None and not new:
+        console.print("[yellow]--changed-from requires architect build --new.[/yellow]")
         raise typer.Exit(2)
     if not new:
         console.print("[yellow]Choose a supported architect build mode:[/yellow]")
@@ -111,11 +129,46 @@ def architect_build(
         if law.sources is None or law.sources.spec is None or not law.sources.spec.strip():
             msg = "sources.spec is required for architect build --new"
             raise ValueError(msg)
-        document = load_openapi_document(_configured_spec_reference(law.sources.spec))
-        generated = compile_openapi_to_hurl(document, tags=tag_filters)
+        spec_reference = _configured_spec_reference(law.sources.spec)
+        baseline_spec_reference: Path | None = None
+        if changed_from is not None:
+            if not isinstance(spec_reference, Path):
+                msg = "--changed-from requires a local OpenAPI sources.spec path"
+                raise ValueError(msg)
+            baseline_spec_reference = spec_reference
+        document = load_openapi_document(spec_reference)
+        operation_ids: frozenset[str] | None = None
+        if changed_from is not None and baseline_spec_reference is not None:
+            base_document = load_openapi_document_at_ref(
+                project_root=Path.cwd(),
+                base_ref=changed_from,
+                spec_path=baseline_spec_reference,
+            )
+            changes = detect_openapi_operation_changes(base_document, document)
+            _print_openapi_change_summary(base_ref=changed_from, changes=changes)
+            if not changes.generation_operation_ids:
+                console.print(
+                    "No current OpenAPI operation changes require generation from "
+                    f"{safe_cli_text(changed_from)}.",
+                    markup=False,
+                    soft_wrap=True,
+                )
+                return
+            operation_ids = frozenset(changes.generation_operation_ids)
+        generated = compile_openapi_to_hurl(
+            document,
+            tags=tag_filters,
+            operation_ids=operation_ids,
+        )
         prepared = _prepare_generated_hurl_files(generated)
         written = [_write_prepared_generated_hurl_file(item) for item in prepared]
-    except (QanstitutionLoadError, OpenApiLoadError, OpenApiCompilationError, ValueError) as exc:
+    except (
+        QanstitutionLoadError,
+        GitOpenApiError,
+        OpenApiLoadError,
+        OpenApiCompilationError,
+        ValueError,
+    ) as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
 
@@ -302,6 +355,35 @@ def _normalize_architect_audit_output(output: str | None) -> str:
         msg = f"Unsupported architect audit output {output!r}; supported outputs: json, md"
         raise ValueError(msg)
     return normalized
+
+
+def _print_openapi_change_summary(
+    *,
+    base_ref: str,
+    changes: OpenApiOperationChanges,
+) -> None:
+    summary = changes.summary
+    console.print(
+        "OpenAPI changes from "
+        f"{safe_cli_text(base_ref)}: "
+        f"added={summary['added']}, "
+        f"modified={summary['modified']}, "
+        f"renamed={summary['renamed']}, "
+        f"removed={summary['removed']}, "
+        f"unchanged={summary['unchanged']}",
+        markup=False,
+        soft_wrap=True,
+    )
+    removed_operation_ids = tuple(
+        item.operation_id for item in changes.items if item.change_type == "removed"
+    )
+    if removed_operation_ids:
+        console.print(
+            "Removed OpenAPI operations require manual review: "
+            f"{safe_cli_text(', '.join(removed_operation_ids))}",
+            markup=False,
+            soft_wrap=True,
+        )
 
 
 def _configured_spec_reference(spec: str) -> str | Path:

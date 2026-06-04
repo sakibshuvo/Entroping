@@ -35,24 +35,33 @@ def load_openapi_document(path: str | Path) -> Mapping[str, object]:
 
     try:
         with resolved.open(encoding="utf-8") as handle:
-            loaded: object = yaml.safe_load(handle)
-    except yaml.YAMLError as exc:
-        msg = f"Invalid OpenAPI YAML in {resolved}: {exc}"
-        raise OpenApiLoadError(msg) from exc
+            content = handle.read()
     except OSError as exc:
         msg = f"Could not read OpenAPI spec {resolved}: {exc}"
+        raise OpenApiLoadError(msg) from exc
+
+    return load_openapi_document_text(content, source_name=str(resolved))
+
+
+def load_openapi_document_text(content: str, *, source_name: str) -> Mapping[str, object]:
+    """Load an OpenAPI YAML or JSON document from already-read text."""
+
+    try:
+        loaded: object = yaml.safe_load(content)
+    except yaml.YAMLError as exc:
+        msg = f"Invalid OpenAPI YAML in {source_name}: {exc}"
         raise OpenApiLoadError(msg) from exc
 
     if loaded is None:
         loaded = {}
     if not isinstance(loaded, Mapping):
-        msg = f"OpenAPI spec must contain a YAML mapping: {resolved}"
+        msg = f"OpenAPI spec must contain a YAML mapping: {source_name}"
         raise OpenApiLoadError(msg)
 
     document: dict[str, object] = {}
     for key, value in loaded.items():
         if not isinstance(key, str):
-            msg = f"OpenAPI spec keys must be strings in {resolved}"
+            msg = f"OpenAPI spec keys must be strings in {source_name}"
             raise OpenApiLoadError(msg)
         document[key] = value
     return document

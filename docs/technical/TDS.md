@@ -652,7 +652,7 @@ providers.
 ### Intelligence
 
 ```text
-entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
+entroping architect build [--new] [--changed-from <ref>] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
 entroping architect refactor --target <glob> --prompt <text>
 entroping architect audit [--focus <logic|auditor>] [--output <json|md>]
 ```
@@ -662,6 +662,12 @@ OpenAPI operations with committed Hurl metadata and request lines, emits
 covered, uncovered, and ambiguous operation rows, and lists stale
 `operation_id` references. JSON output carries schema marker
 `entroping.openapi-audit.v1`.
+
+`architect build --new --changed-from <ref>` compares the configured local
+OpenAPI spec against the same spec at a Git base ref, classifies added,
+modified, renamed, removed, and unchanged operations, and regenerates only the
+current added/modified/renamed operation IDs. Removed operations are reported
+for manual review; Entroping does not delete existing tests automatically.
 
 ### Observation
 
