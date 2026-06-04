@@ -23,6 +23,7 @@ from entroping.models.hurl import (
     parse_hurl_metadata,
 )
 from entroping.models.qanstitution import AgentConfig, GateRule, Qanstitution
+from entroping.models.run_suite import RunSuiteManifest, RunSuiteReportFormat
 from entroping.models.secrets import (
     REDACTED,
     contains_secret_like_value,
@@ -53,6 +54,8 @@ __all__ = [
     "HurlTest",
     "Qanstitution",
     "REDACTED",
+    "RunSuiteManifest",
+    "RunSuiteReportFormat",
     "TrafficBody",
     "TrafficExchange",
     "TrafficRequest",

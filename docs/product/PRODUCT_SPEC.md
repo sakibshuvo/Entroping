@@ -220,6 +220,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | EXE-013 | Promote reviewed drift baselines | `entroping report promote-drift-baseline` validates a reviewed candidate before atomically writing `.entroping/drift-baseline.json` |
 | EXE-014 | Provide read-only TUI workflow | `entroping studio --env local` opens optional Textual/Rich local inspection over sanitized reports and redacted state |
 | EXE-015 | Preserve execution reproducibility | All blocking CI behavior must be explainable from committed Hurl files, env data, effective QAnstitution, and Hurl output |
+| EXE-016 | Run named committed suites | `entroping run --suite smoke` loads `suites/smoke.yaml`, validates schema `entroping.suite.v1`, resolves root-bounded local path globs, and applies suite-defined env, tags, reports, parallel, and drift settings without changing default `run` behavior |
 
 ## 10. Supported Test Types
 

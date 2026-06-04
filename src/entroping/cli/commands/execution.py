@@ -15,6 +15,7 @@ from entroping.core.gate_injector import GateInjectionError
 from entroping.core.hurl_discovery import normalize_tag_filters
 from entroping.core.hurl_runner import HurlBinaryNotFoundError
 from entroping.core.report_writer import ReportWriterError
+from entroping.core.run_suite_manifest import RunSuiteManifestError, load_run_suite_manifest
 from entroping.core.run_workflow import (
     NoHurlTestsMatchedError,
     RunWorkflowError,
@@ -137,6 +138,10 @@ def studio(
 
 def run(
     env: Annotated[str | None, typer.Option("--env", help="Environment name.")] = None,
+    suite: Annotated[
+        str | None,
+        typer.Option("--suite", help="Committed suite manifest name from suites/<name>.yaml."),
+    ] = None,
     tag: Annotated[
         list[str] | None,
         typer.Option("--tag", help="Tag filter; repeat for multiple tags."),
@@ -164,25 +169,56 @@ def run(
 ) -> None:
     """Run Hurl suites with QAnstitution gates."""
 
-    try:
-        tag_filters = normalize_tag_filters(tag)
-    except ValueError as exc:
-        raise typer.BadParameter(str(exc), param_hint="--tag") from exc
+    if suite is None:
+        try:
+            tag_filters = tuple(normalize_tag_filters(tag))
+        except ValueError as exc:
+            raise typer.BadParameter(str(exc), param_hint="--tag") from exc
 
-    try:
-        report_formats = _normalize_report_formats(report)
-    except ValueError as exc:
-        raise typer.BadParameter(str(exc), param_hint="--report") from exc
+        try:
+            report_formats = _normalize_report_formats(report)
+        except ValueError as exc:
+            raise typer.BadParameter(str(exc), param_hint="--report") from exc
+        run_environment = env
+        run_parallel = parallel
+        run_drift_check = drift_check
+        run_changed_from = changed_from
+        discovery_roots = None
+        selection_label = None
+    else:
+        _reject_suite_conflicts(
+            env=env,
+            tag=tag,
+            report=report,
+            parallel=parallel,
+            drift_check=drift_check,
+            changed_from=changed_from,
+        )
+        try:
+            loaded_suite = load_run_suite_manifest(project_root=Path.cwd(), suite_name=suite)
+        except RunSuiteManifestError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(1) from exc
+        tag_filters = loaded_suite.tag_filters
+        report_formats = loaded_suite.report_formats
+        run_environment = loaded_suite.environment
+        run_parallel = loaded_suite.parallel
+        run_drift_check = loaded_suite.drift_check
+        run_changed_from = None
+        discovery_roots = loaded_suite.discovery_roots
+        selection_label = f"suite {loaded_suite.name!r}"
 
     try:
         workflow_result = execute_run_workflow(
             project_root=Path.cwd(),
-            environment=env,
-            tag_filters=tuple(tag_filters),
+            environment=run_environment,
+            tag_filters=tag_filters,
             report_formats=report_formats,
-            parallel=parallel,
-            drift_check=drift_check,
-            changed_from=changed_from,
+            parallel=run_parallel,
+            drift_check=run_drift_check,
+            changed_from=run_changed_from,
+            discovery_roots=discovery_roots,
+            selection_label=selection_label,
         )
     except NoHurlTestsMatchedError as exc:
         console.print(safe_cli_text(exc), style="yellow", markup=False)
@@ -200,9 +236,9 @@ def run(
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
 
-    suite = workflow_result.suite
+    hurl_suite = workflow_result.suite
     drift_report = workflow_result.drift_report
-    console.print(f"Hurl run: {suite.passed} passed, {suite.failed} failed")
+    console.print(f"Hurl run: {hurl_suite.passed} passed, {hurl_suite.failed} failed")
     if drift_report is not None:
         if drift_report.summary.missing_baseline:
             console.print(
@@ -216,7 +252,7 @@ def run(
     console.print(f"Wrote latest run state: {display_cli_path(workflow_result.latest_state_path)}")
     for artifact in workflow_result.artifacts:
         console.print(f"Wrote report: {display_cli_path(artifact)}")
-    for result in suite.results:
+    for result in hurl_suite.results:
         if result.passed:
             continue
         console.print(f"[red]{result.path.name}: {result.status}[/red]")
@@ -244,3 +280,30 @@ def _normalize_report_formats(report: list[str] | None) -> tuple[str, ...]:
         if report_format not in normalized:
             normalized.append(report_format)
     return tuple(normalized)
+
+
+def _reject_suite_conflicts(
+    *,
+    env: str | None,
+    tag: list[str] | None,
+    report: list[str] | None,
+    parallel: bool,
+    drift_check: bool,
+    changed_from: str | None,
+) -> None:
+    conflicts: list[str] = []
+    if env is not None:
+        conflicts.append("--env")
+    if tag:
+        conflicts.append("--tag")
+    if report:
+        conflicts.append("--report")
+    if parallel:
+        conflicts.append("--parallel")
+    if drift_check:
+        conflicts.append("--drift-check")
+    if changed_from is not None:
+        conflicts.append("--changed-from")
+    if conflicts:
+        joined = ", ".join(conflicts)
+        raise typer.BadParameter(f"{joined} cannot be combined with --suite", param_hint="--suite")

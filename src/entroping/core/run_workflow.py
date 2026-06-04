@@ -98,21 +98,29 @@ def execute_run_workflow(
     parallel: bool,
     drift_check: bool,
     changed_from: str | None = None,
+    discovery_roots: Sequence[Path] | None = None,
+    selection_label: str | None = None,
 ) -> RunWorkflowResult:
     """Execute the deterministic Hurl governance loop without CLI concerns."""
 
     root = project_root.expanduser().resolve()
     law = load_qanstitution(root / "qanstitution.yaml")
-    discovery_roots: Sequence[Path]
+    selected_roots: Sequence[Path]
+    if changed_from is not None and discovery_roots is not None:
+        msg = "changed-from cannot be combined with custom Hurl discovery roots"
+        raise RunWorkflowError(msg)
     if changed_from is None:
-        discovery_roots = (root / "tests",)
-        no_match_message = "No Hurl tests matched the requested filters."
+        selected_roots = discovery_roots if discovery_roots is not None else (root / "tests",)
+        if selection_label is None:
+            no_match_message = "No Hurl tests matched the requested filters."
+        else:
+            no_match_message = f"No Hurl tests matched {selection_label}."
     else:
         changed_paths = select_changed_hurl_tests(project_root=root, base_ref=changed_from)
-        discovery_roots = changed_paths
+        selected_roots = changed_paths
         no_match_message = f"No changed Hurl tests matched from base ref {changed_from!r}."
 
-    hurl_tests = discover_hurl_tests(discovery_roots, tag_filters=tuple(tag_filters))
+    hurl_tests = discover_hurl_tests(selected_roots, tag_filters=tuple(tag_filters))
     env_variables = (
         load_environment_variables(environment, root=root) if environment is not None else {}
     )

@@ -2,6 +2,10 @@
 
 ## 2026-06-03
 
+- Added issue #402's named suite manifests so `entroping run --suite <name>`
+  loads committed `suites/<name>.yaml` files with schema
+  `entroping.suite.v1`, root-bounded path globs, tags, env, reports, parallel,
+  and drift settings while preserving the existing deterministic run workflow.
 - Added issue #401's local policy-pack vendoring workflow so
   `entroping config vendor-policy-pack` copies reviewed local packs under
   `policy-packs/`, validates manifest and QAnstitution evidence, preserves

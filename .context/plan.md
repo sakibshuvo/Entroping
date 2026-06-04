@@ -72,6 +72,10 @@ project, and a Codex workspace with fast context rehydration.
 - `entroping run --changed-from <ref>` selects existing changed `.hurl` files
   from Git diff for fast local or agent feedback; it is not a replacement for
   full-suite release gates.
+- `entroping run --suite <name>` loads committed `suites/<name>.yaml`
+  manifests with schema `entroping.suite.v1`, root-bounded path globs, tags,
+  env, reports, parallel, and drift settings without changing default `run`
+  behavior or calling providers.
 - `entroping report sarif` writes SARIF 2.1.0 from local JUnit, drift, and
   optional traceability findings for code-scanning import. It does not execute
   Hurl, call providers, or upload results.
@@ -336,6 +340,9 @@ multi-test mappings and stale committed `operation_id` references.
 Issue #401 adds `entroping config vendor-policy-pack`, a local-only vendoring
 workflow that copies reviewed policy packs into a project, validates manifest
 and QAnstitution evidence, and appends a local import without registry fetches.
+Issue #402 adds `entroping run --suite <name>`, a committed suite-manifest path
+that resolves env, tags, paths, reports, parallel, and drift settings through
+the existing deterministic run workflow.
 Issue #317 extends policy-pack smoke evidence with local provenance manifest
 validation for source, license, supported Entroping version, evidence command,
 gate files, gate IDs, and final flags without fetching registries.
@@ -444,6 +451,23 @@ Implemented boundaries:
 - The workflow remains local-only: no remote fetch, registry authentication,
   runtime manifest dependency, paid-service dependency, or automatic update
   check was added.
+
+## Completed Slice: Issue #402 Named Suite Manifests
+
+Outcome: teams can commit reviewable run-suite manifests instead of relying
+only on repeated ad hoc `--env`, `--tag`, and `--report` command strings.
+
+Implemented boundaries:
+
+- `entroping run --suite <name>` loads `suites/<name>.yaml` with schema
+  `entroping.suite.v1`.
+- Suite manifests can define `env`, `tags`, root-bounded `paths` globs,
+  `reports`, `parallel`, and `drift_check`.
+- Suite execution feeds the existing deterministic Hurl/QAnstitution run
+  workflow; it does not call LLM providers and does not alter default `run`.
+- `--suite` rejects ad hoc selector conflicts such as `--env`, `--tag`,
+  `--report`, `--parallel`, `--drift-check`, and `--changed-from`; `--ci`
+  remains the strict exit-code wrapper.
 
 ## Completed Slice: Issue #317 Policy-Pack Provenance Manifest Validation
 
