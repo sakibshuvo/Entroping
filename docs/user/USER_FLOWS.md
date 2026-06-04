@@ -140,15 +140,16 @@ An API lacks reliable tests or complete specs.
 ```bash
 entroping watch --port 8080 --target http://localhost:3000
 entroping report redaction --output md
-entroping freeze --name checkout_flow --golden
+entroping freeze --name checkout_flow --golden --include-host api.example.test --exclude-path "/assets/*"
 entroping run --env local --tag regression --report html
-entroping map --export mermaid
+entroping map --export mermaid --include-host api.example.test
 ```
 
 ### Success Criteria
 
 - Captured traffic is redacted.
 - Redaction review reports counts and categories only.
+- Capture filters remove noisy hosts, methods, and paths before artifacts are generated.
 - Generated tests are parameterized.
 - Golden assertions avoid unstable fields unless explicitly locked.
 - Dependency map reveals external services.
@@ -170,7 +171,7 @@ A service must be tested while upstream or downstream dependencies are unavailab
 
 ```bash
 entroping watch --port 8080 --target http://localhost:3000
-entroping freeze --name refund_flow --mock payments
+entroping freeze --name refund_flow --mock payments --include-host payments.example.test
 entroping run --env local --tag component --report html
 ```
 

@@ -2,6 +2,11 @@
 
 ## 2026-06-04
 
+- Added issue #414's include/exclude capture filters so `freeze`,
+  `freeze --mock`, and `map` narrow already-redacted traffic by host, method,
+  and request path before generating Hurl, WireMock, or dependency-map
+  artifacts, with exclude precedence, empty-filter errors before writes, and no
+  query/header/body values in filter output.
 - Added issue #405's bounded retry and flake evidence so
   `settings.retry` drives deterministic per-file Hurl subprocess retries,
   final attempt status remains authoritative, and JSON/JUnit/HTML/review-summary

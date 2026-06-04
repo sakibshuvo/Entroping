@@ -188,7 +188,9 @@ host-level dependency maps from redacted traffic with escaped labels, route call
 counts, failures, latency summaries, and optional Graphviz-backed PNG files.
 `entroping freeze --mock <service>`
 now writes WireMock-compatible mappings from matching redacted dependency
-traffic under `mocks/<service>/`.
+traffic under `mocks/<service>/`. `freeze`, `freeze --mock`, and `map` now
+apply deterministic include/exclude capture filters for host, method, and
+request path before generating Hurl, WireMock, or dependency-map artifacts.
 
 Deliverables:
 
@@ -196,7 +198,7 @@ Deliverables:
 - Dedicated `bridge.traffic_to_wiremock` mock mapping compiler.
 - Dedicated `bridge.traffic_sessions` filtering/session boundary.
 - Dedicated `bridge.traffic_to_graph` dependency graph boundary.
-- Traffic filtering for static assets, analytics, irrelevant hosts, and large binary bodies.
+- Traffic filtering for static assets, analytics, irrelevant hosts, methods, paths, and large binary bodies.
 - Session stitching for recorded user flows.
 - State retention settings for `.entroping/state.db`.
 - `freeze`.

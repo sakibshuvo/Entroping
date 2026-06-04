@@ -32,8 +32,8 @@ entroping architect refactor --target <glob> --prompt <text>
 entroping architect audit [--focus <logic|auditor>] [--output <json|md>]
 
 entroping watch [--port <port>] [--target <url>]
-entroping freeze --name <flow> [--golden] [--mock <service>]
-entroping map [--export <mermaid|dot|md|png>]
+entroping freeze --name <flow> [--golden] [--mock <service>] [capture filters]
+entroping map [--export <mermaid|dot|md|png>] [capture filters]
 
 entroping studio [--env <name>]
 entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]

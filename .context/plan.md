@@ -1481,14 +1481,27 @@ Architect writes generated files.
   from being written.
 - Hardened Architect edit paths against control characters.
 
+## Completed Slice: Issue #414 Capture Filters
+
+Outcome: let users narrow noisy Eye captures before generating Hurl tests,
+WireMock mappings, or dependency maps.
+
+- Added a shared `core.traffic_filters` module for already-redacted
+  `TrafficExchange` records.
+- Added exact host filters, normalized method filters, and path prefix/glob
+  filters for `freeze`, `freeze --mock`, and `map`.
+- Kept exclude filters authoritative over include filters.
+- Failed empty filtered sessions before writing generated artifacts.
+- Rejected unsafe filter values and avoided query, header, cookie, or body
+  values in filter errors and generated artifacts.
+
 ## Current Validation Queue
 
 Use these issues as the next marathon targets. Keep each one narrow, tested, and
 merged through GitHub before starting the next branch:
 
-- Next target should come from the remaining stable-core blockers: package-index
-  proof (#303-#305), real downstream user feedback (#306), or compatibility
-  decision (#308).
+- Next local targets are #427 sanitized agent run manifests, #440 tag-expression
+  test selection, and #441 explicit timeout evidence per test.
 - Packaging issue #268 is intentionally gated on package-index alpha evidence:
   publish TestPyPI/PyPI through the protected workflow first, then promote the
   Homebrew tap from prototype to supported install path.

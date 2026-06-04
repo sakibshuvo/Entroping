@@ -11,6 +11,7 @@ from entroping.bridge.traffic_sessions import build_traffic_session_candidate
 from entroping.bridge.traffic_to_graph import compile_traffic_dependency_graph
 from entroping.core.dependency_mapper import DependencyMapError, run_dependency_map
 from entroping.core.safe_write import SafeWriteError
+from entroping.core.traffic_filters import TrafficCaptureFilters
 from entroping.core.traffic_redactor import redact_traffic_exchange
 from entroping.core.traffic_store import TrafficStore, TrafficStoreError
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
@@ -133,6 +134,42 @@ def test_run_dependency_map_printable_exports(
     assert expected in result.content
     assert result.route_count == 1
     assert result.output_path is None
+
+
+def test_run_dependency_map_applies_capture_filters_before_graph_export(tmp_path: Path) -> None:
+    _record_exchange(tmp_path)
+    exchange = TrafficExchange(
+        captured_at=datetime(2026, 5, 30, 12, 1, tzinfo=UTC),
+        duration_ms=10,
+        request=TrafficRequest(
+            method="GET",
+            url="https://static.example.test/assets/app.js?token=map-secret",
+        ),
+        response=TrafficResponse(status_code=200),
+    )
+    TrafficStore.open_project(tmp_path).record_exchange(redact_traffic_exchange(exchange))
+
+    result = run_dependency_map(
+        project_root=tmp_path,
+        export_format="md",
+        capture_filters=TrafficCaptureFilters(include_hosts=("api.example.test",)),
+    )
+
+    assert result.route_count == 1
+    assert "api.example.test" in result.content
+    assert "static.example.test" not in result.content
+    assert "map-secret" not in result.content
+
+
+def test_run_dependency_map_reports_empty_filtered_session(tmp_path: Path) -> None:
+    _record_exchange(tmp_path)
+
+    with pytest.raises(DependencyMapError, match="No traffic records matched capture filters"):
+        run_dependency_map(
+            project_root=tmp_path,
+            export_format="mermaid",
+            capture_filters=TrafficCaptureFilters(include_hosts=("missing.example.test",)),
+        )
 
 
 def test_run_dependency_map_wraps_traffic_store_errors(

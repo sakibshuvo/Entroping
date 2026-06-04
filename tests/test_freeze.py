@@ -11,6 +11,7 @@ from entroping.bridge.traffic_to_wiremock import GeneratedWireMockMapping
 from entroping.core.freeze import FreezeError, run_freeze, run_freeze_mock
 from entroping.core.hurl_validator import HurlValidationError
 from entroping.core.safe_write import SafeWriteError
+from entroping.core.traffic_filters import TrafficCaptureFilters
 from entroping.core.traffic_redactor import redact_traffic_exchange
 from entroping.core.traffic_store import TrafficStore
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
@@ -62,6 +63,29 @@ def _record_dependency_exchange(project_root: Path) -> None:
     TrafficStore.open_project(project_root).record_exchange(redact_traffic_exchange(exchange))
 
 
+def _record_internal_exchange(project_root: Path) -> None:
+    exchange = TrafficExchange(
+        captured_at=datetime(2026, 5, 30, 12, 2, tzinfo=UTC),
+        duration_ms=35,
+        request=TrafficRequest(
+            method="GET",
+            url="https://api.example.test/checkout/internal/health?token=filter-secret",
+            headers={"Authorization": "Bearer filter-secret"},
+            body=None,
+        ),
+        response=TrafficResponse(
+            status_code=200,
+            headers={"Content-Type": "application/json"},
+            body=TrafficBody(
+                content_type="application/json",
+                size_bytes=15,
+                text='{"ok":true}',
+            ),
+        ),
+    )
+    TrafficStore.open_project(project_root).record_exchange(redact_traffic_exchange(exchange))
+
+
 def test_run_freeze_reports_missing_or_empty_traffic_state(tmp_path: Path) -> None:
     with pytest.raises(FreezeError, match="No traffic state found"):
         run_freeze(
@@ -96,6 +120,45 @@ def test_run_freeze_writes_generated_hurl(tmp_path: Path) -> None:
     assert "GET https://api.example.test/checkout" in result.output_path.read_text(
         encoding="utf-8"
     )
+
+
+def test_run_freeze_applies_capture_filters_before_hurl_generation(tmp_path: Path) -> None:
+    _record_exchange(tmp_path)
+    _record_internal_exchange(tmp_path)
+
+    result = run_freeze(
+        project_root=tmp_path,
+        name="checkout_flow",
+        golden=False,
+        capture_filters=TrafficCaptureFilters(
+            include_hosts=("api.example.test",),
+            include_methods=("get",),
+            include_paths=("/checkout",),
+            exclude_paths=("/checkout/internal/*",),
+        ),
+        hurl_validator=lambda content, display_path: None,
+    )
+
+    content = result.output_path.read_text(encoding="utf-8")
+    assert result.record_count == 1
+    assert "GET https://api.example.test/checkout" in content
+    assert "internal" not in content
+    assert "filter-secret" not in content
+
+
+def test_run_freeze_reports_empty_filtered_session(tmp_path: Path) -> None:
+    _record_exchange(tmp_path)
+
+    with pytest.raises(FreezeError, match="No traffic records matched capture filters"):
+        run_freeze(
+            project_root=tmp_path,
+            name="checkout_flow",
+            golden=False,
+            capture_filters=TrafficCaptureFilters(include_hosts=("missing.example.test",)),
+            hurl_validator=lambda content, display_path: None,
+        )
+
+    assert not (tmp_path / "tests" / "generated" / "checkout_flow.hurl").exists()
 
 
 @pytest.mark.parametrize("name", ["", "bad\nname", "../flow", ".hidden", "bad name!"])
@@ -205,6 +268,23 @@ def test_run_freeze_mock_reports_missing_state_and_writes_mappings(tmp_path: Pat
     assert result.record_count == 1
     assert result.output_paths == (tmp_path / "mocks" / "payments" / "refund_flow-001.json",)
     assert '"request"' in result.output_paths[0].read_text(encoding="utf-8")
+
+
+def test_run_freeze_mock_applies_capture_filters_before_wiremock_generation(
+    tmp_path: Path,
+) -> None:
+    _record_exchange(tmp_path)
+    _record_dependency_exchange(tmp_path)
+
+    result = run_freeze_mock(
+        project_root=tmp_path,
+        name="refund_flow",
+        service="payments",
+        capture_filters=TrafficCaptureFilters(include_hosts=("payments.example.test",)),
+    )
+
+    assert result.record_count == 1
+    assert result.output_paths == (tmp_path / "mocks" / "payments" / "refund_flow-001.json",)
 
 
 @pytest.mark.parametrize("service", ["", "bad\nservice", "../payments", ".hidden", "bad service!"])

@@ -21,6 +21,7 @@ from entroping.core.run_workflow import (
     RunWorkflowError,
     execute_run_workflow,
 )
+from entroping.core.traffic_filters import TrafficCaptureFilters, TrafficFilterError
 from entroping.core.traffic_proxy import (
     DEFAULT_WATCH_PORT,
     TrafficProxyError,
@@ -71,12 +72,54 @@ def freeze(
     name: Annotated[str, typer.Option("--name", help="Captured flow name.")],
     golden: Annotated[bool, typer.Option("--golden", help="Add golden assertions.")] = False,
     mock: Annotated[str | None, typer.Option("--mock", help="Dependency to mock.")] = None,
+    include_host: Annotated[
+        list[str] | None,
+        typer.Option("--include-host", help="Include only this captured request host."),
+    ] = None,
+    exclude_host: Annotated[
+        list[str] | None,
+        typer.Option("--exclude-host", help="Exclude this captured request host."),
+    ] = None,
+    include_method: Annotated[
+        list[str] | None,
+        typer.Option("--include-method", help="Include only this HTTP method."),
+    ] = None,
+    exclude_method: Annotated[
+        list[str] | None,
+        typer.Option("--exclude-method", help="Exclude this HTTP method."),
+    ] = None,
+    include_path: Annotated[
+        list[str] | None,
+        typer.Option("--include-path", help="Include only this request path prefix or glob."),
+    ] = None,
+    exclude_path: Annotated[
+        list[str] | None,
+        typer.Option("--exclude-path", help="Exclude this request path prefix or glob."),
+    ] = None,
 ) -> None:
     """Convert captured traffic into Hurl tests and mocks."""
 
+    try:
+        capture_filters = _capture_filters(
+            include_host=include_host,
+            exclude_host=exclude_host,
+            include_method=include_method,
+            exclude_method=exclude_method,
+            include_path=include_path,
+            exclude_path=exclude_path,
+        )
+    except TrafficFilterError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
     if mock is not None:
         try:
-            mock_result = run_freeze_mock(project_root=Path.cwd(), name=name, service=mock)
+            mock_result = run_freeze_mock(
+                project_root=Path.cwd(),
+                name=name,
+                service=mock,
+                capture_filters=capture_filters,
+            )
         except (FreezeError, ValueError) as exc:
             print_cli_error(exc)
             raise typer.Exit(1) from exc
@@ -90,7 +133,12 @@ def freeze(
         return
 
     try:
-        freeze_result = run_freeze(project_root=Path.cwd(), name=name, golden=golden)
+        freeze_result = run_freeze(
+            project_root=Path.cwd(),
+            name=name,
+            golden=golden,
+            capture_filters=capture_filters,
+        )
     except (FreezeError, ValueError) as exc:
         print_cli_error(exc)
         raise typer.Exit(1) from exc
@@ -105,12 +153,48 @@ def map(
         str | None,
         typer.Option("--export", help="mermaid, dot, md, or png."),
     ] = None,
+    include_host: Annotated[
+        list[str] | None,
+        typer.Option("--include-host", help="Include only this captured request host."),
+    ] = None,
+    exclude_host: Annotated[
+        list[str] | None,
+        typer.Option("--exclude-host", help="Exclude this captured request host."),
+    ] = None,
+    include_method: Annotated[
+        list[str] | None,
+        typer.Option("--include-method", help="Include only this HTTP method."),
+    ] = None,
+    exclude_method: Annotated[
+        list[str] | None,
+        typer.Option("--exclude-method", help="Exclude this HTTP method."),
+    ] = None,
+    include_path: Annotated[
+        list[str] | None,
+        typer.Option("--include-path", help="Include only this request path prefix or glob."),
+    ] = None,
+    exclude_path: Annotated[
+        list[str] | None,
+        typer.Option("--exclude-path", help="Exclude this request path prefix or glob."),
+    ] = None,
 ) -> None:
     """Export observed dependency maps."""
 
     try:
-        result = run_dependency_map(project_root=Path.cwd(), export_format=export)
-    except (DependencyMapError, ValueError) as exc:
+        capture_filters = _capture_filters(
+            include_host=include_host,
+            exclude_host=exclude_host,
+            include_method=include_method,
+            exclude_method=exclude_method,
+            include_path=include_path,
+            exclude_path=exclude_path,
+        )
+        result = run_dependency_map(
+            project_root=Path.cwd(),
+            export_format=export,
+            capture_filters=capture_filters,
+        )
+    except (DependencyMapError, TrafficFilterError, ValueError) as exc:
         print_cli_error(exc)
         raise typer.Exit(1) from exc
 
@@ -119,6 +203,25 @@ def map(
         return
 
     console.print(result.content, markup=False, end="")
+
+
+def _capture_filters(
+    *,
+    include_host: list[str] | None,
+    exclude_host: list[str] | None,
+    include_method: list[str] | None,
+    exclude_method: list[str] | None,
+    include_path: list[str] | None,
+    exclude_path: list[str] | None,
+) -> TrafficCaptureFilters:
+    return TrafficCaptureFilters(
+        include_hosts=tuple(include_host or ()),
+        exclude_hosts=tuple(exclude_host or ()),
+        include_methods=tuple(include_method or ()),
+        exclude_methods=tuple(exclude_method or ()),
+        include_paths=tuple(include_path or ()),
+        exclude_paths=tuple(exclude_path or ()),
+    )
 
 
 def studio(

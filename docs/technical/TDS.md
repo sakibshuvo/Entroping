@@ -548,6 +548,10 @@ read SQLite directly.
 | `--name checkout_flow` | `tests/generated/checkout_flow.hurl` |
 | `--golden` | Stable assertions against known-good behavior |
 | `--mock payments` | WireMock mappings for observed dependency behavior |
+| `--include-host api.example.test` | Include only captured requests for an exact host |
+| `--exclude-method OPTIONS` | Exclude a noisy HTTP method before generation |
+| `--include-path /checkout` | Include a request path prefix or glob pattern |
+| `--exclude-path "/assets/*"` | Exclude a noisy request path pattern before generation |
 
 Generated tests should parameterize volatile fields such as IDs and timestamps. Golden assertions should avoid locking unstable values unless explicitly requested.
 
@@ -555,6 +559,12 @@ Mock generation selects records by safe service selector, matching either an
 exact host such as `payments.example.test` or the first host label such as
 `payments`. Entroping generates mappings for standard mock servers such as
 WireMock; it does not become the mock server itself.
+
+Capture filters are applied after redaction and before Hurl, WireMock, or graph
+compilation. Include filters narrow by host, method, and path; exclude filters
+win. Host filters are exact, method filters normalize to uppercase, and path
+filters match request paths only. Query strings, headers, cookies, and bodies
+are not filter output and must not appear in empty-filter or validation errors.
 
 Implementation order:
 
@@ -583,7 +593,8 @@ and escaped.
 Current implementation note: Mermaid, DOT, Markdown, and PNG exports are implemented
 through a pure `bridge.traffic_to_graph` compiler and `core.dependency_mapper`
 adapter. PNG export renders through local Graphviz `dot` when available and fails
-with an actionable missing-renderer message otherwise.
+with an actionable missing-renderer message otherwise. The same capture filters
+used by `freeze` can narrow map exports before graph compilation.
 
 ## 13. Reporting Design
 
@@ -673,8 +684,8 @@ for manual review; Entroping does not delete existing tests automatically.
 
 ```text
 entroping watch [--port <port>] [--target <url>]
-entroping freeze --name <flow> [--golden] [--mock <service>]
-entroping map [--export <mermaid|dot|md|png>]
+entroping freeze --name <flow> [--golden] [--mock <service>] [capture filters]
+entroping map [--export <mermaid|dot|md|png>] [capture filters]
 ```
 
 ### Execution and Reporting

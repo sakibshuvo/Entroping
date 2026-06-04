@@ -251,7 +251,7 @@ Capture and freeze legacy behavior:
 ```bash
 entroping watch --target http://localhost:3000
 entroping freeze --name checkout_flow --golden
-entroping map --export mermaid
+entroping map --export mermaid --include-host api.example.test
 ```
 
 Route AI generation without putting the LLM in CI:
@@ -365,8 +365,8 @@ entroping architect refactor --target <glob> --prompt <text>
 entroping architect audit [--focus <logic|auditor>] [--output <json|md>]
 
 entroping watch [--port <port>] [--target <url>]
-entroping freeze --name <flow> [--golden] [--mock <service>]
-entroping map [--export <mermaid|dot|md|png>]
+entroping freeze --name <flow> [--golden] [--mock <service>] [capture filters]
+entroping map [--export <mermaid|dot|md|png>] [capture filters]
 
 entroping studio [--env <name>]
 entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
