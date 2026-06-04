@@ -202,12 +202,21 @@ agents:
     model: "deepseek/<breaker-model>"
     temperature: 0.7
 
+gate_groups:
+  api_baseline:
+    description: "Reusable baseline checks for every API route"
+    gates:
+      - id: "no_server_errors"
+        condition: "true"
+        gate: "status < 500"
+        enforcement: "block"
+      - id: "global_latency"
+        condition: "true"
+        gate: "duration < 2000"
+        enforcement: "block"
+
 gates:
-  - id: "global_latency"
-    description: "Every endpoint must respond within 2 seconds"
-    condition: "true"
-    gate: "duration < 2000"
-    enforcement: "block"
+  - group: "api_baseline"
   - id: "smoke_speed"
     condition: "tags contains 'smoke'"
     gate: "duration < 500"
@@ -237,6 +246,20 @@ settings:
 4. Merge imported gates before local gates.
 5. Local gates override imported gates with the same ID unless the imported gate is `final: true`.
 6. The effective policy must be inspectable through `doctor` or report output.
+
+### Gate Group Semantics
+
+`gate_groups` is a local authoring construct, not a second runtime policy
+format. The Pydantic model expands top-level `{ group: "<name>" }` entries into
+ordinary `GateRule` objects before runtime matching, Hurl injection, and report
+generation. A group expands nested `groups` in order, then its own `gates`.
+Missing groups and cycles fail validation before execution.
+
+The filesystem loader uses the same expansion semantics while retaining group
+provenance in `QanstitutionEvidence`. Effective-policy reports include the
+source file and source group for every expanded gate. Imported documents expand
+their groups before merge, so duplicate IDs and `final: true` protections keep
+the same behavior as directly-authored imported gates.
 
 Reusable QAnstitution policy packs use the same import boundary and are
 documented in [POLICY_PACK_LAYOUT.md](POLICY_PACK_LAYOUT.md). The pack layout is

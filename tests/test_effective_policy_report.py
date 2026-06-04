@@ -74,6 +74,39 @@ def test_compile_effective_policy_report_renders_gate_provenance(tmp_path: Path)
     assert report.gates[1].description == "Local smoke latency override"
 
 
+def test_compile_effective_policy_report_includes_gate_group_provenance(
+    tmp_path: Path,
+) -> None:
+    _write_yaml(
+        tmp_path / "qanstitution.yaml",
+        """
+project: checkout-api
+gate_groups:
+  api_baseline:
+    gates:
+      - id: no_server_errors
+        condition: "true"
+        gate: status < 500
+        enforcement: block
+gates:
+  - group: api_baseline
+""",
+    )
+
+    evidence = load_qanstitution_evidence(tmp_path / "qanstitution.yaml")
+    report = compile_effective_policy_report(evidence, root=tmp_path)
+    markdown = render_effective_policy_markdown(report)
+
+    assert [(gate.id, gate.source_path, gate.group) for gate in report.gates] == [
+        ("no_server_errors", "qanstitution.yaml", "api_baseline")
+    ]
+    assert (
+        "| ID | Source | Group | Enforcement | Final | Condition | Assertion | Description |"
+        in markdown
+    )
+    assert "api_baseline" in markdown
+
+
 def test_render_effective_policy_markdown_escapes_table_cells(tmp_path: Path) -> None:
     _write_yaml(
         tmp_path / "qanstitution.yaml",

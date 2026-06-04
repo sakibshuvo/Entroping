@@ -161,6 +161,122 @@ imports:
     ]
 
 
+def test_load_qanstitution_expands_gate_groups_with_provenance(tmp_path: Path) -> None:
+    write_yaml(
+        tmp_path / "qanstitution.yaml",
+        """
+project: checkout-api
+gate_groups:
+  latency:
+    description: Latency checks shared by local suites
+    gates:
+      - id: smoke_latency
+        condition: tags contains 'smoke'
+        gate: duration < 500
+        enforcement: block
+  api_baseline:
+    groups:
+      - latency
+    gates:
+      - id: no_server_errors
+        condition: "true"
+        gate: status < 500
+        enforcement: block
+gates:
+  - group: api_baseline
+  - id: request_id
+    condition: "true"
+    gate: header "X-Request-Id" exists
+    enforcement: warn
+""",
+    )
+
+    evidence = load_qanstitution_evidence(tmp_path / "qanstitution.yaml")
+
+    assert [gate.id for gate in evidence.policy.gates] == [
+        "smoke_latency",
+        "no_server_errors",
+        "request_id",
+    ]
+    assert [(gate.rule.id, gate.group) for gate in evidence.gates] == [
+        ("smoke_latency", "latency"),
+        ("no_server_errors", "api_baseline"),
+        ("request_id", None),
+    ]
+
+
+def test_load_qanstitution_rejects_missing_gate_group_reference(tmp_path: Path) -> None:
+    write_yaml(
+        tmp_path / "qanstitution.yaml",
+        """
+project: checkout-api
+gates:
+  - group: missing
+""",
+    )
+
+    with pytest.raises(QanstitutionLoadError, match="Unknown gate group 'missing'"):
+        load_qanstitution(tmp_path / "qanstitution.yaml")
+
+
+def test_load_qanstitution_rejects_gate_group_cycles(tmp_path: Path) -> None:
+    write_yaml(
+        tmp_path / "qanstitution.yaml",
+        """
+project: checkout-api
+gate_groups:
+  api:
+    groups:
+      - security
+  security:
+    groups:
+      - api
+gates:
+  - group: api
+""",
+    )
+
+    with pytest.raises(QanstitutionLoadError, match="Gate group cycle detected"):
+        load_qanstitution(tmp_path / "qanstitution.yaml")
+
+
+def test_load_qanstitution_gate_group_imports_preserve_final_semantics(
+    tmp_path: Path,
+) -> None:
+    write_yaml(
+        tmp_path / "rules" / "security.yaml",
+        """
+project: imported-security
+gate_groups:
+  baseline:
+    gates:
+      - id: no_server_errors
+        condition: "true"
+        gate: status < 500
+        enforcement: block
+        final: true
+gates:
+  - group: baseline
+""",
+    )
+    write_yaml(
+        tmp_path / "qanstitution.yaml",
+        """
+project: checkout-api
+imports:
+  - ./rules/security.yaml
+gates:
+  - id: no_server_errors
+    condition: "true"
+    gate: status < 400
+    enforcement: warn
+""",
+    )
+
+    with pytest.raises(QanstitutionLoadError, match="final imported gate"):
+        load_qanstitution(tmp_path / "qanstitution.yaml")
+
+
 def test_load_qanstitution_rejects_missing_import(tmp_path: Path) -> None:
     write_yaml(
         tmp_path / "qanstitution.yaml",

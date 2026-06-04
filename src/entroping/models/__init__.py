@@ -24,7 +24,13 @@ from entroping.models.hurl import (
     parse_hurl_exchanges,
     parse_hurl_metadata,
 )
-from entroping.models.qanstitution import AgentConfig, GateRule, Qanstitution
+from entroping.models.qanstitution import (
+    AgentConfig,
+    GateGroup,
+    GateGroupReference,
+    GateRule,
+    Qanstitution,
+)
 from entroping.models.run_suite import RunSuiteManifest, RunSuiteReportFormat
 from entroping.models.secrets import (
     REDACTED,
@@ -51,6 +57,8 @@ __all__ = [
     "DoctorQanstitutionHealth",
     "DoctorToolHealth",
     "DoctorTrafficStateHealth",
+    "GateGroup",
+    "GateGroupReference",
     "GateRule",
     "HurlExchange",
     "HurlMetadata",

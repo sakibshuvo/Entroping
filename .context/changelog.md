@@ -2,6 +2,12 @@
 
 ## 2026-06-04
 
+- Added issue #447's reusable QAnstitution gate groups so local policy authors
+  can define `gate_groups`, reference them from top-level `gates`, expand nested
+  groups deterministically, reject missing references and cycles before
+  execution, preserve import/final semantics, and show source group provenance
+  in effective-policy reports without adding registry behavior or a second
+  runtime policy format.
 - Added issue #446's CI-readiness doctor mode so `entroping doctor --ci`
   validates Hurl availability, safe `.entroping/` and `reports/` artifact
   paths, committed suite manifests, required Hurl variables, and provider-free

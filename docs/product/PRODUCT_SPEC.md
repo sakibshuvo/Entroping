@@ -170,6 +170,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | GOV-005 | Support enforcement levels | `block`, `warn`, and `audit_only` are represented in reports and exit behavior |
 | GOV-006 | Support known-failure exceptions | Exceptions require test ID, rule ID, issue ID, reason, and expiry |
 | GOV-007 | Preserve auditability | Effective policy, skipped gates, warnings, and overrides are visible in run output and reports |
+| GOV-008 | Support reusable local gate groups | `gate_groups` expand predictably into ordinary gates, reject missing references and cycles, preserve import/final semantics, and expose source group provenance in effective-policy reports |
 
 ### 9.3 Architect Intelligence
 
