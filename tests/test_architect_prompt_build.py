@@ -22,6 +22,10 @@ def _write_project(tmp_path: Path) -> None:
         "You generate reviewable Hurl tests.",
         encoding="utf-8",
     )
+    (tmp_path / "agents" / "breaker.md").write_text(
+        "You generate hostile boundary, auth, and abuse-case Hurl tests.",
+        encoding="utf-8",
+    )
     (tmp_path / "qanstitution.yaml").write_text(
         """
 project: checkout-api
@@ -32,6 +36,10 @@ agents:
     source: agents/builder.md
     model: openai/gpt-4.1-mini
     temperature: 0.2
+  breaker:
+    source: agents/breaker.md
+    model: deepseek/deepseek-r1
+    temperature: 0.3
 gates:
   - id: global_latency
     condition: "true"
@@ -108,6 +116,86 @@ def test_run_architect_prompt_build_composes_boundaries_and_writes_edits(
         (
             "# entroping: tags=ai,smoke\nPOST {{base_url}}/checkout\nHTTP 201\n",
             "tests/generated/checkout_ai.hurl",
+        )
+    ]
+
+
+def test_run_architect_prompt_build_uses_breaker_agent_for_hostile_prompt_builds(
+    tmp_path: Path,
+) -> None:
+    _write_project(tmp_path)
+    law = load_qanstitution(tmp_path / "qanstitution.yaml")
+    packages: list[ArchitectPromptPackage] = []
+    validated: list[tuple[str, str]] = []
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        _ = kwargs
+        return {
+            "model": "deepseek/deepseek-r1",
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "summary": "Generate hostile checkout coverage",
+                                "edits": [
+                                    {
+                                        "path": "tests/generated/checkout_breaker.hurl",
+                                        "content": (
+                                            "POST {{base_url}}/checkout\n"
+                                            "Authorization: Bearer invalid\n"
+                                            "HTTP 401\n"
+                                        ),
+                                    }
+                                ],
+                                "warnings": [],
+                            },
+                        )
+                    }
+                }
+            ],
+        }
+
+    class CapturingClient(LiteLLMClient):
+        def complete(self, package: ArchitectPromptPackage) -> LiteLLMCompletionResult:
+            packages.append(package)
+            return super().complete(package)
+
+    result = run_architect_prompt_build(
+        law=law,
+        intent="Generate auth bypass and invalid token tests.",
+        agent="breaker",
+        tags=("security",),
+        project_root=tmp_path,
+        config_path=tmp_path / "qanstitution.yaml",
+        client=CapturingClient(completion_func=fake_completion),
+        hurl_validator=lambda content, display_path: validated.append((content, display_path)),
+    )
+
+    assert result.summary == "Generate hostile checkout coverage"
+    assert result.agent == "breaker"
+    assert result.model == "deepseek/deepseek-r1"
+    assert packages
+    assert packages[0].role == "breaker"
+    assert packages[0].model == "deepseek/deepseek-r1"
+    assert "hostile boundary, auth, and abuse-case" in packages[0].messages[0].content
+    assert "Generate auth bypass and invalid token tests." in packages[0].messages[1].content
+    assert "Breaker role" in packages[0].messages[1].content
+    assert "negative, abuse-case, authorization, boundary, and policy-bypass tests" in (
+        packages[0].messages[1].content
+    )
+    output = result.written_paths[0].read_text(encoding="utf-8")
+    assert output.startswith("# entroping: source=architect\n")
+    assert "# entroping: tags=breaker,security" in output
+    assert validated == [
+        (
+            (
+                "# entroping: tags=breaker,security\n"
+                "POST {{base_url}}/checkout\n"
+                "Authorization: Bearer invalid\n"
+                "HTTP 401\n"
+            ),
+            "tests/generated/checkout_breaker.hurl",
         )
     ]
 

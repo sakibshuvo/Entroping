@@ -52,6 +52,9 @@ project, and a Codex workspace with fast context rehydration.
 - Brand terminology is intentional: `qanstitution.yaml` remains the canonical
   policy filename, the QAnstitution/Traffic/Hurl philosophy is preserved, and
   public copy must not imply Entroping is an autonomous agent swarm.
+- Prompt-backed Architect generation defaults to Builder and can select Breaker
+  with `architect build --agent breaker --prompt ...`; Breaker output is
+  generated before review and committed as deterministic Hurl before `run`.
 - Example coverage includes REST-style checkout/support fixtures plus
   GraphQL-over-HTTP and SOAP-over-HTTP fixtures that use ordinary Hurl
   assertions instead of adding protocol-specific runtime engines.

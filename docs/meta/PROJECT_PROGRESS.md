@@ -31,9 +31,10 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: local-ready hardening queue from external review. Security,
-packaging, integration-test, and maintainability slices are tracked as GitHub
-Issues before returning to blocked external stable-core proof.
+Current issue: [#392](https://github.com/sakibshuvo/Entroping/issues/392)
+turns Breaker from configured persona metadata into a real prompt-build route.
+Next local slices should keep moving useful runtime and developer workflow
+features before returning to blocked external stable-core proof.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -50,7 +51,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| - | No `status:ready` local implementation issue remains. | Triage [#372](https://github.com/sakibshuvo/Entroping/issues/372) or create a fresh issue before starting another autonomous slice. |
+| 1 | [#392](https://github.com/sakibshuvo/Entroping/issues/392) | Finish Breaker-backed prompt generation so multi-agent QAnstitution routing is executable, not decorative. |
+| 2 | [#393](https://github.com/sakibshuvo/Entroping/issues/393) | Add Auditor-backed review mode for coverage and policy findings. |
+| 3 | [#396](https://github.com/sakibshuvo/Entroping/issues/396) | Preflight unresolved Hurl variables before subprocess execution to catch common local and CI failures earlier. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.

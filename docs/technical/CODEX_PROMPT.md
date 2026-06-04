@@ -26,7 +26,7 @@ entroping doctor
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
 
-entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>]
+entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
 entroping architect refactor --target <glob> --prompt <text>
 entroping architect audit [--focus logic] [--output <json|md>]
 

@@ -76,6 +76,13 @@ entroping config list
 entroping architect build --prompt "Generate checkout smoke coverage from the configured spec"
 ```
 
+Select the Breaker role when you want hostile or security-focused test drafts:
+
+```bash
+entroping config set --agent breaker --model "ollama/<qwen-model>"
+entroping architect build --agent breaker --prompt "Generate invalid-token and tenant-boundary tests" --tag security
+```
+
 Then review the generated files and run:
 
 ```bash
@@ -142,6 +149,11 @@ Use cloud models for harder generation, coverage audit, or negative-test
 drafting. Do not send raw captured traffic, cookies, bearer tokens, or private
 customer data to cloud providers. Run redaction first and review the context
 being sent.
+
+`architect build` defaults to the Builder route. Use
+`architect build --agent breaker --prompt "<intent>"` for hostile test generation.
+The Auditor route is configured the same way, but it is reserved for audit
+workflows rather than prompt-backed file generation.
 
 Provider-specific environment variable names are handled by LiteLLM and the
 provider SDK stack. Entroping only stores non-secret routing metadata.

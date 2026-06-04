@@ -20,6 +20,7 @@ from entroping.brain import (
     run_architect_prompt_build,
     run_architect_refactor,
 )
+from entroping.brain.architect_build import ArchitectBuildAgent
 from entroping.bridge.openapi_audit import (
     audit_openapi_coverage,
     audit_report_to_dict,
@@ -63,6 +64,10 @@ def architect_build(
     ] = None,
     strategy: Annotated[str | None, typer.Option("--strategy", help="Merge strategy.")] = None,
     tag: Annotated[list[str] | None, typer.Option("--tag", help="Tag generated tests.")] = None,
+    agent: Annotated[
+        str | None,
+        typer.Option("--agent", help="Prompt generation agent: builder or breaker."),
+    ] = None,
 ) -> None:
     """Generate Hurl tests from configured sources or prompts."""
 
@@ -72,13 +77,18 @@ def architect_build(
         if normalized_strategy != "merge":
             console.print(f"[yellow]Unsupported architect build strategy: {strategy}[/yellow]")
             raise typer.Exit(2)
+    build_agent = _normalize_architect_build_agent(agent)
     if prompt is not None:
         _run_architect_prompt_build(
             prompt=prompt,
             tag=tag,
             strategy="merge" if normalized_strategy == "merge" else "create",
+            agent=build_agent,
         )
         return
+    if agent is not None:
+        console.print("[yellow]--agent applies only to prompt-backed architect build.[/yellow]")
+        raise typer.Exit(2)
     if normalized_strategy == "merge":
         console.print("[yellow]--strategy merge requires --prompt in the current alpha.[/yellow]")
         raise typer.Exit(2)
@@ -86,6 +96,7 @@ def architect_build(
         console.print("[yellow]Choose a supported architect build mode:[/yellow]")
         console.print("  entroping architect build --new")
         console.print('  entroping architect build --prompt "<intent>"')
+        console.print('  entroping architect build --agent breaker --prompt "<intent>"')
         console.print('  entroping architect build --strategy merge --prompt "<intent>"')
         raise typer.Exit(2)
 
@@ -188,6 +199,7 @@ def _run_architect_prompt_build(
     prompt: str,
     tag: list[str] | None,
     strategy: str = "create",
+    agent: ArchitectBuildAgent = "builder",
 ) -> None:
     try:
         tag_filters = normalize_tag_filters(tag)
@@ -197,6 +209,7 @@ def _run_architect_prompt_build(
             intent=prompt,
             tags=tuple(sorted(tag_filters)),
             strategy="merge" if strategy == "merge" else "create",
+            agent=agent,
             project_root=Path.cwd(),
             config_path=Path("qanstitution.yaml"),
         )
@@ -215,11 +228,29 @@ def _run_architect_prompt_build(
     noun = "test" if len(result.written_paths) == 1 else "tests"
     console.print(f"[green]Generated {len(result.written_paths)} Architect Hurl {noun}.[/green]")
     console.print(f"Summary: {safe_cli_text(result.summary)}", markup=False)
+    console.print(f"Agent: {safe_cli_text(result.agent)}", markup=False)
     console.print(f"Model: {safe_cli_text(result.model)} ({result.latency_ms} ms)", markup=False)
     for warning in result.warnings:
         console.print(f"Warning: {safe_cli_text(warning)}", style="yellow", markup=False)
     for path in result.written_paths:
         console.print(f"Wrote Hurl test: {safe_cli_text(display_cli_path(path))}", markup=False)
+
+
+def _normalize_architect_build_agent(agent: str | None) -> ArchitectBuildAgent:
+    if agent is None:
+        return "builder"
+    normalized = agent.strip().lower()
+    if normalized == "builder":
+        return "builder"
+    if normalized == "breaker":
+        return "breaker"
+    console.print(
+        f"Unsupported architect build agent: {safe_cli_text(agent)}; "
+        "supported agents: builder, breaker",
+        style="yellow",
+        markup=False,
+    )
+    raise typer.Exit(2)
 
 
 def _normalize_architect_audit_focus(focus: str | None) -> str:

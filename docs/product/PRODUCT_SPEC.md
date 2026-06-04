@@ -174,13 +174,13 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | ID | Requirement | Acceptance Criteria |
 | --- | --- | --- |
 | INT-001 | Generate tests from OpenAPI | `architect build --new` creates valid Hurl tests for operations, common parameters, and schemas |
-| INT-002 | Generate directed tests from prompts | `architect build --prompt "<intent>"` creates scoped Hurl changes only |
+| INT-002 | Generate directed tests from prompts | `architect build --prompt "<intent>"` creates scoped Builder Hurl changes; `--agent breaker` routes hostile/security generation through Breaker |
 | INT-003 | Support merge strategy | `architect build --strategy merge` updates generated regions without overwriting manual regions |
-| INT-004 | Tag generated tests | `architect build --tag smoke` writes Entroping metadata comments that Hurl ignores safely |
+| INT-004 | Tag generated tests | `architect build --tag smoke` writes Entroping metadata comments that Hurl ignores safely; Breaker output is additionally tagged `breaker` |
 | INT-005 | Refactor existing Hurl tests | `architect refactor --target "tests/**/*.hurl" --prompt "<change>"` preserves comments and validates output |
 | INT-006 | Audit gaps | `architect audit --focus logic --output md` reports OpenAPI coverage gaps; security/perf audit modes are later Architect work |
 | INT-007 | Validate generated Hurl | Generated or refactored files must pass parser-backed syntax validation before being accepted |
-| INT-008 | Use configured model routing | Builder, Auditor, and Breaker load persona files and models from QAnstitution or config |
+| INT-008 | Use configured model routing | Builder and Breaker load persona files and models for prompt builds; Auditor routing is configured for audit workflows |
 | INT-009 | Enforce source grounding | Generated endpoints and assertions must be traceable to OpenAPI, GraphQL schema, stories, observed traffic, dependencies, or explicit prompt context |
 | INT-010 | Keep AI out of deterministic runs | `entroping run` must not call the LLM; Breaker output is generated through Architect commands and committed as tests before execution |
 
