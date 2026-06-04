@@ -114,7 +114,15 @@ replace human review of policy intent.
 ## Import Semantics
 
 Current alpha-safe usage vendors or checks out the pack under the consumer
-repository and imports the pack entrypoint:
+repository. The reviewed local command copies the pack under `policy-packs/`,
+validates the manifest and QAnstitution entrypoint, and appends the local
+import:
+
+```bash
+entroping config vendor-policy-pack --pack ../entroping-policy-pack-api-baseline --name api-baseline
+```
+
+The resulting consumer import is still ordinary QAnstitution YAML:
 
 ```yaml
 imports:
@@ -203,7 +211,7 @@ This issue does not add:
 - remote policy-pack fetching;
 - registry authentication;
 - runtime manifest dependency;
-- package installation;
+- remote package installation;
 - automatic update checks;
 - telemetry;
 - paid-service dependency in `entroping run`;

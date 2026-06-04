@@ -2,6 +2,11 @@
 
 ## 2026-06-03
 
+- Added issue #401's local policy-pack vendoring workflow so
+  `entroping config vendor-policy-pack` copies reviewed local packs under
+  `policy-packs/`, validates manifest and QAnstitution evidence, preserves
+  final-gate behavior, and appends a local import without remote registry
+  coupling.
 - Added issue #400's OpenAPI operation-to-Hurl coverage matrix so
   `architect audit --focus logic --output md|json` now reports covered,
   uncovered, ambiguous, and stale operation mappings with

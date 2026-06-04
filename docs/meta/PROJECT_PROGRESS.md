@@ -31,8 +31,9 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#401](https://github.com/sakibshuvo/Entroping/issues/401)
-adds local policy-pack vendoring without remote registry coupling.
+Current issue: [#402](https://github.com/sakibshuvo/Entroping/issues/402)
+adds named suite manifests from committed YAML after local policy-pack vendoring
+landed.
 Next local slices should keep moving useful runtime and developer workflow
 features before returning to blocked external stable-core proof.
 
@@ -51,9 +52,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#401](https://github.com/sakibshuvo/Entroping/issues/401) | Add local policy-pack vendoring without remote registry coupling. |
-| 2 | [#402](https://github.com/sakibshuvo/Entroping/issues/402) | Support named suite manifests from committed YAML. |
-| 3 | [#403](https://github.com/sakibshuvo/Entroping/issues/403) | Create sanitized failure bundles for bug handoff. |
+| 1 | [#402](https://github.com/sakibshuvo/Entroping/issues/402) | Support named suite manifests from committed YAML. |
+| 2 | [#403](https://github.com/sakibshuvo/Entroping/issues/403) | Create sanitized failure bundles for bug handoff. |
+| 3 | [#404](https://github.com/sakibshuvo/Entroping/issues/404) | Generate tests only for changed OpenAPI operations. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -74,6 +75,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Local policy-pack vendoring](https://github.com/sakibshuvo/Entroping/issues/401) | Done | `config vendor-policy-pack` copies reviewed local packs under `policy-packs/`, validates manifest/entrypoint evidence, preserves final-gate behavior, and appends a local import without remote registry coupling. |
 | [Open-source license and package metadata](https://github.com/sakibshuvo/Entroping/issues/58) | Done | Apache-2.0 public core and package metadata are explicit. |
 | [Public clean-checkout onboarding smoke](https://github.com/sakibshuvo/Entroping/issues/185) | Done | `scripts/release_check.sh --require-live-demo` passed from a fresh public clone. |
 | Public docs site decision | Done | MkDocs Material publishes existing canonical docs without duplicating the tree. |

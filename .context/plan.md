@@ -103,6 +103,10 @@ project, and a Codex workspace with fast context rehydration.
   and `examples/policy-packs/owasp-api-top-10/` define reusable QAnstitution
   policy packs as local importable files plus provenance metadata, without
   adding registry or runtime manifest dependency.
+- `entroping config vendor-policy-pack` vendors reviewed local policy-pack
+  directories under `policy-packs/`, validates manifest and QAnstitution
+  entrypoint evidence, preserves final-gate behavior, and appends local imports
+  without remote registry coupling.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work; `scripts/finish_issue.sh` verifies merged PRs and safely removes completed local worktrees.
 - Eye capture now has security-first traffic models, pre-persistence redaction, bounded SQLModel-backed SQLite state, and capture-only `watch` wiring through a lazy-loaded mitmproxy adapter.
 - Issues #1 through #85, plus validation fixes #95 and #97, are integrated.
@@ -329,6 +333,9 @@ the active local baseline atomically without changing `run` auto-approval rules.
 Issue #400 extends deterministic `architect audit --focus logic` output with a
 versioned OpenAPI operation-to-Hurl coverage matrix, including ambiguous
 multi-test mappings and stale committed `operation_id` references.
+Issue #401 adds `entroping config vendor-policy-pack`, a local-only vendoring
+workflow that copies reviewed policy packs into a project, validates manifest
+and QAnstitution evidence, and appends a local import without registry fetches.
 Issue #317 extends policy-pack smoke evidence with local provenance manifest
 validation for source, license, supported Entroping version, evidence command,
 gate files, gate IDs, and final flags without fetching registries.
@@ -419,6 +426,24 @@ Implemented boundaries:
 - The deterministic audit remains a pure bridge comparison over OpenAPI
   metadata and discovered Hurl tests; it does not invoke Hurl or model
   providers.
+
+## Completed Slice: Issue #401 Local Policy-Pack Vendoring
+
+Outcome: reviewed local policy packs can now be copied into a consumer project
+and imported without hand-editing YAML or adding remote registry behavior.
+
+Implemented boundaries:
+
+- `entroping config vendor-policy-pack --pack <path> [--name <dir>]` copies a
+  local pack under `policy-packs/` and appends the resulting local import to
+  `qanstitution.yaml`.
+- The command validates pack manifests, gate IDs, gate prefixes, final-gate
+  declarations, QAnstitution entrypoints, duplicate manifest gates, and final
+  override behavior before writing.
+- Source and destination paths stay project-bounded and symlink-safe.
+- The workflow remains local-only: no remote fetch, registry authentication,
+  runtime manifest dependency, paid-service dependency, or automatic update
+  check was added.
 
 ## Completed Slice: Issue #317 Policy-Pack Provenance Manifest Validation
 
