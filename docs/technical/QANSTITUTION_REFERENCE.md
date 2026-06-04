@@ -125,12 +125,21 @@ agents:
     temperature: 0.7
     max_tokens: 4096
 
+gate_groups:
+  api_baseline:
+    description: "Reusable baseline checks for every API route"
+    gates:
+      - id: "no_server_errors"
+        condition: "true"
+        gate: "status < 500"
+        enforcement: "block"
+      - id: "global_latency"
+        condition: "true"
+        gate: "duration < 2000"
+        enforcement: "block"
+
 gates:
-  - id: "global_latency"
-    description: "All API responses must complete under 2 seconds"
-    condition: "true"
-    gate: "duration < 2000"
-    enforcement: "block"
+  - group: "api_baseline"
   - id: "smoke_latency"
     description: "Smoke tests must stay very fast"
     condition: "tags contains 'smoke'"
@@ -167,6 +176,7 @@ settings:
 | `dependencies` | No | Cross-service spec pointers used for mocks and compatibility checks |
 | `imports` | No | Local or remote governance files |
 | `agents` | No for run, yes for AI | Builder/Auditor/Breaker routing |
+| `gate_groups` | No | Reusable local gate collections expanded into top-level gates |
 | `gates` | Yes | Runtime governance assertions |
 | `ignore_failures` | No | Temporary known-failure exceptions |
 | `settings` | No | Runtime defaults |
@@ -278,7 +288,55 @@ gates:
     final: true
 ```
 
-## 8. Agents
+## 8. Gate Groups
+
+Gate groups reduce repetition inside a local QAnstitution file while preserving
+the deterministic runtime model. They are authoring-time structure only:
+Entroping expands them into ordinary `GateRule` entries before gate matching,
+injection, and Hurl execution.
+
+```yaml
+gate_groups:
+  latency:
+    description: "Latency checks shared by local suites"
+    gates:
+      - id: "smoke_latency"
+        condition: "tags contains 'smoke'"
+        gate: "duration < 500"
+        enforcement: "block"
+  api_baseline:
+    groups:
+      - "latency"
+    gates:
+      - id: "no_server_errors"
+        condition: "true"
+        gate: "status < 500"
+        enforcement: "block"
+
+gates:
+  - group: "api_baseline"
+  - id: "request_id"
+    condition: "true"
+    gate: 'header "X-Request-Id" exists'
+    enforcement: "warn"
+```
+
+Expansion rules:
+
+- Top-level `gates` may contain ordinary gates or `{ group: "<name>" }`
+  references.
+- A group expands nested `groups` first, in listed order, then its own `gates`.
+- Unknown group references and group cycles fail QAnstitution validation before
+  runtime execution.
+- Imported files expand their local groups before effective-policy merging, so
+  imported `final: true` gates still cannot be overridden by local gates.
+- `entroping report policy` includes the expanded gate and its source group so
+  reusable authoring does not erase review provenance.
+
+Gate groups do not add a remote registry, expression language, conditional
+include system, or second runtime policy format.
+
+## 9. Agents
 
 Agents map logical roles to Markdown persona files and models:
 
@@ -344,7 +402,7 @@ strings are rejected. Optional `api_base` and `api_key_env` values are also
 printed by `config list` when present, while the actual environment value is
 never printed.
 
-## 9. Gates
+## 10. Gates
 
 A gate is a policy assertion that can be injected into matching Hurl executions.
 
@@ -366,7 +424,7 @@ gates:
 | `enforcement` | Yes | `block`, `warn`, or `audit_only` |
 | `final` | No | Prevent local overrides when imported |
 
-## 10. Condition DSL
+## 11. Condition DSL
 
 Initial supported expressions:
 
@@ -384,7 +442,7 @@ The first implementation should keep this small and deterministic. Compound expr
 
 The parser must validate the supported condition syntax when `qanstitution.yaml` is loaded. Invalid condition strings are configuration errors, not runtime warnings.
 
-## 11. Gate Syntax
+## 12. Gate Syntax
 
 The `gate` field should use Hurl-compatible assertion syntax:
 
@@ -399,7 +457,7 @@ The gate injector is responsible for translating these into the correct Hurl ass
 
 Current implementation note: gate matching evaluates `true`, tags, metadata, and shallow parsed Hurl request method/path/URL values. Injection writes temporary execution copies and adds `# entroping-gate: <rule_id> enforcement=<level>` comments next to injected assertions so runner and report layers can distinguish `block`, `warn`, and `audit_only` gates without mutating source `.hurl` files.
 
-## 12. Enforcement Behavior
+## 13. Enforcement Behavior
 
 | Enforcement | Behavior |
 | --- | --- |
@@ -409,7 +467,7 @@ Current implementation note: gate matching evaluates `true`, tags, metadata, and
 
 Reports must show enforcement level and rule ID.
 
-## 13. Known Failures
+## 14. Known Failures
 
 Known failures prevent temporary issues from becoming invisible.
 
@@ -442,7 +500,7 @@ Current runtime semantics:
 - JSON, JUnit, and HTML run reports include the applied exception's test path, rule ID, issue ID, expiry, and reason.
 - `expires` must use `YYYY-MM-DD`; invalid or expired exceptions fail before Hurl execution.
 
-## 14. Settings
+## 15. Settings
 
 ```yaml
 settings:
@@ -455,7 +513,7 @@ settings:
 Settings are deterministic runtime defaults. Command-line flags and environment
 variables can override them where documented.
 
-## 15. Redaction Roadmap
+## 16. Redaction Roadmap
 
 Traffic and prompt redaction are currently handled by built-in redactors and
 review reports, not a `qanstitution.yaml` field. Do not add `redaction` to the
@@ -473,7 +531,7 @@ Raw secrets should not be persisted or sent to model providers. Adding a
 policy-backed redaction section requires a Pydantic model update, regenerated
 `qanstitution.schema.json`, examples, and tests in the same change.
 
-## 16. External Business Truth
+## 17. External Business Truth
 
 Entroping should not force teams to abandon Jira, Notion, Linear, or monday.com. Treat those systems as business truth and Entroping as the executable cache.
 
@@ -487,7 +545,7 @@ For solo or small-team use, link tests manually:
 
 For larger teams, a sync script can generate `docs/stories/*.md` from the external system. The generated Markdown gives the Architect local context without making the LLM query Jira or Notion on every run.
 
-## 17. Hurl Metadata Example
+## 18. Hurl Metadata Example
 
 ```hurl
 # entroping: tags=smoke,checkout,critical
@@ -503,7 +561,7 @@ jsonpath "$.id" == "{{checkout_id}}"
 
 QAnstitution conditions can match tags and metadata from these comments. Because they are comments, plain Hurl ignores them.
 
-## 18. Validation Rules
+## 19. Validation Rules
 
 The config loader should reject:
 

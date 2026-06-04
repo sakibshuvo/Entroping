@@ -472,6 +472,7 @@ def test_effective_policy_report_v1_schema_contract_is_versioned_and_stable() ->
                 "gate": 'header "X-Request-Id" exists',
                 "enforcement": "block",
                 "final": True,
+                "group": None,
                 "description": "Require request IDs",
             }
         ],

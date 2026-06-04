@@ -8,7 +8,11 @@ import yaml
 from pydantic import ValidationError
 
 from entroping.core.path_safety import first_symlink_path_component
-from entroping.models.qanstitution import GateRule, Qanstitution
+from entroping.models.qanstitution import (
+    GateRule,
+    Qanstitution,
+    expand_qanstitution_gate_entries,
+)
 from entroping.models.qanstitution_evidence import EffectiveGateEvidence, QanstitutionEvidence
 
 
@@ -64,8 +68,8 @@ def _load_effective_with_evidence(
         )
 
     local_gates = [
-        EffectiveGateEvidence(rule=gate, source_path=resolved)
-        for gate in law.gates
+        EffectiveGateEvidence(rule=gate.rule, source_path=resolved, group=gate.group)
+        for gate in expand_qanstitution_gate_entries(raw_document)
     ]
     merged_gates = _merge_gate_evidence(
         merged_gates,

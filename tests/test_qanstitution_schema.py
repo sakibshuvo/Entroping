@@ -9,7 +9,11 @@ import pytest
 from pydantic import ValidationError
 
 from entroping.models.conditions import CONDITION_JSON_SCHEMA_PATTERN
-from entroping.models.qanstitution import Qanstitution
+from entroping.models.qanstitution import (
+    GateGroupReference,
+    Qanstitution,
+    expand_qanstitution_gate_entries,
+)
 from entroping.models.qanstitution_schema import (
     QANSTITUTION_SCHEMA_DRAFT,
     QANSTITUTION_SCHEMA_ID,
@@ -40,10 +44,14 @@ def test_qanstitution_schema_contract_covers_current_runtime_shape() -> None:
     definitions = _object(schema["$defs"])
     properties = _object(schema["properties"])
     gate_rule = _object(definitions["GateRule"])
+    gate_group = _object(definitions["GateGroup"])
+    gate_group_reference = _object(definitions["GateGroupReference"])
     gate_properties = _object(gate_rule["properties"])
+    gate_group_properties = _object(gate_group["properties"])
     condition_schema = _object(gate_properties["condition"])
     agents_schema = _object(properties["agents"])
     agent_names = _object(agents_schema["propertyNames"])
+    gates_schema = _object(properties["gates"])
 
     assert schema["$schema"] == QANSTITUTION_SCHEMA_DRAFT
     assert schema["$id"] == QANSTITUTION_SCHEMA_ID
@@ -55,6 +63,13 @@ def test_qanstitution_schema_contract_covers_current_runtime_shape() -> None:
         "warn",
         "audit_only",
     ]
+    assert _object(gate_group_reference["properties"])["group"] == {
+        "title": "Group",
+        "type": "string",
+    }
+    assert "gate_groups" in properties
+    assert "groups" in gate_group_properties
+    assert "anyOf" in _object(gates_schema["items"])
     assert condition_schema["pattern"] == CONDITION_JSON_SCHEMA_PATTERN
 
     condition_pattern = re.compile(str(condition_schema["pattern"]))
@@ -105,6 +120,154 @@ def test_qanstitution_schema_contract_covers_current_runtime_shape() -> None:
         )
     with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
         Qanstitution.model_validate({**valid_policy, "redaction": {"headers": []}})
+
+
+def test_qanstitution_model_expands_gate_group_references() -> None:
+    law = Qanstitution.model_validate(
+        {
+            "project": "checkout-api",
+            "gate_groups": {
+                "latency": {
+                    "gates": [
+                        {
+                            "id": "smoke_latency",
+                            "condition": "tags contains 'smoke'",
+                            "gate": "duration < 500",
+                            "enforcement": "block",
+                        }
+                    ]
+                }
+            },
+            "gates": [{"group": "latency"}],
+        }
+    )
+
+    assert [gate.id for gate in law.gates] == ["smoke_latency"]
+
+
+def test_qanstitution_model_rejects_non_mapping_config() -> None:
+    with pytest.raises(ValidationError, match="Input should be a valid dictionary"):
+        Qanstitution.model_validate("project: checkout-api")
+
+
+@pytest.mark.parametrize(
+    ("policy", "message"),
+    [
+        (
+            {
+                "project": "checkout-api",
+                "gates": [{"group": "missing"}],
+            },
+            "Unknown gate group 'missing'",
+        ),
+        (
+            {
+                "project": "checkout-api",
+                "gate_groups": {
+                    "a": {"groups": ["b"]},
+                    "b": {"groups": ["a"]},
+                },
+                "gates": [{"group": "a"}],
+            },
+            "Gate group cycle detected",
+        ),
+        (
+            {
+                "project": "checkout-api",
+                "gate_groups": None,
+            },
+            "gate_groups must be a mapping",
+        ),
+        (
+            {
+                "project": "checkout-api",
+                "gate_groups": [],
+            },
+            "gate_groups must be a mapping",
+        ),
+        (
+            {
+                "project": "checkout-api",
+                "gate_groups": {1: {}},
+            },
+            "gate group names must be strings",
+        ),
+        (
+            {
+                "project": "checkout-api",
+                "gate_groups": {" ": {}},
+            },
+            "gate group name must not be empty",
+        ),
+        (
+            {
+                "project": "checkout-api",
+                "gates": None,
+            },
+            "gates must be a list",
+        ),
+        (
+            {
+                "project": "checkout-api",
+                "gates": "latency",
+            },
+            "gates must be a list",
+        ),
+        (
+            {
+                "project": "checkout-api",
+                "gates": [{"group": "bad\nname"}],
+            },
+            "gate group name must not contain control characters",
+        ),
+        (
+            {
+                "project": "checkout-api",
+                "gate_groups": {"latency": {}},
+                "gates": [{"group": "latency", "id": "ambiguous"}],
+            },
+            "Extra inputs are not permitted",
+        ),
+        (
+            {
+                "project": "checkout-api",
+                "gates": [42],
+            },
+            "Input should be a valid dictionary",
+        ),
+    ],
+)
+def test_qanstitution_model_rejects_invalid_gate_group_references(
+    policy: dict[str, object],
+    message: str,
+) -> None:
+    with pytest.raises(ValidationError, match=message):
+        Qanstitution.model_validate(policy)
+
+
+def test_expand_qanstitution_gate_entries_accepts_typed_gate_group_reference() -> None:
+    expanded = expand_qanstitution_gate_entries(
+        {
+            "project": "checkout-api",
+            "gate_groups": {
+                "latency": {
+                    "gates": [
+                        {
+                            "id": "smoke_latency",
+                            "condition": "tags contains 'smoke'",
+                            "gate": "duration < 500",
+                            "enforcement": "block",
+                        }
+                    ]
+                }
+            },
+            "gates": [GateGroupReference(group="latency")],
+        }
+    )
+
+    assert [(entry.rule.id, entry.group) for entry in expanded] == [
+        ("smoke_latency", "latency")
+    ]
 
 
 def test_qanstitution_schema_authoring_guidance_is_public_and_editor_ready() -> None:

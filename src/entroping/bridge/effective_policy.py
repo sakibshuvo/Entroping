@@ -22,6 +22,7 @@ class EffectivePolicyGateReport(BaseModel):
     gate: str
     enforcement: Enforcement
     final: bool
+    group: str | None = None
     description: str | None = None
 
 
@@ -75,8 +76,8 @@ def render_effective_policy_markdown(report: EffectivePolicyReport) -> str:
         [
             "## Gates",
             "",
-            "| ID | Source | Enforcement | Final | Condition | Assertion | Description |",
-            "| --- | --- | --- | --- | --- | --- | --- |",
+            "| ID | Source | Group | Enforcement | Final | Condition | Assertion | Description |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
     for gate in report.gates:
@@ -86,6 +87,7 @@ def render_effective_policy_markdown(report: EffectivePolicyReport) -> str:
                 [
                     _escape_markdown_cell(gate.id),
                     _escape_markdown_cell(gate.source_path),
+                    _escape_markdown_cell(gate.group or ""),
                     _escape_markdown_cell(gate.enforcement),
                     "yes" if gate.final else "no",
                     _escape_markdown_cell(gate.condition),
@@ -111,6 +113,7 @@ def _report_from_evidence(evidence: QanstitutionEvidence, *, root: Path) -> Effe
                 gate=gate_evidence.rule.gate,
                 enforcement=gate_evidence.rule.enforcement,
                 final=gate_evidence.rule.final,
+                group=gate_evidence.group,
                 description=gate_evidence.rule.description,
             )
             for gate_evidence in evidence.gates

@@ -12,6 +12,7 @@ class EffectiveGateEvidence:
 
     rule: GateRule
     source_path: Path
+    group: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

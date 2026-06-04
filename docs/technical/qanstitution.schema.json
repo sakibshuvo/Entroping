@@ -84,6 +84,55 @@
       "title": "DependencyConfig",
       "type": "object"
     },
+    "GateGroup": {
+      "additionalProperties": false,
+      "description": "Reusable local collection of governance gates.",
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "gates": {
+          "items": {
+            "$ref": "#/$defs/GateRule"
+          },
+          "title": "Gates",
+          "type": "array"
+        },
+        "groups": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Groups",
+          "type": "array"
+        }
+      },
+      "title": "GateGroup",
+      "type": "object"
+    },
+    "GateGroupReference": {
+      "additionalProperties": false,
+      "description": "Top-level reference to a reusable local gate group.",
+      "properties": {
+        "group": {
+          "title": "Group",
+          "type": "string"
+        }
+      },
+      "required": [
+        "group"
+      ],
+      "title": "GateGroupReference",
+      "type": "object"
+    },
     "GateRule": {
       "additionalProperties": false,
       "description": "Runtime governance assertion injected into matching Hurl executions.",
@@ -311,9 +360,23 @@
       "default": null,
       "title": "Description"
     },
+    "gate_groups": {
+      "additionalProperties": {
+        "$ref": "#/$defs/GateGroup"
+      },
+      "title": "Gate Groups",
+      "type": "object"
+    },
     "gates": {
       "items": {
-        "$ref": "#/$defs/GateRule"
+        "anyOf": [
+          {
+            "$ref": "#/$defs/GateRule"
+          },
+          {
+            "$ref": "#/$defs/GateGroupReference"
+          }
+        ]
       },
       "title": "Gates",
       "type": "array"

@@ -70,6 +70,12 @@
         "final": {
           "type": "boolean"
         },
+        "group": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "description": {
           "type": [
             "string",

@@ -1,10 +1,12 @@
 """Domain models for ``qanstitution.yaml``."""
 
 import re
-from typing import Literal
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from typing import Literal, cast
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from entroping.models.conditions import (
     CONDITION_JSON_SCHEMA_PATTERN,
@@ -15,6 +17,14 @@ from entroping.models.conditions import (
 Enforcement = Literal["block", "warn", "audit_only"]
 AgentRole = Literal["builder", "auditor", "breaker"]
 _ENV_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+@dataclass(frozen=True, slots=True)
+class ExpandedGateEntry:
+    """One authored gate after reusable group expansion."""
+
+    rule: "GateRule"
+    group: str | None = None
 
 
 class SourceConfig(BaseModel):
@@ -152,6 +162,38 @@ class GateRule(BaseModel):
         return value
 
 
+class GateGroupReference(BaseModel):
+    """Top-level reference to a reusable local gate group."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    group: str
+
+    @field_validator("group")
+    @classmethod
+    def validate_group_name(cls, value: str) -> str:
+        """Reject ambiguous or unsafe gate group references."""
+
+        return _validate_gate_group_name(value)
+
+
+class GateGroup(BaseModel):
+    """Reusable local collection of governance gates."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    description: str | None = None
+    groups: list[str] = Field(default_factory=list)
+    gates: list[GateRule] = Field(default_factory=list)
+
+    @field_validator("groups")
+    @classmethod
+    def validate_nested_group_names(cls, value: list[str]) -> list[str]:
+        """Reject ambiguous or unsafe nested gate group names."""
+
+        return [_validate_gate_group_name(group_name) for group_name in value]
+
+
 class KnownFailure(BaseModel):
     """Temporary exception that must remain traceable and expiring."""
 
@@ -187,9 +229,105 @@ class Qanstitution(BaseModel):
     dependencies: list[DependencyConfig] = Field(default_factory=list)
     imports: list[str] = Field(default_factory=list)
     agents: dict[AgentRole, AgentConfig] = Field(default_factory=dict)
+    gate_groups: dict[str, GateGroup] = Field(default_factory=dict)
     gates: list[GateRule] = Field(default_factory=list)
     ignore_failures: list[KnownFailure] = Field(default_factory=list)
     settings: RuntimeSettings = Field(default_factory=RuntimeSettings)
+
+    @model_validator(mode="before")
+    @classmethod
+    def expand_gate_group_references(cls, data: object) -> object:
+        """Normalize authoring-time group references into runtime gate rules."""
+
+        if not isinstance(data, Mapping):
+            return data
+
+        normalized: dict[str, object] = dict(data)
+        expanded = expand_qanstitution_gate_entries(data)
+        normalized["gates"] = [entry.rule for entry in expanded]
+        return normalized
+
+
+def expand_qanstitution_gate_entries(
+    document: Mapping[str, object],
+) -> tuple[ExpandedGateEntry, ...]:
+    """Expand local gate group references while retaining authored provenance."""
+
+    raw_gate_groups = document.get("gate_groups", {})
+    gate_groups = _parse_gate_groups(raw_gate_groups)
+    raw_gates_value = document.get("gates", [])
+    raw_gates = _sequence_from_authoring_list(raw_gates_value, field_name="gates")
+    expanded: list[ExpandedGateEntry] = []
+
+    def expand_group(group_name: str, stack: tuple[str, ...]) -> None:
+        validated_name = _validate_gate_group_name(group_name)
+        if validated_name not in gate_groups:
+            msg = f"Unknown gate group {validated_name!r}"
+            raise ValueError(msg)
+        if validated_name in stack:
+            cycle = " -> ".join((*stack, validated_name))
+            msg = f"Gate group cycle detected: {cycle}"
+            raise ValueError(msg)
+
+        group = gate_groups[validated_name]
+        next_stack = (*stack, validated_name)
+        for nested_group in group.groups:
+            expand_group(nested_group, next_stack)
+        expanded.extend(
+            ExpandedGateEntry(rule=gate, group=validated_name)
+            for gate in group.gates
+        )
+
+    for raw_gate in raw_gates:
+        if _is_gate_group_reference(raw_gate):
+            reference = GateGroupReference.model_validate(raw_gate)
+            expand_group(reference.group, stack=())
+            continue
+        expanded.append(ExpandedGateEntry(rule=GateRule.model_validate(raw_gate)))
+
+    return tuple(expanded)
+
+
+def _parse_gate_groups(raw_gate_groups: object) -> dict[str, GateGroup]:
+    if not isinstance(raw_gate_groups, Mapping):
+        msg = "gate_groups must be a mapping"
+        raise ValueError(msg)
+
+    gate_groups: dict[str, GateGroup] = {}
+    for raw_name, raw_group in raw_gate_groups.items():
+        if not isinstance(raw_name, str):
+            msg = "gate group names must be strings"
+            raise ValueError(msg)
+        name = _validate_gate_group_name(raw_name)
+        gate_groups[name] = GateGroup.model_validate(raw_group)
+    return gate_groups
+
+
+def _sequence_from_authoring_list(raw_value: object, *, field_name: str) -> Sequence[object]:
+    if isinstance(raw_value, str | bytes) or not isinstance(raw_value, Sequence):
+        msg = f"{field_name} must be a list"
+        raise ValueError(msg)
+    return raw_value
+
+
+def _is_gate_group_reference(raw_gate: object) -> bool:
+    if isinstance(raw_gate, GateGroupReference):
+        return True
+    if not isinstance(raw_gate, Mapping):
+        return False
+    gate = cast(Mapping[object, object], raw_gate)
+    return "group" in gate
+
+
+def _validate_gate_group_name(value: str) -> str:
+    group_name = value.strip()
+    if not group_name:
+        msg = "gate group name must not be empty"
+        raise ValueError(msg)
+    if any(ord(character) < 32 or ord(character) == 127 for character in group_name):
+        msg = "gate group name must not contain control characters"
+        raise ValueError(msg)
+    return group_name
 
 
 def _looks_like_secret(value: str) -> bool:

@@ -40,6 +40,8 @@ entroping report policy --output json
 The JSON report is local-only policy provenance. It records config/import/gate
 paths and effective assertions, not traffic values, prompts, credentials, or
 provider data.
+New writers include optional per-gate `group` provenance when a gate was
+expanded from a local `gate_groups` reference.
 
 The drift baseline candidate and active drift baseline share
 `entroping.drift-baseline.v1`. Candidates are written by `run --report drift`;
