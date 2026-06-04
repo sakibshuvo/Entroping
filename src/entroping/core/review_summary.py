@@ -287,6 +287,28 @@ def _findings_from_run_json(path: Path, *, root: Path | None) -> tuple[ReviewFin
     for raw_test in raw_tests:
         if not isinstance(raw_test, dict):
             continue
+        status = _string_field(raw_test.get("status"), fallback="unknown")
+        exit_code = raw_test.get("exit_code")
+        exit_code_text = str(exit_code) if isinstance(exit_code, int) else "unknown"
+        path_value = _finding_path(raw_test.get("path"))
+        if status == "timeout":
+            timeout_ms = raw_test.get("timeout_ms")
+            timeout_text = (
+                str(timeout_ms)
+                if isinstance(timeout_ms, int) and timeout_ms >= 0
+                else "unknown"
+            )
+            findings.append(
+                ReviewFinding(
+                    source="Run JSON",
+                    severity="error",
+                    path=_display_path(path_value, root=root),
+                    message=_redacted_one_line(
+                        f"timed out after {timeout_text} ms; "
+                        f"final status {status} exit={exit_code_text}"
+                    ),
+                )
+            )
         retry = raw_test.get("retry")
         if not isinstance(retry, dict):
             continue
@@ -294,10 +316,6 @@ def _findings_from_run_json(path: Path, *, root: Path | None) -> tuple[ReviewFin
         unstable = retry.get("unstable")
         if not isinstance(retry_count, int) or retry_count <= 0:
             continue
-        path_value = _finding_path(raw_test.get("path"))
-        status = _string_field(raw_test.get("status"), fallback="unknown")
-        exit_code = raw_test.get("exit_code")
-        exit_code_text = str(exit_code) if isinstance(exit_code, int) else "unknown"
         retry_word = "retry" if retry_count == 1 else "retries"
         if unstable is True:
             severity: FindingSeverity = "warning"

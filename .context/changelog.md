@@ -2,6 +2,10 @@
 
 ## 2026-06-04
 
+- Added issue #441's timeout evidence so JSON, JUnit, HTML, and
+  review-summary artifacts show effective per-test `timeout_ms`, while Hurl
+  subprocess timeouts use status `timeout`, exit code `124`, and
+  timeout-specific report findings distinct from assertion failures.
 - Added issue #440's deterministic tag-expression run selection so
   `entroping run --tag-expression "smoke and not slow"` selects Hurl tests with
   a safe `and`/`or`/`not` parser over Entroping metadata tags, reports

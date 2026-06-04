@@ -59,6 +59,7 @@ def _suite_result(execution: Path, stderr: str) -> HurlSuiteResult:
                 stdout_truncated=False,
                 stderr_truncated=False,
                 duration_ms=123,
+                timeout_ms=2500,
             ),
         ),
     )
@@ -86,9 +87,26 @@ def test_write_json_report_includes_ci_debug_fields_and_redacts_output(tmp_path:
     assert data["tests"][0]["status"] == "failed"
     assert data["tests"][0]["rule_ids"] == ["global_latency"]
     assert data["tests"][0]["duration_ms"] == 123
+    assert data["tests"][0]["timeout_ms"] == 2500
     assert "live-secret" not in output.read_text(encoding="utf-8")
     assert "Authorization: [REDACTED]" in data["tests"][0]["stdout"]
     assert "token=[REDACTED]" in data["tests"][0]["stderr"]
+
+    junit_path = tmp_path / "reports" / "junit.xml"
+    write_junit_report(report, junit_path)
+    properties = ElementTree.parse(junit_path).getroot().find("testcase/properties")
+    assert properties is not None
+    values = {
+        property_node.attrib["name"]: property_node.attrib["value"]
+        for property_node in properties.findall("property")
+    }
+    assert values["entroping.timeout_ms"] == "2500"
+
+    html_path = tmp_path / "reports" / "run-latest.html"
+    write_html_report(report, html_path)
+    html = html_path.read_text(encoding="utf-8")
+    assert "<th>Timeout</th>" in html
+    assert "<td>2500 ms</td>" in html
 
 
 def test_reports_include_applied_known_failure_evidence(tmp_path: Path) -> None:
@@ -144,6 +162,57 @@ def test_reports_include_applied_known_failure_evidence(tmp_path: Path) -> None:
     assert "Known failures" in html
     assert "GH-123" in html
     assert "Temporary upstream latency regression." in html
+
+
+def test_reports_surface_timeout_failures_distinctly(tmp_path: Path) -> None:
+    source = tmp_path / "tests" / "slow.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "slow.hurl"
+    suite = HurlSuiteResult(
+        results=(
+            HurlFileResult(
+                path=execution,
+                command=("/bin/hurl", str(execution)),
+                status="timeout",
+                exit_code=124,
+                stdout="",
+                stderr="Hurl subprocess timed out after 250 ms",
+                stdout_truncated=False,
+                stderr_truncated=False,
+                duration_ms=251,
+                timeout_ms=250,
+            ),
+        ),
+    )
+    report = build_run_report(
+        project="checkout-api",
+        environment="ci",
+        execution_copies=[_execution_copy(source, execution)],
+        suite=suite,
+        project_root=tmp_path,
+    )
+
+    payload = report_writer.run_report_to_dict(report)
+    tests_payload = payload["tests"]
+    assert isinstance(tests_payload, list)
+    first_test = tests_payload[0]
+    assert isinstance(first_test, Mapping)
+    assert first_test["status"] == "timeout"
+    assert first_test["exit_code"] == 124
+    assert first_test["timeout_ms"] == 250
+
+    junit_path = tmp_path / "reports" / "junit.xml"
+    write_junit_report(report, junit_path)
+    failure = ElementTree.parse(junit_path).getroot().find("testcase/failure")
+    assert failure is not None
+    assert failure.attrib["message"] == "timeout"
+    assert failure.attrib["type"] == "entroping.hurl.timeout"
+    assert "timeout_ms: 250" in (failure.text or "")
+
+    html_path = tmp_path / "reports" / "run-latest.html"
+    write_html_report(report, html_path)
+    html = html_path.read_text(encoding="utf-8")
+    assert 'class="timeout"' in html
+    assert "Hurl subprocess timed out after 250 ms" in html
 
 
 def test_reports_include_retry_and_flake_evidence_without_raw_attempt_output(
@@ -316,6 +385,7 @@ def test_load_run_report_round_trips_retry_evidence_and_ignores_malformed_entrie
                         "status": "passed",
                         "exit_code": 0,
                         "duration_ms": 50,
+                        "timeout_ms": 2500,
                         "rule_ids": [],
                         "stdout": "",
                         "stderr": "",
@@ -363,6 +433,8 @@ def test_load_run_report_round_trips_retry_evidence_and_ignores_malformed_entrie
 
     report = load_run_report(latest)
 
+    assert report.tests[0].timeout_ms == 2500
+    assert report.tests[1].timeout_ms == 0
     assert report.tests[0].retry.retry_count == 1
     assert report.tests[0].retry.unstable
     assert [

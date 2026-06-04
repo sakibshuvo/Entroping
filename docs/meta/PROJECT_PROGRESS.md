@@ -31,10 +31,10 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#441](https://github.com/sakibshuvo/Entroping/issues/441)
-adds explicit timeout evidence per test after tag-expression run selection,
-sanitized agent run manifests, bounded retry/flake evidence, and capture
-filters landed.
+Current issue: [#442](https://github.com/sakibshuvo/Entroping/issues/442)
+generates security-scheme coverage tests after explicit timeout evidence,
+tag-expression run selection, sanitized agent run manifests, bounded
+retry/flake evidence, and capture filters landed.
 Next local slices should keep moving useful runtime and developer workflow
 features before returning to blocked external stable-core proof.
 
@@ -53,9 +53,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#441](https://github.com/sakibshuvo/Entroping/issues/441) | Add explicit timeout evidence per test. |
-| 2 | [#442](https://github.com/sakibshuvo/Entroping/issues/442) | Generate security-scheme coverage tests. |
-| 3 | [#443](https://github.com/sakibshuvo/Entroping/issues/443) | Flag undocumented live traffic routes during Architect audit. |
+| 1 | [#442](https://github.com/sakibshuvo/Entroping/issues/442) | Generate security-scheme coverage tests. |
+| 2 | [#443](https://github.com/sakibshuvo/Entroping/issues/443) | Flag undocumented live traffic routes during Architect audit. |
+| 3 | [#444](https://github.com/sakibshuvo/Entroping/issues/444) | Add run-to-run regression delta reporting. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -76,6 +76,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Timeout evidence per test](https://github.com/sakibshuvo/Entroping/issues/441) | Done | JSON/JUnit/HTML/review-summary artifacts now include effective per-test `timeout_ms`; Hurl subprocess timeouts use status `timeout`, exit code `124`, timeout-specific JUnit failure typing, and timeout findings distinct from assertion failures. |
 | [Tag-expression run selection](https://github.com/sakibshuvo/Entroping/issues/440) | Done | `entroping run --tag-expression "smoke and not slow"` now uses a deterministic `and`/`or`/`not` parser over Hurl metadata tags, reports selected/skipped counts, rejects invalid expressions before Hurl execution, and preserves repeatable `--tag` OR semantics. |
 | [Sanitized agent run manifests](https://github.com/sakibshuvo/Entroping/issues/427) | Done | Prompt-backed Architect build, Breaker build, merge-build, refactor, and Auditor review paths now write `.entroping/agent-runs/*.json` with value-free role/model/persona/prompt-hash/output/validation/usage evidence. |
 | [Include/exclude capture filters](https://github.com/sakibshuvo/Entroping/issues/414) | Done | `freeze`, `freeze --mock`, and `map` now filter already-redacted traffic by host, method, and request path before Hurl, WireMock, or dependency-map artifact generation; exclude rules win and empty filtered sessions fail before writes. |

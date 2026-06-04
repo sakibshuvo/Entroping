@@ -739,6 +739,10 @@ records retry evidence in JSON, JUnit, HTML, and review-summary artifacts.
 Retry evidence contains attempt number, status, exit code, duration, and
 truncation flags only; it must not copy raw per-attempt stdout or stderr into
 the evidence block.
+Every executed test row also records the effective Hurl subprocess
+`timeout_ms`. Subprocess timeouts use status `timeout`, exit code `124`, a
+timeout-specific JUnit failure type, and timeout findings in review summaries so
+operators can distinguish time-budget failures from Hurl assertion failures.
 `--changed-from <ref>` uses `git diff --name-status` to select existing changed
 `.hurl` files from a base ref. Deleted files are skipped, rename targets are
 used, and paths outside the project root are rejected before discovery. This is

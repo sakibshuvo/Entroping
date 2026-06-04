@@ -198,6 +198,10 @@ and `--tag-expression` for ad hoc boolean selection.
 `--changed-from` is a developer and agent feedback shortcut. Keep full-suite
 `entroping run --ci` as the release gate.
 
+Run reports include per-test `timeout_ms` evidence. Hurl subprocess timeouts
+use status `timeout`, exit code `124`, a timeout-specific JUnit failure type,
+and review-summary timeout findings.
+
 `--report drift` writes both `reports/drift.json` and, when the Hurl suite
 passes, `reports/drift-baseline.candidate.json`. Review the candidate before
 promoting it to `.entroping/drift-baseline.json`.
