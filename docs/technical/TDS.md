@@ -688,6 +688,14 @@ modified, renamed, removed, and unchanged operations, and regenerates only the
 current added/modified/renamed operation IDs. Removed operations are reported
 for manual review; Entroping does not delete existing tests automatically.
 
+`architect build --new` also compiles deterministic auth-negative coverage for
+OpenAPI operations that declare security requirements and an explicit `401` or
+`403` response. Supported schemes are HTTP bearer/basic and API-key
+header/query/cookie. Generated files live under `tests/generated/security/`
+with `security` and `security_scheme` metadata. Unsupported schemes, missing
+scheme definitions, and operations without explicit auth-failure responses are
+reported as warnings rather than guessed.
+
 ### Observation
 
 ```text

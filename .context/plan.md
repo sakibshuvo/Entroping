@@ -29,6 +29,10 @@ project, and a Codex workspace with fast context rehydration.
 - Deterministic OpenAPI generation now validates every compiled Hurl file
   before writing, avoids partial generated output on parser failure, and can
   focus regeneration to operations changed from a Git base ref.
+- Deterministic OpenAPI generation also emits auth-negative Hurl tests under
+  `tests/generated/security/` for operations with supported HTTP bearer/basic
+  or API-key header/query/cookie schemes and explicit `401`/`403` responses;
+  unsupported schemes are warnings rather than guessed tests.
 - HTML run reports escape header fields, summary text, rule IDs,
   known-failure summaries, and captured Hurl output before rendering.
 - Common filesystem symlink component traversal is centralized in

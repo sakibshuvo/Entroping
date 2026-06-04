@@ -105,7 +105,8 @@ OWASP endorsement, not complete compliance, and not certification evidence.
 Entroping is not another AI chat wrapper. It is an execution boundary for API
 quality:
 
-- Turn OpenAPI specs into reviewable Hurl regression tests.
+- Turn OpenAPI specs into reviewable Hurl regression tests, including
+  supported auth-negative coverage from declared security schemes.
 - Inject global QAnstitution gates into every run without mutating source tests.
 - Capture and redact live traffic, then freeze flows or dependency mocks.
 - Emit JSON, JUnit, HTML, drift, SARIF, bug, retry/flake, and traceability evidence for local review and CI.

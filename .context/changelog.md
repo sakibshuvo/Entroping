@@ -2,6 +2,12 @@
 
 ## 2026-06-04
 
+- Added issue #442's OpenAPI security-scheme coverage generation so
+  `architect build --new` writes deterministic missing/invalid auth Hurl tests
+  under `tests/generated/security/` for supported HTTP bearer/basic and API-key
+  header/query/cookie schemes when operations declare explicit `401` or `403`
+  responses, while unsupported schemes are reported as warnings instead of
+  guessed.
 - Added issue #441's timeout evidence so JSON, JUnit, HTML, and
   review-summary artifacts show effective per-test `timeout_ms`, while Hurl
   subprocess timeouts use status `timeout`, exit code `124`, and
