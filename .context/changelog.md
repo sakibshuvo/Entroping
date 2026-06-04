@@ -16,6 +16,9 @@
 - Added issue #383's README schema-autocomplete note so new users can find the
   checked-in QAnstitution JSON Schema while `entroping doctor` stays the
   authoritative runtime validation path.
+- Added issue #384's launch-copy cleanup so the public first story stays
+  focused on REST/OpenAPI, QAnstitution, Hurl, and CI reports while advanced
+  surfaces remain documented as optional or deeper examples.
 
 ## 2026-06-02
 

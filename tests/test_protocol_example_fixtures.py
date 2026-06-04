@@ -90,6 +90,9 @@ def test_protocol_fixture_files_are_discoverable_and_hurl_over_http() -> None:
     graphql_readme = (GRAPHQL_ROOT / "README.md").read_text(encoding="utf-8")
     soap_readme = (SOAP_ROOT / "README.md").read_text(encoding="utf-8")
     root_readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    use_cases = (REPO_ROOT / "docs" / "user" / "USE_CASES.md").read_text(
+        encoding="utf-8"
+    )
     vault_index = (REPO_ROOT / "docs/meta/VAULT_INDEX.md").read_text(encoding="utf-8")
 
     graphql_gates = {gate["id"]: gate for gate in graphql_qanstitution["gates"]}
@@ -118,8 +121,8 @@ def test_protocol_fixture_files_are_discoverable_and_hurl_over_http() -> None:
     assert "top-level GraphQL `errors`" in graphql_readme
     assert "Hurl-over-HTTP" in soap_readme
     assert "SOAPAction" in soap_readme
-    assert "[examples/graphql-api](examples/graphql-api/README.md)" in root_readme
-    assert "[examples/soap-api](examples/soap-api/README.md)" in root_readme
+    assert "advanced examples remain documented" in root_readme
+    assert "## 8. GraphQL API Governance" in use_cases
     assert "[[examples/graphql-api/README|GraphQL API demo fixture]]" in vault_index
     assert "[[examples/soap-api/README|SOAP API demo fixture]]" in vault_index
 

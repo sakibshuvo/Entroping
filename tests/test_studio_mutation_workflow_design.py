@@ -73,7 +73,7 @@ def test_studio_scope_decision_remains_no_mutation_for_v03() -> None:
     )
     roadmap = (_REPO_ROOT / "ROADMAP.md").read_text(encoding="utf-8")
 
-    assert "Studio is interactive but read-only" in readme
+    assert "optional local inspector is read-only" in readme
     assert "No Studio mutation implementation is planned for v0.3" in roadmap
     assert (
         "Studio should not rerun suites, edit tests, or change config in the alpha"
