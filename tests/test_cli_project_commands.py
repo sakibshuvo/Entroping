@@ -7,6 +7,7 @@ from cli_test_support import (
     _record_freeze_exchange,
     app,
     cli_main,
+    json,
     project_cli,
     pytest,
     yaml,
@@ -445,6 +446,137 @@ def test_doctor_reports_missing_hurlfmt_for_architect_validation(
     assert "Hurl parser: not found" in result.output
     assert "hurlfmt" in result.output
     assert "Architect generated-Hurl validation" in " ".join(result.output.split())
+
+
+def test_doctor_json_reports_versioned_machine_readable_health(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ENTROPING_BREAKER_KEY", "sk-proj-live-secret")
+    monkeypatch.setattr(
+        project_cli,
+        "discover_hurl",
+        lambda binary="hurl": SimpleNamespace(available=True, path=f"/usr/local/bin/{binary}"),
+    )
+    CliRunner().invoke(app, ["init", "--minimal"])
+    (tmp_path / "agents").mkdir()
+    (tmp_path / "agents" / "breaker.md").write_text(
+        "Draft hostile local checks.",
+        encoding="utf-8",
+    )
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  breaker:
+    source: agents/breaker.md
+    model: openai/breaker-model
+    api_key_env: ENTROPING_BREAKER_KEY
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    _record_freeze_exchange(tmp_path)
+
+    result = CliRunner().invoke(app, ["doctor", "--output", "json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["schema_version"] == "entroping.doctor.v1"
+    assert payload["status"] == "ok"
+    assert payload["python_version"]
+    assert payload["tools"]["hurl"] == {
+        "status": "ok",
+        "available": True,
+        "path": "/usr/local/bin/hurl",
+        "message": "hurl found",
+    }
+    assert payload["tools"]["hurl_parser"] == {
+        "status": "ok",
+        "available": True,
+        "path": "/usr/local/bin/hurlfmt",
+        "message": "hurlfmt found",
+    }
+    assert payload["traffic_state"]["status"] == "ok"
+    assert payload["traffic_state"]["exchange_count"] == 1
+    assert payload["qanstitution"]["status"] == "ok"
+    assert payload["qanstitution"]["project"] == "checkout-api"
+    assert payload["agents"] == [
+        {
+            "role": "breaker",
+            "status": "ok",
+            "model": "openai/breaker-model",
+            "source": "agents/breaker.md",
+            "api_key_env": "ENTROPING_BREAKER_KEY",
+            "api_key_env_present": True,
+            "message": "agent ready",
+        }
+    ]
+    assert "Python:" not in result.output
+    assert "sk-proj-live-secret" not in result.output
+
+
+def test_doctor_json_keeps_warning_exit_compatible(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        project_cli,
+        "discover_hurl",
+        lambda binary="hurl": SimpleNamespace(available=False, path=None),
+    )
+
+    result = CliRunner().invoke(app, ["doctor", "--output", "json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["status"] == "warn"
+    assert payload["tools"]["hurl"]["status"] == "warn"
+    assert payload["tools"]["hurl_parser"]["status"] == "warn"
+    assert payload["qanstitution"]["status"] == "warn"
+    assert payload["qanstitution"]["message"] == "qanstitution.yaml not found"
+
+
+def test_doctor_json_reports_invalid_config_without_human_markup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        project_cli,
+        "discover_hurl",
+        lambda binary="hurl": SimpleNamespace(available=True, path=f"/usr/local/bin/{binary}"),
+    )
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+gates:
+  - id: bad_condition
+    condition: tags includes 'smoke'
+    gate: duration < 2000
+    enforcement: block
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["doctor", "--output", "json"])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["status"] == "error"
+    assert payload["qanstitution"]["status"] == "error"
+    assert "Unsupported QAnstitution condition syntax" in payload["qanstitution"]["message"]
+    assert "QAnstitution: invalid" not in result.output
+
+
+def test_doctor_rejects_unsupported_output_format() -> None:
+    runner = CliRunner()
+    result = runner.invoke(app, ["doctor", "--output", "xml"])
+
+    assert result.exit_code == 2
+    assert "Unsupported doctor output: xml" in result.output
 
 
 def test_display_cli_path_returns_absolute_path_outside_cwd(

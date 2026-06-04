@@ -24,7 +24,7 @@ updates, and an explicit compatibility decision.
 
 ```text
 entroping init [--minimal]
-entroping doctor
+entroping doctor [--output <text|json>]
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
 

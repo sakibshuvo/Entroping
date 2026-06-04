@@ -215,6 +215,9 @@ entroping init --minimal
 entroping doctor
 ```
 
+For automation, use `entroping doctor --output json` to get versioned setup
+health without scraping human output.
+
 The starter policy is intentionally small: status, latency, and request-ID
 header gates. See [QANSTITUTION_FIRST_HOUR.md](docs/user/QANSTITUTION_FIRST_HOUR.md)
 before jumping into the full reference.
@@ -346,7 +349,7 @@ Compatibility details live in [CLI_COMPATIBILITY_AUDIT.md](docs/technical/CLI_CO
 
 ```text
 entroping init [--minimal]
-entroping doctor
+entroping doctor [--output <text|json>]
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
 

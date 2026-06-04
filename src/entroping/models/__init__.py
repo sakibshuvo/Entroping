@@ -7,6 +7,13 @@ from entroping.models.architect import (
     ArchitectEditSet,
 )
 from entroping.models.conditions import Condition, ConditionSyntaxError, parse_condition
+from entroping.models.doctor import (
+    DoctorAgentHealth,
+    DoctorHealthReport,
+    DoctorQanstitutionHealth,
+    DoctorToolHealth,
+    DoctorTrafficStateHealth,
+)
 from entroping.models.hurl import (
     HurlExchange,
     HurlMetadata,
@@ -34,6 +41,11 @@ __all__ = [
     "ArchitectEditSet",
     "Condition",
     "ConditionSyntaxError",
+    "DoctorAgentHealth",
+    "DoctorHealthReport",
+    "DoctorQanstitutionHealth",
+    "DoctorToolHealth",
+    "DoctorTrafficStateHealth",
     "GateRule",
     "HurlExchange",
     "HurlMetadata",

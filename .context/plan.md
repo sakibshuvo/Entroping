@@ -61,6 +61,9 @@ project, and a Codex workspace with fast context rehydration.
 - `entroping doctor` validates configured Builder/Auditor/Breaker persona files
   through the same root-bounded persona loader used at runtime and reports
   `api_key_env` readiness without printing values or calling providers.
+- `entroping doctor --output json` emits schema version
+  `entroping.doctor.v1` for agent and CI setup health without changing human
+  doctor output or exit semantics.
 - `entroping run` preflights unresolved Hurl `{{variable}}` references in
   selected temporary execution copies before invoking Hurl. It accepts resolved
   variables from env files, shell `HURL_VARIABLE_<name>` values, local Hurl

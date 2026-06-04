@@ -168,6 +168,15 @@ entroping doctor
 entroping run --ci --report junit --report html
 ```
 
+Agents and CI workers can use:
+
+```bash
+entroping doctor --output json
+```
+
+The JSON output uses schema version `entroping.doctor.v1` and preserves the same
+exit-code behavior as human doctor output.
+
 This path should work with no LiteLLM installation and no model credentials.
 When agents are configured, `doctor` verifies persona files and reports whether
 named `api_key_env` variables are set, but it does not print values or call the

@@ -615,10 +615,17 @@ Compatibility audit: [CLI_COMPATIBILITY_AUDIT.md](CLI_COMPATIBILITY_AUDIT.md).
 
 ```text
 entroping init [--minimal]
-entroping doctor
+entroping doctor [--output <text|json>]
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
 ```
+
+`doctor --output json` emits schema version `entroping.doctor.v1` with overall
+status, Python version, Hurl and hurlfmt availability, traffic-state health,
+QAnstitution health, and agent-readiness entries. Warning states such as missing
+Hurl, missing config, missing traffic state, or missing configured `api_key_env`
+values keep the human-compatible `0` exit code; invalid QAnstitution, invalid
+traffic state, or unsafe configured personas exit `1`.
 
 `config set` updates non-secret routing metadata only. If the selected agent's
 persona file is missing, it creates a local Markdown template under the configured
