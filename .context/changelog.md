@@ -13,6 +13,9 @@
 - Added issue #382's README backstage-context cleanup so first-time users see
   the product, demo, install, and CI path before maintainer vault, release, and
   agent-handoff material.
+- Added issue #383's README schema-autocomplete note so new users can find the
+  checked-in QAnstitution JSON Schema while `entroping doctor` stays the
+  authoritative runtime validation path.
 
 ## 2026-06-02
 
