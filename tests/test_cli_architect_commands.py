@@ -1811,6 +1811,217 @@ paths:
     assert "No OpenAPI coverage gaps found." in result.output
 
 
+def test_architect_audit_changed_from_reports_breaking_diff_and_linked_tests(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    subprocess.run(["git", "init"], check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "config", "user.email", "tests@example.invalid"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Entroping Test"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+sources:
+  spec: ./openapi.yaml
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    Path("openapi.yaml").write_text(
+        """
+openapi: "3.1.0"
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: ok
+  /legacy:
+    delete:
+      operationId: deleteLegacy
+      responses:
+        "204":
+          description: deleted
+""".lstrip(),
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "add", "."], check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], check=True, capture_output=True, text=True)
+    Path("openapi.yaml").write_text(
+        """
+openapi: "3.1.0"
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: ok
+""".lstrip(),
+        encoding="utf-8",
+    )
+    generated = Path("tests/generated")
+    generated.mkdir(parents=True)
+    (generated / "get_health.hurl").write_text(
+        "\n".join(
+            [
+                "# entroping: source=openapi",
+                "# entroping: operation_id=getHealth",
+                "",
+                "GET {{base_url}}/health",
+                "HTTP 200",
+            ],
+        ),
+        encoding="utf-8",
+    )
+    (generated / "delete_legacy.hurl").write_text(
+        "\n".join(
+            [
+                "# entroping: source=openapi",
+                "# entroping: operation_id=deleteLegacy",
+                "",
+                "DELETE {{base_url}}/legacy",
+                "HTTP 204",
+            ],
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        app,
+        ["architect", "audit", "--changed-from", "HEAD", "--output", "json"],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["openapi_diff"]["schema_version"] == "entroping.openapi-breaking-diff.v1"
+    assert payload["openapi_diff"]["base_ref"] == "HEAD"
+    assert payload["openapi_diff"]["summary"]["breaking_findings"] == 1
+    assert payload["openapi_diff"]["findings"] == [
+        {
+            "code": "OPENAPI_OPERATION_REMOVED",
+            "severity": "error",
+            "operation_id": "deleteLegacy",
+            "method": "DELETE",
+            "path": "/legacy",
+            "message": "OpenAPI operation 'deleteLegacy' was removed from DELETE /legacy.",
+            "base_operation_id": None,
+            "base_method": "DELETE",
+            "base_path": "/legacy",
+            "evidence": [],
+            "test_paths": ["tests/generated/delete_legacy.hurl"],
+        },
+    ]
+    assert not Path("reports").exists()
+
+
+def test_architect_audit_changed_from_outputs_markdown_diff(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    subprocess.run(["git", "init"], check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "config", "user.email", "tests@example.invalid"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Entroping Test"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+sources:
+  spec: ./openapi.yaml
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    Path("openapi.yaml").write_text(
+        """
+openapi: "3.1.0"
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: ok
+""".lstrip(),
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "add", "."], check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], check=True, capture_output=True, text=True)
+    Path("openapi.yaml").write_text(
+        """
+openapi: "3.1.0"
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: ok
+  /refunds:
+    post:
+      operationId: createRefund
+      responses:
+        "202":
+          description: accepted
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        app,
+        ["architect", "audit", "--changed-from", "HEAD", "--output", "md"],
+    )
+
+    assert result.exit_code == 1
+    assert "## OpenAPI Breaking-Change Diff" in result.output
+    assert "| info | OPENAPI_OPERATION_ADDED | createRefund | POST | /refunds | - | - |" in (
+        result.output
+    )
+
+
+def test_architect_audit_changed_from_rejects_remote_spec_before_git_load(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+sources:
+  spec: https://example.invalid/openapi.yaml
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["architect", "audit", "--changed-from", "HEAD"])
+
+    assert result.exit_code == 1
+    assert "--changed-from requires a local OpenAPI sources.spec path" in result.output
+
+
 def test_architect_audit_auditor_focus_outputs_validated_json(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

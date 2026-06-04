@@ -134,6 +134,11 @@ project, and a Codex workspace with fast context rehydration.
   `entroping.openapi-audit.v1` operation-to-Hurl matrix covering covered,
   uncovered, ambiguous, and stale OpenAPI operation mappings without calling
   providers.
+- `entroping architect audit --focus logic --changed-from <ref>` attaches an
+  `entroping.openapi-breaking-diff.v1` report for deterministic OpenAPI
+  evolution review: removed/added operations, status changes, newly required
+  request inputs, and practical JSON response-shape changes, with Hurl metadata
+  links when committed tests exist and no generated/deleted test files.
 - When redacted Eye traffic state exists, `architect audit --focus logic` also
   attaches an `entroping.traffic-openapi-audit.v1` traffic-vs-OpenAPI route
   section that flags undocumented observed routes and lists documented/spec-only

@@ -16,7 +16,7 @@ entroping config vendor-policy-pack --pack <path> [--name <dir>]
 
 entroping architect build [--new] [--changed-from <ref>] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
 entroping architect refactor --target <glob> --prompt <text>
-entroping architect audit [--focus <logic|auditor>] [--output <json|md>]
+entroping architect audit [--focus <logic|auditor>] [--output <json|md>] [--changed-from <ref>]
 
 entroping watch [--port <port>] [--target <url>]
 entroping freeze --name <flow> [--golden] [--mock <service>] [capture filters]
@@ -104,6 +104,7 @@ not guessed tests.
 | `entroping architect build --tag <tag>` | Add a tag to generated tests |
 | `entroping architect refactor --target <glob> --prompt "<text>"` | Safely update existing Hurl tests |
 | `entroping architect audit --focus logic` | Audit OpenAPI coverage gaps and, when redacted traffic exists, undocumented live routes |
+| `entroping architect audit --changed-from <ref>` | Report deterministic OpenAPI breaking-change diffs from a Git base ref without generating tests |
 | `entroping architect audit --focus auditor` | Run an explicit Auditor model review of coverage and policy risk |
 | `entroping architect audit --output <json|md>` | Select audit output format |
 | `.entroping/agent-runs/*.json` | Local value-free evidence for prompt-backed Architect runs |
@@ -118,6 +119,7 @@ entroping architect build --agent breaker --prompt "Generate hostile auth bypass
 entroping architect build --strategy merge --prompt "Cover the new refund endpoint"
 entroping architect refactor --target "tests/payments/*.hurl" --prompt "Add X-Tenant-Id header"
 entroping architect audit --focus logic --output md
+entroping architect audit --focus logic --changed-from origin/main --output json
 entroping architect audit --focus auditor --output json
 ```
 
@@ -127,7 +129,10 @@ exists, it also reports documented observed routes, undocumented observed
 routes, and spec-only OpenAPI operations without raw query strings, headers,
 cookies, bodies, or captured values. JSON output uses
 `schema_version: entroping.openapi-audit.v1` with an optional nested
-`entroping.traffic-openapi-audit.v1` route section.
+`entroping.traffic-openapi-audit.v1` route section. With
+`--changed-from <ref>`, the same audit also attaches
+`entroping.openapi-breaking-diff.v1` findings for removed operations, changed
+status codes, newly required inputs, and practical JSON response-shape changes.
 
 ## Observation
 

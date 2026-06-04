@@ -11,6 +11,12 @@ from dataclasses import dataclass
 from html import escape
 from pathlib import Path
 
+from entroping.bridge.openapi_diff import (
+    OpenApiBreakingDiffReport,
+    attach_openapi_breaking_diff_test_paths,
+    breaking_diff_report_to_dict,
+    render_breaking_diff_markdown,
+)
 from entroping.bridge.openapi_to_hurl import OpenApiCompilationError
 from entroping.bridge.traffic_openapi_audit import (
     TrafficOpenApiAuditReport,
@@ -65,6 +71,7 @@ class OpenApiAuditReport:
     operation_matrix: tuple[OpenApiOperationCoverage, ...] = ()
     stale_references: tuple[OpenApiStaleOperationReference, ...] = ()
     traffic_routes: TrafficOpenApiAuditReport | None = None
+    openapi_diff: OpenApiBreakingDiffReport | None = None
 
     @property
     def passed(self) -> bool:
@@ -72,7 +79,7 @@ class OpenApiAuditReport:
 
         return not self.findings and (
             self.traffic_routes is None or self.traffic_routes.passed
-        )
+        ) and (self.openapi_diff is None or self.openapi_diff.passed)
 
 
 @dataclass(frozen=True)
@@ -88,6 +95,7 @@ def audit_openapi_coverage(
     *,
     project_root: Path | None = None,
     traffic_routes: TrafficOpenApiAuditReport | None = None,
+    openapi_diff: OpenApiBreakingDiffReport | None = None,
 ) -> OpenApiAuditReport:
     """Report OpenAPI operations missing committed Hurl coverage."""
 
@@ -118,6 +126,14 @@ def audit_openapi_coverage(
             project_root=project_root,
         ),
         traffic_routes=traffic_routes,
+        openapi_diff=(
+            None
+            if openapi_diff is None
+            else attach_openapi_breaking_diff_test_paths(
+                openapi_diff,
+                _hurl_test_paths_by_operation_id(hurl_tests, project_root=project_root),
+            )
+        ),
     )
 
 
@@ -191,13 +207,15 @@ def render_audit_markdown(report: OpenApiAuditReport) -> str:
             )
     if report.traffic_routes is not None:
         lines.extend(["", render_traffic_openapi_markdown(report.traffic_routes)])
+    if report.openapi_diff is not None:
+        lines.extend(["", render_breaking_diff_markdown(report.openapi_diff)])
     return "\n".join(lines)
 
 
 def audit_report_to_dict(report: OpenApiAuditReport) -> dict[str, object]:
     """Return a deterministic JSON-serializable audit payload."""
 
-    return {
+    payload: dict[str, object] = {
         "schema_version": OPENAPI_AUDIT_SCHEMA_VERSION,
         "status": "pass" if report.passed else "fail",
         "summary": {
@@ -243,6 +261,9 @@ def audit_report_to_dict(report: OpenApiAuditReport) -> dict[str, object]:
             else traffic_openapi_report_to_dict(report.traffic_routes)
         ),
     }
+    if report.openapi_diff is not None:
+        payload["openapi_diff"] = breaking_diff_report_to_dict(report.openapi_diff)
+    return payload
 
 
 def _expected_operations(document: Mapping[str, object]) -> tuple[_ExpectedOperation, ...]:
@@ -333,6 +354,27 @@ def _stale_operation_references(
     return tuple(
         sorted(references, key=lambda reference: (reference.operation_id, reference.test_path))
     )
+
+
+def _hurl_test_paths_by_operation_id(
+    hurl_tests: Sequence[HurlTest],
+    *,
+    project_root: Path | None,
+) -> Mapping[str, tuple[str, ...]]:
+    paths_by_operation_id: dict[str, set[str]] = {}
+    for hurl_test in hurl_tests:
+        if hurl_test.metadata.meta.get("source") != "openapi":
+            continue
+        operation_id = hurl_test.metadata.meta.get("operation_id")
+        if operation_id is None:
+            continue
+        paths_by_operation_id.setdefault(operation_id, set()).add(
+            _hurl_test_path(hurl_test, project_root=project_root)
+        )
+    return {
+        operation_id: tuple(sorted(paths))
+        for operation_id, paths in paths_by_operation_id.items()
+    }
 
 
 def _hurl_test_covers_operation(hurl_test: HurlTest, expected: _ExpectedOperation) -> bool:

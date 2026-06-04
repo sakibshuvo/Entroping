@@ -541,6 +541,17 @@ This writes `reports/badges/policy-gates.json`,
 report-backed: it reads the JSON reports above, fails clearly if a source report
 is missing or malformed, and does not call shields.io or any hosted service.
 
+Before reviewing an OpenAPI change against your main branch, run:
+
+```bash
+entroping architect audit --focus logic --changed-from origin/main --output md
+```
+
+This compares the configured local `sources.spec` file with the same file at
+the Git base ref and reports removed operations, response status changes, newly
+required request inputs, and practical JSON response-shape changes. It is
+report-only: it does not generate, delete, or overwrite Hurl tests.
+
 When a failure needs an issue:
 
 ```bash
@@ -836,6 +847,8 @@ uncovered, and ambiguous OpenAPI operations, plus stale committed
 `operation_id` metadata that no longer exists in the configured spec. If you
 have captured redacted traffic with `entroping watch`, the same logic audit
 also flags live routes that appeared in traffic but are missing from OpenAPI,
+and `--changed-from <ref>` adds deterministic OpenAPI breaking-change diff
+findings for spec evolution review.
 and shows spec-only operations that were not observed. The traffic route audit
 uses method, path templates, counts, and operation IDs only; it does not print
 raw query strings, headers, cookies, bodies, tokens, or captured values.

@@ -367,7 +367,7 @@ entroping config vendor-policy-pack --pack <path> [--name <dir>]
 
 entroping architect build [--new] [--changed-from <ref>] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
 entroping architect refactor --target <glob> --prompt <text>
-entroping architect audit [--focus <logic|auditor>] [--output <json|md>]
+entroping architect audit [--focus <logic|auditor>] [--output <json|md>] [--changed-from <ref>]
 
 entroping watch [--port <port>] [--target <url>]
 entroping freeze --name <flow> [--golden] [--mock <service>] [capture filters]
@@ -393,7 +393,10 @@ OpenAPI document with committed Hurl metadata, reports uncovered operations,
 and includes an operation-to-test matrix with stale `operation_id` references.
 When redacted Eye traffic exists, it also flags captured routes that are not in
 the OpenAPI contract without printing raw query strings, headers, cookies,
-bodies, or captured values.
+bodies, or captured values. Add `--changed-from <ref>` to compare the configured
+local OpenAPI spec with the same file at a Git base ref and report deterministic
+operation, status, required-input, and response-shape changes without generating
+or deleting tests.
 
 `entroping studio --env local` is a read-only traffic session browser as well
 as a local run/status view. The Traffic tab reads redacted SQLModel-backed state

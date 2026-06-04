@@ -52,9 +52,12 @@ LOCKED_CLI_CONTRACTS = (
         ("--target", "--prompt"),
     ),
     CliContract(
-        "entroping architect audit [--focus <logic|auditor>] [--output <json|md>]",
+        (
+            "entroping architect audit "
+            "[--focus <logic|auditor>] [--output <json|md>] [--changed-from <ref>]"
+        ),
         ("architect", "audit", "--help"),
-        ("--focus", "--output"),
+        ("--focus", "--output", "--changed-from"),
     ),
     CliContract(
         "entroping watch [--port <port>] [--target <url>]",

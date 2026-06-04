@@ -31,9 +31,9 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#437](https://github.com/sakibshuvo/Entroping/issues/437)
-reports OpenAPI breaking-change diffs after the captured-artifact approval
-manifest slice.
+Current issue: [#436](https://github.com/sakibshuvo/Entroping/issues/436)
+enforces runtime known-failure semantics with expiry evidence after the
+OpenAPI breaking-change diff slice.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -50,9 +50,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#437](https://github.com/sakibshuvo/Entroping/issues/437) | Report OpenAPI breaking-change diffs. |
-| 2 | [#436](https://github.com/sakibshuvo/Entroping/issues/436) | Enforce runtime known-failure semantics with expiry evidence. |
-| 3 | [#435](https://github.com/sakibshuvo/Entroping/issues/435) | Select tests by OpenAPI operation ID. |
+| 1 | [#436](https://github.com/sakibshuvo/Entroping/issues/436) | Enforce runtime known-failure semantics with expiry evidence. |
+| 2 | [#435](https://github.com/sakibshuvo/Entroping/issues/435) | Select tests by OpenAPI operation ID. |
+| 3 | [#434](https://github.com/sakibshuvo/Entroping/issues/434) | Add release artifact checksums and attestations. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -73,6 +73,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [OpenAPI breaking-change diff audit](https://github.com/sakibshuvo/Entroping/issues/437) | Done | `architect audit --focus logic --changed-from <ref>` now attaches `entroping.openapi-breaking-diff.v1` findings for deterministic OpenAPI evolution review without generating or deleting tests. |
 | [Captured-artifact approval manifests](https://github.com/sakibshuvo/Entroping/issues/449) | Done | `freeze`, `freeze --mock`, and `map --export png` now write value-free approval manifests under `reports/approvals/` with generated paths, checksums, deterministic source fingerprints, and counts-only redaction summaries without raw traffic values. |
 | [Provider budget evidence](https://github.com/sakibshuvo/Entroping/issues/448) | Done | Prompt-backed Architect build, refactor, and Auditor review paths expose provider, latency, token counts when available, and configured cost estimates in CLI/review output and value-free agent run manifests without prompts, secrets, or raw provider responses. |
 | [Reusable QAnstitution gate groups](https://github.com/sakibshuvo/Entroping/issues/447) | Done | `gate_groups` expands local reusable gates into ordinary runtime rules, rejects missing references and cycles before execution, preserves import/final semantics, and shows source group provenance in effective-policy reports. |
@@ -87,7 +88,6 @@ entirely inside this repo.
 | [Include/exclude capture filters](https://github.com/sakibshuvo/Entroping/issues/414) | Done | `freeze`, `freeze --mock`, and `map` now filter already-redacted traffic by host, method, and request path before Hurl, WireMock, or dependency-map artifact generation; exclude rules win and empty filtered sessions fail before writes. |
 | [Retry and flake evidence](https://github.com/sakibshuvo/Entroping/issues/405) | Done | `settings.retry` now drives bounded per-file Hurl subprocess retries, final attempt status remains authoritative, and JSON/JUnit/HTML/review-summary artifacts expose retry count, attempt status, exit code, duration, and unstable pass-after-retry signals without raw per-attempt output. |
 | [Changed OpenAPI operation generation](https://github.com/sakibshuvo/Entroping/issues/404) | Done | `architect build --new --changed-from <ref>` compares the configured local OpenAPI spec with the same file at a Git base ref, regenerates only current added/modified/renamed operations, and reports removed operations for manual review. |
-| [Sanitized failure bundles](https://github.com/sakibshuvo/Entroping/issues/403) | Done | `report failure-bundle` writes a local sanitized handoff directory with manifest, run JSON, bug Markdown, failed-test Hurl metadata, and reviewed report artifacts while refusing missing/passing runs, raw traffic state, env files, and unsafe artifact paths. |
 | [Named suite manifests](https://github.com/sakibshuvo/Entroping/issues/402) | Done | `run --suite <name>` loads committed `suites/<name>.yaml` manifests, validates `entroping.suite.v1`, resolves root-bounded Hurl path globs, and applies suite-defined env, tags, reports, parallel, and drift settings. |
 | [Local policy-pack vendoring](https://github.com/sakibshuvo/Entroping/issues/401) | Done | `config vendor-policy-pack` copies reviewed local packs under `policy-packs/`, validates manifest/entrypoint evidence, preserves final-gate behavior, and appends a local import without remote registry coupling. |
 | [Open-source license and package metadata](https://github.com/sakibshuvo/Entroping/issues/58) | Done | Apache-2.0 public core and package metadata are explicit. |

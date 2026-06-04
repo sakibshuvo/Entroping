@@ -32,6 +32,7 @@ from entroping.bridge.openapi_audit import (
 )
 from entroping.bridge.openapi_diff import (
     OpenApiOperationChanges,
+    audit_openapi_breaking_changes,
     detect_openapi_operation_changes,
 )
 from entroping.bridge.openapi_to_hurl import (
@@ -245,6 +246,13 @@ def architect_audit(
         typer.Option("--focus", help="Audit focus: logic or auditor."),
     ] = None,
     output: Annotated[str | None, typer.Option("--output", help="json or md.")] = None,
+    changed_from: Annotated[
+        str | None,
+        typer.Option(
+            "--changed-from",
+            help="Compare the configured OpenAPI spec against a Git base ref.",
+        ),
+    ] = None,
 ) -> None:
     """Audit test quality and governance gaps."""
 
@@ -255,7 +263,26 @@ def architect_audit(
         if law.sources is None or law.sources.spec is None or not law.sources.spec.strip():
             msg = "sources.spec is required for architect audit"
             raise ValueError(msg)
-        document = load_openapi_document(_configured_spec_reference(law.sources.spec))
+        spec_reference = _configured_spec_reference(law.sources.spec)
+        if changed_from is not None and not isinstance(spec_reference, Path):
+            msg = "--changed-from requires a local OpenAPI sources.spec path"
+            raise ValueError(msg)
+        baseline_spec_reference: Path | None = None
+        if changed_from is not None and isinstance(spec_reference, Path):
+            baseline_spec_reference = spec_reference
+        document = load_openapi_document(spec_reference)
+        openapi_diff = None
+        if changed_from is not None and baseline_spec_reference is not None:
+            base_document = load_openapi_document_at_ref(
+                project_root=Path.cwd(),
+                base_ref=changed_from,
+                spec_path=baseline_spec_reference,
+            )
+            openapi_diff = audit_openapi_breaking_changes(
+                base_document,
+                document,
+                base_ref=changed_from,
+            )
         hurl_tests = discover_hurl_tests() if Path("tests").exists() else []
         traffic_routes = _load_traffic_openapi_audit(document)
         report = audit_openapi_coverage(
@@ -263,8 +290,15 @@ def architect_audit(
             hurl_tests,
             project_root=Path.cwd(),
             traffic_routes=traffic_routes,
+            openapi_diff=openapi_diff,
         )
-    except (QanstitutionLoadError, OpenApiLoadError, OpenApiCompilationError, ValueError) as exc:
+    except (
+        QanstitutionLoadError,
+        GitOpenApiError,
+        OpenApiLoadError,
+        OpenApiCompilationError,
+        ValueError,
+    ) as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
 

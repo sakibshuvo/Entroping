@@ -718,7 +718,7 @@ providers.
 ```text
 entroping architect build [--new] [--changed-from <ref>] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
 entroping architect refactor --target <glob> --prompt <text>
-entroping architect audit [--focus <logic|auditor>] [--output <json|md>]
+entroping architect audit [--focus <logic|auditor>] [--output <json|md>] [--changed-from <ref>]
 ```
 
 `architect audit --focus logic` is a deterministic bridge report. It compares
@@ -730,6 +730,13 @@ path templates and reports documented, undocumented, and spec-only routes
 without raw query strings, headers, cookies, bodies, host userinfo, or captured
 values. JSON output carries schema marker `entroping.openapi-audit.v1`; the
 nested traffic route section uses `entroping.traffic-openapi-audit.v1`.
+`architect audit --focus logic --changed-from <ref>` also compares the
+configured local OpenAPI spec against the same file at a Git base ref and
+attaches `entroping.openapi-breaking-diff.v1` findings for removed or added
+operations, method/path moves, response status changes, newly required request
+parameters or body fields, and practical top-level JSON response-shape changes.
+The diff audit is deterministic, LLM-free, report-only, and never generates,
+deletes, or overwrites tests.
 
 `architect build --new --changed-from <ref>` compares the configured local
 OpenAPI spec against the same spec at a Git base ref, classifies added,

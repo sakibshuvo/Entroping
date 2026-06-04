@@ -10,6 +10,7 @@ from entroping.bridge.openapi_audit import (
     audit_report_to_dict,
     render_audit_markdown,
 )
+from entroping.bridge.openapi_diff import audit_openapi_breaking_changes
 from entroping.bridge.openapi_to_hurl import OpenApiCompilationError
 from entroping.bridge.traffic_openapi_audit import (
     TrafficOpenApiAuditReport,
@@ -423,3 +424,57 @@ def test_render_audit_markdown_includes_traffic_route_section() -> None:
 
     assert "## Traffic vs OpenAPI Routes" in markdown
     assert "POST /debug" in markdown
+
+
+def test_openapi_breaking_diff_links_only_openapi_operation_metadata() -> None:
+    base: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/legacy": {
+                "delete": {
+                    "operationId": "deleteLegacy",
+                    "responses": {"204": {"description": "deleted"}},
+                },
+            },
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+    current: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+    linked = HurlTest(
+        path=Path("tests/generated/delete_legacy.hurl"),
+        metadata=HurlMetadata(meta={"source": "openapi", "operation_id": "deleteLegacy"}),
+        exchanges=(HurlExchange(method="DELETE", url="{{base_url}}/legacy", path="/legacy"),),
+    )
+    ignored_manual = HurlTest(
+        path=Path("tests/manual/delete_legacy.hurl"),
+        metadata=HurlMetadata(meta={"operation_id": "deleteLegacy"}),
+    )
+    ignored_missing_operation = HurlTest(
+        path=Path("tests/generated/missing_meta.hurl"),
+        metadata=HurlMetadata(meta={"source": "openapi"}),
+    )
+
+    report = audit_openapi_coverage(
+        current,
+        [linked, ignored_manual, ignored_missing_operation],
+        openapi_diff=audit_openapi_breaking_changes(base, current, base_ref="HEAD"),
+    )
+
+    assert report.openapi_diff is not None
+    assert report.openapi_diff.findings[0].test_paths == ("tests/generated/delete_legacy.hurl",)
+    assert "## OpenAPI Breaking-Change Diff" in render_audit_markdown(report)
