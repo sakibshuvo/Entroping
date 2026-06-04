@@ -157,6 +157,38 @@ def test_cli_compatibility_audit_doc_covers_current_docs_and_artifacts() -> None
     assert "No alias is compatibility-supported" in audit
 
 
+def test_post_alpha_cli_ux_decisions_are_documented_before_surface_changes() -> None:
+    audit = (
+        REPO_ROOT / "docs" / "technical" / "CLI_COMPATIBILITY_AUDIT.md"
+    ).read_text(encoding="utf-8")
+    qanstitution_reference = (
+        REPO_ROOT / "docs" / "technical" / "QANSTITUTION_REFERENCE.md"
+    ).read_text(encoding="utf-8")
+
+    required_audit_phrases = [
+        "## Post-Alpha UX Decision Queue",
+        "Named environments remain the supported runtime contract",
+        "arbitrary env-file paths remain deferred",
+        "`tests/generated/` remains the only generated Hurl output root",
+        "Historical brainstorm commands remain unavailable",
+        "Friendly guidance may be added without adding aliases",
+        "QAnstitution schema compatibility is not package versioning",
+    ]
+    for phrase in required_audit_phrases:
+        assert phrase in audit
+
+    required_schema_phrases = [
+        "## QAnstitution Schema Compatibility",
+        "`qanstitution.yaml` remains the only supported policy filename",
+        "The top-level `version` field is policy metadata",
+        "not the Python package version",
+        "Unknown top-level fields continue to fail validation",
+        "Removing, renaming, or making a field required needs a migration issue",
+    ]
+    for phrase in required_schema_phrases:
+        assert phrase in qanstitution_reference
+
+
 def test_typer_help_matches_locked_cli_contract_flags() -> None:
     runner = CliRunner()
 

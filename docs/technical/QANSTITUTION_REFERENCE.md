@@ -171,6 +171,29 @@ settings:
 | `ignore_failures` | No | Temporary known-failure exceptions |
 | `settings` | No | Runtime defaults |
 
+## QAnstitution Schema Compatibility
+
+`qanstitution.yaml` remains the only supported policy filename. Names such as
+`entroping.yaml` and `entroping-policy.yaml` are intentionally not compatibility
+aliases.
+
+The top-level `version` field is policy metadata for humans, governance packs,
+and future migration notes. It is not the Python package version, not a PEP 440
+release marker, and not the JSON Schema `$id`.
+
+Current compatibility rules:
+
+- Unknown top-level fields continue to fail validation through the Pydantic
+  model and checked-in JSON Schema.
+- Additive optional fields can stay within the current policy shape when they
+  include model updates, regenerated `qanstitution.schema.json`, examples, and
+  tests.
+- Removing, renaming, or making a field required needs a migration issue,
+  migration note, examples for old and new shapes, and `doctor` guidance that
+  fails clearly before runtime execution.
+- Future-policy files that cannot be validated must fail closed. Do not silently
+  ignore unknown governance fields.
+
 ## 5. Sources
 
 ```yaml
