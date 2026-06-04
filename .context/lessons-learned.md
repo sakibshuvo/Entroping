@@ -1,5 +1,13 @@
 # Entroping Lessons Learned
 
+## 2026-06-04
+
+- Context compression is safe only when it is lossless. A decision registry
+  should index durable conclusions and point back to ADRs, docs, issues, source
+  maps, and exports; it must not replace raw history or become a second backlog.
+  Wire retrieval checks into `scripts/doc_governance_check.sh` so agents cannot
+  silently orphan source-history anchors.
+
 ## 2026-06-02
 
 - Obsidian cleanup should mark ownership and archival status before deleting

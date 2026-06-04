@@ -43,6 +43,7 @@ These instructions extend the global Codex rules for this repository. If a rule 
 
 - Follow `docs/meta/DOCS_GOVERNANCE.md` before changing roadmap, progress, product, technical, user, ADR, or context docs.
 - Keep `README.md`, `docs/meta/VAULT_INDEX.md`, `.context/`, and `docs/product/MVP_PLAN.md` aligned with the current implementation milestone.
+- Use `docs/meta/DECISION_REGISTRY.yaml` as the durable decision lookup layer before reading broad historical material; registry summaries point to sources and do not replace them.
 - Keep `docs/meta/PROJECT_PROGRESS.md` current after meaningful feature, bug, or roadmap changes.
 - Add or update an ADR when a product or architecture decision should survive context resets.
 - Use `.context/plan.md` for the active implementation plan, `.context/changelog.md` for concise changes, and `.context/lessons-learned.md` for durable pitfalls and decisions.

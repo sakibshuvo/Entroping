@@ -23,6 +23,7 @@ Do not read the entire vault for every task. Obsidian preserves context by makin
 2. `docs/meta/PROJECT_PROGRESS.md` - current alpha status and issue queue.
 3. `.context/plan.md` - active implementation milestone.
 4. `docs/meta/FEATURE_DELIVERY_CHECKLIST.md` - per-feature execution checklist.
+5. `docs/meta/DECISION_REGISTRY.yaml` - fast lookup index for durable decisions and their source links.
 
 ### Read When Implementing
 
@@ -38,13 +39,18 @@ Do not read the entire vault for every task. Obsidian preserves context by makin
 - `docs/meta/VAULT_INDEX.md` - Obsidian vault map.
 - `.context/changelog.md` - recent work.
 - `.context/lessons-learned.md` - durable pitfalls and decisions.
+- `docs/meta/DECISION_REGISTRY.yaml` - accepted decisions, supersession state, and source pointers.
 - `docs/meta/ISSUE_TRACKING.md` - GitHub issue tracking rules.
 
 ### Read For Product History Only
 
 - `docs/evolution/*`
 - `sources/*`
+- external source exports referenced by `sources/SOURCE_MAP.md`
 - `docs/technical/CODEX_PROMPT.md`
+
+Use `docs/meta/DECISION_REGISTRY.yaml` before reading broad historical material.
+It is an index, not a replacement for the linked source files.
 
 ## New Codex Thread Prompt
 
@@ -86,6 +92,10 @@ ENTROPING_SOURCE_ROOT=/path/to/entroping-specs scripts/context_pack.sh --mode so
 Obsidian is the human navigation layer. It shows product evolution, ADRs, source links, and relationships between docs.
 
 Do not depend on Obsidian workspace state for project truth. The durable notes are Markdown files in Git.
+
+Archive means lower default-reading priority, not deletion. Raw source exports,
+ADRs, issues, and historical notes stay available; registry summaries compress
+the path to them so agents do not have to read the entire vault.
 
 ## Graphify Role
 

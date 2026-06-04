@@ -73,6 +73,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Lossless decision registry](https://github.com/sakibshuvo/Entroping/issues/468) | Done | `docs/meta/DECISION_REGISTRY.yaml` now indexes durable decisions with source pointers, `scripts/source_preservation_check.py` validates local source-history anchors and registry links, and `scripts/context_pack.sh` surfaces the registry for agent handoff without replacing raw history. |
 | [Story traceability gap summary](https://github.com/sakibshuvo/Entroping/issues/434) | Done | `entroping report traceability --output md|json` now links Hurl `story_id` metadata to local `docs/stories/*.md` story documents and reports missing local stories, Markdown stories without tests, duplicate story IDs, malformed story metadata, and unsafe story paths without business-system API calls. |
 | [OpenAPI operation run selection](https://github.com/sakibshuvo/Entroping/issues/435) | Done | `entroping run --operation-id <id>` now selects existing Hurl tests by exact committed `operation_id` metadata, rejects selector conflicts before execution, and records operation ID evidence in JSON/JUnit/HTML reports. |
 | [Runtime known-failure guardrails](https://github.com/sakibshuvo/Entroping/issues/436) | Done | Selected-test `ignore_failures` entries now fail before Hurl execution when their rule ID does not match an injected QAnstitution gate; filtered-out test exceptions remain outside the current subset. |
@@ -100,8 +101,6 @@ entirely inside this repo.
 | Standalone binary distribution decision | Deferred | Nuitka/PyInstaller automation waits for demand and signing runbooks. |
 | Non-GitHub CI provider recipes | Done | Provider docs exist; native templates wait for real runner evidence. |
 | Organization QAnstitution import controls | Done | ADR-0011 defines local-first import provenance and final-gate behavior. |
-| [OpenAPI-generated Hurl pre-write validation](https://github.com/sakibshuvo/Entroping/issues/342) | Done | `architect build --new` validates every compiled Hurl file before writing and leaves no partial files on parser failure. |
-| [HTML run-summary escaping](https://github.com/sakibshuvo/Entroping/issues/343) | Done | `run --report html` escapes the summary header consistently with other rendered report fields. |
 | [Slim public launch docs path](https://github.com/sakibshuvo/Entroping/issues/348) | Done | README and MkDocs lead with demo/user/policy/CI paths while vault/internal memory stays preserved behind project context. |
 | [Brand terminology and QAnstitution naming decision](https://github.com/sakibshuvo/Entroping/issues/349) | Done | ADR-0012 keeps `qanstitution.yaml` canonical, preserves the core philosophy, and rejects unplanned aliases or autonomous-swarm positioning. |
 | [Practical watch TLS and proxy limits](https://github.com/sakibshuvo/Entroping/issues/350) | Done | User docs now set expectations for mitmproxy CA setup, corporate VPN/proxy conflicts, certificate pinning, proxy bypass, session headers, and capture authorization. |

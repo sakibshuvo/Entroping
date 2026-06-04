@@ -33,6 +33,7 @@ For the practical day-to-day distinction between GitHub and Obsidian, read
 | `ROADMAP.md` | Release sequence and public scope, not the full backlog |
 | `docs/meta/PROJECT_PROGRESS.md` | Current phase dashboard and stable-core blocker status |
 | `docs/meta/VAULT_INDEX.md` | Obsidian vault map and historical/product context entry point |
+| `docs/meta/DECISION_REGISTRY.yaml` | Durable decision index with links back to ADRs, docs, issues, and source evidence |
 | `.context/` | Maintainer and agent handoff state |
 | `decisions/` | Durable product and architecture decisions |
 
@@ -54,6 +55,11 @@ Only add a new document when all of these are true:
 
 GitHub Issues remain the backlog. Obsidian can explain why a decision happened,
 but it must not become a second issue tracker.
+
+Use `docs/meta/DECISION_REGISTRY.yaml` when the problem is retrieval, not new
+prose. It should point to existing ADRs, docs, issues, and source exports. It
+must not replace those sources, summarize away contradictions, or become a
+second backlog.
 
 ## Public Docs Curation Rule
 
@@ -88,6 +94,7 @@ the public nav.
 | Product contract changes | `PRODUCT_SPEC.md`, roadmap if priority changes, ADR if durable | Low-level implementation docs |
 | Bug fix with durable lesson | GitHub issue, regression test, `.context/changelog.md`, `.context/lessons-learned.md` if reusable | Roadmap unless priority changed |
 | Source-material reconciliation | Evolution docs, source map, issue if action is needed | Runtime docs until validated |
+| Durable decision indexing | `docs/meta/DECISION_REGISTRY.yaml`, linked ADR/docs/issues/source files | New narrative strategy doc |
 | Public launch or README claim | README, roadmap/progress if scope changed, `scripts/public_claims_audit.py` evidence | TDS unless behavior changed |
 
 Most feature branches should touch one to three documentation surfaces. If a
@@ -129,10 +136,12 @@ Agents must do the following before patching documentation:
 1. Identify the canonical owner from the update matrix.
 2. Update the smallest set of docs that preserves truth.
 3. Avoid duplicating GitHub issue details in Obsidian.
-4. Run `scripts/doc_governance_check.sh`.
-5. Run `python scripts/public_claims_audit.py` directly when changing public
+4. Update `docs/meta/DECISION_REGISTRY.yaml` when a durable decision needs fast
+   retrieval across context resets.
+5. Run `scripts/doc_governance_check.sh`.
+6. Run `python scripts/public_claims_audit.py` directly when changing public
    launch copy, README positioning, roadmap status, or release notes.
-6. Include the Documentation Impact Declaration in the PR or handoff.
+7. Include the Documentation Impact Declaration in the PR or handoff.
 
 Agents must not update `ROADMAP.md` just because code changed. Roadmap edits
 require roadmap-change-gate evidence.
@@ -157,6 +166,8 @@ PR template -> PR body check in CI -> doc governance check -> feature gate -> re
 - `.github/pull_request_template.md` forces the declaration.
 - `scripts/pr_body_check.py` validates the declaration on pull requests.
 - `scripts/doc_governance_check.sh` validates the documentation control plane.
+- `scripts/source_preservation_check.py` validates the decision registry,
+  source-history anchors, and local registry links.
 - `scripts/public_claims_audit.py` rejects unsupported production-readiness and
   security-guarantee claims in public Markdown.
 - `scripts/shell_quality.sh` validates tracked shell script syntax and runs
