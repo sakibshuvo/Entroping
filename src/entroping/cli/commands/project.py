@@ -1,15 +1,18 @@
 """Project setup and local health commands."""
 
+import os
 import sys
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from entroping.cli.shared import console
+from entroping.brain.persona_loader import PersonaLoadError, load_agent_persona
+from entroping.cli.shared import console, display_cli_path, safe_cli_text
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
 from entroping.core.hurl_runner import discover_hurl
 from entroping.core.traffic_store import TrafficStoreError, list_project_exchanges_readonly
+from entroping.models.qanstitution import AgentRole, Qanstitution
 
 MINIMAL_QANSTITUTION = """project: "entroping-project"
 version: "4.1"
@@ -38,6 +41,7 @@ settings:
   follow_redirects: true
   retry: 0
 """
+_AGENT_ROLE_ORDER: tuple[AgentRole, ...] = ("builder", "auditor", "breaker")
 
 
 def register_project_commands(root_app: typer.Typer) -> None:
@@ -102,6 +106,7 @@ def doctor() -> None:
         f"QAnstitution: [green]valid[/green] ({len(law.gates)} gates, "
         f"{len(law.imports)} imports)"
     )
+    _report_agent_readiness(law, config_path=config_path)
 
 
 def _report_traffic_state_health() -> None:
@@ -125,3 +130,45 @@ def _report_traffic_state_health() -> None:
         "[green]Traffic state: valid[/green] "
         f"(.entroping/state.db, {len(exchanges)} {suffix})"
     )
+
+
+def _report_agent_readiness(law: Qanstitution, *, config_path: Path) -> None:
+    if not law.agents:
+        console.print("Agents: [yellow]none configured[/yellow] (AI commands optional)")
+        return
+
+    noun = "agent" if len(law.agents) == 1 else "agents"
+    console.print(f"Agents: {len(law.agents)} configured {noun}")
+    invalid = False
+    for role in _AGENT_ROLE_ORDER:
+        if role not in law.agents:
+            continue
+        try:
+            persona = load_agent_persona(law, role, config_path=config_path)
+        except PersonaLoadError as exc:
+            invalid = True
+            console.print(f"[red]Agent {role}: invalid[/red]")
+            console.print(safe_cli_text(exc), style="red", markup=False)
+            continue
+
+        console.print(
+            f"Agent {role}: ready "
+            f"(model {safe_cli_text(persona.model)}, "
+            f"persona {display_cli_path(persona.source_path)})",
+            style="green",
+            markup=False,
+        )
+        _report_agent_api_key_env(role, persona.api_key_env)
+
+    if invalid:
+        raise typer.Exit(1)
+
+
+def _report_agent_api_key_env(role: AgentRole, api_key_env: str | None) -> None:
+    if api_key_env is None:
+        console.print(f"Agent {role} api_key_env: [yellow]not configured[/yellow]")
+        return
+    if api_key_env in os.environ:
+        console.print(f"Agent {role} api_key_env {api_key_env}: [green]set[/green]")
+    else:
+        console.print(f"Agent {role} api_key_env {api_key_env}: [yellow]not set[/yellow]")
