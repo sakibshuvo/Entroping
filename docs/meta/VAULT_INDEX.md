@@ -19,6 +19,7 @@ Use these first. They are the control panel for current work:
 - [[docs/meta/PROJECT_PROGRESS|PROJECT_PROGRESS]] - current alpha status, issue queue, and next slice.
 - [[docs/meta/FEATURE_DELIVERY_CHECKLIST|FEATURE_DELIVERY_CHECKLIST]] - required gate for every non-trivial change.
 - [[docs/meta/CONTEXT_MANAGEMENT|CONTEXT_MANAGEMENT]] - how Codex, Obsidian, `.context`, and Graphify fit together.
+- [[docs/meta/DECISION_REGISTRY.yaml|DECISION_REGISTRY]] - durable decision index with pointers back to ADRs, docs, issues, and source evidence.
 - `AGENTS.md` - project-local Codex implementation rules.
 - `.context/plan.md` - active implementation milestone and handoff context.
 
@@ -52,6 +53,7 @@ Use these first. They are the control panel for current work:
 - [[docs/meta/ISSUE_TRACKING|ISSUE_TRACKING]] - GitHub issue tracking rules for bugs, features, and regressions.
 - [[docs/meta/OBSIDIAN_VS_GITHUB|OBSIDIAN_VS_GITHUB]] - practical guide for where ideas, bugs, roadmap, and context belong.
 - [[docs/meta/OBSIDIAN_CONTEXT_ENGINE_GUIDE|OBSIDIAN_CONTEXT_ENGINE_GUIDE]] - how to use Obsidian as an agent-friendly context preservation engine.
+- [[docs/meta/DECISION_REGISTRY.yaml|DECISION_REGISTRY]] - fast lookup layer for accepted decisions; summaries do not replace linked source material.
 - [[docs/meta/ENTROPING_PRODUCT_MAP.canvas|ENTROPING_PRODUCT_MAP]] - visual product/context map for the vault.
 - [[docs/meta/ENTROPING_DOCS.base|ENTROPING_DOCS]] - table views over canonical docs, decisions, workflows, and examples.
 - [[ROADMAP|ROADMAP]] - public milestones and near-term sequencing.
@@ -118,6 +120,7 @@ instructions.
 
 ## Decision Trail
 
+- [[docs/meta/DECISION_REGISTRY.yaml|DECISION_REGISTRY]] - lossless decision-memory catalog across ADRs, docs, issues, and source evidence.
 - [[decisions/ADR-0001-hurl-native-governance]]
 - [[decisions/ADR-0002-locked-command-surface]]
 - [[decisions/ADR-0003-local-first-brain]]

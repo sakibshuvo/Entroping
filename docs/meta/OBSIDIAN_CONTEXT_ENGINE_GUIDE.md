@@ -70,7 +70,8 @@ project:
    `docs/meta/DOCS_GOVERNANCE.md` for operating rules.
 5. Use GitHub Issues as the execution backlog.
 6. Use `docs/evolution/`, `sources/SOURCE_MAP.md`, `decisions/`, and
-   `.context/lessons-learned.md` for idea evolution and historical context.
+   `docs/meta/DECISION_REGISTRY.yaml` for idea evolution, decision lookup, and
+   historical context.
 
 The operating loop is:
 
@@ -153,6 +154,10 @@ For source reconciliation sessions, run:
 ```bash
 scripts/context_pack.sh --mode source
 ```
+
+For durable decisions, read `docs/meta/DECISION_REGISTRY.yaml` first, then
+follow its links to ADRs, docs, GitHub issues, or source exports when precision
+matters. The registry is a map, not the territory.
 
 ## Note Types
 

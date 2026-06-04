@@ -2,6 +2,13 @@
 
 ## 2026-06-04
 
+- Added issue #468's lossless decision registry so
+  `docs/meta/DECISION_REGISTRY.yaml` indexes durable product, architecture,
+  workflow, and monetization decisions with links back to ADRs, docs, issues,
+  and source evidence. `scripts/source_preservation_check.py` now validates the
+  registry, local source-history anchors, and registry links through
+  `scripts/doc_governance_check.sh`, while `scripts/context_pack.sh` includes
+  the registry in generated agent context.
 - Added issue #434's story traceability gap summary so
   `entroping report traceability --output md|json` links Hurl `story_id`
   metadata to local `docs/stories/*.md` story documents, reports missing

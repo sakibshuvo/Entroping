@@ -53,6 +53,10 @@ or set `ENTROPING_SOURCE_ROOT`:
 
 Do not merge source exports into the implementation repo as raw dumps. Curate links, analyses, decisions, and promoted requirements.
 
+Use `docs/meta/DECISION_REGISTRY.yaml` as the retrieval layer across this
+history. It compresses durable decisions with pointers back to ADRs, docs,
+issues, and source exports; it does not replace those materials.
+
 ## Source Priority
 
 Current source snapshot:
@@ -69,6 +73,9 @@ Historical evidence:
 
 Historical source material is evidence, not automatic current truth.
 
+Archive means lower default-reading priority, not deletion. Do not summarize and
+remove the original export, note, ADR, or issue evidence.
+
 ## Promotion Gates
 
 Promote source evidence through one of four gates:
@@ -79,6 +86,10 @@ Promote source evidence through one of four gates:
 4. `.context/` note: for current handoff state, changelog, or durable lesson.
 
 If a source insight does not pass one of these gates, it stays archival.
+
+When a promoted decision needs to survive context resets, add or update its
+entry in `docs/meta/DECISION_REGISTRY.yaml`. Keep the registry concise and make
+the source links stronger than the summary.
 
 ## Gemini And NotebookLM Loop
 
@@ -100,7 +111,9 @@ ENTROPING_SOURCE_ROOT=/path/to/entroping-specs scripts/context_pack.sh --mode so
 
 4. Ask the external tool to answer with source-file citations and uncertainty labels.
 5. Convert accepted findings into issues, ADRs, or canonical docs.
-6. Run tests if any repo behavior changed.
+6. Update `docs/meta/DECISION_REGISTRY.yaml` when the accepted finding changes
+   a durable decision.
+7. Run tests if any repo behavior changed.
 
 Do not paste unbounded model output into the vault. Keep the vault curated.
 

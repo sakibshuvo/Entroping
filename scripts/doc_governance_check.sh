@@ -13,6 +13,7 @@ Required anchors include:
   README.md links ROADMAP.md
   ROADMAP.md defines public roadmap boundaries
   docs/meta/DOCS_GOVERNANCE.md defines the update matrix
+  docs/meta/DECISION_REGISTRY.yaml preserves durable decision pointers
   .github/pull_request_template.md requires a Documentation Impact Declaration
   scripts/feature_gate.sh runs this check
 
@@ -78,6 +79,7 @@ require_marker "README.md" "[DOCS_GOVERNANCE.md](docs/meta/DOCS_GOVERNANCE.md)"
 require_marker "ROADMAP.md" "Canonical work tracking lives in:"
 require_marker "ROADMAP.md" "Explicitly Not Near-Term"
 require_marker "docs/meta/VAULT_INDEX.md" "[[ROADMAP|ROADMAP]]"
+require_marker "docs/meta/VAULT_INDEX.md" "[[docs/meta/DECISION_REGISTRY.yaml|DECISION_REGISTRY]]"
 require_marker "docs/meta/VAULT_INDEX.md" "[[docs/meta/OBSIDIAN_VS_GITHUB|OBSIDIAN_VS_GITHUB]]"
 require_marker "docs/meta/OBSIDIAN_VS_GITHUB.md" "## Fast Rule"
 require_marker "docs/meta/OBSIDIAN_VS_GITHUB.md" "## Brainstorming Workflow"
@@ -88,6 +90,7 @@ require_marker "docs/meta/DOCS_GOVERNANCE.md" "## Update Matrix"
 require_marker "docs/meta/DOCS_GOVERNANCE.md" "## Roadmap Change Gate"
 require_marker "docs/meta/DOCS_GOVERNANCE.md" "## Agent Rules"
 require_marker "docs/meta/DOCS_GOVERNANCE.md" "Documentation Impact Declaration"
+require_marker "docs/meta/DOCS_GOVERNANCE.md" "DECISION_REGISTRY.yaml"
 require_marker ".github/pull_request_template.md" "## Documentation Impact Declaration"
 require_marker ".github/pull_request_template.md" "Roadmap/progress updated:"
 require_marker "scripts/feature_gate.sh" "scripts/doc_governance_check.sh"
@@ -104,6 +107,22 @@ if [[ -s "$repo_root/scripts/public_claims_audit.py" ]]; then
       failures+=("public claims audit: $line")
     done <<< "$claims_output"
   fi
+fi
+
+if [[ -s "$repo_root/scripts/source_preservation_check.py" ]]; then
+  if command -v uv >/dev/null 2>&1; then
+    preservation_command=(uv run python "$repo_root/scripts/source_preservation_check.py" --root "$repo_root")
+  else
+    preservation_command=(python3 "$repo_root/scripts/source_preservation_check.py" --root "$repo_root")
+  fi
+  if ! preservation_output="$("${preservation_command[@]}" 2>&1)"; then
+    failures+=("scripts/source_preservation_check.py: failed source preservation check")
+    while IFS= read -r line; do
+      failures+=("source preservation check: $line")
+    done <<< "$preservation_output"
+  fi
+else
+  failures+=("scripts/source_preservation_check.py: missing source preservation check")
 fi
 
 if ((${#failures[@]})); then

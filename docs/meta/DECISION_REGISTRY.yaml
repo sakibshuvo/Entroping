@@ -1,0 +1,317 @@
+schema_version: entroping.decision-registry.v1
+title: Entroping Decision Registry
+status: active
+description: >
+  Lossless index of durable Entroping product, architecture, workflow, and
+  monetization decisions. This registry speeds context retrieval; it does not
+  replace ADRs, canonical docs, GitHub issues, source exports, or raw history.
+preservation_policy:
+  archive_means: lower-default-reading-priority
+  summaries_replace_sources: false
+  raw_sources_retained: true
+  rule: >
+    Compress context with pointers. Do not delete, rewrite, or treat summaries
+    as the only truth for historical source material.
+decisions:
+  - id: ENT-DEC-0001
+    title: Hurl is the deterministic runtime arbiter
+    status: accepted
+    date: "2025-12-26"
+    summary: >
+      Entroping enforces API behavior through Hurl execution rather than Python
+      HTTP clients or LLM judgment. AI can propose tests, but Hurl decides
+      pass/fail in local and CI runs.
+    tags: [hurl, governance, deterministic-core, architecture]
+    source_links:
+      - path: decisions/ADR-0001-hurl-native-governance.md
+        role: adr
+      - path: decisions/ADR-0005-deterministic-run-boundary.md
+        role: adr
+      - path: docs/technical/TDS.md
+        role: technical-contract
+    related_docs:
+      - docs/product/PRODUCT_SPEC.md
+      - docs/technical/QANSTITUTION_REFERENCE.md
+    related_issues: ["#1", "#3", "#4"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0002
+    title: The v4.1 command surface is locked
+    status: accepted
+    date: "2025-12-26"
+    summary: >
+      CLI namespaces and flags should remain constrained to the product spec and
+      command cheat sheet. New commands require explicit product and technical
+      documentation before implementation.
+    tags: [cli, compatibility, product-contract]
+    source_links:
+      - path: decisions/ADR-0002-locked-command-surface.md
+        role: adr
+      - path: docs/technical/COMMAND_CHEAT_SHEET.md
+        role: command-contract
+    related_docs:
+      - docs/product/MVP_PLAN.md
+      - docs/user/USER_GUIDE.md
+    related_issues: ["#1", "#347"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0003
+    title: Entroping is local-first with LiteLLM-backed Brain adapters
+    status: accepted
+    date: "2025-12-26"
+    summary: >
+      The product should work deterministically without provider access, while
+      AI-assisted Architect flows route through LiteLLM instead of provider
+      specific SDKs.
+    tags: [brain, litellm, local-first, ai]
+    source_links:
+      - path: decisions/ADR-0003-local-first-brain.md
+        role: adr
+      - path: docs/evolution/BRAIN_PROVIDER_STRATEGY.md
+        role: evolution
+      - path: docs/user/AI_PROVIDER_SETUP.md
+        role: user-guide
+    related_docs:
+      - docs/meta/AGENT_CONTROL_PLANE.md
+      - docs/technical/TDS.md
+    related_issues: ["#392", "#393", "#394", "#448"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0004
+    title: Hurl metadata comments provide traceability without custom syntax
+    status: accepted
+    date: "2025-12-26"
+    summary: >
+      Entroping stores tags, story IDs, operation IDs, and governance metadata in
+      comments so tests remain valid Hurl and can be run outside Entroping.
+    tags: [hurl, metadata, traceability]
+    source_links:
+      - path: decisions/ADR-0004-hurl-metadata-comments.md
+        role: adr
+      - path: docs/technical/TDS.md
+        role: technical-contract
+    related_docs:
+      - docs/user/USER_FLOWS.md
+      - docs/technical/REPORT_SCHEMAS.md
+    related_issues: ["#2", "#400", "#434", "#435"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0005
+    title: The deterministic run path stays LLM-free
+    status: accepted
+    date: "2025-12-26"
+    summary: >
+      `entroping run` cannot call model providers. CI failures must be
+      reproducible from committed Hurl, QAnstitution, local variables, and local
+      runtime evidence.
+    tags: [ci, deterministic-core, llm-free, security]
+    source_links:
+      - path: decisions/ADR-0005-deterministic-run-boundary.md
+        role: adr
+      - path: AGENTS.md
+        role: implementation-rule
+    related_docs:
+      - docs/meta/TEST_STRATEGY.md
+      - docs/technical/TDS.md
+    related_issues: ["#4", "#396", "#397", "#440", "#441"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0006
+    title: The MVP optimizes for a solo developer loop first
+    status: accepted
+    date: "2025-12-26"
+    summary: >
+      Entroping should prove the local developer governance loop before adding
+      enterprise cloud, dashboards, or broader collaboration features.
+    tags: [mvp, local-first, scope-control]
+    source_links:
+      - path: decisions/ADR-0006-solo-first-mvp.md
+        role: adr
+      - path: docs/product/MVP_PLAN.md
+        role: mvp-plan
+    related_docs:
+      - ROADMAP.md
+      - docs/meta/PROJECT_PROGRESS.md
+    related_issues: ["#1", "#6", "#185"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0007
+    title: External business truth is linked, not owned
+    status: accepted
+    date: "2025-05-29"
+    summary: >
+      Entroping should preserve traceability to stories and business intent, but
+      the open-source core remains local-first and does not become a Jira,
+      Linear, Notion, or project-management replacement.
+    tags: [traceability, business-truth, local-first]
+    source_links:
+      - path: decisions/ADR-0007-external-business-truth.md
+        role: adr
+      - path: docs/meta/ISSUE_TRACKING.md
+        role: workflow
+    related_docs:
+      - docs/user/USER_FLOWS.md
+      - docs/technical/REPORT_SCHEMAS.md
+    related_issues: ["#434"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0008
+    title: Eye freeze and map are bounded traffic-derived artifact flows
+    status: accepted
+    date: "2026-05-29"
+    summary: >
+      Watch captures redacted local traffic, while freeze and map generate
+      reviewable artifacts with explicit boundaries, redaction, and approval
+      evidence before users trust or commit them.
+    tags: [eye, traffic, redaction, artifact-approval]
+    source_links:
+      - path: decisions/ADR-0008-freeze-map-boundaries.md
+        role: adr
+      - path: docs/technical/FREEZE_MAP_PLAN.md
+        role: technical-plan
+    related_docs:
+      - docs/technical/THREAT_MODEL.md
+      - docs/user/USER_GUIDE.md
+    related_issues: ["#60", "#66", "#67", "#68", "#69", "#449"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0009
+    title: Apache-2.0 core with open-core monetization boundaries
+    status: accepted
+    date: "2026-05-30"
+    summary: >
+      The public core should stay adoption-friendly under Apache-2.0, while
+      premium policy packs, hosted workflows, and enterprise services can remain
+      commercial later.
+    tags: [license, open-core, monetization]
+    source_links:
+      - path: decisions/ADR-0009-apache-core-open-core-boundary.md
+        role: adr
+      - path: docs/product/OPEN_CORE_BOUNDARIES.md
+        role: product-boundary
+      - path: docs/product/GROWTH_AND_MONETIZATION.md
+        role: growth-plan
+    related_docs:
+      - ROADMAP.md
+      - docs/meta/DISTRIBUTION_RECOMMENDATION.md
+    related_issues: ["#58", "#332"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0010
+    title: Studio remains read-only until CLI and reports prove the workflow
+    status: accepted
+    date: "2026-05-30"
+    summary: >
+      TUI write actions are deferred; the stable product path runs through CLI,
+      reports, and deterministic artifacts before any interactive mutation layer.
+    tags: [studio, scope-control, cli-first]
+    source_links:
+      - path: decisions/ADR-0010-studio-cli-report-first-boundary.md
+        role: adr
+      - path: docs/technical/STUDIO_MUTATION_WORKFLOW_DESIGN.md
+        role: design-gate
+    related_docs:
+      - docs/product/MVP_PLAN.md
+      - docs/meta/PROJECT_PROGRESS.md
+    related_issues: ["#192"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0011
+    title: Organization QAnstitution imports stay local-first and controlled
+    status: accepted
+    date: "2026-05-31"
+    summary: >
+      Governance imports should support federated policy while preventing
+      surprising remote execution, uncontrolled overrides, or accidental
+      weakening of final gates.
+    tags: [qanstitution, imports, governance, security]
+    source_links:
+      - path: decisions/ADR-0011-organization-qanstitution-import-controls.md
+        role: adr
+      - path: docs/technical/QANSTITUTION_REFERENCE.md
+        role: technical-reference
+    related_docs:
+      - docs/technical/POLICY_PACK_DISTRIBUTION.md
+      - docs/technical/POLICY_PACK_LAYOUT.md
+    related_issues: ["#330", "#331", "#332", "#401", "#447"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0012
+    title: The Entroping and QAnstitution brand language stays intentional
+    status: accepted
+    date: "2026-06-01"
+    summary: >
+      Entroping keeps its invented vocabulary and philosophy. Public docs should
+      explain the terms clearly and avoid overclaiming autonomous-agent behavior,
+      but naming should not be diluted for generic adoption pressure.
+    tags: [brand, qanstitution, product-positioning]
+    source_links:
+      - path: decisions/ADR-0012-brand-integrity-and-qanstitution-name.md
+        role: adr
+      - path: docs/meta/GLOSSARY.md
+        role: glossary
+    related_docs:
+      - README.md
+      - docs/product/MARKETING_NOTE.md
+    related_issues: ["#349"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0013
+    title: Obsidian preserves context; GitHub executes work
+    status: accepted
+    date: "2026-06-01"
+    summary: >
+      The repo remains GitHub-native for backlog, PRs, and release evidence.
+      Obsidian is a human navigation and source-history layer over tracked
+      Markdown, not a second issue tracker or private source of truth.
+    tags: [obsidian, github, context-preservation, workflow]
+    source_links:
+      - path: docs/meta/OBSIDIAN_VS_GITHUB.md
+        role: workflow-guide
+      - path: docs/meta/KNOWLEDGE_BASE_WORKFLOW.md
+        role: source-promotion-guide
+      - path: docs/meta/CONTEXT_MANAGEMENT.md
+        role: context-guide
+    related_docs:
+      - docs/meta/DOCS_GOVERNANCE.md
+      - docs/meta/VAULT_INDEX.md
+    related_issues: ["#371"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0014
+    title: Decision memory is compressed with pointers, not deleted
+    status: accepted
+    date: "2026-06-04"
+    summary: >
+      Durable decision summaries belong in this registry so agents can retrieve
+      context quickly. Raw exports, ADRs, docs, and issue evidence remain the
+      source trail; archiving means lowering default read priority, not deleting
+      or replacing history.
+    tags: [context-preservation, hallucination-control, source-history]
+    source_links:
+      - path: docs/meta/DECISION_REGISTRY.yaml
+        role: registry
+      - path: sources/SOURCE_MAP.md
+        role: source-map
+      - path: notebookLM/2026-05-29 NotebookLM Specs.md
+        role: external-source
+        external: true
+    related_docs:
+      - docs/meta/DOCS_GOVERNANCE.md
+      - docs/meta/OBSIDIAN_CONTEXT_ENGINE_GUIDE.md
+    related_issues: ["#468"]
+    supersedes: []
+    superseded_by: null
