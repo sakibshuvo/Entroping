@@ -89,6 +89,17 @@ For public launch previews, use the
 - [Dependency map screenshot](docs/assets/launch/dependency-map-screenshot.png)
   generated from redacted traffic state.
 
+## Security Policy Pack Wedge
+
+The [OWASP API Top 10 starter policy pack](examples/policy-packs/owasp-api-top-10/README.md)
+is the quickest way to see Entroping as runtime governance instead of generic
+test generation. Vendor the pack, import its `qanstitution.yaml`, and use Hurl
+evidence to catch missing auth, missing request ID headers, server-error
+regressions, and latency budget breaches before merge.
+
+This is an OWASP API Security Top 10-inspired starter pack. It is not official
+OWASP endorsement, not complete compliance, and not certification evidence.
+
 ## What You Get
 
 Entroping is not another AI chat wrapper. It is an execution boundary for API

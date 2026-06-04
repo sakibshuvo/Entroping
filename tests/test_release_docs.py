@@ -203,6 +203,31 @@ def test_readme_promotes_demo_wrapper_without_expanding_cli_surface() -> None:
     assert "entroping demo" not in command_cheat_sheet
 
 
+def test_readme_frontloads_owasp_policy_pack_wedge_without_overclaiming() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    first_read = readme.split("## Current Alpha", maxsplit=1)[0]
+    normalized_first_read = " ".join(first_read.split())
+
+    required_phrases = [
+        "OWASP API Top 10 starter policy pack",
+        "examples/policy-packs/owasp-api-top-10",
+        "missing auth",
+        "request ID",
+        "before merge",
+        "inspired starter pack",
+        "not official OWASP endorsement",
+        "not complete compliance",
+    ]
+    for phrase in required_phrases:
+        assert phrase in normalized_first_read
+
+    assert normalized_first_read.index(
+        "OWASP API Top 10 starter policy pack"
+    ) < normalized_first_read.index(
+        "## What You Get"
+    )
+
+
 def test_zero_config_demo_decision_keeps_live_smoke_as_release_gate() -> None:
     decision = (
         REPO_ROOT / "docs" / "meta" / "ZERO_CONFIG_DEMO_ENTRYPOINT.md"
