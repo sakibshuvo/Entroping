@@ -116,6 +116,7 @@ Runtime responsibilities:
 - Resolve test files, tags, and environment variables.
 - Load `qanstitution.yaml` and imported governance rules.
 - Inject matching gates into execution copies of tests.
+- Fail early on unresolved Hurl variables before subprocess execution.
 - Run Hurl with deterministic subprocess calls.
 - Emit local reports and strict CI exit codes.
 

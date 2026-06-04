@@ -29,6 +29,7 @@ def test_report_bug_generates_markdown_from_latest_failing_run(
         "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
         encoding="utf-8",
     )
+    monkeypatch.setenv("HURL_VARIABLE_base_url", "http://localhost:18080")
 
     def fake_run(
         args: list[str],

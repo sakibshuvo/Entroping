@@ -31,8 +31,9 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#393](https://github.com/sakibshuvo/Entroping/issues/393)
-turns Auditor from configured persona metadata into an explicit review workflow.
+Current issue: [#394](https://github.com/sakibshuvo/Entroping/issues/394)
+validates configured agent personas and provider environment readiness in
+`doctor`.
 Next local slices should keep moving useful runtime and developer workflow
 features before returning to blocked external stable-core proof.
 
@@ -51,9 +52,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#393](https://github.com/sakibshuvo/Entroping/issues/393) | Finish Auditor-backed review mode for coverage and policy findings. |
-| 2 | [#396](https://github.com/sakibshuvo/Entroping/issues/396) | Preflight unresolved Hurl variables before subprocess execution to catch common local and CI failures earlier. |
-| 3 | [#394](https://github.com/sakibshuvo/Entroping/issues/394) | Validate configured agent personas and provider environment readiness in `doctor`. |
+| 1 | [#394](https://github.com/sakibshuvo/Entroping/issues/394) | Validate configured agent personas and provider environment readiness in `doctor`. |
+| 2 | [#395](https://github.com/sakibshuvo/Entroping/issues/395) | Add `doctor --output json` health output for scripts and external agents. |
+| 3 | [#397](https://github.com/sakibshuvo/Entroping/issues/397) | Select impacted Hurl tests from git diff to speed local regression loops. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -96,6 +97,8 @@ entirely inside this repo.
 | [Hardened XML report parsing](https://github.com/sakibshuvo/Entroping/issues/364) | Done | JUnit XML read paths for GitHub annotations and review summaries use `defusedxml` and reject DTD/entity constructs before rendering findings. |
 | [Captured-traffic redaction hardening](https://github.com/sakibshuvo/Entroping/issues/365) | Done | Multipart request and response bodies are persisted only as redacted media-type summaries, and broad token patterns avoid short documentation placeholders. |
 | [Breaker-backed prompt generation](https://github.com/sakibshuvo/Entroping/issues/392) | Done | `architect build --agent breaker --prompt ...` loads the configured Breaker persona/model and tags generated Hurl with `breaker`. |
+| [Auditor-backed Architect review](https://github.com/sakibshuvo/Entroping/issues/393) | Done | `architect audit --focus auditor` loads the configured Auditor persona/model, validates review JSON, and writes no files. |
+| [Hurl variable preflight](https://github.com/sakibshuvo/Entroping/issues/396) | Done | `entroping run` fails before Hurl execution when selected tests reference unresolved variables, while reporting only missing names. |
 | [`py.typed` package marker](https://github.com/sakibshuvo/Entroping/issues/366) | Done | Built wheel and sdist artifacts now include `entroping/py.typed`, and `scripts/package_check.sh` fails if either artifact omits it. |
 | [Run workflow integration proof](https://github.com/sakibshuvo/Entroping/issues/367) | Done | A Python integration test invokes `entroping run` with a fake `hurl` executable, proving discovery, gate injection, subprocess execution, source immutability, and JSON/JUnit reports together. |
 | [Shell script quality gate](https://github.com/sakibshuvo/Entroping/issues/369) | Done | `scripts/shell_quality.sh` now runs `bash -n` over tracked shell scripts, runs ShellCheck when available, and is wired into the feature gate before Python checks. |
