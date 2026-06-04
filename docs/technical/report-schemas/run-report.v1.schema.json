@@ -63,6 +63,38 @@
           },
           "stdout": {"type": "string"},
           "stderr": {"type": "string"},
+          "retry": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["retry_count", "unstable", "attempts"],
+            "properties": {
+              "retry_count": {"type": "integer", "minimum": 0},
+              "unstable": {"type": "boolean"},
+              "attempts": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "attempt",
+                    "status",
+                    "exit_code",
+                    "duration_ms",
+                    "stdout_truncated",
+                    "stderr_truncated"
+                  ],
+                  "properties": {
+                    "attempt": {"type": "integer", "minimum": 1},
+                    "status": {"type": "string"},
+                    "exit_code": {"type": "integer"},
+                    "duration_ms": {"type": "integer", "minimum": 0},
+                    "stdout_truncated": {"type": "boolean"},
+                    "stderr_truncated": {"type": "boolean"}
+                  }
+                }
+              }
+            }
+          },
           "known_failures": {
             "type": "array",
             "items": {

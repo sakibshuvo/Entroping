@@ -11,7 +11,7 @@ import pytest
 import entroping.core.report_writer as report_writer
 from entroping.bridge.policy_to_hurl import HurlGateAssertion
 from entroping.core.gate_injector import AppliedKnownFailure, HurlExecutionCopy
-from entroping.core.hurl_runner import HurlFileResult, HurlSuiteResult
+from entroping.core.hurl_runner import HurlAttemptEvidence, HurlFileResult, HurlSuiteResult
 from entroping.core.report_writer import (
     ReportWriterError,
     build_run_report,
@@ -144,6 +144,240 @@ def test_reports_include_applied_known_failure_evidence(tmp_path: Path) -> None:
     assert "Known failures" in html
     assert "GH-123" in html
     assert "Temporary upstream latency regression." in html
+
+
+def test_reports_include_retry_and_flake_evidence_without_raw_attempt_output(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "tests" / "eventual.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "eventual.hurl"
+    suite = HurlSuiteResult(
+        results=(
+            HurlFileResult(
+                path=execution,
+                command=("/bin/hurl", str(execution)),
+                status="passed",
+                exit_code=0,
+                stdout="HTTP 200\n",
+                stderr="",
+                stdout_truncated=False,
+                stderr_truncated=False,
+                duration_ms=50,
+                attempts=(
+                    HurlAttemptEvidence(
+                        attempt=1,
+                        status="failed",
+                        exit_code=42,
+                        duration_ms=20,
+                        stdout_truncated=True,
+                        stderr_truncated=False,
+                    ),
+                    HurlAttemptEvidence(
+                        attempt=2,
+                        status="passed",
+                        exit_code=0,
+                        duration_ms=30,
+                        stdout_truncated=False,
+                        stderr_truncated=False,
+                    ),
+                ),
+            ),
+        ),
+    )
+    report = build_run_report(
+        project="checkout-api",
+        environment="local",
+        execution_copies=[_execution_copy(source, execution)],
+        suite=suite,
+        project_root=tmp_path,
+    )
+
+    payload = report_writer.run_report_to_dict(report)
+    tests_payload = payload["tests"]
+    assert isinstance(tests_payload, list)
+    first_test = tests_payload[0]
+    assert isinstance(first_test, Mapping)
+    assert first_test["retry"] == {
+        "retry_count": 1,
+        "unstable": True,
+        "attempts": [
+            {
+                "attempt": 1,
+                "status": "failed",
+                "exit_code": 42,
+                "duration_ms": 20,
+                "stdout_truncated": True,
+                "stderr_truncated": False,
+            },
+            {
+                "attempt": 2,
+                "status": "passed",
+                "exit_code": 0,
+                "duration_ms": 30,
+                "stdout_truncated": False,
+                "stderr_truncated": False,
+            },
+        ],
+    }
+    assert "raw attempt" not in json.dumps(first_test)
+
+    junit_path = tmp_path / "reports" / "junit.xml"
+    write_junit_report(report, junit_path)
+    properties = ElementTree.parse(junit_path).getroot().find("testcase/properties")
+    assert properties is not None
+    values = {
+        property_node.attrib["name"]: property_node.attrib["value"]
+        for property_node in properties.findall("property")
+    }
+    assert values["entroping.retry_count"] == "1"
+    assert values["entroping.unstable"] == "true"
+    assert values["entroping.attempt.1"] == "failed exit=42 duration_ms=20"
+    assert values["entroping.attempt.2"] == "passed exit=0 duration_ms=30"
+
+    html_path = tmp_path / "reports" / "run-latest.html"
+    write_html_report(report, html_path)
+    html = html_path.read_text(encoding="utf-8")
+    assert "Retry evidence" in html
+    assert "unstable: true" in html
+    assert "attempt 1: failed exit=42 duration_ms=20" in html
+
+
+def test_junit_failure_text_includes_retry_evidence_for_final_failures(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "tests" / "unstable-fail.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "unstable-fail.hurl"
+    suite = HurlSuiteResult(
+        results=(
+            HurlFileResult(
+                path=execution,
+                command=("/bin/hurl", str(execution)),
+                status="failed",
+                exit_code=42,
+                stdout="",
+                stderr="assert failed\n",
+                stdout_truncated=False,
+                stderr_truncated=False,
+                duration_ms=50,
+                attempts=(
+                    HurlAttemptEvidence(
+                        attempt=1,
+                        status="timeout",
+                        exit_code=124,
+                        duration_ms=20,
+                        stdout_truncated=False,
+                        stderr_truncated=False,
+                    ),
+                    HurlAttemptEvidence(
+                        attempt=2,
+                        status="failed",
+                        exit_code=42,
+                        duration_ms=30,
+                        stdout_truncated=False,
+                        stderr_truncated=False,
+                    ),
+                ),
+            ),
+        ),
+    )
+    report = build_run_report(
+        project="checkout-api",
+        environment="ci",
+        execution_copies=[_execution_copy(source, execution)],
+        suite=suite,
+        project_root=tmp_path,
+    )
+
+    junit_path = tmp_path / "reports" / "junit.xml"
+    write_junit_report(report, junit_path)
+
+    failure = ElementTree.parse(junit_path).getroot().find("testcase/failure")
+    assert failure is not None
+    assert "retry: count=1; unstable=true" in (failure.text or "")
+    assert "attempt 1 timeout exit=124 duration_ms=20" in (failure.text or "")
+
+
+def test_load_run_report_round_trips_retry_evidence_and_ignores_malformed_entries(
+    tmp_path: Path,
+) -> None:
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(
+        json.dumps(
+            {
+                "project": "checkout-api",
+                "environment": "local",
+                "generated_at": "2026-06-03T00:00:00+00:00",
+                "summary": {"total": 2, "passed": 1, "failed": 1, "exit_code": 1},
+                "tests": [
+                    {
+                        "path": "tests/eventual.hurl",
+                        "execution_path": ".entroping/run/eventual.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 50,
+                        "rule_ids": [],
+                        "stdout": "",
+                        "stderr": "",
+                        "retry": {
+                            "retry_count": 1,
+                            "unstable": True,
+                            "attempts": [
+                                "not-a-dict",
+                                {
+                                    "attempt": 1,
+                                    "status": "failed",
+                                    "exit_code": 42,
+                                    "duration_ms": 20,
+                                    "stdout_truncated": False,
+                                    "stderr_truncated": True,
+                                },
+                                {
+                                    "attempt": 2,
+                                    "status": "invalid",
+                                    "exit_code": 0,
+                                    "duration_ms": 30,
+                                    "stdout_truncated": False,
+                                    "stderr_truncated": False,
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "path": "tests/no-retry.hurl",
+                        "execution_path": ".entroping/run/no-retry.hurl",
+                        "status": "failed",
+                        "exit_code": 1,
+                        "duration_ms": 10,
+                        "rule_ids": [],
+                        "stdout": "",
+                        "stderr": "",
+                        "retry": "not-a-dict",
+                    },
+                ],
+            },
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = load_run_report(latest)
+
+    assert report.tests[0].retry.retry_count == 1
+    assert report.tests[0].retry.unstable
+    assert [
+        (
+            attempt.attempt,
+            attempt.status,
+            attempt.exit_code,
+            attempt.duration_ms,
+            attempt.stdout_truncated,
+            attempt.stderr_truncated,
+        )
+        for attempt in report.tests[0].retry.attempts
+    ] == [(1, "failed", 42, 20, False, True)]
+    assert report.tests[1].retry.retry_count == 0
+    assert not report.tests[1].retry.unstable
 
 
 def test_write_json_report_includes_sanitized_response_fingerprint(tmp_path: Path) -> None:

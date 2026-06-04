@@ -108,6 +108,12 @@ when an active QAnstitution exception skipped an injected gate. These entries
 must stay issue-linked, expiring, and value-free; they are evidence of a scoped
 policy exception, not a general pass/fail override.
 
+`entroping.run-report.v1` also includes a per-test `retry` object. It records
+`retry_count`, whether the test was `unstable`, and a value-free `attempts`
+array with attempt number, status, exit code, duration, and truncation flags.
+The retry block must not include raw per-attempt stdout, stderr, headers,
+bodies, prompts, provider data, or secrets.
+
 ## Producer Rules
 
 - Writers must include `schema_version` on versioned JSON report payloads.

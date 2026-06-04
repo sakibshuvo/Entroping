@@ -12,8 +12,10 @@ from entroping.core.report_fingerprint import (
 )
 from entroping.models.report import (
     KnownFailureEvidence,
+    RunAttemptEvidence,
     RunReport,
     RunReportSummary,
+    RunRetryEvidence,
     RunTestReport,
 )
 
@@ -39,6 +41,7 @@ def load_run_report(path: Path) -> RunReport:
             response_headers=_serialized_response_headers(item.get("response")),
             response_body_shape=_serialized_response_body_shape(item.get("response")),
             known_failures=_serialized_known_failures(item.get("known_failures")),
+            retry=_serialized_retry(item.get("retry")),
         )
         for item in data["tests"]
     )
@@ -84,6 +87,7 @@ def _test_report_to_dict(test: RunTestReport) -> dict[str, object]:
         "rule_ids": list(test.rule_ids),
         "stdout": test.stdout,
         "stderr": test.stderr,
+        "retry": _retry_to_dict(test.retry),
     }
     response = _response_to_dict(test)
     if response is not None:
@@ -102,6 +106,24 @@ def _test_report_to_dict(test: RunTestReport) -> dict[str, object]:
     return payload
 
 
+def _retry_to_dict(retry: RunRetryEvidence) -> dict[str, object]:
+    return {
+        "retry_count": retry.retry_count,
+        "unstable": retry.unstable,
+        "attempts": [
+            {
+                "attempt": attempt.attempt,
+                "status": attempt.status,
+                "exit_code": attempt.exit_code,
+                "duration_ms": attempt.duration_ms,
+                "stdout_truncated": attempt.stdout_truncated,
+                "stderr_truncated": attempt.stderr_truncated,
+            }
+            for attempt in retry.attempts
+        ],
+    }
+
+
 def _response_to_dict(test: RunTestReport) -> dict[str, object] | None:
     if (
         test.response_status_code is None
@@ -114,6 +136,51 @@ def _response_to_dict(test: RunTestReport) -> dict[str, object] | None:
         "headers": dict(test.response_headers),
         "body_shape": list(test.response_body_shape),
     }
+
+
+def _serialized_retry(raw_retry: object) -> RunRetryEvidence:
+    if not isinstance(raw_retry, Mapping):
+        return RunRetryEvidence()
+    retry_count = raw_retry.get("retry_count")
+    unstable = raw_retry.get("unstable")
+    raw_attempts = raw_retry.get("attempts")
+    attempts: list[RunAttemptEvidence] = []
+    if isinstance(raw_attempts, list):
+        for item in raw_attempts:
+            if not isinstance(item, Mapping):
+                continue
+            attempt = item.get("attempt")
+            status = item.get("status")
+            exit_code = item.get("exit_code")
+            duration_ms = item.get("duration_ms")
+            stdout_truncated = item.get("stdout_truncated")
+            stderr_truncated = item.get("stderr_truncated")
+            if (
+                not isinstance(attempt, int)
+                or attempt <= 0
+                or status not in {"passed", "failed", "timeout", "error"}
+                or not isinstance(exit_code, int)
+                or not isinstance(duration_ms, int)
+                or duration_ms < 0
+                or not isinstance(stdout_truncated, bool)
+                or not isinstance(stderr_truncated, bool)
+            ):
+                continue
+            attempts.append(
+                RunAttemptEvidence(
+                    attempt=attempt,
+                    status=status,
+                    exit_code=exit_code,
+                    duration_ms=duration_ms,
+                    stdout_truncated=stdout_truncated,
+                    stderr_truncated=stderr_truncated,
+                )
+            )
+    return RunRetryEvidence(
+        retry_count=retry_count if isinstance(retry_count, int) and retry_count >= 0 else 0,
+        unstable=unstable if isinstance(unstable, bool) else False,
+        attempts=tuple(attempts),
+    )
 
 
 def _serialized_known_failures(raw_known_failures: object) -> tuple[KnownFailureEvidence, ...]:

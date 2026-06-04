@@ -108,7 +108,7 @@ quality:
 - Turn OpenAPI specs into reviewable Hurl regression tests.
 - Inject global QAnstitution gates into every run without mutating source tests.
 - Capture and redact live traffic, then freeze flows or dependency mocks.
-- Emit JSON, JUnit, HTML, drift, SARIF, bug, and traceability reports for local review and CI.
+- Emit JSON, JUnit, HTML, drift, SARIF, bug, retry/flake, and traceability evidence for local review and CI.
 
 ```mermaid
 flowchart LR

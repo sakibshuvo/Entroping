@@ -70,6 +70,11 @@ project, and a Codex workspace with fast context rehydration.
   variables from env files, shell `HURL_VARIABLE_<name>` values, local Hurl
   `[Options] variable` entries, captures, and known Hurl built-ins, while
   reporting only missing names.
+- `entroping run` applies `settings.retry` as a bounded per-file Hurl
+  subprocess retry budget. The final attempt status remains authoritative, and
+  JSON/JUnit/HTML/review-summary artifacts expose retry count, attempt status,
+  exit code, duration, and unstable pass-after-retry signals without raw
+  per-attempt output.
 - `entroping run --changed-from <ref>` selects existing changed `.hurl` files
   from Git diff for fast local or agent feedback; it is not a replacement for
   full-suite release gates.
