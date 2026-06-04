@@ -131,6 +131,7 @@ def freeze(
         )
         for output_path in mock_result.output_paths:
             console.print(f"Wrote WireMock mapping: {display_cli_path(output_path)}")
+        console.print(f"Wrote approval manifest: {display_cli_path(mock_result.manifest_path)}")
         return
 
     try:
@@ -147,6 +148,7 @@ def freeze(
     noun = "record" if freeze_result.record_count == 1 else "records"
     console.print(f"[green]Froze {freeze_result.record_count} traffic {noun} into Hurl.[/green]")
     console.print(f"Wrote Hurl test: {display_cli_path(freeze_result.output_path)}")
+    console.print(f"Wrote approval manifest: {display_cli_path(freeze_result.manifest_path)}")
 
 
 def map(
@@ -201,6 +203,8 @@ def map(
 
     if result.output_path is not None:
         console.print(f"Wrote dependency map: {display_cli_path(result.output_path)}")
+        if result.manifest_path is not None:
+            console.print(f"Wrote approval manifest: {display_cli_path(result.manifest_path)}")
         return
 
     console.print(result.content, markup=False, end="")

@@ -31,9 +31,9 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#449](https://github.com/sakibshuvo/Entroping/issues/449)
-adds approval manifests for captured artifacts after the provider budget
-evidence slice.
+Current issue: [#437](https://github.com/sakibshuvo/Entroping/issues/437)
+reports OpenAPI breaking-change diffs after the captured-artifact approval
+manifest slice.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -50,9 +50,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#449](https://github.com/sakibshuvo/Entroping/issues/449) | Generate approval manifests for captured artifacts. |
-| 2 | [#437](https://github.com/sakibshuvo/Entroping/issues/437) | Report OpenAPI breaking-change diffs. |
-| 3 | [#436](https://github.com/sakibshuvo/Entroping/issues/436) | Enforce runtime known-failure semantics with expiry evidence. |
+| 1 | [#437](https://github.com/sakibshuvo/Entroping/issues/437) | Report OpenAPI breaking-change diffs. |
+| 2 | [#436](https://github.com/sakibshuvo/Entroping/issues/436) | Enforce runtime known-failure semantics with expiry evidence. |
+| 3 | [#435](https://github.com/sakibshuvo/Entroping/issues/435) | Select tests by OpenAPI operation ID. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -73,6 +73,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Captured-artifact approval manifests](https://github.com/sakibshuvo/Entroping/issues/449) | Done | `freeze`, `freeze --mock`, and `map --export png` now write value-free approval manifests under `reports/approvals/` with generated paths, checksums, deterministic source fingerprints, and counts-only redaction summaries without raw traffic values. |
 | [Provider budget evidence](https://github.com/sakibshuvo/Entroping/issues/448) | Done | Prompt-backed Architect build, refactor, and Auditor review paths expose provider, latency, token counts when available, and configured cost estimates in CLI/review output and value-free agent run manifests without prompts, secrets, or raw provider responses. |
 | [Reusable QAnstitution gate groups](https://github.com/sakibshuvo/Entroping/issues/447) | Done | `gate_groups` expands local reusable gates into ordinary runtime rules, rejects missing references and cycles before execution, preserves import/final semantics, and shows source group provenance in effective-policy reports. |
 | [CI-readiness doctor mode](https://github.com/sakibshuvo/Entroping/issues/446) | Done | `entroping doctor --ci` validates Hurl availability, safe `.entroping/` and `reports/` paths, suite manifests, required Hurl variables, and provider-free `run --ci` expectations without CI provider APIs, workflow mutation, or env-value disclosure. |
@@ -126,7 +127,6 @@ entirely inside this repo.
 | [Report writer module split](https://github.com/sakibshuvo/Entroping/issues/370) | Done | Report building keeps the existing facade while JSON serialization, response fingerprinting, JUnit/HTML/bug rendering, and report errors now live in focused modules. |
 | [Vault/context archival cleanup](https://github.com/sakibshuvo/Entroping/issues/371) | Done | One-off demo-entrypoint context is marked archival, evolution docs are labeled historical evidence, and Obsidian/GitHub/source-promotion guides have explicit ownership boundaries. |
 | [Read-only Studio applied-gate drilldowns](https://github.com/sakibshuvo/Entroping/issues/192) | Done | Studio links latest-run report rule IDs to QAnstitution gate definitions. |
-| Read-only Studio traffic session browser | Done | The read-only traffic session browser uses redacted SQLModel-backed state, target/dependency grouping, and safe redaction categories and counts. It does not start `watch` and does not expose raw URLs with query values, headers, bodies, cookies, tokens, or secrets. |
 
 ## Source Of Truth
 

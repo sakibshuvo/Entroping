@@ -1,5 +1,6 @@
 """Tests for dependency map export orchestration."""
 
+import json
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
@@ -11,6 +12,7 @@ from entroping.bridge.traffic_sessions import build_traffic_session_candidate
 from entroping.bridge.traffic_to_graph import compile_traffic_dependency_graph
 from entroping.core.dependency_mapper import DependencyMapError, run_dependency_map
 from entroping.core.safe_write import SafeWriteError
+from entroping.core.traffic_artifact_manifest import TrafficArtifactApprovalError
 from entroping.core.traffic_filters import TrafficCaptureFilters
 from entroping.core.traffic_redactor import redact_traffic_exchange
 from entroping.core.traffic_store import TrafficStore, TrafficStoreError
@@ -89,7 +91,17 @@ def test_run_dependency_map_png_writes_graphviz_output(
     assert result.export_format == "png"
     assert result.content == ""
     assert result.output_path == tmp_path / "reports" / "dependency-map.png"
+    assert result.manifest_path == (
+        tmp_path / "reports" / "approvals" / "dependency-map-png.json"
+    )
     assert result.output_path.read_bytes() == b"\x89PNG\r\n"
+    manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    assert manifest["schema_version"] == "entroping.traffic-artifact-approval.v1"
+    assert manifest["workflow"] == "dependency-map"
+    assert manifest["source"]["session_name"] == "dependency_map"
+    assert manifest["source"]["record_count"] == 1
+    assert manifest["artifacts"][0]["kind"] == "dependency_map"
+    assert manifest["artifacts"][0]["path"] == "reports/dependency-map.png"
     assert calls == [
         {
             "args": ["/bin/dot", "-Tpng"],
@@ -134,6 +146,7 @@ def test_run_dependency_map_printable_exports(
     assert expected in result.content
     assert result.route_count == 1
     assert result.output_path is None
+    assert result.manifest_path is None
 
 
 def test_run_dependency_map_applies_capture_filters_before_graph_export(tmp_path: Path) -> None:
@@ -411,3 +424,43 @@ def test_run_dependency_map_png_preserves_existing_target_when_atomic_write_fail
         run_dependency_map(project_root=tmp_path, export_format="png")
 
     assert output.read_bytes() == b"old"
+
+
+def test_run_dependency_map_png_wraps_approval_manifest_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_exchange(tmp_path)
+
+    def fake_run(
+        args: list[str],
+        *,
+        input: bytes,
+        capture_output: bool,
+        text: bool,
+        timeout: int,
+        check: bool,
+        shell: bool,
+    ) -> subprocess.CompletedProcess[bytes]:
+        _ = input, capture_output, text, timeout, check, shell
+        return subprocess.CompletedProcess(
+            args=args,
+            returncode=0,
+            stdout=b"\x89PNG\r\n",
+            stderr=b"",
+        )
+
+    def fail_manifest(*args: object, **kwargs: object) -> object:
+        _ = args, kwargs
+        raise TrafficArtifactApprovalError("approval refused")
+
+    monkeypatch.setattr("entroping.core.dependency_mapper.shutil.which", lambda name: "/bin/dot")
+    monkeypatch.setattr("entroping.core.dependency_mapper.subprocess.run", fake_run)
+    monkeypatch.setattr(
+        dependency_mapper,
+        "write_traffic_artifact_approval_manifest",
+        fail_manifest,
+    )
+
+    with pytest.raises(DependencyMapError, match="approval refused"):
+        run_dependency_map(project_root=tmp_path, export_format="png")

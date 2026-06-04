@@ -2,6 +2,12 @@
 
 ## 2026-06-04
 
+- Added issue #449's captured-artifact approval manifests so `freeze`,
+  `freeze --mock`, and `map --export png` write
+  `reports/approvals/*.json` with schema
+  `entroping.traffic-artifact-approval.v1`, generated paths, checksums,
+  deterministic source fingerprints, and counts-only redaction summaries
+  without raw traffic values or approval decisions.
 - Added issue #448's provider budget evidence so prompt-backed Architect build,
   refactor, and Auditor review paths expose provider, latency, token counts
   when available, and estimated cost when local QAnstitution rate hints are

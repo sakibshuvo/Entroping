@@ -22,6 +22,11 @@ from entroping.bridge.traffic_to_wiremock import (
 from entroping.core.hurl_validator import HurlValidationError, validate_hurl_content
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.safe_write import SafeWriteError, safe_write_text
+from entroping.core.traffic_artifact_manifest import (
+    TrafficArtifactApprovalError,
+    TrafficArtifactManifestArtifact,
+    write_traffic_artifact_approval_manifest,
+)
 from entroping.core.traffic_filters import (
     TrafficCaptureFilters,
     TrafficFilterError,
@@ -40,6 +45,7 @@ class FreezeResult:
     """Result of a successful freeze workflow."""
 
     output_path: Path
+    manifest_path: Path
     record_count: int
 
 
@@ -48,6 +54,7 @@ class FreezeMockResult:
     """Result of a successful WireMock freeze workflow."""
 
     output_paths: tuple[Path, ...]
+    manifest_path: Path
     record_count: int
 
 
@@ -84,8 +91,19 @@ def run_freeze(
         output_path = _resolve_generated_hurl_path(generated, root=root)
         active_validator(generated.content, generated.relative_path)
         _write_text_atomically(output_path, generated.content, root=root)
+        manifest = write_traffic_artifact_approval_manifest(
+            project_root=root,
+            manifest_name=f"freeze-{freeze_name}",
+            workflow="freeze-hurl",
+            source_session_name=session.name,
+            source_records=tuple(record.exchange for record in session.records),
+            artifacts=(
+                TrafficArtifactManifestArtifact(kind="hurl", path=output_path),
+            ),
+        )
     except (
         HurlValidationError,
+        TrafficArtifactApprovalError,
         TrafficHurlCompilationError,
         TrafficFilterError,
         TrafficSessionError,
@@ -93,7 +111,11 @@ def run_freeze(
     ) as exc:
         raise FreezeError(str(exc)) from exc
 
-    return FreezeResult(output_path=output_path, record_count=len(session.records))
+    return FreezeResult(
+        output_path=output_path,
+        manifest_path=manifest.manifest_path,
+        record_count=len(session.records),
+    )
 
 
 def run_freeze_mock(
@@ -137,8 +159,20 @@ def run_freeze_mock(
                 artifact="WireMock mapping",
                 root=root,
             )
+        manifest = write_traffic_artifact_approval_manifest(
+            project_root=root,
+            manifest_name=f"freeze-{freeze_name}-mock-{mock_service}",
+            workflow="freeze-wiremock",
+            source_session_name=session.name,
+            source_records=tuple(record.exchange for record in session.records),
+            artifacts=tuple(
+                TrafficArtifactManifestArtifact(kind="wiremock", path=output_path)
+                for output_path in output_paths
+            ),
+        )
     except (
         json.JSONDecodeError,
+        TrafficArtifactApprovalError,
         TrafficFilterError,
         TrafficSessionError,
         TrafficStoreError,
@@ -146,7 +180,11 @@ def run_freeze_mock(
     ) as exc:
         raise FreezeError(str(exc)) from exc
 
-    return FreezeMockResult(output_paths=output_paths, record_count=len(generated_mappings))
+    return FreezeMockResult(
+        output_paths=output_paths,
+        manifest_path=manifest.manifest_path,
+        record_count=len(generated_mappings),
+    )
 
 
 def _filtered_exchanges(

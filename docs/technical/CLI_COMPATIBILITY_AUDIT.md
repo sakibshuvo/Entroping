@@ -97,6 +97,7 @@ only through a compatibility issue and migration note.
 | --- | --- |
 | `entroping run` | `.entroping/latest-run.json` |
 | Prompt-backed `entroping architect ...` | `.entroping/agent-runs/*.json` |
+| `entroping freeze` / `freeze --mock` / `map --export png` | `reports/approvals/*.json` |
 | `entroping run --report json` | `reports/run-latest.json` |
 | `entroping run --report junit` | `reports/junit.xml` |
 | `entroping run --report html` | `reports/run-latest.html` |

@@ -202,6 +202,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | OBS-008 | Filter capture noise | Static assets, analytics beacons, and irrelevant hosts can be excluded from traffic sessions |
 | OBS-009 | Stitch sessions | Related captured calls are grouped into named or recent user-flow sessions before `freeze` |
 | OBS-010 | Control state growth | Local state has retention or rotation settings so traffic capture cannot grow without bound |
+| OBS-011 | Review generated traffic artifacts | `freeze`, `freeze --mock`, and `map --export png` write value-free approval manifests with generated paths, checksums, deterministic source fingerprints, and redaction summaries without raw traffic values |
 
 ### 9.5 Execution and Reporting
 

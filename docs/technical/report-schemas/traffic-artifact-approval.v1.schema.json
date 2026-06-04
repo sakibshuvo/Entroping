@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sakibshuvo.github.io/Entroping/schemas/traffic-artifact-approval.v1.schema.json",
+  "title": "Entroping Traffic Artifact Approval Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "workflow", "source", "redaction", "artifacts"],
+  "properties": {
+    "schema_version": {"const": "entroping.traffic-artifact-approval.v1"},
+    "workflow": {"enum": ["freeze-hurl", "freeze-wiremock", "dependency-map"]},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["session_name", "session_id", "record_count", "record_fingerprints"],
+      "properties": {
+        "session_name": {"type": "string", "minLength": 1},
+        "session_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "record_count": {"type": "integer", "minimum": 1},
+        "record_fingerprints": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "redaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_records",
+        "redacted_records",
+        "unredacted_records",
+        "request_count",
+        "response_count",
+        "header_categories",
+        "query_categories",
+        "body_categories",
+        "body_summary_categories"
+      ],
+      "properties": {
+        "total_records": {"type": "integer", "minimum": 0},
+        "redacted_records": {"type": "integer", "minimum": 0},
+        "unredacted_records": {"type": "integer", "minimum": 0},
+        "request_count": {"type": "integer", "minimum": 0},
+        "response_count": {"type": "integer", "minimum": 0},
+        "header_categories": {"$ref": "#/$defs/category_counts"},
+        "query_categories": {"$ref": "#/$defs/category_counts"},
+        "body_categories": {"$ref": "#/$defs/category_counts"},
+        "body_summary_categories": {"$ref": "#/$defs/category_counts"}
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "path", "size_bytes", "sha256"],
+        "properties": {
+          "kind": {"enum": ["hurl", "wiremock", "dependency_map"]},
+          "path": {"type": "string", "minLength": 1},
+          "size_bytes": {"type": "integer", "minimum": 0},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "category_counts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["category", "count"],
+        "properties": {
+          "category": {"type": "string", "minLength": 1},
+          "count": {"type": "integer", "minimum": 0}
+        }
+      }
+    }
+  }
+}
