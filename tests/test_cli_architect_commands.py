@@ -8,6 +8,7 @@ from cli_test_support import (
     HurlValidationError,
     LiteLLMCompletionResult,
     LiteLLMUsage,
+    OpenApiHurlCompilationResult,
     Path,
     _accept_architect_hurl_validation,
     _accept_architect_refactor_hurl_validation,
@@ -78,6 +79,62 @@ paths:
     assert "# entroping: source=openapi" in content
     assert "GET {{base_url}}/health" in content
     assert "HTTP 200" in content
+
+
+def test_architect_build_new_generates_security_negative_tests_and_warnings(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _accept_openapi_hurl_validation(monkeypatch)
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+sources:
+  spec: ./openapi.yaml
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    Path("openapi.yaml").write_text(
+        """
+openapi: "3.1.0"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+    oauth:
+      type: oauth2
+      flows: {}
+paths:
+  /secure:
+    get:
+      operationId: getSecure
+      security:
+        - bearerAuth: []
+        - oauth: []
+      responses:
+        "200":
+          description: ok
+        "401":
+          description: unauthorized
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["architect", "build", "--new"])
+
+    assert result.exit_code == 0
+    assert "Generated 3 Hurl tests" in result.output
+    assert "OpenAPI security coverage warning: getSecure oauth" in result.output
+    assert "unsupported security scheme type oauth2" in result.output
+    missing = Path("tests/generated/security/get_secure_missing_auth.hurl")
+    invalid = Path("tests/generated/security/get_secure_invalid_bearer_auth.hurl")
+    assert missing.is_file()
+    assert invalid.is_file()
+    assert "# entroping: security=missing_auth" in missing.read_text(encoding="utf-8")
+    assert "Authorization: Bearer invalid-token" in invalid.read_text(encoding="utf-8")
 
 
 def test_architect_build_new_writes_parameterized_generated_hurl(
@@ -352,8 +409,11 @@ paths: {}
 
     monkeypatch.setattr(
         architect_cli,
-        "compile_openapi_to_hurl",
-        lambda document, tags, operation_ids=None: generated,
+        "compile_openapi_to_hurl_with_report",
+        lambda document, tags, operation_ids=None: OpenApiHurlCompilationResult(
+            files=generated,
+            security_findings=(),
+        ),
     )
     monkeypatch.setattr(
         architect_cli,
@@ -412,8 +472,11 @@ paths: {}
 
     monkeypatch.setattr(
         architect_cli,
-        "compile_openapi_to_hurl",
-        lambda document, tags, operation_ids=None: generated,
+        "compile_openapi_to_hurl_with_report",
+        lambda document, tags, operation_ids=None: OpenApiHurlCompilationResult(
+            files=generated,
+            security_findings=(),
+        ),
     )
     monkeypatch.setattr(architect_cli, "validate_hurl_content", fail_validation, raising=False)
 

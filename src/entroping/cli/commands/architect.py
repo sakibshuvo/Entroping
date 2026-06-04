@@ -37,7 +37,8 @@ from entroping.bridge.openapi_diff import (
 from entroping.bridge.openapi_to_hurl import (
     GeneratedHurlFile,
     OpenApiCompilationError,
-    compile_openapi_to_hurl,
+    OpenApiSecurityCoverageFinding,
+    compile_openapi_to_hurl_with_report,
 )
 from entroping.cli.shared import (
     console,
@@ -155,12 +156,12 @@ def architect_build(
                 )
                 return
             operation_ids = frozenset(changes.generation_operation_ids)
-        generated = compile_openapi_to_hurl(
+        compilation = compile_openapi_to_hurl_with_report(
             document,
             tags=tag_filters,
             operation_ids=operation_ids,
         )
-        prepared = _prepare_generated_hurl_files(generated)
+        prepared = _prepare_generated_hurl_files(compilation.files)
         written = [_write_prepared_generated_hurl_file(item) for item in prepared]
     except (
         QanstitutionLoadError,
@@ -176,6 +177,7 @@ def architect_build(
     console.print(f"[green]Generated {len(written)} Hurl {noun} under tests/generated.[/green]")
     for path in written:
         console.print(f"Wrote Hurl test: {display_cli_path(path)}")
+    _print_security_coverage_findings(compilation.security_findings)
 
 
 @app.command("refactor")
@@ -389,6 +391,22 @@ def _print_openapi_change_summary(
         console.print(
             "Removed OpenAPI operations require manual review: "
             f"{safe_cli_text(', '.join(removed_operation_ids))}",
+            markup=False,
+            soft_wrap=True,
+        )
+
+
+def _print_security_coverage_findings(
+    findings: Sequence[OpenApiSecurityCoverageFinding],
+) -> None:
+    for finding in findings:
+        console.print(
+            "OpenAPI security coverage warning: "
+            f"{safe_cli_text(finding.operation_id)} "
+            f"{safe_cli_text(finding.scheme_name)} "
+            f"({safe_cli_text(finding.method)} {safe_cli_text(finding.path)}): "
+            f"{safe_cli_text(finding.reason)}",
+            style="yellow",
             markup=False,
             soft_wrap=True,
         )

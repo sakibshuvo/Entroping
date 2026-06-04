@@ -80,6 +80,11 @@ files with explicit managed blocks. Prompt-backed `architect build --strategy
 merge` is available for existing Hurl targets. Successful prompt-backed
 Builder, Breaker, refactor, merge, and Auditor review runs write value-free
 manifests under `.entroping/agent-runs/`. Remote specs remain planned.
+For OpenAPI operations with security requirements and an explicit `401` or
+`403` response, `architect build --new` also emits auth-negative tests under
+`tests/generated/security/` for supported HTTP bearer/basic and API-key
+header/query/cookie schemes. Unsupported security schemes are warning findings,
+not guessed tests.
 
 | Command | Purpose |
 | --- | --- |

@@ -18,7 +18,7 @@ import entroping.cli.commands.report as report_cli
 import entroping.cli.main as cli_main
 from entroping.brain.litellm_client import BrainProviderError, LiteLLMCompletionResult, LiteLLMUsage
 from entroping.brain.prompt_builder import ArchitectPromptPackage
-from entroping.bridge.openapi_to_hurl import GeneratedHurlFile
+from entroping.bridge.openapi_to_hurl import GeneratedHurlFile, OpenApiHurlCompilationResult
 from entroping.cli.main import app
 from entroping.core.hurl_runner import HurlFileResult, HurlRunOptions, HurlSuiteResult
 from entroping.core.hurl_validator import HurlValidationError
@@ -156,6 +156,7 @@ __all__ = [
     "LiteLLMUsage",
     "ArchitectPromptPackage",
     "GeneratedHurlFile",
+    "OpenApiHurlCompilationResult",
     "app",
     "HurlFileResult",
     "HurlRunOptions",

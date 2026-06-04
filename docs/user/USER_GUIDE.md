@@ -118,6 +118,12 @@ This mode writes tests only for current added, modified, or renamed OpenAPI
 operations. Removed operations are reported for manual review; Entroping does
 not delete existing Hurl tests automatically.
 
+When an OpenAPI operation declares security requirements and an explicit `401`
+or `403` response, `architect build --new` also writes deterministic
+auth-negative Hurl coverage under `tests/generated/security/`. Supported HTTP
+bearer/basic and API-key header/query/cookie schemes get missing/invalid auth
+tests. Unsupported schemes are printed as warnings instead of guessed.
+
 Generate or merge scoped prompt-backed coverage:
 
 ```bash
