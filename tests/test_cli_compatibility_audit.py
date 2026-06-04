@@ -108,6 +108,11 @@ LOCKED_CLI_CONTRACTS = (
     ),
     CliContract("entroping report bug", ("report", "bug", "--help"), ()),
     CliContract(
+        "entroping report delta [--base <path>] [--current <path>] [--output <md|json>]",
+        ("report", "delta", "--help"),
+        ("--base", "--current", "--output"),
+    ),
+    CliContract(
         "entroping report redaction [--output <md|html>]",
         ("report", "redaction", "--help"),
         ("--output",),
@@ -186,6 +191,7 @@ REPORT_ARTIFACTS = (
     "reports/effective-policy.json",
     "reports/review-summary.md",
     "reports/entroping.sarif",
+    "stdout Run Delta Markdown/JSON",
     "stdout Architect OpenAPI audit JSON",
     "stdout Markdown",
     "stdout GitHub Actions annotations",

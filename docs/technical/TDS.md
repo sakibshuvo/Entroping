@@ -617,6 +617,7 @@ Reports are written under `reports/`.
 | Audit Markdown/JSON | `architect audit --output md|json` | OpenAPI operation-to-Hurl coverage matrix |
 | Drift Baseline Promotion | `report promote-drift-baseline` | Reviewed candidate promotion |
 | Bug Markdown | `report bug` | Issue tracker handoff |
+| Run Delta | `report delta` | Run-to-run regression delta for PR review |
 | Redaction Review | `report redaction --output md|html` | Captured-traffic redaction coverage review |
 | Effective Policy | `report policy --output md|json` | Resolved QAnstitution gate provenance |
 | Traceability Markdown | `report traceability --output md` | Local story/test coverage review |
@@ -715,6 +716,7 @@ entroping studio [--env <name>]
 entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
 entroping report bug
 entroping report failure-bundle [--output <directory>]
+entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
 entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
 entroping report traceability [--output md]
@@ -789,6 +791,15 @@ promotion step. It reads `reports/drift-baseline.candidate.json` by default,
 requires the current `entroping.drift-baseline.v1` schema, rejects unsafe paths
 and malformed candidates, then atomically writes `.entroping/drift-baseline.json`.
 
+`entroping report delta` compares two local JSON run reports without executing
+Hurl, calling model providers, or uploading results. It emits Markdown or JSON
+with schema version `entroping.run-delta-report.v1`, sorted added failures,
+resolved failures, changed failures, unchanged failures, latency deltas, and
+policy-gate deltas. The command exits `1` when the current run introduces added
+or changed failures, exits `0` when failures only resolve or stay unchanged,
+and never renders raw stdout, stderr, headers, bodies, prompts, provider data,
+or secrets.
+
 `entroping report review-summary` writes a provider-neutral Markdown artifact
 from local reports only. It reads the JSON run report, JUnit XML, drift JSON,
 and optional local traceability metadata, then writes `reports/review-summary.md`
@@ -832,6 +843,7 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report promote-drift-baseline` | `.entroping/drift-baseline.json` | Active local drift baseline promoted from a reviewed candidate. |
 | `entroping report bug` | `reports/bug.md` | Markdown handoff for issue trackers. |
 | `entroping report failure-bundle` | `reports/failure-bundle/manifest.json` | Sanitized local handoff bundle using `entroping.failure-bundle.v1`. |
+| `entroping report delta --output md|json` | `stdout Run Delta Markdown/JSON` | Run-to-run regression delta using `entroping.run-delta-report.v1`. |
 | `entroping report redaction --output md` | `reports/redaction-review.md` | Counts-only captured-traffic redaction review. |
 | `entroping report redaction --output html` | `reports/redaction-review.html` | Browser-readable captured-traffic redaction review. |
 | `entroping report policy --output md` | `reports/effective-policy.md` | Human-readable resolved QAnstitution gate provenance. |

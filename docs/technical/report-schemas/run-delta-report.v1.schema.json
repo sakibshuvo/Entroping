@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sakibshuvo.github.io/Entroping/schemas/run-delta-report.v1.schema.json",
+  "title": "Entroping Run Delta Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "base",
+    "current",
+    "summary",
+    "added_failures",
+    "resolved_failures",
+    "changed_failures",
+    "unchanged_failures",
+    "latency_deltas",
+    "policy_gate_deltas"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.run-delta-report.v1"
+    },
+    "status": {
+      "enum": ["pass", "fail"]
+    },
+    "base": {
+      "$ref": "#/$defs/run_reference"
+    },
+    "current": {
+      "$ref": "#/$defs/run_reference"
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base_total",
+        "current_total",
+        "added_failures",
+        "resolved_failures",
+        "changed_failures",
+        "unchanged_failures",
+        "latency_deltas",
+        "policy_gate_deltas"
+      ],
+      "properties": {
+        "base_total": {"type": "integer", "minimum": 0},
+        "current_total": {"type": "integer", "minimum": 0},
+        "added_failures": {"type": "integer", "minimum": 0},
+        "resolved_failures": {"type": "integer", "minimum": 0},
+        "changed_failures": {"type": "integer", "minimum": 0},
+        "unchanged_failures": {"type": "integer", "minimum": 0},
+        "latency_deltas": {"type": "integer", "minimum": 0},
+        "policy_gate_deltas": {"type": "integer", "minimum": 0}
+      }
+    },
+    "added_failures": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/failure_delta"}
+    },
+    "resolved_failures": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/failure_delta"}
+    },
+    "changed_failures": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/failure_delta"}
+    },
+    "unchanged_failures": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/failure_delta"}
+    },
+    "latency_deltas": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/latency_delta"}
+    },
+    "policy_gate_deltas": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/policy_gate_delta"}
+    }
+  },
+  "$defs": {
+    "run_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project", "environment", "generated_at", "total"],
+      "properties": {
+        "project": {"type": "string"},
+        "environment": {"type": "string"},
+        "generated_at": {"type": "string"},
+        "total": {"type": "integer", "minimum": 0}
+      }
+    },
+    "failure_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "base_status",
+        "current_status",
+        "base_exit_code",
+        "current_exit_code",
+        "base_rule_ids",
+        "current_rule_ids"
+      ],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "base_status": {"type": ["string", "null"]},
+        "current_status": {"type": ["string", "null"]},
+        "base_exit_code": {"type": ["integer", "null"]},
+        "current_exit_code": {"type": ["integer", "null"]},
+        "base_rule_ids": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "current_rule_ids": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "latency_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "base_duration_ms", "current_duration_ms", "delta_ms"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "base_duration_ms": {"type": "integer", "minimum": 0},
+        "current_duration_ms": {"type": "integer", "minimum": 0},
+        "delta_ms": {"type": "integer"}
+      }
+    },
+    "policy_gate_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "added_rule_ids", "resolved_rule_ids"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "added_rule_ids": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "resolved_rule_ids": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    }
+  }
+}

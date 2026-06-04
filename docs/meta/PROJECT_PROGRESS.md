@@ -31,11 +31,11 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#444](https://github.com/sakibshuvo/Entroping/issues/444)
-adds run-to-run regression delta reporting after live traffic route audit,
-security-scheme coverage generation, explicit timeout evidence, tag-expression
-run selection, sanitized agent run manifests, bounded retry/flake evidence, and
-capture filters landed.
+Current issue: [#445](https://github.com/sakibshuvo/Entroping/issues/445)
+adds coverage badges from local report evidence after run-to-run regression
+delta reporting, live traffic route audit, security-scheme coverage generation,
+explicit timeout evidence, tag-expression run selection, sanitized agent run
+manifests, bounded retry/flake evidence, and capture filters landed.
 Next local slices should keep moving useful runtime and developer workflow
 features before returning to blocked external stable-core proof.
 
@@ -54,9 +54,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#444](https://github.com/sakibshuvo/Entroping/issues/444) | Add run-to-run regression delta reporting. |
-| 2 | [#445](https://github.com/sakibshuvo/Entroping/issues/445) | Generate coverage badges from local reports. |
-| 3 | [#446](https://github.com/sakibshuvo/Entroping/issues/446) | Validate CI environment readiness in doctor. |
+| 1 | [#445](https://github.com/sakibshuvo/Entroping/issues/445) | Generate coverage badges from local reports. |
+| 2 | [#446](https://github.com/sakibshuvo/Entroping/issues/446) | Validate CI environment readiness in doctor. |
+| 3 | [#447](https://github.com/sakibshuvo/Entroping/issues/447) | Add reusable QAnstitution gate groups. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -77,6 +77,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Run-to-run regression delta](https://github.com/sakibshuvo/Entroping/issues/444) | Done | `entroping report delta --base <path> --current <path> --output md|json` compares two local JSON run reports, emits schema-versioned added/resolved/changed/unchanged failure, latency, and policy-gate deltas, exits nonzero for added or changed failures, and never renders raw stdout/stderr. |
 | [Traffic-vs-OpenAPI route audit](https://github.com/sakibshuvo/Entroping/issues/443) | Done | `architect audit --focus logic` now opportunistically reads redacted Eye traffic state, compares captured route summaries to OpenAPI templates, flags undocumented observed routes, and reports documented/spec-only route evidence without raw query strings, headers, cookies, bodies, host userinfo, or captured values. |
 | [OpenAPI security-scheme coverage generation](https://github.com/sakibshuvo/Entroping/issues/442) | Done | `architect build --new` now emits deterministic missing/invalid auth tests under `tests/generated/security/` for OpenAPI operations with supported HTTP bearer/basic or API-key header/query/cookie schemes and explicit `401`/`403` responses; unsupported schemes are warning findings, not guessed tests. |
 | [Timeout evidence per test](https://github.com/sakibshuvo/Entroping/issues/441) | Done | JSON/JUnit/HTML/review-summary artifacts now include effective per-test `timeout_ms`; Hurl subprocess timeouts use status `timeout`, exit code `124`, timeout-specific JUnit failure typing, and timeout findings distinct from assertion failures. |

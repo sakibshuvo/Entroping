@@ -99,6 +99,11 @@ project, and a Codex workspace with fast context rehydration.
   generated bug Markdown, failed-test Hurl metadata, and already-reviewed local
   report artifacts. It refuses missing/latest-passing runs, raw traffic state,
   local env files, source Hurl contents, and unsafe artifact paths.
+- `entroping report delta --base <path> --current <path> --output md|json`
+  compares two local JSON run reports without executing Hurl, calling
+  providers, or uploading results. It emits schema
+  `entroping.run-delta-report.v1` with added, resolved, changed, unchanged,
+  latency, and policy-gate deltas, and it never renders raw stdout/stderr.
 - `entroping report sarif` writes SARIF 2.1.0 from local JUnit, drift, and
   optional traceability findings for code-scanning import. It does not execute
   Hurl, call providers, or upload results.

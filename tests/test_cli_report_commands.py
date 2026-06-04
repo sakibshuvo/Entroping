@@ -232,6 +232,172 @@ def test_report_bug_wraps_writer_errors(
     assert "could not write bug" in result.output
 
 
+def test_report_delta_outputs_json_and_fails_on_added_failures(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports_dir = Path("reports")
+    base_path = reports_dir / "base.json"
+    current_path = reports_dir / "current.json"
+    write_json_report(
+        RunReport(
+            project="checkout-api",
+            environment="ci",
+            generated_at="2026-06-04T00:00:00+00:00",
+            summary=RunReportSummary(total=1, passed=1, failed=0, exit_code=0),
+            tests=(
+                RunTestReport(
+                    path="tests/health.hurl",
+                    execution_path=".entroping/run/health.hurl",
+                    status="passed",
+                    exit_code=0,
+                    duration_ms=10,
+                    rule_ids=(),
+                    stdout="Authorization: Bearer delta-secret",
+                    stderr="token=delta-secret",
+                ),
+            ),
+        ),
+        base_path,
+    )
+    write_json_report(
+        RunReport(
+            project="checkout-api",
+            environment="ci",
+            generated_at="2026-06-04T00:01:00+00:00",
+            summary=RunReportSummary(total=1, passed=0, failed=1, exit_code=1),
+            tests=(
+                RunTestReport(
+                    path="tests/health.hurl",
+                    execution_path=".entroping/run/health.hurl",
+                    status="failed",
+                    exit_code=1,
+                    duration_ms=20,
+                    rule_ids=("global_latency",),
+                    stdout="Authorization: Bearer delta-secret",
+                    stderr="token=delta-secret",
+                ),
+            ),
+        ),
+        current_path,
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "report",
+            "delta",
+            "--base",
+            str(base_path),
+            "--current",
+            str(current_path),
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["schema_version"] == "entroping.run-delta-report.v1"
+    assert payload["status"] == "fail"
+    assert payload["added_failures"][0]["path"] == "tests/health.hurl"
+    assert payload["latency_deltas"][0]["delta_ms"] == 10
+    assert "delta-secret" not in result.output
+    assert "token=" not in result.output
+
+
+def test_report_delta_outputs_markdown_and_passes_when_failures_resolve(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports_dir = Path("reports")
+    base_path = reports_dir / "base.json"
+    current_path = reports_dir / "current.json"
+    write_json_report(
+        RunReport(
+            project="checkout-api",
+            environment="ci",
+            generated_at="2026-06-04T00:00:00+00:00",
+            summary=RunReportSummary(total=1, passed=0, failed=1, exit_code=1),
+            tests=(
+                RunTestReport(
+                    path="tests/refund.hurl",
+                    execution_path=".entroping/run/refund.hurl",
+                    status="failed",
+                    exit_code=1,
+                    duration_ms=10,
+                    rule_ids=("old_gate",),
+                    stdout="",
+                    stderr="",
+                ),
+            ),
+        ),
+        base_path,
+    )
+    write_json_report(
+        RunReport(
+            project="checkout-api",
+            environment="ci",
+            generated_at="2026-06-04T00:01:00+00:00",
+            summary=RunReportSummary(total=1, passed=1, failed=0, exit_code=0),
+            tests=(
+                RunTestReport(
+                    path="tests/refund.hurl",
+                    execution_path=".entroping/run/refund.hurl",
+                    status="passed",
+                    exit_code=0,
+                    duration_ms=10,
+                    rule_ids=(),
+                    stdout="",
+                    stderr="",
+                ),
+            ),
+        ),
+        current_path,
+    )
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "delta", "--base", str(base_path), "--current", str(current_path)],
+    )
+
+    assert result.exit_code == 0
+    assert "# Entroping Run Delta" in result.output
+    assert "Status: **pass**" in result.output
+    assert "tests/refund.hurl" in result.output
+
+
+def test_report_delta_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["report", "delta", "--output", "html"])
+
+    assert result.exit_code == 2
+    assert "Unsupported delta output" in result.output
+
+
+def test_report_delta_wraps_report_load_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "report",
+            "delta",
+            "--base",
+            "reports/missing-base.json",
+            "--current",
+            "reports/current.json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Could not compare run reports" in result.output
+
+
 def test_report_redaction_writes_markdown_without_raw_secret(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

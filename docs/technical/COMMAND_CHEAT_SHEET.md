@@ -25,6 +25,8 @@ entroping map [--export <mermaid|dot|md|png>] [capture filters]
 entroping studio [--env <name>]
 entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
 entroping report bug
+entroping report failure-bundle [--output <directory>]
+entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
 entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
 entroping report traceability [--output md]
@@ -224,6 +226,7 @@ Variables can come from `envs/<name>.env`, explicit shell
 | --- | --- |
 | `entroping report bug` | Generate a Markdown bug report from the latest failure |
 | `entroping report failure-bundle` | Write a sanitized issue handoff bundle to `reports/failure-bundle/manifest.json` |
+| `entroping report delta --base <path> --current <path>` | Compare two JSON run reports and emit deterministic Markdown or JSON delta output |
 | `entroping report redaction --output md` | Write a counts-only captured-traffic redaction review to `reports/redaction-review.md` |
 | `entroping report redaction --output html` | Write a browser-readable redaction review to `reports/redaction-review.html` |
 | `entroping report policy --output md` | Write effective QAnstitution gate provenance to `reports/effective-policy.md` |
@@ -239,6 +242,7 @@ Example:
 ```bash
 entroping report bug
 entroping report failure-bundle
+entroping report delta --base reports/run-base.json --current reports/run-latest.json
 entroping report redaction --output md
 entroping report policy --output md
 entroping report traceability --output md

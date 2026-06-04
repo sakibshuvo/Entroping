@@ -47,7 +47,7 @@ Entroping gives that workflow a hard guardrail:
 - **Your spec exists but tests do not:** generate reviewable Hurl coverage from OpenAPI.
 - **Legacy behavior is undocumented:** watch real traffic, redact it, and freeze regression tests or mocks.
 - **Rules should apply everywhere:** enforce status, latency, headers, and policy-pack gates through `qanstitution.yaml`.
-- **PRs need evidence:** emit JSON, JUnit, HTML, drift, traceability, and GitHub annotations.
+- **PRs need evidence:** emit JSON, JUnit, HTML, drift, delta, traceability, and GitHub annotations.
 
 ## Try It In Two Minutes
 
@@ -109,7 +109,7 @@ quality:
   supported auth-negative coverage from declared security schemes.
 - Inject global QAnstitution gates into every run without mutating source tests.
 - Capture and redact live traffic, then freeze flows or dependency mocks.
-- Emit JSON, JUnit, HTML, drift, SARIF, bug, retry/flake, and traceability evidence for local review and CI.
+- Emit JSON, JUnit, HTML, drift, delta, SARIF, bug, retry/flake, and traceability evidence for local review and CI.
 
 ```mermaid
 flowchart LR
@@ -119,7 +119,7 @@ flowchart LR
   Eye --> Tests
   Law["qanstitution.yaml"] --> Enforcer["Enforcer: entroping run"]
   Tests --> Enforcer
-  Enforcer --> Reports["Reports: JSON, JUnit, HTML, drift, SARIF"]
+  Enforcer --> Reports["Reports: JSON, JUnit, HTML, drift, delta, SARIF"]
   Reports --> CI["Local dev and CI gates"]
 ```
 
@@ -139,7 +139,7 @@ Built today:
 - Hurl discovery, metadata parsing, tag filters, gate matching, temporary
   execution-copy injection, subprocess timeouts, output redaction, and bounded
   parallel execution.
-- JSON, JUnit, HTML, drift, SARIF, bug, and traceability reporting.
+- JSON, JUnit, HTML, drift, delta, SARIF, bug, and traceability reporting.
 - Deterministic OpenAPI-to-Hurl generation plus Architect prompt build,
   merge, refactor, audit, persona loading, LiteLLM routing, structured output
   parsing, and pre-write Hurl validation.
@@ -373,6 +373,7 @@ entroping studio [--env <name>]
 entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
 entroping report bug
 entroping report failure-bundle [--output <directory>]
+entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
 entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
 entroping report traceability [--output md]
