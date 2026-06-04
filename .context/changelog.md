@@ -6,6 +6,10 @@
   optional `litellm`'s `aiohttp` dependency from vulnerable `3.13.5` to
   `3.14.0`, restoring the all-extras dependency audit gate without adding a
   direct runtime dependency.
+- Added issue #381's README OWASP policy-pack wedge so the public launch story
+  highlights the local starter pack as runtime security governance while
+  preserving explicit non-endorsement, non-compliance, and non-certification
+  boundaries.
 
 ## 2026-06-02
 
