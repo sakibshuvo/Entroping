@@ -21,6 +21,7 @@ def test_ci_provider_recipes_cover_requested_providers_without_untested_template
         "uv tool install",
         "entroping doctor",
         "entroping run --ci --report json --report junit --report html",
+        "entroping report sarif",
         "entroping report review-summary",
         "reports/",
         "No provider secrets are required by Entroping itself",

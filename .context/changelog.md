@@ -2,6 +2,10 @@
 
 ## 2026-06-03
 
+- Added issue #398's SARIF report output so `entroping report sarif` writes
+  `reports/entroping.sarif` from local JUnit, drift, and optional traceability
+  findings with stable rule IDs, SARIF severities, best-effort locations,
+  redacted text, and no provider calls or upload side effects.
 - Added issue #397's changed-test run mode so
   `entroping run --changed-from <ref>` selects existing changed `.hurl` files
   from Git diff for fast local or agent feedback while preserving full-suite

@@ -431,6 +431,16 @@ entroping report github-annotations
 Add `--traceability` only after the repository uses `story_id` metadata and you
 want missing or conflicting story links to show as annotations.
 
+To write SARIF 2.1.0 for GitHub code scanning or another SARIF consumer:
+
+```bash
+entroping report sarif --traceability
+```
+
+This writes `reports/entroping.sarif` from local JUnit, drift, and optional
+traceability findings. Entroping does not upload the SARIF file; your CI system
+owns that step.
+
 For provider-neutral CI review text that can be uploaded as an artifact or
 posted by any CI system, write a Markdown summary from the local artifacts:
 

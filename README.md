@@ -108,7 +108,7 @@ quality:
 - Turn OpenAPI specs into reviewable Hurl regression tests.
 - Inject global QAnstitution gates into every run without mutating source tests.
 - Capture and redact live traffic, then freeze flows or dependency mocks.
-- Emit JSON, JUnit, HTML, drift, bug, and traceability reports for local review and CI.
+- Emit JSON, JUnit, HTML, drift, SARIF, bug, and traceability reports for local review and CI.
 
 ```mermaid
 flowchart LR
@@ -118,7 +118,7 @@ flowchart LR
   Eye --> Tests
   Law["qanstitution.yaml"] --> Enforcer["Enforcer: entroping run"]
   Tests --> Enforcer
-  Enforcer --> Reports["Reports: JSON, JUnit, HTML, drift"]
+  Enforcer --> Reports["Reports: JSON, JUnit, HTML, drift, SARIF"]
   Reports --> CI["Local dev and CI gates"]
 ```
 
@@ -138,7 +138,7 @@ Built today:
 - Hurl discovery, metadata parsing, tag filters, gate matching, temporary
   execution-copy injection, subprocess timeouts, output redaction, and bounded
   parallel execution.
-- JSON, JUnit, HTML, drift, bug, and traceability reporting.
+- JSON, JUnit, HTML, drift, SARIF, bug, and traceability reporting.
 - Deterministic OpenAPI-to-Hurl generation plus Architect prompt build,
   merge, refactor, audit, persona loading, LiteLLM routing, structured output
   parsing, and pre-write Hurl validation.
@@ -368,6 +368,7 @@ entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
 entroping report traceability [--output md]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
+entroping report sarif [--output <path>] [--junit <path>] [--drift <path>] [--traceability]
 entroping report review-summary [--output md] [--junit <path>] [--run-json <path>] [--drift <path>] [--traceability]
 ```
 

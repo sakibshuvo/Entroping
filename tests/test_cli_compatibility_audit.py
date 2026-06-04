@@ -95,6 +95,14 @@ LOCKED_CLI_CONTRACTS = (
     ),
     CliContract(
         (
+            "entroping report sarif "
+            "[--output <path>] [--junit <path>] [--drift <path>] [--traceability]"
+        ),
+        ("report", "sarif", "--help"),
+        ("--output", "--junit", "--drift", "--traceability"),
+    ),
+    CliContract(
+        (
             "entroping report review-summary "
             "[--output md] [--junit <path>] [--run-json <path>] [--drift <path>] "
             "[--traceability]"
@@ -130,6 +138,7 @@ REPORT_ARTIFACTS = (
     "reports/effective-policy.md",
     "reports/effective-policy.json",
     "reports/review-summary.md",
+    "reports/entroping.sarif",
     "stdout Markdown",
     "stdout GitHub Actions annotations",
 )

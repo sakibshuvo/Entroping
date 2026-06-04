@@ -28,6 +28,7 @@ def test_github_actions_example_is_pinned_and_artifact_backed() -> None:
         "uv tool install",
         "entroping doctor",
         "entroping run --ci",
+        "entroping report sarif",
         "reports/",
     ]
     for term in required_terms:
