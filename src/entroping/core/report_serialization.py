@@ -38,6 +38,7 @@ def load_run_report(path: Path) -> RunReport:
             stdout=item["stdout"],
             stderr=item["stderr"],
             timeout_ms=_serialized_timeout_ms(item.get("timeout_ms")),
+            operation_id=_serialized_operation_id(item.get("operation_id")),
             response_status_code=_serialized_response_status(item.get("response")),
             response_headers=_serialized_response_headers(item.get("response")),
             response_body_shape=_serialized_response_body_shape(item.get("response")),
@@ -92,6 +93,8 @@ def _test_report_to_dict(test: RunTestReport) -> dict[str, object]:
         "retry": _retry_to_dict(test.retry),
     }
     response = _response_to_dict(test)
+    if test.operation_id is not None:
+        payload["operation_id"] = test.operation_id
     if response is not None:
         payload["response"] = response
     if test.known_failures:
@@ -187,6 +190,15 @@ def _serialized_retry(raw_retry: object) -> RunRetryEvidence:
 
 def _serialized_timeout_ms(value: object) -> int:
     return value if isinstance(value, int) and value >= 0 else 0
+
+
+def _serialized_operation_id(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    stripped = value.strip()
+    if not stripped or _has_control_character(stripped):
+        return None
+    return stripped
 
 
 def _serialized_known_failures(raw_known_failures: object) -> tuple[KnownFailureEvidence, ...]:

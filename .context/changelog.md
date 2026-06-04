@@ -2,6 +2,10 @@
 
 ## 2026-06-04
 
+- Added issue #435's OpenAPI operation selector so `entroping run
+  --operation-id <id>` executes existing Hurl files with exact committed
+  `operation_id` metadata, rejects selector conflicts before execution, and
+  preserves operation ID evidence in JSON, JUnit, and HTML run reports.
 - Added issue #436's known-failure runtime guardrail so selected-test
   `ignore_failures` entries now fail before Hurl execution when their rule ID
   does not match any injected QAnstitution gate, while filtered-out test

@@ -98,7 +98,7 @@ LOCKED_CLI_CONTRACTS = (
     CliContract("entroping studio [--env <name>]", ("studio", "--help"), ("--env",)),
     CliContract(
         "entroping run [--env <name>] [--suite <name>] [--tag <tag>] "
-        "[--tag-expression <expr>] [--ci] [--parallel] "
+        "[--tag-expression <expr>] [--operation-id <id>] [--ci] [--parallel] "
         "[--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]",
         ("run", "--help"),
         (
@@ -106,6 +106,7 @@ LOCKED_CLI_CONTRACTS = (
             "--suite",
             "--tag",
             "--tag-expression",
+            "--operation-id",
             "--ci",
             "--parallel",
             "--report",

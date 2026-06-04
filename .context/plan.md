@@ -104,8 +104,11 @@ project, and a Codex workspace with fast context rehydration.
   full-suite release gates.
 - `entroping run --tag-expression <expr>` selects Hurl tests with a
   deterministic `and`/`or`/`not` parser over Entroping metadata tags, reports
-  selected/skipped counts, rejects invalid expressions before Hurl execution,
-  and preserves repeatable `--tag` OR semantics.
+  selected/skipped counts without executing filtered-out files, and preserves
+  repeatable `--tag` OR semantics.
+- `entroping run --operation-id <id>` selects existing Hurl tests by exact
+  committed OpenAPI `operation_id` metadata, rejects selector conflicts before
+  Hurl execution, and writes operation ID evidence into JSON/JUnit/HTML reports.
 - `entroping run --suite <name>` loads committed `suites/<name>.yaml`
   manifests with schema `entroping.suite.v1`, root-bounded path globs, tags,
   env, reports, parallel, and drift settings without changing default `run`

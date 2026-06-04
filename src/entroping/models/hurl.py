@@ -32,6 +32,12 @@ class HurlMetadata:
 
         return self.meta.get("story_id")
 
+    @property
+    def operation_id(self) -> str | None:
+        """Return the linked OpenAPI operation identifier when present."""
+
+        return self.meta.get("operation_id")
+
 
 @dataclass(frozen=True)
 class HurlExchange:
@@ -88,6 +94,12 @@ def parse_hurl_metadata(content: str, *, source: Path | None = None) -> HurlMeta
 
         if raw_value == "":
             _raise_metadata_error(line_number, f"empty metadata value for {key!r}", source=source)
+        if _has_control_character(raw_value):
+            _raise_metadata_error(
+                line_number,
+                f"metadata value for {key!r} must not contain control characters",
+                source=source,
+            )
         if key in meta:
             _raise_metadata_error(line_number, f"duplicate metadata key {key!r}", source=source)
         meta[key] = raw_value
@@ -166,3 +178,7 @@ def _extract_path(url: str) -> str:
 def _strip_query_and_fragment(value: str) -> str:
     without_fragment = value.split("#", maxsplit=1)[0]
     return without_fragment.split("?", maxsplit=1)[0]
+
+
+def _has_control_character(value: str) -> bool:
+    return any(ord(character) < 32 or ord(character) == 127 for character in value)

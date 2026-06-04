@@ -7,6 +7,7 @@ import pytest
 from entroping.core.hurl_discovery import (
     discover_hurl_test_selection,
     discover_hurl_tests,
+    normalize_operation_id_filters,
     normalize_tag_filters,
 )
 from entroping.core.tag_expression import compile_tag_expression
@@ -87,6 +88,35 @@ def test_discover_hurl_test_selection_filters_by_tag_expression(tmp_path: Path) 
     assert selected.skipped_count == 2
 
 
+def test_discover_hurl_test_selection_filters_by_operation_id(tmp_path: Path) -> None:
+    checkout = _write_hurl(
+        tmp_path / "tests" / "checkout.hurl",
+        "# entroping: operation_id=createCheckout\nGET /checkout\nHTTP 200\n",
+    )
+    refund = _write_hurl(
+        tmp_path / "tests" / "refund.hurl",
+        "# entroping: operation_id=createRefund\nGET /refund\nHTTP 200\n",
+    )
+    _write_hurl(
+        tmp_path / "tests" / "health.hurl",
+        "# entroping: operation_id=getHealth\nGET /health\nHTTP 200\n",
+    )
+
+    selected = discover_hurl_test_selection(
+        [tmp_path / "tests"],
+        operation_id_filters=("createRefund", "createCheckout"),
+    )
+
+    assert [test.path for test in selected.tests] == [checkout, refund]
+    assert [test.metadata.operation_id for test in selected.tests] == [
+        "createCheckout",
+        "createRefund",
+    ]
+    assert selected.discovered_count == 3
+    assert selected.selected_count == 2
+    assert selected.skipped_count == 1
+
+
 def test_discover_hurl_test_selection_rejects_tag_filter_and_expression_mix(
     tmp_path: Path,
 ) -> None:
@@ -100,6 +130,43 @@ def test_discover_hurl_test_selection_rejects_tag_filter_and_expression_mix(
             [tmp_path / "tests"],
             tag_filters=("smoke",),
             tag_expression=compile_tag_expression("checkout"),
+        )
+
+
+def test_discover_hurl_test_selection_rejects_operation_id_and_tag_filter_mix(
+    tmp_path: Path,
+) -> None:
+    _write_hurl(
+        tmp_path / "tests" / "checkout.hurl",
+        "# entroping: tags=smoke\n# entroping: operation_id=createCheckout\n"
+        "GET /checkout\nHTTP 200\n",
+    )
+
+    with pytest.raises(ValueError, match="cannot combine operation ID filters with tag filters"):
+        discover_hurl_test_selection(
+            [tmp_path / "tests"],
+            tag_filters=("smoke",),
+            operation_id_filters=("createCheckout",),
+        )
+
+
+def test_discover_hurl_test_selection_rejects_operation_id_and_tag_expression_mix(
+    tmp_path: Path,
+) -> None:
+    _write_hurl(
+        tmp_path / "tests" / "checkout.hurl",
+        "# entroping: tags=smoke\n# entroping: operation_id=createCheckout\n"
+        "GET /checkout\nHTTP 200\n",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="cannot combine operation ID filters with tag expressions",
+    ):
+        discover_hurl_test_selection(
+            [tmp_path / "tests"],
+            tag_expression=compile_tag_expression("checkout"),
+            operation_id_filters=("createCheckout",),
         )
 
 
@@ -140,6 +207,18 @@ def test_discover_hurl_tests_reports_malformed_metadata_with_file_path(tmp_path:
     )
 
     with pytest.raises(HurlMetadataSyntaxError, match=str(malformed)):
+        discover_hurl_tests([tmp_path])
+
+
+def test_discover_hurl_tests_rejects_control_characters_in_metadata_values(
+    tmp_path: Path,
+) -> None:
+    malformed = _write_hurl(
+        tmp_path / "tests" / "bad.hurl",
+        "# entroping: operation_id=create\x1bCheckout\nGET /bad\nHTTP 200\n",
+    )
+
+    with pytest.raises(HurlMetadataSyntaxError, match=f"{malformed}: line 1:"):
         discover_hurl_tests([tmp_path])
 
 
@@ -191,3 +270,22 @@ def test_normalize_tag_filters_strips_and_deduplicates_values() -> None:
     normalized = normalize_tag_filters([" smoke ", "smoke", "critical"])
 
     assert normalized == frozenset({"smoke", "critical"})
+
+
+def test_normalize_operation_id_filters_rejects_empty_or_control_character_input() -> None:
+    with pytest.raises(ValueError, match="Operation ID filters must not be empty"):
+        normalize_operation_id_filters(["createCheckout", "  "])
+
+    with pytest.raises(
+        ValueError,
+        match="Operation ID filters must not contain control characters",
+    ):
+        normalize_operation_id_filters(["create\x1bCheckout"])
+
+
+def test_normalize_operation_id_filters_strips_and_deduplicates_values() -> None:
+    normalized = normalize_operation_id_filters(
+        [" createCheckout ", "createCheckout", "createRefund"],
+    )
+
+    assert normalized == frozenset({"createCheckout", "createRefund"})

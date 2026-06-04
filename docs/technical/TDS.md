@@ -764,7 +764,7 @@ entroping map [--export <mermaid|dot|md|png>] [capture filters]
 
 ```text
 entroping studio [--env <name>]
-entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
+entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--operation-id <id>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
 entroping report bug
 entroping report failure-bundle [--output <directory>]
 entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
@@ -813,6 +813,10 @@ operators can distinguish time-budget failures from Hurl assertion failures.
 used, and paths outside the project root are rejected before discovery. This is
 for fast local and agent feedback only; CI release gates should keep running the
 full deterministic suite.
+`--operation-id <id>` is a repeatable deterministic selector over committed
+Hurl `operation_id` metadata. It cannot be combined with suite, changed-from,
+tag, or tag-expression selectors, and run reports preserve optional per-test
+operation ID evidence in JSON, JUnit, and HTML artifacts.
 `--suite <name>` loads a committed `suites/<name>.yaml` manifest with schema
 version `entroping.suite.v1`. A suite can define `env`, `tags`, root-bounded
 `paths` globs, `reports`, `parallel`, and `drift_check`. The suite manifest

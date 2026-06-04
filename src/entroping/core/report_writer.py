@@ -91,6 +91,7 @@ def build_run_report(
                 stdout=stdout,
                 stderr=stderr,
                 timeout_ms=result.timeout_ms,
+                operation_id=execution_copy.operation_id,
                 response_status_code=response_status_code,
                 response_headers=response_headers,
                 response_body_shape=response_body_shape,

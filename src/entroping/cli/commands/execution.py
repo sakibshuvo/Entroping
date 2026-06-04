@@ -12,7 +12,7 @@ from entroping.core.dependency_mapper import DependencyMapError, run_dependency_
 from entroping.core.drift_report import DriftReportError
 from entroping.core.freeze import FreezeError, run_freeze, run_freeze_mock
 from entroping.core.gate_injector import GateInjectionError
-from entroping.core.hurl_discovery import normalize_tag_filters
+from entroping.core.hurl_discovery import normalize_operation_id_filters, normalize_tag_filters
 from entroping.core.hurl_runner import HurlBinaryNotFoundError
 from entroping.core.report_writer import ReportWriterError
 from entroping.core.run_suite_manifest import RunSuiteManifestError, load_run_suite_manifest
@@ -261,6 +261,13 @@ def run(
             help="Boolean tag expression using and/or/not, for example: smoke and not slow.",
         ),
     ] = None,
+    operation_id: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--operation-id",
+            help="OpenAPI operation_id metadata filter; repeat for multiple operations.",
+        ),
+    ] = None,
     ci: Annotated[bool, typer.Option("--ci", help="Strict CI mode.")] = False,
     parallel: Annotated[
         bool,
@@ -290,10 +297,29 @@ def run(
                 "--tag cannot be combined with --tag-expression",
                 param_hint="--tag-expression",
             )
+        if operation_id and tag:
+            raise typer.BadParameter(
+                "--operation-id cannot be combined with --tag",
+                param_hint="--operation-id",
+            )
+        if operation_id and tag_expression is not None:
+            raise typer.BadParameter(
+                "--operation-id cannot be combined with --tag-expression",
+                param_hint="--operation-id",
+            )
+        if operation_id and changed_from is not None:
+            raise typer.BadParameter(
+                "--operation-id cannot be combined with --changed-from",
+                param_hint="--operation-id",
+            )
         try:
             tag_filters = tuple(normalize_tag_filters(tag))
         except ValueError as exc:
             raise typer.BadParameter(str(exc), param_hint="--tag") from exc
+        try:
+            operation_filters = tuple(sorted(normalize_operation_id_filters(operation_id)))
+        except ValueError as exc:
+            raise typer.BadParameter(str(exc), param_hint="--operation-id") from exc
         if tag_expression is not None:
             try:
                 compile_tag_expression(tag_expression)
@@ -318,6 +344,7 @@ def run(
             env=env,
             tag=tag,
             tag_expression=tag_expression,
+            operation_id=operation_id,
             report=report,
             parallel=parallel,
             drift_check=drift_check,
@@ -329,6 +356,7 @@ def run(
             console.print(f"[red]{exc}[/red]")
             raise typer.Exit(1) from exc
         tag_filters = loaded_suite.tag_filters
+        operation_filters = ()
         report_formats = loaded_suite.report_formats
         run_environment = loaded_suite.environment
         run_parallel = loaded_suite.parallel
@@ -343,6 +371,7 @@ def run(
             environment=run_environment,
             tag_filters=tag_filters,
             tag_expression=tag_expression,
+            operation_ids=operation_filters,
             report_formats=report_formats,
             parallel=run_parallel,
             drift_check=run_drift_check,
@@ -370,7 +399,12 @@ def run(
     drift_report = workflow_result.drift_report
     selection = getattr(workflow_result, "selection", None)
     if selection is not None and (tag_expression is not None or selection.skipped_count > 0):
-        reason = " by tag expression" if tag_expression is not None else " by tag filters"
+        if operation_filters:
+            reason = " by operation ID"
+        elif tag_expression is not None:
+            reason = " by tag expression"
+        else:
+            reason = " by tag filters"
         console.print(
             (
                 f"Hurl selection: {selection.selected_count} selected, "
@@ -427,6 +461,7 @@ def _reject_suite_conflicts(
     env: str | None,
     tag: list[str] | None,
     tag_expression: str | None,
+    operation_id: list[str] | None,
     report: list[str] | None,
     parallel: bool,
     drift_check: bool,
@@ -439,6 +474,8 @@ def _reject_suite_conflicts(
         conflicts.append("--tag")
     if tag_expression is not None:
         conflicts.append("--tag-expression")
+    if operation_id:
+        conflicts.append("--operation-id")
     if report:
         conflicts.append("--report")
     if parallel:
