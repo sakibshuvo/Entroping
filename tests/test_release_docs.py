@@ -250,6 +250,31 @@ def test_readme_frontloads_owasp_policy_pack_wedge_without_overclaiming() -> Non
     )
 
 
+def test_launch_copy_keeps_advanced_surfaces_out_of_front_door() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    docs_index = (REPO_ROOT / "docs" / "index.md").read_text(encoding="utf-8")
+    mkdocs = (REPO_ROOT / "mkdocs.yml").read_text(encoding="utf-8")
+    public_pitch = readme.split("## Project Context", maxsplit=1)[0]
+    project_context = readme.split("## Project Context", maxsplit=1)[1].split(
+        "## Locked Alpha CLI Surface",
+        maxsplit=1,
+    )[0]
+
+    for advanced_surface in ["WireMock", "GraphQL", "SOAP", "Studio"]:
+        assert advanced_surface not in public_pitch
+
+    assert "REST/OpenAPI + QAnstitution + Hurl + CI reports" in project_context
+    assert "advanced examples remain documented" in project_context
+    assert "examples/graphql-api" not in project_context
+    assert "examples/soap-api" not in project_context
+    assert "Studio Mutation Workflow Design" not in docs_index.split(
+        "## Project Context",
+        maxsplit=1,
+    )[0]
+    assert "Advanced Boundaries" in mkdocs
+    assert "Studio Mutation Workflow Design" in mkdocs
+
+
 def test_zero_config_demo_decision_keeps_live_smoke_as_release_gate() -> None:
     decision = (
         REPO_ROOT / "docs" / "meta" / "ZERO_CONFIG_DEMO_ENTRYPOINT.md"
