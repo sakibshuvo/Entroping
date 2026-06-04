@@ -16,6 +16,7 @@ from cli_test_support import (
     architect_cli,
     json,
     pytest,
+    subprocess,
 )
 
 
@@ -120,6 +121,156 @@ paths:
     assert "GET {{base_url}}/orders/{{order_id}}?include=events" in content
 
 
+def test_architect_build_new_changed_from_generates_only_changed_operations(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _accept_openapi_hurl_validation(monkeypatch)
+    subprocess.run(["git", "init", "-b", "main"], check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "config", "user.email", "entroping@example.test"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Entroping Test"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+sources:
+  spec: ./openapi.yaml
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    Path("openapi.yaml").write_text(
+        """
+openapi: "3.1.0"
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: ok
+  /checkout:
+    post:
+      operationId: createCheckout
+      responses:
+        "200":
+          description: ok
+  /orders:
+    get:
+      operationId: listOrdersOld
+      responses:
+        "200":
+          description: ok
+  /legacy:
+    delete:
+      operationId: deleteLegacy
+      responses:
+        "204":
+          description: deleted
+""".lstrip(),
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "add", "."], check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], check=True, capture_output=True, text=True)
+    Path("openapi.yaml").write_text(
+        """
+openapi: "3.1.0"
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: ok
+  /checkout:
+    post:
+      operationId: createCheckout
+      responses:
+        "201":
+          description: created
+  /orders:
+    get:
+      operationId: listOrders
+      responses:
+        "200":
+          description: ok
+  /refunds:
+    post:
+      operationId: createRefund
+      responses:
+        "202":
+          description: accepted
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        app,
+        ["architect", "build", "--new", "--changed-from", "HEAD", "--tag", "smoke"],
+    )
+
+    assert result.exit_code == 0
+    assert "OpenAPI changes from HEAD: added=1, modified=1, renamed=1, removed=1, unchanged=1" in (
+        result.output
+    )
+    assert "Removed OpenAPI operations require manual review: deleteLegacy" in result.output
+    assert "Generated 3 Hurl tests" in result.output
+    assert not Path("tests/generated/get_health.hurl").exists()
+    assert Path("tests/generated/create_checkout.hurl").is_file()
+    assert Path("tests/generated/list_orders.hurl").is_file()
+    assert Path("tests/generated/create_refund.hurl").is_file()
+    assert not Path("tests/generated/delete_legacy.hurl").exists()
+
+
+def test_architect_build_new_changed_from_exits_cleanly_when_only_removed_operations(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _accept_openapi_hurl_validation(monkeypatch)
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+sources:
+  spec: ./openapi.yaml
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    Path("openapi.yaml").write_text("openapi: '3.1.0'\npaths: {}\n", encoding="utf-8")
+
+    monkeypatch.setattr(
+        architect_cli,
+        "load_openapi_document_at_ref",
+        lambda project_root, base_ref, spec_path: {
+            "openapi": "3.1.0",
+            "paths": {"/legacy": {"delete": {"operationId": "deleteLegacy"}}},
+        },
+    )
+    monkeypatch.setattr(
+        architect_cli,
+        "load_openapi_document",
+        lambda path: {"openapi": "3.1.0", "paths": {}},
+    )
+
+    result = CliRunner().invoke(app, ["architect", "build", "--new", "--changed-from", "HEAD"])
+
+    assert result.exit_code == 0
+    assert "No current OpenAPI operation changes require generation from HEAD." in result.output
+    assert "Removed OpenAPI operations require manual review: deleteLegacy" in result.output
+    assert not Path("tests/generated").exists()
+
+
 def test_architect_build_new_refuses_symlinked_generated_parent(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -195,7 +346,7 @@ paths: {}
     monkeypatch.setattr(
         architect_cli,
         "compile_openapi_to_hurl",
-        lambda document, tags: generated,
+        lambda document, tags, operation_ids=None: generated,
     )
     monkeypatch.setattr(
         architect_cli,
@@ -255,7 +406,7 @@ paths: {}
     monkeypatch.setattr(
         architect_cli,
         "compile_openapi_to_hurl",
-        lambda document, tags: generated,
+        lambda document, tags, operation_ids=None: generated,
     )
     monkeypatch.setattr(architect_cli, "validate_hurl_content", fail_validation, raising=False)
 
@@ -299,6 +450,44 @@ def test_architect_build_rejects_unsupported_strategy() -> None:
 
     assert result.exit_code == 2
     assert "Unsupported architect build strategy" in result.output
+
+
+def test_architect_build_rejects_changed_from_with_prompt() -> None:
+    result = CliRunner().invoke(
+        app,
+        ["architect", "build", "--prompt", "Generate coverage", "--changed-from", "HEAD"],
+    )
+
+    assert result.exit_code == 2
+    assert "--changed-from applies only to architect build --new" in result.output
+
+
+def test_architect_build_rejects_changed_from_without_new() -> None:
+    result = CliRunner().invoke(app, ["architect", "build", "--changed-from", "HEAD"])
+
+    assert result.exit_code == 2
+    assert "--changed-from requires architect build --new" in result.output
+
+
+def test_architect_build_changed_from_rejects_remote_spec_before_loading(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+sources:
+  spec: https://example.test/openapi.yaml
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["architect", "build", "--new", "--changed-from", "HEAD"])
+
+    assert result.exit_code == 1
+    assert "--changed-from requires a local OpenAPI sources.spec path" in result.output
 
 
 def test_architect_build_prompt_writes_validated_architect_hurl(

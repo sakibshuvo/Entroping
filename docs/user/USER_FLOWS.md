@@ -69,12 +69,16 @@ A developer or AI coding agent adds or changes API behavior.
 
 ```bash
 entroping architect build --strategy merge --prompt "Cover the new refund endpoint" --tag payments
+entroping architect build --new --changed-from origin/main --tag payments
 entroping run --env local --tag payments --report html
 ```
 
 Prompt-backed merge updates existing Hurl targets only. Manual files must expose
 managed blocks; new files should use `architect build --prompt` without
 `--strategy merge`.
+For spec-first changes, `architect build --new --changed-from <ref>` compares
+the configured local OpenAPI spec with the same file at the Git base ref and
+regenerates only current added, modified, or renamed operations.
 
 ### Success Criteria
 

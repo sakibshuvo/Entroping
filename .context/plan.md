@@ -27,7 +27,8 @@ project, and a Codex workspace with fast context rehydration.
   only matching Entroping-injected QAnstitution gates in temporary execution
   copies, and expired entries block before Hurl execution.
 - Deterministic OpenAPI generation now validates every compiled Hurl file
-  before writing and avoids partial generated output on parser failure.
+  before writing, avoids partial generated output on parser failure, and can
+  focus regeneration to operations changed from a Git base ref.
 - HTML run reports escape header fields, summary text, rule IDs,
   known-failure summaries, and captured Hurl output before rendering.
 - Common filesystem symlink component traversal is centralized in

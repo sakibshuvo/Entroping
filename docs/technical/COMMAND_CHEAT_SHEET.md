@@ -14,7 +14,7 @@ entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
 entroping config vendor-policy-pack --pack <path> [--name <dir>]
 
-entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
+entroping architect build [--new] [--changed-from <ref>] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
 entroping architect refactor --target <glob> --prompt <text>
 entroping architect audit [--focus <logic|auditor>] [--output <json|md>]
 
@@ -70,17 +70,19 @@ entroping config vendor-policy-pack --pack ../entroping-policy-pack-api-baseline
 ## Architect
 
 Current alpha implementation supports deterministic `architect build --new` from a local
-OpenAPI file configured at `sources.spec` in `qanstitution.yaml`, prompt-backed
-`architect build --prompt`, Breaker-backed hostile prompt generation through
-`architect build --agent breaker --prompt`, deterministic `architect audit --focus
-logic`, Auditor-backed `architect audit --focus auditor`, and prompt-backed
-`architect refactor` for Architect-owned Hurl files and manual files with explicit
-managed blocks. Prompt-backed `architect build --strategy merge` is available for
-existing Hurl targets. Remote specs remain planned.
+OpenAPI file configured at `sources.spec` in `qanstitution.yaml`, focused
+OpenAPI regeneration with `architect build --new --changed-from <ref>`,
+prompt-backed `architect build --prompt`, Breaker-backed hostile prompt
+generation through `architect build --agent breaker --prompt`, deterministic
+`architect audit --focus logic`, Auditor-backed `architect audit --focus auditor`,
+and prompt-backed `architect refactor` for Architect-owned Hurl files and manual
+files with explicit managed blocks. Prompt-backed `architect build --strategy
+merge` is available for existing Hurl targets. Remote specs remain planned.
 
 | Command | Purpose |
 | --- | --- |
 | `entroping architect build --new` | Generate new Hurl tests from configured sources |
+| `entroping architect build --new --changed-from <ref>` | Generate only current OpenAPI operations changed from a Git base ref |
 | `entroping architect build --prompt "<text>"` | Generate scoped tests from natural language |
 | `entroping architect build --agent breaker --prompt "<text>"` | Generate hostile negative/security tests with the Breaker persona |
 | `entroping architect build --strategy merge` | Merge generated changes into existing tests |
@@ -94,6 +96,7 @@ Examples:
 
 ```bash
 entroping architect build --new --tag smoke
+entroping architect build --new --changed-from origin/main --tag smoke
 entroping architect build --prompt "Add checkout smoke coverage" --tag ai
 entroping architect build --agent breaker --prompt "Generate hostile auth bypass tests" --tag security
 entroping architect build --strategy merge --prompt "Cover the new refund endpoint"

@@ -234,6 +234,12 @@ Generate tests from OpenAPI:
 entroping architect build --new --tag smoke
 ```
 
+During feature work, generate only operations changed from a Git base ref:
+
+```bash
+entroping architect build --new --changed-from origin/main --tag smoke
+```
+
 Run deterministic tests and reports:
 
 ```bash
@@ -354,7 +360,7 @@ entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
 entroping config vendor-policy-pack --pack <path> [--name <dir>]
 
-entroping architect build [--new] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
+entroping architect build [--new] [--changed-from <ref>] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
 entroping architect refactor --target <glob> --prompt <text>
 entroping architect audit [--focus <logic|auditor>] [--output <json|md>]
 

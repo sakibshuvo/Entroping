@@ -67,6 +67,7 @@ def compile_openapi_to_hurl(
     document: Mapping[str, object],
     *,
     tags: frozenset[str],
+    operation_ids: frozenset[str] | None = None,
 ) -> tuple[GeneratedHurlFile, ...]:
     """Compile supported OpenAPI operations into deterministic Hurl files."""
 
@@ -90,6 +91,8 @@ def compile_openapi_to_hurl(
                 f"OpenAPI operation {raw_method!r} {raw_path}",
             )
             operation_id = _operation_id(operation, method=method, path=raw_path)
+            if operation_ids is not None and operation_id not in operation_ids:
+                continue
             relative_path = f"tests/generated/{_slugify_operation_id(operation_id)}.hurl"
             if relative_path in used_paths:
                 msg = f"OpenAPI operations compile to duplicate Hurl path: {relative_path}"
@@ -110,6 +113,9 @@ def compile_openapi_to_hurl(
                 ),
             )
 
+    if not generated and operation_ids is not None:
+        msg = "OpenAPI document does not contain selected operations for Hurl generation"
+        raise OpenApiCompilationError(msg)
     if not generated:
         msg = "OpenAPI document does not contain supported HTTP operations"
         raise OpenApiCompilationError(msg)

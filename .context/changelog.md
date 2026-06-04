@@ -2,6 +2,12 @@
 
 ## 2026-06-04
 
+- Added issue #404's changed OpenAPI operation generation so
+  `entroping architect build --new --changed-from <ref>` compares the configured
+  local OpenAPI spec with the same file at a Git base ref, classifies added,
+  modified, renamed, removed, and unchanged operations, regenerates only current
+  added/modified/renamed operation IDs, and reports removed operations for
+  manual review without deleting tests.
 - Added issue #403's sanitized failure-bundle workflow so
   `entroping report failure-bundle` writes `reports/failure-bundle/manifest.json`
   with `entroping.failure-bundle.v1`, sanitized latest-run JSON, generated bug
