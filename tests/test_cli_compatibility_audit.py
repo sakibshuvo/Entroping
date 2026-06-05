@@ -69,7 +69,7 @@ LOCKED_CLI_CONTRACTS = (
     ),
     CliContract(
         (
-            "entroping freeze --name <flow> [--golden] [--mock <service>] "
+            "entroping freeze --name <flow> [--golden] [--mock <service>] [--dry-run] "
             "[capture filters]"
         ),
         ("freeze", "--help"),
@@ -77,6 +77,7 @@ LOCKED_CLI_CONTRACTS = (
             "--name",
             "--golden",
             "--mock",
+            "--dry-run",
             "--include-host",
             "--exclude-host",
             "--include-method",

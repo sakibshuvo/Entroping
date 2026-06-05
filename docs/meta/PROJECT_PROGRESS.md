@@ -31,8 +31,8 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#432](https://github.com/sakibshuvo/Entroping/issues/432)
-adds a dry-run preview before `freeze` writes generated artifacts.
+Current issue: [#431](https://github.com/sakibshuvo/Entroping/issues/431)
+self-tests local policy packs before reuse.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -49,9 +49,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#432](https://github.com/sakibshuvo/Entroping/issues/432) | Preview freeze writes before generating artifacts. |
-| 2 | [#431](https://github.com/sakibshuvo/Entroping/issues/431) | Self-test local policy packs before reuse. |
-| 3 | [#430](https://github.com/sakibshuvo/Entroping/issues/430) | Write sanitized execution event logs. |
+| 1 | [#431](https://github.com/sakibshuvo/Entroping/issues/431) | Self-test local policy packs before reuse. |
+| 2 | [#430](https://github.com/sakibshuvo/Entroping/issues/430) | Write sanitized execution event logs. |
+| 3 | [#429](https://github.com/sakibshuvo/Entroping/issues/429) | Add package evidence refresh workflow. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -72,6 +72,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Freeze dry-run preview](https://github.com/sakibshuvo/Entroping/issues/432) | Done | `entroping freeze --dry-run` now previews selected redacted records, proposed Hurl or WireMock output paths, golden status, and counts-only redaction categories without writing generated tests, mocks, approval manifests, or source artifacts. |
 | [Explicit watch capture scope allowlists](https://github.com/sakibshuvo/Entroping/issues/433) | Done | `entroping watch` now requires an explicit capture scope through `--target`, `--scope-host`, or `--scope-url-prefix`; out-of-scope and malformed flow URLs are ignored before persistence, and count-only summaries report ignored traffic without rendering sensitive URLs. |
 | [Lossless decision registry](https://github.com/sakibshuvo/Entroping/issues/468) | Done | `docs/meta/DECISION_REGISTRY.yaml` now indexes durable decisions with source pointers, `scripts/source_preservation_check.py` validates local source-history anchors and registry links, and `scripts/context_pack.sh` surfaces the registry for agent handoff without replacing raw history. |
 | [Story traceability gap summary](https://github.com/sakibshuvo/Entroping/issues/434) | Done | `entroping report traceability --output md|json` now links Hurl `story_id` metadata to local `docs/stories/*.md` story documents and reports missing local stories, Markdown stories without tests, duplicate story IDs, malformed story metadata, and unsafe story paths without business-system API calls. |

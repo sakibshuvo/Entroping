@@ -270,11 +270,12 @@ file fields, token fields, and harmless text fields are not stored as captured
 body text.
 
 Current alpha status: `watch` records redacted, bounded traffic locally under
-`.entroping/state.db`; basic `freeze --name <flow> [--golden]` writes validated
-generated Hurl files; `map --export mermaid|dot|md|png` emits host-level dependency
-maps from redacted traffic; `freeze --mock <service>` writes WireMock-compatible
-dependency mappings. PNG export requires local Graphviz `dot`; use Mermaid, DOT,
-or Markdown export when Graphviz is not installed.
+`.entroping/state.db`; `freeze --name <flow> [--golden] [--dry-run]` can preview
+or write validated generated Hurl files; `map --export mermaid|dot|md|png` emits
+host-level dependency maps from redacted traffic; `freeze --mock <service>`
+writes or previews WireMock-compatible dependency mappings. PNG export requires
+local Graphviz `dot`; use Mermaid, DOT, or Markdown export when Graphviz is not
+installed.
 Written Hurl, WireMock, and PNG dependency-map artifacts also write approval
 manifests under `reports/approvals/`. These manifests contain generated paths,
 checksums, deterministic source fingerprints, and counts-only redaction
@@ -284,6 +285,10 @@ commit by themselves.
 Use capture filters when the recorded session contains noise or multiple flows:
 
 ```bash
+entroping freeze --name checkout_flow --golden --dry-run \
+  --include-host api.example.test \
+  --include-method POST \
+  --include-path /checkout
 entroping freeze --name checkout_flow --golden \
   --include-host api.example.test \
   --include-method POST \
@@ -296,6 +301,11 @@ The same filters work with `freeze --mock <service>`. Include filters narrow by
 host, method, and path; exclude filters win. Filters apply to already-redacted
 traffic and match request paths only, so query strings, headers, cookies, and
 bodies are not used as filter output or copied into errors.
+
+Use `--dry-run` first when a captured session contains sensitive or noisy
+traffic. The preview shows selected methods, paths, status codes, proposed
+output paths, golden status, and counts-only redaction categories. It does not
+write Hurl files, WireMock mappings, approval manifests, or source artifacts.
 
 Review what redaction categories fired before freezing or mapping:
 

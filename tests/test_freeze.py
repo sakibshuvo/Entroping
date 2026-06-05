@@ -87,6 +87,77 @@ def _record_internal_exchange(project_root: Path) -> None:
     TrafficStore.open_project(project_root).record_exchange(redact_traffic_exchange(exchange))
 
 
+def _record_sensitive_freeze_exchange(
+    project_root: Path,
+    *,
+    secret: str = "preview-secret",
+) -> None:
+    exchange = TrafficExchange(
+        captured_at=datetime(2026, 5, 30, 12, 3, tzinfo=UTC),
+        duration_ms=45,
+        request=TrafficRequest(
+            method="POST",
+            url=f"https://api.example.test/checkout?token={secret}",
+            headers={
+                "Authorization": f"Bearer {secret}",
+                "Content-Type": "application/json",
+            },
+            body=TrafficBody(
+                content_type="application/json",
+                size_bytes=44,
+                text=f'{{"cart_id":"cart-1","password":"{secret}"}}',
+            ),
+        ),
+        response=TrafficResponse(
+            status_code=201,
+            headers={"Content-Type": "application/json"},
+            body=TrafficBody(
+                content_type="application/json",
+                size_bytes=43,
+                text='{"id":"ord_123","status":"accepted"}',
+            ),
+        ),
+    )
+    TrafficStore.open_project(project_root).record_exchange(redact_traffic_exchange(exchange))
+
+
+def _record_sensitive_mock_exchange(
+    project_root: Path,
+    *,
+    secret: str = "wire-preview-secret",
+) -> None:
+    exchange = TrafficExchange(
+        captured_at=datetime(2026, 5, 30, 12, 4, tzinfo=UTC),
+        duration_ms=50,
+        request=TrafficRequest(
+            method="POST",
+            url=f"https://payments.example.test/charge?token={secret}",
+            headers={
+                "Authorization": f"Bearer {secret}",
+                "Content-Type": "application/json",
+            },
+            body=TrafficBody(
+                content_type="application/json",
+                size_bytes=34,
+                text=f'{{"card_token":"{secret}"}}',
+            ),
+        ),
+        response=TrafficResponse(
+            status_code=201,
+            headers={
+                "Content-Type": "application/json",
+                "Set-Cookie": f"session={secret}",
+            },
+            body=TrafficBody(
+                content_type="application/json",
+                size_bytes=43,
+                text=f'{{"approved":true,"token":"{secret}"}}',
+            ),
+        ),
+    )
+    TrafficStore.open_project(project_root).record_exchange(redact_traffic_exchange(exchange))
+
+
 def test_run_freeze_reports_missing_or_empty_traffic_state(tmp_path: Path) -> None:
     with pytest.raises(FreezeError, match="No traffic state found"):
         run_freeze(
@@ -104,6 +175,138 @@ def test_run_freeze_reports_missing_or_empty_traffic_state(tmp_path: Path) -> No
             golden=False,
             hurl_validator=lambda content, display_path: None,
         )
+
+
+def test_preview_freeze_summarizes_hurl_without_writing_artifacts(tmp_path: Path) -> None:
+    _record_sensitive_freeze_exchange(tmp_path, secret="preview-secret")
+
+    preview = freeze.preview_freeze(
+        project_root=tmp_path,
+        name="checkout_flow",
+        golden=True,
+    )
+
+    assert preview.workflow == "freeze-hurl"
+    assert preview.name == "checkout_flow"
+    assert preview.service is None
+    assert preview.golden is True
+    assert preview.record_count == 1
+    assert [(artifact.kind, artifact.path) for artifact in preview.artifacts] == [
+        ("hurl", tmp_path / "tests" / "generated" / "checkout_flow.hurl")
+    ]
+    assert [(record.method, record.path, record.status_code) for record in preview.records] == [
+        ("POST", "/checkout", 201)
+    ]
+    assert {category.category: category.count for category in preview.redaction_categories} == {
+        "request authorization header": 1,
+        "request password body field": 1,
+        "request JSON body summary": 1,
+        "response JSON body summary": 1,
+        "token-like query parameter": 1,
+    }
+    serialized = repr(preview)
+    assert "preview-secret" not in serialized
+    assert "token=preview-secret" not in serialized
+    assert "?token=" not in serialized
+    assert not (tmp_path / "tests").exists()
+    assert not (tmp_path / "reports").exists()
+
+
+def test_preview_freeze_mock_summarizes_mappings_without_writing_artifacts(
+    tmp_path: Path,
+) -> None:
+    _record_sensitive_mock_exchange(tmp_path, secret="wire-preview-secret")
+
+    preview = freeze.preview_freeze_mock(
+        project_root=tmp_path,
+        name="refund_flow",
+        service="payments",
+    )
+
+    assert preview.workflow == "freeze-wiremock"
+    assert preview.name == "refund_flow"
+    assert preview.service == "payments"
+    assert preview.golden is False
+    assert preview.record_count == 1
+    assert [(artifact.kind, artifact.path) for artifact in preview.artifacts] == [
+        ("wiremock", tmp_path / "mocks" / "payments" / "refund_flow-001.json")
+    ]
+    assert [(record.method, record.path, record.status_code) for record in preview.records] == [
+        ("POST", "/charge", 201)
+    ]
+    categories = {category.category: category.count for category in preview.redaction_categories}
+    assert categories["request authorization header"] == 1
+    assert categories["response cookie header"] == 1
+    assert categories["response token body field"] == 1
+    serialized = repr(preview)
+    assert "wire-preview-secret" not in serialized
+    assert "?token=" not in serialized
+    assert not (tmp_path / "mocks").exists()
+    assert not (tmp_path / "reports").exists()
+
+
+def test_preview_freeze_mock_supports_exact_host_service(tmp_path: Path) -> None:
+    _record_sensitive_mock_exchange(tmp_path)
+
+    preview = freeze.preview_freeze_mock(
+        project_root=tmp_path,
+        name="refund_flow",
+        service="payments.example.test",
+    )
+
+    assert preview.record_count == 1
+    assert [(artifact.kind, artifact.path) for artifact in preview.artifacts] == [
+        (
+            "wiremock",
+            tmp_path / "mocks" / "payments.example.test" / "refund_flow-001.json",
+        )
+    ]
+
+
+def test_preview_freeze_mock_rejects_invalid_generated_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_sensitive_mock_exchange(tmp_path)
+
+    def invalid_mapping(*args: object, **kwargs: object) -> tuple[GeneratedWireMockMapping, ...]:
+        _ = args, kwargs
+        return (GeneratedWireMockMapping("mocks/payments/refund_flow-001.json", "{"),)
+
+    monkeypatch.setattr(freeze, "compile_traffic_session_to_wiremock", invalid_mapping)
+
+    with pytest.raises(FreezeError, match="Expecting property name"):
+        freeze.preview_freeze_mock(
+            project_root=tmp_path,
+            name="refund_flow",
+            service="payments",
+        )
+
+    assert not (tmp_path / "mocks").exists()
+    assert not (tmp_path / "reports").exists()
+
+
+def test_preview_freeze_reports_missing_or_empty_traffic_state_without_writing(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(FreezeError, match="No traffic state found"):
+        freeze.preview_freeze(
+            project_root=tmp_path,
+            name="checkout_flow",
+            golden=False,
+        )
+
+    TrafficStore.open_project(tmp_path)
+    with pytest.raises(FreezeError, match="contains no traffic"):
+        freeze.preview_freeze(
+            project_root=tmp_path,
+            name="checkout_flow",
+            golden=False,
+        )
+
+    assert not (tmp_path / "tests").exists()
+    assert not (tmp_path / "mocks").exists()
+    assert not (tmp_path / "reports").exists()
 
 
 def test_run_freeze_writes_generated_hurl(tmp_path: Path) -> None:

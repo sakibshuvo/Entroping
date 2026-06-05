@@ -2,6 +2,10 @@
 
 ## 2026-06-05
 
+- Added issue #432's `freeze --dry-run` preview so Hurl and WireMock freeze
+  flows can show selected redacted records, proposed output paths, golden
+  status, and counts-only redaction categories without writing tests, mocks,
+  approval manifests, or source artifacts.
 - Added issue #433's explicit `watch` capture scope allowlist so traffic
   persistence now requires `--target`, `--scope-host`, or
   `--scope-url-prefix`. The proxy adapter normalizes case and default ports,

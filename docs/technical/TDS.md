@@ -592,6 +592,7 @@ read SQLite directly.
 | `--name checkout_flow` | `tests/generated/checkout_flow.hurl` |
 | `--golden` | Stable assertions against known-good behavior |
 | `--mock payments` | WireMock mappings for observed dependency behavior |
+| `--dry-run` | Preview selected redacted records, output paths, golden status, and redaction categories without writing artifacts |
 | `--include-host api.example.test` | Include only captured requests for an exact host |
 | `--exclude-method OPTIONS` | Exclude a noisy HTTP method before generation |
 | `--include-path /checkout` | Include a request path prefix or glob pattern |
@@ -611,6 +612,12 @@ fingerprints, source record fingerprints, and counts-only redaction summaries.
 It must not store raw traffic state, URLs, headers, query values, request or
 response bodies, local env files, generated artifact contents, provider
 credentials, or approval decisions.
+
+`freeze --dry-run` performs the same redacted traffic selection and generated
+path resolution as the write path, then prints a value-free preview. It does
+not write Hurl files, WireMock mappings, approval manifests, or source
+artifacts, and it must not print raw secrets, cookies, tokens, request bodies,
+or unredacted query values.
 
 Capture filters are applied after redaction and before Hurl, WireMock, or graph
 compilation. Include filters narrow by host, method, and path; exclude filters
@@ -766,7 +773,7 @@ reported as warnings rather than guessed.
 
 ```text
 entroping watch [--port <port>] [--target <url>] [--scope-host <host> ...] [--scope-url-prefix <url> ...]
-entroping freeze --name <flow> [--golden] [--mock <service>] [capture filters]
+entroping freeze --name <flow> [--golden] [--mock <service>] [--dry-run] [capture filters]
 entroping map [--export <mermaid|dot|md|png>] [capture filters]
 ```
 

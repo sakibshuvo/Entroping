@@ -2,6 +2,11 @@
 
 ## 2026-06-05
 
+- Traffic artifact preview should reuse the same redacted session compilers and
+  path-safety checks as the write path, then stop before Hurl validation,
+  artifact writes, and approval manifests. Preview output should stay at
+  method, path, status, proposed path, golden status, and redaction-category
+  counts.
 - Traffic capture safety should be fail-closed before redaction. `watch` scope
   checks need to normalize hosts and default ports, ignore malformed flow URLs
   without persisting request details, and report only counts; redaction remains

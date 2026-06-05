@@ -227,7 +227,7 @@ The shorter v4.1 docs were directionally correct but missed important requiremen
 | `entroping chaos` | Not v4.1 | Use Breaker through `architect build --agent breaker --prompt` |
 | `entroping report --type` | Not primary v4.1 | Use `run --report` for artifacts and `report bug` for bug templates |
 | `entroping auth` | Future | Useful credential UX, but not in the frozen command set |
-| `--verbose` / `--dry-run` | Future | Mentioned after the strict table, so treat as spec-update-only |
+| `--verbose` / global `--dry-run` | Future | Mentioned after the strict table, so treat as spec-update-only; command-scoped `freeze --dry-run` was later accepted for safe artifact preview |
 | Native gRPC streaming | Future | Bridge support first |
 | Hosted SaaS dependency | Future optional | CLI must work locally |
 
