@@ -188,6 +188,10 @@ project, and a Codex workspace with fast context rehydration.
 - `entroping config test-policy-pack` validates reviewed local policy-pack
   directories before vendoring or publishing, emits text or JSON pass/fail
   evidence, and writes nothing to the consumer project.
+- `entroping run` writes `.entroping/latest-run-events.jsonl`, a sanitized
+  `entroping.run-events.v1` JSONL progress log for CI wrappers and coding
+  agents, covering run start, selected tests, redacted results, artifact
+  writes, no-match/error events, and completion status.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work; `scripts/finish_issue.sh` verifies merged PRs and safely removes completed local worktrees.
 - Eye capture now has security-first traffic models, pre-persistence redaction, bounded SQLModel-backed SQLite state, and capture-only `watch` wiring through a lazy-loaded mitmproxy adapter.
 - Issues #1 through #85, plus validation fixes #95 and #97, are integrated.

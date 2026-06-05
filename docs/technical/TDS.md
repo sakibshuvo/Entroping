@@ -834,6 +834,14 @@ Every executed test row also records the effective Hurl subprocess
 `timeout_ms`. Subprocess timeouts use status `timeout`, exit code `124`, a
 timeout-specific JUnit failure type, and timeout findings in review summaries so
 operators can distinguish time-budget failures from Hurl assertion failures.
+Every run also writes `.entroping/latest-run-events.jsonl`, a sanitized JSONL
+progress log using schema `entroping.run-events.v1`. Events include run start,
+selected test paths, safe tags and rule IDs, per-test status/duration/timeout
+evidence, artifact paths, no-match or error events, and completion status. The
+log omits variables and raw passing stdout/stderr; failed stdout/stderr and
+error messages use the existing Hurl output redaction path. The writer rewrites
+the current JSONL content with the same safe artifact writer used by reports so
+latest evidence remains valid if execution is interrupted.
 `--changed-from <ref>` uses `git diff --name-status` to select existing changed
 `.hurl` files from a base ref. Deleted files are skipped, rename targets are
 used, and paths outside the project root are rejected before discovery. This is
@@ -927,6 +935,7 @@ redacted before serialization, and absolute project-root paths are relativized.
 | Command | Artifact | Stability note |
 | --- | --- | --- |
 | `entroping run` | `.entroping/latest-run.json` | Runtime state for follow-up report commands; uses `entroping.run-report.v1`; not committed. |
+| `entroping run` | `.entroping/latest-run-events.jsonl` | Sanitized execution progress events using `entroping.run-events.v1`; not committed. |
 | Prompt-backed `entroping architect ...` | `.entroping/agent-runs/*.json` | Value-free AI run evidence using `entroping.agent-run-manifest.v1`; not committed and not read by `run`. |
 | `entroping freeze` / `freeze --mock` / `map --export png` | `reports/approvals/*.json` | Value-free approval evidence for generated traffic artifacts using `entroping.traffic-artifact-approval.v1`. |
 | `entroping run --report json` | `reports/run-latest.json` | Machine-readable run report using `entroping.run-report.v1`. |

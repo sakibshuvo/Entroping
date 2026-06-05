@@ -553,7 +553,13 @@ reports/junit.xml
 reports/run-latest.json
 reports/run-latest.html
 .entroping/latest-run.json
+.entroping/latest-run-events.jsonl
 ```
+
+The JSONL event log is safe local progress evidence for CI wrappers and coding
+agents. It records selected tests, redacted result events, report artifact
+paths, no-match or error events, and completion status without storing Hurl
+variables or raw passing stdout/stderr.
 
 Compare a previous known-good JSON report with the current JSON report before
 posting review evidence:

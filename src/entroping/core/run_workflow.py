@@ -1,6 +1,7 @@
 """Deterministic run workflow use case."""
 
 import tempfile
+import time
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -43,6 +44,7 @@ from entroping.core.report_writer import (
     write_json_report,
     write_junit_report,
 )
+from entroping.core.run_event_log import RunEventLog
 from entroping.core.tag_expression import compile_tag_expression
 from entroping.core.traffic_store import TrafficStore, TrafficStoreError
 from entroping.models.drift import DependencyDriftRoute, DriftReport
@@ -77,6 +79,7 @@ class RunWorkflowResult:
 
     suite: HurlSuiteResult
     latest_state_path: Path
+    event_log_path: Path
     artifacts: tuple[Path, ...]
     drift_report: DriftReport | None
     drift_check: bool
@@ -127,145 +130,238 @@ def execute_run_workflow(
     compiled_tag_expression = (
         compile_tag_expression(tag_expression) if tag_expression is not None else None
     )
-    law = load_qanstitution(root / "qanstitution.yaml")
-    selected_roots: Sequence[Path]
-    if changed_from is not None and discovery_roots is not None:
-        msg = "changed-from cannot be combined with custom Hurl discovery roots"
-        raise RunWorkflowError(msg)
-    if changed_from is not None and operation_filters:
-        msg = "changed-from cannot be combined with operation ID filters"
-        raise RunWorkflowError(msg)
-    if changed_from is None:
-        selected_roots = discovery_roots if discovery_roots is not None else (root / "tests",)
-        if selection_label is None:
-            no_match_label = _default_no_match_label(
-                tag_expression=tag_expression,
-                operation_ids=operation_filters,
-            )
-        else:
-            no_match_label = selection_label
-    else:
-        changed_paths = select_changed_hurl_tests(project_root=root, base_ref=changed_from)
-        selected_roots = changed_paths
-        if tag_expression is None:
-            no_match_label = f"changed Hurl tests matched from base ref {changed_from!r}"
-        else:
-            no_match_label = (
-                f"changed Hurl tests matching tag expression {tag_expression!r} "
-                f"from base ref {changed_from!r}"
-            )
-
-    selection = discover_hurl_test_selection(
-        selected_roots,
-        tag_filters=tuple(tag_filters),
-        tag_expression=compiled_tag_expression,
-        operation_id_filters=operation_filters,
-    )
-    hurl_tests = selection.tests
-    env_variables = (
-        load_environment_variables(environment, root=root) if environment is not None else {}
-    )
-    env_variables.update(load_process_hurl_variables())
-
-    if not hurl_tests:
-        raise NoHurlTestsMatchedError(_no_match_message(no_match_label, selection=selection))
-
-    hurl_workers = law.settings.parallel_workers if parallel else 1
     state_dir = root / ".entroping"
     state_dir.mkdir(parents=True, exist_ok=True)
+    event_log = RunEventLog.open_project(root)
+    started_at = time.perf_counter()
+    terminal_event_recorded = False
+    event_log.record_started(
+        environment=environment,
+        tag_filters=tuple(tag_filters),
+        tag_expression=tag_expression,
+        operation_ids=tuple(operation_filters),
+        report_formats=tuple(report_formats),
+        parallel=parallel,
+        drift_check=drift_check,
+        changed_from=changed_from,
+    )
 
-    with tempfile.TemporaryDirectory(prefix="run-", dir=state_dir) as execution_root:
-        execution_copies = [
-            write_injected_execution_copy(
-                hurl_test,
-                law.gates,
-                execution_root=Path(execution_root),
+    try:
+        law = load_qanstitution(root / "qanstitution.yaml")
+        selected_roots: Sequence[Path]
+        if changed_from is not None and discovery_roots is not None:
+            msg = "changed-from cannot be combined with custom Hurl discovery roots"
+            raise RunWorkflowError(msg)
+        if changed_from is not None and operation_filters:
+            msg = "changed-from cannot be combined with operation ID filters"
+            raise RunWorkflowError(msg)
+        if changed_from is None:
+            selected_roots = (
+                discovery_roots if discovery_roots is not None else (root / "tests",)
+            )
+            if selection_label is None:
+                no_match_label = _default_no_match_label(
+                    tag_expression=tag_expression,
+                    operation_ids=operation_filters,
+                )
+            else:
+                no_match_label = selection_label
+        else:
+            changed_paths = select_changed_hurl_tests(project_root=root, base_ref=changed_from)
+            selected_roots = changed_paths
+            if tag_expression is None:
+                no_match_label = f"changed Hurl tests matched from base ref {changed_from!r}"
+            else:
+                no_match_label = (
+                    f"changed Hurl tests matching tag expression {tag_expression!r} "
+                    f"from base ref {changed_from!r}"
+                )
+
+        selection = discover_hurl_test_selection(
+            selected_roots,
+            tag_filters=tuple(tag_filters),
+            tag_expression=compiled_tag_expression,
+            operation_id_filters=operation_filters,
+        )
+        hurl_tests = selection.tests
+        env_variables = (
+            load_environment_variables(environment, root=root)
+            if environment is not None
+            else {}
+        )
+        env_variables.update(load_process_hurl_variables())
+
+        if not hurl_tests:
+            no_match_message = _no_match_message(no_match_label, selection=selection)
+            event_log.record_no_match(
+                message=no_match_message,
+                selected_count=selection.selected_count,
+                skipped_count=selection.skipped_count,
+                discovered_count=selection.discovered_count,
+            )
+            event_log.record_completed(
+                status="no_match",
+                exit_code=None,
+                duration_ms=_elapsed_ms(started_at),
+                total=0,
+                passed=0,
+                failed=0,
+            )
+            terminal_event_recorded = True
+            raise NoHurlTestsMatchedError(no_match_message)
+
+        hurl_workers = law.settings.parallel_workers if parallel else 1
+
+        with tempfile.TemporaryDirectory(prefix="run-", dir=state_dir) as execution_root:
+            execution_copies = [
+                write_injected_execution_copy(
+                    hurl_test,
+                    law.gates,
+                    execution_root=Path(execution_root),
+                    known_failures=law.ignore_failures,
+                    project_root=root,
+                )
+                for hurl_test in hurl_tests
+            ]
+            for hurl_test, execution_copy in zip(hurl_tests, execution_copies, strict=True):
+                event_log.record_test_selected(
+                    path=execution_copy.source_path,
+                    tags=tuple(hurl_test.metadata.tags),
+                    operation_id=execution_copy.operation_id,
+                    rule_ids=tuple(gate.rule_id for gate in execution_copy.injected_gates),
+                )
+            _reject_unmatched_selected_known_failures(
                 known_failures=law.ignore_failures,
+                hurl_tests=hurl_tests,
+                execution_copies=execution_copies,
                 project_root=root,
             )
-            for hurl_test in hurl_tests
-        ]
-        _reject_unmatched_selected_known_failures(
-            known_failures=law.ignore_failures,
-            hurl_tests=hurl_tests,
-            execution_copies=execution_copies,
-            project_root=root,
-        )
-        preflight_hurl_variables(
-            execution_copies,
-            variables=env_variables,
-            project_root=root,
-        )
-        suite = run_hurl_files(
-            [execution.execution_path for execution in execution_copies],
-            HurlRunOptions(
-                timeout_ms=law.settings.timeout,
-                retry=law.settings.retry,
+            preflight_hurl_variables(
+                execution_copies,
                 variables=env_variables,
-            ),
-            max_workers=hurl_workers,
-        )
-        run_report = build_run_report(
-            project=law.project,
-            environment=environment or "default",
-            execution_copies=execution_copies,
-            suite=suite,
-            project_root=root,
-        )
+                project_root=root,
+            )
+            suite = run_hurl_files(
+                [execution.execution_path for execution in execution_copies],
+                HurlRunOptions(
+                    timeout_ms=law.settings.timeout,
+                    retry=law.settings.retry,
+                    variables=env_variables,
+                ),
+                max_workers=hurl_workers,
+            )
+            run_report = build_run_report(
+                project=law.project,
+                environment=environment or "default",
+                execution_copies=execution_copies,
+                suite=suite,
+                project_root=root,
+            )
+            for test in run_report.tests:
+                event_log.record_test_result(
+                    path=test.path,
+                    status=test.status,
+                    exit_code=test.exit_code,
+                    duration_ms=test.duration_ms,
+                    timeout_ms=test.timeout_ms,
+                    rule_ids=test.rule_ids,
+                    operation_id=test.operation_id,
+                    stdout=test.stdout,
+                    stderr=test.stderr,
+                    stdout_truncated=test.retry.attempts[-1].stdout_truncated,
+                    stderr_truncated=test.retry.attempts[-1].stderr_truncated,
+                )
 
-    latest_state = write_json_report(run_report, state_dir / "latest-run.json")
-    artifacts: list[Path] = []
-    drift_report = None
-    if drift_check or "drift" in report_formats:
-        baseline_path = state_dir / "drift-baseline.json"
-        try:
-            baseline = load_drift_baseline(baseline_path)
-        except DriftBaselineNotFoundError:
-            drift_report = build_missing_baseline_report(
-                current=run_report,
-                baseline_path=baseline_path,
-            )
-        else:
-            drift_report = build_drift_report(
-                current=run_report,
-                baseline=baseline,
-                baseline_path=baseline_path,
-            )
-        dependency_baseline_path = state_dir / "dependency-baseline.json"
-        if dependency_baseline_path.exists() and drift_report is not None:
-            dependency_baseline = load_dependency_drift_baseline(dependency_baseline_path)
-            drift_report = append_dependency_drift_findings(
-                drift_report,
-                baseline=dependency_baseline,
-                current_routes=_load_current_dependency_routes(root),
-                baseline_path=dependency_baseline_path,
-            )
+        latest_state = write_json_report(run_report, state_dir / "latest-run.json")
+        event_log.record_artifact(artifact_type="latest-run", path=latest_state)
+        artifacts: list[Path] = []
+        drift_report = None
+        if drift_check or "drift" in report_formats:
+            baseline_path = state_dir / "drift-baseline.json"
+            try:
+                baseline = load_drift_baseline(baseline_path)
+            except DriftBaselineNotFoundError:
+                drift_report = build_missing_baseline_report(
+                    current=run_report,
+                    baseline_path=baseline_path,
+                )
+            else:
+                drift_report = build_drift_report(
+                    current=run_report,
+                    baseline=baseline,
+                    baseline_path=baseline_path,
+                )
+            dependency_baseline_path = state_dir / "dependency-baseline.json"
+            if dependency_baseline_path.exists() and drift_report is not None:
+                dependency_baseline = load_dependency_drift_baseline(
+                    dependency_baseline_path
+                )
+                drift_report = append_dependency_drift_findings(
+                    drift_report,
+                    baseline=dependency_baseline,
+                    current_routes=_load_current_dependency_routes(root),
+                    baseline_path=dependency_baseline_path,
+                )
 
-    reports_dir = root / "reports"
-    if "json" in report_formats:
-        artifacts.append(write_json_report(run_report, reports_dir / "run-latest.json"))
-    if "junit" in report_formats:
-        artifacts.append(write_junit_report(run_report, reports_dir / "junit.xml"))
-    if "html" in report_formats:
-        artifacts.append(write_html_report(run_report, reports_dir / "run-latest.html"))
-    if "drift" in report_formats and drift_report is not None:
-        artifacts.append(write_drift_report(drift_report, reports_dir / "drift.json"))
-        if run_report.summary.exit_code == 0:
-            artifacts.append(
-                write_reviewed_drift_baseline_candidate(
+        reports_dir = root / "reports"
+        if "json" in report_formats:
+            artifact = write_json_report(run_report, reports_dir / "run-latest.json")
+            artifacts.append(artifact)
+            event_log.record_artifact(artifact_type="json-report", path=artifact)
+        if "junit" in report_formats:
+            artifact = write_junit_report(run_report, reports_dir / "junit.xml")
+            artifacts.append(artifact)
+            event_log.record_artifact(artifact_type="junit-report", path=artifact)
+        if "html" in report_formats:
+            artifact = write_html_report(run_report, reports_dir / "run-latest.html")
+            artifacts.append(artifact)
+            event_log.record_artifact(artifact_type="html-report", path=artifact)
+        if "drift" in report_formats and drift_report is not None:
+            artifact = write_drift_report(drift_report, reports_dir / "drift.json")
+            artifacts.append(artifact)
+            event_log.record_artifact(artifact_type="drift-report", path=artifact)
+            if run_report.summary.exit_code == 0:
+                artifact = write_reviewed_drift_baseline_candidate(
                     run_report,
                     reports_dir / "drift-baseline.candidate.json",
                 )
-            )
+                artifacts.append(artifact)
+                event_log.record_artifact(
+                    artifact_type="drift-baseline-candidate",
+                    path=artifact,
+                )
 
-    return RunWorkflowResult(
-        suite=suite,
-        latest_state_path=latest_state,
-        artifacts=tuple(artifacts),
-        drift_report=drift_report,
-        drift_check=drift_check,
-        selection=selection,
-    )
+        result = RunWorkflowResult(
+            suite=suite,
+            latest_state_path=latest_state,
+            event_log_path=event_log.path,
+            artifacts=tuple(artifacts),
+            drift_report=drift_report,
+            drift_check=drift_check,
+            selection=selection,
+        )
+        event_log.record_completed(
+            status="passed" if result.exit_code == 0 else "failed",
+            exit_code=result.exit_code,
+            duration_ms=_elapsed_ms(started_at),
+            total=suite.total,
+            passed=suite.passed,
+            failed=suite.failed,
+        )
+        terminal_event_recorded = True
+        return result
+    except Exception as exc:
+        if not terminal_event_recorded:
+            event_log.record_error(exc)
+            event_log.record_completed(
+                status="error",
+                exit_code=1,
+                duration_ms=_elapsed_ms(started_at),
+                total=0,
+                passed=0,
+                failed=0,
+            )
+        raise
 
 
 def _default_no_match_label(
@@ -290,6 +386,10 @@ def _no_match_message(label: str, *, selection: HurlTestSelection) -> str:
         f"({selection.selected_count} selected, {selection.skipped_count} skipped "
         f"from {selection.discovered_count} discovered)."
     )
+
+
+def _elapsed_ms(started_at: float) -> int:
+    return max(0, int((time.perf_counter() - started_at) * 1000))
 
 
 def _reject_unmatched_selected_known_failures(

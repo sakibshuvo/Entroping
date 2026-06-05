@@ -26,6 +26,16 @@ from cli_test_support import (
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
+def _read_run_events() -> list[dict[str, object]]:
+    return [
+        json.loads(line)
+        for line in Path(".entroping/latest-run-events.jsonl").read_text(
+            encoding="utf-8"
+        ).splitlines()
+        if line
+    ]
+
+
 def test_run_executes_discovered_hurl_with_injected_gates_and_cleans_temp_state(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -114,6 +124,21 @@ def test_run_returns_non_zero_when_hurl_execution_fails(
     assert "Hurl run: 0 passed, 1 failed" in result.output
     assert "live-secret" not in result.output
     assert "Authorization: [REDACTED]" in result.output
+    events = _read_run_events()
+    assert [event["event"] for event in events] == [
+        "run_started",
+        "test_selected",
+        "test_result",
+        "artifact_written",
+        "run_completed",
+    ]
+    failed_event = events[2]
+    assert failed_event["path"] == "tests/health.hurl"
+    assert failed_event["status"] == "failed"
+    assert failed_event["exit_code"] == 1
+    event_log_text = Path(".entroping/latest-run-events.jsonl").read_text(encoding="utf-8")
+    assert "live-secret" not in event_log_text
+    assert "Authorization: [REDACTED]" in event_log_text
 
 
 def test_run_reports_missing_hurl_binary(
@@ -219,6 +244,80 @@ def test_run_writes_json_junit_reports_and_latest_state(
     assert report_json == latest_json
     assert junit_root.attrib["tests"] == "1"
     assert junit_root.attrib["failures"] == "0"
+
+
+def test_run_writes_sanitized_execution_event_log(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    source = Path("tests") / "health.hurl"
+    source.write_text(
+        "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("HURL_VARIABLE_base_url", "http://localhost:18080")
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (args, stderr, timeout, check, env, shell)
+        stdout.write(b"Authorization: Bearer live-secret\nbase_url=http://localhost:18080\n")
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+
+    result = runner.invoke(app, ["run", "--tag", "smoke", "--report", "json"])
+
+    assert result.exit_code == 0
+    assert "Wrote execution events: .entroping/latest-run-events.jsonl" in result.output
+    events = _read_run_events()
+    assert [event["event"] for event in events] == [
+        "run_started",
+        "test_selected",
+        "test_result",
+        "artifact_written",
+        "artifact_written",
+        "run_completed",
+    ]
+    assert {event["schema_version"] for event in events} == {"entroping.run-events.v1"}
+    selected_event = events[1]
+    assert selected_event["path"] == "tests/health.hurl"
+    assert selected_event["tags"] == ["smoke"]
+    assert selected_event["rule_ids"] == [
+        "no_server_errors",
+        "global_latency",
+        "request_id_header",
+    ]
+    result_event = events[2]
+    assert result_event["path"] == "tests/health.hurl"
+    assert result_event["status"] == "passed"
+    assert isinstance(result_event["duration_ms"], int)
+    assert result_event["duration_ms"] >= 0
+    assert result_event["stdout_truncated"] is False
+    assert result_event["stderr_truncated"] is False
+    artifact_paths = [
+        event["path"] for event in events if event["event"] == "artifact_written"
+    ]
+    assert artifact_paths == [".entroping/latest-run.json", "reports/run-latest.json"]
+    completed_event = events[-1]
+    assert completed_event["status"] == "passed"
+    assert completed_event["exit_code"] == 0
+    assert completed_event["total"] == 1
+    event_log_text = Path(".entroping/latest-run-events.jsonl").read_text(encoding="utf-8")
+    assert "live-secret" not in event_log_text
+    assert "http://localhost:18080" not in event_log_text
+    assert "base_url" not in event_log_text
 
 
 def test_run_report_drift_writes_missing_baseline_artifact(
@@ -517,6 +616,15 @@ def test_run_tag_expression_no_matches_reports_counts_without_hurl_execution(
     assert result.exit_code == 0
     assert "No Hurl tests matched tag expression 'critical and not slow'" in result.output
     assert "0 selected, 1 skipped" in " ".join(result.output.split())
+    events = _read_run_events()
+    assert [event["event"] for event in events] == [
+        "run_started",
+        "selection_no_match",
+        "run_completed",
+    ]
+    assert events[1]["selected_count"] == 0
+    assert events[1]["skipped_count"] == 1
+    assert events[-1]["status"] == "no_match"
 
 
 def test_run_env_fails_with_actionable_missing_env_file(
@@ -556,6 +664,36 @@ def test_run_preflights_missing_variables_before_hurl_binary_resolution(
     assert "Unresolved Hurl variables before execution" in result.output
     assert "base_url" in result.output
     assert "Hurl binary not found" not in result.output
+
+
+def test_run_missing_hurl_binary_writes_error_event_log(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    (Path("tests") / "health.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET http://localhost:18080/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: None)
+
+    result = runner.invoke(app, ["run", "--tag", "smoke"])
+
+    assert result.exit_code == 1
+    assert "Hurl binary not found" in result.output
+    events = _read_run_events()
+    assert [event["event"] for event in events] == [
+        "run_started",
+        "test_selected",
+        "run_error",
+        "run_completed",
+    ]
+    assert events[2]["error_type"] == "HurlBinaryNotFoundError"
+    assert "Hurl binary not found" in str(events[2]["message"])
+    assert events[-1]["status"] == "error"
+    assert events[-1]["exit_code"] == 1
 
 
 def test_run_reports_no_matching_hurl_tests_with_ci_exit_policy(
