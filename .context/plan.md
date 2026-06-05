@@ -199,6 +199,10 @@ project, and a Codex workspace with fast context rehydration.
 - `entroping report gate-injection --target <path> --output md|json` explains
   selected-file QAnstitution gate injection without running Hurl, writing
   temporary execution copies, or mutating source `.hurl` files.
+- `entroping report gate-coverage --output md|json` maps effective
+  QAnstitution gates to committed Hurl files, tags, operation IDs, request
+  methods, and redacted paths without executing Hurl, injecting assertions, or
+  calling providers.
 - `entroping report artifact-manifest` writes local checksum evidence for
   standard report artifacts without embedding artifact contents or claiming
   signing/attestation.

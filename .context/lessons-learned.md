@@ -2,6 +2,9 @@
 
 ## 2026-06-05
 
+- Gate coverage evidence and runtime results are different contracts. Coverage
+  matrices should stay gate-first, local-only, value-free, and clear that they
+  prove selection/matching, not Hurl assertion pass/fail.
 - Installed CLI templates need package-artifact proof. If a command copies a
   reviewed example from an installed wheel, keep a packaged template under
   `src/entroping/`, assert it matches the reviewed `examples/` artifact, and

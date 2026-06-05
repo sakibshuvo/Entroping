@@ -23,6 +23,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Drift baseline | `entroping.drift-baseline.v1` | `reports/drift-baseline.candidate.json`, `.entroping/drift-baseline.json` | Inline contract |
 | Drift report | `entroping.drift-report.v1` | `reports/drift.json` | [drift-report.v1.schema.json](report-schemas/drift-report.v1.schema.json) |
 | Effective policy report | `entroping.effective-policy-report.v1` | `reports/effective-policy.json` | [effective-policy-report.v1.schema.json](report-schemas/effective-policy-report.v1.schema.json) |
+| Gate coverage report | `entroping.gate-coverage-report.v1` | `reports/gate-coverage.json` | [gate-coverage-report.v1.schema.json](report-schemas/gate-coverage-report.v1.schema.json) |
 | Gate injection report | `entroping.gate-injection-report.v1` | `reports/gate-injection.json` | [gate-injection-report.v1.schema.json](report-schemas/gate-injection-report.v1.schema.json) |
 | Report artifact manifest | `entroping.report-artifact-manifest.v1` | `reports/artifact-manifest.json` | [report-artifact-manifest.v1.schema.json](report-schemas/report-artifact-manifest.v1.schema.json) |
 | Failure bundle manifest | `entroping.failure-bundle.v1` | `reports/failure-bundle/manifest.json` | Inline contract |
@@ -46,6 +47,20 @@ paths and effective assertions, not traffic values, prompts, credentials, or
 provider data.
 New writers include optional per-gate `group` provenance when a gate was
 expanded from a local `gate_groups` reference.
+
+The gate coverage report is written by:
+
+```bash
+entroping report gate-coverage --output json
+```
+
+It maps each effective QAnstitution gate to committed Hurl tests discovered
+under `tests/`, including matched test paths, tags, operation IDs, request
+methods, and redacted request paths. It is local-only coverage evidence: it
+does not execute Hurl, inject temporary assertions, call providers, or include
+full URLs, query strings, headers, bodies, variables, raw traffic, prompts, or
+provider data. Use it with `entroping report policy` to prove which gates exist
+and with `entroping run` artifacts to prove whether those gates passed.
 
 The gate-injection report is written by:
 

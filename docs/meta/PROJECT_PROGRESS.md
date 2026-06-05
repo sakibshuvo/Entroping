@@ -31,7 +31,7 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#421](https://github.com/sakibshuvo/Entroping/issues/421) adds a policy gate coverage matrix.
+Current issue: [#420](https://github.com/sakibshuvo/Entroping/issues/420) reruns failures from the latest local report.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -48,9 +48,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#421](https://github.com/sakibshuvo/Entroping/issues/421) | Add policy gate coverage matrix. |
-| 2 | [#420](https://github.com/sakibshuvo/Entroping/issues/420) | Rerun failures from the latest local report. |
-| 3 | [#419](https://github.com/sakibshuvo/Entroping/issues/419) | Preview Architect refactor patches without writing files. |
+| 1 | [#420](https://github.com/sakibshuvo/Entroping/issues/420) | Rerun failures from the latest local report. |
+| 2 | [#419](https://github.com/sakibshuvo/Entroping/issues/419) | Preview Architect refactor patches without writing files. |
+| 3 | [#467](https://github.com/sakibshuvo/Entroping/issues/467) | Add a multi-agent review bundle. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -71,6 +71,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Policy gate coverage matrix](https://github.com/sakibshuvo/Entroping/issues/421) | Done | `entroping report gate-coverage --output md|json` maps each effective QAnstitution gate to committed Hurl test files, tags, operation IDs, request methods, and redacted request paths, lists unmatched gates, and does not execute Hurl, inject assertions, call providers, or print full URLs, query strings, headers, bodies, variables, or captured traffic values. |
 | [GitHub Actions starter install](https://github.com/sakibshuvo/Entroping/issues/422) | Done | `entroping init --github-actions` installs the reviewed starter workflow at `.github/workflows/entroping.yml`, refuses existing workflows, keeps the packaged template aligned with `examples/github-actions/entroping-ci.yml`, and adds no secrets, provider credentials, hosted-service coupling, or package-index readiness claims. |
 | [Gate-injection explanation report](https://github.com/sakibshuvo/Entroping/issues/428) | Done | `entroping report gate-injection --target <path> --output md|json` explains effective QAnstitution gates that would be injected into selected local Hurl files, including source policy path, condition, enforcement, final/group provenance, and known-failure skips without running Hurl or mutating source files. |
 | [Fail-fast execution mode](https://github.com/sakibshuvo/Entroping/issues/429) | Done | `entroping run --fail-fast` stops scheduling after the first failing Hurl result, keeps source `.hurl` files immutable, and records selected, executed, not-scheduled, and fail-fast summary evidence in latest-run state and reports. |
@@ -145,6 +146,5 @@ entirely inside this repo.
   or durable evidence anchors.
 - Do not duplicate the completed issue table here.
 - Do not use this file as the backlog; GitHub Issues remain the backlog.
-- Keep roadmap edits behind the roadmap change gate in
-  [[docs/meta/DOCS_GOVERNANCE|DOCS_GOVERNANCE]].
+- Keep roadmap edits behind the roadmap change gate in [[docs/meta/DOCS_GOVERNANCE|DOCS_GOVERNANCE]].
 - Keep historical context in the vault and `.context/changelog.md`, not here.

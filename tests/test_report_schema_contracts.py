@@ -4,6 +4,14 @@ import json
 from pathlib import Path
 
 from entroping.bridge.effective_policy import EffectivePolicyGateReport, EffectivePolicyReport
+from entroping.bridge.gate_coverage import (
+    GATE_COVERAGE_REPORT_SCHEMA_VERSION,
+    GateCoverageExchangeReport,
+    GateCoverageGateReport,
+    GateCoverageReport,
+    GateCoverageSummary,
+    GateCoverageTestReport,
+)
 from entroping.bridge.gate_injection_explain import (
     GATE_INJECTION_REPORT_SCHEMA_VERSION,
     GateInjectionGateReport,
@@ -651,6 +659,106 @@ def test_gate_injection_report_v1_schema_contract_is_versioned_and_stable() -> N
     }
 
 
+def test_gate_coverage_report_v1_schema_contract_is_versioned_and_stable() -> None:
+    report = GateCoverageReport(
+        project="checkout-api",
+        config_path="qanstitution.yaml",
+        summary=GateCoverageSummary(
+            total_gates=2,
+            matched_gates=1,
+            unmatched_gates=1,
+            total_tests=1,
+            total_test_matches=1,
+        ),
+        gates=(
+            GateCoverageGateReport(
+                id="global_latency",
+                source_path="qanstitution.yaml",
+                condition="true",
+                gate="duration < 2000",
+                enforcement="block",
+                final=False,
+                matched=True,
+                tests=(
+                    GateCoverageTestReport(
+                        path="tests/health.hurl",
+                        tags=("smoke",),
+                        operation_id="getHealth",
+                        exchanges=(
+                            GateCoverageExchangeReport(method="GET", path="/health"),
+                        ),
+                    ),
+                ),
+            ),
+            GateCoverageGateReport(
+                id="billing_latency",
+                source_path="rules/security.yaml",
+                condition="path contains 'billing'",
+                gate="duration < 500",
+                enforcement="warn",
+                final=True,
+                group="api_baseline",
+                description="Billing-specific latency",
+                matched=False,
+                tests=(),
+            ),
+        ),
+    )
+
+    payload = report.model_dump(mode="json")
+
+    assert payload == {
+        "schema_version": GATE_COVERAGE_REPORT_SCHEMA_VERSION,
+        "project": "checkout-api",
+        "config_path": "qanstitution.yaml",
+        "summary": {
+            "total_gates": 2,
+            "matched_gates": 1,
+            "unmatched_gates": 1,
+            "total_tests": 1,
+            "total_test_matches": 1,
+        },
+        "gates": [
+            {
+                "id": "global_latency",
+                "source_path": "qanstitution.yaml",
+                "condition": "true",
+                "gate": "duration < 2000",
+                "enforcement": "block",
+                "final": False,
+                "group": None,
+                "description": None,
+                "matched": True,
+                "tests": [
+                    {
+                        "path": "tests/health.hurl",
+                        "tags": ["smoke"],
+                        "operation_id": "getHealth",
+                        "exchanges": [
+                            {
+                                "method": "GET",
+                                "path": "/health",
+                            }
+                        ],
+                    }
+                ],
+            },
+            {
+                "id": "billing_latency",
+                "source_path": "rules/security.yaml",
+                "condition": "path contains 'billing'",
+                "gate": "duration < 500",
+                "enforcement": "warn",
+                "final": True,
+                "group": "api_baseline",
+                "description": "Billing-specific latency",
+                "matched": False,
+                "tests": [],
+            },
+        ],
+    }
+
+
 def test_report_artifact_manifest_v1_schema_contract_is_versioned_and_stable() -> None:
     manifest = ReportArtifactManifest(
         summary=ReportArtifactManifestSummary(
@@ -807,6 +915,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         ),
         "entroping.gate-injection-report.v1": (
             SCHEMA_DIR / "gate-injection-report.v1.schema.json"
+        ),
+        "entroping.gate-coverage-report.v1": (
+            SCHEMA_DIR / "gate-coverage-report.v1.schema.json"
         ),
         "entroping.report-artifact-manifest.v1": (
             SCHEMA_DIR / "report-artifact-manifest.v1.schema.json"
