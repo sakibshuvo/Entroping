@@ -2,6 +2,10 @@
 
 ## 2026-06-05
 
+- Installed CLI templates need package-artifact proof. If a command copies a
+  reviewed example from an installed wheel, keep a packaged template under
+  `src/entroping/`, assert it matches the reviewed `examples/` artifact, and
+  make `scripts/package_check.sh` fail when the wheel or sdist drops it.
 - Report artifact manifests should prove local integrity with paths, sizes, and
   checksums only. Do not turn them into signing, attestation, or content
   validation claims unless a separate provenance/signing design exists.

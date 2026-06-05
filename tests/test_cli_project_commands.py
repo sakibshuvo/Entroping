@@ -95,6 +95,58 @@ def test_init_creates_standard_runtime_skeleton(
     assert Path(".entroping").is_dir()
 
 
+def test_init_minimal_can_install_github_actions_starter(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["init", "--minimal", "--github-actions"])
+
+    assert result.exit_code == 0
+    assert Path("qanstitution.yaml").is_file()
+    assert Path("tests").is_dir()
+    assert Path("envs").is_dir()
+    assert Path(".entroping").is_dir()
+    assert not Path("reports").exists()
+    workflow = Path(".github/workflows/entroping.yml")
+    assert workflow.is_file()
+    assert "HURL_SHA256" in workflow.read_text(encoding="utf-8")
+    assert "Installed GitHub Actions starter workflow" in result.output
+
+
+def test_init_full_can_install_github_actions_starter(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["init", "--github-actions"])
+
+    assert result.exit_code == 0
+    assert Path("reports").is_dir()
+    assert Path(".github/workflows/entroping.yml").is_file()
+
+
+def test_init_github_actions_refuses_existing_workflow(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    workflow = Path(".github/workflows/entroping.yml")
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text("name: existing\n", encoding="utf-8")
+
+    result = runner.invoke(app, ["init", "--github-actions"])
+
+    assert result.exit_code == 1
+    assert "already exists" in result.output
+    assert workflow.read_text(encoding="utf-8") == "name: existing\n"
+
+
 def test_init_preserves_existing_qanstitution(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

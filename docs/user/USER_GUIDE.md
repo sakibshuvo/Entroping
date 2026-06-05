@@ -169,8 +169,9 @@ Use strict CI mode in pipelines:
 entroping run --env ci --ci --parallel --report junit
 ```
 
-For a copyable GitHub Actions workflow, see
-`docs/user/GITHUB_ACTIONS_STARTER.md`.
+To install the reviewed GitHub Actions starter workflow, run
+`entroping init --github-actions`. For manual copy instructions and variants,
+see `docs/user/GITHUB_ACTIONS_STARTER.md`.
 For GitLab CI, Buildkite, CircleCI, or a generic shell runner, see
 `docs/user/CI_PROVIDER_RECIPES.md`.
 

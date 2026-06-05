@@ -57,6 +57,9 @@ def test_downstream_github_actions_docs_link_required_files_and_assumptions() ->
     )
 
     assert "examples/github-actions/entroping-ci.yml" in doc
+    assert "entroping init --github-actions" in doc
+    assert "entroping init --minimal --github-actions" in doc
+    assert "refuses to overwrite" in doc
     assert "qanstitution.yaml" in doc
     assert "tests/**/*.hurl" in doc
     assert "envs/ci.env" in doc

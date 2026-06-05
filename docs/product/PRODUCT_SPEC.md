@@ -159,6 +159,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | SET-007 | Store credentials safely | API keys are read from environment variables or OS credential storage; plaintext config files must not contain secrets |
 | SET-008 | Vendor reviewed local policy packs | `entroping config vendor-policy-pack --pack <path> [--name <dir>]` copies a local pack under `policy-packs/`, validates the manifest and QAnstitution entrypoint, preserves final-gate behavior, and appends a local import without remote registry behavior |
 | SET-009 | Self-test local policy packs | `entroping config test-policy-pack --pack <path> [--output text|json]` validates a local pack before vendoring or publishing without network access, provider keys, or project mutation |
+| SET-010 | Install an optional CI starter workflow | `entroping init --github-actions` writes the reviewed starter to `.github/workflows/entroping.yml`, refuses existing workflows, keeps Hurl pinned, and adds no secrets, provider credentials, hosted-service coupling, or package-index readiness claims |
 
 ### 9.2 QAnstitution Governance
 

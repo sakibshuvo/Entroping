@@ -216,6 +216,12 @@ entroping init --minimal
 entroping doctor
 ```
 
+To also install the reviewed GitHub Actions starter workflow, run
+`entroping init --github-actions` or
+`entroping init --minimal --github-actions`. Entroping writes
+`.github/workflows/entroping.yml` and refuses to overwrite an existing
+workflow.
+
 For automation, use `entroping doctor --output json` to get versioned setup
 health without scraping human output.
 Before wiring a PR gate, run `entroping doctor --ci` or
@@ -360,7 +366,7 @@ on pull requests, and GitHub Pages publishes `main` to
 Compatibility details live in [CLI_COMPATIBILITY_AUDIT.md](docs/technical/CLI_COMPATIBILITY_AUDIT.md).
 
 ```text
-entroping init [--minimal]
+entroping init [--minimal] [--github-actions]
 entroping doctor [--ci] [--output <text|json>]
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>

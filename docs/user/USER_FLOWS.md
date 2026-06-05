@@ -207,8 +207,10 @@ entroping report sarif
 entroping report review-summary
 ```
 
-For a copyable GitHub Actions workflow, use
-`docs/user/GITHUB_ACTIONS_STARTER.md`.
+For GitHub Actions, install the reviewed starter with
+`entroping init --github-actions` or read
+`docs/user/GITHUB_ACTIONS_STARTER.md` for manual copy instructions and
+variants.
 For GitLab CI, Buildkite, CircleCI, or a generic shell runner, use
 `docs/user/CI_PROVIDER_RECIPES.md`.
 

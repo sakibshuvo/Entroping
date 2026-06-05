@@ -11,6 +11,10 @@ from entroping.brain.persona_loader import PersonaLoadError, load_agent_persona
 from entroping.cli.shared import console, display_cli_path, safe_cli_text
 from entroping.core.ci_readiness import collect_ci_readiness
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
+from entroping.core.github_actions_starter import (
+    GitHubActionsStarterError,
+    install_github_actions_starter,
+)
 from entroping.core.hurl_runner import discover_hurl
 from entroping.core.traffic_store import TrafficStoreError, list_project_exchanges_readonly
 from entroping.models.doctor import (
@@ -66,6 +70,10 @@ def init(
         bool,
         typer.Option("--minimal", help="Create only the minimum required runtime files."),
     ] = False,
+    github_actions: Annotated[
+        bool,
+        typer.Option("--github-actions", help="Install the reviewed GitHub Actions CI starter."),
+    ] = False,
 ) -> None:
     """Create the standard local Entroping project directories."""
 
@@ -80,6 +88,15 @@ def init(
     else:
         config_path.write_text(MINIMAL_QANSTITUTION, encoding="utf-8")
         console.print("Created minimal qanstitution.yaml.")
+    if github_actions:
+        try:
+            starter = install_github_actions_starter(project_root=Path.cwd())
+        except GitHubActionsStarterError as exc:
+            console.print(safe_cli_text(str(exc)), style="red")
+            raise typer.Exit(1) from exc
+        console.print(
+            f"Installed GitHub Actions starter workflow: {display_cli_path(starter.path)}"
+        )
     console.print("[green]Initialized Entroping project structure.[/green]")
 
 
