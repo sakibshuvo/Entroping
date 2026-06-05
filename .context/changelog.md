@@ -2,6 +2,11 @@
 
 ## 2026-06-05
 
+- Added issue #420's latest-failure rerun workflow so
+  `entroping run --rerun-failures` selects failed source `.hurl` files from
+  `reports/run-latest.json` or `.entroping/latest-run.json`, reuses the prior
+  report environment unless `--env` overrides it, validates paths before Hurl
+  execution, and stays a fast-feedback shortcut rather than release proof.
 - Added issue #421's policy gate coverage matrix so
   `entroping report gate-coverage --output md|json` maps effective
   QAnstitution gates to committed Hurl test files, tags, operation IDs, request

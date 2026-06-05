@@ -2,6 +2,10 @@
 
 ## 2026-06-05
 
+- Rerun selectors should accelerate debugging without becoming release proof.
+  Select failed source files from sanitized latest-run reports, revalidate paths
+  and symlink components before execution, and still require full-suite CI for
+  release confidence.
 - Gate coverage evidence and runtime results are different contracts. Coverage
   matrices should stay gate-first, local-only, value-free, and clear that they
   prove selection/matching, not Hurl assertion pass/fail.

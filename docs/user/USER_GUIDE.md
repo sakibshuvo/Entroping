@@ -199,7 +199,19 @@ entroping run --operation-id createCheckout --operation-id createRefund --report
 This selects existing `.hurl` files with exact
 `# entroping: operation_id=<id>` metadata and records the operation ID in JSON,
 JUnit, and HTML run reports. It cannot be combined with `--tag`,
-`--tag-expression`, `--suite`, or `--changed-from`.
+`--tag-expression`, `--suite`, `--changed-from`, or `--rerun-failures`.
+
+After a failed local or CI run, rerun only failed files for fast feedback:
+
+```bash
+entroping run --rerun-failures --report json
+```
+
+This reads `reports/run-latest.json` first, then `.entroping/latest-run.json`,
+selects failed source `.hurl` paths that still exist, and sends those files
+through the normal deterministic run workflow. It reuses the report environment
+unless `--env` is provided. Use it after making a fix; keep full-suite
+`entroping run --ci` as release proof.
 
 ## 4. Existing Hurl Project
 
@@ -516,8 +528,9 @@ entroping run --suite smoke --ci
 Create separate manifests such as `suites/regression.yaml` and
 `suites/security.yaml` when a suite needs different paths, reports, or drift
 settings. `--suite` cannot be combined with ad hoc selectors such as `--env`,
-`--tag`, `--tag-expression`, `--report`, `--parallel`, `--fail-fast`, `--drift-check`, or
-`--changed-from`; use `--ci` only to choose strict exit behavior.
+`--tag`, `--tag-expression`, `--report`, `--parallel`, `--fail-fast`,
+`--drift-check`, `--changed-from`, or `--rerun-failures`; use `--ci` only to
+choose strict exit behavior.
 
 Entroping can compile discovered Hurl metadata into a local story/test
 traceability report:
@@ -798,6 +811,15 @@ entroping run --changed-from origin/main --tag smoke
 This mode selects existing changed `.hurl` files from Git diff, skips deleted
 files, and follows rename targets. It is a fast feedback shortcut for developers
 and agents, not a release gate. Keep full-suite `entroping run --ci` in CI.
+
+Use failure reruns after a fix when the latest run report already records the
+failing files:
+
+```bash
+entroping run --rerun-failures --report json
+```
+
+This is also a feedback shortcut, not release proof.
 
 ## 12. Studio
 

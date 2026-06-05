@@ -23,6 +23,8 @@ from cli_test_support import (
     subprocess,
 )
 
+from entroping.core.rerun_failures import RerunFailuresError
+
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
@@ -1031,6 +1033,151 @@ def test_run_named_suite_reports_manifest_errors(
     assert "Invalid YAML" in result.output
 
 
+def test_run_rerun_failures_executes_failed_paths_from_latest_report(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    source = Path("tests") / "health.hurl"
+    source.write_text(
+        "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    (Path("tests") / "refund.hurl").write_text(
+        "# entroping: tags=refund\n\nGET {{base_url}}/refund\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    Path("envs/local.env").write_text("base_url=http://localhost:18080\n", encoding="utf-8")
+    _write_run_report(
+        Path("reports") / "run-latest.json",
+        environment="local",
+        tests=[
+            _run_report_test("tests/health.hurl", status="failed"),
+            _run_report_test("tests/refund.hurl", status="passed"),
+        ],
+    )
+    executed_paths: list[Path] = []
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stderr, timeout, check, env, shell)
+        executed_path = Path(args[-1])
+        executed_paths.append(executed_path)
+        assert executed_path != source.resolve()
+        assert "duration < 2000" in executed_path.read_text(encoding="utf-8")
+        stdout.write(b"HTTP 200\n\n{\"ok\": true}\n")
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+
+    result = runner.invoke(app, ["run", "--rerun-failures", "--report", "json"])
+
+    assert result.exit_code == 0
+    assert "Rerun failures: 1 selected from reports/run-latest.json" in result.output
+    assert "Hurl run: 1 passed, 0 failed" in result.output
+    assert len(executed_paths) == 1
+    assert executed_paths[0].name.startswith("health-")
+    assert "# entroping-gate:" not in source.read_text(encoding="utf-8")
+    latest = json.loads(Path("reports/run-latest.json").read_text(encoding="utf-8"))
+    assert [test["path"] for test in latest["tests"]] == ["tests/health.hurl"]
+
+
+def test_run_rerun_failures_uses_report_environment_unless_overridden(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    failed_path = (tmp_path / "tests" / "health.hurl").resolve()
+    captured_kwargs: list[dict[str, object]] = []
+
+    def fake_select_latest_failed_hurl_tests(*, project_root: Path) -> object:
+        return SimpleNamespace(
+            report_path=(tmp_path / "reports" / "run-latest.json").resolve(),
+            environment="local",
+            failed_paths=(failed_path,),
+        )
+
+    def fake_execute_run_workflow(**kwargs: object) -> object:
+        captured_kwargs.append(kwargs)
+        return SimpleNamespace(
+            suite=HurlSuiteResult(results=()),
+            latest_state_path=Path(".entroping/latest-run.json"),
+            event_log_path=Path(".entroping/latest-run-events.jsonl"),
+            artifacts=(),
+            drift_report=None,
+            selection=SimpleNamespace(selected_count=1, skipped_count=0),
+            exit_code=0,
+        )
+
+    monkeypatch.setattr(
+        execution_cli,
+        "select_latest_failed_hurl_tests",
+        fake_select_latest_failed_hurl_tests,
+    )
+    monkeypatch.setattr(execution_cli, "execute_run_workflow", fake_execute_run_workflow)
+
+    report_env_result = CliRunner().invoke(app, ["run", "--rerun-failures"])
+    override_result = CliRunner().invoke(app, ["run", "--rerun-failures", "--env", "staging"])
+
+    assert report_env_result.exit_code == 0
+    assert override_result.exit_code == 0
+    assert captured_kwargs[0]["environment"] == "local"
+    assert captured_kwargs[1]["environment"] == "staging"
+    assert captured_kwargs[0]["discovery_roots"] == (failed_path,)
+    assert captured_kwargs[0]["selection_label"] == "failed tests from reports/run-latest.json"
+
+
+def test_run_rerun_failures_reports_selection_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    def fail_select_latest_failed_hurl_tests(*, project_root: Path) -> object:
+        _ = project_root
+        raise RerunFailuresError("No latest run report found")
+
+    monkeypatch.setattr(
+        execution_cli,
+        "select_latest_failed_hurl_tests",
+        fail_select_latest_failed_hurl_tests,
+    )
+
+    result = CliRunner().invoke(app, ["run", "--rerun-failures"])
+
+    assert result.exit_code == 1
+    assert "No latest run report found" in result.output
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["run", "--rerun-failures", "--tag", "smoke"],
+        ["run", "--rerun-failures", "--tag-expression", "smoke"],
+        ["run", "--rerun-failures", "--operation-id", "createCheckout"],
+        ["run", "--rerun-failures", "--changed-from", "main"],
+        ["run", "--suite", "smoke", "--rerun-failures"],
+    ],
+)
+def test_run_rejects_rerun_failures_selector_conflicts(args: list[str]) -> None:
+    result = CliRunner(env={"NO_COLOR": "1", "COLUMNS": "120"}).invoke(app, args)
+
+    plain_output = ANSI_RE.sub("", result.output)
+    assert result.exit_code == 2
+    assert "--rerun-failures cannot be combined" in plain_output
+
+
 def test_run_reports_empty_changed_selection_with_ci_exit_policy(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1050,6 +1197,62 @@ def test_run_reports_empty_changed_selection_with_ci_exit_policy(
     assert ci_result.exit_code == 1
     assert "No changed Hurl tests matched" in local_result.output
     assert "No changed Hurl tests matched" in ci_result.output
+
+
+def _write_run_report(
+    path: Path,
+    *,
+    environment: str,
+    tests: list[dict[str, object]],
+) -> None:
+    failed = sum(1 for test in tests if test["status"] != "passed")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "entroping-project",
+                "environment": environment,
+                "generated_at": "2026-06-05T00:00:00+00:00",
+                "summary": {
+                    "total": len(tests),
+                    "passed": len(tests) - failed,
+                    "failed": failed,
+                    "exit_code": 1 if failed else 0,
+                },
+                "tests": tests,
+            },
+        ),
+        encoding="utf-8",
+    )
+
+
+def _run_report_test(path: str, *, status: str) -> dict[str, object]:
+    return {
+        "path": path,
+        "execution_path": f".entroping/run-1/{Path(path).name}",
+        "status": status,
+        "exit_code": 0 if status == "passed" else 1,
+        "duration_ms": 12,
+        "timeout_ms": 2500,
+        "rule_ids": ["latency"],
+        "stdout": "ok\n" if status == "passed" else "",
+        "stderr": "" if status == "passed" else "assert failed\n",
+        "retry": {
+            "retry_count": 0,
+            "unstable": False,
+            "attempts": [
+                {
+                    "attempt": 1,
+                    "status": status,
+                    "exit_code": 0 if status == "passed" else 1,
+                    "duration_ms": 12,
+                    "stdout_truncated": False,
+                    "stderr_truncated": False,
+                }
+            ],
+        },
+    }
 
 
 def test_run_prints_failed_stdout_from_workflow_result(
