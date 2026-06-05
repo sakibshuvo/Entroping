@@ -797,6 +797,7 @@ entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
 entroping report badges [--output <directory>] [--run-json <path>] [--policy-json <path>] [--openapi-json <path>] [--traceability-json <path>]
 entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
+entroping report gate-injection --target <path> [--output <md|json>]
 entroping report traceability [--output <md|json>]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
 entroping report sarif [--output <path>] [--junit <path>] [--drift <path>] [--traceability]
@@ -896,6 +897,15 @@ or changed failures, exits `0` when failures only resolve or stay unchanged,
 and never renders raw stdout, stderr, headers, bodies, prompts, provider data,
 or secrets.
 
+`entroping report gate-injection --target <path>` resolves the effective
+QAnstitution, parses selected local Hurl metadata, and writes
+`reports/gate-injection.md` or `reports/gate-injection.json` showing gate ID,
+source policy path, condition, assertion, enforcement, final/group provenance,
+target file, and active known-failure skips without running Hurl or mutating
+source `.hurl` files. Targets are root-bounded local `.hurl` files; symlinked
+targets, path escapes, missing files, and non-Hurl files are rejected before
+report writing.
+
 `entroping report badges` writes local Shields endpoint JSON files under
 `reports/badges/` by default. It reads existing local reports only:
 `reports/run-latest.json`, `reports/effective-policy.json`,
@@ -959,6 +969,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report redaction --output html` | `reports/redaction-review.html` | Browser-readable captured-traffic redaction review. |
 | `entroping report policy --output md` | `reports/effective-policy.md` | Human-readable resolved QAnstitution gate provenance. |
 | `entroping report policy --output json` | `reports/effective-policy.json` | Machine-readable effective policy evidence using `entroping.effective-policy-report.v1`. |
+| `entroping report gate-injection --output md` | `reports/gate-injection.md` | Human-readable gate-injection explanation for selected Hurl files. |
+| `entroping report gate-injection --output json` | `reports/gate-injection.json` | Machine-readable gate-injection explanation using `entroping.gate-injection-report.v1`. |
 | `entroping report traceability --output md|json` | `stdout Markdown/JSON` | Local story/test coverage report. |
 | `entroping report github-annotations` | `stdout GitHub Actions annotations` | Workflow-command annotations from JUnit, drift, and optional traceability findings. |
 | `entroping report sarif` | `reports/entroping.sarif` | SARIF 2.1.0 code-scanning evidence from JUnit, drift, and optional traceability findings. |

@@ -4,6 +4,13 @@ import json
 from pathlib import Path
 
 from entroping.bridge.effective_policy import EffectivePolicyGateReport, EffectivePolicyReport
+from entroping.bridge.gate_injection_explain import (
+    GATE_INJECTION_REPORT_SCHEMA_VERSION,
+    GateInjectionGateReport,
+    GateInjectionReport,
+    GateInjectionSummary,
+    GateInjectionTargetReport,
+)
 from entroping.bridge.openapi_audit import (
     OPENAPI_AUDIT_SCHEMA_VERSION,
     audit_openapi_coverage,
@@ -543,6 +550,100 @@ def test_effective_policy_report_v1_schema_contract_is_versioned_and_stable() ->
     }
 
 
+def test_gate_injection_report_v1_schema_contract_is_versioned_and_stable() -> None:
+    report = GateInjectionReport(
+        project="checkout-api",
+        config_path="qanstitution.yaml",
+        summary=GateInjectionSummary(
+            total_targets=1,
+            total_would_inject=1,
+            total_known_failures=1,
+        ),
+        targets=(
+            GateInjectionTargetReport(
+                path="tests/health.hurl",
+                tags=("smoke",),
+                operation_id="getHealth",
+                gates=(
+                    GateInjectionGateReport(
+                        id="global_latency",
+                        source_path="qanstitution.yaml",
+                        condition="true",
+                        gate="duration < 2000",
+                        enforcement="block",
+                        final=False,
+                        status="would_inject",
+                    ),
+                    GateInjectionGateReport(
+                        id="temporary_latency",
+                        source_path="rules/security.yaml",
+                        condition="tags contains 'smoke'",
+                        gate="duration < 500",
+                        enforcement="warn",
+                        final=True,
+                        status="known_failure",
+                        group="api_baseline",
+                        description="Temporary override",
+                        issue_id="GH-123",
+                        expires="2999-01-01",
+                        reason="Known upstream latency.",
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    payload = report.model_dump(mode="json")
+
+    assert payload == {
+        "schema_version": GATE_INJECTION_REPORT_SCHEMA_VERSION,
+        "project": "checkout-api",
+        "config_path": "qanstitution.yaml",
+        "summary": {
+            "total_targets": 1,
+            "total_would_inject": 1,
+            "total_known_failures": 1,
+        },
+        "targets": [
+            {
+                "path": "tests/health.hurl",
+                "tags": ["smoke"],
+                "operation_id": "getHealth",
+                "gates": [
+                    {
+                        "id": "global_latency",
+                        "source_path": "qanstitution.yaml",
+                        "condition": "true",
+                        "gate": "duration < 2000",
+                        "enforcement": "block",
+                        "final": False,
+                        "status": "would_inject",
+                        "group": None,
+                        "description": None,
+                        "issue_id": None,
+                        "expires": None,
+                        "reason": None,
+                    },
+                    {
+                        "id": "temporary_latency",
+                        "source_path": "rules/security.yaml",
+                        "condition": "tags contains 'smoke'",
+                        "gate": "duration < 500",
+                        "enforcement": "warn",
+                        "final": True,
+                        "status": "known_failure",
+                        "group": "api_baseline",
+                        "description": "Temporary override",
+                        "issue_id": "GH-123",
+                        "expires": "2999-01-01",
+                        "reason": "Known upstream latency.",
+                    },
+                ],
+            }
+        ],
+    }
+
+
 def test_openapi_audit_v1_schema_contract_is_versioned_and_stable() -> None:
     document: dict[str, object] = {
         "openapi": "3.1.0",
@@ -645,6 +746,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         ),
         "entroping.effective-policy-report.v1": (
             SCHEMA_DIR / "effective-policy-report.v1.schema.json"
+        ),
+        "entroping.gate-injection-report.v1": (
+            SCHEMA_DIR / "gate-injection-report.v1.schema.json"
         ),
         "entroping.traffic-artifact-approval.v1": (
             SCHEMA_DIR / "traffic-artifact-approval.v1.schema.json"

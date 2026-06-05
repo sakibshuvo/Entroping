@@ -345,6 +345,19 @@ The policy report writes `reports/effective-policy.md` by default and can write
 supplied each effective gate, including imported policy packs and local
 overrides.
 
+Explain which gates would be injected into a selected Hurl file:
+
+```bash
+entroping report gate-injection --target tests/health.hurl --output md
+entroping report gate-injection --target tests/health.hurl --output json
+```
+
+The gate-injection report writes `reports/gate-injection.md` or
+`reports/gate-injection.json`. It resolves imports, final gates, reusable gate
+groups, and active known-failure skips, then lists gate ID, source policy path,
+condition, assertion, enforcement, and target file without running Hurl or
+mutating source `.hurl` files.
+
 Freeze the session into tests:
 
 ```bash
@@ -584,6 +597,7 @@ Generate local Shields-compatible coverage badges from existing reports:
 
 ```bash
 entroping report policy --output json
+entroping report gate-injection --target tests/health.hurl --output json
 entroping architect audit --focus logic --output json > reports/openapi-audit.json
 entroping report traceability --output json > reports/traceability.json
 entroping report badges

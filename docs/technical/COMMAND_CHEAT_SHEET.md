@@ -31,6 +31,7 @@ entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
 entroping report badges [--output <directory>] [--run-json <path>] [--policy-json <path>] [--openapi-json <path>] [--traceability-json <path>]
 entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
+entroping report gate-injection --target <path> [--output <md|json>]
 entroping report traceability [--output <md|json>]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
 entroping report sarif [--output <path>] [--junit <path>] [--drift <path>] [--traceability]
@@ -278,6 +279,7 @@ Variables can come from `envs/<name>.env`, explicit shell
 | `entroping report redaction --output html` | Write a browser-readable redaction review to `reports/redaction-review.html` |
 | `entroping report policy --output md` | Write effective QAnstitution gate provenance to `reports/effective-policy.md` |
 | `entroping report policy --output json` | Write machine-readable effective policy evidence to `reports/effective-policy.json` |
+| `entroping report gate-injection --target <path>` | Explain selected-file gate injection without running Hurl or mutating sources |
 | `entroping report traceability --output md` | Generate a local Markdown story/test traceability report |
 | `entroping report traceability --output json` | Emit machine-readable traceability JSON for badges or downstream tools |
 | `entroping report github-annotations` | Emit GitHub Actions workflow-command annotations from local reports |
@@ -294,6 +296,7 @@ entroping report delta --base reports/run-base.json --current reports/run-latest
 entroping report badges
 entroping report redaction --output md
 entroping report policy --output md
+entroping report gate-injection --target tests/health.hurl --output md
 entroping report traceability --output md
 entroping report traceability --output json > reports/traceability.json
 entroping report github-annotations --traceability

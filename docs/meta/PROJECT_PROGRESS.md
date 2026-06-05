@@ -31,7 +31,7 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#428](https://github.com/sakibshuvo/Entroping/issues/428) explains effective gate injection for selected tests.
+Current issue: [#423](https://github.com/sakibshuvo/Entroping/issues/423) writes an artifact manifest with checksums.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -48,9 +48,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#428](https://github.com/sakibshuvo/Entroping/issues/428) | Explain effective gate injection for selected tests. |
-| 2 | [#423](https://github.com/sakibshuvo/Entroping/issues/423) | Write artifact manifest with checksums. |
-| 3 | [#422](https://github.com/sakibshuvo/Entroping/issues/422) | Optionally install GitHub Actions starter workflow. |
+| 1 | [#423](https://github.com/sakibshuvo/Entroping/issues/423) | Write artifact manifest with checksums. |
+| 2 | [#422](https://github.com/sakibshuvo/Entroping/issues/422) | Optionally install GitHub Actions starter workflow. |
+| 3 | [#421](https://github.com/sakibshuvo/Entroping/issues/421) | Add policy gate coverage matrix. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -71,6 +71,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Gate-injection explanation report](https://github.com/sakibshuvo/Entroping/issues/428) | Done | `entroping report gate-injection --target <path> --output md|json` explains effective QAnstitution gates that would be injected into selected local Hurl files, including source policy path, condition, enforcement, final/group provenance, and known-failure skips without running Hurl or mutating source files. |
 | [Fail-fast execution mode](https://github.com/sakibshuvo/Entroping/issues/429) | Done | `entroping run --fail-fast` stops scheduling after the first failing Hurl result, keeps source `.hurl` files immutable, and records selected, executed, not-scheduled, and fail-fast summary evidence in latest-run state and reports. |
 | [Sanitized run event log](https://github.com/sakibshuvo/Entroping/issues/430) | Done | `entroping run` now writes `.entroping/latest-run-events.jsonl` with schema `entroping.run-events.v1`, covering run start, selected tests, redacted results, artifact writes, no-match/error events, and completion status without variables or raw passing stdout/stderr. |
 | [Freeze dry-run preview](https://github.com/sakibshuvo/Entroping/issues/432) | Done | `entroping freeze --dry-run` now previews selected redacted records, proposed Hurl or WireMock output paths, golden status, and counts-only redaction categories without writing generated tests, mocks, approval manifests, or source artifacts. |
@@ -127,7 +128,6 @@ entirely inside this repo.
 | [Run workflow integration proof](https://github.com/sakibshuvo/Entroping/issues/367) | Done | A Python integration test invokes `entroping run` with a fake `hurl` executable, proving discovery, gate injection, subprocess execution, source immutability, and JSON/JUnit reports together. |
 | [Shell script quality gate](https://github.com/sakibshuvo/Entroping/issues/369) | Done | `scripts/shell_quality.sh` now runs `bash -n` over tracked shell scripts, runs ShellCheck when available, and is wired into the feature gate before Python checks. |
 | [CLI adapter test split](https://github.com/sakibshuvo/Entroping/issues/368) | Done | The former 3,374-line CLI adapter test file is split into command-focused files with shared CLI test helpers and the same 113 assertions preserved. |
-| [Report writer module split](https://github.com/sakibshuvo/Entroping/issues/370) | Done | Report building keeps the existing facade while JSON serialization, response fingerprinting, JUnit/HTML/bug rendering, and report errors now live in focused modules. |
 
 ## Source Of Truth
 
