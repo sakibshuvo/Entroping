@@ -2,6 +2,9 @@
 
 ## 2026-06-05
 
+- AI refactor previews should prove reviewability, not runtime correctness.
+  Validate and redact the proposed diff before display, avoid target writes, and
+  keep deterministic Hurl execution as the proof step.
 - Rerun selectors should accelerate debugging without becoming release proof.
   Select failed source files from sanitized latest-run reports, revalidate paths
   and symlink components before execution, and still require full-suite CI for

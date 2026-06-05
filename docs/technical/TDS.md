@@ -399,8 +399,10 @@ parses provider JSON into validated Architect edits, injects requested tags, add
 the `breaker` tag for Breaker output, validates generated Hurl through
 `hurlfmt --out json`, and writes Architect-owned Hurl files through the staged
 writer. `architect refactor` also supports manual Hurl files that opt into
-managed-block replacement. `architect build --strategy merge --prompt` reuses the
-same managed-block and prepared-write boundaries for existing files only. Provider
+managed-block replacement, and `architect refactor --preview` renders a
+validated unified diff without writing target Hurl files. `architect build
+--strategy merge --prompt` reuses the same managed-block and prepared-write
+boundaries for existing files only. Provider
 summaries, warnings, parser failures, and errors are redacted or summarized before
 CLI output. `architect audit --focus auditor` uses the configured Auditor route
 to produce validated review findings without writing files. `entroping run`
@@ -476,9 +478,11 @@ manual targets that contain valid managed-block markers. It loads selected targe
 files into Builder prompt context, rejects unsafe globs and symlinked or non-Hurl
 targets, requires returned edits to stay within the selected target set, merges
 manual managed blocks before validation, validates final Hurl through the
-parser-backed Hurl validator, and writes through staged filesystem writes. Prompt
-build merge uses the same rules for existing files; merge without a prompt remains
-deferred.
+parser-backed Hurl validator, and writes through staged filesystem writes.
+Preview mode uses the same provider, parser, merge, and validation boundaries,
+then emits a redacted unified diff and value-free agent manifest without writing
+target Hurl files. Prompt build merge uses the same rules for existing files;
+merge without a prompt remains deferred.
 
 ## 10. Observation Design
 
@@ -752,7 +756,7 @@ providers.
 
 ```text
 entroping architect build [--new] [--changed-from <ref>] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
-entroping architect refactor --target <glob> --prompt <text>
+entroping architect refactor --target <glob> --prompt <text> [--preview]
 entroping architect audit [--focus <logic|auditor>] [--output <json|md>] [--changed-from <ref>]
 ```
 

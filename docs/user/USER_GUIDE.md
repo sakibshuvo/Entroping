@@ -234,12 +234,24 @@ entroping architect refactor \
   --prompt "Add the Authorization header using {{auth_token}} to every request."
 ```
 
+To inspect the proposed edits first:
+
+```bash
+entroping architect refactor \
+  --target "tests/payments/*.hurl" \
+  --prompt "Add the Authorization header using {{auth_token}} to every request." \
+  --preview
+```
+
 Current alpha support is intentionally narrow: refactor targets must either be
 Architect-owned Hurl files marked with `# entroping: source=architect` or manual
 Hurl files with explicit `# entroping: managed-begin <id>` and
 `# entroping: managed-end <id>` blocks. For manual targets, Entroping replaces only
 matching managed blocks and preserves surrounding content. Refactored Hurl is
-validated before writing changes.
+validated before writing changes. Preview mode uses the same provider, parser,
+merge, and validation path, then prints a unified diff without writing target
+files. Treat preview output as review evidence, not execution proof; run the
+affected Hurl tests or full suite before merging.
 
 ## 5. Legacy API Rescue
 

@@ -374,7 +374,7 @@ entroping config vendor-policy-pack --pack <path> [--name <dir>]
 entroping config test-policy-pack --pack <path> [--output <text|json>]
 
 entroping architect build [--new] [--changed-from <ref>] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
-entroping architect refactor --target <glob> --prompt <text>
+entroping architect refactor --target <glob> --prompt <text> [--preview]
 entroping architect audit [--focus <logic|auditor>] [--output <json|md>] [--changed-from <ref>]
 
 entroping watch [--port <port>] [--target <url>] [--scope-host <host> ...] [--scope-url-prefix <url> ...]

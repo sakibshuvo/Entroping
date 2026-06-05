@@ -68,6 +68,10 @@ project, and a Codex workspace with fast context rehydration.
 - Prompt-backed Architect generation defaults to Builder and can select Breaker
   with `architect build --agent breaker --prompt ...`; Breaker output is
   generated before review and committed as deterministic Hurl before `run`.
+- `architect refactor --preview` uses the same provider, managed-block merge,
+  and Hurl validation path as write mode, then prints a redacted unified diff
+  and writes only the value-free agent run manifest without mutating target
+  Hurl files.
 - Auditor reviews are explicit through `architect audit --focus auditor`; they
   validate provider JSON before display, write no files, and never affect
   deterministic `run`.

@@ -16,7 +16,7 @@ entroping config vendor-policy-pack --pack <path> [--name <dir>]
 entroping config test-policy-pack --pack <path> [--output <text|json>]
 
 entroping architect build [--new] [--changed-from <ref>] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
-entroping architect refactor --target <glob> --prompt <text>
+entroping architect refactor --target <glob> --prompt <text> [--preview]
 entroping architect audit [--focus <logic|auditor>] [--output <json|md>] [--changed-from <ref>]
 
 entroping watch [--port <port>] [--target <url>] [--scope-host <host> ...] [--scope-url-prefix <url> ...]
@@ -100,6 +100,9 @@ merge` is available for existing Hurl targets. Successful prompt-backed
 Builder, Breaker, refactor, merge, and Auditor review runs write value-free
 manifests under `.entroping/agent-runs/` with provider, latency, token, and
 configured cost-estimate evidence. Remote specs remain planned.
+`architect refactor --preview` validates the proposed Hurl edits and prints a
+unified diff without writing target files. Treat it as review evidence, not
+execution proof; run the affected Hurl tests or the full suite before merging.
 For OpenAPI operations with security requirements and an explicit `401` or
 `403` response, `architect build --new` also emits auth-negative tests under
 `tests/generated/security/` for supported HTTP bearer/basic and API-key
@@ -115,6 +118,7 @@ not guessed tests.
 | `entroping architect build --strategy merge` | Merge generated changes into existing tests |
 | `entroping architect build --tag <tag>` | Add a tag to generated tests |
 | `entroping architect refactor --target <glob> --prompt "<text>"` | Safely update existing Hurl tests |
+| `entroping architect refactor --target <glob> --prompt "<text>" --preview` | Preview validated Hurl edits as a unified diff without writing target files |
 | `entroping architect audit --focus logic` | Audit OpenAPI coverage gaps and, when redacted traffic exists, undocumented live routes |
 | `entroping architect audit --changed-from <ref>` | Report deterministic OpenAPI breaking-change diffs from a Git base ref without generating tests |
 | `entroping architect audit --focus auditor` | Run an explicit Auditor model review of coverage and policy risk |
@@ -130,6 +134,7 @@ entroping architect build --prompt "Add checkout smoke coverage" --tag ai
 entroping architect build --agent breaker --prompt "Generate hostile auth bypass tests" --tag security
 entroping architect build --strategy merge --prompt "Cover the new refund endpoint"
 entroping architect refactor --target "tests/payments/*.hurl" --prompt "Add X-Tenant-Id header"
+entroping architect refactor --target "tests/payments/*.hurl" --prompt "Add X-Tenant-Id header" --preview
 entroping architect audit --focus logic --output md
 entroping architect audit --focus logic --changed-from origin/main --output json
 entroping architect audit --focus auditor --output json
