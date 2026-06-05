@@ -131,6 +131,75 @@ def test_run_architect_refactor_loads_targets_and_writes_validated_edits(
     ]
 
 
+def test_run_architect_refactor_preview_renders_diff_without_writing(
+    tmp_path: Path,
+) -> None:
+    _write_project(tmp_path)
+    target = tmp_path / "tests" / "generated" / "checkout.hurl"
+    original = "# entroping: source=architect\nGET {{base_url}}/checkout\nHTTP 200\n"
+    _write_architect_hurl(target, "GET {{base_url}}/checkout\nHTTP 200\n")
+    law = load_qanstitution(tmp_path / "qanstitution.yaml")
+    validated: list[tuple[str, str]] = []
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        _ = kwargs
+        return {
+            "model": "openai/gpt-4.1-mini",
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "summary": "Previewed auth header",
+                                "edits": [
+                                    {
+                                        "path": "tests/generated/checkout.hurl",
+                                        "content": (
+                                            "# entroping: source=architect\n"
+                                            "GET {{base_url}}/checkout\n"
+                                            "Authorization: Bearer {{token}}\n"
+                                            "HTTP 200\n"
+                                        ),
+                                    }
+                                ],
+                            },
+                        )
+                    }
+                }
+            ],
+        }
+
+    result = run_architect_refactor(
+        law=law,
+        target_glob="tests/generated/*.hurl",
+        prompt="Add Authorization header.",
+        project_root=tmp_path,
+        config_path=tmp_path / "qanstitution.yaml",
+        client=LiteLLMClient(completion_func=fake_completion),
+        hurl_validator=lambda content, display_path: validated.append((content, display_path)),
+        preview=True,
+    )
+
+    assert result.summary == "Previewed auth header"
+    assert result.written_paths == ()
+    assert result.manifest_path.is_file()
+    assert target.read_text(encoding="utf-8") == original
+    assert validated == [
+        (
+            (
+                "# entroping: source=architect\n"
+                "GET {{base_url}}/checkout\n"
+                "Authorization: Bearer {{token}}\n"
+                "HTTP 200\n"
+            ),
+            "tests/generated/checkout.hurl",
+        )
+    ]
+    assert "--- a/tests/generated/checkout.hurl" in result.preview_diff
+    assert "+++ b/tests/generated/checkout.hurl" in result.preview_diff
+    assert "+Authorization: Bearer {{token}}" in result.preview_diff
+
+
 def test_run_architect_refactor_merges_managed_blocks_into_manual_target(
     tmp_path: Path,
 ) -> None:

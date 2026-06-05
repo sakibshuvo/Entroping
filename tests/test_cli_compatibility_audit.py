@@ -56,9 +56,9 @@ LOCKED_CLI_CONTRACTS = (
         ("--new", "--changed-from", "--prompt", "--strategy", "--tag", "--agent"),
     ),
     CliContract(
-        "entroping architect refactor --target <glob> --prompt <text>",
+        "entroping architect refactor --target <glob> --prompt <text> [--preview]",
         ("architect", "refactor", "--help"),
-        ("--target", "--prompt"),
+        ("--target", "--prompt", "--preview"),
     ),
     CliContract(
         (

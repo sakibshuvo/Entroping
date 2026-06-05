@@ -113,6 +113,7 @@ Deliverables:
 - `architect build --prompt` for scoped Hurl generation.
 - `architect build --strategy merge --prompt` for existing Hurl targets.
 - `architect refactor` with Hurl validation and managed-block preservation.
+- `architect refactor --preview` for validated diff review without target writes.
 
 Exit criteria:
 

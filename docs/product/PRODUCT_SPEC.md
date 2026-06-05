@@ -183,6 +183,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | INT-003 | Support merge strategy | `architect build --strategy merge` updates generated regions without overwriting manual regions |
 | INT-004 | Tag generated tests | `architect build --tag smoke` writes Entroping metadata comments that Hurl ignores safely; Breaker output is additionally tagged `breaker` |
 | INT-005 | Refactor existing Hurl tests | `architect refactor --target "tests/**/*.hurl" --prompt "<change>"` preserves comments and validates output |
+| INT-005A | Preview Hurl refactors | `architect refactor --target "tests/**/*.hurl" --prompt "<change>" --preview` renders a validated unified diff without writing target files; preview is review evidence, not execution proof |
 | INT-006 | Audit gaps | `architect audit --focus logic --output md|json` reports deterministic OpenAPI coverage gaps with an operation-to-Hurl matrix, stale operation references, and optional redacted traffic-vs-OpenAPI route findings when captured traffic state exists; `--changed-from <ref>` adds deterministic OpenAPI breaking-change diff findings without generating or deleting tests; `--focus auditor` runs an explicit Auditor review with validated Markdown or JSON findings |
 | INT-007 | Validate generated Hurl | Generated or refactored files must pass parser-backed syntax validation before being accepted |
 | INT-008 | Use configured model routing | Builder and Breaker load persona files and models for prompt builds; Auditor loads persona/model routing for explicit audit reviews |

@@ -1289,6 +1289,154 @@ gates: []
     assert "Authorization: Bearer {{token}}" in target.read_text(encoding="utf-8")
 
 
+def test_architect_refactor_preview_prints_diff_without_writing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _accept_architect_refactor_hurl_validation(monkeypatch)
+    Path("agents").mkdir()
+    Path("agents/builder.md").write_text("Refactor checkout Hurl tests.", encoding="utf-8")
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/builder.md
+    model: openai/gpt-4.1-mini
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    target = Path("tests/generated/checkout.hurl")
+    target.parent.mkdir(parents=True)
+    original = "# entroping: source=architect\nGET {{base_url}}/checkout\nHTTP 200\n"
+    target.write_text(original, encoding="utf-8")
+
+    def fake_complete(
+        self: object,
+        package: ArchitectPromptPackage,
+    ) -> LiteLLMCompletionResult:
+        _ = (self, package)
+        return LiteLLMCompletionResult(
+            content=json.dumps(
+                {
+                    "summary": "Previewed auth header",
+                    "edits": [
+                        {
+                            "path": "tests/generated/checkout.hurl",
+                            "content": (
+                                "# entroping: source=architect\n"
+                                "GET {{base_url}}/checkout\n"
+                                "Authorization: Bearer {{token}}\n"
+                                "X-Debug-Key: sk-live-secret\n"
+                                "HTTP 200\n"
+                            ),
+                        }
+                    ],
+                    "warnings": ["Review before applying."],
+                },
+            ),
+            model="openai/gpt-4.1-mini",
+            latency_ms=9,
+            usage=LiteLLMUsage(prompt_tokens=20, completion_tokens=30, total_tokens=50),
+        )
+
+    monkeypatch.setattr("entroping.brain.litellm_client.LiteLLMClient.complete", fake_complete)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "architect",
+            "refactor",
+            "--target",
+            "tests/generated/*.hurl",
+            "--prompt",
+            "Add Authorization header.",
+            "--preview",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Previewed 1 Architect Hurl test" in result.output
+    assert "Review before applying." in result.output
+    assert "Preview diff:" in result.output
+    assert "--- a/tests/generated/checkout.hurl" in result.output
+    assert "+++ b/tests/generated/checkout.hurl" in result.output
+    assert "+Authorization: Bearer {{token}}" in result.output
+    assert "sk-live-secret" not in result.output
+    assert "[REDACTED]" in result.output
+    assert "Wrote Hurl test:" not in result.output
+    assert target.read_text(encoding="utf-8") == original
+
+
+def test_architect_refactor_preview_reports_no_textual_diff(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _accept_architect_refactor_hurl_validation(monkeypatch)
+    Path("agents").mkdir()
+    Path("agents/builder.md").write_text("Refactor checkout Hurl tests.", encoding="utf-8")
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/builder.md
+    model: openai/gpt-4.1-mini
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    target = Path("tests/generated/checkout.hurl")
+    target.parent.mkdir(parents=True)
+    original = "# entroping: source=architect\nGET {{base_url}}/checkout\nHTTP 200\n"
+    target.write_text(original, encoding="utf-8")
+
+    def fake_complete(
+        self: object,
+        package: ArchitectPromptPackage,
+    ) -> LiteLLMCompletionResult:
+        _ = (self, package)
+        return LiteLLMCompletionResult(
+            content=json.dumps(
+                {
+                    "summary": "No changes needed",
+                    "edits": [
+                        {
+                            "path": "tests/generated/checkout.hurl",
+                            "content": original,
+                        }
+                    ],
+                },
+            ),
+            model="openai/gpt-4.1-mini",
+            latency_ms=9,
+            usage=LiteLLMUsage(prompt_tokens=20, completion_tokens=30, total_tokens=50),
+        )
+
+    monkeypatch.setattr("entroping.brain.litellm_client.LiteLLMClient.complete", fake_complete)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "architect",
+            "refactor",
+            "--target",
+            "tests/generated/*.hurl",
+            "--prompt",
+            "No-op.",
+            "--preview",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Previewed 1 Architect Hurl test" in result.output
+    assert "(no textual diff)" in result.output
+    assert target.read_text(encoding="utf-8") == original
+
+
 def test_architect_refactor_preserves_manual_content_outside_managed_blocks(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1480,6 +1628,136 @@ gates: []
     assert "sk-proj-live-secret" not in result.output
     assert "[REDACTED]" in result.output
     assert "Authorization" not in target.read_text(encoding="utf-8")
+
+
+def test_architect_refactor_preview_rejects_invalid_provider_json_without_writing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("agents").mkdir()
+    Path("agents/builder.md").write_text("Refactor checkout Hurl tests.", encoding="utf-8")
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/builder.md
+    model: openai/gpt-4.1-mini
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    target = Path("tests/generated/checkout.hurl")
+    target.parent.mkdir(parents=True)
+    original = "# entroping: source=architect\nGET {{base_url}}/checkout\nHTTP 200\n"
+    target.write_text(original, encoding="utf-8")
+
+    def fake_complete(
+        self: object,
+        package: ArchitectPromptPackage,
+    ) -> LiteLLMCompletionResult:
+        _ = (self, package)
+        return LiteLLMCompletionResult(
+            content="not-json sk-proj-live-secret",
+            model="openai/gpt-4.1-mini",
+            latency_ms=9,
+            usage=LiteLLMUsage(prompt_tokens=0, completion_tokens=0, total_tokens=0),
+        )
+
+    monkeypatch.setattr("entroping.brain.litellm_client.LiteLLMClient.complete", fake_complete)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "architect",
+            "refactor",
+            "--target",
+            "tests/generated/*.hurl",
+            "--prompt",
+            "Add Authorization header.",
+            "--preview",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Architect output validation failed before write." in result.output
+    assert "sk-proj-live-secret" not in result.output
+    assert target.read_text(encoding="utf-8") == original
+
+
+def test_architect_refactor_preview_rejects_parser_invalid_hurl_without_writing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("agents").mkdir()
+    Path("agents/builder.md").write_text("Refactor checkout Hurl tests.", encoding="utf-8")
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+agents:
+  builder:
+    source: agents/builder.md
+    model: openai/gpt-4.1-mini
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    target = Path("tests/generated/checkout.hurl")
+    target.parent.mkdir(parents=True)
+    original = "# entroping: source=architect\nGET {{base_url}}/checkout\nHTTP 200\n"
+    target.write_text(original, encoding="utf-8")
+
+    def reject_hurl(content: str, display_path: str) -> None:
+        _ = content
+        raise HurlValidationError(
+            f"Generated Hurl failed parser validation: {display_path} sk-live-secret"
+        )
+
+    def fake_complete(
+        self: object,
+        package: ArchitectPromptPackage,
+    ) -> LiteLLMCompletionResult:
+        _ = (self, package)
+        return LiteLLMCompletionResult(
+            content=json.dumps(
+                {
+                    "summary": "Invalid preview",
+                    "edits": [
+                        {
+                            "path": "tests/generated/checkout.hurl",
+                            "content": "# entroping: source=architect\nNOT HURL\n",
+                        }
+                    ],
+                },
+            ),
+            model="openai/gpt-4.1-mini",
+            latency_ms=9,
+            usage=LiteLLMUsage(prompt_tokens=0, completion_tokens=0, total_tokens=0),
+        )
+
+    monkeypatch.setattr("entroping.brain.architect_refactor.validate_hurl_content", reject_hurl)
+    monkeypatch.setattr("entroping.brain.litellm_client.LiteLLMClient.complete", fake_complete)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "architect",
+            "refactor",
+            "--target",
+            "tests/generated/*.hurl",
+            "--prompt",
+            "Add Authorization header.",
+            "--preview",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Architect Hurl validation failed before write." in result.output
+    assert "sk-live-secret" not in result.output
+    assert "[REDACTED]" in result.output
+    assert target.read_text(encoding="utf-8") == original
 
 
 def test_architect_audit_reports_missing_openapi_coverage_as_json(

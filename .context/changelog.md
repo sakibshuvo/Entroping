@@ -2,6 +2,11 @@
 
 ## 2026-06-05
 
+- Added issue #419's Architect refactor preview mode so
+  `entroping architect refactor --preview` validates proposed Hurl edits
+  through the existing provider, parser, and managed-block merge boundaries,
+  prints a redacted unified diff, and leaves target Hurl files unchanged while
+  preserving value-free agent run evidence.
 - Added issue #420's latest-failure rerun workflow so
   `entroping run --rerun-failures` selects failed source `.hurl` files from
   `reports/run-latest.json` or `.entroping/latest-run.json`, reuses the prior

@@ -1,5 +1,6 @@
 """Architect refactor orchestration for existing Architect-owned Hurl files."""
 
+import difflib
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
@@ -10,7 +11,7 @@ from entroping.brain.litellm_client import LiteLLMClient, LiteLLMCostEstimate, L
 from entroping.brain.output_parser import parse_architect_edit_set
 from entroping.brain.persona_loader import load_agent_persona
 from entroping.brain.prompt_builder import build_architect_prompt_package
-from entroping.brain.safety import has_disallowed_control
+from entroping.brain.safety import has_disallowed_control, redact_secret_like_values
 from entroping.bridge.merge import (
     HurlMergeError,
     list_managed_hurl_block_ids,
@@ -49,6 +50,9 @@ class ArchitectRefactorResult:
     manifest_path: Path
     provider: str | None = None
     cost: LiteLLMCostEstimate = field(default_factory=LiteLLMCostEstimate.empty)
+    preview: bool = False
+    preview_paths: tuple[str, ...] = ()
+    preview_diff: str = ""
 
 
 @dataclass(frozen=True)
@@ -71,6 +75,7 @@ def run_architect_refactor(
     config_path: str | Path = "qanstitution.yaml",
     client: LiteLLMClient | None = None,
     hurl_validator: HurlValidator | None = None,
+    preview: bool = False,
 ) -> ArchitectRefactorResult:
     """Refactor selected Architect-owned Hurl files through the Builder agent."""
 
@@ -89,7 +94,14 @@ def run_architect_refactor(
     _validate_selected_edits(edit_set, selected_paths={target.display_path for target in targets})
     writes = _prepare_refactor_writes(edit_set, targets=targets)
     _validate_refactored_hurl(writes, hurl_validator=hurl_validator or validate_hurl_content)
-    written_paths = write_refactor_hurl_edits(writes, project_root=root)
+    if preview:
+        written_paths: tuple[Path, ...] = ()
+        preview_paths = tuple(write.path for write in writes)
+        preview_diff = _render_refactor_preview_diff(writes, targets=targets)
+    else:
+        written_paths = write_refactor_hurl_edits(writes, project_root=root)
+        preview_paths = ()
+        preview_diff = ""
     manifest = write_agent_run_manifest(
         AgentRunManifestInput(
             project_root=root,
@@ -130,6 +142,9 @@ def run_architect_refactor(
         manifest_path=manifest.manifest_path,
         provider=completion.provider,
         cost=completion.cost,
+        preview=preview,
+        preview_paths=preview_paths,
+        preview_diff=preview_diff,
     )
 
 
@@ -328,6 +343,28 @@ def _validate_refactored_hurl(
 ) -> None:
     for write in writes:
         hurl_validator(write.content, write.path)
+
+
+def _render_refactor_preview_diff(
+    writes: tuple[PreparedHurlWrite, ...],
+    *,
+    targets: tuple[RefactorTarget, ...],
+) -> str:
+    targets_by_path = {target.display_path: target for target in targets}
+    rendered: list[str] = []
+    for write in writes:
+        target = targets_by_path[write.path]
+        diff_lines = difflib.unified_diff(
+            target.content.splitlines(),
+            write.content.splitlines(),
+            fromfile=f"a/{write.path}",
+            tofile=f"b/{write.path}",
+            lineterm="",
+        )
+        rendered.extend(redact_secret_like_values(line) for line in diff_lines)
+    if not rendered:
+        return ""
+    return "\n".join(rendered) + "\n"
 
 
 def _display_path(path: Path, *, root: Path) -> str:

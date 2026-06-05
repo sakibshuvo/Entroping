@@ -199,6 +199,13 @@ def architect_build(
 def architect_refactor(
     target: Annotated[str, typer.Option("--target", help="Target Hurl glob.")],
     prompt: Annotated[str, typer.Option("--prompt", help="Refactor instruction.")],
+    preview: Annotated[
+        bool,
+        typer.Option(
+            "--preview",
+            help="Print a proposed unified diff without writing target Hurl files.",
+        ),
+    ] = False,
 ) -> None:
     """Safely update existing Hurl tests."""
 
@@ -210,6 +217,7 @@ def architect_refactor(
             prompt=prompt,
             project_root=Path.cwd(),
             config_path=Path("qanstitution.yaml"),
+            preview=preview,
         )
     except (
         ArchitectOutputParseError,
@@ -223,6 +231,33 @@ def architect_refactor(
     ) as exc:
         print_architect_error(exc)
         raise typer.Exit(1) from exc
+
+    if result.preview:
+        noun = "test" if len(result.preview_paths) == 1 else "tests"
+        console.print(
+            f"[green]Previewed {len(result.preview_paths)} Architect Hurl {noun}.[/green]"
+        )
+        console.print(f"Summary: {safe_cli_text(result.summary)}", markup=False)
+        console.print(
+            f"Model: {safe_cli_text(result.model)} ({result.latency_ms} ms)",
+            markup=False,
+        )
+        _print_budget_evidence(
+            provider=result.provider,
+            estimated_cost_usd=result.cost.estimated_usd,
+        )
+        for warning in result.warnings:
+            console.print(f"Warning: {safe_cli_text(warning)}", style="yellow", markup=False)
+        console.print("Preview diff:", style="cyan")
+        if result.preview_diff:
+            console.print(result.preview_diff.rstrip(), markup=False, soft_wrap=False)
+        else:
+            console.print("(no textual diff)", markup=False)
+        console.print(
+            f"Wrote agent run manifest: {safe_cli_text(display_cli_path(result.manifest_path))}",
+            markup=False,
+        )
+        return
 
     noun = "test" if len(result.written_paths) == 1 else "tests"
     console.print(f"[green]Refactored {len(result.written_paths)} Architect Hurl {noun}.[/green]")
