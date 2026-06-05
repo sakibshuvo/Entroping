@@ -24,6 +24,11 @@ from entroping.core.effective_policy_report import (
     run_effective_policy_report,
 )
 from entroping.core.failure_bundle import FailureBundleError, create_failure_bundle
+from entroping.core.gate_coverage_report import (
+    GateCoverageOutput,
+    GateCoverageReportError,
+    run_gate_coverage_report,
+)
 from entroping.core.gate_injection_report import (
     GateInjectionOutput,
     GateInjectionReportError,
@@ -247,6 +252,35 @@ def report_policy(
         f"[green]Resolved effective policy with {len(result.report.gates)} {noun}.[/green]"
     )
     console.print(f"Wrote effective policy report: {display_cli_path(result.output_path)}")
+
+
+@app.command("gate-coverage")
+def report_gate_coverage(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Map effective QAnstitution gates to matching committed Hurl tests."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported gate-coverage output: {output}[/yellow]")
+        raise typer.Exit(2)
+    gate_output = cast(GateCoverageOutput, normalized_output)
+
+    try:
+        result = run_gate_coverage_report(project_root=Path.cwd(), output=gate_output)
+    except GateCoverageReportError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    noun = "gate" if result.report.summary.total_gates == 1 else "gates"
+    console.print(
+        f"[green]Mapped coverage for {result.report.summary.total_gates} "
+        f"{noun}.[/green]"
+    )
+    console.print(f"Wrote gate coverage report: {display_cli_path(result.output_path)}")
 
 
 @app.command("gate-injection")

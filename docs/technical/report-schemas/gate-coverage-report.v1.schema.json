@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sakibshuvo.github.io/Entroping/schemas/gate-coverage-report.v1.schema.json",
+  "title": "Entroping Gate Coverage Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project",
+    "config_path",
+    "summary",
+    "gates"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.gate-coverage-report.v1"
+    },
+    "project": {
+      "type": "string"
+    },
+    "config_path": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_gates",
+        "matched_gates",
+        "unmatched_gates",
+        "total_tests",
+        "total_test_matches"
+      ],
+      "properties": {
+        "total_gates": {"type": "integer", "minimum": 0},
+        "matched_gates": {"type": "integer", "minimum": 0},
+        "unmatched_gates": {"type": "integer", "minimum": 0},
+        "total_tests": {"type": "integer", "minimum": 0},
+        "total_test_matches": {"type": "integer", "minimum": 0}
+      }
+    },
+    "gates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "source_path",
+          "condition",
+          "gate",
+          "enforcement",
+          "final",
+          "group",
+          "description",
+          "matched",
+          "tests"
+        ],
+        "properties": {
+          "id": {"type": "string"},
+          "source_path": {"type": "string"},
+          "condition": {"type": "string"},
+          "gate": {"type": "string"},
+          "enforcement": {"enum": ["block", "warn", "audit_only"]},
+          "final": {"type": "boolean"},
+          "group": {"type": ["string", "null"]},
+          "description": {"type": ["string", "null"]},
+          "matched": {"type": "boolean"},
+          "tests": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["path", "tags", "operation_id", "exchanges"],
+              "properties": {
+                "path": {"type": "string"},
+                "tags": {
+                  "type": "array",
+                  "items": {"type": "string"}
+                },
+                "operation_id": {"type": ["string", "null"]},
+                "exchanges": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["method", "path"],
+                    "properties": {
+                      "method": {"type": "string"},
+                      "path": {"type": "string"}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

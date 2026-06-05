@@ -2,6 +2,12 @@
 
 ## 2026-06-05
 
+- Added issue #421's policy gate coverage matrix so
+  `entroping report gate-coverage --output md|json` maps effective
+  QAnstitution gates to committed Hurl test files, tags, operation IDs, request
+  methods, and redacted paths, lists unmatched gates, and avoids Hurl
+  execution, temporary assertion injection, provider calls, full URLs, query
+  strings, headers, bodies, variables, and captured traffic values.
 - Added issue #422's opt-in GitHub Actions starter install so
   `entroping init --github-actions` writes the reviewed starter workflow to
   `.github/workflows/entroping.yml`, refuses existing workflows, ships the

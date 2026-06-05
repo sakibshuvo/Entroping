@@ -806,6 +806,7 @@ entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
 entroping report badges [--output <directory>] [--run-json <path>] [--policy-json <path>] [--openapi-json <path>] [--traceability-json <path>]
 entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
+entroping report gate-coverage [--output <md|json>]
 entroping report gate-injection --target <path> [--output <md|json>]
 entroping report artifact-manifest [--output <path>]
 entroping report traceability [--output <md|json>]
@@ -916,6 +917,14 @@ source `.hurl` files. Targets are root-bounded local `.hurl` files; symlinked
 targets, path escapes, missing files, and non-Hurl files are rejected before
 report writing.
 
+`entroping report gate-coverage --output md|json` resolves the effective
+QAnstitution, discovers committed local Hurl tests under `tests/`, and writes
+`reports/gate-coverage.md` or `reports/gate-coverage.json` showing each gate's
+matching test files, tags, operation IDs, methods, and redacted paths. It is
+policy coverage evidence only: it does not execute Hurl, inject temporary
+assertions, evaluate pass/fail, call providers, or render full URLs, query
+strings, headers, bodies, variables, or captured traffic values.
+
 `entroping report artifact-manifest` writes `reports/artifact-manifest.json`
 by default with project-relative report paths, schema versions when available,
 artifact sizes, and SHA-256 checksums for standard JSON, JUnit, HTML, drift,
@@ -987,6 +996,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report redaction --output html` | `reports/redaction-review.html` | Browser-readable captured-traffic redaction review. |
 | `entroping report policy --output md` | `reports/effective-policy.md` | Human-readable resolved QAnstitution gate provenance. |
 | `entroping report policy --output json` | `reports/effective-policy.json` | Machine-readable effective policy evidence using `entroping.effective-policy-report.v1`. |
+| `entroping report gate-coverage --output md` | `reports/gate-coverage.md` | Human-readable policy gate coverage matrix for committed Hurl tests. |
+| `entroping report gate-coverage --output json` | `reports/gate-coverage.json` | Machine-readable policy gate coverage matrix using `entroping.gate-coverage-report.v1`. |
 | `entroping report gate-injection --output md` | `reports/gate-injection.md` | Human-readable gate-injection explanation for selected Hurl files. |
 | `entroping report gate-injection --output json` | `reports/gate-injection.json` | Machine-readable gate-injection explanation using `entroping.gate-injection-report.v1`. |
 | `entroping report artifact-manifest` | `reports/artifact-manifest.json` | Machine-readable checksum manifest using `entroping.report-artifact-manifest.v1`. |

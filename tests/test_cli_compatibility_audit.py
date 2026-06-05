@@ -154,6 +154,11 @@ LOCKED_CLI_CONTRACTS = (
         ("--output",),
     ),
     CliContract(
+        "entroping report gate-coverage [--output <md|json>]",
+        ("report", "gate-coverage", "--help"),
+        ("--output",),
+    ),
+    CliContract(
         "entroping report gate-injection --target <path> [--output <md|json>]",
         ("report", "gate-injection", "--help"),
         ("--target", "--output"),
