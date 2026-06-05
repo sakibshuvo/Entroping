@@ -18,7 +18,7 @@ entroping architect build [--new] [--changed-from <ref>] [--prompt <text>] [--st
 entroping architect refactor --target <glob> --prompt <text>
 entroping architect audit [--focus <logic|auditor>] [--output <json|md>] [--changed-from <ref>]
 
-entroping watch [--port <port>] [--target <url>]
+entroping watch [--port <port>] [--target <url>] [--scope-host <host> ...] [--scope-url-prefix <url> ...]
 entroping freeze --name <flow> [--golden] [--mock <service>] [capture filters]
 entroping map [--export <mermaid|dot|md|png>] [capture filters]
 
@@ -154,10 +154,18 @@ Include filters narrow the capture by host, method, and path; exclude filters
 win. Host filters are exact, methods are normalized, and path filters match the
 request path only, not query strings, headers, cookies, or bodies.
 
+`watch` itself requires an explicit capture scope before persistence starts.
+Use `--target` for the primary local service origin, repeat `--scope-host` for
+additional host names, or repeat `--scope-url-prefix` for absolute URL prefixes.
+Out-of-scope and malformed flow URLs are ignored before persistence, and the
+watch summary reports only counts.
+
 | Command | Purpose |
 | --- | --- |
-| `entroping watch --port <port>` | Start local mitmproxy recorder |
+| `entroping watch --port <port> --target <url>` | Start local mitmproxy recorder for one target origin |
 | `entroping watch --target <url>` | Define upstream target for observation |
+| `entroping watch --scope-host <host>` | Capture only this host name |
+| `entroping watch --scope-url-prefix <url>` | Capture only this absolute URL prefix |
 | `entroping freeze --name <flow>` | Convert captured session into Hurl tests |
 | `entroping freeze --golden` | Add golden master assertions |
 | `entroping freeze --mock <service>` | Generate WireMock mappings for a dependency |

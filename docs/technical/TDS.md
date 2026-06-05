@@ -490,7 +490,14 @@ Current implementation:
 
 - `core.traffic_proxy` lazy-loads mitmproxy so default installs can fail with an actionable optional-dependency message.
 - `TrafficCaptureAddon.response()` records completed HTTP flows only after converting them into `TrafficExchange` models, redacting them, and persisting through `TrafficStore`.
-- `watch --target <url>` scopes capture to the exact target scheme and host.
+- `watch` fails closed unless an explicit capture scope is configured with
+  `--target`, `--scope-host`, or `--scope-url-prefix`.
+- `watch --target <url>` scopes capture to the exact normalized target origin,
+  while `--scope-host` matches host names case-insensitively and
+  `--scope-url-prefix` matches normalized absolute URL prefixes without query
+  strings or fragments.
+- Out-of-scope and malformed flow URLs are ignored before persistence, and the
+  recorder reports only counts for recorded, out-of-scope, and malformed flows.
 - Request and response body summaries decode textual media types, summarize
   multipart bodies with a redacted media-type placeholder before persistence,
   keep binary bodies as size-only records, and reuse the global traffic body
@@ -758,7 +765,7 @@ reported as warnings rather than guessed.
 ### Observation
 
 ```text
-entroping watch [--port <port>] [--target <url>]
+entroping watch [--port <port>] [--target <url>] [--scope-host <host> ...] [--scope-url-prefix <url> ...]
 entroping freeze --name <flow> [--golden] [--mock <service>] [capture filters]
 entroping map [--export <mermaid|dot|md|png>] [capture filters]
 ```

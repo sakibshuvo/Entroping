@@ -27,6 +27,7 @@ from entroping.core.traffic_proxy import (
     DEFAULT_WATCH_PORT,
     TrafficProxyError,
     WatchConfig,
+    WatchRunSummary,
     run_watch,
 )
 from entroping.studio.app import run_studio_app
@@ -48,6 +49,17 @@ def register_execution_commands(root_app: typer.Typer) -> None:
 def watch(
     port: Annotated[int | None, typer.Option("--port", help="Local proxy port.")] = None,
     target: Annotated[str | None, typer.Option("--target", help="Target upstream URL.")] = None,
+    scope_host: Annotated[
+        list[str] | None,
+        typer.Option("--scope-host", help="Capture only this host; repeat for more hosts."),
+    ] = None,
+    scope_url_prefix: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--scope-url-prefix",
+            help="Capture only this absolute URL prefix; repeat for more prefixes.",
+        ),
+    ] = None,
 ) -> None:
     """Start traffic observation."""
 
@@ -56,12 +68,15 @@ def watch(
             project_root=Path.cwd(),
             listen_port=port or DEFAULT_WATCH_PORT,
             target_url=target,
+            scope_hosts=tuple(scope_host or ()),
+            scope_url_prefixes=tuple(scope_url_prefix or ()),
         )
         console.print(f"Capturing traffic on 127.0.0.1:{config.listen_port}")
-        if config.target_url is not None:
-            console.print(f"Target scope: {safe_cli_text(config.target_url)}", markup=False)
+        console.print(_watch_scope_summary(config), markup=False)
         console.print("Persisting redacted traffic to .entroping/state.db")
-        asyncio.run(run_watch(config))
+        summary = asyncio.run(run_watch(config))
+        if summary is not None:
+            _print_watch_summary(summary)
     except KeyboardInterrupt:
         console.print("Stopped traffic capture.")
     except (TrafficProxyError, ValueError) as exc:
@@ -227,6 +242,53 @@ def _capture_filters(
         include_paths=tuple(include_path or ()),
         exclude_paths=tuple(exclude_path or ()),
     )
+
+
+def _watch_scope_summary(config: WatchConfig) -> str:
+    scopes: list[str] = []
+    if config.target_url is not None:
+        scopes.append("1 target origin")
+    if config.scope_hosts:
+        scopes.append(_plural_noun(len(config.scope_hosts), "host", "hosts"))
+    if config.scope_url_prefixes:
+        scopes.append(_plural_noun(len(config.scope_url_prefixes), "URL prefix", "URL prefixes"))
+    return f"Capture scope: {', '.join(scopes)}"
+
+
+def _print_watch_summary(summary: WatchRunSummary) -> None:
+    console.print(
+        _plural_sentence(
+            summary.recorded_count,
+            "Recorded {count} in-scope traffic flow",
+            "Recorded {count} in-scope traffic flows",
+        )
+    )
+    if summary.ignored_count:
+        console.print(
+            _plural_sentence(
+                summary.ignored_count,
+                "Ignored {count} out-of-scope traffic flow",
+                "Ignored {count} out-of-scope traffic flows",
+            )
+        )
+    if summary.malformed_count:
+        console.print(
+            _plural_sentence(
+                summary.malformed_count,
+                "Ignored {count} malformed traffic flow",
+                "Ignored {count} malformed traffic flows",
+            )
+        )
+
+
+def _plural_noun(count: int, singular: str, plural: str) -> str:
+    noun = singular if count == 1 else plural
+    return f"{count} {noun}"
+
+
+def _plural_sentence(count: int, singular: str, plural: str) -> str:
+    template = singular if count == 1 else plural
+    return template.format(count=count)
 
 
 def studio(

@@ -46,6 +46,10 @@ project, and a Codex workspace with fast context rehydration.
 - Eye onboarding is honest about real proxy constraints: `watch` users should
   start in local/dev environments, expect per-client mitmproxy CA setup, and
   treat capture authorization and artifact review as their responsibility.
+- Eye capture now fails closed unless `watch` has an explicit scope from
+  `--target`, `--scope-host`, or `--scope-url-prefix`; out-of-scope and
+  malformed flow URLs are ignored before persistence, while in-scope traffic is
+  still redacted before storage.
 - Eye traffic-state retention keeps local SQLite state bounded with SQL-level
   stale-row deletion while preserving insertion-order reads for retained
   events.

@@ -14,6 +14,7 @@ from entroping.core.traffic_proxy import (
     TrafficCaptureAddon,
     TrafficProxyError,
     WatchConfig,
+    WatchRunSummary,
     _body_from,
     load_mitmproxy_runtime,
     run_watch,
@@ -138,7 +139,7 @@ def test_capture_addon_redacts_before_persisting_flow(tmp_path: Path) -> None:
 
 def test_capture_addon_records_all_hosts_when_target_scope_is_absent(tmp_path: Path) -> None:
     store = TrafficStore.open_project(tmp_path)
-    addon = TrafficCaptureAddon(store=store, target_url=None)
+    addon = TrafficCaptureAddon(store=store, scope_hosts=("other.example.test",))
 
     event_id = addon.response(_flow(url="https://other.example.test/checkout"))
 
@@ -146,9 +147,59 @@ def test_capture_addon_records_all_hosts_when_target_scope_is_absent(tmp_path: P
     assert store.list_exchanges()[0].request.host == "other.example.test"
 
 
+def test_capture_addon_enforces_host_and_url_prefix_scope(tmp_path: Path) -> None:
+    store = TrafficStore.open_project(tmp_path)
+    addon = TrafficCaptureAddon(
+        store=store,
+        scope_hosts=("API.EXAMPLE.TEST",),
+        scope_url_prefixes=("https://payments.example.test/api/v1",),
+    )
+
+    out_of_scope = addon.response(
+        _flow(url="https://evil.example.test/checkout?token=out-of-scope-secret")
+    )
+    host_match = addon.response(
+        _flow(url="https://API.EXAMPLE.TEST:443/checkout?token=query-secret")
+    )
+    prefix_match = addon.response(
+        _flow(url="https://payments.example.test:443/api/v1/refunds?token=query-secret")
+    )
+    sibling_prefix = addon.response(
+        _flow(url="https://payments.example.test/api/v10/refunds?token=sibling-secret")
+    )
+
+    loaded = store.list_exchanges()
+    db_text = store.db_path.read_text(encoding="utf-8", errors="ignore")
+    assert out_of_scope is None
+    assert host_match == 1
+    assert prefix_match == 2
+    assert sibling_prefix is None
+    assert addon.summary == WatchRunSummary(recorded_count=2, ignored_count=2)
+    assert [exchange.request.host for exchange in loaded] == [
+        "API.EXAMPLE.TEST:443",
+        "payments.example.test:443",
+    ]
+    assert "out-of-scope-secret" not in db_text
+    assert "sibling-secret" not in db_text
+
+
+def test_capture_addon_ignores_malformed_scope_urls_without_persistence(
+    tmp_path: Path,
+) -> None:
+    store = TrafficStore.open_project(tmp_path)
+    addon = TrafficCaptureAddon(store=store, scope_hosts=("api.example.test",))
+
+    event_id = addon.response(_flow(url="not a url?token=malformed-secret"))
+
+    assert event_id is None
+    assert addon.summary == WatchRunSummary(recorded_count=0, malformed_count=1)
+    assert store.list_exchanges() == ()
+    assert "malformed-secret" not in store.db_path.read_text(encoding="utf-8", errors="ignore")
+
+
 def test_capture_addon_rejects_malformed_flow_objects(tmp_path: Path) -> None:
     store = TrafficStore.open_project(tmp_path)
-    addon = TrafficCaptureAddon(store=store)
+    addon = TrafficCaptureAddon(store=store, scope_hosts=("api.example.test",))
 
     with pytest.raises(TrafficProxyError, match="missing request"):
         addon.response(object())
@@ -294,6 +345,49 @@ def test_time_and_target_helpers_handle_missing_or_invalid_values() -> None:
     assert traffic_proxy._matches_target_scope("https://api.example.test", None) is True
 
 
+def test_capture_scope_helpers_cover_validation_edges(tmp_path: Path) -> None:
+    store = TrafficStore.open_project(tmp_path)
+
+    with pytest.raises(TrafficProxyError, match="explicit scope"):
+        TrafficCaptureAddon(store=store)
+
+    assert (
+        traffic_proxy._target_scope("https://api.example.test:8443/root")
+        == "https://api.example.test:8443"
+    )
+    assert (
+        traffic_proxy._matches_target_scope(
+            "https://api.example.test:8443/checkout",
+            "https://api.example.test:8443",
+        )
+        is True
+    )
+    assert traffic_proxy._matches_target_scope("not a url", "https://api.example.test") is False
+    assert traffic_proxy._parse_http_url("https://api.example.test/\nsecret") is None
+    assert traffic_proxy._parse_http_url("https://api.example.test:bad/path") is None
+    assert traffic_proxy._parse_http_url("https:///path") is None
+    default_port_url = traffic_proxy._parse_http_url("http://api.example.test:80/path")
+    non_default_port_url = traffic_proxy._parse_http_url(
+        "http://api.example.test:8080/path"
+    )
+    assert default_port_url is not None
+    assert non_default_port_url is not None
+    assert default_port_url.origin == "http://api.example.test"
+    assert non_default_port_url.origin == "http://api.example.test:8080"
+
+    with pytest.raises(ValueError, match="scope hosts must be host names"):
+        WatchConfig(project_root=tmp_path, scope_hosts=("api.example.test\n",))
+
+    with pytest.raises(ValueError, match="scope URL prefixes must not contain control"):
+        WatchConfig(
+            project_root=tmp_path,
+            scope_url_prefixes=("https://api.example.test/\nsecret",),
+        )
+
+    with pytest.raises(ValueError, match="scope URL prefixes must be absolute"):
+        WatchConfig(project_root=tmp_path, scope_url_prefixes=("ftp://api.example.test",))
+
+
 def test_capture_addon_ignores_urls_outside_target_scope(tmp_path: Path) -> None:
     store = TrafficStore.open_project(tmp_path)
     addon = TrafficCaptureAddon(store=store, target_url="https://api.example.test")
@@ -305,16 +399,22 @@ def test_capture_addon_ignores_urls_outside_target_scope(tmp_path: Path) -> None
 
 
 def test_watch_config_rejects_unsafe_proxy_inputs(tmp_path: Path) -> None:
-    assert WatchConfig(project_root=tmp_path, target_url=None).project_root == tmp_path.resolve()
+    assert (
+        WatchConfig(project_root=tmp_path, scope_hosts=("api.example.test",)).project_root
+        == tmp_path.resolve()
+    )
+
+    with pytest.raises(ValueError, match="watch requires an explicit capture scope"):
+        WatchConfig(project_root=tmp_path)
 
     with pytest.raises(ValueError, match="listen_port must be between 1 and 65535"):
-        WatchConfig(project_root=tmp_path, listen_port=0)
+        WatchConfig(project_root=tmp_path, listen_port=0, scope_hosts=("api.example.test",))
 
     with pytest.raises(ValueError, match="max_events must be positive"):
-        WatchConfig(project_root=tmp_path, max_events=0)
+        WatchConfig(project_root=tmp_path, max_events=0, scope_hosts=("api.example.test",))
 
     with pytest.raises(ValueError, match="max_body_chars must be positive"):
-        WatchConfig(project_root=tmp_path, max_body_chars=0)
+        WatchConfig(project_root=tmp_path, max_body_chars=0, scope_hosts=("api.example.test",))
 
     with pytest.raises(ValueError, match="target_url must be an absolute http or https URL"):
         WatchConfig(project_root=tmp_path, listen_port=8080, target_url="ssh://api.example.test")
@@ -324,6 +424,15 @@ def test_watch_config_rejects_unsafe_proxy_inputs(tmp_path: Path) -> None:
             project_root=tmp_path,
             listen_port=8080,
             target_url="https://api.example.test/\nInjected: yes",
+        )
+
+    with pytest.raises(ValueError, match="scope hosts must be host names"):
+        WatchConfig(project_root=tmp_path, scope_hosts=("https://api.example.test",))
+
+    with pytest.raises(ValueError, match="scope URL prefixes must not include queries"):
+        WatchConfig(
+            project_root=tmp_path,
+            scope_url_prefixes=("https://api.example.test/checkout?token=secret",),
         )
 
 

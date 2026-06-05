@@ -25,6 +25,7 @@ def test_watch_invokes_capture_workflow(
 
     async def fake_run_watch(config: WatchConfig) -> None:
         calls.append(config)
+        return None
 
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("entroping.cli.commands.execution.run_watch", fake_run_watch)
@@ -46,6 +47,68 @@ def test_watch_invokes_capture_workflow(
     ]
 
 
+def test_watch_accepts_explicit_capture_scope_and_prints_safe_summary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[WatchConfig] = []
+
+    async def fake_run_watch(config: WatchConfig) -> object:
+        calls.append(config)
+        from entroping.core.traffic_proxy import WatchRunSummary
+
+        return WatchRunSummary(recorded_count=2, ignored_count=1, malformed_count=1)
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("entroping.cli.commands.execution.run_watch", fake_run_watch)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "watch",
+            "--scope-host",
+            "API.EXAMPLE.TEST",
+            "--scope-url-prefix",
+            "https://payments.example.test/api/v1",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert calls == [
+        WatchConfig(
+            project_root=tmp_path,
+            scope_hosts=("api.example.test",),
+            scope_url_prefixes=("https://payments.example.test/api/v1",),
+        )
+    ]
+    assert "Capture scope: 1 host, 1 URL prefix" in result.output
+    assert "Recorded 2 in-scope traffic flows" in result.output
+    assert "Ignored 1 out-of-scope traffic flow" in result.output
+    assert "Ignored 1 malformed traffic flow" in result.output
+    assert "payments.example.test/api/v1" not in result.output
+
+
+def test_watch_requires_explicit_capture_scope_without_calling_proxy(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    called = False
+
+    async def fake_run_watch(config: WatchConfig) -> None:
+        nonlocal called
+        _ = config
+        called = True
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("entroping.cli.commands.execution.run_watch", fake_run_watch)
+
+    result = CliRunner().invoke(app, ["watch"])
+
+    assert result.exit_code == 1
+    assert "explicit capture scope" in result.output
+    assert called is False
+
+
 def test_watch_prints_actionable_missing_proxy_dependency(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -57,7 +120,7 @@ def test_watch_prints_actionable_missing_proxy_dependency(
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("entroping.cli.commands.execution.run_watch", fail_run_watch)
 
-    result = CliRunner().invoke(app, ["watch"])
+    result = CliRunner().invoke(app, ["watch", "--scope-host", "api.example.test"])
 
     assert result.exit_code == 1
     assert "mitmproxy is required" in result.output
@@ -75,7 +138,7 @@ def test_watch_handles_keyboard_interrupt(
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("entroping.cli.commands.execution.run_watch", interrupt_run_watch)
 
-    result = CliRunner().invoke(app, ["watch"])
+    result = CliRunner().invoke(app, ["watch", "--scope-host", "api.example.test"])
 
     assert result.exit_code == 0
     assert "Stopped traffic capture" in result.output

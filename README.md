@@ -369,7 +369,7 @@ entroping architect build [--new] [--changed-from <ref>] [--prompt <text>] [--st
 entroping architect refactor --target <glob> --prompt <text>
 entroping architect audit [--focus <logic|auditor>] [--output <json|md>] [--changed-from <ref>]
 
-entroping watch [--port <port>] [--target <url>]
+entroping watch [--port <port>] [--target <url>] [--scope-host <host> ...] [--scope-url-prefix <url> ...]
 entroping freeze --name <flow> [--golden] [--mock <service>] [capture filters]
 entroping map [--export <mermaid|dot|md|png>] [capture filters]
 

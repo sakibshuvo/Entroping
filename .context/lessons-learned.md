@@ -1,5 +1,12 @@
 # Entroping Lessons Learned
 
+## 2026-06-05
+
+- Traffic capture safety should be fail-closed before redaction. `watch` scope
+  checks need to normalize hosts and default ports, ignore malformed flow URLs
+  without persisting request details, and report only counts; redaction remains
+  the second layer for records that were explicitly in scope.
+
 ## 2026-06-04
 
 - Context compression is safe only when it is lossless. A decision registry
