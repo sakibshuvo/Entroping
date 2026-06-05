@@ -21,7 +21,7 @@ AI may generate and refactor tests, but deterministic Hurl execution decides pas
 Implement only this command surface unless the specs are explicitly updated:
 
 ```text
-entroping init [--minimal]
+entroping init [--minimal] [--github-actions]
 entroping doctor [--ci] [--output <text|json>]
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>

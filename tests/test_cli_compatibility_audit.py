@@ -21,7 +21,11 @@ class CliContract:
 
 
 LOCKED_CLI_CONTRACTS = (
-    CliContract("entroping init [--minimal]", ("init", "--help"), ("--minimal",)),
+    CliContract(
+        "entroping init [--minimal] [--github-actions]",
+        ("init", "--help"),
+        ("--minimal", "--github-actions"),
+    ),
     CliContract(
         "entroping doctor [--ci] [--output <text|json>]",
         ("doctor", "--help"),

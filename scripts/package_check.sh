@@ -78,6 +78,7 @@ version = project["version"]
 expected_wheel = dist_dir / f"{name}-{version}-py3-none-any.whl"
 expected_sdist = dist_dir / f"{name}-{version}.tar.gz"
 expected_typing_marker = "entroping/py.typed"
+expected_starter_template = "entroping/templates/github-actions/entroping-ci.yml"
 
 
 def fail(message: str) -> None:
@@ -110,6 +111,8 @@ with zipfile.ZipFile(expected_wheel) as wheel:
         fail(f"wheel is missing {expected_license_path}")
     if expected_typing_marker not in names:
         fail(f"wheel is missing {expected_typing_marker}")
+    if expected_starter_template not in names:
+        fail(f"wheel is missing {expected_starter_template}")
 
 metadata_name = metadata.get("Name")
 metadata_version = metadata.get("Version")
@@ -135,7 +138,13 @@ if any(classifier.startswith("License ::") for classifier in classifiers):
 with tarfile.open(expected_sdist, "r:gz") as sdist:
     names = set(sdist.getnames())
     root = f"{name}-{version}"
-    for required in ("LICENSE", "README.md", "pyproject.toml", "src/entroping/py.typed"):
+    for required in (
+        "LICENSE",
+        "README.md",
+        "pyproject.toml",
+        "src/entroping/py.typed",
+        "src/entroping/templates/github-actions/entroping-ci.yml",
+    ):
         path = f"{root}/{required}"
         if path not in names:
             fail(f"sdist is missing {path}")
@@ -145,4 +154,5 @@ print(f"Wheel: {expected_wheel.relative_to(repo_root)}")
 print(f"Sdist: {expected_sdist.relative_to(repo_root)}")
 print("License-Expression: Apache-2.0")
 print(f"Typing marker: {expected_typing_marker}")
+print(f"GitHub Actions starter template: {expected_starter_template}")
 PY

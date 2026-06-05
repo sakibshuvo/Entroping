@@ -23,7 +23,7 @@ updates, and an explicit compatibility decision.
 ## Locked Command Surface
 
 ```text
-entroping init [--minimal]
+entroping init [--minimal] [--github-actions]
 entroping doctor [--ci] [--output <text|json>]
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
@@ -62,6 +62,7 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 | Command naming | Keep the nested noun/verb shape: `config vendor-policy-pack`, `config test-policy-pack`, `architect build`, `architect refactor`, `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report policy`, `report gate-injection`, `report artifact-manifest`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary`. |
 | Aliases | No alias is compatibility-supported. Deprecated brainstorm names such as `gen`, `fix`, `scan`, `chaos`, `verify`, top-level `build`, `auth`, and `report --type` remain unavailable. |
 | Global flags | Only Typer completion helpers and `--version` are current global flags. `--verbose` is not a product flag. `freeze --dry-run` is command-scoped and does not create a global dry-run mode. |
+| Init CI starter | `init --github-actions` is an explicit opt-in setup helper that writes the reviewed starter to `.github/workflows/entroping.yml`, refuses to overwrite an existing workflow, and does not add secrets, provider credentials, hosted-service coupling, or package-index readiness claims. |
 | Determinism | `entroping run` remains deterministic, Hurl-backed, and LLM-free. |
 | Doctor CI readiness | `doctor --ci` is a strict local preflight for PR gates. It validates Hurl availability, safe report paths, suite manifests, required Hurl variables, and provider-free `run --ci` expectations without calling CI provider APIs or mutating workflows. |
 | Named suites | `run --suite <name>` loads committed `suites/<name>.yaml` manifests with schema `entroping.suite.v1`, root-bounded local path globs, tags, env, reports, parallel, fail-fast, and drift settings. It cannot be combined with ad hoc selectors; `--ci` remains allowed for exit behavior. |

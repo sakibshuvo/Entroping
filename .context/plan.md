@@ -202,6 +202,11 @@ project, and a Codex workspace with fast context rehydration.
 - `entroping report artifact-manifest` writes local checksum evidence for
   standard report artifacts without embedding artifact contents or claiming
   signing/attestation.
+- `entroping init --github-actions` installs the packaged, reviewed starter
+  workflow at `.github/workflows/entroping.yml`, refuses existing workflows,
+  rejects symlinked path components, and keeps the packaged template aligned
+  with `examples/github-actions/entroping-ci.yml` without adding secrets,
+  provider credentials, hosted-service coupling, or package-index claims.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work; `scripts/finish_issue.sh` verifies merged PRs and safely removes completed local worktrees.
 - Eye capture now has security-first traffic models, pre-persistence redaction, bounded SQLModel-backed SQLite state, and capture-only `watch` wiring through a lazy-loaded mitmproxy adapter.
 - Issues #1 through #85, plus validation fixes #95 and #97, are integrated.

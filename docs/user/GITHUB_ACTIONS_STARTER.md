@@ -14,7 +14,23 @@ tags:
 Use this when you want a downstream repository to gate pull requests with
 Entroping without adopting the full Entroping development workflow.
 
-Copy the starter workflow:
+Install the reviewed starter during project setup:
+
+```bash
+entroping init --github-actions
+```
+
+For the smallest local skeleton plus the CI starter:
+
+```bash
+entroping init --minimal --github-actions
+```
+
+The command writes `.github/workflows/entroping.yml` and refuses to overwrite an
+existing workflow. If that file already exists, review it manually and copy the
+starter only after deciding how to merge the workflows.
+
+You can still copy the starter manually from a source checkout:
 
 ```bash
 mkdir -p .github/workflows

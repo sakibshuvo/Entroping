@@ -8,7 +8,7 @@ Compatibility audit: [CLI_COMPATIBILITY_AUDIT.md](CLI_COMPATIBILITY_AUDIT.md).
 ## Locked Alpha Surface
 
 ```text
-entroping init [--minimal]
+entroping init [--minimal] [--github-actions]
 entroping doctor [--ci] [--output <text|json>]
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
@@ -44,6 +44,8 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 
 Current alpha implementation supports `init`, `doctor`, `config list`,
 `config set`, `config vendor-policy-pack`, and `config test-policy-pack`.
+`init --github-actions` installs the reviewed GitHub Actions starter workflow
+to `.github/workflows/entroping.yml` and refuses to overwrite an existing file.
 `config set` updates `qanstitution.yaml`, creates a missing local persona
 Markdown template, and does not store credentials or call model providers.
 `config vendor-policy-pack` copies a reviewed local pack under `policy-packs/`,
@@ -62,6 +64,7 @@ model-provider access.
 | --- | --- |
 | `entroping init` | Create a standard Entroping project layout |
 | `entroping init --minimal` | Create only the minimum required files |
+| `entroping init --github-actions` | Install the reviewed GitHub Actions starter workflow |
 | `entroping doctor` | Validate local setup, tools, config, and policies |
 | `entroping doctor --output json` | Emit versioned machine-readable setup health |
 | `entroping doctor --ci --output json` | Emit strict CI-readiness evidence without provider calls |
@@ -74,6 +77,7 @@ Examples:
 
 ```bash
 entroping init
+entroping init --minimal --github-actions
 entroping doctor
 entroping config list
 entroping config set --agent auditor --model openai/auditor-model

@@ -692,13 +692,21 @@ Compatibility audit: [CLI_COMPATIBILITY_AUDIT.md](CLI_COMPATIBILITY_AUDIT.md).
 ### Setup
 
 ```text
-entroping init [--minimal]
+entroping init [--minimal] [--github-actions]
 entroping doctor [--ci] [--output <text|json>]
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
 entroping config vendor-policy-pack --pack <path> [--name <dir>]
 entroping config test-policy-pack --pack <path> [--output <text|json>]
 ```
+
+`init --github-actions` is an explicit opt-in setup path. It installs the
+packaged, reviewed starter workflow to `.github/workflows/entroping.yml` using
+create-only path handling, rejects symlinked workflow path components, and
+refuses to overwrite an existing workflow. The starter uses pinned Hurl guidance
+and installs Entroping from the alpha Git tag; it does not add secrets,
+provider credentials, hosted-service coupling, or PyPI/TestPyPI readiness
+claims.
 
 `doctor --output json` emits schema version `entroping.doctor.v1` with overall
 status, Python version, Hurl and hurlfmt availability, traffic-state health,
@@ -1115,8 +1123,9 @@ uv run python scripts/downstream_smoke.py
 The package check builds wheel/sdist artifacts with `uv build` and inspects
 metadata for project name, version, SPDX license expression, license file
 presence, alpha maturity classifiers, and the `entroping/py.typed` PEP 561
-marker in both artifacts. It does not publish to PyPI/TestPyPI and must not
-require package-index credentials.
+marker in both artifacts. It also verifies the packaged GitHub Actions starter
+template required by `entroping init --github-actions`. It does not publish to
+PyPI/TestPyPI and must not require package-index credentials.
 
 The local wheel install smoke reuses the built wheel, creates an external
 temporary virtual environment and project, installs the wheel through

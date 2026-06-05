@@ -2,6 +2,12 @@
 
 ## 2026-06-05
 
+- Added issue #422's opt-in GitHub Actions starter install so
+  `entroping init --github-actions` writes the reviewed starter workflow to
+  `.github/workflows/entroping.yml`, refuses existing workflows, ships the
+  starter as package data, and verifies the packaged template in package
+  artifacts without adding secrets, provider credentials, hosted-service
+  coupling, or PyPI/TestPyPI readiness claims.
 - Added issue #423's report artifact manifest so
   `entroping report artifact-manifest` writes
   `reports/artifact-manifest.json` with project-relative paths, schema
