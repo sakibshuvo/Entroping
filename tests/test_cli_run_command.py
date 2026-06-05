@@ -460,10 +460,12 @@ def test_run_parallel_uses_qanstitution_worker_limit(
         options: HurlRunOptions,
         *,
         max_workers: int = 1,
+        fail_fast: bool = False,
     ) -> HurlSuiteResult:
         captured["max_workers"] = max_workers
         captured["timeout_ms"] = options.timeout_ms
         captured["retry"] = options.retry
+        captured["fail_fast"] = fail_fast
         return HurlSuiteResult(
             results=tuple(
                 HurlFileResult(
@@ -486,8 +488,71 @@ def test_run_parallel_uses_qanstitution_worker_limit(
     result = runner.invoke(app, ["run", "--tag", "smoke", "--parallel"])
 
     assert result.exit_code == 0
-    assert captured == {"max_workers": 2, "timeout_ms": 30_000, "retry": 2}
+    assert captured == {
+        "max_workers": 2,
+        "timeout_ms": 30_000,
+        "retry": 2,
+        "fail_fast": False,
+    }
     assert "Hurl run: 2 passed, 0 failed" in result.output
+
+
+def test_run_fail_fast_stops_after_first_failure_and_reports_not_scheduled(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    (Path("tests") / "first.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET http://localhost:18080/first\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    (Path("tests") / "second.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET http://localhost:18080/second\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    (Path("tests") / "third.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET http://localhost:18080/third\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stdout, stderr, timeout, check, env, shell)
+        hurl_file_name = Path(args[-1]).name
+        return subprocess.CompletedProcess(
+            args=args,
+            returncode=1 if hurl_file_name.startswith("second-") else 0,
+        )
+
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+
+    result = runner.invoke(app, ["run", "--tag", "smoke", "--fail-fast", "--report", "json"])
+
+    assert result.exit_code == 1
+    assert "Hurl run: 1 passed, 1 failed" in result.output
+    assert "Fail-fast: executed 2 of 3 selected tests; 1 not scheduled" in result.output
+    report_json = json.loads(Path("reports/run-latest.json").read_text(encoding="utf-8"))
+    assert report_json["summary"]["total"] == 2
+    assert report_json["summary"]["selected"] == 3
+    assert report_json["summary"]["executed"] == 2
+    assert report_json["summary"]["not_scheduled"] == 1
+    assert report_json["summary"]["fail_fast"] is True
+    assert [test["path"] for test in report_json["tests"]] == [
+        "tests/first.hurl",
+        "tests/second.hurl",
+    ]
+    assert "# entroping-gate:" not in Path("tests/third.hurl").read_text(encoding="utf-8")
 
 
 def test_run_selects_by_tag_expression_and_prints_selection_counts(
@@ -515,8 +580,9 @@ def test_run_selects_by_tag_expression_and_prints_selection_counts(
         options: HurlRunOptions,
         *,
         max_workers: int = 1,
+        fail_fast: bool = False,
     ) -> HurlSuiteResult:
-        _ = (options, max_workers)
+        _ = (options, max_workers, fail_fast)
         return HurlSuiteResult(
             results=tuple(
                 HurlFileResult(
@@ -561,8 +627,9 @@ def test_run_tag_expression_prints_zero_skipped_selection_counts(
         options: HurlRunOptions,
         *,
         max_workers: int = 1,
+        fail_fast: bool = False,
     ) -> HurlSuiteResult:
-        _ = (options, max_workers)
+        _ = (options, max_workers, fail_fast)
         return HurlSuiteResult(
             results=tuple(
                 HurlFileResult(
@@ -881,6 +948,7 @@ drift_check: true
         ["run", "--suite", "smoke", "--report", "json"],
         ["run", "--suite", "smoke", "--changed-from", "main"],
         ["run", "--suite", "smoke", "--parallel"],
+        ["run", "--suite", "smoke", "--fail-fast"],
         ["run", "--suite", "smoke", "--drift-check"],
     ],
 )

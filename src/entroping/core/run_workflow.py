@@ -110,6 +110,7 @@ def execute_run_workflow(
     report_formats: Sequence[str],
     parallel: bool,
     drift_check: bool,
+    fail_fast: bool = False,
     changed_from: str | None = None,
     discovery_roots: Sequence[Path] | None = None,
     selection_label: str | None = None,
@@ -142,6 +143,7 @@ def execute_run_workflow(
         operation_ids=tuple(operation_filters),
         report_formats=tuple(report_formats),
         parallel=parallel,
+        fail_fast=fail_fast,
         drift_check=drift_check,
         changed_from=changed_from,
     )
@@ -249,6 +251,7 @@ def execute_run_workflow(
                     variables=env_variables,
                 ),
                 max_workers=hurl_workers,
+                fail_fast=fail_fast,
             )
             run_report = build_run_report(
                 project=law.project,

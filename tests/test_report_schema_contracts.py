@@ -164,6 +164,44 @@ def test_run_report_v1_schema_contract_is_versioned_and_stable() -> None:
     }
 
 
+def test_run_report_v1_schema_contract_includes_fail_fast_summary_evidence() -> None:
+    schema = json.loads((SCHEMA_DIR / "run-report.v1.schema.json").read_text())
+    summary_properties = schema["properties"]["summary"]["properties"]
+    report = RunReport(
+        project="checkout-api",
+        environment="ci",
+        generated_at="2026-06-05T00:00:00+00:00",
+        summary=RunReportSummary(
+            total=2,
+            passed=1,
+            failed=1,
+            exit_code=1,
+            selected=3,
+            executed=2,
+            not_scheduled=1,
+            fail_fast=True,
+        ),
+        tests=(),
+    )
+
+    payload = run_report_to_dict(report)
+
+    assert payload["summary"] == {
+        "total": 2,
+        "passed": 1,
+        "failed": 1,
+        "exit_code": 1,
+        "selected": 3,
+        "executed": 2,
+        "not_scheduled": 1,
+        "fail_fast": True,
+    }
+    assert summary_properties["selected"] == {"type": "integer", "minimum": 0}
+    assert summary_properties["executed"] == {"type": "integer", "minimum": 0}
+    assert summary_properties["not_scheduled"] == {"type": "integer", "minimum": 0}
+    assert summary_properties["fail_fast"] == {"type": "boolean"}
+
+
 def test_run_delta_report_v1_schema_contract_is_versioned_and_stable() -> None:
     base = RunReport(
         project="checkout-api",

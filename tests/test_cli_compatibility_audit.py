@@ -108,7 +108,8 @@ LOCKED_CLI_CONTRACTS = (
     CliContract(
         "entroping run [--env <name>] [--suite <name>] [--tag <tag>] "
         "[--tag-expression <expr>] [--operation-id <id>] [--ci] [--parallel] "
-        "[--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]",
+        "[--fail-fast] [--report <html|junit|json|drift> ...] [--drift-check] "
+        "[--changed-from <ref>]",
         ("run", "--help"),
         (
             "--env",
@@ -118,6 +119,7 @@ LOCKED_CLI_CONTRACTS = (
             "--operation-id",
             "--ci",
             "--parallel",
+            "--fail-fast",
             "--report",
             "--drift-check",
             "--changed-from",

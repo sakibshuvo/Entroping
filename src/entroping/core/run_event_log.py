@@ -40,6 +40,7 @@ class RunEventLog:
         operation_ids: tuple[str, ...],
         report_formats: tuple[str, ...],
         parallel: bool,
+        fail_fast: bool,
         drift_check: bool,
         changed_from: str | None,
     ) -> None:
@@ -51,6 +52,7 @@ class RunEventLog:
             operation_ids=list(operation_ids),
             report_formats=list(report_formats),
             parallel=parallel,
+            fail_fast=fail_fast,
             drift_check=drift_check,
             changed_from=changed_from,
         )

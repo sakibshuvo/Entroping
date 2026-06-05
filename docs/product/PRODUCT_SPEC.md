@@ -213,6 +213,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | EXE-002 | Filter by tags | `entroping run --tag smoke` runs matching tests across folders; `--tag-expression "smoke and not slow"` supports deterministic ad hoc boolean selection |
 | EXE-003 | Run in CI mode | `entroping run --ci` emits strict exit codes and CI-friendly logs |
 | EXE-004 | Run in parallel | `entroping run --parallel` uses bounded workers and deterministic aggregation |
+| EXE-004A | Stop early on failure | `entroping run --fail-fast` stops scheduling additional tests after the first failing Hurl result and reports selected, executed, and not-scheduled counts |
 | EXE-005 | Inject gates | Matching QAnstitution gates are injected into execution copies without mutating source tests |
 | EXE-006 | Emit reports | Repeatable `--report html`, `--report junit`, `--report json`, and `--report drift` flags write reports under `reports/` |
 | EXE-007 | Detect drift | `--drift-check` compares current behavior against baselines and reports breaking changes |
@@ -225,7 +226,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | EXE-014 | Promote reviewed drift baselines | `entroping report promote-drift-baseline` validates a reviewed candidate before atomically writing `.entroping/drift-baseline.json` |
 | EXE-015 | Provide read-only TUI workflow | `entroping studio --env local` opens optional Textual/Rich local inspection over sanitized reports and redacted state |
 | EXE-016 | Preserve execution reproducibility | All blocking CI behavior must be explainable from committed Hurl files, env data, effective QAnstitution, and Hurl output |
-| EXE-017 | Run named committed suites | `entroping run --suite smoke` loads `suites/smoke.yaml`, validates schema `entroping.suite.v1`, resolves root-bounded local path globs, and applies suite-defined env, tags, reports, parallel, and drift settings without changing default `run` behavior |
+| EXE-017 | Run named committed suites | `entroping run --suite smoke` loads `suites/smoke.yaml`, validates schema `entroping.suite.v1`, resolves root-bounded local path globs, and applies suite-defined env, tags, reports, parallel, fail-fast, and drift settings without changing default `run` behavior |
 | EXE-018 | Report timeout evidence | JSON, JUnit, HTML, and review-summary artifacts show effective per-test `timeout_ms` and distinguish subprocess timeouts from Hurl assertion failures |
 | EXE-019 | Compare run reports | `entroping report delta --base <path> --current <path> --output md|json` compares two local JSON run reports without executing Hurl, emits schema-versioned added/resolved/changed/unchanged failure, latency, and policy-gate deltas, and omits raw stdout/stderr |
 | EXE-020 | Generate coverage badges | `entroping report badges` reads local run, effective-policy, OpenAPI audit, and traceability JSON reports and writes Shields-compatible badge JSON under `reports/badges/` without calling a hosted badge service |

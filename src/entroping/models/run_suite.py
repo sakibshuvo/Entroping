@@ -19,6 +19,7 @@ class RunSuiteManifest(BaseModel):
     paths: list[str] = Field(default_factory=list)
     reports: list[RunSuiteReportFormat] = Field(default_factory=list)
     parallel: bool = False
+    fail_fast: bool = False
     drift_check: bool = False
 
     @field_validator("name", "env")
@@ -36,6 +37,7 @@ class RunSuiteManifest(BaseModel):
             msg = "must not contain control characters"
             raise ValueError(msg)
         return normalized
+
     @field_validator("tags", "paths")
     @classmethod
     def validate_string_list(cls, value: list[str]) -> list[str]:

@@ -389,6 +389,10 @@ def run(
         bool,
         typer.Option("--parallel", help="Bounded parallel execution."),
     ] = False,
+    fail_fast: Annotated[
+        bool,
+        typer.Option("--fail-fast", help="Stop scheduling tests after the first failure."),
+    ] = False,
     report: Annotated[
         list[str] | None,
         typer.Option("--report", help="Report format; repeat for multiple formats."),
@@ -451,6 +455,7 @@ def run(
             raise typer.BadParameter(str(exc), param_hint="--report") from exc
         run_environment = env
         run_parallel = parallel
+        run_fail_fast = fail_fast
         run_drift_check = drift_check
         run_changed_from = changed_from
         discovery_roots = None
@@ -463,6 +468,7 @@ def run(
             operation_id=operation_id,
             report=report,
             parallel=parallel,
+            fail_fast=fail_fast,
             drift_check=drift_check,
             changed_from=changed_from,
         )
@@ -476,6 +482,7 @@ def run(
         report_formats = loaded_suite.report_formats
         run_environment = loaded_suite.environment
         run_parallel = loaded_suite.parallel
+        run_fail_fast = loaded_suite.fail_fast
         run_drift_check = loaded_suite.drift_check
         run_changed_from = None
         discovery_roots = loaded_suite.discovery_roots
@@ -490,6 +497,7 @@ def run(
             operation_ids=operation_filters,
             report_formats=report_formats,
             parallel=run_parallel,
+            fail_fast=run_fail_fast,
             drift_check=run_drift_check,
             changed_from=run_changed_from,
             discovery_roots=discovery_roots,
@@ -529,6 +537,15 @@ def run(
             markup=False,
         )
     console.print(f"Hurl run: {hurl_suite.passed} passed, {hurl_suite.failed} failed")
+    if hurl_suite.fail_fast and hurl_suite.not_scheduled:
+        console.print(
+            (
+                f"Fail-fast: executed {hurl_suite.total} of "
+                f"{hurl_suite.selected_count} selected tests; "
+                f"{hurl_suite.not_scheduled} not scheduled"
+            ),
+            markup=False,
+        )
     if drift_report is not None:
         if drift_report.summary.missing_baseline:
             console.print(
@@ -583,6 +600,7 @@ def _reject_suite_conflicts(
     operation_id: list[str] | None,
     report: list[str] | None,
     parallel: bool,
+    fail_fast: bool,
     drift_check: bool,
     changed_from: str | None,
 ) -> None:
@@ -599,6 +617,8 @@ def _reject_suite_conflicts(
         conflicts.append("--report")
     if parallel:
         conflicts.append("--parallel")
+    if fail_fast:
+        conflicts.append("--fail-fast")
     if drift_check:
         conflicts.append("--drift-check")
     if changed_from is not None:

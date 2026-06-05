@@ -177,6 +177,10 @@ For GitLab CI, Buildkite, CircleCI, or a generic shell runner, see
 `--parallel` uses `settings.parallel_workers` from `qanstitution.yaml` and keeps
 report ordering stable, so CI output remains deterministic even when files run
 concurrently.
+`--fail-fast` stops scheduling new tests after the first failing Hurl result.
+Sequential runs stop immediately. Parallel runs let already scheduled workers
+finish, then report selected, executed, and not-scheduled counts in latest-run
+state and requested reports.
 `settings.retry` gives each selected Hurl file a bounded retry budget. A test
 only passes if its final Hurl attempt passes; Entroping does not hide flaky
 failures. JSON, JUnit, HTML, and review-summary reports show retry count,
@@ -442,8 +446,8 @@ Good tests:
 - Assert contract and business behavior, not only status code.
 
 When tags alone are not enough, commit named suite manifests under `suites/`.
-They make the selected env, tags, paths, reports, parallel mode, and drift
-policy reviewable:
+They make the selected env, tags, paths, reports, parallel mode, fail-fast
+behavior, and drift policy reviewable:
 
 ```yaml
 # suites/smoke.yaml
@@ -459,6 +463,7 @@ reports:
   - junit
   - html
 parallel: true
+fail_fast: false
 drift_check: false
 ```
 
@@ -471,7 +476,7 @@ entroping run --suite smoke --ci
 Create separate manifests such as `suites/regression.yaml` and
 `suites/security.yaml` when a suite needs different paths, reports, or drift
 settings. `--suite` cannot be combined with ad hoc selectors such as `--env`,
-`--tag`, `--tag-expression`, `--report`, `--parallel`, `--drift-check`, or
+`--tag`, `--tag-expression`, `--report`, `--parallel`, `--fail-fast`, `--drift-check`, or
 `--changed-from`; use `--ci` only to choose strict exit behavior.
 
 Entroping can compile discovered Hurl metadata into a local story/test
@@ -543,7 +548,7 @@ Generate reports during a run:
 
 ```bash
 entroping doctor --ci
-entroping run --env ci --ci --parallel --report json --report junit --report html
+entroping run --env ci --ci --parallel --fail-fast --report json --report junit --report html
 ```
 
 Expected artifacts:

@@ -24,7 +24,7 @@ entroping freeze --name <flow> [--golden] [--mock <service>] [--dry-run] [captur
 entroping map [--export <mermaid|dot|md|png>] [capture filters]
 
 entroping studio [--env <name>]
-entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--operation-id <id>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
+entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--operation-id <id>] [--ci] [--parallel] [--fail-fast] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
 entroping report bug
 entroping report failure-bundle [--output <directory>]
 entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
@@ -197,7 +197,7 @@ entroping map --export mermaid --include-host api.example.test
 ## Execution
 
 Current alpha implementation supports deterministic `run`, `--env`, `--suite`,
-`--tag`, `--tag-expression`, `--operation-id`, `--ci`, bounded `--parallel`, `--drift-check`,
+`--tag`, `--tag-expression`, `--operation-id`, `--ci`, bounded `--parallel`, `--fail-fast`, `--drift-check`,
 `--report html`, `--report json`, `--report junit`, `--report drift`, and
 `--changed-from <ref>` for changed Hurl files from Git diff. Before invoking Hurl, `run` checks
 selected execution copies for unresolved `{{variable}}` references and reports
@@ -213,6 +213,7 @@ missing variable names without printing values.
 | `entroping run --operation-id <id>` | Run tests with matching OpenAPI `operation_id` metadata; repeat for multiple operations |
 | `entroping run --ci` | Strict CI mode |
 | `entroping run --parallel` | Bounded parallel execution |
+| `entroping run --fail-fast` | Stop scheduling after the first failing Hurl result |
 | `entroping run --report <html|junit|json|drift>` | Write report artifact; repeat for multiple formats |
 | `entroping run --drift-check` | Compare runtime behavior against baseline |
 | `entroping run --changed-from <ref>` | Fast local run for existing changed `.hurl` files |
@@ -231,15 +232,16 @@ entroping run --env local --tag smoke --report html --report json --report junit
 entroping run --tag-expression "smoke and not slow" --report json
 entroping run --operation-id createCheckout --operation-id createRefund --report json
 entroping run --changed-from origin/main --tag smoke
+entroping run --tag smoke --fail-fast --report json
 entroping run --env ci --ci --parallel --report junit
 entroping run --env staging --drift-check --report drift
 ```
 
 `--suite <name>` reads `suites/<name>.yaml` with schema version
 `entroping.suite.v1`. Suite manifests can define `env`, `tags`, `paths`,
-`reports`, `parallel`, and `drift_check`. Suite paths are root-bounded local
+`reports`, `parallel`, `fail_fast`, and `drift_check`. Suite paths are root-bounded local
 globs. `--suite` cannot be combined with ad hoc run selectors such as `--env`,
-`--tag`, `--tag-expression`, `--operation-id`, `--report`, `--parallel`, `--drift-check`, or
+`--tag`, `--tag-expression`, `--operation-id`, `--report`, `--parallel`, `--fail-fast`, `--drift-check`, or
 `--changed-from`; keep `--ci` for strict exit behavior. `--tag-expression`
 supports `and`, `or`, `not`, and parentheses over Entroping metadata tags. It
 cannot be combined with repeatable `--tag`; use `--tag` for simple OR selection

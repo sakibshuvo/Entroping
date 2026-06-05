@@ -855,6 +855,24 @@ def test_build_run_report_rejects_mismatched_execution_and_result_counts(tmp_pat
         )
 
 
+def test_build_run_report_rejects_result_without_execution_copy(tmp_path: Path) -> None:
+    source = tmp_path / "tests" / "health.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
+    unrelated_execution = tmp_path / ".entroping" / "run-1" / "other.hurl"
+
+    with pytest.raises(ReportWriterError, match="Hurl result path does not match"):
+        build_run_report(
+            project="checkout-api",
+            environment="local",
+            execution_copies=[_execution_copy(source, execution)],
+            suite=HurlSuiteResult(
+                results=_suite_result(unrelated_execution, "assert failed\n").results,
+                fail_fast=True,
+            ),
+            project_root=tmp_path,
+        )
+
+
 def test_build_run_report_displays_absolute_paths_outside_project_root(tmp_path: Path) -> None:
     outside_source = tmp_path.parent / "external-health.hurl"
     outside_execution = tmp_path.parent / "external-run-health.hurl"

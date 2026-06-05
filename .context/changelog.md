@@ -2,6 +2,11 @@
 
 ## 2026-06-05
 
+- Added issue #429's deterministic fail-fast execution mode so
+  `entroping run --fail-fast` stops scheduling after the first failing Hurl
+  result, preserves source `.hurl` immutability, and records selected,
+  executed, not-scheduled, and fail-fast summary evidence in latest-run state
+  and requested reports.
 - Added issue #430's sanitized run execution event log so every
   `entroping run` writes `.entroping/latest-run-events.jsonl` with
   `entroping.run-events.v1` start, selected-test, redacted-result, artifact,

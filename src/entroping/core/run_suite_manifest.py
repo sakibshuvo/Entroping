@@ -25,6 +25,7 @@ class LoadedRunSuite:
     tag_filters: tuple[str, ...]
     report_formats: tuple[str, ...]
     parallel: bool
+    fail_fast: bool
     drift_check: bool
     discovery_roots: tuple[Path, ...]
 
@@ -48,6 +49,7 @@ def load_run_suite_manifest(*, project_root: Path, suite_name: str) -> LoadedRun
         tag_filters=tuple(sorted(set(suite.tags))),
         report_formats=tuple(dict.fromkeys(suite.reports)),
         parallel=suite.parallel,
+        fail_fast=suite.fail_fast,
         drift_check=suite.drift_check,
         discovery_roots=_resolve_suite_paths(root=root, path_globs=tuple(suite.paths)),
     )
