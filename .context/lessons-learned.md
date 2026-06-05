@@ -2,6 +2,9 @@
 
 ## 2026-06-05
 
+- Report artifact manifests should prove local integrity with paths, sizes, and
+  checksums only. Do not turn them into signing, attestation, or content
+  validation claims unless a separate provenance/signing design exists.
 - Traffic artifact preview should reuse the same redacted session compilers and
   path-safety checks as the write path, then stop before Hurl validation,
   artifact writes, and approval manifests. Preview output should stay at

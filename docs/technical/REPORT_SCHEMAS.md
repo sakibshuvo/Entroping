@@ -24,6 +24,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Drift report | `entroping.drift-report.v1` | `reports/drift.json` | [drift-report.v1.schema.json](report-schemas/drift-report.v1.schema.json) |
 | Effective policy report | `entroping.effective-policy-report.v1` | `reports/effective-policy.json` | [effective-policy-report.v1.schema.json](report-schemas/effective-policy-report.v1.schema.json) |
 | Gate injection report | `entroping.gate-injection-report.v1` | `reports/gate-injection.json` | [gate-injection-report.v1.schema.json](report-schemas/gate-injection-report.v1.schema.json) |
+| Report artifact manifest | `entroping.report-artifact-manifest.v1` | `reports/artifact-manifest.json` | [report-artifact-manifest.v1.schema.json](report-schemas/report-artifact-manifest.v1.schema.json) |
 | Failure bundle manifest | `entroping.failure-bundle.v1` | `reports/failure-bundle/manifest.json` | Inline contract |
 | Coverage badges | Shields endpoint schema v1 | `reports/badges/*.json` | External Shields endpoint format |
 | Agent run manifest | `entroping.agent-run-manifest.v1` | `.entroping/agent-runs/*.json` | [agent-run-manifest.v1.schema.json](report-schemas/agent-run-manifest.v1.schema.json) |
@@ -57,6 +58,21 @@ files without running Hurl or mutating source files. The report includes gate
 ID, source policy path, condition, assertion, enforcement, final/group
 provenance, target file, and known-failure skips. It does not include raw
 traffic, environment variable values, provider data, or captured bodies.
+
+The report artifact manifest is written by:
+
+```bash
+entroping report artifact-manifest
+```
+
+It records project-relative paths, schema versions when available, byte sizes,
+and SHA-256 checksums for standard local report artifacts: JSON run report,
+JUnit XML, HTML report, drift JSON, SARIF, and review-summary Markdown.
+Missing expected artifacts are listed in `missing_artifacts` rather than
+failing the command. The manifest is integrity evidence for CI upload and
+release review; it is not a signing, notarization, or attestation system and it
+never stores artifact contents, raw traffic, provider responses, prompts,
+credentials, or environment values.
 
 The drift baseline candidate and active drift baseline share
 `entroping.drift-baseline.v1`. Candidates are written by `run --report drift`;

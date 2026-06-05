@@ -26,6 +26,13 @@ from entroping.core.drift_report import (
     drift_baseline_to_dict,
     drift_report_to_dict,
 )
+from entroping.core.report_artifact_manifest import (
+    REPORT_ARTIFACT_MANIFEST_SCHEMA_VERSION,
+    ReportArtifactEntry,
+    ReportArtifactManifest,
+    ReportArtifactManifestSummary,
+    ReportArtifactMissing,
+)
 from entroping.core.report_writer import run_report_to_dict
 from entroping.core.run_delta import (
     RUN_DELTA_REPORT_SCHEMA_VERSION,
@@ -644,6 +651,57 @@ def test_gate_injection_report_v1_schema_contract_is_versioned_and_stable() -> N
     }
 
 
+def test_report_artifact_manifest_v1_schema_contract_is_versioned_and_stable() -> None:
+    manifest = ReportArtifactManifest(
+        summary=ReportArtifactManifestSummary(
+            total_expected=2,
+            total_present=1,
+            total_missing=1,
+        ),
+        artifacts=(
+            ReportArtifactEntry(
+                kind="run_json",
+                path="reports/run-latest.json",
+                schema_version="entroping.run-report.v1",
+                size_bytes=17,
+                sha256="0" * 64,
+            ),
+        ),
+        missing_artifacts=(
+            ReportArtifactMissing(
+                kind="junit",
+                path="reports/junit.xml",
+            ),
+        ),
+    )
+
+    payload = manifest.model_dump(mode="json")
+
+    assert payload == {
+        "schema_version": REPORT_ARTIFACT_MANIFEST_SCHEMA_VERSION,
+        "summary": {
+            "total_expected": 2,
+            "total_present": 1,
+            "total_missing": 1,
+        },
+        "artifacts": [
+            {
+                "kind": "run_json",
+                "path": "reports/run-latest.json",
+                "schema_version": "entroping.run-report.v1",
+                "size_bytes": 17,
+                "sha256": "0" * 64,
+            }
+        ],
+        "missing_artifacts": [
+            {
+                "kind": "junit",
+                "path": "reports/junit.xml",
+            }
+        ],
+    }
+
+
 def test_openapi_audit_v1_schema_contract_is_versioned_and_stable() -> None:
     document: dict[str, object] = {
         "openapi": "3.1.0",
@@ -749,6 +807,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         ),
         "entroping.gate-injection-report.v1": (
             SCHEMA_DIR / "gate-injection-report.v1.schema.json"
+        ),
+        "entroping.report-artifact-manifest.v1": (
+            SCHEMA_DIR / "report-artifact-manifest.v1.schema.json"
         ),
         "entroping.traffic-artifact-approval.v1": (
             SCHEMA_DIR / "traffic-artifact-approval.v1.schema.json"

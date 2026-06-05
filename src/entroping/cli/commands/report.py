@@ -41,6 +41,10 @@ from entroping.core.redaction_review_report import (
     RedactionReviewOutput,
     run_redaction_review,
 )
+from entroping.core.report_artifact_manifest import (
+    ReportArtifactManifestError,
+    write_report_artifact_manifest,
+)
 from entroping.core.report_writer import (
     ReportWriterError,
     load_run_report,
@@ -280,6 +284,32 @@ def report_gate_injection(
         f"{noun}.[/green]"
     )
     console.print(f"Wrote gate injection report: {display_cli_path(result.output_path)}")
+
+
+@app.command("artifact-manifest")
+def report_artifact_manifest(
+    output: Annotated[
+        Path,
+        typer.Option("--output", help="Artifact manifest output path."),
+    ] = Path("reports") / "artifact-manifest.json",
+) -> None:
+    """Write checksum evidence for local report artifacts."""
+
+    try:
+        result = write_report_artifact_manifest(
+            project_root=Path.cwd(),
+            output_path=output,
+        )
+    except ReportArtifactManifestError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(
+        "Wrote artifact manifest: "
+        f"{display_cli_path(result.output_path)} "
+        f"({result.manifest.summary.total_present} present, "
+        f"{result.manifest.summary.total_missing} missing)"
+    )
 
 
 @app.command("github-annotations")

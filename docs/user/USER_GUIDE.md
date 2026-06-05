@@ -358,6 +358,18 @@ groups, and active known-failure skips, then lists gate ID, source policy path,
 condition, assertion, enforcement, and target file without running Hurl or
 mutating source `.hurl` files.
 
+Write checksum evidence for the local report artifacts:
+
+```bash
+entroping report artifact-manifest
+```
+
+The artifact manifest writes `reports/artifact-manifest.json`. It lists
+standard local report artifacts, schema versions when available, byte sizes,
+and SHA-256 checksums; missing expected artifacts are recorded without failing
+the command. Use it as CI upload or release-review integrity evidence, not as a
+signature, notarization, or attestation system.
+
 Freeze the session into tests:
 
 ```bash
@@ -598,6 +610,7 @@ Generate local Shields-compatible coverage badges from existing reports:
 ```bash
 entroping report policy --output json
 entroping report gate-injection --target tests/health.hurl --output json
+entroping report artifact-manifest
 entroping architect audit --focus logic --output json > reports/openapi-audit.json
 entroping report traceability --output json > reports/traceability.json
 entroping report badges
@@ -681,6 +694,15 @@ entroping report review-summary --traceability
 This writes `reports/review-summary.md` from the JSON run report, JUnit XML,
 drift JSON, and optional local traceability metadata. Entroping does not call
 GitHub, GitLab, Buildkite, Jira, Linear, or model providers to post it.
+
+After writing reports that you plan to upload, write a manifest for reviewers:
+
+```bash
+entroping report artifact-manifest
+```
+
+The manifest includes checksums and sizes for present report files and a
+`missing_artifacts` list for expected files that were not produced in this run.
 
 ## 11. Drift Detection
 

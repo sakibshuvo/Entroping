@@ -45,6 +45,7 @@ entroping report badges [--output <directory>] [--run-json <path>] [--policy-jso
 entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
 entroping report gate-injection --target <path> [--output <md|json>]
+entroping report artifact-manifest [--output <path>]
 entroping report traceability [--output <md|json>]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
 entroping report sarif [--output <path>] [--junit <path>] [--drift <path>] [--traceability]

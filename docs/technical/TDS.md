@@ -674,6 +674,7 @@ Reports are written under `reports/`.
 | Coverage Badges | `report badges` | Local Shields endpoint JSON from existing reports |
 | Redaction Review | `report redaction --output md|html` | Captured-traffic redaction coverage review |
 | Effective Policy | `report policy --output md|json` | Resolved QAnstitution gate provenance |
+| Artifact Manifest | `report artifact-manifest` | Checksum manifest for local report artifacts |
 | Traceability Markdown/JSON | `report traceability --output md|json` | Local story/test coverage review |
 | GitHub Annotations | `report github-annotations` | Pull request workflow-command annotations |
 | SARIF | `report sarif` | Code-scanning import for local Entroping findings |
@@ -798,6 +799,7 @@ entroping report badges [--output <directory>] [--run-json <path>] [--policy-jso
 entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
 entroping report gate-injection --target <path> [--output <md|json>]
+entroping report artifact-manifest [--output <path>]
 entroping report traceability [--output <md|json>]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
 entroping report sarif [--output <path>] [--junit <path>] [--drift <path>] [--traceability]
@@ -906,6 +908,14 @@ source `.hurl` files. Targets are root-bounded local `.hurl` files; symlinked
 targets, path escapes, missing files, and non-Hurl files are rejected before
 report writing.
 
+`entroping report artifact-manifest` writes `reports/artifact-manifest.json`
+by default with project-relative report paths, schema versions when available,
+artifact sizes, and SHA-256 checksums for standard JSON, JUnit, HTML, drift,
+SARIF, and review-summary artifacts. Missing expected artifacts are listed
+instead of failing the command. The manifest is local integrity evidence for CI
+upload and release review; it is not a signing, notarization, or attestation
+system and it never embeds artifact contents.
+
 `entroping report badges` writes local Shields endpoint JSON files under
 `reports/badges/` by default. It reads existing local reports only:
 `reports/run-latest.json`, `reports/effective-policy.json`,
@@ -971,6 +981,7 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report policy --output json` | `reports/effective-policy.json` | Machine-readable effective policy evidence using `entroping.effective-policy-report.v1`. |
 | `entroping report gate-injection --output md` | `reports/gate-injection.md` | Human-readable gate-injection explanation for selected Hurl files. |
 | `entroping report gate-injection --output json` | `reports/gate-injection.json` | Machine-readable gate-injection explanation using `entroping.gate-injection-report.v1`. |
+| `entroping report artifact-manifest` | `reports/artifact-manifest.json` | Machine-readable checksum manifest using `entroping.report-artifact-manifest.v1`. |
 | `entroping report traceability --output md|json` | `stdout Markdown/JSON` | Local story/test coverage report. |
 | `entroping report github-annotations` | `stdout GitHub Actions annotations` | Workflow-command annotations from JUnit, drift, and optional traceability findings. |
 | `entroping report sarif` | `reports/entroping.sarif` | SARIF 2.1.0 code-scanning evidence from JUnit, drift, and optional traceability findings. |
