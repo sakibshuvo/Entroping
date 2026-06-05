@@ -799,7 +799,7 @@ entroping map [--export <mermaid|dot|md|png>] [capture filters]
 
 ```text
 entroping studio [--env <name>]
-entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--operation-id <id>] [--ci] [--parallel] [--fail-fast] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
+entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--operation-id <id>] [--ci] [--parallel] [--fail-fast] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>] [--rerun-failures]
 entroping report bug
 entroping report failure-bundle [--output <directory>]
 entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
@@ -866,17 +866,25 @@ latest evidence remains valid if execution is interrupted.
 used, and paths outside the project root are rejected before discovery. This is
 for fast local and agent feedback only; CI release gates should keep running the
 full deterministic suite.
+`--rerun-failures` reads `reports/run-latest.json` first and falls back to
+`.entroping/latest-run.json`, selects failed source `.hurl` paths that still
+exist inside the project, rejects malformed reports, path escapes, symlinked
+paths, missing files, non-Hurl paths, and zero-failure reports before execution,
+and feeds those paths into the same Hurl discovery, gate injection, env loading,
+variable preflight, subprocess runner, and report writers. It reuses the report
+environment unless `--env` overrides it, and it cannot be combined with
+`--suite`, `--tag`, `--tag-expression`, `--operation-id`, or `--changed-from`.
 `--operation-id <id>` is a repeatable deterministic selector over committed
 Hurl `operation_id` metadata. It cannot be combined with suite, changed-from,
-tag, or tag-expression selectors, and run reports preserve optional per-test
-operation ID evidence in JSON, JUnit, and HTML artifacts.
+rerun-failures, tag, or tag-expression selectors, and run reports preserve
+optional per-test operation ID evidence in JSON, JUnit, and HTML artifacts.
 `--suite <name>` loads a committed `suites/<name>.yaml` manifest with schema
 version `entroping.suite.v1`. A suite can define `env`, `tags`, root-bounded
 `paths` globs, `reports`, `parallel`, `fail_fast`, and `drift_check`. The suite manifest
 feeds the same deterministic run workflow; it does not change default
 `entroping run` behavior, and it cannot be combined with ad hoc selectors such
-as `--env`, `--tag`, `--report`, `--parallel`, `--fail-fast`, `--drift-check`, or
-`--changed-from`.
+as `--env`, `--tag`, `--report`, `--parallel`, `--fail-fast`, `--drift-check`,
+`--changed-from`, or `--rerun-failures`.
 Before Hurl starts, the run workflow scans selected temporary execution copies
 for unresolved `{{variable}}` references. Resolved variables can come from
 `envs/<name>.env`, explicit shell `HURL_VARIABLE_<name>` values, Hurl

@@ -24,7 +24,7 @@ entroping freeze --name <flow> [--golden] [--mock <service>] [--dry-run] [captur
 entroping map [--export <mermaid|dot|md|png>] [capture filters]
 
 entroping studio [--env <name>]
-entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--operation-id <id>] [--ci] [--parallel] [--fail-fast] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
+entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--operation-id <id>] [--ci] [--parallel] [--fail-fast] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>] [--rerun-failures]
 entroping report bug
 entroping report failure-bundle [--output <directory>]
 entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
@@ -224,6 +224,7 @@ missing variable names without printing values.
 | `entroping run --report <html|junit|json|drift>` | Write report artifact; repeat for multiple formats |
 | `entroping run --drift-check` | Compare runtime behavior against baseline |
 | `entroping run --changed-from <ref>` | Fast local run for existing changed `.hurl` files |
+| `entroping run --rerun-failures` | Fast local rerun of failed files from the latest local run report |
 
 Every `entroping run` writes `.entroping/latest-run-events.jsonl`, a sanitized
 JSONL progress log with schema `entroping.run-events.v1`. It records run start,
@@ -239,6 +240,7 @@ entroping run --env local --tag smoke --report html --report json --report junit
 entroping run --tag-expression "smoke and not slow" --report json
 entroping run --operation-id createCheckout --operation-id createRefund --report json
 entroping run --changed-from origin/main --tag smoke
+entroping run --rerun-failures --report json
 entroping run --tag smoke --fail-fast --report json
 entroping run --env ci --ci --parallel --report junit
 entroping run --env staging --drift-check --report drift
@@ -248,8 +250,8 @@ entroping run --env staging --drift-check --report drift
 `entroping.suite.v1`. Suite manifests can define `env`, `tags`, `paths`,
 `reports`, `parallel`, `fail_fast`, and `drift_check`. Suite paths are root-bounded local
 globs. `--suite` cannot be combined with ad hoc run selectors such as `--env`,
-`--tag`, `--tag-expression`, `--operation-id`, `--report`, `--parallel`, `--fail-fast`, `--drift-check`, or
-`--changed-from`; keep `--ci` for strict exit behavior. `--tag-expression`
+`--tag`, `--tag-expression`, `--operation-id`, `--report`, `--parallel`, `--fail-fast`, `--drift-check`, `--changed-from`, or
+`--rerun-failures`; keep `--ci` for strict exit behavior. `--tag-expression`
 supports `and`, `or`, `not`, and parentheses over Entroping metadata tags. It
 cannot be combined with repeatable `--tag`; use `--tag` for simple OR selection
 and `--tag-expression` for ad hoc boolean selection.
@@ -257,10 +259,17 @@ and `--tag-expression` for ad hoc boolean selection.
 `--operation-id` selects existing committed `.hurl` files by exact
 `# entroping: operation_id=<id>` metadata. It is repeatable, reports
 selected/skipped counts, records operation IDs in run reports, and cannot be
-combined with `--tag`, `--tag-expression`, `--suite`, or `--changed-from`.
+combined with `--tag`, `--tag-expression`, `--suite`, `--changed-from`, or
+`--rerun-failures`.
 
-`--changed-from` is a developer and agent feedback shortcut. Keep full-suite
-`entroping run --ci` as the release gate.
+`--rerun-failures` reads `reports/run-latest.json` first, then
+`.entroping/latest-run.json`, selects failed source `.hurl` files that still
+exist, and reruns them through the normal deterministic run workflow. It reuses
+the report environment unless `--env` is provided. It cannot be combined with
+`--tag`, `--tag-expression`, `--operation-id`, `--suite`, or `--changed-from`.
+
+`--changed-from` and `--rerun-failures` are developer and agent feedback
+shortcuts. Keep full-suite `entroping run --ci` as the release gate.
 
 Run reports include per-test `timeout_ms` evidence. Hurl subprocess timeouts
 use status `timeout`, exit code `124`, a timeout-specific JUnit failure type,

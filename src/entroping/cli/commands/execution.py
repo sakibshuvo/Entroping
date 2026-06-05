@@ -22,6 +22,11 @@ from entroping.core.gate_injector import GateInjectionError
 from entroping.core.hurl_discovery import normalize_operation_id_filters, normalize_tag_filters
 from entroping.core.hurl_runner import HurlBinaryNotFoundError
 from entroping.core.report_writer import ReportWriterError
+from entroping.core.rerun_failures import (
+    RerunFailureSelection,
+    RerunFailuresError,
+    select_latest_failed_hurl_tests,
+)
 from entroping.core.run_suite_manifest import RunSuiteManifestError, load_run_suite_manifest
 from entroping.core.run_workflow import (
     NoHurlTestsMatchedError,
@@ -408,10 +413,25 @@ def run(
             help="Run existing changed .hurl files from a Git base ref.",
         ),
     ] = None,
+    rerun_failures: Annotated[
+        bool,
+        typer.Option(
+            "--rerun-failures",
+            help="Run failed Hurl files from the latest local run report.",
+        ),
+    ] = False,
 ) -> None:
     """Run Hurl suites with QAnstitution gates."""
 
+    rerun_selection: RerunFailureSelection | None = None
     if suite is None:
+        if rerun_failures:
+            _reject_rerun_failure_conflicts(
+                tag=tag,
+                tag_expression=tag_expression,
+                operation_id=operation_id,
+                changed_from=changed_from,
+            )
         if tag and tag_expression is not None:
             raise typer.BadParameter(
                 "--tag cannot be combined with --tag-expression",
@@ -458,8 +478,20 @@ def run(
         run_fail_fast = fail_fast
         run_drift_check = drift_check
         run_changed_from = changed_from
-        discovery_roots = None
-        selection_label = None
+        if rerun_failures:
+            try:
+                rerun_selection = select_latest_failed_hurl_tests(project_root=Path.cwd())
+            except RerunFailuresError as exc:
+                print_cli_error(exc)
+                raise typer.Exit(1) from exc
+            run_environment = env if env is not None else rerun_selection.environment
+            discovery_roots = rerun_selection.failed_paths
+            selection_label = (
+                f"failed tests from {display_cli_path(rerun_selection.report_path)}"
+            )
+        else:
+            discovery_roots = None
+            selection_label = None
     else:
         _reject_suite_conflicts(
             env=env,
@@ -471,6 +503,7 @@ def run(
             fail_fast=fail_fast,
             drift_check=drift_check,
             changed_from=changed_from,
+            rerun_failures=rerun_failures,
         )
         try:
             loaded_suite = load_run_suite_manifest(project_root=Path.cwd(), suite_name=suite)
@@ -522,6 +555,14 @@ def run(
     hurl_suite = workflow_result.suite
     drift_report = workflow_result.drift_report
     selection = getattr(workflow_result, "selection", None)
+    if rerun_selection is not None:
+        console.print(
+            (
+                f"Rerun failures: {len(rerun_selection.failed_paths)} selected from "
+                f"{display_cli_path(rerun_selection.report_path)}"
+            ),
+            markup=False,
+        )
     if selection is not None and (tag_expression is not None or selection.skipped_count > 0):
         if operation_filters:
             reason = " by operation ID"
@@ -592,6 +633,30 @@ def _normalize_report_formats(report: list[str] | None) -> tuple[str, ...]:
     return tuple(normalized)
 
 
+def _reject_rerun_failure_conflicts(
+    *,
+    tag: list[str] | None,
+    tag_expression: str | None,
+    operation_id: list[str] | None,
+    changed_from: str | None,
+) -> None:
+    conflicts: list[str] = []
+    if tag:
+        conflicts.append("--tag")
+    if tag_expression is not None:
+        conflicts.append("--tag-expression")
+    if operation_id:
+        conflicts.append("--operation-id")
+    if changed_from is not None:
+        conflicts.append("--changed-from")
+    if conflicts:
+        joined = ", ".join(conflicts)
+        raise typer.BadParameter(
+            f"--rerun-failures cannot be combined with {joined}",
+            param_hint="--rerun-failures",
+        )
+
+
 def _reject_suite_conflicts(
     *,
     env: str | None,
@@ -603,6 +668,7 @@ def _reject_suite_conflicts(
     fail_fast: bool,
     drift_check: bool,
     changed_from: str | None,
+    rerun_failures: bool,
 ) -> None:
     conflicts: list[str] = []
     if env is not None:
@@ -623,6 +689,8 @@ def _reject_suite_conflicts(
         conflicts.append("--drift-check")
     if changed_from is not None:
         conflicts.append("--changed-from")
+    if rerun_failures:
+        conflicts.append("--rerun-failures")
     if conflicts:
         joined = ", ".join(conflicts)
         raise typer.BadParameter(f"{joined} cannot be combined with --suite", param_hint="--suite")

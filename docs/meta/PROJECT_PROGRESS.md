@@ -31,7 +31,7 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#420](https://github.com/sakibshuvo/Entroping/issues/420) reruns failures from the latest local report.
+Current issue: [#419](https://github.com/sakibshuvo/Entroping/issues/419) previews Architect refactor patches without writing files.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -48,9 +48,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#420](https://github.com/sakibshuvo/Entroping/issues/420) | Rerun failures from the latest local report. |
-| 2 | [#419](https://github.com/sakibshuvo/Entroping/issues/419) | Preview Architect refactor patches without writing files. |
-| 3 | [#467](https://github.com/sakibshuvo/Entroping/issues/467) | Add a multi-agent review bundle. |
+| 1 | [#419](https://github.com/sakibshuvo/Entroping/issues/419) | Preview Architect refactor patches without writing files. |
+| 2 | [#467](https://github.com/sakibshuvo/Entroping/issues/467) | Add a multi-agent review bundle. |
+| 3 | [#418](https://github.com/sakibshuvo/Entroping/issues/418) | Check Hurl version compatibility in doctor. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -71,6 +71,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Latest failure reruns](https://github.com/sakibshuvo/Entroping/issues/420) | Done | `entroping run --rerun-failures` selects failed source `.hurl` files from `reports/run-latest.json` or `.entroping/latest-run.json`, reuses the report environment unless `--env` overrides it, runs through the normal deterministic workflow, and remains feedback acceleration rather than release proof. |
 | [Policy gate coverage matrix](https://github.com/sakibshuvo/Entroping/issues/421) | Done | `entroping report gate-coverage --output md|json` maps each effective QAnstitution gate to committed Hurl test files, tags, operation IDs, request methods, and redacted request paths, lists unmatched gates, and does not execute Hurl, inject assertions, call providers, or print full URLs, query strings, headers, bodies, variables, or captured traffic values. |
 | [GitHub Actions starter install](https://github.com/sakibshuvo/Entroping/issues/422) | Done | `entroping init --github-actions` installs the reviewed starter workflow at `.github/workflows/entroping.yml`, refuses existing workflows, keeps the packaged template aligned with `examples/github-actions/entroping-ci.yml`, and adds no secrets, provider credentials, hosted-service coupling, or package-index readiness claims. |
 | [Gate-injection explanation report](https://github.com/sakibshuvo/Entroping/issues/428) | Done | `entroping report gate-injection --target <path> --output md|json` explains effective QAnstitution gates that would be injected into selected local Hurl files, including source policy path, condition, enforcement, final/group provenance, and known-failure skips without running Hurl or mutating source files. |
@@ -128,7 +129,6 @@ entirely inside this repo.
 | [OpenAPI operation-to-Hurl coverage matrix](https://github.com/sakibshuvo/Entroping/issues/400) | Done | `architect audit --focus logic --output md|json` now shows covered, uncovered, ambiguous, and stale OpenAPI operation mappings. |
 | [`py.typed` package marker](https://github.com/sakibshuvo/Entroping/issues/366) | Done | Built wheel and sdist artifacts now include `entroping/py.typed`, and `scripts/package_check.sh` fails if either artifact omits it. |
 | [Run workflow integration proof](https://github.com/sakibshuvo/Entroping/issues/367) | Done | A Python integration test invokes `entroping run` with a fake `hurl` executable, proving discovery, gate injection, subprocess execution, source immutability, and JSON/JUnit reports together. |
-| [Shell script quality gate](https://github.com/sakibshuvo/Entroping/issues/369) | Done | `scripts/shell_quality.sh` now runs `bash -n` over tracked shell scripts, runs ShellCheck when available, and is wired into the feature gate before Python checks. |
 
 ## Source Of Truth
 

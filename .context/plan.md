@@ -116,6 +116,10 @@ project, and a Codex workspace with fast context rehydration.
 - `entroping run --operation-id <id>` selects existing Hurl tests by exact
   committed OpenAPI `operation_id` metadata, rejects selector conflicts before
   Hurl execution, and writes operation ID evidence into JSON/JUnit/HTML reports.
+- `entroping run --rerun-failures` selects failed source `.hurl` files from
+  `reports/run-latest.json` or `.entroping/latest-run.json`, reuses the report
+  environment unless `--env` overrides it, rejects unsafe or stale paths before
+  execution, and remains fast feedback rather than release proof.
 - `entroping run --suite <name>` loads committed `suites/<name>.yaml`
   manifests with schema `entroping.suite.v1`, root-bounded path globs, tags,
   env, reports, parallel, and drift settings without changing default `run`
