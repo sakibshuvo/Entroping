@@ -140,7 +140,7 @@ The v4.1 command namespace is intentionally small and stable:
 | Intelligence | `architect build`, `architect refactor`, `architect audit` |
 | Observation | `watch`, `freeze`, `map` |
 | Execution | `run`, `studio` |
-| Reporting | `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report policy`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary` |
+| Reporting | `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report policy`, `report gate-injection`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary` |
 
 Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `verify`, `explain`, and `chaos` must not be treated as primary v4.1 commands. They can exist only as explicit backwards-compatible aliases or future roadmap items.
 
@@ -230,6 +230,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | EXE-018 | Report timeout evidence | JSON, JUnit, HTML, and review-summary artifacts show effective per-test `timeout_ms` and distinguish subprocess timeouts from Hurl assertion failures |
 | EXE-019 | Compare run reports | `entroping report delta --base <path> --current <path> --output md|json` compares two local JSON run reports without executing Hurl, emits schema-versioned added/resolved/changed/unchanged failure, latency, and policy-gate deltas, and omits raw stdout/stderr |
 | EXE-020 | Generate coverage badges | `entroping report badges` reads local run, effective-policy, OpenAPI audit, and traceability JSON reports and writes Shields-compatible badge JSON under `reports/badges/` without calling a hosted badge service |
+| EXE-021 | Explain gate injection | `entroping report gate-injection --target <path> --output md|json` reports which effective QAnstitution gates would be injected into selected local Hurl files without running Hurl or mutating source `.hurl` files |
 
 ## 10. Supported Test Types
 

@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sakibshuvo.github.io/Entroping/schemas/gate-injection-report.v1.schema.json",
+  "title": "Entroping Gate Injection Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project",
+    "config_path",
+    "summary",
+    "targets"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.gate-injection-report.v1"
+    },
+    "project": {
+      "type": "string"
+    },
+    "config_path": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total_targets", "total_would_inject", "total_known_failures"],
+      "properties": {
+        "total_targets": {"type": "integer", "minimum": 0},
+        "total_would_inject": {"type": "integer", "minimum": 0},
+        "total_known_failures": {"type": "integer", "minimum": 0}
+      }
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "tags", "operation_id", "gates"],
+        "properties": {
+          "path": {"type": "string"},
+          "tags": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "operation_id": {"type": ["string", "null"]},
+          "gates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "source_path",
+                "condition",
+                "gate",
+                "enforcement",
+                "final",
+                "status",
+                "group",
+                "description",
+                "issue_id",
+                "expires",
+                "reason"
+              ],
+              "properties": {
+                "id": {"type": "string"},
+                "source_path": {"type": "string"},
+                "condition": {"type": "string"},
+                "gate": {"type": "string"},
+                "enforcement": {"enum": ["block", "warn", "audit_only"]},
+                "final": {"type": "boolean"},
+                "status": {"enum": ["would_inject", "known_failure"]},
+                "group": {"type": ["string", "null"]},
+                "description": {"type": ["string", "null"]},
+                "issue_id": {"type": ["string", "null"]},
+                "expires": {"type": ["string", "null"]},
+                "reason": {"type": ["string", "null"]}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

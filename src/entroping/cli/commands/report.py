@@ -24,6 +24,11 @@ from entroping.core.effective_policy_report import (
     run_effective_policy_report,
 )
 from entroping.core.failure_bundle import FailureBundleError, create_failure_bundle
+from entroping.core.gate_injection_report import (
+    GateInjectionOutput,
+    GateInjectionReportError,
+    run_gate_injection_report,
+)
 from entroping.core.github_annotations import (
     GitHubAnnotation,
     GitHubAnnotationError,
@@ -238,6 +243,43 @@ def report_policy(
         f"[green]Resolved effective policy with {len(result.report.gates)} {noun}.[/green]"
     )
     console.print(f"Wrote effective policy report: {display_cli_path(result.output_path)}")
+
+
+@app.command("gate-injection")
+def report_gate_injection(
+    target: Annotated[
+        list[Path],
+        typer.Option("--target", help="Selected .hurl file to explain; repeatable."),
+    ],
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Explain effective QAnstitution gates for selected Hurl files."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported gate-injection output: {output}[/yellow]")
+        raise typer.Exit(2)
+    gate_output = cast(GateInjectionOutput, normalized_output)
+
+    try:
+        result = run_gate_injection_report(
+            project_root=Path.cwd(),
+            targets=tuple(target),
+            output=gate_output,
+        )
+    except GateInjectionReportError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    noun = "target" if result.report.summary.total_targets == 1 else "targets"
+    console.print(
+        f"[green]Explained gate injection for {result.report.summary.total_targets} "
+        f"{noun}.[/green]"
+    )
+    console.print(f"Wrote gate injection report: {display_cli_path(result.output_path)}")
 
 
 @app.command("github-annotations")

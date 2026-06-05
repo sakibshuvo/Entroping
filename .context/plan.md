@@ -196,6 +196,9 @@ project, and a Codex workspace with fast context rehydration.
   failing result. Sequential runs stop immediately; parallel runs let already
   scheduled workers finish and report selected, executed, not-scheduled, and
   fail-fast summary evidence.
+- `entroping report gate-injection --target <path> --output md|json` explains
+  selected-file QAnstitution gate injection without running Hurl, writing
+  temporary execution copies, or mutating source `.hurl` files.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work; `scripts/finish_issue.sh` verifies merged PRs and safely removes completed local worktrees.
 - Eye capture now has security-first traffic models, pre-persistence redaction, bounded SQLModel-backed SQLite state, and capture-only `watch` wiring through a lazy-loaded mitmproxy adapter.
 - Issues #1 through #85, plus validation fixes #95 and #97, are integrated.

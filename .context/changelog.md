@@ -2,6 +2,10 @@
 
 ## 2026-06-05
 
+- Added issue #428's gate-injection explanation report so
+  `entroping report gate-injection --target <path> --output md|json` resolves
+  effective QAnstitution gates for selected local Hurl files without running
+  Hurl or mutating source `.hurl` files.
 - Added issue #429's deterministic fail-fast execution mode so
   `entroping run --fail-fast` stops scheduling after the first failing Hurl
   result, preserves source `.hurl` immutability, and records selected,
