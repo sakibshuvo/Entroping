@@ -241,6 +241,12 @@ Route a browser, curl, Postman, Bruno, Insomnia, or another client through the p
 Start with a local demo, test fixture, or development environment before
 attempting capture against corporate, shared, staging, or production systems.
 
+`watch` requires an explicit capture scope before it persists traffic. Use
+`--target` for the primary service origin, repeat `--scope-host` for additional
+host names, or repeat `--scope-url-prefix` for specific absolute URL prefixes.
+Out-of-scope and malformed flow URLs are ignored before persistence; the
+terminal summary reports only counts and does not print ignored URLs.
+
 `entroping watch` uses mitmproxy, so HTTPS capture may require client-specific
 setup. Install the mitmproxy CA certificate for each client, browser, or runtime
 that you route through the proxy. Browser profiles, mobile simulators, JVMs,
@@ -845,6 +851,9 @@ can accept generated Hurl.
 Install the mitmproxy CA certificate for the client that is routed through `watch`.
 For browser, runtime, VPN, proxy, and permission limits, see the Practical
 `watch` Limits section in the legacy rescue workflow.
+
+If `watch` exits before starting the proxy, confirm that you provided an explicit
+capture scope with `--target`, `--scope-host`, or `--scope-url-prefix`.
 
 ### Tests Pass Locally but Fail in CI
 

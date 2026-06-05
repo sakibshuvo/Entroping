@@ -1,5 +1,14 @@
 # Entroping Changelog
 
+## 2026-06-05
+
+- Added issue #433's explicit `watch` capture scope allowlist so traffic
+  persistence now requires `--target`, `--scope-host`, or
+  `--scope-url-prefix`. The proxy adapter normalizes case and default ports,
+  ignores out-of-scope or malformed flow URLs before building traffic models,
+  preserves pre-persistence redaction for in-scope records, and reports only
+  count summaries for recorded, out-of-scope, and malformed flows.
+
 ## 2026-06-04
 
 - Added issue #468's lossless decision registry so

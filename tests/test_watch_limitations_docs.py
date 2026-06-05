@@ -21,6 +21,9 @@ def test_user_guide_documents_real_watch_environment_limits() -> None:
         "authentication and session headers",
         "Do not capture traffic unless you have permission",
         "Start with a local demo, test fixture, or development environment",
+        "requires an explicit capture scope",
+        "Out-of-scope and malformed flow URLs are ignored before persistence",
+        "terminal summary reports only counts",
         "redaction happens before persistence",
         "responsible for capture authorization and review",
     )

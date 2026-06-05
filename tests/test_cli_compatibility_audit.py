@@ -60,9 +60,12 @@ LOCKED_CLI_CONTRACTS = (
         ("--focus", "--output", "--changed-from"),
     ),
     CliContract(
-        "entroping watch [--port <port>] [--target <url>]",
+        (
+            "entroping watch [--port <port>] [--target <url>] "
+            "[--scope-host <host> ...] [--scope-url-prefix <url> ...]"
+        ),
         ("watch", "--help"),
-        ("--port", "--target"),
+        ("--port", "--target", "--scope-host", "--scope-url-prefix"),
     ),
     CliContract(
         (

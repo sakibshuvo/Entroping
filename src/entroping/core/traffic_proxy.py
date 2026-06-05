@@ -5,7 +5,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Protocol, cast
+from typing import Literal, Protocol, cast
 from urllib.parse import urlsplit
 
 from entroping.core.traffic_redactor import DEFAULT_MAX_BODY_CHARS, redact_traffic_exchange
@@ -58,6 +58,8 @@ class WatchConfig:
     project_root: Path
     listen_port: int = DEFAULT_WATCH_PORT
     target_url: str | None = None
+    scope_hosts: tuple[str, ...] = ()
+    scope_url_prefixes: tuple[str, ...] = ()
     max_events: int = DEFAULT_MAX_EVENTS
     max_body_chars: int = DEFAULT_MAX_BODY_CHARS
 
@@ -75,14 +77,36 @@ class WatchConfig:
         object.__setattr__(self, "project_root", self.project_root.expanduser().resolve())
 
         if self.target_url is None:
-            return
-        if _contains_control(self.target_url):
-            msg = "target_url must not contain control characters"
+            target_scope = None
+        else:
+            if _contains_control(self.target_url):
+                msg = "target_url must not contain control characters"
+                raise ValueError(msg)
+            target_scope = _target_scope(self.target_url)
+            if target_scope is None:
+                msg = "target_url must be an absolute http or https URL"
+                raise ValueError(msg)
+
+        scope_hosts = _normalize_scope_hosts(self.scope_hosts)
+        scope_url_prefixes = _normalize_scope_url_prefixes(self.scope_url_prefixes)
+        object.__setattr__(self, "scope_hosts", scope_hosts)
+        object.__setattr__(self, "scope_url_prefixes", scope_url_prefixes)
+
+        if target_scope is None and not scope_hosts and not scope_url_prefixes:
+            msg = (
+                "watch requires an explicit capture scope; use --target, "
+                "--scope-host, or --scope-url-prefix"
+            )
             raise ValueError(msg)
-        parsed = urlsplit(self.target_url)
-        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-            msg = "target_url must be an absolute http or https URL"
-            raise ValueError(msg)
+
+
+@dataclass(frozen=True, slots=True)
+class WatchRunSummary:
+    """Count-only traffic capture summary safe for CLI output."""
+
+    recorded_count: int = 0
+    ignored_count: int = 0
+    malformed_count: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,11 +125,36 @@ class TrafficCaptureAddon:
         *,
         store: TrafficStore,
         target_url: str | None = None,
+        scope_hosts: tuple[str, ...] = (),
+        scope_url_prefixes: tuple[str, ...] = (),
         max_body_chars: int = DEFAULT_MAX_BODY_CHARS,
     ) -> None:
         self._store = store
         self._target_scope = _target_scope(target_url)
+        self._scope_hosts = _normalize_scope_hosts(scope_hosts)
+        self._scope_url_prefixes = _normalize_scope_url_prefixes(scope_url_prefixes)
         self._max_body_chars = max_body_chars
+        self._recorded_count = 0
+        self._ignored_count = 0
+        self._malformed_count = 0
+
+        if (
+            self._target_scope is None
+            and not self._scope_hosts
+            and not self._scope_url_prefixes
+        ):
+            msg = "traffic capture requires an explicit scope"
+            raise TrafficProxyError(msg)
+
+    @property
+    def summary(self) -> WatchRunSummary:
+        """Return count-only capture evidence without URLs or headers."""
+
+        return WatchRunSummary(
+            recorded_count=self._recorded_count,
+            ignored_count=self._ignored_count,
+            malformed_count=self._malformed_count,
+        )
 
     def response(self, flow: object) -> int | None:
         """Persist one completed response flow, returning the event id when recorded."""
@@ -116,7 +165,17 @@ class TrafficCaptureAddon:
         if not url:
             msg = "mitmproxy flow request is missing a URL"
             raise TrafficProxyError(msg)
-        if not _matches_target_scope(url, self._target_scope):
+        scope_decision = _capture_scope_decision(
+            url,
+            target_scope=self._target_scope,
+            scope_hosts=self._scope_hosts,
+            scope_url_prefixes=self._scope_url_prefixes,
+        )
+        if scope_decision == "malformed":
+            self._malformed_count += 1
+            return None
+        if scope_decision == "out-of-scope":
+            self._ignored_count += 1
             return None
 
         exchange = TrafficExchange(
@@ -135,7 +194,9 @@ class TrafficCaptureAddon:
             ),
         )
         redacted = redact_traffic_exchange(exchange, max_body_chars=self._max_body_chars)
-        return self._store.record_exchange(redacted)
+        event_id = self._store.record_exchange(redacted)
+        self._recorded_count += 1
+        return event_id
 
 
 def load_mitmproxy_runtime(
@@ -174,7 +235,7 @@ async def run_watch(
     *,
     runtime: MitmproxyRuntime | None = None,
     store: TrafficStore | None = None,
-) -> None:
+) -> WatchRunSummary:
     """Start capture-only observation and block until mitmproxy exits."""
 
     active_runtime = runtime or load_mitmproxy_runtime()
@@ -185,6 +246,8 @@ async def run_watch(
     addon = TrafficCaptureAddon(
         store=active_store,
         target_url=config.target_url,
+        scope_hosts=config.scope_hosts,
+        scope_url_prefixes=config.scope_url_prefixes,
         max_body_chars=config.max_body_chars,
     )
     options = active_runtime.options_factory(
@@ -197,6 +260,7 @@ async def run_watch(
     )
     master.addons.add(addon)
     await master.run()
+    return addon.summary
 
 
 def _required_attribute(source: object, name: str) -> object:
@@ -335,18 +399,140 @@ def _timestamp_attribute(source: object, name: str) -> float | None:
     return float(value)
 
 
-def _target_scope(target_url: str | None) -> tuple[str, str] | None:
+def _target_scope(target_url: str | None) -> str | None:
     if target_url is None:
         return None
-    parsed = urlsplit(target_url)
-    return (parsed.scheme.lower(), parsed.netloc.lower())
+    parsed = _parse_http_url(target_url)
+    if parsed is None:
+        return None
+    return parsed.origin
 
 
-def _matches_target_scope(url: str, target_scope: tuple[str, str] | None) -> bool:
+def _matches_target_scope(url: str, target_scope: str | None) -> bool:
     if target_scope is None:
         return True
-    parsed = urlsplit(url)
-    return (parsed.scheme.lower(), parsed.netloc.lower()) == target_scope
+    parsed = _parse_http_url(url)
+    return parsed is not None and parsed.origin == target_scope
+
+
+type _ScopeDecision = Literal["in-scope", "out-of-scope", "malformed"]
+
+
+def _capture_scope_decision(
+    url: str,
+    *,
+    target_scope: str | None,
+    scope_hosts: tuple[str, ...],
+    scope_url_prefixes: tuple[str, ...],
+) -> _ScopeDecision:
+    parsed = _parse_http_url(url)
+    if parsed is None:
+        return "malformed"
+    if target_scope is not None and parsed.origin == target_scope:
+        return "in-scope"
+    if parsed.host in scope_hosts:
+        return "in-scope"
+    if any(_matches_url_prefix(parsed.comparable_url, prefix) for prefix in scope_url_prefixes):
+        return "in-scope"
+    return "out-of-scope"
+
+
+@dataclass(frozen=True, slots=True)
+class _ParsedHttpUrl:
+    scheme: str
+    host: str
+    port: int | None
+    path: str
+
+    @property
+    def origin(self) -> str:
+        if self.port is None:
+            return f"{self.scheme}://{self.host}"
+        return f"{self.scheme}://{self.host}:{self.port}"
+
+    @property
+    def comparable_url(self) -> str:
+        return f"{self.origin}{self.path}"
+
+
+def _parse_http_url(value: str) -> _ParsedHttpUrl | None:
+    if _contains_control(value):
+        return None
+    try:
+        parsed = urlsplit(value)
+        port = parsed.port
+    except ValueError:
+        return None
+    if parsed.scheme not in {"http", "https"}:
+        return None
+    hostname = parsed.hostname
+    if hostname is None:
+        return None
+    normalized_port = _normalize_url_port(parsed.scheme, port)
+    return _ParsedHttpUrl(
+        scheme=parsed.scheme.lower(),
+        host=hostname.lower(),
+        port=normalized_port,
+        path=parsed.path or "/",
+    )
+
+
+def _normalize_url_port(scheme: str, port: int | None) -> int | None:
+    if port is None:
+        return None
+    if scheme == "http" and port == 80:
+        return None
+    if scheme == "https" and port == 443:
+        return None
+    return port
+
+
+def _normalize_scope_hosts(values: tuple[str, ...]) -> tuple[str, ...]:
+    normalized: list[str] = []
+    for raw_value in values:
+        if _contains_control(raw_value):
+            msg = "scope hosts must be host names without control characters"
+            raise ValueError(msg)
+        value = raw_value.strip().lower()
+        if (
+            not value
+            or any(character.isspace() for character in value)
+            or "://" in value
+            or "/" in value
+            or "?" in value
+            or "#" in value
+            or "@" in value
+            or ":" in value
+        ):
+            msg = "scope hosts must be host names without schemes, ports, paths, or queries"
+            raise ValueError(msg)
+        if value not in normalized:
+            normalized.append(value)
+    return tuple(normalized)
+
+
+def _normalize_scope_url_prefixes(values: tuple[str, ...]) -> tuple[str, ...]:
+    normalized: list[str] = []
+    for raw_value in values:
+        if _contains_control(raw_value):
+            msg = "scope URL prefixes must not contain control characters"
+            raise ValueError(msg)
+        if "?" in raw_value or "#" in raw_value:
+            msg = "scope URL prefixes must not include queries or fragments"
+            raise ValueError(msg)
+        parsed = _parse_http_url(raw_value.strip())
+        if parsed is None:
+            msg = "scope URL prefixes must be absolute http or https URLs"
+            raise ValueError(msg)
+        value = parsed.comparable_url.rstrip("/")
+        if value not in normalized:
+            normalized.append(value)
+    return tuple(normalized)
+
+
+def _matches_url_prefix(value: str, prefix: str) -> bool:
+    normalized_value = value.rstrip("/")
+    return normalized_value == prefix or normalized_value.startswith(f"{prefix}/")
 
 
 def _contains_control(value: str) -> bool:
