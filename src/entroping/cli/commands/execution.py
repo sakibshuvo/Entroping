@@ -540,6 +540,9 @@ def run(
             noun = "finding" if drift_report.summary.drifted == 1 else "findings"
             console.print(f"Drift check: {drift_report.summary.drifted} {noun}")
     console.print(f"Wrote latest run state: {display_cli_path(workflow_result.latest_state_path)}")
+    event_log_path = getattr(workflow_result, "event_log_path", None)
+    if isinstance(event_log_path, Path):
+        console.print(f"Wrote execution events: {display_cli_path(event_log_path)}")
     for artifact in workflow_result.artifacts:
         console.print(f"Wrote report: {display_cli_path(artifact)}")
     for result in hurl_suite.results:

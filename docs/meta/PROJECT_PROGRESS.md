@@ -31,7 +31,7 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#430](https://github.com/sakibshuvo/Entroping/issues/430) writes sanitized execution event logs.
+Current issue: [#429](https://github.com/sakibshuvo/Entroping/issues/429) supports fail-fast execution mode.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -48,9 +48,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#430](https://github.com/sakibshuvo/Entroping/issues/430) | Write sanitized execution event logs. |
-| 2 | [#429](https://github.com/sakibshuvo/Entroping/issues/429) | Support fail-fast execution mode. |
-| 3 | [#428](https://github.com/sakibshuvo/Entroping/issues/428) | Explain effective gate injection for selected tests. |
+| 1 | [#429](https://github.com/sakibshuvo/Entroping/issues/429) | Support fail-fast execution mode. |
+| 2 | [#428](https://github.com/sakibshuvo/Entroping/issues/428) | Explain effective gate injection for selected tests. |
+| 3 | [#423](https://github.com/sakibshuvo/Entroping/issues/423) | Write artifact manifest with checksums. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -71,6 +71,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Sanitized run event log](https://github.com/sakibshuvo/Entroping/issues/430) | Done | `entroping run` now writes `.entroping/latest-run-events.jsonl` with schema `entroping.run-events.v1`, covering run start, selected tests, redacted results, artifact writes, no-match/error events, and completion status without variables or raw passing stdout/stderr. |
 | [Freeze dry-run preview](https://github.com/sakibshuvo/Entroping/issues/432) | Done | `entroping freeze --dry-run` now previews selected redacted records, proposed Hurl or WireMock output paths, golden status, and counts-only redaction categories without writing generated tests, mocks, approval manifests, or source artifacts. |
 | [Explicit watch capture scope allowlists](https://github.com/sakibshuvo/Entroping/issues/433) | Done | `entroping watch` now requires an explicit capture scope through `--target`, `--scope-host`, or `--scope-url-prefix`; out-of-scope and malformed flow URLs are ignored before persistence, and count-only summaries report ignored traffic without rendering sensitive URLs. |
 | [Lossless decision registry](https://github.com/sakibshuvo/Entroping/issues/468) | Done | `docs/meta/DECISION_REGISTRY.yaml` now indexes durable decisions with source pointers, `scripts/source_preservation_check.py` validates local source-history anchors and registry links, and `scripts/context_pack.sh` surfaces the registry for agent handoff without replacing raw history. |
@@ -109,7 +110,7 @@ entirely inside this repo.
 | [Shared symlink component path-safety helper](https://github.com/sakibshuvo/Entroping/issues/344) | Done | Common symlink component traversal is centralized while config imports now reject symlinked local imports and adapters keep domain-specific errors. |
 | [Traffic-store retention SQL pruning](https://github.com/sakibshuvo/Entroping/issues/345) | Done | Local Eye state now deletes stale traffic rows with a SQL-level delete while keeping newest-event retention and insertion-order reads. |
 | [No-Hurl CLI smoke script](https://github.com/sakibshuvo/Entroping/issues/346) | Done | `scripts/cli_smoke.sh` proves CLI boot, version, minimal init, and doctor behavior without requiring Hurl runtime execution. |
-| [Typer shell-completion onboarding](https://github.com/sakibshuvo/Entroping/issues/347) | Done | README and user guide now point to Typer's existing completion global options without adding an Entroping subcommand. |
+| [Read-only Studio applied-gate drilldowns](https://github.com/sakibshuvo/Entroping/issues/192) | Done | Studio links latest-run report rule IDs to QAnstitution gate definitions. |
 | [Hardened XML report parsing](https://github.com/sakibshuvo/Entroping/issues/364) | Done | JUnit XML read paths for GitHub annotations and review summaries use `defusedxml` and reject DTD/entity constructs before rendering findings. |
 | [Captured-traffic redaction hardening](https://github.com/sakibshuvo/Entroping/issues/365) | Done | Multipart request and response bodies are persisted only as redacted media-type summaries, and broad token patterns avoid short documentation placeholders. |
 | [Breaker-backed prompt generation](https://github.com/sakibshuvo/Entroping/issues/392) | Done | `architect build --agent breaker --prompt ...` loads the configured Breaker persona/model and tags generated Hurl with `breaker`. |
@@ -127,7 +128,6 @@ entirely inside this repo.
 | [CLI adapter test split](https://github.com/sakibshuvo/Entroping/issues/368) | Done | The former 3,374-line CLI adapter test file is split into command-focused files with shared CLI test helpers and the same 113 assertions preserved. |
 | [Report writer module split](https://github.com/sakibshuvo/Entroping/issues/370) | Done | Report building keeps the existing facade while JSON serialization, response fingerprinting, JUnit/HTML/bug rendering, and report errors now live in focused modules. |
 | [Vault/context archival cleanup](https://github.com/sakibshuvo/Entroping/issues/371) | Done | One-off demo-entrypoint context is marked archival, evolution docs are labeled historical evidence, and Obsidian/GitHub/source-promotion guides have explicit ownership boundaries. |
-| [Read-only Studio applied-gate drilldowns](https://github.com/sakibshuvo/Entroping/issues/192) | Done | Studio links latest-run report rule IDs to QAnstitution gate definitions. |
 
 ## Source Of Truth
 

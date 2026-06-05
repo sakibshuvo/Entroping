@@ -217,6 +217,11 @@ missing variable names without printing values.
 | `entroping run --drift-check` | Compare runtime behavior against baseline |
 | `entroping run --changed-from <ref>` | Fast local run for existing changed `.hurl` files |
 
+Every `entroping run` writes `.entroping/latest-run-events.jsonl`, a sanitized
+JSONL progress log with schema `entroping.run-events.v1`. It records run start,
+selected tests, redacted result events, artifact writes, no-match or error
+events, and completion status for CI wrappers and coding agents.
+
 Examples:
 
 ```bash

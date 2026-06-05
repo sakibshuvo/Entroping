@@ -2,6 +2,10 @@
 
 ## 2026-06-05
 
+- Added issue #430's sanitized run execution event log so every
+  `entroping run` writes `.entroping/latest-run-events.jsonl` with
+  `entroping.run-events.v1` start, selected-test, redacted-result, artifact,
+  no-match/error, and completion events for CI wrappers and coding agents.
 - Added issue #431's local policy-pack self-test command so
   `entroping config test-policy-pack --pack <path> [--output text|json]`
   validates safe local boundaries, manifest/entrypoint/gate/final-gate

@@ -14,6 +14,9 @@
 - Policy-pack consumer examples should be tested in a temporary consumer layout,
   not by loosening root-bounded import validation. Rewrite only the disposable
   temp import path so the production loader stays local-first and safe.
+- Runtime progress logs should be useful without becoming another secret sink.
+  Record selected paths, safe metadata, redacted failures, artifact paths, and
+  completion status, but omit Hurl variables and raw passing stdout/stderr.
 
 ## 2026-06-04
 
