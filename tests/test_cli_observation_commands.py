@@ -201,6 +201,33 @@ def test_freeze_writes_validated_hurl_from_redacted_traffic(
     assert 'jsonpath "$.status" == "accepted"' in content
 
 
+def test_freeze_dry_run_prints_safe_hurl_preview_without_writing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_freeze_exchange(tmp_path, secret="dry-preview-secret")
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["freeze", "--name", "checkout_flow", "--golden", "--dry-run"],
+    )
+
+    assert result.exit_code == 0
+    assert "Dry run: no files were written." in result.output
+    assert "Would write Hurl test: tests/generated/checkout_flow.hurl" in result.output
+    assert "Selected traffic records: 1" in result.output
+    assert "Golden assertions: yes" in result.output
+    assert "POST /checkout -> 201" in result.output
+    assert "request authorization header: 1" in result.output
+    assert "token-like query parameter: 1" in result.output
+    assert "dry-preview-secret" not in result.output
+    assert "?token=" not in result.output
+    assert "password" in result.output
+    assert not Path("tests/generated/checkout_flow.hurl").exists()
+    assert not Path("reports/approvals/freeze-checkout_flow.json").exists()
+
+
 def test_freeze_applies_cli_capture_filters_before_hurl_generation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -400,6 +427,31 @@ def test_freeze_mock_applies_cli_capture_filters_before_mapping_generation(
     assert "checkout" not in content
     assert "checkout-secret" not in content
     assert "wire-secret" not in content
+
+
+def test_freeze_mock_dry_run_prints_safe_preview_without_writing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_mock_exchange(tmp_path, secret="wire-dry-preview-secret")
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["freeze", "--name", "refund_flow", "--mock", "payments", "--dry-run"],
+    )
+
+    assert result.exit_code == 0
+    assert "Dry run: no files were written." in result.output
+    assert "Would write WireMock mapping: mocks/payments/refund_flow-001.json" in result.output
+    assert "Selected traffic records: 1" in result.output
+    assert "POST /charge -> 201" in result.output
+    assert "response cookie header: 1" in result.output
+    assert "response token body field: 1" in result.output
+    assert "wire-dry-preview-secret" not in result.output
+    assert "?token=" not in result.output
+    assert not Path("mocks/payments/refund_flow-001.json").exists()
+    assert not Path("reports/approvals/freeze-refund_flow-mock-payments.json").exists()
 
 
 def test_map_reports_missing_traffic_state(

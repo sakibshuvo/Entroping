@@ -19,7 +19,7 @@ entroping architect refactor --target <glob> --prompt <text>
 entroping architect audit [--focus <logic|auditor>] [--output <json|md>] [--changed-from <ref>]
 
 entroping watch [--port <port>] [--target <url>] [--scope-host <host> ...] [--scope-url-prefix <url> ...]
-entroping freeze --name <flow> [--golden] [--mock <service>] [capture filters]
+entroping freeze --name <flow> [--golden] [--mock <service>] [--dry-run] [capture filters]
 entroping map [--export <mermaid|dot|md|png>] [capture filters]
 
 entroping studio [--env <name>]
@@ -143,7 +143,9 @@ WireMock-compatible mappings from redacted dependency traffic. Written Hurl,
 WireMock, and PNG dependency-map artifacts also get value-free approval
 manifests under `reports/approvals/` with checksums, source fingerprints, and
 counts-only redaction summaries. PNG map rendering uses local Graphviz `dot`
-when it is available. `freeze`, `freeze --mock`, and `map` accept repeatable
+when it is available. `freeze --dry-run` previews selected records, output
+paths, golden status, and redaction categories without writing tests, mocks, or
+approval manifests. `freeze`, `freeze --mock`, and `map` accept repeatable
 capture filters:
 
 - `--include-host` / `--exclude-host`
@@ -169,6 +171,7 @@ watch summary reports only counts.
 | `entroping freeze --name <flow>` | Convert captured session into Hurl tests |
 | `entroping freeze --golden` | Add golden master assertions |
 | `entroping freeze --mock <service>` | Generate WireMock mappings for a dependency |
+| `entroping freeze --dry-run` | Preview generated Hurl or WireMock artifacts without writing files |
 | `entroping freeze --include-host <host>` | Freeze only traffic for a captured host |
 | `entroping freeze --exclude-path <path>` | Remove noisy request paths before artifact generation |
 | `entroping map --export <fmt>` | Export dependency map |
@@ -179,6 +182,7 @@ Examples:
 
 ```bash
 entroping watch --port 8080 --target http://localhost:3000
+entroping freeze --name checkout_flow --golden --dry-run
 entroping freeze --name checkout_flow --golden
 entroping freeze --name checkout_flow --include-host api.example.test --exclude-path "/assets/*"
 entroping freeze --name refund_flow --mock payments
@@ -336,4 +340,5 @@ Do not document these as primary v4.1 commands:
 | top-level `build` | `architect build` |
 | `report --type` | `run --report` or `report bug` |
 | `auth` | Future credential UX; MVP uses env vars or OS credential storage |
-| `--verbose` / `--dry-run` | Future global flags only after spec update |
+| `--verbose` | Future global flag only after spec update |
+| `freeze --dry-run` | Preview selected freeze artifacts without writing files |

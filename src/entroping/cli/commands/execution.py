@@ -10,7 +10,14 @@ from entroping.cli.shared import console, display_cli_path, print_cli_error, saf
 from entroping.core.config_loader import QanstitutionLoadError
 from entroping.core.dependency_mapper import DependencyMapError, run_dependency_map
 from entroping.core.drift_report import DriftReportError
-from entroping.core.freeze import FreezeError, run_freeze, run_freeze_mock
+from entroping.core.freeze import (
+    FreezeError,
+    FreezePreviewResult,
+    preview_freeze,
+    preview_freeze_mock,
+    run_freeze,
+    run_freeze_mock,
+)
 from entroping.core.gate_injector import GateInjectionError
 from entroping.core.hurl_discovery import normalize_operation_id_filters, normalize_tag_filters
 from entroping.core.hurl_runner import HurlBinaryNotFoundError
@@ -88,6 +95,10 @@ def freeze(
     name: Annotated[str, typer.Option("--name", help="Captured flow name.")],
     golden: Annotated[bool, typer.Option("--golden", help="Add golden assertions.")] = False,
     mock: Annotated[str | None, typer.Option("--mock", help="Dependency to mock.")] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Preview generated artifacts without writing files."),
+    ] = False,
     include_host: Annotated[
         list[str] | None,
         typer.Option("--include-host", help="Include only this captured request host."),
@@ -130,6 +141,15 @@ def freeze(
 
     if mock is not None:
         try:
+            if dry_run:
+                mock_preview = preview_freeze_mock(
+                    project_root=Path.cwd(),
+                    name=name,
+                    service=mock,
+                    capture_filters=capture_filters,
+                )
+                _print_freeze_preview(mock_preview)
+                return
             mock_result = run_freeze_mock(
                 project_root=Path.cwd(),
                 name=name,
@@ -150,6 +170,15 @@ def freeze(
         return
 
     try:
+        if dry_run:
+            freeze_preview = preview_freeze(
+                project_root=Path.cwd(),
+                name=name,
+                golden=golden,
+                capture_filters=capture_filters,
+            )
+            _print_freeze_preview(freeze_preview)
+            return
         freeze_result = run_freeze(
             project_root=Path.cwd(),
             name=name,
@@ -164,6 +193,31 @@ def freeze(
     console.print(f"[green]Froze {freeze_result.record_count} traffic {noun} into Hurl.[/green]")
     console.print(f"Wrote Hurl test: {display_cli_path(freeze_result.output_path)}")
     console.print(f"Wrote approval manifest: {display_cli_path(freeze_result.manifest_path)}")
+
+
+def _print_freeze_preview(preview: FreezePreviewResult) -> None:
+    console.print("Dry run: no files were written.")
+    console.print(f"Selected traffic records: {preview.record_count}")
+    if preview.workflow == "freeze-hurl":
+        console.print(f"Golden assertions: {'yes' if preview.golden else 'no'}")
+
+    for artifact in preview.artifacts:
+        if artifact.kind == "hurl":
+            console.print(f"Would write Hurl test: {display_cli_path(artifact.path)}")
+        elif artifact.kind == "wiremock":
+            console.print(f"Would write WireMock mapping: {display_cli_path(artifact.path)}")
+
+    for record in preview.records:
+        status = record.status_code if record.status_code is not None else "no response"
+        console.print(
+            f"{safe_cli_text(record.method)} {safe_cli_text(record.path)} -> {status}",
+            markup=False,
+        )
+
+    if preview.redaction_categories:
+        console.print("Redaction categories:")
+        for category in preview.redaction_categories:
+            console.print(f"- {safe_cli_text(category.category)}: {category.count}", markup=False)
 
 
 def map(

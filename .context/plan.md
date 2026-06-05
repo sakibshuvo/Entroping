@@ -50,6 +50,9 @@ project, and a Codex workspace with fast context rehydration.
   `--target`, `--scope-host`, or `--scope-url-prefix`; out-of-scope and
   malformed flow URLs are ignored before persistence, while in-scope traffic is
   still redacted before storage.
+- `freeze --dry-run` now previews selected redacted records, generated Hurl or
+  WireMock output paths, golden status, and counts-only redaction categories
+  without writing generated artifacts or approval manifests.
 - Eye traffic-state retention keeps local SQLite state bounded with SQL-level
   stale-row deletion while preserving insertion-order reads for retained
   events.

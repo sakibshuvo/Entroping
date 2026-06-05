@@ -255,6 +255,7 @@ Capture and freeze legacy behavior:
 
 ```bash
 entroping watch --target http://localhost:3000
+entroping freeze --name checkout_flow --golden --dry-run
 entroping freeze --name checkout_flow --golden
 entroping map --export mermaid --include-host api.example.test
 ```
@@ -370,7 +371,7 @@ entroping architect refactor --target <glob> --prompt <text>
 entroping architect audit [--focus <logic|auditor>] [--output <json|md>] [--changed-from <ref>]
 
 entroping watch [--port <port>] [--target <url>] [--scope-host <host> ...] [--scope-url-prefix <url> ...]
-entroping freeze --name <flow> [--golden] [--mock <service>] [capture filters]
+entroping freeze --name <flow> [--golden] [--mock <service>] [--dry-run] [capture filters]
 entroping map [--export <mermaid|dot|md|png>] [capture filters]
 
 entroping studio [--env <name>]

@@ -4,9 +4,12 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
+from urllib.parse import urlsplit
 
+from entroping.bridge.redaction_review import RedactionReviewCategory, compile_redaction_review
 from entroping.bridge.traffic_sessions import (
     TrafficSessionError,
+    TrafficSessionRecord,
     build_traffic_session_candidate,
 )
 from entroping.bridge.traffic_to_hurl import (
@@ -24,7 +27,9 @@ from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.safe_write import SafeWriteError, safe_write_text
 from entroping.core.traffic_artifact_manifest import (
     TrafficArtifactApprovalError,
+    TrafficArtifactKind,
     TrafficArtifactManifestArtifact,
+    TrafficArtifactWorkflow,
     write_traffic_artifact_approval_manifest,
 )
 from entroping.core.traffic_filters import (
@@ -58,7 +63,133 @@ class FreezeMockResult:
     record_count: int
 
 
+@dataclass(frozen=True, slots=True)
+class FreezePreviewArtifact:
+    """One artifact that freeze would write."""
+
+    kind: TrafficArtifactKind
+    path: Path
+
+
+@dataclass(frozen=True, slots=True)
+class FreezePreviewRecord:
+    """Safe traffic record preview without raw URL, header, query, or body values."""
+
+    method: str
+    path: str
+    status_code: int | None
+    role: str
+
+
+@dataclass(frozen=True, slots=True)
+class FreezePreviewResult:
+    """Dry-run preview of a freeze workflow."""
+
+    workflow: TrafficArtifactWorkflow
+    name: str
+    service: str | None
+    golden: bool
+    record_count: int
+    artifacts: tuple[FreezePreviewArtifact, ...]
+    records: tuple[FreezePreviewRecord, ...]
+    redaction_categories: tuple[RedactionReviewCategory, ...]
+
+
 HurlContentValidator = Callable[[str, str], None]
+
+
+def preview_freeze(
+    *,
+    project_root: Path,
+    name: str,
+    golden: bool,
+    capture_filters: TrafficCaptureFilters | None = None,
+) -> FreezePreviewResult:
+    """Preview the Hurl freeze workflow without writing artifacts."""
+
+    root = project_root.expanduser().resolve()
+    freeze_name = _validate_freeze_name(name)
+    _ensure_traffic_state(root)
+
+    try:
+        store = TrafficStore.open_project(root)
+        session = build_traffic_session_candidate(
+            _filtered_exchanges(store.list_exchanges(), capture_filters),
+            name=freeze_name,
+            target_url=None,
+        )
+        generated = compile_traffic_session_to_hurl(session, golden=golden)
+        output_path = _resolve_generated_hurl_path(generated, root=root)
+    except (
+        TrafficHurlCompilationError,
+        TrafficFilterError,
+        TrafficSessionError,
+        TrafficStoreError,
+    ) as exc:
+        raise FreezeError(str(exc)) from exc
+
+    return _freeze_preview_result(
+        workflow="freeze-hurl",
+        name=freeze_name,
+        service=None,
+        golden=golden,
+        artifacts=(FreezePreviewArtifact(kind="hurl", path=output_path),),
+        records=session.records,
+    )
+
+
+def preview_freeze_mock(
+    *,
+    project_root: Path,
+    name: str,
+    service: str,
+    capture_filters: TrafficCaptureFilters | None = None,
+) -> FreezePreviewResult:
+    """Preview the WireMock freeze workflow without writing artifacts."""
+
+    root = project_root.expanduser().resolve()
+    freeze_name = _validate_freeze_name(name)
+    mock_service = _validate_mock_service_name(service)
+    _ensure_traffic_state(root)
+
+    try:
+        store = TrafficStore.open_project(root)
+        session = build_traffic_session_candidate(
+            _filtered_exchanges(store.list_exchanges(), capture_filters),
+            name=freeze_name,
+            target_url=None,
+        )
+        generated_mappings = compile_traffic_session_to_wiremock(
+            session,
+            service=mock_service,
+        )
+        output_paths = tuple(
+            _resolve_wiremock_mapping_path(generated, root=root)
+            for generated in generated_mappings
+        )
+        for generated in generated_mappings:
+            json.loads(generated.content)
+    except (
+        json.JSONDecodeError,
+        TrafficFilterError,
+        TrafficSessionError,
+        TrafficStoreError,
+        TrafficWireMockCompilationError,
+    ) as exc:
+        raise FreezeError(str(exc)) from exc
+
+    selected_records = _mock_service_records(session.records, service=mock_service)
+    return _freeze_preview_result(
+        workflow="freeze-wiremock",
+        name=freeze_name,
+        service=mock_service,
+        golden=False,
+        artifacts=tuple(
+            FreezePreviewArtifact(kind="wiremock", path=output_path)
+            for output_path in output_paths
+        ),
+        records=selected_records,
+    )
 
 
 def run_freeze(
@@ -74,10 +205,7 @@ def run_freeze(
     root = project_root.expanduser().resolve()
     active_validator = hurl_validator or validate_hurl_content
     freeze_name = _validate_freeze_name(name)
-    state_path = root / ".entroping" / "state.db"
-    if not state_path.exists():
-        msg = "No traffic state found. Run entroping watch before freeze."
-        raise FreezeError(msg)
+    _ensure_traffic_state(root)
 
     try:
         store = TrafficStore.open_project(root)
@@ -130,10 +258,7 @@ def run_freeze_mock(
     root = project_root.expanduser().resolve()
     freeze_name = _validate_freeze_name(name)
     mock_service = _validate_mock_service_name(service)
-    state_path = root / ".entroping" / "state.db"
-    if not state_path.exists():
-        msg = "No traffic state found. Run entroping watch before freeze."
-        raise FreezeError(msg)
+    _ensure_traffic_state(root)
 
     try:
         store = TrafficStore.open_project(root)
@@ -198,6 +323,75 @@ def _filtered_exchanges(
         msg = "No traffic records matched capture filters."
         raise TrafficFilterError(msg)
     return filtered
+
+
+def _ensure_traffic_state(root: Path) -> None:
+    state_path = root / ".entroping" / "state.db"
+    if not state_path.exists():
+        msg = "No traffic state found. Run entroping watch before freeze."
+        raise FreezeError(msg)
+
+
+def _freeze_preview_result(
+    *,
+    workflow: TrafficArtifactWorkflow,
+    name: str,
+    service: str | None,
+    golden: bool,
+    artifacts: tuple[FreezePreviewArtifact, ...],
+    records: tuple[TrafficSessionRecord, ...],
+) -> FreezePreviewResult:
+    exchanges = tuple(record.exchange for record in records)
+    redaction_report = compile_redaction_review(exchanges)
+    return FreezePreviewResult(
+        workflow=workflow,
+        name=name,
+        service=service,
+        golden=golden,
+        record_count=len(records),
+        artifacts=artifacts,
+        records=_preview_records(records),
+        redaction_categories=(
+            *redaction_report.header_categories,
+            *redaction_report.query_categories,
+            *redaction_report.body_categories,
+            *redaction_report.body_summary_categories,
+        ),
+    )
+
+
+def _preview_records(
+    records: tuple[TrafficSessionRecord, ...],
+) -> tuple[FreezePreviewRecord, ...]:
+    return tuple(_preview_record(record) for record in records)
+
+
+def _preview_record(record: TrafficSessionRecord) -> FreezePreviewRecord:
+    exchange = record.exchange
+    parsed = urlsplit(exchange.request.url)
+    status_code = exchange.response.status_code if exchange.response is not None else None
+    return FreezePreviewRecord(
+        method=exchange.request.method.upper(),
+        path=parsed.path or "/",
+        status_code=status_code,
+        role=record.role,
+    )
+
+
+def _mock_service_records(
+    records: tuple[TrafficSessionRecord, ...],
+    *,
+    service: str,
+) -> tuple[TrafficSessionRecord, ...]:
+    return tuple(record for record in records if _record_matches_mock_service(record, service))
+
+
+def _record_matches_mock_service(record: TrafficSessionRecord, service: str) -> bool:
+    host = urlsplit(record.exchange.request.url).netloc.lower()
+    if host == service:
+        return True
+    first_label = host.split(".", maxsplit=1)[0]
+    return "." not in service and first_label == service
 
 
 def _validate_freeze_name(name: str) -> str:
