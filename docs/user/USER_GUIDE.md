@@ -321,12 +321,14 @@ Vendor a reviewed local policy pack when you want reusable gates without
 hand-editing the import path:
 
 ```bash
+entroping config test-policy-pack --pack ../entroping-policy-pack-api-baseline --output json
 entroping config vendor-policy-pack --pack ../entroping-policy-pack-api-baseline --name api-baseline
 ```
 
-The command copies the pack under `policy-packs/`, validates the manifest and
-QAnstitution entrypoint, and appends a local import. It does not fetch from
-remote registries or make `entroping run` depend on a paid service.
+The self-test command validates the local pack and writes nothing. The vendoring
+command copies the pack under `policy-packs/`, validates the manifest and
+QAnstitution entrypoint, and appends a local import. Neither command fetches
+from remote registries or makes `entroping run` depend on a paid service.
 
 Review the effective QAnstitution after local imports and overrides:
 

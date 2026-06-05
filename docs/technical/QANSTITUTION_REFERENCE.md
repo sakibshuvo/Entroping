@@ -270,6 +270,9 @@ separate runtime format.
 Use `entroping config vendor-policy-pack --pack <path> [--name <dir>]` to copy a
 reviewed local pack under `policy-packs/`, validate its manifest and entrypoint,
 and append the local import without fetching from a remote registry.
+Use `entroping config test-policy-pack --pack <path> [--output text|json]`
+before vendoring or publishing a pack when you need local pass/fail evidence
+without modifying the consumer project.
 
 Organization import controls are defined in
 [ADR-0011-organization-qanstitution-import-controls.md](https://github.com/sakibshuvo/Entroping/blob/main/decisions/ADR-0011-organization-qanstitution-import-controls.md).

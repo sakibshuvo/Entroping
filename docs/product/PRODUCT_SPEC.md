@@ -158,6 +158,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | SET-006 | Support local-first brain setup | AI commands can use an Ollama-backed local model by default and cloud models only through explicit configuration |
 | SET-007 | Store credentials safely | API keys are read from environment variables or OS credential storage; plaintext config files must not contain secrets |
 | SET-008 | Vendor reviewed local policy packs | `entroping config vendor-policy-pack --pack <path> [--name <dir>]` copies a local pack under `policy-packs/`, validates the manifest and QAnstitution entrypoint, preserves final-gate behavior, and appends a local import without remote registry behavior |
+| SET-009 | Self-test local policy packs | `entroping config test-policy-pack --pack <path> [--output text|json]` validates a local pack before vendoring or publishing without network access, provider keys, or project mutation |
 
 ### 9.2 QAnstitution Governance
 

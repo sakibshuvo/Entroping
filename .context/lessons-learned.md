@@ -11,6 +11,9 @@
   checks need to normalize hosts and default ports, ignore malformed flow URLs
   without persisting request details, and report only counts; redaction remains
   the second layer for records that were explicitly in scope.
+- Policy-pack consumer examples should be tested in a temporary consumer layout,
+  not by loosening root-bounded import validation. Rewrite only the disposable
+  temp import path so the production loader stays local-first and safe.
 
 ## 2026-06-04
 

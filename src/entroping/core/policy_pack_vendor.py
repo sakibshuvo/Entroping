@@ -6,6 +6,7 @@ import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 from urllib.parse import urlparse
 
 import yaml
@@ -29,6 +30,33 @@ class PolicyPackVendorResult:
     import_ref: str
     gate_ids: tuple[str, ...]
     final_gate_ids: tuple[str, ...]
+
+
+PolicyPackSelfTestStatus = Literal["pass", "fail"]
+POLICY_PACK_SELF_TEST_SCHEMA_VERSION = "entroping.policy-pack-self-test.v1"
+POLICY_PACK_VERIFICATION_ARTIFACT_TYPE = "policy-pack-verification"
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyPackSelfTestCheck:
+    """One local policy-pack validation check."""
+
+    id: str
+    status: PolicyPackSelfTestStatus
+    message: str
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyPackSelfTestResult:
+    """Read-only validation evidence for a local policy pack."""
+
+    status: PolicyPackSelfTestStatus
+    source: Path
+    pack_id: str | None
+    entrypoint: str | None
+    gate_ids: tuple[str, ...]
+    final_gate_ids: tuple[str, ...]
+    checks: tuple[PolicyPackSelfTestCheck, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +123,205 @@ def vendor_policy_pack(
         gate_ids=validated.gate_ids,
         final_gate_ids=validated.final_gate_ids,
     )
+
+
+def self_test_policy_pack(*, pack_path: Path) -> PolicyPackSelfTestResult:
+    """Validate a local policy pack without copying or importing it."""
+
+    source = pack_path.expanduser()
+    checks: list[PolicyPackSelfTestCheck] = []
+    try:
+        source = _resolve_source_pack(pack_path)
+    except PolicyPackVendorError as exc:
+        return _policy_pack_self_test_result(
+            status="fail",
+            source=source,
+            pack_id=None,
+            entrypoint=None,
+            gate_ids=(),
+            final_gate_ids=(),
+            checks=(
+                PolicyPackSelfTestCheck(
+                    id="source-boundary",
+                    status="fail",
+                    message=str(exc),
+                ),
+            ),
+        )
+
+    checks.append(
+        PolicyPackSelfTestCheck(
+            id="source-boundary",
+            status="pass",
+            message="source path is a local policy-pack directory without symlinks",
+        )
+    )
+
+    try:
+        validated = _validate_policy_pack(source)
+    except PolicyPackVendorError as exc:
+        checks.append(
+            PolicyPackSelfTestCheck(
+                id="manifest-entrypoint-gates",
+                status="fail",
+                message=str(exc),
+            )
+        )
+        return _policy_pack_self_test_result(
+            status="fail",
+            source=source,
+            pack_id=None,
+            entrypoint=None,
+            gate_ids=(),
+            final_gate_ids=(),
+            checks=tuple(checks),
+        )
+
+    checks.append(
+        PolicyPackSelfTestCheck(
+            id="manifest-entrypoint-gates",
+            status="pass",
+            message="manifest, entrypoint, gate ids, and final gates are consistent",
+        )
+    )
+
+    try:
+        _validate_consumer_example(source, validated=validated)
+    except PolicyPackVendorError as exc:
+        checks.append(
+            PolicyPackSelfTestCheck(
+                id="consumer-example",
+                status="fail",
+                message=str(exc),
+            )
+        )
+        return _policy_pack_self_test_result(
+            status="fail",
+            source=source,
+            pack_id=validated.pack_id,
+            entrypoint=validated.entrypoint,
+            gate_ids=validated.gate_ids,
+            final_gate_ids=validated.final_gate_ids,
+            checks=tuple(checks),
+        )
+
+    checks.extend(
+        (
+            PolicyPackSelfTestCheck(
+                id="consumer-example",
+                status="pass",
+                message="consumer example loads the policy-pack gates",
+            ),
+            PolicyPackSelfTestCheck(
+                id="local-only",
+                status="pass",
+                message="validation used local files only",
+            ),
+        )
+    )
+    return _policy_pack_self_test_result(
+        status="pass",
+        source=source,
+        pack_id=validated.pack_id,
+        entrypoint=validated.entrypoint,
+        gate_ids=validated.gate_ids,
+        final_gate_ids=validated.final_gate_ids,
+        checks=tuple(checks),
+    )
+
+
+def policy_pack_self_test_payload(
+    result: PolicyPackSelfTestResult,
+    *,
+    root: Path,
+) -> dict[str, object]:
+    """Return machine-readable policy-pack self-test evidence."""
+
+    resolved_root = root.expanduser().resolve()
+    return {
+        "schema_version": POLICY_PACK_SELF_TEST_SCHEMA_VERSION,
+        "artifact_type": POLICY_PACK_VERIFICATION_ARTIFACT_TYPE,
+        "status": result.status,
+        "pack_path": _display_path(result.source, root=resolved_root),
+        "pack_id": result.pack_id,
+        "entrypoint": result.entrypoint,
+        "gate_ids": list(result.gate_ids),
+        "final_gate_ids": list(result.final_gate_ids),
+        "checks": [
+            {
+                "id": check.id,
+                "status": check.status,
+                "message": check.message,
+            }
+            for check in result.checks
+        ],
+    }
+
+
+def _policy_pack_self_test_result(
+    *,
+    status: PolicyPackSelfTestStatus,
+    source: Path,
+    pack_id: str | None,
+    entrypoint: str | None,
+    gate_ids: tuple[str, ...],
+    final_gate_ids: tuple[str, ...],
+    checks: tuple[PolicyPackSelfTestCheck, ...],
+) -> PolicyPackSelfTestResult:
+    return PolicyPackSelfTestResult(
+        status=status,
+        source=source,
+        pack_id=pack_id,
+        entrypoint=entrypoint,
+        gate_ids=gate_ids,
+        final_gate_ids=final_gate_ids,
+        checks=checks,
+    )
+
+
+def _validate_consumer_example(
+    pack_path: Path,
+    *,
+    validated: _ValidatedPolicyPack,
+) -> None:
+    example_path = pack_path / "examples" / "consumer-qanstitution.yaml"
+    consumer_document = _read_yaml_mapping(example_path)
+    _validate_consumer_example_imports(consumer_document)
+    with tempfile.TemporaryDirectory(prefix="entroping-policy-pack-self-test-") as temp_dir:
+        temp_root = Path(temp_dir)
+        vendored_pack = temp_root / "policy-packs" / "policy-pack"
+        shutil.copytree(pack_path, vendored_pack)
+        consumer_document["imports"] = [
+            f"./policy-packs/policy-pack/{validated.entrypoint}"
+        ]
+        consumer_config = temp_root / "qanstitution.yaml"
+        consumer_config.write_text(
+            yaml.safe_dump(consumer_document, sort_keys=False),
+            encoding="utf-8",
+        )
+        evidence = _load_pack_entrypoint(consumer_config)
+    loaded_gate_ids = {gate.rule.id for gate in evidence.gates}
+    missing_gate_ids = tuple(
+        gate_id for gate_id in validated.gate_ids if gate_id not in loaded_gate_ids
+    )
+    if missing_gate_ids:
+        missing = ", ".join(missing_gate_ids)
+        msg = f"consumer example does not load policy-pack gates: {missing}"
+        raise PolicyPackVendorError(msg)
+
+
+def _validate_consumer_example_imports(document: Mapping[str, object]) -> None:
+    imports = document.get("imports")
+    if not isinstance(imports, list) or not imports:
+        msg = "consumer example must declare at least one local import"
+        raise PolicyPackVendorError(msg)
+    for index, import_ref in enumerate(imports):
+        if not isinstance(import_ref, str) or not import_ref.strip():
+            msg = f"consumer example import {index} must be a non-empty string"
+            raise PolicyPackVendorError(msg)
+        if "://" in import_ref or import_ref.startswith("git@"):
+            msg = "consumer example imports must be local paths"
+            raise PolicyPackVendorError(msg)
 
 
 def _resolve_config(path: Path, *, root: Path) -> Path:
@@ -421,3 +648,10 @@ def _write_temporary_file(path: Path, content: str) -> Path:
     except OSError as exc:
         msg = f"Could not write temporary QAnstitution file for {path}: {exc}"
         raise PolicyPackVendorError(msg) from exc
+
+
+def _display_path(path: Path, *, root: Path) -> str:
+    try:
+        return path.resolve(strict=False).relative_to(root).as_posix()
+    except ValueError:
+        return str(path)

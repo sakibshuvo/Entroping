@@ -133,6 +133,241 @@ def test_vendor_policy_pack_copies_pack_and_adds_import(tmp_path: Path) -> None:
     assert str(result.destination) in str(evidence.gates[0].source_path)
 
 
+def test_self_test_policy_pack_reports_pass_evidence_without_writing(
+    tmp_path: Path,
+) -> None:
+    source_pack = tmp_path / "acme-strict-api"
+    write_policy_pack(source_pack)
+
+    result = vendor_module.self_test_policy_pack(pack_path=source_pack)
+
+    assert result.status == "pass"
+    assert result.pack_id == "acme.strict-api"
+    assert result.source == source_pack.resolve()
+    assert result.entrypoint == "policies/main.yaml"
+    assert result.gate_ids == ("acme-security.no_server_errors",)
+    assert result.final_gate_ids == ("acme-security.no_server_errors",)
+    assert [(check.id, check.status) for check in result.checks] == [
+        ("source-boundary", "pass"),
+        ("manifest-entrypoint-gates", "pass"),
+        ("consumer-example", "pass"),
+        ("local-only", "pass"),
+    ]
+    assert not (tmp_path / "policy-packs").exists()
+
+
+def test_self_test_policy_pack_reports_missing_manifest_failure(tmp_path: Path) -> None:
+    source_pack = tmp_path / "broken-pack"
+    source_pack.mkdir()
+
+    result = vendor_module.self_test_policy_pack(pack_path=source_pack)
+
+    assert result.status == "fail"
+    assert result.pack_id is None
+    assert [(check.id, check.status) for check in result.checks] == [
+        ("source-boundary", "pass"),
+        ("manifest-entrypoint-gates", "fail"),
+    ]
+    assert "manifest file missing" in result.checks[-1].message
+
+
+def test_self_test_policy_pack_reports_bad_gate_id_failure(tmp_path: Path) -> None:
+    source_pack = tmp_path / "acme-strict-api"
+    write_policy_pack(source_pack)
+    manifest = load_manifest(source_pack)
+    first_manifest_gate(manifest)["id"] = "acme-security.other_gate"
+    write_manifest(source_pack, manifest)
+
+    result = vendor_module.self_test_policy_pack(pack_path=source_pack)
+
+    assert result.status == "fail"
+    assert result.checks[-1].id == "manifest-entrypoint-gates"
+    assert result.checks[-1].status == "fail"
+    assert "manifest gate ids" in result.checks[-1].message
+
+
+def test_self_test_policy_pack_reports_consumer_final_gate_violation(
+    tmp_path: Path,
+) -> None:
+    source_pack = tmp_path / "acme-strict-api"
+    write_policy_pack(source_pack)
+    (source_pack / "examples" / "consumer-qanstitution.yaml").write_text(
+        """
+project: consumer
+imports:
+  - ../policies/main.yaml
+gates:
+  - id: acme-security.no_server_errors
+    condition: "true"
+    gate: status == 200
+    enforcement: warn
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = vendor_module.self_test_policy_pack(pack_path=source_pack)
+
+    assert result.status == "fail"
+    assert [(check.id, check.status) for check in result.checks] == [
+        ("source-boundary", "pass"),
+        ("manifest-entrypoint-gates", "pass"),
+        ("consumer-example", "fail"),
+    ]
+    assert "final imported gate" in result.checks[-1].message
+
+
+def test_self_test_policy_pack_reports_missing_consumer_imports(tmp_path: Path) -> None:
+    source_pack = tmp_path / "acme-strict-api"
+    write_policy_pack(source_pack)
+    (source_pack / "examples" / "consumer-qanstitution.yaml").write_text(
+        "project: consumer\ngates: []\n",
+        encoding="utf-8",
+    )
+
+    result = vendor_module.self_test_policy_pack(pack_path=source_pack)
+
+    assert result.status == "fail"
+    assert result.checks[-1].id == "consumer-example"
+    assert result.checks[-1].status == "fail"
+    assert "must declare at least one local import" in result.checks[-1].message
+
+
+def test_self_test_policy_pack_reports_blank_consumer_import(tmp_path: Path) -> None:
+    source_pack = tmp_path / "acme-strict-api"
+    write_policy_pack(source_pack)
+    (source_pack / "examples" / "consumer-qanstitution.yaml").write_text(
+        "project: consumer\nimports:\n  - ''\ngates: []\n",
+        encoding="utf-8",
+    )
+
+    result = vendor_module.self_test_policy_pack(pack_path=source_pack)
+
+    assert result.status == "fail"
+    assert result.checks[-1].id == "consumer-example"
+    assert result.checks[-1].status == "fail"
+    assert "import 0 must be a non-empty string" in result.checks[-1].message
+
+
+def test_self_test_policy_pack_reports_remote_consumer_import(tmp_path: Path) -> None:
+    source_pack = tmp_path / "acme-strict-api"
+    write_policy_pack(source_pack)
+    (source_pack / "examples" / "consumer-qanstitution.yaml").write_text(
+        "project: consumer\nimports:\n  - https://example.com/policy.yaml\ngates: []\n",
+        encoding="utf-8",
+    )
+
+    result = vendor_module.self_test_policy_pack(pack_path=source_pack)
+
+    assert result.status == "fail"
+    assert result.checks[-1].id == "consumer-example"
+    assert result.checks[-1].status == "fail"
+    assert "imports must be local paths" in result.checks[-1].message
+
+
+def test_self_test_policy_pack_reports_missing_loaded_consumer_gates(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_pack = tmp_path / "acme-strict-api"
+    write_policy_pack(source_pack)
+    original_loader = vendor_module._load_pack_entrypoint
+    calls: list[Path] = []
+
+    class EmptyConsumerEvidence:
+        gates: tuple[object, ...] = ()
+
+    def fake_loader(config_path: Path) -> object:
+        calls.append(config_path)
+        if len(calls) == 1:
+            return original_loader(config_path)
+        return EmptyConsumerEvidence()
+
+    monkeypatch.setattr(vendor_module, "_load_pack_entrypoint", fake_loader)
+
+    result = vendor_module.self_test_policy_pack(pack_path=source_pack)
+
+    assert result.status == "fail"
+    assert result.checks[-1].id == "consumer-example"
+    assert result.checks[-1].status == "fail"
+    assert "does not load policy-pack gates" in result.checks[-1].message
+
+
+def test_self_test_policy_pack_reports_symlink_escape_failure(tmp_path: Path) -> None:
+    real_pack = tmp_path / "acme-strict-api"
+    symlink_pack = tmp_path / "pack-link"
+    write_policy_pack(real_pack)
+    symlink_pack.symlink_to(real_pack, target_is_directory=True)
+
+    result = vendor_module.self_test_policy_pack(pack_path=symlink_pack)
+
+    assert result.status == "fail"
+    assert result.checks == (
+        vendor_module.PolicyPackSelfTestCheck(
+            id="source-boundary",
+            status="fail",
+            message=f"Policy-pack source must not use symlinks: {symlink_pack}",
+        ),
+    )
+
+
+def test_policy_pack_self_test_payload_renders_relative_paths(tmp_path: Path) -> None:
+    source_pack = tmp_path / "acme-strict-api"
+    write_policy_pack(source_pack)
+    result = vendor_module.self_test_policy_pack(pack_path=source_pack)
+
+    payload = vendor_module.policy_pack_self_test_payload(result, root=tmp_path)
+
+    assert payload["schema_version"] == "entroping.policy-pack-self-test.v1"
+    assert payload["artifact_type"] == "policy-pack-verification"
+    assert payload["status"] == "pass"
+    assert payload["pack_path"] == "acme-strict-api"
+    assert payload["pack_id"] == "acme.strict-api"
+    assert payload["gate_ids"] == ["acme-security.no_server_errors"]
+    assert payload["checks"] == [
+        {
+            "id": "source-boundary",
+            "status": "pass",
+            "message": "source path is a local policy-pack directory without symlinks",
+        },
+        {
+            "id": "manifest-entrypoint-gates",
+            "status": "pass",
+            "message": "manifest, entrypoint, gate ids, and final gates are consistent",
+        },
+        {
+            "id": "consumer-example",
+            "status": "pass",
+            "message": "consumer example loads the policy-pack gates",
+        },
+        {
+            "id": "local-only",
+            "status": "pass",
+            "message": "validation used local files only",
+        },
+    ]
+
+
+def test_policy_pack_self_test_payload_keeps_absolute_external_path(
+    tmp_path: Path,
+) -> None:
+    result = vendor_module.PolicyPackSelfTestResult(
+        status="fail",
+        source=tmp_path / "external-pack",
+        pack_id=None,
+        entrypoint=None,
+        gate_ids=(),
+        final_gate_ids=(),
+        checks=(),
+    )
+
+    payload = vendor_module.policy_pack_self_test_payload(
+        result,
+        root=tmp_path / "consumer",
+    )
+
+    assert payload["pack_path"] == str(tmp_path / "external-pack")
+
+
 def test_vendor_policy_pack_rejects_invalid_policy_fragment(tmp_path: Path) -> None:
     project_root = tmp_path / "consumer"
     source_pack = tmp_path / "acme-strict-api"

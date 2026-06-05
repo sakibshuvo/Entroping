@@ -91,15 +91,21 @@ imports:
 Pack verification should happen before advertising or upgrading a pack:
 
 ```bash
+entroping config test-policy-pack --pack examples/policy-packs/api-baseline --output json
+entroping config test-policy-pack --pack ./vendor/acme-strict-api
 uv run python scripts/policy_pack_smoke.py --pack examples/policy-packs/api-baseline --strict
 uv run python scripts/policy_pack_smoke.py --pack ./vendor/acme-strict-api --format json --strict > policy-pack-evidence.json
 entroping report policy --output md
 entroping doctor
 ```
 
-The smoke command proves that manifest-declared gates, local gate files, final
-flags, entrypoint imports, and the consumer example match the loaded
-QAnstitution evidence. `entroping report policy` shows the effective gate
+`config test-policy-pack` is the first-class local pass/fail check before
+vendoring or publishing a pack. It emits schema
+`entroping.policy-pack-self-test.v1` with artifact type
+`policy-pack-verification`, and it writes no consumer files. The smoke command
+still provides release-owner evidence that manifest-declared gates, local gate
+files, final flags, entrypoint imports, and the consumer example match the
+loaded QAnstitution evidence. `entroping report policy` shows the effective gate
 provenance in the consumer project.
 
 The reusable evidence payload is intentionally attachable to issues, releases,

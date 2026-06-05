@@ -28,6 +28,7 @@ entroping doctor [--ci] [--output <text|json>]
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
 entroping config vendor-policy-pack --pack <path> [--name <dir>]
+entroping config test-policy-pack --pack <path> [--output <text|json>]
 
 entroping architect build [--new] [--changed-from <ref>] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
 entroping architect refactor --target <glob> --prompt <text>
@@ -56,7 +57,7 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 
 | Area | Decision |
 | --- | --- |
-| Command naming | Keep the nested noun/verb shape: `config vendor-policy-pack`, `architect build`, `architect refactor`, `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary`. |
+| Command naming | Keep the nested noun/verb shape: `config vendor-policy-pack`, `config test-policy-pack`, `architect build`, `architect refactor`, `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary`. |
 | Aliases | No alias is compatibility-supported. Deprecated brainstorm names such as `gen`, `fix`, `scan`, `chaos`, `verify`, top-level `build`, `auth`, and `report --type` remain unavailable. |
 | Global flags | Only Typer completion helpers and `--version` are current global flags. `--verbose` is not a product flag. `freeze --dry-run` is command-scoped and does not create a global dry-run mode. |
 | Determinism | `entroping run` remains deterministic, Hurl-backed, and LLM-free. |
@@ -65,6 +66,7 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 | Operation selection | `run --operation-id <id>` is a repeatable deterministic selector over committed Hurl `operation_id` metadata. It cannot be combined with `--suite`, `--changed-from`, `--tag`, or `--tag-expression`; run reports may include optional per-test `operation_id` evidence. |
 | Architect generation | Deterministic `architect build --new` reads the configured local OpenAPI spec and validates generated Hurl before write. `--changed-from <ref>` limits that deterministic path to current added, modified, or renamed operations relative to the same spec at a Git base ref and reports removed operations for manual review. Prompt-backed `architect build` and `architect refactor` may call LiteLLM, but generated files must pass validation before write. `architect build` defaults to Builder and accepts `--agent breaker` for hostile/security generation; deterministic `architect audit --focus logic --output json` emits `entroping.openapi-audit.v1`, and `--changed-from <ref>` attaches an `entroping.openapi-breaking-diff.v1` nested report without writing tests; `architect audit --focus auditor` is the explicit Auditor review path. |
 | Policy-pack vendoring | `config vendor-policy-pack` accepts reviewed local pack directories only. It copies the pack under `policy-packs/`, validates the manifest and QAnstitution entrypoint, appends a local import, and does not fetch from registries or remote URLs. |
+| Policy-pack self-test | `config test-policy-pack` accepts reviewed local pack directories only. It validates safe local boundaries, manifest/entrypoint/gate/final-gate consistency, and consumer examples without copying files, editing `qanstitution.yaml`, fetching registries, or requiring provider keys. |
 | Capture filters | `freeze`, `freeze --mock`, and `map` accept repeatable `--include-host`, `--exclude-host`, `--include-method`, `--exclude-method`, `--include-path`, and `--exclude-path` options. Filters apply only to already-redacted captured traffic; exclude rules win; path filters match request paths, not query strings. |
 | Freeze preview | `freeze --dry-run` previews selected redacted records, proposed output paths, golden status, and redaction categories. It writes no generated tests, mocks, approval manifests, or source artifacts and must not render raw traffic values. |
 | Studio | `studio` is read-only until mutation workflows are designed and accepted separately. |

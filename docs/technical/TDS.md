@@ -696,6 +696,7 @@ entroping doctor [--ci] [--output <text|json>]
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
 entroping config vendor-policy-pack --pack <path> [--name <dir>]
+entroping config test-policy-pack --pack <path> [--output <text|json>]
 ```
 
 `doctor --output json` emits schema version `entroping.doctor.v1` with overall
@@ -722,6 +723,14 @@ paths, URLs, and control characters.
 QAnstitution entrypoint before writing, then appends a local import to
 `qanstitution.yaml`. It is local-only: it does not fetch HTTP imports, consult a
 registry, authenticate to a catalog, or add runtime manifest dependency.
+
+`config test-policy-pack` validates a local policy-pack directory without
+copying it, editing `qanstitution.yaml`, consulting a registry, requiring
+network access, or requiring provider keys. It emits pass/fail checks for safe
+source boundaries, manifest/entrypoint/gate/final-gate consistency,
+consumer-example loading, and local-only execution. JSON output uses schema
+`entroping.policy-pack-self-test.v1` with artifact type
+`policy-pack-verification`.
 
 `doctor` validates configured agent persona files through the same root-bounded
 persona loader used by Architect commands. It reports unsafe, missing,
