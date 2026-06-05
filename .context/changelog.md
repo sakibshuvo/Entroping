@@ -2,6 +2,12 @@
 
 ## 2026-06-05
 
+- Added issue #423's report artifact manifest so
+  `entroping report artifact-manifest` writes
+  `reports/artifact-manifest.json` with project-relative paths, schema
+  versions when available, sizes, SHA-256 checksums, and missing-artifact
+  evidence for standard local reports without embedding report contents or
+  claiming signing/attestation.
 - Added issue #428's gate-injection explanation report so
   `entroping report gate-injection --target <path> --output md|json` resolves
   effective QAnstitution gates for selected local Hurl files without running

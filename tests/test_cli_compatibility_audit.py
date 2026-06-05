@@ -155,6 +155,11 @@ LOCKED_CLI_CONTRACTS = (
         ("--target", "--output"),
     ),
     CliContract(
+        "entroping report artifact-manifest [--output <path>]",
+        ("report", "artifact-manifest", "--help"),
+        ("--output",),
+    ),
+    CliContract(
         "entroping report traceability [--output <md|json>]",
         ("report", "traceability", "--help"),
         ("--output",),
