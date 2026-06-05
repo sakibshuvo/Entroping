@@ -790,7 +790,7 @@ entroping map [--export <mermaid|dot|md|png>] [capture filters]
 
 ```text
 entroping studio [--env <name>]
-entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--operation-id <id>] [--ci] [--parallel] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
+entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--operation-id <id>] [--ci] [--parallel] [--fail-fast] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>]
 entroping report bug
 entroping report failure-bundle [--output <directory>]
 entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
@@ -824,6 +824,13 @@ accepted. The accepted design gate for any future write action lives in
 `--parallel` uses `settings.parallel_workers` from `qanstitution.yaml`, keeps the
 per-file timeout and output-redaction behavior, and preserves deterministic
 input ordering in reports.
+`--fail-fast` stops scheduling new Hurl files after the first failing result.
+Sequential fail-fast executes tests in selection order and stops immediately.
+Parallel fail-fast remains bounded by `settings.parallel_workers`: already
+scheduled workers may complete, but Entroping schedules no additional tests
+after the first failure is observed. Latest-run state and requested reports
+include only executed tests and record `selected`, `executed`, `not_scheduled`,
+and `fail_fast` summary evidence.
 `settings.retry` is a bounded per-file subprocess retry budget. `entroping run`
 stops retrying as soon as a Hurl file passes, never hides a final failure, and
 records retry evidence in JSON, JUnit, HTML, and review-summary artifacts.
@@ -853,10 +860,10 @@ tag, or tag-expression selectors, and run reports preserve optional per-test
 operation ID evidence in JSON, JUnit, and HTML artifacts.
 `--suite <name>` loads a committed `suites/<name>.yaml` manifest with schema
 version `entroping.suite.v1`. A suite can define `env`, `tags`, root-bounded
-`paths` globs, `reports`, `parallel`, and `drift_check`. The suite manifest
+`paths` globs, `reports`, `parallel`, `fail_fast`, and `drift_check`. The suite manifest
 feeds the same deterministic run workflow; it does not change default
 `entroping run` behavior, and it cannot be combined with ad hoc selectors such
-as `--env`, `--tag`, `--report`, `--parallel`, `--drift-check`, or
+as `--env`, `--tag`, `--report`, `--parallel`, `--fail-fast`, `--drift-check`, or
 `--changed-from`.
 Before Hurl starts, the run workflow scans selected temporary execution copies
 for unresolved `{{variable}}` references. Resolved variables can come from

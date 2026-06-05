@@ -139,6 +139,7 @@ def test_execute_run_workflow_writes_reports_and_cleans_execution_state(
         options: HurlRunOptions,
         *,
         max_workers: int = 1,
+        fail_fast: bool = False,
     ) -> HurlSuiteResult:
         captured_paths.extend(paths)
         captured_options.append(options)
@@ -213,6 +214,7 @@ def test_execute_run_workflow_applies_known_failure_gate_exceptions(
         options: HurlRunOptions,
         *,
         max_workers: int = 1,
+        fail_fast: bool = False,
     ) -> HurlSuiteResult:
         _ = (options, max_workers)
         for path in paths:
@@ -267,6 +269,7 @@ def test_execute_run_workflow_selects_by_operation_id_metadata(
         options: HurlRunOptions,
         *,
         max_workers: int = 1,
+        fail_fast: bool = False,
     ) -> HurlSuiteResult:
         _ = (options, max_workers)
         captured_paths.extend(paths)
@@ -404,6 +407,7 @@ def test_execute_run_workflow_rejects_unmatched_known_failure_for_selected_test(
         options: HurlRunOptions,
         *,
         max_workers: int = 1,
+        fail_fast: bool = False,
     ) -> HurlSuiteResult:
         nonlocal hurl_called
         _ = (paths, options, max_workers)
@@ -469,6 +473,7 @@ def test_execute_run_workflow_ignores_known_failure_for_filtered_out_test(
         options: HurlRunOptions,
         *,
         max_workers: int = 1,
+        fail_fast: bool = False,
     ) -> HurlSuiteResult:
         _ = (options, max_workers)
         return HurlSuiteResult(results=tuple(_passed_result(path) for path in paths))
@@ -525,6 +530,7 @@ def test_execute_run_workflow_selects_by_tag_expression_with_counts(
         options: HurlRunOptions,
         *,
         max_workers: int = 1,
+        fail_fast: bool = False,
     ) -> HurlSuiteResult:
         _ = (options, max_workers)
         captured_paths.extend(paths)
@@ -605,6 +611,7 @@ def test_execute_run_workflow_uses_custom_discovery_roots(
         options: HurlRunOptions,
         *,
         max_workers: int = 1,
+        fail_fast: bool = False,
     ) -> HurlSuiteResult:
         _ = (options, max_workers)
         captured_paths.extend(paths)
@@ -685,6 +692,7 @@ def test_execute_run_workflow_runs_only_changed_hurl_tests(
         options: HurlRunOptions,
         *,
         max_workers: int = 1,
+        fail_fast: bool = False,
     ) -> HurlSuiteResult:
         _ = (options, max_workers)
         captured_paths.extend(paths)
@@ -784,6 +792,7 @@ def test_execute_run_workflow_preflights_missing_hurl_variables_before_subproces
         options: HurlRunOptions,
         *,
         max_workers: int = 1,
+        fail_fast: bool = False,
     ) -> HurlSuiteResult:
         nonlocal subprocess_called
         _ = (paths, options, max_workers)
@@ -853,6 +862,7 @@ def test_execute_run_workflow_accepts_env_file_shell_env_and_local_hurl_definiti
         options: HurlRunOptions,
         *,
         max_workers: int = 1,
+        fail_fast: bool = False,
     ) -> HurlSuiteResult:
         _ = max_workers
         captured_options.append(options)
@@ -904,6 +914,7 @@ def test_execute_run_workflow_drift_findings_affect_exit_code(
         options: HurlRunOptions,
         *,
         max_workers: int = 1,
+        fail_fast: bool = False,
     ) -> HurlSuiteResult:
         _ = (options, max_workers)
         return HurlSuiteResult(results=tuple(_passed_result(path) for path in paths))
@@ -941,6 +952,7 @@ def test_execute_run_workflow_missing_drift_baseline_affects_exit_code(
         options: HurlRunOptions,
         *,
         max_workers: int = 1,
+        fail_fast: bool = False,
     ) -> HurlSuiteResult:
         _ = (options, max_workers)
         return HurlSuiteResult(results=tuple(_passed_result(path) for path in paths))
@@ -973,6 +985,7 @@ def test_execute_run_workflow_writes_reviewed_drift_baseline_candidate_for_repor
         options: HurlRunOptions,
         *,
         max_workers: int = 1,
+        fail_fast: bool = False,
     ) -> HurlSuiteResult:
         _ = (options, max_workers)
         return HurlSuiteResult(results=tuple(_passed_result(path) for path in paths))
@@ -1014,6 +1027,7 @@ def test_execute_run_workflow_preserves_hurl_failure_exit_code(
         options: HurlRunOptions,
         *,
         max_workers: int = 1,
+        fail_fast: bool = False,
     ) -> HurlSuiteResult:
         _ = (options, max_workers)
         return HurlSuiteResult(results=tuple(_failed_result(path) for path in paths))
@@ -1061,6 +1075,7 @@ def test_execute_run_workflow_includes_dependency_call_drift_from_redacted_traff
         options: HurlRunOptions,
         *,
         max_workers: int = 1,
+        fail_fast: bool = False,
     ) -> HurlSuiteResult:
         _ = (options, max_workers)
         return HurlSuiteResult(results=tuple(_passed_result(path) for path in paths))
@@ -1100,6 +1115,7 @@ def test_execute_run_workflow_dependency_baseline_without_traffic_state_reports_
         options: HurlRunOptions,
         *,
         max_workers: int = 1,
+        fail_fast: bool = False,
     ) -> HurlSuiteResult:
         _ = (options, max_workers)
         return HurlSuiteResult(results=tuple(_passed_result(path) for path in paths))
@@ -1135,6 +1151,7 @@ def test_execute_run_workflow_dependency_baseline_with_empty_traffic_state_repor
         options: HurlRunOptions,
         *,
         max_workers: int = 1,
+        fail_fast: bool = False,
     ) -> HurlSuiteResult:
         _ = (options, max_workers)
         return HurlSuiteResult(results=tuple(_passed_result(path) for path in paths))
@@ -1170,6 +1187,7 @@ def test_execute_run_workflow_dependency_observation_errors_are_actionable(
         options: HurlRunOptions,
         *,
         max_workers: int = 1,
+        fail_fast: bool = False,
     ) -> HurlSuiteResult:
         _ = (options, max_workers)
         return HurlSuiteResult(results=tuple(_passed_result(path) for path in paths))

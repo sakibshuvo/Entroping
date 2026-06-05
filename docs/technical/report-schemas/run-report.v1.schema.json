@@ -33,7 +33,11 @@
         "total": {"type": "integer", "minimum": 0},
         "passed": {"type": "integer", "minimum": 0},
         "failed": {"type": "integer", "minimum": 0},
-        "exit_code": {"type": "integer"}
+        "exit_code": {"type": "integer"},
+        "selected": {"type": "integer", "minimum": 0},
+        "executed": {"type": "integer", "minimum": 0},
+        "not_scheduled": {"type": "integer", "minimum": 0},
+        "fail_fast": {"type": "boolean"}
       }
     },
     "tests": {

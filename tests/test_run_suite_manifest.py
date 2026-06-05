@@ -29,6 +29,7 @@ reports:
   - json
   - junit
 parallel: true
+fail_fast: true
 drift_check: true
 """.lstrip(),
         encoding="utf-8",
@@ -41,6 +42,7 @@ drift_check: true
     assert suite.tag_filters == ("security", "smoke")
     assert suite.report_formats == ("json", "junit")
     assert suite.parallel is True
+    assert suite.fail_fast is True
     assert suite.drift_check is True
     assert suite.discovery_roots == (
         (tests_dir / "health.hurl").resolve(),

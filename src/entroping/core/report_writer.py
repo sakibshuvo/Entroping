@@ -68,13 +68,23 @@ def build_run_report(
 ) -> RunReport:
     """Build a serializable report from Hurl execution copies and results."""
 
-    if len(execution_copies) != len(suite.results):
+    if len(execution_copies) != len(suite.results) and (
+        not suite.fail_fast or len(suite.results) > len(execution_copies)
+    ):
         msg = "Execution copy count does not match Hurl result count"
         raise ReportWriterError(msg)
 
     root = project_root.expanduser().resolve()
+    execution_copies_by_path = {
+        execution_copy.execution_path.expanduser().resolve(): execution_copy
+        for execution_copy in execution_copies
+    }
     tests: list[RunTestReport] = []
-    for execution_copy, result in zip(execution_copies, suite.results, strict=True):
+    for result in suite.results:
+        execution_copy = execution_copies_by_path.get(result.path.expanduser().resolve())
+        if execution_copy is None:
+            msg = "Hurl result path does not match an execution copy"
+            raise ReportWriterError(msg)
         stdout = redact_hurl_output(result.stdout)
         stderr = redact_hurl_output(result.stderr)
         response_status_code, response_headers, response_body_shape = _extract_response_fingerprint(
@@ -118,6 +128,10 @@ def build_run_report(
             passed=suite.passed,
             failed=suite.failed,
             exit_code=suite.exit_code,
+            selected=suite.selected_count,
+            executed=suite.total,
+            not_scheduled=suite.not_scheduled,
+            fail_fast=suite.fail_fast,
         ),
         tests=tuple(tests),
     )

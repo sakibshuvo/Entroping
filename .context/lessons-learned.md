@@ -187,6 +187,7 @@
 - Path hardening checks must inspect symlink status before resolving a path. Calling `Path.resolve()` first can hide that the original user-controlled path was a symlink.
 - Hurl runner tests should stub the subprocess boundary, not the product behavior. The core proof is the argument array, `shell=False`, timeout conversion, bounded/redacted captured output, and deterministic suite exit code.
 - Reports need two destinations: user-facing artifacts under `reports/` and sanitized latest-run state under `.entroping/` so `report bug` can work without rerunning Hurl.
+- Fail-fast reports should map executed Hurl results back to temporary execution copies by resolved path, not by selected-list length. A shorter result list is valid only for fail-fast; normal mismatches should remain hard errors.
 - A first-run demo must not depend on future env-file loading. Use literal localhost URLs plus a tiny local server until `--env` grows real variable injection.
 - OpenAPI is an attacker-controlled boundary. Reject control characters in generated metadata/request lines and reject unsupported JSONPath field names instead of emitting malformed or injectable Hurl.
 - Env loading should be intentionally narrow: read only `envs/<name>.env`, allow process overrides only for keys declared in that file, pass values to Hurl through a variables file, and redact loaded values from outputs.

@@ -105,6 +105,22 @@ class RunReportSummary:
     passed: int
     failed: int
     exit_code: int
+    selected: int | None = None
+    executed: int | None = None
+    not_scheduled: int = 0
+    fail_fast: bool = False
+
+    @property
+    def selected_count(self) -> int:
+        """Return selected tests, defaulting to executed total for old reports."""
+
+        return self.total if self.selected is None else self.selected
+
+    @property
+    def executed_count(self) -> int:
+        """Return executed tests, defaulting to total for old reports."""
+
+        return self.total if self.executed is None else self.executed
 
 
 @dataclass(frozen=True)

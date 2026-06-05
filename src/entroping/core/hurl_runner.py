@@ -6,7 +6,7 @@ import subprocess  # nosec B404
 import tempfile
 import time
 from collections.abc import Mapping, Sequence
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, as_completed, wait
 from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO, Literal
@@ -122,12 +122,21 @@ class HurlSuiteResult:
     """Aggregated result for a deterministic Hurl run."""
 
     results: tuple[HurlFileResult, ...]
+    selected_count: int | None = None
+    fail_fast: bool = False
 
     @property
     def total(self) -> int:
         """Return number of executed files."""
 
         return len(self.results)
+
+    @property
+    def not_scheduled(self) -> int:
+        """Return selected files that were not scheduled after fail-fast stopped."""
+
+        selected = self.selected_count if self.selected_count is not None else self.total
+        return max(0, selected - self.total)
 
     @property
     def passed(self) -> int:
@@ -160,6 +169,7 @@ def run_hurl_files(
     options: HurlRunOptions | None = None,
     *,
     max_workers: int = 1,
+    fail_fast: bool = False,
 ) -> HurlSuiteResult:
     """Run Hurl once per file and aggregate deterministic results."""
 
@@ -168,6 +178,8 @@ def run_hurl_files(
         raise ValueError(msg)
 
     run_options = options or HurlRunOptions()
+    if fail_fast:
+        return _run_hurl_files_fail_fast(paths, run_options, max_workers=max_workers)
     if max_workers == 1 or len(paths) <= 1:
         results = tuple(run_hurl_file(path, run_options) for path in paths)
         return HurlSuiteResult(results=results)
@@ -193,6 +205,84 @@ def run_hurl_files(
         results_list.append(result)
     results = tuple(results_list)
     return HurlSuiteResult(results=results)
+
+
+def _run_hurl_files_fail_fast(
+    paths: Sequence[Path],
+    options: HurlRunOptions,
+    *,
+    max_workers: int,
+) -> HurlSuiteResult:
+    selected_count = len(paths)
+    if max_workers == 1 or len(paths) <= 1:
+        results: list[HurlFileResult] = []
+        for path in paths:
+            result = run_hurl_file(path, options)
+            results.append(result)
+            if not result.passed:
+                break
+        return HurlSuiteResult(
+            results=tuple(results),
+            selected_count=selected_count,
+            fail_fast=True,
+        )
+
+    ordered_results: list[HurlFileResult | None] = [None] * selected_count
+    bounded_workers = min(max_workers, selected_count)
+    next_index = 0
+    stop_scheduling = False
+    with ThreadPoolExecutor(
+        max_workers=bounded_workers,
+        thread_name_prefix="entroping-hurl",
+    ) as executor:
+        futures: dict[Future[HurlFileResult], int] = {}
+        next_index = _schedule_hurl_workers(
+            executor=executor,
+            futures=futures,
+            paths=paths,
+            options=options,
+            next_index=next_index,
+            max_in_flight=bounded_workers,
+        )
+        while futures:
+            done, _pending = wait(futures, return_when=FIRST_COMPLETED)
+            for future in sorted(done, key=lambda item: futures[item]):
+                index = futures.pop(future)
+                result = future.result()
+                ordered_results[index] = result
+                if not result.passed:
+                    stop_scheduling = True
+            if not stop_scheduling:
+                next_index = _schedule_hurl_workers(
+                    executor=executor,
+                    futures=futures,
+                    paths=paths,
+                    options=options,
+                    next_index=next_index,
+                    max_in_flight=bounded_workers,
+                )
+
+    executed_results = tuple(result for result in ordered_results if result is not None)
+    return HurlSuiteResult(
+        results=executed_results,
+        selected_count=selected_count,
+        fail_fast=True,
+    )
+
+
+def _schedule_hurl_workers(
+    *,
+    executor: ThreadPoolExecutor,
+    futures: dict[Future[HurlFileResult], int],
+    paths: Sequence[Path],
+    options: HurlRunOptions,
+    next_index: int,
+    max_in_flight: int,
+) -> int:
+    while next_index < len(paths) and len(futures) < max_in_flight:
+        futures[executor.submit(run_hurl_file, paths[next_index], options)] = next_index
+        next_index += 1
+    return next_index
 
 
 def run_hurl_file(

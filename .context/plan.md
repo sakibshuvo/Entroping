@@ -192,6 +192,10 @@ project, and a Codex workspace with fast context rehydration.
   `entroping.run-events.v1` JSONL progress log for CI wrappers and coding
   agents, covering run start, selected tests, redacted results, artifact
   writes, no-match/error events, and completion status.
+- `entroping run --fail-fast` stops scheduling new Hurl files after the first
+  failing result. Sequential runs stop immediately; parallel runs let already
+  scheduled workers finish and report selected, executed, not-scheduled, and
+  fail-fast summary evidence.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work; `scripts/finish_issue.sh` verifies merged PRs and safely removes completed local worktrees.
 - Eye capture now has security-first traffic models, pre-persistence redaction, bounded SQLModel-backed SQLite state, and capture-only `watch` wiring through a lazy-loaded mitmproxy adapter.
 - Issues #1 through #85, plus validation fixes #95 and #97, are integrated.

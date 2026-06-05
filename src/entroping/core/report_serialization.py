@@ -3,6 +3,7 @@
 import json
 from collections.abc import Mapping
 from pathlib import Path
+from typing import cast
 
 from entroping.core.report_fingerprint import (
     _has_control_character,
@@ -47,6 +48,13 @@ def load_run_report(path: Path) -> RunReport:
         )
         for item in data["tests"]
     )
+    not_scheduled = cast(
+        int,
+        _serialized_non_negative_int(
+            summary_data.get("not_scheduled"),
+            default=0,
+        ),
+    )
     return RunReport(
         project=data["project"],
         environment=data["environment"],
@@ -56,6 +64,10 @@ def load_run_report(path: Path) -> RunReport:
             passed=summary_data["passed"],
             failed=summary_data["failed"],
             exit_code=summary_data["exit_code"],
+            selected=_serialized_non_negative_int(summary_data.get("selected")),
+            executed=_serialized_non_negative_int(summary_data.get("executed")),
+            not_scheduled=not_scheduled,
+            fail_fast=summary_data.get("fail_fast") is True,
         ),
         tests=tests,
     )
@@ -64,17 +76,28 @@ def load_run_report(path: Path) -> RunReport:
 def run_report_to_dict(report: RunReport) -> dict[str, object]:
     """Return the versioned JSON-serializable run report payload."""
 
+    summary: dict[str, object] = {
+        "total": report.summary.total,
+        "passed": report.summary.passed,
+        "failed": report.summary.failed,
+        "exit_code": report.summary.exit_code,
+    }
+    if report.summary.fail_fast or report.summary.not_scheduled:
+        summary.update(
+            {
+                "selected": report.summary.selected_count,
+                "executed": report.summary.executed_count,
+                "not_scheduled": report.summary.not_scheduled,
+                "fail_fast": report.summary.fail_fast,
+            }
+        )
+
     return {
         "schema_version": RUN_REPORT_SCHEMA_VERSION,
         "project": report.project,
         "environment": report.environment,
         "generated_at": report.generated_at,
-        "summary": {
-            "total": report.summary.total,
-            "passed": report.summary.passed,
-            "failed": report.summary.failed,
-            "exit_code": report.summary.exit_code,
-        },
+        "summary": summary,
         "tests": [_test_report_to_dict(test) for test in report.tests],
     }
 
@@ -190,6 +213,10 @@ def _serialized_retry(raw_retry: object) -> RunRetryEvidence:
 
 def _serialized_timeout_ms(value: object) -> int:
     return value if isinstance(value, int) and value >= 0 else 0
+
+
+def _serialized_non_negative_int(value: object, *, default: int | None = None) -> int | None:
+    return value if isinstance(value, int) and value >= 0 else default
 
 
 def _serialized_operation_id(value: object) -> str | None:
