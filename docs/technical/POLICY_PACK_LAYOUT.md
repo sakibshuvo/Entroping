@@ -101,14 +101,20 @@ Required manifest fields for the current layout:
 | `final_gates` | Gate IDs that consumers cannot override |
 | `gates` | Manifest-declared gate IDs, source files, and final flags |
 
-`scripts/policy_pack_smoke.py --strict` validates local policy-pack manifests
-today, including arbitrary pack directories supplied with `--pack`. It checks
-required fields, local source shape, attribution, local gate files, manifest gate
-IDs, manifest final flags, loaded QAnstitution gate IDs, documented final gates,
-and the copyable consumer example. JSON output emits a reusable
-`policy-pack-verification` artifact that maintainers can attach to releases,
-issues, or external pack reviews. It does not fetch from a remote registry, run
-the evidence command recursively, prove package authenticity, sign packs, or
+`entroping config test-policy-pack --pack <path> [--output <text|json>]` is the
+first-class local command for pack authors and consumers. It validates safe
+source boundaries, manifest/entrypoint/gate/final-gate consistency, and the
+consumer example without copying files, editing `qanstitution.yaml`, fetching a
+registry, or requiring provider keys.
+
+`scripts/policy_pack_smoke.py --strict` remains release-owner smoke evidence for
+local policy-pack manifests, including arbitrary pack directories supplied with
+`--pack`. It checks required fields, local source shape, attribution, local gate
+files, manifest gate IDs, manifest final flags, loaded QAnstitution gate IDs,
+documented final gates, and the copyable consumer example. JSON output emits a
+reusable `policy-pack-verification` artifact that maintainers can attach to
+releases, issues, or external pack reviews. It does not fetch from a remote registry,
+run the evidence command recursively, prove package authenticity, sign packs, or
 replace human review of policy intent.
 
 ## Import Semantics
@@ -119,6 +125,7 @@ validates the manifest and QAnstitution entrypoint, and appends the local
 import:
 
 ```bash
+entroping config test-policy-pack --pack ../entroping-policy-pack-api-baseline --output json
 entroping config vendor-policy-pack --pack ../entroping-policy-pack-api-baseline --name api-baseline
 ```
 

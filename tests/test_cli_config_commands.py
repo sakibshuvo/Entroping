@@ -4,9 +4,63 @@ from cli_test_support import (
     CliRunner,
     Path,
     app,
+    json,
     pytest,
     yaml,
 )
+
+
+def _write_cli_policy_pack(pack_path: Path) -> None:
+    (pack_path / "rules").mkdir(parents=True)
+    (pack_path / "examples").mkdir()
+    (pack_path / "README.md").write_text("# Source Pack\n", encoding="utf-8")
+    (pack_path / "entroping-policy-pack.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "id": "acme.strict-api",
+                "name": "Acme Strict API",
+                "version": "0.2.0",
+                "license": "Apache-2.0",
+                "source": ".",
+                "entrypoint": "qanstitution.yaml",
+                "runtime_contract": "qanstitution-import",
+                "entroping": ">=0.1.1-alpha,<1.0",
+                "evidence_command": "entroping config test-policy-pack --pack .",
+                "gate_prefixes": ["acme-security"],
+                "final_gates": ["acme-security.request_id"],
+                "gates": [
+                    {
+                        "id": "acme-security.request_id",
+                        "file": "rules/security.yaml",
+                        "final": True,
+                    }
+                ],
+                "maintainers": ["Acme QA"],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    (pack_path / "qanstitution.yaml").write_text(
+        "project: pack\nimports:\n  - ./rules/security.yaml\ngates: []\n",
+        encoding="utf-8",
+    )
+    (pack_path / "rules" / "security.yaml").write_text(
+        """
+project: pack-rules
+gates:
+  - id: acme-security.request_id
+    condition: "true"
+    gate: 'header "X-Request-Id" exists'
+    enforcement: warn
+    final: true
+""".lstrip(),
+        encoding="utf-8",
+    )
+    (pack_path / "examples" / "consumer-qanstitution.yaml").write_text(
+        "project: consumer\nimports:\n  - ../qanstitution.yaml\ngates: []\n",
+        encoding="utf-8",
+    )
 
 
 def test_config_list_prints_resolved_non_secret_config(
@@ -193,6 +247,89 @@ gates:
     document = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     assert document["imports"] == ["./policy-packs/acme/qanstitution.yaml"]
     assert Path("policy-packs/acme/rules/security.yaml").is_file()
+
+
+def test_config_test_policy_pack_json_reports_pass_without_writing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    pack_path = tmp_path / "source-pack"
+    _write_cli_policy_pack(pack_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["config", "test-policy-pack", "--pack", str(pack_path), "--output", "json"],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["schema_version"] == "entroping.policy-pack-self-test.v1"
+    assert payload["artifact_type"] == "policy-pack-verification"
+    assert payload["status"] == "pass"
+    assert payload["pack_id"] == "acme.strict-api"
+    assert payload["gate_ids"] == ["acme-security.request_id"]
+    assert [check["status"] for check in payload["checks"]] == ["pass", "pass", "pass", "pass"]
+    assert not Path("policy-packs").exists()
+    assert not Path("qanstitution.yaml").exists()
+
+
+def test_config_test_policy_pack_text_reports_pass_details(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    pack_path = tmp_path / "source-pack"
+    _write_cli_policy_pack(pack_path)
+
+    result = CliRunner().invoke(app, ["config", "test-policy-pack", "--pack", str(pack_path)])
+
+    assert result.exit_code == 0
+    assert "Policy pack self-test passed" in result.output
+    assert "Pack: acme.strict-api" in result.output
+    assert "Gates: 1 gate" in result.output
+    assert "Final gates: acme-security.request_id" in result.output
+    assert "PASS local-only" in result.output
+    assert not Path("policy-packs").exists()
+    assert not Path("qanstitution.yaml").exists()
+
+
+def test_config_test_policy_pack_rejects_unknown_output_format(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    pack_path = tmp_path / "source-pack"
+    _write_cli_policy_pack(pack_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["config", "test-policy-pack", "--pack", str(pack_path), "--output", "xml"],
+    )
+
+    assert result.exit_code == 1
+    assert "Unsupported policy-pack self-test output: xml" in result.output
+    assert not Path("policy-packs").exists()
+    assert not Path("qanstitution.yaml").exists()
+
+
+def test_config_test_policy_pack_text_reports_fail_without_writing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    pack_path = tmp_path / "broken-pack"
+    pack_path.mkdir()
+
+    result = CliRunner().invoke(app, ["config", "test-policy-pack", "--pack", str(pack_path)])
+
+    assert result.exit_code == 1
+    assert "Policy pack self-test failed" in result.output
+    assert "PASS source-boundary" in result.output
+    assert "FAIL manifest-entrypoint-gates" in result.output
+    assert "manifest file missing" in result.output
+    assert not Path("policy-packs").exists()
+    assert not Path("qanstitution.yaml").exists()
 
 
 def test_config_vendor_policy_pack_wraps_validation_errors(

@@ -185,6 +185,9 @@ project, and a Codex workspace with fast context rehydration.
   directories under `policy-packs/`, validates manifest and QAnstitution
   entrypoint evidence, preserves final-gate behavior, and appends local imports
   without remote registry coupling.
+- `entroping config test-policy-pack` validates reviewed local policy-pack
+  directories before vendoring or publishing, emits text or JSON pass/fail
+  evidence, and writes nothing to the consumer project.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work; `scripts/finish_issue.sh` verifies merged PRs and safely removes completed local worktrees.
 - Eye capture now has security-first traffic models, pre-persistence redaction, bounded SQLModel-backed SQLite state, and capture-only `watch` wiring through a lazy-loaded mitmproxy adapter.
 - Issues #1 through #85, plus validation fixes #95 and #97, are integrated.

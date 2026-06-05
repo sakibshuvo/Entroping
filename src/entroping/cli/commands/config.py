@@ -11,7 +11,13 @@ from entroping.core.config_writer import (
     ConfigUpdateError,
     update_agent_model_with_persona_template,
 )
-from entroping.core.policy_pack_vendor import PolicyPackVendorError, vendor_policy_pack
+from entroping.core.policy_pack_vendor import (
+    PolicyPackSelfTestResult,
+    PolicyPackVendorError,
+    policy_pack_self_test_payload,
+    self_test_policy_pack,
+    vendor_policy_pack,
+)
 from entroping.models.qanstitution import AgentRole
 
 app = typer.Typer(help="Inspect or update non-secret configuration.")
@@ -131,6 +137,49 @@ def config_vendor_policy_pack(
     console.print(f"Gates: {len(result.gate_ids)} {noun}")
     if result.final_gate_ids:
         console.print(f"Final gates: {', '.join(result.final_gate_ids)}")
+
+
+@app.command("test-policy-pack")
+def config_test_policy_pack(
+    pack: Annotated[Path, typer.Option("--pack", help="Local policy-pack directory.")],
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: text or json."),
+    ] = "text",
+) -> None:
+    """Validate a local policy pack without vendoring it."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"text", "json"}:
+        console.print(f"[red]Unsupported policy-pack self-test output: {output}[/red]")
+        raise typer.Exit(1)
+
+    result = self_test_policy_pack(pack_path=pack)
+    if normalized_output == "json":
+        console.print_json(data=policy_pack_self_test_payload(result, root=Path.cwd()))
+    else:
+        _print_policy_pack_self_test(result)
+
+    if result.status == "fail":
+        raise typer.Exit(1)
+
+
+def _print_policy_pack_self_test(result: PolicyPackSelfTestResult) -> None:
+    if result.status == "pass":
+        console.print("[green]Policy pack self-test passed[/green]")
+    else:
+        console.print("[red]Policy pack self-test failed[/red]")
+    console.print(f"Source: {display_cli_path(result.source)}")
+    if result.pack_id is not None:
+        console.print(f"Pack: {result.pack_id}")
+    if result.gate_ids:
+        noun = "gate" if len(result.gate_ids) == 1 else "gates"
+        console.print(f"Gates: {len(result.gate_ids)} {noun}")
+    if result.final_gate_ids:
+        console.print(f"Final gates: {', '.join(result.final_gate_ids)}")
+    console.print("Checks:")
+    for check in result.checks:
+        console.print(f"{check.status.upper()} {check.id}: {check.message}")
 
 
 def _agent_role_order() -> tuple[AgentRole, ...]:

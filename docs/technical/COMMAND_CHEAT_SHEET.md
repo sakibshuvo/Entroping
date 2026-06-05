@@ -13,6 +13,7 @@ entroping doctor [--ci] [--output <text|json>]
 entroping config list
 entroping config set --agent <builder|auditor|breaker> --model <model-id>
 entroping config vendor-policy-pack --pack <path> [--name <dir>]
+entroping config test-policy-pack --pack <path> [--output <text|json>]
 
 entroping architect build [--new] [--changed-from <ref>] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
 entroping architect refactor --target <glob> --prompt <text>
@@ -40,18 +41,20 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 ## Setup
 
 Current alpha implementation supports `init`, `doctor`, `config list`,
-`config set`, and `config vendor-policy-pack`. `config set` updates
-`qanstitution.yaml`, creates a missing local persona Markdown template, and does
-not store credentials or call model providers. `config vendor-policy-pack`
-copies a reviewed local pack under `policy-packs/`, validates its manifest and
-QAnstitution entrypoint, then appends a local import without remote fetches or
-registry behavior. `doctor` validates any configured agent persona files with
-the same safety rules used by Architect and reports whether configured
-`api_key_env` names are present without printing values or contacting
-providers. Add `--ci` to fail fast on CI-breaking setup such as missing Hurl,
-unsafe report paths, invalid or empty suite manifests, unresolved Hurl
-variables, or accidental assumptions that `run --ci` needs model-provider
-access.
+`config set`, `config vendor-policy-pack`, and `config test-policy-pack`.
+`config set` updates `qanstitution.yaml`, creates a missing local persona
+Markdown template, and does not store credentials or call model providers.
+`config vendor-policy-pack` copies a reviewed local pack under `policy-packs/`,
+validates its manifest and QAnstitution entrypoint, then appends a local import
+without remote fetches or registry behavior. `config test-policy-pack` validates
+a local pack before vendoring or publishing it, emits text or JSON pass/fail
+evidence, and writes nothing to the consumer project. `doctor` validates any
+configured agent persona files with the same safety rules used by Architect and
+reports whether configured `api_key_env` names are present without printing
+values or contacting providers. Add `--ci` to fail fast on CI-breaking setup
+such as missing Hurl, unsafe report paths, invalid or empty suite manifests,
+unresolved Hurl variables, or accidental assumptions that `run --ci` needs
+model-provider access.
 
 | Command | Purpose |
 | --- | --- |
@@ -63,6 +66,7 @@ access.
 | `entroping config list` | Show effective non-secret configuration |
 | `entroping config set --agent <name> --model <id>` | Configure model routing for an agent role |
 | `entroping config vendor-policy-pack --pack <path>` | Vendor a reviewed local policy pack and append a local import |
+| `entroping config test-policy-pack --pack <path>` | Validate a local policy pack without writing files |
 
 Examples:
 
@@ -71,6 +75,7 @@ entroping init
 entroping doctor
 entroping config list
 entroping config set --agent auditor --model openai/auditor-model
+entroping config test-policy-pack --pack ../entroping-policy-pack-api-baseline --output json
 entroping config vendor-policy-pack --pack ../entroping-policy-pack-api-baseline --name api-baseline
 ```
 

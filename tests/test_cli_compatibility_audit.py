@@ -39,6 +39,11 @@ LOCKED_CLI_CONTRACTS = (
         ("--pack", "--name"),
     ),
     CliContract(
+        "entroping config test-policy-pack --pack <path> [--output <text|json>]",
+        ("config", "test-policy-pack", "--help"),
+        ("--pack", "--output"),
+    ),
+    CliContract(
         (
             "entroping architect build [--new] [--changed-from <ref>] [--prompt <text>] "
             "[--strategy merge] [--tag <tag>] [--agent <builder|breaker>]"

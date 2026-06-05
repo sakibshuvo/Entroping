@@ -2,6 +2,12 @@
 
 ## 2026-06-05
 
+- Added issue #431's local policy-pack self-test command so
+  `entroping config test-policy-pack --pack <path> [--output text|json]`
+  validates safe local boundaries, manifest/entrypoint/gate/final-gate
+  consistency, consumer examples, and local-only behavior before vendoring or
+  publishing without copying files, editing `qanstitution.yaml`, contacting a
+  registry, or requiring provider keys.
 - Added issue #432's `freeze --dry-run` preview so Hurl and WireMock freeze
   flows can show selected redacted records, proposed output paths, golden
   status, and counts-only redaction categories without writing tests, mocks,
