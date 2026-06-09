@@ -16,6 +16,11 @@ from entroping.models.secrets import REDACTED, redact_secret_like_values
 _DEFAULT_OUTPUT_LIMIT_BYTES = 64 * 1024
 _TRUNCATION_TEMPLATE = "\n[entroping: {stream_name} truncated]\n"
 _VARIABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_VERSION_RE = re.compile(r"\b(?P<major>\d+)\.(?P<minor>\d+)(?:\.(?P<patch>\d+))?\b")
+_VERSION_TIMEOUT_SECONDS = 2.0
+_VERSION_OUTPUT_LIMIT_BYTES = 4 * 1024
+HURL_MINIMUM_SUPPORTED_VERSION = (4, 3, 0)
+HURL_MINIMUM_SUPPORTED_VERSION_TEXT = "4.3.0"
 
 HurlRunStatus = Literal["passed", "failed", "timeout", "error"]
 
@@ -26,6 +31,11 @@ class HurlBinaryStatus:
 
     available: bool
     path: str | None
+    version_checked: bool = False
+    version: str | None = None
+    version_parts: tuple[int, int, int] | None = None
+    version_output: str | None = None
+    version_error: str | None = None
 
 
 class HurlRunnerError(RuntimeError):
@@ -161,7 +171,20 @@ def discover_hurl(binary: str = "hurl") -> HurlBinaryStatus:
     """Find the Hurl binary without executing HTTP requests."""
 
     resolved = shutil.which(binary)
-    return HurlBinaryStatus(available=resolved is not None, path=resolved)
+    if resolved is None:
+        return HurlBinaryStatus(available=False, path=None, version_checked=binary == "hurl")
+    if binary != "hurl":
+        return HurlBinaryStatus(available=True, path=resolved)
+    version, version_parts, version_output, version_error = _read_hurl_version(resolved)
+    return HurlBinaryStatus(
+        available=True,
+        path=resolved,
+        version_checked=True,
+        version=version,
+        version_parts=version_parts,
+        version_output=version_output,
+        version_error=version_error,
+    )
 
 
 def run_hurl_files(
@@ -451,6 +474,76 @@ def _minimal_subprocess_env(binary_path: str) -> dict[str, str]:
         "/bin",
     ]
     return {"PATH": ":".join(dict.fromkeys(path_entries))}
+
+
+def _read_hurl_version(
+    binary_path: str,
+) -> tuple[str | None, tuple[int, int, int] | None, str | None, str | None]:
+    with (
+        tempfile.TemporaryFile(mode="w+b") as stdout_file,
+        tempfile.TemporaryFile(mode="w+b") as stderr_file,
+    ):
+        try:
+            completed = subprocess.run(  # nosec B603
+                [binary_path, "--version"],
+                stdout=stdout_file,
+                stderr=stderr_file,
+                timeout=_VERSION_TIMEOUT_SECONDS,
+                check=False,
+                env=_minimal_subprocess_env(binary_path),
+                shell=False,
+            )
+        except subprocess.TimeoutExpired:
+            return None, None, None, "hurl --version timed out after 2 seconds"
+        except OSError as exc:
+            return None, None, None, f"hurl --version failed: {exc}"
+
+        stdout, _stdout_truncated = _read_process_output(
+            stdout_file,
+            stream_name="stdout",
+            limit_bytes=_VERSION_OUTPUT_LIMIT_BYTES,
+            redacted_values=(),
+        )
+        stderr, _stderr_truncated = _read_process_output(
+            stderr_file,
+            stream_name="stderr",
+            limit_bytes=_VERSION_OUTPUT_LIMIT_BYTES,
+            redacted_values=(),
+        )
+
+    combined_output = _version_output_summary(stdout, stderr)
+    if completed.returncode != 0:
+        detail = f": {combined_output}" if combined_output else ""
+        return None, None, combined_output or None, (
+            f"hurl --version exited with code {completed.returncode}{detail}"
+        )
+
+    version_parts = _parse_version_parts(combined_output)
+    if version_parts is None:
+        return None, None, combined_output or None, None
+    return _format_version(version_parts), version_parts, combined_output or None, None
+
+
+def _version_output_summary(stdout: str, stderr: str) -> str:
+    combined = "\n".join(part.strip() for part in (stdout, stderr) if part.strip())
+    first_line = combined.splitlines()[0].strip() if combined else ""
+    return first_line[:256]
+
+
+def _parse_version_parts(text: str) -> tuple[int, int, int] | None:
+    match = _VERSION_RE.search(text)
+    if match is None:
+        return None
+    patch = match.group("patch")
+    return (
+        int(match.group("major")),
+        int(match.group("minor")),
+        int(patch) if patch is not None else 0,
+    )
+
+
+def _format_version(version: tuple[int, int, int]) -> str:
+    return f"{version[0]}.{version[1]}.{version[2]}"
 
 
 def _variables_file_args(path: Path | None) -> tuple[str, ...]:

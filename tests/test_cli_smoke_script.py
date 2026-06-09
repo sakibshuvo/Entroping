@@ -79,10 +79,13 @@ def test_cli_smoke_script_does_not_confuse_traffic_state_with_missing_hurl(
     )
 
     assert result.returncode == 0, result.stderr + result.stdout
-    assert "Hurl: found" in result.stdout
+    assert "Hurl: version unparsable" in result.stdout
     assert "Traffic state:" in result.stdout
     assert "not found" in result.stdout
-    assert "Hurl is installed; smoke still avoided runtime execution." in result.stdout
+    assert (
+        "Hurl is installed but version output was not parseable; "
+        "smoke still avoided runtime execution."
+    ) in result.stdout
     assert "Missing Hurl is acceptable for this no-Hurl smoke." not in result.stdout
 
 

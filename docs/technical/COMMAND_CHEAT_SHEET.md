@@ -57,8 +57,11 @@ a local pack before vendoring or publishing it, emits text or JSON pass/fail
 evidence, and writes nothing to the consumer project. `doctor` validates any
 configured agent persona files with the same safety rules used by Architect and
 reports whether configured `api_key_env` names are present without printing
-values or contacting providers. Add `--ci` to fail fast on CI-breaking setup
-such as missing Hurl, unsafe report paths, invalid or empty suite manifests,
+values or contacting providers. It also runs `hurl --version` locally and
+reports whether the installed Hurl is compatible with Entroping's 4.3.0+
+minimum, missing, unsupported, or unparsable; the reviewed CI examples pin Hurl
+8.0.1. Add `--ci` to fail fast on CI-breaking setup such as missing or
+unsupported Hurl, unsafe report paths, invalid or empty suite manifests,
 unresolved Hurl variables, or accidental assumptions that `run --ci` needs
 model-provider access.
 

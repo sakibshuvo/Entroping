@@ -14,6 +14,27 @@ from cli_test_support import (
 )
 
 
+def _fake_hurl_status(
+    *,
+    available: bool = True,
+    path: str | None = "/usr/local/bin/hurl",
+    version: str | None = "8.0.1",
+    version_parts: tuple[int, int, int] | None = (8, 0, 1),
+    version_checked: bool = True,
+    version_output: str | None = "hurl 8.0.1",
+    version_error: str | None = None,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        available=available,
+        path=path,
+        version=version,
+        version_parts=version_parts,
+        version_checked=version_checked,
+        version_output=version_output,
+        version_error=version_error,
+    )
+
+
 def test_root_help_includes_locked_commands() -> None:
     result = CliRunner().invoke(app, ["--help"])
 
@@ -187,6 +208,206 @@ def test_doctor_reports_valid_config_health(
     assert "Hurl parser: found at /usr/local/bin/hurlfmt" in result.output
     assert "found" in result.output
     assert "QAnstitution: valid" in result.output
+
+
+def test_doctor_reports_compatible_hurl_version(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+
+    def fake_discover_hurl(binary: str = "hurl") -> SimpleNamespace:
+        if binary == "hurl":
+            return _fake_hurl_status(version="8.0.1", version_parts=(8, 0, 1))
+        return _fake_hurl_status(
+            path="/usr/local/bin/hurlfmt",
+            version_checked=False,
+            version=None,
+            version_parts=None,
+            version_output=None,
+        )
+
+    monkeypatch.setattr(project_cli, "discover_hurl", fake_discover_hurl)
+    runner.invoke(app, ["init", "--minimal"])
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 0
+    assert "Hurl: found at /usr/local/bin/hurl" in result.output
+    assert "version 8.0.1" in result.output
+    assert "compatible with >= 4.3.0" in result.output
+
+
+def test_doctor_json_reports_unsupported_hurl_version(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+
+    def fake_discover_hurl(binary: str = "hurl") -> SimpleNamespace:
+        if binary == "hurl":
+            return _fake_hurl_status(
+                version="4.2.0",
+                version_parts=(4, 2, 0),
+                version_output="hurl 4.2.0",
+            )
+        return _fake_hurl_status(
+            path="/usr/local/bin/hurlfmt",
+            version_checked=False,
+            version=None,
+            version_parts=None,
+            version_output=None,
+        )
+
+    monkeypatch.setattr(project_cli, "discover_hurl", fake_discover_hurl)
+    runner.invoke(app, ["init", "--minimal"])
+
+    result = runner.invoke(app, ["doctor", "--output", "json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["status"] == "warn"
+    assert payload["hurl_compatibility"] == {
+        "status": "warn",
+        "compatibility": "unsupported",
+        "version": "4.2.0",
+        "minimum_version": "4.3.0",
+        "path": "/usr/local/bin/hurl",
+        "message": "hurl 4.2.0 is older than the minimum supported version 4.3.0",
+    }
+
+
+def test_doctor_reports_unsupported_hurl_version_human_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+
+    def fake_discover_hurl(binary: str = "hurl") -> SimpleNamespace:
+        if binary == "hurl":
+            return _fake_hurl_status(
+                version="4.2.0",
+                version_parts=(4, 2, 0),
+                version_output="hurl 4.2.0",
+            )
+        return _fake_hurl_status(
+            path="/usr/local/bin/hurlfmt",
+            version_checked=False,
+            version=None,
+            version_parts=None,
+            version_output=None,
+        )
+
+    monkeypatch.setattr(project_cli, "discover_hurl", fake_discover_hurl)
+    runner.invoke(app, ["init", "--minimal"])
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 0
+    assert "Hurl: unsupported version" in result.output
+    assert "4.2.0" in result.output
+    assert "minimum supported 4.3.0" in result.output
+
+
+def test_doctor_ci_fails_for_unsupported_hurl_version(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+
+    def fake_discover_hurl(binary: str = "hurl") -> SimpleNamespace:
+        if binary == "hurl":
+            return _fake_hurl_status(version="4.2.0", version_parts=(4, 2, 0))
+        return _fake_hurl_status(
+            path="/usr/local/bin/hurlfmt",
+            version_checked=False,
+            version=None,
+            version_parts=None,
+            version_output=None,
+        )
+
+    monkeypatch.setattr(project_cli, "discover_hurl", fake_discover_hurl)
+    runner.invoke(app, ["init", "--minimal"])
+
+    result = runner.invoke(app, ["doctor", "--ci", "--output", "json"])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    checks = {check["id"]: check for check in payload["ci_readiness"]["checks"]}
+    assert checks["hurl_available"]["status"] == "error"
+    assert "minimum supported version 4.3.0" in checks["hurl_available"]["message"]
+
+
+def test_doctor_reports_unparsable_hurl_version(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+
+    def fake_discover_hurl(binary: str = "hurl") -> SimpleNamespace:
+        if binary == "hurl":
+            return _fake_hurl_status(
+                version=None,
+                version_parts=None,
+                version_output="hurl dev-build",
+            )
+        return _fake_hurl_status(
+            path="/usr/local/bin/hurlfmt",
+            version_checked=False,
+            version=None,
+            version_parts=None,
+            version_output=None,
+        )
+
+    monkeypatch.setattr(project_cli, "discover_hurl", fake_discover_hurl)
+    runner.invoke(app, ["init", "--minimal"])
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 0
+    assert "Hurl: version unparsable" in result.output
+    assert "hurl dev-build" in result.output
+
+
+def test_doctor_reports_invalid_hurl_version_parts_as_unparsable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+
+    def fake_discover_hurl(binary: str = "hurl") -> SimpleNamespace:
+        if binary == "hurl":
+            return SimpleNamespace(
+                available=True,
+                path="/usr/local/bin/hurl",
+                version="8.0.1",
+                version_parts=("8", "0", "1"),
+                version_checked=True,
+                version_output="hurl 8.0.1",
+                version_error=None,
+            )
+        return _fake_hurl_status(
+            path="/usr/local/bin/hurlfmt",
+            version_checked=False,
+            version=None,
+            version_parts=None,
+            version_output=None,
+        )
+
+    monkeypatch.setattr(project_cli, "discover_hurl", fake_discover_hurl)
+    runner.invoke(app, ["init", "--minimal"])
+
+    result = runner.invoke(app, ["doctor", "--output", "json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["hurl_compatibility"]["compatibility"] == "unparsable"
 
 
 def test_doctor_reports_configured_agent_readiness_without_secret_values(
@@ -775,6 +996,14 @@ def test_doctor_json_keeps_warning_exit_compatible(
     assert payload["status"] == "warn"
     assert payload["tools"]["hurl"]["status"] == "warn"
     assert payload["tools"]["hurl_parser"]["status"] == "warn"
+    assert payload["hurl_compatibility"] == {
+        "status": "warn",
+        "compatibility": "missing",
+        "version": None,
+        "minimum_version": "4.3.0",
+        "path": None,
+        "message": "hurl not found; install hurl 4.3.0 or newer",
+    }
     assert payload["qanstitution"]["status"] == "warn"
     assert payload["qanstitution"]["message"] == "qanstitution.yaml not found"
 

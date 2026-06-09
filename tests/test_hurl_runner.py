@@ -41,6 +41,160 @@ def test_discover_hurl_reports_binary_availability(monkeypatch: pytest.MonkeyPat
     assert discover_hurl("missing-hurl").path is None
 
 
+def test_discover_hurl_reports_compatible_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, object]] = []
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str],
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append(
+            {
+                "args": args,
+                "timeout": timeout,
+                "check": check,
+                "env": env,
+                "shell": shell,
+            }
+        )
+        stdout.write(b"hurl 8.0.1 (x86_64-apple-darwin)\n")
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/opt/bin/hurl")
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+
+    status = discover_hurl("hurl")
+
+    assert status.available is True
+    assert status.path == "/opt/bin/hurl"
+    assert status.version_checked is True
+    assert status.version == "8.0.1"
+    assert status.version_parts == (8, 0, 1)
+    assert status.version_output == "hurl 8.0.1 (x86_64-apple-darwin)"
+    assert status.version_error is None
+    assert calls == [
+        {
+            "args": ["/opt/bin/hurl", "--version"],
+            "timeout": 2.0,
+            "check": False,
+            "env": {"PATH": "/opt/bin:/usr/bin:/bin"},
+            "shell": False,
+        }
+    ]
+
+
+def test_discover_hurl_reports_unparsable_version_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str],
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stderr, timeout, check, env, shell)
+        stdout.write(b"hurl dev-build\n")
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/opt/bin/hurl")
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+
+    status = discover_hurl("hurl")
+
+    assert status.version_checked is True
+    assert status.version is None
+    assert status.version_parts is None
+    assert status.version_output == "hurl dev-build"
+    assert status.version_error is None
+
+
+def test_discover_hurl_reports_version_command_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str],
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stdout, timeout, check, env, shell)
+        stderr.write(b"unexpected option\n")
+        return subprocess.CompletedProcess(args=args, returncode=2)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/opt/bin/hurl")
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+
+    status = discover_hurl("hurl")
+
+    assert status.version_checked is True
+    assert status.version is None
+    assert status.version_error == "hurl --version exited with code 2: unexpected option"
+
+
+def test_discover_hurl_reports_version_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str],
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stdout, stderr, check, env, shell)
+        raise subprocess.TimeoutExpired(cmd=args, timeout=timeout)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/opt/bin/hurl")
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+
+    status = discover_hurl("hurl")
+
+    assert status.version_checked is True
+    assert status.version is None
+    assert status.version_error == "hurl --version timed out after 2 seconds"
+
+
+def test_discover_hurl_reports_version_os_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str],
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (args, stdout, stderr, timeout, check, env, shell)
+        raise OSError("permission denied")
+
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/opt/bin/hurl")
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+
+    status = discover_hurl("hurl")
+
+    assert status.version_checked is True
+    assert status.version is None
+    assert status.version_error == "hurl --version failed: permission denied"
+
+
 @pytest.mark.parametrize(
     ("factory", "message"),
     [

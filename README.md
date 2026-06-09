@@ -197,8 +197,8 @@ Requirements:
 
 - Python 3.12 or 3.13
 - [`uv`](https://docs.astral.sh/uv/)
-- [`hurl`](https://hurl.dev/) for deterministic execution and the live demo
-  (`brew install hurl` on macOS, or use the
+- [`hurl`](https://hurl.dev/) 4.3.0 or newer for deterministic execution and
+  the live demo (`brew install hurl` on macOS, or use the
   [official Hurl install guide](https://hurl.dev/docs/installation.html))
 - Optional extras: `mitmproxy` for `watch`, LiteLLM providers for prompt-backed Architect work, Graphviz for PNG maps
   ([AI_PROVIDER_SETUP.md](docs/user/AI_PROVIDER_SETUP.md) covers LiteLLM,
@@ -224,7 +224,10 @@ To also install the reviewed GitHub Actions starter workflow, run
 workflow.
 
 For automation, use `entroping doctor --output json` to get versioned setup
-health without scraping human output.
+health without scraping human output. `doctor` also runs `hurl --version` through
+the local subprocess boundary and reports whether the installed Hurl is missing,
+compatible, unsupported, or unparsable. Entroping supports Hurl 4.3.0 or newer;
+the included CI starter pins Hurl 8.0.1 for repeatable examples.
 Before wiring a PR gate, run `entroping doctor --ci` or
 `entroping doctor --ci --output json` to validate Hurl availability, safe local
 artifact paths, suite manifests, required Hurl variables, and the provider-free

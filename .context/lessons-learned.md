@@ -2,6 +2,9 @@
 
 ## 2026-06-09
 
+- Runtime tool compatibility belongs beside discovery, not inside execution.
+  `doctor` can run bounded `--version` subprocesses to prove local tool support,
+  while `run` stays focused on deterministic Hurl execution and API behavior.
 - Multi-agent orchestration should start as deterministic evidence aggregation,
   not hidden agent autonomy. Summarize sanitized manifests, report conflicts as
   findings, and keep provider calls outside `entroping run`.

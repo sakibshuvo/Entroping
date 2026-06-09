@@ -55,6 +55,9 @@ case "$hurl_line" in
   *"found"*)
     echo "[entroping-cli-smoke] Hurl is installed; smoke still avoided runtime execution."
     ;;
+  *"version unparsable"*)
+    echo "[entroping-cli-smoke] Hurl is installed but version output was not parseable; smoke still avoided runtime execution."
+    ;;
   *)
     echo "Expected entroping doctor to report Hurl availability." >&2
     exit 1

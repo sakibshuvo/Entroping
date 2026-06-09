@@ -18,6 +18,7 @@ from entroping.models.doctor import (
     DoctorCiReadiness,
     DoctorCiReadinessCheck,
     DoctorHealthStatus,
+    DoctorHurlCompatibility,
 )
 from entroping.models.hurl import HurlMetadataSyntaxError, HurlTest
 from entroping.models.qanstitution import Qanstitution
@@ -37,6 +38,7 @@ def collect_ci_readiness(
     project_root: Path,
     hurl_available: bool,
     law: Qanstitution | None,
+    hurl_compatibility: DoctorHurlCompatibility | None = None,
     environ: Mapping[str, str] | None = None,
 ) -> DoctorCiReadiness:
     """Collect CI-focused readiness without provider calls or workflow mutation."""
@@ -45,7 +47,7 @@ def collect_ci_readiness(
     process_environ = os.environ if environ is None else environ
     checks = [
         _qanstitution_check(law),
-        _hurl_available_check(hurl_available),
+        _hurl_available_check(hurl_available, hurl_compatibility),
         _report_paths_check(root),
         *_suite_and_env_checks(root, process_environ),
         _provider_free_run_check(law),
@@ -75,17 +77,31 @@ def _qanstitution_check(law: Qanstitution | None) -> DoctorCiReadinessCheck:
     )
 
 
-def _hurl_available_check(hurl_available: bool) -> DoctorCiReadinessCheck:
+def _hurl_available_check(
+    hurl_available: bool,
+    hurl_compatibility: DoctorHurlCompatibility | None,
+) -> DoctorCiReadinessCheck:
     if not hurl_available:
         return DoctorCiReadinessCheck(
             id="hurl_available",
             status="error",
             message="hurl must be installed before entroping run --ci can execute tests",
         )
+    if hurl_compatibility is not None and hurl_compatibility.status != "ok":
+        return DoctorCiReadinessCheck(
+            id="hurl_available",
+            status="error",
+            message=hurl_compatibility.message,
+            path=hurl_compatibility.path,
+        )
     return DoctorCiReadinessCheck(
         id="hurl_available",
         status="ok",
-        message="hurl is available for CI execution",
+        message=(
+            hurl_compatibility.message
+            if hurl_compatibility is not None
+            else "hurl is available for CI execution"
+        ),
     )
 
 

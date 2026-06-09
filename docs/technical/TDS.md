@@ -319,6 +319,10 @@ or other business-system APIs.
 Requirements:
 
 - Locate `hurl` through PATH or explicit config.
+- Treat Hurl 4.3.0 as the minimum supported syntax/runtime floor. The reviewed
+  CI examples pin Hurl 8.0.1 for repeatable setup evidence.
+- Check `hurl --version` through a bounded subprocess argument array in
+  `doctor`; version checks must not execute API requests.
 - Use `subprocess.run` or `asyncio.create_subprocess_exec` with argument arrays.
 - Set timeouts.
 - Capture stdout and stderr without leaking secrets.
@@ -714,18 +718,21 @@ provider credentials, hosted-service coupling, or PyPI/TestPyPI readiness
 claims.
 
 `doctor --output json` emits schema version `entroping.doctor.v1` with overall
-status, Python version, Hurl and hurlfmt availability, traffic-state health,
-QAnstitution health, and agent-readiness entries. Warning states such as missing
-Hurl, missing config, missing traffic state, or missing configured `api_key_env`
+status, Python version, Hurl and hurlfmt availability, Hurl compatibility
+evidence, traffic-state health, QAnstitution health, and agent-readiness
+entries. Hurl compatibility states are `compatible`, `missing`, `unsupported`,
+and `unparsable`; the check runs only `hurl --version`, never API requests.
+Warning states such as missing Hurl, unsupported or unparsable Hurl versions,
+missing config, missing traffic state, or missing configured `api_key_env`
 values keep the human-compatible `0` exit code; invalid QAnstitution, invalid
 traffic state, or unsafe configured personas exit `1`.
 
 `doctor --ci` adds strict CI-readiness evidence to the same human and JSON
-doctor contract. It validates Hurl availability, safe `.entroping/` and
-`reports/` artifact paths, committed suite manifests, required Hurl variables
-from suite env files or `HURL_VARIABLE_*`, and the provider-free `run --ci`
-boundary. It does not call external CI provider APIs, mutate workflow files,
-print env values, or require Architect provider keys.
+doctor contract. It validates Hurl availability and compatibility, safe
+`.entroping/` and `reports/` artifact paths, committed suite manifests, required
+Hurl variables from suite env files or `HURL_VARIABLE_*`, and the provider-free
+`run --ci` boundary. It does not call external CI provider APIs, mutate workflow
+files, print env values, or require Architect provider keys.
 
 `config set` updates non-secret routing metadata only. If the selected agent's
 persona file is missing, it creates a local Markdown template under the configured
