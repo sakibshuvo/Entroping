@@ -13,6 +13,12 @@ from entroping.bridge.story_traceability import (
     story_traceability_report_to_dict,
 )
 from entroping.cli.shared import console, display_cli_path, print_cli_error
+from entroping.core.agent_bundle import (
+    AGENT_BUNDLE_ROLES,
+    AgentBundleError,
+    AgentBundleOutput,
+    run_agent_bundle_report,
+)
 from entroping.core.coverage_badges import BadgeReportError, write_coverage_badges
 from entroping.core.drift_report import (
     DriftReportError,
@@ -344,6 +350,56 @@ def report_artifact_manifest(
         f"({result.manifest.summary.total_present} present, "
         f"{result.manifest.summary.total_missing} missing)"
     )
+
+
+@app.command("agent-bundle")
+def report_agent_bundle(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+    role: Annotated[
+        list[str] | None,
+        typer.Option("--role", help="Agent role to include; repeatable."),
+    ] = None,
+    scope: Annotated[
+        Path,
+        typer.Option("--scope", help="Project-relative output path scope."),
+    ] = Path("."),
+) -> None:
+    """Write a local multi-agent review bundle from sanitized manifests."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported agent-bundle output: {output}[/yellow]")
+        raise typer.Exit(2)
+    selected_roles = tuple(role or ())
+    unsupported_roles = sorted(
+        selected_role
+        for selected_role in selected_roles
+        if selected_role not in AGENT_BUNDLE_ROLES
+    )
+    if unsupported_roles:
+        joined = ", ".join(unsupported_roles)
+        console.print(
+            "[yellow]Unsupported agent-bundle role "
+            f"{joined}; expected builder, breaker, or auditor.[/yellow]"
+        )
+        raise typer.Exit(2)
+
+    try:
+        result = run_agent_bundle_report(
+            project_root=Path.cwd(),
+            output=cast(AgentBundleOutput, normalized_output),
+            roles=selected_roles,
+            scope=scope,
+        )
+    except AgentBundleError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote agent review bundle: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0 if result.report.summary.status != "fail" else 1)
 
 
 @app.command("github-annotations")

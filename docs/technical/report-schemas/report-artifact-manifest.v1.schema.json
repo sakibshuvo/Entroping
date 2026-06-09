@@ -37,6 +37,7 @@
               "junit",
               "run_html",
               "drift_json",
+              "agent_bundle",
               "sarif",
               "review_summary"
             ]
@@ -64,6 +65,7 @@
               "junit",
               "run_html",
               "drift_json",
+              "agent_bundle",
               "sarif",
               "review_summary"
             ]

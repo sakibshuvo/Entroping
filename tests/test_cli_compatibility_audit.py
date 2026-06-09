@@ -170,6 +170,14 @@ LOCKED_CLI_CONTRACTS = (
         ("--output",),
     ),
     CliContract(
+        (
+            "entroping report agent-bundle [--output <md|json>] "
+            "[--role <builder|auditor|breaker>] [--scope <path>]"
+        ),
+        ("report", "agent-bundle", "--help"),
+        ("--output", "--role", "--scope"),
+    ),
+    CliContract(
         "entroping report traceability [--output <md|json>]",
         ("report", "traceability", "--help"),
         ("--output",),
@@ -238,6 +246,8 @@ REPORT_ARTIFACTS = (
     "reports/effective-policy.md",
     "reports/effective-policy.json",
     "reports/badges/*.json",
+    "reports/agent-bundle.md",
+    "reports/agent-bundle.json",
     "reports/review-summary.md",
     "reports/entroping.sarif",
     "stdout Run Delta Markdown/JSON",

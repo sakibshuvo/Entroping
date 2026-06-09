@@ -28,6 +28,7 @@ from entroping.bridge.story_traceability import (
     compile_story_traceability,
     story_traceability_report_to_dict,
 )
+from entroping.core.agent_bundle import AGENT_REVIEW_BUNDLE_SCHEMA_VERSION
 from entroping.core.agent_manifest import AGENT_RUN_MANIFEST_SCHEMA_VERSION
 from entroping.core.drift_report import (
     DRIFT_BASELINE_SCHEMA_VERSION,
@@ -362,6 +363,23 @@ def test_agent_run_manifest_v1_schema_declares_versioned_value_free_fields() -> 
     assert "package_sha256" in schema["properties"]["prompt"]["properties"]
     assert "raw_prompt" not in json.dumps(schema)
     assert "api_key" not in json.dumps(schema)
+
+
+def test_agent_review_bundle_v1_schema_declares_versioned_value_free_fields() -> None:
+    schema = json.loads((SCHEMA_DIR / "agent-review-bundle.v1.schema.json").read_text())
+
+    assert schema["properties"]["schema_version"]["const"] == AGENT_REVIEW_BUNDLE_SCHEMA_VERSION
+    assert "roles" in schema["properties"]
+    manifest_schema = schema["$defs"]["manifest"]["properties"]
+    assert "manifest_path" in manifest_schema
+    assert "persona_source_path" in manifest_schema
+    assert "validation_status" in manifest_schema
+    assert "estimated_cost_usd" in manifest_schema
+    serialized = json.dumps(schema)
+    assert "raw_prompt" not in serialized
+    assert "provider_response" not in serialized
+    assert "api_key" not in serialized
+    assert "cookie" not in serialized
 
 
 def test_traffic_artifact_approval_v1_schema_declares_value_free_fields() -> None:
@@ -921,6 +939,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         ),
         "entroping.report-artifact-manifest.v1": (
             SCHEMA_DIR / "report-artifact-manifest.v1.schema.json"
+        ),
+        "entroping.agent-review-bundle.v1": (
+            SCHEMA_DIR / "agent-review-bundle.v1.schema.json"
         ),
         "entroping.traffic-artifact-approval.v1": (
             SCHEMA_DIR / "traffic-artifact-approval.v1.schema.json"

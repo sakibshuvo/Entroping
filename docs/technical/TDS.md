@@ -679,6 +679,7 @@ Reports are written under `reports/`.
 | Redaction Review | `report redaction --output md|html` | Captured-traffic redaction coverage review |
 | Effective Policy | `report policy --output md|json` | Resolved QAnstitution gate provenance |
 | Artifact Manifest | `report artifact-manifest` | Checksum manifest for local report artifacts |
+| Agent Review Bundle | `report agent-bundle` | Local Builder/Breaker/Auditor evidence from sanitized manifests |
 | Traceability Markdown/JSON | `report traceability --output md|json` | Local story/test coverage review |
 | GitHub Annotations | `report github-annotations` | Pull request workflow-command annotations |
 | SARIF | `report sarif` | Code-scanning import for local Entroping findings |
@@ -813,6 +814,7 @@ entroping report policy [--output <md|json>]
 entroping report gate-coverage [--output <md|json>]
 entroping report gate-injection --target <path> [--output <md|json>]
 entroping report artifact-manifest [--output <path>]
+entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
 entroping report sarif [--output <path>] [--junit <path>] [--drift <path>] [--traceability]
@@ -940,10 +942,10 @@ strings, headers, bodies, variables, or captured traffic values.
 `entroping report artifact-manifest` writes `reports/artifact-manifest.json`
 by default with project-relative report paths, schema versions when available,
 artifact sizes, and SHA-256 checksums for standard JSON, JUnit, HTML, drift,
-SARIF, and review-summary artifacts. Missing expected artifacts are listed
-instead of failing the command. The manifest is local integrity evidence for CI
-upload and release review; it is not a signing, notarization, or attestation
-system and it never embeds artifact contents.
+agent-bundle JSON, SARIF, and review-summary artifacts. Missing expected
+artifacts are listed instead of failing the command. The manifest is local
+integrity evidence for CI upload and release review; it is not a signing,
+notarization, or attestation system and it never embeds artifact contents.
 
 `entroping report badges` writes local Shields endpoint JSON files under
 `reports/badges/` by default. It reads existing local reports only:
@@ -968,6 +970,21 @@ while malformed artifacts fail with a clear report error. Rendered findings are
 redacted and Markdown-escaped.
 Unstable pass-after-retry run evidence is rendered as a warning; retried tests
 with unchanged final failure/pass state are rendered as notice-level context.
+
+`entroping report agent-bundle` writes a local multi-agent review bundle from
+sanitized `.entroping/agent-runs/*.json` manifests. It defaults to configured
+Builder, Breaker, and Auditor roles, supports repeatable `--role` filters and a
+project-relative `--scope`, and writes `reports/agent-bundle.md` or
+`reports/agent-bundle.json` with schema
+`entroping.agent-review-bundle.v1`. The command does not call model providers
+or Hurl and is not read by `entroping run`. It reports missing role config,
+missing local role evidence, malformed or secret-like manifests, invalid
+provider output validation evidence, missing generated-Hurl validation, and
+multi-role output-path conflicts as review findings instead of resolving them
+with an LLM. Rendered evidence is value-free: role/model/persona metadata,
+output paths, validation flags, usage, and cost estimates only; it excludes raw
+prompts, provider responses, persona content, traffic, env values, cookies, and
+credentials. Prompt hashes remain available in the source agent-run manifests.
 
 `entroping report failure-bundle` writes a sanitized local handoff directory at
 `reports/failure-bundle` by default. It requires a latest failed run, refuses
@@ -1013,6 +1030,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report gate-injection --output md` | `reports/gate-injection.md` | Human-readable gate-injection explanation for selected Hurl files. |
 | `entroping report gate-injection --output json` | `reports/gate-injection.json` | Machine-readable gate-injection explanation using `entroping.gate-injection-report.v1`. |
 | `entroping report artifact-manifest` | `reports/artifact-manifest.json` | Machine-readable checksum manifest using `entroping.report-artifact-manifest.v1`. |
+| `entroping report agent-bundle --output md` | `reports/agent-bundle.md` | Human-readable local multi-agent review bundle from sanitized manifests. |
+| `entroping report agent-bundle --output json` | `reports/agent-bundle.json` | Machine-readable local multi-agent review bundle using `entroping.agent-review-bundle.v1`. |
 | `entroping report traceability --output md|json` | `stdout Markdown/JSON` | Local story/test coverage report. |
 | `entroping report github-annotations` | `stdout GitHub Actions annotations` | Workflow-command annotations from JUnit, drift, and optional traceability findings. |
 | `entroping report sarif` | `reports/entroping.sarif` | SARIF 2.1.0 code-scanning evidence from JUnit, drift, and optional traceability findings. |

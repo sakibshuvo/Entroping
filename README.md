@@ -110,6 +110,7 @@ quality:
 - Inject global QAnstitution gates into every run without mutating source tests.
 - Capture and redact live traffic, then freeze flows or dependency mocks.
 - Emit JSON, JUnit, HTML, drift, delta, badge, SARIF, bug, retry/flake, and traceability evidence for local review and CI.
+- Bundle Builder, Breaker, and Auditor run evidence from sanitized local manifests before human review.
 
 ```mermaid
 flowchart LR
@@ -392,6 +393,7 @@ entroping report policy [--output <md|json>]
 entroping report gate-coverage [--output <md|json>]
 entroping report gate-injection --target <path> [--output <md|json>]
 entroping report artifact-manifest [--output <path>]
+entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
 entroping report sarif [--output <path>] [--junit <path>] [--drift <path>] [--traceability]

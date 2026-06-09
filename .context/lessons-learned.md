@@ -1,5 +1,15 @@
 # Entroping Lessons Learned
 
+## 2026-06-09
+
+- Multi-agent orchestration should start as deterministic evidence aggregation,
+  not hidden agent autonomy. Summarize sanitized manifests, report conflicts as
+  findings, and keep provider calls outside `entroping run`.
+- Local AI evidence is still untrusted input when read back. Parse
+  `.entroping/agent-runs/*.json` strictly, reject secret-like or malformed
+  manifests before rendering, and keep output path conflicts explicit for human
+  review.
+
 ## 2026-06-05
 
 - AI refactor previews should prove reviewability, not runtime correctness.

@@ -29,6 +29,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Failure bundle manifest | `entroping.failure-bundle.v1` | `reports/failure-bundle/manifest.json` | Inline contract |
 | Coverage badges | Shields endpoint schema v1 | `reports/badges/*.json` | External Shields endpoint format |
 | Agent run manifest | `entroping.agent-run-manifest.v1` | `.entroping/agent-runs/*.json` | [agent-run-manifest.v1.schema.json](report-schemas/agent-run-manifest.v1.schema.json) |
+| Agent review bundle | `entroping.agent-review-bundle.v1` | `reports/agent-bundle.json` | [agent-review-bundle.v1.schema.json](report-schemas/agent-review-bundle.v1.schema.json) |
 | Traffic artifact approval | `entroping.traffic-artifact-approval.v1` | `reports/approvals/*.json` | [traffic-artifact-approval.v1.schema.json](report-schemas/traffic-artifact-approval.v1.schema.json) |
 | Architect OpenAPI audit | `entroping.openapi-audit.v1` | `architect audit --output json` stdout | Inline contract |
 | Architect OpenAPI breaking diff | `entroping.openapi-breaking-diff.v1` | Optional nested `openapi_diff` in `architect audit --changed-from <ref> --output json` | Inline contract |
@@ -82,7 +83,8 @@ entroping report artifact-manifest
 
 It records project-relative paths, schema versions when available, byte sizes,
 and SHA-256 checksums for standard local report artifacts: JSON run report,
-JUnit XML, HTML report, drift JSON, SARIF, and review-summary Markdown.
+JUnit XML, HTML report, drift JSON, agent review bundle JSON, SARIF, and
+review-summary Markdown.
 Missing expected artifacts are listed in `missing_artifacts` rather than
 failing the command. The manifest is integrity evidence for CI upload and
 release review; it is not a signing, notarization, or attestation system and it
@@ -169,6 +171,22 @@ environment values, raw traffic, raw Hurl contents, provider output, or approval
 decisions. A manifest proves an AI-assisted command ran through validation; it
 does not mean the model approved the change or that generated tests are correct
 without review.
+
+Agent review bundles are written by:
+
+```bash
+entroping report agent-bundle --output json
+```
+
+They live at `reports/agent-bundle.json` and summarize sanitized local
+`.entroping/agent-runs/*.json` evidence for configured Builder, Breaker, and
+Auditor roles. The bundle records role configuration, model/persona metadata,
+matching manifest paths, output paths, validation flags, usage, cost estimates,
+and review findings for missing role config, missing role evidence, malformed
+or secret-like manifests, invalid structured-output validation, missing Hurl
+validation, and multi-role output-path conflicts. It does not call providers,
+execute Hurl, read raw provider responses, store prompts, replay traffic,
+include cookies, include environment values, or resolve conflicts with an LLM.
 
 The Architect OpenAPI audit JSON is written to stdout:
 
