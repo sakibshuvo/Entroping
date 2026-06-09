@@ -962,6 +962,96 @@ def test_report_review_summary_wraps_report_errors(
     assert "Could not parse drift report" in result.output
 
 
+def test_report_agent_bundle_writes_selected_role_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_agent_bundle_qanstitution(("builder", "breaker"))
+    _write_agent_bundle_manifest(
+        "20260604T010000Z-architect-build-builder-a.json",
+        agent="builder",
+    )
+    _write_agent_bundle_manifest(
+        "20260604T010100Z-architect-build-breaker-b.json",
+        agent="breaker",
+    )
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "agent-bundle", "--output", "json", "--role", "builder"],
+    )
+
+    assert result.exit_code == 0
+    assert "Wrote agent review bundle: reports/agent-bundle.json" in result.output
+    payload = json.loads(Path("reports/agent-bundle.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.agent-review-bundle.v1"
+    assert payload["summary"]["status"] == "pass"
+    assert [role["role"] for role in payload["roles"]] == ["builder"]
+    assert payload["roles"][0]["manifests"][0]["agent"] == "builder"
+
+
+def test_report_agent_bundle_writes_markdown_and_exits_nonzero_for_failed_bundle(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_agent_bundle_qanstitution(("builder", "breaker"))
+    _write_agent_bundle_manifest(
+        "20260604T010000Z-architect-build-builder-a.json",
+        agent="builder",
+        output_paths=("tests/generated/checkout.hurl",),
+    )
+    _write_agent_bundle_manifest(
+        "20260604T010100Z-architect-build-breaker-b.json",
+        agent="breaker",
+        output_paths=("tests/generated/checkout.hurl",),
+    )
+
+    result = CliRunner().invoke(app, ["report", "agent-bundle"])
+
+    assert result.exit_code == 1
+    assert "Wrote agent review bundle: reports/agent-bundle.md" in result.output
+    markdown = Path("reports/agent-bundle.md").read_text(encoding="utf-8")
+    assert "# Entroping Agent Review Bundle" in markdown
+    assert "output_path_conflict" in markdown
+    assert "tests/generated/checkout.hurl" in markdown
+
+
+def test_report_agent_bundle_rejects_invalid_role_without_writes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_agent_bundle_qanstitution(("builder",))
+
+    result = CliRunner().invoke(app, ["report", "agent-bundle", "--role", "planner"])
+
+    assert result.exit_code == 2
+    assert "Unsupported agent-bundle role" in result.output
+    assert not Path("reports/agent-bundle.md").exists()
+
+
+def test_report_agent_bundle_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["report", "agent-bundle", "--output", "html"])
+
+    assert result.exit_code == 2
+    assert "Unsupported agent-bundle output" in result.output
+
+
+def test_report_agent_bundle_wraps_bundle_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "agent-bundle"])
+
+    assert result.exit_code == 1
+    assert "QAnstitution file not found" in result.output
+    assert not Path("reports/agent-bundle.md").exists()
+
+
 def test_report_github_annotations_rejects_malformed_reports(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1133,3 +1223,70 @@ def test_report_promote_drift_baseline_wraps_candidate_errors(
     assert result.exit_code == 1
     assert "Could not parse drift baseline candidate" in result.output
     assert not (Path(".entroping") / "drift-baseline.json").exists()
+
+
+def _write_agent_bundle_qanstitution(roles: tuple[str, ...]) -> None:
+    agent_lines: list[str] = []
+    for role in roles:
+        agent_lines.extend(
+            [
+                f"  {role}:",
+                f"    source: agents/{role}.md",
+                f"    model: openai/{role}",
+            ]
+        )
+    Path("qanstitution.yaml").write_text(
+        f"""
+project: checkout-api
+agents:
+{chr(10).join(agent_lines)}
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+
+def _write_agent_bundle_manifest(
+    name: str,
+    *,
+    agent: str,
+    output_paths: tuple[str, ...] = ("tests/generated/checkout.hurl",),
+) -> None:
+    manifest_dir = Path(".entroping") / "agent-runs"
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema_version": "entroping.agent-run-manifest.v1",
+        "generated_at": "2026-06-04T01:00:00+00:00",
+        "command": "architect build",
+        "mode": "create",
+        "agent": agent,
+        "model": f"openai/{agent}",
+        "provider": None,
+        "persona": {
+            "source_path": f"agents/{agent}.md",
+            "sha256": "persona-sha",
+        },
+        "prompt": {
+            "intent_sha256": "prompt-hash",
+            "package_sha256": "package-hash",
+        },
+        "output_paths": list(output_paths),
+        "tags": [],
+        "validation": {
+            "status": "passed",
+            "structured_output_validated": True,
+            "hurl_validated": True,
+        },
+        "latency_ms": 42,
+        "cost": {
+            "estimated_usd": None,
+            "input_cost_per_1m_tokens_usd": None,
+            "output_cost_per_1m_tokens_usd": None,
+        },
+        "usage": {
+            "prompt_tokens": 10,
+            "completion_tokens": 20,
+            "total_tokens": 30,
+        },
+    }
+    (manifest_dir / name).write_text(json.dumps(payload), encoding="utf-8")

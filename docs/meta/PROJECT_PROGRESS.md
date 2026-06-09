@@ -31,7 +31,7 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#467](https://github.com/sakibshuvo/Entroping/issues/467) adds a multi-agent review bundle.
+Current issue: [#418](https://github.com/sakibshuvo/Entroping/issues/418) checks Hurl version compatibility in doctor.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -48,9 +48,9 @@ remain below.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#467](https://github.com/sakibshuvo/Entroping/issues/467) | Add a multi-agent review bundle. |
-| 2 | [#418](https://github.com/sakibshuvo/Entroping/issues/418) | Check Hurl version compatibility in doctor. |
-| 3 | [#417](https://github.com/sakibshuvo/Entroping/issues/417) | Add dry-run execution plan output. |
+| 1 | [#418](https://github.com/sakibshuvo/Entroping/issues/418) | Check Hurl version compatibility in doctor. |
+| 2 | [#417](https://github.com/sakibshuvo/Entroping/issues/417) | Add dry-run execution plan output. |
+| 3 | [#416](https://github.com/sakibshuvo/Entroping/issues/416) | Diff effective policy evidence between revisions. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -71,6 +71,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Multi-agent review bundle](https://github.com/sakibshuvo/Entroping/issues/467) | Done | `entroping report agent-bundle --output md|json` summarizes sanitized `.entroping/agent-runs/*.json` evidence for configured Builder, Breaker, and Auditor roles, supports role and scope filters, writes schema-versioned `reports/agent-bundle.*` artifacts, reports missing config/evidence, invalid provider-output validation, missing generated-Hurl validation, unsafe manifests, and multi-role output-path conflicts without calling providers, Hurl, or `run`. |
 | [Architect refactor preview](https://github.com/sakibshuvo/Entroping/issues/419) | Done | `entroping architect refactor --preview` validates provider edits through the same managed-block merge and Hurl parser path as write mode, prints a redacted unified diff, writes only the value-free agent run manifest, and leaves target Hurl files unchanged. |
 | [Latest failure reruns](https://github.com/sakibshuvo/Entroping/issues/420) | Done | `entroping run --rerun-failures` selects failed source `.hurl` files from `reports/run-latest.json` or `.entroping/latest-run.json`, reuses the report environment unless `--env` overrides it, runs through the normal deterministic workflow, and remains feedback acceleration rather than release proof. |
 | [Policy gate coverage matrix](https://github.com/sakibshuvo/Entroping/issues/421) | Done | `entroping report gate-coverage --output md|json` maps each effective QAnstitution gate to committed Hurl test files, tags, operation IDs, request methods, and redacted request paths, lists unmatched gates, and does not execute Hurl, inject assertions, call providers, or print full URLs, query strings, headers, bodies, variables, or captured traffic values. |
@@ -128,8 +129,6 @@ entirely inside this repo.
 | [SARIF report output](https://github.com/sakibshuvo/Entroping/issues/398) | Done | `entroping report sarif` writes SARIF 2.1.0 from local JUnit, drift, and optional traceability findings for code-scanning import. |
 | [Reviewed drift baseline promotion](https://github.com/sakibshuvo/Entroping/issues/399) | Done | `entroping report promote-drift-baseline` validates a reviewed candidate before atomically writing `.entroping/drift-baseline.json`. |
 | [OpenAPI operation-to-Hurl coverage matrix](https://github.com/sakibshuvo/Entroping/issues/400) | Done | `architect audit --focus logic --output md|json` now shows covered, uncovered, ambiguous, and stale OpenAPI operation mappings. |
-| [`py.typed` package marker](https://github.com/sakibshuvo/Entroping/issues/366) | Done | Built wheel and sdist artifacts now include `entroping/py.typed`, and `scripts/package_check.sh` fails if either artifact omits it. |
-
 ## Source Of Truth
 
 | Question | Source |

@@ -34,6 +34,7 @@ entroping report policy [--output <md|json>]
 entroping report gate-coverage [--output <md|json>]
 entroping report gate-injection --target <path> [--output <md|json>]
 entroping report artifact-manifest [--output <path>]
+entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
 entroping report sarif [--output <path>] [--junit <path>] [--drift <path>] [--traceability]
@@ -303,6 +304,8 @@ Variables can come from `envs/<name>.env`, explicit shell
 | `entroping report gate-coverage --output json` | Write machine-readable gate coverage evidence to `reports/gate-coverage.json` |
 | `entroping report gate-injection --target <path>` | Explain selected-file gate injection without running Hurl or mutating sources |
 | `entroping report artifact-manifest` | Write checksum evidence for local report artifacts to `reports/artifact-manifest.json` |
+| `entroping report agent-bundle --output md` | Write a local multi-agent review bundle to `reports/agent-bundle.md` |
+| `entroping report agent-bundle --output json` | Write machine-readable Builder/Breaker/Auditor evidence to `reports/agent-bundle.json` |
 | `entroping report traceability --output md` | Generate a local Markdown story/test traceability report |
 | `entroping report traceability --output json` | Emit machine-readable traceability JSON for badges or downstream tools |
 | `entroping report github-annotations` | Emit GitHub Actions workflow-command annotations from local reports |
@@ -322,6 +325,7 @@ entroping report policy --output md
 entroping report gate-coverage --output md
 entroping report gate-injection --target tests/health.hurl --output md
 entroping report artifact-manifest
+entroping report agent-bundle --scope tests/generated
 entroping report traceability --output md
 entroping report traceability --output json > reports/traceability.json
 entroping report github-annotations --traceability

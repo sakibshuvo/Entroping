@@ -78,6 +78,10 @@ project, and a Codex workspace with fast context rehydration.
 - Prompt-backed Architect build, refactor, and Auditor review evidence includes
   provider, latency, token counts when available, and estimated cost when local
   QAnstitution rate hints are configured, while manifests remain value-free.
+- `entroping report agent-bundle --output md|json` summarizes sanitized
+  `.entroping/agent-runs/*.json` evidence for configured Builder, Breaker, and
+  Auditor roles, reports missing/invalid/conflicting role evidence as review
+  findings, and does not call providers, Hurl, or `entroping run`.
 - Traffic-derived written artifacts from `freeze`, `freeze --mock`, and
   `map --export png` now get value-free approval manifests under
   `reports/approvals/` with generated paths, checksums, deterministic source

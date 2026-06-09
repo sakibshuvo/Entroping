@@ -18,6 +18,7 @@ ReportArtifactKind = Literal[
     "junit",
     "run_html",
     "drift_json",
+    "agent_bundle",
     "sarif",
     "review_summary",
 ]
@@ -51,6 +52,11 @@ _DEFAULT_REPORT_ARTIFACTS: Final = (
     _ReportArtifactDefinition(
         kind="drift_json",
         path=Path("reports") / "drift.json",
+        schema_hint=None,
+    ),
+    _ReportArtifactDefinition(
+        kind="agent_bundle",
+        path=Path("reports") / "agent-bundle.json",
         schema_hint=None,
     ),
     _ReportArtifactDefinition(

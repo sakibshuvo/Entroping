@@ -1,5 +1,17 @@
 # Entroping Changelog
 
+## 2026-06-09
+
+- Added issue #467's local multi-agent review bundle so
+  `entroping report agent-bundle --output md|json` summarizes configured
+  Builder, Breaker, and Auditor evidence from sanitized
+  `.entroping/agent-runs/*.json` manifests, supports role and scope filters,
+  writes schema-versioned `reports/agent-bundle.md` or
+  `reports/agent-bundle.json`, and reports missing config/evidence, invalid
+  provider-output validation, missing Hurl validation, unsafe manifests, and
+  multi-role output-path conflicts without calling providers, Hurl, or
+  `entroping run`.
+
 ## 2026-06-05
 
 - Added issue #419's Architect refactor preview mode so
