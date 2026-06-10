@@ -2,6 +2,10 @@
 
 ## 2026-06-09
 
+- Report commands that inspect persisted Eye traffic must use read-only store
+  access. Even if a command checks that `.entroping/state.db` exists first,
+  routing through a write-capable initializer can still create hidden migration
+  or mutation risk in what should be evidence-only workflows.
 - Capture review reports should read traffic state through the read-only store
   path and aggregate only value-free labels. Host and status counts are useful
   for freeze review, but raw paths, query values, headers, cookies, and bodies

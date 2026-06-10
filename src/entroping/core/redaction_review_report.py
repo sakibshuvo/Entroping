@@ -11,7 +11,7 @@ from entroping.bridge.redaction_review import (
     render_redaction_review_markdown,
 )
 from entroping.core.safe_write import SafeWriteError, safe_write_text
-from entroping.core.traffic_store import TrafficStore, TrafficStoreError
+from entroping.core.traffic_store import TrafficStoreError, list_project_exchanges_readonly
 
 RedactionReviewOutput = Literal["md", "html"]
 
@@ -37,13 +37,12 @@ def run_redaction_review(
 
     root = project_root.expanduser().resolve()
     state_path = root / ".entroping" / "state.db"
-    if not state_path.exists():
+    if not state_path.is_file():
         msg = "No traffic state found. Run entroping watch before report redaction."
         raise RedactionReviewError(msg)
 
     try:
-        store = TrafficStore.open_project(root)
-        exchanges = store.list_exchanges()
+        exchanges = list_project_exchanges_readonly(root)
     except TrafficStoreError as exc:
         raise RedactionReviewError(str(exc)) from exc
 
