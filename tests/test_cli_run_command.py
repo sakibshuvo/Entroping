@@ -657,6 +657,269 @@ def test_run_tag_expression_prints_zero_skipped_selection_counts(
     assert "Hurl selection: 1 selected, 0 skipped by tag expression" in result.output
 
 
+def test_run_dry_run_writes_execution_plan_without_hurl_execution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    (Path("tests") / "health.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    (Path("tests") / "slow.hurl").write_text(
+        "# entroping: tags=slow\n\nGET {{base_url}}/slow\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    (Path("envs") / "local.env").write_text(
+        "base_url=http://localhost:18080\n",
+        encoding="utf-8",
+    )
+
+    def fail_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+        fail_fast: bool = False,
+    ) -> HurlSuiteResult:
+        _ = (paths, options, max_workers, fail_fast)
+        raise AssertionError("dry-run must not invoke Hurl")
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fail_run_hurl_files)
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "--dry-run",
+            "--env",
+            "local",
+            "--tag",
+            "smoke",
+            "--report",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Dry run: no Hurl execution performed." in result.output
+    assert "Selection: 1 selected, 1 skipped from 2 discovered" in result.output
+    assert "Would write report: reports/run-latest.json" in result.output
+    assert "Wrote execution plan: reports/run-plan.json" in result.output
+    assert not (Path(".entroping") / "latest-run.json").exists()
+    assert not (Path(".entroping") / "latest-run-events.jsonl").exists()
+    assert not (Path("reports") / "run-latest.json").exists()
+    plan = json.loads((Path("reports") / "run-plan.json").read_text(encoding="utf-8"))
+    assert plan["schema_version"] == "entroping.run-plan.v1"
+    assert plan["status"] == "ready"
+    assert plan["project"] == "entroping-project"
+    assert plan["environment"] == "local"
+    assert plan["filters"]["tag_filters"] == ["smoke"]
+    assert plan["reports"]["requested_formats"] == ["json"]
+    assert plan["reports"]["would_write"] == ["reports/run-latest.json"]
+    assert plan["selection"] == {
+        "discovered_count": 2,
+        "selected_count": 1,
+        "skipped_count": 1,
+    }
+    assert plan["execution"]["parallel"] is False
+    assert plan["execution"]["worker_count"] == 1
+    assert plan["gates"]["effective_rule_ids"] == [
+        "no_server_errors",
+        "global_latency",
+        "request_id_header",
+    ]
+    assert plan["gates"]["injected_rule_ids"] == [
+        "no_server_errors",
+        "global_latency",
+        "request_id_header",
+    ]
+    assert plan["variables"]["provided_count"] == 1
+    assert plan["variables"]["missing"] == []
+    assert plan["tests"][0]["path"] == "tests/health.hurl"
+
+
+def test_run_dry_run_reports_missing_variables_without_hurl_execution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    (Path("tests") / "health.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET {{base_url}}/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    def fail_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+        fail_fast: bool = False,
+    ) -> HurlSuiteResult:
+        _ = (paths, options, max_workers, fail_fast)
+        raise AssertionError("dry-run must not invoke Hurl")
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fail_run_hurl_files)
+
+    result = runner.invoke(app, ["run", "--dry-run", "--tag", "smoke", "--report", "json"])
+
+    assert result.exit_code == 1
+    assert "Dry run: no Hurl execution performed." in result.output
+    assert "Variables: 0 provided, 1 missing" in result.output
+    assert "base_url" in result.output
+    assert not (Path(".entroping") / "latest-run.json").exists()
+    assert not (Path(".entroping") / "latest-run-events.jsonl").exists()
+    plan = json.loads((Path("reports") / "run-plan.json").read_text(encoding="utf-8"))
+    assert plan["status"] == "blocked"
+    assert plan["variables"]["missing"] == [
+        {"name": "base_url", "paths": ["tests/health.hurl"]}
+    ]
+
+
+def test_run_dry_run_uses_changed_from_selection_without_hurl_execution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    selected = Path("tests") / "changed.hurl"
+    selected.write_text(
+        "# entroping: tags=smoke\n\nGET http://localhost:18080/changed\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    ignored = Path("tests") / "ignored.hurl"
+    ignored.write_text(
+        "# entroping: tags=smoke\n\nGET http://localhost:18080/ignored\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    def fake_select_changed_hurl_tests(*, project_root: Path, base_ref: str) -> tuple[Path, ...]:
+        assert project_root == tmp_path.resolve()
+        assert base_ref == "origin/main"
+        return (selected.resolve(),)
+
+    def fail_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+        fail_fast: bool = False,
+    ) -> HurlSuiteResult:
+        _ = (paths, options, max_workers, fail_fast)
+        raise AssertionError("dry-run must not invoke Hurl")
+
+    monkeypatch.setattr(
+        "entroping.core.run_workflow.select_changed_hurl_tests",
+        fake_select_changed_hurl_tests,
+    )
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fail_run_hurl_files)
+
+    result = runner.invoke(app, ["run", "--dry-run", "--changed-from", "origin/main"])
+
+    assert result.exit_code == 0
+    assert "Changed from: origin/main" in result.output
+    assert "tests/changed.hurl" in result.output
+    assert "tests/ignored.hurl" not in result.output
+
+
+def test_run_dry_run_empty_selection_reports_counts_without_hurl_execution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    (Path("tests") / "health.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET http://localhost:18080/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    def fail_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+        fail_fast: bool = False,
+    ) -> HurlSuiteResult:
+        _ = (paths, options, max_workers, fail_fast)
+        raise AssertionError("dry-run must not invoke Hurl")
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fail_run_hurl_files)
+
+    result = runner.invoke(app, ["run", "--dry-run", "--tag", "critical"])
+
+    assert result.exit_code == 0
+    assert "No Hurl tests matched the requested filters" in result.output
+    assert "Selection: 0 selected, 1 skipped from 1 discovered" in result.output
+    assert not (Path(".entroping") / "latest-run.json").exists()
+    assert not (Path(".entroping") / "latest-run-events.jsonl").exists()
+
+
+def test_run_dry_run_prints_tag_expression_selector(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    (Path("tests") / "health.hurl").write_text(
+        "# entroping: tags=smoke\n\nGET http://localhost:18080/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["run", "--dry-run", "--tag-expression", "smoke and not slow"],
+    )
+
+    assert result.exit_code == 0
+    assert "Tag expression: smoke and not slow" in result.output
+
+
+def test_run_dry_run_prints_operation_id_selector(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    (Path("tests") / "health.hurl").write_text(
+        "# entroping: operation_id=getHealth\n"
+        "\nGET http://localhost:18080/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["run", "--dry-run", "--operation-id", "getHealth"])
+
+    assert result.exit_code == 0
+    assert "Operation IDs: getHealth" in result.output
+
+
+def test_run_dry_run_reports_plan_errors_without_run_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    def fake_plan_run_workflow(**kwargs: object) -> object:
+        _ = kwargs
+        raise RunWorkflowError("plan failed")
+
+    monkeypatch.setattr(execution_cli, "plan_run_workflow", fake_plan_run_workflow)
+
+    result = CliRunner().invoke(app, ["run", "--dry-run"])
+
+    assert result.exit_code == 1
+    assert "plan failed" in result.output
+    assert not (Path(".entroping") / "latest-run.json").exists()
+    assert not (Path(".entroping") / "latest-run-events.jsonl").exists()
+
+
 def test_run_tag_expression_no_matches_reports_counts_without_hurl_execution(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -34,6 +34,7 @@
           "kind": {
             "enum": [
               "run_json",
+              "run_plan",
               "junit",
               "run_html",
               "drift_json",
@@ -62,6 +63,7 @@
           "kind": {
             "enum": [
               "run_json",
+              "run_plan",
               "junit",
               "run_html",
               "drift_json",

@@ -39,7 +39,7 @@ entroping freeze --name <flow> [--golden] [--mock <service>] [--dry-run] [captur
 entroping map [--export <mermaid|dot|md|png>] [capture filters]
 
 entroping studio [--env <name>]
-entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--operation-id <id>] [--ci] [--parallel] [--fail-fast] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>] [--rerun-failures]
+entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--operation-id <id>] [--ci] [--parallel] [--fail-fast] [--dry-run] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>] [--rerun-failures]
 entroping report bug
 entroping report failure-bundle [--output <directory>]
 entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
@@ -63,7 +63,7 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 | --- | --- |
 | Command naming | Keep the nested noun/verb shape: `config vendor-policy-pack`, `config test-policy-pack`, `architect build`, `architect refactor`, `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report policy`, `report gate-coverage`, `report gate-injection`, `report artifact-manifest`, `report agent-bundle`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary`. |
 | Aliases | No alias is compatibility-supported. Deprecated brainstorm names such as `gen`, `fix`, `scan`, `chaos`, `verify`, top-level `build`, `auth`, and `report --type` remain unavailable. |
-| Global flags | Only Typer completion helpers and `--version` are current global flags. `--verbose` is not a product flag. `freeze --dry-run` is command-scoped and does not create a global dry-run mode. |
+| Global flags | Only Typer completion helpers and `--version` are current global flags. `--verbose` is not a product flag. `freeze --dry-run` and `run --dry-run` are command-scoped and do not create a global dry-run mode. |
 | Init CI starter | `init --github-actions` is an explicit opt-in setup helper that writes the reviewed starter to `.github/workflows/entroping.yml`, refuses to overwrite an existing workflow, and does not add secrets, provider credentials, hosted-service coupling, or package-index readiness claims. |
 | Determinism | `entroping run` remains deterministic, Hurl-backed, and LLM-free. |
 | Doctor CI readiness | `doctor --ci` is a strict local preflight for PR gates. It validates Hurl availability, safe report paths, suite manifests, required Hurl variables, and provider-free `run --ci` expectations without calling CI provider APIs or mutating workflows. |
@@ -71,6 +71,7 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 | Fail-fast runs | `run --fail-fast` stops scheduling new tests after the first failing Hurl result while preserving deterministic source immutability, latest-run state, reports for executed tests, and selected/executed/not-scheduled summary evidence. Parallel fail-fast is bounded: already scheduled workers may complete, but no new work is scheduled after the first failure is observed. |
 | Operation selection | `run --operation-id <id>` is a repeatable deterministic selector over committed Hurl `operation_id` metadata. It cannot be combined with `--suite`, `--changed-from`, `--rerun-failures`, `--tag`, or `--tag-expression`; run reports may include optional per-test `operation_id` evidence. |
 | Failure reruns | `run --rerun-failures` selects failed source `.hurl` paths from `reports/run-latest.json` or `.entroping/latest-run.json`, reuses the report environment unless `--env` overrides it, and cannot be combined with `--suite`, `--changed-from`, `--tag`, `--tag-expression`, or `--operation-id`. It is fast feedback, not release proof. |
+| Run dry-run preview | `run --dry-run` resolves the selected Hurl tests, effective and injected gates, environment name, variable preflight gaps, worker settings, and requested report paths without invoking Hurl, writing latest-run state, writing execution events, writing executed-result reports, or mutating source `.hurl`. When `--report json` is requested, it writes only `reports/run-plan.json` with schema `entroping.run-plan.v1`. |
 | Architect generation | Deterministic `architect build --new` reads the configured local OpenAPI spec and validates generated Hurl before write. `--changed-from <ref>` limits that deterministic path to current added, modified, or renamed operations relative to the same spec at a Git base ref and reports removed operations for manual review. Prompt-backed `architect build` and `architect refactor` may call LiteLLM, but generated files must pass validation before write. `architect refactor --preview` renders a unified diff and writes only the value-free agent manifest, not target Hurl files; it is review evidence, not execution proof. `architect build` defaults to Builder and accepts `--agent breaker` for hostile/security generation; deterministic `architect audit --focus logic --output json` emits `entroping.openapi-audit.v1`, and `--changed-from <ref>` attaches an `entroping.openapi-breaking-diff.v1` nested report without writing tests; `architect audit --focus auditor` is the explicit Auditor review path. |
 | Policy-pack vendoring | `config vendor-policy-pack` accepts reviewed local pack directories only. It copies the pack under `policy-packs/`, validates the manifest and QAnstitution entrypoint, appends a local import, and does not fetch from registries or remote URLs. |
 | Policy-pack self-test | `config test-policy-pack` accepts reviewed local pack directories only. It validates safe local boundaries, manifest/entrypoint/gate/final-gate consistency, and consumer examples without copying files, editing `qanstitution.yaml`, fetching registries, or requiring provider keys. |
@@ -110,6 +111,7 @@ only through a compatibility issue and migration note.
 | Prompt-backed `entroping architect ...` | `.entroping/agent-runs/*.json` |
 | `entroping freeze` / `freeze --mock` / `map --export png` | `reports/approvals/*.json` |
 | `entroping run --report json` | `reports/run-latest.json` |
+| `entroping run --dry-run --report json` | `reports/run-plan.json` |
 | `entroping run --report junit` | `reports/junit.xml` |
 | `entroping run --report html` | `reports/run-latest.html` |
 | `entroping run --report drift` | `reports/drift.json` |

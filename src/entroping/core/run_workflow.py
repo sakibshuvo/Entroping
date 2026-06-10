@@ -1,10 +1,12 @@
 """Deterministic run workflow use case."""
 
+import json
 import tempfile
 import time
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 from entroping.bridge.traffic_sessions import (
     TrafficSessionError,
@@ -36,6 +38,8 @@ from entroping.core.hurl_discovery import (
 from entroping.core.hurl_runner import HurlRunOptions, HurlSuiteResult, run_hurl_files
 from entroping.core.hurl_variable_preflight import (
     HurlVariablePreflightError,
+    MissingHurlVariable,
+    find_missing_hurl_variables,
     preflight_hurl_variables,
 )
 from entroping.core.report_writer import (
@@ -45,6 +49,7 @@ from entroping.core.report_writer import (
     write_junit_report,
 )
 from entroping.core.run_event_log import RunEventLog
+from entroping.core.safe_write import SafeWriteError, safe_write_text
 from entroping.core.tag_expression import compile_tag_expression
 from entroping.core.traffic_store import TrafficStore, TrafficStoreError
 from entroping.models.drift import DependencyDriftRoute, DriftReport
@@ -56,9 +61,15 @@ __all__ = [
     "HurlVariablePreflightError",
     "NoHurlTestsMatchedError",
     "RunWorkflowError",
+    "RunExecutionPlan",
     "RunWorkflowResult",
     "execute_run_workflow",
+    "plan_run_workflow",
+    "run_execution_plan_to_dict",
+    "write_run_execution_plan",
 ]
+
+RUN_PLAN_SCHEMA_VERSION = "entroping.run-plan.v1"
 
 
 class RunWorkflowError(ValueError):
@@ -71,6 +82,59 @@ class NoHurlTestsMatchedError(RunWorkflowError):
 
 class DependencyDriftObservationError(RunWorkflowError):
     """Raised when current dependency routes cannot be observed safely."""
+
+
+RunPlanStatus = Literal["ready", "blocked", "no_match"]
+
+
+@dataclass(frozen=True, slots=True)
+class RunPlanVariableGap:
+    """One unresolved variable and the selected tests that reference it."""
+
+    name: str
+    paths: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class RunPlanTest:
+    """One selected test in a dry-run execution plan."""
+
+    path: str
+    tags: tuple[str, ...]
+    operation_id: str | None
+    injected_rule_ids: tuple[str, ...]
+    missing_variables: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class RunExecutionPlan:
+    """Deterministic run plan that stops before Hurl execution."""
+
+    status: RunPlanStatus
+    message: str
+    project: str
+    environment: str
+    tag_filters: tuple[str, ...]
+    tag_expression: str | None
+    operation_ids: tuple[str, ...]
+    changed_from: str | None
+    selection_label: str | None
+    report_formats: tuple[str, ...]
+    would_write_reports: tuple[str, ...]
+    parallel: bool
+    fail_fast: bool
+    drift_check: bool
+    worker_count: int
+    timeout_ms: int
+    retry: int
+    discovered_count: int
+    selected_count: int
+    skipped_count: int
+    effective_rule_ids: tuple[str, ...]
+    injected_rule_ids: tuple[str, ...]
+    provided_variable_count: int
+    missing_variables: tuple[RunPlanVariableGap, ...]
+    tests: tuple[RunPlanTest, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -365,6 +429,333 @@ def execute_run_workflow(
                 failed=0,
             )
         raise
+
+
+def plan_run_workflow(
+    *,
+    project_root: Path,
+    environment: str | None,
+    tag_filters: Sequence[str],
+    tag_expression: str | None = None,
+    operation_ids: Collection[str] | None = None,
+    report_formats: Sequence[str],
+    parallel: bool,
+    drift_check: bool,
+    fail_fast: bool = False,
+    changed_from: str | None = None,
+    discovery_roots: Sequence[Path] | None = None,
+    selection_label: str | None = None,
+) -> RunExecutionPlan:
+    """Build a deterministic run plan without invoking Hurl or writing run state."""
+
+    root = project_root.expanduser().resolve()
+    if tag_filters and tag_expression is not None:
+        msg = "tag filters cannot be combined with tag expressions"
+        raise RunWorkflowError(msg)
+    operation_filters = normalize_operation_id_filters(operation_ids)
+    if operation_filters and tag_filters:
+        msg = "operation ID filters cannot be combined with tag filters"
+        raise RunWorkflowError(msg)
+    if operation_filters and tag_expression is not None:
+        msg = "operation ID filters cannot be combined with tag expressions"
+        raise RunWorkflowError(msg)
+    compiled_tag_expression = (
+        compile_tag_expression(tag_expression) if tag_expression is not None else None
+    )
+    law = load_qanstitution(root / "qanstitution.yaml")
+    selected_roots, no_match_label = _selected_run_roots(
+        root=root,
+        changed_from=changed_from,
+        discovery_roots=discovery_roots,
+        tag_expression=tag_expression,
+        operation_filters=operation_filters,
+        selection_label=selection_label,
+    )
+    selection = discover_hurl_test_selection(
+        selected_roots,
+        tag_filters=tuple(tag_filters),
+        tag_expression=compiled_tag_expression,
+        operation_id_filters=operation_filters,
+    )
+    env_variables = (
+        load_environment_variables(environment, root=root) if environment is not None else {}
+    )
+    env_variables.update(load_process_hurl_variables())
+    hurl_workers = law.settings.parallel_workers if parallel else 1
+    effective_rule_ids = tuple(gate.id for gate in law.gates)
+    would_write_reports = _would_write_run_reports(report_formats)
+
+    if not selection.tests:
+        no_match_message = _no_match_message(no_match_label, selection=selection)
+        return RunExecutionPlan(
+            status="no_match",
+            message=no_match_message,
+            project=law.project,
+            environment=environment or "default",
+            tag_filters=tuple(tag_filters),
+            tag_expression=tag_expression,
+            operation_ids=tuple(operation_filters),
+            changed_from=changed_from,
+            selection_label=selection_label,
+            report_formats=tuple(report_formats),
+            would_write_reports=would_write_reports,
+            parallel=parallel,
+            fail_fast=fail_fast,
+            drift_check=drift_check,
+            worker_count=hurl_workers,
+            timeout_ms=law.settings.timeout,
+            retry=law.settings.retry,
+            discovered_count=selection.discovered_count,
+            selected_count=selection.selected_count,
+            skipped_count=selection.skipped_count,
+            effective_rule_ids=effective_rule_ids,
+            injected_rule_ids=(),
+            provided_variable_count=len(env_variables),
+            missing_variables=(),
+            tests=(),
+        )
+
+    with tempfile.TemporaryDirectory(prefix="entroping-run-plan-") as execution_root:
+        execution_copies = [
+            write_injected_execution_copy(
+                hurl_test,
+                law.gates,
+                execution_root=Path(execution_root),
+                known_failures=law.ignore_failures,
+                project_root=root,
+            )
+            for hurl_test in selection.tests
+        ]
+        _reject_unmatched_selected_known_failures(
+            known_failures=law.ignore_failures,
+            hurl_tests=selection.tests,
+            execution_copies=execution_copies,
+            project_root=root,
+        )
+        missing = find_missing_hurl_variables(
+            execution_copies,
+            variables=env_variables,
+            project_root=root,
+        )
+        missing_by_path: dict[str, tuple[str, ...]] = {}
+        for execution_copy in execution_copies:
+            display_path = _display_path(execution_copy.source_path, root)
+            names = tuple(
+                sorted(
+                    item.name
+                    for item in missing
+                    if item.path == execution_copy.source_path
+                )
+            )
+            missing_by_path[display_path] = names
+
+        tests = tuple(
+            RunPlanTest(
+                path=_display_path(execution_copy.source_path, root),
+                tags=tuple(hurl_test.metadata.tags),
+                operation_id=execution_copy.operation_id,
+                injected_rule_ids=tuple(gate.rule_id for gate in execution_copy.injected_gates),
+                missing_variables=missing_by_path[
+                    _display_path(execution_copy.source_path, root)
+                ],
+            )
+            for hurl_test, execution_copy in zip(selection.tests, execution_copies, strict=True)
+        )
+        injected_rule_ids = tuple(
+            dict.fromkeys(
+                rule_id
+                for execution_copy in execution_copies
+                for rule_id in (gate.rule_id for gate in execution_copy.injected_gates)
+            )
+        )
+
+    missing_variables = _group_missing_variables(missing, project_root=root)
+    status: RunPlanStatus = "blocked" if missing_variables else "ready"
+    message = (
+        "Run plan blocked by unresolved Hurl variables"
+        if missing_variables
+        else "Run plan ready; Hurl was not executed"
+    )
+    return RunExecutionPlan(
+        status=status,
+        message=message,
+        project=law.project,
+        environment=environment or "default",
+        tag_filters=tuple(tag_filters),
+        tag_expression=tag_expression,
+        operation_ids=tuple(operation_filters),
+        changed_from=changed_from,
+        selection_label=selection_label,
+        report_formats=tuple(report_formats),
+        would_write_reports=would_write_reports,
+        parallel=parallel,
+        fail_fast=fail_fast,
+        drift_check=drift_check,
+        worker_count=hurl_workers,
+        timeout_ms=law.settings.timeout,
+        retry=law.settings.retry,
+        discovered_count=selection.discovered_count,
+        selected_count=selection.selected_count,
+        skipped_count=selection.skipped_count,
+        effective_rule_ids=effective_rule_ids,
+        injected_rule_ids=injected_rule_ids,
+        provided_variable_count=len(env_variables),
+        missing_variables=missing_variables,
+        tests=tests,
+    )
+
+
+def run_execution_plan_to_dict(plan: RunExecutionPlan) -> dict[str, object]:
+    """Return a JSON-serializable dry-run plan payload."""
+
+    return {
+        "schema_version": RUN_PLAN_SCHEMA_VERSION,
+        "status": plan.status,
+        "message": plan.message,
+        "project": plan.project,
+        "environment": plan.environment,
+        "filters": {
+            "tag_filters": list(plan.tag_filters),
+            "tag_expression": plan.tag_expression,
+            "operation_ids": list(plan.operation_ids),
+            "changed_from": plan.changed_from,
+            "selection_label": plan.selection_label,
+        },
+        "reports": {
+            "requested_formats": list(plan.report_formats),
+            "would_write": list(plan.would_write_reports),
+        },
+        "execution": {
+            "parallel": plan.parallel,
+            "fail_fast": plan.fail_fast,
+            "drift_check": plan.drift_check,
+            "worker_count": plan.worker_count,
+            "timeout_ms": plan.timeout_ms,
+            "retry": plan.retry,
+        },
+        "selection": {
+            "discovered_count": plan.discovered_count,
+            "selected_count": plan.selected_count,
+            "skipped_count": plan.skipped_count,
+        },
+        "gates": {
+            "effective_rule_ids": list(plan.effective_rule_ids),
+            "injected_rule_ids": list(plan.injected_rule_ids),
+            "injected_count": sum(len(test.injected_rule_ids) for test in plan.tests),
+        },
+        "variables": {
+            "provided_count": plan.provided_variable_count,
+            "missing": [
+                {"name": item.name, "paths": list(item.paths)}
+                for item in plan.missing_variables
+            ],
+        },
+        "tests": [
+            {
+                "path": test.path,
+                "tags": list(test.tags),
+                "operation_id": test.operation_id,
+                "injected_rule_ids": list(test.injected_rule_ids),
+                "missing_variables": list(test.missing_variables),
+            }
+            for test in plan.tests
+        ],
+    }
+
+
+def write_run_execution_plan(
+    plan: RunExecutionPlan,
+    path: Path,
+    *,
+    project_root: Path,
+) -> Path:
+    """Write a dry-run execution plan JSON artifact."""
+
+    try:
+        return safe_write_text(
+            path,
+            json.dumps(run_execution_plan_to_dict(plan), indent=2, sort_keys=True) + "\n",
+            artifact="run execution plan",
+            root=project_root.expanduser().resolve(),
+        )
+    except SafeWriteError as exc:
+        msg = str(exc)
+        raise RunWorkflowError(msg) from exc
+
+
+def _selected_run_roots(
+    *,
+    root: Path,
+    changed_from: str | None,
+    discovery_roots: Sequence[Path] | None,
+    tag_expression: str | None,
+    operation_filters: Collection[str],
+    selection_label: str | None,
+) -> tuple[Sequence[Path], str]:
+    if changed_from is not None and discovery_roots is not None:
+        msg = "changed-from cannot be combined with custom Hurl discovery roots"
+        raise RunWorkflowError(msg)
+    if changed_from is not None and operation_filters:
+        msg = "changed-from cannot be combined with operation ID filters"
+        raise RunWorkflowError(msg)
+    if changed_from is None:
+        selected_roots = discovery_roots if discovery_roots is not None else (root / "tests",)
+        no_match_label = (
+            _default_no_match_label(
+                tag_expression=tag_expression,
+                operation_ids=operation_filters,
+            )
+            if selection_label is None
+            else selection_label
+        )
+        return selected_roots, no_match_label
+
+    changed_paths = select_changed_hurl_tests(project_root=root, base_ref=changed_from)
+    if tag_expression is None:
+        no_match_label = f"changed Hurl tests matched from base ref {changed_from!r}"
+    else:
+        no_match_label = (
+            f"changed Hurl tests matching tag expression {tag_expression!r} "
+            f"from base ref {changed_from!r}"
+        )
+    return changed_paths, no_match_label
+
+
+def _would_write_run_reports(report_formats: Sequence[str]) -> tuple[str, ...]:
+    paths: list[str] = []
+    if "json" in report_formats:
+        paths.append("reports/run-latest.json")
+    if "junit" in report_formats:
+        paths.append("reports/junit.xml")
+    if "html" in report_formats:
+        paths.append("reports/run-latest.html")
+    if "drift" in report_formats:
+        paths.append("reports/drift.json")
+        paths.append("reports/drift-baseline.candidate.json")
+    return tuple(paths)
+
+
+def _group_missing_variables(
+    missing: Sequence[MissingHurlVariable],
+    *,
+    project_root: Path,
+) -> tuple[RunPlanVariableGap, ...]:
+    by_name: dict[str, set[str]] = {}
+    for item in missing:
+        by_name.setdefault(item.name, set()).add(_display_path(item.path, project_root))
+    return tuple(
+        RunPlanVariableGap(name=name, paths=tuple(sorted(paths)))
+        for name, paths in sorted(by_name.items())
+    )
+
+
+def _display_path(path: Path, project_root: Path) -> str:
+    resolved_root = project_root.expanduser().resolve()
+    resolved_path = path.expanduser().resolve()
+    try:
+        return resolved_path.relative_to(resolved_root).as_posix()
+    except ValueError:
+        return resolved_path.as_posix()
 
 
 def _default_no_match_label(

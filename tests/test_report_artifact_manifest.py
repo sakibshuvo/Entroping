@@ -30,6 +30,7 @@ def test_write_report_artifact_manifest_records_default_artifacts_with_checksums
     artifacts = {
         "reports/agent-bundle.json": '{"schema_version":"entroping.agent-review-bundle.v1"}\n',
         "reports/run-latest.json": '{"schema_version":"entroping.run-report.v1"}\n',
+        "reports/run-plan.json": '{"schema_version":"entroping.run-plan.v1"}\n',
         "reports/junit.xml": "<testsuite tests=\"1\"></testsuite>\n",
         "reports/run-latest.html": "<!doctype html><title>Entroping</title>\n",
         "reports/drift.json": '{"schema_version":"entroping.drift-report.v1"}\n',
@@ -43,8 +44,8 @@ def test_write_report_artifact_manifest_records_default_artifacts_with_checksums
 
     assert result.output_path == tmp_path / "reports" / "artifact-manifest.json"
     assert result.manifest.schema_version == REPORT_ARTIFACT_MANIFEST_SCHEMA_VERSION
-    assert result.manifest.summary.total_expected == 7
-    assert result.manifest.summary.total_present == 7
+    assert result.manifest.summary.total_expected == 8
+    assert result.manifest.summary.total_present == 8
     assert result.manifest.summary.total_missing == 0
     assert result.manifest.missing_artifacts == ()
     assert [artifact.path for artifact in result.manifest.artifacts] == sorted(artifacts)
@@ -59,6 +60,7 @@ def test_write_report_artifact_manifest_records_default_artifacts_with_checksums
         ("review_summary", "reports/review-summary.md", "entroping.review-summary.md"),
         ("run_html", "reports/run-latest.html", "entroping.run-report.html"),
         ("run_json", "reports/run-latest.json", "entroping.run-report.v1"),
+        ("run_plan", "reports/run-plan.json", "entroping.run-plan.v1"),
     ]
     for entry in result.manifest.artifacts:
         content = artifacts[entry.path]
@@ -68,8 +70,8 @@ def test_write_report_artifact_manifest_records_default_artifacts_with_checksums
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
     assert payload["artifacts"][0]["path"] == "reports/agent-bundle.json"
     assert payload["summary"] == {
-        "total_expected": 7,
-        "total_present": 7,
+        "total_expected": 8,
+        "total_present": 8,
         "total_missing": 0,
     }
 
@@ -82,9 +84,9 @@ def test_write_report_artifact_manifest_records_missing_defaults(tmp_path: Path)
 
     result = write_report_artifact_manifest(project_root=tmp_path)
 
-    assert result.manifest.summary.total_expected == 7
+    assert result.manifest.summary.total_expected == 8
     assert result.manifest.summary.total_present == 1
-    assert result.manifest.summary.total_missing == 6
+    assert result.manifest.summary.total_missing == 7
     assert [artifact.path for artifact in result.manifest.artifacts] == [
         "reports/run-latest.json"
     ]
@@ -95,6 +97,7 @@ def test_write_report_artifact_manifest_records_missing_defaults(tmp_path: Path)
         "reports/junit.xml",
         "reports/review-summary.md",
         "reports/run-latest.html",
+        "reports/run-plan.json",
     ]
 
 

@@ -19,6 +19,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Report | Schema version | Artifact or producer | Schema file |
 | --- | --- | --- | --- |
 | JSON run report | `entroping.run-report.v1` | `reports/run-latest.json`, `.entroping/latest-run.json` | [run-report.v1.schema.json](report-schemas/run-report.v1.schema.json) |
+| Run execution plan | `entroping.run-plan.v1` | `reports/run-plan.json` from `entroping run --dry-run --report json` | [run-plan.v1.schema.json](report-schemas/run-plan.v1.schema.json) |
 | Run delta report | `entroping.run-delta-report.v1` | `entroping report delta --output json` stdout | [run-delta-report.v1.schema.json](report-schemas/run-delta-report.v1.schema.json) |
 | Drift baseline | `entroping.drift-baseline.v1` | `reports/drift-baseline.candidate.json`, `.entroping/drift-baseline.json` | Inline contract |
 | Drift report | `entroping.drift-report.v1` | `reports/drift.json` | [drift-report.v1.schema.json](report-schemas/drift-report.v1.schema.json) |
@@ -48,6 +49,18 @@ paths and effective assertions, not traffic values, prompts, credentials, or
 provider data.
 New writers include optional per-gate `group` provenance when a gate was
 expanded from a local `gate_groups` reference.
+
+The run execution plan is written only by dry-run mode:
+
+```bash
+entroping run --dry-run --tag smoke --report json
+```
+
+Its v1 payload records the selectors, selected test paths, requested report
+formats, would-write executed report paths, worker/timeout/retry settings,
+effective and injected gate rule IDs, and missing variable names. It does not
+prove Hurl pass/fail, does not include stdout/stderr, and must not be treated as
+an executed run report.
 
 The gate coverage report is written by:
 

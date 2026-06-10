@@ -24,7 +24,7 @@ entroping freeze --name <flow> [--golden] [--mock <service>] [--dry-run] [captur
 entroping map [--export <mermaid|dot|md|png>] [capture filters]
 
 entroping studio [--env <name>]
-entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--operation-id <id>] [--ci] [--parallel] [--fail-fast] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>] [--rerun-failures]
+entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--operation-id <id>] [--ci] [--parallel] [--fail-fast] [--dry-run] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>] [--rerun-failures]
 entroping report bug
 entroping report failure-bundle [--output <directory>]
 entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
@@ -213,7 +213,7 @@ entroping map --export mermaid --include-host api.example.test
 ## Execution
 
 Current alpha implementation supports deterministic `run`, `--env`, `--suite`,
-`--tag`, `--tag-expression`, `--operation-id`, `--ci`, bounded `--parallel`, `--fail-fast`, `--drift-check`,
+`--tag`, `--tag-expression`, `--operation-id`, `--ci`, bounded `--parallel`, `--fail-fast`, `--dry-run`, `--drift-check`,
 `--report html`, `--report json`, `--report junit`, `--report drift`, and
 `--changed-from <ref>` for changed Hurl files from Git diff. Before invoking Hurl, `run` checks
 selected execution copies for unresolved `{{variable}}` references and reports
@@ -230,6 +230,7 @@ missing variable names without printing values.
 | `entroping run --ci` | Strict CI mode |
 | `entroping run --parallel` | Bounded parallel execution |
 | `entroping run --fail-fast` | Stop scheduling after the first failing Hurl result |
+| `entroping run --dry-run` | Preview selected tests, gates, variables, and reports without running Hurl |
 | `entroping run --report <html|junit|json|drift>` | Write report artifact; repeat for multiple formats |
 | `entroping run --drift-check` | Compare runtime behavior against baseline |
 | `entroping run --changed-from <ref>` | Fast local run for existing changed `.hurl` files |
@@ -251,6 +252,7 @@ entroping run --operation-id createCheckout --operation-id createRefund --report
 entroping run --changed-from origin/main --tag smoke
 entroping run --rerun-failures --report json
 entroping run --tag smoke --fail-fast --report json
+entroping run --dry-run --tag smoke --report json
 entroping run --env ci --ci --parallel --report junit
 entroping run --env staging --drift-check --report drift
 ```
@@ -279,6 +281,14 @@ the report environment unless `--env` is provided. It cannot be combined with
 
 `--changed-from` and `--rerun-failures` are developer and agent feedback
 shortcuts. Keep full-suite `entroping run --ci` as the release gate.
+
+`--dry-run` prints a deterministic execution plan without invoking Hurl, writing
+`.entroping/latest-run.json`, writing execution events, or producing executed
+run reports. It still loads QAnstitution, resolves selectors, previews
+temporary gate injection counts, and checks variable availability. If
+`--report json` is included, dry-run writes `reports/run-plan.json` with schema
+`entroping.run-plan.v1`; requested run report paths remain listed as
+`would_write` evidence only.
 
 Run reports include per-test `timeout_ms` evidence. Hurl subprocess timeouts
 use status `timeout`, exit code `124`, a timeout-specific JUnit failure type,

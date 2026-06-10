@@ -15,6 +15,7 @@ REPORT_ARTIFACT_MANIFEST_SCHEMA_VERSION: Final = "entroping.report-artifact-mani
 
 ReportArtifactKind = Literal[
     "run_json",
+    "run_plan",
     "junit",
     "run_html",
     "drift_json",
@@ -37,6 +38,11 @@ _DEFAULT_REPORT_ARTIFACTS: Final = (
     _ReportArtifactDefinition(
         kind="run_json",
         path=Path("reports") / "run-latest.json",
+        schema_hint=None,
+    ),
+    _ReportArtifactDefinition(
+        kind="run_plan",
+        path=Path("reports") / "run-plan.json",
         schema_hint=None,
     ),
     _ReportArtifactDefinition(

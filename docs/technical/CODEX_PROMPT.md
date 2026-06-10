@@ -37,7 +37,7 @@ entroping freeze --name <flow> [--golden] [--mock <service>] [--dry-run] [captur
 entroping map [--export <mermaid|dot|md|png>] [capture filters]
 
 entroping studio [--env <name>]
-entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--operation-id <id>] [--ci] [--parallel] [--fail-fast] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>] [--rerun-failures]
+entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--operation-id <id>] [--ci] [--parallel] [--fail-fast] [--dry-run] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>] [--rerun-failures]
 entroping report bug
 entroping report failure-bundle [--output <directory>]
 entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
@@ -47,6 +47,7 @@ entroping report policy [--output <md|json>]
 entroping report gate-coverage [--output <md|json>]
 entroping report gate-injection --target <path> [--output <md|json>]
 entroping report artifact-manifest [--output <path>]
+entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
 entroping report sarif [--output <path>] [--junit <path>] [--drift <path>] [--traceability]

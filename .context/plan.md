@@ -53,6 +53,10 @@ project, and a Codex workspace with fast context rehydration.
 - `freeze --dry-run` now previews selected redacted records, generated Hurl or
   WireMock output paths, golden status, and counts-only redaction categories
   without writing generated artifacts or approval manifests.
+- `run --dry-run` now previews selected Hurl files, selector evidence, gate
+  injection counts, missing variable names, requested report paths, and
+  execution settings without invoking Hurl, writing latest-run state, writing
+  run events, writing executed-result reports, or mutating source `.hurl`.
 - Eye traffic-state retention keeps local SQLite state bounded with SQL-level
   stale-row deletion while preserving insertion-order reads for retained
   events.
