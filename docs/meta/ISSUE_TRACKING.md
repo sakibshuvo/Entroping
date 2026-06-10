@@ -90,6 +90,7 @@ The launcher:
 - Reads the issue title, URL, and state from GitHub.
 - Creates `../Entroping-issue-<number>` unless `--dry-run` is used.
 - Creates the requested branch from `main`.
+- Refuses branch names that already exist locally or on `origin`.
 - Saves a prompt under `.entroping/session-prompts/` in the worktree.
 - Best-effort moves the issue to `status:in-progress`, adds missing issues to
   the GitHub Project board, and moves the project item to `In Progress`.

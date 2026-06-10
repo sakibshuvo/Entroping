@@ -2,6 +2,10 @@
 
 ## 2026-06-10
 
+- Added issue #542's remote branch preflight so `scripts/start_issue.sh`
+  refuses to create an issue worktree when the requested branch name already
+  exists on `origin`, preventing multi-session pushes from colliding with stale
+  or unrelated remote branches.
 - Added issue #540's bytecode-free local gate setting so `scripts/check.sh`,
   `scripts/feature_gate.sh`, and `scripts/regression.sh` run with
   `PYTHONDONTWRITEBYTECODE=1`, reducing ignored `__pycache__` noise during
