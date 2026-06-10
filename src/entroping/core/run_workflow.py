@@ -182,24 +182,28 @@ def execute_run_workflow(
     """Execute the deterministic Hurl governance loop without CLI concerns."""
 
     root = project_root.expanduser().resolve()
-    if tag_filters and tag_expression is not None:
-        msg = "tag filters cannot be combined with tag expressions"
-        raise RunWorkflowError(msg)
     operation_filters = normalize_operation_id_filters(operation_ids)
-    if operation_filters and tag_filters:
-        msg = "operation ID filters cannot be combined with tag filters"
-        raise RunWorkflowError(msg)
-    if operation_filters and tag_expression is not None:
-        msg = "operation ID filters cannot be combined with tag expressions"
-        raise RunWorkflowError(msg)
+    _validate_run_filters(
+        tag_filters=tuple(tag_filters),
+        tag_expression=tag_expression,
+        operation_filters=operation_filters,
+    )
     compiled_tag_expression = (
         compile_tag_expression(tag_expression) if tag_expression is not None else None
     )
-    state_dir = root / ".entroping"
-    state_dir.mkdir(parents=True, exist_ok=True)
     event_log = RunEventLog.open_project(root)
     started_at = time.perf_counter()
     terminal_event_recorded = False
+    selected_roots, no_match_label = _selected_run_roots(
+        root=root,
+        changed_from=changed_from,
+        discovery_roots=discovery_roots,
+        tag_expression=tag_expression,
+        operation_filters=operation_filters,
+        selection_label=selection_label,
+    )
+    state_dir = root / ".entroping"
+    state_dir.mkdir(parents=True, exist_ok=True)
     event_log.record_started(
         environment=environment,
         tag_filters=tuple(tag_filters),
@@ -214,35 +218,6 @@ def execute_run_workflow(
 
     try:
         law = load_qanstitution(root / "qanstitution.yaml")
-        selected_roots: Sequence[Path]
-        if changed_from is not None and discovery_roots is not None:
-            msg = "changed-from cannot be combined with custom Hurl discovery roots"
-            raise RunWorkflowError(msg)
-        if changed_from is not None and operation_filters:
-            msg = "changed-from cannot be combined with operation ID filters"
-            raise RunWorkflowError(msg)
-        if changed_from is None:
-            selected_roots = (
-                discovery_roots if discovery_roots is not None else (root / "tests",)
-            )
-            if selection_label is None:
-                no_match_label = _default_no_match_label(
-                    tag_expression=tag_expression,
-                    operation_ids=operation_filters,
-                )
-            else:
-                no_match_label = selection_label
-        else:
-            changed_paths = select_changed_hurl_tests(project_root=root, base_ref=changed_from)
-            selected_roots = changed_paths
-            if tag_expression is None:
-                no_match_label = f"changed Hurl tests matched from base ref {changed_from!r}"
-            else:
-                no_match_label = (
-                    f"changed Hurl tests matching tag expression {tag_expression!r} "
-                    f"from base ref {changed_from!r}"
-                )
-
         selection = discover_hurl_test_selection(
             selected_roots,
             tag_filters=tuple(tag_filters),
@@ -418,7 +393,7 @@ def execute_run_workflow(
         terminal_event_recorded = True
         return result
     except Exception as exc:
-        if not terminal_event_recorded:
+        if not terminal_event_recorded and not isinstance(exc, NoHurlTestsMatchedError):
             event_log.record_error(exc)
             event_log.record_completed(
                 status="error",
@@ -429,6 +404,25 @@ def execute_run_workflow(
                 failed=0,
             )
         raise
+
+
+def _validate_run_filters(
+    *,
+    tag_filters: tuple[str, ...],
+    tag_expression: str | None,
+    operation_filters: Collection[str],
+) -> None:
+    """Validate run-surface filters before workflow execution."""
+
+    if tag_filters and tag_expression is not None:
+        msg = "tag filters cannot be combined with tag expressions"
+        raise RunWorkflowError(msg)
+    if operation_filters and tag_filters:
+        msg = "operation ID filters cannot be combined with tag filters"
+        raise RunWorkflowError(msg)
+    if operation_filters and tag_expression is not None:
+        msg = "operation ID filters cannot be combined with tag expressions"
+        raise RunWorkflowError(msg)
 
 
 def plan_run_workflow(

@@ -315,3 +315,29 @@ decisions:
     related_issues: ["#468"]
     supersedes: []
     superseded_by: null
+
+  - id: ENT-DEC-0015
+    title: Core-vs-optional surface policy is explicit before launch narratives
+    status: accepted
+    date: "2026-06-10"
+    summary: >
+      Launch scope is explicit: REST/OpenAPI + QAnstitution + Hurl + CI reports
+      remain core; `studio` read-only and WireMock exports are advanced-but-
+      supported; GraphQL and SOAP fixtures remain hidden examples until roadmap
+      proof moves them into the core story.
+    tags: [surface-scope, documentation, launch-readiness, studio, wiremock, protocol-examples]
+    source_links:
+      - path: docs/technical/SURFACE_SCOPE.md
+        role: technical-reference
+      - path: ROADMAP.md
+        role: public-roadmap
+      - path: docs/meta/PUBLIC_REPO_SURFACE.md
+        role: docs-governance
+    related_docs:
+      - README.md
+      - docs/index.md
+      - mkdocs.yml
+      - docs/technical/CLI_COMPATIBILITY_AUDIT.md
+    related_issues: ["#494", "#493"]
+    supersedes: []
+    superseded_by: null

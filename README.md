@@ -79,6 +79,9 @@ Animated previews show the happy path and the failure path:
 
 ![AI regression proof: QAnstitution blocks a missing request-id header](docs/assets/launch/ai-regression-proof.gif)
 
+[examples/ai-regression-demo](examples/ai-regression-demo/README.md) is the failure-path
+fixture used by launch checks.
+
 For public launch previews, use the
 [Two-Minute Demo Assets](docs/assets/launch/README.md):
 
@@ -321,45 +324,45 @@ Release-owner checklists, package-index publishing, install-channel sequencing,
 and agent handoff are backstage maintainer context linked below.
 
 ## Project Context
-
 Public Docs are the adoption path. Maintainer and agent context is backstage and
 not required for first use.
 
-- Public path: [Public Docs](https://sakibshuvo.github.io/Entroping/),
-  [USER_GUIDE.md](docs/user/USER_GUIDE.md),
-  [QANSTITUTION_FIRST_HOUR.md](docs/user/QANSTITUTION_FIRST_HOUR.md), and
-  [USE_CASES.md](docs/user/USE_CASES.md). Provider setup lives in
-  [AI_PROVIDER_SETUP.md](docs/user/AI_PROVIDER_SETUP.md).
-- GitHub Issues track work; [ROADMAP.md](ROADMAP.md) sequences releases, and
-  [PROJECT_PROGRESS.md](docs/meta/PROJECT_PROGRESS.md) keeps the short daily
-  dashboard.
-- Obsidian is project memory, not the backlog. Open the vault at
-  [Vault Index](docs/meta/VAULT_INDEX.md), and use [DOCS_GOVERNANCE.md](docs/meta/DOCS_GOVERNANCE.md);
-  `docs/meta/DOCS_GOVERNANCE.md` decides which docs must change.
-- Agent handoff uses `scripts/start_issue.sh <issue-number> <branch>`,
-  `scripts/context_pack.sh --mode implementation`, `--mode review`,
-  `--mode source`, `--mode growth`, and `--mode handoff`.
-- Architecture and command reference live in [TDS.md](docs/technical/TDS.md),
-  [QANSTITUTION_REFERENCE.md](docs/technical/QANSTITUTION_REFERENCE.md),
-  [COMMAND_CHEAT_SHEET.md](docs/technical/COMMAND_CHEAT_SHEET.md),
-  [CLI_COMPATIBILITY_AUDIT.md](docs/technical/CLI_COMPATIBILITY_AUDIT.md),
-  [POLICY_PACK_LAYOUT.md](docs/technical/POLICY_PACK_LAYOUT.md), and
-  [THREAT_MODEL.md](docs/technical/THREAT_MODEL.md).
-- Release and distribution evidence lives in
-  [RELEASE_CHECKLIST.md](docs/meta/RELEASE_CHECKLIST.md),
-  [PYPI_RELEASE_RUNBOOK.md](docs/meta/PYPI_RELEASE_RUNBOOK.md),
-  [INSTALL_SMOKE_MATRIX.md](docs/meta/INSTALL_SMOKE_MATRIX.md),
-  [DISTRIBUTION_RECOMMENDATION.md](docs/meta/DISTRIBUTION_RECOMMENDATION.md),
-  [GITHUB_ACTIONS_STARTER.md](docs/user/GITHUB_ACTIONS_STARTER.md), and
-  [CI_PROVIDER_RECIPES.md](docs/user/CI_PROVIDER_RECIPES.md).
-- Launch copy starts with REST/OpenAPI + QAnstitution + Hurl + CI reports;
-  advanced examples remain documented, but they are not the first public story.
-- Growth, open-core, and examples are in
-  [GROWTH_AND_MONETIZATION.md](docs/product/GROWTH_AND_MONETIZATION.md),
-  [OPEN_CORE_BOUNDARIES.md](docs/product/OPEN_CORE_BOUNDARIES.md),
-  [examples/checkout-api](examples/checkout-api/README.md),
-  [examples/support-api](examples/support-api/README.md),
-  [examples/ai-regression-demo](examples/ai-regression-demo/README.md).
+Obsidian is project memory, not the backlog.
+`docs/meta/DOCS_GOVERNANCE.md` decides which docs must change.
+
+- Public first-hour path:
+  - [Public Docs](https://sakibshuvo.github.io/Entroping/)
+  - [QAnstitution First Hour](docs/user/QANSTITUTION_FIRST_HOUR.md)
+  - [USER_GUIDE.md](docs/user/USER_GUIDE.md)
+  - [Use Cases](docs/user/USE_CASES.md)
+
+- Work visibility and execution context:
+  - GitHub Issues track work; [ROADMAP.md](ROADMAP.md) and
+    [PROJECT_PROGRESS.md](docs/meta/PROJECT_PROGRESS.md) track sequence and
+    daily status.
+  - `scripts/start_issue.sh` and `scripts/context_pack.sh` support issue-scoped
+    handoff sessions. In implementation workflows, run
+    `scripts/context_pack.sh --mode implementation`.
+
+- Maintainer context (not first-hour docs):
+- Obsidian vault index: [Vault Index](docs/meta/VAULT_INDEX.md)
+  - CI provider recipes: [CI_PROVIDER_RECIPES.md](docs/user/CI_PROVIDER_RECIPES.md)
+  - GitHub Actions starter: [GITHUB_ACTIONS_STARTER.md](docs/user/GITHUB_ACTIONS_STARTER.md)
+  - Distribution recommendation: [DISTRIBUTION_RECOMMENDATION.md](docs/meta/DISTRIBUTION_RECOMMENDATION.md)
+  - Policy pack layout: [POLICY_PACK_LAYOUT.md](docs/technical/POLICY_PACK_LAYOUT.md)
+  - Documentation governance: [DOCS_GOVERNANCE.md](docs/meta/DOCS_GOVERNANCE.md)
+  - Surface classification: [SURFACE_SCOPE.md](docs/technical/SURFACE_SCOPE.md)
+  - Decision registry: [DECISION_REGISTRY.yaml](docs/meta/DECISION_REGISTRY.yaml)
+  - Release evidence: [PYPI_RELEASE_RUNBOOK.md](docs/meta/PYPI_RELEASE_RUNBOOK.md),
+    [INSTALL_SMOKE_MATRIX.md](docs/meta/INSTALL_SMOKE_MATRIX.md),
+    [RELEASE_CHECKLIST.md](docs/meta/RELEASE_CHECKLIST.md), and
+    [release-evidence.json](docs/meta/release-evidence.json).
+
+Launch copy remains REST/OpenAPI + QAnstitution + Hurl + CI reports; optional
+surfaces are clearly marked and documented in [SURFACE_SCOPE.md](docs/technical/SURFACE_SCOPE.md).
+
+advanced examples remain documented for maintainers in the vault index, including
+[examples/support-api](examples/support-api/README.md).
 
 The public docs site is generated by `mkdocs.yml`; CI runs a strict docs build
 on pull requests, and GitHub Pages publishes `main` to
@@ -471,6 +474,7 @@ docs/user/             User guide, flows, and use cases
 docs/evolution/        Timeline, requirements analysis, and creator intent
 docs/architecture/     Architecture, diagrams, and development guide
 docs/meta/             Obsidian onboarding, progress, and project operations
+docs/technical/SURFACE_SCOPE.md  Feature-surface classification for launch scope
 examples/              Minimal fixtures for onboarding and tests
 decisions/             ADRs for durable product decisions
 sources/               Source-material map

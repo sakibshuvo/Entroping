@@ -122,6 +122,23 @@ def test_qanstitution_schema_contract_covers_current_runtime_shape() -> None:
         Qanstitution.model_validate({**valid_policy, "redaction": {"headers": []}})
 
 
+def test_qanstitution_model_accepts_supported_version_marker() -> None:
+    Qanstitution.model_validate(
+        {
+            "project": "checkout-api",
+            "version": "4.1",
+            "gates": [
+                {
+                    "id": "versioned",
+                    "condition": "true",
+                    "gate": "duration < 500",
+                    "enforcement": "block",
+                }
+            ],
+        }
+    )
+
+
 def test_qanstitution_model_expands_gate_group_references() -> None:
     law = Qanstitution.model_validate(
         {
@@ -143,6 +160,32 @@ def test_qanstitution_model_expands_gate_group_references() -> None:
     )
 
     assert [gate.id for gate in law.gates] == ["smoke_latency"]
+
+
+@pytest.mark.parametrize(
+    ("version", "message"),
+    [
+        ("", "must not be empty"),
+        ("4.0", "Unsupported QAnstitution version"),
+        ("5.0", "Unsupported QAnstitution version"),
+    ],
+)
+def test_qanstitution_model_rejects_invalid_version_markers(version: str, message: str) -> None:
+    with pytest.raises(ValidationError, match=message):
+        Qanstitution.model_validate(
+            {
+                "project": "checkout-api",
+                "version": version,
+                "gates": [
+                    {
+                        "id": "versioned",
+                        "condition": "true",
+                        "gate": "duration < 500",
+                        "enforcement": "block",
+                    }
+                ],
+            }
+        )
 
 
 def test_qanstitution_model_rejects_malformed_known_failure_expiry() -> None:

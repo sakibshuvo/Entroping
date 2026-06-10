@@ -19,6 +19,11 @@ Enforcement = Literal["block", "warn", "audit_only"]
 AgentRole = Literal["builder", "auditor", "breaker"]
 _ENV_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _KNOWN_FAILURE_EXPIRY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_SUPPORTED_QANSTITUTION_VERSIONS: tuple[str, ...] = ("4.1",)
+_QANSTITUTION_VERSION_MIGRATION_NOTE = (
+    "Update to a supported QAnstitution version and follow the migration guidance in "
+    "docs/technical/QANSTITUTION_REFERENCE.md#qanstitution-schema-compatibility."
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -312,6 +317,32 @@ class Qanstitution(BaseModel):
         normalized: dict[str, object] = dict(data)
         expanded = expand_qanstitution_gate_entries(data)
         normalized["gates"] = [entry.rule for entry in expanded]
+        return normalized
+
+    @field_validator("version")
+    @classmethod
+    def validate_version(cls, value: str | None) -> str | None:
+        """Validate optional policy version against supported schema versions."""
+
+        if value is None:
+            return None
+
+        normalized = value.strip()
+        if not normalized:
+            msg = (
+                "QAnstitution version must not be empty. "
+                f"{_QANSTITUTION_VERSION_MIGRATION_NOTE}"
+            )
+            raise ValueError(msg)
+
+        if normalized not in _SUPPORTED_QANSTITUTION_VERSIONS:
+            msg = (
+                f"Unsupported QAnstitution version {normalized!r}. "
+                f"Supported versions: {', '.join(_SUPPORTED_QANSTITUTION_VERSIONS)}. "
+                f"{_QANSTITUTION_VERSION_MIGRATION_NOTE}"
+            )
+            raise ValueError(msg)
+
         return normalized
 
 

@@ -193,6 +193,10 @@ release marker, and not the JSON Schema `$id`.
 
 Current compatibility rules:
 
+- Supported version markers for v4.1 are `4.1` and absence of `version` for
+  existing legacy files.
+- Any non-empty `version` not in the supported set is rejected during config load
+  and `entroping doctor` with a migration-focused error message.
 - Unknown top-level fields continue to fail validation through the Pydantic
   model and checked-in JSON Schema.
 - Additive optional fields can stay within the current policy shape when they

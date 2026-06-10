@@ -301,6 +301,24 @@ def test_load_qanstitution_rejects_missing_root_file(tmp_path: Path) -> None:
         load_qanstitution(tmp_path / "missing.yaml")
 
 
+def test_load_qanstitution_rejects_unsupported_version(tmp_path: Path) -> None:
+    write_yaml(
+        tmp_path / "qanstitution.yaml",
+        """
+project: checkout-api
+version: "5.0"
+gates:
+  - id: versioned
+    condition: "true"
+    gate: duration < 500
+    enforcement: block
+""",
+    )
+
+    with pytest.raises(QanstitutionLoadError, match="Unsupported QAnstitution version"):
+        load_qanstitution(tmp_path / "qanstitution.yaml")
+
+
 def test_load_qanstitution_rejects_import_cycles(tmp_path: Path) -> None:
     write_yaml(
         tmp_path / "a.yaml",

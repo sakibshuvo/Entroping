@@ -34,8 +34,7 @@ Start here:
 ## How This Site Fits
 
 This site is the public reading path generated from the repository's Markdown.
-It should help new users learn and evaluate Entroping without opening the
-Obsidian vault.
+It is optimized for first-hour users; Obsidian remains a separate context layer.
 
 - README sells and orients.
 - MkDocs is the public reading path.
@@ -43,6 +42,7 @@ Obsidian vault.
 - `ROADMAP.md` sequences releases.
 - `docs/meta/VAULT_INDEX.md` maps the Obsidian vault.
 - `docs/meta/DOCS_GOVERNANCE.md` defines update rules.
+- `docs/technical/SURFACE_SCOPE.md` clarifies what is core, advanced, or optional.
 
 ## Project Context
 
@@ -52,6 +52,7 @@ Use [Technical Design](technical/TDS.md),
 [Threat Model](technical/THREAT_MODEL.md),
 [CLI Compatibility Audit](technical/CLI_COMPATIBILITY_AUDIT.md),
 [Command Cheat Sheet](technical/COMMAND_CHEAT_SHEET.md),
+[Surface Scope Policy](technical/SURFACE_SCOPE.md),
 [Studio Mutation Workflow Design](technical/STUDIO_MUTATION_WORKFLOW_DESIGN.md),
 [Python Compatibility](technical/PYTHON_COMPATIBILITY.md),
 [Release Evidence](meta/RELEASE_EVIDENCE.md),
