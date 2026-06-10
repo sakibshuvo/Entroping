@@ -93,6 +93,8 @@ The launcher:
 - Saves a prompt under `.entroping/session-prompts/` in the worktree.
 - Best-effort moves the issue to `status:in-progress`, adds missing issues to
   the GitHub Project board, and moves the project item to `In Progress`.
+  Project item lookup is retried briefly after add because GitHub Project
+  updates can be eventually consistent.
 
 Do not use this script to bypass planning. The generated prompt still requires `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, tests, regression checks, security review where relevant, and docs/context updates before merge.
 
@@ -117,6 +119,8 @@ The finish script:
   after those checks pass.
 - Best-effort removes active status labels, adds missing issues to the GitHub
   Project board, and moves the project item to `Done`.
+  Project item lookup is retried briefly after add because GitHub Project
+  updates can be eventually consistent.
 
 Use `--dry-run` first when cleaning up a batch of sessions.
 

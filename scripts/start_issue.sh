@@ -76,6 +76,38 @@ raise SystemExit(1)
 ' "$issue_number"
 }
 
+retry_project_item_id() {
+  local project_number="$1"
+  local project_owner="$2"
+  local issue_number="$3"
+  local attempts="${ENTROPING_PROJECT_ITEM_LOOKUP_RETRIES:-3}"
+  local delay_seconds="${ENTROPING_PROJECT_ITEM_LOOKUP_RETRY_DELAY_SECONDS:-1}"
+  local attempt
+  local items_json
+  local item_id
+
+  if [[ ! "$attempts" =~ ^[1-9][0-9]*$ ]]; then
+    attempts="3"
+  fi
+  if [[ ! "$delay_seconds" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    delay_seconds="1"
+  fi
+
+  for ((attempt = 1; attempt <= attempts; attempt++)); do
+    if ! items_json=$(gh project item-list "$project_number" --owner "$project_owner" --limit 200 --format json 2>/dev/null); then
+      return 2
+    fi
+    if item_id=$(json_project_item_id "$items_json" "$issue_number"); then
+      printf '%s\n' "$item_id"
+      return 0
+    fi
+    if ((attempt < attempts)); then
+      sleep "$delay_seconds"
+    fi
+  done
+  return 1
+}
+
 render_prompt() {
   (
     cd "$repo_root"
@@ -107,6 +139,7 @@ update_issue_tracking() {
   local in_progress_option_id
   local items_json
   local item_id
+  local item_lookup_status
 
   if ! project_json=$(gh project view "$project_number" --owner "$project_owner" --format json 2>/dev/null); then
     warn "could not read GitHub Project board; worktree was still created"
@@ -134,11 +167,14 @@ update_issue_tracking() {
       warn "issue #$issue_number is not on the GitHub Project board and could not be added"
       return 0
     fi
-    if ! items_json=$(gh project item-list "$project_number" --owner "$project_owner" --limit 200 --format json 2>/dev/null); then
+    item_lookup_status=0
+    item_id=$(retry_project_item_id "$project_number" "$project_owner" "$issue_number") \
+      || item_lookup_status=$?
+    if [[ "$item_lookup_status" == "2" ]]; then
       warn "added issue #$issue_number to the GitHub Project board but could not reread items"
       return 0
     fi
-    if ! item_id=$(json_project_item_id "$items_json" "$issue_number"); then
+    if [[ "$item_lookup_status" != "0" ]]; then
       warn "added issue #$issue_number to the GitHub Project board but could not find the item"
       return 0
     fi
