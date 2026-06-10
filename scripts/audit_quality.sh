@@ -18,7 +18,7 @@ Checks:
 
 Environment thresholds:
   ENTROPING_COVERAGE_FAIL_UNDER  Minimum total coverage. Default: 100.
-  ENTROPING_MAX_COMPLEXITY_RANK  Highest allowed Radon CC rank. Default: E.
+  ENTROPING_MAX_COMPLEXITY_RANK  Highest allowed Radon CC rank. Default: D.
   ENTROPING_MIN_MI_RANK          Lowest allowed Radon MI rank. Default: C.
   ENTROPING_VULTURE_CONFIDENCE   Vulture minimum confidence. Default: 90.
 
@@ -49,7 +49,7 @@ while (($#)); do
 done
 
 coverage_fail_under="${ENTROPING_COVERAGE_FAIL_UNDER:-100}"
-max_complexity_rank="${ENTROPING_MAX_COMPLEXITY_RANK:-E}"
+max_complexity_rank="${ENTROPING_MAX_COMPLEXITY_RANK:-D}"
 min_mi_rank="${ENTROPING_MIN_MI_RANK:-C}"
 vulture_confidence="${ENTROPING_VULTURE_CONFIDENCE:-90}"
 

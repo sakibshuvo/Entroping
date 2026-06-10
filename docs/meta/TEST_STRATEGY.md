@@ -87,6 +87,8 @@ The quality audit is intentionally heavier than `scripts/regression.sh`. It
 runs the full test suite with a default 100 percent coverage threshold, records
 ignored JSON audit artifacts under `reports/`, then checks Radon complexity,
 Radon maintainability, and Vulture dead-code discovery.
+The default Radon cyclomatic-complexity ceiling is rank D; any rank E or F block
+must be refactored or explicitly justified before release-hardening claims.
 
 Performance smoke:
 

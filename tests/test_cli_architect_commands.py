@@ -29,6 +29,53 @@ def _agent_run_manifest_payloads() -> list[dict[str, object]]:
     ]
 
 
+def _assert_builder_prompt_package(package: ArchitectPromptPackage) -> None:
+    assert package.role == "builder"
+    assert package.model == "openai/gpt-4.1-mini"
+    assert package.input_cost_per_1m_tokens_usd == 0.25
+    assert package.output_cost_per_1m_tokens_usd == 1.25
+    assert package.temperature == 0.1
+    assert "Build minimal checkout Hurl tests." in package.messages[0].content
+    assert "global_latency" in package.messages[0].content
+    assert "Generate checkout smoke coverage." in package.messages[1].content
+    assert "Requested Entroping tags: ai" in package.messages[1].content
+
+
+def _assert_ai_checkout_hurl_output() -> None:
+    output_path = Path("tests/generated/ai_checkout.hurl")
+    assert output_path.is_file()
+    assert output_path.read_text(encoding="utf-8") == (
+        "# entroping: source=architect\n"
+        "# entroping: tags=ai\n"
+        "POST {{base_url}}/checkout\n"
+        "HTTP 201\n"
+    )
+
+
+def _assert_builder_agent_manifest(manifest: dict[str, object]) -> None:
+    assert manifest["schema_version"] == "entroping.agent-run-manifest.v1"
+    assert manifest["command"] == "architect build"
+    assert manifest["mode"] == "create"
+    assert manifest["agent"] == "builder"
+    assert manifest["model"] == "openai/gpt-4.1-mini"
+    assert manifest["provider"] == "openai"
+    assert manifest["cost"] == {
+        "estimated_usd": 0.000042,
+        "input_cost_per_1m_tokens_usd": 0.25,
+        "output_cost_per_1m_tokens_usd": 1.25,
+    }
+    assert manifest["output_paths"] == ["tests/generated/ai_checkout.hurl"]
+    assert manifest["tags"] == ["ai"]
+    assert manifest["validation"] == {
+        "hurl_validated": True,
+        "status": "passed",
+        "structured_output_validated": True,
+    }
+    raw_manifest = json.dumps(manifest, sort_keys=True)
+    assert "Generate checkout smoke coverage." not in raw_manifest
+    assert "Build minimal checkout Hurl tests." not in raw_manifest
+
+
 def test_architect_build_new_generates_hurl_from_configured_openapi(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -634,47 +681,11 @@ gates:
     assert "Provider: openai" in result.output
     assert "Estimated cost: $0.000042" in result.output
     assert packages
-    assert packages[0].role == "builder"
-    assert packages[0].model == "openai/gpt-4.1-mini"
-    assert packages[0].input_cost_per_1m_tokens_usd == 0.25
-    assert packages[0].output_cost_per_1m_tokens_usd == 1.25
-    assert packages[0].temperature == 0.1
-    assert "Build minimal checkout Hurl tests." in packages[0].messages[0].content
-    assert "global_latency" in packages[0].messages[0].content
-    assert "Generate checkout smoke coverage." in packages[0].messages[1].content
-    assert "Requested Entroping tags: ai" in packages[0].messages[1].content
-    output_path = Path("tests/generated/ai_checkout.hurl")
-    assert output_path.is_file()
-    assert output_path.read_text(encoding="utf-8") == (
-        "# entroping: source=architect\n"
-        "# entroping: tags=ai\n"
-        "POST {{base_url}}/checkout\n"
-        "HTTP 201\n"
-    )
+    _assert_builder_prompt_package(packages[0])
+    _assert_ai_checkout_hurl_output()
     manifests = _agent_run_manifest_payloads()
     assert len(manifests) == 1
-    manifest = manifests[0]
-    assert manifest["schema_version"] == "entroping.agent-run-manifest.v1"
-    assert manifest["command"] == "architect build"
-    assert manifest["mode"] == "create"
-    assert manifest["agent"] == "builder"
-    assert manifest["model"] == "openai/gpt-4.1-mini"
-    assert manifest["provider"] == "openai"
-    assert manifest["cost"] == {
-        "estimated_usd": 0.000042,
-        "input_cost_per_1m_tokens_usd": 0.25,
-        "output_cost_per_1m_tokens_usd": 1.25,
-    }
-    assert manifest["output_paths"] == ["tests/generated/ai_checkout.hurl"]
-    assert manifest["tags"] == ["ai"]
-    assert manifest["validation"] == {
-        "hurl_validated": True,
-        "status": "passed",
-        "structured_output_validated": True,
-    }
-    raw_manifest = json.dumps(manifest, sort_keys=True)
-    assert "Generate checkout smoke coverage." not in raw_manifest
-    assert "Build minimal checkout Hurl tests." not in raw_manifest
+    _assert_builder_agent_manifest(manifests[0])
 
 
 def test_architect_build_prompt_can_use_breaker_agent(
