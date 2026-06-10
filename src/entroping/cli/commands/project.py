@@ -66,8 +66,8 @@ _DOCTOR_OUTPUTS = frozenset({"text", "json"})
 
 
 def register_project_commands(root_app: typer.Typer) -> None:
-    root_app.command()(init)
-    root_app.command()(doctor)
+    root_app.command(rich_help_panel="Core Workflow")(init)
+    root_app.command(rich_help_panel="Core Workflow")(doctor)
 
 
 def init(

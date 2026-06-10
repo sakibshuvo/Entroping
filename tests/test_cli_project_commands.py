@@ -35,13 +35,26 @@ def _fake_hurl_status(
     )
 
 
-def test_root_help_includes_locked_commands() -> None:
+def test_root_help_groups_locked_commands_by_first_contact_workflow() -> None:
     result = CliRunner().invoke(app, ["--help"])
 
     assert result.exit_code == 0
-    assert "architect" in result.output
-    assert "doctor" in result.output
-    assert "run" in result.output
+    assert "Core Workflow" in result.output
+    assert "Traffic Observation" in result.output
+    assert "Advanced And Evidence" in result.output
+    for command in (
+        "init",
+        "doctor",
+        "architect",
+        "run",
+        "watch",
+        "freeze",
+        "map",
+        "report",
+        "config",
+        "studio",
+    ):
+        assert command in result.output
 
 
 def test_version_flag() -> None:
