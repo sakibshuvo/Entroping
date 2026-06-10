@@ -84,7 +84,8 @@ Bad evidence:
 
 ## Evidence Boundary
 
-One good report can reduce the real-user-feedback blocker, but it does not
-replace package-index proof, compatibility discipline, repeated release
-evidence, security review, or full regression coverage. Treat downstream
-feedback as product evidence, not as a release gate bypass.
+One good report can reduce the real downstream user feedback blocker, but it
+does not replace package-index proof, the stable-core compatibility decision,
+reviewed release-evidence ledger entries, security review, or full regression
+coverage. Treat downstream feedback as product evidence, not as a release gate
+bypass.

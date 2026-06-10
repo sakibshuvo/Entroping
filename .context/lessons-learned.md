@@ -157,8 +157,9 @@
   a deterministic reason to stop when adding dependencies.
 - Stable-core readiness is a separate artifact from alpha test success. Green
   tests can prove the current implementation, while a readiness report should
-  keep repeated releases, package-index proof, compatibility discipline, and
-  user feedback visible as blockers.
+  keep package-index proof, the stable-core compatibility decision, and real
+  downstream user feedback visible as blockers. Repeated alpha release evidence
+  belongs in the release-evidence ledger instead of the unresolved blocker list.
 - Backlog hygiene needs a script because marathon sessions create many issues
   quickly. Labels and milestones are the minimum context that lets fresh agents
   continue without reopening old chat history.

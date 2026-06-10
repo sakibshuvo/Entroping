@@ -453,7 +453,8 @@ gates report the same unresolved stable-core requirements.
 Issue #307 records a repeated alpha release-candidate rehearsal in the
 release-evidence ledger, including reviewed CI/Pages run IDs and a passing
 `scripts/release_check.sh --require-live-demo` gate, without treating it as
-package-index proof, compatibility discipline, or real downstream feedback.
+package-index proof, a stable-core compatibility decision, or real downstream
+user feedback.
 Issue #313 adds a local wheel install smoke that installs the built artifact
 into a temporary venv and runs only installed public CLI commands without
 depending on TestPyPI, PyPI, or registry credentials.
@@ -674,8 +675,8 @@ Implemented boundaries:
 - Tests assert that blocker names cannot drift away from the map, and that the
   stable-core blockers still resolve to the intended issue clusters.
 - The readiness result remains blocked until package-index proof,
-  compatibility discipline, and real downstream feedback are actually
-  available.
+  stable-core compatibility decision, and real downstream user feedback are
+  actually available.
 
 ## Completed Slice: Issue #307 Repeated Alpha Release Evidence
 
@@ -692,8 +693,8 @@ Implemented boundaries:
   notes, and alpha/stable-core boundary language.
 - `scripts/stable_core_readiness.py` and `scripts/launch_readiness.py` no
   longer report repeated release evidence as an unresolved blocker.
-- Stable-core remains false until package-index proof, compatibility
-  discipline, and real downstream user feedback exist.
+- Stable-core remains false until package-index proof, stable-core
+  compatibility decision, and real downstream user feedback exist.
 
 ## Completed Slice: Issue #315 Release Evidence Freshness Check
 

@@ -2,6 +2,8 @@
 
 ## 2026-06-10
 
+- Aligned issue #509's roadmap and maintainer-context stable-core blocker
+  wording with the canonical blocker names from the release-evidence ledger.
 - Aligned issue #507's launch-readiness stable-core blocker wording with the
   canonical stable-core readiness blocker names so alpha launch output can be
   compared directly to stable-core evidence.
@@ -417,7 +419,7 @@
   records `v0.1.2-alpha-rc.1` local release-candidate rehearsal proof with
   reviewed CI/Pages run IDs and a passing `scripts/release_check.sh
   --require-live-demo` gate, while stable-core remains blocked by package-index
-  proof, compatibility discipline, and real downstream user feedback.
+  proof, stable-core compatibility decision, and real downstream user feedback.
 - Added issue #312's policy-pack distribution decision so packs have a
   local-first path for versioning, distribution, import verification,
   provenance, attribution, open-core/premium boundaries, minimum smoke evidence,
@@ -452,8 +454,8 @@
   from a temporary project, and emit machine-readable evidence without
   PyPI/TestPyPI or network registry access.
 - Aligned issue #301's release-evidence blocker list with stable-core
-  readiness so package-index proof, real downstream feedback, and compatibility
-  decision remain consistent across both gates.
+  readiness so package-index proof, real downstream user feedback, and the
+  stable-core compatibility decision remain consistent across both gates.
 - Expanded issue #299's release-evidence validator so Pages CI and local
   downstream smoke evidence are strict ledger fields, while the ledger still
   states that stable-core remains blocked by package-index proof,
