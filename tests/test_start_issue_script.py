@@ -210,7 +210,16 @@ def test_start_issue_adds_missing_issue_to_project_before_marking_in_progress(
         "fi\n"
         "if [[ \"$1 $2\" == \"project item-list\" ]]; then\n"
         "  if [[ -f \"$state_dir/project-added\" ]]; then\n"
-        "    printf '%s\\n' '{\"items\":[{\"id\":\"item-id\",\"content\":{\"number\":99}}]}'\n"
+        "    count_file=\"$state_dir/item-list-after-add-count\"\n"
+        "    count=0\n"
+        "    [[ -f \"$count_file\" ]] && count=$(cat \"$count_file\")\n"
+        "    count=$((count + 1))\n"
+        "    printf '%s\\n' \"$count\" > \"$count_file\"\n"
+        "    if ((count >= 2)); then\n"
+        "      printf '%s\\n' '{\"items\":[{\"id\":\"item-id\",\"content\":{\"number\":99}}]}'\n"
+        "    else\n"
+        "      printf '%s\\n' '{\"items\":[]}'\n"
+        "    fi\n"
         "  else\n"
         "    printf '%s\\n' '{\"items\":[]}'\n"
         "  fi\n"
@@ -236,6 +245,7 @@ def test_start_issue_adds_missing_issue_to_project_before_marking_in_progress(
     env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
     env["FAKE_GH_STATE"] = str(fake_state)
     env["ENTROPING_WORKTREE_PARENT"] = str(worktree_parent)
+    env["ENTROPING_PROJECT_ITEM_LOOKUP_RETRY_DELAY_SECONDS"] = "0"
 
     result = subprocess.run(
         [str(START_ISSUE_SCRIPT), "99", "feat/project-add"],

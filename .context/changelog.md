@@ -727,3 +727,6 @@
 - Added issue #534's `finish_issue.sh` project-board recovery path so missing
   completed issues are best-effort added to the GitHub Project before being
   moved to `Done`.
+- Added issue #536's bounded Project item lookup retry after add for both
+  `start_issue.sh` and `finish_issue.sh` to absorb GitHub Project eventual
+  consistency.
