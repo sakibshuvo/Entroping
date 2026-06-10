@@ -50,3 +50,10 @@ def test_feature_gate_runs_shell_quality_before_python_checks() -> None:
 
     assert "scripts/shell_quality.sh" in feature_gate
     assert feature_gate.index("scripts/shell_quality.sh") < feature_gate.index("scripts/check.sh")
+
+
+def test_local_gate_scripts_disable_python_bytecode_noise() -> None:
+    for script_name in ("check.sh", "feature_gate.sh", "regression.sh"):
+        script = (REPO_ROOT / "scripts" / script_name).read_text(encoding="utf-8")
+
+        assert "export PYTHONDONTWRITEBYTECODE=1" in script

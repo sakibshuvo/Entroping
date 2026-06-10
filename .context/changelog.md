@@ -2,6 +2,10 @@
 
 ## 2026-06-10
 
+- Added issue #540's bytecode-free local gate setting so `scripts/check.sh`,
+  `scripts/feature_gate.sh`, and `scripts/regression.sh` run with
+  `PYTHONDONTWRITEBYTECODE=1`, reducing ignored `__pycache__` noise during
+  repeated agent verification loops without changing product runtime behavior.
 - Added issue #538's GitHub Project GraphQL quota preflight so
   `scripts/start_issue.sh` and `scripts/finish_issue.sh` skip only
   Project-board updates when quota is exhausted or below the configured local
