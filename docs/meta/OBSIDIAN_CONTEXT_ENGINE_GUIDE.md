@@ -12,7 +12,7 @@ tags:
 
 The historical strategy content was moved to:
 
-- [`docs/meta/archive/OBSIDIAN_CONTEXT_ENGINE_GUIDE.md`](docs/meta/archive/OBSIDIAN_CONTEXT_ENGINE_GUIDE.md)
+- [`docs/meta/archive/OBSIDIAN_CONTEXT_ENGINE_GUIDE.md`](archive/OBSIDIAN_CONTEXT_ENGINE_GUIDE.md)
 
 ## Start Analyzing And Evolving
 

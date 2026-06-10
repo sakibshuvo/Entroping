@@ -616,7 +616,8 @@ WireMock; it does not become the mock server itself.
 `freeze` and `freeze --mock` write review manifests under `reports/approvals/`.
 The manifest uses schema `entroping.traffic-artifact-approval.v1` and records
 generated artifact paths, SHA-256 checksums, deterministic source session
-fingerprints, source record fingerprints, and counts-only redaction summaries.
+fingerprints, source record fingerprints, and counts-only redaction summaries,
+including low-confidence record counts.
 It must not store raw traffic state, URLs, headers, query values, request or
 response bodies, local env files, generated artifact contents, provider
 credentials, or approval decisions.

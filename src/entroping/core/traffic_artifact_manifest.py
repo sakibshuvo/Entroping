@@ -157,6 +157,7 @@ def _redaction_payload(report: RedactionReviewReport) -> dict[str, object]:
         "total_records": report.total_records,
         "redacted_records": report.redacted_records,
         "unredacted_records": report.unredacted_records,
+        "low_confidence_records": report.low_confidence_records,
         "request_count": report.request_count,
         "response_count": report.response_count,
         "header_categories": _category_payload(report.header_categories),

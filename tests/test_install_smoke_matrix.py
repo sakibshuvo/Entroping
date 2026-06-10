@@ -23,6 +23,9 @@ def test_ci_defines_cross_platform_install_smoke_matrix() -> None:
     assert os_entries["windows-latest"]["hurl_mode"] == "doctor-only"
 
     run_blocks = "\n".join(str(step.get("run", "")) for step in job["steps"])
+    verify_steps = [
+        step for step in job["steps"] if step.get("name") == "Verify Hurl formatters are available"
+    ]
     assert "uv tool install . --force" in run_blocks
     assert "uv tool dir --bin" in run_blocks
     assert "entroping --version" in run_blocks
@@ -30,6 +33,13 @@ def test_ci_defines_cross_platform_install_smoke_matrix() -> None:
     assert "entroping doctor" in run_blocks
     assert "brew install hurl" in run_blocks
     assert "HURL_SHA256" in run_blocks
+    assert verify_steps == [
+        {
+            "name": "Verify Hurl formatters are available",
+            "if": "matrix.hurl_mode != 'doctor-only'",
+            "run": "command -v hurl\ncommand -v hurlfmt\nhurlfmt --version\n",
+        }
+    ]
 
 
 def test_install_smoke_matrix_doc_matches_ci_and_support_claims() -> None:

@@ -52,6 +52,7 @@ def test_write_traffic_artifact_approval_manifest_is_value_free_and_deterministi
             "total_records": 1,
             "redacted_records": 1,
             "unredacted_records": 0,
+            "low_confidence_records": 0,
             "request_count": 1,
             "response_count": 1,
             "header_categories": [
