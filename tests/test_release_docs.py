@@ -1,5 +1,6 @@
 """Release-readiness documentation guardrails."""
 
+import json
 import tomllib
 from pathlib import Path
 
@@ -94,6 +95,25 @@ def test_roadmap_separates_direction_sequence_and_external_blockers() -> None:
     assert "real downstream user feedback" in stable_core_blockers
     assert "provider-specific CI templates" in stable_core_blockers
     assert "repeated release evidence" not in stable_core_blockers
+
+
+def test_roadmap_stable_core_summary_uses_canonical_blocker_names() -> None:
+    roadmap = (REPO_ROOT / "ROADMAP.md").read_text(encoding="utf-8")
+    release_evidence = json.loads(
+        (REPO_ROOT / "docs" / "meta" / "release-evidence.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    stable_core_summary = roadmap.split("## Future: v1.0 Stable Core", maxsplit=1)[
+        1
+    ].split("## Open-Core Path", maxsplit=1)[0]
+    normalized_summary = " ".join(stable_core_summary.split())
+
+    for blocker in release_evidence["stable_core_blockers"]:
+        assert blocker in normalized_summary
+
+    assert "compatibility discipline" not in normalized_summary
+    assert "real-user feedback" not in normalized_summary
 
 
 def test_doc_governance_blocks_strategy_doc_sprawl() -> None:
