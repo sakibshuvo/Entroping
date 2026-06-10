@@ -168,7 +168,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - uses: astral-sh/setup-uv@v8.1.0
+      - uses: astral-sh/setup-uv@v8.2.0
       - run: uv sync --dev
       - run: scripts/regression.sh --security
       - run: scripts/package_check.sh

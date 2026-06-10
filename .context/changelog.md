@@ -2,6 +2,9 @@
 
 ## 2026-06-10
 
+- Updated the GitHub Actions `astral-sh/setup-uv` pin from `v8.1.0` to
+  `v8.2.0` across CI, Pages, publish workflows, downstream starter templates,
+  release runbook examples, and workflow guard tests.
 - Refreshed issue #501's daily project dashboard so
   `docs/meta/PROJECT_PROGRESS.md` no longer points agents at the closed #491
   queue, shows #499's traffic approval manifest redaction-confidence evidence,

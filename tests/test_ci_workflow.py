@@ -63,7 +63,7 @@ def test_ci_workflow_runs_live_demo_smoke_with_pinned_hurl() -> None:
     workflow_text = _WORKFLOW_PATH.read_text(encoding="utf-8")
     assert "actions/checkout@v6" in workflow_text
     assert "actions/setup-python@v6" in workflow_text
-    assert "astral-sh/setup-uv@v8.1.0" in workflow_text
+    assert "astral-sh/setup-uv@v8.2.0" in workflow_text
     assert "actions/upload-artifact@v7" in workflow_text
 
 
@@ -92,7 +92,7 @@ def test_ci_workflow_runs_strict_public_docs_build() -> None:
     assert "uvx --with 'mkdocs-material==9.*' mkdocs build --strict" in run_blocks
     assert any(step.get("uses") == "actions/checkout@v6" for step in steps)
     assert any(step.get("uses") == "actions/setup-python@v6" for step in steps)
-    assert any(step.get("uses") == "astral-sh/setup-uv@v8.1.0" for step in steps)
+    assert any(step.get("uses") == "astral-sh/setup-uv@v8.2.0" for step in steps)
 
 
 def test_optional_extras_smoke_script_exercises_optional_runtime_boundaries() -> None:
