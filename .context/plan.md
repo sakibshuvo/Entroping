@@ -86,6 +86,10 @@ project, and a Codex workspace with fast context rehydration.
   `.entroping/agent-runs/*.json` evidence for configured Builder, Breaker, and
   Auditor roles, reports missing/invalid/conflicting role evidence as review
   findings, and does not call providers, Hurl, or `entroping run`.
+- `entroping report policy-diff --base <path> --current <path> --output md|json`
+  compares two existing effective-policy JSON artifacts and emits
+  schema-versioned import and gate deltas without loading policy files, fetching
+  registries, calling providers, executing Hurl, or failing valid changed diffs.
 - Traffic-derived written artifacts from `freeze`, `freeze --mock`, and
   `map --export png` now get value-free approval manifests under
   `reports/approvals/` with generated paths, checksums, deterministic source

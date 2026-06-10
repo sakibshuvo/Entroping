@@ -2,6 +2,10 @@
 
 ## 2026-06-09
 
+- Report-to-report comparison commands should read already-produced evidence
+  artifacts, not re-evaluate source configuration. That keeps review diffs
+  reproducible and avoids turning reporting commands into hidden execution
+  paths.
 - Dry-run execution plans need a separate artifact contract from executed run
   reports. They can preview selected tests, gate injection, variable gaps, and
   report destinations, but must stop before Hurl, event logs, latest-run state,
