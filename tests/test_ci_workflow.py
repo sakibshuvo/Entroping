@@ -57,6 +57,7 @@ def test_ci_workflow_runs_live_demo_smoke_with_pinned_hurl() -> None:
     assert "for attempt in 1 2 3" in run_blocks
     assert "sleep $((attempt * 2))" in run_blocks
     assert 'download_with_retry "$base_url/$archive" "$RUNNER_TEMP/$archive"' in run_blocks
+    assert 'export PATH="$hurl_bin:$PATH"' in run_blocks
     assert "$archive.sha256" not in run_blocks
     assert "scripts/live_demo_smoke.sh" in run_blocks
     workflow_text = _WORKFLOW_PATH.read_text(encoding="utf-8")

@@ -12,7 +12,7 @@ tags:
 
 The historical operational plan was moved to:
 
-- [`docs/meta/archive/AUTONOMOUS_DEVELOPMENT.md`](docs/meta/archive/AUTONOMOUS_DEVELOPMENT.md)
+- [`docs/meta/archive/AUTONOMOUS_DEVELOPMENT.md`](archive/AUTONOMOUS_DEVELOPMENT.md)
 
 Use the current workflow in:
 

@@ -2,6 +2,11 @@
 
 ## 2026-06-10
 
+- Added issue #499's approval-manifest redaction confidence field so
+  `reports/approvals/*.json` now records `low_confidence_records` alongside
+  other counts-only redaction evidence and the published schema requires the
+  field. The same PR repaired strict-doc archive links and kept CI's Hurl
+  formatter checks aligned with the Windows doctor-only install-smoke claim.
 - Fixed issue #495's redaction-confidence boundary so captured traffic now
   records low/high redaction confidence, malformed JSON and unknown textual
   payloads remain locally usable but low-confidence, redaction reports expose
