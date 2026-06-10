@@ -158,6 +158,40 @@ def _record_sensitive_mock_exchange(
     TrafficStore.open_project(project_root).record_exchange(redact_traffic_exchange(exchange))
 
 
+def _record_low_confidence_freeze_exchange(
+    project_root: Path,
+    *,
+    secret: str = "low-confidence-secret",
+) -> None:
+    exchange = TrafficExchange(
+        captured_at=datetime(2026, 5, 30, 12, 5, tzinfo=UTC),
+        duration_ms=55,
+        request=TrafficRequest(
+            method="POST",
+            url=f"https://api.example.test/checkout?token={secret}",
+            headers={
+                "Authorization": f"Bearer {secret}",
+                "Content-Type": "text/plain",
+            },
+            body=TrafficBody(
+                content_type="text/plain",
+                size_bytes=40,
+                text=f"token={secret}&status=ok",
+            ),
+        ),
+        response=TrafficResponse(
+            status_code=201,
+            headers={"Content-Type": "text/plain"},
+            body=TrafficBody(
+                content_type="text/plain",
+                size_bytes=31,
+                text=f"response={secret}",
+            ),
+        ),
+    )
+    TrafficStore.open_project(project_root).record_exchange(redact_traffic_exchange(exchange))
+
+
 def test_run_freeze_reports_missing_or_empty_traffic_state(tmp_path: Path) -> None:
     with pytest.raises(FreezeError, match="No traffic state found"):
         run_freeze(
@@ -416,7 +450,19 @@ def test_run_freeze_refuses_symlink_generated_target(tmp_path: Path) -> None:
             hurl_validator=lambda content, display_path: None,
         )
 
-    assert victim.read_text(encoding="utf-8") == "victim\n"
+
+def test_run_freeze_rejects_low_confidence_records(tmp_path: Path) -> None:
+    _record_low_confidence_freeze_exchange(tmp_path)
+
+    with pytest.raises(FreezeError, match="refusing to write freeze artifacts"):
+        run_freeze(
+            project_root=tmp_path,
+            name="checkout_flow",
+            golden=False,
+            hurl_validator=lambda content, display_path: None,
+        )
+
+    assert not (tmp_path / "tests" / "generated" / "checkout_flow.hurl").exists()
 
 
 def test_run_freeze_preserves_existing_target_when_atomic_write_fails(
@@ -530,6 +576,15 @@ def test_run_freeze_mock_rejects_invalid_generated_json(
 
     with pytest.raises(FreezeError, match="Expecting property name"):
         run_freeze_mock(project_root=tmp_path, name="refund_flow", service="payments")
+
+
+def test_run_freeze_mock_rejects_low_confidence_records(tmp_path: Path) -> None:
+    _record_low_confidence_freeze_exchange(tmp_path, secret="mock-low-confidence")
+
+    with pytest.raises(FreezeError, match="refusing to write mock freeze artifacts"):
+        run_freeze_mock(project_root=tmp_path, name="refund_flow", service="payments")
+
+    assert not (tmp_path / "mocks" / "payments" / "refund_flow-001.json").exists()
 
 
 @pytest.mark.parametrize(

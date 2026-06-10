@@ -210,6 +210,7 @@ def run_freeze(
     try:
         store = TrafficStore.open_project(root)
         exchanges = _filtered_exchanges(store.list_exchanges(), capture_filters)
+        _enforce_strict_redaction_confidence(exchanges, operation="freeze")
         session = build_traffic_session_candidate(
             exchanges,
             name=freeze_name,
@@ -262,8 +263,10 @@ def run_freeze_mock(
 
     try:
         store = TrafficStore.open_project(root)
+        exchanges = _filtered_exchanges(store.list_exchanges(), capture_filters)
+        _enforce_strict_redaction_confidence(exchanges, operation="mock freeze")
         session = build_traffic_session_candidate(
-            _filtered_exchanges(store.list_exchanges(), capture_filters),
+            exchanges,
             name=freeze_name,
             target_url=None,
         )
@@ -315,7 +318,7 @@ def run_freeze_mock(
 def _filtered_exchanges(
     exchanges: tuple[TrafficExchange, ...],
     capture_filters: TrafficCaptureFilters | None,
-) -> tuple[TrafficExchange, ...]:
+    ) -> tuple[TrafficExchange, ...]:
     if capture_filters is None or not capture_filters.is_active:
         return exchanges
     filtered = filter_traffic_exchanges(exchanges, capture_filters)
@@ -323,6 +326,22 @@ def _filtered_exchanges(
         msg = "No traffic records matched capture filters."
         raise TrafficFilterError(msg)
     return filtered
+
+
+def _enforce_strict_redaction_confidence(
+    exchanges: tuple[TrafficExchange, ...],
+    *,
+    operation: str,
+) -> None:
+    low_count = sum(
+        1 for exchange in exchanges if exchange.redaction_confidence == "low"
+    )
+    if low_count:
+        msg = (
+            f"refusing to write {operation} artifacts because {low_count} record(s) "
+            "have low redaction confidence; run report redaction and review payloads"
+        )
+        raise FreezeError(msg)
 
 
 def _ensure_traffic_state(root: Path) -> None:

@@ -48,6 +48,36 @@ def _record_exchange(project_root: Path, *, secret: str = "map-secret") -> None:
     TrafficStore.open_project(project_root).record_exchange(redact_traffic_exchange(exchange))
 
 
+def _record_low_confidence_exchange(project_root: Path, *, secret: str = "low-confidence") -> None:
+    exchange = TrafficExchange(
+        captured_at=datetime(2026, 5, 30, 12, 1, tzinfo=UTC),
+        duration_ms=16,
+        request=TrafficRequest(
+            method="POST",
+            url=f"https://api.example.test/checkout?token={secret}",
+            headers={
+                "Content-Type": "text/plain",
+                "Authorization": f"Bearer {secret}",
+            },
+            body=TrafficBody(
+                content_type="text/plain",
+                size_bytes=34,
+                text=f"token={secret}",
+            ),
+        ),
+        response=TrafficResponse(
+            status_code=201,
+            headers={"Content-Type": "text/plain"},
+            body=TrafficBody(
+                content_type="text/plain",
+                size_bytes=34,
+                text=f"response={secret}",
+            ),
+        ),
+    )
+    TrafficStore.open_project(project_root).record_exchange(redact_traffic_exchange(exchange))
+
+
 def test_run_dependency_map_png_writes_graphviz_output(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -247,6 +277,16 @@ def test_run_dependency_map_png_reports_missing_graphviz(
     monkeypatch.setattr("entroping.core.dependency_mapper.shutil.which", lambda name: None)
 
     with pytest.raises(DependencyMapError, match="Graphviz dot is required"):
+        run_dependency_map(project_root=tmp_path, export_format="png")
+
+
+def test_run_dependency_map_png_rejects_low_confidence_records(tmp_path: Path) -> None:
+    _record_low_confidence_exchange(tmp_path)
+
+    with pytest.raises(
+        DependencyMapError,
+        match="refusing to write dependency map png export artifacts",
+    ):
         run_dependency_map(project_root=tmp_path, export_format="png")
 
 

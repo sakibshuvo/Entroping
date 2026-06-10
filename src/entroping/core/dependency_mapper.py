@@ -73,6 +73,11 @@ def run_dependency_map(
             list_project_exchanges_readonly(root),
             capture_filters,
         )
+        if normalized_export == "png":
+            _enforce_strict_redaction_confidence(
+                exchanges,
+                operation="dependency map png export",
+            )
         session = build_traffic_session_candidate(
             exchanges,
             name="dependency_map",
@@ -132,6 +137,23 @@ def _filtered_exchanges(
         msg = "No traffic records matched capture filters."
         raise TrafficFilterError(msg)
     return filtered
+
+
+def _enforce_strict_redaction_confidence(
+    exchanges: tuple[TrafficExchange, ...],
+    *,
+    operation: str,
+) -> None:
+    low_confidence_count = sum(
+        1 for exchange in exchanges if exchange.redaction_confidence == "low"
+    )
+    if low_confidence_count:
+        msg = (
+            f"refusing to write {operation} artifacts because {low_confidence_count} "
+            "record(s) have low redaction confidence; run report redaction and "
+            "review or narrow capture filters"
+        )
+        raise DependencyMapError(msg)
 
 
 def _normalize_export_format(export_format: str | None) -> MapExportFormat:

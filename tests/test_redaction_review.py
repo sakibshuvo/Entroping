@@ -63,6 +63,7 @@ def test_compile_redaction_review_counts_categories_without_secret_values() -> N
     assert report.total_records == 1
     assert report.redacted_records == 1
     assert report.unredacted_records == 0
+    assert report.low_confidence_records == 0
     assert _counts(report.header_categories) == {
         "request authorization header": 1,
         "response cookie header": 1,
@@ -92,6 +93,7 @@ def test_redaction_review_renderers_do_not_emit_raw_secrets() -> None:
     assert "<h1>Entroping Redaction Review</h1>" in html
     assert "request authorization header" in markdown
     assert "response token body field" in html
+    assert "Low-confidence records: 0" in markdown
     assert "html-secret" not in markdown
     assert "html-secret" not in html
     assert "[REDACTED]" not in markdown
@@ -107,8 +109,38 @@ def test_redaction_review_surfaces_unredacted_records_without_rendering_values()
     assert report.redacted_records == 0
     assert report.unredacted_records == 1
     assert "Unredacted records: 1" in markdown
+    assert "Low-confidence records: 0" in markdown
     assert "unsafe-secret" not in markdown
     assert "No categories found." in html
+
+
+def test_compile_redaction_review_tracks_low_confidence_count() -> None:
+    low_confidence_exchange = redact_traffic_exchange(
+        _raw_exchange(secret="confidence-secret").model_copy(
+            update={
+                "request": _raw_exchange().request.model_copy(
+                    update={
+                        "headers": {"Content-Type": "text/plain"},
+                        "body": TrafficBody(
+                            content_type="text/plain",
+                            size_bytes=20,
+                            text="token=confidence-secret",
+                        ),
+                    }
+                ),
+            }
+        )
+    )
+    redacted = redact_traffic_exchange(_raw_exchange(secret="high-secret"))
+
+    report = compile_redaction_review([low_confidence_exchange, redacted])
+
+    assert report.low_confidence_records == 1
+    assert report.redacted_records == 2
+    markdown = render_redaction_review_markdown(report)
+    html = render_redaction_review_html(report)
+    assert "Low-confidence records: 1" in markdown
+    assert "Low-confidence records: 1" in html
 
 
 def test_redaction_review_counts_text_and_binary_body_summaries() -> None:

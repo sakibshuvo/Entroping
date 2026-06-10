@@ -87,6 +87,8 @@ def test_redactor_treats_json_subtype_bodies_as_structured_json() -> None:
     assert redacted.request.body is not None
     assert redacted.request.body.text is not None
     assert '"token":"[REDACTED]"' in redacted.request.body.text
+    assert redacted.request.body.redaction_confidence == "high"
+    assert redacted.redaction_confidence == "high"
 
 
 def test_redactor_rejects_non_positive_body_limit() -> None:
@@ -117,6 +119,8 @@ def test_redactor_preserves_non_text_body_metadata() -> None:
     assert redacted.request.body.text is None
     assert redacted.request.body.truncated is True
     assert redacted.request.body.content_type == "application/octet-stream"
+    assert redacted.request.body.redaction_confidence == "high"
+    assert redacted.redaction_confidence == "high"
 
 
 def test_redactor_preserves_absent_bodies() -> None:
@@ -134,6 +138,7 @@ def test_redactor_preserves_absent_bodies() -> None:
     assert redacted.request.body is None
     assert redacted.response is not None
     assert redacted.response.body is None
+    assert redacted.redaction_confidence == "high"
 
 
 def test_redactor_falls_back_to_text_redaction_for_invalid_json() -> None:
@@ -155,7 +160,9 @@ def test_redactor_falls_back_to_text_redaction_for_invalid_json() -> None:
 
     assert redacted.request.body is not None
     assert redacted.request.body.text == '{"token":"[REDACTED]"'
+    assert redacted.request.body.redaction_confidence == "low"
     assert "broken-secret" not in redacted.model_dump_json()
+    assert redacted.redaction_confidence == "low"
 
 
 def test_redactor_redacts_secret_values_inside_json_arrays() -> None:
@@ -287,6 +294,9 @@ def test_redactor_fully_summarizes_multipart_bodies_before_persistence() -> None
     assert redacted.response.body is not None
     assert redacted.response.body.text == "[REDACTED multipart/form-data body]"
     assert redacted.response.body.truncated is True
+    assert redacted.request.body.redaction_confidence == "low"
+    assert redacted.response.body.redaction_confidence == "low"
+    assert redacted.redaction_confidence == "low"
 
 
 def test_redactor_removes_url_userinfo_credentials() -> None:
@@ -305,6 +315,7 @@ def test_redactor_removes_url_userinfo_credentials() -> None:
     assert redacted.request.url == "https://example.test/checkout?token=%5BREDACTED%5D"
     assert redacted.request.host == "example.test"
     assert "user:pass" not in redacted.model_dump_json()
+    assert redacted.redaction_confidence == "high"
 
 
 def test_redactor_bounds_text_body_summaries() -> None:
@@ -330,6 +341,8 @@ def test_redactor_bounds_text_body_summaries() -> None:
     assert request_body.text == "token=[REDACTED]"
     assert request_body.truncated is True
     assert "secret-value" not in redacted.model_dump_json()
+    assert request_body.redaction_confidence == "low"
+    assert redacted.redaction_confidence == "low"
 
 
 def test_traffic_models_reject_control_characters_in_boundaries() -> None:

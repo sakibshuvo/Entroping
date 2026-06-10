@@ -69,6 +69,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Redaction-confidence artifact gate](https://github.com/sakibshuvo/Entroping/issues/495) | Done | Traffic redaction now marks low/high confidence at body and exchange level, redaction reviews expose low-confidence counts without raw values, and `freeze`, `freeze --mock`, and `map --export png` fail closed before writing artifacts from low-confidence records. |
 | [Known-failure CI validation](https://github.com/sakibshuvo/Entroping/issues/491) | Done | `ignore_failures[].expires` now fails policy loading when malformed, `doctor --ci` fails expired known-failure exceptions before readiness passes, and runtime/report gate-injection paths share the same expiry validator. |
 | [Read-only dependency traffic-state access](https://github.com/sakibshuvo/Entroping/issues/489) | Done | `entroping map` and run dependency-drift observations read existing redacted traffic state through the read-only SQLite path, preserve missing/empty-state behavior, and prove evidence review does not open the write-capable traffic store. |
 | [Run dry-run execution plan](https://github.com/sakibshuvo/Entroping/issues/417) | Done | `entroping run --dry-run` now resolves selected Hurl tests, tag or changed-file filters, effective and injected gates, env name, missing variable names, worker settings, and requested report paths without invoking Hurl, writing latest-run state, writing execution events, writing executed-result reports, or mutating source `.hurl`; `--report json` writes only `reports/run-plan.json` with schema `entroping.run-plan.v1`. |
@@ -142,8 +143,7 @@ entirely inside this repo.
 
 ## Update Rules
 
-- Update this file only for current target, next queue, stable-core blockers,
-  or durable evidence anchors.
+- Update this file only for current target, next queue, stable-core blockers, or durable evidence anchors.
 - Do not duplicate the completed issue table here.
 - Do not use this file as the backlog; GitHub Issues remain the backlog.
 - Keep roadmap edits behind the roadmap change gate in [[docs/meta/DOCS_GOVERNANCE|DOCS_GOVERNANCE]].

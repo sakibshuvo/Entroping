@@ -354,6 +354,12 @@ traffic. The preview shows selected methods, paths, status codes, proposed
 output paths, golden status, and counts-only redaction categories. It does not
 write Hurl files, WireMock mappings, approval manifests, or source artifacts.
 
+If any selected records have low redaction confidence, `run_freeze` and
+`run_freeze_mock` block artifact writes, and `map --export png` blocks PNG
+rendering. This keeps unknown or uncertain payload shapes from being promoted
+to Hurl/WireMock/dependency map artifacts until you narrow filters or review
+capture quality first.
+
 Review what redaction categories fired before freezing or mapping:
 
 ```bash

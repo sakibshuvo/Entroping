@@ -1,10 +1,13 @@
 """Domain models for redacted Eye traffic state."""
 
 from datetime import datetime
-from typing import Self
+from typing import Final, Literal, Self
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+RedactionConfidence = Literal["low", "high"]
+DEFAULT_REDACTION_CONFIDENCE: Final = "high"
 
 
 class TrafficBody(BaseModel):
@@ -16,6 +19,7 @@ class TrafficBody(BaseModel):
     size_bytes: int = Field(ge=0)
     text: str | None = None
     truncated: bool = False
+    redaction_confidence: RedactionConfidence = DEFAULT_REDACTION_CONFIDENCE
 
     @field_validator("content_type")
     @classmethod
@@ -100,6 +104,7 @@ class TrafficExchange(BaseModel):
     request: TrafficRequest
     response: TrafficResponse | None = None
     redacted: bool = False
+    redaction_confidence: RedactionConfidence = DEFAULT_REDACTION_CONFIDENCE
 
     @model_validator(mode="after")
     def require_timezone(self) -> Self:

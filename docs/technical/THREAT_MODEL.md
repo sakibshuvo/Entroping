@@ -38,6 +38,8 @@ Implemented surfaces in the current repo:
 - Eye capture through mitmproxy, pre-persistence **Traffic capture and redaction**,
   SQLModel-backed SQLite state under `.entroping/state.db`, `freeze`, WireMock
   mocks, dependency maps, and value-free dependency drift.
+  Traffic-derived artifact generation now fails closed when redaction confidence
+  is low for `freeze`, `freeze --mock`, or `map --export png`.
 - Read-only Studio TUI over local status, reports, and traffic-state visibility.
 - Release, regression, community-profile, package, and issue-session scripts.
 
@@ -102,6 +104,8 @@ dependency topology. The invariant is:
 - refuse unredacted records in the store;
 - keep body summaries bounded;
 - strip URL userinfo and token-like query/body/header values;
+- classify low-confidence redaction states per exchange;
+- reject low-confidence records before writing freeze/mock/png-map artifacts;
 - keep captured state under `.entroping/state.db` and out of Git;
 - never send raw captured traffic to Brain or model providers.
 
@@ -140,7 +144,7 @@ The **Dependency policy** is local-first and conservative:
 | Filesystem | Safe writes reject symlinked path components and preserve existing artifacts on atomic-write failure. |
 | Reports | JSON, JUnit, HTML, Markdown, audit, redaction, and traceability outputs escape or redact untrusted values. |
 | Brain | Prompt builder rejects secret-like context, provider errors are redacted, output is parsed before write, and Hurl validation runs before generated files land. |
-| Traffic | Redaction covers sensitive headers, URL userinfo/query values, JSON fields, token-like text, and bounded body summaries before SQLModel persistence; `report redaction` lets users inspect counts-only coverage before freezing or mapping. |
+| Traffic | Redaction covers sensitive headers, URL userinfo/query values, JSON fields, token-like text, and bounded body summaries before SQLModel persistence; low-confidence redaction records are rejected before freeze/mock/png-map artifact writes; `report redaction` lets users inspect counts-only coverage before freezing or mapping. |
 | CI | Pull requests run `scripts/regression.sh --security`, `scripts/audit_quality.sh`, optional-extras runtime smoke, and live demo smoke. |
 
 ## Validated Findings And Remediation Status
@@ -151,6 +155,8 @@ remain from that scan.
 The remediation tracked by issue #198 implemented the counts-only
 captured-traffic redaction review report so users can inspect redaction coverage
 before freezing or mapping traffic.
+Issue #495 added redaction-confidence classification and strict promotion gates
+for low-confidence traffic-derived outputs.
 
 Important follow-up issues that keep residual risk visible:
 

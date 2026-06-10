@@ -1,5 +1,13 @@
 # Entroping Changelog
 
+## 2026-06-10
+
+- Fixed issue #495's redaction-confidence boundary so captured traffic now
+  records low/high redaction confidence, malformed JSON and unknown textual
+  payloads remain locally usable but low-confidence, redaction reports expose
+  only safe counts, and `freeze`, `freeze --mock`, and `map --export png` fail
+  closed before writing artifacts from low-confidence records.
+
 ## 2026-06-09
 
 - Fixed issue #491's known-failure preflight gap so malformed

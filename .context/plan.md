@@ -105,6 +105,10 @@ project, and a Codex workspace with fast context rehydration.
 - `entroping report redaction --output md|html` reads existing redacted Eye
   traffic state through the read-only store path and preserves no-mutation
   report generation for review-only workflows.
+- Traffic redaction now records low/high confidence for bodies and exchanges.
+  Malformed JSON, unknown text payloads, and multipart summaries stay available
+  for local review, but `freeze`, `freeze --mock`, and `map --export png` fail
+  closed before writing artifacts from low-confidence records.
 - `entroping map` and dependency-drift observation loading read existing
   redacted Eye traffic state through the read-only store path instead of
   initializing or migrating local SQLite state during evidence review.

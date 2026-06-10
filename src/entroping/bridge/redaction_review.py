@@ -30,6 +30,7 @@ class RedactionReviewReport(BaseModel):
     total_records: int = Field(ge=0)
     redacted_records: int = Field(ge=0)
     unredacted_records: int = Field(ge=0)
+    low_confidence_records: int = Field(ge=0)
     request_count: int = Field(ge=0)
     response_count: int = Field(ge=0)
     header_categories: tuple[RedactionReviewCategory, ...] = ()
@@ -47,10 +48,13 @@ def compile_redaction_review(exchanges: Sequence[TrafficExchange]) -> RedactionR
     body_summary_counter: Counter[str] = Counter()
     response_count = 0
     redacted_count = 0
+    low_confidence_count = 0
 
     for exchange in exchanges:
         if exchange.redacted:
             redacted_count += 1
+        if exchange.redaction_confidence == "low":
+            low_confidence_count += 1
         _count_headers(exchange.request.headers, direction="request", counter=header_counter)
         _count_query(exchange.request.url, counter=query_counter)
         _count_body(
@@ -75,6 +79,7 @@ def compile_redaction_review(exchanges: Sequence[TrafficExchange]) -> RedactionR
         total_records=total_records,
         redacted_records=redacted_count,
         unredacted_records=total_records - redacted_count,
+        low_confidence_records=low_confidence_count,
         request_count=total_records,
         response_count=response_count,
         header_categories=_category_rows(header_counter),
@@ -97,6 +102,7 @@ def render_redaction_review_markdown(report: RedactionReviewReport) -> str:
         f"- Total traffic records: {report.total_records}",
         f"- Redacted records: {report.redacted_records}",
         f"- Unredacted records: {report.unredacted_records}",
+        f"- Low-confidence records: {report.low_confidence_records}",
         f"- Requests: {report.request_count}",
         f"- Responses: {report.response_count}",
         "",
@@ -128,10 +134,12 @@ def render_redaction_review_html(report: RedactionReviewReport) -> str:
   <h1>Entroping Redaction Review</h1>
   <p>Counts only; raw header, query, and body values are not rendered.</p>
   <h2>Summary</h2>
+  <p>Low-confidence records: {report.low_confidence_records}</p>
   <dl>
     <dt>Total traffic records</dt><dd>{report.total_records}</dd>
     <dt>Redacted records</dt><dd>{report.redacted_records}</dd>
     <dt>Unredacted records</dt><dd>{report.unredacted_records}</dd>
+    <dt>Low-confidence records</dt><dd>{report.low_confidence_records}</dd>
     <dt>Requests</dt><dd>{report.request_count}</dd>
     <dt>Responses</dt><dd>{report.response_count}</dd>
   </dl>

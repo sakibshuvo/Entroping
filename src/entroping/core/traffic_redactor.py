@@ -9,7 +9,14 @@ from entroping.models.secrets import (
     is_sensitive_key,
     redact_secret_like_values,
 )
-from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
+from entroping.models.traffic import (
+    DEFAULT_REDACTION_CONFIDENCE,
+    RedactionConfidence,
+    TrafficBody,
+    TrafficExchange,
+    TrafficRequest,
+    TrafficResponse,
+)
 
 DEFAULT_MAX_BODY_CHARS = 4096
 _MULTIPART_BODY_SUMMARY_TEMPLATE = "[REDACTED {content_type} body]"
@@ -26,33 +33,45 @@ def redact_traffic_exchange(
         msg = "max_body_chars must be positive"
         raise ValueError(msg)
 
+    redacted_request = _redact_request(
+        exchange.request,
+        max_body_chars=max_body_chars,
+    )
+    redacted_response = (
+        _redact_response(exchange.response, max_body_chars=max_body_chars)
+        if exchange.response is not None
+        else None
+    )
+
     return TrafficExchange(
         captured_at=exchange.captured_at,
         duration_ms=exchange.duration_ms,
-        request=_redact_request(exchange.request, max_body_chars=max_body_chars),
-        response=(
-            _redact_response(exchange.response, max_body_chars=max_body_chars)
-            if exchange.response is not None
-            else None
-        ),
+        request=redacted_request,
+        response=redacted_response,
         redacted=True,
+        redaction_confidence=_combine_redaction_confidence(
+            redacted_request.body,
+            redacted_response.body if redacted_response is not None else None,
+        ),
     )
 
 
 def _redact_request(request: TrafficRequest, *, max_body_chars: int) -> TrafficRequest:
+    redacted_body, _ = _redact_body(request.body, max_body_chars=max_body_chars)
     return TrafficRequest(
         method=request.method,
         url=_redact_url(request.url),
         headers=_redact_headers(request.headers),
-        body=_redact_body(request.body, max_body_chars=max_body_chars),
+        body=redacted_body,
     )
 
 
 def _redact_response(response: TrafficResponse, *, max_body_chars: int) -> TrafficResponse:
+    redacted_body, _ = _redact_body(response.body, max_body_chars=max_body_chars)
     return TrafficResponse(
         status_code=response.status_code,
         headers=_redact_headers(response.headers),
-        body=_redact_body(response.body, max_body_chars=max_body_chars),
+        body=redacted_body,
     )
 
 
@@ -79,11 +98,15 @@ def _redact_url(url: str) -> str:
     return urlunsplit((parsed.scheme, netloc, parsed.path, query, parsed.fragment))
 
 
-def _redact_body(body: TrafficBody | None, *, max_body_chars: int) -> TrafficBody | None:
+def _redact_body(
+    body: TrafficBody | None,
+    *,
+    max_body_chars: int,
+) -> tuple[TrafficBody | None, RedactionConfidence]:
     if body is None:
-        return None
+        return None, DEFAULT_REDACTION_CONFIDENCE
     if body.text is None:
-        return body.model_copy(update={"truncated": body.truncated})
+        return body.model_copy(update={"truncated": body.truncated}), DEFAULT_REDACTION_CONFIDENCE
 
     content_type = (body.content_type or "").split(";", maxsplit=1)[0].lower().strip()
     if _is_multipart_content_type(content_type):
@@ -92,13 +115,18 @@ def _redact_body(body: TrafficBody | None, *, max_body_chars: int) -> TrafficBod
             size_bytes=body.size_bytes,
             text=_MULTIPART_BODY_SUMMARY_TEMPLATE.format(content_type=content_type),
             truncated=True,
-        )
+            redaction_confidence="low",
+        ), "low"
 
     redacted_text = (
         _redact_json_body(body.text)
         if _is_json_content_type(content_type)
         else _redact_plain_text_body(body.text, max_body_chars=max_body_chars)
     )
+    redaction_confidence: RedactionConfidence = "low"
+    if _is_json_content_type(content_type):
+        redaction_confidence = _redact_json_body_confidence(body.text)
+
     truncated = (
         body.truncated or len(body.text) > max_body_chars or len(redacted_text) > max_body_chars
     )
@@ -109,8 +137,9 @@ def _redact_body(body: TrafficBody | None, *, max_body_chars: int) -> TrafficBod
         content_type=body.content_type,
         size_bytes=body.size_bytes,
         text=redacted_text,
+        redaction_confidence=redaction_confidence,
         truncated=truncated,
-    )
+    ), redaction_confidence
 
 
 def _redact_json_body(text: str) -> str:
@@ -119,6 +148,28 @@ def _redact_json_body(text: str) -> str:
     except json.JSONDecodeError:
         return _redact_text(text)
     return json.dumps(_redact_json_value(parsed), separators=(",", ":"), sort_keys=True)
+
+
+def _redact_json_body_confidence(text: str) -> RedactionConfidence:
+    try:
+        json.loads(text)
+    except json.JSONDecodeError:
+        return "low"
+    return "high"
+
+
+def _combine_redaction_confidence(
+    request_body: TrafficBody | None,
+    response_body: TrafficBody | None,
+) -> RedactionConfidence:
+    if (
+        request_body is not None
+        and request_body.redaction_confidence == "low"
+        or response_body is not None
+        and response_body.redaction_confidence == "low"
+    ):
+        return "low"
+    return DEFAULT_REDACTION_CONFIDENCE
 
 
 def _redact_json_value(value: object, *, key: str | None = None) -> object:
