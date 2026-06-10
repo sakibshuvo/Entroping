@@ -9,6 +9,16 @@ DOC_GOVERNANCE_SCRIPT = REPO_ROOT / "scripts" / "doc_governance_check.sh"
 PR_BODY_SCRIPT = REPO_ROOT / "scripts" / "pr_body_check.py"
 
 
+def run_pr_body_check(*args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [str(PR_BODY_SCRIPT), *args],
+        check=False,
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+
 def test_doc_governance_help_documents_control_plane() -> None:
     result = subprocess.run(
         [str(DOC_GOVERNANCE_SCRIPT), "--help"],
@@ -93,29 +103,66 @@ def test_pr_body_check_accepts_documentation_impact_declaration(tmp_path: Path) 
         encoding="utf-8",
     )
 
-    result = subprocess.run(
-        [str(PR_BODY_SCRIPT), str(event_path)],
-        check=False,
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
+    result = run_pr_body_check(str(event_path))
 
     assert result.returncode == 0, result.stderr
     assert "PR documentation impact declaration OK" in result.stdout
+
+
+def test_pr_body_check_help_documents_local_body_file_mode() -> None:
+    result = run_pr_body_check("--help")
+
+    assert result.returncode == 0
+    assert "--body-file" in result.stdout
+
+
+def test_pr_body_check_accepts_local_body_file(tmp_path: Path) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Change\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: tool-only local validation mode.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check("--body-file", str(body_path))
+
+    assert result.returncode == 0, result.stderr
+    assert "PR documentation impact declaration OK" in result.stdout
+
+
+def test_pr_body_check_rejects_local_body_file_missing_declaration(tmp_path: Path) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text("## Summary\nOnly summary\n", encoding="utf-8")
+
+    result = run_pr_body_check("--body-file", str(body_path))
+
+    assert result.returncode == 1
+    assert "Documentation Impact Declaration" in result.stderr
+
+
+def test_pr_body_check_rejects_local_body_file_unchecked_declaration(tmp_path: Path) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Change\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [ ] No docs update needed. Reason: unchecked is not enough.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check("--body-file", str(body_path))
+
+    assert result.returncode == 1
+    assert "must check at least one" in result.stderr
 
 
 def test_pr_body_check_rejects_missing_declaration(tmp_path: Path) -> None:
     event_path = tmp_path / "event.json"
     event_path.write_text(json.dumps({"pull_request": {"body": "## Summary\nOnly summary"}}))
 
-    result = subprocess.run(
-        [str(PR_BODY_SCRIPT), str(event_path)],
-        check=False,
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
+    result = run_pr_body_check(str(event_path))
 
     assert result.returncode == 1
     assert "Documentation Impact Declaration" in result.stderr
@@ -125,13 +172,7 @@ def test_pr_body_check_skips_non_pr_events(tmp_path: Path) -> None:
     event_path = tmp_path / "event.json"
     event_path.write_text(json.dumps({"ref": "refs/heads/main"}), encoding="utf-8")
 
-    result = subprocess.run(
-        [str(PR_BODY_SCRIPT), str(event_path)],
-        check=False,
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
+    result = run_pr_body_check(str(event_path))
 
     assert result.returncode == 0
     assert "No pull request payload" in result.stdout

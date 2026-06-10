@@ -719,3 +719,5 @@
 - Ratcheted issue #521's quality audit default Radon cyclomatic-complexity ceiling
   from rank E to rank D after splitting the last rank-E CLI Architect test into
   focused assertion helpers.
+- Added issue #530's local PR-body validation mode so agents can run
+  `scripts/pr_body_check.py --body-file <path>` before opening or editing a PR.
