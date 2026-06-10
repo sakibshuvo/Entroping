@@ -2,6 +2,8 @@
 
 ## 2026-06-10
 
+- Refreshed issue #515's release-evidence ledger pointers after the
+  freshness-validator fix, preserving alpha and stable-core non-claims.
 - Fixed issue #513's release-evidence freshness loop so a post-merge
   self-refresh commit remains current only when Git proves the newer successful
   `main` runs changed only the ledger, pinned evidence test, and changelog.
