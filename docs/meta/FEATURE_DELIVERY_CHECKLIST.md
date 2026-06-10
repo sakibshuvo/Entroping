@@ -29,7 +29,7 @@ Use this checklist for every non-trivial Entroping feature. It is the executable
 - [ ] Read `.context/plan.md`.
 - [ ] Read `docs/product/MVP_PLAN.md`.
 - [ ] Read `docs/technical/TDS.md`.
-- [ ] Read `docs/meta/AUTONOMOUS_DEVELOPMENT.md`.
+- [ ] Read `docs/meta/archive/AUTONOMOUS_DEVELOPMENT.md`.
 - [ ] Read the specific feature spec, issue, ADR, or failing test.
 - [ ] Note any stale or contradictory docs before editing code.
 

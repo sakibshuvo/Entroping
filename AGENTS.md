@@ -53,7 +53,7 @@ These instructions extend the global Codex rules for this repository. If a rule 
 
 ## Autonomous Development Workflow
 
-- Follow `docs/meta/AUTONOMOUS_DEVELOPMENT.md` for Codex-first implementation, Spec Kit pilots, and future OpenCode/oMLX loops.
+- Follow `docs/meta/archive/AUTONOMOUS_DEVELOPMENT.md` for Codex-first implementation, Spec Kit pilots, and future OpenCode/oMLX loops.
 - Follow `docs/meta/AGENT_CONTROL_PLANE.md` for cross-agent coordination across Codex, Claude Code, OpenCode, Gemini, NotebookLM, and local Qwen.
 - Use `docs/meta/FEATURE_DELIVERY_CHECKLIST.md` for every non-trivial feature, defect fix, or architecture change.
 - Use `scripts/context_pack.sh --mode implementation` to create deterministic context for a new coding session instead of relying on chat memory.

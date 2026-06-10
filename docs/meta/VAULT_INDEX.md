@@ -52,7 +52,7 @@ Use these first. They are the control panel for current work:
 - [[docs/meta/GOOD_FIRST_ISSUE_WALKTHROUGH|GOOD_FIRST_ISSUE_WALKTHROUGH]] - newcomer path from issue labels to validated PR.
 - [[docs/meta/ISSUE_TRACKING|ISSUE_TRACKING]] - GitHub issue tracking rules for bugs, features, and regressions.
 - [[docs/meta/OBSIDIAN_VS_GITHUB|OBSIDIAN_VS_GITHUB]] - practical guide for where ideas, bugs, roadmap, and context belong.
-- [[docs/meta/OBSIDIAN_CONTEXT_ENGINE_GUIDE|OBSIDIAN_CONTEXT_ENGINE_GUIDE]] - how to use Obsidian as an agent-friendly context preservation engine.
+- [[docs/meta/archive/OBSIDIAN_CONTEXT_ENGINE_GUIDE|OBSIDIAN_CONTEXT_ENGINE_GUIDE (archived)]] - historical context-engine strategy retained for traceability.
 - [[docs/meta/DECISION_REGISTRY.yaml|DECISION_REGISTRY]] - fast lookup layer for accepted decisions; summaries do not replace linked source material.
 - [[docs/meta/ENTROPING_PRODUCT_MAP.canvas|ENTROPING_PRODUCT_MAP]] - visual product/context map for the vault.
 - [[docs/meta/ENTROPING_DOCS.base|ENTROPING_DOCS]] - table views over canonical docs, decisions, workflows, and examples.
@@ -69,7 +69,7 @@ Use these first. They are the control panel for current work:
 - [[docs/meta/DOWNSTREAM_SMOKE_EVIDENCE|DOWNSTREAM_SMOKE_EVIDENCE]] - local external-project smoke evidence and its stable-core limits.
 - [[docs/meta/DOWNSTREAM_FEEDBACK_KIT|DOWNSTREAM_FEEDBACK_KIT]] - sanitized real-user feedback template for stable-core downstream evidence.
 - [[docs/meta/DISTRIBUTION_RECOMMENDATION|DISTRIBUTION_RECOMMENDATION]] - uv, PyPI, Homebrew tap, and standalone binary sequencing.
-- [[docs/meta/AUTONOMOUS_DEVELOPMENT|AUTONOMOUS_DEVELOPMENT]] - Codex-first autonomous workflow and future OpenCode/oMLX plan.
+- [[docs/meta/archive/AUTONOMOUS_DEVELOPMENT|AUTONOMOUS_DEVELOPMENT (archived)]] - historical Codex-first workflow and future OpenCode/oMLX plan.
 - [[docs/meta/AGENT_CONTROL_PLANE|AGENT_CONTROL_PLANE]] - Codex-first multi-agent control plane for Codex, Claude Code, OpenCode, Gemini, NotebookLM, and local Qwen.
 - [[docs/meta/KNOWLEDGE_BASE_WORKFLOW|KNOWLEDGE_BASE_WORKFLOW]] - Obsidian-first brain, source-promotion rules, and hallucination controls.
 - [[docs/product/GROWTH_AND_MONETIZATION|GROWTH_AND_MONETIZATION]] - open-source credibility, hype loop, and open-core monetization path.
@@ -92,6 +92,8 @@ These completed one-off notes are retained for traceability, not active
 instructions.
 
 - [[docs/meta/ZERO_CONFIG_DEMO_ENTRYPOINT|ZERO_CONFIG_DEMO_ENTRYPOINT]] - archived v0.2 decision explaining why `scripts/demo.sh` became the checkout demo entrypoint without expanding the CLI command surface.
+- [[docs/meta/archive/AUTONOMOUS_DEVELOPMENT|AUTONOMOUS_DEVELOPMENT]] - archived historical autonomous-dev operating plan.
+- [[docs/meta/archive/OBSIDIAN_CONTEXT_ENGINE_GUIDE|OBSIDIAN_CONTEXT_ENGINE_GUIDE]] - archived Obsidian context-engine strategy.
 
 ## Reference Library
 

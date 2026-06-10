@@ -94,6 +94,6 @@ dependencies are installed.
 
 ## Agent Workflow
 
-Use `docs/meta/AUTONOMOUS_DEVELOPMENT.md` for the Codex-first operating loop and the future OpenCode/oMLX plan.
+Use `docs/meta/archive/AUTONOMOUS_DEVELOPMENT.md` for the Codex-first operating loop and the future OpenCode/oMLX plan.
 
 Use `docs/meta/FEATURE_DELIVERY_CHECKLIST.md` before every meaningful feature branch or PR.
