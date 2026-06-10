@@ -300,7 +300,9 @@ def _render_markdown(payload: dict[str, object]) -> str:
         links = []
         for raw_issue in raw_issues:
             assert isinstance(raw_issue, dict)
-            links.append(f"[#{raw_issue['number']}]({raw_issue['url']})")
+            links.append(
+                f"[#{raw_issue['number']}]({raw_issue['url']}) ({raw_issue['status']})"
+            )
         lines.append(f"- {blocker}: {', '.join(links)}")
     lines.extend(["", "## Evidence", ""])
     for key, raw_entry in evidence.items():

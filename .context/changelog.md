@@ -2,6 +2,9 @@
 
 ## 2026-06-10
 
+- Fixed issue #503's stable-core readiness Markdown output so blocker issue
+  links now show their tracked status, making closed helper work visibly
+  distinct from still-blocked stable-core evidence.
 - Updated the GitHub Actions `astral-sh/setup-uv` pin from `v8.1.0` to
   `v8.2.0` across CI, Pages, publish workflows, downstream starter templates,
   release runbook examples, and workflow guard tests.

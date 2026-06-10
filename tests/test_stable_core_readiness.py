@@ -53,15 +53,15 @@ def test_stable_core_readiness_markdown_links_blocker_issues() -> None:
     assert "repeated release evidence" not in result.stdout
     assert (
         "- package-index proof: "
-        "[#303](https://github.com/sakibshuvo/Entroping/issues/303), "
-        "[#304](https://github.com/sakibshuvo/Entroping/issues/304), "
-        "[#305](https://github.com/sakibshuvo/Entroping/issues/305)"
+        "[#303](https://github.com/sakibshuvo/Entroping/issues/303) (blocked), "
+        "[#304](https://github.com/sakibshuvo/Entroping/issues/304) (blocked), "
+        "[#305](https://github.com/sakibshuvo/Entroping/issues/305) (blocked)"
         in result.stdout
     )
     assert (
         "- real downstream user feedback: "
-        "[#306](https://github.com/sakibshuvo/Entroping/issues/306), "
-        "[#318](https://github.com/sakibshuvo/Entroping/issues/318)"
+        "[#306](https://github.com/sakibshuvo/Entroping/issues/306) (blocked), "
+        "[#318](https://github.com/sakibshuvo/Entroping/issues/318) (done)"
         in result.stdout
     )
 
