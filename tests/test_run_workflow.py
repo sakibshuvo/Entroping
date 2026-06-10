@@ -11,9 +11,13 @@ from entroping.core.run_workflow import (
     DependencyDriftObservationError,
     HurlVariablePreflightError,
     NoHurlTestsMatchedError,
+    RunExecutionPlan,
     RunWorkflowError,
+    _display_path,
     _known_failure_source_key,
     execute_run_workflow,
+    plan_run_workflow,
+    write_run_execution_plan,
 )
 from entroping.core.traffic_redactor import redact_traffic_exchange
 from entroping.core.traffic_store import TrafficStore, TrafficStoreError
@@ -588,6 +592,204 @@ def test_execute_run_workflow_rejects_tag_filter_and_expression_mix(
             parallel=False,
             drift_check=False,
         )
+
+
+@pytest.mark.parametrize(
+    ("tag_filters", "tag_expression", "operation_ids", "message"),
+    [
+        (
+            ("smoke",),
+            "checkout",
+            (),
+            "tag filters cannot be combined",
+        ),
+        (
+            ("smoke",),
+            None,
+            ("health",),
+            "operation ID filters cannot be combined with tag filters",
+        ),
+        (
+            (),
+            "smoke",
+            ("health",),
+            "operation ID filters cannot be combined with tag expressions",
+        ),
+    ],
+)
+def test_plan_run_workflow_rejects_selector_conflicts(
+    tmp_path: Path,
+    tag_filters: tuple[str, ...],
+    tag_expression: str | None,
+    operation_ids: tuple[str, ...],
+    message: str,
+) -> None:
+    _write_project(tmp_path)
+
+    with pytest.raises(RunWorkflowError, match=message):
+        plan_run_workflow(
+            project_root=tmp_path,
+            environment=None,
+            tag_filters=tag_filters,
+            tag_expression=tag_expression,
+            operation_ids=operation_ids,
+            report_formats=(),
+            parallel=False,
+            drift_check=False,
+        )
+
+
+def test_plan_run_workflow_reports_all_requested_artifact_paths(
+    tmp_path: Path,
+) -> None:
+    _write_project(tmp_path)
+
+    plan = plan_run_workflow(
+        project_root=tmp_path,
+        environment=None,
+        tag_filters=(),
+        report_formats=("junit", "html", "drift"),
+        parallel=True,
+        fail_fast=True,
+        drift_check=True,
+    )
+
+    assert plan.status == "ready"
+    assert plan.worker_count == 3
+    assert plan.fail_fast is True
+    assert plan.drift_check is True
+    assert plan.would_write_reports == (
+        "reports/junit.xml",
+        "reports/run-latest.html",
+        "reports/drift.json",
+        "reports/drift-baseline.candidate.json",
+    )
+
+
+def test_plan_run_workflow_rejects_changed_from_custom_roots(
+    tmp_path: Path,
+) -> None:
+    _write_project(tmp_path)
+
+    with pytest.raises(
+        RunWorkflowError,
+        match="changed-from cannot be combined with custom Hurl discovery roots",
+    ):
+        plan_run_workflow(
+            project_root=tmp_path,
+            environment=None,
+            tag_filters=(),
+            report_formats=(),
+            parallel=False,
+            drift_check=False,
+            changed_from="origin/main",
+            discovery_roots=(tmp_path / "tests",),
+        )
+
+
+def test_plan_run_workflow_rejects_changed_from_operation_filters(
+    tmp_path: Path,
+) -> None:
+    _write_project(tmp_path)
+
+    with pytest.raises(
+        RunWorkflowError,
+        match="changed-from cannot be combined with operation ID filters",
+    ):
+        plan_run_workflow(
+            project_root=tmp_path,
+            environment=None,
+            tag_filters=(),
+            operation_ids=("health",),
+            report_formats=(),
+            parallel=False,
+            drift_check=False,
+            changed_from="origin/main",
+        )
+
+
+def test_plan_run_workflow_describes_changed_tag_expression_no_matches(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_project(tmp_path)
+
+    def fake_select_changed_hurl_tests(
+        *,
+        project_root: Path,
+        base_ref: str,
+    ) -> tuple[Path, ...]:
+        assert project_root == tmp_path.resolve()
+        assert base_ref == "origin/main"
+        return ()
+
+    monkeypatch.setattr(
+        "entroping.core.run_workflow.select_changed_hurl_tests",
+        fake_select_changed_hurl_tests,
+    )
+
+    plan = plan_run_workflow(
+        project_root=tmp_path,
+        environment=None,
+        tag_filters=(),
+        tag_expression="smoke and not slow",
+        report_formats=(),
+        parallel=False,
+        drift_check=False,
+        changed_from="origin/main",
+    )
+
+    assert plan.status == "no_match"
+    assert (
+        "changed Hurl tests matching tag expression 'smoke and not slow' "
+        "from base ref 'origin/main'"
+    ) in plan.message
+
+
+def test_write_run_execution_plan_rejects_paths_outside_project(
+    tmp_path: Path,
+) -> None:
+    _write_project(tmp_path)
+    plan = RunExecutionPlan(
+        status="ready",
+        message="Run plan ready; Hurl was not executed",
+        project="entroping-project",
+        environment="default",
+        tag_filters=(),
+        tag_expression=None,
+        operation_ids=(),
+        changed_from=None,
+        selection_label=None,
+        report_formats=(),
+        would_write_reports=(),
+        parallel=False,
+        fail_fast=False,
+        drift_check=False,
+        worker_count=1,
+        timeout_ms=2500,
+        retry=0,
+        discovered_count=0,
+        selected_count=0,
+        skipped_count=0,
+        effective_rule_ids=(),
+        injected_rule_ids=(),
+        provided_variable_count=0,
+        missing_variables=(),
+        tests=(),
+    )
+
+    with pytest.raises(RunWorkflowError, match="must stay under"):
+        write_run_execution_plan(
+            plan,
+            tmp_path.parent / "run-plan.json",
+            project_root=tmp_path,
+        )
+
+
+def test_display_path_keeps_external_absolute_path(tmp_path: Path) -> None:
+    external_path = tmp_path.parent / "external.hurl"
+
+    assert _display_path(external_path, tmp_path) == external_path.resolve().as_posix()
 
 
 def test_execute_run_workflow_uses_custom_discovery_roots(

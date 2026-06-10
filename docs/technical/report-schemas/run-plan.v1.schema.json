@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sakibshuvo.github.io/Entroping/schemas/run-plan.v1.schema.json",
+  "title": "Entroping Run Plan v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "message",
+    "project",
+    "environment",
+    "filters",
+    "reports",
+    "execution",
+    "selection",
+    "gates",
+    "variables",
+    "tests"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.run-plan.v1"
+    },
+    "status": {
+      "enum": ["ready", "blocked", "no_match"]
+    },
+    "message": {
+      "type": "string"
+    },
+    "project": {
+      "type": "string"
+    },
+    "environment": {
+      "type": "string"
+    },
+    "filters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tag_filters",
+        "tag_expression",
+        "operation_ids",
+        "changed_from",
+        "selection_label"
+      ],
+      "properties": {
+        "tag_filters": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "tag_expression": {
+          "type": ["string", "null"]
+        },
+        "operation_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "changed_from": {
+          "type": ["string", "null"]
+        },
+        "selection_label": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "reports": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requested_formats", "would_write"],
+      "properties": {
+        "requested_formats": {
+          "type": "array",
+          "items": {
+            "enum": ["drift", "html", "json", "junit"]
+          }
+        },
+        "would_write": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parallel",
+        "fail_fast",
+        "drift_check",
+        "worker_count",
+        "timeout_ms",
+        "retry"
+      ],
+      "properties": {
+        "parallel": { "type": "boolean" },
+        "fail_fast": { "type": "boolean" },
+        "drift_check": { "type": "boolean" },
+        "worker_count": { "type": "integer", "minimum": 1 },
+        "timeout_ms": { "type": "integer", "minimum": 1 },
+        "retry": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["discovered_count", "selected_count", "skipped_count"],
+      "properties": {
+        "discovered_count": { "type": "integer", "minimum": 0 },
+        "selected_count": { "type": "integer", "minimum": 0 },
+        "skipped_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["effective_rule_ids", "injected_rule_ids", "injected_count"],
+      "properties": {
+        "effective_rule_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "injected_rule_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "injected_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "variables": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provided_count", "missing"],
+      "properties": {
+        "provided_count": { "type": "integer", "minimum": 0 },
+        "missing": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "paths"],
+            "properties": {
+              "name": { "type": "string" },
+              "paths": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "tags",
+          "operation_id",
+          "injected_rule_ids",
+          "missing_variables"
+        ],
+        "properties": {
+          "path": { "type": "string" },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "operation_id": {
+            "type": ["string", "null"]
+          },
+          "injected_rule_ids": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "missing_variables": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

@@ -48,6 +48,13 @@ from entroping.core.run_delta import (
     build_run_delta_report,
     run_delta_report_to_dict,
 )
+from entroping.core.run_workflow import (
+    RUN_PLAN_SCHEMA_VERSION,
+    RunExecutionPlan,
+    RunPlanTest,
+    RunPlanVariableGap,
+    run_execution_plan_to_dict,
+)
 from entroping.core.traffic_artifact_manifest import TRAFFIC_ARTIFACT_APPROVAL_SCHEMA_VERSION
 from entroping.models.drift import (
     DriftBaseline,
@@ -223,6 +230,100 @@ def test_run_report_v1_schema_contract_includes_fail_fast_summary_evidence() -> 
     assert summary_properties["executed"] == {"type": "integer", "minimum": 0}
     assert summary_properties["not_scheduled"] == {"type": "integer", "minimum": 0}
     assert summary_properties["fail_fast"] == {"type": "boolean"}
+
+
+def test_run_plan_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "run-plan.v1.schema.json").read_text())
+    plan = RunExecutionPlan(
+        status="blocked",
+        message="Run plan blocked by unresolved Hurl variables",
+        project="checkout-api",
+        environment="local",
+        tag_filters=("smoke",),
+        tag_expression=None,
+        operation_ids=(),
+        changed_from="origin/main",
+        selection_label=None,
+        report_formats=("json",),
+        would_write_reports=("reports/run-latest.json",),
+        parallel=False,
+        fail_fast=True,
+        drift_check=False,
+        worker_count=1,
+        timeout_ms=2500,
+        retry=1,
+        discovered_count=2,
+        selected_count=1,
+        skipped_count=1,
+        effective_rule_ids=("global_latency",),
+        injected_rule_ids=("global_latency",),
+        provided_variable_count=0,
+        missing_variables=(
+            RunPlanVariableGap(name="base_url", paths=("tests/health.hurl",)),
+        ),
+        tests=(
+            RunPlanTest(
+                path="tests/health.hurl",
+                tags=("smoke",),
+                operation_id="health",
+                injected_rule_ids=("global_latency",),
+                missing_variables=("base_url",),
+            ),
+        ),
+    )
+
+    payload = run_execution_plan_to_dict(plan)
+
+    assert schema["properties"]["schema_version"]["const"] == RUN_PLAN_SCHEMA_VERSION
+    assert payload == {
+        "schema_version": "entroping.run-plan.v1",
+        "status": "blocked",
+        "message": "Run plan blocked by unresolved Hurl variables",
+        "project": "checkout-api",
+        "environment": "local",
+        "filters": {
+            "tag_filters": ["smoke"],
+            "tag_expression": None,
+            "operation_ids": [],
+            "changed_from": "origin/main",
+            "selection_label": None,
+        },
+        "reports": {
+            "requested_formats": ["json"],
+            "would_write": ["reports/run-latest.json"],
+        },
+        "execution": {
+            "parallel": False,
+            "fail_fast": True,
+            "drift_check": False,
+            "worker_count": 1,
+            "timeout_ms": 2500,
+            "retry": 1,
+        },
+        "selection": {
+            "discovered_count": 2,
+            "selected_count": 1,
+            "skipped_count": 1,
+        },
+        "gates": {
+            "effective_rule_ids": ["global_latency"],
+            "injected_rule_ids": ["global_latency"],
+            "injected_count": 1,
+        },
+        "variables": {
+            "provided_count": 0,
+            "missing": [{"name": "base_url", "paths": ["tests/health.hurl"]}],
+        },
+        "tests": [
+            {
+                "path": "tests/health.hurl",
+                "tags": ["smoke"],
+                "operation_id": "health",
+                "injected_rule_ids": ["global_latency"],
+                "missing_variables": ["base_url"],
+            }
+        ],
+    }
 
 
 def test_run_delta_report_v1_schema_contract_is_versioned_and_stable() -> None:

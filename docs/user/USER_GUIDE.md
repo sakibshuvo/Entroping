@@ -166,6 +166,21 @@ entroping run --tag-expression "smoke and not slow" --report json
 Entroping metadata tags. It cannot be combined with repeatable `--tag` or
 committed `--suite` manifests.
 
+Preview the run plan before executing Hurl:
+
+```bash
+entroping run --dry-run --tag smoke --report json
+```
+
+Dry-run shows selected Hurl files, skipped counts, selectors, environment name,
+requested report formats, effective and injected QAnstitution gate IDs,
+worker/timeout/retry settings, and missing variable names. It does not invoke
+Hurl, write `.entroping/latest-run.json`, write execution events, or produce
+executed-result JSON/JUnit/HTML/drift reports. When `--report json` is present,
+it writes the plan to `reports/run-plan.json` with schema
+`entroping.run-plan.v1`; normal run report paths are listed only as
+`would_write` evidence.
+
 Use strict CI mode in pipelines:
 
 ```bash

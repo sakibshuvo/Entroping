@@ -2,6 +2,10 @@
 
 ## 2026-06-09
 
+- Dry-run execution plans need a separate artifact contract from executed run
+  reports. They can preview selected tests, gate injection, variable gaps, and
+  report destinations, but must stop before Hurl, event logs, latest-run state,
+  drift candidates, and any executed-result report.
 - Runtime tool compatibility belongs beside discovery, not inside execution.
   `doctor` can run bounded `--version` subprocesses to prove local tool support,
   while `run` stays focused on deterministic Hurl execution and API behavior.

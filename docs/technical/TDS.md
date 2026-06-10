@@ -811,7 +811,7 @@ entroping map [--export <mermaid|dot|md|png>] [capture filters]
 
 ```text
 entroping studio [--env <name>]
-entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--operation-id <id>] [--ci] [--parallel] [--fail-fast] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>] [--rerun-failures]
+entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--operation-id <id>] [--ci] [--parallel] [--fail-fast] [--dry-run] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>] [--rerun-failures]
 entroping report bug
 entroping report failure-bundle [--output <directory>]
 entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
@@ -856,6 +856,18 @@ scheduled workers may complete, but Entroping schedules no additional tests
 after the first failure is observed. Latest-run state and requested reports
 include only executed tests and record `selected`, `executed`, `not_scheduled`,
 and `fail_fast` summary evidence.
+`--dry-run` builds a deterministic execution plan and stops before Hurl
+execution. It loads QAnstitution, resolves suite/tag/tag-expression/operation
+ID/changed-from/rerun selectors, loads environment variable names, writes
+temporary gate-injected execution copies only in a disposable temp directory,
+summarizes selected paths, skipped counts, report formats, effective and
+injected gate rule IDs, worker/timeout/retry settings, and missing variable
+names, then removes the temporary copies. It must not invoke Hurl, write
+`.entroping/latest-run.json`, write `.entroping/latest-run-events.jsonl`, write
+JUnit/HTML/drift/run JSON reports, or mutate source `.hurl` files. With
+`--report json`, dry-run writes `reports/run-plan.json` using schema
+`entroping.run-plan.v1`; requested executed-report paths are included only as
+`would_write` evidence.
 `settings.retry` is a bounded per-file subprocess retry budget. `entroping run`
 stops retrying as soon as a Hurl file passes, never hides a final failure, and
 records retry evidence in JSON, JUnit, HTML, and review-summary artifacts.

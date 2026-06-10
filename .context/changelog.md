@@ -2,6 +2,13 @@
 
 ## 2026-06-09
 
+- Added issue #417's run dry-run execution plan so `entroping run --dry-run`
+  resolves selected tests, tag or changed-file selectors, effective and
+  injected QAnstitution gates, environment name, missing variable names, worker
+  settings, and requested report paths without invoking Hurl, writing
+  latest-run state, writing execution events, writing executed-result reports,
+  or mutating source `.hurl`. `--report json` writes the separate
+  schema-versioned `reports/run-plan.json` artifact.
 - Added issue #418's Hurl version compatibility checks so `entroping doctor`
   runs `hurl --version` through the bounded subprocess boundary, reports
   compatible, missing, unsupported, and unparsable states in human and JSON

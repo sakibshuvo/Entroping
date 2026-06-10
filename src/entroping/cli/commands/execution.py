@@ -30,8 +30,11 @@ from entroping.core.rerun_failures import (
 from entroping.core.run_suite_manifest import RunSuiteManifestError, load_run_suite_manifest
 from entroping.core.run_workflow import (
     NoHurlTestsMatchedError,
+    RunExecutionPlan,
     RunWorkflowError,
     execute_run_workflow,
+    plan_run_workflow,
+    write_run_execution_plan,
 )
 from entroping.core.tag_expression import TagExpressionSyntaxError, compile_tag_expression
 from entroping.core.traffic_filters import TrafficCaptureFilters, TrafficFilterError
@@ -398,6 +401,10 @@ def run(
         bool,
         typer.Option("--fail-fast", help="Stop scheduling tests after the first failure."),
     ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Preview the execution plan without running Hurl."),
+    ] = False,
     report: Annotated[
         list[str] | None,
         typer.Option("--report", help="Report format; repeat for multiple formats."),
@@ -432,42 +439,12 @@ def run(
                 operation_id=operation_id,
                 changed_from=changed_from,
             )
-        if tag and tag_expression is not None:
-            raise typer.BadParameter(
-                "--tag cannot be combined with --tag-expression",
-                param_hint="--tag-expression",
-            )
-        if operation_id and tag:
-            raise typer.BadParameter(
-                "--operation-id cannot be combined with --tag",
-                param_hint="--operation-id",
-            )
-        if operation_id and tag_expression is not None:
-            raise typer.BadParameter(
-                "--operation-id cannot be combined with --tag-expression",
-                param_hint="--operation-id",
-            )
-        if operation_id and changed_from is not None:
-            raise typer.BadParameter(
-                "--operation-id cannot be combined with --changed-from",
-                param_hint="--operation-id",
-            )
-        try:
-            tag_filters = tuple(normalize_tag_filters(tag))
-        except ValueError as exc:
-            raise typer.BadParameter(str(exc), param_hint="--tag") from exc
-        try:
-            operation_filters = tuple(sorted(normalize_operation_id_filters(operation_id)))
-        except ValueError as exc:
-            raise typer.BadParameter(str(exc), param_hint="--operation-id") from exc
-        if tag_expression is not None:
-            try:
-                compile_tag_expression(tag_expression)
-            except TagExpressionSyntaxError as exc:
-                raise typer.BadParameter(
-                    f"Invalid tag expression: {exc}",
-                    param_hint="--tag-expression",
-                ) from exc
+        tag_filters, operation_filters = _prepare_ad_hoc_run_selectors(
+            tag=tag,
+            tag_expression=tag_expression,
+            operation_id=operation_id,
+            changed_from=changed_from,
+        )
 
         try:
             report_formats = _normalize_report_formats(report)
@@ -520,6 +497,22 @@ def run(
         run_changed_from = None
         discovery_roots = loaded_suite.discovery_roots
         selection_label = f"suite {loaded_suite.name!r}"
+
+    if dry_run:
+        _execute_run_dry_run(
+            run_environment=run_environment,
+            tag_filters=tag_filters,
+            tag_expression=tag_expression,
+            operation_filters=operation_filters,
+            report_formats=report_formats,
+            run_parallel=run_parallel,
+            run_fail_fast=run_fail_fast,
+            run_drift_check=run_drift_check,
+            run_changed_from=run_changed_from,
+            discovery_roots=discovery_roots,
+            selection_label=selection_label,
+            ci=ci,
+        )
 
     try:
         workflow_result = execute_run_workflow(
@@ -613,6 +606,169 @@ def run(
             console.print(result.stderr, markup=False)
 
     raise typer.Exit(workflow_result.exit_code)
+
+
+def _execute_run_dry_run(
+    *,
+    run_environment: str | None,
+    tag_filters: tuple[str, ...],
+    tag_expression: str | None,
+    operation_filters: tuple[str, ...],
+    report_formats: tuple[str, ...],
+    run_parallel: bool,
+    run_fail_fast: bool,
+    run_drift_check: bool,
+    run_changed_from: str | None,
+    discovery_roots: tuple[Path, ...] | None,
+    selection_label: str | None,
+    ci: bool,
+) -> None:
+    try:
+        plan = plan_run_workflow(
+            project_root=Path.cwd(),
+            environment=run_environment,
+            tag_filters=tag_filters,
+            tag_expression=tag_expression,
+            operation_ids=operation_filters,
+            report_formats=report_formats,
+            parallel=run_parallel,
+            fail_fast=run_fail_fast,
+            drift_check=run_drift_check,
+            changed_from=run_changed_from,
+            discovery_roots=discovery_roots,
+            selection_label=selection_label,
+        )
+        _print_run_plan(plan)
+        if "json" in report_formats:
+            plan_path = write_run_execution_plan(
+                plan,
+                Path("reports") / "run-plan.json",
+                project_root=Path.cwd(),
+            )
+            console.print(f"Wrote execution plan: {display_cli_path(plan_path)}")
+    except (
+        FileNotFoundError,
+        GateInjectionError,
+        QanstitutionLoadError,
+        ReportWriterError,
+        RunWorkflowError,
+        ValueError,
+    ) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+    if plan.status == "blocked" or (ci and plan.status == "no_match"):
+        raise typer.Exit(1)
+    raise typer.Exit(0)
+
+
+def _prepare_ad_hoc_run_selectors(
+    *,
+    tag: list[str] | None,
+    tag_expression: str | None,
+    operation_id: list[str] | None,
+    changed_from: str | None,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    if tag and tag_expression is not None:
+        raise typer.BadParameter(
+            "--tag cannot be combined with --tag-expression",
+            param_hint="--tag-expression",
+        )
+    if operation_id and tag:
+        raise typer.BadParameter(
+            "--operation-id cannot be combined with --tag",
+            param_hint="--operation-id",
+        )
+    if operation_id and tag_expression is not None:
+        raise typer.BadParameter(
+            "--operation-id cannot be combined with --tag-expression",
+            param_hint="--operation-id",
+        )
+    if operation_id and changed_from is not None:
+        raise typer.BadParameter(
+            "--operation-id cannot be combined with --changed-from",
+            param_hint="--operation-id",
+        )
+    try:
+        tag_filters = tuple(normalize_tag_filters(tag))
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc), param_hint="--tag") from exc
+    try:
+        operation_filters = tuple(sorted(normalize_operation_id_filters(operation_id)))
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc), param_hint="--operation-id") from exc
+    if tag_expression is not None:
+        try:
+            compile_tag_expression(tag_expression)
+        except TagExpressionSyntaxError as exc:
+            raise typer.BadParameter(
+                f"Invalid tag expression: {exc}",
+                param_hint="--tag-expression",
+            ) from exc
+    return tag_filters, operation_filters
+
+
+def _print_run_plan(plan: RunExecutionPlan) -> None:
+    console.print("Dry run: no Hurl execution performed.")
+    if plan.status == "no_match":
+        console.print(safe_cli_text(plan.message), style="yellow", markup=False)
+    elif plan.status == "blocked":
+        console.print("[yellow]Run plan blocked before Hurl execution.[/yellow]")
+    else:
+        console.print("[green]Run plan ready.[/green]")
+    console.print(
+        (
+            f"Selection: {plan.selected_count} selected, {plan.skipped_count} skipped "
+            f"from {plan.discovered_count} discovered"
+        ),
+        markup=False,
+    )
+    console.print(f"Environment: {plan.environment}", markup=False)
+    if plan.tag_filters:
+        console.print(f"Tags: {', '.join(plan.tag_filters)}", markup=False)
+    if plan.tag_expression is not None:
+        console.print(f"Tag expression: {plan.tag_expression}", markup=False)
+    if plan.operation_ids:
+        console.print(f"Operation IDs: {', '.join(plan.operation_ids)}", markup=False)
+    if plan.changed_from is not None:
+        console.print(f"Changed from: {plan.changed_from}", markup=False)
+    console.print(
+        (
+            f"Execution: workers={plan.worker_count}, timeout_ms={plan.timeout_ms}, "
+            f"retry={plan.retry}, parallel={'yes' if plan.parallel else 'no'}, "
+            f"fail_fast={'yes' if plan.fail_fast else 'no'}"
+        ),
+        markup=False,
+    )
+    console.print(
+        (
+            f"Gates: {len(plan.effective_rule_ids)} effective, "
+            f"{sum(len(test.injected_rule_ids) for test in plan.tests)} injected"
+        ),
+        markup=False,
+    )
+    if plan.injected_rule_ids:
+        console.print(f"Injected rules: {', '.join(plan.injected_rule_ids)}", markup=False)
+    missing_count = sum(len(item.paths) for item in plan.missing_variables)
+    console.print(
+        f"Variables: {plan.provided_variable_count} provided, {missing_count} missing",
+        markup=False,
+    )
+    for item in plan.missing_variables:
+        console.print(
+            f"Missing variable {item.name}: {', '.join(item.paths)}",
+            style="yellow",
+            markup=False,
+        )
+    if plan.report_formats:
+        console.print(f"Requested reports: {', '.join(plan.report_formats)}", markup=False)
+    for path in plan.would_write_reports:
+        console.print(f"Would write report: {path}", markup=False)
+    if plan.tests:
+        console.print("Selected tests:")
+    for test in plan.tests:
+        tags = f" tags={','.join(test.tags)}" if test.tags else ""
+        rules = f" gates={','.join(test.injected_rule_ids)}" if test.injected_rule_ids else ""
+        console.print(f"- {test.path}{tags}{rules}", markup=False)
 
 
 def _normalize_report_formats(report: list[str] | None) -> tuple[str, ...]:
