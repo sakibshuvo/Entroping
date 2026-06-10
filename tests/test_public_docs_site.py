@@ -57,8 +57,9 @@ def test_mkdocs_scaffold_uses_existing_docs_tree_with_strict_deploy() -> None:
         "User Guide",
         "Policy / QAnstitution Reference",
         "CI / Reports",
-        "Roadmap / Status",
+        "Technical Reference",
     ]
+    assert "Roadmap / Status" not in top_level
     assert all(not str(item).startswith("meta/") for item in top_level)
     assert all(not str(item).startswith("technical/") for item in top_level)
 
@@ -68,6 +69,7 @@ def test_mkdocs_scaffold_uses_existing_docs_tree_with_strict_deploy() -> None:
     assert "user/AI_PROVIDER_SETUP.md" in nav_text
     assert "technical/QANSTITUTION_REFERENCE.md" in nav_text
     assert "meta/PYPI_RELEASE_RUNBOOK.md" in nav_text
+    assert "Maintainer Evidence" in nav_text
     assert "docs/evolution" not in nav_text
     assert "OBSIDIAN" not in nav_text
     assert "sources/" not in nav_text
