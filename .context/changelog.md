@@ -2,6 +2,10 @@
 
 ## 2026-06-10
 
+- Raised issue #544's default GitHub Project GraphQL preflight threshold from
+  5 to 50 remaining calls after finish-session cleanup still hit Project
+  field/item read warnings below that range; the environment override remains
+  available for local tuning.
 - Added issue #542's remote branch preflight so `scripts/start_issue.sh`
   refuses to create an issue worktree when the requested branch name already
   exists on `origin`, preventing multi-session pushes from colliding with stale

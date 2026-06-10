@@ -360,6 +360,7 @@ def test_start_issue_skips_project_update_when_graphql_quota_is_exhausted(
 
     assert result.returncode == 0, result.stderr
     assert "GitHub Project GraphQL quota is low" in result.stderr
+    assert "need at least 50" in result.stderr
     calls = (fake_state / "calls.log").read_text(encoding="utf-8")
     assert "issue edit" in calls
     assert "project " not in calls

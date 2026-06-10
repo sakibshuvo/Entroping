@@ -109,11 +109,11 @@ retry_project_item_id() {
 }
 
 project_graphql_quota_allows_update() {
-  local minimum_remaining="${ENTROPING_PROJECT_GRAPHQL_MIN_REMAINING:-5}"
+  local minimum_remaining="${ENTROPING_PROJECT_GRAPHQL_MIN_REMAINING:-50}"
   local remaining
 
   if [[ ! "$minimum_remaining" =~ ^[0-9]+$ ]]; then
-    minimum_remaining="5"
+    minimum_remaining="50"
   fi
 
   if ! remaining=$(gh api rate_limit --jq '.resources.graphql.remaining' 2>/dev/null); then
