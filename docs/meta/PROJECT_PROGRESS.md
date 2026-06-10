@@ -18,8 +18,7 @@ keeps the current direction, next queue, and release evidence easy to scan.
 
 1. Open this note first in Obsidian or GitHub.
 2. Use the GitHub Project board for issue status.
-3. Use [[docs/meta/FEATURE_DELIVERY_CHECKLIST|FEATURE_DELIVERY_CHECKLIST]] for
-   each implementation slice.
+3. Use [[docs/meta/FEATURE_DELIVERY_CHECKLIST|FEATURE_DELIVERY_CHECKLIST]] for each implementation slice.
 4. Use [[docs/meta/DOCS_GOVERNANCE|DOCS_GOVERNANCE]] before changing roadmap,
    progress, public docs, specs, ADRs, or context files.
 5. Keep this note short. Completed issue history belongs in GitHub, release
@@ -31,7 +30,7 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: Promote the next ready local issue after #489 closes.
+Current issue: Promote the next ready local issue after #491 closes.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -47,7 +46,7 @@ These are autonomous local marathon targets; blocked external evidence issues re
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | Promote next ready GitHub issue | Keep the queue issue-driven after #489 closes. |
+| 1 | Promote next ready GitHub issue | Keep the queue issue-driven after #491 closes. |
 | 2 | Promote next ready GitHub issue | Keep the queue issue-driven after the promoted issue closes. |
 | 3 | Promote next ready GitHub issue | Keep the queue issue-driven after the promoted issue closes. |
 
@@ -70,6 +69,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Known-failure CI validation](https://github.com/sakibshuvo/Entroping/issues/491) | Done | `ignore_failures[].expires` now fails policy loading when malformed, `doctor --ci` fails expired known-failure exceptions before readiness passes, and runtime/report gate-injection paths share the same expiry validator. |
 | [Read-only dependency traffic-state access](https://github.com/sakibshuvo/Entroping/issues/489) | Done | `entroping map` and run dependency-drift observations read existing redacted traffic state through the read-only SQLite path, preserve missing/empty-state behavior, and prove evidence review does not open the write-capable traffic store. |
 | [Run dry-run execution plan](https://github.com/sakibshuvo/Entroping/issues/417) | Done | `entroping run --dry-run` now resolves selected Hurl tests, tag or changed-file filters, effective and injected gates, env name, missing variable names, worker settings, and requested report paths without invoking Hurl, writing latest-run state, writing execution events, writing executed-result reports, or mutating source `.hurl`; `--report json` writes only `reports/run-plan.json` with schema `entroping.run-plan.v1`. |
 | [Hurl version compatibility in doctor](https://github.com/sakibshuvo/Entroping/issues/418) | Done | `entroping doctor` now runs `hurl --version` through the bounded local subprocess boundary, reports compatible, missing, unsupported, and unparsable Hurl version states in human and JSON output, keeps normal warning exit compatibility, and makes `doctor --ci` fail when Hurl compatibility cannot be proven. |

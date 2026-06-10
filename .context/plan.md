@@ -27,6 +27,10 @@ project, and a Codex workspace with fast context rehydration.
   only matching Entroping-injected QAnstitution gates in temporary execution
   copies, expired entries block before Hurl execution, and entries targeting
   selected tests fail closed when no injected gate matches.
+- Known-failure expiry validation is now shared across policy loading,
+  `doctor --ci`, runtime gate injection, and gate-injection reports:
+  malformed dates fail QAnstitution loading, and expired exceptions fail CI
+  readiness before a policy can be treated as ready.
 - Deterministic OpenAPI generation now validates every compiled Hurl file
   before writing, avoids partial generated output on parser failure, and can
   focus regeneration to operations changed from a Git base ref.

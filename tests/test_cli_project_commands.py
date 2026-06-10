@@ -948,6 +948,40 @@ reports:
     assert "HURL_VARIABLE_base_url" not in result.output
 
 
+def test_doctor_ci_json_fails_for_malformed_known_failure_expiry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        project_cli,
+        "discover_hurl",
+        lambda binary="hurl": SimpleNamespace(available=True, path=f"/usr/local/bin/{binary}"),
+    )
+    CliRunner().invoke(app, ["init", "--minimal"])
+    (tmp_path / "qanstitution.yaml").write_text(
+        """
+project: checkout-api
+ignore_failures:
+  - test: tests/health.hurl
+    rule_id: global_latency
+    issue_id: GH-491
+    expires: tomorrow
+    reason: Malformed expiry.
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["doctor", "--ci", "--output", "json"])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["status"] == "error"
+    assert payload["qanstitution"]["status"] == "error"
+    assert "expires must use YYYY-MM-DD" in payload["qanstitution"]["message"]
+    assert "QAnstitution: invalid" not in result.output
+
+
 def test_doctor_ci_fails_for_unsafe_report_paths(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

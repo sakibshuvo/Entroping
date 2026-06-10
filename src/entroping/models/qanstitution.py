@@ -3,6 +3,7 @@
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import date
 from typing import Literal, cast
 from urllib.parse import urlparse
 
@@ -17,6 +18,7 @@ from entroping.models.conditions import (
 Enforcement = Literal["block", "warn", "audit_only"]
 AgentRole = Literal["builder", "auditor", "breaker"]
 _ENV_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_KNOWN_FAILURE_EXPIRY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -212,8 +214,63 @@ class KnownFailure(BaseModel):
     test: str
     rule_id: str
     issue_id: str
-    expires: str
+    expires: str = Field(json_schema_extra={"pattern": r"^\d{4}-\d{2}-\d{2}$"})
     reason: str
+
+    @field_validator("expires")
+    @classmethod
+    def validate_expires(cls, value: str) -> str:
+        """Require an exact ISO calendar date for governance exceptions."""
+
+        if _KNOWN_FAILURE_EXPIRY_RE.fullmatch(value) is None:
+            msg = "expires must use YYYY-MM-DD"
+            raise ValueError(msg)
+        try:
+            date.fromisoformat(value)
+        except ValueError as exc:
+            msg = "expires must use YYYY-MM-DD"
+            raise ValueError(msg) from exc
+        return value
+
+
+class KnownFailureValidationError(ValueError):
+    """Raised when known-failure runtime validity fails."""
+
+
+def parse_known_failure_expiry(known_failure: KnownFailure) -> date:
+    """Return the parsed expiry date for a validated known-failure entry."""
+
+    try:
+        if _KNOWN_FAILURE_EXPIRY_RE.fullmatch(known_failure.expires) is None:
+            msg = "expires must use YYYY-MM-DD"
+            raise ValueError(msg)
+        return date.fromisoformat(known_failure.expires)
+    except ValueError as exc:
+        msg = (
+            "Known failure exception expiry must be YYYY-MM-DD "
+            f"for {known_failure.issue_id} on {known_failure.test} "
+            f"rule {known_failure.rule_id}: {known_failure.expires}"
+        )
+        raise KnownFailureValidationError(msg) from exc
+
+
+def validate_known_failure_expiries(
+    known_failures: Sequence[KnownFailure],
+    *,
+    today: date | None = None,
+) -> None:
+    """Fail closed when any known-failure exception is expired."""
+
+    reference_date = today or date.today()
+    for known_failure in known_failures:
+        expires = parse_known_failure_expiry(known_failure)
+        if expires < reference_date:
+            msg = (
+                "Known failure exception expired "
+                f"for {known_failure.issue_id} on {known_failure.test} "
+                f"rule {known_failure.rule_id}: expired {known_failure.expires}"
+            )
+            raise KnownFailureValidationError(msg)
 
 
 class RuntimeSettings(BaseModel):

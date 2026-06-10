@@ -2,6 +2,10 @@
 
 ## 2026-06-09
 
+- Fixed issue #491's known-failure preflight gap so malformed
+  `ignore_failures[].expires` values fail QAnstitution loading,
+  `entroping doctor --ci` reports expired exceptions as readiness errors, and
+  runtime/report gate-injection paths share one expiry validator.
 - Fixed issue #489's dependency traffic-state readers so `entroping map` and
   run dependency-drift observations now use the read-only SQLite path, preserve
   existing missing/empty-state behavior, and have regression coverage proving

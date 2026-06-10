@@ -218,7 +218,7 @@ ignore_failures:
 
     with pytest.raises(
         GateInjectionReportError,
-        match="Known failure exception expiry must be YYYY-MM-DD",
+        match="expires must use YYYY-MM-DD",
     ):
         run_gate_injection_report(
             project_root=tmp_path,

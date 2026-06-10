@@ -145,6 +145,25 @@ def test_qanstitution_model_expands_gate_group_references() -> None:
     assert [gate.id for gate in law.gates] == ["smoke_latency"]
 
 
+def test_qanstitution_model_rejects_malformed_known_failure_expiry() -> None:
+    for expires in ("tomorrow", "20260610", "2026-02-31"):
+        with pytest.raises(ValidationError, match="expires must use YYYY-MM-DD"):
+            Qanstitution.model_validate(
+                {
+                    "project": "checkout-api",
+                    "ignore_failures": [
+                        {
+                            "test": "tests/checkout.hurl",
+                            "rule_id": "global_latency",
+                            "issue_id": "GH-491",
+                            "expires": expires,
+                            "reason": "Malformed expiry must not pass policy loading.",
+                        }
+                    ],
+                }
+            )
+
+
 def test_qanstitution_model_rejects_non_mapping_config() -> None:
     with pytest.raises(ValidationError, match="Input should be a valid dictionary"):
         Qanstitution.model_validate("project: checkout-api")
