@@ -175,6 +175,49 @@ def test_start_issue_review_dry_run_uses_review_context_pack(tmp_path: Path) -> 
     assert not (worktree_parent / "Entroping-issue-100").exists()
 
 
+def test_start_issue_refuses_branch_that_already_exists_on_origin(tmp_path: Path) -> None:
+    repo = create_start_issue_fixture_repo(tmp_path)
+    branch_name = "tooling/existing-remote"
+    run_git(repo, "checkout", "-b", branch_name)
+    run_git(repo, "push", "-u", "origin", branch_name)
+    run_git(repo, "checkout", "main")
+    run_git(repo, "branch", "-D", branch_name)
+
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_gh = fake_bin / "gh"
+    fake_gh.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        "if [[ \"$1 $2\" == \"issue view\" ]]; then\n"
+        "  printf '%s\\n' "
+        '\'{\"title\":\"Existing remote\",\"url\":\"https://github.com/sakibshuvo/Entroping/issues/99\",\"state\":\"OPEN\"}\'\n'
+        "  exit 0\n"
+        "fi\n"
+        "echo \"unexpected gh args: $*\" >&2\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    fake_gh.chmod(fake_gh.stat().st_mode | stat.S_IXUSR)
+    worktree_parent = tmp_path / "worktrees"
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
+    env["ENTROPING_WORKTREE_PARENT"] = str(worktree_parent)
+
+    result = subprocess.run(
+        [str(START_ISSUE_SCRIPT), "99", branch_name],
+        check=False,
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 1
+    assert f"remote branch already exists on origin: {branch_name}" in result.stderr
+    assert not (worktree_parent / "Entroping-issue-99").exists()
+
+
 def test_start_issue_adds_missing_issue_to_project_before_marking_in_progress(
     tmp_path: Path,
 ) -> None:

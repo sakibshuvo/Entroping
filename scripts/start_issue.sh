@@ -296,6 +296,9 @@ fi
 if git -C "$repo_root" show-ref --verify --quiet "refs/heads/$branch_name"; then
   die "local branch already exists: $branch_name"
 fi
+if git -C "$repo_root" ls-remote --exit-code --heads origin "$branch_name" >/dev/null 2>&1; then
+  die "remote branch already exists on origin: $branch_name"
+fi
 
 git -C "$repo_root" pull --ff-only origin main
 mkdir -p "$worktree_parent"
