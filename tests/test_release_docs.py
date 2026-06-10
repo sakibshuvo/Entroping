@@ -74,6 +74,9 @@ def test_project_progress_stays_a_short_daily_dashboard() -> None:
 
 def test_roadmap_separates_direction_sequence_and_external_blockers() -> None:
     roadmap = (REPO_ROOT / "ROADMAP.md").read_text(encoding="utf-8")
+    stable_core_blockers = roadmap.split(
+        "## External Stable-Core Blockers", maxsplit=1
+    )[1].split("## Future: v1.0 Stable Core", maxsplit=1)[0]
 
     required_sections = [
         "## Product Direction",
@@ -86,6 +89,11 @@ def test_roadmap_separates_direction_sequence_and_external_blockers() -> None:
 
     assert "GitHub Issues remain the backlog" in roadmap
     assert "Do not call the project stable just because alpha gates are green" in roadmap
+    assert "package-index proof" in stable_core_blockers
+    assert "compatibility policy" in stable_core_blockers
+    assert "real downstream user feedback" in stable_core_blockers
+    assert "provider-specific CI templates" in stable_core_blockers
+    assert "repeated release evidence" not in stable_core_blockers
 
 
 def test_doc_governance_blocks_strategy_doc_sprawl() -> None:
