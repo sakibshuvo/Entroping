@@ -2,6 +2,10 @@
 
 ## 2026-06-10
 
+- Refreshed issue #501's daily project dashboard so
+  `docs/meta/PROJECT_PROGRESS.md` no longer points agents at the closed #491
+  queue, shows #499's traffic approval manifest redaction-confidence evidence,
+  and keeps the local queue honest when only external blockers remain.
 - Added issue #499's approval-manifest redaction confidence field so
   `reports/approvals/*.json` now records `low_confidence_records` alongside
   other counts-only redaction evidence and the published schema requires the

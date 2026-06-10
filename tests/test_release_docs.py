@@ -60,6 +60,15 @@ def test_project_progress_stays_a_short_daily_dashboard() -> None:
 
     assert "## Milestone Progress" not in progress
     assert "## Later Roadmap" not in progress
+    assert "after #491 closes" not in progress
+    assert "traffic approval manifest redaction confidence" in progress
+    assert progress.count("[Changed Hurl test runs]") == 1
+    assert (
+        progress.count(
+            "Keep historical context in the vault and `.context/changelog.md`, not here."
+        )
+        == 1
+    )
     assert len(progress.splitlines()) <= 150
 
 
