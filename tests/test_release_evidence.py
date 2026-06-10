@@ -166,6 +166,25 @@ def write_freshness_fixture(
     return path
 
 
+def run_git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", "-C", str(root), *args],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def init_test_git_repo(root: Path) -> str:
+    run_git(root, "init")
+    run_git(root, "config", "user.email", "entroping-tests@example.invalid")
+    run_git(root, "config", "user.name", "Entroping Tests")
+    (root / "README.md").write_text("baseline\n", encoding="utf-8")
+    run_git(root, "add", "README.md")
+    run_git(root, "commit", "-m", "baseline")
+    return run_git(root, "rev-parse", "HEAD").stdout.strip()
+
+
 def test_release_evidence_json_reports_alpha_ci_and_stable_blockers() -> None:
     result = run_release_evidence("--format", "json", "--strict")
 
@@ -386,6 +405,99 @@ def test_release_evidence_freshness_rejects_stale_fixture(tmp_path: Path) -> Non
         f"latest_pages_ci.commit is {COMMIT_B} but latest successful main run is {COMMIT_D}"
         in result.stderr
     )
+
+
+def test_release_evidence_freshness_accepts_self_refresh_commit(tmp_path: Path) -> None:
+    recorded_commit = init_test_git_repo(tmp_path)
+    write_release_evidence_ledger(
+        tmp_path,
+        ci_commit=recorded_commit,
+        pages_commit=recorded_commit,
+    )
+    (tmp_path / ".context").mkdir()
+    (tmp_path / ".context" / "changelog.md").write_text(
+        "release evidence refreshed\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_release_evidence.py").write_text(
+        "release evidence pin updated\n",
+        encoding="utf-8",
+    )
+    run_git(
+        tmp_path,
+        "add",
+        ".context/changelog.md",
+        "docs/meta/release-evidence.json",
+        "tests/test_release_evidence.py",
+    )
+    run_git(tmp_path, "commit", "-m", "refresh release evidence")
+    latest_commit = run_git(tmp_path, "rev-parse", "HEAD").stdout.strip()
+    fixture = write_freshness_fixture(
+        tmp_path / "freshness.json",
+        ci_run_id=333,
+        ci_commit=latest_commit,
+        pages_run_id=444,
+        pages_commit=latest_commit,
+    )
+
+    result = run_release_evidence(
+        "--root",
+        str(tmp_path),
+        "--format",
+        "json",
+        "--strict",
+        "--check-freshness",
+        "--freshness-input",
+        str(fixture),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "pass"
+    assert payload["freshness"]["status"] == "current"
+    assert payload["freshness"]["failures"] == []
+    assert "self-refresh" in payload["freshness"]["message"]
+
+
+def test_release_evidence_freshness_rejects_unrelated_newer_commit(
+    tmp_path: Path,
+) -> None:
+    recorded_commit = init_test_git_repo(tmp_path)
+    write_release_evidence_ledger(
+        tmp_path,
+        ci_commit=recorded_commit,
+        pages_commit=recorded_commit,
+    )
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "feature.py").write_text("print('new behavior')\n", encoding="utf-8")
+    run_git(tmp_path, "add", "docs/meta/release-evidence.json", "src/feature.py")
+    run_git(tmp_path, "commit", "-m", "add feature")
+    latest_commit = run_git(tmp_path, "rev-parse", "HEAD").stdout.strip()
+    fixture = write_freshness_fixture(
+        tmp_path / "freshness.json",
+        ci_run_id=333,
+        ci_commit=latest_commit,
+        pages_run_id=444,
+        pages_commit=latest_commit,
+    )
+
+    result = run_release_evidence(
+        "--root",
+        str(tmp_path),
+        "--format",
+        "json",
+        "--strict",
+        "--check-freshness",
+        "--freshness-input",
+        str(fixture),
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "fail"
+    assert payload["freshness"]["status"] == "stale"
+    assert "src/feature.py" not in payload["freshness"]["message"]
 
 
 def test_release_evidence_freshness_reports_missing_gh_as_unavailable(tmp_path: Path) -> None:
