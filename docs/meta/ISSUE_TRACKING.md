@@ -115,8 +115,8 @@ The finish script:
 - Refuses to remove dirty or branch-mismatched worktrees.
 - Removes the local issue worktree and deletes squash-merged local branches only
   after those checks pass.
-- Best-effort removes active status labels and moves the GitHub Project item to
-  `Done`.
+- Best-effort removes active status labels, adds missing issues to the GitHub
+  Project board, and moves the project item to `Done`.
 
 Use `--dry-run` first when cleaning up a batch of sessions.
 
