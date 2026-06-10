@@ -177,12 +177,12 @@ def test_release_evidence_json_reports_alpha_ci_and_stable_blockers() -> None:
     assert payload["release_candidate_count"] >= 1
     assert payload["latest_release"] == "v0.1.1-alpha"
     assert payload["latest_main_ci"]["conclusion"] == "success"
-    assert payload["latest_main_ci"]["commit"] == "1e8125489a8b3fe7a8d4a2112c80b172c17cf693"
-    assert payload["latest_main_ci"]["run_id"] == 26751047871
+    assert payload["latest_main_ci"]["commit"] == "17ff37158622159b6cfe69d53c3c7424176c68a2"
+    assert payload["latest_main_ci"]["run_id"] == 27274827056
     assert payload["latest_pages_ci"]["conclusion"] == "success"
     assert payload["latest_pages_ci"]["workflow"] == "Pages"
-    assert payload["latest_pages_ci"]["commit"] == "1e8125489a8b3fe7a8d4a2112c80b172c17cf693"
-    assert payload["latest_pages_ci"]["run_id"] == 26751047840
+    assert payload["latest_pages_ci"]["commit"] == "17ff37158622159b6cfe69d53c3c7424176c68a2"
+    assert payload["latest_pages_ci"]["run_id"] == 27274827044
     assert payload["release_candidates"][0]["name"] == "v0.1.2-alpha-rc.1"
     assert payload["release_candidates"][0]["release_gate_result"] == "pass"
     assert payload["downstream_smoke"]["status"] == "local-pass"
