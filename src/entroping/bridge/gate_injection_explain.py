@@ -8,7 +8,12 @@ from pydantic import BaseModel, ConfigDict
 
 from entroping.bridge.policy_to_hurl import gate_matches_test
 from entroping.models.hurl import HurlTest
-from entroping.models.qanstitution import Enforcement, KnownFailure
+from entroping.models.qanstitution import (
+    Enforcement,
+    KnownFailure,
+    KnownFailureValidationError,
+    validate_known_failure_expiries,
+)
 from entroping.models.qanstitution_evidence import EffectiveGateEvidence, QanstitutionEvidence
 
 GATE_INJECTION_REPORT_SCHEMA_VERSION = "entroping.gate-injection-report.v1"
@@ -225,32 +230,17 @@ def _known_failures_by_rule_id(
     known_failures: tuple[KnownFailure, ...],
     reference_date: date,
 ) -> dict[str, KnownFailure]:
+    try:
+        validate_known_failure_expiries(known_failures, today=reference_date)
+    except KnownFailureValidationError as exc:
+        raise ValueError(str(exc)) from exc
+
     matches: dict[str, KnownFailure] = {}
     for known_failure in known_failures:
-        expires = _parse_known_failure_expiry(known_failure)
-        if expires < reference_date:
-            msg = (
-                "Known failure exception expired "
-                f"for {known_failure.issue_id} on {known_failure.test} "
-                f"rule {known_failure.rule_id}: expired {known_failure.expires}"
-            )
-            raise ValueError(msg)
         if _normalize_test_key(known_failure.test) != test_key:
             continue
         matches.setdefault(known_failure.rule_id, known_failure)
     return matches
-
-
-def _parse_known_failure_expiry(known_failure: KnownFailure) -> date:
-    try:
-        return date.fromisoformat(known_failure.expires)
-    except ValueError as exc:
-        msg = (
-            "Known failure exception expiry must be YYYY-MM-DD "
-            f"for {known_failure.issue_id} on {known_failure.test} "
-            f"rule {known_failure.rule_id}: {known_failure.expires}"
-        )
-        raise ValueError(msg) from exc
 
 
 def _normalize_test_key(test: str) -> str:

@@ -2,6 +2,10 @@
 
 ## 2026-06-09
 
+- Governance exceptions need preflight validation, not only selected-run
+  validation. If a known failure can be malformed or expired, `doctor --ci`
+  must fail before users trust the policy as CI-ready, and runtime/report
+  paths should reuse the same expiry rule.
 - Report commands that inspect persisted Eye traffic must use read-only store
   access. Even if a command checks that `.entroping/state.db` exists first,
   routing through a write-capable initializer can still create hidden migration

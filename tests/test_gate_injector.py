@@ -352,7 +352,7 @@ def test_write_injected_execution_copy_rejects_malformed_known_failure_expiry(
             execution_root=tmp_path / "execution",
             project_root=tmp_path,
             known_failures=(
-                KnownFailure(
+                KnownFailure.model_construct(
                     test="tests/health.hurl",
                     rule_id="latency",
                     issue_id="GH-126",

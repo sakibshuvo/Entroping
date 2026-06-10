@@ -10,7 +10,12 @@ from pathlib import Path
 from entroping.bridge.policy_to_hurl import HurlGateAssertion, compile_matching_gates
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.models.hurl import HurlExchange, HurlTest, parse_hurl_exchanges
-from entroping.models.qanstitution import GateRule, KnownFailure
+from entroping.models.qanstitution import (
+    GateRule,
+    KnownFailure,
+    KnownFailureValidationError,
+    validate_known_failure_expiries,
+)
 
 _REQUEST_LINE_RE = re.compile(
     r"^(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|CONNECT|TRACE)\s+\S+(?:\s+.*)?$",
@@ -63,7 +68,10 @@ def write_injected_execution_copy(
     """Write a temporary execution copy for one Hurl test without mutating source."""
 
     source_path = _validate_source_path(hurl_test.path)
-    _validate_known_failure_expiries(known_failures, today=today)
+    try:
+        validate_known_failure_expiries(known_failures, today=today)
+    except KnownFailureValidationError as exc:
+        raise GateInjectionError(str(exc)) from exc
     try:
         content = source_path.read_text(encoding="utf-8")
     except UnicodeDecodeError as exc:
@@ -179,35 +187,6 @@ def _inject_gate_assertions(
     if content.endswith("\n"):
         rendered += "\n"
     return rendered, tuple(injected_by_id.values()), tuple(applied_by_rule_id.values())
-
-
-def _validate_known_failure_expiries(
-    known_failures: Sequence[KnownFailure],
-    *,
-    today: date | None,
-) -> None:
-    reference_date = today or date.today()
-    for known_failure in known_failures:
-        expires = _parse_known_failure_expiry(known_failure)
-        if expires < reference_date:
-            msg = (
-                "Known failure exception expired "
-                f"for {known_failure.issue_id} on {known_failure.test} "
-                f"rule {known_failure.rule_id}: expired {known_failure.expires}"
-            )
-            raise GateInjectionError(msg)
-
-
-def _parse_known_failure_expiry(known_failure: KnownFailure) -> date:
-    try:
-        return date.fromisoformat(known_failure.expires)
-    except ValueError as exc:
-        msg = (
-            "Known failure exception expiry must be YYYY-MM-DD "
-            f"for {known_failure.issue_id} on {known_failure.test} "
-            f"rule {known_failure.rule_id}: {known_failure.expires}"
-        )
-        raise GateInjectionError(msg) from exc
 
 
 def _matching_known_failures_by_rule_id(

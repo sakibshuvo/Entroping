@@ -4,7 +4,7 @@ from pathlib import Path
 
 from entroping.core import ci_readiness
 from entroping.core.ci_readiness import collect_ci_readiness
-from entroping.models.qanstitution import AgentConfig, Qanstitution
+from entroping.models.qanstitution import AgentConfig, KnownFailure, Qanstitution
 
 
 def _law_with_agents() -> Qanstitution:
@@ -136,6 +136,41 @@ def test_collect_ci_readiness_reports_non_directory_suites_path(tmp_path: Path) 
     assert report.status == "warn"
     assert checks["suite_manifests"].status == "warn"
     assert checks["suite_manifests"].message == "suites path exists but is not a directory"
+
+
+def test_collect_ci_readiness_fails_expired_known_failures(tmp_path: Path) -> None:
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "health.hurl").write_text(
+        "GET http://localhost:18080/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    law = Qanstitution(
+        project="checkout-api",
+        gates=[],
+        ignore_failures=[
+            KnownFailure(
+                test="tests/health.hurl",
+                rule_id="global_latency",
+                issue_id="GH-491",
+                expires="2000-01-01",
+                reason="Expired exceptions must not pass CI readiness.",
+            )
+        ],
+    )
+
+    report = collect_ci_readiness(
+        project_root=tmp_path,
+        hurl_available=True,
+        law=law,
+        environ={},
+    )
+
+    checks = {check.id: check for check in report.checks}
+    assert report.status == "error"
+    assert checks["known_failures"].status == "error"
+    assert "Known failure exception expired" in checks["known_failures"].message
+    assert "GH-491" in checks["known_failures"].message
 
 
 def test_report_path_problem_covers_non_symlink_path_errors(tmp_path: Path) -> None:

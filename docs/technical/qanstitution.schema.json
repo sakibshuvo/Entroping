@@ -218,6 +218,7 @@
       "description": "Temporary exception that must remain traceable and expiring.",
       "properties": {
         "expires": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
           "title": "Expires",
           "type": "string"
         },

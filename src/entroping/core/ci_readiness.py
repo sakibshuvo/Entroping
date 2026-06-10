@@ -21,7 +21,11 @@ from entroping.models.doctor import (
     DoctorHurlCompatibility,
 )
 from entroping.models.hurl import HurlMetadataSyntaxError, HurlTest
-from entroping.models.qanstitution import Qanstitution
+from entroping.models.qanstitution import (
+    KnownFailureValidationError,
+    Qanstitution,
+    validate_known_failure_expiries,
+)
 
 _CI_REPORT_PATHS = (
     Path(".entroping") / "latest-run.json",
@@ -47,6 +51,7 @@ def collect_ci_readiness(
     process_environ = os.environ if environ is None else environ
     checks = [
         _qanstitution_check(law),
+        _known_failures_check(law),
         _hurl_available_check(hurl_available, hurl_compatibility),
         _report_paths_check(root),
         *_suite_and_env_checks(root, process_environ),
@@ -73,6 +78,33 @@ def _qanstitution_check(law: Qanstitution | None) -> DoctorCiReadinessCheck:
         id="qanstitution_loaded",
         status="ok",
         message="qanstitution.yaml is available for CI runs",
+        path="qanstitution.yaml",
+    )
+
+
+def _known_failures_check(law: Qanstitution | None) -> DoctorCiReadinessCheck:
+    if law is None:
+        return DoctorCiReadinessCheck(
+            id="known_failures",
+            status="error",
+            message="known failures cannot be validated until qanstitution.yaml loads",
+            path="qanstitution.yaml",
+        )
+
+    try:
+        validate_known_failure_expiries(law.ignore_failures)
+    except KnownFailureValidationError as exc:
+        return DoctorCiReadinessCheck(
+            id="known_failures",
+            status="error",
+            message=str(exc),
+            path="qanstitution.yaml",
+        )
+
+    return DoctorCiReadinessCheck(
+        id="known_failures",
+        status="ok",
+        message="known-failure exceptions are unexpired and date-valid",
         path="qanstitution.yaml",
     )
 
