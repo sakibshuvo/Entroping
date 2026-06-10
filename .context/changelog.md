@@ -2,6 +2,9 @@
 
 ## 2026-06-10
 
+- Fixed issue #513's release-evidence freshness loop so a post-merge
+  self-refresh commit remains current only when Git proves the newer successful
+  `main` runs changed only the ledger, pinned evidence test, and changelog.
 - Refreshed issue #511's release-evidence ledger pointers to the latest green
   `main` CI and Pages runs after the stable-core blocker wording updates,
   without changing alpha release or stable-core readiness claims.

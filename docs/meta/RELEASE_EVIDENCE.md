@@ -71,6 +71,11 @@ recorded fields to refresh, such as `latest_main_ci.run_id`,
 `latest_main_ci.commit`, `latest_pages_ci.run_id`, and
 `latest_pages_ci.commit`.
 
+If the latest successful `main` runs are newer only because the
+release-evidence refresh commit itself merged, the freshness check treats that
+as current only when Git proves the diff is limited to the ledger, its pinned
+test, and `.context/changelog.md`. Any unrelated file change remains stale.
+
 Tests and offline reviews can provide equivalent latest-run evidence through a
 fixture:
 
@@ -123,7 +128,8 @@ using it to reduce the real downstream user feedback blocker.
 3. Run `uv run python scripts/release_evidence.py --strict`.
 4. Run `uv run python scripts/release_evidence.py --check-freshness --strict`
    when the release or stable-core claim depends on the latest successful
-   `main` CI and Pages runs.
+   `main` CI and Pages runs. A self-refresh-only merge is accepted; unrelated
+   newer changes still require a ledger refresh before claims depend on them.
 5. Run `uv run python scripts/stable_core_readiness.py --strict`.
 6. Update `docs/meta/RELEASE_CHECKLIST.md` only if the release gate changes.
 7. Update `docs/meta/PROJECT_PROGRESS.md` only for phase-level status changes.

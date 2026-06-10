@@ -27,6 +27,13 @@ ACTIONS_WORKFLOWS = {
     "latest_main_ci": "CI",
     "latest_pages_ci": "Pages",
 }
+SELF_REFRESH_PATHS = frozenset(
+    {
+        ".context/changelog.md",
+        "docs/meta/release-evidence.json",
+        "tests/test_release_evidence.py",
+    }
+)
 
 
 def main() -> int:
@@ -96,6 +103,7 @@ def main() -> int:
     if args.check_freshness:
         freshness = _freshness_report(
             ledger,
+            root=root,
             repo=args.repo,
             input_path=args.freshness_input,
         )
@@ -330,6 +338,7 @@ def _freshness_not_checked() -> dict[str, Any]:
 def _freshness_report(
     ledger: dict[str, Any],
     *,
+    root: Path,
     repo: str,
     input_path: Path | None,
 ) -> dict[str, Any]:
@@ -349,6 +358,17 @@ def _freshness_report(
         }
 
     failures = _freshness_failures(ledger, latest)
+    if failures and _is_self_refresh_only(root, ledger, latest):
+        return {
+            "status": "current",
+            "source": source,
+            "message": (
+                "Latest successful main runs are newer only because of a "
+                "release-evidence self-refresh commit."
+            ),
+            "latest": latest,
+            "failures": [],
+        }
     return {
         "status": "stale" if failures else "current",
         "source": source,
@@ -463,6 +483,64 @@ def _freshness_failures(
                     f"but latest successful main run is {current_value}"
                 )
     return failures
+
+
+def _is_self_refresh_only(
+    root: Path,
+    ledger: dict[str, Any],
+    latest: dict[str, dict[str, Any]],
+) -> bool:
+    recorded_commits = _actions_commits(ledger)
+    latest_commits = _actions_commits(latest)
+    if len(recorded_commits) != 1 or len(latest_commits) != 1:
+        return False
+
+    recorded_commit = next(iter(recorded_commits))
+    latest_commit = next(iter(latest_commits))
+    if recorded_commit == latest_commit:
+        return False
+
+    changed_paths = _git_changed_paths(root, recorded_commit, latest_commit)
+    if not changed_paths:
+        return False
+    return changed_paths <= SELF_REFRESH_PATHS
+
+
+def _actions_commits(source: dict[str, Any]) -> set[str]:
+    commits: set[str] = set()
+    for field_name in ACTIONS_WORKFLOWS:
+        entry = source.get(field_name)
+        if not isinstance(entry, dict):
+            return set()
+        commit = entry.get("commit")
+        if not isinstance(commit, str) or COMMIT_RE.fullmatch(commit) is None:
+            return set()
+        commits.add(commit)
+    return commits
+
+
+def _git_changed_paths(root: Path, old_commit: str, new_commit: str) -> set[str]:
+    command = [
+        "git",
+        "-C",
+        str(root),
+        "diff",
+        "--name-only",
+        f"{old_commit}..{new_commit}",
+    ]
+    try:
+        completed = subprocess.run(  # nosec B603
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+    except OSError:
+        return set()
+    if completed.returncode != 0:
+        return set()
+    return {line.strip() for line in completed.stdout.splitlines() if line.strip()}
 
 
 def _summary_payload(
