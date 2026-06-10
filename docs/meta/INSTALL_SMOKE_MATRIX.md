@@ -43,6 +43,12 @@ that the Python CLI installs and starts on Windows, and that `doctor` gives a
 clear Hurl dependency message. A future issue must review a Windows Hurl install
 path before Entroping claims Hurl-backed Windows execution.
 
+`windows-latest` is a moving GitHub-hosted runner alias. GitHub image migration notices
+should be treated as install-smoke evidence review prompts, not as a reason to
+expand Windows support claims. Pin a Windows image only if the doctor-only smoke
+becomes image-sensitive or a release claim depends on a specific Windows
+version.
+
 ## Dependency Rules
 
 - Hurl is required for deterministic `entroping run`.

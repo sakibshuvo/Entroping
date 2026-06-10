@@ -62,6 +62,8 @@ def test_install_smoke_matrix_doc_matches_ci_and_support_claims() -> None:
         "pinned Hurl archive",
         "Homebrew Hurl",
         "doctor-only",
+        "moving GitHub-hosted runner alias",
+        "image migration notices",
         "Windows Hurl-backed `entroping run` is not claimed for alpha",
         "uv tool install . --force",
         "entroping init --minimal",
