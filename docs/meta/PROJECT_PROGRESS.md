@@ -30,7 +30,7 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: none ready locally after #501; open stable-core issues are blocked on external evidence or later distribution decisions.
+Current local queue: #517-#523 are scoped review follow-ups; stable-core readiness still depends on external evidence and package-index proof.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -42,13 +42,13 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 
 ## Next Three Issues
 
-No ready local marathon target is queued; do not create filler work.
+After the review-driven cleanup queue, do not create filler work when only external stable-core blockers remain.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | #303-#305 | Package-index proof after TestPyPI/PyPI credentials and protection are ready. |
-| 2 | #306 | Real downstream feedback before stable-core readiness. |
-| 3 | #308-#310 | Compatibility and non-GitHub CI proof after repeated release/package evidence and runner access. |
+| 1 | #517-#523 | Local review follow-ups: progress freshness, CI runner notice, README/help/docs nav, quality ratchet, and report cleanup. |
+| 2 | #303-#306 | Package-index proof and real downstream feedback after TestPyPI/PyPI credentials and protection are ready. |
+| 3 | #308-#310 | Stable-core compatibility decision and non-GitHub CI proof after repeated release/package evidence and runner access. |
 
 Promote a new local issue here only when a real defect/regression or ready product gap is discovered.
 
@@ -61,7 +61,7 @@ entirely inside this repo.
 | --- | --- | --- |
 | Package-index proof | #303, #304, #305 | TestPyPI/PyPI publish, install, and smoke evidence from the package index. |
 | Real downstream feedback | #306 | At least one sanitized external project feedback artifact. |
-| Compatibility discipline | #308 | Explicit compatibility policy and repeated evidence across supported versions. |
+| stable-core compatibility decision | #308 | Explicit compatibility policy and repeated evidence across supported versions. |
 | Non-GitHub CI proof | #309, #310 | Real GitLab/Buildkite/CircleCI runner proof before provider-native templates. |
 
 ## Latest Evidence
