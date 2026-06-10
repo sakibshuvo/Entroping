@@ -78,6 +78,7 @@ class LiteLLMClient:
         _validate_prompt_package_safe(package)
         completion_func = self._completion_func or _load_completion_func()
         kwargs = _completion_kwargs(package)
+        _validate_completion_payload(kwargs)
         started = time.monotonic()
         try:
             response = completion_func(**kwargs)
@@ -140,6 +141,43 @@ def _completion_kwargs(package: ArchitectPromptPackage) -> dict[str, object]:
     if package.api_key_env is not None:
         kwargs["api_key"] = _read_api_key(package.api_key_env)
     return kwargs
+
+
+def _validate_completion_payload(kwargs: Mapping[str, object]) -> None:
+    """Fail fast on non-auth string injection before provider invocation."""
+
+    for key in kwargs:
+        if key not in {"model", "messages", "temperature", "max_tokens", "api_base", "api_key"}:
+            msg = f"unsupported completion argument: {key}"
+            raise BrainProviderError(msg)
+
+    for key, value in kwargs.items():
+        if key == "api_key":
+            continue
+        _validate_safe_payload_value(key, value)
+
+
+def _validate_safe_payload_value(path: str, value: object) -> None:
+    """Reject control characters and secret-looking values in provider payloads."""
+
+    if isinstance(value, str):
+        if has_disallowed_control(value):
+            msg = f"provider payload field {path} must not contain control characters"
+            raise BrainProviderError(msg)
+        if contains_secret_like_value(value):
+            msg = f"provider payload field {path} must not contain secret-like values"
+            raise BrainProviderError(msg)
+        return
+
+    if isinstance(value, Mapping):
+        for nested_key, nested_value in value.items():
+            _validate_safe_payload_value(f"{path}.{nested_key!s}", nested_value)
+        return
+
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        for index, item in enumerate(value):
+            _validate_safe_payload_value(f"{path}[{index}]", item)
+
 
 
 def _read_api_key(env_name: str) -> str:

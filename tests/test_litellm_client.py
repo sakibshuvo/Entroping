@@ -313,6 +313,65 @@ def test_litellm_client_rejects_control_prompt_before_provider_call(tmp_path: Pa
     assert calls == []
 
 
+def test_litellm_client_rejects_unsafe_completion_payload_fields(
+    tmp_path: Path,
+) -> None:
+    calls: list[dict[str, object]] = []
+    package = _package(tmp_path).model_copy(update={"model": "openai/sk-proj-live-key"})
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        calls.append(kwargs)
+        return {"choices": [{"message": {"content": '{"summary":"ok","edits":[]}'}}]}
+
+    with pytest.raises(BrainProviderError, match="secret-like values"):
+        LiteLLMClient(completion_func=fake_completion).complete(package)
+
+    assert calls == []
+
+
+def test_litellm_client_rejects_control_characters_in_completion_payload_fields(
+    tmp_path: Path,
+) -> None:
+    calls: list[dict[str, object]] = []
+    package = _package(tmp_path).model_copy(update={"api_base": "http://127.0.0.1:8000/v1\x00"})
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        calls.append(kwargs)
+        return {"choices": [{"message": {"content": '{"summary":"ok","edits":[]}'}}]}
+
+    with pytest.raises(BrainProviderError, match="control characters"):
+        LiteLLMClient(completion_func=fake_completion).complete(package)
+
+    assert calls == []
+
+
+def test_litellm_client_rejects_unsupported_completion_arguments(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, object]] = []
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        calls.append(kwargs)
+        return {"choices": [{"message": {"content": '{"summary":"ok","edits":[]}'}}]}
+
+    original_package = _package(tmp_path)
+
+    def fake_kwargs(_: ArchitectPromptPackage) -> dict[str, object]:
+        return {"model": original_package.model, "unexpected": "value"}
+
+    monkeypatch.setattr(
+        litellm_client,
+        "_completion_kwargs",
+        fake_kwargs,
+    )
+
+    with pytest.raises(BrainProviderError, match="unsupported completion argument"):
+        LiteLLMClient(completion_func=fake_completion).complete(original_package)
+
+    assert calls == []
+
+
 def test_litellm_client_rejects_empty_response_content(tmp_path: Path) -> None:
     def fake_completion(**kwargs: object) -> dict[str, object]:
         _ = kwargs
