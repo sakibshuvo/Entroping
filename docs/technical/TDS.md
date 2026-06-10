@@ -681,6 +681,7 @@ Reports are written under `reports/`.
 | Run Delta | `report delta` | Run-to-run regression delta for PR review |
 | Coverage Badges | `report badges` | Local Shields endpoint JSON from existing reports |
 | Redaction Review | `report redaction --output md|html` | Captured-traffic redaction coverage review |
+| Capture Summary | `report capture-summary --output md|json` | Counts-only captured-traffic session summary |
 | Effective Policy | `report policy --output md|json` | Resolved QAnstitution gate provenance |
 | Effective Policy Diff | `report policy-diff --base <path> --current <path> --output md|json` | Import/gate differences between two effective-policy JSON artifacts |
 | Artifact Manifest | `report artifact-manifest` | Checksum manifest for local report artifacts |
@@ -818,6 +819,7 @@ entroping report failure-bundle [--output <directory>]
 entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
 entroping report badges [--output <directory>] [--run-json <path>] [--policy-json <path>] [--openapi-json <path>] [--traceability-json <path>]
 entroping report redaction [--output <md|html>]
+entroping report capture-summary [--output <md|json>]
 entroping report policy [--output <md|json>]
 entroping report policy-diff [--base <path>] [--current <path>] [--output <md|json>]
 entroping report gate-coverage [--output <md|json>]
@@ -1044,6 +1046,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report badges` | `reports/badges/*.json` | Local Shields endpoint JSON for policy, OpenAPI, and traceability coverage. |
 | `entroping report redaction --output md` | `reports/redaction-review.md` | Counts-only captured-traffic redaction review. |
 | `entroping report redaction --output html` | `reports/redaction-review.html` | Browser-readable captured-traffic redaction review. |
+| `entroping report capture-summary --output md` | `reports/capture-summary.md` | Counts-only captured-traffic session summary for freeze review. |
+| `entroping report capture-summary --output json` | `reports/capture-summary.json` | Machine-readable capture summary using `entroping.capture-summary.v1`. |
 | `entroping report policy --output md` | `reports/effective-policy.md` | Human-readable resolved QAnstitution gate provenance. |
 | `entroping report policy --output json` | `reports/effective-policy.json` | Machine-readable effective policy evidence using `entroping.effective-policy-report.v1`. |
 | `entroping report policy-diff --output md|json` | `stdout Effective Policy Diff Markdown/JSON` | Import and gate differences between two effective-policy JSON artifacts using `entroping.effective-policy-diff.v1`. |

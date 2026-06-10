@@ -23,6 +23,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Run delta report | `entroping.run-delta-report.v1` | `entroping report delta --output json` stdout | [run-delta-report.v1.schema.json](report-schemas/run-delta-report.v1.schema.json) |
 | Drift baseline | `entroping.drift-baseline.v1` | `reports/drift-baseline.candidate.json`, `.entroping/drift-baseline.json` | Inline contract |
 | Drift report | `entroping.drift-report.v1` | `reports/drift.json` | [drift-report.v1.schema.json](report-schemas/drift-report.v1.schema.json) |
+| Capture summary | `entroping.capture-summary.v1` | `reports/capture-summary.json` from `entroping report capture-summary --output json` | [capture-summary.v1.schema.json](report-schemas/capture-summary.v1.schema.json) |
 | Effective policy report | `entroping.effective-policy-report.v1` | `reports/effective-policy.json` | [effective-policy-report.v1.schema.json](report-schemas/effective-policy-report.v1.schema.json) |
 | Effective policy diff | `entroping.effective-policy-diff.v1` | `entroping report policy-diff --output json` stdout | [effective-policy-diff.v1.schema.json](report-schemas/effective-policy-diff.v1.schema.json) |
 | Gate coverage report | `entroping.gate-coverage-report.v1` | `reports/gate-coverage.json` | [gate-coverage-report.v1.schema.json](report-schemas/gate-coverage-report.v1.schema.json) |
@@ -50,6 +51,17 @@ paths and effective assertions, not traffic values, prompts, credentials, or
 provider data.
 New writers include optional per-gate `group` provenance when a gate was
 expanded from a local `gate_groups` reference.
+
+The capture summary report is written by:
+
+```bash
+entroping report capture-summary --output json
+```
+
+Its v1 payload summarizes existing redacted traffic state by derived capture
+session, method, host, dependency target, status family, and redaction category.
+It never renders raw URLs, query values, headers, cookies, request bodies,
+response bodies, tokens, prompts, provider data, or Hurl output.
 
 The effective policy diff report compares two existing effective-policy JSON
 artifacts:

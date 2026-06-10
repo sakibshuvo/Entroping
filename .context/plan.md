@@ -94,6 +94,10 @@ project, and a Codex workspace with fast context rehydration.
   `map --export png` now get value-free approval manifests under
   `reports/approvals/` with generated paths, checksums, deterministic source
   fingerprints, and counts-only redaction summaries.
+- `entroping report capture-summary --output md|json` reads existing redacted
+  Eye traffic state through the read-only store path and summarizes derived
+  sessions, methods, hosts, dependency targets, status families, and redaction
+  categories without rendering raw traffic values.
 - `entroping doctor` validates configured Builder/Auditor/Breaker persona files
   through the same root-bounded persona loader used at runtime and reports
   `api_key_env` readiness without printing values or calling providers.

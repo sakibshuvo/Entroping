@@ -140,7 +140,7 @@ The v4.1 command namespace is intentionally small and stable:
 | Intelligence | `architect build`, `architect refactor`, `architect audit` |
 | Observation | `watch`, `freeze`, `map` |
 | Execution | `run`, `studio` |
-| Reporting | `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report policy`, `report policy-diff`, `report gate-coverage`, `report gate-injection`, `report artifact-manifest`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary` |
+| Reporting | `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report capture-summary`, `report policy`, `report policy-diff`, `report gate-coverage`, `report gate-injection`, `report artifact-manifest`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary` |
 
 Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `verify`, `explain`, and `chaos` must not be treated as primary v4.1 commands. They can exist only as explicit backwards-compatible aliases or future roadmap items.
 
@@ -222,6 +222,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | EXE-008 | Generate bug reports | `entroping report bug` creates a Markdown bug template with exact Hurl/curl repro details |
 | EXE-009 | Generate failure bundles | `entroping report failure-bundle` creates a sanitized local bundle with a versioned manifest, latest failed run evidence, bug Markdown, failed-test Hurl metadata, and reviewed local report artifacts without raw traffic, env files, uploads, or source Hurl contents |
 | EXE-010 | Generate redaction review reports | `entroping report redaction --output md` and `--output html` summarize captured traffic redaction categories and counts without raw secrets |
+| EXE-010 | Generate capture session summaries | `entroping report capture-summary --output md|json` summarizes redacted local traffic by derived session, method, host, dependency target, status family, and redaction category without rendering raw URLs, query values, headers, cookies, request bodies, response bodies, or tokens |
 | EXE-011 | Run changed Hurl tests locally | `entroping run --changed-from <ref>` selects existing changed `.hurl` files from Git diff for fast feedback while full-suite `run` remains the default |
 | EXE-011A | Rerun latest failures locally | `entroping run --rerun-failures` selects failed source `.hurl` files from the latest local run report, reuses the report environment unless `--env` overrides it, and keeps full-suite `run --ci` as the release gate |
 | EXE-012 | Generate traceability reports | `entroping report traceability --output md|json` maps local Hurl metadata and `docs/stories/*.md` story files to stories, owners, docs, tests, tags, local story paths, and gap findings |

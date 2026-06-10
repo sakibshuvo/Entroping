@@ -2,6 +2,10 @@
 
 ## 2026-06-09
 
+- Capture review reports should read traffic state through the read-only store
+  path and aggregate only value-free labels. Host and status counts are useful
+  for freeze review, but raw paths, query values, headers, cookies, and bodies
+  must stay out of report renderers.
 - Report-to-report comparison commands should read already-produced evidence
   artifacts, not re-evaluate source configuration. That keeps review diffs
   reproducible and avoids turning reporting commands into hidden execution

@@ -2,6 +2,10 @@
 
 ## 2026-06-09
 
+- Added issue #415's safe capture summary report so
+  `entroping report capture-summary --output md|json` summarizes redacted local
+  traffic state by derived session, method, host, dependency target, status
+  family, and redaction category without rendering raw traffic values.
 - Added issue #416's effective-policy evidence diff so
   `entroping report policy-diff --base <path> --current <path> --output md|json`
   compares existing effective-policy JSON artifacts, emits schema-versioned

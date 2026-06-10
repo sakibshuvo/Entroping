@@ -25,6 +25,11 @@ from entroping.core.agent_bundle import (
     AgentBundleOutput,
     run_agent_bundle_report,
 )
+from entroping.core.capture_summary_report import (
+    CaptureSummaryError,
+    CaptureSummaryOutput,
+    run_capture_summary_report,
+)
 from entroping.core.coverage_badges import BadgeReportError, write_coverage_badges
 from entroping.core.drift_report import (
     DriftReportError,
@@ -288,6 +293,38 @@ def report_redaction(
         f"{noun}.[/green]"
     )
     console.print(f"Wrote redaction review: {display_cli_path(result.output_path)}")
+
+
+@app.command("capture-summary")
+def report_capture_summary(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Generate a safe counts-only summary from captured traffic."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported capture-summary output: {output}[/yellow]")
+        raise typer.Exit(2)
+    capture_output = cast(CaptureSummaryOutput, normalized_output)
+
+    try:
+        result = run_capture_summary_report(
+            project_root=Path.cwd(),
+            output=capture_output,
+        )
+    except CaptureSummaryError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    noun = "record" if result.report.summary.total_records == 1 else "records"
+    console.print(
+        f"[green]Summarized {result.report.summary.total_records} traffic "
+        f"{noun} across {result.report.summary.total_sessions} sessions.[/green]"
+    )
+    console.print(f"Wrote capture summary: {display_cli_path(result.output_path)}")
 
 
 @app.command("policy")
