@@ -6,11 +6,73 @@ import subprocess
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+START_ISSUE_SCRIPT = REPO_ROOT / "scripts" / "start_issue.sh"
+
+
+def run_git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", *args],
+        check=True,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
+
+
+def create_start_issue_fixture_repo(tmp_path: Path) -> Path:
+    origin = tmp_path / "origin.git"
+    run_git(tmp_path, "init", "--bare", str(origin))
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run_git(repo, "init", "-b", "main")
+    run_git(repo, "config", "user.email", "test@example.com")
+    run_git(repo, "config", "user.name", "Test User")
+    (repo / "README.md").write_text("fixture\n", encoding="utf-8")
+    (repo / "pyproject.toml").write_text(
+        """
+[project]
+name = "start-issue-fixture"
+version = "0.0.0"
+requires-python = ">=3.12"
+""".lstrip(),
+        encoding="utf-8",
+    )
+    session_prompt = repo / "src" / "entroping" / "core" / "session_prompt.py"
+    session_prompt.parent.mkdir(parents=True)
+    (repo / "src" / "entroping" / "__init__.py").write_text("", encoding="utf-8")
+    (repo / "src" / "entroping" / "core" / "__init__.py").write_text("", encoding="utf-8")
+    session_prompt.write_text(
+        """
+from __future__ import annotations
+
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--issue")
+parser.add_argument("--title")
+parser.add_argument("--url")
+parser.add_argument("--worktree")
+parser.add_argument("--branch")
+parser.add_argument("--repo")
+parser.add_argument("--mode")
+args = parser.parse_args()
+print(f"# Entroping Issue Session: #{args.issue}")
+print(f"Mode: {args.mode}")
+print(f"Context pack: `scripts/context_pack.sh --mode {args.mode}`")
+""".lstrip(),
+        encoding="utf-8",
+    )
+    run_git(repo, "add", ".")
+    run_git(repo, "commit", "-m", "init")
+    run_git(repo, "remote", "add", "origin", str(origin))
+    run_git(repo, "push", "-u", "origin", "main")
+    return repo
 
 
 def test_start_issue_help_documents_dry_run_mode() -> None:
     result = subprocess.run(
-        [str(REPO_ROOT / "scripts" / "start_issue.sh"), "--help"],
+        [str(START_ISSUE_SCRIPT), "--help"],
         check=False,
         cwd=REPO_ROOT,
         capture_output=True,
@@ -46,7 +108,7 @@ def test_start_issue_dry_run_generates_prompt_without_creating_worktree(tmp_path
 
     result = subprocess.run(
         [
-            str(REPO_ROOT / "scripts" / "start_issue.sh"),
+            str(START_ISSUE_SCRIPT),
             "99",
             "feat/dry-run",
             "--dry-run",
@@ -90,7 +152,7 @@ def test_start_issue_review_dry_run_uses_review_context_pack(tmp_path: Path) -> 
 
     result = subprocess.run(
         [
-            str(REPO_ROOT / "scripts" / "start_issue.sh"),
+            str(START_ISSUE_SCRIPT),
             "100",
             "review/context-pack",
             "--mode",
@@ -111,3 +173,83 @@ def test_start_issue_review_dry_run_uses_review_context_pack(tmp_path: Path) -> 
     assert "scripts/context_pack.sh --mode review" in result.stdout
     assert "scripts/context_pack.sh --mode implementation" not in result.stdout
     assert not (worktree_parent / "Entroping-issue-100").exists()
+
+
+def test_start_issue_adds_missing_issue_to_project_before_marking_in_progress(
+    tmp_path: Path,
+) -> None:
+    repo = create_start_issue_fixture_repo(tmp_path)
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_state = tmp_path / "fake-gh-state"
+    fake_state.mkdir()
+    fake_gh = fake_bin / "gh"
+    fake_gh.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        "state_dir=\"${FAKE_GH_STATE:?}\"\n"
+        "calls=\"$state_dir/calls.log\"\n"
+        "if [[ \"$1 $2\" == \"issue view\" ]]; then\n"
+        "  printf '%s\\n' "
+        '\'{\"title\":\"Project add feature\",\"url\":\"https://github.com/sakibshuvo/Entroping/issues/99\",\"state\":\"OPEN\"}\'\n'
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"$1 $2\" == \"issue edit\" ]]; then\n"
+        "  printf 'issue edit %s\\n' \"$*\" >> \"$calls\"\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"$1 $2\" == \"project view\" ]]; then\n"
+        "  printf '%s\\n' '{\"id\":\"project-id\"}'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"$1 $2\" == \"project field-list\" ]]; then\n"
+        "  printf '%s\\n' "
+        "'{\"fields\":[{\"name\":\"Status\",\"id\":\"field-id\","
+        "\"options\":[{\"name\":\"In Progress\",\"id\":\"in-progress-id\"}]}]}'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"$1 $2\" == \"project item-list\" ]]; then\n"
+        "  if [[ -f \"$state_dir/project-added\" ]]; then\n"
+        "    printf '%s\\n' '{\"items\":[{\"id\":\"item-id\",\"content\":{\"number\":99}}]}'\n"
+        "  else\n"
+        "    printf '%s\\n' '{\"items\":[]}'\n"
+        "  fi\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"$1 $2\" == \"project item-add\" ]]; then\n"
+        "  printf 'project item-add %s\\n' \"$*\" >> \"$calls\"\n"
+        "  touch \"$state_dir/project-added\"\n"
+        "  printf '%s\\n' '{\"id\":\"item-id\"}'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"$1 $2\" == \"project item-edit\" ]]; then\n"
+        "  printf 'project item-edit %s\\n' \"$*\" >> \"$calls\"\n"
+        "  exit 0\n"
+        "fi\n"
+        "echo \"unexpected gh args: $*\" >&2\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    fake_gh.chmod(fake_gh.stat().st_mode | stat.S_IXUSR)
+    worktree_parent = tmp_path / "worktrees"
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
+    env["FAKE_GH_STATE"] = str(fake_state)
+    env["ENTROPING_WORKTREE_PARENT"] = str(worktree_parent)
+
+    result = subprocess.run(
+        [str(START_ISSUE_SCRIPT), "99", "feat/project-add"],
+        check=False,
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "issue #99 is not on the GitHub Project board" not in result.stderr
+    calls = (fake_state / "calls.log").read_text(encoding="utf-8")
+    assert "project item-add" in calls
+    assert "https://github.com/sakibshuvo/Entroping/issues/99" in calls
+    assert "project item-edit" in calls
+    assert (worktree_parent / "Entroping-issue-99").is_dir()

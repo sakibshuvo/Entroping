@@ -721,3 +721,6 @@
   focused assertion helpers.
 - Added issue #530's local PR-body validation mode so agents can run
   `scripts/pr_body_check.py --body-file <path>` before opening or editing a PR.
+- Added issue #532's `start_issue.sh` project-board recovery path so missing
+  issues are best-effort added to the GitHub Project before being moved to
+  `In Progress`.

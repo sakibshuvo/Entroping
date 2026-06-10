@@ -91,7 +91,8 @@ The launcher:
 - Creates `../Entroping-issue-<number>` unless `--dry-run` is used.
 - Creates the requested branch from `main`.
 - Saves a prompt under `.entroping/session-prompts/` in the worktree.
-- Best-effort moves the issue to `status:in-progress` and the project board to `In Progress`.
+- Best-effort moves the issue to `status:in-progress`, adds missing issues to
+  the GitHub Project board, and moves the project item to `In Progress`.
 
 Do not use this script to bypass planning. The generated prompt still requires `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, tests, regression checks, security review where relevant, and docs/context updates before merge.
 
