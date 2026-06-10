@@ -273,8 +273,8 @@ REPORT_ARTIFACTS = (
 
 
 def test_cli_compatibility_audit_doc_covers_current_docs_and_artifacts() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     docs = {
-        "README": (REPO_ROOT / "README.md").read_text(encoding="utf-8"),
         "TDS": (REPO_ROOT / "docs" / "technical" / "TDS.md").read_text(encoding="utf-8"),
         "COMMAND_CHEAT_SHEET": (
             REPO_ROOT / "docs" / "technical" / "COMMAND_CHEAT_SHEET.md"
@@ -287,6 +287,10 @@ def test_cli_compatibility_audit_doc_covers_current_docs_and_artifacts() -> None
     for contract in LOCKED_CLI_CONTRACTS:
         for name, content in docs.items():
             assert contract.signature in content, f"{contract.signature} missing from {name}"
+
+    assert "COMMAND_CHEAT_SHEET.md" in readme
+    assert "CLI_COMPATIBILITY_AUDIT.md" in readme
+    assert "| Workflow | Primary command | Purpose |" in readme
 
     audit = docs["CLI_COMPATIBILITY_AUDIT"]
     for artifact in REPORT_ARTIFACTS:

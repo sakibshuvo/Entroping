@@ -265,6 +265,28 @@ def test_readme_promotes_demo_wrapper_without_expanding_cli_surface() -> None:
     assert "entroping demo" not in command_cheat_sheet
 
 
+def test_readme_keeps_first_hour_troubleshooting_and_cli_surface_scan_friendly() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+
+    start_here = readme.split("## Why Entroping", maxsplit=1)[0]
+    assert "[Troubleshooting](#first-hour-troubleshooting)" in start_here
+
+    troubleshooting = readme.split("## First-Hour Troubleshooting", maxsplit=1)[
+        1
+    ].split("## Use The CLI", maxsplit=1)[0]
+    for term in ("uv", "Python 3.12", "Hurl", "hurlfmt"):
+        assert term in troubleshooting
+
+    locked_surface = readme.split("## Locked Alpha CLI Surface", maxsplit=1)[
+        1
+    ].split("## Architecture", maxsplit=1)[0]
+    assert "COMMAND_CHEAT_SHEET.md" in locked_surface
+    assert "CLI_COMPATIBILITY_AUDIT.md" in locked_surface
+    assert "| Workflow | Primary command | Purpose |" in locked_surface
+    assert "entroping report review-summary" not in locked_surface
+    assert locked_surface.count("entroping ") <= 10
+
+
 def test_readme_frontloads_owasp_policy_pack_wedge_without_overclaiming() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     first_read = readme.split("## Current Alpha", maxsplit=1)[0]

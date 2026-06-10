@@ -25,7 +25,7 @@ Project philosophy: **The QAnstitution is Law. Traffic is Truth. Hurl is the Enf
 
 **Start here:** [Public Docs](https://sakibshuvo.github.io/Entroping/) ·
 [Two-Minute Demo](#try-it-in-two-minutes) · [Roadmap](ROADMAP.md) ·
-[Project Context](#project-context)
+[Troubleshooting](#first-hour-troubleshooting) · [Project Context](#project-context)
 
 ## Why Entroping
 
@@ -211,6 +211,20 @@ CI proves Python 3.12 and 3.13 for the security regression suite and optional
 extras smoke. Python 3.12 remains the syntax and mypy floor; Entroping is not
 claimed for Python 3.14 until CI evidence is added.
 
+## First-Hour Troubleshooting
+
+Most first-run failures are setup mismatches, not Entroping runtime failures.
+
+| Symptom | Check |
+| --- | --- |
+| `uv` is missing | Install `uv`, then retry `uv tool install ...` or `scripts/demo.sh`. |
+| Python is rejected | Use Python 3.12 or 3.13; Python 3.14 is not claimed until CI evidence exists. |
+| Hurl is missing | Install Hurl 4.3.0 or newer, then run `entroping doctor`. |
+| Architect validation fails | Install `hurlfmt`; generated Hurl validation reports it separately from Hurl execution. |
+
+The full setup path is in [USER_GUIDE.md](docs/user/USER_GUIDE.md). Maintainer
+install-smoke evidence is linked from Project Context below.
+
 ## Use The CLI
 
 Create a minimal local project:
@@ -370,44 +384,19 @@ on pull requests, and GitHub Pages publishes `main` to
 
 ## Locked Alpha CLI Surface
 
-Compatibility details live in [CLI_COMPATIBILITY_AUDIT.md](docs/technical/CLI_COMPATIBILITY_AUDIT.md).
+The README shows the primary workflows. The full locked command reference lives
+in [COMMAND_CHEAT_SHEET.md](docs/technical/COMMAND_CHEAT_SHEET.md), and
+compatibility details live in
+[CLI_COMPATIBILITY_AUDIT.md](docs/technical/CLI_COMPATIBILITY_AUDIT.md).
 
-```text
-entroping init [--minimal] [--github-actions]
-entroping doctor [--ci] [--output <text|json>]
-entroping config list
-entroping config set --agent <builder|auditor|breaker> --model <model-id>
-entroping config vendor-policy-pack --pack <path> [--name <dir>]
-entroping config test-policy-pack --pack <path> [--output <text|json>]
-
-entroping architect build [--new] [--changed-from <ref>] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
-entroping architect refactor --target <glob> --prompt <text> [--preview]
-entroping architect audit [--focus <logic|auditor>] [--output <json|md>] [--changed-from <ref>]
-
-entroping watch [--port <port>] [--target <url>] [--scope-host <host> ...] [--scope-url-prefix <url> ...]
-entroping freeze --name <flow> [--golden] [--mock <service>] [--dry-run] [capture filters]
-entroping map [--export <mermaid|dot|md|png>] [capture filters]
-
-entroping studio [--env <name>]
-entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--operation-id <id>] [--ci] [--parallel] [--fail-fast] [--dry-run] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>] [--rerun-failures]
-entroping report bug
-entroping report failure-bundle [--output <directory>]
-entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
-entroping report badges [--output <directory>] [--run-json <path>] [--policy-json <path>] [--openapi-json <path>] [--traceability-json <path>]
-entroping report redaction [--output <md|html>]
-entroping report capture-summary [--output <md|json>]
-entroping report policy [--output <md|json>]
-entroping report policy-diff [--base <path>] [--current <path>] [--output <md|json>]
-entroping report gate-coverage [--output <md|json>]
-entroping report gate-injection --target <path> [--output <md|json>]
-entroping report artifact-manifest [--output <path>]
-entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
-entroping report traceability [--output <md|json>]
-entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
-entroping report sarif [--output <path>] [--junit <path>] [--drift <path>] [--traceability]
-entroping report promote-drift-baseline [--candidate <path>] [--output <path>]
-entroping report review-summary [--output md] [--junit <path>] [--run-json <path>] [--drift <path>] [--traceability]
-```
+| Workflow | Primary command | Purpose |
+| --- | --- | --- |
+| Start | `entroping init` | Create the local QAnstitution and project layout. |
+| Diagnose | `entroping doctor` | Validate Python, Hurl, hurlfmt, policy, and CI readiness. |
+| Generate | `entroping architect build` | Generate reviewable Hurl tests from OpenAPI or bounded prompts. |
+| Observe | `entroping watch` / `entroping freeze` / `entroping map` | Capture, redact, freeze, and map real traffic. |
+| Enforce | `entroping run` | Inject QAnstitution gates and execute committed Hurl tests. |
+| Report | `entroping report` | Emit CI and review artifacts such as JSON, JUnit, HTML, SARIF, and traceability. |
 
 `architect audit --focus logic` is deterministic: it compares the configured
 OpenAPI document with committed Hurl metadata, reports uncovered operations,
