@@ -364,6 +364,20 @@ The redaction review writes `reports/redaction-review.md` by default and can
 write `reports/redaction-review.html` with `--output html`. It contains counts
 and categories only, not raw header, query, or body values.
 
+Summarize what the Eye captured before choosing a freeze target:
+
+```bash
+entroping report capture-summary --output md
+entroping report capture-summary --output json
+```
+
+The capture summary reads existing redacted traffic state through a read-only
+path and writes `reports/capture-summary.md` or `reports/capture-summary.json`.
+It groups records into derived sessions and reports counts by method, host,
+dependency target, status family, and redaction category without rendering raw
+URLs, query values, headers, cookies, request bodies, response bodies, or
+tokens.
+
 Vendor a reviewed local policy pack when you want reusable gates without
 hand-editing the import path:
 

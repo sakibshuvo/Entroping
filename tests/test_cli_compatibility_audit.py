@@ -151,6 +151,11 @@ LOCKED_CLI_CONTRACTS = (
         ("--output",),
     ),
     CliContract(
+        "entroping report capture-summary [--output <md|json>]",
+        ("report", "capture-summary", "--help"),
+        ("--output",),
+    ),
+    CliContract(
         "entroping report policy [--output <md|json>]",
         ("report", "policy", "--help"),
         ("--output",),

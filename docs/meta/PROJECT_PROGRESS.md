@@ -31,7 +31,7 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#415](https://github.com/sakibshuvo/Entroping/issues/415) adds safe capture session summaries.
+Current issue: Promote the next ready local issue after #415 closes.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -47,8 +47,8 @@ These are autonomous local marathon targets; blocked external evidence issues re
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#415](https://github.com/sakibshuvo/Entroping/issues/415) | Add safe capture session summaries. |
-| 2 | Promote next ready GitHub issue | Keep the queue issue-driven after #415 closes. |
+| 1 | Promote next ready GitHub issue | Keep the queue issue-driven after #415 closes. |
+| 2 | Promote next ready GitHub issue | Keep the queue issue-driven after the promoted issue closes. |
 | 3 | Promote next ready GitHub issue | Keep the queue issue-driven after the promoted issue closes. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
@@ -70,7 +70,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
-| [Effective policy evidence diff](https://github.com/sakibshuvo/Entroping/issues/416) | Done | `entroping report policy-diff --base <path> --current <path> --output md|json` compares existing effective-policy JSON artifacts and reports import/gate additions, removals, and changed fields without loading policy files, calling providers, executing Hurl, or failing valid changed diffs. |
+| [Safe capture session summaries](https://github.com/sakibshuvo/Entroping/issues/415) | Done | `entroping report capture-summary --output md|json` summarizes redacted traffic state by derived session, method, host, dependency target, status family, and redaction category without rendering raw URLs, query values, headers, cookies, bodies, or tokens. |
 | [Run dry-run execution plan](https://github.com/sakibshuvo/Entroping/issues/417) | Done | `entroping run --dry-run` now resolves selected Hurl tests, tag or changed-file filters, effective and injected gates, env name, missing variable names, worker settings, and requested report paths without invoking Hurl, writing latest-run state, writing execution events, writing executed-result reports, or mutating source `.hurl`; `--report json` writes only `reports/run-plan.json` with schema `entroping.run-plan.v1`. |
 | [Hurl version compatibility in doctor](https://github.com/sakibshuvo/Entroping/issues/418) | Done | `entroping doctor` now runs `hurl --version` through the bounded local subprocess boundary, reports compatible, missing, unsupported, and unparsable Hurl version states in human and JSON output, keeps normal warning exit compatibility, and makes `doctor --ci` fail when Hurl compatibility cannot be proven. |
 | [Multi-agent review bundle](https://github.com/sakibshuvo/Entroping/issues/467) | Done | `entroping report agent-bundle --output md|json` summarizes sanitized `.entroping/agent-runs/*.json` evidence for configured Builder, Breaker, and Auditor roles, supports role and scope filters, writes schema-versioned `reports/agent-bundle.*` artifacts, reports missing config/evidence, invalid provider-output validation, missing generated-Hurl validation, unsafe manifests, and multi-role output-path conflicts without calling providers, Hurl, or `run`. |

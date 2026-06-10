@@ -30,6 +30,7 @@ entroping report failure-bundle [--output <directory>]
 entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
 entroping report badges [--output <directory>] [--run-json <path>] [--policy-json <path>] [--openapi-json <path>] [--traceability-json <path>]
 entroping report redaction [--output <md|html>]
+entroping report capture-summary [--output <md|json>]
 entroping report policy [--output <md|json>]
 entroping report policy-diff [--base <path>] [--current <path>] [--output <md|json>]
 entroping report gate-coverage [--output <md|json>]
@@ -312,6 +313,8 @@ Variables can come from `envs/<name>.env`, explicit shell
 | `entroping report badges` | Write local Shields endpoint JSON badges to `reports/badges/` |
 | `entroping report redaction --output md` | Write a counts-only captured-traffic redaction review to `reports/redaction-review.md` |
 | `entroping report redaction --output html` | Write a browser-readable redaction review to `reports/redaction-review.html` |
+| `entroping report capture-summary --output md` | Write a safe captured-traffic session summary to `reports/capture-summary.md` |
+| `entroping report capture-summary --output json` | Write machine-readable capture summary evidence to `reports/capture-summary.json` |
 | `entroping report policy --output md` | Write effective QAnstitution gate provenance to `reports/effective-policy.md` |
 | `entroping report policy --output json` | Write machine-readable effective policy evidence to `reports/effective-policy.json` |
 | `entroping report policy-diff --base <path> --current <path>` | Compare two effective-policy JSON artifacts and emit Markdown or JSON to stdout |
@@ -336,6 +339,7 @@ entroping report failure-bundle
 entroping report delta --base reports/run-base.json --current reports/run-latest.json
 entroping report badges
 entroping report redaction --output md
+entroping report capture-summary --output md
 entroping report policy --output md
 entroping report policy-diff --base reports/base-effective-policy.json --current reports/effective-policy.json
 entroping report gate-coverage --output md

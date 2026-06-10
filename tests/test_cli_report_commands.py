@@ -9,6 +9,7 @@ from cli_test_support import (
     RunReportSummary,
     RunTestReport,
     _record_freeze_exchange,
+    _record_mock_exchange,
     app,
     json,
     pytest,
@@ -542,6 +543,69 @@ def test_report_redaction_rejects_unsupported_output() -> None:
 
     assert result.exit_code == 2
     assert "Unsupported redaction output" in result.output
+
+
+def test_report_capture_summary_writes_json_without_raw_secret(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    _record_freeze_exchange(tmp_path, secret="capture-cli-secret")
+    _record_mock_exchange(tmp_path, secret="capture-dependency-secret")
+
+    result = runner.invoke(app, ["report", "capture-summary", "--output", "json"])
+
+    assert result.exit_code == 0
+    assert "reports/capture-summary.json" in result.output
+    payload = json.loads(Path("reports/capture-summary.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.capture-summary.v1"
+    assert payload["summary"]["total_records"] == 2
+    assert payload["dependency_targets"][0] == {
+        "label": "payments.example.test",
+        "count": 1,
+    }
+    assert "capture-cli-secret" not in result.output
+    assert "capture-dependency-secret" not in json.dumps(payload)
+    assert "[REDACTED]" not in json.dumps(payload)
+
+
+def test_report_capture_summary_writes_empty_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from entroping.core.traffic_store import TrafficStore
+
+    monkeypatch.chdir(tmp_path)
+    TrafficStore.open_project(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "capture-summary"])
+
+    assert result.exit_code == 0
+    assert "0 traffic records" in result.output
+    content = Path("reports/capture-summary.md").read_text(encoding="utf-8")
+    assert "No captured traffic records found." in content
+
+
+def test_report_capture_summary_reports_missing_traffic_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "capture-summary"])
+
+    assert result.exit_code == 1
+    assert "No traffic state found" in result.output
+    assert not (tmp_path / "reports" / "capture-summary.md").exists()
+    assert not (tmp_path / ".entroping").exists()
+
+
+def test_report_capture_summary_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["report", "capture-summary", "--output", "html"])
+
+    assert result.exit_code == 2
+    assert "Unsupported capture-summary output" in result.output
 
 
 def test_report_traceability_outputs_empty_suite_markdown(

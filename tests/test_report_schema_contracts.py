@@ -4,6 +4,11 @@ import json
 from pathlib import Path
 from typing import cast
 
+from entroping.bridge.capture_summary import (
+    CAPTURE_SUMMARY_SCHEMA_VERSION,
+    capture_summary_report_to_dict,
+    compile_capture_summary,
+)
 from entroping.bridge.effective_policy import EffectivePolicyGateReport, EffectivePolicyReport
 from entroping.bridge.effective_policy_diff import (
     EFFECTIVE_POLICY_DIFF_SCHEMA_VERSION,
@@ -1001,6 +1006,43 @@ def test_effective_policy_diff_v1_schema_contract_is_versioned_and_stable() -> N
     ]
 
 
+def test_capture_summary_v1_schema_contract_is_versioned_and_stable() -> None:
+    from datetime import UTC, datetime
+
+    from entroping.models.traffic import TrafficExchange, TrafficRequest, TrafficResponse
+
+    schema = json.loads((SCHEMA_DIR / "capture-summary.v1.schema.json").read_text())
+    report = compile_capture_summary(
+        (
+            TrafficExchange(
+                captured_at=datetime(2026, 6, 4, 12, 0, tzinfo=UTC),
+                duration_ms=20,
+                redacted=True,
+                request=TrafficRequest(
+                    method="GET",
+                    url="https://api.example.test/health?token=[REDACTED]",
+                    headers={"Authorization": "[REDACTED]"},
+                ),
+                response=TrafficResponse(status_code=200, headers={}),
+            ),
+        )
+    )
+    payload = capture_summary_report_to_dict(report)
+
+    assert schema["properties"]["schema_version"]["const"] == CAPTURE_SUMMARY_SCHEMA_VERSION
+    assert payload["schema_version"] == "entroping.capture-summary.v1"
+    assert payload["summary"] == {
+        "total_records": 1,
+        "total_sessions": 1,
+        "redacted_records": 1,
+        "unredacted_records": 0,
+    }
+    sessions = cast(list[dict[str, object]], payload["sessions"])
+    assert sessions[0]["id"] == "session-001"
+    assert payload["methods"] == [{"label": "GET", "count": 1}]
+    assert payload["status_families"] == [{"label": "2xx", "count": 1}]
+
+
 def test_openapi_audit_v1_schema_contract_is_versioned_and_stable() -> None:
     document: dict[str, object] = {
         "openapi": "3.1.0",
@@ -1107,6 +1149,7 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         "entroping.effective-policy-diff.v1": (
             SCHEMA_DIR / "effective-policy-diff.v1.schema.json"
         ),
+        "entroping.capture-summary.v1": SCHEMA_DIR / "capture-summary.v1.schema.json",
         "entroping.gate-injection-report.v1": (
             SCHEMA_DIR / "gate-injection-report.v1.schema.json"
         ),
