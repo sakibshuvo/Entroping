@@ -123,13 +123,14 @@ Goal: connect Entroping to the places teams already review backend behavior.
 Stable-core completion requires proof outside the local repo:
 
 - package-index proof from TestPyPI/PyPI publish and install smoke.
-- repeated release evidence across supported Python/platform combinations.
 - a documented compatibility policy that constrains future CLI/report changes.
 - real downstream user feedback from at least one external project.
 - provider-specific CI templates only after real GitLab/Buildkite/CircleCI
   runner evidence.
 
 These blockers are tracked in GitHub Issues and the release-evidence ledger.
+Repeated alpha release-candidate evidence is tracked separately in the
+release-evidence ledger; it is not currently an unresolved stable-core blocker.
 Do not call the project stable just because alpha gates are green.
 
 ## Future: v1.0 Stable Core

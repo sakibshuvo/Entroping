@@ -2,6 +2,9 @@
 
 ## 2026-06-10
 
+- Aligned issue #505's roadmap stable-core blocker list with the readiness
+  gates so repeated alpha release-candidate evidence stays tracked separately
+  instead of appearing as an unresolved blocker.
 - Fixed issue #503's stable-core readiness Markdown output so blocker issue
   links now show their tracked status, making closed helper work visibly
   distinct from still-blocked stable-core evidence.
