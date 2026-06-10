@@ -51,7 +51,7 @@ from entroping.core.report_writer import (
 from entroping.core.run_event_log import RunEventLog
 from entroping.core.safe_write import SafeWriteError, safe_write_text
 from entroping.core.tag_expression import compile_tag_expression
-from entroping.core.traffic_store import TrafficStore, TrafficStoreError
+from entroping.core.traffic_store import TrafficStoreError, list_project_exchanges_readonly
 from entroping.models.drift import DependencyDriftRoute, DriftReport
 from entroping.models.hurl import HurlTest
 from entroping.models.qanstitution import KnownFailure
@@ -844,12 +844,11 @@ def _normalize_known_failure_test(test: str) -> str:
 
 def _load_current_dependency_routes(root: Path) -> tuple[DependencyDriftRoute, ...]:
     state_path = root / ".entroping" / "state.db"
-    if not state_path.exists():
+    if not state_path.is_file():
         return ()
 
     try:
-        store = TrafficStore.open_project(root)
-        exchanges = store.list_exchanges()
+        exchanges = list_project_exchanges_readonly(root)
         if not exchanges:
             return ()
         session = build_traffic_session_candidate(

@@ -31,7 +31,7 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: Promote the next ready local issue after #487 closes.
+Current issue: Promote the next ready local issue after #489 closes.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -47,7 +47,7 @@ These are autonomous local marathon targets; blocked external evidence issues re
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | Promote next ready GitHub issue | Keep the queue issue-driven after #415 closes. |
+| 1 | Promote next ready GitHub issue | Keep the queue issue-driven after #489 closes. |
 | 2 | Promote next ready GitHub issue | Keep the queue issue-driven after the promoted issue closes. |
 | 3 | Promote next ready GitHub issue | Keep the queue issue-driven after the promoted issue closes. |
 
@@ -70,7 +70,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
-| [Read-only redaction review state access](https://github.com/sakibshuvo/Entroping/issues/487) | Done | `entroping report redaction --output md|html` reads existing redacted traffic state through the read-only SQLite path, preserves missing/empty-state behavior, and proves report generation does not mutate `state.db`. |
+| [Read-only dependency traffic-state access](https://github.com/sakibshuvo/Entroping/issues/489) | Done | `entroping map` and run dependency-drift observations read existing redacted traffic state through the read-only SQLite path, preserve missing/empty-state behavior, and prove evidence review does not open the write-capable traffic store. |
 | [Run dry-run execution plan](https://github.com/sakibshuvo/Entroping/issues/417) | Done | `entroping run --dry-run` now resolves selected Hurl tests, tag or changed-file filters, effective and injected gates, env name, missing variable names, worker settings, and requested report paths without invoking Hurl, writing latest-run state, writing execution events, writing executed-result reports, or mutating source `.hurl`; `--report json` writes only `reports/run-plan.json` with schema `entroping.run-plan.v1`. |
 | [Hurl version compatibility in doctor](https://github.com/sakibshuvo/Entroping/issues/418) | Done | `entroping doctor` now runs `hurl --version` through the bounded local subprocess boundary, reports compatible, missing, unsupported, and unparsable Hurl version states in human and JSON output, keeps normal warning exit compatibility, and makes `doctor --ci` fail when Hurl compatibility cannot be proven. |
 | [Multi-agent review bundle](https://github.com/sakibshuvo/Entroping/issues/467) | Done | `entroping report agent-bundle --output md|json` summarizes sanitized `.entroping/agent-runs/*.json` evidence for configured Builder, Breaker, and Auditor roles, supports role and scope filters, writes schema-versioned `reports/agent-bundle.*` artifacts, reports missing config/evidence, invalid provider-output validation, missing generated-Hurl validation, unsafe manifests, and multi-role output-path conflicts without calling providers, Hurl, or `run`. |

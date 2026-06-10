@@ -29,7 +29,7 @@ from entroping.core.traffic_filters import (
     TrafficFilterError,
     filter_traffic_exchanges,
 )
-from entroping.core.traffic_store import TrafficStore, TrafficStoreError
+from entroping.core.traffic_store import TrafficStoreError, list_project_exchanges_readonly
 from entroping.models.traffic import TrafficExchange
 
 MapExportFormat = Literal["mermaid", "dot", "md", "png"]
@@ -64,13 +64,15 @@ def run_dependency_map(
     normalized_export = _normalize_export_format(export_format)
     root = project_root.expanduser().resolve()
     state_path = root / ".entroping" / "state.db"
-    if not state_path.exists():
+    if not state_path.is_file():
         msg = "No traffic state found. Run entroping watch before map."
         raise DependencyMapError(msg)
 
     try:
-        store = TrafficStore.open_project(root)
-        exchanges = _filtered_exchanges(store.list_exchanges(), capture_filters)
+        exchanges = _filtered_exchanges(
+            list_project_exchanges_readonly(root),
+            capture_filters,
+        )
         session = build_traffic_session_candidate(
             exchanges,
             name="dependency_map",

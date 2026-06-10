@@ -2,6 +2,10 @@
 
 ## 2026-06-09
 
+- Fixed issue #489's dependency traffic-state readers so `entroping map` and
+  run dependency-drift observations now use the read-only SQLite path, preserve
+  existing missing/empty-state behavior, and have regression coverage proving
+  these evidence workflows do not open the write-capable traffic store.
 - Fixed issue #487's redaction review state access so
   `entroping report redaction --output md|html` now reads existing traffic
   state through the read-only SQLite path, preserves missing/empty-state

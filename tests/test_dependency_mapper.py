@@ -149,6 +149,29 @@ def test_run_dependency_map_printable_exports(
     assert result.manifest_path is None
 
 
+def test_run_dependency_map_reads_existing_state_without_write_initializer(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _record_exchange(tmp_path, secret="readonly-map-secret")
+    state_path = tmp_path / ".entroping" / "state.db"
+    before = state_path.stat().st_mtime_ns
+
+    def fail_open_project(project_root: Path) -> TrafficStore:
+        _ = project_root
+        raise TrafficStoreError("write-capable traffic store opened")
+
+    monkeypatch.setattr(TrafficStore, "open_project", fail_open_project)
+
+    result = run_dependency_map(project_root=tmp_path, export_format="md")
+    after = state_path.stat().st_mtime_ns
+
+    assert result.route_count == 1
+    assert "api.example.test" in result.content
+    assert "readonly-map-secret" not in result.content
+    assert after == before
+
+
 def test_run_dependency_map_applies_capture_filters_before_graph_export(tmp_path: Path) -> None:
     _record_exchange(tmp_path)
     exchange = TrafficExchange(
@@ -192,11 +215,11 @@ def test_run_dependency_map_wraps_traffic_store_errors(
     (tmp_path / ".entroping").mkdir()
     (tmp_path / ".entroping" / "state.db").write_bytes(b"sqlite")
 
-    def fail_open_project(project_root: Path) -> TrafficStore:
+    def fail_readonly(project_root: Path) -> tuple[TrafficExchange, ...]:
         _ = project_root
         raise TrafficStoreError("store unavailable")
 
-    monkeypatch.setattr(TrafficStore, "open_project", fail_open_project)
+    monkeypatch.setattr(dependency_mapper, "list_project_exchanges_readonly", fail_readonly)
 
     with pytest.raises(DependencyMapError, match="store unavailable"):
         run_dependency_map(project_root=tmp_path, export_format="mermaid")

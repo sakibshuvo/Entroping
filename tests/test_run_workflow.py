@@ -1304,6 +1304,66 @@ def test_execute_run_workflow_includes_dependency_call_drift_from_redacted_traff
     assert "secret-token" not in drift_json
 
 
+def test_execute_run_workflow_reads_dependency_observations_without_write_initializer(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_project(tmp_path)
+    _write_matching_drift_baseline(tmp_path)
+    _write_dependency_baseline(tmp_path)
+    TrafficStore.open_project(tmp_path).record_exchange(
+        redact_traffic_exchange(
+            TrafficExchange(
+                captured_at=datetime(2026, 5, 31, 12, 0, tzinfo=UTC),
+                duration_ms=33,
+                request=TrafficRequest(
+                    method="GET",
+                    url="https://inventory.example.test/items/123?token=readonly-token",
+                    headers={"Authorization": "Bearer readonly-token"},
+                    body=None,
+                ),
+                response=TrafficResponse(status_code=200),
+            )
+        )
+    )
+    state_path = tmp_path / ".entroping" / "state.db"
+    before = state_path.stat().st_mtime_ns
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+        fail_fast: bool = False,
+    ) -> HurlSuiteResult:
+        _ = (options, max_workers)
+        return HurlSuiteResult(results=tuple(_passed_result(path) for path in paths))
+
+    def fail_open_project(project_root: Path) -> TrafficStore:
+        _ = project_root
+        raise TrafficStoreError("write-capable traffic store opened")
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
+    monkeypatch.setattr(TrafficStore, "open_project", fail_open_project)
+
+    result = execute_run_workflow(
+        project_root=tmp_path,
+        environment=None,
+        tag_filters=("smoke",),
+        report_formats=("drift",),
+        parallel=False,
+        drift_check=True,
+    )
+    after = state_path.stat().st_mtime_ns
+
+    assert result.drift_report is not None
+    assert [finding.kind for finding in result.drift_report.findings] == [
+        "missing_dependency_route",
+        "new_dependency_route",
+    ]
+    assert after == before
+
+
 def test_execute_run_workflow_dependency_baseline_without_traffic_state_reports_missing_route(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1394,12 +1454,15 @@ def test_execute_run_workflow_dependency_observation_errors_are_actionable(
         _ = (options, max_workers)
         return HurlSuiteResult(results=tuple(_passed_result(path) for path in paths))
 
-    def fail_open_project(project_root: Path) -> TrafficStore:
+    def fail_readonly(project_root: Path) -> tuple[TrafficExchange, ...]:
         _ = project_root
         raise TrafficStoreError("traffic state unavailable")
 
     monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
-    monkeypatch.setattr(TrafficStore, "open_project", fail_open_project)
+    monkeypatch.setattr(
+        "entroping.core.run_workflow.list_project_exchanges_readonly",
+        fail_readonly,
+    )
 
     with pytest.raises(
         DependencyDriftObservationError,
