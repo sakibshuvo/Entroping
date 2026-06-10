@@ -202,8 +202,18 @@ move_project_done() {
     return 0
   fi
   if ! item_id=$(json_project_item_id "$items_json" "$issue_number"); then
-    warn "issue #$issue_number is not on the GitHub Project board"
-    return 0
+    if ! gh project item-add "$project_number" --owner "$project_owner" --url "$issue_url" >/dev/null 2>&1; then
+      warn "issue #$issue_number is not on the GitHub Project board and could not be added"
+      return 0
+    fi
+    if ! items_json=$(gh project item-list "$project_number" --owner "$project_owner" --limit 200 --format json 2>/dev/null); then
+      warn "added issue #$issue_number to the GitHub Project board but could not reread items"
+      return 0
+    fi
+    if ! item_id=$(json_project_item_id "$items_json" "$issue_number"); then
+      warn "added issue #$issue_number to the GitHub Project board but could not find the item"
+      return 0
+    fi
   fi
 
   gh project item-edit \

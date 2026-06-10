@@ -724,3 +724,6 @@
 - Added issue #532's `start_issue.sh` project-board recovery path so missing
   issues are best-effort added to the GitHub Project before being moved to
   `In Progress`.
+- Added issue #534's `finish_issue.sh` project-board recovery path so missing
+  completed issues are best-effort added to the GitHub Project before being
+  moved to `Done`.
