@@ -716,3 +716,6 @@
 - Implemented issue #197's reviewed drift baseline workflow with sanitized candidate baseline artifacts, no automatic active-baseline writes, path-safety and redaction regression tests, and user/technical docs for review, diff, and promotion.
 - Implemented issue #203's report schema contracts with v1 schema versions for run, drift, and traceability report payloads; checked-in JSON Schema files; compatibility policy docs; and schema contract regression tests.
 - Implemented issue #200's GitHub PR annotation integration with `report github-annotations`, JUnit/drift/optional-traceability annotation mapping, workflow-command escaping, redaction, downstream starter workflow updates, and regression tests.
+- Ratcheted issue #521's quality audit default Radon cyclomatic-complexity ceiling
+  from rank E to rank D after splitting the last rank-E CLI Architect test into
+  focused assertion helpers.
