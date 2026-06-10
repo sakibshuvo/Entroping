@@ -6,6 +6,10 @@
   access. Even if a command checks that `.entroping/state.db` exists first,
   routing through a write-capable initializer can still create hidden migration
   or mutation risk in what should be evidence-only workflows.
+- Dependency map and dependency drift are also evidence workflows. Treat them
+  like reports: read existing redacted traffic state, return empty observations
+  for missing/empty state where designed, and never initialize or migrate local
+  SQLite state while reviewing behavior.
 - Capture review reports should read traffic state through the read-only store
   path and aggregate only value-free labels. Host and status counts are useful
   for freeze review, but raw paths, query values, headers, cookies, and bodies

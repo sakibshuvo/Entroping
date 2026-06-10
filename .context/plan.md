@@ -101,6 +101,9 @@ project, and a Codex workspace with fast context rehydration.
 - `entroping report redaction --output md|html` reads existing redacted Eye
   traffic state through the read-only store path and preserves no-mutation
   report generation for review-only workflows.
+- `entroping map` and dependency-drift observation loading read existing
+  redacted Eye traffic state through the read-only store path instead of
+  initializing or migrating local SQLite state during evidence review.
 - `entroping doctor` validates configured Builder/Auditor/Breaker persona files
   through the same root-bounded persona loader used at runtime and reports
   `api_key_env` readiness without printing values or calling providers.
