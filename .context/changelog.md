@@ -2,6 +2,9 @@
 
 ## 2026-06-10
 
+- Refreshed issue #511's release-evidence ledger pointers to the latest green
+  `main` CI and Pages runs after the stable-core blocker wording updates,
+  without changing alpha release or stable-core readiness claims.
 - Aligned issue #509's roadmap and maintainer-context stable-core blocker
   wording with the canonical blocker names from the release-evidence ledger.
 - Aligned issue #507's launch-readiness stable-core blocker wording with the
