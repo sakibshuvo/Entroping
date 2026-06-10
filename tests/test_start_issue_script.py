@@ -263,3 +263,61 @@ def test_start_issue_adds_missing_issue_to_project_before_marking_in_progress(
     assert "https://github.com/sakibshuvo/Entroping/issues/99" in calls
     assert "project item-edit" in calls
     assert (worktree_parent / "Entroping-issue-99").is_dir()
+
+
+def test_start_issue_skips_project_update_when_graphql_quota_is_exhausted(
+    tmp_path: Path,
+) -> None:
+    repo = create_start_issue_fixture_repo(tmp_path)
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_state = tmp_path / "fake-gh-state"
+    fake_state.mkdir()
+    fake_gh = fake_bin / "gh"
+    fake_gh.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        "calls=\"${FAKE_GH_STATE:?}/calls.log\"\n"
+        "if [[ \"$1 $2\" == \"issue view\" ]]; then\n"
+        "  printf '%s\\n' "
+        '\'{\"title\":\"Quota feature\",\"url\":\"https://github.com/sakibshuvo/Entroping/issues/99\",\"state\":\"OPEN\"}\'\n'
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"$1 $2\" == \"issue edit\" ]]; then\n"
+        "  printf 'issue edit %s\\n' \"$*\" >> \"$calls\"\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"$1 $2\" == \"api rate_limit\" ]]; then\n"
+        "  printf '%s\\n' '0'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"$1\" == \"project\" ]]; then\n"
+        "  printf 'unexpected project command: %s\\n' \"$*\" >&2\n"
+        "  exit 2\n"
+        "fi\n"
+        "echo \"unexpected gh args: $*\" >&2\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    fake_gh.chmod(fake_gh.stat().st_mode | stat.S_IXUSR)
+    worktree_parent = tmp_path / "worktrees"
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
+    env["FAKE_GH_STATE"] = str(fake_state)
+    env["ENTROPING_WORKTREE_PARENT"] = str(worktree_parent)
+
+    result = subprocess.run(
+        [str(START_ISSUE_SCRIPT), "99", "tooling/quota-preflight"],
+        check=False,
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "GitHub Project GraphQL quota is low" in result.stderr
+    calls = (fake_state / "calls.log").read_text(encoding="utf-8")
+    assert "issue edit" in calls
+    assert "project " not in calls
+    assert (worktree_parent / "Entroping-issue-99").is_dir()

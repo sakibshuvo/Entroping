@@ -94,7 +94,10 @@ The launcher:
 - Best-effort moves the issue to `status:in-progress`, adds missing issues to
   the GitHub Project board, and moves the project item to `In Progress`.
   Project item lookup is retried briefly after add because GitHub Project
-  updates can be eventually consistent.
+  updates can be eventually consistent. If GitHub Project GraphQL quota is
+  exhausted or below `ENTROPING_PROJECT_GRAPHQL_MIN_REMAINING` (default `5`),
+  the launcher skips only the Project-board update and keeps the worktree
+  creation flow intact.
 
 Do not use this script to bypass planning. The generated prompt still requires `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, tests, regression checks, security review where relevant, and docs/context updates before merge.
 
@@ -120,7 +123,10 @@ The finish script:
 - Best-effort removes active status labels, adds missing issues to the GitHub
   Project board, and moves the project item to `Done`.
   Project item lookup is retried briefly after add because GitHub Project
-  updates can be eventually consistent.
+  updates can be eventually consistent. If GitHub Project GraphQL quota is
+  exhausted or below `ENTROPING_PROJECT_GRAPHQL_MIN_REMAINING` (default `5`),
+  the finish script skips only the Project-board update after verified local
+  cleanup.
 
 Use `--dry-run` first when cleaning up a batch of sessions.
 

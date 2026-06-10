@@ -108,6 +108,27 @@ retry_project_item_id() {
   return 1
 }
 
+project_graphql_quota_allows_update() {
+  local minimum_remaining="${ENTROPING_PROJECT_GRAPHQL_MIN_REMAINING:-5}"
+  local remaining
+
+  if [[ ! "$minimum_remaining" =~ ^[0-9]+$ ]]; then
+    minimum_remaining="5"
+  fi
+
+  if ! remaining=$(gh api rate_limit --jq '.resources.graphql.remaining' 2>/dev/null); then
+    return 0
+  fi
+  if [[ ! "$remaining" =~ ^[0-9]+$ ]]; then
+    return 0
+  fi
+  if ((remaining < minimum_remaining)); then
+    warn "GitHub Project GraphQL quota is low ($remaining remaining; need at least $minimum_remaining); skipping Project board update"
+    return 1
+  fi
+  return 0
+}
+
 render_prompt() {
   (
     cd "$repo_root"
@@ -140,6 +161,8 @@ update_issue_tracking() {
   local items_json
   local item_id
   local item_lookup_status
+
+  project_graphql_quota_allows_update || return 0
 
   if ! project_json=$(gh project view "$project_number" --owner "$project_owner" --format json 2>/dev/null); then
     warn "could not read GitHub Project board; worktree was still created"

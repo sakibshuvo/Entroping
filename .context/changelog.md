@@ -2,6 +2,11 @@
 
 ## 2026-06-10
 
+- Added issue #538's GitHub Project GraphQL quota preflight so
+  `scripts/start_issue.sh` and `scripts/finish_issue.sh` skip only
+  Project-board updates when quota is exhausted or below the configured local
+  threshold, while keeping issue labels, worktree creation, verified cleanup,
+  and clear warnings intact.
 - Refreshed issue #515's release-evidence ledger pointers after the
   freshness-validator fix, preserving alpha and stable-core non-claims.
 - Fixed issue #513's release-evidence freshness loop so a post-merge

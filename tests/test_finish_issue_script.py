@@ -284,3 +284,79 @@ def test_finish_issue_adds_missing_issue_to_project_before_marking_done(
     assert "https://github.com/sakibshuvo/Entroping/issues/99" in calls
     assert "project item-edit" in calls
     assert not worktree.exists()
+
+
+def test_finish_issue_skips_project_update_when_graphql_quota_is_exhausted(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir(exist_ok=True)
+    fake_state = tmp_path / "fake-gh-state"
+    fake_state.mkdir()
+    fake_gh = fake_bin / "gh"
+    fake_gh.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        "calls=\"${FAKE_GH_STATE:?}/calls.log\"\n"
+        "if [[ \"$1 $2\" == \"issue view\" ]]; then\n"
+        "  cat <<'JSON'\n"
+        "{"
+        "\"title\":\"Finished quota feature\","
+        "\"url\":\"https://github.com/sakibshuvo/Entroping/issues/99\","
+        "\"state\":\"CLOSED\","
+        "\"closedByPullRequestsReferences\":[{\"number\":123,\"url\":\"https://github.com/sakibshuvo/Entroping/pull/123\"}]"
+        "}\n"
+        "JSON\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"$1 $2\" == \"pr view\" ]]; then\n"
+        "  cat <<'JSON'\n"
+        "{"
+        "\"number\":123,"
+        "\"url\":\"https://github.com/sakibshuvo/Entroping/pull/123\","
+        "\"state\":\"MERGED\","
+        "\"headRefName\":\"feat/dry-run\","
+        "\"mergedAt\":\"2026-05-30T00:00:00Z\","
+        "\"statusCheckRollup\":[{\"__typename\":\"CheckRun\",\"name\":\"checks\",\"status\":\"COMPLETED\",\"conclusion\":\"SUCCESS\"}]"
+        "}\n"
+        "JSON\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"$1 $2\" == \"issue edit\" ]]; then\n"
+        "  printf 'issue edit %s\\n' \"$*\" >> \"$calls\"\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"$1 $2\" == \"api rate_limit\" ]]; then\n"
+        "  printf '%s\\n' '0'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"$1\" == \"project\" ]]; then\n"
+        "  printf 'unexpected project command: %s\\n' \"$*\" >&2\n"
+        "  exit 2\n"
+        "fi\n"
+        "echo \"unexpected gh args: $*\" >&2\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    fake_gh.chmod(fake_gh.stat().st_mode | stat.S_IXUSR)
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
+    env["ENTROPING_WORKTREE_PARENT"] = str(tmp_path)
+    env["FAKE_GH_STATE"] = str(fake_state)
+
+    result = subprocess.run(
+        [str(SCRIPT), "99"],
+        check=False,
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "GitHub Project GraphQL quota is low" in result.stderr
+    calls = (fake_state / "calls.log").read_text(encoding="utf-8")
+    assert "issue edit" in calls
+    assert "project " not in calls
+    assert not worktree.exists()
