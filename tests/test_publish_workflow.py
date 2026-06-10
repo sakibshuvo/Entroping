@@ -44,7 +44,7 @@ def test_publish_workflow_builds_unprivileged_artifacts_before_publish() -> None
     assert "uvx twine check dist/*" in run_blocks
     assert any(step.get("uses") == "actions/checkout@v6" for step in steps)
     assert any(step.get("uses") == "actions/setup-python@v6" for step in steps)
-    assert any(step.get("uses") == "astral-sh/setup-uv@v8.1.0" for step in steps)
+    assert any(step.get("uses") == "astral-sh/setup-uv@v8.2.0" for step in steps)
     assert any(
         step.get("uses") == "actions/upload-artifact@v7"
         and _step_with(step).get("name") == "python-distributions"

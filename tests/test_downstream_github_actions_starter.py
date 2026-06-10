@@ -44,7 +44,7 @@ def test_downstream_github_actions_starter_is_copyable_and_pinned() -> None:
     uses = [step.get("uses") for step in job["steps"]]
     assert "actions/checkout@v6" in uses
     assert "actions/setup-python@v6" in uses
-    assert "astral-sh/setup-uv@v8.1.0" in uses
+    assert "astral-sh/setup-uv@v8.2.0" in uses
     assert "actions/upload-artifact@v7" in uses
 
 
