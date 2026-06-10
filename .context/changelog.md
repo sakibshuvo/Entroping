@@ -2,6 +2,9 @@
 
 ## 2026-06-10
 
+- Aligned issue #507's launch-readiness stable-core blocker wording with the
+  canonical stable-core readiness blocker names so alpha launch output can be
+  compared directly to stable-core evidence.
 - Aligned issue #505's roadmap stable-core blocker list with the readiness
   gates so repeated alpha release-candidate evidence stays tracked separately
   instead of appearing as an unresolved blocker.

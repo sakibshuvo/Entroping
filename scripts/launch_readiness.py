@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from stable_core_readiness import STABLE_CORE_BLOCKERS as CANONICAL_STABLE_CORE_BLOCKERS
+
 SCHEMA_VERSION = "entroping.alpha-launch-readiness.v1"
 
 CheckStatus = Literal["present", "missing", "marker-missing", "not-executable"]
@@ -103,10 +105,8 @@ EVIDENCE_CHECKS = (
     ),
 )
 
-STABLE_CORE_BLOCKERS = (
-    "stable-core still requires package-index proof",
-    "stable-core still requires compatibility discipline across real releases",
-    "stable-core still requires real-user feedback",
+STABLE_CORE_BLOCKERS = tuple(
+    f"stable-core still requires {blocker}" for blocker in CANONICAL_STABLE_CORE_BLOCKERS
 )
 
 
