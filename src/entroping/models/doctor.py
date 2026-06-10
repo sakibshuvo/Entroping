@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from entroping.models.qanstitution import AgentRole
 
 DoctorHealthStatus = Literal["ok", "warn", "error"]
+DoctorHurlCompatibilityState = Literal["compatible", "missing", "unsupported", "unparsable"]
 
 
 class DoctorToolHealth(BaseModel):
@@ -16,6 +17,19 @@ class DoctorToolHealth(BaseModel):
 
     status: DoctorHealthStatus
     available: bool
+    path: str | None = None
+    message: str
+
+
+class DoctorHurlCompatibility(BaseModel):
+    """Compatibility evidence for the installed Hurl executable."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: DoctorHealthStatus
+    compatibility: DoctorHurlCompatibilityState
+    version: str | None = None
+    minimum_version: str
     path: str | None = None
     message: str
 
@@ -91,6 +105,7 @@ class DoctorHealthReport(BaseModel):
     status: DoctorHealthStatus
     python_version: str
     tools: dict[Literal["hurl", "hurl_parser"], DoctorToolHealth]
+    hurl_compatibility: DoctorHurlCompatibility
     traffic_state: DoctorTrafficStateHealth
     qanstitution: DoctorQanstitutionHealth
     agents: list[DoctorAgentHealth] = Field(default_factory=list)

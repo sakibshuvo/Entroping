@@ -45,7 +45,8 @@ change the locked CLI namespace.
 
 Required external tools:
 
-- `hurl`
+- `hurl` 4.3.0 or newer. The reviewed CI examples pin Hurl 8.0.1 for
+  repeatable setup evidence.
 - `hurlfmt` for Architect generated-Hurl validation; it is usually installed
   with the Hurl package, and `entroping doctor` reports it separately.
 - Python 3.12 or 3.13
@@ -60,6 +61,8 @@ entroping doctor
 
 `doctor` should tell you whether Hurl, `hurlfmt`, local traffic state, local
 config, QAnstitution files, and any configured AI agent personas are usable.
+For Hurl, it runs `hurl --version` locally and reports compatible, missing,
+unsupported, or unparsable version states without making API requests.
 It checks whether configured `api_key_env` variables are present without
 printing their values, and it does not call model providers.
 Use `entroping doctor --output json` when CI jobs or coding agents need the
@@ -950,7 +953,8 @@ adds API synchronization.
 
 ### Hurl is Missing
 
-Run `entroping doctor`. Install Hurl through your package manager, then retry.
+Run `entroping doctor`. Install Hurl 4.3.0 or newer through your package
+manager, then retry. On macOS, `brew install hurl` is the shortest path.
 If `hurlfmt` is missing but Hurl is present, deterministic runs can still work,
 but Architect generation/refactor validation needs the parser binary before it
 can accept generated Hurl.

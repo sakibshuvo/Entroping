@@ -96,6 +96,11 @@ project, and a Codex workspace with fast context rehydration.
   availability, safe `.entroping/` and `reports/` paths, suite manifests,
   required Hurl variables, and provider-free `run --ci` expectations without
   calling CI provider APIs, printing env values, or mutating workflows.
+- `entroping doctor` checks `hurl --version` through the bounded local
+  subprocess boundary, reports compatible, missing, unsupported, and unparsable
+  Hurl version states in human and JSON output, and `doctor --ci` fails when
+  Hurl compatibility cannot be proven. Entroping's minimum supported Hurl
+  version is 4.3.0; reviewed CI examples pin 8.0.1.
 - QAnstitution `gate_groups` now let local authors reuse gate collections while
   expanding to ordinary runtime gates, rejecting missing references/cycles,
   preserving import/final semantics, and exposing source group provenance in

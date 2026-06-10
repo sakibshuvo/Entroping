@@ -152,7 +152,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | --- | --- | --- |
 | SET-001 | Initialize a project with standard Entroping files | `entroping init` creates `qanstitution.yaml`, `tests/`, `envs/`, `agents/`, `rules/`, `.entroping/`, and starter docs |
 | SET-002 | Support minimal initialization | `entroping init --minimal` creates only required runtime files |
-| SET-003 | Validate local and CI toolchain readiness | `entroping doctor` checks Python runtime, Hurl binary, mitmproxy, SQLite state, config, readable rules, configured agent persona safety, and non-secret provider env readiness; `--ci` adds strict Hurl, report-path, suite-manifest, Hurl-variable, and provider-free run checks for PR gates; `--output json` emits schema version `entroping.doctor.v1` for automation |
+| SET-003 | Validate local and CI toolchain readiness | `entroping doctor` checks Python runtime, Hurl binary availability and version compatibility, mitmproxy, SQLite state, config, readable rules, configured agent persona safety, and non-secret provider env readiness; `--ci` adds strict Hurl compatibility, report-path, suite-manifest, Hurl-variable, and provider-free run checks for PR gates; `--output json` emits schema version `entroping.doctor.v1` for automation |
 | SET-004 | Configure agent model routing | `entroping config set --agent auditor --model <id>` updates local configuration without printing secrets |
 | SET-005 | List effective config | `entroping config list` shows resolved non-secret configuration and imported rules |
 | SET-006 | Support local-first brain setup | AI commands can use an Ollama-backed local model by default and cloud models only through explicit configuration |

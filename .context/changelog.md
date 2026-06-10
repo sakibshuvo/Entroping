@@ -2,6 +2,11 @@
 
 ## 2026-06-09
 
+- Added issue #418's Hurl version compatibility checks so `entroping doctor`
+  runs `hurl --version` through the bounded subprocess boundary, reports
+  compatible, missing, unsupported, and unparsable states in human and JSON
+  output, keeps normal warning exit compatibility, and makes `doctor --ci`
+  fail when Hurl compatibility cannot be proven.
 - Added issue #467's local multi-agent review bundle so
   `entroping report agent-bundle --output md|json` summarizes configured
   Builder, Breaker, and Auditor evidence from sanitized

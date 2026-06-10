@@ -15,7 +15,11 @@ from entroping.core.github_actions_starter import (
     GitHubActionsStarterError,
     install_github_actions_starter,
 )
-from entroping.core.hurl_runner import discover_hurl
+from entroping.core.hurl_runner import (
+    HURL_MINIMUM_SUPPORTED_VERSION,
+    HURL_MINIMUM_SUPPORTED_VERSION_TEXT,
+    discover_hurl,
+)
 from entroping.core.traffic_store import TrafficStoreError, list_project_exchanges_readonly
 from entroping.models.doctor import (
     DoctorAgentHealth,
@@ -23,6 +27,7 @@ from entroping.models.doctor import (
     DoctorCiReadinessCheck,
     DoctorHealthReport,
     DoctorHealthStatus,
+    DoctorHurlCompatibility,
     DoctorQanstitutionHealth,
     DoctorToolHealth,
     DoctorTrafficStateHealth,
@@ -131,6 +136,7 @@ def _collect_doctor_health(*, ci: bool = False) -> DoctorHealthReport:
     hurl = discover_hurl()
     hurl_parser = discover_hurl("hurlfmt")
     hurl_health = _tool_health("hurl", hurl.available, hurl.path)
+    hurl_compatibility = _hurl_compatibility_health(hurl)
     hurl_parser_health = _tool_health("hurlfmt", hurl_parser.available, hurl_parser.path)
     traffic_state = _collect_traffic_state_health()
     config_path = Path("qanstitution.yaml")
@@ -140,6 +146,7 @@ def _collect_doctor_health(*, ci: bool = False) -> DoctorHealthReport:
         collect_ci_readiness(
             project_root=Path.cwd(),
             hurl_available=hurl.available,
+            hurl_compatibility=hurl_compatibility,
             law=law,
         )
         if ci
@@ -147,6 +154,7 @@ def _collect_doctor_health(*, ci: bool = False) -> DoctorHealthReport:
     )
     statuses = [
         hurl_health.status,
+        hurl_compatibility.status,
         hurl_parser_health.status,
         traffic_state.status,
         qanstitution.status,
@@ -161,6 +169,7 @@ def _collect_doctor_health(*, ci: bool = False) -> DoctorHealthReport:
             "hurl": hurl_health,
             "hurl_parser": hurl_parser_health,
         },
+        hurl_compatibility=hurl_compatibility,
         traffic_state=traffic_state,
         qanstitution=qanstitution,
         agents=agents,
@@ -182,6 +191,93 @@ def _tool_health(name: str, available: bool, path: str | None) -> DoctorToolHeal
         path=None,
         message=f"{name} not found",
     )
+
+
+def _hurl_compatibility_health(hurl: object) -> DoctorHurlCompatibility:
+    available = _status_bool(hurl, "available")
+    path = _status_optional_str(hurl, "path")
+    if not available:
+        return DoctorHurlCompatibility(
+            status="warn",
+            compatibility="missing",
+            version=None,
+            minimum_version=HURL_MINIMUM_SUPPORTED_VERSION_TEXT,
+            path=None,
+            message=(
+                "hurl not found; install hurl "
+                f"{HURL_MINIMUM_SUPPORTED_VERSION_TEXT} or newer"
+            ),
+        )
+
+    version_checked = _status_bool(hurl, "version_checked")
+    version = _status_optional_str(hurl, "version")
+    version_parts = _status_version_parts(hurl)
+    if not version_checked:
+        return DoctorHurlCompatibility(
+            status="ok",
+            compatibility="compatible",
+            version=version,
+            minimum_version=HURL_MINIMUM_SUPPORTED_VERSION_TEXT,
+            path=path,
+            message="hurl found",
+        )
+
+    if version_parts is None or version is None:
+        version_error = _status_optional_str(hurl, "version_error")
+        version_output = _status_optional_str(hurl, "version_output")
+        detail = version_error or version_output or "no version output"
+        return DoctorHurlCompatibility(
+            status="warn",
+            compatibility="unparsable",
+            version=None,
+            minimum_version=HURL_MINIMUM_SUPPORTED_VERSION_TEXT,
+            path=path,
+            message=f"hurl version is unparsable from: {safe_cli_text(detail)}",
+        )
+
+    if version_parts < HURL_MINIMUM_SUPPORTED_VERSION:
+        return DoctorHurlCompatibility(
+            status="warn",
+            compatibility="unsupported",
+            version=version,
+            minimum_version=HURL_MINIMUM_SUPPORTED_VERSION_TEXT,
+            path=path,
+            message=(
+                f"hurl {version} is older than the minimum supported version "
+                f"{HURL_MINIMUM_SUPPORTED_VERSION_TEXT}"
+            ),
+        )
+
+    return DoctorHurlCompatibility(
+        status="ok",
+        compatibility="compatible",
+        version=version,
+        minimum_version=HURL_MINIMUM_SUPPORTED_VERSION_TEXT,
+        path=path,
+        message=(
+            f"hurl {version} is compatible with minimum supported version "
+            f"{HURL_MINIMUM_SUPPORTED_VERSION_TEXT}"
+        ),
+    )
+
+
+def _status_bool(status: object, name: str) -> bool:
+    raw = getattr(status, name, False)
+    return raw if isinstance(raw, bool) else False
+
+
+def _status_optional_str(status: object, name: str) -> str | None:
+    raw = getattr(status, name, None)
+    return raw if isinstance(raw, str) else None
+
+
+def _status_version_parts(status: object) -> tuple[int, int, int] | None:
+    raw = getattr(status, "version_parts", None)
+    if not isinstance(raw, tuple) or len(raw) != 3:
+        return None
+    if not all(isinstance(part, int) for part in raw):
+        return None
+    return raw
 
 
 def _collect_qanstitution_health(
@@ -297,11 +393,7 @@ def _collect_agent_readiness(law: Qanstitution, *, config_path: Path) -> list[Do
 
 def _render_doctor_health(report: DoctorHealthReport) -> None:
     console.print(f"Python: {report.python_version}")
-    _render_tool_health(
-        "Hurl",
-        report.tools["hurl"],
-        missing_guidance="install hurl before running suites",
-    )
+    _render_hurl_health(report.tools["hurl"], report.hurl_compatibility)
     _render_tool_health(
         "Hurl parser",
         report.tools["hurl_parser"],
@@ -320,6 +412,37 @@ def _render_tool_health(label: str, tool: DoctorToolHealth, *, missing_guidance:
         console.print(f"{label}: [green]found[/green] at {tool.path}")
         return
     console.print(f"{label}: [yellow]not found[/yellow] ({missing_guidance})")
+
+
+def _render_hurl_health(
+    tool: DoctorToolHealth,
+    compatibility: DoctorHurlCompatibility,
+) -> None:
+    if compatibility.compatibility == "compatible":
+        if compatibility.version is None:
+            console.print(f"Hurl: [green]found[/green] at {tool.path}")
+            return
+        console.print(
+            "Hurl: [green]found[/green] at "
+            f"{tool.path} (version {compatibility.version}, "
+            f"compatible with >= {compatibility.minimum_version})"
+        )
+        return
+    if compatibility.compatibility == "missing":
+        console.print(
+            "Hurl: [yellow]not found[/yellow] "
+            f"(install hurl {compatibility.minimum_version} or newer before running suites)"
+        )
+        return
+    if compatibility.compatibility == "unsupported":
+        console.print(
+            "[yellow]Hurl: unsupported version[/yellow] "
+            f"{compatibility.version} at {tool.path} "
+            f"(minimum supported {compatibility.minimum_version})"
+        )
+        return
+    console.print(f"[yellow]Hurl: version unparsable[/yellow] at {tool.path}")
+    console.print(compatibility.message, style="yellow", markup=False)
 
 
 def _render_traffic_state_health(traffic_state: DoctorTrafficStateHealth) -> None:
