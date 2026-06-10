@@ -47,8 +47,8 @@ def main(
 
 register_project_commands(app)
 register_execution_commands(app)
-app.add_typer(config_app, name="config")
-app.add_typer(architect_app, name="architect")
-app.add_typer(report_app, name="report")
+app.add_typer(config_app, name="config", rich_help_panel="Advanced And Evidence")
+app.add_typer(architect_app, name="architect", rich_help_panel="Core Workflow")
+app.add_typer(report_app, name="report", rich_help_panel="Advanced And Evidence")
 
 __all__ = ["MINIMAL_QANSTITUTION", "_display_cli_path", "app", "main"]

@@ -54,11 +54,11 @@ from entroping.studio.status import (
 
 
 def register_execution_commands(root_app: typer.Typer) -> None:
-    root_app.command()(watch)
-    root_app.command()(freeze)
-    root_app.command()(map)
-    root_app.command()(studio)
-    root_app.command()(run)
+    root_app.command(rich_help_panel="Traffic Observation")(watch)
+    root_app.command(rich_help_panel="Traffic Observation")(freeze)
+    root_app.command(rich_help_panel="Traffic Observation")(map)
+    root_app.command(rich_help_panel="Advanced And Evidence")(studio)
+    root_app.command(rich_help_panel="Core Workflow")(run)
 
 
 def watch(
