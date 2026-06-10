@@ -808,6 +808,172 @@ def test_report_policy_wraps_effective_policy_errors(
     assert "QAnstitution file not found" in result.output
 
 
+def test_report_policy_diff_emits_json_from_effective_policy_artifacts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports = Path("reports")
+    reports.mkdir()
+    (reports / "base-policy.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.effective-policy-report.v1",
+                "project": "checkout-api",
+                "config_path": "qanstitution.yaml",
+                "imports": ["rules/base.yaml"],
+                "gates": [
+                    {
+                        "id": "latency",
+                        "source_path": "qanstitution.yaml",
+                        "condition": "true",
+                        "gate": "duration < 2000",
+                        "enforcement": "block",
+                        "final": False,
+                        "group": None,
+                        "description": None,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (reports / "effective-policy.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.effective-policy-report.v1",
+                "project": "checkout-api",
+                "config_path": "qanstitution.yaml",
+                "imports": ["rules/current.yaml"],
+                "gates": [
+                    {
+                        "id": "latency",
+                        "source_path": "qanstitution.yaml",
+                        "condition": "true",
+                        "gate": "duration < 1000",
+                        "enforcement": "block",
+                        "final": False,
+                        "group": None,
+                        "description": None,
+                    },
+                    {
+                        "id": "auth",
+                        "source_path": "rules/current.yaml",
+                        "condition": "true",
+                        "gate": 'header "Authorization" exists',
+                        "enforcement": "warn",
+                        "final": True,
+                        "group": None,
+                        "description": "Auth evidence",
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "report",
+            "policy-diff",
+            "--base",
+            "reports/base-policy.json",
+            "--current",
+            "reports/effective-policy.json",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["schema_version"] == "entroping.effective-policy-diff.v1"
+    assert payload["status"] == "changed"
+    assert payload["summary"]["added_imports"] == 1
+    assert payload["summary"]["removed_imports"] == 1
+    assert payload["summary"]["added_gates"] == 1
+    assert payload["summary"]["changed_gates"] == 1
+
+
+def test_report_policy_diff_emits_markdown_no_change(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports = Path("reports")
+    reports.mkdir()
+    policy = {
+        "schema_version": "entroping.effective-policy-report.v1",
+        "project": "checkout-api",
+        "config_path": "qanstitution.yaml",
+        "imports": [],
+        "gates": [],
+    }
+    (reports / "base-policy.json").write_text(json.dumps(policy), encoding="utf-8")
+    (reports / "effective-policy.json").write_text(json.dumps(policy), encoding="utf-8")
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "report",
+            "policy-diff",
+            "--base",
+            "reports/base-policy.json",
+            "--current",
+            "reports/effective-policy.json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "# Entroping Effective Policy Diff" in result.stdout
+    assert "No effective policy differences found." in result.stdout
+
+
+def test_report_policy_diff_rejects_bad_output() -> None:
+    result = CliRunner().invoke(app, ["report", "policy-diff", "--output", "html"])
+
+    assert result.exit_code == 2
+    assert "Unsupported policy-diff output" in result.output
+
+
+def test_report_policy_diff_wraps_malformed_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports = Path("reports")
+    reports.mkdir()
+    (reports / "base-policy.json").write_text("{not json}\n", encoding="utf-8")
+    (reports / "effective-policy.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.effective-policy-report.v1",
+                "project": "checkout-api",
+                "config_path": "qanstitution.yaml",
+                "imports": [],
+                "gates": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "report",
+            "policy-diff",
+            "--base",
+            "reports/base-policy.json",
+            "--current",
+            "reports/effective-policy.json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Could not compare effective policy reports" in result.output
+
+
 def test_report_github_annotations_emits_report_and_traceability_annotations(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

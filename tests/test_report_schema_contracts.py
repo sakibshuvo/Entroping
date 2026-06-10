@@ -2,8 +2,14 @@
 
 import json
 from pathlib import Path
+from typing import cast
 
 from entroping.bridge.effective_policy import EffectivePolicyGateReport, EffectivePolicyReport
+from entroping.bridge.effective_policy_diff import (
+    EFFECTIVE_POLICY_DIFF_SCHEMA_VERSION,
+    build_effective_policy_diff_report,
+    effective_policy_diff_report_to_dict,
+)
 from entroping.bridge.gate_coverage import (
     GATE_COVERAGE_REPORT_SCHEMA_VERSION,
     GateCoverageExchangeReport,
@@ -929,6 +935,72 @@ def test_report_artifact_manifest_v1_schema_contract_is_versioned_and_stable() -
     }
 
 
+def test_effective_policy_diff_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "effective-policy-diff.v1.schema.json").read_text())
+    base = EffectivePolicyReport(
+        project="checkout-api",
+        config_path="qanstitution.yaml",
+        imports=("rules/base.yaml",),
+        gates=(
+            EffectivePolicyGateReport(
+                id="latency",
+                source_path="qanstitution.yaml",
+                condition="true",
+                gate="duration < 2000",
+                enforcement="block",
+                final=False,
+                group=None,
+                description=None,
+            ),
+        ),
+    )
+    current = EffectivePolicyReport(
+        project="checkout-api",
+        config_path="qanstitution.yaml",
+        imports=("rules/current.yaml",),
+        gates=(
+            EffectivePolicyGateReport(
+                id="latency",
+                source_path="qanstitution.yaml",
+                condition="true",
+                gate="duration < 1000",
+                enforcement="block",
+                final=True,
+                group=None,
+                description="Tighter latency.",
+            ),
+        ),
+    )
+
+    payload = effective_policy_diff_report_to_dict(
+        build_effective_policy_diff_report(
+            base=base,
+            current=current,
+            base_path=Path("reports/base-policy.json"),
+            current_path=Path("reports/effective-policy.json"),
+        )
+    )
+
+    assert schema["properties"]["schema_version"]["const"] == (
+        EFFECTIVE_POLICY_DIFF_SCHEMA_VERSION
+    )
+    assert payload["schema_version"] == "entroping.effective-policy-diff.v1"
+    assert payload["status"] == "changed"
+    assert payload["summary"] == {
+        "added_imports": 1,
+        "removed_imports": 1,
+        "added_gates": 0,
+        "removed_gates": 0,
+        "changed_gates": 1,
+    }
+    changed_gates = cast(list[dict[str, object]], payload["changed_gates"])
+    assert changed_gates[0]["changed_fields"] == [
+        "description",
+        "final",
+        "gate",
+    ]
+
+
 def test_openapi_audit_v1_schema_contract_is_versioned_and_stable() -> None:
     document: dict[str, object] = {
         "openapi": "3.1.0",
@@ -1031,6 +1103,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         ),
         "entroping.effective-policy-report.v1": (
             SCHEMA_DIR / "effective-policy-report.v1.schema.json"
+        ),
+        "entroping.effective-policy-diff.v1": (
+            SCHEMA_DIR / "effective-policy-diff.v1.schema.json"
         ),
         "entroping.gate-injection-report.v1": (
             SCHEMA_DIR / "gate-injection-report.v1.schema.json"

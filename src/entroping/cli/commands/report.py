@@ -7,6 +7,12 @@ from typing import Annotated, cast
 
 import typer
 
+from entroping.bridge.effective_policy_diff import (
+    EffectivePolicyDiffError,
+    build_effective_policy_diff_report,
+    effective_policy_diff_report_to_dict,
+    render_effective_policy_diff_markdown,
+)
 from entroping.bridge.story_traceability import (
     compile_story_traceability,
     render_story_traceability_markdown,
@@ -23,6 +29,11 @@ from entroping.core.coverage_badges import BadgeReportError, write_coverage_badg
 from entroping.core.drift_report import (
     DriftReportError,
     promote_reviewed_drift_baseline_candidate,
+)
+from entroping.core.effective_policy_diff_report import (
+    EffectivePolicyDiffOutput,
+    EffectivePolicyDiffReportError,
+    load_effective_policy_report,
 )
 from entroping.core.effective_policy_report import (
     EffectivePolicyOutput,
@@ -134,6 +145,53 @@ def report_delta(
     else:
         sys.stdout.write(render_run_delta_markdown(report))
     raise typer.Exit(0 if report.passed else 1)
+
+
+@app.command("policy-diff")
+def report_policy_diff(
+    base: Annotated[
+        Path,
+        typer.Option("--base", help="Baseline effective policy JSON report path."),
+    ] = Path("reports") / "base-effective-policy.json",
+    current: Annotated[
+        Path,
+        typer.Option("--current", help="Current effective policy JSON report path."),
+    ] = Path("reports") / "effective-policy.json",
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Compare two local effective policy JSON reports without loading policy files."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported policy-diff output: {output}[/yellow]")
+        raise typer.Exit(2)
+    policy_diff_output = cast(EffectivePolicyDiffOutput, normalized_output)
+
+    try:
+        report = build_effective_policy_diff_report(
+            base=load_effective_policy_report(base),
+            current=load_effective_policy_report(current),
+            base_path=base,
+            current_path=current,
+        )
+    except (EffectivePolicyDiffError, EffectivePolicyDiffReportError) as exc:
+        print_cli_error(RuntimeError(f"Could not compare effective policy reports: {exc}"))
+        raise typer.Exit(1) from exc
+
+    if policy_diff_output == "json":
+        sys.stdout.write(
+            json.dumps(
+                effective_policy_diff_report_to_dict(report),
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        sys.stdout.write("\n")
+    else:
+        sys.stdout.write(render_effective_policy_diff_markdown(report))
 
 
 @app.command("badges")

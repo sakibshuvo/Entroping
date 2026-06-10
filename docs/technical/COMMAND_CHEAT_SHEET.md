@@ -31,6 +31,7 @@ entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
 entroping report badges [--output <directory>] [--run-json <path>] [--policy-json <path>] [--openapi-json <path>] [--traceability-json <path>]
 entroping report redaction [--output <md|html>]
 entroping report policy [--output <md|json>]
+entroping report policy-diff [--base <path>] [--current <path>] [--output <md|json>]
 entroping report gate-coverage [--output <md|json>]
 entroping report gate-injection --target <path> [--output <md|json>]
 entroping report artifact-manifest [--output <path>]
@@ -313,6 +314,7 @@ Variables can come from `envs/<name>.env`, explicit shell
 | `entroping report redaction --output html` | Write a browser-readable redaction review to `reports/redaction-review.html` |
 | `entroping report policy --output md` | Write effective QAnstitution gate provenance to `reports/effective-policy.md` |
 | `entroping report policy --output json` | Write machine-readable effective policy evidence to `reports/effective-policy.json` |
+| `entroping report policy-diff --base <path> --current <path>` | Compare two effective-policy JSON artifacts and emit Markdown or JSON to stdout |
 | `entroping report gate-coverage --output md` | Write a policy gate coverage matrix to `reports/gate-coverage.md` |
 | `entroping report gate-coverage --output json` | Write machine-readable gate coverage evidence to `reports/gate-coverage.json` |
 | `entroping report gate-injection --target <path>` | Explain selected-file gate injection without running Hurl or mutating sources |
@@ -335,6 +337,7 @@ entroping report delta --base reports/run-base.json --current reports/run-latest
 entroping report badges
 entroping report redaction --output md
 entroping report policy --output md
+entroping report policy-diff --base reports/base-effective-policy.json --current reports/effective-policy.json
 entroping report gate-coverage --output md
 entroping report gate-injection --target tests/health.hurl --output md
 entroping report artifact-manifest

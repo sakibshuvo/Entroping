@@ -31,7 +31,7 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current issue: [#416](https://github.com/sakibshuvo/Entroping/issues/416) diffs effective policy evidence between revisions.
+Current issue: [#415](https://github.com/sakibshuvo/Entroping/issues/415) adds safe capture session summaries.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -47,9 +47,9 @@ These are autonomous local marathon targets; blocked external evidence issues re
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | [#416](https://github.com/sakibshuvo/Entroping/issues/416) | Diff effective policy evidence between revisions. |
-| 2 | [#415](https://github.com/sakibshuvo/Entroping/issues/415) | Add safe capture session summaries. |
-| 3 | Promote next ready GitHub issue | Keep the queue issue-driven after #416 and #415 close. |
+| 1 | [#415](https://github.com/sakibshuvo/Entroping/issues/415) | Add safe capture session summaries. |
+| 2 | Promote next ready GitHub issue | Keep the queue issue-driven after #415 closes. |
+| 3 | Promote next ready GitHub issue | Keep the queue issue-driven after the promoted issue closes. |
 
 If one of these closes, promote the next highest-value ready issue from GitHub.
 Do not expand this table beyond three rows.
@@ -70,13 +70,13 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Effective policy evidence diff](https://github.com/sakibshuvo/Entroping/issues/416) | Done | `entroping report policy-diff --base <path> --current <path> --output md|json` compares existing effective-policy JSON artifacts and reports import/gate additions, removals, and changed fields without loading policy files, calling providers, executing Hurl, or failing valid changed diffs. |
 | [Run dry-run execution plan](https://github.com/sakibshuvo/Entroping/issues/417) | Done | `entroping run --dry-run` now resolves selected Hurl tests, tag or changed-file filters, effective and injected gates, env name, missing variable names, worker settings, and requested report paths without invoking Hurl, writing latest-run state, writing execution events, writing executed-result reports, or mutating source `.hurl`; `--report json` writes only `reports/run-plan.json` with schema `entroping.run-plan.v1`. |
 | [Hurl version compatibility in doctor](https://github.com/sakibshuvo/Entroping/issues/418) | Done | `entroping doctor` now runs `hurl --version` through the bounded local subprocess boundary, reports compatible, missing, unsupported, and unparsable Hurl version states in human and JSON output, keeps normal warning exit compatibility, and makes `doctor --ci` fail when Hurl compatibility cannot be proven. |
 | [Multi-agent review bundle](https://github.com/sakibshuvo/Entroping/issues/467) | Done | `entroping report agent-bundle --output md|json` summarizes sanitized `.entroping/agent-runs/*.json` evidence for configured Builder, Breaker, and Auditor roles, supports role and scope filters, writes schema-versioned `reports/agent-bundle.*` artifacts, reports missing config/evidence, invalid provider-output validation, missing generated-Hurl validation, unsafe manifests, and multi-role output-path conflicts without calling providers, Hurl, or `run`. |
 | [Architect refactor preview](https://github.com/sakibshuvo/Entroping/issues/419) | Done | `entroping architect refactor --preview` validates provider edits through the same managed-block merge and Hurl parser path as write mode, prints a redacted unified diff, writes only the value-free agent run manifest, and leaves target Hurl files unchanged. |
 | [Latest failure reruns](https://github.com/sakibshuvo/Entroping/issues/420) | Done | `entroping run --rerun-failures` selects failed source `.hurl` files from `reports/run-latest.json` or `.entroping/latest-run.json`, reuses the report environment unless `--env` overrides it, runs through the normal deterministic workflow, and remains feedback acceleration rather than release proof. |
 | [Policy gate coverage matrix](https://github.com/sakibshuvo/Entroping/issues/421) | Done | `entroping report gate-coverage --output md|json` maps each effective QAnstitution gate to committed Hurl test files, tags, operation IDs, request methods, and redacted request paths, lists unmatched gates, and does not execute Hurl, inject assertions, call providers, or print full URLs, query strings, headers, bodies, variables, or captured traffic values. |
-| [GitHub Actions starter install](https://github.com/sakibshuvo/Entroping/issues/422) | Done | `entroping init --github-actions` installs the reviewed starter workflow at `.github/workflows/entroping.yml`, refuses existing workflows, keeps the packaged template aligned with `examples/github-actions/entroping-ci.yml`, and adds no secrets, provider credentials, hosted-service coupling, or package-index readiness claims. |
 | [Gate-injection explanation report](https://github.com/sakibshuvo/Entroping/issues/428) | Done | `entroping report gate-injection --target <path> --output md|json` explains effective QAnstitution gates that would be injected into selected local Hurl files, including source policy path, condition, enforcement, final/group provenance, and known-failure skips without running Hurl or mutating source files. |
 | [Fail-fast execution mode](https://github.com/sakibshuvo/Entroping/issues/429) | Done | `entroping run --fail-fast` stops scheduling after the first failing Hurl result, keeps source `.hurl` files immutable, and records selected, executed, not-scheduled, and fail-fast summary evidence in latest-run state and reports. |
 | [Sanitized run event log](https://github.com/sakibshuvo/Entroping/issues/430) | Done | `entroping run` now writes `.entroping/latest-run-events.jsonl` with schema `entroping.run-events.v1`, covering run start, selected tests, redacted results, artifact writes, no-match/error events, and completion status without variables or raw passing stdout/stderr. |

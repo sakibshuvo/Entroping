@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sakibshuvo.github.io/Entroping/schemas/effective-policy-diff.v1.schema.json",
+  "title": "Entroping Effective Policy Diff v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "base",
+    "current",
+    "summary",
+    "added_imports",
+    "removed_imports",
+    "added_gates",
+    "removed_gates",
+    "changed_gates"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.effective-policy-diff.v1"
+    },
+    "status": {
+      "enum": ["changed", "unchanged"]
+    },
+    "base": {
+      "$ref": "#/$defs/policy_side"
+    },
+    "current": {
+      "$ref": "#/$defs/policy_side"
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "added_imports",
+        "removed_imports",
+        "added_gates",
+        "removed_gates",
+        "changed_gates"
+      ],
+      "properties": {
+        "added_imports": {"type": "integer", "minimum": 0},
+        "removed_imports": {"type": "integer", "minimum": 0},
+        "added_gates": {"type": "integer", "minimum": 0},
+        "removed_gates": {"type": "integer", "minimum": 0},
+        "changed_gates": {"type": "integer", "minimum": 0}
+      }
+    },
+    "added_imports": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/import_delta"}
+    },
+    "removed_imports": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/import_delta"}
+    },
+    "added_gates": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/gate_snapshot"}
+    },
+    "removed_gates": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/gate_snapshot"}
+    },
+    "changed_gates": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/gate_change"}
+    }
+  },
+  "$defs": {
+    "policy_side": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project", "config_path", "path"],
+      "properties": {
+        "project": {"type": "string"},
+        "config_path": {"type": "string"},
+        "path": {"type": "string"}
+      }
+    },
+    "import_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": {"type": "string"}
+      }
+    },
+    "gate_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source_path",
+        "condition",
+        "gate",
+        "enforcement",
+        "final",
+        "group",
+        "description"
+      ],
+      "properties": {
+        "id": {"type": "string"},
+        "source_path": {"type": "string"},
+        "condition": {"type": "string"},
+        "gate": {"type": "string"},
+        "enforcement": {"enum": ["block", "warn"]},
+        "final": {"type": "boolean"},
+        "group": {"type": ["string", "null"]},
+        "description": {"type": ["string", "null"]}
+      }
+    },
+    "gate_change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "changed_fields", "base", "current"],
+      "properties": {
+        "id": {"type": "string"},
+        "changed_fields": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "condition",
+              "description",
+              "enforcement",
+              "final",
+              "gate",
+              "group",
+              "source_path"
+            ]
+          }
+        },
+        "base": {"$ref": "#/$defs/gate_snapshot"},
+        "current": {"$ref": "#/$defs/gate_snapshot"}
+      }
+    }
+  }
+}

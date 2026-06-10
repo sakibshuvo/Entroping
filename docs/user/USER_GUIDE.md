@@ -388,6 +388,20 @@ The policy report writes `reports/effective-policy.md` by default and can write
 supplied each effective gate, including imported policy packs and local
 overrides.
 
+Compare effective QAnstitution evidence across branches or releases:
+
+```bash
+entroping report policy-diff \
+  --base reports/base-effective-policy.json \
+  --current reports/effective-policy.json \
+  --output md
+```
+
+The policy diff command reads existing `report policy --output json` artifacts
+only. It reports import and gate changes without loading policy files, running
+Hurl, calling providers, or failing just because reviewed policy evidence
+changed.
+
 Map each effective gate to committed Hurl coverage:
 
 ```bash
@@ -667,6 +681,7 @@ Generate local Shields-compatible coverage badges from existing reports:
 
 ```bash
 entroping report policy --output json
+entroping report policy-diff --base reports/base-effective-policy.json --current reports/effective-policy.json --output json
 entroping report gate-coverage --output json
 entroping report gate-injection --target tests/health.hurl --output json
 entroping report artifact-manifest

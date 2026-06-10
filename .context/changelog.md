@@ -2,6 +2,11 @@
 
 ## 2026-06-09
 
+- Added issue #416's effective-policy evidence diff so
+  `entroping report policy-diff --base <path> --current <path> --output md|json`
+  compares existing effective-policy JSON artifacts, emits schema-versioned
+  import and gate deltas, and avoids policy reloads, provider calls, Hurl
+  execution, and failure-on-valid-change behavior.
 - Added issue #417's run dry-run execution plan so `entroping run --dry-run`
   resolves selected tests, tag or changed-file selectors, effective and
   injected QAnstitution gates, environment name, missing variable names, worker

@@ -24,6 +24,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Drift baseline | `entroping.drift-baseline.v1` | `reports/drift-baseline.candidate.json`, `.entroping/drift-baseline.json` | Inline contract |
 | Drift report | `entroping.drift-report.v1` | `reports/drift.json` | [drift-report.v1.schema.json](report-schemas/drift-report.v1.schema.json) |
 | Effective policy report | `entroping.effective-policy-report.v1` | `reports/effective-policy.json` | [effective-policy-report.v1.schema.json](report-schemas/effective-policy-report.v1.schema.json) |
+| Effective policy diff | `entroping.effective-policy-diff.v1` | `entroping report policy-diff --output json` stdout | [effective-policy-diff.v1.schema.json](report-schemas/effective-policy-diff.v1.schema.json) |
 | Gate coverage report | `entroping.gate-coverage-report.v1` | `reports/gate-coverage.json` | [gate-coverage-report.v1.schema.json](report-schemas/gate-coverage-report.v1.schema.json) |
 | Gate injection report | `entroping.gate-injection-report.v1` | `reports/gate-injection.json` | [gate-injection-report.v1.schema.json](report-schemas/gate-injection-report.v1.schema.json) |
 | Report artifact manifest | `entroping.report-artifact-manifest.v1` | `reports/artifact-manifest.json` | [report-artifact-manifest.v1.schema.json](report-schemas/report-artifact-manifest.v1.schema.json) |
@@ -49,6 +50,21 @@ paths and effective assertions, not traffic values, prompts, credentials, or
 provider data.
 New writers include optional per-gate `group` provenance when a gate was
 expanded from a local `gate_groups` reference.
+
+The effective policy diff report compares two existing effective-policy JSON
+artifacts:
+
+```bash
+entroping report policy-diff \
+  --base reports/base-effective-policy.json \
+  --current reports/effective-policy.json \
+  --output json
+```
+
+Its v1 payload records added and removed imports, added and removed gates, and
+changed gate fields. It does not reload QAnstitution files, fetch registries,
+call providers, execute Hurl, or fail simply because valid policy evidence
+changed.
 
 The run execution plan is written only by dry-run mode:
 

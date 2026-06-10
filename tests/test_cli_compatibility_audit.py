@@ -156,6 +156,14 @@ LOCKED_CLI_CONTRACTS = (
         ("--output",),
     ),
     CliContract(
+        (
+            "entroping report policy-diff [--base <path>] [--current <path>] "
+            "[--output <md|json>]"
+        ),
+        ("report", "policy-diff", "--help"),
+        ("--base", "--current", "--output"),
+    ),
+    CliContract(
         "entroping report gate-coverage [--output <md|json>]",
         ("report", "gate-coverage", "--help"),
         ("--output",),
@@ -246,6 +254,7 @@ REPORT_ARTIFACTS = (
     "reports/redaction-review.html",
     "reports/effective-policy.md",
     "reports/effective-policy.json",
+    "stdout Effective Policy Diff Markdown/JSON",
     "reports/badges/*.json",
     "reports/agent-bundle.md",
     "reports/agent-bundle.json",
