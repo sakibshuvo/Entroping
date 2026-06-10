@@ -2,6 +2,11 @@
 
 ## 2026-06-09
 
+- Fixed issue #487's redaction review state access so
+  `entroping report redaction --output md|html` now reads existing traffic
+  state through the read-only SQLite path, preserves missing/empty-state
+  behavior, and has regression coverage proving report generation does not
+  mutate the traffic state database.
 - Added issue #415's safe capture summary report so
   `entroping report capture-summary --output md|json` summarizes redacted local
   traffic state by derived session, method, host, dependency target, status

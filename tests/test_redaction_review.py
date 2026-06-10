@@ -260,17 +260,38 @@ def test_run_redaction_review_wraps_traffic_store_errors(
     state_dir.mkdir()
     (state_dir / "state.db").write_text("not sqlite\n", encoding="utf-8")
 
-    def fail_open(project_root: Path) -> object:
+    def fail_readonly(project_root: Path) -> tuple[TrafficExchange, ...]:
         _ = project_root
         raise TrafficStoreError("traffic store failed")
 
     monkeypatch.setattr(
-        "entroping.core.redaction_review_report.TrafficStore.open_project",
-        staticmethod(fail_open),
+        redaction_review_report,
+        "list_project_exchanges_readonly",
+        fail_readonly,
     )
 
     with pytest.raises(RedactionReviewError, match="traffic store failed"):
         run_redaction_review(project_root=tmp_path, output="md")
+
+
+def test_run_redaction_review_reads_existing_state_without_mutation(
+    tmp_path: Path,
+) -> None:
+    store = TrafficStore.open_project(tmp_path)
+    store.record_exchange(redact_traffic_exchange(_raw_exchange(secret="mtime-secret")))
+    state_path = tmp_path / ".entroping" / "state.db"
+    before = state_path.stat().st_mtime_ns
+
+    result = run_redaction_review(project_root=tmp_path, output="md")
+    after = state_path.stat().st_mtime_ns
+    content = (tmp_path / "reports" / "redaction-review.md").read_text(encoding="utf-8")
+
+    assert result.output_path == tmp_path / "reports" / "redaction-review.md"
+    assert result.report.total_records == 1
+    assert after == before
+    assert "request authorization header" in content
+    assert "mtime-secret" not in content
+    assert "[REDACTED]" not in content
 
 
 def test_run_redaction_review_wraps_safe_write_errors(

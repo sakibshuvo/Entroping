@@ -98,6 +98,9 @@ project, and a Codex workspace with fast context rehydration.
   Eye traffic state through the read-only store path and summarizes derived
   sessions, methods, hosts, dependency targets, status families, and redaction
   categories without rendering raw traffic values.
+- `entroping report redaction --output md|html` reads existing redacted Eye
+  traffic state through the read-only store path and preserves no-mutation
+  report generation for review-only workflows.
 - `entroping doctor` validates configured Builder/Auditor/Breaker persona files
   through the same root-bounded persona loader used at runtime and reports
   `api_key_env` readiness without printing values or calling providers.
