@@ -52,12 +52,28 @@ def main(argv: list[str] | None = None) -> int:
         description="Validate PR body documentation-impact declarations.",
     )
     parser.add_argument(
+        "--body-file",
+        type=Path,
+        help="Validate a plain Markdown PR body file instead of a GitHub event payload.",
+    )
+    parser.add_argument(
         "event_path",
         nargs="?",
         default=os.environ.get("GITHUB_EVENT_PATH"),
         help="Path to the GitHub event JSON payload. Defaults to GITHUB_EVENT_PATH.",
     )
     args = parser.parse_args(argv)
+
+    if args.body_file is not None:
+        body = args.body_file.read_text(encoding="utf-8")
+        failures = validate_body(body)
+        if failures:
+            print("PR documentation impact declaration failed:", file=sys.stderr)
+            for failure in failures:
+                print(f"  {failure}", file=sys.stderr)
+            return 1
+        print("PR documentation impact declaration OK")
+        return 0
 
     if not args.event_path:
         print("No GitHub event payload path provided.", file=sys.stderr)

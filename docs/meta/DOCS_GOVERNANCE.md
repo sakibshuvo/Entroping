@@ -118,6 +118,8 @@ or public scope changed.
 
 Every pull request must include a checked Documentation Impact Declaration in
 the PR body. CI validates this on pull requests with `scripts/pr_body_check.py`.
+Before opening or editing a PR, agents can validate a local body draft with
+`scripts/pr_body_check.py --body-file <path>`.
 
 Accepted declaration types:
 
