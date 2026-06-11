@@ -1,5 +1,6 @@
 """Subprocess boundary for the external Hurl binary."""
 
+import os
 import re
 import shutil
 import subprocess  # nosec B404
@@ -170,10 +171,11 @@ class HurlSuiteResult:
 def discover_hurl(binary: str = "hurl") -> HurlBinaryStatus:
     """Find the Hurl binary without executing HTTP requests."""
 
-    resolved = shutil.which(binary)
-    if resolved is None:
-        return HurlBinaryStatus(available=False, path=None, version_checked=binary == "hurl")
-    if binary != "hurl":
+    try:
+        resolved = _resolve_hurl_binary(binary)
+    except HurlBinaryNotFoundError:
+        return HurlBinaryStatus(available=False, path=None)
+    if not _should_check_hurl_version(binary, resolved):
         return HurlBinaryStatus(available=True, path=resolved)
     version, version_parts, version_output, version_error = _read_hurl_version(resolved)
     return HurlBinaryStatus(
@@ -460,11 +462,42 @@ def redact_hurl_output(text: str, extra_secret_values: Sequence[str] = ()) -> st
 
 
 def _resolve_hurl_binary(binary: str) -> str:
-    resolved = shutil.which(binary)
+    selector = binary.strip()
+    if _is_path_like_binary_selector(selector):
+        return _resolve_explicit_hurl_binary_path(selector)
+
+    resolved = shutil.which(selector)
     if resolved is None:
-        msg = f"Hurl binary not found: {binary}"
+        msg = f"Hurl binary not found: {selector}"
         raise HurlBinaryNotFoundError(msg)
     return resolved
+
+
+def _is_path_like_binary_selector(binary: str) -> bool:
+    return any(separator is not None and separator in binary for separator in (os.sep, os.altsep))
+
+
+def _resolve_explicit_hurl_binary_path(binary: str) -> str:
+    expanded = Path(binary).expanduser()
+    if not expanded.is_absolute():
+        msg = "Hurl binary path must be absolute when a path is provided"
+        raise ValueError(msg)
+
+    resolved = expanded.resolve()
+    if not resolved.is_file():
+        msg = f"Hurl binary not found: {binary}"
+        raise HurlBinaryNotFoundError(msg)
+    if not os.access(resolved, os.X_OK):
+        msg = f"Hurl binary is not executable: {resolved}"
+        raise HurlBinaryNotFoundError(msg)
+    return str(resolved)
+
+
+def _should_check_hurl_version(binary: str, resolved: str) -> bool:
+    selector = binary.strip()
+    if selector == "hurl":
+        return True
+    return _is_path_like_binary_selector(selector) and Path(resolved).name == "hurl"
 
 
 def _minimal_subprocess_env(binary_path: str) -> dict[str, str]:

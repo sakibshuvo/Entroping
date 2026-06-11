@@ -85,6 +85,12 @@ Hurl and Hurl parser calls cross into external binaries. The invariant is:
 - pass secrets through temporary variables files, not visible argv;
 - run with a minimal child environment;
 - apply timeouts, cleanup, bounded output capture, and output redaction;
+- treat bare binary lookup as parent-`PATH` trust for normal developer and CI
+  usage;
+- use explicit absolute binary paths for high-assurance runs that need to pin a
+  reviewed Hurl executable and bypass hostile earlier `PATH` entries;
+- reject relative binary paths because current-working-directory lookup is too
+  easy to spoof in project trees;
 - treat a user-controlled or compromised `hurl` binary as an operator-controlled
   local risk, not as trusted application code.
 
