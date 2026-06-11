@@ -2,6 +2,11 @@
 
 ## 2026-06-11
 
+- Fixed issue #609's AI worker queue supervisor races so concurrent
+  `run-next` calls atomically claim distinct queued jobs, failed workers do not
+  leave `running/` entries behind, corrupt queued artifacts are quarantined to
+  `failed/` without blocking valid work, and stale `running/` jobs fail closed
+  after their timeout grace window.
 - Added issue #610's Hurl runner chaos regression matrix covering empty output,
   signal-like exit codes, binary/non-UTF-8 streams, truncation boundaries,
   redaction plus truncation, partial stdout/stderr on subprocess errors,
