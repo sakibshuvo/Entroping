@@ -2,6 +2,10 @@
 
 ## 2026-06-11
 
+- Stable-core E2E evidence should cross the installed CLI boundary when that is
+  the user contract. In-process workflow calls are still valuable, but the
+  launch proof for `init -> run -> reports` should execute the console script,
+  use real Hurl when available, and verify source `.hurl` immutability.
 - Starter workflows need an install selector, not a hardcoded release tag. Use
   one visible env value so new projects can follow the latest source by default
   while regulated teams can deliberately pin a reviewed tag.

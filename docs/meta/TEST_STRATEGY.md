@@ -41,6 +41,18 @@ boots, reports a version, can initialize a minimal project, and can run
 typing, unit coverage, security audits, or `scripts/live_demo_smoke.sh` for
 runtime Hurl execution evidence.
 
+Installed CLI plus real-Hurl E2E proof:
+
+```bash
+uv run pytest tests/test_cli_real_hurl_e2e.py -q
+```
+
+This integration test skips cleanly when Hurl is unavailable. When Hurl is
+installed, it starts a localhost-only demo API, drives `entroping init` and
+`entroping run --ci --report json --report junit` through the installed console
+script, and verifies JSON/JUnit reports, QAnstitution gate injection evidence,
+and source `.hurl` immutability.
+
 Fast feature gate:
 
 ```bash
@@ -277,6 +289,9 @@ gate and does not mutate `docs/meta/release-evidence.json`.
 - Bug fixes need regression tests when the bug is reproducible.
 - Features crossing subsystem boundaries need integration or smoke coverage.
 - Hurl runner work needs fixture `.hurl` files and real Hurl smoke checks once `hurl` is available.
+- End-to-end governance evidence should include the installed console script,
+  localhost-only API behavior, real Hurl execution, report validation, and
+  source `.hurl` immutability when the toolchain is available.
 - Security-sensitive behavior needs negative tests for unsafe input, redaction, or failure mode.
 - Architecture-sensitive behavior needs import-boundary tests when a package boundary
   matters more than a single function result. `tests/test_architecture_boundaries.py`
