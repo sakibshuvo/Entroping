@@ -26,6 +26,7 @@ tool first: README, roadmap, docs, package code, tests, examples, ADRs, and CI.
 | `.context/plan.md` | Maintainer/agent handoff | Tracked because Codex/OpenCode sessions need fast rehydration |
 | `.context/changelog.md` | Maintainer/agent handoff | Tracked chronological implementation log |
 | `.context/lessons-learned.md` | Maintainer/agent handoff | Tracked durable failure and decision memory |
+| `scripts/ai_jobs.py`, `scripts/opencode_worker.py`, `scripts/deepseek_worker.py` | Maintainer-only AI worker tooling | Tracked to produce bounded local review/patch artifacts; not product APIs, user commands, or automatic patch applicators |
 | `.obsidian/` | Obsidian machine state | Local-only; do not track |
 | `graphify-out/` | Generated graph output | Local-only; promote useful findings into docs |
 | `.entroping/` and `reports/` | Runtime/generated artifacts | Local-only unless a curated asset is intentionally copied into docs |
@@ -42,6 +43,10 @@ tool first: README, roadmap, docs, package code, tests, examples, ADRs, and CI.
   and let Obsidian recreate `.obsidian/` locally.
 - Track curated Canvas/Base files only when they are intentionally maintained
   as durable navigation aids under `docs/meta/`.
+- Keep AI worker scripts tracked as maintainer-only control-plane tooling
+  because they create local `.entroping/` artifacts for Codex review, never
+  apply patches, and do not change Entroping's user-facing CLI or product
+  provider boundary.
 - Preserve durable knowledge by moving or documenting it before deleting
   anything. Machine/UI state does not count as durable product knowledge.
 

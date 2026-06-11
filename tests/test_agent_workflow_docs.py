@@ -56,12 +56,34 @@ def test_agent_control_plane_documents_direct_deepseek_worker_boundary() -> None
     doc = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
         encoding="utf-8"
     )
+    normalized = " ".join(doc.split())
 
     assert "scripts/deepseek_worker.py" in doc
     assert "--engine deepseek-api" in doc
     assert "DEEPSEEK_API_KEY" in doc
+    assert "bounded UTF-8 prompt context" in doc
+    assert "Before any artifact is written or provider request is made" in normalized
+    assert "secret-like content" in normalized
+    assert "maintainer-only local development tooling" in doc
     assert "does not replace Entroping's LiteLLM product boundary" in doc
     assert "never applies patches" in doc
+
+
+def test_public_repo_surface_classifies_ai_workers_as_maintainer_only() -> None:
+    doc = (REPO_ROOT / "docs" / "meta" / "PUBLIC_REPO_SURFACE.md").read_text(
+        encoding="utf-8"
+    )
+    normalized = " ".join(doc.split())
+
+    assert "scripts/ai_jobs.py" in doc
+    assert "scripts/opencode_worker.py" in doc
+    assert "scripts/deepseek_worker.py" in doc
+    assert "Maintainer-only AI worker tooling" in doc
+    assert "not product APIs, user commands, or automatic patch applicators" in doc
+    assert (
+        "do not change Entroping's user-facing CLI or product provider boundary"
+        in normalized
+    )
 
 
 def test_knowledge_base_workflow_documents_source_promotion() -> None:

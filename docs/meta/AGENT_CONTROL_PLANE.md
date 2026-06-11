@@ -58,11 +58,15 @@ inside the issue worktree, then runs the normal gates.
 
 Use `scripts/deepseek_worker.py` when OpenCode is the wrong dependency for a
 paid DeepSeek Flash or Pro task. It calls DeepSeek's OpenAI-compatible chat
-completion endpoint with an env-provided `DEEPSEEK_API_KEY`, writes prompt,
-request, stdout/stderr, response, proposal diff, and value-free metadata under
-`.entroping/ai-reviews/`, and never applies patches. This is local development
-tooling for cheap worker output; it does not replace Entroping's LiteLLM product boundary,
-and it must not be called by `entroping run`.
+completion endpoint with an env-provided `DEEPSEEK_API_KEY`, includes selected
+repo files as bounded UTF-8 prompt context, writes prompt, request,
+stdout/stderr, response, proposal diff, and value-free metadata under
+`.entroping/ai-reviews/`, and never applies patches. Before any artifact is
+written or provider request is made, the worker rejects selected files that are
+too large, binary, non-UTF-8, credential-path-like, or contain secret-like
+content. This is maintainer-only local development tooling for cheap worker
+output; it does not replace Entroping's LiteLLM product boundary, and it must
+not be called by `entroping run`.
 
 local Qwen/oMLX handles private summarization, triage, and low-risk review. Use
 it for source-archive summarization, duplicate-finding, wording variants, and
