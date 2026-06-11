@@ -127,7 +127,7 @@ def discover_hurl_test_selection(
         msg = "cannot combine operation ID filters with tag expressions"
         raise ValueError(msg)
 
-    candidates = _discover_hurl_files(roots or _DEFAULT_ROOTS)
+    candidates = _discover_hurl_files(roots if roots is not None else _DEFAULT_ROOTS)
     discovered: list[HurlTest] = []
     discovered_count = 0
 

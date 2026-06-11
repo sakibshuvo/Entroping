@@ -117,6 +117,24 @@ def test_discover_hurl_test_selection_filters_by_operation_id(tmp_path: Path) ->
     assert selected.skipped_count == 1
 
 
+def test_discover_hurl_test_selection_honors_explicit_empty_roots(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_hurl(
+        tmp_path / "tests" / "health.hurl",
+        "# entroping: tags=smoke\nGET /health\nHTTP 200\n",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    selected = discover_hurl_test_selection(())
+
+    assert selected.tests == ()
+    assert selected.discovered_count == 0
+    assert selected.selected_count == 0
+    assert selected.skipped_count == 0
+
+
 def test_discover_hurl_test_selection_rejects_tag_filter_and_expression_mix(
     tmp_path: Path,
 ) -> None:
