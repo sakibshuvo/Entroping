@@ -2,6 +2,13 @@
 
 ## 2026-06-11
 
+- Accepted issue #594's official GitHub Action boundary: the generated starter
+  workflow remains the supported downstream CI path, while a future
+  `entroping/action` belongs in a dedicated action repo after package-index
+  proof, with Hurl verification, local report artifacts, read-only defaults,
+  opt-in permission-scoped PR comments, and no LLM calls during `run`. The
+  generated starter now also matches the documented `reports/doctor-health.json`
+  diagnostic artifact.
 - Clarified issue #586's launch surface boundary: WireMock mappings and
   dependency maps remain supported, tested, optional advanced surfaces, while
   REST/OpenAPI + QAnstitution + Hurl + CI reports stay the primary launch story.

@@ -57,7 +57,10 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Verify Entroping setup
-        run: entroping doctor --ci
+        run: |
+          entroping doctor --ci
+          mkdir -p reports
+          entroping doctor --ci --output json > reports/doctor-health.json
 
       - name: Run Entroping gate
         run: entroping run --ci --report json --report junit --report html

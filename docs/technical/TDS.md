@@ -728,9 +728,18 @@ entroping config test-policy-pack --pack <path> [--output <text|json>]
 packaged, reviewed starter workflow to `.github/workflows/entroping.yml` using
 create-only path handling, rejects symlinked workflow path components, and
 refuses to overwrite an existing workflow. The starter uses pinned Hurl guidance
-and installs Entroping from the alpha Git tag; it does not add secrets,
-provider credentials, hosted-service coupling, or PyPI/TestPyPI readiness
-claims.
+and installs Entroping from the latest GitHub source branch by default, with an
+explicit `ENTROPING_INSTALL_SPEC` override for teams that want to pin a reviewed
+tag; it does not add secrets, provider credentials, hosted-service coupling, or
+PyPI/TestPyPI readiness claims.
+
+A future reusable `entroping/action` must stay separate from the generated
+starter workflow until package-index install proof exists. The action belongs
+in a dedicated action repository, installs released Entroping artifacts or an
+explicit tagged prerelease fallback, installs or verifies Hurl, uploads local
+`reports/` artifacts without `.entroping/` state by default, keeps optional PR
+comments permission-scoped, and must not call LLM providers during
+`entroping run --ci`.
 
 `doctor --output json` emits schema version `entroping.doctor.v1` with overall
 status, Python version, Hurl and hurlfmt availability, Hurl compatibility
