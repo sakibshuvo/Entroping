@@ -1,0 +1,591 @@
+#!/usr/bin/env python3
+"""Run bounded direct DeepSeek API workers and capture local artifacts."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess  # nosec B404
+import sys
+import uuid
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Literal, cast
+from urllib import error, request
+from urllib.parse import urlparse
+
+DEFAULT_MODEL = "deepseek-v4-pro"
+DEFAULT_BASE_URL = "https://api.deepseek.com"
+DEFAULT_API_KEY_ENV = "DEEPSEEK_API_KEY"
+DEFAULT_ARTIFACT_ROOT = Path(".entroping") / "ai-reviews"
+DEFAULT_TIMEOUT_SECONDS = 300.0
+DEFAULT_MAX_TOKENS = 4096
+Mode = Literal["review", "patch"]
+Status = Literal["completed", "dry-run", "failed", "inconclusive", "patch-proposed", "timed-out"]
+ThinkingMode = Literal["enabled", "disabled"]
+ReasoningEffort = Literal["high", "max"]
+
+
+@dataclass(frozen=True, slots=True)
+class DirectWorkerConfig:
+    """Validated direct DeepSeek worker configuration."""
+
+    mode: Mode
+    model: str
+    repo_root: Path
+    files: tuple[Path, ...]
+    artifact_root: Path
+    base_url: str
+    api_key_env: str
+    timeout_seconds: float
+    max_tokens: int
+    thinking: ThinkingMode
+    reasoning_effort: ReasoningEffort
+    issue: str | None
+    instruction: str | None
+    dry_run: bool
+    json_output: bool
+
+
+@dataclass(frozen=True, slots=True)
+class DirectWorkerResult:
+    """Direct DeepSeek worker execution result."""
+
+    status: Status
+    artifact_dir: Path
+    returncode: int
+    stdout: str
+    stderr: str
+    response_payload: dict[str, object] | None
+    usage: dict[str, object] | None
+
+
+class DirectWorkerInputError(ValueError):
+    """Raised when direct worker inputs are unsafe or incomplete."""
+
+
+def main() -> int:
+    try:
+        config = _parse_args()
+        result = run_worker(config)
+    except DirectWorkerInputError as exc:
+        print(f"deepseek_worker: {exc}", file=sys.stderr)
+        return 2
+
+    payload = {
+        "status": result.status,
+        "artifact_dir": str(result.artifact_dir),
+        "returncode": result.returncode,
+    }
+    if result.usage is not None:
+        payload["usage"] = result.usage
+    if config.json_output:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(f"DeepSeek worker status: {result.status}")
+        print(f"Artifact directory: {result.artifact_dir}")
+
+    if result.status == "timed-out":
+        return 124
+    if result.status == "failed":
+        return 1
+    return 0
+
+
+def run_worker(config: DirectWorkerConfig) -> DirectWorkerResult:
+    """Run a direct DeepSeek request and write local artifacts."""
+
+    api_key = "" if config.dry_run else _read_api_key(config.api_key_env)
+    artifact_dir = _new_artifact_dir(config.artifact_root, config.mode)
+    artifact_dir.mkdir(parents=True, exist_ok=False)
+
+    prompt = _build_prompt(config)
+    (artifact_dir / "prompt.md").write_text(prompt, encoding="utf-8")
+
+    endpoint = _chat_endpoint(config.base_url)
+    request_body = _request_body(config, prompt)
+    (artifact_dir / "request.json").write_text(
+        json.dumps(_sanitized_request_body(request_body), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    if config.dry_run:
+        result = DirectWorkerResult(
+            status="dry-run",
+            artifact_dir=artifact_dir,
+            returncode=0,
+            stdout="",
+            stderr="",
+            response_payload=None,
+            usage=None,
+        )
+        _write_metadata(config, result, endpoint)
+        return result
+
+    result = _call_deepseek(config, endpoint, api_key, request_body, artifact_dir)
+    _write_execution_artifacts(config, result, endpoint)
+    return result
+
+
+def _parse_args() -> DirectWorkerConfig:
+    parser = argparse.ArgumentParser(
+        description="Run a bounded direct DeepSeek review or patch proposal.",
+    )
+    parser.add_argument("--mode", choices=("review", "patch"), required=True)
+    parser.add_argument(
+        "--model",
+        default=DEFAULT_MODEL,
+        help=f"DeepSeek model id. Default: {DEFAULT_MODEL}.",
+    )
+    parser.add_argument(
+        "--file",
+        dest="files",
+        action="append",
+        default=[],
+        help="Repo-local file to include in the worker scope; repeatable.",
+    )
+    parser.add_argument("--issue", help="Optional GitHub issue number or URL.")
+    parser.add_argument(
+        "--instruction",
+        help="Optional task-specific instruction appended to the bounded prompt.",
+    )
+    parser.add_argument(
+        "--artifact-root",
+        type=Path,
+        default=DEFAULT_ARTIFACT_ROOT,
+        help="Directory for local worker artifacts. Default: .entroping/ai-reviews",
+    )
+    parser.add_argument(
+        "--base-url",
+        default=DEFAULT_BASE_URL,
+        help="DeepSeek OpenAI-compatible base URL. Default: https://api.deepseek.com",
+    )
+    parser.add_argument(
+        "--api-key-env",
+        default=DEFAULT_API_KEY_ENV,
+        help="Environment variable containing the DeepSeek API key.",
+    )
+    parser.add_argument(
+        "--timeout-seconds",
+        type=float,
+        default=DEFAULT_TIMEOUT_SECONDS,
+        help="HTTP request timeout in seconds.",
+    )
+    parser.add_argument(
+        "--max-tokens",
+        type=int,
+        default=DEFAULT_MAX_TOKENS,
+        help="Maximum completion tokens for the worker response.",
+    )
+    parser.add_argument(
+        "--thinking",
+        choices=("enabled", "disabled"),
+        default="enabled",
+        help="DeepSeek thinking mode toggle. Default: enabled.",
+    )
+    parser.add_argument(
+        "--reasoning-effort",
+        choices=("high", "max"),
+        default="high",
+        help="DeepSeek thinking effort when thinking is enabled. Default: high.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Write prompt/request metadata without invoking DeepSeek.",
+    )
+    parser.add_argument("--json", action="store_true", help="Print machine-readable summary.")
+    args = parser.parse_args()
+
+    repo_root = _repo_root()
+    files = _validate_files(repo_root, tuple(Path(path) for path in args.files))
+    if not files:
+        msg = "at least one --file is required"
+        raise DirectWorkerInputError(msg)
+    if args.timeout_seconds <= 0:
+        msg = "--timeout-seconds must be greater than zero"
+        raise DirectWorkerInputError(msg)
+    if args.max_tokens <= 0:
+        msg = "--max-tokens must be greater than zero"
+        raise DirectWorkerInputError(msg)
+
+    api_key_env = _validate_env_name(str(args.api_key_env))
+    base_url = _validate_base_url(str(args.base_url))
+    artifact_root = args.artifact_root
+    if not artifact_root.is_absolute():
+        artifact_root = repo_root / artifact_root
+
+    mode: Mode = args.mode
+    thinking: ThinkingMode = args.thinking
+    reasoning_effort: ReasoningEffort = args.reasoning_effort
+    return DirectWorkerConfig(
+        mode=mode,
+        model=str(args.model),
+        repo_root=repo_root,
+        files=files,
+        artifact_root=artifact_root.expanduser().resolve(),
+        base_url=base_url,
+        api_key_env=api_key_env,
+        timeout_seconds=float(args.timeout_seconds),
+        max_tokens=int(args.max_tokens),
+        thinking=thinking,
+        reasoning_effort=reasoning_effort,
+        issue=args.issue,
+        instruction=args.instruction,
+        dry_run=bool(args.dry_run),
+        json_output=bool(args.json),
+    )
+
+
+def _repo_root() -> Path:
+    try:
+        completed = subprocess.run(  # nosec B603
+            ["git", "rev-parse", "--show-toplevel"],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        msg = "run this from inside the Entroping git repository"
+        raise DirectWorkerInputError(msg) from exc
+    return Path(completed.stdout.strip()).resolve()
+
+
+def _validate_files(repo_root: Path, raw_files: tuple[Path, ...]) -> tuple[Path, ...]:
+    validated: list[Path] = []
+    for raw_file in raw_files:
+        path = raw_file.expanduser()
+        if not path.is_absolute():
+            path = repo_root / path
+        resolved = path.resolve()
+        if not resolved.exists():
+            msg = f"input file does not exist: {raw_file}"
+            raise DirectWorkerInputError(msg)
+        if not resolved.is_file() or resolved.is_symlink():
+            msg = f"input path must be a regular non-symlink file: {raw_file}"
+            raise DirectWorkerInputError(msg)
+        try:
+            resolved.relative_to(repo_root)
+        except ValueError as exc:
+            msg = f"input file must be inside repository: {raw_file}"
+            raise DirectWorkerInputError(msg) from exc
+        validated.append(resolved)
+    return tuple(dict.fromkeys(validated))
+
+
+def _validate_env_name(raw_name: str) -> str:
+    name = raw_name.strip()
+    if not name or not name.replace("_", "A").isalnum() or name[0].isdigit():
+        msg = "--api-key-env must be an environment variable name"
+        raise DirectWorkerInputError(msg)
+    return name
+
+
+def _validate_base_url(raw_url: str) -> str:
+    url = raw_url.strip().rstrip("/")
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        msg = "--base-url must be an http or https URL"
+        raise DirectWorkerInputError(msg)
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        msg = "--base-url must not include credentials, query, or fragment"
+        raise DirectWorkerInputError(msg)
+    return url
+
+
+def _read_api_key(env_name: str) -> str:
+    api_key = os.environ.get(env_name, "").strip()
+    if not api_key:
+        msg = f"missing DeepSeek API key env var: {env_name}"
+        raise DirectWorkerInputError(msg)
+    return api_key
+
+
+def _build_prompt(config: DirectWorkerConfig) -> str:
+    template = _template_path(config.repo_root, config.mode).read_text(encoding="utf-8")
+    relative_files = [path.relative_to(config.repo_root).as_posix() for path in config.files]
+    absolute_files = [str(path) for path in config.files]
+    lines = [
+        template.rstrip(),
+        "",
+        "## Worker Scope",
+        "",
+        f"- Repository: {config.repo_root}",
+        f"- Mode: {config.mode}",
+        f"- Issue: {config.issue or 'not provided'}",
+        "- Context pack command: scripts/context_pack.sh --mode review",
+        "",
+        "## Allowed Files",
+        "",
+    ]
+    lines.extend(f"- {path}" for path in relative_files)
+    lines.extend(["", "## Absolute File Paths", ""])
+    lines.extend(f"- {path}" for path in absolute_files)
+    if config.instruction is not None:
+        lines.extend(["", "## Task Instruction", "", config.instruction.strip()])
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _template_path(repo_root: Path, mode: Mode) -> Path:
+    path = repo_root / "prompts" / "deepseek" / f"{mode}.md"
+    if not path.is_file():
+        msg = f"missing prompt template: {path}"
+        raise DirectWorkerInputError(msg)
+    return path
+
+
+def _chat_endpoint(base_url: str) -> str:
+    return f"{base_url}/chat/completions"
+
+
+def _request_body(config: DirectWorkerConfig, prompt: str) -> dict[str, object]:
+    body: dict[str, object] = {
+        "model": config.model,
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "You are a bounded Entroping worker. Return only the requested "
+                    "review or patch artifact. Codex validates all outputs."
+                ),
+            },
+            {"role": "user", "content": prompt},
+        ],
+        "max_tokens": config.max_tokens,
+        "thinking": {"type": config.thinking},
+    }
+    if config.thinking == "enabled":
+        body["reasoning_effort"] = config.reasoning_effort
+    return body
+
+
+def _sanitized_request_body(body: dict[str, object]) -> dict[str, object]:
+    return dict(body)
+
+
+def _call_deepseek(
+    config: DirectWorkerConfig,
+    endpoint: str,
+    api_key: str,
+    request_body: dict[str, object],
+    artifact_dir: Path,
+) -> DirectWorkerResult:
+    encoded_body = json.dumps(request_body).encode("utf-8")
+    http_request = request.Request(
+        endpoint,
+        data=encoded_body,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+    )
+    try:
+        with request.urlopen(  # nosec B310
+            http_request,
+            timeout=config.timeout_seconds,
+        ) as response:
+            response_text = response.read().decode("utf-8", errors="replace")
+    except TimeoutError:
+        return DirectWorkerResult(
+            status="timed-out",
+            artifact_dir=artifact_dir,
+            returncode=124,
+            stdout="",
+            stderr=f"DeepSeek worker timed out after {config.timeout_seconds} seconds.",
+            response_payload=None,
+            usage=None,
+        )
+    except error.HTTPError as exc:
+        response_text = exc.read().decode("utf-8", errors="replace")
+        stderr = f"DeepSeek API returned HTTP {exc.code}."
+        if response_text:
+            stderr = f"{stderr}\n{response_text}"
+        return DirectWorkerResult(
+            status="failed",
+            artifact_dir=artifact_dir,
+            returncode=1,
+            stdout="",
+            stderr=stderr,
+            response_payload=_json_object_or_none(response_text),
+            usage=None,
+        )
+    except error.URLError as exc:
+        return DirectWorkerResult(
+            status="failed",
+            artifact_dir=artifact_dir,
+            returncode=1,
+            stdout="",
+            stderr=f"DeepSeek API request failed: {exc.reason}",
+            response_payload=None,
+            usage=None,
+        )
+
+    payload = _json_object_or_none(response_text)
+    if payload is None:
+        return DirectWorkerResult(
+            status="failed",
+            artifact_dir=artifact_dir,
+            returncode=1,
+            stdout="",
+            stderr="DeepSeek API returned non-object JSON.",
+            response_payload=None,
+            usage=None,
+        )
+
+    content = _assistant_content(payload)
+    usage = _usage_object(payload)
+    status = _classify_status(config.mode, content)
+    return DirectWorkerResult(
+        status=status,
+        artifact_dir=artifact_dir,
+        returncode=0,
+        stdout=content,
+        stderr="",
+        response_payload=payload,
+        usage=usage,
+    )
+
+
+def _json_object_or_none(text: str) -> dict[str, object] | None:
+    if not text.strip():
+        return None
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    return cast(dict[str, object], payload)
+
+
+def _assistant_content(payload: dict[str, object]) -> str:
+    choices = payload.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return ""
+    first_choice = choices[0]
+    if not isinstance(first_choice, dict):
+        return ""
+    message = first_choice.get("message")
+    if not isinstance(message, dict):
+        return ""
+    content = message.get("content")
+    if not isinstance(content, str):
+        return ""
+    return content
+
+
+def _usage_object(payload: dict[str, object]) -> dict[str, object] | None:
+    usage = payload.get("usage")
+    if not isinstance(usage, dict):
+        return None
+    safe_usage: dict[str, object] = {}
+    for key, value in usage.items():
+        if isinstance(key, str) and isinstance(value, int | float | str):
+            safe_usage[key] = value
+    return safe_usage
+
+
+def _new_artifact_dir(artifact_root: Path, mode: Mode) -> Path:
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    suffix = uuid.uuid4().hex[:8]
+    return artifact_root / f"{timestamp}-deepseek-{mode}-{suffix}"
+
+
+def _classify_status(mode: Mode, output: str) -> Status:
+    if mode == "patch":
+        if _extract_unified_diff(output) is not None:
+            return "patch-proposed"
+        return "inconclusive"
+    if output.strip():
+        return "completed"
+    return "inconclusive"
+
+
+def _looks_like_unified_diff(output: str) -> bool:
+    return (
+        "diff --git " in output
+        and "\n--- " in output
+        and "\n+++ " in output
+        and "\n@@" in output
+    )
+
+
+def _extract_unified_diff(output: str) -> str | None:
+    lines = output.splitlines()
+    start_index: int | None = None
+    for index, line in enumerate(lines):
+        if line.startswith("diff --git "):
+            start_index = index
+            break
+    if start_index is None:
+        return None
+
+    diff_lines: list[str] = []
+    for line in lines[start_index:]:
+        if line.strip() == "```" and diff_lines:
+            break
+        diff_lines.append(line)
+
+    diff = "\n".join(diff_lines).rstrip() + "\n"
+    if not _looks_like_unified_diff(diff):
+        return None
+    return diff
+
+
+def _write_execution_artifacts(
+    config: DirectWorkerConfig,
+    result: DirectWorkerResult,
+    endpoint: str,
+) -> None:
+    (result.artifact_dir / "stdout.txt").write_text(result.stdout, encoding="utf-8")
+    (result.artifact_dir / "stderr.txt").write_text(result.stderr, encoding="utf-8")
+    if result.response_payload is not None:
+        (result.artifact_dir / "response.json").write_text(
+            json.dumps(result.response_payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    if config.mode == "patch":
+        proposal = _extract_unified_diff(result.stdout)
+        if proposal is not None:
+            (result.artifact_dir / "proposal.diff").write_text(proposal, encoding="utf-8")
+    _write_metadata(config, result, endpoint)
+
+
+def _write_metadata(
+    config: DirectWorkerConfig,
+    result: DirectWorkerResult,
+    endpoint: str,
+) -> None:
+    metadata = {
+        "schema_version": "entroping.deepseek-worker.v1",
+        "status": result.status,
+        "mode": config.mode,
+        "model": config.model,
+        "issue": config.issue,
+        "files": [path.relative_to(config.repo_root).as_posix() for path in config.files],
+        "artifact_dir": str(result.artifact_dir),
+        "returncode": result.returncode,
+        "timeout_seconds": config.timeout_seconds,
+        "max_tokens": config.max_tokens,
+        "base_url": config.base_url,
+        "endpoint": endpoint,
+        "api_key_env": config.api_key_env,
+        "thinking": config.thinking,
+        "reasoning_effort": config.reasoning_effort,
+        "usage": result.usage,
+        "created_at": datetime.now(UTC).isoformat(),
+        "dry_run": config.dry_run,
+    }
+    (result.artifact_dir / "metadata.json").write_text(
+        json.dumps(metadata, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

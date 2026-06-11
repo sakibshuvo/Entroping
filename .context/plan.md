@@ -47,6 +47,10 @@ project, and a Codex workspace with fast context rehydration.
   public docs, roadmap, and a short project-context handoff, while MkDocs groups
   deeper references by reader task instead of exposing maintainer memory as a
   flat nav.
+- Local AI job orchestration can route affordable worker jobs through OpenCode
+  by default or direct DeepSeek API with `--engine deepseek-api`; both paths
+  write ignored artifacts for Codex review and never apply patches or affect
+  Entroping runtime commands.
 - Eye onboarding is honest about real proxy constraints: `watch` users should
   start in local/dev environments, expect per-client mitmproxy CA setup, and
   treat capture authorization and artifact review as their responsibility.
