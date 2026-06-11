@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Added issue #556's source-preservation coverage for external `--source-root`
+  links so the decision registry now has direct pass/fail tests for preserved
+  Gemini/NotebookLM-style source material outside the implementation repo.
 - Added issue #554's direct optional-extras smoke script coverage so local
   tests now verify suppressed provider-library output, success output, safe
   exception reporting, and non-callable AI/proxy boundary failures.

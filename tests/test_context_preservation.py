@@ -21,6 +21,21 @@ def run_preservation_check(*args: str, root: Path = REPO_ROOT) -> subprocess.Com
     )
 
 
+def write_required_preservation_anchors(root: Path) -> None:
+    for relative_path in (
+        "sources/SOURCE_MAP.md",
+        "docs/evolution/REQUIREMENTS_ANALYSIS.md",
+        "docs/evolution/EVOLUTION_TIMELINE.md",
+        "docs/evolution/CREATOR_INTENT_AUDIT.md",
+        "docs/meta/VAULT_INDEX.md",
+        "docs/meta/CONTEXT_MANAGEMENT.md",
+        "docs/meta/KNOWLEDGE_BASE_WORKFLOW.md",
+    ):
+        path = root / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"# {path.name}\n", encoding="utf-8")
+
+
 def test_decision_registry_is_structured_seeded_and_lossless() -> None:
     data = yaml.safe_load(REGISTRY.read_text(encoding="utf-8"))
 
@@ -71,20 +86,7 @@ def test_source_preservation_check_passes_current_repo() -> None:
 
 def test_source_preservation_check_rejects_missing_registry_link(tmp_path: Path) -> None:
     (tmp_path / "docs" / "meta").mkdir(parents=True)
-    (tmp_path / "docs" / "evolution").mkdir(parents=True)
-    (tmp_path / "sources").mkdir()
-    for relative_path in (
-        "sources/SOURCE_MAP.md",
-        "docs/evolution/REQUIREMENTS_ANALYSIS.md",
-        "docs/evolution/EVOLUTION_TIMELINE.md",
-        "docs/evolution/CREATOR_INTENT_AUDIT.md",
-        "docs/meta/VAULT_INDEX.md",
-        "docs/meta/CONTEXT_MANAGEMENT.md",
-        "docs/meta/KNOWLEDGE_BASE_WORKFLOW.md",
-    ):
-        path = tmp_path / relative_path
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(f"# {path.name}\n", encoding="utf-8")
+    write_required_preservation_anchors(tmp_path)
 
     (tmp_path / "docs" / "meta" / "DECISION_REGISTRY.yaml").write_text(
         """
@@ -115,6 +117,97 @@ decisions:
 
     assert result.returncode == 1
     assert "docs/missing/source.md" in result.stderr
+
+
+def test_source_preservation_check_validates_existing_external_source_root(
+    tmp_path: Path,
+) -> None:
+    source_root = tmp_path / "entroping-specs"
+    external_source = source_root / "NotebookLM" / "latest-spec.md"
+    external_source.parent.mkdir(parents=True)
+    external_source.write_text("# Latest NotebookLM spec\n", encoding="utf-8")
+
+    (tmp_path / "repo" / "docs" / "meta").mkdir(parents=True)
+    repo_root = tmp_path / "repo"
+    write_required_preservation_anchors(repo_root)
+    (repo_root / "docs" / "meta" / "DECISION_REGISTRY.yaml").write_text(
+        """
+schema_version: entroping.decision-registry.v1
+preservation_policy:
+  archive_means: lower-default-reading-priority
+  summaries_replace_sources: false
+  raw_sources_retained: true
+decisions:
+  - id: ENT-DEC-9999
+    title: External source root coverage
+    status: accepted
+    date: 2026-06-11
+    summary: This entry points to preserved external source material.
+    tags: [context-preservation]
+    source_links:
+      - path: NotebookLM/latest-spec.md
+        role: latest notebook export
+        external: true
+    related_docs: []
+    related_issues: []
+    supersedes: []
+    superseded_by: null
+""",
+        encoding="utf-8",
+    )
+
+    result = run_preservation_check(
+        "--source-root",
+        str(source_root),
+        root=repo_root,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Source preservation OK" in result.stdout
+
+
+def test_source_preservation_check_rejects_missing_external_source_root_link(
+    tmp_path: Path,
+) -> None:
+    source_root = tmp_path / "entroping-specs"
+    source_root.mkdir()
+    repo_root = tmp_path / "repo"
+    (repo_root / "docs" / "meta").mkdir(parents=True)
+    write_required_preservation_anchors(repo_root)
+    (repo_root / "docs" / "meta" / "DECISION_REGISTRY.yaml").write_text(
+        """
+schema_version: entroping.decision-registry.v1
+preservation_policy:
+  archive_means: lower-default-reading-priority
+  summaries_replace_sources: false
+  raw_sources_retained: true
+decisions:
+  - id: ENT-DEC-9999
+    title: Missing external source root coverage
+    status: accepted
+    date: 2026-06-11
+    summary: This entry intentionally points to missing external source material.
+    tags: [context-preservation]
+    source_links:
+      - path: NotebookLM/latest-spec.md
+        role: latest notebook export
+        external: true
+    related_docs: []
+    related_issues: []
+    supersedes: []
+    superseded_by: null
+""",
+        encoding="utf-8",
+    )
+
+    result = run_preservation_check(
+        "--source-root",
+        str(source_root),
+        root=repo_root,
+    )
+
+    assert result.returncode == 1
+    assert "external source missing: NotebookLM/latest-spec.md" in result.stderr
 
 
 def test_context_pack_surfaces_decision_registry_for_source_and_handoff() -> None:
