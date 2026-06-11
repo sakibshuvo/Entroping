@@ -42,17 +42,27 @@ gates.
 
 Use `scripts/ai_jobs.py` when batching affordable worker tasks. It queues
 bounded jobs under `.entroping/ai-jobs/`, maps cost profiles such as
-`flash-free` to `opencode/deepseek-v4-flash-free` and `pro` to
-`deepseek/deepseek-v4-pro`, runs the oldest queued job through the bounded
-worker, and lists completed artifact directories for Codex review. The queue is
-an artifact conveyor, not an authority layer: it never applies patches, commits,
-pushes, merges, or changes release status.
+`flash-free` to `opencode/deepseek-v4-flash-free` through the default
+OpenCode engine and `pro` to `deepseek/deepseek-v4-pro`. It can also route paid
+jobs through direct DeepSeek with `--engine deepseek-api` and `pro` mapped to
+`deepseek-v4-pro`. The queue runs the oldest job through the selected bounded
+worker and lists completed artifact directories for Codex review. The queue is
+an artifact conveyor, not an authority layer: it never applies patches,
+commits, pushes, merges, or changes release status.
 
 Use `scripts/opencode_worker.py` instead of raw `opencode run` for repeatable
 OpenCode/DeepSeek work. The worker has `review` mode for bounded findings and
 `patch` mode for a patch proposal artifact under `.entroping/ai-reviews/`.
 Patch mode never applies changes; Codex validates and applies any useful diff
 inside the issue worktree, then runs the normal gates.
+
+Use `scripts/deepseek_worker.py` when OpenCode is the wrong dependency for a
+paid DeepSeek Flash or Pro task. It calls DeepSeek's OpenAI-compatible chat
+completion endpoint with an env-provided `DEEPSEEK_API_KEY`, writes prompt,
+request, stdout/stderr, response, proposal diff, and value-free metadata under
+`.entroping/ai-reviews/`, and never applies patches. This is local development
+tooling for cheap worker output; it does not replace Entroping's LiteLLM product boundary,
+and it must not be called by `entroping run`.
 
 local Qwen/oMLX handles private summarization, triage, and low-risk review. Use
 it for source-archive summarization, duplicate-finding, wording variants, and

@@ -136,6 +136,8 @@ Current local agent tooling status:
 
 - Codex CLI: available.
 - OpenCode: available.
+- Direct DeepSeek worker: available through `scripts/deepseek_worker.py` and
+  queued jobs with `scripts/ai_jobs.py submit --engine deepseek-api`.
 - Spec Kit `specify`: available.
 - oMLX: not installed in this shell yet.
 

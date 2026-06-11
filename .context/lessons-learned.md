@@ -2,6 +2,10 @@
 
 ## 2026-06-11
 
+- Direct provider workers are useful only when they stay outside product
+  runtime. Use env-only secrets, timeout-bounded requests, ignored artifacts,
+  and queue metadata that omits raw output; keep Codex responsible for applying
+  any proposed patch after tests and CI.
 - Cheap-model scale needs a queue boundary. Store worker intent, status, and
   artifact paths under `.entroping/ai-jobs/`; keep raw model output in worker
   artifacts, and let Codex promote only validated findings into issues or code.

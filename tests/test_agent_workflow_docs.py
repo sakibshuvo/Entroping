@@ -52,6 +52,18 @@ def test_agent_control_plane_routes_opencode_through_bounded_worker() -> None:
     assert "raw `opencode run`" in doc
 
 
+def test_agent_control_plane_documents_direct_deepseek_worker_boundary() -> None:
+    doc = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "scripts/deepseek_worker.py" in doc
+    assert "--engine deepseek-api" in doc
+    assert "DEEPSEEK_API_KEY" in doc
+    assert "does not replace Entroping's LiteLLM product boundary" in doc
+    assert "never applies patches" in doc
+
+
 def test_knowledge_base_workflow_documents_source_promotion() -> None:
     doc = (REPO_ROOT / "docs" / "meta" / "KNOWLEDGE_BASE_WORKFLOW.md").read_text(
         encoding="utf-8"

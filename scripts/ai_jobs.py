@@ -23,9 +23,14 @@ MODEL_PROFILES = {
     "flash": "deepseek/deepseek-v4-flash",
     "pro": "deepseek/deepseek-v4-pro",
 }
+DEEPSEEK_API_MODEL_PROFILES = {
+    "flash": "deepseek-v4-flash",
+    "pro": "deepseek-v4-pro",
+}
 
 Mode = Literal["review", "patch"]
 QueueState = Literal["queued", "running", "completed", "failed"]
+WorkerEngine = Literal["opencode", "deepseek-api"]
 
 
 class AiJobError(ValueError):
@@ -63,6 +68,12 @@ def _parse_args() -> argparse.Namespace:
     )
     submit.add_argument("--mode", choices=("review", "patch"), required=True)
     submit.add_argument(
+        "--engine",
+        choices=("opencode", "deepseek-api"),
+        default="opencode",
+        help="Worker engine. Default: opencode.",
+    )
+    submit.add_argument(
         "--profile",
         default="pro",
         help="Model profile: flash-free, flash, or pro. Default: pro.",
@@ -96,6 +107,28 @@ def _parse_args() -> argparse.Namespace:
         help="Worker artifact root. Default: .entroping/ai-reviews",
     )
     run_next.add_argument("--opencode-bin", type=Path, help="OpenCode executable path.")
+    run_next.add_argument(
+        "--deepseek-base-url",
+        default="https://api.deepseek.com",
+        help="Direct DeepSeek OpenAI-compatible base URL.",
+    )
+    run_next.add_argument(
+        "--deepseek-api-key-env",
+        default="DEEPSEEK_API_KEY",
+        help="Env var containing the direct DeepSeek API key.",
+    )
+    run_next.add_argument(
+        "--deepseek-thinking",
+        choices=("enabled", "disabled"),
+        default="enabled",
+        help="Direct DeepSeek thinking mode toggle.",
+    )
+    run_next.add_argument(
+        "--deepseek-reasoning-effort",
+        choices=("high", "max"),
+        default="high",
+        help="Direct DeepSeek reasoning effort.",
+    )
     run_next.add_argument(
         "--worker-dry-run",
         action="store_true",
@@ -165,12 +198,14 @@ def _submit_job(args: argparse.Namespace, repo_root: Path, job_root: Path) -> di
         msg = "--timeout-seconds must be greater than zero"
         raise AiJobError(msg)
 
-    model, profile = _resolve_model(profile=str(args.profile), model=args.model)
+    engine: WorkerEngine = args.engine
+    model, profile = _resolve_model(engine=engine, profile=str(args.profile), model=args.model)
     job_id = _new_job_id(mode=str(args.mode))
     job = {
         "schema_version": SCHEMA_VERSION,
         "job_id": job_id,
         "queue_status": "queued",
+        "engine": engine,
         "mode": str(args.mode),
         "profile": profile,
         "model": model,
@@ -190,18 +225,33 @@ def _submit_job(args: argparse.Namespace, repo_root: Path, job_root: Path) -> di
     return {"status": "queued", "job_id": job_id, "job_path": str(job_path)}
 
 
-def _resolve_model(*, profile: str, model: str | None) -> tuple[str, str]:
+def _resolve_model(*, engine: WorkerEngine, profile: str, model: str | None) -> tuple[str, str]:
     if model is not None:
         model_id = model.strip()
         if not model_id:
             msg = "--model must not be empty"
             raise AiJobError(msg)
         return model_id, "custom"
-    if profile not in MODEL_PROFILES:
-        known = ", ".join(sorted(MODEL_PROFILES))
+    profiles = _model_profiles(engine)
+    if profile not in profiles:
+        known_for_engine = ", ".join(sorted(profiles))
+        known_profiles = set(MODEL_PROFILES) | set(DEEPSEEK_API_MODEL_PROFILES)
+        if profile in known_profiles:
+            msg = (
+                f"model profile {profile!r} is not supported by engine {engine!r}; "
+                f"expected one of: {known_for_engine}"
+            )
+            raise AiJobError(msg)
+        known = ", ".join(sorted(known_profiles))
         msg = f"unknown model profile: {profile!r}; expected one of: {known}"
         raise AiJobError(msg)
-    return MODEL_PROFILES[profile], profile
+    return profiles[profile], profile
+
+
+def _model_profiles(engine: WorkerEngine) -> dict[str, str]:
+    if engine == "opencode":
+        return MODEL_PROFILES
+    return DEEPSEEK_API_MODEL_PROFILES
 
 
 def _validate_files(repo_root: Path, raw_files: tuple[Path, ...]) -> list[str]:
@@ -244,7 +294,7 @@ def _run_next(
     job = _read_job(queued_path)
     running_path = _state_dir(job_root, "running") / queued_path.name
     job["queue_status"] = "running"
-    job["attempts"] = int(job.get("attempts", 0)) + 1
+    job["attempts"] = _int_value(job.get("attempts"), default=0) + 1
     job["started_at"] = _now()
     job["updated_at"] = _now()
     _write_job(running_path, job)
@@ -284,7 +334,17 @@ def _run_worker(
     repo_root: Path,
     job: dict[str, object],
 ) -> tuple[dict[str, object], int]:
+    engine = str(job.get("engine", "opencode"))
+    if engine == "deepseek-api":
+        return _run_deepseek_worker(args, repo_root, job)
+    if engine != "opencode":
+        return {"status": "failed", "returncode": 1, "artifact_dir": None}, 1
+
     artifact_root = _resolve_root(repo_root, args.artifact_root)
+    job_timeout_seconds = _float_value(
+        job.get("timeout_seconds"),
+        default=DEFAULT_TIMEOUT_SECONDS,
+    )
     command = [
         sys.executable,
         str(repo_root / "scripts" / "opencode_worker.py"),
@@ -295,7 +355,7 @@ def _run_worker(
         "--artifact-root",
         str(artifact_root),
         "--timeout-seconds",
-        str(job["timeout_seconds"]),
+        str(job_timeout_seconds),
         "--json",
     ]
     for scoped_file in _string_list(job.get("files")):
@@ -309,7 +369,79 @@ def _run_worker(
     if args.worker_dry_run:
         command.append("--dry-run")
 
-    timeout_seconds = float(job["timeout_seconds"]) + 30.0
+    timeout_seconds = job_timeout_seconds + 30.0
+    try:
+        completed = subprocess.run(  # nosec B603
+            command,
+            cwd=repo_root,
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired:
+        return {"status": "timed-out", "returncode": 124, "artifact_dir": None}, 124
+
+    try:
+        payload = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        payload = {
+            "status": "failed",
+            "returncode": completed.returncode,
+            "artifact_dir": None,
+        }
+    if not isinstance(payload, dict):
+        payload = {
+            "status": "failed",
+            "returncode": completed.returncode,
+            "artifact_dir": None,
+        }
+    return payload, completed.returncode
+
+
+def _run_deepseek_worker(
+    args: argparse.Namespace,
+    repo_root: Path,
+    job: dict[str, object],
+) -> tuple[dict[str, object], int]:
+    artifact_root = _resolve_root(repo_root, args.artifact_root)
+    job_timeout_seconds = _float_value(
+        job.get("timeout_seconds"),
+        default=DEFAULT_TIMEOUT_SECONDS,
+    )
+    command = [
+        sys.executable,
+        str(repo_root / "scripts" / "deepseek_worker.py"),
+        "--mode",
+        str(job["mode"]),
+        "--model",
+        str(job["model"]),
+        "--artifact-root",
+        str(artifact_root),
+        "--timeout-seconds",
+        str(job_timeout_seconds),
+        "--base-url",
+        str(args.deepseek_base_url),
+        "--api-key-env",
+        str(args.deepseek_api_key_env),
+        "--thinking",
+        str(args.deepseek_thinking),
+        "--reasoning-effort",
+        str(args.deepseek_reasoning_effort),
+        "--json",
+    ]
+    for scoped_file in _string_list(job.get("files")):
+        command.extend(["--file", scoped_file])
+    if job.get("issue") is not None:
+        command.extend(["--issue", str(job["issue"])])
+    if job.get("instruction") is not None:
+        command.extend(["--instruction", str(job["instruction"])])
+    if args.worker_dry_run:
+        command.append("--dry-run")
+
+    timeout_seconds = job_timeout_seconds + 30.0
     try:
         completed = subprocess.run(  # nosec B603
             command,
@@ -357,6 +489,7 @@ def _collect(job_root: Path) -> dict[str, object]:
         completed_jobs.append(
             {
                 "job_id": job.get("job_id"),
+                "engine": job.get("engine", "opencode"),
                 "mode": job.get("mode"),
                 "model": job.get("model"),
                 "issue": job.get("issue"),
@@ -402,6 +535,12 @@ def _now() -> str:
 def _int_value(value: object, *, default: int) -> int:
     if isinstance(value, int):
         return value
+    return default
+
+
+def _float_value(value: object, *, default: float) -> float:
+    if isinstance(value, int | float):
+        return float(value)
     return default
 
 

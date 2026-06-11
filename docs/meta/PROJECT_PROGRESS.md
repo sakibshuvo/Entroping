@@ -31,7 +31,6 @@ keeps the current direction, next queue, and release evidence easy to scan.
 Current local queue: only review-proven local gaps should be worked; no ready local cleanup queue remains.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
-
 Current deterministic loop:
 
 ```text
@@ -66,6 +65,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Direct DeepSeek worker engine](https://github.com/sakibshuvo/Entroping/issues/581) | Done | `scripts/ai_jobs.py submit --engine deepseek-api` can route queued review or patch-proposal jobs through `scripts/deepseek_worker.py`, using `DEEPSEEK_API_KEY` only from the environment and writing ignored local artifacts for Codex validation without applying patches or touching product runtime paths. |
 | [Run CLI validation extraction](https://github.com/sakibshuvo/Entroping/issues/561) | Done | Run option conflicts and report-format normalization now live in direct-tested core validation helpers while the Typer adapter preserves user-facing errors. |
 | [Policy-diff CI failure mode](https://github.com/sakibshuvo/Entroping/issues/565) | Done | `entroping report policy-diff --fail-on-change` keeps the default review report successful for valid changed diffs while giving CI an explicit nonzero gate for effective-policy drift. |
 | [traffic approval manifest redaction confidence](https://github.com/sakibshuvo/Entroping/issues/499) | Done | `reports/approvals/*.json` records `low_confidence_records`, the published approval schema requires it, and strict-doc plus Hurl formatter CI checks were repaired. |

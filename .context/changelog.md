@@ -2,6 +2,10 @@
 
 ## 2026-06-11
 
+- Added issue #581's direct DeepSeek API worker engine so queued AI jobs can
+  run through OpenCode by default or `--engine deepseek-api` for paid
+  DeepSeek Flash/Pro runs, with env-only API key handling, local ignored
+  artifacts, usage metadata, and no automatic patch application.
 - Added issue #579's queued AI worker supervisor so affordable OpenCode and
   DeepSeek jobs can be submitted under `.entroping/ai-jobs/`, run through the
   bounded worker harness, and collected later for Codex validation without

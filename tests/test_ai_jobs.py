@@ -80,6 +80,56 @@ def test_ai_jobs_submit_writes_queued_job_with_model_profile(tmp_path: Path) -> 
     assert job["instruction"] == "Find concrete risks only."
 
 
+def test_ai_jobs_submit_writes_deepseek_api_engine_with_provider_model(
+    tmp_path: Path,
+) -> None:
+    job_root = tmp_path / "ai-jobs"
+
+    result = run_ai_jobs(
+        "submit",
+        "--mode",
+        "review",
+        "--engine",
+        "deepseek-api",
+        "--profile",
+        "pro",
+        "--file",
+        "README.md",
+        "--job-root",
+        str(job_root),
+        "--json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    job = read_job(Path(str(payload["job_path"])))
+
+    assert job["engine"] == "deepseek-api"
+    assert job["profile"] == "pro"
+    assert job["model"] == "deepseek-v4-pro"
+
+
+def test_ai_jobs_submit_rejects_opencode_only_profile_for_deepseek_api(
+    tmp_path: Path,
+) -> None:
+    result = run_ai_jobs(
+        "submit",
+        "--mode",
+        "review",
+        "--engine",
+        "deepseek-api",
+        "--profile",
+        "flash-free",
+        "--file",
+        "README.md",
+        "--job-root",
+        str(tmp_path / "ai-jobs"),
+    )
+
+    assert result.returncode == 2
+    assert "not supported by engine 'deepseek-api'" in result.stderr
+
+
 def test_ai_jobs_submit_rejects_unknown_model_profile(tmp_path: Path) -> None:
     result = run_ai_jobs(
         "submit",
@@ -95,6 +145,53 @@ def test_ai_jobs_submit_rejects_unknown_model_profile(tmp_path: Path) -> None:
 
     assert result.returncode == 2
     assert "unknown model profile" in result.stderr
+
+
+def test_ai_jobs_run_next_routes_deepseek_api_engine_to_direct_worker(
+    tmp_path: Path,
+) -> None:
+    job_root = tmp_path / "ai-jobs"
+    artifact_root = tmp_path / "ai-reviews"
+
+    submit = run_ai_jobs(
+        "submit",
+        "--mode",
+        "review",
+        "--engine",
+        "deepseek-api",
+        "--profile",
+        "pro",
+        "--file",
+        "README.md",
+        "--job-root",
+        str(job_root),
+        "--json",
+    )
+    assert submit.returncode == 0, submit.stderr
+
+    result = run_ai_jobs(
+        "run-next",
+        "--job-root",
+        str(job_root),
+        "--artifact-root",
+        str(artifact_root),
+        "--worker-dry-run",
+        "--json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    completed_path = Path(str(payload["job_path"]))
+    job = read_job(completed_path)
+    artifact_dir = Path(str(job["artifact_dir"]))
+    metadata = read_job(artifact_dir / "metadata.json")
+
+    assert job["queue_status"] == "completed"
+    assert job["engine"] == "deepseek-api"
+    assert job["worker_status"] == "dry-run"
+    assert metadata["schema_version"] == "entroping.deepseek-worker.v1"
+    assert metadata["model"] == "deepseek-v4-pro"
+    assert not (artifact_dir / "stdout.txt").exists()
 
 
 def test_ai_jobs_run_next_completes_oldest_job_and_records_worker_result(
@@ -259,6 +356,7 @@ def test_ai_jobs_collect_lists_completed_artifacts_for_codex_review(
     assert payload["completed_jobs"] == [
         {
             "job_id": "job-1",
+            "engine": "opencode",
             "mode": "patch",
             "model": "deepseek/deepseek-v4-pro",
             "issue": "579",

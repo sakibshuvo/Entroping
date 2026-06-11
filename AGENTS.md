@@ -34,6 +34,9 @@ These instructions extend the global Codex rules for this repository. If a rule 
 ## AI and Traffic Rules
 
 - Use LiteLLM for model access; do not add direct OpenAI, Anthropic, Gemini, or provider-specific SDK calls unless the architecture docs are changed first.
+- Repo-local development helpers may call direct provider APIs only as bounded,
+  ignored artifact generators for external review or patch proposals; this does
+  not replace Entroping's LiteLLM product boundary.
 - Separate prompt construction, provider invocation, structured response validation, and business logic.
 - Never send secrets, raw captured traffic, credentials, tokens, cookies, or unredacted request/response bodies to model providers.
 - mitmproxy capture must redact sensitive headers, cookies, token-like fields, and body content before persistence or export.
