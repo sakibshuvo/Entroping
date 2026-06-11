@@ -293,6 +293,7 @@ def test_public_roadmap_does_not_reopen_completed_alpha_phases() -> None:
 def test_readme_is_demo_first_open_source_front_door() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
+    assert len(readme.splitlines()) <= 220
     assert "Code at the speed of AI. Don't crash at the speed of AI." in readme
     assert "## Use Entroping When" in readme
     assert "## Try It In Two Minutes" in readme
