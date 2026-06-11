@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Fixed issue #583's traffic-capture startup warning so `entroping watch`
+  explicitly reminds users to review redaction coverage before freezing,
+  mapping, mocking, or sharing traffic-derived artifacts.
 - Added issue #581's direct DeepSeek API worker engine so queued AI jobs can
   run through OpenCode by default or `--engine deepseek-api` for paid
   DeepSeek Flash/Pro runs, with env-only API key handling, local ignored
