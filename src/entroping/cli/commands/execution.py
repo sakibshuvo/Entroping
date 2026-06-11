@@ -19,13 +19,19 @@ from entroping.core.freeze import (
     run_freeze_mock,
 )
 from entroping.core.gate_injector import GateInjectionError
-from entroping.core.hurl_discovery import normalize_operation_id_filters, normalize_tag_filters
 from entroping.core.hurl_runner import HurlBinaryNotFoundError
 from entroping.core.report_writer import ReportWriterError
 from entroping.core.rerun_failures import (
     RerunFailureSelection,
     RerunFailuresError,
     select_latest_failed_hurl_tests,
+)
+from entroping.core.run_option_validation import (
+    RunOptionValidationError,
+    normalize_run_report_formats,
+    prepare_ad_hoc_run_selectors,
+    validate_rerun_failure_options,
+    validate_run_suite_options,
 )
 from entroping.core.run_suite_manifest import RunSuiteManifestError, load_run_suite_manifest
 from entroping.core.run_workflow import (
@@ -36,7 +42,6 @@ from entroping.core.run_workflow import (
     plan_run_workflow,
     write_run_execution_plan,
 )
-from entroping.core.tag_expression import TagExpressionSyntaxError, compile_tag_expression
 from entroping.core.traffic_filters import TrafficCaptureFilters, TrafficFilterError
 from entroping.core.traffic_proxy import (
     DEFAULT_WATCH_PORT,
@@ -432,24 +437,25 @@ def run(
 
     rerun_selection: RerunFailureSelection | None = None
     if suite is None:
-        if rerun_failures:
-            _reject_rerun_failure_conflicts(
+        try:
+            if rerun_failures:
+                validate_rerun_failure_options(
+                    tag=tag,
+                    tag_expression=tag_expression,
+                    operation_id=operation_id,
+                    changed_from=changed_from,
+                )
+            selectors = prepare_ad_hoc_run_selectors(
                 tag=tag,
                 tag_expression=tag_expression,
                 operation_id=operation_id,
                 changed_from=changed_from,
             )
-        tag_filters, operation_filters = _prepare_ad_hoc_run_selectors(
-            tag=tag,
-            tag_expression=tag_expression,
-            operation_id=operation_id,
-            changed_from=changed_from,
-        )
-
-        try:
-            report_formats = _normalize_report_formats(report)
-        except ValueError as exc:
-            raise typer.BadParameter(str(exc), param_hint="--report") from exc
+            report_formats = normalize_run_report_formats(report)
+        except RunOptionValidationError as exc:
+            raise typer.BadParameter(str(exc), param_hint=exc.param_hint) from exc
+        tag_filters = selectors.tag_filters
+        operation_filters = selectors.operation_filters
         run_environment = env
         run_parallel = parallel
         run_fail_fast = fail_fast
@@ -470,18 +476,21 @@ def run(
             discovery_roots = None
             selection_label = None
     else:
-        _reject_suite_conflicts(
-            env=env,
-            tag=tag,
-            tag_expression=tag_expression,
-            operation_id=operation_id,
-            report=report,
-            parallel=parallel,
-            fail_fast=fail_fast,
-            drift_check=drift_check,
-            changed_from=changed_from,
-            rerun_failures=rerun_failures,
-        )
+        try:
+            validate_run_suite_options(
+                env=env,
+                tag=tag,
+                tag_expression=tag_expression,
+                operation_id=operation_id,
+                report=report,
+                parallel=parallel,
+                fail_fast=fail_fast,
+                drift_check=drift_check,
+                changed_from=changed_from,
+                rerun_failures=rerun_failures,
+            )
+        except RunOptionValidationError as exc:
+            raise typer.BadParameter(str(exc), param_hint=exc.param_hint) from exc
         try:
             loaded_suite = load_run_suite_manifest(project_root=Path.cwd(), suite_name=suite)
         except RunSuiteManifestError as exc:
@@ -661,52 +670,6 @@ def _execute_run_dry_run(
     raise typer.Exit(0)
 
 
-def _prepare_ad_hoc_run_selectors(
-    *,
-    tag: list[str] | None,
-    tag_expression: str | None,
-    operation_id: list[str] | None,
-    changed_from: str | None,
-) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    if tag and tag_expression is not None:
-        raise typer.BadParameter(
-            "--tag cannot be combined with --tag-expression",
-            param_hint="--tag-expression",
-        )
-    if operation_id and tag:
-        raise typer.BadParameter(
-            "--operation-id cannot be combined with --tag",
-            param_hint="--operation-id",
-        )
-    if operation_id and tag_expression is not None:
-        raise typer.BadParameter(
-            "--operation-id cannot be combined with --tag-expression",
-            param_hint="--operation-id",
-        )
-    if operation_id and changed_from is not None:
-        raise typer.BadParameter(
-            "--operation-id cannot be combined with --changed-from",
-            param_hint="--operation-id",
-        )
-    try:
-        tag_filters = tuple(normalize_tag_filters(tag))
-    except ValueError as exc:
-        raise typer.BadParameter(str(exc), param_hint="--tag") from exc
-    try:
-        operation_filters = tuple(sorted(normalize_operation_id_filters(operation_id)))
-    except ValueError as exc:
-        raise typer.BadParameter(str(exc), param_hint="--operation-id") from exc
-    if tag_expression is not None:
-        try:
-            compile_tag_expression(tag_expression)
-        except TagExpressionSyntaxError as exc:
-            raise typer.BadParameter(
-                f"Invalid tag expression: {exc}",
-                param_hint="--tag-expression",
-            ) from exc
-    return tag_filters, operation_filters
-
-
 def _print_run_plan(plan: RunExecutionPlan) -> None:
     console.print("Dry run: no Hurl execution performed.")
     if plan.status == "no_match":
@@ -769,84 +732,3 @@ def _print_run_plan(plan: RunExecutionPlan) -> None:
         tags = f" tags={','.join(test.tags)}" if test.tags else ""
         rules = f" gates={','.join(test.injected_rule_ids)}" if test.injected_rule_ids else ""
         console.print(f"- {test.path}{tags}{rules}", markup=False)
-
-
-def _normalize_report_formats(report: list[str] | None) -> tuple[str, ...]:
-    if not report:
-        return ()
-
-    normalized: list[str] = []
-    for raw_format in report:
-        report_format = raw_format.strip().lower()
-        if report_format not in {"drift", "html", "json", "junit"}:
-            msg = (
-                f"Unsupported report format {raw_format!r}; "
-                "supported formats: drift, html, json, junit"
-            )
-            raise ValueError(msg)
-        if report_format not in normalized:
-            normalized.append(report_format)
-    return tuple(normalized)
-
-
-def _reject_rerun_failure_conflicts(
-    *,
-    tag: list[str] | None,
-    tag_expression: str | None,
-    operation_id: list[str] | None,
-    changed_from: str | None,
-) -> None:
-    conflicts: list[str] = []
-    if tag:
-        conflicts.append("--tag")
-    if tag_expression is not None:
-        conflicts.append("--tag-expression")
-    if operation_id:
-        conflicts.append("--operation-id")
-    if changed_from is not None:
-        conflicts.append("--changed-from")
-    if conflicts:
-        joined = ", ".join(conflicts)
-        raise typer.BadParameter(
-            f"--rerun-failures cannot be combined with {joined}",
-            param_hint="--rerun-failures",
-        )
-
-
-def _reject_suite_conflicts(
-    *,
-    env: str | None,
-    tag: list[str] | None,
-    tag_expression: str | None,
-    operation_id: list[str] | None,
-    report: list[str] | None,
-    parallel: bool,
-    fail_fast: bool,
-    drift_check: bool,
-    changed_from: str | None,
-    rerun_failures: bool,
-) -> None:
-    conflicts: list[str] = []
-    if env is not None:
-        conflicts.append("--env")
-    if tag:
-        conflicts.append("--tag")
-    if tag_expression is not None:
-        conflicts.append("--tag-expression")
-    if operation_id:
-        conflicts.append("--operation-id")
-    if report:
-        conflicts.append("--report")
-    if parallel:
-        conflicts.append("--parallel")
-    if fail_fast:
-        conflicts.append("--fail-fast")
-    if drift_check:
-        conflicts.append("--drift-check")
-    if changed_from is not None:
-        conflicts.append("--changed-from")
-    if rerun_failures:
-        conflicts.append("--rerun-failures")
-    if conflicts:
-        joined = ", ".join(conflicts)
-        raise typer.BadParameter(f"{joined} cannot be combined with --suite", param_hint="--suite")
