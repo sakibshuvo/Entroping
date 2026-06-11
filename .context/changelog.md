@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Fixed issue #572's public changelog ordering so dated release sections stay
+  reverse-chronological, with a release-doc regression test to prevent stale
+  release history from drifting again.
 - Fixed issue #583's traffic-capture startup warning so `entroping watch`
   explicitly reminds users to review redaction coverage before freezing,
   mapping, mocking, or sharing traffic-derived artifacts.

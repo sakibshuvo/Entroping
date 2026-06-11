@@ -17,6 +17,18 @@ def test_readme_links_alpha_release_gate_and_checklist() -> None:
     assert "[Changelog](CHANGELOG.md)" in readme
 
 
+def test_changelog_release_sections_are_reverse_chronological() -> None:
+    changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    release_dates: list[str] = []
+
+    for line in changelog.splitlines():
+        if line.startswith("## v") and " - " in line:
+            release_dates.append(line.rsplit(" - ", maxsplit=1)[1])
+
+    assert len(release_dates) >= 2
+    assert release_dates == sorted(release_dates, reverse=True)
+
+
 def test_root_changelog_is_public_release_history_not_context_dump() -> None:
     changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     docs_governance = (REPO_ROOT / "docs" / "meta" / "DOCS_GOVERNANCE.md").read_text(
