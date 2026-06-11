@@ -90,8 +90,11 @@ from entroping.models.hurl import HurlMetadataSyntaxError
 
 app = typer.Typer(help="Generate human handoff artifacts.")
 
+CORE_REPORT_PANEL = "Core CI And Review"
+ADVANCED_REPORT_PANEL = "Advanced Evidence"
 
-@app.command("bug")
+
+@app.command("bug", rich_help_panel=CORE_REPORT_PANEL)
 def report_bug() -> None:
     """Generate a Markdown bug report from the latest failure."""
 
@@ -113,7 +116,7 @@ def report_bug() -> None:
     console.print(f"Wrote bug report: {display_cli_path(output_path)}")
 
 
-@app.command("delta")
+@app.command("delta", rich_help_panel=CORE_REPORT_PANEL)
 def report_delta(
     base: Annotated[
         Path,
@@ -152,7 +155,7 @@ def report_delta(
     raise typer.Exit(0 if report.passed else 1)
 
 
-@app.command("policy-diff")
+@app.command("policy-diff", rich_help_panel=ADVANCED_REPORT_PANEL)
 def report_policy_diff(
     base: Annotated[
         Path,
@@ -199,7 +202,7 @@ def report_policy_diff(
         sys.stdout.write(render_effective_policy_diff_markdown(report))
 
 
-@app.command("badges")
+@app.command("badges", rich_help_panel=ADVANCED_REPORT_PANEL)
 def report_badges(
     output: Annotated[
         Path,
@@ -241,7 +244,7 @@ def report_badges(
     raise typer.Exit(0)
 
 
-@app.command("failure-bundle")
+@app.command("failure-bundle", rich_help_panel=ADVANCED_REPORT_PANEL)
 def report_failure_bundle(
     output: Annotated[
         Path,
@@ -263,7 +266,7 @@ def report_failure_bundle(
     )
 
 
-@app.command("redaction")
+@app.command("redaction", rich_help_panel=ADVANCED_REPORT_PANEL)
 def report_redaction(
     output: Annotated[
         str,
@@ -295,7 +298,7 @@ def report_redaction(
     console.print(f"Wrote redaction review: {display_cli_path(result.output_path)}")
 
 
-@app.command("capture-summary")
+@app.command("capture-summary", rich_help_panel=ADVANCED_REPORT_PANEL)
 def report_capture_summary(
     output: Annotated[
         str,
@@ -327,7 +330,7 @@ def report_capture_summary(
     console.print(f"Wrote capture summary: {display_cli_path(result.output_path)}")
 
 
-@app.command("policy")
+@app.command("policy", rich_help_panel=ADVANCED_REPORT_PANEL)
 def report_policy(
     output: Annotated[
         str,
@@ -355,7 +358,7 @@ def report_policy(
     console.print(f"Wrote effective policy report: {display_cli_path(result.output_path)}")
 
 
-@app.command("gate-coverage")
+@app.command("gate-coverage", rich_help_panel=ADVANCED_REPORT_PANEL)
 def report_gate_coverage(
     output: Annotated[
         str,
@@ -384,7 +387,7 @@ def report_gate_coverage(
     console.print(f"Wrote gate coverage report: {display_cli_path(result.output_path)}")
 
 
-@app.command("gate-injection")
+@app.command("gate-injection", rich_help_panel=ADVANCED_REPORT_PANEL)
 def report_gate_injection(
     target: Annotated[
         list[Path],
@@ -421,7 +424,7 @@ def report_gate_injection(
     console.print(f"Wrote gate injection report: {display_cli_path(result.output_path)}")
 
 
-@app.command("artifact-manifest")
+@app.command("artifact-manifest", rich_help_panel=ADVANCED_REPORT_PANEL)
 def report_artifact_manifest(
     output: Annotated[
         Path,
@@ -447,7 +450,7 @@ def report_artifact_manifest(
     )
 
 
-@app.command("agent-bundle")
+@app.command("agent-bundle", rich_help_panel=ADVANCED_REPORT_PANEL)
 def report_agent_bundle(
     output: Annotated[
         str,
@@ -497,7 +500,7 @@ def report_agent_bundle(
     raise typer.Exit(0 if result.report.summary.status != "fail" else 1)
 
 
-@app.command("github-annotations")
+@app.command("github-annotations", rich_help_panel=CORE_REPORT_PANEL)
 def report_github_annotations(
     junit: Annotated[
         Path,
@@ -545,7 +548,7 @@ def report_github_annotations(
     raise typer.Exit(0)
 
 
-@app.command("sarif")
+@app.command("sarif", rich_help_panel=CORE_REPORT_PANEL)
 def report_sarif(
     output: Annotated[
         Path,
@@ -582,7 +585,7 @@ def report_sarif(
     raise typer.Exit(0)
 
 
-@app.command("promote-drift-baseline")
+@app.command("promote-drift-baseline", rich_help_panel=ADVANCED_REPORT_PANEL)
 def report_promote_drift_baseline(
     candidate: Annotated[
         Path,
@@ -613,7 +616,7 @@ def report_promote_drift_baseline(
     raise typer.Exit(0)
 
 
-@app.command("review-summary")
+@app.command("review-summary", rich_help_panel=CORE_REPORT_PANEL)
 def report_review_summary(
     output: Annotated[
         str,
@@ -659,7 +662,7 @@ def report_review_summary(
     raise typer.Exit(0)
 
 
-@app.command("traceability")
+@app.command("traceability", rich_help_panel=ADVANCED_REPORT_PANEL)
 def report_traceability(
     output: Annotated[
         str,

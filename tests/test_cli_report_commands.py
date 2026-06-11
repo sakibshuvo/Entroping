@@ -19,6 +19,26 @@ from cli_test_support import (
 )
 
 
+def test_report_help_tiers_core_ci_review_commands_before_advanced_evidence() -> None:
+    result = CliRunner().invoke(app, ["report", "--help"])
+
+    assert result.exit_code == 0
+    assert "Core CI And Review" in result.output
+    assert "Advanced Evidence" in result.output
+    assert result.output.index("Core CI And Review") < result.output.index("Advanced Evidence")
+
+    core_panel = result.output.split("Core CI And Review", maxsplit=1)[1].split(
+        "Advanced Evidence",
+        maxsplit=1,
+    )[0]
+    for command in ("bug", "delta", "github-annotations", "sarif", "review-summary"):
+        assert command in core_panel
+
+    advanced_panel = result.output.split("Advanced Evidence", maxsplit=1)[1]
+    for command in ("policy", "gate-coverage", "traceability", "agent-bundle"):
+        assert command in advanced_panel
+
+
 def test_report_bug_generates_markdown_from_latest_failing_run(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
