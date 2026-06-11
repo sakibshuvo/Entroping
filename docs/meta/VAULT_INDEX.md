@@ -135,6 +135,7 @@ instructions.
 - [[decisions/ADR-0010-studio-cli-report-first-boundary]]
 - [[decisions/ADR-0011-organization-qanstitution-import-controls|ADR-0011]]
 - [[decisions/ADR-0012-brand-integrity-and-qanstitution-name|ADR-0012]]
+- [[decisions/ADR-0016-ide-authoring-support-for-qanstitution|ADR-0016]]
 
 ## Working Loop
 

@@ -126,3 +126,7 @@ If your editor supports YAML schemas, Entroping also publishes
 autocomplete and early feedback while editing. The editor schema helps you catch
 shape mistakes quickly; `entroping doctor` still performs the authoritative
 runtime validation.
+
+For JetBrains users, add the same schema file to your YAML schema mapping
+for `qanstitution.yaml`; no plugin or custom Entroping service is required for
+this workflow.

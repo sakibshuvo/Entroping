@@ -353,8 +353,12 @@ def test_qanstitution_schema_authoring_guidance_is_public_and_editor_ready() -> 
     assert "**/qanstitution.yaml" in schema_mapping
     assert "qanstitution.schema.json" in reference
     assert ".vscode/settings.json" in reference
+    assert "VS Code and JetBrains" in reference
+    assert "A dedicated IDE extension" in reference
     assert "runtime validation remains authoritative" in reference
     assert "qanstitution.schema.json" in first_hour
+    assert "For JetBrains users" in first_hour
+    assert "no plugin or custom Entroping service" in first_hour
     assert "docs/technical/qanstitution.schema.json" in readme
     assert "QANSTITUTION_FIRST_HOUR.md" in readme
     assert "QANSTITUTION_REFERENCE.md" in readme
