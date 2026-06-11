@@ -62,21 +62,31 @@ Condition = (
     | MetaEqualsCondition
 )
 
-_CONTAINS_RE = re.compile(r"^(tags|path|url) contains '([^']+)'$")
-_STARTS_WITH_RE = re.compile(r"^(path) startswith '([^']+)'$")
-_EQUALS_RE = re.compile(r"^(method) == '([^']+)'$")
-_META_EQUALS_RE = re.compile(r"^meta\.([A-Za-z_][A-Za-z0-9_]*) == '([^']+)'$")
+_CONDITION_VALUE_PATTERN = r"[^'\u0000-\u001F\u007F]+"
+_CONTROL_CHARACTER_RE = re.compile(r"[\u0000-\u001F\u007F]")
+_CONTAINS_RE = re.compile(
+    rf"^(tags|path|url) contains '({_CONDITION_VALUE_PATTERN})'$"
+)
+_STARTS_WITH_RE = re.compile(rf"^(path) startswith '({_CONDITION_VALUE_PATTERN})'$")
+_EQUALS_RE = re.compile(rf"^(method) == '({_CONDITION_VALUE_PATTERN})'$")
+_META_EQUALS_RE = re.compile(
+    rf"^meta\.([A-Za-z_][A-Za-z0-9_]*) == '({_CONDITION_VALUE_PATTERN})'$"
+)
 CONDITION_JSON_SCHEMA_PATTERN = (
     r"^(true|"
-    r"(tags|path|url) contains '[^']+'|"
-    r"path startswith '[^']+'|"
-    r"method == '[^']+'|"
-    r"meta\.[A-Za-z_][A-Za-z0-9_]* == '[^']+')$"
+    rf"(tags|path|url) contains '{_CONDITION_VALUE_PATTERN}'|"
+    rf"path startswith '{_CONDITION_VALUE_PATTERN}'|"
+    rf"method == '{_CONDITION_VALUE_PATTERN}'|"
+    rf"meta\.[A-Za-z_][A-Za-z0-9_]* == '{_CONDITION_VALUE_PATTERN}')$"
 )
 
 
 def parse_condition(expression: str) -> Condition:
     """Parse the supported v4.1 condition DSL into a typed condition object."""
+
+    if _CONTROL_CHARACTER_RE.search(expression):
+        msg = "QAnstitution condition must not contain control characters"
+        raise ConditionSyntaxError(msg)
 
     normalized = expression.strip()
     if normalized == "true":

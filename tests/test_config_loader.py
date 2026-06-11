@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import pytest
+import yaml
 
 from entroping.core.config_loader import (
     QanstitutionLoadError,
@@ -14,6 +15,11 @@ from entroping.core.config_loader import (
 def write_yaml(path: Path, body: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(body.lstrip(), encoding="utf-8")
+
+
+def write_document(path: Path, document: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
 
 
 def test_load_qanstitution_merges_local_imports_before_local_gates(tmp_path: Path) -> None:
@@ -515,9 +521,112 @@ imports:
 
 
 @pytest.mark.parametrize(
+    ("condition", "message"),
+    [
+        ("tags contains 'smoke", "Unsupported QAnstitution condition syntax"),
+        ("tags contains ''", "Unsupported QAnstitution condition syntax"),
+        ("tags contains 'smoke' or true", "Unsupported QAnstitution condition syntax"),
+        ("meta.9story == 'CHK-001'", "Unsupported QAnstitution condition syntax"),
+        ("method == 'GET' # comment", "Unsupported QAnstitution condition syntax"),
+        ("tags contains 'smoke\ncritical'", "must not contain control characters"),
+        ("tags contains 'smoke\x00critical'", "must not contain control characters"),
+    ],
+)
+def test_load_qanstitution_rejects_adversarial_condition_strings(
+    tmp_path: Path,
+    condition: str,
+    message: str,
+) -> None:
+    write_document(
+        tmp_path / "qanstitution.yaml",
+        {
+            "project": "checkout-api",
+            "gates": [
+                {
+                    "id": "adversarial_condition",
+                    "condition": condition,
+                    "gate": "duration < 2000",
+                    "enforcement": "block",
+                }
+            ],
+        },
+    )
+
+    with pytest.raises(QanstitutionLoadError, match=message):
+        load_qanstitution(tmp_path / "qanstitution.yaml")
+
+
+@pytest.mark.parametrize(
+    ("document", "message"),
+    [
+        ({"project": "checkout-api", "imports": {"rules": "security.yaml"}}, "Input should be"),
+        ({"project": "checkout-api", "imports": [123]}, "Input should be a valid string"),
+        (
+            {"project": "checkout-api", "gate_groups": []},
+            "gate_groups must be a mapping",
+        ),
+        ({"project": "checkout-api", "gates": "not-a-list"}, "gates must be a list"),
+        (
+            {
+                "project": "checkout-api",
+                "gate_groups": {"bad\x1fgroup": {"gates": []}},
+                "gates": [{"group": "bad\x1fgroup"}],
+            },
+            "gate group name must not contain control characters",
+        ),
+    ],
+)
+def test_load_qanstitution_rejects_adversarial_authoring_shapes(
+    tmp_path: Path,
+    document: object,
+    message: str,
+) -> None:
+    write_document(tmp_path / "qanstitution.yaml", document)
+
+    with pytest.raises(QanstitutionLoadError, match=message):
+        load_qanstitution(tmp_path / "qanstitution.yaml")
+
+
+@pytest.mark.parametrize(
+    ("import_ref", "message"),
+    [
+        ("file:///etc/passwd", "Unsupported QAnstitution import scheme"),
+        ("rules/bad\x00policy.yaml", "must not contain control characters"),
+    ],
+)
+def test_load_qanstitution_rejects_adversarial_import_references(
+    tmp_path: Path,
+    import_ref: str,
+    message: str,
+) -> None:
+    write_document(
+        tmp_path / "project" / "qanstitution.yaml",
+        {"project": "checkout-api", "imports": [import_ref]},
+    )
+
+    with pytest.raises(QanstitutionLoadError, match=message):
+        load_qanstitution(tmp_path / "project" / "qanstitution.yaml")
+
+
+def test_load_qanstitution_rejects_existing_absolute_import_outside_root(
+    tmp_path: Path,
+) -> None:
+    outside = tmp_path / "outside.yaml"
+    write_document(outside, {"project": "outside"})
+    write_document(
+        tmp_path / "project" / "qanstitution.yaml",
+        {"project": "checkout-api", "imports": [str(outside)]},
+    )
+
+    with pytest.raises(QanstitutionLoadError, match="outside the QAnstitution root"):
+        load_qanstitution(tmp_path / "project" / "qanstitution.yaml")
+
+
+@pytest.mark.parametrize(
     ("body", "message"),
     [
         ("project: [", "Invalid YAML"),
+        ("!!python/object/apply:os.system ['echo unsafe']", "Invalid YAML"),
         ("[]", "must contain a YAML mapping"),
         ("1: checkout-api", "keys must be strings"),
         ("", "Invalid QAnstitution config"),
