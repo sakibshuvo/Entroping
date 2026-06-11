@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Extracted issue #561's `entroping run` option validation into
+  `entroping.core.run_option_validation`, keeping Typer responsible only for
+  user-facing `BadParameter` formatting while preserving existing CLI behavior.
 - Added issue #565's `entroping report policy-diff --fail-on-change` CI mode
   so effective-policy drift can fail a build explicitly while default
   review/report behavior still exits successfully for valid changed diffs.
