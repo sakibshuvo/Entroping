@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Refreshed issue #550's project progress dashboard after the #517-#523 and
+  #548 cleanup queue closed, keeping the next queue focused on external
+  stable-core blockers unless a real local defect or ready product gap appears.
 - Added issue #548's public MkDocs Roadmap navigation link to the canonical
   root `ROADMAP.md`, keeping roadmap detail out of duplicated docs content
   while making launch/status discovery available from the docs site.

@@ -30,7 +30,7 @@ keeps the current direction, next queue, and release evidence easy to scan.
 onboarding/product-depth work, while keeping stable-core readiness tied to
 external evidence instead of green local tests alone.
 
-Current local queue: #517-#523 are scoped review follow-ups; stable-core readiness still depends on external evidence and package-index proof.
+Current local queue: No ready local cleanup queue remains; stable-core readiness still depends on external evidence and package-index proof.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -42,13 +42,13 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 
 ## Next Three Issues
 
-After the review-driven cleanup queue, do not create filler work when only external stable-core blockers remain.
+With #517-#523 and #548 closed, do not create filler work when only external stable-core blockers remain.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | #517-#523 | Local review follow-ups: progress freshness, CI runner notice, README/help/docs nav, quality ratchet, and report cleanup. |
-| 2 | #303-#306 | Package-index proof and real downstream feedback after TestPyPI/PyPI credentials and protection are ready. |
-| 3 | #308-#310 | Stable-core compatibility decision and non-GitHub CI proof after repeated release/package evidence and runner access. |
+| 1 | #303-#306 | Package-index proof and real downstream feedback after TestPyPI/PyPI credentials and protection are ready. |
+| 2 | #308-#310 | Stable-core compatibility decision and non-GitHub CI proof after repeated release/package evidence and runner access. |
+| 3 | New local issue only if discovered | Real defect/regression or ready product gap; no filler cleanup queue. |
 
 Promote a new local issue here only when a real defect/regression or ready product gap is discovered.
 
