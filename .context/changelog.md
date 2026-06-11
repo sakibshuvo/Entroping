@@ -747,3 +747,6 @@
 - Added issue #536's bounded Project item lookup retry after add for both
   `start_issue.sh` and `finish_issue.sh` to absorb GitHub Project eventual
   consistency.
+- Fixed issue #546's alpha/stable status drift by separating v4.1 spec and
+  command-surface versions from the current alpha implementation maturity in
+  canonical product and technical docs, with a release-doc regression guard.

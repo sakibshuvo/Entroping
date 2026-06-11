@@ -1,8 +1,9 @@
 # Entroping Product Specification
 
-**Project:** Entroping  
-**Version:** 4.1 Stable  
-**Status:** Consolidated source of truth  
+**Project:** Entroping
+**Spec Version:** 4.1
+**Implementation Maturity:** Alpha; stable-core readiness is blocked by package-index proof, real downstream feedback, and compatibility graduation.
+**Status:** Current product contract, not a stable-core release claim
 **Philosophy:** The QAnstitution is Law. Traffic is Truth. Hurl is the Enforcer.
 
 ## 1. Executive Summary
