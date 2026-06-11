@@ -1,5 +1,7 @@
 """Guardrails for the downstream GitHub Actions starter workflow."""
 
+import json
+import re
 from pathlib import Path
 
 import yaml
@@ -7,6 +9,15 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[1]
 STARTER_WORKFLOW = REPO_ROOT / "examples" / "github-actions" / "entroping-ci.yml"
 STARTER_DOC = REPO_ROOT / "docs" / "user" / "GITHUB_ACTIONS_STARTER.md"
+
+
+def latest_release_tag() -> str:
+    release_evidence = json.loads(
+        (REPO_ROOT / "docs" / "meta" / "release-evidence.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    return str(release_evidence["releases"][0]["tag"])
 
 
 def test_downstream_github_actions_starter_is_copyable_and_configurable() -> None:
@@ -34,7 +45,10 @@ def test_downstream_github_actions_starter_is_copyable_and_configurable() -> Non
     assert "for attempt in 1 2 3" in run_blocks
     assert 'echo "$RUNNER_TEMP/hurl-${HURL_VERSION}-x86_64-unknown-linux-gnu/bin"' in run_blocks
     assert 'uv tool install "${ENTROPING_INSTALL_SPEC}"' in run_blocks
-    assert "git+https://github.com/sakibshuvo/Entroping.git@v0.1.1-alpha" not in run_blocks
+    pinned_install_spec = re.escape(
+        "git+https://github.com/sakibshuvo/Entroping.git@v"
+    )
+    assert re.search(rf"{pinned_install_spec}[0-9][A-Za-z0-9._-]*", run_blocks) is None
     assert 'echo "$HOME/.local/bin" >> "$GITHUB_PATH"' in run_blocks
     assert "entroping doctor" in run_blocks
     assert "entroping run --ci --report json --report junit --report html" in run_blocks
@@ -77,7 +91,7 @@ def test_downstream_github_actions_docs_link_required_files_and_assumptions() ->
     assert "ENTROPING_INSTALL_SPEC" in doc
     assert "defaults to the latest GitHub source branch" in doc
     assert "existing starter workflow" in doc
-    assert "v0.1.1-alpha" in doc
+    assert latest_release_tag() in doc
     assert "GITHUB_ACTIONS_STARTER.md" in readme
     assert "[[docs/user/GITHUB_ACTIONS_STARTER|GITHUB_ACTIONS_STARTER]]" in index
     assert "docs/user/GITHUB_ACTIONS_STARTER.md" in user_flows

@@ -2,6 +2,10 @@
 
 ## 2026-06-11
 
+- Release install references need a canonical source plus a mechanical check.
+  Keep the latest GitHub prerelease tag in `docs/meta/release-evidence.json`,
+  use `scripts/install_reference_sync.py --check` in release gates, and run
+  `--write` only when intentionally advancing public pinned install guidance.
 - README should be the launch door, not the product encyclopedia. Keep the
   first screen exciting and executable, then link to existing docs for
   architecture, command details, release process, and maintainer context.

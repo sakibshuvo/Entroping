@@ -132,6 +132,11 @@ Before tagging:
 - Review `docs/meta/RELEASE_EVIDENCE.md` and run
   `uv run python scripts/release_evidence.py --strict` before any repeated
   release, package-index, or stable-core evidence claim.
+- Run `uv run python scripts/install_reference_sync.py --check` before release
+  notes or install guidance review. If the latest GitHub release tag in
+  `docs/meta/release-evidence.json` intentionally changes, run
+  `uv run python scripts/install_reference_sync.py --write` and review the
+  resulting docs diff before publishing.
 - Run `uv run python scripts/release_evidence.py --check-freshness --strict`
   when a release or stable-core claim depends on the latest successful `main`
   CI and Pages runs. This optional GitHub CLI check is read-only, degrades when

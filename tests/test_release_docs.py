@@ -7,12 +7,22 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+def latest_install_spec() -> str:
+    release_evidence = json.loads(
+        (REPO_ROOT / "docs" / "meta" / "release-evidence.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    latest_tag = release_evidence["releases"][0]["tag"]
+    return f"git+https://github.com/sakibshuvo/Entroping.git@{latest_tag}"
+
+
 def test_readme_links_alpha_release_gate_and_checklist() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
     assert "scripts/release_check.sh" in readme
     assert "scripts/package_check.sh" in readme
-    assert "git+https://github.com/sakibshuvo/Entroping.git@v0.1.1-alpha" in readme
+    assert latest_install_spec() in readme
     assert "docs/meta/RELEASE_CHECKLIST.md" in readme
     assert "[Changelog](CHANGELOG.md)" in readme
 

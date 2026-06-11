@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Added issue #571's install-reference sync check so public pinned GitHub
+  install docs are validated against `docs/meta/release-evidence.json` during
+  release checks, with an intentional `--write` path for release-tag bumps.
 - Compressed issue #591's README front door from 517 lines to under 220 lines
   while preserving launch copy, demo assets, install/basic-use guidance, alpha
   status, license, and deep links to existing docs.
