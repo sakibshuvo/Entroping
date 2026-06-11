@@ -133,6 +133,36 @@ def test_select_changed_hurl_tests_runs_git_diff_with_timeout(
     assert recorded_timeout == GIT_DIFF_TIMEOUT_SECONDS
 
 
+@pytest.mark.parametrize(
+    "base_ref",
+    [
+        "",
+        " main",
+        "main ",
+        "-main",
+        "main branch",
+        "main..feature",
+        "refs/heads/main:tests/health.hurl",
+        r"refs\heads\main",
+        "main@{1}",
+        "main\nnext",
+        "main\x7fnext",
+    ],
+)
+def test_select_changed_hurl_tests_rejects_unsafe_base_refs_before_git_diff(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    base_ref: str,
+) -> None:
+    def fail_if_called(*args: object, **kwargs: object) -> None:
+        pytest.fail("unsafe base_ref reached subprocess.run")
+
+    monkeypatch.setattr("entroping.core.git_changed_hurl.subprocess.run", fail_if_called)
+
+    with pytest.raises(GitChangedHurlError, match="unsafe Git base ref"):
+        select_changed_hurl_tests(project_root=tmp_path, base_ref=base_ref)
+
+
 def test_select_changed_hurl_tests_reports_git_diff_timeout(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

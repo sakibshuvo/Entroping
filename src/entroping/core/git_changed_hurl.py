@@ -16,6 +16,7 @@ def select_changed_hurl_tests(*, project_root: Path, base_ref: str) -> tuple[Pat
     """Return existing changed Hurl files relative to a Git base ref."""
 
     root = project_root.expanduser().resolve()
+    safe_ref = _validate_base_ref(base_ref)
     git_binary = shutil.which("git")
     if git_binary is None:
         msg = "Could not inspect git diff: git executable not found"
@@ -23,7 +24,7 @@ def select_changed_hurl_tests(*, project_root: Path, base_ref: str) -> tuple[Pat
 
     try:
         diff = subprocess.run(  # nosec B603
-            [git_binary, "-C", str(root), "diff", "--name-status", "-z", base_ref, "--"],
+            [git_binary, "-C", str(root), "diff", "--name-status", "-z", safe_ref, "--"],
             capture_output=True,
             check=False,
             timeout=GIT_DIFF_TIMEOUT_SECONDS,
@@ -76,6 +77,23 @@ def _parse_changed_paths(output: bytes) -> tuple[str, ...]:
             continue
         paths.append(path)
     return tuple(paths)
+
+
+def _validate_base_ref(base_ref: str) -> str:
+    if (
+        not base_ref
+        or base_ref != base_ref.strip()
+        or base_ref.startswith("-")
+        or ":" in base_ref
+        or "\\" in base_ref
+        or ".." in base_ref
+        or "@{" in base_ref
+        or any(character.isspace() for character in base_ref)
+        or any(ord(character) < 32 or ord(character) == 127 for character in base_ref)
+    ):
+        msg = f"unsafe Git base ref: {base_ref!r}"
+        raise GitChangedHurlError(msg)
+    return base_ref
 
 
 def _resolve_project_path(root: Path, relative_path: str) -> Path:

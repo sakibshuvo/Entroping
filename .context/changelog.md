@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Fixed issues #573 and #577's Hurl selection safety gaps so changed-file runs
+  reject unsafe Git base refs before invoking `git diff`, and explicit empty
+  Hurl discovery roots stay empty instead of falling back to default tests.
 - Added issue #575's bounded OpenCode worker harness for DeepSeek review and
   patch proposals, with prompt templates, local `.entroping/ai-reviews/`
   artifacts, timeout classification, patch-diff capture, and a user-local

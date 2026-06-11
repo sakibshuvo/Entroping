@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Test selectors must distinguish `None` from an explicit empty collection.
+  `None` can mean "use defaults," but `()` or `[]` often means "run nothing";
+  collapsing both cases can turn a safe no-op into an unintended broad test run.
 - DeepSeek/OpenCode should produce bounded evidence, not uncontrolled repo
   mutations. Route review and code-generation requests through
   `scripts/opencode_worker.py`, save artifacts under `.entroping/ai-reviews/`,
