@@ -213,7 +213,7 @@ project, and a Codex workspace with fast context rehydration.
   the live Hurl demo smoke.
 - Security scan completed on 2026-05-29 and found one low-severity optional proxy dependency issue; the proxy dependency floor was raised to `mitmproxy>=12.2.3`, vulnerable transitives were refreshed, and the all-extras audit is now clean.
 - Project-local `AGENTS.md` now captures repository-specific implementation rules.
-- `docs/meta/AUTONOMOUS_DEVELOPMENT.md` defines the Codex-first loop, Spec Kit pilot path, and future OpenCode/oMLX worker plan.
+- `docs/meta/archive/AUTONOMOUS_DEVELOPMENT.md` defines the Codex-first loop, Spec Kit pilot path, and future OpenCode/oMLX worker plan.
 - `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, `.github/pull_request_template.md`, and `scripts/feature_gate.sh` define the executable delivery gates for feature work.
 - `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, `scripts/regression.sh`, and `scripts/audit_quality.sh` define issue tracking, regression coverage, quality audit coverage, and simple phase-level progress tracking.
 - `scripts/performance_smoke.py` produces local release-owner evidence for large Hurl suites, parallel runner behavior, report size, and SQLModel traffic-store retention.
@@ -1675,7 +1675,7 @@ At the start of a new Codex thread, read:
 4. `.context/plan.md`
 5. `docs/product/MVP_PLAN.md`
 6. `docs/technical/TDS.md`
-7. `docs/meta/AUTONOMOUS_DEVELOPMENT.md`
+7. `docs/meta/archive/AUTONOMOUS_DEVELOPMENT.md`
 8. `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`
 9. `docs/meta/PROJECT_PROGRESS.md`
 10. `docs/meta/ISSUE_TRACKING.md`

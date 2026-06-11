@@ -38,7 +38,7 @@ def test_render_issue_session_prompt_includes_issue_context_and_required_repo_so
         ".context/plan.md",
         "docs/meta/PROJECT_PROGRESS.md",
         "docs/meta/FEATURE_DELIVERY_CHECKLIST.md",
-        "docs/meta/AUTONOMOUS_DEVELOPMENT.md",
+        "docs/meta/archive/AUTONOMOUS_DEVELOPMENT.md",
         "docs/product/MVP_PLAN.md",
         "docs/technical/TDS.md",
         "docs/technical/QANSTITUTION_REFERENCE.md",

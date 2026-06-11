@@ -45,8 +45,17 @@ def test_context_pack_implementation_mode_includes_required_sources() -> None:
     assert "### AGENTS.md" in result.stdout
     assert "### docs/technical/TDS.md" in result.stdout
     assert "### docs/meta/FEATURE_DELIVERY_CHECKLIST.md" in result.stdout
+    assert "### docs/meta/archive/AUTONOMOUS_DEVELOPMENT.md" in result.stdout
+    assert "### docs/meta/AUTONOMOUS_DEVELOPMENT.md" not in result.stdout
     assert ".entroping/state.db" in result.stdout
     assert "graphify-out/" not in result.stdout
+
+
+def test_autonomous_development_has_single_canonical_archive_entrypoint() -> None:
+    assert not (REPO_ROOT / "docs" / "meta" / "AUTONOMOUS_DEVELOPMENT.md").exists()
+    assert (
+        REPO_ROOT / "docs" / "meta" / "archive" / "AUTONOMOUS_DEVELOPMENT.md"
+    ).exists()
 
 
 def test_context_pack_source_mode_keeps_source_archive_as_evidence_not_truth() -> None:
