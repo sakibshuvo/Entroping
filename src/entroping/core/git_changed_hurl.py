@@ -9,6 +9,9 @@ class GitChangedHurlError(ValueError):
     """Raised when changed Hurl selection cannot be computed safely."""
 
 
+GIT_DIFF_TIMEOUT_SECONDS = 30
+
+
 def select_changed_hurl_tests(*, project_root: Path, base_ref: str) -> tuple[Path, ...]:
     """Return existing changed Hurl files relative to a Git base ref."""
 
@@ -18,11 +21,19 @@ def select_changed_hurl_tests(*, project_root: Path, base_ref: str) -> tuple[Pat
         msg = "Could not inspect git diff: git executable not found"
         raise GitChangedHurlError(msg)
 
-    diff = subprocess.run(  # nosec B603
-        [git_binary, "-C", str(root), "diff", "--name-status", "-z", base_ref, "--"],
-        capture_output=True,
-        check=False,
-    )
+    try:
+        diff = subprocess.run(  # nosec B603
+            [git_binary, "-C", str(root), "diff", "--name-status", "-z", base_ref, "--"],
+            capture_output=True,
+            check=False,
+            timeout=GIT_DIFF_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        msg = (
+            f"Could not inspect git diff from {base_ref!r}: timed out after "
+            f"{GIT_DIFF_TIMEOUT_SECONDS} seconds"
+        )
+        raise GitChangedHurlError(msg) from exc
     if diff.returncode != 0:
         stderr = diff.stderr.decode("utf-8", errors="replace").strip()
         detail = f": {stderr}" if stderr else ""

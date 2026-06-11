@@ -11,6 +11,9 @@ class GitOpenApiError(ValueError):
     """Raised when a Git-backed OpenAPI baseline cannot be loaded safely."""
 
 
+GIT_SHOW_TIMEOUT_SECONDS = 30
+
+
 def load_openapi_document_at_ref(
     *,
     project_root: Path,
@@ -37,12 +40,20 @@ def load_openapi_document_at_ref(
         raise GitOpenApiError(msg)
 
     revision_path = f"{safe_ref}:{relative_spec.as_posix()}"
-    result = subprocess.run(  # nosec B603
-        [git_binary, "-C", str(root), "show", revision_path],
-        capture_output=True,
-        check=False,
-        text=True,
-    )
+    try:
+        result = subprocess.run(  # nosec B603
+            [git_binary, "-C", str(root), "show", revision_path],
+            capture_output=True,
+            check=False,
+            text=True,
+            timeout=GIT_SHOW_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        msg = (
+            f"Could not load OpenAPI spec {relative_spec.as_posix()} from "
+            f"{safe_ref!r}: timed out after {GIT_SHOW_TIMEOUT_SECONDS} seconds"
+        )
+        raise GitOpenApiError(msg) from exc
     if result.returncode != 0:
         stderr = result.stderr.strip()
         detail = f": {stderr}" if stderr else ""
