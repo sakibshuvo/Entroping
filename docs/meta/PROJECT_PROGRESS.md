@@ -51,8 +51,7 @@ Promote a new local issue here only when a real defect/regression or ready produ
 
 ## External Stable-Core Blockers
 
-Stable-core readiness remains blocked by evidence that cannot be manufactured
-entirely inside this repo.
+Stable-core readiness remains blocked by evidence that cannot be manufactured entirely inside this repo.
 
 | Blocker | Tracking | Needed proof |
 | --- | --- | --- |
@@ -65,6 +64,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Hurl runner chaos regression matrix](https://github.com/sakibshuvo/Entroping/issues/610) | Done | `tests/test_hurl_runner.py` now covers empty output, signal-like exit codes, binary/non-UTF-8 stream decoding, truncation boundaries, redaction plus truncation, partial stdout/stderr on subprocess errors, variable-file cleanup after `OSError`, and unstable retry evidence without changing runtime behavior. |
 | [Direct DeepSeek worker engine](https://github.com/sakibshuvo/Entroping/issues/581) | Done | `scripts/ai_jobs.py submit --engine deepseek-api` can route queued review or patch-proposal jobs through `scripts/deepseek_worker.py`, using `DEEPSEEK_API_KEY` only from the environment and writing ignored local artifacts for Codex validation without applying patches or touching product runtime paths. |
 | [Run CLI validation extraction](https://github.com/sakibshuvo/Entroping/issues/561) | Done | Run option conflicts and report-format normalization now live in direct-tested core validation helpers while the Typer adapter preserves user-facing errors. |
 | [Policy-diff CI failure mode](https://github.com/sakibshuvo/Entroping/issues/565) | Done | `entroping report policy-diff --fail-on-change` keeps the default review report successful for valid changed diffs while giving CI an explicit nonzero gate for effective-policy drift. |

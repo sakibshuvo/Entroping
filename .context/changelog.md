@@ -2,6 +2,11 @@
 
 ## 2026-06-11
 
+- Added issue #610's Hurl runner chaos regression matrix covering empty output,
+  signal-like exit codes, binary/non-UTF-8 streams, truncation boundaries,
+  redaction plus truncation, partial stdout/stderr on subprocess errors,
+  variable-file cleanup after `OSError`, and unstable retry evidence without
+  changing runtime behavior.
 - Tuned issue #605's direct DeepSeek worker default so short review jobs use
   `--thinking disabled` by default, with high-effort thinking kept as an
   explicit opt-in for deliberate deep-review runs.
