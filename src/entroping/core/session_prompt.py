@@ -69,7 +69,7 @@ Read these files before editing or reviewing:
 2. `.context/plan.md`
 3. `docs/meta/PROJECT_PROGRESS.md`
 4. `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`
-5. `docs/meta/AUTONOMOUS_DEVELOPMENT.md`
+5. `docs/meta/archive/AUTONOMOUS_DEVELOPMENT.md`
 6. `docs/product/MVP_PLAN.md`
 7. `docs/technical/TDS.md`
 8. `docs/technical/QANSTITUTION_REFERENCE.md`

@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Removed issue #562's duplicate `docs/meta/AUTONOMOUS_DEVELOPMENT.md`
+  wrapper and pointed issue prompts plus implementation context packs at the
+  canonical archived runbook path.
 - Added issue #559's root `CHANGELOG.md` as the concise public release history,
   with `.context/changelog.md` kept as the detailed maintainer/agent handoff
   log.

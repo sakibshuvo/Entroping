@@ -100,7 +100,7 @@ add_base_files
 case "$mode" in
   implementation)
     add_file "docs/meta/FEATURE_DELIVERY_CHECKLIST.md"
-    add_file "docs/meta/AUTONOMOUS_DEVELOPMENT.md"
+    add_file "docs/meta/archive/AUTONOMOUS_DEVELOPMENT.md"
     add_file "docs/product/MVP_PLAN.md"
     add_file "docs/technical/TDS.md"
     add_file "docs/technical/COMMAND_CHEAT_SHEET.md"
