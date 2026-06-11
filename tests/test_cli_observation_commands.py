@@ -38,6 +38,10 @@ def test_watch_invokes_capture_workflow(
     assert result.exit_code == 0
     assert "not implemented" not in result.output
     assert "Capturing traffic on 127.0.0.1:8090" in result.output
+    assert "Review redaction coverage with `entroping report redaction`" in result.output
+    assert "freeze --mock" in result.output
+    assert "map --export" in result.output
+    assert "sharing artifacts" in result.output
     assert calls == [
         WatchConfig(
             project_root=tmp_path,

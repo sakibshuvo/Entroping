@@ -94,6 +94,14 @@ def watch(
         console.print(f"Capturing traffic on 127.0.0.1:{config.listen_port}")
         console.print(_watch_scope_summary(config), markup=False)
         console.print("Persisting redacted traffic to .entroping/state.db")
+        console.print(
+            "Review redaction coverage with `entroping report redaction`.",
+            markup=False,
+        )
+        console.print(
+            "Check before freeze, freeze --mock, map --export, or sharing artifacts.",
+            markup=False,
+        )
         summary = asyncio.run(run_watch(config))
         if summary is not None:
             _print_watch_summary(summary)

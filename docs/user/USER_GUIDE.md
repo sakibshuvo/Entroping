@@ -312,6 +312,8 @@ before persistence, but you are still responsible for capture authorization and 
 confirm that the environment is approved for interception, avoid collecting
 third-party or user-private traffic, run `entroping report redaction` before
 freezing tests, and inspect generated artifacts before committing them.
+The `watch` startup output repeats this redaction-review reminder before capture
+begins so the local storage boundary is visible in the terminal.
 Multipart request and response bodies are fully summarized before persistence;
 file fields, token fields, and harmless text fields are not stored as captured
 body text.
