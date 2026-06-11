@@ -631,6 +631,276 @@ def test_run_hurl_file_bounds_stdout_and_stderr(
     assert result.stderr_truncated
 
 
+def test_run_hurl_file_preserves_empty_output_without_truncation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "quiet.hurl")
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stdout, stderr, timeout, check, env, shell)
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(hurl_file, HurlRunOptions(binary="hurl"))
+
+    assert result.passed
+    assert result.stdout == ""
+    assert result.stderr == ""
+    assert result.stdout_truncated is False
+    assert result.stderr_truncated is False
+
+
+@pytest.mark.parametrize("return_code", [-9, -15])
+def test_run_hurl_file_preserves_signal_like_exit_codes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    return_code: int,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "signal.hurl")
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (timeout, check, env, shell)
+        stdout.write(b"partial stdout\n")
+        stderr.write(b"partial stderr\n")
+        return subprocess.CompletedProcess(args=args, returncode=return_code)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(hurl_file, HurlRunOptions(binary="hurl"))
+
+    assert not result.passed
+    assert result.status == "failed"
+    assert result.exit_code == return_code
+    assert result.stdout == "partial stdout\n"
+    assert result.stderr == "partial stderr\n"
+    assert [(attempt.status, attempt.exit_code) for attempt in result.attempts] == [
+        ("failed", return_code)
+    ]
+
+
+@pytest.mark.security
+def test_run_hurl_file_decodes_binary_output_and_still_redacts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "binary-output.hurl")
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (timeout, check, env, shell)
+        stdout.write(b"\xff\xfe\x00secret-value\x80stdout")
+        stderr.write(b"\xf0\x28\x8c\x28secret-value stderr")
+        return subprocess.CompletedProcess(args=args, returncode=1)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(
+        hurl_file,
+        HurlRunOptions(binary="hurl", redacted_values=("secret-value",)),
+    )
+
+    assert result.status == "failed"
+    assert "secret-value" not in result.stdout
+    assert "secret-value" not in result.stderr
+    assert "[REDACTED]" in result.stdout
+    assert "[REDACTED]" in result.stderr
+    assert "\ufffd" in result.stdout
+    assert "\ufffd" in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected", "truncated"),
+    [
+        (b"12345678", "12345678", False),
+        (b"123456789", "12345678\n[entroping: stdout truncated]\n", True),
+    ],
+)
+def test_run_hurl_file_handles_stdout_truncation_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    payload: bytes,
+    expected: str,
+    truncated: bool,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "boundary.hurl")
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stderr, timeout, check, env, shell)
+        stdout.write(payload)
+        return subprocess.CompletedProcess(args=args, returncode=1)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(
+        hurl_file,
+        HurlRunOptions(binary="hurl", output_limit_bytes=8),
+    )
+
+    assert result.stdout == expected
+    assert result.stdout_truncated is truncated
+    assert result.stderr == ""
+    assert result.stderr_truncated is False
+
+
+@pytest.mark.security
+def test_run_hurl_file_redacts_truncated_output_before_marker(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "redacted-truncated.hurl")
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stderr, timeout, check, env, shell)
+        stdout.write(b"abc live-secret def")
+        return subprocess.CompletedProcess(args=args, returncode=1)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(
+        hurl_file,
+        HurlRunOptions(
+            binary="hurl",
+            output_limit_bytes=len("abc live-secret"),
+            redacted_values=("live-secret",),
+        ),
+    )
+
+    assert result.stdout == "abc [REDACTED]\n[entroping: stdout truncated]\n"
+    assert "live-secret" not in result.stdout
+    assert result.stdout_truncated is True
+
+
+@pytest.mark.security
+def test_run_hurl_file_captures_partial_streams_and_cleans_variables_after_oserror(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "partial-error.hurl")
+    variables_files: list[Path] = []
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (timeout, check, env, shell)
+        variables_file = Path(args[args.index("--variables-file") + 1])
+        variables_files.append(variables_file)
+        stdout.write(b"partial stdout live-secret\n")
+        stderr.write(b"partial stderr live-secret\n")
+        raise OSError("broken pipe")
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(
+        hurl_file,
+        HurlRunOptions(
+            binary="hurl",
+            variables={"token": "live-secret"},
+            redacted_values=("live-secret",),
+        ),
+    )
+
+    assert result.status == "error"
+    assert result.exit_code == 126
+    assert result.stdout == "partial stdout [REDACTED]\n"
+    assert "partial stderr [REDACTED]" in result.stderr
+    assert "Hurl subprocess failed: broken pipe" in result.stderr
+    assert "live-secret" not in result.stdout
+    assert "live-secret" not in result.stderr
+    assert variables_files and not variables_files[0].exists()
+
+
+def test_run_hurl_file_marks_signal_retry_as_unstable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "signal-retry.hurl")
+    return_codes = [-9, 0]
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stdout, stderr, timeout, check, env, shell)
+        return subprocess.CompletedProcess(args=args, returncode=return_codes.pop(0))
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    result = run_hurl_file(hurl_file, HurlRunOptions(binary="hurl", retry=1))
+
+    assert result.passed
+    assert result.unstable
+    assert [(attempt.status, attempt.exit_code) for attempt in result.attempts] == [
+        ("failed", -9),
+        ("passed", 0),
+    ]
+
+
 def test_run_hurl_file_reports_missing_binary_before_subprocess(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
