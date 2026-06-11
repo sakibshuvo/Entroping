@@ -1250,12 +1250,18 @@ immediate cross-platform path, activate PyPI/TestPyPI next, prototype a Homebrew
 tap after the PyPI alpha is stable, and defer standalone binaries until demand
 justifies signing, notarization, and platform build ownership.
 
+Docker CI images are also deferred until package-index proof exists. A future
+GHCR image should be a Linux CI convenience with pinned Entroping, Hurl, and
+hurlfmt versions, a non-root runtime user, OCI labels/provenance, immutable tags
+and digest pinning, rollback rules, and smoke checks. It must not replace local
+`uv tool install`, PyPI, source checkout, or later Homebrew paths.
+
 ### Later Distribution
 
 - Nuitka standalone binary.
 - Homebrew formula.
 - PyPI package.
-- Docker image for CI runners.
+- Docker image for CI runners after package-index proof.
 - GitHub release artifacts.
 - Optional Entroping Cloud integration for central governance, audit logs, SSO, and team dashboards.
 

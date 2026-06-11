@@ -2,6 +2,11 @@
 
 ## 2026-06-11
 
+- Accepted issue #595's Docker CI image boundary: GHCR image work is deferred
+  until package-index proof, must include pinned Entroping/Hurl/hurlfmt,
+  non-root runtime, OCI labels, digest-pinnable tags, rollback and smoke-check
+  rules, and cannot replace `uv tool install`, PyPI, source checkout, or later
+  Homebrew paths.
 - Accepted issue #594's official GitHub Action boundary: the generated starter
   workflow remains the supported downstream CI path, while a future
   `entroping/action` belongs in a dedicated action repo after package-index

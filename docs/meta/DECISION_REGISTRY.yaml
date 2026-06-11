@@ -393,3 +393,29 @@ decisions:
     related_issues: ["#594"]
     supersedes: []
     superseded_by: null
+
+  - id: ENT-DEC-0018
+    title: Docker CI image trails package-index proof
+    status: accepted
+    date: "2026-06-11"
+    summary: >
+      An official Docker CI image is deferred until package-index proof exists.
+      When implemented, it should publish to GHCR as
+      `ghcr.io/sakibshuvo/entroping-ci`, include pinned Entroping, Hurl, and
+      hurlfmt versions, run as a non-root runtime user, expose OCI labels, use
+      immutable tags and digest pinning, and pass image smoke checks before tag
+      promotion.
+    tags: [docker, docker-ci-image, distribution, ci, launch-readiness]
+    source_links:
+      - path: decisions/ADR-0018-docker-ci-image-boundary.md
+        role: adr
+      - path: docs/meta/DISTRIBUTION_RECOMMENDATION.md
+        role: distribution-decision
+      - path: docs/user/CI_PROVIDER_RECIPES.md
+        role: user-guide
+    related_docs:
+      - docs/technical/TDS.md
+      - docs/meta/INSTALL_SMOKE_MATRIX.md
+    related_issues: ["#595"]
+    supersedes: []
+    superseded_by: null
