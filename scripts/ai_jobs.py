@@ -8,13 +8,14 @@ import json
 import subprocess  # nosec B404
 import sys
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
 DEFAULT_JOB_ROOT = Path(".entroping") / "ai-jobs"
 DEFAULT_ARTIFACT_ROOT = Path(".entroping") / "ai-reviews"
 DEFAULT_TIMEOUT_SECONDS = 300.0
+STALE_RUNNING_GRACE_SECONDS = 60.0
 SCHEMA_VERSION = "entroping.ai-job.v1"
 QUEUE_STATES = ("queued", "running", "completed", "failed")
 SUCCESSFUL_WORKER_STATUSES = {"completed", "dry-run", "inconclusive", "patch-proposed"}
@@ -286,21 +287,35 @@ def _run_next(
     job_root: Path,
 ) -> tuple[dict[str, object], int]:
     _ensure_queue_dirs(job_root)
-    queued_jobs = sorted(_state_dir(job_root, "queued").glob("*.json"))
-    if not queued_jobs:
+    stale_result = _fail_next_stale_running_job(job_root)
+    if stale_result is not None:
+        return stale_result
+
+    running_path = _claim_next_queued_job(job_root)
+    if running_path is None:
         return {"status": "empty", "job_root": str(job_root)}, 0
 
-    queued_path = queued_jobs[0]
-    job = _read_job(queued_path)
-    running_path = _state_dir(job_root, "running") / queued_path.name
+    try:
+        job = _read_job(running_path)
+    except (AiJobError, json.JSONDecodeError, OSError, UnicodeDecodeError) as exc:
+        return _fail_corrupt_claimed_job(job_root, running_path, exc)
+
     job["queue_status"] = "running"
     job["attempts"] = _int_value(job.get("attempts"), default=0) + 1
     job["started_at"] = _now()
     job["updated_at"] = _now()
     _write_job(running_path, job)
-    queued_path.unlink()
 
-    worker_payload, worker_process_returncode = _run_worker(args, repo_root, job)
+    try:
+        worker_payload, worker_process_returncode = _run_worker(args, repo_root, job)
+    except (AiJobError, OSError, subprocess.SubprocessError) as exc:
+        worker_payload = {
+            "status": "failed",
+            "returncode": 1,
+            "artifact_dir": None,
+            "error": f"worker supervisor failed: {exc}",
+        }
+        worker_process_returncode = 1
     worker_status = str(worker_payload.get("status", "failed"))
     terminal_state: QueueState = (
         "completed" if worker_status in SUCCESSFUL_WORKER_STATUSES else "failed"
@@ -315,7 +330,7 @@ def _run_next(
 
     terminal_path = _state_dir(job_root, terminal_state) / running_path.name
     _write_job(terminal_path, job)
-    running_path.unlink()
+    running_path.unlink(missing_ok=True)
 
     return (
         {
@@ -326,6 +341,120 @@ def _run_next(
             "artifact_dir": worker_payload.get("artifact_dir"),
         },
         0 if terminal_state == "completed" else 1,
+    )
+
+
+def _claim_next_queued_job(job_root: Path) -> Path | None:
+    running_dir = _state_dir(job_root, "running")
+    for queued_path in sorted(_state_dir(job_root, "queued").glob("*.json")):
+        running_path = running_dir / queued_path.name
+        try:
+            queued_path.rename(running_path)
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            msg = f"could not claim queued AI job {queued_path.name}: {exc}"
+            raise AiJobError(msg) from exc
+        return running_path
+    return None
+
+
+def _fail_next_stale_running_job(job_root: Path) -> tuple[dict[str, object], int] | None:
+    for running_path in sorted(_state_dir(job_root, "running").glob("*.json")):
+        try:
+            job = _read_job(running_path)
+        except (AiJobError, json.JSONDecodeError, OSError, UnicodeDecodeError) as exc:
+            return _fail_corrupt_claimed_job(job_root, running_path, exc)
+        if not _is_stale_running_job(job):
+            continue
+        return _fail_running_job(job_root, running_path, job, worker_status="stale-running-job")
+    return None
+
+
+def _is_stale_running_job(job: dict[str, object]) -> bool:
+    started_at = _parse_job_timestamp(job.get("started_at")) or _parse_job_timestamp(
+        job.get("updated_at")
+    )
+    if started_at is None:
+        return False
+    timeout_seconds = _float_value(job.get("timeout_seconds"), default=DEFAULT_TIMEOUT_SECONDS)
+    stale_after = started_at + timedelta(seconds=timeout_seconds + STALE_RUNNING_GRACE_SECONDS)
+    return datetime.now(UTC) > stale_after
+
+
+def _parse_job_timestamp(value: object) -> datetime | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
+def _fail_running_job(
+    job_root: Path,
+    running_path: Path,
+    job: dict[str, object],
+    *,
+    worker_status: str,
+) -> tuple[dict[str, object], int]:
+    failed_path = _state_dir(job_root, "failed") / running_path.name
+    job["queue_status"] = "failed"
+    job["worker_status"] = worker_status
+    job["worker_returncode"] = _int_value(job.get("worker_returncode"), default=1)
+    job["worker_process_returncode"] = _int_value(
+        job.get("worker_process_returncode"),
+        default=1,
+    )
+    job["artifact_dir"] = job.get("artifact_dir")
+    job["completed_at"] = _now()
+    job["updated_at"] = _now()
+    _write_job(failed_path, job)
+    running_path.unlink(missing_ok=True)
+    return (
+        {
+            "status": "failed",
+            "job_id": job.get("job_id", running_path.stem),
+            "job_path": str(failed_path),
+            "worker_status": worker_status,
+            "artifact_dir": job.get("artifact_dir"),
+        },
+        1,
+    )
+
+
+def _fail_corrupt_claimed_job(
+    job_root: Path,
+    running_path: Path,
+    exc: Exception,
+) -> tuple[dict[str, object], int]:
+    failed_path = _state_dir(job_root, "failed") / running_path.name
+    job = {
+        "schema_version": SCHEMA_VERSION,
+        "job_id": running_path.stem,
+        "queue_status": "failed",
+        "worker_status": "corrupt-queued-job",
+        "worker_returncode": 1,
+        "worker_process_returncode": 1,
+        "artifact_dir": None,
+        "error": f"queued job artifact could not be read: {exc}",
+        "completed_at": _now(),
+        "updated_at": _now(),
+    }
+    _write_job(failed_path, job)
+    running_path.unlink(missing_ok=True)
+    return (
+        {
+            "status": "failed",
+            "job_id": job["job_id"],
+            "job_path": str(failed_path),
+            "worker_status": job["worker_status"],
+            "artifact_dir": None,
+        },
+        1,
     )
 
 

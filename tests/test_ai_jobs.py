@@ -6,6 +6,7 @@ import json
 import stat
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from typing import cast
 
@@ -28,6 +29,28 @@ def write_fake_opencode(path: Path, *, body: str) -> Path:
     binary.write_text(body, encoding="utf-8")
     binary.chmod(binary.stat().st_mode | stat.S_IXUSR)
     return binary
+
+
+def write_fake_counting_opencode(
+    path: Path,
+    *,
+    sleep_seconds: float = 0.0,
+) -> tuple[Path, Path]:
+    binary = path / "opencode"
+    marker_dir = path / "invocations"
+    binary.write_text(
+        "#!/usr/bin/env python3\n"
+        "import pathlib\n"
+        "import time\n\n"
+        "import uuid\n\n"
+        f"MARKER_DIR = pathlib.Path({str(marker_dir)!r})\n"
+        "MARKER_DIR.mkdir(parents=True, exist_ok=True)\n"
+        "(MARKER_DIR / f'{uuid.uuid4().hex}.txt').write_text('1', encoding='utf-8')\n"
+        f"time.sleep({sleep_seconds!r})\n"
+        "print('worker review output')\n"
+    )
+    binary.chmod(binary.stat().st_mode | stat.S_IXUSR)
+    return binary, marker_dir
 
 
 def read_job(path: Path) -> dict[str, object]:
@@ -194,6 +217,72 @@ def test_ai_jobs_run_next_routes_deepseek_api_engine_to_direct_worker(
     assert not (artifact_dir / "stdout.txt").exists()
 
 
+def test_ai_jobs_run_next_concurrent_invocations_process_distinct_jobs_once(tmp_path: Path) -> None:
+    job_root = tmp_path / "ai-jobs"
+    artifact_root = tmp_path / "ai-reviews"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_opencode, invocation_markers = write_fake_counting_opencode(
+        fake_bin,
+        sleep_seconds=0.15,
+    )
+
+    for _ in range(2):
+        submit = run_ai_jobs(
+            "submit",
+            "--mode",
+            "review",
+            "--profile",
+            "pro",
+            "--file",
+            "README.md",
+            "--job-root",
+            str(job_root),
+        )
+        assert submit.returncode == 0, submit.stderr
+
+    start = threading.Barrier(2)
+    lock = threading.Lock()
+    run_next_results: list[subprocess.CompletedProcess[str]] = []
+
+    def run_next_once() -> None:
+        start.wait()
+        result = run_ai_jobs(
+            "run-next",
+            "--job-root",
+            str(job_root),
+            "--artifact-root",
+            str(artifact_root),
+            "--opencode-bin",
+            str(fake_opencode),
+            "--json",
+        )
+        with lock:
+            run_next_results.append(result)
+
+    threads = [threading.Thread(target=run_next_once) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert len(run_next_results) == 2
+    terminal_job_paths = []
+    for result in run_next_results:
+        assert result.returncode == 0, result.stderr
+        payload = json.loads(result.stdout)
+        terminal_job_paths.append(Path(str(payload["job_path"])))
+
+    assert len(terminal_job_paths) == 2
+    assert len({path.name for path in terminal_job_paths}) == 2
+    assert all((job_root / "queued" / path.name).exists() is False for path in terminal_job_paths)
+    assert len(list((job_root / "running").glob("*.json"))) == 0
+    assert len(list((job_root / "queued").glob("*.json"))) == 0
+    assert len(list(invocation_markers.glob("*.txt"))) == 2
+    terminal_job_ids = [read_job(path)["job_id"] for path in terminal_job_paths]
+    assert len(set(terminal_job_ids)) == 2
+
+
 def test_ai_jobs_run_next_completes_oldest_job_and_records_worker_result(
     tmp_path: Path,
 ) -> None:
@@ -297,6 +386,134 @@ def test_ai_jobs_run_next_moves_failed_job_to_failed(tmp_path: Path) -> None:
     assert job["worker_returncode"] == 7
     assert job["worker_process_returncode"] == 1
     assert Path(str(job["artifact_dir"])).is_dir()
+    assert not list((job_root / "running").glob("*.json"))
+
+
+def test_ai_jobs_run_next_recoverable_from_corrupt_queued_artifact(tmp_path: Path) -> None:
+    job_root = tmp_path / "ai-jobs"
+    artifact_root = tmp_path / "ai-reviews"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_opencode = write_fake_opencode(
+        fake_bin,
+        body="#!/usr/bin/env bash\nprintf '%s\\n' 'worker review output'\\n",
+    )
+    submit = run_ai_jobs(
+        "submit",
+        "--mode",
+        "review",
+        "--profile",
+        "pro",
+        "--file",
+        "README.md",
+        "--job-root",
+        str(job_root),
+        "--json",
+    )
+    assert submit.returncode == 0, submit.stderr
+    good_job = read_job(Path(json.loads(submit.stdout)["job_path"]))
+
+    corrupt_path = job_root / "queued" / "000-corrupt.json"
+    corrupt_path.write_text("not-json", encoding="utf-8")
+
+    first = run_ai_jobs(
+        "run-next",
+        "--job-root",
+        str(job_root),
+        "--artifact-root",
+        str(artifact_root),
+        "--opencode-bin",
+        str(fake_opencode),
+        "--json",
+    )
+    assert first.returncode in {0, 1, 2}
+    first_payload = json.loads(first.stdout)
+    assert first.returncode == 1
+    assert first_payload["status"] == "failed"
+    assert first_payload["worker_status"] == "corrupt-queued-job"
+
+    second = run_ai_jobs(
+        "run-next",
+        "--job-root",
+        str(job_root),
+        "--artifact-root",
+        str(artifact_root),
+        "--opencode-bin",
+        str(fake_opencode),
+        "--json",
+    )
+    assert second.returncode == 0
+    second_payload = json.loads(second.stdout)
+    assert second_payload["status"] == "completed"
+
+    terminal_jobs = [
+        read_job(path)
+        for state in ("completed", "failed")
+        for path in (job_root / state).glob("*.json")
+    ]
+    assert len(terminal_jobs) == 2
+    assert any(
+        job["job_id"] == good_job["job_id"] and job["queue_status"] == "completed"
+        for job in terminal_jobs
+    )
+    assert any(
+        job["job_id"] == "000-corrupt"
+        and job["queue_status"] == "failed"
+        and job["worker_status"] == "corrupt-queued-job"
+        for job in terminal_jobs
+    )
+    assert not (job_root / "queued" / Path(json.loads(submit.stdout)["job_path"]).name).exists()
+    assert not corrupt_path.exists()
+    assert not list((job_root / "running").glob("*.json"))
+
+
+def test_ai_jobs_run_next_fails_stale_running_job_before_new_work(tmp_path: Path) -> None:
+    job_root = tmp_path / "ai-jobs"
+    running = job_root / "running"
+    running.mkdir(parents=True)
+    stale_path = running / "stale-job.json"
+    stale_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.ai-job.v1",
+                "job_id": "stale-job",
+                "queue_status": "running",
+                "engine": "opencode",
+                "mode": "review",
+                "profile": "pro",
+                "model": "deepseek/deepseek-v4-pro",
+                "files": ["README.md"],
+                "timeout_seconds": 1,
+                "attempts": 1,
+                "started_at": "1970-01-01T00:00:00+00:00",
+                "updated_at": "1970-01-01T00:00:00+00:00",
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = run_ai_jobs(
+        "run-next",
+        "--job-root",
+        str(job_root),
+        "--json",
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    failed_path = Path(str(payload["job_path"]))
+    job = read_job(failed_path)
+
+    assert payload["worker_status"] == "stale-running-job"
+    assert failed_path.parent == job_root / "failed"
+    assert job["job_id"] == "stale-job"
+    assert job["queue_status"] == "failed"
+    assert job["worker_status"] == "stale-running-job"
+    assert not stale_path.exists()
+    assert not list(running.glob("*.json"))
 
 
 def test_ai_jobs_status_summarizes_counts_without_raw_output(tmp_path: Path) -> None:

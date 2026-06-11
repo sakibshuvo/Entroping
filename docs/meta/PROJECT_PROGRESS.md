@@ -64,6 +64,7 @@ Stable-core readiness remains blocked by evidence that cannot be manufactured en
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [AI worker queue safety](https://github.com/sakibshuvo/Entroping/issues/609) | Done | `scripts/ai_jobs.py run-next` now atomically claims queued jobs, quarantines corrupt queued artifacts, fails stale `running/` jobs after their timeout grace window, and preserves proposal-only worker artifacts for Codex validation. |
 | [Hurl runner chaos regression matrix](https://github.com/sakibshuvo/Entroping/issues/610) | Done | `tests/test_hurl_runner.py` now covers empty output, signal-like exit codes, binary/non-UTF-8 stream decoding, truncation boundaries, redaction plus truncation, partial stdout/stderr on subprocess errors, variable-file cleanup after `OSError`, and unstable retry evidence without changing runtime behavior. |
 | [Direct DeepSeek worker engine](https://github.com/sakibshuvo/Entroping/issues/581) | Done | `scripts/ai_jobs.py submit --engine deepseek-api` can route queued review or patch-proposal jobs through `scripts/deepseek_worker.py`, using `DEEPSEEK_API_KEY` only from the environment and writing ignored local artifacts for Codex validation without applying patches or touching product runtime paths. |
 | [Run CLI validation extraction](https://github.com/sakibshuvo/Entroping/issues/561) | Done | Run option conflicts and report-format normalization now live in direct-tested core validation helpers while the Typer adapter preserves user-facing errors. |
@@ -112,7 +113,6 @@ Stable-core readiness remains blocked by evidence that cannot be manufactured en
 | Standalone binary distribution decision | Deferred | Nuitka/PyInstaller automation waits for demand and signing runbooks. |
 | Non-GitHub CI provider recipes | Done | Provider docs exist; native templates wait for real runner evidence. |
 | Organization QAnstitution import controls | Done | ADR-0011 defines local-first import provenance and final-gate behavior. |
-| [Slim public launch docs path](https://github.com/sakibshuvo/Entroping/issues/348) | Done | README and MkDocs lead with demo/user/policy/CI paths while vault/internal memory stays preserved behind project context. |
 | [Brand terminology and QAnstitution naming decision](https://github.com/sakibshuvo/Entroping/issues/349) | Done | ADR-0012 keeps `qanstitution.yaml` canonical, preserves the core philosophy, and rejects unplanned aliases or autonomous-swarm positioning. |
 | [Practical watch TLS and proxy limits](https://github.com/sakibshuvo/Entroping/issues/350) | Done | User docs now set expectations for mitmproxy CA setup, corporate VPN/proxy conflicts, certificate pinning, proxy bypass, session headers, and capture authorization. |
 | [OWASP API Top 10 starter policy pack](https://github.com/sakibshuvo/Entroping/issues/351) | Done | A local OWASP API Security Top 10-inspired starter pack now proves the policy-pack path without claiming endorsement, certification, or complete compliance. |
