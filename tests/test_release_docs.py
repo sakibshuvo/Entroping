@@ -14,6 +14,24 @@ def test_readme_links_alpha_release_gate_and_checklist() -> None:
     assert "scripts/package_check.sh" in readme
     assert "git+https://github.com/sakibshuvo/Entroping.git@v0.1.1-alpha" in readme
     assert "docs/meta/RELEASE_CHECKLIST.md" in readme
+    assert "[Changelog](CHANGELOG.md)" in readme
+
+
+def test_root_changelog_is_public_release_history_not_context_dump() -> None:
+    changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    docs_governance = (REPO_ROOT / "docs" / "meta" / "DOCS_GOVERNANCE.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert changelog.startswith("# Changelog")
+    assert "v0.1.1-alpha" in changelog
+    assert "v0.1.0-alpha" in changelog
+    assert ".context/changelog.md" in changelog
+    assert "Notable unreleased changes" in changelog
+    assert "## 2026-" not in changelog
+    assert "issue #" not in changelog.lower()
+    assert len(changelog.splitlines()) <= 90
+    assert "`CHANGELOG.md` | Public release history" in docs_governance
 
 
 def test_onboarding_documents_typer_shell_completion_global_options() -> None:

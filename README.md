@@ -25,7 +25,8 @@ Project philosophy: **The QAnstitution is Law. Traffic is Truth. Hurl is the Enf
 
 **Start here:** [Public Docs](https://sakibshuvo.github.io/Entroping/) ·
 [Two-Minute Demo](#try-it-in-two-minutes) · [Roadmap](ROADMAP.md) ·
-[Troubleshooting](#first-hour-troubleshooting) · [Project Context](#project-context)
+[Changelog](CHANGELOG.md) · [Troubleshooting](#first-hour-troubleshooting) ·
+[Project Context](#project-context)
 
 ## Why Entroping
 
