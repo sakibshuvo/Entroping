@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- README should be the launch door, not the product encyclopedia. Keep the
+  first screen exciting and executable, then link to existing docs for
+  architecture, command details, release process, and maintainer context.
 - A 100 percent coverage gate still needs taxonomy context. Keep runtime
   behavior, docs-compliance, script-integrity, integration, smoke, regression,
   and security evidence machine-readable so reviewers can see what the suite is

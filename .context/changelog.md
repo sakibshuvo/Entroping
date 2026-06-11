@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Compressed issue #591's README front door from 517 lines to under 220 lines
+  while preserving launch copy, demo assets, install/basic-use guidance, alpha
+  status, license, and deep links to existing docs.
 - Added issue #590's deterministic test taxonomy report so
   `scripts/audit_quality.sh` now writes `reports/test-taxonomy.json` with
   behavior, docs-compliance, script-integrity, integration, smoke, regression,
