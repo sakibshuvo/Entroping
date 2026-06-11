@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Cheap-model scale needs a queue boundary. Store worker intent, status, and
+  artifact paths under `.entroping/ai-jobs/`; keep raw model output in worker
+  artifacts, and let Codex promote only validated findings into issues or code.
 - Test selectors must distinguish `None` from an explicit empty collection.
   `None` can mean "use defaults," but `()` or `[]` often means "run nothing";
   collapsing both cases can turn a safe no-op into an unintended broad test run.

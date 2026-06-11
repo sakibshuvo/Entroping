@@ -42,6 +42,10 @@ def test_agent_control_plane_routes_opencode_through_bounded_worker() -> None:
         encoding="utf-8"
     )
 
+    assert "scripts/ai_jobs.py" in doc
+    assert ".entroping/ai-jobs/" in doc
+    assert "flash-free" in doc
+    assert "deepseek/deepseek-v4-pro" in doc
     assert "scripts/opencode_worker.py" in doc
     assert "patch proposal" in doc
     assert "Codex validates and applies" in doc

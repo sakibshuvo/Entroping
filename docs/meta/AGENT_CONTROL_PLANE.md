@@ -40,6 +40,14 @@ tests, patches, review notes, alternate designs, and documentation drafts, but
 their output is untrusted until Codex validates it against the repo, issue, and
 gates.
 
+Use `scripts/ai_jobs.py` when batching affordable worker tasks. It queues
+bounded jobs under `.entroping/ai-jobs/`, maps cost profiles such as
+`flash-free` to `opencode/deepseek-v4-flash-free` and `pro` to
+`deepseek/deepseek-v4-pro`, runs the oldest queued job through the bounded
+worker, and lists completed artifact directories for Codex review. The queue is
+an artifact conveyor, not an authority layer: it never applies patches, commits,
+pushes, merges, or changes release status.
+
 Use `scripts/opencode_worker.py` instead of raw `opencode run` for repeatable
 OpenCode/DeepSeek work. The worker has `review` mode for bounded findings and
 `patch` mode for a patch proposal artifact under `.entroping/ai-reviews/`.
