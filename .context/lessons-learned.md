@@ -2,6 +2,10 @@
 
 ## 2026-06-11
 
+- QAnstitution policy shape versioning is separate from package release
+  versioning. Keep `version: "4.1"` as the supported explicit marker, allow
+  omitted markers only for legacy files that match the current shape, and fail
+  closed on old or future markers until a reviewed migration exists.
 - Release install references need a canonical source plus a mechanical check.
   Keep the latest GitHub prerelease tag in `docs/meta/release-evidence.json`,
   use `scripts/install_reference_sync.py --check` in release gates, and run

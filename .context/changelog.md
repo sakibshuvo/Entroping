@@ -2,6 +2,11 @@
 
 ## 2026-06-11
 
+- Defined issue #588's QAnstitution schema-version policy: `version: "4.1"`
+  or omitted legacy markers are accepted, old/future markers fail closed with
+  migration guidance, the authoring JSON Schema exposes the supported marker,
+  and migration helpers must stay explicit instead of running from `run`,
+  `doctor`, or config loading.
 - Added issue #571's install-reference sync check so public pinned GitHub
   install docs are validated against `docs/meta/release-evidence.json` during
   release checks, with an intentional `--write` path for release-tag bumps.

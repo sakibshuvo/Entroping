@@ -19,7 +19,7 @@ Enforcement = Literal["block", "warn", "audit_only"]
 AgentRole = Literal["builder", "auditor", "breaker"]
 _ENV_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _KNOWN_FAILURE_EXPIRY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-_SUPPORTED_QANSTITUTION_VERSIONS: tuple[str, ...] = ("4.1",)
+SUPPORTED_QANSTITUTION_VERSIONS: tuple[str, ...] = ("4.1",)
 _QANSTITUTION_VERSION_MIGRATION_NOTE = (
     "Update to a supported QAnstitution version and follow the migration guidance in "
     "docs/technical/QANSTITUTION_REFERENCE.md#qanstitution-schema-compatibility."
@@ -295,7 +295,16 @@ class Qanstitution(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     project: str
-    version: str | None = None
+    version: str | None = Field(
+        default=None,
+        json_schema_extra={
+            "description": (
+                "QAnstitution schema compatibility marker. Omit only for legacy "
+                "v4.1-compatible policy files."
+            ),
+            "enum": [*SUPPORTED_QANSTITUTION_VERSIONS, None],
+        },
+    )
     description: str | None = None
     sources: SourceConfig | None = None
     dependencies: list[DependencyConfig] = Field(default_factory=list)
@@ -327,23 +336,29 @@ class Qanstitution(BaseModel):
         if value is None:
             return None
 
-        normalized = value.strip()
-        if not normalized:
+        if not value:
             msg = (
                 "QAnstitution version must not be empty. "
                 f"{_QANSTITUTION_VERSION_MIGRATION_NOTE}"
             )
             raise ValueError(msg)
 
-        if normalized not in _SUPPORTED_QANSTITUTION_VERSIONS:
+        if value != value.strip():
             msg = (
-                f"Unsupported QAnstitution version {normalized!r}. "
-                f"Supported versions: {', '.join(_SUPPORTED_QANSTITUTION_VERSIONS)}. "
+                "QAnstitution version must not contain leading or trailing whitespace. "
                 f"{_QANSTITUTION_VERSION_MIGRATION_NOTE}"
             )
             raise ValueError(msg)
 
-        return normalized
+        if value not in SUPPORTED_QANSTITUTION_VERSIONS:
+            msg = (
+                f"Unsupported QAnstitution version {value!r}. "
+                f"Supported versions: {', '.join(SUPPORTED_QANSTITUTION_VERSIONS)}. "
+                f"{_QANSTITUTION_VERSION_MIGRATION_NOTE}"
+            )
+            raise ValueError(msg)
+
+        return value
 
 
 def expand_qanstitution_gate_entries(

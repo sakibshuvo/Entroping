@@ -228,8 +228,12 @@ release marker, and not the JSON Schema `$id`.
 
 Current compatibility rules:
 
-- Supported version markers for v4.1 are `4.1` and absence of `version` for
-  existing legacy files.
+- Supported explicit marker for the v4.1 policy shape is `version: "4.1"`.
+- Absence of `version` is accepted for existing legacy files that already match
+  the v4.1 shape. Entroping does not rewrite those files automatically.
+- Older markers such as `4.0` fail closed until a reviewed migration exists.
+- Future or unknown markers such as `4.2` or `5.0` fail closed so a newer
+  policy file is not silently enforced by an older Entroping binary.
 - Any non-empty `version` not in the supported set is rejected during config load
   and `entroping doctor` with a migration-focused error message.
 - Unknown top-level fields continue to fail validation through the Pydantic
@@ -242,6 +246,11 @@ Current compatibility rules:
   fails clearly before runtime execution.
 - Future-policy files that cannot be validated must fail closed. Do not silently
   ignore unknown governance fields.
+
+Migration helpers, if they are needed, belong in reviewed one-shot tooling or a
+future explicitly scoped `config` workflow. They must never run implicitly from
+`entroping run`, `entroping doctor`, or config loading. Runtime commands only
+validate the policy and return clear migration guidance.
 
 ## 5. Sources
 

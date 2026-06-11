@@ -450,6 +450,11 @@
         }
       ],
       "default": null,
+      "description": "QAnstitution schema compatibility marker. Omit only for legacy v4.1-compatible policy files.",
+      "enum": [
+        "4.1",
+        null
+      ],
       "title": "Version"
     }
   },
