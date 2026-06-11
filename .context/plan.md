@@ -264,6 +264,10 @@ project, and a Codex workspace with fast context rehydration.
   default, and keep optional PR comments permission-scoped. The generated
   starter workflow remains the supported downstream CI baseline until that
   action is proven.
+- A future Docker CI image should trail package-index proof and publish to GHCR
+  only as a CI convenience with pinned Entroping/Hurl/hurlfmt, non-root runtime,
+  OCI labels, digest-pinnable tags, rollback and smoke-check rules, and no claim
+  that Docker replaces source, `uv tool install`, PyPI, or Homebrew paths.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work; `scripts/finish_issue.sh` verifies merged PRs and safely removes completed local worktrees.
 - Eye capture now has security-first traffic models, pre-persistence redaction, bounded SQLModel-backed SQLite state, and capture-only `watch` wiring through a lazy-loaded mitmproxy adapter.
 - Issues #1 through #85, plus validation fixes #95 and #97, are integrated.

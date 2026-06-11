@@ -7,6 +7,7 @@ tags:
   - packaging
   - homebrew
   - binaries
+  - docker
   - uv
 ---
 
@@ -24,6 +25,7 @@ release machinery that is expensive to operate before demand is proven.
 | `uv tool install` from Git or PyPI | Cross-platform, fast, Python-aware, already used in docs, can install/manage Python where needed | Requires users to install uv first; Hurl and Graphviz remain external tools | Best immediate path |
 | Homebrew tap | Excellent macOS developer ergonomics, natural place to depend on Hurl and Graphviz | Formula maintenance, Python resource stanzas, bottle/tap maintenance, macOS-first | Good after PyPI alpha |
 | Official GitHub Action | Strong downstream CI adoption wedge with one-line workflow usage | Action repository, release cadence, permissions, marketplace support, and package install guarantees | Defer until package-index proof |
+| Docker CI image | Repeatable Linux CI environment with Entroping, Hurl, and hurlfmt preinstalled | Container maintenance, base-image patching, registry support, provenance, and larger security surface | Defer until package-index proof |
 | standalone binary | Lowest apparent install friction for non-Python users | Build matrix, large artifacts, bundled Python/native dependencies, macOS signing, notarization, Windows signing, security update responsibility | Defer |
 
 ## Recommendation
@@ -107,6 +109,8 @@ extra. Do not let Studio force the default distribution to become heavier.
 ## What Not To Do Now
 
 - Do not add a Homebrew formula in this issue.
+- Do not add a Dockerfile, container registry workflow, or Docker image publish job
+  in this issue.
 - Do not add standalone binary automation in this issue.
 - Do not add Nuitka or PyInstaller to the default dev dependencies yet.
 - Do not add macOS signing, notarization, Windows signing, or installer
@@ -149,6 +153,58 @@ true:
 - Linux or Windows users cannot adopt `uv tool install` or PyPI;
 - an enterprise/commercial buyer requires signed offline artifacts;
 - support evidence shows install friction is blocking real adoption.
+
+## Docker CI Image Decision
+
+Docker CI image decision: defer until package-index proof.
+
+A Docker image is useful for CI users who want Entroping, Hurl, and hurlfmt
+available without repeating Linux setup steps in every provider. It should not
+come before the package-index path because a public image would otherwise hide
+unproven package installation behind a larger distribution artifact.
+
+When implemented, publish the image to GHCR as
+`ghcr.io/sakibshuvo/entroping-ci`. The image should include pinned Entroping, Hurl, and hurlfmt versions.
+It should run as a non-root runtime user and expose OCI labels for source
+repository, revision, license, created timestamp, package version, Hurl version,
+and image description.
+
+Recommended version tags:
+
+- `vX.Y.Z` for immutable release tags after PyPI/TestPyPI proof.
+- `vX.Y` as a moving minor tag only after the immutable tag smoke passes.
+- `latest` only after at least one stable non-alpha release exists.
+
+CI users should prefer immutable tags or pin by immutable digest:
+
+```text
+ghcr.io/sakibshuvo/entroping-ci:vX.Y.Z@sha256:<digest>
+```
+
+The publish workflow should run smoke checks before promotion:
+
+- `entroping --version`;
+- `entroping doctor --ci`;
+- `hurl --version`;
+- `hurlfmt --version`;
+- a minimal `entroping init --minimal` plus no-provider doctor check;
+- a live Hurl-backed demo only when the image has network and fixture support.
+
+The rollback policy is: never mutate a broken immutable `vX.Y.Z` tag. Publish a
+fixed patch tag or yank/deprecate the image metadata, then update moving tags
+only after the replacement smoke passes. Keep the previous passing digest in
+release notes so CI users can roll back explicitly.
+
+A prerelease prototype may use a GitHub release artifact fallback only when the
+artifact tag is explicit and the image is clearly labeled prerelease. The public
+image should install released Entroping artifacts from the package index.
+
+Do not make Docker the only supported path. It is a convenience for Linux CI
+jobs after package-index proof; local developers should still be able to use
+`uv tool install`, PyPI, source checkout, and later Homebrew without Docker.
+
+See [ADR-0018](https://github.com/sakibshuvo/Entroping/blob/main/decisions/ADR-0018-docker-ci-image-boundary.md)
+for the recorded Docker CI image boundary.
 
 ## Follow-Up Implementation Issues
 

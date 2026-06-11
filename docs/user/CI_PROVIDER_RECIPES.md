@@ -67,6 +67,27 @@ real credentials, inject them through the CI provider's secret store and keep
 them out of `qanstitution.yaml`, Hurl files, committed env files, and uploaded
 reports.
 
+## Future Docker CI Image
+
+A future Docker image such as `ghcr.io/sakibshuvo/entroping-ci` is not a supported CI path yet.
+It is deferred until package-index proof exists, because the image should
+install released Entroping artifacts rather than hiding an unproven source
+install behind a container.
+See [ADR-0018](https://github.com/sakibshuvo/Entroping/blob/main/decisions/ADR-0018-docker-ci-image-boundary.md)
+for the deferral decision.
+
+When the image exists, CI users should pin by immutable digest instead of
+floating tags:
+
+```text
+ghcr.io/sakibshuvo/entroping-ci:vX.Y.Z@sha256:<digest>
+```
+
+That image does not replace the generic shell recipe. The shell recipe remains
+the transparent provider-neutral baseline for GitLab CI, Buildkite, CircleCI,
+and other Linux runners, while Docker is a later convenience for teams that
+prefer preinstalled Entroping, Hurl, and hurlfmt.
+
 ## GitLab CI
 
 Use the generic shell recipe in a Linux job with `artifacts: paths: [reports/]`.

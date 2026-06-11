@@ -136,6 +136,8 @@ instructions.
 - [[decisions/ADR-0011-organization-qanstitution-import-controls|ADR-0011]]
 - [[decisions/ADR-0012-brand-integrity-and-qanstitution-name|ADR-0012]]
 - [[decisions/ADR-0016-ide-authoring-support-for-qanstitution|ADR-0016]]
+- [[decisions/ADR-0017-official-github-action-boundary|ADR-0017]]
+- [[decisions/ADR-0018-docker-ci-image-boundary|ADR-0018]]
 
 ## Working Loop
 
