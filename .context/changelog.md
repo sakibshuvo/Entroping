@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Added issue #554's direct optional-extras smoke script coverage so local
+  tests now verify suppressed provider-library output, success output, safe
+  exception reporting, and non-callable AI/proxy boundary failures.
 - Fixed issue #552's Git-backed changed-file and OpenAPI baseline subprocess
   boundaries so slow `git diff` or `git show` calls time out after 30 seconds
   and surface typed Entroping errors instead of hanging beta workflows.
