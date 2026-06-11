@@ -71,6 +71,8 @@ def test_first_hour_policy_doc_is_visible_from_public_onboarding_surfaces() -> N
     assert required_link in readme
     assert "QANSTITUTION_FIRST_HOUR.md" in user_guide
     assert "QANSTITUTION_FIRST_HOUR.md" in reference
+    assert 'New QAnstitution files should use `version: "4.1"`.' in user_guide
+    assert "old or future version" in user_guide
     assert "user/QANSTITUTION_FIRST_HOUR.md" in docs_index
     assert "QAnstitution First Hour: user/QANSTITUTION_FIRST_HOUR.md" in mkdocs
     assert "[[docs/user/QANSTITUTION_FIRST_HOUR|QANSTITUTION_FIRST_HOUR]]" in vault_index

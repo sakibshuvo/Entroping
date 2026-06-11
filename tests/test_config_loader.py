@@ -307,12 +307,11 @@ def test_load_qanstitution_rejects_missing_root_file(tmp_path: Path) -> None:
         load_qanstitution(tmp_path / "missing.yaml")
 
 
-def test_load_qanstitution_rejects_unsupported_version(tmp_path: Path) -> None:
+def test_load_qanstitution_accepts_legacy_missing_version_marker(tmp_path: Path) -> None:
     write_yaml(
         tmp_path / "qanstitution.yaml",
         """
 project: checkout-api
-version: "5.0"
 gates:
   - id: versioned
     condition: "true"
@@ -321,8 +320,35 @@ gates:
 """,
     )
 
-    with pytest.raises(QanstitutionLoadError, match="Unsupported QAnstitution version"):
+    law = load_qanstitution(tmp_path / "qanstitution.yaml")
+
+    assert law.version is None
+
+
+@pytest.mark.parametrize("version", ["4.0", "4.2", "5.0"])
+def test_load_qanstitution_rejects_unsupported_version_with_migration_guidance(
+    tmp_path: Path,
+    version: str,
+) -> None:
+    write_yaml(
+        tmp_path / "qanstitution.yaml",
+        f"""
+project: checkout-api
+version: "{version}"
+gates:
+  - id: versioned
+    condition: "true"
+    gate: duration < 500
+    enforcement: block
+""",
+    )
+
+    with pytest.raises(QanstitutionLoadError) as exc_info:
         load_qanstitution(tmp_path / "qanstitution.yaml")
+    message = str(exc_info.value)
+    assert f"Unsupported QAnstitution version '{version}'" in message
+    assert "Supported versions: 4.1" in message
+    assert "QANSTITUTION_REFERENCE.md#qanstitution-schema-compatibility" in message
 
 
 def test_load_qanstitution_rejects_import_cycles(tmp_path: Path) -> None:

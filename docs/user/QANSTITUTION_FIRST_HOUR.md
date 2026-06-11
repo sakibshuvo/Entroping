@@ -56,6 +56,13 @@ settings:
 ```
 <!-- first-hour-policy:end -->
 
+## Version Marker
+
+Use `version: "4.1"` for new QAnstitution files. Existing files with no
+`version` marker are still accepted when they match the current v4.1 policy
+shape, but old or future markers fail during `entroping doctor` and config load
+with migration guidance instead of being guessed.
+
 ## How To Read One Gate
 
 ```yaml

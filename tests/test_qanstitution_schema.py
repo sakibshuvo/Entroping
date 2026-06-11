@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from entroping.models.conditions import CONDITION_JSON_SCHEMA_PATTERN
 from entroping.models.qanstitution import (
+    SUPPORTED_QANSTITUTION_VERSIONS,
     GateGroupReference,
     Qanstitution,
     expand_qanstitution_gate_entries,
@@ -49,6 +50,7 @@ def test_qanstitution_schema_contract_covers_current_runtime_shape() -> None:
     gate_properties = _object(gate_rule["properties"])
     gate_group_properties = _object(gate_group["properties"])
     condition_schema = _object(gate_properties["condition"])
+    version_schema = _object(properties["version"])
     agents_schema = _object(properties["agents"])
     agent_names = _object(agents_schema["propertyNames"])
     gates_schema = _object(properties["gates"])
@@ -71,6 +73,8 @@ def test_qanstitution_schema_contract_covers_current_runtime_shape() -> None:
     assert "groups" in gate_group_properties
     assert "anyOf" in _object(gates_schema["items"])
     assert condition_schema["pattern"] == CONDITION_JSON_SCHEMA_PATTERN
+    assert version_schema["enum"] == [*SUPPORTED_QANSTITUTION_VERSIONS, None]
+    assert "schema compatibility marker" in str(version_schema["description"])
 
     condition_pattern = re.compile(str(condition_schema["pattern"]))
     valid_policy = {
@@ -122,14 +126,38 @@ def test_qanstitution_schema_contract_covers_current_runtime_shape() -> None:
         Qanstitution.model_validate({**valid_policy, "redaction": {"headers": []}})
 
 
-def test_qanstitution_model_accepts_supported_version_marker() -> None:
-    Qanstitution.model_validate(
+@pytest.mark.parametrize(
+    "version",
+    [
+        "4.1",
+    ],
+)
+def test_qanstitution_model_accepts_supported_version_markers(version: str) -> None:
+    policy: dict[str, object] = {
+        "project": "checkout-api",
+        "version": version,
+        "gates": [
+            {
+                "id": "versioned",
+                "condition": "true",
+                "gate": "duration < 500",
+                "enforcement": "block",
+            }
+        ],
+    }
+
+    law = Qanstitution.model_validate(policy)
+
+    assert law.version == version
+
+
+def test_qanstitution_model_accepts_missing_version_marker_for_legacy_policy() -> None:
+    law = Qanstitution.model_validate(
         {
             "project": "checkout-api",
-            "version": "4.1",
             "gates": [
                 {
-                    "id": "versioned",
+                    "id": "legacy",
                     "condition": "true",
                     "gate": "duration < 500",
                     "enforcement": "block",
@@ -137,6 +165,8 @@ def test_qanstitution_model_accepts_supported_version_marker() -> None:
             ],
         }
     )
+
+    assert law.version is None
 
 
 def test_qanstitution_model_expands_gate_group_references() -> None:
@@ -166,12 +196,14 @@ def test_qanstitution_model_expands_gate_group_references() -> None:
     ("version", "message"),
     [
         ("", "must not be empty"),
+        (" 4.1 ", "must not contain leading or trailing whitespace"),
         ("4.0", "Unsupported QAnstitution version"),
+        ("4.2", "Unsupported QAnstitution version"),
         ("5.0", "Unsupported QAnstitution version"),
     ],
 )
 def test_qanstitution_model_rejects_invalid_version_markers(version: str, message: str) -> None:
-    with pytest.raises(ValidationError, match=message):
+    with pytest.raises(ValidationError, match=message) as exc_info:
         Qanstitution.model_validate(
             {
                 "project": "checkout-api",
@@ -186,6 +218,9 @@ def test_qanstitution_model_rejects_invalid_version_markers(version: str, messag
                 ],
             }
         )
+    assert "QANSTITUTION_REFERENCE.md#qanstitution-schema-compatibility" in str(
+        exc_info.value
+    )
 
 
 def test_qanstitution_model_rejects_malformed_known_failure_expiry() -> None:
@@ -356,9 +391,13 @@ def test_qanstitution_schema_authoring_guidance_is_public_and_editor_ready() -> 
     assert "VS Code and JetBrains" in reference
     assert "A dedicated IDE extension" in reference
     assert "runtime validation remains authoritative" in reference
+    assert 'Supported explicit marker for the v4.1 policy shape is `version: "4.1"`' in reference
+    assert "Migration helpers, if they are needed" in reference
+    assert "must never run implicitly from" in reference
     assert "qanstitution.schema.json" in first_hour
     assert "For JetBrains users" in first_hour
     assert "no plugin or custom Entroping service" in first_hour
+    assert 'Use `version: "4.1"` for new QAnstitution files.' in first_hour
     assert "docs/technical/qanstitution.schema.json" in readme
     assert "QANSTITUTION_FIRST_HOUR.md" in readme
     assert "QANSTITUTION_REFERENCE.md" in readme

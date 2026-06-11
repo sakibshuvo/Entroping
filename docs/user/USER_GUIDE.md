@@ -109,6 +109,10 @@ gates:
 For a plain-language walkthrough of these starter gates, read
 `docs/user/QANSTITUTION_FIRST_HOUR.md`.
 
+New QAnstitution files should use `version: "4.1"`. Existing unversioned policy
+files remain valid when they match the current shape, but old or future version
+markers fail validation instead of being migrated implicitly.
+
 Generate first tests from your API spec:
 
 ```bash
