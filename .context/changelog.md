@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Clarified issue #592's versioning split across README, Product Spec, TDS, and
+  Roadmap: v4.1 is the product/spec/CLI contract generation, while package
+  releases stay on alpha Git tags and PEP 440 metadata from `pyproject.toml`.
 - Added issue #593's installed CLI plus real-Hurl E2E proof so the suite now
   covers `entroping init` through `entroping run --ci --report json --report
   junit` against a localhost API, with JSON/JUnit assertions, injected

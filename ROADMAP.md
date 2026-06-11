@@ -16,6 +16,9 @@ development. The public roadmap is intentionally narrow: keep the deterministic
 Hurl and QAnstitution core strong, preserve the completed onboarding and product
 depth evidence, then move carefully into integrations and stable-core proof.
 
+Roadmap milestones such as `v0.4.0-alpha` are release milestones. They do not
+replace the locked v4.1 product/spec/CLI contract.
+
 Canonical work tracking lives in:
 
 - GitHub Issues for bugs, feature slices, regressions, and contribution tasks.

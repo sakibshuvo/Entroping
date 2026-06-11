@@ -170,6 +170,31 @@ def test_canonical_specs_do_not_label_current_alpha_as_stable() -> None:
         assert "stable-core" in header
 
 
+def test_docs_distinguish_v41_contract_from_package_release_version() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    product_spec = (REPO_ROOT / "docs/product/PRODUCT_SPEC.md").read_text(
+        encoding="utf-8"
+    )
+    tds = (REPO_ROOT / "docs/technical/TDS.md").read_text(encoding="utf-8")
+    roadmap = (REPO_ROOT / "ROADMAP.md").read_text(encoding="utf-8")
+    normalized_roadmap = " ".join(roadmap.split())
+
+    required_phrase = (
+        "v4.1 is the product/spec/CLI contract generation, "
+        "not the Python package release version"
+    )
+    for document in (readme, product_spec, tds):
+        normalized_document = " ".join(document.split())
+        assert required_phrase in normalized_document
+        assert "PEP 440 package metadata" in normalized_document
+
+    assert (
+        "Roadmap milestones such as `v0.4.0-alpha` are release milestones"
+        in normalized_roadmap
+    )
+    assert "do not replace the locked v4.1 product/spec/CLI contract" in normalized_roadmap
+
+
 def test_doc_governance_blocks_strategy_doc_sprawl() -> None:
     governance = (REPO_ROOT / "docs" / "meta" / "DOCS_GOVERNANCE.md").read_text(
         encoding="utf-8"

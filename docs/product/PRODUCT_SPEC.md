@@ -4,6 +4,7 @@
 **Spec Version:** 4.1
 **Implementation Maturity:** Alpha; stable-core readiness is blocked by package-index proof, real downstream feedback, and compatibility graduation.
 **Status:** Current product contract, not a stable-core release claim
+**Versioning Note:** v4.1 is the product/spec/CLI contract generation, not the Python package release version; package releases use alpha Git tags and PEP 440 package metadata tracked from `pyproject.toml`.
 **Philosophy:** The QAnstitution is Law. Traffic is Truth. Hurl is the Enforcer.
 
 ## 1. Executive Summary

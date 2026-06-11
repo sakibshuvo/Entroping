@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Entroping has two version tracks that must be named together in public docs:
+  v4.1 is the product/spec/CLI contract generation, while installable package
+  releases use alpha Git tags and PEP 440 metadata from `pyproject.toml`.
 - Stable-core E2E evidence should cross the installed CLI boundary when that is
   the user contract. In-process workflow calls are still valuable, but the
   launch proof for `init -> run -> reports` should execute the console script,

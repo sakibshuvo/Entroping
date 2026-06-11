@@ -132,6 +132,10 @@ flowchart LR
 
 This repository is the active alpha implementation for Entroping.
 
+Version note: v4.1 is the product/spec/CLI contract generation, not the Python
+package release version. Package releases use alpha Git tags and PEP 440
+package metadata tracked from `pyproject.toml`.
+
 Public roadmap: [ROADMAP.md](ROADMAP.md) and
 [GitHub Project board](https://github.com/users/sakibshuvo/projects/1).
 
