@@ -100,6 +100,7 @@ def test_deepseek_worker_help_documents_direct_api_options() -> None:
     assert "--api-key-env" in result.stdout
     assert "--base-url" in result.stdout
     assert "--max-file-bytes" in result.stdout
+    assert "Default: disabled" in result.stdout
     assert "deepseek-v4-pro" in result.stdout
 
 
@@ -220,8 +221,8 @@ def test_deepseek_worker_posts_openai_compatible_request_and_writes_artifacts(
     assert request["path"] == "/chat/completions"
     assert request["authorization"] == "Bearer test-secret-token"
     assert body["model"] == "deepseek-v4-pro"
-    assert body["thinking"] == {"type": "enabled"}
-    assert body["reasoning_effort"] == "high"
+    assert body["thinking"] == {"type": "disabled"}
+    assert "reasoning_effort" not in body
     assert "messages" in body
     messages = cast(list[dict[str, str]], body["messages"])
     assert "## Bounded File Contents" in messages[1]["content"]
@@ -238,6 +239,46 @@ def test_deepseek_worker_posts_openai_compatible_request_and_writes_artifacts(
     assert "test-secret-token" not in (artifact_dir / "metadata.json").read_text(
         encoding="utf-8"
     )
+
+
+def test_deepseek_worker_thinking_enabled_adds_reasoning_effort(
+    tmp_path: Path,
+) -> None:
+    DeepSeekStubHandler.requests = []
+    server = HTTPServer(("127.0.0.1", 0), DeepSeekStubHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base_url = f"http://127.0.0.1:{server.server_port}"
+
+    try:
+        result = run_worker(
+            "--mode",
+            "review",
+            "--file",
+            "README.md",
+            "--artifact-root",
+            str(tmp_path / "reviews"),
+            "--base-url",
+            base_url,
+            "--api-key-env",
+            "ENTROPING_TEST_DEEPSEEK_KEY",
+            "--thinking",
+            "enabled",
+            "--reasoning-effort",
+            "max",
+            "--json",
+            env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
+        )
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+    assert result.returncode == 0, result.stderr
+    request = DeepSeekStubHandler.requests[0]
+    body = cast(dict[str, object], request["body"])
+
+    assert body["thinking"] == {"type": "enabled"}
+    assert body["reasoning_effort"] == "max"
 
 
 def test_deepseek_worker_rejects_file_outside_repo_before_model_call(
