@@ -399,7 +399,7 @@ def test_readme_frontloads_owasp_policy_pack_wedge_without_overclaiming() -> Non
     )
 
 
-def test_launch_copy_keeps_advanced_surfaces_out_of_front_door() -> None:
+def test_launch_copy_keeps_pitch_excluded_surfaces_out_of_front_door() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     docs_index = (REPO_ROOT / "docs" / "index.md").read_text(encoding="utf-8")
     mkdocs = (REPO_ROOT / "mkdocs.yml").read_text(encoding="utf-8")
@@ -414,6 +414,7 @@ def test_launch_copy_keeps_advanced_surfaces_out_of_front_door() -> None:
 
     assert "REST/OpenAPI + QAnstitution + Hurl + CI reports" in project_context
     assert "advanced examples remain documented" in project_context
+    assert "optional dependency mapping" in public_pitch
     assert "examples/graphql-api" not in project_context
     assert "examples/soap-api" not in project_context
     assert "Studio Mutation Workflow Design" not in docs_index.split(
@@ -422,6 +423,20 @@ def test_launch_copy_keeps_advanced_surfaces_out_of_front_door() -> None:
     )[0]
     assert "Advanced Boundaries" in mkdocs
     assert "Studio Mutation Workflow Design" in mkdocs
+
+    surface_scope = (REPO_ROOT / "docs" / "technical" / "SURFACE_SCOPE.md").read_text(
+        encoding="utf-8"
+    )
+    assert (
+        "| WireMock mappings (`freeze --mock`) | **advanced-but-supported** | Excluded |"
+        in surface_scope
+    )
+    assert (
+        "| Dependency maps (`map --export`) | **advanced-but-supported** | "
+        "Qualified visual evidence |"
+    ) in surface_scope
+    assert "**Public pitch** records whether" in surface_scope
+    assert "not the primary value proposition" in surface_scope
 
 
 def test_zero_config_demo_decision_keeps_live_smoke_as_release_gate() -> None:

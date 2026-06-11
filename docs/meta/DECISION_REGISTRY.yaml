@@ -323,9 +323,11 @@ decisions:
     summary: >
       Launch scope is explicit: REST/OpenAPI + QAnstitution + Hurl + CI reports
       remain core; `studio` read-only and WireMock exports are advanced-but-
-      supported; GraphQL and SOAP fixtures remain hidden examples until roadmap
-      proof moves them into the core story.
-    tags: [surface-scope, documentation, launch-readiness, studio, wiremock, protocol-examples]
+      supported but excluded from the first-hour pitch; dependency maps are
+      advanced-but-supported and may receive qualified visual-evidence treatment
+      in README/assets; GraphQL and SOAP fixtures remain hidden examples until
+      roadmap proof moves them into the core story.
+    tags: [surface-scope, documentation, launch-readiness, studio, wiremock, dependency-map, protocol-examples]
     source_links:
       - path: docs/technical/SURFACE_SCOPE.md
         role: technical-reference
