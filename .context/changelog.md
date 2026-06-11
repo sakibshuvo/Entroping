@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Clarified issue #586's launch surface boundary: WireMock mappings and
+  dependency maps remain supported, tested, optional advanced surfaces, while
+  REST/OpenAPI + QAnstitution + Hurl + CI reports stay the primary launch story.
 - Defined issue #588's QAnstitution schema-version policy: `version: "4.1"`
   or omitted legacy markers are accepted, old/future markers fail closed with
   migration guidance, the authoring JSON Schema exposes the supported marker,
