@@ -64,10 +64,11 @@ def test_project_progress_stays_a_short_daily_dashboard() -> None:
     assert "after #491 closes" not in progress
     assert "after #501" not in progress
     assert "Current local queue: #517-#523" not in progress
-    assert "No ready local cleanup queue remains" in progress
+    assert "Current local queue: only review-proven local gaps should be worked" in progress
     assert "| 1 | #303-#306 | Package-index proof" in progress
     assert "stable-core compatibility decision" in progress
     assert "Compatibility discipline" not in progress
+    assert "Policy-diff CI failure mode" in progress
     assert "traffic approval manifest redaction confidence" in progress
     assert progress.count("[Changed Hurl test runs]") == 1
     assert (

@@ -19,6 +19,26 @@ from cli_test_support import (
 )
 
 
+def _write_effective_policy_report(
+    path: Path,
+    *,
+    imports: tuple[str, ...] = (),
+    gates: tuple[dict[str, object], ...] = (),
+) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.effective-policy-report.v1",
+                "project": "checkout-api",
+                "config_path": "qanstitution.yaml",
+                "imports": list(imports),
+                "gates": list(gates),
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_report_help_tiers_core_ci_review_commands_before_advanced_evidence() -> None:
     result = CliRunner().invoke(app, ["report", "--help"])
 
@@ -1012,6 +1032,112 @@ def test_report_policy_diff_emits_markdown_no_change(
     assert result.exit_code == 0
     assert "# Entroping Effective Policy Diff" in result.stdout
     assert "No effective policy differences found." in result.stdout
+
+
+def test_report_policy_diff_fail_on_change_exits_nonzero_for_changed_diff(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports = Path("reports")
+    reports.mkdir()
+    _write_effective_policy_report(
+        reports / "base-policy.json",
+        gates=(
+            {
+                "id": "latency",
+                "source_path": "qanstitution.yaml",
+                "condition": "true",
+                "gate": "duration < 1000",
+                "enforcement": "block",
+                "final": False,
+                "group": None,
+                "description": None,
+            },
+        ),
+    )
+    _write_effective_policy_report(
+        reports / "effective-policy.json",
+        gates=(
+            {
+                "id": "latency",
+                "source_path": "qanstitution.yaml",
+                "condition": "true",
+                "gate": "duration < 1000",
+                "enforcement": "block",
+                "final": False,
+                "group": None,
+                "description": None,
+            },
+            {
+                "id": "auth",
+                "source_path": "rules/current.yaml",
+                "condition": "true",
+                "gate": 'header "Authorization" exists',
+                "enforcement": "warn",
+                "final": False,
+                "group": None,
+                "description": None,
+            },
+        ),
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "report",
+            "policy-diff",
+            "--base",
+            "reports/base-policy.json",
+            "--current",
+            "reports/effective-policy.json",
+            "--output",
+            "json",
+            "--fail-on-change",
+        ],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "changed"
+    assert payload["summary"]["added_gates"] == 1
+
+
+def test_report_policy_diff_fail_on_change_allows_unchanged_diff(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports = Path("reports")
+    reports.mkdir()
+    policy = {
+        "id": "latency",
+        "source_path": "qanstitution.yaml",
+        "condition": "true",
+        "gate": "duration < 1000",
+        "enforcement": "block",
+        "final": False,
+        "group": None,
+        "description": None,
+    }
+    _write_effective_policy_report(reports / "base-policy.json", gates=(policy,))
+    _write_effective_policy_report(reports / "effective-policy.json", gates=(policy,))
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "report",
+            "policy-diff",
+            "--base",
+            "reports/base-policy.json",
+            "--current",
+            "reports/effective-policy.json",
+            "--fail-on-change",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Status: **unchanged**" in result.stdout
 
 
 def test_report_policy_diff_rejects_bad_output() -> None:

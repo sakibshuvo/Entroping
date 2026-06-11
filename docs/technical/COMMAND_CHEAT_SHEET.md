@@ -33,7 +33,7 @@ entroping report badges [--output <directory>] [--run-json <path>] [--policy-jso
 entroping report redaction [--output <md|html>]
 entroping report capture-summary [--output <md|json>]
 entroping report policy [--output <md|json>]
-entroping report policy-diff [--base <path>] [--current <path>] [--output <md|json>]
+entroping report policy-diff [--base <path>] [--current <path>] [--output <md|json>] [--fail-on-change]
 entroping report gate-coverage [--output <md|json>]
 entroping report gate-injection --target <path> [--output <md|json>]
 entroping report artifact-manifest [--output <path>]
@@ -333,7 +333,7 @@ Advanced evidence commands:
 | `entroping report capture-summary --output json` | Write machine-readable capture summary evidence to `reports/capture-summary.json` |
 | `entroping report policy --output md` | Write effective QAnstitution gate provenance to `reports/effective-policy.md` |
 | `entroping report policy --output json` | Write machine-readable effective policy evidence to `reports/effective-policy.json` |
-| `entroping report policy-diff --base <path> --current <path>` | Compare two effective-policy JSON artifacts and emit Markdown or JSON to stdout |
+| `entroping report policy-diff --base <path> --current <path>` | Compare two effective-policy JSON artifacts and emit Markdown or JSON to stdout; add `--fail-on-change` to make effective-policy drift fail CI |
 | `entroping report gate-coverage --output md` | Write a policy gate coverage matrix to `reports/gate-coverage.md` |
 | `entroping report gate-coverage --output json` | Write machine-readable gate coverage evidence to `reports/gate-coverage.json` |
 | `entroping report gate-injection --target <path>` | Explain selected-file gate injection without running Hurl or mutating sources |
@@ -355,6 +355,7 @@ entroping report redaction --output md
 entroping report capture-summary --output md
 entroping report policy --output md
 entroping report policy-diff --base reports/base-effective-policy.json --current reports/effective-policy.json
+entroping report policy-diff --base reports/base-effective-policy.json --current reports/effective-policy.json --fail-on-change
 entroping report gate-coverage --output md
 entroping report gate-injection --target tests/health.hurl --output md
 entroping report artifact-manifest

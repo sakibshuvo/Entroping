@@ -169,6 +169,13 @@ def report_policy_diff(
         str,
         typer.Option("--output", help="Output format: md or json."),
     ] = "md",
+    fail_on_change: Annotated[
+        bool,
+        typer.Option(
+            "--fail-on-change",
+            help="Exit 1 when the effective policy diff status is changed.",
+        ),
+    ] = False,
 ) -> None:
     """Compare two local effective policy JSON reports without loading policy files."""
 
@@ -200,6 +207,7 @@ def report_policy_diff(
         sys.stdout.write("\n")
     else:
         sys.stdout.write(render_effective_policy_diff_markdown(report))
+    raise typer.Exit(1 if fail_on_change and report.changed else 0)
 
 
 @app.command("badges", rich_help_panel=ADVANCED_REPORT_PANEL)

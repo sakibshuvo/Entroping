@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Added issue #565's `entroping report policy-diff --fail-on-change` CI mode
+  so effective-policy drift can fail a build explicitly while default
+  review/report behavior still exits successfully for valid changed diffs.
 - Added issue #558's report help tiering so `entroping report --help` now
   shows first-hour CI/review commands before advanced local evidence commands
   without renaming or removing any report subcommands.

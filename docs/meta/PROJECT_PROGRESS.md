@@ -26,11 +26,9 @@ keeps the current direction, next queue, and release evidence easy to scan.
 
 ## Current Target
 
-**Goal:** finish the v0.4 integration path without reopening completed
-onboarding/product-depth work, while keeping stable-core readiness tied to
-external evidence instead of green local tests alone.
+**Goal:** finish the v0.4 integration path without reopening completed onboarding/product-depth work; stable-core readiness stays tied to external evidence.
 
-Current local queue: No ready local cleanup queue remains; stable-core readiness still depends on external evidence and package-index proof.
+Current local queue: only review-proven local gaps should be worked (#559, #561, #562, #565); stable-core readiness still depends on external evidence.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 
@@ -42,7 +40,7 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 
 ## Next Three Issues
 
-With #517-#523 and #548 closed, do not create filler work when only external stable-core blockers remain.
+With #517-#523 and #548 closed, keep local work limited to review-proven defects or product gaps; do not create filler work.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
@@ -68,6 +66,7 @@ entirely inside this repo.
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Policy-diff CI failure mode](https://github.com/sakibshuvo/Entroping/issues/565) | Done | `entroping report policy-diff --fail-on-change` keeps the default review report successful for valid changed diffs while giving CI an explicit nonzero gate for effective-policy drift. |
 | [traffic approval manifest redaction confidence](https://github.com/sakibshuvo/Entroping/issues/499) | Done | `reports/approvals/*.json` records `low_confidence_records`, the published approval schema requires it, and strict-doc plus Hurl formatter CI checks were repaired. |
 | [Redaction-confidence artifact gate](https://github.com/sakibshuvo/Entroping/issues/495) | Done | Traffic redaction now marks low/high confidence at body and exchange level, redaction reviews expose low-confidence counts without raw values, and `freeze`, `freeze --mock`, and `map --export png` fail closed before writing artifacts from low-confidence records. |
 | [Known-failure CI validation](https://github.com/sakibshuvo/Entroping/issues/491) | Done | `ignore_failures[].expires` now fails policy loading when malformed, `doctor --ci` fails expired known-failure exceptions before readiness passes, and runtime/report gate-injection paths share the same expiry validator. |

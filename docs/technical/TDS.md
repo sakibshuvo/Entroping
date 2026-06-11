@@ -685,7 +685,7 @@ Reports are written under `reports/`.
 | Redaction Review | `report redaction --output md|html` | Captured-traffic redaction coverage review |
 | Capture Summary | `report capture-summary --output md|json` | Counts-only captured-traffic session summary |
 | Effective Policy | `report policy --output md|json` | Resolved QAnstitution gate provenance |
-| Effective Policy Diff | `report policy-diff --base <path> --current <path> --output md|json` | Import/gate differences between two effective-policy JSON artifacts |
+| Effective Policy Diff | `report policy-diff --base <path> --current <path> --output md|json [--fail-on-change]` | Import/gate differences between two effective-policy JSON artifacts; opt-in CI failure on changed diff |
 | Artifact Manifest | `report artifact-manifest` | Checksum manifest for local report artifacts |
 | Agent Review Bundle | `report agent-bundle` | Local Builder/Breaker/Auditor evidence from sanitized manifests |
 | Traceability Markdown/JSON | `report traceability --output md|json` | Local story/test coverage review |
@@ -823,7 +823,7 @@ entroping report badges [--output <directory>] [--run-json <path>] [--policy-jso
 entroping report redaction [--output <md|html>]
 entroping report capture-summary [--output <md|json>]
 entroping report policy [--output <md|json>]
-entroping report policy-diff [--base <path>] [--current <path>] [--output <md|json>]
+entroping report policy-diff [--base <path>] [--current <path>] [--output <md|json>] [--fail-on-change]
 entroping report gate-coverage [--output <md|json>]
 entroping report gate-injection --target <path> [--output <md|json>]
 entroping report artifact-manifest [--output <path>]
@@ -1052,7 +1052,7 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report capture-summary --output json` | `reports/capture-summary.json` | Machine-readable capture summary using `entroping.capture-summary.v1`. |
 | `entroping report policy --output md` | `reports/effective-policy.md` | Human-readable resolved QAnstitution gate provenance. |
 | `entroping report policy --output json` | `reports/effective-policy.json` | Machine-readable effective policy evidence using `entroping.effective-policy-report.v1`. |
-| `entroping report policy-diff --output md|json` | `stdout Effective Policy Diff Markdown/JSON` | Import and gate differences between two effective-policy JSON artifacts using `entroping.effective-policy-diff.v1`. |
+| `entroping report policy-diff --output md|json` | `stdout Effective Policy Diff Markdown/JSON` | Import and gate differences between two effective-policy JSON artifacts using `entroping.effective-policy-diff.v1`; `--fail-on-change` exits `1` when the status is changed. |
 | `entroping report gate-coverage --output md` | `reports/gate-coverage.md` | Human-readable policy gate coverage matrix for committed Hurl tests. |
 | `entroping report gate-coverage --output json` | `reports/gate-coverage.json` | Machine-readable policy gate coverage matrix using `entroping.gate-coverage-report.v1`. |
 | `entroping report gate-injection --output md` | `reports/gate-injection.md` | Human-readable gate-injection explanation for selected Hurl files. |
