@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Tuned issue #605's direct DeepSeek worker default so short review jobs use
+  `--thinking disabled` by default, with high-effort thinking kept as an
+  explicit opt-in for deliberate deep-review runs.
 - Added issue #589's direct DeepSeek bounded-context policy so
   `scripts/deepseek_worker.py` now sends selected repo file contents only after
   size, binary, path, UTF-8, and secret-like-content checks pass before any

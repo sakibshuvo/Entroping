@@ -65,6 +65,8 @@ def test_agent_control_plane_documents_direct_deepseek_worker_boundary() -> None
     assert "Before any artifact is written or provider request is made" in normalized
     assert "secret-like content" in normalized
     assert "maintainer-only local development tooling" in doc
+    assert "--thinking disabled" in doc
+    assert "--thinking enabled --reasoning-effort high|max" in doc
     assert "does not replace Entroping's LiteLLM product boundary" in doc
     assert "never applies patches" in doc
 

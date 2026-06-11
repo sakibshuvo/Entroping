@@ -234,8 +234,11 @@ def _parse_args() -> DirectWorkerConfig:
     parser.add_argument(
         "--thinking",
         choices=("enabled", "disabled"),
-        default="enabled",
-        help="DeepSeek thinking mode toggle. Default: enabled.",
+        default="disabled",
+        help=(
+            "DeepSeek thinking mode toggle. Default: disabled to avoid hidden "
+            "reasoning-token burn for short worker reviews."
+        ),
     )
     parser.add_argument(
         "--reasoning-effort",
