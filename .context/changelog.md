@@ -2,6 +2,10 @@
 
 ## 2026-06-11
 
+- Added issue #589's direct DeepSeek bounded-context policy so
+  `scripts/deepseek_worker.py` now sends selected repo file contents only after
+  size, binary, path, UTF-8, and secret-like-content checks pass before any
+  artifact write or provider call.
 - Fixed issue #572's public changelog ordering so dated release sections stay
   reverse-chronological, with a release-doc regression test to prevent stale
   release history from drifting again.

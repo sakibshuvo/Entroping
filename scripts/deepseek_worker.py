@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess  # nosec B404
 import sys
 import uuid
@@ -22,10 +23,42 @@ DEFAULT_API_KEY_ENV = "DEEPSEEK_API_KEY"
 DEFAULT_ARTIFACT_ROOT = Path(".entroping") / "ai-reviews"
 DEFAULT_TIMEOUT_SECONDS = 300.0
 DEFAULT_MAX_TOKENS = 4096
+DEFAULT_MAX_FILE_BYTES = 64_000
 Mode = Literal["review", "patch"]
 Status = Literal["completed", "dry-run", "failed", "inconclusive", "patch-proposed", "timed-out"]
 ThinkingMode = Literal["enabled", "disabled"]
 ReasoningEffort = Literal["high", "max"]
+SENSITIVE_PATH_NAMES = frozenset(
+    {
+        ".env",
+        ".env.local",
+        ".env.production",
+        ".npmrc",
+        ".pypirc",
+        "credentials",
+        "credentials.json",
+        "id_rsa",
+        "id_ed25519",
+    }
+)
+SENSITIVE_PATH_SUFFIXES = (".key", ".pem", ".p12", ".pfx")
+SECRET_LIKE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (
+        "private key block",
+        re.compile(r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----"),
+    ),
+    (
+        "credential assignment",
+        re.compile(
+            r"(?i)\b(?:[A-Z0-9_]*API[_-]?KEY|TOKEN|SECRET|PASSWORD)\b"
+            r"\s*[:=]\s*['\"]?[A-Za-z0-9][A-Za-z0-9._~+/\-=]{15,}"
+        ),
+    ),
+    (
+        "bearer token",
+        re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/\-=]{16,}"),
+    ),
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +74,7 @@ class DirectWorkerConfig:
     api_key_env: str
     timeout_seconds: float
     max_tokens: int
+    max_file_bytes: int
     thinking: ThinkingMode
     reasoning_effort: ReasoningEffort
     issue: str | None
@@ -60,6 +94,14 @@ class DirectWorkerResult:
     stderr: str
     response_payload: dict[str, object] | None
     usage: dict[str, object] | None
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedContextFile:
+    """Validated file content allowed to leave the local machine."""
+
+    relative_path: str
+    content: str
 
 
 class DirectWorkerInputError(ValueError):
@@ -97,11 +139,12 @@ def main() -> int:
 def run_worker(config: DirectWorkerConfig) -> DirectWorkerResult:
     """Run a direct DeepSeek request and write local artifacts."""
 
+    context_files = _prepare_context_files(config)
     api_key = "" if config.dry_run else _read_api_key(config.api_key_env)
     artifact_dir = _new_artifact_dir(config.artifact_root, config.mode)
     artifact_dir.mkdir(parents=True, exist_ok=False)
 
-    prompt = _build_prompt(config)
+    prompt = _build_prompt(config, context_files)
     (artifact_dir / "prompt.md").write_text(prompt, encoding="utf-8")
 
     endpoint = _chat_endpoint(config.base_url)
@@ -180,6 +223,15 @@ def _parse_args() -> DirectWorkerConfig:
         help="Maximum completion tokens for the worker response.",
     )
     parser.add_argument(
+        "--max-file-bytes",
+        type=int,
+        default=DEFAULT_MAX_FILE_BYTES,
+        help=(
+            "Maximum bytes per selected file to include in the prompt. "
+            f"Default: {DEFAULT_MAX_FILE_BYTES}."
+        ),
+    )
+    parser.add_argument(
         "--thinking",
         choices=("enabled", "disabled"),
         default="enabled",
@@ -210,6 +262,9 @@ def _parse_args() -> DirectWorkerConfig:
     if args.max_tokens <= 0:
         msg = "--max-tokens must be greater than zero"
         raise DirectWorkerInputError(msg)
+    if args.max_file_bytes <= 0:
+        msg = "--max-file-bytes must be greater than zero"
+        raise DirectWorkerInputError(msg)
 
     api_key_env = _validate_env_name(str(args.api_key_env))
     base_url = _validate_base_url(str(args.base_url))
@@ -230,6 +285,7 @@ def _parse_args() -> DirectWorkerConfig:
         api_key_env=api_key_env,
         timeout_seconds=float(args.timeout_seconds),
         max_tokens=int(args.max_tokens),
+        max_file_bytes=int(args.max_file_bytes),
         thinking=thinking,
         reasoning_effort=reasoning_effort,
         issue=args.issue,
@@ -304,7 +360,74 @@ def _read_api_key(env_name: str) -> str:
     return api_key
 
 
-def _build_prompt(config: DirectWorkerConfig) -> str:
+def _prepare_context_files(config: DirectWorkerConfig) -> tuple[PreparedContextFile, ...]:
+    prepared_files: list[PreparedContextFile] = []
+    for path in config.files:
+        relative_path = path.relative_to(config.repo_root).as_posix()
+        _reject_sensitive_path(relative_path)
+        try:
+            size = path.stat().st_size
+        except OSError as exc:
+            msg = f"could not stat selected file: {relative_path}"
+            raise DirectWorkerInputError(msg) from exc
+        if size > config.max_file_bytes:
+            msg = (
+                "refusing to send selected file to DeepSeek: "
+                f"{relative_path} is {size} bytes and exceeds --max-file-bytes "
+                f"({config.max_file_bytes})"
+            )
+            raise DirectWorkerInputError(msg)
+        try:
+            raw_content = path.read_bytes()
+        except OSError as exc:
+            msg = f"could not read selected file: {relative_path}"
+            raise DirectWorkerInputError(msg) from exc
+        if b"\x00" in raw_content:
+            msg = (
+                "refusing to send selected file to DeepSeek: "
+                f"{relative_path} contains binary content"
+            )
+            raise DirectWorkerInputError(msg)
+        try:
+            content = raw_content.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            msg = (
+                "refusing to send selected file to DeepSeek: "
+                f"{relative_path} must be UTF-8 text"
+            )
+            raise DirectWorkerInputError(msg) from exc
+        _reject_secret_like_content(relative_path, content)
+        prepared_files.append(
+            PreparedContextFile(relative_path=relative_path, content=content)
+        )
+    return tuple(prepared_files)
+
+
+def _reject_sensitive_path(relative_path: str) -> None:
+    parts = [part.lower() for part in Path(relative_path).parts]
+    name = parts[-1]
+    if name in SENSITIVE_PATH_NAMES or name.endswith(SENSITIVE_PATH_SUFFIXES):
+        msg = (
+            "refusing to send selected file to DeepSeek: "
+            f"{relative_path} looks like a sensitive credential file"
+        )
+        raise DirectWorkerInputError(msg)
+
+
+def _reject_secret_like_content(relative_path: str, content: str) -> None:
+    for label, pattern in SECRET_LIKE_PATTERNS:
+        if pattern.search(content):
+            msg = (
+                "refusing to send selected file to DeepSeek: "
+                f"{relative_path} contains secret-like content ({label})"
+            )
+            raise DirectWorkerInputError(msg)
+
+
+def _build_prompt(
+    config: DirectWorkerConfig,
+    context_files: tuple[PreparedContextFile, ...],
+) -> str:
     template = _template_path(config.repo_root, config.mode).read_text(encoding="utf-8")
     relative_files = [path.relative_to(config.repo_root).as_posix() for path in config.files]
     absolute_files = [str(path) for path in config.files]
@@ -324,9 +447,40 @@ def _build_prompt(config: DirectWorkerConfig) -> str:
     lines.extend(f"- {path}" for path in relative_files)
     lines.extend(["", "## Absolute File Paths", ""])
     lines.extend(f"- {path}" for path in absolute_files)
+    lines.extend(
+        [
+            "",
+            "## Bounded File Contents",
+            "",
+            (
+                "The following UTF-8 text files passed local size, binary, path, "
+                "and secret-like-content checks before this prompt was built."
+            ),
+            "",
+        ]
+    )
+    for context_file in context_files:
+        fence = _markdown_fence(context_file.content)
+        lines.extend(
+            [
+                f"### File: {context_file.relative_path}",
+                "",
+                f"{fence}text",
+                context_file.content.rstrip("\n"),
+                fence,
+                "",
+            ]
+        )
     if config.instruction is not None:
         lines.extend(["", "## Task Instruction", "", config.instruction.strip()])
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _markdown_fence(content: str) -> str:
+    longest_run = 0
+    for match in re.finditer(r"`+", content):
+        longest_run = max(longest_run, len(match.group(0)))
+    return "`" * max(3, longest_run + 1)
 
 
 def _template_path(repo_root: Path, mode: Mode) -> Path:
@@ -572,6 +726,8 @@ def _write_metadata(
         "returncode": result.returncode,
         "timeout_seconds": config.timeout_seconds,
         "max_tokens": config.max_tokens,
+        "max_file_bytes": config.max_file_bytes,
+        "context_policy": "bounded-file-content-v1",
         "base_url": config.base_url,
         "endpoint": endpoint,
         "api_key_env": config.api_key_env,

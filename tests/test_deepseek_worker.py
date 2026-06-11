@@ -38,6 +38,17 @@ def read_metadata(artifact_dir: Path) -> dict[str, object]:
     return cast(dict[str, object], payload)
 
 
+def make_worker_repo(tmp_path: Path) -> Path:
+    repo = tmp_path / "worker-repo"
+    repo.mkdir()
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    prompt_dir = repo / "prompts" / "deepseek"
+    prompt_dir.mkdir(parents=True)
+    (prompt_dir / "review.md").write_text("Review template\n", encoding="utf-8")
+    (prompt_dir / "patch.md").write_text("Patch template\n", encoding="utf-8")
+    return repo
+
+
 class DeepSeekStubHandler(BaseHTTPRequestHandler):
     """Tiny local OpenAI-compatible endpoint for direct-worker tests."""
 
@@ -88,6 +99,7 @@ def test_deepseek_worker_help_documents_direct_api_options() -> None:
     assert result.returncode == 0
     assert "--api-key-env" in result.stdout
     assert "--base-url" in result.stdout
+    assert "--max-file-bytes" in result.stdout
     assert "deepseek-v4-pro" in result.stdout
 
 
@@ -121,6 +133,9 @@ def test_deepseek_worker_dry_run_writes_prompt_and_metadata_without_api_key(
     prompt = (artifact_dir / "prompt.md").read_text(encoding="utf-8")
     assert "Codex remains the integrator" in prompt
     assert str(target_file.resolve()) in prompt
+    assert "## Bounded File Contents" in prompt
+    assert "### File: README.md" in prompt
+    assert "# Entroping" in prompt
     assert not (artifact_dir / "stdout.txt").exists()
     assert "secret" not in (artifact_dir / "metadata.json").read_text(encoding="utf-8")
 
@@ -208,6 +223,9 @@ def test_deepseek_worker_posts_openai_compatible_request_and_writes_artifacts(
     assert body["thinking"] == {"type": "enabled"}
     assert body["reasoning_effort"] == "high"
     assert "messages" in body
+    messages = cast(list[dict[str, str]], body["messages"])
+    assert "## Bounded File Contents" in messages[1]["content"]
+    assert "# Entroping" in messages[1]["content"]
     assert metadata["status"] == "completed"
     assert metadata["usage"] == {
         "completion_tokens": 7,
@@ -242,4 +260,92 @@ def test_deepseek_worker_rejects_file_outside_repo_before_model_call(
 
     assert result.returncode == 2
     assert "input file must be inside repository" in result.stderr
+    assert not (tmp_path / "reviews").exists()
+
+
+def test_deepseek_worker_rejects_secret_like_file_before_artifact_or_model_call(
+    tmp_path: Path,
+) -> None:
+    repo = make_worker_repo(tmp_path)
+    secret_file = repo / "notes.md"
+    secret_file.write_text(
+        "OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456\n",
+        encoding="utf-8",
+    )
+    DeepSeekStubHandler.requests = []
+    server = HTTPServer(("127.0.0.1", 0), DeepSeekStubHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        result = run_worker(
+            "--mode",
+            "review",
+            "--file",
+            "notes.md",
+            "--artifact-root",
+            str(tmp_path / "reviews"),
+            "--base-url",
+            f"http://127.0.0.1:{server.server_port}",
+            "--api-key-env",
+            "ENTROPING_TEST_DEEPSEEK_KEY",
+            env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
+            cwd=repo,
+        )
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+    assert result.returncode == 2
+    assert "refusing to send selected file to DeepSeek" in result.stderr
+    assert "secret-like content" in result.stderr
+    assert not (tmp_path / "reviews").exists()
+    assert DeepSeekStubHandler.requests == []
+
+
+def test_deepseek_worker_rejects_binary_file_before_artifact_write(
+    tmp_path: Path,
+) -> None:
+    repo = make_worker_repo(tmp_path)
+    binary_file = repo / "payload.bin"
+    binary_file.write_bytes(b"not-text\x00payload")
+
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        "payload.bin",
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--dry-run",
+        cwd=repo,
+    )
+
+    assert result.returncode == 2
+    assert "binary content" in result.stderr
+    assert not (tmp_path / "reviews").exists()
+
+
+def test_deepseek_worker_rejects_oversized_file_before_artifact_write(
+    tmp_path: Path,
+) -> None:
+    repo = make_worker_repo(tmp_path)
+    oversized_file = repo / "large.md"
+    oversized_file.write_text("x" * 12, encoding="utf-8")
+
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        "large.md",
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--max-file-bytes",
+        "10",
+        "--dry-run",
+        cwd=repo,
+    )
+
+    assert result.returncode == 2
+    assert "exceeds --max-file-bytes" in result.stderr
     assert not (tmp_path / "reviews").exists()
