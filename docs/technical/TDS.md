@@ -3,6 +3,7 @@
 **System:** Entroping Core
 **Design Version:** 4.1
 **Implementation Maturity:** Alpha; stable-core readiness is blocked by package-index proof, downstream feedback, and compatibility graduation.
+**Versioning Note:** v4.1 is the product/spec/CLI contract generation, not the Python package release version; package releases use alpha Git tags and PEP 440 package metadata tracked from `pyproject.toml`.
 **Architecture:** Hexagonal, local-first, Git-native
 **Runtime Principle:** Python orchestrates. Hurl enforces.
 

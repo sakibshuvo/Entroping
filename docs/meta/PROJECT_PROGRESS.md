@@ -64,6 +64,7 @@ Stable-core readiness remains blocked by evidence that cannot be manufactured en
 
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Spec contract versus package release versioning](https://github.com/sakibshuvo/Entroping/issues/592) | Done | README, Product Spec, TDS, and Roadmap now state that v4.1 is the product/spec/CLI contract generation, not the Python package release version; package releases remain alpha Git tags and PEP 440 package metadata tracked from `pyproject.toml`. |
 | [Real-Hurl CLI E2E proof](https://github.com/sakibshuvo/Entroping/issues/593) | Done | A pytest integration now skips cleanly when Hurl is unavailable; when present, it starts a localhost API, drives `entroping init` plus `entroping run --ci --report json --report junit` through the installed console script, validates JSON/JUnit reports and injected QAnstitution rule IDs, and proves the source `.hurl` file is unchanged. |
 | [GitHub Actions bootstrap install strategy](https://github.com/sakibshuvo/Entroping/issues/570) | Done | Generated starters now install through `ENTROPING_INSTALL_SPEC`, defaulting to the latest GitHub source branch while preserving explicit tag pinning through one workflow env value and documented migration guidance for older pinned starters. |
 | [Hurl binary discovery trust policy](https://github.com/sakibshuvo/Entroping/issues/611) | Done | Bare binary names intentionally trust parent `PATH`, explicit absolute Hurl paths are normalized so pinned CI/high-assurance callers can bypass hostile earlier `PATH` entries, relative binary paths fail closed, missing Hurl does not claim version-check evidence, and child subprocess `PATH` minimization remains tested. |
@@ -130,7 +131,6 @@ Stable-core readiness remains blocked by evidence that cannot be manufactured en
 | [Hurl variable preflight](https://github.com/sakibshuvo/Entroping/issues/396) | Done | `entroping run` fails before Hurl execution when selected tests reference unresolved variables, while reporting only missing names. |
 | [Changed Hurl test runs](https://github.com/sakibshuvo/Entroping/issues/397) | Done | `entroping run --changed-from <ref>` selects existing changed `.hurl` files from Git diff for fast local or agent feedback. |
 | [SARIF report output](https://github.com/sakibshuvo/Entroping/issues/398) | Done | `entroping report sarif` writes SARIF 2.1.0 from local JUnit, drift, and optional traceability findings for code-scanning import. |
-| [Reviewed drift baseline promotion](https://github.com/sakibshuvo/Entroping/issues/399) | Done | `entroping report promote-drift-baseline` validates a reviewed candidate before atomically writing `.entroping/drift-baseline.json`. |
 ## Source Of Truth
 
 | Question | Source |
