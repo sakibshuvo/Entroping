@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Added issue #558's report help tiering so `entroping report --help` now
+  shows first-hour CI/review commands before advanced local evidence commands
+  without renaming or removing any report subcommands.
 - Added issue #560's scheduled/manual performance-smoke workflow so
   `scripts/performance_smoke.py` now produces recurring CI evidence without
   adding timing-sensitive work to every pull request.

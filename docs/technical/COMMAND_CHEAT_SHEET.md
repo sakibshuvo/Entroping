@@ -306,11 +306,26 @@ Variables can come from `envs/<name>.env`, explicit shell
 
 ## Reporting
 
+`entroping report --help` groups first-hour CI/review commands under
+`Core CI And Review` and keeps deeper local evidence commands under
+`Advanced Evidence`. The command names remain stable; the grouping is only a
+discovery aid.
+
+Core CI/review commands:
+
 | Command | Purpose |
 | --- | --- |
 | `entroping report bug` | Generate a Markdown bug report from the latest failure |
-| `entroping report failure-bundle` | Write a sanitized issue handoff bundle to `reports/failure-bundle/manifest.json` |
 | `entroping report delta --base <path> --current <path>` | Compare two JSON run reports and emit deterministic Markdown or JSON delta output |
+| `entroping report github-annotations` | Emit GitHub Actions workflow-command annotations from local reports |
+| `entroping report sarif` | Write SARIF 2.1.0 code-scanning evidence to `reports/entroping.sarif` |
+| `entroping report review-summary --output md` | Write a provider-neutral Markdown review summary to `reports/review-summary.md` |
+
+Advanced evidence commands:
+
+| Command | Purpose |
+| --- | --- |
+| `entroping report failure-bundle` | Write a sanitized issue handoff bundle to `reports/failure-bundle/manifest.json` |
 | `entroping report badges` | Write local Shields endpoint JSON badges to `reports/badges/` |
 | `entroping report redaction --output md` | Write a counts-only captured-traffic redaction review to `reports/redaction-review.md` |
 | `entroping report redaction --output html` | Write a browser-readable redaction review to `reports/redaction-review.html` |
@@ -327,10 +342,7 @@ Variables can come from `envs/<name>.env`, explicit shell
 | `entroping report agent-bundle --output json` | Write machine-readable Builder/Breaker/Auditor evidence to `reports/agent-bundle.json` |
 | `entroping report traceability --output md` | Generate a local Markdown story/test traceability report |
 | `entroping report traceability --output json` | Emit machine-readable traceability JSON for badges or downstream tools |
-| `entroping report github-annotations` | Emit GitHub Actions workflow-command annotations from local reports |
-| `entroping report sarif` | Write SARIF 2.1.0 code-scanning evidence to `reports/entroping.sarif` |
 | `entroping report promote-drift-baseline` | Promote a reviewed drift baseline candidate into `.entroping/drift-baseline.json` |
-| `entroping report review-summary --output md` | Write a provider-neutral Markdown review summary to `reports/review-summary.md` |
 
 Example:
 
