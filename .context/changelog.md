@@ -2,6 +2,10 @@
 
 ## 2026-06-11
 
+- Added issue #593's installed CLI plus real-Hurl E2E proof so the suite now
+  covers `entroping init` through `entroping run --ci --report json --report
+  junit` against a localhost API, with JSON/JUnit assertions, injected
+  QAnstitution rule evidence, and source `.hurl` immutability.
 - Fixed issue #570's generated GitHub Actions bootstrap workflow so new
   downstream starters default to `ENTROPING_INSTALL_SPEC` pointing at the
   latest GitHub source branch, while teams can still pin a reviewed tag by
