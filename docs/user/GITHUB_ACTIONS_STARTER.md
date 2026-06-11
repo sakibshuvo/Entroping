@@ -62,10 +62,11 @@ The starter workflow:
 2. Uses read-only `contents` permission.
 3. Installs Python 3.12 and `uv`.
 4. Installs Hurl `8.0.1` after checking `HURL_SHA256`.
-5. Installs Entroping from the alpha tag:
+5. Installs Entroping from `ENTROPING_INSTALL_SPEC`, which defaults to the
+   latest GitHub source branch:
 
 ```bash
-uv tool install git+https://github.com/sakibshuvo/Entroping.git@v0.1.1-alpha
+uv tool install "${ENTROPING_INSTALL_SPEC}"
 ```
 
 6. Runs setup diagnostics:
@@ -87,14 +88,29 @@ entroping run --ci --report json --report junit --report html
 10. Writes a provider-neutral Markdown review summary from local artifacts.
 11. Uploads `reports/` as a GitHub Actions artifact.
 
-## Common Variants
+## Install Strategy
 
-To use the latest GitHub source branch instead of the alpha tag, change the
-install step to:
+The reviewed starter defaults to the latest GitHub source branch:
 
 ```bash
-uv tool install git+https://github.com/sakibshuvo/Entroping.git
+ENTROPING_INSTALL_SPEC="git+https://github.com/sakibshuvo/Entroping.git"
 ```
+
+This avoids new projects being silently pinned to an old alpha tag. If your
+organization wants repeatability over latest-source updates, pin the workflow
+explicitly:
+
+```bash
+ENTROPING_INSTALL_SPEC="git+https://github.com/sakibshuvo/Entroping.git@v0.1.1-alpha"
+```
+
+To migrate an existing starter workflow, replace a hardcoded install command
+such as `uv tool install git+https://github.com/sakibshuvo/Entroping.git@v0.1.1-alpha`
+with the `ENTROPING_INSTALL_SPEC` env value and
+`uv tool install "${ENTROPING_INSTALL_SPEC}"`. Then choose whether the env
+value should follow the latest source branch or pin a reviewed tag.
+
+## Common Variants
 
 To use a committed CI environment file, change the run step to:
 

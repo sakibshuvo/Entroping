@@ -9,7 +9,7 @@ STARTER_WORKFLOW = REPO_ROOT / "examples" / "github-actions" / "entroping-ci.yml
 STARTER_DOC = REPO_ROOT / "docs" / "user" / "GITHUB_ACTIONS_STARTER.md"
 
 
-def test_downstream_github_actions_starter_is_copyable_and_pinned() -> None:
+def test_downstream_github_actions_starter_is_copyable_and_configurable() -> None:
     workflow = yaml.safe_load(STARTER_WORKFLOW.read_text(encoding="utf-8"))
     workflow_text = STARTER_WORKFLOW.read_text(encoding="utf-8")
 
@@ -23,16 +23,18 @@ def test_downstream_github_actions_starter_is_copyable_and_pinned() -> None:
     assert job["env"]["HURL_VERSION"] == "8.0.1"
     assert len(job["env"]["HURL_SHA256"]) == 64
     assert all(character in "0123456789abcdef" for character in job["env"]["HURL_SHA256"])
+    assert (
+        job["env"]["ENTROPING_INSTALL_SPEC"]
+        == "git+https://github.com/sakibshuvo/Entroping.git"
+    )
 
     run_blocks = "\n".join(str(step.get("run", "")) for step in job["steps"])
     assert "sha256sum \"$archive\"" in run_blocks
     assert "download_with_retry()" in run_blocks
     assert "for attempt in 1 2 3" in run_blocks
     assert 'echo "$RUNNER_TEMP/hurl-${HURL_VERSION}-x86_64-unknown-linux-gnu/bin"' in run_blocks
-    assert (
-        "uv tool install git+https://github.com/sakibshuvo/Entroping.git@v0.1.1-alpha"
-        in run_blocks
-    )
+    assert 'uv tool install "${ENTROPING_INSTALL_SPEC}"' in run_blocks
+    assert "git+https://github.com/sakibshuvo/Entroping.git@v0.1.1-alpha" not in run_blocks
     assert 'echo "$HOME/.local/bin" >> "$GITHUB_PATH"' in run_blocks
     assert "entroping doctor" in run_blocks
     assert "entroping run --ci --report json --report junit --report html" in run_blocks
@@ -72,6 +74,9 @@ def test_downstream_github_actions_docs_link_required_files_and_assumptions() ->
     assert "entroping report review-summary" in doc
     assert "reports/review-summary.md" in doc
     assert "HURL_SHA256" in doc
+    assert "ENTROPING_INSTALL_SPEC" in doc
+    assert "defaults to the latest GitHub source branch" in doc
+    assert "existing starter workflow" in doc
     assert "v0.1.1-alpha" in doc
     assert "GITHUB_ACTIONS_STARTER.md" in readme
     assert "[[docs/user/GITHUB_ACTIONS_STARTER|GITHUB_ACTIONS_STARTER]]" in index
