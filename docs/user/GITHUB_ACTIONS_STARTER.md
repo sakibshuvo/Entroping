@@ -110,6 +110,44 @@ with the `ENTROPING_INSTALL_SPEC` env value and
 `uv tool install "${ENTROPING_INSTALL_SPEC}"`. Then choose whether the env
 value should follow the latest source branch or pin a reviewed tag.
 
+## Official Reusable Action Boundary
+
+The current supported path is the generated starter workflow installed by
+`entroping init --github-actions`. It is copyable, reviewable, and owned by the
+downstream repository.
+
+A future reusable `entroping/action` should live in a dedicated `entroping/action` repository
+rather than this implementation repo. That keeps action release cadence,
+marketplace metadata, and action-specific support separate from the Python
+package while preserving this repo as the source for the CLI, tests, and starter
+workflow.
+
+The official action is blocked until package-index install proof exists. Before
+PyPI/TestPyPI proof, a prototype may use a tagged GitHub release fallback only
+when the tag is explicit and reviewable. The action contract should:
+
+- install a released Entroping package, or an explicitly tagged fallback during
+  prerelease validation;
+- make setup explicit: the action installs or verifies Hurl with a pinned
+  version and checksum/provenance check;
+- run `entroping doctor --ci` before `entroping run --ci`;
+- run `entroping run --ci` with local JSON, JUnit, and HTML reports;
+- emit local annotations, SARIF, and review-summary artifacts from reports;
+- ensure the action uploads `reports/` and does not upload `.entroping/` by
+  default;
+- must not call LLM providers, read model API keys, or run Architect commands;
+- ensure default permissions remain `contents: read`.
+
+Optional PR comment behavior must be opt-in. If enabled, it should require only
+the narrow permission it needs, such as `pull-requests: write` for pull request
+comments. The default action path must not require broad repository write
+permissions, hosted-service coupling, or model-provider credentials.
+
+Do not replace the generated starter workflow with the reusable action until the
+action is proven on real downstream repositories. The generated starter remains
+the transparent baseline for teams that want to inspect or customize every CI
+step.
+
 ## Common Variants
 
 To use a committed CI environment file, change the run step to:
@@ -171,9 +209,10 @@ entroping report review-summary --traceability
 
 ## Expected Artifacts
 
-The run writes the same report paths Entroping uses locally:
+The workflow writes the same report paths Entroping uses locally:
 
 ```text
+reports/doctor-health.json
 reports/junit.xml
 reports/run-latest.json
 reports/run-latest.html

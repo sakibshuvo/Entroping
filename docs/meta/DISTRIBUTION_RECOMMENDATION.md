@@ -23,6 +23,7 @@ release machinery that is expensive to operate before demand is proven.
 | --- | --- | --- | --- |
 | `uv tool install` from Git or PyPI | Cross-platform, fast, Python-aware, already used in docs, can install/manage Python where needed | Requires users to install uv first; Hurl and Graphviz remain external tools | Best immediate path |
 | Homebrew tap | Excellent macOS developer ergonomics, natural place to depend on Hurl and Graphviz | Formula maintenance, Python resource stanzas, bottle/tap maintenance, macOS-first | Good after PyPI alpha |
+| Official GitHub Action | Strong downstream CI adoption wedge with one-line workflow usage | Action repository, release cadence, permissions, marketplace support, and package install guarantees | Defer until package-index proof |
 | standalone binary | Lowest apparent install friction for non-Python users | Build matrix, large artifacts, bundled Python/native dependencies, macOS signing, notarization, Windows signing, security update responsibility | Defer |
 
 ## Recommendation
@@ -46,6 +47,14 @@ Then prototype a Homebrew tap once PyPI/TestPyPI has proven package metadata,
 entry points, and install smoke behavior. Defer standalone binaries until users
 are asking for them or until enterprise/commercial packaging needs justify the
 signing and support burden.
+
+The official GitHub Action should trail package-index proof. Until a released
+package can be installed from a package index, keep using the generated starter
+workflow as the adoption path and do not replace the generated starter workflow
+with a reusable action. A prerelease action prototype may use an explicitly
+tagged GitHub release fallback, but the public action should install released
+Entroping artifacts, verify Hurl, run only the deterministic `entroping run
+--ci` path, and avoid broad write permissions by default.
 
 The current Homebrew tap work is a prototype template and runbook, not a public
 install claim. See [HOMEBREW_TAP_PROTOTYPE.md](HOMEBREW_TAP_PROTOTYPE.md) for

@@ -258,6 +258,12 @@ project, and a Codex workspace with fast context rehydration.
   rejects symlinked path components, and keeps the packaged template aligned
   with `examples/github-actions/entroping-ci.yml` without adding secrets,
   provider credentials, hosted-service coupling, or package-index claims.
+- A future official `entroping/action` should live in a dedicated action repo
+  after package-index proof, install released Entroping artifacts, verify Hurl,
+  run only deterministic local report commands, avoid `.entroping/` uploads by
+  default, and keep optional PR comments permission-scoped. The generated
+  starter workflow remains the supported downstream CI baseline until that
+  action is proven.
 - `scripts/start_issue.sh` creates issue-scoped worktrees and deterministic session prompts for multi-session Codex/OpenCode work; `scripts/finish_issue.sh` verifies merged PRs and safely removes completed local worktrees.
 - Eye capture now has security-first traffic models, pre-persistence redaction, bounded SQLModel-backed SQLite state, and capture-only `watch` wiring through a lazy-loaded mitmproxy adapter.
 - Issues #1 through #85, plus validation fixes #95 and #97, are integrated.

@@ -367,3 +367,29 @@ decisions:
     related_issues: ["#597"]
     supersedes: []
     superseded_by: null
+
+  - id: ENT-DEC-0017
+    title: Official GitHub Action trails package-index proof
+    status: accepted
+    date: "2026-06-11"
+    summary: >
+      The current supported downstream CI path remains the generated starter
+      workflow from `entroping init --github-actions`. A future reusable
+      `entroping/action` should live in a dedicated action repository, install
+      released Entroping artifacts, verify Hurl, run only deterministic local
+      reports, avoid `.entroping/` uploads by default, and keep optional PR
+      comments permission-scoped.
+    tags: [github-actions, official-action, distribution, ci, launch-readiness]
+    source_links:
+      - path: decisions/ADR-0017-official-github-action-boundary.md
+        role: adr
+      - path: docs/user/GITHUB_ACTIONS_STARTER.md
+        role: user-guide
+      - path: docs/meta/DISTRIBUTION_RECOMMENDATION.md
+        role: distribution-decision
+    related_docs:
+      - docs/technical/TDS.md
+      - examples/github-actions/entroping-ci.yml
+    related_issues: ["#594"]
+    supersedes: []
+    superseded_by: null
