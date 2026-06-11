@@ -31,6 +31,7 @@ For the practical day-to-day distinction between GitHub and Obsidian, read
 | MkDocs site | Public reading path generated from `docs/` |
 | GitHub Issues | Bugs, feature slices, chores, regressions, and action items |
 | `ROADMAP.md` | Release sequence and public scope, not the full backlog |
+| `CHANGELOG.md` | Public release history |
 | `docs/meta/PROJECT_PROGRESS.md` | Current phase dashboard and stable-core blocker status |
 | `docs/meta/VAULT_INDEX.md` | Obsidian vault map and historical/product context entry point |
 | `docs/meta/DECISION_REGISTRY.yaml` | Durable decision index with links back to ADRs, docs, issues, and source evidence |

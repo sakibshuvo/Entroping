@@ -28,7 +28,7 @@ keeps the current direction, next queue, and release evidence easy to scan.
 
 **Goal:** finish the v0.4 integration path without reopening completed onboarding/product-depth work; stable-core readiness stays tied to external evidence.
 
-Current local queue: only review-proven local gaps should be worked (#559, #562); stable-core readiness still depends on external evidence.
+Current local queue: only review-proven local gaps should be worked (#562); stable-core readiness still depends on external evidence.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 

@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Added issue #559's root `CHANGELOG.md` as the concise public release history,
+  with `.context/changelog.md` kept as the detailed maintainer/agent handoff
+  log.
 - Extracted issue #561's `entroping run` option validation into
   `entroping.core.run_option_validation`, keeping Typer responsible only for
   user-facing `BadParameter` formatting while preserving existing CLI behavior.
