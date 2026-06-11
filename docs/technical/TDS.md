@@ -320,6 +320,16 @@ or other business-system APIs.
 Requirements:
 
 - Locate `hurl` through PATH or explicit config.
+- Hurl binary trust policy:
+  - A bare binary name such as `hurl` intentionally trusts the parent process
+    `PATH`, matching normal CLI and CI setup behavior.
+  - An explicit binary path must be absolute, executable, and resolved before
+    execution; this lets high-assurance or CI callers pin the reviewed Hurl
+    binary and bypass earlier `PATH` entries.
+  - Relative binary paths such as `./hurl` are rejected because they depend on
+    the current working directory and can be spoofed by local project files.
+  - The child process still receives a minimized `PATH` containing only the
+    resolved Hurl binary directory plus `/usr/bin` and `/bin`.
 - Treat Hurl 4.3.0 as the minimum supported syntax/runtime floor. The reviewed
   CI examples pin Hurl 8.0.1 for repeatable setup evidence.
 - Check `hurl --version` through a bounded subprocess argument array in

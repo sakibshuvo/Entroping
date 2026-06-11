@@ -26,6 +26,13 @@ def _write_hurl(path: Path) -> Path:
     return path
 
 
+def _write_executable(path: Path, body: str) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(body, encoding="utf-8")
+    path.chmod(path.stat().st_mode | 0o111)
+    return path
+
+
 def test_discover_hurl_reports_binary_availability(monkeypatch: pytest.MonkeyPatch) -> None:
     def resolve_binary(binary: str) -> str:
         return f"/opt/bin/{binary}"
@@ -39,6 +46,40 @@ def test_discover_hurl_reports_binary_availability(monkeypatch: pytest.MonkeyPat
 
     assert not discover_hurl("missing-hurl").available
     assert discover_hurl("missing-hurl").path is None
+
+
+def test_discover_hurl_trusts_parent_path_precedence_for_bare_name(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    earlier_bin = tmp_path / "earlier-bin"
+    later_bin = tmp_path / "later-bin"
+    _write_executable(earlier_bin / "hurl", "#!/bin/sh\necho 'hurl 8.0.1 earlier'\n")
+    _write_executable(later_bin / "hurl", "#!/bin/sh\necho 'hurl 8.0.1 later'\n")
+    monkeypatch.setenv("PATH", f"{earlier_bin}:{later_bin}")
+
+    status = discover_hurl("hurl")
+
+    assert status.available is True
+    assert status.path == str(earlier_bin / "hurl")
+    assert status.version_checked is True
+    assert status.version == "8.0.1"
+    assert status.version_output == "hurl 8.0.1 earlier"
+
+
+def test_discover_hurl_missing_default_binary_does_not_claim_version_check(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: None)
+
+    status = discover_hurl("hurl")
+
+    assert status.available is False
+    assert status.path is None
+    assert status.version_checked is False
+    assert status.version is None
+    assert status.version_parts is None
+    assert status.version_error is None
 
 
 def test_discover_hurl_reports_compatible_version(
@@ -910,6 +951,109 @@ def test_run_hurl_file_reports_missing_binary_before_subprocess(
 
     with pytest.raises(HurlBinaryNotFoundError, match="Hurl binary not found"):
         run_hurl_file(hurl_file, HurlRunOptions(binary="missing-hurl"))
+
+
+def test_run_hurl_file_explicit_absolute_binary_bypasses_parent_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "health.hurl")
+    malicious_bin = tmp_path / "malicious-bin"
+    trusted_hurl = _write_executable(
+        tmp_path / "trusted-bin" / "hurl",
+        "#!/bin/sh\necho trusted\n",
+    )
+    _write_executable(malicious_bin / "hurl", "#!/bin/sh\necho malicious\n")
+    monkeypatch.setenv("PATH", str(malicious_bin))
+    calls: list[dict[str, object]] = []
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stderr, timeout, check)
+        calls.append({"args": args, "env": env, "shell": shell})
+        stdout.write(b"trusted\n")
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+
+    result = run_hurl_file(hurl_file, HurlRunOptions(binary=str(trusted_hurl)))
+
+    assert result.passed
+    assert calls == [
+        {
+            "args": [str(trusted_hurl.resolve()), str(hurl_file.resolve())],
+            "env": {"PATH": f"{trusted_hurl.parent.resolve()}:/usr/bin:/bin"},
+            "shell": False,
+        }
+    ]
+
+
+def test_run_hurl_file_normalizes_explicit_binary_path_before_execution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "health.hurl")
+    trusted_hurl = _write_executable(tmp_path / "bin" / "hurl", "#!/bin/sh\necho trusted\n")
+    explicit_with_parent_ref = tmp_path / "bin" / ".." / "bin" / "hurl"
+    calls: list[list[str]] = []
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stdout, stderr, timeout, check, env, shell)
+        calls.append(args)
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+
+    run_hurl_file(hurl_file, HurlRunOptions(binary=str(explicit_with_parent_ref)))
+
+    assert calls == [[str(trusted_hurl.resolve()), str(hurl_file.resolve())]]
+
+
+def test_run_hurl_file_rejects_relative_binary_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "health.hurl")
+    relative_bin = tmp_path / "local-bin"
+    _write_executable(relative_bin / "hurl", "#!/bin/sh\necho local\n")
+    monkeypatch.chdir(relative_bin)
+
+    with pytest.raises(ValueError, match="Hurl binary path must be absolute"):
+        run_hurl_file(hurl_file, HurlRunOptions(binary="./hurl"))
+
+
+def test_run_hurl_file_rejects_missing_explicit_binary_path(tmp_path: Path) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "health.hurl")
+
+    with pytest.raises(HurlBinaryNotFoundError, match="Hurl binary not found"):
+        run_hurl_file(hurl_file, HurlRunOptions(binary=str(tmp_path / "bin" / "missing-hurl")))
+
+
+def test_run_hurl_file_rejects_non_executable_explicit_binary_path(tmp_path: Path) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "health.hurl")
+    non_executable = tmp_path / "bin" / "hurl"
+    non_executable.parent.mkdir(parents=True, exist_ok=True)
+    non_executable.write_text("#!/bin/sh\necho hurl\n", encoding="utf-8")
+
+    with pytest.raises(HurlBinaryNotFoundError, match="Hurl binary is not executable"):
+        run_hurl_file(hurl_file, HurlRunOptions(binary=str(non_executable)))
 
 
 def test_validate_hurl_path_rejects_unsafe_or_invalid_paths(tmp_path: Path) -> None:

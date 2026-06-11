@@ -2,6 +2,11 @@
 
 ## 2026-06-11
 
+- Fixed issue #611's Hurl binary trust policy so bare binary names
+  intentionally follow parent `PATH`, explicit absolute Hurl paths are
+  normalized and can bypass hostile earlier `PATH` entries, relative binary
+  paths fail closed, missing default Hurl no longer claims version-check
+  evidence, and the minimized child subprocess `PATH` remains tested.
 - Fixed issue #609's AI worker queue supervisor races so concurrent
   `run-next` calls atomically claim distinct queued jobs, failed workers do not
   leave `running/` entries behind, corrupt queued artifacts are quarantined to

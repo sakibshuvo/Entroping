@@ -2,6 +2,10 @@
 
 ## 2026-06-11
 
+- Tool discovery has two different trust modes. Bare binary names are normal
+  developer/CI `PATH` trust, but high-assurance execution should pin an
+  explicit absolute binary path, normalize it before subprocess invocation, and
+  reject cwd-relative binary paths.
 - Direct provider workers are useful only when they stay outside product
   runtime. Use env-only secrets, timeout-bounded requests, ignored artifacts,
   and queue metadata that omits raw output; keep Codex responsible for applying
