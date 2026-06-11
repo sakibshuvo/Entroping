@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Starter workflows need an install selector, not a hardcoded release tag. Use
+  one visible env value so new projects can follow the latest source by default
+  while regulated teams can deliberately pin a reviewed tag.
 - Tool discovery has two different trust modes. Bare binary names are normal
   developer/CI `PATH` trust, but high-assurance execution should pin an
   explicit absolute binary path, normalize it before subprocess invocation, and

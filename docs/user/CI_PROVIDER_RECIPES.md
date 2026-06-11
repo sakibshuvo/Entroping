@@ -32,6 +32,7 @@ set -euo pipefail
 
 HURL_VERSION="8.0.1"
 HURL_SHA256="cac7c4670d69444db120edb21fe06c97ba8c80dcc52279957c8dd18f05fb0c06"
+ENTROPING_INSTALL_SPEC="git+https://github.com/sakibshuvo/Entroping.git"
 archive="hurl-${HURL_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
 base_url="https://github.com/Orange-OpenSource/hurl/releases/download/${HURL_VERSION}"
 
@@ -45,7 +46,7 @@ curl --fail --location --silent --show-error \
   https://astral.sh/uv/install.sh | sh
 export PATH="${HOME}/.local/bin:${PATH}"
 
-uv tool install git+https://github.com/sakibshuvo/Entroping.git@v0.1.1-alpha
+uv tool install "${ENTROPING_INSTALL_SPEC}"
 entroping doctor --ci
 mkdir -p reports
 entroping doctor --ci --output json > reports/doctor-health.json
@@ -56,6 +57,10 @@ entroping report review-summary
 
 Upload `reports/` as the provider artifact directory. Keep `.entroping/` out of
 artifacts unless you have reviewed the exact files being uploaded.
+
+Set `ENTROPING_INSTALL_SPEC` to a reviewed tag such as
+`git+https://github.com/sakibshuvo/Entroping.git@v0.1.1-alpha` when a provider
+job should pin Entroping instead of following the latest GitHub source branch.
 
 No provider secrets are required by Entroping itself. If your API tests need
 real credentials, inject them through the CI provider's secret store and keep

@@ -2,6 +2,10 @@
 
 ## 2026-06-11
 
+- Fixed issue #570's generated GitHub Actions bootstrap workflow so new
+  downstream starters default to `ENTROPING_INSTALL_SPEC` pointing at the
+  latest GitHub source branch, while teams can still pin a reviewed tag by
+  changing that one env value.
 - Fixed issue #611's Hurl binary trust policy so bare binary names
   intentionally follow parent `PATH`, explicit absolute Hurl paths are
   normalized and can bypass hostile earlier `PATH` entries, relative binary

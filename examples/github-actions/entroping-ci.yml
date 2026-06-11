@@ -15,6 +15,7 @@ jobs:
     env:
       HURL_VERSION: "8.0.1"
       HURL_SHA256: "cac7c4670d69444db120edb21fe06c97ba8c80dcc52279957c8dd18f05fb0c06"
+      ENTROPING_INSTALL_SPEC: "git+https://github.com/sakibshuvo/Entroping.git"
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -52,7 +53,7 @@ jobs:
 
       - name: Install Entroping
         run: |
-          uv tool install git+https://github.com/sakibshuvo/Entroping.git@v0.1.1-alpha
+          uv tool install "${ENTROPING_INSTALL_SPEC}"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Verify Entroping setup
