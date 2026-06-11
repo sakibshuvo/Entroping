@@ -2,6 +2,10 @@
 
 ## 2026-06-11
 
+- Added issue #579's queued AI worker supervisor so affordable OpenCode and
+  DeepSeek jobs can be submitted under `.entroping/ai-jobs/`, run through the
+  bounded worker harness, and collected later for Codex validation without
+  auto-applying patches or mutating source files.
 - Fixed issues #573 and #577's Hurl selection safety gaps so changed-file runs
   reject unsafe Git base refs before invoking `git diff`, and explicit empty
   Hurl discovery roots stay empty instead of falling back to default tests.
