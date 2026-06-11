@@ -163,10 +163,10 @@ LOCKED_CLI_CONTRACTS = (
     CliContract(
         (
             "entroping report policy-diff [--base <path>] [--current <path>] "
-            "[--output <md|json>]"
+            "[--output <md|json>] [--fail-on-change]"
         ),
         ("report", "policy-diff", "--help"),
-        ("--base", "--current", "--output"),
+        ("--base", "--current", "--output", "--fail-on-change"),
     ),
     CliContract(
         "entroping report gate-coverage [--output <md|json>]",
