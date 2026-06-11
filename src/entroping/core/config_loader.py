@@ -132,6 +132,10 @@ def _validate_document(document: Mapping[str, object], path: Path) -> Qanstituti
 
 
 def _resolve_import(import_ref: str, base_dir: Path, root_dir: Path) -> Path:
+    if any(ord(character) < 32 or ord(character) == 127 for character in import_ref):
+        msg = "QAnstitution import path must not contain control characters"
+        raise QanstitutionLoadError(msg)
+
     parsed = urlparse(import_ref)
     if parsed.scheme in {"http", "https"}:
         msg = (

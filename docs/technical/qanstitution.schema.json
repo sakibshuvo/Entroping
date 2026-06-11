@@ -165,7 +165,7 @@
       "properties": {
         "condition": {
           "description": "Deterministic QAnstitution condition DSL.",
-          "pattern": "^(true|(tags|path|url) contains '[^']+'|path startswith '[^']+'|method == '[^']+'|meta\\.[A-Za-z_][A-Za-z0-9_]* == '[^']+')$",
+          "pattern": "^(true|(tags|path|url) contains '[^'\\u0000-\\u001F\\u007F]+'|path startswith '[^'\\u0000-\\u001F\\u007F]+'|method == '[^'\\u0000-\\u001F\\u007F]+'|meta\\.[A-Za-z_][A-Za-z0-9_]* == '[^'\\u0000-\\u001F\\u007F]+')$",
           "title": "Condition",
           "type": "string"
         },

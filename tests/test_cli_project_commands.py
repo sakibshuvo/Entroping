@@ -687,6 +687,34 @@ gates:
     assert result.exit_code == 1
     assert "QAnstitution: invalid" in result.output
     assert "Unsupported QAnstitution condition syntax" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_doctor_fails_without_traceback_for_control_character_condition(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+gates:
+  - id: bad_condition
+    condition: "tags contains 'smoke\\ncritical'"
+    gate: duration < 2000
+    enforcement: block
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 1
+    assert "QAnstitution: invalid" in result.output
+    assert "QAnstitution condition must not contain control characters" in result.output
+    assert "Traceback" not in result.output
 
 
 def test_doctor_reports_missing_hurl_and_missing_config(
