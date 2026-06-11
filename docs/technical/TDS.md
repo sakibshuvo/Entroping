@@ -1,8 +1,9 @@
 # Entroping Technical Design Specification
 
-**System:** Entroping Core  
-**Version:** 4.1 Stable  
-**Architecture:** Hexagonal, local-first, Git-native  
+**System:** Entroping Core
+**Design Version:** 4.1
+**Implementation Maturity:** Alpha; stable-core readiness is blocked by package-index proof, downstream feedback, and compatibility graduation.
+**Architecture:** Hexagonal, local-first, Git-native
 **Runtime Principle:** Python orchestrates. Hurl enforces.
 
 ## 1. Technical Goals

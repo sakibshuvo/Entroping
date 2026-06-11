@@ -1,6 +1,7 @@
 # Entroping MVP Plan
 
-**Version:** 4.1 Stable  
+**Plan Version:** 4.1
+**Implementation Maturity:** Alpha; stable-core readiness remains blocked by external release evidence.
 **Goal:** Build the smallest useful Hurl-native governance loop without losing the final product architecture.
 
 ## 1. MVP Definition

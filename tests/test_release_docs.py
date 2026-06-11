@@ -119,6 +119,23 @@ def test_roadmap_stable_core_summary_uses_canonical_blocker_names() -> None:
     assert "real-user feedback" not in normalized_summary
 
 
+def test_canonical_specs_do_not_label_current_alpha_as_stable() -> None:
+    canonical_docs = [
+        REPO_ROOT / "docs/product/PRODUCT_SPEC.md",
+        REPO_ROOT / "docs/product/MVP_PLAN.md",
+        REPO_ROOT / "docs/technical/TDS.md",
+        REPO_ROOT / "docs/technical/COMMAND_CHEAT_SHEET.md",
+    ]
+
+    for path in canonical_docs:
+        text = path.read_text(encoding="utf-8")
+        header = "\n".join(text.splitlines()[:8])
+
+        assert "4.1 Stable" not in text
+        assert "Alpha" in header
+        assert "stable-core" in header
+
+
 def test_doc_governance_blocks_strategy_doc_sprawl() -> None:
     governance = (REPO_ROOT / "docs" / "meta" / "DOCS_GOVERNANCE.md").read_text(
         encoding="utf-8"

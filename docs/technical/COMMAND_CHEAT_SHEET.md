@@ -1,6 +1,7 @@
 # Entroping Command Cheat Sheet
 
-**Version:** 4.1 Stable  
+**Command Surface Version:** 4.1
+**Maturity:** Locked Alpha; stable-core compatibility is not promised until the graduation blockers close.
 **Rule:** Use this command surface as the implementation and user-facing source of truth.
 
 Compatibility audit: [CLI_COMPATIBILITY_AUDIT.md](CLI_COMPATIBILITY_AUDIT.md).
