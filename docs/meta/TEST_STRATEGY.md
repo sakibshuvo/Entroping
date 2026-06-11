@@ -96,12 +96,15 @@ Performance smoke:
 uv run python scripts/performance_smoke.py
 ```
 
-The performance smoke is a local release-owner gate, not a pull-request CI
-requirement. It uses a fake Hurl binary to avoid network calls while exercising
-many Hurl files, bounded parallel runner behavior, gate injection, JSON/JUnit/HTML
-report generation, and a larger SQLModel-backed traffic store with retention.
-It writes reviewable evidence to `reports/performance-smoke.json`, which stays
-ignored like other generated reports.
+The performance smoke is a local release-owner gate and a scheduled/manual CI
+evidence job, not a pull-request CI requirement. It uses a fake Hurl binary to
+avoid network calls while exercising many Hurl files, bounded parallel runner
+behavior, gate injection, JSON/JUnit/HTML report generation, and a larger
+SQLModel-backed traffic store with retention. It writes reviewable evidence to
+`reports/performance-smoke.json`, which stays ignored like other generated
+reports. The scheduled workflow uploads that JSON evidence for trend review,
+but it does not satisfy package-index proof, downstream feedback, or the
+stable-core compatibility decision by itself.
 
 AI-regression proof:
 
@@ -199,6 +202,16 @@ uvx --with 'mkdocs-material==9.*' mkdocs build --strict
 Broken public-docs links, invalid navigation entries, and MkDocs warnings fail
 before the GitHub Pages deployment workflow can publish from `main`.
 
+The `performance-smoke` workflow runs on a weekly schedule and by manual
+dispatch only:
+
+```bash
+uv run python scripts/performance_smoke.py
+```
+
+It uploads `reports/performance-smoke.json` as workflow evidence without adding
+performance timing noise to every pull request.
+
 The documentation governance gate also runs:
 
 ```bash
@@ -208,11 +221,12 @@ python scripts/public_claims_audit.py
 Unsupported public claims such as production readiness or guaranteed security
 must fail before review.
 
-CI-enforced commands are `scripts/regression.sh --security`,
+Pull-request CI-enforced commands are `scripts/regression.sh --security`,
 `scripts/audit_quality.sh`, `uvx --with 'mkdocs-material==9.*' mkdocs build
 --strict`, the `install-smoke` matrix, and the `optional-extras-smoke` lane.
-Because the regression gate runs the feature gate, CI also runs shell syntax
-validation through `scripts/shell_quality.sh`.
+Scheduled/manual CI also runs the performance smoke. Because the regression gate
+runs the feature gate, CI also runs shell syntax validation through
+`scripts/shell_quality.sh`.
 
 Drift tests must keep response comparison value-free. The structured drift MVP
 compares response status codes, selected stable headers, and JSON body shape

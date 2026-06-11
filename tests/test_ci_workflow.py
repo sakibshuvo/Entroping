@@ -8,6 +8,9 @@ _WORKFLOW_PATH = Path(__file__).resolve().parents[1] / ".github" / "workflows" /
 _SCORECARD_WORKFLOW_PATH = (
     Path(__file__).resolve().parents[1] / ".github" / "workflows" / "scorecard.yml"
 )
+_PERFORMANCE_WORKFLOW_PATH = (
+    Path(__file__).resolve().parents[1] / ".github" / "workflows" / "performance-smoke.yml"
+)
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -120,6 +123,8 @@ def test_docs_explain_ci_enforced_and_local_only_gates() -> None:
     assert "`scripts/regression.sh --security`" in test_strategy
     assert "`scripts/audit_quality.sh`" in test_strategy
     assert "optional-extras-smoke" in test_strategy
+    assert "scheduled/manual CI" in test_strategy
+    assert "performance-smoke" in test_strategy
 
 
 def test_release_docs_explain_hurl_checksum_bump_process() -> None:
@@ -163,5 +168,36 @@ def test_scorecard_workflow_is_non_blocking_and_least_privilege() -> None:
     assert any(
         step.get("uses") == "actions/upload-artifact@v7"
         and step.get("with", {}).get("path") == "scorecard-results.json"
+        for step in steps
+    )
+
+
+def test_performance_smoke_workflow_is_scheduled_manual_and_non_blocking() -> None:
+    workflow = yaml.safe_load(_PERFORMANCE_WORKFLOW_PATH.read_text(encoding="utf-8"))
+
+    triggers = workflow["on"]
+    assert "pull_request" not in triggers
+    assert "push" not in triggers
+    assert "workflow_dispatch" in triggers
+    assert triggers["schedule"] == [{"cron": "43 8 * * 2"}]
+
+    performance_smoke = workflow["jobs"]["performance-smoke"]
+    assert performance_smoke["runs-on"] == "ubuntu-latest"
+    assert performance_smoke["permissions"] == {"contents": "read"}
+
+    steps = performance_smoke["steps"]
+    run_blocks = "\n".join(str(step.get("run", "")) for step in steps)
+    assert "uv sync --dev" in run_blocks
+    assert "uv run python scripts/performance_smoke.py" in run_blocks
+    assert any(
+        step.get("uses") == "actions/checkout@v6"
+        and step.get("with", {}).get("persist-credentials") is False
+        for step in steps
+    )
+    assert any(step.get("uses") == "actions/setup-python@v6" for step in steps)
+    assert any(step.get("uses") == "astral-sh/setup-uv@v8.2.0" for step in steps)
+    assert any(
+        step.get("uses") == "actions/upload-artifact@v7"
+        and step.get("with", {}).get("path") == "reports/performance-smoke.json"
         for step in steps
     )
