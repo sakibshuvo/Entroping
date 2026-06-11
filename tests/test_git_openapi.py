@@ -5,7 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from entroping.core.git_openapi import GitOpenApiError, load_openapi_document_at_ref
+from entroping.core.git_openapi import (
+    GIT_SHOW_TIMEOUT_SECONDS,
+    GitOpenApiError,
+    load_openapi_document_at_ref,
+)
 
 
 def _git(project_root: Path, *args: str) -> None:
@@ -97,6 +101,56 @@ def test_load_openapi_document_at_ref_reports_missing_git_binary(
             project_root=tmp_path,
             base_ref="HEAD",
             spec_path=tmp_path / "openapi.yaml",
+        )
+
+
+def test_load_openapi_document_at_ref_runs_git_show_with_timeout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec_path = tmp_path / "openapi.yaml"
+    spec_path.write_text("openapi: '3.1.0'\npaths: {}\n", encoding="utf-8")
+    recorded_timeout: object = None
+
+    class FakeCompletedProcess:
+        returncode = 0
+        stdout = "openapi: '3.1.0'\npaths: {}\n"
+        stderr = ""
+
+    def fake_run(*args: object, **kwargs: object) -> FakeCompletedProcess:
+        nonlocal recorded_timeout
+        recorded_timeout = kwargs.get("timeout")
+        return FakeCompletedProcess()
+
+    monkeypatch.setattr("entroping.core.git_openapi.subprocess.run", fake_run)
+
+    document = load_openapi_document_at_ref(
+        project_root=tmp_path,
+        base_ref="HEAD",
+        spec_path=spec_path,
+    )
+
+    assert document == {"openapi": "3.1.0", "paths": {}}
+    assert recorded_timeout == GIT_SHOW_TIMEOUT_SECONDS
+
+
+def test_load_openapi_document_at_ref_reports_git_show_timeout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec_path = tmp_path / "openapi.yaml"
+    spec_path.write_text("openapi: '3.1.0'\npaths: {}\n", encoding="utf-8")
+
+    def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        raise subprocess.TimeoutExpired(cmd=["git", "show"], timeout=GIT_SHOW_TIMEOUT_SECONDS)
+
+    monkeypatch.setattr("entroping.core.git_openapi.subprocess.run", fake_run)
+
+    with pytest.raises(GitOpenApiError, match="timed out after 30 seconds"):
+        load_openapi_document_at_ref(
+            project_root=tmp_path,
+            base_ref="HEAD",
+            spec_path=spec_path,
         )
 
 

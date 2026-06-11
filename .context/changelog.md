@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Fixed issue #552's Git-backed changed-file and OpenAPI baseline subprocess
+  boundaries so slow `git diff` or `git show` calls time out after 30 seconds
+  and surface typed Entroping errors instead of hanging beta workflows.
 - Refreshed issue #550's project progress dashboard after the #517-#523 and
   #548 cleanup queue closed, keeping the next queue focused on external
   stable-core blockers unless a real local defect or ready product gap appears.

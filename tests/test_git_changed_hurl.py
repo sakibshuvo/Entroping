@@ -5,7 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from entroping.core.git_changed_hurl import GitChangedHurlError, select_changed_hurl_tests
+from entroping.core.git_changed_hurl import (
+    GIT_DIFF_TIMEOUT_SECONDS,
+    GitChangedHurlError,
+    select_changed_hurl_tests,
+)
 
 
 def _git(project_root: Path, *args: str) -> None:
@@ -103,6 +107,43 @@ def test_select_changed_hurl_tests_ignores_non_hurl_and_missing_files(
     selected = select_changed_hurl_tests(project_root=tmp_path, base_ref="main")
 
     assert selected == ()
+
+
+def test_select_changed_hurl_tests_runs_git_diff_with_timeout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    recorded_timeout: object = None
+
+    class FakeCompletedProcess:
+        returncode = 0
+        stdout = b""
+        stderr = b""
+
+    def fake_run(*args: object, **kwargs: object) -> FakeCompletedProcess:
+        nonlocal recorded_timeout
+        recorded_timeout = kwargs.get("timeout")
+        return FakeCompletedProcess()
+
+    monkeypatch.setattr("entroping.core.git_changed_hurl.subprocess.run", fake_run)
+
+    selected = select_changed_hurl_tests(project_root=tmp_path, base_ref="main")
+
+    assert selected == ()
+    assert recorded_timeout == GIT_DIFF_TIMEOUT_SECONDS
+
+
+def test_select_changed_hurl_tests_reports_git_diff_timeout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+        raise subprocess.TimeoutExpired(cmd=["git", "diff"], timeout=GIT_DIFF_TIMEOUT_SECONDS)
+
+    monkeypatch.setattr("entroping.core.git_changed_hurl.subprocess.run", fake_run)
+
+    with pytest.raises(GitChangedHurlError, match="timed out after 30 seconds"):
+        select_changed_hurl_tests(project_root=tmp_path, base_ref="main")
 
 
 def test_select_changed_hurl_tests_rejects_malformed_rename_records(
