@@ -2,6 +2,9 @@
 
 ## 2026-06-11
 
+- Added issue #560's scheduled/manual performance-smoke workflow so
+  `scripts/performance_smoke.py` now produces recurring CI evidence without
+  adding timing-sensitive work to every pull request.
 - Added issue #556's source-preservation coverage for external `--source-root`
   links so the decision registry now has direct pass/fail tests for preserved
   Gemini/NotebookLM-style source material outside the implementation repo.
