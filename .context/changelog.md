@@ -2,6 +2,10 @@
 
 ## 2026-06-11
 
+- Added issue #575's bounded OpenCode worker harness for DeepSeek review and
+  patch proposals, with prompt templates, local `.entroping/ai-reviews/`
+  artifacts, timeout classification, patch-diff capture, and a user-local
+  Codex skill for repeatable invocation.
 - Removed issue #562's duplicate `docs/meta/AUTONOMOUS_DEVELOPMENT.md`
   wrapper and pointed issue prompts plus implementation context packs at the
   canonical archived runbook path.
