@@ -341,3 +341,27 @@ decisions:
     related_issues: ["#494", "#493"]
     supersedes: []
     superseded_by: null
+
+  - id: ENT-DEC-0016
+    title: QAnstitution authoring uses schema-first IDE support in core
+    status: accepted
+    date: "2026-06-11"
+    summary: >
+      Entroping keeps QAnstitution authoring in the local core through
+      schema-first YAML editor support and local runtime validation. JetBrains and
+      VS Code schema mapping are documented in the technical reference, while
+      dedicated IDE extensions are deferred as optional follow-on surfaces.
+    tags: [ide, documentation, schema, open-core]
+    source_links:
+      - path: decisions/ADR-0016-ide-authoring-support-for-qanstitution.md
+        role: adr
+      - path: docs/technical/QANSTITUTION_REFERENCE.md
+        role: technical-reference
+      - path: docs/user/QANSTITUTION_FIRST_HOUR.md
+        role: onboarding-guide
+    related_docs:
+      - README.md
+      - docs/user/USER_GUIDE.md
+    related_issues: ["#597"]
+    supersedes: []
+    superseded_by: null

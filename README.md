@@ -258,8 +258,8 @@ before jumping into the full reference.
 Editor autocomplete is already wired for `qanstitution.yaml`: Entroping ships
 [docs/technical/qanstitution.schema.json](docs/technical/qanstitution.schema.json),
 and [QANSTITUTION_REFERENCE.md](docs/technical/QANSTITUTION_REFERENCE.md) shows
-the VS Code / YAML language server mapping. The schema catches authoring shape
-mistakes early; `entroping doctor` remains the authoritative runtime validation.
+VS Code and JetBrains-friendly YAML schema mapping guidance. The schema catches
+authoring shape mistakes early; `entroping doctor` remains the authoritative runtime validation.
 
 Generate tests from OpenAPI:
 

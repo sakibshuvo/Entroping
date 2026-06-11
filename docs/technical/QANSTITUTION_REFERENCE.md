@@ -42,6 +42,41 @@ VS Code and YAML language server users can rely on the checked-in
 }
 ```
 
+## 1A. IDE Authoring Support Evaluation (Issue #597)
+
+The current minimum viable IDE path is schema-only, offline authoring:
+
+- Schema autocomplete and structural linting from
+  `docs/technical/qanstitution.schema.json`.
+- Runtime authority from `entroping doctor`, `entroping report policy`, and the
+  usual execution commands.
+- No hosted services, no required API keys, and no local provider setup.
+
+This means IDEs that consume YAML schemas can give immediate authoring value
+without runtime or network requirements.
+
+### VS Code and JetBrains
+
+- VS Code:
+  the checked-in `.vscode/settings.json` mapping is available for local and
+  versioned policy authoring.
+- JetBrains:
+  the built-in YAML schema support can consume the same `docs/technical/qanstitution.schema.json`
+  file and map it to `qanstitution.yaml`-style files.
+
+### Decision
+
+Entroping will treat schema-based authoring support as the Apache-2.0 core
+experience for now. A dedicated IDE extension (run/test workflow integration,
+advanced policy linting, or cross-editor command surfaces) is out of core scope
+until a separate roadmap item requests it.
+
+For today, the first useful IDE workflow is:
+
+1. Enable schema-based completion for `qanstitution.yaml`.
+2. Edit policy with immediate feedback from schema constraints.
+3. Run `entroping doctor --ci` or `entroping report policy` before commit.
+
 The schema is an editor and review aid; runtime validation remains authoritative:
 `entroping doctor`, `entroping run`, and Architect commands load the effective
 policy through the Pydantic model and config loader before trusting it.
