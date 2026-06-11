@@ -77,6 +77,16 @@ def test_mkdocs_scaffold_uses_existing_docs_tree_with_strict_deploy() -> None:
     assert "site/" in gitignore
 
 
+def test_mkdocs_navigation_exposes_public_roadmap_without_duplicating_it() -> None:
+    config = yaml.safe_load((REPO_ROOT / "mkdocs.yml").read_text(encoding="utf-8"))
+
+    assert (REPO_ROOT / "ROADMAP.md").is_file()
+    assert not (REPO_ROOT / "docs" / "ROADMAP.md").exists()
+    assert {
+        "Roadmap": "https://github.com/sakibshuvo/Entroping/blob/main/ROADMAP.md"
+    } in config["nav"]
+
+
 def test_pages_workflow_builds_strict_mkdocs_and_deploys_with_least_privilege() -> None:
     workflow = yaml.safe_load(PAGES_WORKFLOW.read_text(encoding="utf-8"))
 

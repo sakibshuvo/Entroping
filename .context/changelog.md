@@ -1,5 +1,11 @@
 # Entroping Changelog
 
+## 2026-06-11
+
+- Added issue #548's public MkDocs Roadmap navigation link to the canonical
+  root `ROADMAP.md`, keeping roadmap detail out of duplicated docs content
+  while making launch/status discovery available from the docs site.
+
 ## 2026-06-10
 
 - Raised issue #544's default GitHub Project GraphQL preflight threshold from
