@@ -2,6 +2,10 @@
 
 ## 2026-06-11
 
+- A 100 percent coverage gate still needs taxonomy context. Keep runtime
+  behavior, docs-compliance, script-integrity, integration, smoke, regression,
+  and security evidence machine-readable so reviewers can see what the suite is
+  proving without discounting valid docs and workflow guards.
 - Entroping has two version tracks that must be named together in public docs:
   v4.1 is the product/spec/CLI contract generation, while installable package
   releases use alpha Git tags and PEP 440 metadata from `pyproject.toml`.

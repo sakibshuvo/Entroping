@@ -12,6 +12,7 @@ scripts/regression.sh and is meant for marathon validation, release hardening,
 and maintenance-risk reviews.
 
 Checks:
+  - test taxonomy report under reports/
   - pytest-cov coverage gate with a JSON artifact under reports/
   - radon cyclomatic complexity and maintainability-index audit
   - vulture dead-code discovery with a curated confidence threshold
@@ -67,6 +68,7 @@ if ((dry_run)); then
   log "max complexity rank: ${max_complexity_rank}"
   log "min maintainability rank: ${min_mi_rank}"
   log "vulture confidence: ${vulture_confidence}"
+  log "Would write test taxonomy report"
   log "Would run coverage gate with pytest-cov"
   log "Would run Radon complexity gate"
   log "Would run Vulture dead-code discovery"
@@ -80,6 +82,9 @@ export PYTHONPATH="${repo_root}/src${PYTHONPATH:+:${PYTHONPATH}}"
 
 log "Syncing dev environment"
 uv sync --dev --reinstall-package entroping
+
+log "Writing test taxonomy report"
+uv run python scripts/test_taxonomy.py --output reports/test-taxonomy.json --strict
 
 log "Running coverage gate with pytest-cov"
 uv run pytest \

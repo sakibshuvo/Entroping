@@ -61,9 +61,9 @@ Stable-core readiness remains blocked by evidence that cannot be manufactured en
 | Non-GitHub CI proof | #309, #310 | Real GitLab/Buildkite/CircleCI runner proof before provider-native templates. |
 
 ## Latest Evidence
-
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Test evidence taxonomy](https://github.com/sakibshuvo/Entroping/issues/590) | Done | `scripts/test_taxonomy.py --strict` now writes schema-versioned `reports/test-taxonomy.json` with behavior, docs-compliance, script-integrity, integration, smoke, regression, and security categories; `scripts/audit_quality.sh` includes the artifact before coverage/Radon/Vulture gates so 100 percent coverage remains auditable by evidence type. |
 | [Spec contract versus package release versioning](https://github.com/sakibshuvo/Entroping/issues/592) | Done | README, Product Spec, TDS, and Roadmap now state that v4.1 is the product/spec/CLI contract generation, not the Python package release version; package releases remain alpha Git tags and PEP 440 package metadata tracked from `pyproject.toml`. |
 | [Real-Hurl CLI E2E proof](https://github.com/sakibshuvo/Entroping/issues/593) | Done | A pytest integration now skips cleanly when Hurl is unavailable; when present, it starts a localhost API, drives `entroping init` plus `entroping run --ci --report json --report junit` through the installed console script, validates JSON/JUnit reports and injected QAnstitution rule IDs, and proves the source `.hurl` file is unchanged. |
 | [GitHub Actions bootstrap install strategy](https://github.com/sakibshuvo/Entroping/issues/570) | Done | Generated starters now install through `ENTROPING_INSTALL_SPEC`, defaulting to the latest GitHub source branch while preserving explicit tag pinning through one workflow env value and documented migration guidance for older pinned starters. |
