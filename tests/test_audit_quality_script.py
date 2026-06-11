@@ -21,6 +21,7 @@ def test_audit_quality_help_documents_quality_gates() -> None:
     result = run_audit_quality("--help")
 
     assert result.returncode == 0
+    assert "test taxonomy" in result.stdout
     assert "pytest-cov" in result.stdout
     assert "radon" in result.stdout
     assert "ENTROPING_MAX_COMPLEXITY_RANK  Highest allowed Radon CC rank. Default: D." in (
@@ -34,6 +35,7 @@ def test_audit_quality_dry_run_shows_repeatable_steps() -> None:
     result = run_audit_quality("--dry-run")
 
     assert result.returncode == 0, result.stderr
+    assert "Would write test taxonomy report" in result.stdout
     assert "Would run coverage gate" in result.stdout
     assert "Would run Radon complexity gate" in result.stdout
     assert "Would run Vulture dead-code discovery" in result.stdout

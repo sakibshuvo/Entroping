@@ -26,6 +26,38 @@ that the governance loop works.
 | Regression | Freeze bugs and risky behaviors | import-boundary drift, import cycles, redaction gaps, path traversal, source Hurl mutation |
 | Security | Prove sensitive boundaries stay controlled | secret redaction, path handling, subprocess args, dependency audits |
 
+## Stable-Core Test Taxonomy
+
+The suite intentionally includes runtime behavior tests, documentation
+compliance tests, maintainer-script integrity tests, smoke checks, regression
+guards, and security negative tests. Stable-core evidence must distinguish those
+categories instead of treating the total test count as a single undifferentiated
+quality claim.
+
+Generate the machine-readable taxonomy with:
+
+```bash
+uv run python scripts/test_taxonomy.py --output reports/test-taxonomy.json --strict
+```
+
+The report uses schema `entroping.test-taxonomy.v1` and summarizes test files
+plus static test definitions by category:
+
+- `behavior`: runtime, domain, adapter, and compiler behavior tests for product code.
+- `docs-compliance`: public docs, roadmap, release evidence, and public-claim checks.
+- `script-integrity`: maintainer scripts, CI helpers, and local automation checks.
+- `integration`: cross-subsystem, installed CLI, and end-to-end local workflows.
+- `smoke`: boot, demo, install, and fast confidence checks.
+- `regression`: fragile behavior, compatibility promises, and fixed-bug guards.
+- `security`: secrets, redaction, path handling, subprocess, and policy-risk tests.
+
+`scripts/audit_quality.sh` writes `reports/test-taxonomy.json` before the
+coverage, Radon, and Vulture gates, then uploads the report with the rest of the
+ignored quality artifacts in CI. The taxonomy is file-level and deterministic;
+pytest markers improve classification when present, but the script also uses
+stable file-name rules so it can summarize the existing suite without mass
+marker churn.
+
 ## Required Commands
 
 Smallest no-Hurl CLI smoke for constrained agent sessions:
@@ -96,9 +128,9 @@ scripts/audit_quality.sh
 ```
 
 The quality audit is intentionally heavier than `scripts/regression.sh`. It
-runs the full test suite with a default 100 percent coverage threshold, records
-ignored JSON audit artifacts under `reports/`, then checks Radon complexity,
-Radon maintainability, and Vulture dead-code discovery.
+runs the test taxonomy report, the full test suite with a default 100 percent
+coverage threshold, records ignored JSON audit artifacts under `reports/`, then
+checks Radon complexity, Radon maintainability, and Vulture dead-code discovery.
 The default Radon cyclomatic-complexity ceiling is rank D; any rank E or F block
 must be refactored or explicitly justified before release-hardening claims.
 

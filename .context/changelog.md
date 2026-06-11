@@ -2,6 +2,10 @@
 
 ## 2026-06-11
 
+- Added issue #590's deterministic test taxonomy report so
+  `scripts/audit_quality.sh` now writes `reports/test-taxonomy.json` with
+  behavior, docs-compliance, script-integrity, integration, smoke, regression,
+  and security evidence categories before coverage/Radon/Vulture gates.
 - Clarified issue #592's versioning split across README, Product Spec, TDS, and
   Roadmap: v4.1 is the product/spec/CLI contract generation, while package
   releases stay on alpha Git tags and PEP 440 metadata from `pyproject.toml`.
