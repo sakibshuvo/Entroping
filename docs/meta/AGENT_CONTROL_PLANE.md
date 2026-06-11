@@ -40,6 +40,12 @@ tests, patches, review notes, alternate designs, and documentation drafts, but
 their output is untrusted until Codex validates it against the repo, issue, and
 gates.
 
+Use `scripts/opencode_worker.py` instead of raw `opencode run` for repeatable
+OpenCode/DeepSeek work. The worker has `review` mode for bounded findings and
+`patch` mode for a patch proposal artifact under `.entroping/ai-reviews/`.
+Patch mode never applies changes; Codex validates and applies any useful diff
+inside the issue worktree, then runs the normal gates.
+
 local Qwen/oMLX handles private summarization, triage, and low-risk review. Use
 it for source-archive summarization, duplicate-finding, wording variants, and
 offline review prompts before sending anything sensitive to cloud models.

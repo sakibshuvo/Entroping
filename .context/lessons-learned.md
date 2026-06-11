@@ -1,5 +1,12 @@
 # Entroping Lessons Learned
 
+## 2026-06-11
+
+- DeepSeek/OpenCode should produce bounded evidence, not uncontrolled repo
+  mutations. Route review and code-generation requests through
+  `scripts/opencode_worker.py`, save artifacts under `.entroping/ai-reviews/`,
+  and let Codex validate, apply, test, and commit any useful patch proposal.
+
 ## 2026-06-09
 
 - Governance exceptions need preflight validation, not only selected-run
