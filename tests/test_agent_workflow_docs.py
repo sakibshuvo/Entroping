@@ -229,3 +229,22 @@ def test_agent_workflow_docs_use_portable_repo_and_source_placeholders() -> None
     assert "<repo-root>" in combined
     assert "<source-archive>" in combined
     assert "ENTROPING_SOURCE_ROOT" in combined
+
+
+def test_context_management_records_graph_context_pilot_boundary() -> None:
+    doc = (REPO_ROOT / "docs" / "meta" / "CONTEXT_MANAGEMENT.md").read_text(
+        encoding="utf-8"
+    )
+    normalized = " ".join(doc.split())
+
+    assert "2026-06-12 issue #602 pilot" in doc
+    assert (
+        "Graphify did not beat `rg`, `scripts/context_pack.sh`, and "
+        "`docs/meta/DECISION_REGISTRY.yaml`"
+    ) in normalized
+    assert "symbol-known impact analysis" in normalized
+    assert (
+        "ordinary contributors must not be required to install Graphify"
+        in normalized
+    )
+    assert "graphify update . --no-cluster" in doc

@@ -2,6 +2,11 @@
 
 ## 2026-06-12
 
+- Completed issue #602's graph context retrieval pilot against the active repo:
+  Graphify stayed local and wrote only ignored `graphify-out/` output, `rg`
+  plus context packs and the decision registry remained the best initial
+  discovery path, and symbol-known `graphify explain`/`affected` queries proved
+  useful only as optional maintainer impact analysis.
 - Added issue #601's local tamper-evident report audit chain:
   `entroping report artifact-manifest` now appends value-free
   `.entroping/report-audit-chain.jsonl` events with previous-hash linkage,
