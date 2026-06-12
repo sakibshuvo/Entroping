@@ -134,7 +134,16 @@ When an OpenAPI operation declares security requirements and an explicit `401`
 or `403` response, `architect build --new` also writes deterministic
 auth-negative Hurl coverage under `tests/generated/security/`. Supported HTTP
 bearer/basic and API-key header/query/cookie schemes get missing/invalid auth
-tests. Unsupported schemes are printed as warnings instead of guessed.
+tests with `negative_category=invalid-auth`, severity, and safety metadata.
+Unsupported schemes are printed as warnings instead of guessed.
+When an operation has a JSON request body and an explicit `400` or `422`
+validation response, `architect build --new` also writes bounded
+negative-path Hurl under `tests/generated/negative/` for malformed JSON, schema
+violations, boundary values, SQLi-like strings, and IDOR-style path variants.
+These tests are ordinary committed Hurl files with category tags,
+`negative_category`, `severity`, and safety metadata. Generated mutating
+negative tests are marked `safety=destructive`, so protected runs block them
+before Hurl execution until you review and intentionally change the test.
 
 Generate or merge scoped prompt-backed coverage:
 
@@ -1028,7 +1037,7 @@ The operational setup guide lives in `docs/user/AI_PROVIDER_SETUP.md`. It covers
 LiteLLM installation, local Qwen through Ollama, local Qwen through oMLX
 OpenAI-compatible endpoints, cloud model routing, and no-provider CI.
 
-The Architect should generate only from configured sources: specs, stories, dependency specs, redacted traffic, or explicit prompt context. If you ask for exploratory negative tests, review them carefully and keep the resulting Hurl files in Git.
+The Architect should generate only from configured sources: specs, stories, dependency specs, redacted traffic, or explicit prompt context. If you ask for exploratory negative tests, review them carefully and keep the resulting Hurl files in Git. `entroping run` never calls an LLM or performs hidden fuzzing.
 
 ### Business Truth Elsewhere
 

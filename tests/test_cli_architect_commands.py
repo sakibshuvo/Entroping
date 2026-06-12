@@ -185,6 +185,79 @@ paths:
     assert "Authorization: Bearer invalid-token" in invalid.read_text(encoding="utf-8")
 
 
+def test_architect_build_new_writes_validated_schema_negative_corpus(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    validated_paths: list[str] = []
+    monkeypatch.setattr(
+        architect_cli,
+        "validate_hurl_content",
+        lambda content, display_path: validated_paths.append(display_path),
+        raising=False,
+    )
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+sources:
+  spec: ./openapi.yaml
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+    Path("openapi.yaml").write_text(
+        """
+openapi: "3.1.0"
+paths:
+  /checkouts:
+    post:
+      operationId: createCheckout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  minLength: 3
+                coupon:
+                  type: string
+      responses:
+        "201":
+          description: created
+        "422":
+          description: validation failed
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["architect", "build", "--new", "--tag", "checkout"])
+
+    assert result.exit_code == 0
+    assert "Generated 5 Hurl tests" in result.output
+    assert validated_paths == [
+        "tests/generated/create_checkout.hurl",
+        "tests/generated/negative/create_checkout_malformed_json.hurl",
+        "tests/generated/negative/create_checkout_schema_violations.hurl",
+        "tests/generated/negative/create_checkout_boundary_values.hurl",
+        "tests/generated/negative/create_checkout_sqli_like_strings.hurl",
+    ]
+    boundary = Path("tests/generated/negative/create_checkout_boundary_values.hurl")
+    sqli = Path("tests/generated/negative/create_checkout_sqli_like_strings.hurl")
+    assert boundary.is_file()
+    assert sqli.is_file()
+    boundary_content = boundary.read_text(encoding="utf-8")
+    assert "# entroping: negative_category=boundary-values" in boundary_content
+    assert "# entroping: safety=destructive" in boundary_content
+    assert "HTTP 422" in boundary_content
+    assert "# entroping: severity=high" in sqli.read_text(encoding="utf-8")
+
+
 def test_architect_build_new_writes_parameterized_generated_hurl(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

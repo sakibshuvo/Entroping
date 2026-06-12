@@ -442,6 +442,18 @@ compiled Hurl file through the same parser-backed Hurl validation boundary
 before writing any generated file. If one compiled file fails validation, no
 partial generated files are left behind.
 
+When an OpenAPI operation has a JSON request body and an explicit validation
+failure response (`400` or `422`), the same deterministic path emits a bounded
+negative-path corpus under `tests/generated/negative/`. The current corpus is
+reviewable committed Hurl for malformed JSON, schema violations, boundary
+values, SQLi-like strings, and IDOR-style path variations. It never runs during
+generation, never calls an LLM from `entroping run`, and never performs random
+or hidden fuzzing. Generated negative files carry `negative_category`,
+`severity`, and safety metadata plus category tags so QAnstitution conditions
+and suite tag filters can opt into categories deliberately; mutating generated
+negative tests are marked `safety=destructive` so protected environments block
+them before Hurl execution unless teams review and rewrite the test safety.
+
 ### Provider Strategy
 
 The Brain is local-first and cloud-second:
@@ -823,9 +835,19 @@ for manual review; Entroping does not delete existing tests automatically.
 OpenAPI operations that declare security requirements and an explicit `401` or
 `403` response. Supported schemes are HTTP bearer/basic and API-key
 header/query/cookie. Generated files live under `tests/generated/security/`
-with `security` and `security_scheme` metadata. Unsupported schemes, missing
-scheme definitions, and operations without explicit auth-failure responses are
+with `security`, `security_scheme`, `negative_category=invalid-auth`,
+`severity`, and safety metadata. Unsupported schemes, missing scheme
+definitions, and operations without explicit auth-failure responses are
 reported as warnings rather than guessed.
+
+For JSON request bodies with explicit `400` or `422` responses,
+`architect build --new` also emits bounded schema-derived negative tests under
+`tests/generated/negative/`. These files are tagged `negative` plus their
+category (`malformed-json`, `schema-violations`, `boundary-values`,
+`sqli-like-strings`, or `idor-path-variants`; auth-negative files use
+`invalid-auth`) and include
+`negative_category`, `severity`, and safety metadata so reports and suites can
+distinguish generated negative coverage from spec-derived happy paths.
 
 ### Observation
 

@@ -63,6 +63,9 @@
           "duration_ms": {"type": "integer", "minimum": 0},
           "timeout_ms": {"type": "integer", "minimum": 0},
           "operation_id": {"type": "string", "minLength": 1},
+          "source": {"type": "string", "minLength": 1},
+          "negative_category": {"type": "string", "minLength": 1},
+          "severity": {"type": "string", "minLength": 1},
           "rule_ids": {
             "type": "array",
             "items": {"type": "string"}

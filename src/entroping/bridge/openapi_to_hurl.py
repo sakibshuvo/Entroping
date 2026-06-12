@@ -16,6 +16,8 @@ _JSONPATH_FIELD_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _PATH_PARAMETER_RE = re.compile(r"\{([^{}]+)\}")
 _HTTP_TOKEN_RE = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
 _PARAMETER_LOCATIONS = frozenset({"path", "query", "header", "cookie"})
+_READ_ONLY_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+_VALIDATION_FAILURE_STATUSES = ("400", "422")
 _SENSITIVE_VARIABLE_PARTS = (
     "access_token",
     "api_key",
@@ -89,6 +91,16 @@ class _SecurityScheme:
     name: str
     auth_lines: tuple[str, ...]
     query_parameter: tuple[str, str] | None = None
+
+
+@dataclass(frozen=True)
+class _NegativePathCase:
+    """One deterministic negative-path Hurl variant for an OpenAPI operation."""
+
+    category: str
+    severity: str
+    target: str
+    body: object | str
 
 
 def compile_openapi_to_hurl(
@@ -179,6 +191,20 @@ def compile_openapi_to_hurl_with_report(
                 used_paths.add(item.relative_path)
                 generated.append(item)
             security_findings.extend(security_result.security_findings)
+
+            for item in _schema_negative_files(
+                method=method_name,
+                path=raw_path,
+                path_item=path_item,
+                operation=operation,
+                operation_id=operation_id,
+                tags=tags,
+            ):
+                if item.relative_path in used_paths:
+                    msg = f"OpenAPI operations compile to duplicate Hurl path: {item.relative_path}"
+                    raise OpenApiCompilationError(msg)
+                used_paths.add(item.relative_path)
+                generated.append(item)
 
     if not generated and operation_ids is not None:
         msg = "OpenAPI document does not contain selected operations for Hurl generation"
@@ -281,7 +307,7 @@ def _security_negative_files(
         )
         return OpenApiHurlCompilationResult(files=(), security_findings=tuple(findings))
 
-    security_tags = frozenset({*tags, "auth", "negative"})
+    security_tags = frozenset({*tags, "auth", "invalid-auth", "negative"})
     slug = _slugify_operation_id(operation_id)
     files: list[GeneratedHurlFile] = []
     if supported:
@@ -357,6 +383,9 @@ def _render_security_negative_operation(
         f"# entroping: tags={_render_tags(tags)}",
         "# entroping: source=openapi",
         f"# entroping: operation_id={operation_id}",
+        "# entroping: negative_category=invalid-auth",
+        "# entroping: severity=high",
+        f"# entroping: safety={_negative_path_safety(method)}",
         f"# entroping: security={security}",
         f"# entroping: security_scheme={scheme_name}",
         f"# entroping: path={path}",
@@ -375,6 +404,277 @@ def _render_security_negative_operation(
 
     lines.extend((f"HTTP {status}", ""))
     return "\n".join(lines)
+
+
+def _schema_negative_files(
+    *,
+    method: str,
+    path: str,
+    path_item: Mapping[str, object],
+    operation: Mapping[str, object],
+    operation_id: str,
+    tags: frozenset[str],
+) -> tuple[GeneratedHurlFile, ...]:
+    status = _validation_failure_status(operation)
+    request_schema = _json_request_schema(operation)
+    if status is None or request_schema is None:
+        return ()
+
+    parameters = _operation_parameters(path_item=path_item, operation=operation, path=path)
+    cases = _schema_negative_cases(
+        schema=request_schema,
+        path=path,
+        parameters=parameters,
+    )
+    slug = _slugify_operation_id(operation_id)
+    return tuple(
+        GeneratedHurlFile(
+            relative_path=f"tests/generated/negative/{slug}_{case.category.replace('-', '_')}.hurl",
+            content=_render_schema_negative_operation(
+                method=method,
+                path=path,
+                operation_id=operation_id,
+                tags=frozenset({*tags, "negative", case.category}),
+                status=status,
+                case=case,
+            ),
+        )
+        for case in cases
+    )
+
+
+def _schema_negative_cases(
+    *,
+    schema: Mapping[str, object],
+    path: str,
+    parameters: tuple[_OpenApiParameter, ...],
+) -> tuple[_NegativePathCase, ...]:
+    cases: list[_NegativePathCase] = [
+        _NegativePathCase(
+            category="malformed-json",
+            severity="medium",
+            target=_render_request_target(path, parameters),
+            body='`{"entroping_malformed":`',
+        )
+    ]
+    if schema.get("type") != "object":
+        return tuple(cases)
+
+    properties = _ensure_mapping(schema.get("properties", {}), "OpenAPI object properties")
+    required = _string_sequence(schema.get("required"), "OpenAPI object required")
+    base_body = _object_example_for_negative_schema(schema)
+
+    schema_violation = _schema_violation_body(base_body=base_body, required=required)
+    if schema_violation is not None:
+        cases.append(
+            _NegativePathCase(
+                category="schema-violations",
+                severity="medium",
+                target=_render_request_target(path, parameters),
+                body=schema_violation,
+            )
+        )
+
+    boundary_body = _boundary_violation_body(
+        base_body=base_body,
+        properties=properties,
+    )
+    if boundary_body is not None:
+        cases.append(
+            _NegativePathCase(
+                category="boundary-values",
+                severity="medium",
+                target=_render_request_target(path, parameters),
+                body=boundary_body,
+            )
+        )
+
+    sqli_body = _sqli_like_body(
+        base_body=base_body,
+        properties=properties,
+        required=required,
+    )
+    if sqli_body is not None:
+        cases.append(
+            _NegativePathCase(
+                category="sqli-like-strings",
+                severity="high",
+                target=_render_request_target(path, parameters),
+                body=sqli_body,
+            )
+        )
+
+    idor_target = _idor_path_variant_target(path=path, parameters=parameters)
+    if idor_target is not None:
+        cases.append(
+            _NegativePathCase(
+                category="idor-path-variants",
+                severity="high",
+                target=idor_target,
+                body=base_body,
+            )
+        )
+
+    return tuple(cases)
+
+
+def _render_schema_negative_operation(
+    *,
+    method: str,
+    path: str,
+    operation_id: str,
+    tags: frozenset[str],
+    status: str,
+    case: _NegativePathCase,
+) -> str:
+    lines = [
+        f"# entroping: tags={_render_tags(tags)}",
+        "# entroping: source=openapi",
+        "# entroping: generation=negative-path-fuzzing",
+        f"# entroping: operation_id={operation_id}",
+        f"# entroping: negative_category={case.category}",
+        f"# entroping: severity={case.severity}",
+        f"# entroping: safety={_negative_path_safety(method)}",
+        f"# entroping: path={path}",
+        "",
+        f"{method} {{{{base_url}}}}{case.target}",
+        "Content-Type: application/json",
+    ]
+    if isinstance(case.body, str):
+        lines.append(case.body)
+    else:
+        lines.extend(json.dumps(case.body, indent=2, allow_nan=False).splitlines())
+    lines.extend((f"HTTP {status}", ""))
+    return "\n".join(lines)
+
+
+def _validation_failure_status(operation: Mapping[str, object]) -> str | None:
+    responses = _mapping_field(operation, "responses", "OpenAPI operation must contain responses")
+    for status in _VALIDATION_FAILURE_STATUSES:
+        if status in responses:
+            return status
+    return None
+
+
+def _negative_path_safety(method: str) -> str:
+    if method.upper() in _READ_ONLY_METHODS:
+        return "read-only"
+    return "destructive"
+
+
+def _object_example_for_negative_schema(schema: Mapping[str, object]) -> dict[str, object]:
+    example = _example_for_schema(schema)
+    if not isinstance(example, Mapping):
+        return {}
+    normalized = _ensure_mapping(example, "OpenAPI object example")
+    return {key: item for key, item in normalized.items()}
+
+
+def _schema_violation_body(
+    *,
+    base_body: Mapping[str, object],
+    required: tuple[str, ...],
+) -> dict[str, object] | None:
+    if not required:
+        return None
+    omitted = required[0]
+    return {key: item for key, item in base_body.items() if key != omitted}
+
+
+def _boundary_violation_body(
+    *,
+    base_body: Mapping[str, object],
+    properties: Mapping[str, object],
+) -> dict[str, object] | None:
+    body = dict(base_body)
+    changed = False
+    for field_name, raw_schema in properties.items():
+        field_schema = _ensure_mapping(raw_schema, f"schema for {field_name!r}")
+        value = _boundary_violation_value(field_schema)
+        if value is _MISSING:
+            continue
+        body[_validate_json_object_key(field_name, context="OpenAPI object properties")] = value
+        changed = True
+    if not changed:
+        return None
+    return body
+
+
+def _boundary_violation_value(schema: Mapping[str, object]) -> object:
+    schema_type = schema.get("type")
+    if schema_type == "string":
+        min_length = schema.get("minLength")
+        if isinstance(min_length, int) and not isinstance(min_length, bool) and min_length > 0:
+            return "x" * (min_length - 1)
+        max_length = schema.get("maxLength")
+        if isinstance(max_length, int) and not isinstance(max_length, bool) and max_length >= 0:
+            return "x" * (max_length + 1)
+    if schema_type in {"integer", "number"}:
+        minimum = schema.get("minimum")
+        if isinstance(minimum, int | float) and not isinstance(minimum, bool):
+            value = minimum - 1
+            return int(value) if schema_type == "integer" else value
+        maximum = schema.get("maximum")
+        if isinstance(maximum, int | float) and not isinstance(maximum, bool):
+            value = maximum + 1
+            return int(value) if schema_type == "integer" else value
+    return _MISSING
+
+
+def _sqli_like_body(
+    *,
+    base_body: Mapping[str, object],
+    properties: Mapping[str, object],
+    required: tuple[str, ...],
+) -> dict[str, object] | None:
+    required_fields = set(required)
+    candidates: list[str] = []
+    for field_name, raw_schema in properties.items():
+        field_schema = _ensure_mapping(raw_schema, f"schema for {field_name!r}")
+        if field_schema.get("type") == "string":
+            candidates.append(
+                _validate_json_object_key(
+                    field_name,
+                    context="OpenAPI object properties",
+                )
+            )
+    if not candidates:
+        return None
+    field_name = next(
+        (candidate for candidate in candidates if candidate not in required_fields),
+        candidates[0],
+    )
+    body = dict(base_body)
+    body[field_name] = "' OR '1'='1"
+    return body
+
+
+def _idor_path_variant_target(
+    *,
+    path: str,
+    parameters: tuple[_OpenApiParameter, ...],
+) -> str | None:
+    path_parameters = [parameter for parameter in parameters if parameter.location == "path"]
+    if not path_parameters:
+        return None
+    overrides = {path_parameters[0].name: _idor_variant_value(path_parameters[0])}
+    return _render_request_target(path, parameters, path_overrides=overrides)
+
+
+def _idor_variant_value(parameter: _OpenApiParameter) -> str | int | float | bool:
+    value = parameter.example_value
+    if isinstance(value, bool):
+        return not value
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value + 1
+    if isinstance(value, float):
+        return value + 1.0
+    if isinstance(value, str) and value:
+        prefix = value.split("-", maxsplit=1)[0]
+        if prefix and prefix != value:
+            return f"{prefix}-other"
+        return f"{value}-other"
+    return "entroping-other"
 
 
 def _operation_parameters(
@@ -560,13 +860,18 @@ def _validate_fallback_variable_names(
 def _render_request_target(
     path: str,
     parameters: tuple[_OpenApiParameter, ...],
+    *,
+    path_overrides: Mapping[str, str | int | float | bool] | None = None,
 ) -> str:
     path_parameters = {
         parameter.name: parameter for parameter in parameters if parameter.location == "path"
     }
+    overrides = path_overrides or {}
 
     def replace_path_parameter(match: re.Match[str]) -> str:
         raw_name = match.group(1)
+        if raw_name in overrides:
+            return _url_component(overrides[raw_name])
         parameter = path_parameters.get(raw_name)
         if parameter is None:
             return f"{{{{{_variable_name(raw_name)}}}}}"
@@ -915,9 +1220,27 @@ def _example_for_schema(schema: Mapping[str, object]) -> object:
     if schema_type == "array":
         return []
     if schema_type in {"integer", "number"}:
+        minimum = schema.get("minimum")
+        if isinstance(minimum, int | float) and not isinstance(minimum, bool):
+            return int(minimum) if schema_type == "integer" else minimum
+        maximum = schema.get("maximum")
+        if isinstance(maximum, int | float) and not isinstance(maximum, bool):
+            return int(maximum) if schema_type == "integer" else maximum
         return 0
     if schema_type == "boolean":
         return False
+    if schema_type == "string":
+        min_length = schema.get("minLength")
+        if isinstance(min_length, int) and not isinstance(min_length, bool) and min_length > 0:
+            return "x" * min_length
+        max_length = schema.get("maxLength")
+        if (
+            isinstance(max_length, int)
+            and not isinstance(max_length, bool)
+            and max_length >= 0
+            and max_length < len("string")
+        ):
+            return "x" * max_length
     return "string"
 
 

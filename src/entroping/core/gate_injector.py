@@ -47,6 +47,9 @@ class HurlExecutionCopy:
     injected_gates: tuple[HurlGateAssertion, ...]
     known_failures: tuple[AppliedKnownFailure, ...] = ()
     operation_id: str | None = None
+    source: str | None = None
+    negative_category: str | None = None
+    severity: str | None = None
 
 
 @dataclass(frozen=True)
@@ -109,6 +112,9 @@ def write_injected_execution_copy(
         injected_gates=injected_gates,
         known_failures=applied_known_failures,
         operation_id=parsed_test.metadata.operation_id,
+        source=parsed_test.metadata.meta.get("source"),
+        negative_category=parsed_test.metadata.meta.get("negative_category"),
+        severity=parsed_test.metadata.meta.get("severity"),
     )
 
 

@@ -451,6 +451,17 @@ Current role behavior:
 - `architect audit --focus auditor` selects the Auditor persona and model route
   for provider-backed review findings. Auditor does not edit files.
 
+Deterministic OpenAPI negative-path generation does not add a new
+`qanstitution.yaml` section in v4.1. Instead, `architect build --new` writes
+ordinary Hurl files with `negative`, category, `negative_category`, `severity`,
+and `safety` metadata. Suites can opt into a category with tags, and gates can
+target category or severity with conditions such as
+`meta.negative_category == 'boundary-values'` or
+`meta.severity == 'high'`; auth-negative files use category `invalid-auth`.
+Product runtime remains deterministic: generated negative tests must be
+committed/reviewed before `entroping run`, and
+`entroping run` does not call LLM providers or perform hidden fuzzing.
+
 Current implementation note: `entroping config list` prints this routing metadata,
 and `entroping config set --agent <builder|auditor|breaker> --model <provider/model>`
 updates only the selected agent model. If the selected persona source is missing,

@@ -37,6 +37,9 @@ def _execution_copy(
     execution: Path,
     known_failures: tuple[AppliedKnownFailure, ...] = (),
     operation_id: str | None = None,
+    source_kind: str | None = None,
+    negative_category: str | None = None,
+    severity: str | None = None,
 ) -> HurlExecutionCopy:
     return HurlExecutionCopy(
         source_path=source,
@@ -51,6 +54,9 @@ def _execution_copy(
         ),
         known_failures=known_failures,
         operation_id=operation_id,
+        source=source_kind,
+        negative_category=negative_category,
+        severity=severity,
     )
 
 
@@ -150,6 +156,54 @@ def test_reports_include_operation_id_evidence(tmp_path: Path) -> None:
     html = html_path.read_text(encoding="utf-8")
     assert "<th>Operation</th>" in html
     assert "createCheckout" in html
+
+
+def test_reports_include_generated_negative_path_metadata(tmp_path: Path) -> None:
+    source = tmp_path / "tests" / "generated" / "negative" / "checkout_boundary.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "checkout_boundary.hurl"
+    report = build_run_report(
+        project="checkout-api",
+        environment="local",
+        execution_copies=[
+            _execution_copy(
+                source,
+                execution,
+                operation_id="createCheckout",
+                source_kind="openapi",
+                negative_category="boundary-values",
+                severity="medium",
+            )
+        ],
+        suite=_suite_result(execution, ""),
+        project_root=tmp_path,
+    )
+
+    payload = report_writer.run_report_to_dict(report)
+    tests_payload = payload["tests"]
+    assert isinstance(tests_payload, list)
+    first_test = tests_payload[0]
+    assert isinstance(first_test, Mapping)
+    assert first_test["source"] == "openapi"
+    assert first_test["negative_category"] == "boundary-values"
+    assert first_test["severity"] == "medium"
+
+    junit_path = tmp_path / "reports" / "junit.xml"
+    write_junit_report(report, junit_path)
+    properties = ElementTree.parse(junit_path).getroot().find("testcase/properties")
+    assert properties is not None
+    values = {
+        property_node.attrib["name"]: property_node.attrib["value"]
+        for property_node in properties.findall("property")
+    }
+    assert values["entroping.source"] == "openapi"
+    assert values["entroping.negative_category"] == "boundary-values"
+    assert values["entroping.severity"] == "medium"
+
+    html_path = tmp_path / "reports" / "run-latest.html"
+    write_html_report(report, html_path)
+    html = html_path.read_text(encoding="utf-8")
+    assert "boundary-values" in html
+    assert "medium" in html
 
 
 def test_reports_include_applied_known_failure_evidence(tmp_path: Path) -> None:

@@ -13,6 +13,14 @@
   debug, security-review, and after-sleep status prompts. Each local-path prompt
   now tells Codex Cloud to use the task-provided repository root when the
   maintainer macOS path is unavailable.
+- Added issue #600's bounded OpenAPI negative-path corpus so
+  `architect build --new` now emits committed Hurl under
+  `tests/generated/negative/` for malformed JSON, schema violations, boundary
+  values, SQLi-like strings, and IDOR-style path variants when operations
+  declare explicit `400` or `422` validation responses; generated files carry
+  category, severity, and safety metadata, run reports expose that
+  classification without arbitrary metadata dumps, and mutating negatives are
+  marked `destructive` for protected-run blocking.
 - Added issue #596's production safe-mode preflight so protected environments
   default to `prod`, `production`, and `protected`, suite manifests can declare
   `protected` plus safety intent, mutating Hurl methods block before subprocess
