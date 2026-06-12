@@ -284,6 +284,12 @@ merge, and validation path, then prints a unified diff without writing target
 files. Treat preview output as review evidence, not execution proof; run the
 affected Hurl tests or full suite before merging.
 
+Self-healing maintenance is still human-reviewed. Use Architect proposals after
+an explicit prompt, OpenAPI diff, failed deterministic run, or drift report, then
+review the diff and the `.entroping/agent-runs/*.json` manifest before writing or
+committing. Manifests record prompt and target evidence as hashes and paths, not
+raw prompts, provider output, target Hurl contents, secrets, cookies, or tokens.
+
 ## 5. Legacy API Rescue
 
 Use the Eye when no good spec or tests exist.

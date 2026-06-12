@@ -1,5 +1,7 @@
 """CLI adapter tests for architect commands."""
 
+import hashlib
+
 from cli_test_support import (
     ArchitectPromptPackage,
     BrainProviderError,
@@ -65,6 +67,15 @@ def _assert_builder_agent_manifest(manifest: dict[str, object]) -> None:
         "output_cost_per_1m_tokens_usd": 1.25,
     }
     assert manifest["output_paths"] == ["tests/generated/ai_checkout.hurl"]
+    assert manifest["source_evidence"] == [
+        {
+            "kind": "explicit_prompt",
+            "reference": "prompt_intent",
+            "sha256": hashlib.sha256(
+                b"Generate checkout smoke coverage."
+            ).hexdigest(),
+        }
+    ]
     assert manifest["tags"] == ["ai"]
     assert manifest["validation"] == {
         "hurl_validated": True,
@@ -971,6 +982,15 @@ gates: []
     assert manifests[0]["mode"] == "merge"
     assert manifests[0]["agent"] == "builder"
     assert manifests[0]["output_paths"] == ["tests/manual/checkout.hurl"]
+    assert manifests[0]["source_evidence"] == [
+        {
+            "kind": "explicit_prompt",
+            "reference": "prompt_intent",
+            "sha256": hashlib.sha256(
+                b"Merge Authorization into checkout coverage."
+            ).hexdigest(),
+        }
+    ]
 
 
 def test_architect_build_prompt_rejects_missing_builder_config(

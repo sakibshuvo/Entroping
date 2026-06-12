@@ -56,6 +56,22 @@ class AgentBundleFinding(BaseModel):
     path: str | None = None
 
 
+class AgentBundleSourceEvidence(BaseModel):
+    """Value-free source evidence from an agent-run manifest."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal[
+        "explicit_prompt",
+        "openapi_diff",
+        "failed_run",
+        "drift_report",
+        "selected_hurl_target",
+    ]
+    reference: str
+    sha256: str | None = None
+
+
 class AgentBundleManifestEvidence(BaseModel):
     """Safe manifest evidence rendered into the bundle."""
 
@@ -71,6 +87,7 @@ class AgentBundleManifestEvidence(BaseModel):
     persona_source_path: str
     persona_sha256: str
     output_paths: tuple[str, ...] = ()
+    source_evidence: tuple[AgentBundleSourceEvidence, ...] = ()
     tags: tuple[str, ...] = ()
     validation_status: Literal["passed", "failed"]
     structured_output_validated: bool
@@ -184,6 +201,36 @@ class _ManifestUsage(BaseModel):
     total_tokens: int | None = Field(default=None, ge=0)
 
 
+class _ManifestSourceEvidence(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal[
+        "explicit_prompt",
+        "openapi_diff",
+        "failed_run",
+        "drift_report",
+        "selected_hurl_target",
+    ]
+    reference: str
+    sha256: str | None = None
+
+    @field_validator("reference")
+    @classmethod
+    def validate_reference(cls, value: str) -> str:
+        return _validate_manifest_text(value)
+
+    @field_validator("sha256")
+    @classmethod
+    def validate_sha256(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        text = _validate_manifest_text(value)
+        if len(text) != 64 or any(character not in "0123456789abcdef" for character in text):
+            msg = "source evidence sha256 must be a lowercase SHA-256 hex digest"
+            raise ValueError(msg)
+        return text
+
+
 class _AgentRunManifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -197,6 +244,7 @@ class _AgentRunManifest(BaseModel):
     persona: _ManifestPersona
     prompt: _ManifestPrompt
     output_paths: tuple[str, ...] = ()
+    source_evidence: tuple[_ManifestSourceEvidence, ...] = ()
     tags: tuple[str, ...] = ()
     validation: _ManifestValidation
     latency_ms: int = Field(ge=0)
@@ -367,8 +415,8 @@ def render_agent_bundle_markdown(report: AgentBundleReport) -> str:
     else:
         lines.extend(
             [
-                "| Role | Manifest | Command | Model | Provider | Outputs | Validation |",
-                "| --- | --- | --- | --- | --- | --- | --- |",
+                "| Role | Manifest | Command | Model | Provider | Outputs | Sources | Validation |",
+                "| --- | --- | --- | --- | --- | --- | --- | --- |",
             ]
         )
         for manifest in manifests:
@@ -378,6 +426,7 @@ def render_agent_bundle_markdown(report: AgentBundleReport) -> str:
                 f"hurl={manifest.hurl_validated}"
             )
             outputs = ", ".join(manifest.output_paths) if manifest.output_paths else "n/a"
+            sources = _source_summary(manifest.source_evidence)
             lines.append(
                 "| "
                 f"{_markdown_cell(manifest.agent)} | "
@@ -386,6 +435,7 @@ def render_agent_bundle_markdown(report: AgentBundleReport) -> str:
                 f"{_markdown_cell(manifest.model)} | "
                 f"{_markdown_cell(manifest.provider or 'unknown')} | "
                 f"{_markdown_cell(outputs)} | "
+                f"{_markdown_cell(sources)} | "
                 f"{_markdown_cell(validation)} |"
             )
 
@@ -545,6 +595,14 @@ def _manifest_evidence(
         persona_source_path=manifest.persona.source_path,
         persona_sha256=manifest.persona.sha256,
         output_paths=output_paths,
+        source_evidence=tuple(
+            AgentBundleSourceEvidence(
+                kind=source.kind,
+                reference=source.reference,
+                sha256=source.sha256,
+            )
+            for source in manifest.source_evidence
+        ),
         tags=tuple(sorted(manifest.tags)),
         validation_status=manifest.validation.status,
         structured_output_validated=manifest.validation.structured_output_validated,
@@ -585,7 +643,15 @@ def _manifest_matches_scope(
     if scope == ".":
         return True
     scope_prefix = f"{scope.rstrip('/')}/"
-    return any(path == scope or path.startswith(scope_prefix) for path in manifest.output_paths)
+    scoped_paths = [
+        *manifest.output_paths,
+        *(
+            source.reference
+            for source in manifest.source_evidence
+            if source.kind in {"openapi_diff", "failed_run", "drift_report", "selected_hurl_target"}
+        ),
+    ]
+    return any(path == scope or path.startswith(scope_prefix) for path in scoped_paths)
 
 
 def _validation_findings(
@@ -663,6 +729,12 @@ def _status(findings: Sequence[AgentBundleFinding]) -> AgentBundleStatus:
     if findings:
         return "attention"
     return "pass"
+
+
+def _source_summary(source_evidence: Sequence[AgentBundleSourceEvidence]) -> str:
+    if not source_evidence:
+        return "n/a"
+    return ", ".join(f"{source.kind}: {source.reference}" for source in source_evidence)
 
 
 def _finding(

@@ -1,5 +1,6 @@
 """Architect refactor orchestration tests."""
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -198,6 +199,23 @@ def test_run_architect_refactor_preview_renders_diff_without_writing(
     assert "--- a/tests/generated/checkout.hurl" in result.preview_diff
     assert "+++ b/tests/generated/checkout.hurl" in result.preview_diff
     assert "+Authorization: Bearer {{token}}" in result.preview_diff
+    manifest_payload = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    assert manifest_payload["output_paths"] == []
+    assert manifest_payload["source_evidence"] == [
+        {
+            "kind": "explicit_prompt",
+            "reference": "prompt_intent",
+            "sha256": hashlib.sha256(b"Add Authorization header.").hexdigest(),
+        },
+        {
+            "kind": "selected_hurl_target",
+            "reference": "tests/generated/checkout.hurl",
+            "sha256": hashlib.sha256(original.encode("utf-8")).hexdigest(),
+        },
+    ]
+    raw_manifest = result.manifest_path.read_text(encoding="utf-8")
+    assert "Add Authorization header." not in raw_manifest
+    assert "GET {{base_url}}/checkout" not in raw_manifest
 
 
 def test_run_architect_refactor_merges_managed_blocks_into_manual_target(

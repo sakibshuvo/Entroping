@@ -2,6 +2,10 @@
 
 ## 2026-06-11
 
+- Self-healing Hurl maintenance needs source evidence, not autonomy. Keep
+  repairs under Architect build/refactor surfaces, record prompt/target evidence
+  as hashes and paths, require Hurl validation before writes, and leave commit,
+  push, merge, and release proof to humans plus deterministic gates.
 - Concurrent queue supervisors need atomic state-file replacement, not direct
   JSON rewrites. A second process may scan `running/` for stale jobs while the
   first process is updating a valid job; direct `write_text()` truncation can
