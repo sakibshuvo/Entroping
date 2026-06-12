@@ -314,6 +314,12 @@
   #602 pilot. Use it after ordinary repo discovery when a symbol is already
   known and `graphify explain` or `graphify affected` can compact caller/test
   impact evidence.
+- Context-engineering tools are useful only when their layer is explicit:
+  Obsidian/LLM wiki preserves memory, Graphify/Understand Anything improves
+  comprehension, CodeGraph helps focused `src/` and `tests/` impact analysis,
+  Headroom reduces token cost after retrieval stabilizes, and none of them
+  outrank repo files, tests, CI, ADRs, the decision registry, or
+  QAnstitution/Hurl evidence.
 - The autonomous workflow should stay Codex-first until OpenCode and local Qwen/oMLX have proven reliable on bounded read-only or review tasks. Cheap agents can draft and critique, but verified commits remain the product boundary.
 - A multi-agent workflow needs executable gates, not only principles. Keep one parent integrator, require local file evidence for claims, run deterministic checks before commit, and update context files so future threads inherit the decision trail.
 - GitHub Issues should track individual bugs, feature slices, and regressions; Obsidian should track phase-level progress, roadmap movement, ADRs, and durable lessons. Duplicating every issue into Markdown creates stale context.

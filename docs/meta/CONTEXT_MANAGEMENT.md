@@ -87,6 +87,17 @@ when the source archive lives elsewhere:
 ENTROPING_SOURCE_ROOT=/path/to/entroping-specs scripts/context_pack.sh --mode source
 ```
 
+## Context Engineering Layers
+
+Use context tools by layer, not by authority. GitHub Issues, PRs, CI, source
+files, tests, ADRs, the decision registry, and QAnstitution/Hurl evidence
+remain product truth. Obsidian, the LLM wiki, and curated source exports
+preserve memory. Graphify, Understand Anything, CodeGraph, and Obsidian graph
+views help comprehension, onboarding, and `src/` plus `tests/` impact analysis.
+Headroom and similar compression tools are optional cost controls after
+retrieval behavior is stable; they must not hide exact diffs, failing test
+output, security findings, audit evidence, or secrets-sensitive material.
+
 ## Obsidian Role
 
 Obsidian is the human navigation layer. It shows product evolution, ADRs, source links, and relationships between docs.

@@ -82,6 +82,36 @@ files, ADRs, GitHub Issues, and CI decide truth.
 One write agent per issue-scoped worktree. Parallelism comes from independent
 issues, not from multiple agents editing the same files.
 
+## Context Engineering Factory Boundary
+
+GitHub Issues, PRs, CI, source files, tests, ADRs, the decision registry, and
+QAnstitution/Hurl evidence remain the source-of-truth layer. These surfaces
+decide whether Entroping behavior, architecture, security posture, and release
+claims are real.
+
+Obsidian, the LLM wiki, and curated source exports are the memory layer. They
+preserve product evolution, source history, rejected ideas, open questions, and
+durable rationale so a fresh agent can rehydrate the project without treating
+old chat context as current truth.
+
+Graphify, Understand Anything, CodeGraph, and Obsidian graph views are
+comprehension and retrieval aids. They can reduce exploration cost, show
+relationships, support onboarding, and guide impact analysis, but they do not
+promote requirements, override tests, replace ADRs, or approve patches.
+
+Headroom and other compression tools are economic tooling. They can reduce
+token spend around noisy, re-fetchable context after retrieval behavior is
+stable, but they must not hide exact diffs, failing test output, security
+findings, audit evidence, or secrets-sensitive material.
+
+`entroping run` remains deterministic, Hurl-based, QAnstitution-governed, and
+provider-free. No context, graph, compression, or helper-agent tool may move LLM
+providers into the run path or weaken the Hurl execution boundary.
+
+Codex remains the integrator and merge owner. Budget-friendly workers can
+review, summarize, draft, and critique, but Codex validates all useful output
+against local files, tests, docs, issues, ADRs, and CI before committing.
+
 ## Context Pack
 
 Every agent session should start with a deterministic context pack instead of a vague chat summary.

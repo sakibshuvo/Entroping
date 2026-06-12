@@ -248,3 +248,40 @@ def test_context_management_records_graph_context_pilot_boundary() -> None:
         in normalized
     )
     assert "graphify update . --no-cluster" in doc
+
+
+def test_context_engineering_factory_boundary_is_canonical() -> None:
+    control_plane = (
+        REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md"
+    ).read_text(encoding="utf-8")
+    context_management = (
+        REPO_ROOT / "docs" / "meta" / "CONTEXT_MANAGEMENT.md"
+    ).read_text(encoding="utf-8")
+    combined = " ".join(f"{control_plane}\n{context_management}".split())
+
+    required_terms = [
+        "## Context Engineering Factory Boundary",
+        (
+            "GitHub Issues, PRs, CI, source files, tests, ADRs, the decision "
+            "registry, and QAnstitution/Hurl evidence remain the "
+            "source-of-truth layer"
+        ),
+        "Obsidian, the LLM wiki, and curated source exports are the memory layer",
+        (
+            "Graphify, Understand Anything, CodeGraph, and Obsidian graph views "
+            "are comprehension and retrieval aids"
+        ),
+        "Headroom and other compression tools are economic tooling",
+        (
+            "must not hide exact diffs, failing test output, security findings, "
+            "audit evidence, or secrets-sensitive material"
+        ),
+        (
+            "`entroping run` remains deterministic, Hurl-based, "
+            "QAnstitution-governed, and provider-free"
+        ),
+        "Codex remains the integrator and merge owner",
+    ]
+
+    for term in required_terms:
+        assert term in combined
