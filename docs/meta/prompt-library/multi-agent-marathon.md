@@ -13,7 +13,9 @@ tags:
 # Multi-Agent Marathon Prompt
 
 Use this when running several sessions at once. One parent integrator must own
-truth, review, merge readiness, and conflict resolution.
+truth, Tier B/Tier C review, merge readiness, and conflict resolution. Tier A
+autonomous lanes may merge independently only when the control-plane
+conditions, PR declaration, local gates, and CI are satisfied.
 
 ## Parent Integrator Prompt
 
@@ -30,10 +32,12 @@ Your job:
 - Choose independent GitHub issues.
 - Assign one write agent per issue/worktree.
 - Keep external models bounded.
-- Review every diff before merge.
+- Review every Tier B/Tier C diff before merge.
+- Allow only declared Tier A autonomous PRs to merge without Codex after local
+  gates and CI are green.
 - Run the right local gates.
 - Watch CI.
-- Merge only green PRs.
+- Merge only green PRs, or verify a Tier A worker merged only after green CI.
 - Clean worktrees after merge.
 - Keep docs/context accurate without creating Markdown sprawl.
 
@@ -53,18 +57,23 @@ For each write worker:
 - give the worker the exact issue-worker prompt,
 - require focused tests and gates,
 - require a PR with Closes #<issue>.
+- declare whether the worker has Tier A autonomous merge authority.
 
 For external model workers:
 - use review or patch-proposal mode only,
 - do not let them apply patches directly to main,
 - classify output as verified, stale, duplicate, opinion, or unsafe.
 
-Before merging any PR:
+Before merging any Tier B/Tier C PR:
 - inspect git diff,
 - verify docs impact declaration,
 - run or inspect local gates,
 - confirm CI green,
 - check no source-of-truth drift was introduced.
+
+For Tier A autonomous PRs, audit after merge that the Agent Autonomy
+Declaration, gates, CI, `Closes #<issue>`, and `scripts/finish_issue.sh`
+cleanup were completed.
 
 Final report:
 - issues completed,
@@ -89,9 +98,11 @@ Rules:
 - Work only on this issue.
 - Do not touch files owned by another active worker.
 - Stop if your change expands beyond the issue.
+- Stop if Tier A work crosses into Tier B or Tier C scope.
 - Run focused tests.
 - Report blockers early.
-- Do not merge your own PR unless the parent integrator explicitly asks.
+- Merge your own PR only if the assignment explicitly grants Tier A autonomous
+  merge authority and CI is green; otherwise wait for parent integrator review.
 ```
 
 ## Conflict Stop Prompt

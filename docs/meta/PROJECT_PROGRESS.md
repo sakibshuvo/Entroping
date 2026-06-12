@@ -48,7 +48,6 @@ With #517-#523 and #548 closed, keep local work limited to review-proven defects
 | 3 | New local issue only if discovered | Real defect/regression or ready product gap; no filler cleanup queue. |
 
 Promote a new local issue here only when a real defect/regression or ready product gap is discovered.
-
 ## External Stable-Core Blockers
 
 Stable-core readiness remains blocked by evidence that cannot be manufactured entirely inside this repo.
@@ -62,6 +61,7 @@ Stable-core readiness remains blocked by evidence that cannot be manufactured en
 ## Latest Evidence
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Autonomous OpenCode shipping lanes](https://github.com/sakibshuvo/Entroping/issues/648) | Done | Agent workflow docs now define Tier A/B/C merge authority: Tier A docs/tests/guard/script work can merge independently after issue-scoped worktrees, local gates, PR declaration, green CI, and finish cleanup; Tier B/Tier C keep human/Codex review for runtime, security, architecture, release, provider-boundary, and secrets-sensitive work. |
 | [Production safe-mode run preflight](https://github.com/sakibshuvo/Entroping/issues/596) / [#627](https://github.com/sakibshuvo/Entroping/issues/627) | Done | Protected environments default to `prod`, `production`, and `protected`; suite manifests can declare `protected` plus safety intent; mutating Hurl methods block before subprocess execution unless marked `read-only`, `idempotent`, or `teardown-backed`; and mixed protected blocks preserve selected, executed, and not-scheduled evidence without leaking values. |
 | [Install reference synchronization](https://github.com/sakibshuvo/Entroping/issues/571) | Done | `scripts/install_reference_sync.py --check` now validates README, TDS, user install docs, CI recipes, and distribution guidance against the latest GitHub release tag in `docs/meta/release-evidence.json`; `--write` updates those pinned install references intentionally, and `scripts/release_check.sh` runs the check before package/release smokes. |
 | [README first-screen launch path](https://github.com/sakibshuvo/Entroping/issues/591) | Done | README is compressed from 517 to under 220 lines while keeping the tagline, value proposition, two-minute demo, install path, basic usage, alpha status, license, launch assets, and deep links to existing docs instead of duplicating the docs site. |

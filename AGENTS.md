@@ -56,13 +56,15 @@ These instructions extend the global Codex rules for this repository. If a rule 
 
 ## Autonomous Development Workflow
 
-- Follow `docs/meta/archive/AUTONOMOUS_DEVELOPMENT.md` for Codex-first implementation, Spec Kit pilots, and future OpenCode/oMLX loops.
+- Follow `docs/meta/archive/AUTONOMOUS_DEVELOPMENT.md` for risk-tiered autonomous implementation, Spec Kit pilots, and future OpenCode/oMLX loops.
 - Follow `docs/meta/AGENT_CONTROL_PLANE.md` for cross-agent coordination across Codex, Claude Code, OpenCode, Gemini, NotebookLM, and local Qwen.
 - Use `docs/meta/FEATURE_DELIVERY_CHECKLIST.md` for every non-trivial feature, defect fix, or architecture change.
 - Use `scripts/context_pack.sh --mode implementation` to create deterministic context for a new coding session instead of relying on chat memory.
-- Codex is the final implementer and gatekeeper for now.
-- Use OpenCode or local Qwen only as bounded workers or reviewers until their outputs have been validated against local files, tests, and CI.
-- Do not let any unattended agent push to `main` or accept generated code without deterministic verification.
+- Codex owns factory design and final integration for Tier B/Tier C work.
+- OpenCode/DeepSeek may independently implement and merge only Tier A autonomous lanes documented in `docs/meta/AGENT_CONTROL_PLANE.md` after issue-scoped worktrees, deterministic gates, GitHub CI, and finish cleanup prove scope.
+- Tier B and Tier C remain human/Codex-reviewed.
+- Use OpenCode or local Qwen only as bounded workers, reviewers, or documented Tier A autonomous workers until their outputs have been validated against local files, tests, and CI.
+- Do not let any unattended agent push to `main` outside a documented Tier A autonomous lane, and never accept generated code without deterministic verification.
 - Spec Kit may be piloted for one feature at a time on a clean branch; do not let generated templates replace existing curated docs without review.
 
 ## Verification

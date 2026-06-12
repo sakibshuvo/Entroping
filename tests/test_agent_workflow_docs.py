@@ -11,7 +11,7 @@ def test_agent_control_plane_documents_cross_agent_guardrails() -> None:
         encoding="utf-8"
     )
 
-    assert "Codex is the primary integrator" in doc
+    assert "Codex owns factory design" in doc
     assert "Claude Code" in doc
     assert "OpenCode" in doc
     assert "Gemini" in doc
@@ -21,14 +21,20 @@ def test_agent_control_plane_documents_cross_agent_guardrails() -> None:
     assert "No helper agent is a source of truth" in doc
 
 
-def test_agent_control_plane_defines_codex_first_software_factory() -> None:
+def test_agent_control_plane_defines_risk_tiered_software_factory() -> None:
     doc = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
         encoding="utf-8"
     )
 
     required_terms = [
         "## Software Factory Operating Model",
-        "Codex owns integration and merge readiness",
+        (
+            "Codex owns factory design, Tier B/Tier C integration, and merge "
+            "readiness for sensitive lanes."
+        ),
+        "Tier A autonomous lane",
+        "Tier B assisted lane",
+        "Tier C restricted lane",
         "OpenCode and free-model workers receive bounded issue prompts",
         "local Qwen/oMLX handles private summarization, triage, and low-risk review",
         "Generated codegraph, Graphify, and Obsidian graph output is evidence, not authority",
@@ -36,6 +42,85 @@ def test_agent_control_plane_defines_codex_first_software_factory() -> None:
     ]
     for term in required_terms:
         assert term in doc
+
+
+def test_agent_control_plane_defines_autonomous_shipping_lane_limits() -> None:
+    doc = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
+        encoding="utf-8"
+    )
+    normalized = " ".join(doc.split())
+
+    required_terms = [
+        "## Autonomous OpenCode Shipping Lanes",
+        "Tier A autonomous lane",
+        "low-risk docs, tests, guard tests, prompt-library maintenance, and non-runtime scripts",
+        (
+            "may implement, push, open a PR, wait for GitHub CI, merge, and run "
+            "`scripts/finish_issue.sh` without Codex"
+        ),
+        "Tier B assisted lane",
+        "requires human or Codex review before merge",
+        "Tier C restricted lane",
+        "must never merge autonomously",
+        "Hurl runner",
+        "`entroping run`",
+        "redaction",
+        "proxy",
+        "provider boundary",
+        "release publishing",
+        "architecture boundary",
+        "secrets",
+        "`scripts/start_issue.sh`",
+        "`scripts/regression.sh --security`",
+        "`Closes #<issue>`",
+        "Agent Autonomy Declaration",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+
+def test_agents_md_allows_only_documented_tier_a_autonomy() -> None:
+    doc = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    normalized = " ".join(doc.split())
+
+    required_terms = [
+        "OpenCode/DeepSeek may independently implement and merge only Tier A autonomous lanes",
+        "Tier B and Tier C remain human/Codex-reviewed",
+        (
+            "Do not let any unattended agent push to `main` outside a documented "
+            "Tier A autonomous lane"
+        ),
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+
+def test_decision_registry_indexes_autonomous_opencode_lane() -> None:
+    registry = (REPO_ROOT / "docs" / "meta" / "DECISION_REGISTRY.yaml").read_text(
+        encoding="utf-8"
+    )
+    normalized = " ".join(registry.split())
+
+    required_terms = [
+        "ENT-DEC-0019",
+        "OpenCode autonomy is risk-tiered, not unrestricted",
+        "Tier A autonomous lanes",
+        "PR autonomy declaration",
+        "green CI",
+        (
+            "Tier C runtime, Hurl, redaction, proxy, provider-boundary, release, "
+            "architecture, secrets, security, and audit-evidence work must never "
+            "merge autonomously"
+        ),
+        "docs/meta/AGENT_CONTROL_PLANE.md",
+        ".github/pull_request_template.md",
+        "#648",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
 
 
 def test_agent_control_plane_routes_opencode_through_bounded_worker() -> None:
@@ -302,7 +387,11 @@ def test_context_engineering_factory_boundary_is_canonical() -> None:
             "`entroping run` remains deterministic, Hurl-based, "
             "QAnstitution-governed, and provider-free"
         ),
-        "Codex remains the integrator and merge owner",
+        (
+            "Codex remains the factory architect and Tier B/Tier C merge owner, "
+            "while Tier A autonomous workers can merge only under the documented "
+            "shipping lanes"
+        ),
     ]
 
     for term in required_terms:
@@ -373,3 +462,47 @@ def test_context_tool_generated_outputs_stay_local_and_ignored() -> None:
 
     for term in required_terms:
         assert term in combined
+
+
+def test_prompt_library_contains_autonomous_tier_a_worker_prompt() -> None:
+    prompt = (REPO_ROOT / "docs" / "meta" / "prompt-library" / "issue-worker.md").read_text(
+        encoding="utf-8"
+    )
+    catalog = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "README.md"
+    ).read_text(encoding="utf-8")
+    combined = " ".join(f"{prompt}\n{catalog}".split())
+
+    required_terms = [
+        "Autonomous Tier A OpenCode/DeepSeek Worker Prompt",
+        "Do not use this mode for Tier B or Tier C work.",
+        "`scripts/start_issue.sh <issue-number> <type>/<short-kebab-description>`",
+        "Agent Autonomy Declaration",
+        "`scripts/regression.sh --security`",
+        "`Closes #<issue-number>`",
+        "`scripts/finish_issue.sh <issue-number>`",
+        "CI is green",
+    ]
+
+    for term in required_terms:
+        assert term in combined
+
+
+def test_pull_request_template_requires_agent_autonomy_declaration() -> None:
+    template = (REPO_ROOT / ".github" / "pull_request_template.md").read_text(
+        encoding="utf-8"
+    )
+    normalized = " ".join(template.split())
+
+    required_terms = [
+        "## Agent Autonomy Declaration",
+        "Tier A autonomous lane",
+        "Tier B assisted lane",
+        "Tier C restricted lane",
+        "Merge authority:",
+        "CI passed before merge",
+        "`Closes #<issue>`",
+    ]
+
+    for term in required_terms:
+        assert term in normalized

@@ -35,12 +35,13 @@ Use this checklist for every non-trivial Entroping feature. It is the executable
 
 ## 2. Agent Coordination
 
-- [ ] Assign one parent integrator for the branch. Today this is Codex.
+- [ ] Declare the autonomy tier from `docs/meta/AGENT_CONTROL_PLANE.md`: Tier A autonomous lane, Tier B assisted lane, or Tier C restricted lane.
+- [ ] Assign merge authority for the branch: autonomous worker for Tier A only after gates and CI, or human/Codex for Tier B/Tier C.
 - [ ] Give every helper agent a bounded brief with allowed files, read-only versus write access, and expected output.
 - [ ] Do not let two agents edit the same file family at the same time.
-- [ ] Treat OpenCode, local Qwen/oMLX, Graphify, and generated summaries as evidence sources, not authority.
+- [ ] Treat OpenCode, DeepSeek, local Qwen/oMLX, Graphify, and generated summaries as evidence sources, not authority unless a Tier A PR independently proves itself through deterministic gates and CI.
 - [ ] Require helper findings to cite local file paths, line numbers, and a reproducible command or reasoning path.
-- [ ] Resolve conflicts in the parent thread before applying patches.
+- [ ] Resolve Tier B/Tier C conflicts in the parent thread before applying patches; Tier A workers must stop and escalate when scope becomes ambiguous or restricted.
 
 ## 3. TDD And Test Pyramid
 
@@ -153,5 +154,8 @@ No regression suite -> no commit.
 No security pass for sensitive boundaries -> no merge.
 No Documentation Impact Declaration -> no PR.
 No context update -> no durable memory.
-No parent integrator approval -> no multi-agent patch lands.
+No Agent Autonomy Declaration -> no autonomous merge.
+Tier C restricted lane -> no autonomous merge.
+No CI green -> no autonomous merge.
+No parent integrator approval -> no Tier B/Tier C multi-agent patch lands.
 ```
