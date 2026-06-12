@@ -27,6 +27,8 @@ class LoadedRunSuite:
     parallel: bool
     fail_fast: bool
     drift_check: bool
+    protected: bool
+    safety: str | None
     discovery_roots: tuple[Path, ...]
 
 
@@ -51,6 +53,8 @@ def load_run_suite_manifest(*, project_root: Path, suite_name: str) -> LoadedRun
         parallel=suite.parallel,
         fail_fast=suite.fail_fast,
         drift_check=suite.drift_check,
+        protected=suite.protected,
+        safety=suite.safety,
         discovery_roots=_resolve_suite_paths(root=root, path_globs=tuple(suite.paths)),
     )
 

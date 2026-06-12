@@ -20,6 +20,7 @@ AgentRole = Literal["builder", "auditor", "breaker"]
 _ENV_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _KNOWN_FAILURE_EXPIRY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 SUPPORTED_QANSTITUTION_VERSIONS: tuple[str, ...] = ("4.1",)
+DEFAULT_PROTECTED_ENVIRONMENTS: tuple[str, ...] = ("prod", "production", "protected")
 _QANSTITUTION_VERSION_MIGRATION_NOTE = (
     "Update to a supported QAnstitution version and follow the migration guidance in "
     "docs/technical/QANSTITUTION_REFERENCE.md#qanstitution-schema-compatibility."
@@ -287,6 +288,30 @@ class RuntimeSettings(BaseModel):
     parallel_workers: int = Field(default=4, gt=0)
     follow_redirects: bool = True
     retry: int = Field(default=0, ge=0)
+    protected_environments: list[str] = Field(
+        default_factory=lambda: list(DEFAULT_PROTECTED_ENVIRONMENTS)
+    )
+
+    @field_validator("protected_environments")
+    @classmethod
+    def validate_protected_environments(cls, value: list[str]) -> list[str]:
+        """Normalize protected environment names for run safety classification."""
+
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for item in value:
+            stripped = item.strip().lower()
+            if not stripped:
+                msg = "protected environment names must not be empty"
+                raise ValueError(msg)
+            if any(ord(character) < 32 or ord(character) == 127 for character in stripped):
+                msg = "protected environment names must not contain control characters"
+                raise ValueError(msg)
+            if stripped in seen:
+                continue
+            seen.add(stripped)
+            normalized.append(stripped)
+        return normalized
 
 
 class Qanstitution(BaseModel):
@@ -337,10 +362,7 @@ class Qanstitution(BaseModel):
             return None
 
         if not value:
-            msg = (
-                "QAnstitution version must not be empty. "
-                f"{_QANSTITUTION_VERSION_MIGRATION_NOTE}"
-            )
+            msg = f"QAnstitution version must not be empty. {_QANSTITUTION_VERSION_MIGRATION_NOTE}"
             raise ValueError(msg)
 
         if value != value.strip():
@@ -386,10 +408,7 @@ def expand_qanstitution_gate_entries(
         next_stack = (*stack, validated_name)
         for nested_group in group.groups:
             expand_group(nested_group, next_stack)
-        expanded.extend(
-            ExpandedGateEntry(rule=gate, group=validated_name)
-            for gate in group.gates
-        )
+        expanded.extend(ExpandedGateEntry(rule=gate, group=validated_name) for gate in group.gates)
 
     for raw_gate in raw_gates:
         if _is_gate_group_reference(raw_gate):

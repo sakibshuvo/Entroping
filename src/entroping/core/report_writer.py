@@ -1,7 +1,7 @@
 """Report writers for deterministic Entroping runs."""
 
 import json
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -34,6 +34,7 @@ from entroping.models.report import (
     RunReport,
     RunReportSummary,
     RunRetryEvidence,
+    RunSafetyEvidence,
     RunTestReport,
 )
 
@@ -65,6 +66,7 @@ def build_run_report(
     execution_copies: Sequence[HurlExecutionCopy],
     suite: HurlSuiteResult,
     project_root: Path,
+    safety_evidence_by_source_path: Mapping[Path, RunSafetyEvidence] | None = None,
 ) -> RunReport:
     """Build a serializable report from Hurl execution copies and results."""
 
@@ -78,6 +80,10 @@ def build_run_report(
     execution_copies_by_path = {
         execution_copy.execution_path.expanduser().resolve(): execution_copy
         for execution_copy in execution_copies
+    }
+    safety_evidence = {
+        path.expanduser().resolve(): evidence
+        for path, evidence in (safety_evidence_by_source_path or {}).items()
     }
     tests: list[RunTestReport] = []
     for result in suite.results:
@@ -106,6 +112,7 @@ def build_run_report(
                 response_headers=response_headers,
                 response_body_shape=response_body_shape,
                 retry=_retry_evidence_from_result(result),
+                safety=safety_evidence.get(execution_copy.source_path.expanduser().resolve()),
                 known_failures=tuple(
                     KnownFailureEvidence(
                         test=known_failure.test,

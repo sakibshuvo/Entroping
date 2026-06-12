@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 RunSuiteReportFormat = Literal["drift", "html", "json", "junit"]
+RunSuiteSafety = Literal["read-only", "idempotent", "teardown-backed", "destructive"]
 
 
 class RunSuiteManifest(BaseModel):
@@ -21,6 +22,8 @@ class RunSuiteManifest(BaseModel):
     parallel: bool = False
     fail_fast: bool = False
     drift_check: bool = False
+    protected: bool = False
+    safety: RunSuiteSafety | None = None
 
     @field_validator("name", "env")
     @classmethod

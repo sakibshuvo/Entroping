@@ -53,6 +53,17 @@ class RunRetryEvidence:
 
 
 @dataclass(frozen=True)
+class RunSafetyEvidence:
+    """Protected-run safety evidence for one selected Hurl test."""
+
+    protected_environment: bool
+    safety: str | None
+    safety_source: str | None
+    methods: tuple[str, ...]
+    blocked_reason: str | None
+
+
+@dataclass(frozen=True)
 class RunTestReport:
     """Report row for one source Hurl test."""
 
@@ -71,6 +82,7 @@ class RunTestReport:
     response_body_shape: tuple[str, ...] = ()
     known_failures: tuple[KnownFailureEvidence, ...] = ()
     retry: RunRetryEvidence = field(default_factory=RunRetryEvidence)
+    safety: RunSafetyEvidence | None = None
 
     @property
     def passed(self) -> bool:

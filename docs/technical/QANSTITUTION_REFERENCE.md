@@ -198,6 +198,10 @@ settings:
   parallel_workers: 4
   follow_redirects: true
   retry: 2
+  protected_environments:
+    - "prod"
+    - "production"
+    - "protected"
 ```
 
 ## 4. Top-Level Fields
@@ -565,10 +569,42 @@ settings:
   parallel_workers: 4
   follow_redirects: true
   retry: 2
+  protected_environments:
+    - "prod"
+    - "production"
+    - "protected"
 ```
 
 Settings are deterministic runtime defaults. Command-line flags and environment
 variables can override them where documented.
+
+`protected_environments` controls which `entroping run --env <name>` values are
+treated as protected by the production-safety preflight. The default protected
+names are `prod`, `production`, and `protected`. In a protected run, mutating
+Hurl request methods (`POST`, `PUT`, `PATCH`, and `DELETE`) fail before Hurl
+execution unless the selected test or suite declares reviewed safety metadata:
+
+```hurl
+# entroping: tags=smoke
+# entroping: safety=idempotent
+
+POST {{base_url}}/maintenance/reindex
+HTTP 202
+```
+
+Accepted safety values are:
+
+| Value | Protected-run behavior |
+| --- | --- |
+| `read-only` | Allow a mutating-looking request that is reviewed as read-only. |
+| `idempotent` | Allow a reviewed repeatable mutation. |
+| `teardown-backed` | Allow a mutation with committed cleanup or reset safety. |
+| `destructive` | Always block in protected environments. |
+
+A named suite can also set `protected: true` and `safety: <value>` in
+`suites/<name>.yaml`. Test-level safety metadata wins over suite defaults, so a
+test marked `destructive` remains blocked even in a suite whose default safety is
+`idempotent`.
 
 ## 16. Redaction Roadmap
 
@@ -609,6 +645,7 @@ For larger teams, a sync script can generate `docs/stories/*.md` from the extern
 # entroping: story_id=CHK-001
 # entroping: owner=payments
 # entroping: doc_url=https://notion.so/workspace/CHK-001
+# entroping: safety=read-only
 
 GET {{base_url}}/checkout/{{checkout_id}}
 HTTP 200

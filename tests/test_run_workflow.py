@@ -17,6 +17,7 @@ from entroping.core.run_workflow import (
     _known_failure_source_key,
     execute_run_workflow,
     plan_run_workflow,
+    run_execution_plan_to_dict,
     write_run_execution_plan,
 )
 from entroping.core.traffic_redactor import redact_traffic_exchange
@@ -297,6 +298,213 @@ def test_execute_run_workflow_selects_by_operation_id_metadata(
     latest = json.loads(result.latest_state_path.read_text(encoding="utf-8"))
     assert latest["tests"][0]["path"] == "tests/checkout.hurl"
     assert latest["tests"][0]["operation_id"] == "createCheckout"
+
+
+@pytest.mark.parametrize("method", ["POST", "PUT", "PATCH", "DELETE"])
+def test_execute_run_workflow_blocks_unsafe_mutating_tests_in_protected_environment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    method: str,
+) -> None:
+    _write_project(tmp_path)
+    (tmp_path / "envs").mkdir()
+    (tmp_path / "envs" / "production.env").write_text(
+        "base_url=http://localhost:18080\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "tests" / "health.hurl").write_text(
+        f"# entroping: tags=smoke\n\n{method} http://localhost:18080/orders\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    subprocess_called = False
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+        fail_fast: bool = False,
+    ) -> HurlSuiteResult:
+        nonlocal subprocess_called
+        _ = (paths, options, max_workers, fail_fast)
+        subprocess_called = True
+        raise AssertionError("Hurl should not run when protected safety preflight blocks")
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
+
+    result = execute_run_workflow(
+        project_root=tmp_path,
+        environment="production",
+        tag_filters=("smoke",),
+        report_formats=("json", "junit", "html"),
+        parallel=False,
+        drift_check=False,
+    )
+
+    assert result.exit_code == 1
+    assert subprocess_called is False
+    latest = json.loads(result.latest_state_path.read_text(encoding="utf-8"))
+    assert latest["summary"] == {
+        "total": 1,
+        "passed": 0,
+        "failed": 1,
+        "exit_code": 1,
+    }
+    assert latest["tests"][0]["status"] == "blocked"
+    assert latest["tests"][0]["safety"] == {
+        "protected_environment": True,
+        "safety": None,
+        "safety_source": None,
+        "methods": [method],
+        "blocked_reason": (
+            f"mutating method {method} requires safety metadata in protected environments"
+        ),
+    }
+    assert "localhost:18080" not in json.dumps(latest)
+    assert (tmp_path / "reports" / "run-latest.json").is_file()
+    assert (tmp_path / "reports" / "junit.xml").is_file()
+    assert (tmp_path / "reports" / "run-latest.html").is_file()
+
+
+def test_execute_run_workflow_allows_idempotent_mutation_in_protected_environment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_project(tmp_path)
+    (tmp_path / "envs").mkdir()
+    (tmp_path / "envs" / "prod.env").write_text(
+        "base_url=http://localhost:18080\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "tests" / "health.hurl").write_text(
+        "# entroping: tags=smoke\n"
+        "# entroping: safety=idempotent\n\n"
+        "POST http://localhost:18080/reindex\nHTTP 202\n",
+        encoding="utf-8",
+    )
+    executed_paths: list[Path] = []
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+        fail_fast: bool = False,
+    ) -> HurlSuiteResult:
+        _ = (options, max_workers, fail_fast)
+        executed_paths.extend(paths)
+        return HurlSuiteResult(results=tuple(_passed_result(path) for path in paths))
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
+
+    result = execute_run_workflow(
+        project_root=tmp_path,
+        environment="prod",
+        tag_filters=("smoke",),
+        report_formats=("json",),
+        parallel=False,
+        drift_check=False,
+    )
+
+    assert result.exit_code == 0
+    assert len(executed_paths) == 1
+    latest = json.loads(result.latest_state_path.read_text(encoding="utf-8"))
+    assert latest["tests"][0]["status"] == "passed"
+    assert latest["tests"][0]["safety"] == {
+        "protected_environment": True,
+        "safety": "idempotent",
+        "safety_source": "test metadata",
+        "methods": ["POST"],
+        "blocked_reason": None,
+    }
+
+
+def test_execute_run_workflow_blocks_destructive_test_metadata_over_suite_default(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_project(tmp_path)
+    (tmp_path / "envs").mkdir()
+    (tmp_path / "envs" / "staging.env").write_text(
+        "base_url=http://localhost:18080\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "tests" / "health.hurl").write_text(
+        "# entroping: tags=smoke\n"
+        "# entroping: safety=destructive\n\n"
+        "DELETE http://localhost:18080/accounts/123\nHTTP 204\n",
+        encoding="utf-8",
+    )
+    subprocess_called = False
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+        fail_fast: bool = False,
+    ) -> HurlSuiteResult:
+        nonlocal subprocess_called
+        _ = (paths, options, max_workers, fail_fast)
+        subprocess_called = True
+        raise AssertionError("destructive metadata must block before Hurl")
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
+
+    result = execute_run_workflow(
+        project_root=tmp_path,
+        environment="staging",
+        tag_filters=("smoke",),
+        report_formats=("json",),
+        parallel=False,
+        drift_check=False,
+        protected_run=True,
+        suite_safety="idempotent",
+    )
+
+    assert result.exit_code == 1
+    assert subprocess_called is False
+    latest = json.loads(result.latest_state_path.read_text(encoding="utf-8"))
+    assert latest["tests"][0]["status"] == "blocked"
+    assert latest["tests"][0]["safety"] == {
+        "protected_environment": True,
+        "safety": "destructive",
+        "safety_source": "test metadata",
+        "methods": ["DELETE"],
+        "blocked_reason": "destructive tests are blocked in protected environments",
+    }
+
+
+def test_plan_run_workflow_reports_protected_safety_blockers(tmp_path: Path) -> None:
+    _write_project(tmp_path)
+    (tmp_path / "envs").mkdir()
+    (tmp_path / "envs" / "protected.env").write_text(
+        "base_url=http://localhost:18080\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "tests" / "health.hurl").write_text(
+        "# entroping: tags=smoke\n\nPATCH http://localhost:18080/profile\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    plan = plan_run_workflow(
+        project_root=tmp_path,
+        environment="protected",
+        tag_filters=("smoke",),
+        report_formats=("json",),
+        parallel=False,
+        drift_check=False,
+    )
+
+    assert plan.status == "blocked"
+    assert plan.message == "Run plan blocked by protected-environment safety preflight"
+    assert plan.tests[0].safety is not None
+    assert plan.tests[0].safety.methods == ("PATCH",)
+    assert plan.tests[0].safety.blocked_reason == (
+        "mutating method PATCH requires safety metadata in protected environments"
+    )
+    payload = json.dumps(run_execution_plan_to_dict(plan))
+    assert "localhost:18080" not in payload
 
 
 def test_execute_run_workflow_reports_no_matching_operation_ids(tmp_path: Path) -> None:
@@ -1042,7 +1250,7 @@ def test_execute_run_workflow_accepts_env_file_shell_env_and_local_hurl_definiti
                 "variable: checkout_id=demo-checkout",
                 "HTTP 200",
                 "[Captures]",
-                "csrf_token: header \"x-csrf-token\"",
+                'csrf_token: header "x-csrf-token"',
                 "",
                 "POST {{base_url}}/checkout",
                 "Authorization: Bearer {{api_token}}",
@@ -1137,9 +1345,7 @@ def test_execute_run_workflow_drift_findings_affect_exit_code(
     assert result.exit_code == 1
     assert (tmp_path / "reports" / "drift.json").exists()
     assert (tmp_path / "reports" / "drift-baseline.candidate.json").exists()
-    baseline_after_run = json.loads(
-        (state_dir / "drift-baseline.json").read_text(encoding="utf-8")
-    )
+    baseline_after_run = json.loads((state_dir / "drift-baseline.json").read_text(encoding="utf-8"))
     assert baseline_after_run["tests"][0]["rule_ids"] == ["old_rule"]
 
 

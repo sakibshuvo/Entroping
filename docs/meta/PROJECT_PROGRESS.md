@@ -62,6 +62,7 @@ Stable-core readiness remains blocked by evidence that cannot be manufactured en
 ## Latest Evidence
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Production safe-mode run preflight](https://github.com/sakibshuvo/Entroping/issues/596) | Done | Protected environments default to `prod`, `production`, and `protected`; suite manifests can declare `protected` plus safety intent; mutating Hurl methods block before subprocess execution unless marked `read-only`, `idempotent`, or `teardown-backed`; and JSON/JUnit/HTML plus dry-run reports expose value-free safety evidence. |
 | [Install reference synchronization](https://github.com/sakibshuvo/Entroping/issues/571) | Done | `scripts/install_reference_sync.py --check` now validates README, TDS, user install docs, CI recipes, and distribution guidance against the latest GitHub release tag in `docs/meta/release-evidence.json`; `--write` updates those pinned install references intentionally, and `scripts/release_check.sh` runs the check before package/release smokes. |
 | [README first-screen launch path](https://github.com/sakibshuvo/Entroping/issues/591) | Done | README is compressed from 517 to under 220 lines while keeping the tagline, value proposition, two-minute demo, install path, basic usage, alpha status, license, launch assets, and deep links to existing docs instead of duplicating the docs site. |
 | [Test evidence taxonomy](https://github.com/sakibshuvo/Entroping/issues/590) | Done | `scripts/test_taxonomy.py --strict` now writes schema-versioned `reports/test-taxonomy.json` with behavior, docs-compliance, script-integrity, integration, smoke, regression, and security categories; `scripts/audit_quality.sh` includes the artifact before coverage/Radon/Vulture gates so 100 percent coverage remains auditable by evidence type. |
@@ -132,7 +133,6 @@ Stable-core readiness remains blocked by evidence that cannot be manufactured en
 | [Changed Hurl test runs](https://github.com/sakibshuvo/Entroping/issues/397) | Done | `entroping run --changed-from <ref>` selects existing changed `.hurl` files from Git diff for fast local or agent feedback. |
 | [SARIF report output](https://github.com/sakibshuvo/Entroping/issues/398) | Done | `entroping report sarif` writes SARIF 2.1.0 from local JUnit, drift, and optional traceability findings for code-scanning import. |
 ## Source Of Truth
-
 | Question | Source |
 | --- | --- |
 | What work is next? | GitHub Issues, milestones, and Project board. |

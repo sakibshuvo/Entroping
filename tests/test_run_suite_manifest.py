@@ -50,6 +50,35 @@ drift_check: true
     )
 
 
+def test_load_run_suite_manifest_carries_protected_safety_defaults(tmp_path: Path) -> None:
+    tests_dir = tmp_path / "tests"
+    suites_dir = tmp_path / "suites"
+    tests_dir.mkdir()
+    suites_dir.mkdir()
+    (tests_dir / "mutation.hurl").write_text("POST http://localhost:18080/jobs\n", encoding="utf-8")
+    (suites_dir / "prod-smoke.yaml").write_text(
+        """
+version: entroping.suite.v1
+name: prod-smoke
+env: staging
+protected: true
+safety: teardown-backed
+paths:
+  - tests/*.hurl
+reports:
+  - json
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    suite = load_run_suite_manifest(project_root=tmp_path, suite_name="prod-smoke")
+
+    assert suite.environment == "staging"
+    assert suite.protected is True
+    assert suite.safety == "teardown-backed"
+    assert suite.report_formats == ("json",)
+
+
 def test_load_run_suite_manifest_defaults_to_tests_root(tmp_path: Path) -> None:
     (tmp_path / "suites").mkdir()
     (tmp_path / "suites" / "regression.yaml").write_text(
@@ -62,6 +91,8 @@ def test_load_run_suite_manifest_defaults_to_tests_root(tmp_path: Path) -> None:
     assert suite.discovery_roots == ((tmp_path / "tests").resolve(),)
     assert suite.tag_filters == ()
     assert suite.report_formats == ()
+    assert suite.protected is False
+    assert suite.safety is None
 
 
 def test_load_run_suite_manifest_accepts_null_optional_fields(tmp_path: Path) -> None:

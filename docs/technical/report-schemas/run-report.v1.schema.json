@@ -116,6 +116,30 @@
               }
             }
           },
+          "safety": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "protected_environment",
+              "safety",
+              "safety_source",
+              "methods",
+              "blocked_reason"
+            ],
+            "properties": {
+              "protected_environment": {"type": "boolean"},
+              "safety": {
+                "type": ["string", "null"],
+                "enum": ["read-only", "idempotent", "teardown-backed", "destructive", null]
+              },
+              "safety_source": {"type": ["string", "null"]},
+              "methods": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "blocked_reason": {"type": ["string", "null"]}
+            }
+          },
           "response": {
             "type": "object",
             "additionalProperties": false,

@@ -76,6 +76,42 @@ def render_junit_report(report: RunReport) -> bytes:
                         "value": _known_failure_summary(known_failure),
                     },
                 )
+            if test.safety is not None:
+                ElementTree.SubElement(
+                    properties,
+                    "property",
+                    {
+                        "name": "entroping.safety.protected_environment",
+                        "value": str(test.safety.protected_environment).lower(),
+                    },
+                )
+                if test.safety.safety is not None:
+                    ElementTree.SubElement(
+                        properties,
+                        "property",
+                        {
+                            "name": "entroping.safety",
+                            "value": test.safety.safety,
+                        },
+                    )
+                if test.safety.methods:
+                    ElementTree.SubElement(
+                        properties,
+                        "property",
+                        {
+                            "name": "entroping.safety.methods",
+                            "value": ",".join(test.safety.methods),
+                        },
+                    )
+                if test.safety.blocked_reason is not None:
+                    ElementTree.SubElement(
+                        properties,
+                        "property",
+                        {
+                            "name": "entroping.safety.blocked_reason",
+                            "value": test.safety.blocked_reason,
+                        },
+                    )
             if test.retry.retry_count > 0 or test.retry.unstable:
                 ElementTree.SubElement(
                     properties,
@@ -132,7 +168,7 @@ def render_html_report(report: RunReport) -> str:
     th, td {{ border: 1px solid #d8d8d8; padding: 0.5rem; text-align: left; vertical-align: top; }}
     th {{ background: #f4f4f4; }}
     .passed {{ color: #137333; font-weight: 600; }}
-    .failed, .timeout, .error {{ color: #b3261e; font-weight: 600; }}
+    .failed, .timeout, .error, .blocked {{ color: #b3261e; font-weight: 600; }}
     pre {{ white-space: pre-wrap; background: #f7f7f7; padding: 0.75rem; overflow: auto; }}
   </style>
 </head>
@@ -214,6 +250,8 @@ def _html_output(test: RunTestReport) -> str:
             for known_failure in test.known_failures
         )
         parts.append(f"<strong>Known failures</strong><ul>{items}</ul>")
+    if test.safety is not None:
+        parts.append(f"<strong>Safety</strong><p>{escape(_safety_summary(test))}</p>")
     if test.retry.retry_count > 0 or test.retry.unstable:
         items = "".join(_html_attempt_item(attempt) for attempt in test.retry.attempts)
         parts.append(
@@ -247,6 +285,8 @@ def _failure_text(test: RunTestReport) -> str:
         f"operation_id: {test.operation_id or 'none'}",
         f"rule_ids: {', '.join(test.rule_ids) if test.rule_ids else 'none'}",
     ]
+    if test.safety is not None:
+        parts.append(f"safety: {_safety_summary(test)}")
     if test.known_failures:
         parts.append(
             "known_failures: "
@@ -285,14 +325,31 @@ def _has_test_properties(test: RunTestReport) -> bool:
         test.timeout_ms > 0
         or test.operation_id is not None
         or bool(test.known_failures)
+        or test.safety is not None
         or test.retry.retry_count > 0
         or test.retry.unstable
     )
 
 
 def _failure_type(test: RunTestReport) -> str:
+    if test.status == "blocked":
+        return "entroping.run.blocked"
     return "entroping.hurl.timeout" if test.status == "timeout" else "entroping.hurl"
 
 
 def _attempt_summary(*, status: str, exit_code: int, duration_ms: int) -> str:
     return f"{status} exit={exit_code} duration_ms={duration_ms}"
+
+
+def _safety_summary(test: RunTestReport) -> str:
+    if test.safety is None:
+        return "none"
+    safety = test.safety.safety or "unspecified"
+    source = test.safety.safety_source or "none"
+    methods = ",".join(test.safety.methods) if test.safety.methods else "none"
+    blocked = test.safety.blocked_reason or "not blocked"
+    protected = str(test.safety.protected_environment).lower()
+    return (
+        f"protected_environment={protected}; safety={safety}; source={source}; "
+        f"methods={methods}; reason={blocked}"
+    )

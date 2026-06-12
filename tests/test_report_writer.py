@@ -8,6 +8,7 @@ from xml.etree import ElementTree
 
 import pytest
 
+import entroping.core.report_rendering as report_rendering
 import entroping.core.report_writer as report_writer
 from entroping.bridge.policy_to_hurl import HurlGateAssertion
 from entroping.core.gate_injector import AppliedKnownFailure, HurlExecutionCopy
@@ -23,7 +24,12 @@ from entroping.core.report_writer import (
     write_junit_report,
 )
 from entroping.core.safe_write import SafeWriteError
-from entroping.models.report import RunReport, RunReportSummary
+from entroping.models.report import (
+    RunReport,
+    RunReportSummary,
+    RunSafetyEvidence,
+    RunTestReport,
+)
 
 
 def _execution_copy(
@@ -487,6 +493,225 @@ def test_load_run_report_round_trips_retry_evidence_and_ignores_malformed_entrie
     ] == [(1, "failed", 42, 20, False, True)]
     assert report.tests[1].retry.retry_count == 0
     assert not report.tests[1].retry.unstable
+
+
+def test_load_run_report_round_trips_safety_and_ignores_malformed_entries(
+    tmp_path: Path,
+) -> None:
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+
+    def row(path: str, safety: object) -> dict[str, object]:
+        return {
+            "path": path,
+            "execution_path": f".entroping/run/{Path(path).name}",
+            "status": "blocked",
+            "exit_code": 1,
+            "duration_ms": 0,
+            "rule_ids": [],
+            "stdout": "",
+            "stderr": "",
+            "safety": safety,
+        }
+
+    latest.write_text(
+        json.dumps(
+            {
+                "project": "checkout-api",
+                "environment": "prod",
+                "generated_at": "2026-06-12T00:00:00+00:00",
+                "summary": {"total": 9, "passed": 0, "failed": 9, "exit_code": 1},
+                "tests": [
+                    row(
+                        "tests/valid.hurl",
+                        {
+                            "protected_environment": True,
+                            "safety": " idempotent ",
+                            "safety_source": " test metadata ",
+                            "methods": [" POST ", ""],
+                            "blocked_reason": " not blocked ",
+                        },
+                    ),
+                    row("tests/not-mapping.hurl", "not-a-mapping"),
+                    row("tests/no-bool.hurl", {"protected_environment": "true", "methods": []}),
+                    row(
+                        "tests/bad-safety.hurl",
+                        {
+                            "protected_environment": True,
+                            "safety": 123,
+                            "methods": [],
+                        },
+                    ),
+                    row(
+                        "tests/bad-source.hurl",
+                        {
+                            "protected_environment": True,
+                            "safety_source": 123,
+                            "methods": [],
+                        },
+                    ),
+                    row(
+                        "tests/bad-reason.hurl",
+                        {
+                            "protected_environment": True,
+                            "blocked_reason": 123,
+                            "methods": [],
+                        },
+                    ),
+                    row(
+                        "tests/bad-method-list.hurl",
+                        {
+                            "protected_environment": True,
+                            "methods": "POST",
+                        },
+                    ),
+                    row(
+                        "tests/bad-method-entry.hurl",
+                        {
+                            "protected_environment": True,
+                            "methods": [123],
+                        },
+                    ),
+                    row(
+                        "tests/control.hurl",
+                        {
+                            "protected_environment": True,
+                            "methods": ["PO\x1fST"],
+                        },
+                    ),
+                ],
+            },
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = load_run_report(latest)
+
+    assert report.tests[0].safety == RunSafetyEvidence(
+        protected_environment=True,
+        safety="idempotent",
+        safety_source="test metadata",
+        methods=("POST",),
+        blocked_reason="not blocked",
+    )
+    assert all(test.safety is None for test in report.tests[1:])
+
+
+def test_junit_report_includes_safety_properties(tmp_path: Path) -> None:
+    source = tmp_path / "tests" / "checkout.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "checkout.hurl"
+    report = build_run_report(
+        project="checkout-api",
+        environment="prod",
+        execution_copies=[_execution_copy(source, execution)],
+        suite=HurlSuiteResult(
+            results=(
+                HurlFileResult(
+                    path=execution,
+                    command=("entroping", "run", "preflight"),
+                    status="blocked",
+                    exit_code=1,
+                    stdout="",
+                    stderr="Protected run blocked before Hurl execution",
+                    stdout_truncated=False,
+                    stderr_truncated=False,
+                    duration_ms=0,
+                    attempts=(
+                        HurlAttemptEvidence(
+                            attempt=1,
+                            status="blocked",
+                            exit_code=1,
+                            duration_ms=0,
+                            stdout_truncated=False,
+                            stderr_truncated=False,
+                        ),
+                    ),
+                ),
+            ),
+        ),
+        project_root=tmp_path,
+        safety_evidence_by_source_path={
+            source.resolve(): RunSafetyEvidence(
+                protected_environment=True,
+                safety="idempotent",
+                safety_source="test metadata",
+                methods=("POST",),
+                blocked_reason="mutating method POST requires safety metadata",
+            )
+        },
+    )
+
+    junit_path = tmp_path / "reports" / "junit.xml"
+    write_junit_report(report, junit_path)
+
+    properties = ElementTree.parse(junit_path).getroot().findall("testcase/properties/property")
+    values = {item.attrib["name"]: item.attrib["value"] for item in properties}
+    assert values["entroping.safety.protected_environment"] == "true"
+    assert values["entroping.safety"] == "idempotent"
+    assert values["entroping.safety.methods"] == "POST"
+    assert values["entroping.safety.blocked_reason"] == (
+        "mutating method POST requires safety metadata"
+    )
+
+
+def test_html_report_includes_safety_summary_and_none_fallback(tmp_path: Path) -> None:
+    source = tmp_path / "tests" / "checkout.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "checkout.hurl"
+    report = build_run_report(
+        project="checkout-api",
+        environment="prod",
+        execution_copies=[_execution_copy(source, execution)],
+        suite=HurlSuiteResult(
+            results=(
+                HurlFileResult(
+                    path=execution,
+                    command=("entroping", "run", "preflight"),
+                    status="blocked",
+                    exit_code=1,
+                    stdout="",
+                    stderr="Protected run blocked before Hurl execution",
+                    stdout_truncated=False,
+                    stderr_truncated=False,
+                    duration_ms=0,
+                ),
+            ),
+        ),
+        project_root=tmp_path,
+        safety_evidence_by_source_path={
+            source.resolve(): RunSafetyEvidence(
+                protected_environment=True,
+                safety=None,
+                safety_source=None,
+                methods=("PATCH",),
+                blocked_reason=(
+                    "mutating method PATCH requires safety metadata in protected environments"
+                ),
+            )
+        },
+    )
+    output = tmp_path / "reports" / "run-latest.html"
+
+    write_html_report(report, output)
+
+    html = output.read_text(encoding="utf-8")
+    assert "<strong>Safety</strong>" in html
+    assert "protected_environment=true; safety=unspecified; source=none;" in html
+    assert (
+        report_rendering._safety_summary(
+            RunTestReport(
+                path="tests/no-safety.hurl",
+                execution_path=".entroping/run/no-safety.hurl",
+                status="passed",
+                exit_code=0,
+                duration_ms=0,
+                rule_ids=(),
+                stdout="",
+                stderr="",
+            )
+        )
+        == "none"
+    )
 
 
 def test_write_json_report_includes_sanitized_response_fingerprint(tmp_path: Path) -> None:

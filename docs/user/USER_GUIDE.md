@@ -597,10 +597,13 @@ entroping run --suite smoke --ci
 
 Create separate manifests such as `suites/regression.yaml` and
 `suites/security.yaml` when a suite needs different paths, reports, or drift
-settings. `--suite` cannot be combined with ad hoc selectors such as `--env`,
-`--tag`, `--tag-expression`, `--report`, `--parallel`, `--fail-fast`,
-`--drift-check`, `--changed-from`, or `--rerun-failures`; use `--ci` only to
-choose strict exit behavior.
+settings. Suites can also set `protected: true` to force protected-run safety
+checks and `safety: read-only|idempotent|teardown-backed|destructive` as a
+reviewed default for selected tests. Test-level `# entroping: safety=...`
+metadata wins over suite defaults. `--suite` cannot be combined with ad hoc
+selectors such as `--env`, `--tag`, `--tag-expression`, `--report`,
+`--parallel`, `--fail-fast`, `--drift-check`, `--changed-from`, or
+`--rerun-failures`; use `--ci` only to choose strict exit behavior.
 
 Entroping can compile discovered Hurl metadata into a local story/test
 traceability report:
@@ -945,7 +948,41 @@ Recommended pattern:
 entroping run --env prod-smoke --tag smoke --ci --report junit
 ```
 
-Do not rely on a generated test to make unsafe production writes safe. In v4.1, keep the `smoke` tag reserved for read-only or explicitly idempotent tests, and use QAnstitution gates for latency, status, and header expectations:
+Environment names `prod`, `production`, and `protected` are protected by
+default through `settings.protected_environments`; teams can add names such as
+`prod-smoke` there when needed. A suite manifest can also force the same
+behavior:
+
+```yaml
+version: entroping.suite.v1
+name: prod-smoke
+env: prod-smoke
+protected: true
+tags:
+  - smoke
+reports:
+  - junit
+```
+
+In protected runs, `GET`, `HEAD`, and `OPTIONS` are read-only. `POST`, `PUT`,
+`PATCH`, and `DELETE` are blocked before Hurl execution unless the Hurl test or
+suite declares reviewed safety metadata:
+
+```hurl
+# entroping: tags=smoke
+# entroping: safety=idempotent
+
+POST {{base_url}}/maintenance/reindex
+HTTP 202
+```
+
+Use `read-only`, `idempotent`, or `teardown-backed` only after review. Mark
+known unsafe tests as `destructive`; Entroping will block them in protected
+environments even if the suite has a safer default.
+
+Do not rely on a generated test to make unsafe production writes safe. Keep the
+`smoke` tag reserved for read-only or explicitly idempotent tests, and use
+QAnstitution gates for latency, status, and header expectations:
 
 ```yaml
 gates:
@@ -955,7 +992,10 @@ gates:
     enforcement: "block"
 ```
 
-Compound production safety rules that combine environment, tag, and method can be added after the condition DSL explicitly supports compound expressions.
+When Entroping blocks a protected run, requested JSON, JUnit, and HTML reports
+show status `blocked`, the mutating method, and the value-free reason. Reports
+do not include environment variable values, request bodies, headers, cookies,
+or tokens.
 
 ## 14. AI Workflow
 

@@ -17,6 +17,7 @@ from entroping.models.report import (
     RunReport,
     RunReportSummary,
     RunRetryEvidence,
+    RunSafetyEvidence,
     RunTestReport,
 )
 
@@ -45,6 +46,7 @@ def load_run_report(path: Path) -> RunReport:
             response_body_shape=_serialized_response_body_shape(item.get("response")),
             known_failures=_serialized_known_failures(item.get("known_failures")),
             retry=_serialized_retry(item.get("retry")),
+            safety=_serialized_safety(item.get("safety")),
         )
         for item in data["tests"]
     )
@@ -131,7 +133,19 @@ def _test_report_to_dict(test: RunTestReport) -> dict[str, object]:
             }
             for known_failure in test.known_failures
         ]
+    if test.safety is not None:
+        payload["safety"] = _safety_to_dict(test.safety)
     return payload
+
+
+def _safety_to_dict(safety: RunSafetyEvidence) -> dict[str, object]:
+    return {
+        "protected_environment": safety.protected_environment,
+        "safety": safety.safety,
+        "safety_source": safety.safety_source,
+        "methods": list(safety.methods),
+        "blocked_reason": safety.blocked_reason,
+    }
 
 
 def _retry_to_dict(retry: RunRetryEvidence) -> dict[str, object]:
@@ -186,7 +200,7 @@ def _serialized_retry(raw_retry: object) -> RunRetryEvidence:
             if (
                 not isinstance(attempt, int)
                 or attempt <= 0
-                or status not in {"passed", "failed", "timeout", "error"}
+                or status not in {"passed", "failed", "timeout", "error", "blocked"}
                 or not isinstance(exit_code, int)
                 or not isinstance(duration_ms, int)
                 or duration_ms < 0
@@ -208,6 +222,55 @@ def _serialized_retry(raw_retry: object) -> RunRetryEvidence:
         retry_count=retry_count if isinstance(retry_count, int) and retry_count >= 0 else 0,
         unstable=unstable if isinstance(unstable, bool) else False,
         attempts=tuple(attempts),
+    )
+
+
+def _serialized_safety(raw_safety: object) -> RunSafetyEvidence | None:
+    if not isinstance(raw_safety, Mapping):
+        return None
+    protected_environment = raw_safety.get("protected_environment")
+    safety = raw_safety.get("safety")
+    safety_source = raw_safety.get("safety_source")
+    raw_methods = raw_safety.get("methods")
+    blocked_reason = raw_safety.get("blocked_reason")
+    if not isinstance(protected_environment, bool):
+        return None
+    if safety is not None and not isinstance(safety, str):
+        return None
+    if safety_source is not None and not isinstance(safety_source, str):
+        return None
+    if blocked_reason is not None and not isinstance(blocked_reason, str):
+        return None
+    if not isinstance(raw_methods, list) or not all(
+        isinstance(method, str) for method in raw_methods
+    ):
+        return None
+    strings = tuple(
+        value
+        for value in (
+            *(item.strip() for item in raw_methods),
+            *((safety.strip(),) if isinstance(safety, str) else ()),
+            *((safety_source.strip(),) if isinstance(safety_source, str) else ()),
+            *((blocked_reason.strip(),) if isinstance(blocked_reason, str) else ()),
+        )
+        if value
+    )
+    if any(_has_control_character(value) for value in strings):
+        return None
+    return RunSafetyEvidence(
+        protected_environment=protected_environment,
+        safety=safety.strip() if isinstance(safety, str) and safety.strip() else None,
+        safety_source=(
+            safety_source.strip()
+            if isinstance(safety_source, str) and safety_source.strip()
+            else None
+        ),
+        methods=tuple(item.strip() for item in raw_methods if item.strip()),
+        blocked_reason=(
+            blocked_reason.strip()
+            if isinstance(blocked_reason, str) and blocked_reason.strip()
+            else None
+        ),
     )
 
 

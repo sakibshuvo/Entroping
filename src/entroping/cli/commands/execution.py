@@ -469,6 +469,8 @@ def run(
         run_fail_fast = fail_fast
         run_drift_check = drift_check
         run_changed_from = changed_from
+        run_protected = False
+        run_suite_safety = None
         if rerun_failures:
             try:
                 rerun_selection = select_latest_failed_hurl_tests(project_root=Path.cwd())
@@ -477,9 +479,7 @@ def run(
                 raise typer.Exit(1) from exc
             run_environment = env if env is not None else rerun_selection.environment
             discovery_roots = rerun_selection.failed_paths
-            selection_label = (
-                f"failed tests from {display_cli_path(rerun_selection.report_path)}"
-            )
+            selection_label = f"failed tests from {display_cli_path(rerun_selection.report_path)}"
         else:
             discovery_roots = None
             selection_label = None
@@ -512,6 +512,8 @@ def run(
         run_fail_fast = loaded_suite.fail_fast
         run_drift_check = loaded_suite.drift_check
         run_changed_from = None
+        run_protected = loaded_suite.protected
+        run_suite_safety = loaded_suite.safety
         discovery_roots = loaded_suite.discovery_roots
         selection_label = f"suite {loaded_suite.name!r}"
 
@@ -528,6 +530,8 @@ def run(
             run_changed_from=run_changed_from,
             discovery_roots=discovery_roots,
             selection_label=selection_label,
+            protected_run=run_protected,
+            suite_safety=run_suite_safety,
             ci=ci,
         )
 
@@ -545,6 +549,8 @@ def run(
             changed_from=run_changed_from,
             discovery_roots=discovery_roots,
             selection_label=selection_label,
+            protected_run=run_protected,
+            suite_safety=run_suite_safety,
         )
     except NoHurlTestsMatchedError as exc:
         console.print(safe_cli_text(exc), style="yellow", markup=False)
@@ -638,6 +644,8 @@ def _execute_run_dry_run(
     run_changed_from: str | None,
     discovery_roots: tuple[Path, ...] | None,
     selection_label: str | None,
+    protected_run: bool,
+    suite_safety: str | None,
     ci: bool,
 ) -> None:
     try:
@@ -654,6 +662,8 @@ def _execute_run_dry_run(
             changed_from=run_changed_from,
             discovery_roots=discovery_roots,
             selection_label=selection_label,
+            protected_run=protected_run,
+            suite_safety=suite_safety,
         )
         _print_run_plan(plan)
         if "json" in report_formats:
@@ -739,4 +749,13 @@ def _print_run_plan(plan: RunExecutionPlan) -> None:
     for test in plan.tests:
         tags = f" tags={','.join(test.tags)}" if test.tags else ""
         rules = f" gates={','.join(test.injected_rule_ids)}" if test.injected_rule_ids else ""
-        console.print(f"- {test.path}{tags}{rules}", markup=False)
+        safety = ""
+        if test.safety is not None:
+            methods = ",".join(test.safety.methods) if test.safety.methods else "none"
+            blocked = (
+                f" blocked={test.safety.blocked_reason}"
+                if test.safety.blocked_reason is not None
+                else ""
+            )
+            safety = f" safety={test.safety.safety or 'unspecified'} methods={methods}{blocked}"
+        console.print(f"- {test.path}{tags}{rules}{safety}", markup=False)

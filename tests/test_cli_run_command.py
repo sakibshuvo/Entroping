@@ -31,9 +31,9 @@ ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 def _read_run_events() -> list[dict[str, object]]:
     return [
         json.loads(line)
-        for line in Path(".entroping/latest-run-events.jsonl").read_text(
-            encoding="utf-8"
-        ).splitlines()
+        for line in Path(".entroping/latest-run-events.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
         if line
     ]
 
@@ -308,9 +308,7 @@ def test_run_writes_sanitized_execution_event_log(
     assert result_event["duration_ms"] >= 0
     assert result_event["stdout_truncated"] is False
     assert result_event["stderr_truncated"] is False
-    artifact_paths = [
-        event["path"] for event in events if event["event"] == "artifact_written"
-    ]
+    artifact_paths = [event["path"] for event in events if event["event"] == "artifact_written"]
     assert artifact_paths == [".entroping/latest-run.json", "reports/run-latest.json"]
     completed_event = events[-1]
     assert completed_event["status"] == "passed"
@@ -775,9 +773,48 @@ def test_run_dry_run_reports_missing_variables_without_hurl_execution(
     assert not (Path(".entroping") / "latest-run-events.jsonl").exists()
     plan = json.loads((Path("reports") / "run-plan.json").read_text(encoding="utf-8"))
     assert plan["status"] == "blocked"
-    assert plan["variables"]["missing"] == [
-        {"name": "base_url", "paths": ["tests/health.hurl"]}
-    ]
+    assert plan["variables"]["missing"] == [{"name": "base_url", "paths": ["tests/health.hurl"]}]
+
+
+def test_run_dry_run_prints_protected_safety_blockers_without_hurl_execution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    (Path("tests") / "checkout.hurl").write_text(
+        "# entroping: tags=smoke\n\nPOST {{base_url}}/checkout\nHTTP 201\n",
+        encoding="utf-8",
+    )
+    (Path("envs") / "production.env").write_text(
+        "base_url=http://production.example.test\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "--dry-run",
+            "--env",
+            "production",
+            "--tag",
+            "smoke",
+            "--report",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Run plan blocked before Hurl execution." in result.output
+    assert "safety=unspecified" in result.output
+    assert "methods=POST" in result.output
+    assert "blocked=mutating method POST requires safety metadata" in result.output
+    plan = json.loads((Path("reports") / "run-plan.json").read_text(encoding="utf-8"))
+    assert plan["status"] == "blocked"
+    assert plan["tests"][0]["safety"]["methods"] == ["POST"]
+    assert "production.example.test" not in json.dumps(plan)
 
 
 def test_run_dry_run_uses_changed_from_selection_without_hurl_execution(
@@ -889,8 +926,7 @@ def test_run_dry_run_prints_operation_id_selector(
     runner = CliRunner()
     runner.invoke(app, ["init", "--minimal"])
     (Path("tests") / "health.hurl").write_text(
-        "# entroping: operation_id=getHealth\n"
-        "\nGET http://localhost:18080/health\nHTTP 200\n",
+        "# entroping: operation_id=getHealth\n\nGET http://localhost:18080/health\nHTTP 200\n",
         encoding="utf-8",
     )
 
@@ -1150,6 +1186,92 @@ def test_run_operation_id_no_matches_respects_ci_exit_policy(
     assert "No Hurl tests matched OpenAPI operation IDs" in ci_result.output
 
 
+def test_run_blocks_mutating_hurl_against_production_before_hurl(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    Path("tests/checkout.hurl").write_text(
+        "# entroping: tags=smoke\n\nPOST {{base_url}}/checkout\nHTTP 201\n",
+        encoding="utf-8",
+    )
+    Path("envs/production.env").write_text(
+        "base_url=http://production.example.test\n",
+        encoding="utf-8",
+    )
+
+    def fail_hurl(*args: object, **kwargs: object) -> object:
+        _ = (args, kwargs)
+        raise AssertionError("protected safety preflight should run before Hurl execution")
+
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fail_hurl)
+
+    result = runner.invoke(app, ["run", "--env", "production", "--ci", "--report", "json"])
+
+    assert result.exit_code == 1
+    assert "Protected run blocked before Hurl execution" in result.output
+    report = json.loads(Path("reports/run-latest.json").read_text(encoding="utf-8"))
+    assert report["tests"][0]["status"] == "blocked"
+    assert report["tests"][0]["safety"]["methods"] == ["POST"]
+    assert "production.example.test" not in json.dumps(report)
+
+
+def test_run_suite_protected_safety_blocks_destructive_override_before_hurl(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    (Path("suites")).mkdir()
+    Path("suites/prod-smoke.yaml").write_text(
+        """
+version: entroping.suite.v1
+name: prod-smoke
+env: staging
+protected: true
+safety: idempotent
+paths:
+  - tests/*.hurl
+reports:
+  - json
+""".lstrip(),
+        encoding="utf-8",
+    )
+    Path("envs/staging.env").write_text(
+        "base_url=http://staging.example.test\n",
+        encoding="utf-8",
+    )
+    Path("tests/destroy.hurl").write_text(
+        "# entroping: safety=destructive\n\nDELETE {{base_url}}/accounts/123\nHTTP 204\n",
+        encoding="utf-8",
+    )
+
+    def fail_hurl(*args: object, **kwargs: object) -> object:
+        _ = (args, kwargs)
+        raise AssertionError("suite safety preflight should run before Hurl execution")
+
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fail_hurl)
+
+    result = runner.invoke(app, ["run", "--suite", "prod-smoke", "--ci"])
+
+    assert result.exit_code == 1
+    report = json.loads(Path("reports/run-latest.json").read_text(encoding="utf-8"))
+    assert report["tests"][0]["status"] == "blocked"
+    assert report["tests"][0]["safety"] == {
+        "protected_environment": True,
+        "safety": "destructive",
+        "safety_source": "test metadata",
+        "methods": ["DELETE"],
+        "blocked_reason": "destructive tests are blocked in protected environments",
+    }
+    assert "staging.example.test" not in json.dumps(report)
+
+
 def test_run_loads_named_suite_manifest(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1338,7 +1460,7 @@ def test_run_rerun_failures_executes_failed_paths_from_latest_report(
         executed_paths.append(executed_path)
         assert executed_path != source.resolve()
         assert "duration < 2000" in executed_path.read_text(encoding="utf-8")
-        stdout.write(b"HTTP 200\n\n{\"ok\": true}\n")
+        stdout.write(b'HTTP 200\n\n{"ok": true}\n')
         return subprocess.CompletedProcess(args=args, returncode=0)
 
     monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
