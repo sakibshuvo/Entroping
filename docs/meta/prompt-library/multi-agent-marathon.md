@@ -47,6 +47,7 @@ git status --short
 gh issue list --repo sakibshuvo/Entroping --state open --limit 80
 gh pr list --repo sakibshuvo/Entroping --state open --limit 40
 scripts/context_pack.sh --mode implementation
+scripts/context_pack.sh --mode implementation --with-local-graphs --graph-query "<issue title or symbol>"  # optional, local graph outputs only
 python scripts/backlog_health.py
 
 Pick 2-4 independent issues. Avoid assigning two agents to the same files or same subsystem.
@@ -55,6 +56,8 @@ For each write worker:
 - create or confirm the issue,
 - create an issue worktree with scripts/start_issue.sh,
 - give the worker the exact issue-worker prompt,
+- include optional graph-assisted agent context only when local Graphify/CodeGraph
+  output exists and the evidence stays advisory,
 - require focused tests and gates,
 - require a PR with Closes #<issue>.
 - declare whether the worker has Tier A autonomous merge authority.

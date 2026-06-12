@@ -169,6 +169,19 @@ scripts/context_pack.sh --mode handoff
 
 Use `implementation` for coding, `review` for critique, `source` for Gemini/NotebookLM reconciliation, `growth` for open-source positioning, and `handoff` when starting a fresh thread.
 
+When local Graphify/CodeGraph output exists, agents may add an optional
+graph-assisted agent context section:
+
+```bash
+scripts/context_pack.sh --mode implementation --with-local-graphs --graph-query "<issue title or symbol>"
+```
+
+That opt-in section is produced by `scripts/agent_context_probe.py`, can write
+ignored manifests under `agent-context-out/`, and must skip cleanly when
+Graphify or CodeGraph output is absent. Graphify/CodeGraph evidence is not
+authority; it can narrow file and test discovery, but it must not replace source
+reading, focused tests, or CI.
+
 ## Agent Roles
 
 | Agent | Best Use | Not Allowed To Decide Alone |

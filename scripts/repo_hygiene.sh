@@ -18,6 +18,7 @@ Forbidden tracked paths include:
   understand-anything-out/
   codegraph-out/
   headroom-out/
+  agent-context-out/
   .venv/
   .mypy_cache/
   .pytest_cache/
@@ -57,6 +58,7 @@ is_forbidden_path() {
     understand-anything-out/*|\
     codegraph-out/*|\
     headroom-out/*|\
+    agent-context-out/*|\
     .venv/*|\
     .mypy_cache/*|\
     .pytest_cache/*|\

@@ -23,6 +23,7 @@ def test_repo_hygiene_help_documents_forbidden_tracked_paths() -> None:
     assert "understand-anything-out/" in result.stdout
     assert "codegraph-out/" in result.stdout
     assert "headroom-out/" in result.stdout
+    assert "agent-context-out/" in result.stdout
 
 
 def test_gitignore_excludes_coverage_artifacts() -> None:
@@ -46,6 +47,7 @@ def test_gitignore_excludes_generated_context_tool_outputs() -> None:
         "understand-anything-out/session.json",
         "codegraph-out/src-tests.json",
         "headroom-out/context-pack.json",
+        "agent-context-out/probe.json",
         ".obsidian/workspace.json",
     }
 
@@ -82,7 +84,7 @@ def test_repo_hygiene_rejects_forbidden_tracked_paths(tmp_path: Path) -> None:
 
 def test_repo_hygiene_rejects_tracked_context_tool_output(tmp_path: Path) -> None:
     subprocess.run(["git", "init"], check=True, cwd=tmp_path, capture_output=True, text=True)
-    generated = tmp_path / "headroom-out" / "context-pack.json"
+    generated = tmp_path / "agent-context-out" / "probe.json"
     generated.parent.mkdir()
     generated.write_text('{"generated": true}\n', encoding="utf-8")
     subprocess.run(["git", "add", str(generated.relative_to(tmp_path))], check=True, cwd=tmp_path)
@@ -97,7 +99,7 @@ def test_repo_hygiene_rejects_tracked_context_tool_output(tmp_path: Path) -> Non
 
     assert result.returncode == 1
     assert "Forbidden tracked local/generated files" in result.stderr
-    assert "headroom-out/context-pack.json" in result.stderr
+    assert "agent-context-out/probe.json" in result.stderr
 
 
 def test_repo_hygiene_passes_current_repo() -> None:

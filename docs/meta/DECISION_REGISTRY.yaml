@@ -312,7 +312,8 @@ decisions:
     related_docs:
       - docs/meta/DOCS_GOVERNANCE.md
       - docs/meta/OBSIDIAN_CONTEXT_ENGINE_GUIDE.md
-    related_issues: ["#468"]
+      - docs/meta/CONTEXT_MANAGEMENT.md
+    related_issues: ["#468", "#602", "#636", "#650"]
     supersedes: []
     superseded_by: null
 
