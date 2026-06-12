@@ -989,3 +989,12 @@
 - Fixed issue #546's alpha/stable status drift by separating v4.1 spec and
   command-surface versions from the current alpha implementation maturity in
   canonical product and technical docs, with a release-doc regression guard.
+- Fixed issue #658's factory Python3 compatibility regression: context-pack
+  metrics, graph probing, AI queue, OpenCode worker, and DeepSeek worker
+  entrypoints now avoid evaluated Python 3.10+/3.11-only APIs when invoked by
+  the default macOS `python3`, while product runtime support remains Python
+  3.12/3.13.
+- Added a temporary uv override to keep optional proxy-stack Tornado on a
+  non-vulnerable `>=6.5.6` line, currently locked to 6.5.7, until mitmproxy
+  relaxes its current 6.5.5 upper bound; optional extras smoke and security
+  gates pass with the override.

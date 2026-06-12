@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import importlib.util
 import json
 import subprocess
@@ -14,6 +15,13 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "factory_metrics.py"
 ROLE_REGISTRY = REPO_ROOT / "docs" / "meta" / "AGENT_ROLE_REGISTRY.yaml"
+PYTHON3_FACTORY_ENTRYPOINTS = (
+    REPO_ROOT / "scripts" / "agent_context_probe.py",
+    REPO_ROOT / "scripts" / "ai_jobs.py",
+    REPO_ROOT / "scripts" / "deepseek_worker.py",
+    REPO_ROOT / "scripts" / "factory_metrics.py",
+    REPO_ROOT / "scripts" / "opencode_worker.py",
+)
 
 
 def run_factory_metrics(*args: str) -> subprocess.CompletedProcess[str]:
@@ -83,6 +91,87 @@ def test_factory_metrics_role_set_matches_registry() -> None:
     module = _load_factory_metrics_module()
 
     assert set(registry["roles"]) == module.ROLES
+
+
+def test_factory_python3_entrypoints_avoid_evaluated_python310_plus_apis() -> None:
+    unsupported_by_script: dict[str, list[str]] = {}
+
+    for script in PYTHON3_FACTORY_ENTRYPOINTS:
+        tree = ast.parse(script.read_text(encoding="utf-8"))
+        unsupported_usages: list[str] = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module == "datetime":
+                for alias in node.names:
+                    if alias.name == "UTC":
+                        unsupported_usages.append("from datetime import UTC")
+            if (
+                isinstance(node, ast.Attribute)
+                and node.attr == "UTC"
+                and isinstance(node.value, ast.Name)
+                and node.value.id == "datetime"
+            ):
+                unsupported_usages.append("datetime.UTC")
+            if isinstance(node, ast.Name) and node.id == "UTC":
+                unsupported_usages.append("UTC")
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "isinstance"
+                and len(node.args) >= 2
+                and isinstance(node.args[1], ast.BinOp)
+                and isinstance(node.args[1].op, ast.BitOr)
+            ):
+                unsupported_usages.append("isinstance(..., type | type)")
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "dataclass"
+                and any(
+                    keyword.arg == "slots"
+                    and isinstance(keyword.value, ast.Constant)
+                    and keyword.value.value is True
+                    for keyword in node.keywords
+                )
+            ):
+                unsupported_usages.append("dataclass(..., slots=True)")
+        if unsupported_usages:
+            unsupported_by_script[script.relative_to(REPO_ROOT).as_posix()] = (
+                unsupported_usages
+            )
+
+    assert unsupported_by_script == {}
+
+
+def test_factory_python3_entrypoints_smoke_under_host_python3() -> None:
+    compile_result = subprocess.run(
+        ["python3", "-m", "py_compile", *(str(script) for script in PYTHON3_FACTORY_ENTRYPOINTS)],
+        check=False,
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert compile_result.returncode == 0, compile_result.stderr
+
+    help_failures: dict[str, dict[str, object]] = {}
+    for script in PYTHON3_FACTORY_ENTRYPOINTS:
+        result = subprocess.run(
+            ["python3", str(script), "--help"],
+            check=False,
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0 or "usage:" not in result.stdout.lower():
+            help_failures[script.relative_to(REPO_ROOT).as_posix()] = {
+                "returncode": result.returncode,
+                "stdout": result.stdout[-1000:],
+                "stderr": result.stderr[-1000:],
+            }
+
+    assert help_failures == {}
 
 
 def test_factory_metrics_append_writes_local_jsonl_with_context_counts(

@@ -11,8 +11,7 @@ tags:
 
 # Project Progress
 
-This is the daily dashboard. GitHub Issues track individual tasks; this note
-keeps the current direction, next queue, and release evidence easy to scan.
+This is the daily dashboard. GitHub Issues track individual tasks; this note keeps the current direction, next queue, and release evidence easy to scan.
 
 ## Daily Dashboard
 
@@ -60,6 +59,7 @@ Stable-core readiness remains blocked by evidence that cannot be manufactured en
 ## Latest Evidence
 | Evidence | Status | Anchor |
 | --- | --- | --- |
+| [Factory Python3 compatibility and proxy-stack security override](https://github.com/sakibshuvo/Entroping/issues/658) / [#659](https://github.com/sakibshuvo/Entroping/issues/659) | Done / Follow-up queued | Factory metrics, graph probe, AI queue, OpenCode worker, and DeepSeek worker entrypoints now avoid evaluated Python 3.10+/3.11-only APIs when invoked by host `python3`; optional proxy-stack Tornado has a temporary `>=6.5.6` uv override, currently locked to 6.5.7, until mitmproxy relaxes its 6.5.5 cap. |
 | [Portable factory roles and opt-in metrics hooks](https://github.com/sakibshuvo/Entroping/issues/652) / [#654](https://github.com/sakibshuvo/Entroping/issues/654) / [#656](https://github.com/sakibshuvo/Entroping/issues/656) | Done | `docs/meta/AGENT_ROLE_REGISTRY.yaml` defines portable agent roles and authority limits; `scripts/factory_metrics.py`, `scripts/context_pack.sh --record-factory-metrics`, `scripts/ai_jobs.py run-next --record-factory-metrics`, `scripts/opencode_worker.py`, and `scripts/deepseek_worker.py` record ignored local workflow metrics without raw prompts, provider transcripts, secrets, raw traffic, product runtime evidence, or `entroping run` involvement. |
 | [Autonomous OpenCode shipping lanes](https://github.com/sakibshuvo/Entroping/issues/648) | Done | Agent workflow docs now define Tier A/B/C merge authority: Tier A docs/tests/guard/script work can merge independently after issue-scoped worktrees, local gates, PR declaration, green CI, and finish cleanup; Tier B/Tier C keep human/Codex review for runtime, security, architecture, release, provider-boundary, and secrets-sensitive work. |
 | [Production safe-mode run preflight](https://github.com/sakibshuvo/Entroping/issues/596) / [#627](https://github.com/sakibshuvo/Entroping/issues/627) | Done | Protected environments default to `prod`, `production`, and `protected`; suite manifests can declare `protected` plus safety intent; mutating Hurl methods block before subprocess execution unless marked `read-only`, `idempotent`, or `teardown-backed`; and mixed protected blocks preserve selected, executed, and not-scheduled evidence without leaking values. |

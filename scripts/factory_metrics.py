@@ -9,7 +9,8 @@ import os
 import re
 import subprocess
 from collections import Counter, defaultdict
-from datetime import UTC, datetime
+from datetime import datetime
+from datetime import timezone as datetime_timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -17,6 +18,7 @@ from uuid import uuid4
 EVENT_SCHEMA_VERSION = "entroping.factory-metrics.v1"
 SUMMARY_SCHEMA_VERSION = "entroping.factory-metrics-summary.v1"
 DEFAULT_LEDGER = Path(".entroping") / "factory-metrics" / "events.jsonl"
+UTC_TZ = datetime_timezone.utc  # noqa: UP017 - factory scripts run under Python 3.9.
 
 ROLES = {
     "product_manager",
@@ -242,7 +244,7 @@ def _event_from_args(
     return {
         "schema_version": EVENT_SCHEMA_VERSION,
         "event_id": str(uuid4()),
-        "recorded_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "recorded_at": datetime.now(UTC_TZ).isoformat().replace("+00:00", "Z"),
         "event_type": args.event_type,
         "role": args.role,
         "agent": _redact_text(args.agent),
@@ -359,7 +361,7 @@ def _validate_event(event: dict[str, Any]) -> list[str]:
         value = metrics.get(metric)
         if value is None:
             continue
-        if not isinstance(value, int | float):
+        if not isinstance(value, (int, float)):
             errors.append(f"metrics.{metric} must be numeric")
         elif value < 0:
             errors.append(f"metrics.{metric} must be greater than or equal to 0")
@@ -389,7 +391,7 @@ def _summary(events: list[dict[str, Any]]) -> dict[str, Any]:
         if isinstance(metrics, dict):
             for metric in ALL_METRICS:
                 value = metrics.get(metric)
-                if isinstance(value, int | float):
+                if isinstance(value, (int, float)):
                     totals[metric] += value
 
     return {
