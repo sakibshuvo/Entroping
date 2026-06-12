@@ -98,6 +98,39 @@ Headroom and similar compression tools are optional cost controls after
 retrieval behavior is stable; they must not hide exact diffs, failing test
 output, security findings, audit evidence, or secrets-sensitive material.
 
+## Context Factory Rollout Order
+
+Adopt context tools in layers so each layer has a clear owner, promotion path,
+and failure mode before another tool starts compressing or reshaping the same
+evidence.
+
+1. Phase 1 - Obsidian vault discipline. Keep curated Markdown, source links,
+   ADR pointers, and lessons accurate before adding generated graphs or model
+   summaries. Obsidian preserves human memory; it does not track work.
+2. Phase 2 - LLM wiki plus Graphify over the repo and vault. Use generated
+   maps to discover relationships and navigation gaps after the Markdown
+   source set is stable. Generated wiki or graph output stays local unless a
+   finding is promoted into curated docs, an ADR, or a GitHub issue.
+3. Phase 3 - Understand Anything for human comprehension and onboarding. Use it
+   to learn the project and explain concepts, not to approve patches, change
+   requirements, or replace source reading.
+4. Phase 4 - CodeGraph for `src/` and `tests/` impact analysis. Keep code graph
+   scope tight so navigation helps implementation and review without turning
+   historical notes, generated reports, or local caches into product truth.
+5. Phase 5 - Headroom around Codex and OpenCode after retrieval behavior is
+   stable. Use compression only for noisy, re-fetchable context once exact
+   source paths, diffs, failing tests, and security evidence are already known.
+6. Phase 6 - bounded cheap, Chinese, and local model workers behind
+   Codex-owned validation. Use affordable models for review, triage, summaries,
+   and patch proposals, but keep Codex responsible for applying changes,
+   running gates, opening PRs, waiting for CI, and merging.
+
+Do not advance a layer until the previous layer has a documented owner, ignored
+generated-output path, and reviewable promotion path. No rollout layer may
+require ordinary contributors to install graph, wiki, compression, or
+model-worker tooling before they can build, test, review, or contribute to
+Entroping.
+
 ## Obsidian Role
 
 Obsidian is the human navigation layer. It shows product evolution, ADRs, source links, and relationships between docs.

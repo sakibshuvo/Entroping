@@ -285,3 +285,34 @@ def test_context_engineering_factory_boundary_is_canonical() -> None:
 
     for term in required_terms:
         assert term in combined
+
+
+def test_context_factory_rollout_order_is_documented() -> None:
+    doc = (
+        REPO_ROOT / "docs" / "meta" / "CONTEXT_MANAGEMENT.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(doc.split())
+
+    required_terms = [
+        "## Context Factory Rollout Order",
+        "Phase 1 - Obsidian vault discipline",
+        "Phase 2 - LLM wiki plus Graphify over the repo and vault",
+        "Phase 3 - Understand Anything for human comprehension and onboarding",
+        "Phase 4 - CodeGraph for `src/` and `tests/` impact analysis",
+        "Phase 5 - Headroom around Codex and OpenCode after retrieval behavior is stable",
+        (
+            "Phase 6 - bounded cheap, Chinese, and local model workers behind "
+            "Codex-owned validation"
+        ),
+        (
+            "Do not advance a layer until the previous layer has a documented "
+            "owner, ignored generated-output path, and reviewable promotion path"
+        ),
+        (
+            "No rollout layer may require ordinary contributors to install "
+            "graph, wiki, compression, or model-worker tooling"
+        ),
+    ]
+
+    for term in required_terms:
+        assert term in normalized

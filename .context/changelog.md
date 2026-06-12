@@ -2,6 +2,11 @@
 
 ## 2026-06-12
 
+- Documented issue #638's context-factory rollout order: Obsidian discipline
+  comes before generated wiki/Graphify layers, Understand Anything stays a
+  human comprehension aid, CodeGraph remains scoped to `src/` and `tests/`,
+  Headroom waits until retrieval is stable, and cheap/Chinese/local model
+  workers stay behind Codex-owned validation.
 - Codified issue #636's context-engineering software-factory boundary:
   source files, tests, GitHub evidence, ADRs, the decision registry, and
   QAnstitution/Hurl evidence remain authoritative while Obsidian/LLM wiki,
