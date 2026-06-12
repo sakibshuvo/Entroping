@@ -2,6 +2,11 @@
 
 ## 2026-06-12
 
+- Codified issue #636's context-engineering software-factory boundary:
+  source files, tests, GitHub evidence, ADRs, the decision registry, and
+  QAnstitution/Hurl evidence remain authoritative while Obsidian/LLM wiki,
+  Graphify, Understand Anything, CodeGraph, Headroom, and bounded workers stay
+  memory, comprehension, context, economic, or review aids.
 - Completed issue #602's graph context retrieval pilot against the active repo:
   Graphify stayed local and wrote only ignored `graphify-out/` output, `rg`
   plus context packs and the decision registry remained the best initial
