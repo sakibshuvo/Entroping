@@ -43,6 +43,14 @@ Commands run:
 - [ ] Hurl remains the API execution boundary.
 - [ ] Docs do not claim unimplemented behavior as complete.
 
+## Agent Autonomy Declaration
+
+- [ ] Tier A autonomous lane: low-risk docs/tests/guard/script work only.
+- [ ] Tier B assisted lane: implementation may be agent-generated, but merge requires human or Codex review.
+- [ ] Tier C restricted lane: no autonomous merge.
+- [ ] Merge authority:
+- [ ] If autonomous, CI passed before merge and the PR includes `Closes #<issue>`.
+
 ## Documentation Impact Declaration
 
 - [ ] No docs update needed. Reason:

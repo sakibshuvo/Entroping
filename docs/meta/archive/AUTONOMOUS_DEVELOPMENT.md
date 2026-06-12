@@ -19,7 +19,7 @@ This runbook defines how to develop Entroping with high agent autonomy while kee
 Use a controlled factory, not a free-running agent.
 
 ```text
-Spec / issue -> Codex plan -> narrow branch -> implementation -> checks -> review -> commit -> context update
+Spec / issue -> autonomy tier -> issue worktree -> implementation -> checks -> PR -> CI -> tier-allowed merge -> finish cleanup -> context update
 ```
 
 Rules:
@@ -28,6 +28,9 @@ Rules:
 - One narrow implementation target at a time.
 - No direct agent work on unrelated files.
 - No merge or push without deterministic checks.
+- No autonomous merge unless the work is declared Tier A in
+  `docs/meta/AGENT_CONTROL_PLANE.md`, the PR declares merge authority, local
+  gates pass, and GitHub CI is green.
 - No generated context becomes canonical until a human or Codex promotes it into curated Markdown.
 - Use `docs/meta/FEATURE_DELIVERY_CHECKLIST.md` as the per-feature execution checklist.
 - Use `docs/meta/AGENT_CONTROL_PLANE.md` for cross-agent role boundaries and `scripts/context_pack.sh` for deterministic context packs.
@@ -44,9 +47,12 @@ Before implementation, agents must read:
 5. `docs/technical/COMMAND_CHEAT_SHEET.md`
 6. The specific feature spec or issue being implemented
 
-## Codex-First Loop
+## Codex-Designed Loop
 
-Use Codex as the primary architect, implementer, and final gatekeeper.
+Use Codex as the primary factory architect and final gatekeeper for Tier B and
+Tier C work. OpenCode/DeepSeek may implement and merge only Tier A autonomous
+lane work after the issue-scoped workflow, deterministic gates, PR declaration,
+CI, and finish cleanup prove scope.
 
 ## Deterministic Local Guardrails
 
@@ -121,7 +127,10 @@ Session rules:
 - Use `--dry-run` before starting a large batch.
 - Use `finish_issue.sh --dry-run` before removing completed session worktrees.
 - Do not run two write agents on the same issue, branch, or file family.
-- Use review-mode sessions for parallel critique; only the parent integrator applies fixes.
+- Use review-mode sessions for parallel critique unless the issue is explicitly
+  assigned to a Tier A autonomous write worker.
+- Only the parent integrator applies Tier B/Tier C fixes. Tier A workers must
+  stop and escalate if a task touches restricted scope.
 - Keep dependent issues in waves instead of launching them all at once.
 - For a 10-20 session marathon, mix a small number of write sessions with mostly read-only review, docs, test-design, and issue-refinement sessions.
 
@@ -151,7 +160,15 @@ Codex should:
 
 ### 3. Implementation
 
-Codex owns final source edits for now. It may use subagents for independent review or file-family inspection, but the parent Codex thread owns integration.
+Codex owns final source edits for Tier B/Tier C work. It may use subagents for
+independent review or file-family inspection, but the parent Codex thread owns
+integration for security-sensitive, runtime, architecture, provider, release,
+and ambiguous changes.
+
+Tier A OpenCode/DeepSeek workers may own their issue worktree through merge
+only for low-risk docs, tests, guard tests, prompt-library maintenance, and
+non-runtime scripts after all Tier A conditions in
+`docs/meta/AGENT_CONTROL_PLANE.md` are met.
 
 Implementation must favor:
 
@@ -238,9 +255,10 @@ Recommended first Spec Kit feature:
 Phase 1A: init + doctor + QAnstitution loading
 ```
 
-## Future OpenCode Loop
+## OpenCode Loop
 
-OpenCode is available locally and can become a cheap worker/reviewer loop.
+OpenCode is available locally and can run as a cheap worker/reviewer loop or a
+Tier A autonomous implementation lane.
 
 Use OpenCode for:
 
@@ -249,27 +267,32 @@ Use OpenCode for:
 - Documentation drafts.
 - Diff review.
 - Alternate implementation proposals.
+- Tier A autonomous docs/tests/guard/script implementation with PR, CI, merge,
+  and `scripts/finish_issue.sh` cleanup.
 
-Do not use OpenCode as the final authority for:
+Do not use OpenCode as the final authority or autonomous merger for:
 
 - Architecture changes.
 - Security-sensitive code.
 - Subprocess execution.
 - Proxy capture.
 - LLM prompt/data boundaries.
-- Commits to `main`.
+- Release publishing.
+- Secrets or credentials.
+- Tier B/Tier C work.
 
-Recommended future pattern:
+Recommended patterns:
 
 ```text
-Codex writes the task brief -> OpenCode explores or reviews -> Codex validates -> Codex applies final patch
+Tier A: issue -> start_issue.sh -> OpenCode implements -> local gates -> PR declaration -> CI green -> merge -> finish_issue.sh
+Tier B/C: Codex writes the task brief -> OpenCode explores or reviews -> Codex validates -> Codex applies final patch
 ```
 
 OpenCode outputs should be treated as review evidence, not truth. Any finding must include file/line evidence and a plausible source/control/sink path before action.
 
 Conflict controls:
 
-- Only the parent Codex thread applies final patches.
+- Only the parent Codex thread applies final Tier B/Tier C patches.
 - Helper agents receive bounded briefs with allowed files and output format.
 - Two helper agents should not edit the same file family at the same time.
 - If reviews conflict, resolve the disagreement against local files, tests, specs, and CI before changing code.
@@ -333,7 +356,9 @@ No deterministic checks -> no commit.
 No CI -> no merge.
 No context update -> no durable memory.
 Generated graph or model summary -> navigation aid only, not truth.
-No parent integrator approval -> no multi-agent patch lands.
+No Agent Autonomy Declaration -> no autonomous merge.
+Tier C restricted lane -> no autonomous merge.
+No parent integrator approval -> no Tier B/Tier C multi-agent patch lands.
 ```
 
 ## References

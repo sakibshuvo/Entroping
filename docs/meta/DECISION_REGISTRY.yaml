@@ -419,3 +419,34 @@ decisions:
     related_issues: ["#595"]
     supersedes: []
     superseded_by: null
+
+  - id: ENT-DEC-0019
+    title: OpenCode autonomy is risk-tiered, not unrestricted
+    status: accepted
+    date: "2026-06-12"
+    summary: >
+      OpenCode/DeepSeek can keep Entroping shipping during Codex capacity
+      exhaustion only through documented Tier A autonomous lanes for low-risk
+      docs, tests, guard tests, prompt-library maintenance, and non-runtime
+      scripts after issue-scoped worktrees, PR autonomy declaration,
+      deterministic gates, green CI, and finish cleanup. Tier B work requires
+      human or Codex review before merge, and Tier C runtime, Hurl, redaction,
+      proxy, provider-boundary, release, architecture, secrets, security, and
+      audit-evidence work must never merge autonomously.
+    tags: [agents, opencode, deepseek, autonomy, workflow, ci]
+    source_links:
+      - path: docs/meta/AGENT_CONTROL_PLANE.md
+        role: workflow-policy
+      - path: docs/meta/archive/AUTONOMOUS_DEVELOPMENT.md
+        role: runbook
+      - path: docs/meta/FEATURE_DELIVERY_CHECKLIST.md
+        role: checklist
+      - path: .github/pull_request_template.md
+        role: pull-request-gate
+    related_docs:
+      - docs/meta/prompt-library/issue-worker.md
+      - docs/meta/prompt-library/multi-agent-marathon.md
+      - docs/meta/PROJECT_PROGRESS.md
+    related_issues: ["#648"]
+    supersedes: []
+    superseded_by: null

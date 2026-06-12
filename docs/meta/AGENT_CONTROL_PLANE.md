@@ -18,7 +18,10 @@ This is the operating model for using multiple agents without turning the repo i
 
 ## Prime Directive
 
-Codex is the primary integrator for Entroping until the project explicitly changes that rule. Other agents can explore, critique, summarize, draft tests, or propose patches, but Codex owns final edits, validation, commits, and pull-request readiness.
+Codex owns factory design, Tier B/Tier C integration, and merge readiness for
+sensitive lanes. OpenCode/DeepSeek may operate the Tier A autonomous lane
+defined below only after the issue, worktree, PR, local gates, and CI prove
+scope.
 
 No helper agent is a source of truth. The hierarchy is:
 
@@ -30,15 +33,16 @@ No helper agent is a source of truth. The hierarchy is:
 
 ## Software Factory Operating Model
 
-Codex owns integration and merge readiness. Treat the parent Codex thread as
-the control room: it chooses the issue, verifies local files, runs tests,
-updates required docs, opens the PR, waits for CI, and merges only when the
-evidence is clean.
+Codex owns factory design, Tier B/Tier C integration, and merge readiness for sensitive lanes.
+Treat the parent Codex thread as the control room for security-sensitive,
+runtime, architecture, release, and ambiguous work: it chooses the issue,
+verifies local files, runs tests, updates required docs, opens the PR, waits
+for CI, and merges only when the evidence is clean.
 
 OpenCode and free-model workers receive bounded issue prompts. They can propose
-tests, patches, review notes, alternate designs, and documentation drafts, but
-their output is untrusted until Codex validates it against the repo, issue, and
-gates.
+tests, patches, review notes, alternate designs, documentation drafts, and
+Tier A autonomous lane PRs. Their output is still untrusted until it is proven
+against the repo, issue, deterministic gates, and GitHub CI.
 
 Use `scripts/ai_jobs.py` when batching affordable worker tasks. It queues
 bounded jobs under `.entroping/ai-jobs/`, maps cost profiles such as
@@ -86,6 +90,39 @@ normal review.
 One write agent per issue-scoped worktree. Parallelism comes from independent
 issues, not from multiple agents editing the same files.
 
+## Autonomous OpenCode Shipping Lanes
+
+Autonomous shipping is risk-tiered. It exists to keep the software factory
+moving when Codex capacity is exhausted, not to relax source-of-truth,
+security, architecture, or release gates.
+
+| Tier | Merge authority | Allowed scope |
+| --- | --- | --- |
+| Tier A autonomous lane | OpenCode/DeepSeek may implement, push, open a PR, wait for GitHub CI, merge, and run `scripts/finish_issue.sh` without Codex when every condition below is met. | low-risk docs, tests, guard tests, prompt-library maintenance, and non-runtime scripts that do not change product behavior, provider behavior, release behavior, secrets handling, or security posture. |
+| Tier B assisted lane | OpenCode/DeepSeek may implement in an issue worktree and open a PR, but it requires human or Codex review before merge. | CLI/report polish, low-blast-radius source code, workflow scripts that can affect local behavior, docs that change public claims, and changes where ownership or risk is unclear. |
+| Tier C restricted lane | OpenCode/DeepSeek may review or draft proposals only and must never merge autonomously. | Hurl runner behavior, `entroping run`, protected-run safety, redaction, proxy or traffic capture, provider boundary or LiteLLM routing, release publishing, architecture boundary changes, dependencies, secrets or credentials, security fixes, destructive filesystem behavior, and anything touching raw traffic or audit evidence. |
+
+Tier A merge conditions are all required:
+
+- The GitHub issue explicitly scopes the change as Tier A, or the PR explains
+  why the work stayed inside Tier A.
+- The worker starts from the active repo with `scripts/start_issue.sh` and uses
+  one issue-scoped worktree.
+- The PR includes an Agent Autonomy Declaration, checked Documentation Impact
+  Declaration, and `Closes #<issue>`.
+- The diff touches only Tier A surfaces and contains no generated local state,
+  secrets, `.entroping/`, Graphify output, provider transcripts, or local env
+  files.
+- Focused tests run for the touched surface, `scripts/regression.sh --security`
+  passes, and GitHub CI is green.
+- The worker reviews the final diff, merges only through the PR, then runs
+  `scripts/finish_issue.sh` from a separate checkout.
+
+If a Tier A worker discovers the issue touches Tier B or Tier C scope, it must
+stop at a safe checkpoint, report the files and failing or uncertain evidence,
+and wait for human or Codex review. Tier B and Tier C work must not be
+reclassified downward just to save model budget.
+
 ## Context Engineering Factory Boundary
 
 GitHub Issues, PRs, CI, source files, tests, ADRs, the decision registry, and
@@ -112,9 +149,11 @@ findings, audit evidence, or secrets-sensitive material.
 provider-free. No context, graph, compression, or helper-agent tool may move LLM
 providers into the run path or weaken the Hurl execution boundary.
 
-Codex remains the integrator and merge owner. Budget-friendly workers can
-review, summarize, draft, and critique, but Codex validates all useful output
-against local files, tests, docs, issues, ADRs, and CI before committing.
+Codex remains the factory architect and Tier B/Tier C merge owner, while Tier A
+autonomous workers can merge only under the documented shipping lanes.
+Budget-friendly workers can review, summarize, draft, critique, and ship
+allowed Tier A changes, but every claim is checked against local files, tests,
+docs, issues, ADRs, and CI before it becomes project truth.
 
 ## Context Pack
 
@@ -134,9 +173,9 @@ Use `implementation` for coding, `review` for critique, `source` for Gemini/Note
 
 | Agent | Best Use | Not Allowed To Decide Alone |
 | --- | --- | --- |
-| Codex | Implementation, integration, security fixes, repo scripts, final validation | Product strategy without updating docs/issues |
-| Claude Code | Independent implementation proposal, code review, refactor critique | Direct merge without Codex validation |
-| OpenCode | Cheap review worker, test ideas, docs drafts, alternative analysis | Security severity, architecture authority, release readiness |
+| Codex | Factory design, Tier B/Tier C integration, security fixes, repo scripts, final validation | Product strategy without updating docs/issues |
+| Claude Code | Independent implementation proposal, code review, refactor critique | Tier B/Tier C merge without human or Codex validation |
+| OpenCode | Cheap review worker, test ideas, docs drafts, alternative analysis, Tier A autonomous implementation | Security severity, architecture authority, release readiness, Tier B/Tier C merge authority |
 | Gemini | Broad product synthesis, marketing angles, source debate, launch copy | Current repo facts unless given a context pack |
 | NotebookLM | Source-grounded Q&A over exports and spec history | Implementation truth after code changes |
 | local Qwen via oMLX | Private/offline summarization, low-risk review, wording variants | Final code, security, release, or architecture decisions |
@@ -148,7 +187,10 @@ Use `implementation` for coding, `review` for critique, `source` for Gemini/Note
 - Do not let two agents edit the same source area concurrently.
 - Use `scripts/start_issue.sh` for issue worktrees when there is a GitHub issue.
 - Use `scripts/context_pack.sh --mode review` when asking another model to review a diff.
-- Parent Codex thread resolves conflicts against local files, tests, docs, ADRs, and CI.
+- Parent Codex thread resolves Tier B/Tier C conflicts against local files,
+  tests, docs, ADRs, and CI.
+- Tier A autonomous workers stop and escalate if they touch Tier B/Tier C scope
+  or collide with another active worker.
 
 ## Marathon Pattern
 
@@ -156,11 +198,11 @@ Run marathons in waves:
 
 1. Pick 2-4 independent GitHub issues.
 2. Start one worktree per issue with `scripts/start_issue.sh`.
-3. Keep one parent Codex thread as integrator.
+3. Keep one parent Codex thread as integrator for Tier B/Tier C or mixed-risk work.
 4. Give helper agents read-only review prompts unless a worktree is isolated.
 5. Require each write branch to pass `scripts/regression.sh`.
 6. Require `scripts/regression.sh --security` for dependency, subprocess, proxy, path, LLM, report, or traffic-state changes.
-7. Merge only through PRs with clean CI.
+7. Merge Tier A autonomously only when the lane conditions are met; otherwise merge only after human or Codex review.
 8. Run `scripts/finish_issue.sh` after merge to clean worktrees and project-board state.
 
 ## Hallucination Controls
@@ -183,6 +225,7 @@ Use AGENTS.md as the project rules.
 Use scripts/context_pack.sh --mode implementation as the context pack.
 Implement only the named GitHub issue or task.
 Preserve the locked v4.1 command surface.
+Declare the autonomy tier before implementation.
 Use TDD where behavior is testable.
 Run scripts/regression.sh before commit.
 Run scripts/regression.sh --security for security-sensitive or dependency work.

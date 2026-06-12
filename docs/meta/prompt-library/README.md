@@ -50,7 +50,9 @@ archive is mounted or attached to the cloud task.
   provider output into model prompts.
 - Give one write agent one issue-scoped worktree.
 - Keep Codex or the parent integrator responsible for final review, gates, PRs,
-  and merge readiness.
+  and merge readiness for Tier B/Tier C work.
+- Allow OpenCode/DeepSeek to merge only Tier A autonomous lane work after the
+  PR declares merge authority, required local gates pass, and CI is green.
 - Treat Gemini, DeepSeek, OpenCode, NotebookLM, Graphify, CodeGraph, and local
   models as evidence sources, not authorities.
 
@@ -59,7 +61,7 @@ archive is mounted or attached to the cloud task.
 | Prompt | Use |
 | --- | --- |
 | [Codex session handoff](codex-session-handoff.md) | Start a fresh Codex thread in the proper project folder. |
-| [Issue worker](issue-worker.md) | Give a coding agent one GitHub issue and an isolated worktree. |
+| [Issue worker](issue-worker.md) | Give a coding agent one GitHub issue and an isolated worktree, including the Autonomous Tier A OpenCode/DeepSeek Worker Prompt. |
 | [Spark-safe worker](spark-safe-worker.md) | Use low-risk Codex Spark capacity for docs/tests/project hygiene. |
 | [Multi-agent marathon](multi-agent-marathon.md) | Run several bounded sessions while one parent thread owns integration. |
 | [Thread steering](thread-steering.md) | Interrupt or redirect a running Codex thread without losing its current work. |
@@ -79,7 +81,8 @@ archive is mounted or attached to the cloud task.
 ## When To Use Which
 
 - New Codex thread: start with `codex-session-handoff.md`.
-- One implementation slice: use `issue-worker.md`.
+- One implementation slice: use `issue-worker.md`; use its autonomous variant
+  only for Tier A docs/tests/guard/script work.
 - Low-token or cheaper model work: use `spark-safe-worker.md` or
   `deepseek-opencode-review.md`.
 - Large overnight push: use `multi-agent-marathon.md` and keep a parent

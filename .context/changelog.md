@@ -2,6 +2,12 @@
 
 ## 2026-06-12
 
+- Documented issue #648's autonomous OpenCode shipping lanes: Tier A
+  docs/tests/guard/script work can be implemented, PR'd, merged, and cleaned up
+  by OpenCode/DeepSeek after issue-scoped worktrees, deterministic gates, PR
+  autonomy declaration, green CI, and `finish_issue.sh`; Tier B/Tier C work
+  remains human/Codex-reviewed for runtime, security, architecture, release,
+  provider-boundary, and secrets-sensitive surfaces.
 - Added issue #646's protected-block report evidence guard so JUnit and HTML
   reports expose selected, executed, not-scheduled, and fail-fast summary counts
   when protected safety preflight blocks a mixed selected run before Hurl.
