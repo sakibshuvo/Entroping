@@ -105,6 +105,7 @@ To measure context cost during a factory run, opt in explicitly:
 ```bash
 scripts/context_pack.sh --mode implementation --record-factory-metrics
 scripts/context_pack.sh --mode review --record-factory-metrics --factory-role code_review_agent
+scripts/ai_jobs.py run-next --record-factory-metrics
 ```
 
 Use `--factory-metrics-ledger` only for a ledger under
@@ -194,6 +195,10 @@ size and file counts, while `scripts/opencode_worker.py` and
 duration, provider/model metadata where known, and sanitized DeepSeek usage
 totals when available. Metrics failures are warnings for these workflow
 scripts; they must not hide the original context-pack or worker outcome.
+Queued workers use the same boundary: `scripts/ai_jobs.py run-next
+--record-factory-metrics` passes recording options to the selected worker
+harness without writing ledger events itself or changing queue semantics when
+the flag is absent.
 
 For normal onboarding, ordinary contributors must not be required to install
 Graphify, CodeGraph, Headroom, Obsidian plugins, LLM wiki tooling, or

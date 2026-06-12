@@ -2,6 +2,12 @@
 
 ## 2026-06-12
 
+- Added issue #656's queued-worker factory metrics pass-through:
+  `scripts/ai_jobs.py run-next --record-factory-metrics` now forwards
+  `--factory-role` and `--factory-metrics-ledger` to the selected OpenCode or
+  direct DeepSeek worker harness, keeping metrics schema ownership in
+  `scripts/factory_metrics.py`, leaving default queue behavior unchanged, and
+  preserving the no-prompts/no-transcripts/no-stdout/no-stderr ledger boundary.
 - Added issue #654's opt-in factory metrics hooks for maintainer workflows:
   `scripts/context_pack.sh --record-factory-metrics` records context-pack
   byte/token estimates and selected file counts without persisting the pack

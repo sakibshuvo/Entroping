@@ -9,9 +9,10 @@ import stat
 import subprocess
 import sys
 import threading
+import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from typing import cast
 
 import pytest
@@ -76,6 +77,13 @@ def write_fake_counting_opencode(
 def read_job(path: Path) -> dict[str, object]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     return cast(dict[str, object], payload)
+
+
+def read_metrics_events(ledger: Path) -> list[dict[str, object]]:
+    return [
+        cast(dict[str, object], json.loads(line))
+        for line in ledger.read_text(encoding="utf-8").splitlines()
+    ]
 
 
 class DeepSeekQueueStubHandler(BaseHTTPRequestHandler):
@@ -151,6 +159,15 @@ def test_ai_jobs_help_documents_queue_subcommands() -> None:
     assert "run-next" in result.stdout
     assert "status" in result.stdout
     assert "collect" in result.stdout
+
+
+def test_ai_jobs_run_next_help_documents_factory_metrics_options() -> None:
+    result = run_ai_jobs("run-next", "--help")
+
+    assert result.returncode == 0
+    assert "--record-factory-metrics" in result.stdout
+    assert "--factory-role" in result.stdout
+    assert "--factory-metrics-ledger" in result.stdout
 
 
 def test_ai_jobs_submit_writes_queued_job_with_model_profile(tmp_path: Path) -> None:
@@ -300,6 +317,222 @@ def test_ai_jobs_run_next_routes_deepseek_api_engine_to_direct_worker(
     assert metadata["schema_version"] == "entroping.deepseek-worker.v1"
     assert metadata["model"] == "deepseek-v4-pro"
     assert not (artifact_dir / "stdout.txt").exists()
+
+
+def test_ai_jobs_run_next_records_opencode_factory_metrics_when_requested(
+    tmp_path: Path,
+) -> None:
+    job_root = tmp_path / "ai-jobs"
+    artifact_root = tmp_path / "ai-reviews"
+    ledger = (
+        Path(".entroping")
+        / "factory-metrics"
+        / "tests"
+        / f"ai-jobs-opencode-{uuid.uuid4().hex}.jsonl"
+    )
+    full_ledger = REPO_ROOT / ledger
+
+    submit = run_ai_jobs(
+        "submit",
+        "--mode",
+        "review",
+        "--profile",
+        "pro",
+        "--file",
+        "README.md",
+        "--issue",
+        "656",
+        "--job-root",
+        str(job_root),
+        "--json",
+    )
+    assert submit.returncode == 0, submit.stderr
+
+    try:
+        result = run_ai_jobs(
+            "run-next",
+            "--job-root",
+            str(job_root),
+            "--artifact-root",
+            str(artifact_root),
+            "--worker-dry-run",
+            "--record-factory-metrics",
+            "--factory-role",
+            "code_review_agent",
+            "--factory-metrics-ledger",
+            ledger.as_posix(),
+            "--json",
+        )
+
+        assert result.returncode == 0, result.stderr
+        event = read_metrics_events(full_ledger)[0]
+        metrics = cast(dict[str, object], event["metrics"])
+        assert event["event_type"] == "worker_job"
+        assert event["role"] == "code_review_agent"
+        assert event["agent"] == "OpenCode"
+        assert event["tool"] == "scripts/opencode_worker.py"
+        assert event["issue"] == "656"
+        assert event["outcome"] == "success"
+        assert metrics["candidate_files"] == 1
+        assert metrics["files_read"] == 1
+        assert "Codex remains the integrator" not in full_ledger.read_text(
+            encoding="utf-8"
+        )
+    finally:
+        full_ledger.unlink(missing_ok=True)
+
+
+def test_ai_jobs_run_next_records_deepseek_factory_metrics_when_requested(
+    tmp_path: Path,
+) -> None:
+    job_root = tmp_path / "ai-jobs"
+    artifact_root = tmp_path / "ai-reviews"
+    ledger = (
+        Path(".entroping")
+        / "factory-metrics"
+        / "tests"
+        / f"ai-jobs-deepseek-{uuid.uuid4().hex}.jsonl"
+    )
+    full_ledger = REPO_ROOT / ledger
+
+    submit = run_ai_jobs(
+        "submit",
+        "--mode",
+        "review",
+        "--engine",
+        "deepseek-api",
+        "--profile",
+        "pro",
+        "--file",
+        "README.md",
+        "--issue",
+        "656",
+        "--job-root",
+        str(job_root),
+        "--json",
+    )
+    assert submit.returncode == 0, submit.stderr
+
+    try:
+        result = run_ai_jobs(
+            "run-next",
+            "--job-root",
+            str(job_root),
+            "--artifact-root",
+            str(artifact_root),
+            "--worker-dry-run",
+            "--record-factory-metrics",
+            "--factory-role",
+            "code_review_agent",
+            "--factory-metrics-ledger",
+            ledger.as_posix(),
+            "--json",
+        )
+
+        assert result.returncode == 0, result.stderr
+        event = read_metrics_events(full_ledger)[0]
+        metrics = cast(dict[str, object], event["metrics"])
+        assert event["event_type"] == "worker_job"
+        assert event["role"] == "code_review_agent"
+        assert event["agent"] == "DeepSeek"
+        assert event["tool"] == "scripts/deepseek_worker.py"
+        assert event["issue"] == "656"
+        assert event["outcome"] == "success"
+        assert metrics["candidate_files"] == 1
+        assert metrics["files_read"] == 1
+        assert "## Bounded File Contents" not in full_ledger.read_text(encoding="utf-8")
+    finally:
+        full_ledger.unlink(missing_ok=True)
+
+
+def test_ai_jobs_run_next_metrics_failure_does_not_mask_worker_result(
+    tmp_path: Path,
+) -> None:
+    job_root = tmp_path / "ai-jobs"
+    artifact_root = tmp_path / "ai-reviews"
+    unsafe_ledger = tmp_path / "unsafe-ledger.jsonl"
+
+    submit = run_ai_jobs(
+        "submit",
+        "--mode",
+        "review",
+        "--profile",
+        "pro",
+        "--file",
+        "README.md",
+        "--job-root",
+        str(job_root),
+        "--json",
+    )
+    assert submit.returncode == 0, submit.stderr
+
+    result = run_ai_jobs(
+        "run-next",
+        "--job-root",
+        str(job_root),
+        "--artifact-root",
+        str(artifact_root),
+        "--worker-dry-run",
+        "--record-factory-metrics",
+        "--factory-metrics-ledger",
+        str(unsafe_ledger),
+        "--json",
+    )
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    job = read_job(Path(str(payload["job_path"])))
+    assert job["queue_status"] == "completed"
+    assert job["worker_status"] == "dry-run"
+    assert not unsafe_ledger.exists()
+
+
+def test_ai_jobs_worker_command_does_not_record_metrics_by_default(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ai_jobs = load_ai_jobs_module()
+    captured_command: list[str] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        captured_command[:] = command
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout=json.dumps(
+                {
+                    "status": "dry-run",
+                    "returncode": 0,
+                    "artifact_dir": str(tmp_path / "artifact"),
+                }
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr(ai_jobs.subprocess, "run", fake_run)
+    args = SimpleNamespace(
+        artifact_root=tmp_path / "ai-reviews",
+        opencode_bin=None,
+        worker_dry_run=True,
+        record_factory_metrics=False,
+        factory_role=None,
+        factory_metrics_ledger=None,
+    )
+    job = {
+        "engine": "opencode",
+        "mode": "review",
+        "model": "deepseek/deepseek-v4-pro",
+        "files": ["README.md"],
+        "timeout_seconds": 1,
+    }
+
+    payload, returncode = ai_jobs._run_worker(args, REPO_ROOT, job)
+
+    assert returncode == 0
+    assert payload["status"] == "dry-run"
+    assert "--record-factory-metrics" not in captured_command
+    assert "--factory-role" not in captured_command
+    assert "--factory-metrics-ledger" not in captured_command
 
 
 def test_ai_jobs_run_next_preserves_deepseek_usage_for_budget_review(
