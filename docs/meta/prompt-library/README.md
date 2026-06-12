@@ -55,6 +55,13 @@ archive is mounted or attached to the cloud task.
   PR declares merge authority, required local gates pass, and CI is green.
 - Treat Gemini, DeepSeek, OpenCode, NotebookLM, Graphify, CodeGraph, and local
   models as evidence sources, not authorities.
+- Declare the role from `docs/meta/AGENT_ROLE_REGISTRY.yaml` before starting
+  worker prompts, and record local budget/context outcomes with
+  `scripts/factory_metrics.py` when a session produces useful evidence.
+- The portable software-factory protocol supports Codex, Claude Code,
+  OpenCode, DeepSeek, Gemini, Spark, and local models, but prompts still make
+  the receiving agent prove every claim against repo truth before edits or
+  merge.
 
 ## Prompt Catalog
 

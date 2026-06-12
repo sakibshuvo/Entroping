@@ -87,6 +87,19 @@ Use the generated context-tool output paths documented in
 codegraph, and compression artifacts remain local unless promoted through
 normal review.
 
+The portable software-factory protocol is split between
+`docs/meta/AGENT_ROLE_REGISTRY.yaml` and `scripts/factory_metrics.py`. The
+registry gives Product Manager, Architect, Dev Agent, QA Agent, Code Review
+Agent, Security Agent, Monitoring Agent, and Integrator roles consistent
+missions, authority limits, context modes, and metrics tags across Codex,
+Claude Code, OpenCode, DeepSeek, Gemini, Spark, and local models. The metrics
+script records local JSONL events with schema `entroping.factory-metrics.v1`
+under `.entroping/factory-metrics/`; it is maintainer/development workflow
+evidence, not product runtime evidence, and it must not store raw prompts,
+provider transcripts, secrets, raw traffic, or product runtime evidence.
+The factory framework owns workflow, context, metrics, and guardrails; the
+project owns product truth.
+
 One write agent per issue-scoped worktree. Parallelism comes from independent
 issues, not from multiple agents editing the same files.
 
@@ -183,6 +196,12 @@ authority; it can narrow file and test discovery, but it must not replace source
 reading, focused tests, or CI.
 
 ## Agent Roles
+
+`docs/meta/AGENT_ROLE_REGISTRY.yaml` is the machine-readable role registry for
+portable worker prompts, context-pack routing, and metrics tags. Keep the table
+below as the human summary and the registry as the consumable contract. Role
+definitions are a routing aid, not authority to override repo evidence,
+GitHub Issues, ADRs, tests, CI, or QAnstitution/Hurl evidence.
 
 | Agent | Best Use | Not Allowed To Decide Alone |
 | --- | --- | --- |

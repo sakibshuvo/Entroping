@@ -53,6 +53,7 @@ Use these first. They are the control panel for current work:
 - [[docs/meta/ISSUE_TRACKING|ISSUE_TRACKING]] - GitHub issue tracking rules for bugs, features, and regressions.
 - [[docs/meta/OBSIDIAN_VS_GITHUB|OBSIDIAN_VS_GITHUB]] - practical guide for where ideas, bugs, roadmap, and context belong.
 - [[docs/meta/prompt-library/README|PROMPT_LIBRARY]] - reusable Codex, Spark, Gemini, DeepSeek, OpenCode, multi-agent, review, triage, CI, launch, and status prompts.
+- [[docs/meta/AGENT_ROLE_REGISTRY.yaml|AGENT_ROLE_REGISTRY]] - machine-readable portable role registry for agent missions, authority limits, context modes, and metrics tags.
 - [[docs/meta/archive/OBSIDIAN_CONTEXT_ENGINE_GUIDE|OBSIDIAN_CONTEXT_ENGINE_GUIDE (archived)]] - historical context-engine strategy retained for traceability.
 - [[docs/meta/DECISION_REGISTRY.yaml|DECISION_REGISTRY]] - fast lookup layer for accepted decisions; summaries do not replace linked source material.
 - [[docs/meta/ENTROPING_PRODUCT_MAP.canvas|ENTROPING_PRODUCT_MAP]] - visual product/context map for the vault.

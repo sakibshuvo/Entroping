@@ -494,6 +494,42 @@ def test_graph_assisted_agent_context_probe_is_optional_and_advisory() -> None:
         assert term in combined
 
 
+def test_factory_role_registry_and_metrics_ledger_are_portable_guardrails() -> None:
+    control_plane = (
+        REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md"
+    ).read_text(encoding="utf-8")
+    context_management = (
+        REPO_ROOT / "docs" / "meta" / "CONTEXT_MANAGEMENT.md"
+    ).read_text(encoding="utf-8")
+    prompt_library = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "README.md"
+    ).read_text(encoding="utf-8")
+    vault_index = (REPO_ROOT / "docs" / "meta" / "VAULT_INDEX.md").read_text(
+        encoding="utf-8"
+    )
+    combined = " ".join(
+        f"{control_plane}\n{context_management}\n{prompt_library}\n{vault_index}".split()
+    )
+
+    required_terms = [
+        "docs/meta/AGENT_ROLE_REGISTRY.yaml",
+        "scripts/factory_metrics.py",
+        ".entroping/factory-metrics/",
+        "entroping.factory-metrics.v1",
+        "portable software-factory protocol",
+        "Product Manager, Architect, Dev Agent, QA Agent, Code Review Agent, "
+        "Security Agent, Monitoring Agent, and Integrator",
+        "Codex, Claude Code, OpenCode, DeepSeek, Gemini, Spark, and local models",
+        "must not store raw prompts, provider transcripts, secrets, raw traffic, "
+        "or product runtime evidence",
+        "The factory framework owns workflow, context, metrics, and guardrails; "
+        "the project owns product truth.",
+    ]
+
+    for term in required_terms:
+        assert term in combined
+
+
 def test_prompt_library_contains_autonomous_tier_a_worker_prompt() -> None:
     prompt = (REPO_ROOT / "docs" / "meta" / "prompt-library" / "issue-worker.md").read_text(
         encoding="utf-8"
