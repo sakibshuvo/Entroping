@@ -1,7 +1,9 @@
 """Smoke tests for deterministic agent context-pack tooling."""
 
+import json
 import os
 import subprocess
+import uuid
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -33,6 +35,8 @@ def test_context_pack_help_documents_modes() -> None:
     assert "--mode implementation|review|source|growth|handoff" in result.stdout
     assert "--with-local-graphs" in result.stdout
     assert "--graph-query" in result.stdout
+    assert "--record-factory-metrics" in result.stdout
+    assert "--factory-metrics-ledger" in result.stdout
     assert "NotebookLM" in result.stdout
     assert "Codex" in result.stdout
 
@@ -71,6 +75,51 @@ def test_context_pack_can_include_optional_graph_assisted_probe() -> None:
     assert "Graph output is retrieval evidence, not authority." in result.stdout
     assert "Verify every candidate against source files and tests" in result.stdout
     assert "agent-context-out/" in result.stdout
+
+
+def test_context_pack_records_opt_in_factory_metrics_without_persisting_pack() -> None:
+    ledger = (
+        Path(".entroping")
+        / "factory-metrics"
+        / "tests"
+        / f"context-pack-{uuid.uuid4().hex}.jsonl"
+    )
+    full_ledger = REPO_ROOT / ledger
+
+    try:
+        result = run_context_pack(
+            "--mode",
+            "handoff",
+            "--record-factory-metrics",
+            "--factory-role",
+            "integrator",
+            "--factory-metrics-ledger",
+            ledger.as_posix(),
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert "# Entroping Agent Context Pack" in result.stdout
+        events = [
+            json.loads(line)
+            for line in full_ledger.read_text(encoding="utf-8").splitlines()
+        ]
+        assert len(events) == 1
+        event = events[0]
+        assert event["event_type"] == "context_pack"
+        assert event["role"] == "integrator"
+        assert event["agent"] == "Codex"
+        assert event["tool"] == "scripts/context_pack.sh"
+        assert event["outcome"] == "success"
+        assert event["decision"] == "not_applicable"
+        assert event["metrics"]["context_bytes"] == len(result.stdout.encode("utf-8"))
+        assert event["metrics"]["estimated_tokens"] >= 1
+        assert event["metrics"]["candidate_files"] >= 1
+        assert event["metrics"]["files_read"] == event["metrics"]["candidate_files"]
+        ledger_text = full_ledger.read_text(encoding="utf-8")
+        assert "Required Agent Rules" not in ledger_text
+        assert "Current Git Status" not in ledger_text
+    finally:
+        full_ledger.unlink(missing_ok=True)
 
 
 def test_autonomous_development_has_single_canonical_archive_entrypoint() -> None:

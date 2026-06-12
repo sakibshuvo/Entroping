@@ -2,6 +2,15 @@
 
 ## 2026-06-12
 
+- Added issue #654's opt-in factory metrics hooks for maintainer workflows:
+  `scripts/context_pack.sh --record-factory-metrics` records context-pack
+  byte/token estimates and selected file counts without persisting the pack
+  body, while `scripts/opencode_worker.py` and `scripts/deepseek_worker.py`
+  can record worker status, duration, selected-file byte counts,
+  provider/model metadata, and sanitized DeepSeek usage totals through
+  `scripts/factory_metrics.py` without storing prompts, stdout/stderr,
+  provider transcripts, secrets, raw traffic, product runtime evidence, or
+  involving `entroping run`.
 - Added issue #652's portable factory role and metrics ledger: the
   machine-readable `docs/meta/AGENT_ROLE_REGISTRY.yaml` defines Product Manager,
   Architect, Dev Agent, QA Agent, Code Review Agent, Security Agent, Monitoring

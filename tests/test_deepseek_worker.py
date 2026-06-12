@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 import threading
+import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import ClassVar, cast
@@ -36,6 +37,13 @@ def run_worker(
 def read_metadata(artifact_dir: Path) -> dict[str, object]:
     payload = json.loads((artifact_dir / "metadata.json").read_text(encoding="utf-8"))
     return cast(dict[str, object], payload)
+
+
+def read_metrics_events(ledger: Path) -> list[dict[str, object]]:
+    return [
+        cast(dict[str, object], json.loads(line))
+        for line in ledger.read_text(encoding="utf-8").splitlines()
+    ]
 
 
 def make_worker_repo(tmp_path: Path) -> Path:
@@ -100,6 +108,8 @@ def test_deepseek_worker_help_documents_direct_api_options() -> None:
     assert "--api-key-env" in result.stdout
     assert "--base-url" in result.stdout
     assert "--max-file-bytes" in result.stdout
+    assert "--record-factory-metrics" in result.stdout
+    assert "--factory-metrics-ledger" in result.stdout
     assert "Default: disabled" in result.stdout
     assert "deepseek-v4-pro" in result.stdout
 
@@ -139,6 +149,61 @@ def test_deepseek_worker_dry_run_writes_prompt_and_metadata_without_api_key(
     assert "# Entroping" in prompt
     assert not (artifact_dir / "stdout.txt").exists()
     assert "secret" not in (artifact_dir / "metadata.json").read_text(encoding="utf-8")
+
+
+def test_deepseek_worker_records_opt_in_factory_metrics_for_dry_run(
+    tmp_path: Path,
+) -> None:
+    target_file = REPO_ROOT / "README.md"
+    ledger = (
+        Path(".entroping")
+        / "factory-metrics"
+        / "tests"
+        / f"deepseek-dry-run-{uuid.uuid4().hex}.jsonl"
+    )
+    full_ledger = REPO_ROOT / ledger
+
+    try:
+        result = run_worker(
+            "--mode",
+            "review",
+            "--file",
+            str(target_file),
+            "--issue",
+            "654",
+            "--artifact-root",
+            str(tmp_path / "reviews"),
+            "--record-factory-metrics",
+            "--factory-role",
+            "code_review_agent",
+            "--factory-metrics-ledger",
+            ledger.as_posix(),
+            "--dry-run",
+            "--json",
+            env={"DEEPSEEK_API_KEY": ""},
+        )
+
+        assert result.returncode == 0, result.stderr
+        events = read_metrics_events(full_ledger)
+        assert len(events) == 1
+        event = events[0]
+        metrics = cast(dict[str, object], event["metrics"])
+        assert event["event_type"] == "worker_job"
+        assert event["role"] == "code_review_agent"
+        assert event["agent"] == "DeepSeek"
+        assert event["tool"] == "scripts/deepseek_worker.py"
+        assert event["provider"] == "deepseek"
+        assert event["model"] == "deepseek-v4-pro"
+        assert event["issue"] == "654"
+        assert event["outcome"] == "success"
+        assert event["decision"] == "not_applicable"
+        assert metrics["context_bytes"] == target_file.stat().st_size
+        assert metrics["estimated_tokens"] == max(1, (target_file.stat().st_size + 3) // 4)
+        assert metrics["candidate_files"] == 1
+        assert metrics["files_read"] == 1
+        assert "## Bounded File Contents" not in full_ledger.read_text(encoding="utf-8")
+    finally:
+        full_ledger.unlink(missing_ok=True)
 
 
 def test_deepseek_worker_rejects_missing_api_key_before_artifact_write(
@@ -239,6 +304,63 @@ def test_deepseek_worker_posts_openai_compatible_request_and_writes_artifacts(
     assert "test-secret-token" not in (artifact_dir / "metadata.json").read_text(
         encoding="utf-8"
     )
+
+
+def test_deepseek_worker_records_usage_tokens_when_available(
+    tmp_path: Path,
+) -> None:
+    DeepSeekStubHandler.requests = []
+    server = HTTPServer(("127.0.0.1", 0), DeepSeekStubHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base_url = f"http://127.0.0.1:{server.server_port}"
+    ledger = (
+        Path(".entroping")
+        / "factory-metrics"
+        / "tests"
+        / f"deepseek-live-{uuid.uuid4().hex}.jsonl"
+    )
+    full_ledger = REPO_ROOT / ledger
+
+    try:
+        result = run_worker(
+            "--mode",
+            "review",
+            "--file",
+            "README.md",
+            "--artifact-root",
+            str(tmp_path / "reviews"),
+            "--base-url",
+            base_url,
+            "--api-key-env",
+            "ENTROPING_TEST_DEEPSEEK_KEY",
+            "--record-factory-metrics",
+            "--factory-role",
+            "code_review_agent",
+            "--factory-metrics-ledger",
+            ledger.as_posix(),
+            "--json",
+            env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
+        )
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+    try:
+        assert result.returncode == 0, result.stderr
+        events = read_metrics_events(full_ledger)
+        assert len(events) == 1
+        event = events[0]
+        metrics = cast(dict[str, object], event["metrics"])
+        assert event["event_type"] == "worker_job"
+        assert event["outcome"] == "success"
+        assert event["decision"] == "needs_review"
+        assert metrics["estimated_tokens"] == 18
+        ledger_text = full_ledger.read_text(encoding="utf-8")
+        assert "Concrete finding" not in ledger_text
+        assert "test-secret-token" not in ledger_text
+    finally:
+        full_ledger.unlink(missing_ok=True)
 
 
 def test_deepseek_worker_thinking_enabled_adds_reasoning_effort(

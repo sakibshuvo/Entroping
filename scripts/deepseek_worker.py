@@ -9,6 +9,7 @@ import os
 import re
 import subprocess  # nosec B404
 import sys
+import time
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -81,6 +82,9 @@ class DirectWorkerConfig:
     instruction: str | None
     dry_run: bool
     json_output: bool
+    record_factory_metrics: bool
+    factory_role: str | None
+    factory_metrics_ledger: Path | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,6 +143,7 @@ def main() -> int:
 def run_worker(config: DirectWorkerConfig) -> DirectWorkerResult:
     """Run a direct DeepSeek request and write local artifacts."""
 
+    started_at = time.monotonic()
     context_files = _prepare_context_files(config)
     api_key = "" if config.dry_run else _read_api_key(config.api_key_env)
     artifact_dir = _new_artifact_dir(config.artifact_root, config.mode)
@@ -165,10 +170,20 @@ def run_worker(config: DirectWorkerConfig) -> DirectWorkerResult:
             usage=None,
         )
         _write_metadata(config, result, endpoint)
+        _record_factory_metrics(
+            config,
+            result,
+            duration_seconds=time.monotonic() - started_at,
+        )
         return result
 
     result = _call_deepseek(config, endpoint, api_key, request_body, artifact_dir)
     _write_execution_artifacts(config, result, endpoint)
+    _record_factory_metrics(
+        config,
+        result,
+        duration_seconds=time.monotonic() - started_at,
+    )
     return result
 
 
@@ -251,6 +266,23 @@ def _parse_args() -> DirectWorkerConfig:
         action="store_true",
         help="Write prompt/request metadata without invoking DeepSeek.",
     )
+    parser.add_argument(
+        "--record-factory-metrics",
+        action="store_true",
+        help="Append an ignored local software-factory metrics event.",
+    )
+    parser.add_argument(
+        "--factory-role",
+        help=(
+            "Factory role tag for metrics. Defaults to code_review_agent for "
+            "review mode and dev_agent for patch mode."
+        ),
+    )
+    parser.add_argument(
+        "--factory-metrics-ledger",
+        type=Path,
+        help="Metrics ledger path under .entroping/factory-metrics/.",
+    )
     parser.add_argument("--json", action="store_true", help="Print machine-readable summary.")
     args = parser.parse_args()
 
@@ -295,6 +327,9 @@ def _parse_args() -> DirectWorkerConfig:
         instruction=args.instruction,
         dry_run=bool(args.dry_run),
         json_output=bool(args.json),
+        record_factory_metrics=bool(args.record_factory_metrics),
+        factory_role=args.factory_role,
+        factory_metrics_ledger=args.factory_metrics_ledger,
     )
 
 
@@ -744,6 +779,145 @@ def _write_metadata(
         json.dumps(metadata, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+
+
+def _record_factory_metrics(
+    config: DirectWorkerConfig,
+    result: DirectWorkerResult,
+    *,
+    duration_seconds: float,
+) -> None:
+    if not config.record_factory_metrics:
+        return
+
+    context_bytes = _selected_files_bytes(config.files)
+    estimated_tokens = _usage_total_tokens(result.usage)
+    if estimated_tokens is None:
+        estimated_tokens = max(1, (context_bytes + 3) // 4)
+
+    command = [
+        sys.executable,
+        str(config.repo_root / "scripts" / "factory_metrics.py"),
+        "--repo-root",
+        str(config.repo_root),
+        "append",
+        "--event-type",
+        "worker_job",
+        "--role",
+        config.factory_role or _default_factory_role(config.mode),
+        "--agent",
+        "DeepSeek",
+        "--tool",
+        "scripts/deepseek_worker.py",
+        "--provider",
+        "deepseek",
+        "--model",
+        config.model,
+        "--worktree",
+        str(config.repo_root),
+        "--context-bytes",
+        str(context_bytes),
+        "--estimated-tokens",
+        str(estimated_tokens),
+        "--candidate-files",
+        str(len(config.files)),
+        "--files-read",
+        str(len(config.files)),
+        "--duration-seconds",
+        f"{duration_seconds:.6f}",
+        "--outcome",
+        _factory_outcome(result.status),
+        "--decision",
+        _factory_decision(result.status),
+        "--note",
+        _factory_note(config, result),
+        "--json",
+    ]
+    if config.issue is not None:
+        command.extend(["--issue", config.issue])
+    if config.factory_metrics_ledger is not None:
+        command.extend(["--ledger", str(config.factory_metrics_ledger)])
+
+    completed = subprocess.run(  # nosec B603
+        command,
+        cwd=config.repo_root,
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    if completed.returncode != 0:
+        warning = (completed.stderr or completed.stdout).strip()
+        print(f"deepseek_worker: factory metrics warning: {warning}", file=sys.stderr)
+
+
+def _selected_files_bytes(files: tuple[Path, ...]) -> int:
+    total = 0
+    for path in files:
+        try:
+            total += path.stat().st_size
+        except OSError:
+            continue
+    return total
+
+
+def _usage_total_tokens(usage: dict[str, object] | None) -> int | None:
+    if usage is None:
+        return None
+
+    total = _numeric_usage_value(usage.get("total_tokens"))
+    if total is not None:
+        return total
+
+    prompt_tokens = _numeric_usage_value(usage.get("prompt_tokens"))
+    completion_tokens = _numeric_usage_value(usage.get("completion_tokens"))
+    if prompt_tokens is not None and completion_tokens is not None:
+        return prompt_tokens + completion_tokens
+    return None
+
+
+def _numeric_usage_value(value: object) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int | float) and value >= 0:
+        return int(value)
+    if isinstance(value, str) and value.isdigit():
+        return int(value)
+    return None
+
+
+def _default_factory_role(mode: Mode) -> str:
+    if mode == "patch":
+        return "dev_agent"
+    return "code_review_agent"
+
+
+def _factory_outcome(status: Status) -> str:
+    if status in {"completed", "dry-run", "patch-proposed"}:
+        return "success"
+    if status == "timed-out":
+        return "blocked"
+    if status == "failed":
+        return "failure"
+    return "inconclusive"
+
+
+def _factory_decision(status: Status) -> str:
+    if status == "dry-run":
+        return "not_applicable"
+    return "needs_review"
+
+
+def _factory_note(config: DirectWorkerConfig, result: DirectWorkerResult) -> str:
+    parts = [f"mode={config.mode}", f"status={result.status}"]
+    ignored_root = (config.repo_root / ".entroping").resolve()
+    try:
+        relative_artifact_dir = result.artifact_dir.resolve().relative_to(ignored_root)
+    except ValueError:
+        return ";".join(parts)
+    parts.append(f"artifact_dir=.entroping/{relative_artifact_dir.as_posix()}")
+    return ";".join(parts)
 
 
 if __name__ == "__main__":

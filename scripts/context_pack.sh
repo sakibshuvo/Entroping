@@ -3,7 +3,7 @@ set -euo pipefail
 
 show_help() {
   cat <<'EOF'
-Usage: scripts/context_pack.sh [--mode implementation|review|source|growth|handoff] [--with-local-graphs] [--graph-query TEXT]
+Usage: scripts/context_pack.sh [--mode implementation|review|source|growth|handoff] [--with-local-graphs] [--graph-query TEXT] [--record-factory-metrics]
 
 Print a curated Entroping context pack for Codex, Claude Code, OpenCode,
 Gemini, NotebookLM, local Qwen, or another coding/review agent.
@@ -27,6 +27,14 @@ exists on the machine:
 The graph-assisted section is advisory only. It skips cleanly when local graph
 outputs are absent and must not replace source reading, focused tests, or CI.
 
+Opt into ignored local software-factory metrics when measuring context cost:
+
+  scripts/context_pack.sh --mode implementation --record-factory-metrics
+
+Use --factory-role to override the default metrics role (`integrator`) and
+--factory-metrics-ledger to choose a ledger under `.entroping/factory-metrics/`.
+The ledger records byte and file counts only, not the generated context pack.
+
 For source reconciliation, set ENTROPING_SOURCE_ROOT when the source archive is
 not a sibling directory named entroping-specs:
 
@@ -44,6 +52,9 @@ die() {
 
 mode="implementation"
 with_local_graphs=false
+record_factory_metrics=false
+factory_role="integrator"
+factory_metrics_ledger=""
 graph_queries=()
 
 while (($#)); do
@@ -60,6 +71,20 @@ while (($#)); do
     --graph-query)
       [[ $# -ge 2 ]] || die "--graph-query requires a value"
       graph_queries+=("$2")
+      shift 2
+      ;;
+    --record-factory-metrics)
+      record_factory_metrics=true
+      shift
+      ;;
+    --factory-role)
+      [[ $# -ge 2 ]] || die "--factory-role requires a value"
+      factory_role="$2"
+      shift 2
+      ;;
+    --factory-metrics-ledger)
+      [[ $# -ge 2 ]] || die "--factory-metrics-ledger requires a value"
+      factory_metrics_ledger="$2"
       shift 2
       ;;
     -h|--help)
@@ -162,14 +187,15 @@ esac
 branch="$(git branch --show-current 2>/dev/null || true)"
 status="$(git status --short 2>/dev/null || true)"
 
-printf '# Entroping Agent Context Pack\n\n'
-printf '%s\n' "- Mode: $mode"
-printf '%s\n' "- Repo: $repo_root"
-printf '%s\n' "- Branch: ${branch:-detached}"
-printf '%s\n' "- Source archive: $source_root"
-printf '%s\n\n' "- Generated: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+emit_context_pack() {
+  printf '# Entroping Agent Context Pack\n\n'
+  printf '%s\n' "- Mode: $mode"
+  printf '%s\n' "- Repo: $repo_root"
+  printf '%s\n' "- Branch: ${branch:-detached}"
+  printf '%s\n' "- Source archive: $source_root"
+  printf '%s\n\n' "- Generated: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 
-cat <<'EOF'
+  cat <<'EOF'
 ## Required Agent Rules
 
 - Codex is the primary integrator unless a human explicitly assigns another parent integrator.
@@ -185,14 +211,14 @@ cat <<'EOF'
 
 EOF
 
-if [[ -n "$status" ]]; then
-  printf "\`\`\`text\n%s\n\`\`\`\n\n" "$status"
-else
-  printf "\`\`\`text\nworking tree clean\n\`\`\`\n\n"
-fi
+  if [[ -n "$status" ]]; then
+    printf "\`\`\`text\n%s\n\`\`\`\n\n" "$status"
+  else
+    printf "\`\`\`text\nworking tree clean\n\`\`\`\n\n"
+  fi
 
-if [[ "$mode" == "source" ]]; then
-  cat <<EOF
+  if [[ "$mode" == "source" ]]; then
+    cat <<EOF
 ## Source Archive Rule
 
 The final source snapshot currently lives at:
@@ -206,28 +232,85 @@ evidence through a GitHub issue, ADR, canonical product/technical doc, or
 context note before implementation.
 
 EOF
-fi
-
-if [[ "$with_local_graphs" == "true" ]]; then
-  graph_probe_args=("--repo-root" "$repo_root" "--format" "text")
-  if ((${#graph_queries[@]})); then
-    for graph_query in "${graph_queries[@]}"; do
-      graph_probe_args+=("--query" "$graph_query")
-    done
-  else
-    graph_probe_args+=("--query" "$mode")
   fi
-  python3 scripts/agent_context_probe.py "${graph_probe_args[@]}"
-  printf '\n'
-fi
 
-printf '## Curated Files\n\n'
-
-for path in "${files[@]}"; do
-  if [[ ! -f "$path" ]]; then
-    die "required context file is missing: $path"
+  if [[ "$with_local_graphs" == "true" ]]; then
+    graph_probe_args=("--repo-root" "$repo_root" "--format" "text")
+    if ((${#graph_queries[@]})); then
+      for graph_query in "${graph_queries[@]}"; do
+        graph_probe_args+=("--query" "$graph_query")
+      done
+    else
+      graph_probe_args+=("--query" "$mode")
+    fi
+    python3 scripts/agent_context_probe.py "${graph_probe_args[@]}"
+    printf '\n'
   fi
-  printf '### %s\n\n' "$path"
-  sed 's/[[:space:]]*$//' "$path"
-  printf '\n\n'
-done
+
+  printf '## Curated Files\n\n'
+
+  for path in "${files[@]}"; do
+    if [[ ! -f "$path" ]]; then
+      die "required context file is missing: $path"
+    fi
+    printf '### %s\n\n' "$path"
+    sed 's/[[:space:]]*$//' "$path"
+    printf '\n\n'
+  done
+}
+
+record_context_pack_metrics() {
+  local pack_file="$1"
+  local context_bytes
+  local estimated_tokens
+  local metrics_output
+  local metrics_args
+
+  context_bytes="$(wc -c < "$pack_file" | tr -d '[:space:]')"
+  if [[ -z "$context_bytes" ]]; then
+    context_bytes=0
+  fi
+  estimated_tokens=$(((context_bytes + 3) / 4))
+  if ((estimated_tokens < 1)); then
+    estimated_tokens=1
+  fi
+
+  metrics_args=(
+    python3 scripts/factory_metrics.py
+    --repo-root "$repo_root"
+    append
+    --event-type context_pack
+    --role "$factory_role"
+    --agent Codex
+    --tool scripts/context_pack.sh
+    --worktree "$repo_root"
+    --context-bytes "$context_bytes"
+    --estimated-tokens "$estimated_tokens"
+    --candidate-files "${#files[@]}"
+    --files-read "${#files[@]}"
+    --outcome success
+    --decision not_applicable
+    --note "mode=$mode"
+    --json
+  )
+  if [[ -n "$factory_metrics_ledger" ]]; then
+    metrics_args+=(--ledger "$factory_metrics_ledger")
+  fi
+
+  if ! metrics_output="$("${metrics_args[@]}" 2>&1)"; then
+    printf 'context_pack: factory metrics warning: %s\n' "$metrics_output" >&2
+  fi
+}
+
+if [[ "$record_factory_metrics" == "true" ]]; then
+  tmp_pack="$(mktemp "${TMPDIR:-/tmp}/entroping-context-pack.XXXXXX")"
+  cleanup_context_pack_metrics() {
+    rm -f "$tmp_pack"
+  }
+  trap cleanup_context_pack_metrics EXIT
+  emit_context_pack > "$tmp_pack"
+  cat "$tmp_pack"
+  record_context_pack_metrics "$tmp_pack"
+else
+  emit_context_pack
+fi
