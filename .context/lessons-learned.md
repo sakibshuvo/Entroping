@@ -424,3 +424,8 @@
 - When two provider-adjacent worker harnesses enforce the same secret-like
   content boundary, keep the regex semantics in one shared helper so DeepSeek
   direct calls and OpenCode subprocess routing cannot drift apart.
+- For provider-adjacent subprocess workers, scan selected file content once,
+  then bind the subprocess to those vetted bytes with ignored local snapshots;
+  do not make the provider-facing tool re-read mutable live repo paths.
+- Check selected paths for symlinks before calling `Path.resolve()`; resolving
+  first follows the link and defeats an intended final-path symlink rejection.

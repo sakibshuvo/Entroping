@@ -1006,3 +1006,8 @@
   secret-like content detection and rejecting selected files containing private
   key blocks, credential assignments, or bearer-token-like text before OpenCode
   subprocess execution.
+- Closed issue #665's OpenCode transport follow-up: the worker now snapshots
+  preflight-vetted selected file content under the ignored review artifact and
+  attaches those snapshots to OpenCode instead of relying on live repo reads.
+  The same selected-file boundary now rejects symlink inputs before resolving
+  paths in both OpenCode and direct DeepSeek maintainer workers.

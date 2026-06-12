@@ -428,6 +428,47 @@ def test_deepseek_worker_rejects_file_outside_repo_before_model_call(
     assert not (tmp_path / "reviews").exists()
 
 
+def test_deepseek_worker_rejects_symlink_before_artifact_or_model_call(
+    tmp_path: Path,
+) -> None:
+    repo = make_worker_repo(tmp_path)
+    target_file = repo / "target.md"
+    target_file.write_text("safe content\n", encoding="utf-8")
+    symlink_file = repo / "linked.md"
+    try:
+        symlink_file.symlink_to(target_file)
+    except OSError as exc:
+        pytest.skip(f"symlinks unavailable: {exc}")
+    DeepSeekStubHandler.requests = []
+    server = HTTPServer(("127.0.0.1", 0), DeepSeekStubHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        result = run_worker(
+            "--mode",
+            "review",
+            "--file",
+            "linked.md",
+            "--artifact-root",
+            str(tmp_path / "reviews"),
+            "--base-url",
+            f"http://127.0.0.1:{server.server_port}",
+            "--api-key-env",
+            "ENTROPING_TEST_DEEPSEEK_KEY",
+            env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
+            cwd=repo,
+        )
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+    assert result.returncode == 2
+    assert "input path must be a regular non-symlink file" in result.stderr
+    assert not (tmp_path / "reviews").exists()
+    assert DeepSeekStubHandler.requests == []
+
+
 def test_deepseek_worker_rejects_secret_like_file_before_artifact_or_model_call(
     tmp_path: Path,
 ) -> None:

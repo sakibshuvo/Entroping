@@ -31,13 +31,23 @@ Status = Literal["completed", "dry-run", "failed", "inconclusive", "patch-propos
 
 
 @dataclass(frozen=True)
+class PreparedSelectedFile:
+    """Selected file content that passed preflight safety checks."""
+
+    source_path: Path
+    relative_path: str
+    content: str
+    size_bytes: int
+
+
+@dataclass(frozen=True)
 class WorkerConfig:
     """Validated OpenCode worker configuration."""
 
     mode: Mode
     model: str
     repo_root: Path
-    files: tuple[Path, ...]
+    files: tuple[PreparedSelectedFile, ...]
     artifact_root: Path
     opencode_bin: Path
     timeout_seconds: float
@@ -99,10 +109,11 @@ def run_worker(config: WorkerConfig) -> WorkerResult:
     artifact_dir = _new_artifact_dir(config.artifact_root, config.mode)
     artifact_dir.mkdir(parents=True, exist_ok=False)
 
-    prompt = _build_prompt(config)
+    snapshot_paths = _write_selected_file_snapshots(config, artifact_dir)
+    prompt = _build_prompt(config, snapshot_paths)
     (artifact_dir / "prompt.md").write_text(prompt, encoding="utf-8")
 
-    command = [str(config.opencode_bin), "run", "--model", config.model, prompt]
+    command = _opencode_command(config, prompt, snapshot_paths)
     if config.dry_run:
         result = WorkerResult(
             status="dry-run",
@@ -303,17 +314,20 @@ def _validate_files(
     raw_files: tuple[Path, ...],
     *,
     max_file_bytes: int,
-) -> tuple[Path, ...]:
-    validated: list[Path] = []
+) -> tuple[PreparedSelectedFile, ...]:
+    validated: dict[Path, PreparedSelectedFile] = {}
     for raw_file in raw_files:
         path = raw_file.expanduser()
         if not path.is_absolute():
             path = repo_root / path
+        if path.is_symlink():
+            msg = f"input path must be a regular non-symlink file: {raw_file}"
+            raise WorkerInputError(msg)
         resolved = path.resolve()
         if not resolved.exists():
             msg = f"input file does not exist: {raw_file}"
             raise WorkerInputError(msg)
-        if not resolved.is_file() or resolved.is_symlink():
+        if not resolved.is_file():
             msg = f"input path must be a regular non-symlink file: {raw_file}"
             raise WorkerInputError(msg)
         try:
@@ -366,8 +380,16 @@ def _validate_files(
                 f"{relative_path} contains secret-like content ({content_reason})"
             )
             raise WorkerInputError(msg)
-        validated.append(resolved)
-    return tuple(dict.fromkeys(validated))
+        validated.setdefault(
+            resolved,
+            PreparedSelectedFile(
+                source_path=resolved,
+                relative_path=relative_path,
+                content=content,
+                size_bytes=size,
+            ),
+        )
+    return tuple(validated.values())
 
 
 def _resolve_opencode_bin(raw_path: Path | None, *, required: bool) -> Path:
@@ -386,10 +408,11 @@ def _resolve_opencode_bin(raw_path: Path | None, *, required: bool) -> Path:
     return Path(discovered).resolve()
 
 
-def _build_prompt(config: WorkerConfig) -> str:
+def _build_prompt(
+    config: WorkerConfig,
+    snapshot_paths: tuple[Path, ...],
+) -> str:
     template = _template_path(config.repo_root, config.mode).read_text(encoding="utf-8")
-    relative_files = [path.relative_to(config.repo_root).as_posix() for path in config.files]
-    absolute_files = [str(path) for path in config.files]
     lines = [
         template.rstrip(),
         "",
@@ -400,12 +423,24 @@ def _build_prompt(config: WorkerConfig) -> str:
         f"- Issue: {config.issue or 'not provided'}",
         "- Context pack command: scripts/context_pack.sh --mode review",
         "",
-        "## Allowed Files",
+        "## Attached File Snapshots",
+        "",
+        (
+            "OpenCode receives preflight-vetted snapshots through `--file`. "
+            "Review only the attached snapshot files below; do not read "
+            "selected files from the live repository during this worker run."
+        ),
         "",
     ]
-    lines.extend(f"- {path}" for path in relative_files)
-    lines.extend(["", "## Absolute File Paths", ""])
-    lines.extend(f"- {path}" for path in absolute_files)
+    lines.extend(f"- {path}" for path in snapshot_paths)
+    lines.extend(
+        [
+            "",
+            "## Allowed Snapshot Files",
+            "",
+        ]
+    )
+    lines.extend(f"- {path}" for path in snapshot_paths)
     if config.instruction is not None:
         lines.extend(["", "## Task Instruction", "", config.instruction.strip()])
     return "\n".join(lines).rstrip() + "\n"
@@ -423,6 +458,31 @@ def _new_artifact_dir(artifact_root: Path, mode: Mode) -> Path:
     timestamp = datetime.now(UTC_TZ).strftime("%Y%m%dT%H%M%SZ")
     suffix = uuid.uuid4().hex[:8]
     return artifact_root / f"{timestamp}-{mode}-{suffix}"
+
+
+def _write_selected_file_snapshots(
+    config: WorkerConfig,
+    artifact_dir: Path,
+) -> tuple[Path, ...]:
+    snapshot_root = artifact_dir / "selected-files"
+    snapshots: list[Path] = []
+    for selected in config.files:
+        snapshot_path = snapshot_root / selected.relative_path
+        snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+        snapshot_path.write_text(selected.content, encoding="utf-8")
+        snapshots.append(snapshot_path)
+    return tuple(snapshots)
+
+
+def _opencode_command(
+    config: WorkerConfig,
+    prompt: str,
+    snapshot_paths: tuple[Path, ...],
+) -> list[str]:
+    command = [str(config.opencode_bin), "run", "--model", config.model, prompt]
+    for snapshot_path in snapshot_paths:
+        command.extend(["--file", str(snapshot_path)])
+    return command
 
 
 def _decode_timeout_output(output: bytes | str | None) -> str:
@@ -497,7 +557,7 @@ def _write_metadata(config: WorkerConfig, result: WorkerResult, command: list[st
         "mode": config.mode,
         "model": config.model,
         "issue": config.issue,
-        "files": [path.relative_to(config.repo_root).as_posix() for path in config.files],
+        "files": [selected.relative_path for selected in config.files],
         "artifact_dir": str(result.artifact_dir),
         "returncode": result.returncode,
         "timeout_seconds": config.timeout_seconds,
@@ -581,14 +641,8 @@ def _record_factory_metrics(
         print(f"opencode_worker: factory metrics warning: {warning}", file=sys.stderr)
 
 
-def _selected_files_bytes(files: tuple[Path, ...]) -> int:
-    total = 0
-    for path in files:
-        try:
-            total += path.stat().st_size
-        except OSError:
-            continue
-    return total
+def _selected_files_bytes(files: tuple[PreparedSelectedFile, ...]) -> int:
+    return sum(selected.size_bytes for selected in files)
 
 
 def _factory_provider_model(model: str) -> tuple[str | None, str]:
