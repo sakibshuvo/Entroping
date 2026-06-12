@@ -179,14 +179,36 @@ normal review. Do not delete, archive, or rewrite context-preservation material
 just because generated output is noisy; compress with pointers and preserve the
 source history.
 
-Use `scripts/factory_metrics.py` to append, validate, or summarize local
-software-factory metrics with schema `entroping.factory-metrics.v1`. These
-events can record issue, PR, worktree, role, agent/tool, provider/model,
+Use `scripts/factory_metrics.py` to append, validate, summarize, or report
+local software-factory metrics with schema `entroping.factory-metrics.v1`.
+These events can record issue, PR, worktree, role, agent/tool, provider/model,
 context-byte/token estimates, file counts, tests, gates, CI/check outcomes,
 duration, cost, and accepted/rejected status. The ledger is ignored local
 operational evidence for budget and workflow tuning; it is not release proof,
 does not approve patches, and must not store raw prompts, provider transcripts,
 secrets, raw traffic, or product runtime evidence.
+The optional note field is limited to short value-free status summaries and
+rejects obvious raw prompt, transcript, stdout/stderr, raw-traffic, request-body,
+or response-body material.
+
+Use the per-issue report when measuring whether Graphify, CodeGraph, Headroom,
+OpenCode, DeepSeek, Spark, local models, and Codex session patterns are
+actually improving context cost and review yield:
+
+```bash
+scripts/factory_metrics.py report --format json
+scripts/factory_metrics.py report --format md --output .entroping/factory-metrics/factory-report.md
+```
+
+The report uses schema `entroping.factory-metrics-report.v1` and groups events
+by issue, including an `unassigned` bucket for exploratory runs. It summarizes
+roles, agents, outcomes, decisions, provider/model usage, context bytes,
+estimated tokens, duration, cost, file counts, tests, and gates without
+rendering notes, prompts, transcripts, stdout/stderr, raw traffic, or secrets.
+Keep the report local unless a finding is promoted into a GitHub issue, PR,
+ADR, or canonical doc. This is the measurement layer for future extraction into
+a reusable software-factory template, not a replacement for Entroping's source
+of truth.
 
 Maintainer workflow scripts can append those events only when requested with
 `--record-factory-metrics`. `scripts/context_pack.sh` records context-pack

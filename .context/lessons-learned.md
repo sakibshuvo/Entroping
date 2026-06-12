@@ -2,6 +2,10 @@
 
 ## 2026-06-12
 
+- Software-factory metrics should be useful evidence, not another authority
+  layer. Aggregate by issue, role, model, outcome, cost, and token/context
+  counts, but keep prompts, provider transcripts, stdout/stderr, raw traffic,
+  secrets, and product runtime evidence out of the ledger and reports.
 - Auth chaining should be modeled as Hurl-owned variable and capture behavior,
   with Entroping adding value-free metadata and evidence only. Reports should
   show flow IDs plus required/produced variable names, while token, cookie,

@@ -97,6 +97,11 @@ script records local JSONL events with schema `entroping.factory-metrics.v1`
 under `.entroping/factory-metrics/`; it is maintainer/development workflow
 evidence, not product runtime evidence, and it must not store raw prompts,
 provider transcripts, secrets, raw traffic, or product runtime evidence.
+It also exports a per-issue report with schema
+`entroping.factory-metrics-report.v1` so maintainers can compare context size,
+estimated tokens, duration, cost, roles, provider/model usage, outcomes, and
+accepted/rejected yield before future extraction into a reusable software
+factory template.
 Recording from scripts is opt-in: use
 `scripts/context_pack.sh --mode implementation --record-factory-metrics` to
 measure context packs, use `scripts/ai_jobs.py run-next
@@ -106,6 +111,9 @@ direct `scripts/opencode_worker.py` or `scripts/deepseek_worker.py` worker
 runs. These hooks record counts, status, duration, provider/model metadata,
 and sanitized usage totals only; they are not release proof, patch approval, or
 a substitute for tests and CI.
+Use `scripts/factory_metrics.py report --format json` for machine-readable
+analysis and `scripts/factory_metrics.py report --format md --output
+.entroping/factory-metrics/factory-report.md` for a local human review report.
 The factory framework owns workflow, context, metrics, and guardrails; the
 project owns product truth.
 

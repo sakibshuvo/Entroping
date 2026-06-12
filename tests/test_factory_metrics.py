@@ -264,6 +264,79 @@ def test_factory_metrics_redacts_common_secret_shapes(tmp_path: Path) -> None:
     assert "aws_access_key_id=<redacted>" in event["note"]
 
 
+def test_factory_metrics_rejects_raw_prompt_or_transcript_notes(tmp_path: Path) -> None:
+    ledger = tmp_path / ".entroping" / "factory-metrics" / "events.jsonl"
+
+    result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "append",
+        "--event-type",
+        "worker_job",
+        "--role",
+        "dev_agent",
+        "--agent",
+        "Codex",
+        "--note",
+        "raw prompt: inspect the provider transcript and stdout",
+        "--ledger",
+        str(ledger),
+    )
+
+    assert result.returncode == 2
+    assert "note must not contain raw prompt or transcript material" in result.stderr
+    assert not ledger.exists()
+
+
+def test_factory_metrics_rejects_prompt_note_variants(tmp_path: Path) -> None:
+    ledger = tmp_path / ".entroping" / "factory-metrics" / "events.jsonl"
+
+    for note in ("raw-prompt: inspect this", '{"prompt": "inspect this"}'):
+        result = run_factory_metrics(
+            "--repo-root",
+            str(tmp_path),
+            "append",
+            "--event-type",
+            "worker_job",
+            "--role",
+            "dev_agent",
+            "--agent",
+            "Codex",
+            "--note",
+            note,
+            "--ledger",
+            str(ledger),
+        )
+
+        assert result.returncode == 2
+        assert "note must not contain raw prompt or transcript material" in result.stderr
+    assert not ledger.exists()
+
+
+def test_factory_metrics_rejects_control_characters_in_text_fields(
+    tmp_path: Path,
+) -> None:
+    ledger = tmp_path / ".entroping" / "factory-metrics" / "events.jsonl"
+
+    result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "append",
+        "--event-type",
+        "worker_job",
+        "--role",
+        "dev_agent",
+        "--agent",
+        "Codex\x1b[31m",
+        "--ledger",
+        str(ledger),
+    )
+
+    assert result.returncode == 2
+    assert "agent must not contain control characters" in result.stderr
+    assert not ledger.exists()
+
+
 def test_factory_metrics_refuses_ledger_outside_factory_metrics_root(
     tmp_path: Path,
 ) -> None:
@@ -494,3 +567,301 @@ def test_factory_metrics_summary_aggregates_tokens_cost_and_outcomes(
     assert summary["by_agent"]["DeepSeek"]["events"] == 1
     assert summary["outcomes"] == {"failure": 1, "success": 1}
     assert summary["decisions"] == {"accepted": 1, "rejected": 1}
+
+
+def test_factory_metrics_report_groups_cost_and_yield_by_issue(
+    tmp_path: Path,
+) -> None:
+    ledger = tmp_path / ".entroping" / "factory-metrics" / "events.jsonl"
+
+    first = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "append",
+        "--event-type",
+        "context_pack",
+        "--role",
+        "architect",
+        "--agent",
+        "Codex",
+        "--tool",
+        "scripts/context_pack.sh",
+        "--issue",
+        "667",
+        "--context-bytes",
+        "4096",
+        "--estimated-tokens",
+        "1024",
+        "--candidate-files",
+        "12",
+        "--files-read",
+        "5",
+        "--duration-seconds",
+        "1.5",
+        "--outcome",
+        "success",
+        "--decision",
+        "accepted",
+        "--ledger",
+        str(ledger),
+    )
+    second = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "append",
+        "--event-type",
+        "code_review",
+        "--role",
+        "code_review_agent",
+        "--agent",
+        "DeepSeek",
+        "--provider",
+        "deepseek",
+        "--model",
+        "deepseek-v4-pro",
+        "--issue",
+        "667",
+        "--estimated-tokens",
+        "2048",
+        "--files-touched",
+        "2",
+        "--tests-run",
+        "3",
+        "--gates-run",
+        "1",
+        "--duration-seconds",
+        "9.5",
+        "--cost-usd",
+        "0.03",
+        "--outcome",
+        "failure",
+        "--decision",
+        "rejected",
+        "--note",
+        "provider response omitted",
+        "--ledger",
+        str(ledger),
+    )
+    third = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "append",
+        "--event-type",
+        "worker_job",
+        "--role",
+        "qa_agent",
+        "--agent",
+        "OpenCode",
+        "--provider",
+        "opencode",
+        "--model",
+        "deepseek-v4-flash-free",
+        "--estimated-tokens",
+        "512",
+        "--duration-seconds",
+        "4",
+        "--outcome",
+        "success",
+        "--decision",
+        "needs_review",
+        "--ledger",
+        str(ledger),
+    )
+
+    assert first.returncode == 0, first.stderr
+    assert second.returncode == 0, second.stderr
+    assert third.returncode == 0, third.stderr
+
+    result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "report",
+        "--ledger",
+        str(ledger),
+        "--format",
+        "json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)
+    assert report["schema_version"] == "entroping.factory-metrics-report.v1"
+    assert report["total_events"] == 3
+    assert report["totals"]["estimated_tokens"] == 3584
+    assert report["totals"]["context_bytes"] == 4096
+    assert report["totals"]["cost_usd"] == 0.03
+    assert report["totals"]["duration_seconds"] == 15.0
+
+    issues = {issue["issue"]: issue for issue in report["issues"]}
+    assert list(issues) == ["667", "unassigned"]
+    issue_667 = issues["667"]
+    assert issue_667["events"] == 2
+    assert issue_667["metrics"]["estimated_tokens"] == 3072
+    assert issue_667["metrics"]["files_read"] == 5
+    assert issue_667["metrics"]["files_touched"] == 2
+    assert issue_667["metrics"]["tests_run"] == 3
+    assert issue_667["metrics"]["gates_run"] == 1
+    assert issue_667["roles"] == {"architect": 1, "code_review_agent": 1}
+    assert issue_667["agents"] == {"Codex": 1, "DeepSeek": 1}
+    assert issue_667["provider_models"] == {"deepseek/deepseek-v4-pro": 1}
+    assert issue_667["outcomes"] == {"failure": 1, "success": 1}
+    assert issue_667["decisions"] == {"accepted": 1, "rejected": 1}
+
+    unassigned = issues["unassigned"]
+    assert unassigned["events"] == 1
+    assert unassigned["provider_models"] == {
+        "opencode/deepseek-v4-flash-free": 1
+    }
+    assert unassigned["decisions"] == {"needs_review": 1}
+    report_json = json.dumps(report)
+    assert "provider response omitted" not in report_json
+    assert "note" not in report_json
+
+
+def test_factory_metrics_report_writes_markdown_under_factory_metrics_root(
+    tmp_path: Path,
+) -> None:
+    ledger = tmp_path / ".entroping" / "factory-metrics" / "events.jsonl"
+    output = tmp_path / ".entroping" / "factory-metrics" / "factory-report.md"
+
+    append_result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "append",
+        "--event-type",
+        "worker_job",
+        "--role",
+        "dev_agent",
+        "--agent",
+        "OpenCode",
+        "--provider",
+        "opencode",
+        "--model",
+        "deepseek-v4-flash-free",
+        "--issue",
+        "667",
+        "--estimated-tokens",
+        "1200",
+        "--cost-usd",
+        "0.02",
+        "--duration-seconds",
+        "30",
+        "--outcome",
+        "success",
+        "--decision",
+        "accepted",
+        "--ledger",
+        str(ledger),
+    )
+    assert append_result.returncode == 0, append_result.stderr
+
+    result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "report",
+        "--ledger",
+        str(ledger),
+        "--format",
+        "md",
+        "--output",
+        str(output),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "status: written" in result.stdout
+    assert output.exists()
+    markdown = output.read_text(encoding="utf-8")
+    assert markdown.startswith("# Factory Metrics Report\n")
+    assert "| 667 | 1 | 1200 | 0.02 | 30.00 |" in markdown
+    assert "opencode/deepseek-v4-flash-free: 1" in markdown
+    assert "OpenCode: 1" in markdown
+
+
+def test_factory_metrics_report_markdown_escapes_labels(tmp_path: Path) -> None:
+    ledger = tmp_path / ".entroping" / "factory-metrics" / "events.jsonl"
+
+    append_result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "append",
+        "--event-type",
+        "worker_job",
+        "--role",
+        "dev_agent",
+        "--agent",
+        "OpenCode<script>`",
+        "--provider",
+        "opencode",
+        "--model",
+        "deepseek-v4-flash-free",
+        "--issue",
+        "667|<script>`",
+        "--estimated-tokens",
+        "12",
+        "--ledger",
+        str(ledger),
+    )
+    assert append_result.returncode == 0, append_result.stderr
+
+    result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "report",
+        "--ledger",
+        str(ledger),
+        "--format",
+        "md",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "<script>" not in result.stdout
+    assert "667\\|&lt;script&gt;\\`" in result.stdout
+    assert "OpenCode&lt;script&gt;\\`: 1" in result.stdout
+
+
+def test_factory_metrics_report_refuses_output_outside_factory_metrics_root(
+    tmp_path: Path,
+) -> None:
+    ledger = tmp_path / ".entroping" / "factory-metrics" / "events.jsonl"
+    outside_output = tmp_path / "factory-report.md"
+
+    result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "report",
+        "--ledger",
+        str(ledger),
+        "--format",
+        "md",
+        "--output",
+        str(outside_output),
+    )
+
+    assert result.returncode == 2
+    assert "report path must be under .entroping/factory-metrics/" in result.stderr
+    assert not outside_output.exists()
+
+
+def test_factory_metrics_report_builder_redacts_labels_defensively() -> None:
+    module = _load_factory_metrics_module()
+    event = {
+        "schema_version": "entroping.factory-metrics.v1",
+        "event_id": "event-1",
+        "recorded_at": "2026-06-12T00:00:00Z",
+        "event_type": "worker_job",
+        "role": "code_review_agent",
+        "agent": "DeepSeek api_key=live-secret-token",
+        "provider": "deepseek",
+        "model": "deepseek-v4-pro token=raw-secret-token",
+        "issue": "667 access_token=ghp_FAKE_NOT_A_SECRET_1234567890",
+        "metrics": {"estimated_tokens": 12},
+        "outcome": "success",
+        "decision": "needs_review",
+    }
+
+    report = module._report([event])
+
+    serialized = json.dumps(report)
+    assert "live-secret-token" not in serialized
+    assert "raw-secret-token" not in serialized
+    assert "ghp_FAKE_NOT_A_SECRET_1234567890" not in serialized
+    assert "<redacted>" in serialized

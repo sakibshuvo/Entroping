@@ -2,6 +2,12 @@
 
 ## 2026-06-12
 
+- Added issue #667's factory metrics report export:
+  `scripts/factory_metrics.py report` now renders schema-versioned JSON or
+  Markdown per-issue cost/yield summaries from ignored local metrics ledgers,
+  grouping unassigned exploratory events separately and preserving the
+  no-prompts/no-transcripts/no-stdout/no-stderr/no-raw-traffic boundary for
+  future software-factory extraction.
 - Added issue #656's queued-worker factory metrics pass-through:
   `scripts/ai_jobs.py run-next --record-factory-metrics` now forwards
   `--factory-role` and `--factory-metrics-ledger` to the selected OpenCode or
