@@ -2,6 +2,11 @@
 
 ## 2026-06-12
 
+- Added issue #639's AI worker queue review summary: completed queue
+  collection now reports value-free counts by engine, profile, mode,
+  worker status, and model; direct DeepSeek token usage is copied into
+  completed job records and `collect --json` only after numeric sanitization,
+  without raw stdout, prompts, provider responses, or secrets.
 - Fixed issue #642's DeepSeek/OpenCode prompt-library drift so local AI worker
   examples use the supported `scripts/ai_jobs.py status` command instead of a
   stale `list` subcommand, with a docs guard preventing future unsupported

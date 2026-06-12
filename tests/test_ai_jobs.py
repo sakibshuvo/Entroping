@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import stat
 import subprocess
 import sys
 import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from types import ModuleType
 from typing import cast
@@ -27,13 +29,18 @@ def load_ai_jobs_module() -> ModuleType:
     return module
 
 
-def run_ai_jobs(*args: str, cwd: Path = REPO_ROOT) -> subprocess.CompletedProcess[str]:
+def run_ai_jobs(
+    *args: str,
+    cwd: Path = REPO_ROOT,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(SCRIPT), *args],
         cwd=cwd,
         check=False,
         capture_output=True,
         text=True,
+        env={**os.environ, **env} if env is not None else None,
     )
 
 
@@ -69,6 +76,38 @@ def write_fake_counting_opencode(
 def read_job(path: Path) -> dict[str, object]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     return cast(dict[str, object], payload)
+
+
+class DeepSeekQueueStubHandler(BaseHTTPRequestHandler):
+    requests: list[dict[str, object]] = []
+
+    def do_POST(self) -> None:  # noqa: N802
+        content_length = int(self.headers.get("Content-Length", "0"))
+        body = json.loads(self.rfile.read(content_length).decode("utf-8"))
+        self.__class__.requests.append(
+            {
+                "path": self.path,
+                "authorization": self.headers.get("Authorization"),
+                "body": body,
+            }
+        )
+        response = {
+            "choices": [{"message": {"content": "Concrete finding"}}],
+            "usage": {
+                "completion_tokens": 7,
+                "prompt_tokens": 11,
+                "total_tokens": 18,
+            },
+        }
+        encoded = json.dumps(response).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(encoded)))
+        self.end_headers()
+        self.wfile.write(encoded)
+
+    def log_message(self, format: str, *args: object) -> None:
+        return
 
 
 def test_ai_jobs_state_writes_do_not_truncate_visible_job_path(
@@ -261,6 +300,85 @@ def test_ai_jobs_run_next_routes_deepseek_api_engine_to_direct_worker(
     assert metadata["schema_version"] == "entroping.deepseek-worker.v1"
     assert metadata["model"] == "deepseek-v4-pro"
     assert not (artifact_dir / "stdout.txt").exists()
+
+
+def test_ai_jobs_run_next_preserves_deepseek_usage_for_budget_review(
+    tmp_path: Path,
+) -> None:
+    job_root = tmp_path / "ai-jobs"
+    artifact_root = tmp_path / "ai-reviews"
+    DeepSeekQueueStubHandler.requests = []
+    server = HTTPServer(("127.0.0.1", 0), DeepSeekQueueStubHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base_url = f"http://127.0.0.1:{server.server_port}"
+
+    submit = run_ai_jobs(
+        "submit",
+        "--mode",
+        "review",
+        "--engine",
+        "deepseek-api",
+        "--profile",
+        "pro",
+        "--file",
+        "README.md",
+        "--job-root",
+        str(job_root),
+        "--json",
+    )
+    assert submit.returncode == 0, submit.stderr
+
+    try:
+        result = run_ai_jobs(
+            "run-next",
+            "--job-root",
+            str(job_root),
+            "--artifact-root",
+            str(artifact_root),
+            "--deepseek-base-url",
+            base_url,
+            "--deepseek-api-key-env",
+            "ENTROPING_TEST_DEEPSEEK_KEY",
+            "--json",
+            env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
+        )
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+    expected_usage = {
+        "completion_tokens": 7,
+        "prompt_tokens": 11,
+        "total_tokens": 18,
+    }
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    completed_path = Path(str(payload["job_path"]))
+    job = read_job(completed_path)
+    collect = run_ai_jobs("collect", "--job-root", str(job_root), "--json")
+    collect_payload = json.loads(collect.stdout)
+
+    assert payload["usage"] == expected_usage
+    assert job["usage"] == expected_usage
+    assert collect_payload["completed_jobs"][0]["usage"] == expected_usage
+    assert collect_payload["summary"]["by_engine"] == {"deepseek-api": 1}
+    assert collect_payload["summary"]["by_profile"] == {"pro": 1}
+    assert collect_payload["summary"]["by_mode"] == {"review": 1}
+    assert collect_payload["summary"]["by_worker_status"] == {"completed": 1}
+    assert collect_payload["summary"]["by_model"] == {"deepseek-v4-pro": 1}
+    assert collect_payload["summary"]["usage"] == {
+        "known_jobs": 1,
+        "totals": expected_usage,
+        "unknown_jobs": 0,
+    }
+    assert collect_payload["completed_jobs"][0]["metadata_path"] == str(
+        Path(str(job["artifact_dir"])) / "metadata.json"
+    )
+    assert "Concrete finding" not in completed_path.read_text(encoding="utf-8")
+    assert "Concrete finding" not in collect.stdout
+    assert "test-secret-token" not in result.stdout
+    assert "test-secret-token" not in collect.stdout
 
 
 def test_ai_jobs_run_next_concurrent_invocations_process_distinct_jobs_once(tmp_path: Path) -> None:
@@ -620,13 +738,71 @@ def test_ai_jobs_collect_lists_completed_artifacts_for_codex_review(
         {
             "job_id": "job-1",
             "engine": "opencode",
+            "profile": None,
             "mode": "patch",
             "model": "deepseek/deepseek-v4-pro",
             "issue": "579",
             "worker_status": "patch-proposed",
             "artifact_dir": str(artifact_dir),
+            "metadata_path": str(artifact_dir / "metadata.json"),
         }
     ]
+    assert payload["summary"] == {
+        "total_completed": 1,
+        "by_engine": {"opencode": 1},
+        "by_profile": {"unknown": 1},
+        "by_mode": {"patch": 1},
+        "by_worker_status": {"patch-proposed": 1},
+        "by_model": {"deepseek/deepseek-v4-pro": 1},
+        "usage": {"known_jobs": 0, "totals": {}, "unknown_jobs": 1},
+    }
+    assert "do not print me" not in result.stdout
+
+
+def test_ai_jobs_collect_sanitizes_malformed_usage_without_raw_output(
+    tmp_path: Path,
+) -> None:
+    job_root = tmp_path / "ai-jobs"
+    completed = job_root / "completed"
+    completed.mkdir(parents=True)
+    artifact_dir = tmp_path / "ai-reviews" / "review-usage"
+    artifact_dir.mkdir(parents=True)
+    (completed / "job-usage.json").write_text(
+        json.dumps(
+            {
+                "job_id": "job-usage",
+                "queue_status": "completed",
+                "engine": "deepseek-api",
+                "profile": "pro",
+                "mode": "review",
+                "model": "deepseek-v4-pro",
+                "worker_status": "completed",
+                "artifact_dir": str(artifact_dir),
+                "usage": {
+                    "prompt_tokens": 11,
+                    "total_tokens": 18,
+                    "raw": {"secret": "do not print me"},
+                    "note": "do not print me",
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = run_ai_jobs("collect", "--job-root", str(job_root), "--json")
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["completed_jobs"][0]["usage"] == {
+        "prompt_tokens": 11,
+        "total_tokens": 18,
+    }
+    assert payload["summary"]["usage"] == {
+        "known_jobs": 1,
+        "totals": {"prompt_tokens": 11, "total_tokens": 18},
+        "unknown_jobs": 0,
+    }
     assert "do not print me" not in result.stdout
 
 
