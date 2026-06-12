@@ -78,6 +78,10 @@ offline review prompts before sending anything sensitive to cloud models.
 Generated codegraph, Graphify, and Obsidian graph output is evidence, not authority.
 They can help humans and agents navigate relationships, but local tests, source
 files, ADRs, GitHub Issues, and CI decide truth.
+Use the generated context-tool output paths documented in
+`docs/meta/CONTEXT_MANAGEMENT.md`; generated graph, wiki, comprehension,
+codegraph, and compression artifacts remain local unless promoted through
+normal review.
 
 One write agent per issue-scoped worktree. Parallelism comes from independent
 issues, not from multiple agents editing the same files.

@@ -2,6 +2,10 @@
 
 ## 2026-06-12
 
+- Added issue #640's context-tool output hygiene boundary: generated Graphify,
+  LLM wiki, Understand Anything, CodeGraph, and Headroom artifacts now have
+  explicit ignored local output paths, repo hygiene rejects tracked generated
+  context output, and docs preserve the promotion-only rule.
 - Added issue #639's AI worker queue review summary: completed queue
   collection now reports value-free counts by engine, profile, mode,
   worker status, and model; direct DeepSeek token usage is copied into

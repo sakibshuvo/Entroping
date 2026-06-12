@@ -14,6 +14,10 @@ Forbidden tracked paths include:
   .entroping/
   reports/
   graphify-out/
+  llm-wiki-out/
+  understand-anything-out/
+  codegraph-out/
+  headroom-out/
   .venv/
   .mypy_cache/
   .pytest_cache/
@@ -49,6 +53,10 @@ is_forbidden_path() {
     .entroping/*|\
     reports/*|\
     graphify-out/*|\
+    llm-wiki-out/*|\
+    understand-anything-out/*|\
+    codegraph-out/*|\
+    headroom-out/*|\
     .venv/*|\
     .mypy_cache/*|\
     .pytest_cache/*|\
