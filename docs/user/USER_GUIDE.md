@@ -479,8 +479,11 @@ entroping report artifact-manifest
 The artifact manifest writes `reports/artifact-manifest.json`. It lists
 standard local report artifacts, schema versions when available, byte sizes,
 and SHA-256 checksums; missing expected artifacts are recorded without failing
-the command. Use it as CI upload or release-review integrity evidence, not as a
-signature, notarization, or attestation system.
+the command. It also records a value-free local audit event in
+`.entroping/report-audit-chain.jsonl` and shows audit verification status in the
+manifest so a later run can flag broken previous-hash linkage. Use it as CI
+upload or release-review integrity evidence, not as a signature, notarization,
+or attestation system.
 
 Freeze the session into tests:
 
@@ -824,8 +827,9 @@ After writing reports that you plan to upload, write a manifest for reviewers:
 entroping report artifact-manifest
 ```
 
-The manifest includes checksums and sizes for present report files and a
-`missing_artifacts` list for expected files that were not produced in this run.
+The manifest includes checksums and sizes for present report files, a
+`missing_artifacts` list for expected files that were not produced in this run,
+and an `audit` block with local chain status and diagnostics.
 
 ## 11. Drift Detection
 

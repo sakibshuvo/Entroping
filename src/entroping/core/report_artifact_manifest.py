@@ -3,15 +3,18 @@
 import hashlib
 import json
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.safe_write import SafeWriteError, safe_write_text
+from entroping.models.secrets import redact_secret_like_values
 
 REPORT_ARTIFACT_MANIFEST_SCHEMA_VERSION: Final = "entroping.report-artifact-manifest.v1"
+REPORT_AUDIT_EVENT_SCHEMA_VERSION: Final = "entroping.report-audit-event.v1"
 
 ReportArtifactKind = Literal[
     "run_json",
@@ -23,8 +26,10 @@ ReportArtifactKind = Literal[
     "sarif",
     "review_summary",
 ]
+ReportArtifactAuditVerificationStatus = Literal["verified", "broken"]
 
 _DEFAULT_OUTPUT_PATH: Final = Path("reports") / "artifact-manifest.json"
+_DEFAULT_AUDIT_CHAIN_PATH: Final = Path(".entroping") / "report-audit-chain.jsonl"
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,6 +114,54 @@ class ReportArtifactManifestSummary(BaseModel):
     total_missing: int
 
 
+class ReportArtifactAuditCommand(BaseModel):
+    """Value-free command metadata for an audit-chain event."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: Literal["entroping report artifact-manifest"]
+    output_path: str
+
+
+class ReportArtifactAuditEvent(BaseModel):
+    """One tamper-evident local report audit event."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["entroping.report-audit-event.v1"] = (
+        "entroping.report-audit-event.v1"
+    )
+    event_type: Literal["report_artifact_manifest"] = "report_artifact_manifest"
+    sequence: int = Field(ge=1)
+    generated_at: str
+    previous_event_hash: str | None
+    command: ReportArtifactAuditCommand
+    summary: ReportArtifactManifestSummary
+    artifacts: tuple[ReportArtifactEntry, ...]
+    event_hash: str
+
+
+class ReportArtifactAuditVerification(BaseModel):
+    """Verification result for the local report audit chain."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: ReportArtifactAuditVerificationStatus
+    checked_events: int = Field(ge=0)
+    latest_event_hash: str | None
+    diagnostics: tuple[str, ...] = ()
+
+
+class ReportArtifactAuditEvidence(BaseModel):
+    """Audit-chain evidence embedded in the artifact manifest."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    chain_path: str
+    verification: ReportArtifactAuditVerification
+    event: ReportArtifactAuditEvent | None
+
+
 class ReportArtifactManifest(BaseModel):
     """Machine-readable integrity evidence for local report artifacts."""
 
@@ -120,6 +173,7 @@ class ReportArtifactManifest(BaseModel):
     summary: ReportArtifactManifestSummary
     artifacts: tuple[ReportArtifactEntry, ...]
     missing_artifacts: tuple[ReportArtifactMissing, ...]
+    audit: ReportArtifactAuditEvidence
 
 
 class ReportArtifactManifestError(ValueError):
@@ -132,6 +186,12 @@ class ReportArtifactManifestResult:
 
     output_path: Path
     manifest: ReportArtifactManifest
+
+
+@dataclass(frozen=True, slots=True)
+class _AuditChainState:
+    events: tuple[ReportArtifactAuditEvent, ...]
+    verification: ReportArtifactAuditVerification
 
 
 def write_report_artifact_manifest(
@@ -173,14 +233,22 @@ def write_report_artifact_manifest(
             )
         )
 
+    summary = ReportArtifactManifestSummary(
+        total_expected=len(_DEFAULT_REPORT_ARTIFACTS),
+        total_present=len(artifacts),
+        total_missing=len(missing_artifacts),
+    )
+    audit = _write_audit_event(
+        root=root,
+        output_path=destination,
+        summary=summary,
+        artifacts=tuple(artifacts),
+    )
     manifest = ReportArtifactManifest(
-        summary=ReportArtifactManifestSummary(
-            total_expected=len(_DEFAULT_REPORT_ARTIFACTS),
-            total_present=len(artifacts),
-            total_missing=len(missing_artifacts),
-        ),
+        summary=summary,
         artifacts=tuple(artifacts),
         missing_artifacts=tuple(missing_artifacts),
+        audit=audit,
     )
 
     try:
@@ -265,7 +333,7 @@ def _json_schema_version(content: bytes, *, artifact_path: str) -> str | None:
     if not isinstance(document, dict):
         return None
     schema_version = document.get("schema_version")
-    return schema_version if isinstance(schema_version, str) else None
+    return _safe_metadata_text(schema_version) if isinstance(schema_version, str) else None
 
 
 def _sarif_schema_version(content: bytes, *, artifact_path: str) -> str | None:
@@ -273,7 +341,7 @@ def _sarif_schema_version(content: bytes, *, artifact_path: str) -> str | None:
     if not isinstance(document, dict):
         return None
     version = document.get("version")
-    return f"SARIF {version}" if isinstance(version, str) else None
+    return _safe_metadata_text(f"SARIF {version}") if isinstance(version, str) else None
 
 
 def _load_json_document(content: bytes, *, artifact_path: str) -> object:
@@ -289,3 +357,203 @@ def _display_path(path: Path, *, root: Path) -> str:
         return path.resolve(strict=False).relative_to(root).as_posix()
     except ValueError:
         return path.as_posix()
+
+
+def _write_audit_event(
+    *,
+    root: Path,
+    output_path: Path,
+    summary: ReportArtifactManifestSummary,
+    artifacts: tuple[ReportArtifactEntry, ...],
+) -> ReportArtifactAuditEvidence:
+    chain_path = _resolve_audit_chain_path(root=root)
+    chain_display_path = _display_path(chain_path, root=root)
+    state = _load_audit_chain(chain_path, root=root)
+    if state.verification.status == "broken":
+        return ReportArtifactAuditEvidence(
+            chain_path=chain_display_path,
+            verification=state.verification,
+            event=None,
+        )
+
+    event = _build_audit_event(
+        sequence=len(state.events) + 1,
+        previous_event_hash=state.verification.latest_event_hash,
+        output_path=_safe_metadata_text(_display_path(output_path, root=root)),
+        summary=summary,
+        artifacts=artifacts,
+    )
+    try:
+        safe_write_text(
+            chain_path,
+            "".join(_audit_event_line(item) for item in (*state.events, event)),
+            artifact="report audit chain",
+            root=root,
+        )
+    except SafeWriteError as exc:
+        raise ReportArtifactManifestError(str(exc)) from exc
+
+    verification = ReportArtifactAuditVerification(
+        status="verified",
+        checked_events=len(state.events) + 1,
+        latest_event_hash=event.event_hash,
+        diagnostics=(),
+    )
+    return ReportArtifactAuditEvidence(
+        chain_path=chain_display_path,
+        verification=verification,
+        event=event,
+    )
+
+
+def _resolve_audit_chain_path(*, root: Path) -> Path:
+    candidate = root / _DEFAULT_AUDIT_CHAIN_PATH
+    _reject_symlink_path(candidate, root=root, artifact="report audit chain")
+    return candidate.resolve(strict=False)
+
+
+def _load_audit_chain(path: Path, *, root: Path) -> _AuditChainState:
+    if not path.exists():
+        return _AuditChainState(
+            events=(),
+            verification=ReportArtifactAuditVerification(
+                status="verified",
+                checked_events=0,
+                latest_event_hash=None,
+                diagnostics=(),
+            ),
+        )
+    if not path.is_file():
+        msg = f"report audit chain path is not a file: {_display_path(path, root=root)}"
+        raise ReportArtifactManifestError(msg)
+
+    try:
+        raw_lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        msg = f"Could not read report audit chain {_display_path(path, root=root)}: {exc}"
+        raise ReportArtifactManifestError(msg) from exc
+
+    events: list[ReportArtifactAuditEvent] = []
+    expected_previous_hash: str | None = None
+    latest_event_hash: str | None = None
+    checked_events = 0
+    for line_number, line in enumerate(raw_lines, start=1):
+        if not line.strip():
+            continue
+        checked_events = line_number
+        try:
+            raw_event = json.loads(line)
+        except json.JSONDecodeError:
+            return _broken_chain(events, checked_events, f"line {line_number} invalid JSON")
+        if not isinstance(raw_event, dict):
+            return _broken_chain(events, checked_events, f"line {line_number} is not an object")
+
+        raw_event_hash = raw_event.get("event_hash")
+        if not isinstance(raw_event_hash, str):
+            return _broken_chain(
+                events,
+                checked_events,
+                f"line {line_number} missing event hash",
+            )
+        expected_event_hash = _hash_audit_event_payload(
+            {key: value for key, value in raw_event.items() if key != "event_hash"}
+        )
+        if raw_event_hash != expected_event_hash:
+            return _broken_chain(
+                events,
+                checked_events,
+                f"line {line_number} event hash mismatch",
+            )
+        if raw_event.get("previous_event_hash") != expected_previous_hash:
+            return _broken_chain(
+                events,
+                checked_events,
+                f"line {line_number} previous hash mismatch",
+            )
+        try:
+            event = ReportArtifactAuditEvent.model_validate(raw_event)
+        except ValidationError:
+            return _broken_chain(
+                events,
+                checked_events,
+                f"line {line_number} failed schema validation",
+            )
+        events.append(event)
+        latest_event_hash = event.event_hash
+        expected_previous_hash = event.event_hash
+
+    return _AuditChainState(
+        events=tuple(events),
+        verification=ReportArtifactAuditVerification(
+            status="verified",
+            checked_events=checked_events if raw_lines else 0,
+            latest_event_hash=latest_event_hash,
+            diagnostics=(),
+        ),
+    )
+
+
+def _broken_chain(
+    events: list[ReportArtifactAuditEvent],
+    checked_events: int,
+    diagnostic: str,
+) -> _AuditChainState:
+    return _AuditChainState(
+        events=tuple(events),
+        verification=ReportArtifactAuditVerification(
+            status="broken",
+            checked_events=checked_events,
+            latest_event_hash=None,
+            diagnostics=(diagnostic,),
+        ),
+    )
+
+
+def _build_audit_event(
+    *,
+    sequence: int,
+    previous_event_hash: str | None,
+    output_path: str,
+    summary: ReportArtifactManifestSummary,
+    artifacts: tuple[ReportArtifactEntry, ...],
+) -> ReportArtifactAuditEvent:
+    payload = {
+        "schema_version": REPORT_AUDIT_EVENT_SCHEMA_VERSION,
+        "event_type": "report_artifact_manifest",
+        "sequence": sequence,
+        "generated_at": datetime.now(UTC).isoformat(),
+        "previous_event_hash": previous_event_hash,
+        "command": {
+            "name": "entroping report artifact-manifest",
+            "output_path": output_path,
+        },
+        "summary": summary.model_dump(mode="json"),
+        "artifacts": [artifact.model_dump(mode="json") for artifact in artifacts],
+    }
+    return ReportArtifactAuditEvent.model_validate(
+        {
+            **payload,
+            "event_hash": _hash_audit_event_payload(payload),
+        }
+    )
+
+
+def _audit_event_line(event: ReportArtifactAuditEvent) -> str:
+    return (
+        json.dumps(
+            event.model_dump(mode="json"),
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        + "\n"
+    )
+
+
+def _hash_audit_event_payload(payload: object) -> str:
+    return hashlib.sha256(
+        json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    ).hexdigest()
+
+
+def _safe_metadata_text(value: str) -> str:
+    return redact_secret_like_values(value).replace("\r", " ").replace("\n", " ")

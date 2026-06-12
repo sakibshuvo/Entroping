@@ -242,7 +242,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | EXE-022 | Preview run execution plans | `entroping run --dry-run` resolves selected Hurl files, filters, env names, requested reports, gate injection counts, and missing variable names without invoking Hurl, writing executed-run reports, or mutating source `.hurl` files; `--report json` writes `reports/run-plan.json` with schema `entroping.run-plan.v1` |
 | EXE-022 | Map policy gate coverage | `entroping report gate-coverage --output md|json` reports which effective QAnstitution gates match committed Hurl tests, tags, methods, and paths, including unmatched gates, without executing Hurl or calling providers |
 | EXE-022 | Diff effective policy evidence | `entroping report policy-diff --base <path> --current <path> --output md|json` compares two existing effective-policy JSON artifacts, reports import/gate additions, removals, and changed fields, and does not load policy files, call providers, execute Hurl, or fail just because valid evidence changed |
-| EXE-023 | Manifest report artifacts | `entroping report artifact-manifest` writes local checksum evidence for standard report artifacts without embedding artifact contents or claiming signing/attestation |
+| EXE-023 | Manifest report artifacts | `entroping report artifact-manifest` writes local checksum evidence for standard report artifacts plus a tamper-evident `.entroping/report-audit-chain.jsonl` event with previous-hash linkage, verification status, and broken-chain diagnostics, without embedding artifact contents, secrets, raw traffic, provider prompts, provider outputs, env values, uploads, or signing/attestation claims |
 
 ## 10. Supported Test Types
 

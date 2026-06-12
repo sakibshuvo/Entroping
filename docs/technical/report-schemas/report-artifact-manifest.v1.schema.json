@@ -8,7 +8,8 @@
     "schema_version",
     "summary",
     "artifacts",
-    "missing_artifacts"
+    "missing_artifacts",
+    "audit"
   ],
   "properties": {
     "schema_version": {
@@ -73,6 +74,124 @@
             ]
           },
           "path": {"type": "string"}
+        }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chain_path", "verification", "event"],
+      "properties": {
+        "chain_path": {"type": "string"},
+        "verification": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "checked_events",
+            "latest_event_hash",
+            "diagnostics"
+          ],
+          "properties": {
+            "status": {"enum": ["verified", "broken"]},
+            "checked_events": {"type": "integer", "minimum": 0},
+            "latest_event_hash": {
+              "type": ["string", "null"],
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "diagnostics": {
+              "type": "array",
+              "items": {"type": "string"}
+            }
+          }
+        },
+        "event": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "schema_version",
+                "event_type",
+                "sequence",
+                "generated_at",
+                "previous_event_hash",
+                "command",
+                "summary",
+                "artifacts",
+                "event_hash"
+              ],
+              "properties": {
+                "schema_version": {"const": "entroping.report-audit-event.v1"},
+                "event_type": {"const": "report_artifact_manifest"},
+                "sequence": {"type": "integer", "minimum": 1},
+                "generated_at": {"type": "string"},
+                "previous_event_hash": {
+                  "type": ["string", "null"],
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "command": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["name", "output_path"],
+                  "properties": {
+                    "name": {"const": "entroping report artifact-manifest"},
+                    "output_path": {"type": "string"}
+                  }
+                },
+                "summary": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["total_expected", "total_present", "total_missing"],
+                  "properties": {
+                    "total_expected": {"type": "integer", "minimum": 0},
+                    "total_present": {"type": "integer", "minimum": 0},
+                    "total_missing": {"type": "integer", "minimum": 0}
+                  }
+                },
+                "artifacts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "path",
+                      "schema_version",
+                      "size_bytes",
+                      "sha256"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "run_json",
+                          "run_plan",
+                          "junit",
+                          "run_html",
+                          "drift_json",
+                          "agent_bundle",
+                          "sarif",
+                          "review_summary"
+                        ]
+                      },
+                      "path": {"type": "string"},
+                      "schema_version": {"type": ["string", "null"]},
+                      "size_bytes": {"type": "integer", "minimum": 0},
+                      "sha256": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      }
+                    }
+                  }
+                },
+                "event_hash": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              }
+            },
+            {"type": "null"}
+          ]
         }
       }
     }
