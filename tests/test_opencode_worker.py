@@ -11,6 +11,8 @@ import uuid
 from pathlib import Path
 from typing import cast
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "opencode_worker.py"
 
@@ -461,5 +463,137 @@ def test_opencode_worker_rejects_sensitive_path_before_subprocess(
     assert result.returncode == 2
     assert "refusing to send selected file to OpenCode" in result.stderr
     assert "sensitive credential file" in result.stderr
+    assert not marker.exists()
+    assert not (tmp_path / "reviews").exists()
+
+
+@pytest.mark.parametrize(
+    ("content", "label"),
+    (
+        ("-----BEGIN PRIVATE KEY-----\nnot-real\n", "private key block"),
+        (
+            "OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456\n",
+            "credential assignment",
+        ),
+        (
+            "Authorization: Bearer abcdefghijklmnopqrstuvwxyz123456\n",
+            "bearer token",
+        ),
+    ),
+)
+def test_opencode_worker_rejects_secret_like_content_before_subprocess(
+    tmp_path: Path,
+    content: str,
+    label: str,
+) -> None:
+    repo = make_worker_repo(tmp_path)
+    selected_file = repo / "notes.md"
+    selected_file.write_text(content, encoding="utf-8")
+    marker = tmp_path / "opencode-invoked"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_opencode = write_fake_opencode(
+        fake_bin,
+        body=(
+            "#!/usr/bin/env bash\n"
+            "set -euo pipefail\n"
+            f"printf invoked > '{marker}'\n"
+            "exit 99\n"
+        ),
+    )
+
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        "notes.md",
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--opencode-bin",
+        str(fake_opencode),
+        cwd=repo,
+    )
+
+    assert result.returncode == 2
+    assert "refusing to send selected file to OpenCode" in result.stderr
+    assert f"secret-like content ({label})" in result.stderr
+    assert not marker.exists()
+    assert not (tmp_path / "reviews").exists()
+
+
+def test_opencode_worker_rejects_binary_file_before_subprocess(
+    tmp_path: Path,
+) -> None:
+    repo = make_worker_repo(tmp_path)
+    selected_file = repo / "notes.md"
+    selected_file.write_bytes(b"not-text\x00payload")
+    marker = tmp_path / "opencode-invoked"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_opencode = write_fake_opencode(
+        fake_bin,
+        body=(
+            "#!/usr/bin/env bash\n"
+            "set -euo pipefail\n"
+            f"printf invoked > '{marker}'\n"
+            "exit 99\n"
+        ),
+    )
+
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        "notes.md",
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--opencode-bin",
+        str(fake_opencode),
+        cwd=repo,
+    )
+
+    assert result.returncode == 2
+    assert "refusing to send selected file to OpenCode" in result.stderr
+    assert "binary content" in result.stderr
+    assert not marker.exists()
+    assert not (tmp_path / "reviews").exists()
+
+
+def test_opencode_worker_rejects_oversized_file_before_subprocess(
+    tmp_path: Path,
+) -> None:
+    repo = make_worker_repo(tmp_path)
+    selected_file = repo / "notes.md"
+    selected_file.write_text("x" * 12, encoding="utf-8")
+    marker = tmp_path / "opencode-invoked"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_opencode = write_fake_opencode(
+        fake_bin,
+        body=(
+            "#!/usr/bin/env bash\n"
+            "set -euo pipefail\n"
+            f"printf invoked > '{marker}'\n"
+            "exit 99\n"
+        ),
+    )
+
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        "notes.md",
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--opencode-bin",
+        str(fake_opencode),
+        "--max-file-bytes",
+        "10",
+        cwd=repo,
+    )
+
+    assert result.returncode == 2
+    assert "refusing to send selected file to OpenCode" in result.stderr
+    assert "exceeds --max-file-bytes" in result.stderr
     assert not marker.exists()
     assert not (tmp_path / "reviews").exists()

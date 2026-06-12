@@ -16,11 +16,15 @@ from datetime import timezone as datetime_timezone
 from pathlib import Path
 from typing import Literal
 
-from ai_worker_file_safety import sensitive_selected_path_reason
+from ai_worker_file_safety import (
+    secret_like_content_reason,
+    sensitive_selected_path_reason,
+)
 
 DEFAULT_MODEL = "deepseek/deepseek-v4-pro"
 DEFAULT_ARTIFACT_ROOT = Path(".entroping") / "ai-reviews"
 DEFAULT_TIMEOUT_SECONDS = 300.0
+DEFAULT_MAX_FILE_BYTES = 64_000
 UTC_TZ = datetime_timezone.utc  # noqa: UP017 - factory scripts run under Python 3.9.
 Mode = Literal["review", "patch"]
 Status = Literal["completed", "dry-run", "failed", "inconclusive", "patch-proposed", "timed-out"]
@@ -37,6 +41,7 @@ class WorkerConfig:
     artifact_root: Path
     opencode_bin: Path
     timeout_seconds: float
+    max_file_bytes: int
     issue: str | None
     instruction: str | None
     dry_run: bool
@@ -203,6 +208,15 @@ def _parse_args() -> WorkerConfig:
         help="Subprocess timeout in seconds.",
     )
     parser.add_argument(
+        "--max-file-bytes",
+        type=int,
+        default=DEFAULT_MAX_FILE_BYTES,
+        help=(
+            "Maximum bytes per selected file to preflight. "
+            f"Default: {DEFAULT_MAX_FILE_BYTES}."
+        ),
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Write prompt and metadata without invoking OpenCode.",
@@ -228,12 +242,20 @@ def _parse_args() -> WorkerConfig:
     args = parser.parse_args()
 
     repo_root = _repo_root()
-    files = _validate_files(repo_root, tuple(Path(path) for path in args.files))
-    if not files:
-        msg = "at least one --file is required"
-        raise WorkerInputError(msg)
     if args.timeout_seconds <= 0:
         msg = "--timeout-seconds must be greater than zero"
+        raise WorkerInputError(msg)
+    if args.max_file_bytes <= 0:
+        msg = "--max-file-bytes must be greater than zero"
+        raise WorkerInputError(msg)
+    max_file_bytes = int(args.max_file_bytes)
+    files = _validate_files(
+        repo_root,
+        tuple(Path(path) for path in args.files),
+        max_file_bytes=max_file_bytes,
+    )
+    if not files:
+        msg = "at least one --file is required"
         raise WorkerInputError(msg)
 
     opencode_bin = _resolve_opencode_bin(args.opencode_bin, required=not args.dry_run)
@@ -250,6 +272,7 @@ def _parse_args() -> WorkerConfig:
         artifact_root=artifact_root.expanduser().resolve(),
         opencode_bin=opencode_bin,
         timeout_seconds=args.timeout_seconds,
+        max_file_bytes=max_file_bytes,
         issue=args.issue,
         instruction=args.instruction,
         dry_run=args.dry_run,
@@ -275,7 +298,12 @@ def _repo_root() -> Path:
     return Path(completed.stdout.strip()).resolve()
 
 
-def _validate_files(repo_root: Path, raw_files: tuple[Path, ...]) -> tuple[Path, ...]:
+def _validate_files(
+    repo_root: Path,
+    raw_files: tuple[Path, ...],
+    *,
+    max_file_bytes: int,
+) -> tuple[Path, ...]:
     validated: list[Path] = []
     for raw_file in raw_files:
         path = raw_file.expanduser()
@@ -298,6 +326,44 @@ def _validate_files(repo_root: Path, raw_files: tuple[Path, ...]) -> tuple[Path,
             msg = (
                 "refusing to send selected file to OpenCode: "
                 f"{relative_path} {sensitive_reason}"
+            )
+            raise WorkerInputError(msg)
+        try:
+            size = resolved.stat().st_size
+        except OSError as exc:
+            msg = f"could not stat selected file: {relative_path}"
+            raise WorkerInputError(msg) from exc
+        if size > max_file_bytes:
+            msg = (
+                "refusing to send selected file to OpenCode: "
+                f"{relative_path} is {size} bytes and exceeds --max-file-bytes "
+                f"({max_file_bytes})"
+            )
+            raise WorkerInputError(msg)
+        try:
+            raw_content = resolved.read_bytes()
+        except OSError as exc:
+            msg = f"could not read selected file: {relative_path}"
+            raise WorkerInputError(msg) from exc
+        if b"\x00" in raw_content:
+            msg = (
+                "refusing to send selected file to OpenCode: "
+                f"{relative_path} contains binary content"
+            )
+            raise WorkerInputError(msg)
+        try:
+            content = raw_content.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            msg = (
+                "refusing to send selected file to OpenCode: "
+                f"{relative_path} must be UTF-8 text"
+            )
+            raise WorkerInputError(msg) from exc
+        content_reason = secret_like_content_reason(content)
+        if content_reason is not None:
+            msg = (
+                "refusing to send selected file to OpenCode: "
+                f"{relative_path} contains secret-like content ({content_reason})"
             )
             raise WorkerInputError(msg)
         validated.append(resolved)
@@ -435,6 +501,7 @@ def _write_metadata(config: WorkerConfig, result: WorkerResult, command: list[st
         "artifact_dir": str(result.artifact_dir),
         "returncode": result.returncode,
         "timeout_seconds": config.timeout_seconds,
+        "max_file_bytes": config.max_file_bytes,
         "command": command,
         "created_at": datetime.now(UTC_TZ).isoformat(),
         "dry_run": config.dry_run,

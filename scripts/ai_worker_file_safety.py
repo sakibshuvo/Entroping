@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 SENSITIVE_EXACT_NAMES = frozenset(
@@ -59,6 +60,23 @@ SENSITIVE_CONFIG_STEMS = frozenset(
         "tokens",
     }
 )
+SECRET_LIKE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (
+        "private key block",
+        re.compile(r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----"),
+    ),
+    (
+        "credential assignment",
+        re.compile(
+            r"(?i)\b(?:[A-Z0-9_]*API[_-]?KEY|TOKEN|SECRET|PASSWORD)\b"
+            r"\s*[:=]\s*['\"]?[^\s'\"]{16,}"
+        ),
+    ),
+    (
+        "bearer token",
+        re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/\-=]{16,}"),
+    ),
+)
 
 
 def sensitive_selected_path_reason(relative_path: str) -> str | None:
@@ -68,6 +86,15 @@ def sensitive_selected_path_reason(relative_path: str) -> str | None:
     for part in parts:
         if _looks_sensitive_part(part):
             return "looks like a sensitive credential file"
+    return None
+
+
+def secret_like_content_reason(content: str) -> str | None:
+    """Return the matched secret-like category for selected file content."""
+
+    for label, pattern in SECRET_LIKE_PATTERNS:
+        if pattern.search(content):
+            return label
     return None
 
 
@@ -83,7 +110,21 @@ def _looks_sensitive_part(name: str) -> bool:
     if suffixes & SENSITIVE_KEY_CERT_SUFFIXES:
         return True
 
-    first_segment = name.split(".", maxsplit=1)[0]
-    return first_segment in SENSITIVE_CONFIG_STEMS and bool(
+    return _has_sensitive_config_stem(name) and bool(
         suffixes & (SENSITIVE_CONFIG_SUFFIXES | SENSITIVE_BACKUP_SUFFIXES)
     )
+
+
+def _has_sensitive_config_stem(name: str) -> bool:
+    for segment in name.split("."):
+        if segment in SENSITIVE_CONFIG_STEMS:
+            return True
+        tokens = tuple(token for token in re.split(r"[-_]+", segment) if token)
+        if any(token in SENSITIVE_CONFIG_STEMS for token in tokens):
+            return True
+        if tokens:
+            if "-".join(tokens) in SENSITIVE_CONFIG_STEMS:
+                return True
+            if "_".join(tokens) in SENSITIVE_CONFIG_STEMS:
+                return True
+    return False
