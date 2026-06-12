@@ -149,6 +149,7 @@ def test_factory_metrics_docs_wire_opt_in_script_recording() -> None:
 
     required_terms = [
         "scripts/context_pack.sh --mode implementation --record-factory-metrics",
+        "scripts/ai_jobs.py run-next --record-factory-metrics",
         "scripts/opencode_worker.py",
         "scripts/deepseek_worker.py",
         "--record-factory-metrics",

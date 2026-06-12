@@ -135,6 +135,20 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Write worker prompt/metadata without invoking OpenCode.",
     )
+    run_next.add_argument(
+        "--record-factory-metrics",
+        action="store_true",
+        help="Pass opt-in factory metrics recording to the worker harness.",
+    )
+    run_next.add_argument(
+        "--factory-role",
+        help="Factory role tag passed through to the worker metrics recorder.",
+    )
+    run_next.add_argument(
+        "--factory-metrics-ledger",
+        type=Path,
+        help="Factory metrics ledger path under .entroping/factory-metrics/.",
+    )
 
     subparsers.add_parser("status", parents=[common], help="Summarize queue counts.")
     subparsers.add_parser(
@@ -501,6 +515,7 @@ def _run_worker(
         command.extend(["--opencode-bin", str(args.opencode_bin)])
     if args.worker_dry_run:
         command.append("--dry-run")
+    _extend_factory_metrics_args(command, args)
 
     timeout_seconds = job_timeout_seconds + 30.0
     try:
@@ -573,6 +588,7 @@ def _run_deepseek_worker(
         command.extend(["--instruction", str(job["instruction"])])
     if args.worker_dry_run:
         command.append("--dry-run")
+    _extend_factory_metrics_args(command, args)
 
     timeout_seconds = job_timeout_seconds + 30.0
     try:
@@ -604,6 +620,19 @@ def _run_deepseek_worker(
             "artifact_dir": None,
         }
     return payload, completed.returncode
+
+
+def _extend_factory_metrics_args(command: list[str], args: argparse.Namespace) -> None:
+    if not getattr(args, "record_factory_metrics", False):
+        return
+
+    command.append("--record-factory-metrics")
+    factory_role = getattr(args, "factory_role", None)
+    if factory_role is not None:
+        command.extend(["--factory-role", str(factory_role)])
+    factory_metrics_ledger = getattr(args, "factory_metrics_ledger", None)
+    if factory_metrics_ledger is not None:
+        command.extend(["--factory-metrics-ledger", str(factory_metrics_ledger)])
 
 
 def _status(job_root: Path) -> dict[str, object]:
