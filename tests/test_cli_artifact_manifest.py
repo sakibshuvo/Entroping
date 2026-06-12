@@ -28,10 +28,12 @@ def test_report_artifact_manifest_writes_default_manifest(
 
     assert result.exit_code == 0
     assert "Wrote artifact manifest: reports/artifact-manifest.json" in result.output
+    assert "audit verified" in result.output
     payload = json.loads(Path("reports/artifact-manifest.json").read_text(encoding="utf-8"))
     assert payload["schema_version"] == "entroping.report-artifact-manifest.v1"
     assert payload["summary"]["total_present"] == 1
     assert payload["summary"]["total_missing"] == 7
+    assert payload["audit"]["verification"]["status"] == "verified"
 
 
 def test_report_artifact_manifest_rejects_unsafe_output(

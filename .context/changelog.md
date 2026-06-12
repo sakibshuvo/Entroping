@@ -2,6 +2,12 @@
 
 ## 2026-06-12
 
+- Added issue #601's local tamper-evident report audit chain:
+  `entroping report artifact-manifest` now appends value-free
+  `.entroping/report-audit-chain.jsonl` events with previous-hash linkage,
+  artifact checksums, command metadata, schema versions, verification status,
+  and broken-chain diagnostics while keeping artifact contents, env values,
+  raw traffic, provider prompts, and provider outputs out of the evidence.
 - Added issue #598's local auth-chain evidence boundary: Hurl metadata can
   declare value-free `auth_flow`, `auth_requires`, and `auth_produces` names,
   dry-run plans and JSON/JUnit/HTML run reports expose only those names, env

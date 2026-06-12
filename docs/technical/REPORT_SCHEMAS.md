@@ -127,9 +127,13 @@ and SHA-256 checksums for standard local report artifacts: JSON run report,
 JUnit XML, HTML report, drift JSON, agent review bundle JSON, SARIF, and
 review-summary Markdown.
 Missing expected artifacts are listed in `missing_artifacts` rather than
-failing the command. The manifest is integrity evidence for CI upload and
-release review; it is not a signing, notarization, or attestation system and it
-never stores artifact contents, raw traffic, provider responses, prompts,
+failing the command. The `audit` block embeds the latest local
+`entroping.report-audit-event.v1` event from
+`.entroping/report-audit-chain.jsonl`, including previous-hash linkage,
+artifact checksums, command metadata, verification status, and broken-chain
+diagnostics. The manifest is integrity evidence for CI upload and release
+review; it is not a signing, notarization, or attestation system and it never
+stores artifact contents, raw traffic, provider responses, prompts,
 credentials, or environment values.
 
 The drift baseline candidate and active drift baseline share

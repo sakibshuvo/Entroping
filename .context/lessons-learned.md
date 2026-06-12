@@ -395,3 +395,7 @@
 - Report-only filesystem discovery can surface malformed local inputs as
   findings instead of crashing, but unsafe symlinked paths should still be
   skipped and reported before file reads.
+- Tamper-evident local report chains should hash canonical value-free event
+  payloads and expose broken-chain diagnostics, but they are still local
+  integrity evidence rather than signing, notarization, SOC2, hosted audit-log,
+  or enterprise retention claims.

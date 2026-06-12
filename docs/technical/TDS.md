@@ -1049,9 +1049,14 @@ strings, headers, bodies, variables, or captured traffic values.
 by default with project-relative report paths, schema versions when available,
 artifact sizes, and SHA-256 checksums for standard JSON, JUnit, HTML, drift,
 agent-bundle JSON, SARIF, and review-summary artifacts. Missing expected
-artifacts are listed instead of failing the command. The manifest is local
-integrity evidence for CI upload and release review; it is not a signing,
-notarization, or attestation system and it never embeds artifact contents.
+artifacts are listed instead of failing the command. Each successful write also
+appends a value-free event to `.entroping/report-audit-chain.jsonl` with the
+previous event hash, artifact checksums, command metadata, schema versions, and
+manifest summary counts. The manifest exposes audit verification status and
+broken-chain diagnostics, while the chain and report omit artifact contents,
+raw traffic, provider prompts or outputs, env values, and secret-like metadata.
+This is local integrity evidence for CI upload and release review; it is not a
+signing, notarization, or attestation system.
 
 `entroping report badges` writes local Shields endpoint JSON files under
 `reports/badges/` by default. It reads existing local reports only:
@@ -1138,7 +1143,7 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report gate-coverage --output json` | `reports/gate-coverage.json` | Machine-readable policy gate coverage matrix using `entroping.gate-coverage-report.v1`. |
 | `entroping report gate-injection --output md` | `reports/gate-injection.md` | Human-readable gate-injection explanation for selected Hurl files. |
 | `entroping report gate-injection --output json` | `reports/gate-injection.json` | Machine-readable gate-injection explanation using `entroping.gate-injection-report.v1`. |
-| `entroping report artifact-manifest` | `reports/artifact-manifest.json` | Machine-readable checksum manifest using `entroping.report-artifact-manifest.v1`. |
+| `entroping report artifact-manifest` | `reports/artifact-manifest.json` and `.entroping/report-audit-chain.jsonl` | Machine-readable checksum manifest using `entroping.report-artifact-manifest.v1` plus a local tamper-evident audit chain using `entroping.report-audit-event.v1`; the chain is local state and not committed. |
 | `entroping report agent-bundle --output md` | `reports/agent-bundle.md` | Human-readable local multi-agent review bundle from sanitized manifests. |
 | `entroping report agent-bundle --output json` | `reports/agent-bundle.json` | Machine-readable local multi-agent review bundle using `entroping.agent-review-bundle.v1`. |
 | `entroping report traceability --output md|json` | `stdout Markdown/JSON` | Local story/test coverage report. |

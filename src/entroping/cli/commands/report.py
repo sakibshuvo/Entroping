@@ -454,7 +454,8 @@ def report_artifact_manifest(
         "Wrote artifact manifest: "
         f"{display_cli_path(result.output_path)} "
         f"({result.manifest.summary.total_present} present, "
-        f"{result.manifest.summary.total_missing} missing)"
+        f"{result.manifest.summary.total_missing} missing, "
+        f"audit {result.manifest.audit.verification.status})"
     )
 
 

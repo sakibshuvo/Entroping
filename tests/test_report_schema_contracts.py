@@ -48,6 +48,10 @@ from entroping.core.drift_report import (
 )
 from entroping.core.report_artifact_manifest import (
     REPORT_ARTIFACT_MANIFEST_SCHEMA_VERSION,
+    ReportArtifactAuditCommand,
+    ReportArtifactAuditEvent,
+    ReportArtifactAuditEvidence,
+    ReportArtifactAuditVerification,
     ReportArtifactEntry,
     ReportArtifactManifest,
     ReportArtifactManifestSummary,
@@ -943,6 +947,41 @@ def test_report_artifact_manifest_v1_schema_contract_is_versioned_and_stable() -
                 path="reports/junit.xml",
             ),
         ),
+        audit=ReportArtifactAuditEvidence(
+            chain_path=".entroping/report-audit-chain.jsonl",
+            verification=ReportArtifactAuditVerification(
+                status="verified",
+                checked_events=1,
+                latest_event_hash="1" * 64,
+                diagnostics=(),
+            ),
+            event=ReportArtifactAuditEvent(
+                schema_version="entroping.report-audit-event.v1",
+                event_type="report_artifact_manifest",
+                sequence=1,
+                generated_at="2026-06-12T00:00:00+00:00",
+                previous_event_hash=None,
+                command=ReportArtifactAuditCommand(
+                    name="entroping report artifact-manifest",
+                    output_path="reports/artifact-manifest.json",
+                ),
+                summary=ReportArtifactManifestSummary(
+                    total_expected=2,
+                    total_present=1,
+                    total_missing=1,
+                ),
+                artifacts=(
+                    ReportArtifactEntry(
+                        kind="run_json",
+                        path="reports/run-latest.json",
+                        schema_version="entroping.run-report.v1",
+                        size_bytes=17,
+                        sha256="0" * 64,
+                    ),
+                ),
+                event_hash="1" * 64,
+            ),
+        ),
     )
 
     payload = manifest.model_dump(mode="json")
@@ -969,6 +1008,41 @@ def test_report_artifact_manifest_v1_schema_contract_is_versioned_and_stable() -
                 "path": "reports/junit.xml",
             }
         ],
+        "audit": {
+            "chain_path": ".entroping/report-audit-chain.jsonl",
+            "verification": {
+                "status": "verified",
+                "checked_events": 1,
+                "latest_event_hash": "1" * 64,
+                "diagnostics": [],
+            },
+            "event": {
+                "schema_version": "entroping.report-audit-event.v1",
+                "event_type": "report_artifact_manifest",
+                "sequence": 1,
+                "generated_at": "2026-06-12T00:00:00+00:00",
+                "previous_event_hash": None,
+                "command": {
+                    "name": "entroping report artifact-manifest",
+                    "output_path": "reports/artifact-manifest.json",
+                },
+                "summary": {
+                    "total_expected": 2,
+                    "total_present": 1,
+                    "total_missing": 1,
+                },
+                "artifacts": [
+                    {
+                        "kind": "run_json",
+                        "path": "reports/run-latest.json",
+                        "schema_version": "entroping.run-report.v1",
+                        "size_bytes": 17,
+                        "sha256": "0" * 64,
+                    }
+                ],
+                "event_hash": "1" * 64,
+            },
+        },
     }
 
 
