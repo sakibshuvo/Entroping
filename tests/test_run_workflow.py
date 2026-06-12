@@ -3,6 +3,7 @@
 import json
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -177,6 +178,86 @@ def test_execute_run_workflow_writes_reports_and_cleans_execution_state(
     assert captured_workers == [3]
     latest = json.loads(result.latest_state_path.read_text(encoding="utf-8"))
     assert latest["tests"][0]["path"] == "tests/health.hurl"
+
+
+def test_execute_run_workflow_loads_auth_variables_without_reporting_values(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_project(tmp_path)
+    env_dir = tmp_path / "envs"
+    env_dir.mkdir()
+    (env_dir / "local.env").write_text(
+        "base_url=http://localhost:18080\naccess_token=live-auth-secret\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "tests" / "health.hurl").write_text(
+        "\n".join(
+            [
+                "# entroping: tags=smoke,auth",
+                "# entroping: auth_flow=oauth2-client-credentials",
+                "# entroping: auth_requires=access_token",
+                "",
+                "GET {{base_url}}/profile",
+                "Authorization: Bearer {{access_token}}",
+                "HTTP 200",
+            ],
+        ),
+        encoding="utf-8",
+    )
+    captured_options: list[HurlRunOptions] = []
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+        fail_fast: bool = False,
+    ) -> HurlSuiteResult:
+        _ = (max_workers, fail_fast)
+        captured_options.append(options)
+        return HurlSuiteResult(
+            results=(
+                HurlFileResult(
+                    path=paths[0],
+                    command=("hurl", str(paths[0])),
+                    status="failed",
+                    exit_code=1,
+                    stdout="Authorization: Bearer live-auth-secret\n",
+                    stderr="token=live-auth-secret\n",
+                    stdout_truncated=False,
+                    stderr_truncated=False,
+                    duration_ms=12,
+                    timeout_ms=options.timeout_ms,
+                ),
+            ),
+        )
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
+
+    result = execute_run_workflow(
+        project_root=tmp_path,
+        environment="local",
+        tag_filters=("auth",),
+        report_formats=("json",),
+        parallel=False,
+        drift_check=False,
+    )
+
+    assert captured_options[0].variables == {
+        "access_token": "live-auth-secret",
+        "base_url": "http://localhost:18080",
+    }
+    latest = json.loads(result.latest_state_path.read_text(encoding="utf-8"))
+    assert latest["tests"][0]["auth"] == {
+        "flow": "oauth2-client-credentials",
+        "requires": ["access_token"],
+        "produces": [],
+    }
+    serialized = json.dumps(latest)
+    assert "live-auth-secret" not in serialized
+    assert "Authorization: [REDACTED]" in serialized
+    assert "token=[REDACTED]" in serialized
 
 
 def test_execute_run_workflow_applies_known_failure_gate_exceptions(
@@ -568,6 +649,63 @@ def test_plan_run_workflow_reports_protected_safety_blockers(tmp_path: Path) -> 
     )
     payload = json.dumps(run_execution_plan_to_dict(plan))
     assert "localhost:18080" not in payload
+
+
+def test_plan_run_workflow_reports_auth_chain_names_and_missing_secret_variables(
+    tmp_path: Path,
+) -> None:
+    _write_project(tmp_path)
+    (tmp_path / "envs").mkdir()
+    (tmp_path / "envs" / "local.env").write_text(
+        "base_url=http://localhost:18080\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "tests" / "health.hurl").write_text(
+        "\n".join(
+            [
+                "# entroping: tags=auth",
+                "# entroping: auth_flow=oauth2-client-credentials",
+                "# entroping: auth_requires=access_token,csrf_token",
+                "# entroping: auth_produces=session_cookie",
+                "",
+                "GET {{base_url}}/profile",
+                "Authorization: Bearer {{access_token}}",
+                "X-CSRF-Token: {{csrf_token}}",
+                "HTTP 200",
+            ],
+        ),
+        encoding="utf-8",
+    )
+
+    plan = plan_run_workflow(
+        project_root=tmp_path,
+        environment="local",
+        tag_filters=("auth",),
+        report_formats=("json",),
+        parallel=False,
+        drift_check=False,
+    )
+
+    assert plan.status == "blocked"
+    assert plan.message == "Run plan blocked by unresolved Hurl variables"
+    assert plan.tests[0].auth is not None
+    assert plan.tests[0].auth.flow == "oauth2-client-credentials"
+    assert plan.tests[0].auth.requires == ("access_token", "csrf_token")
+    assert plan.tests[0].auth.produces == ("session_cookie",)
+    assert [(item.name, item.paths) for item in plan.missing_variables] == [
+        ("access_token", ("tests/health.hurl",)),
+        ("csrf_token", ("tests/health.hurl",)),
+    ]
+    payload = run_execution_plan_to_dict(plan)
+    tests_payload = cast(list[dict[str, object]], payload["tests"])
+    assert tests_payload[0]["auth"] == {
+        "flow": "oauth2-client-credentials",
+        "requires": ["access_token", "csrf_token"],
+        "produces": ["session_cookie"],
+    }
+    serialized = json.dumps(payload)
+    assert "localhost:18080" not in serialized
+    assert "live-auth-secret" not in serialized
 
 
 def test_execute_run_workflow_reports_no_matching_operation_ids(tmp_path: Path) -> None:

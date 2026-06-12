@@ -36,6 +36,7 @@ from entroping.models.report import (
     RunRetryEvidence,
     RunSafetyEvidence,
     RunTestReport,
+    build_run_auth_evidence,
 )
 
 __all__ = [
@@ -116,6 +117,11 @@ def build_run_report(
                 response_body_shape=response_body_shape,
                 retry=_retry_evidence_from_result(result),
                 safety=safety_evidence.get(execution_copy.source_path.expanduser().resolve()),
+                auth=build_run_auth_evidence(
+                    flow=execution_copy.auth_flow,
+                    requires=execution_copy.auth_requires,
+                    produces=execution_copy.auth_produces,
+                ),
                 known_failures=tuple(
                     KnownFailureEvidence(
                         test=known_failure.test,

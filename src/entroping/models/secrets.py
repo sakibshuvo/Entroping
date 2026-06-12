@@ -56,13 +56,13 @@ _HEADER_SECRET_RE = re.compile(
 )
 _KEY_VALUE_SECRET_RE = re.compile(
     r"(?i)\b("
-    r"access_token|api[_-]?key|authorization|client_secret|cookie|jwt|password|"
-    r"passwd|refresh_token|secret|session[_-]?id|token"
+    r"access_token|api[_-]?key|authorization|client_secret|cookie|csrf[_-]?token|"
+    r"jwt|password|passwd|refresh_token|secret|session[_-]?id|token"
     r")(\s*[:=]\s*)([^\s&;,\"]+)"
 )
 _JSON_PAIR_SECRET_RE = re.compile(
     r'(?i)("(?:access_token|api[_-]?key|authorization|client_secret|cookie|jwt|'
-    r'password|passwd|refresh_token|secret|session[_-]?id|token)"\s*:\s*)"[^"]*"'
+    r'password|passwd|refresh_token|secret|session[_-]?id|csrf[_-]?token|token)"\s*:\s*)"[^"]*"'
 )
 _AUTH_VALUE_RE = re.compile(r"(?i)\b(Bearer|Basic)\s+([A-Za-z0-9._~+/=-]{10,})")
 

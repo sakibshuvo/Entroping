@@ -1,6 +1,7 @@
 """JSON serialization and deserialization for run reports."""
 
 import json
+import re
 from collections.abc import Mapping
 from pathlib import Path
 from typing import cast
@@ -14,6 +15,7 @@ from entroping.core.report_fingerprint import (
 from entroping.models.report import (
     KnownFailureEvidence,
     RunAttemptEvidence,
+    RunAuthEvidence,
     RunReport,
     RunReportSummary,
     RunRetryEvidence,
@@ -22,6 +24,8 @@ from entroping.models.report import (
 )
 
 RUN_REPORT_SCHEMA_VERSION = "entroping.run-report.v1"
+_AUTH_FLOW_RE = re.compile(r"^[A-Za-z0-9_.:-]+$")
+_AUTH_VARIABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 def load_run_report(path: Path) -> RunReport:
@@ -50,6 +54,7 @@ def load_run_report(path: Path) -> RunReport:
             known_failures=_serialized_known_failures(item.get("known_failures")),
             retry=_serialized_retry(item.get("retry")),
             safety=_serialized_safety(item.get("safety")),
+            auth=_serialized_auth(item.get("auth")),
         )
         for item in data["tests"]
     )
@@ -144,6 +149,8 @@ def _test_report_to_dict(test: RunTestReport) -> dict[str, object]:
         ]
     if test.safety is not None:
         payload["safety"] = _safety_to_dict(test.safety)
+    if test.auth is not None:
+        payload["auth"] = _auth_to_dict(test.auth)
     return payload
 
 
@@ -154,6 +161,14 @@ def _safety_to_dict(safety: RunSafetyEvidence) -> dict[str, object]:
         "safety_source": safety.safety_source,
         "methods": list(safety.methods),
         "blocked_reason": safety.blocked_reason,
+    }
+
+
+def _auth_to_dict(auth: RunAuthEvidence) -> dict[str, object]:
+    return {
+        "flow": auth.flow,
+        "requires": list(auth.requires),
+        "produces": list(auth.produces),
     }
 
 
@@ -281,6 +296,45 @@ def _serialized_safety(raw_safety: object) -> RunSafetyEvidence | None:
             else None
         ),
     )
+
+
+def _serialized_auth(raw_auth: object) -> RunAuthEvidence | None:
+    if not isinstance(raw_auth, Mapping):
+        return None
+    flow = _serialized_auth_flow(raw_auth.get("flow"))
+    requires = _serialized_auth_variables(raw_auth.get("requires"))
+    produces = _serialized_auth_variables(raw_auth.get("produces"))
+    if flow is None and not requires and not produces:
+        return None
+    return RunAuthEvidence(flow=flow, requires=requires, produces=produces)
+
+
+def _serialized_auth_flow(raw_flow: object) -> str | None:
+    flow = _serialized_metadata_value(raw_flow)
+    if flow is None or _AUTH_FLOW_RE.fullmatch(flow) is None:
+        return None
+    return flow
+
+
+def _serialized_auth_variables(raw_variables: object) -> tuple[str, ...]:
+    if not isinstance(raw_variables, list):
+        return ()
+    variables: list[str] = []
+    seen: set[str] = set()
+    for raw_name in raw_variables:
+        if not isinstance(raw_name, str):
+            continue
+        name = raw_name.strip()
+        if (
+            not name
+            or _has_control_character(name)
+            or _AUTH_VARIABLE_NAME_RE.fullmatch(name) is None
+            or name in seen
+        ):
+            continue
+        variables.append(name)
+        seen.add(name)
+    return tuple(variables)
 
 
 def _serialized_timeout_ms(value: object) -> int:

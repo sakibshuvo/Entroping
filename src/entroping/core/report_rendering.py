@@ -3,11 +3,13 @@
 from html import escape
 from io import BytesIO
 from pathlib import Path
+from typing import cast
 from xml.etree import ElementTree  # nosec B405
 
 from entroping.models.report import (
     KnownFailureEvidence,
     RunAttemptEvidence,
+    RunAuthEvidence,
     RunReport,
     RunTestReport,
 )
@@ -94,6 +96,34 @@ def render_junit_report(report: RunReport) -> bytes:
                         "value": test.severity,
                     },
                 )
+            if test.auth is not None:
+                if test.auth.flow is not None:
+                    ElementTree.SubElement(
+                        properties,
+                        "property",
+                        {
+                            "name": "entroping.auth.flow",
+                            "value": test.auth.flow,
+                        },
+                    )
+                if test.auth.requires:
+                    ElementTree.SubElement(
+                        properties,
+                        "property",
+                        {
+                            "name": "entroping.auth.requires",
+                            "value": ",".join(test.auth.requires),
+                        },
+                    )
+                if test.auth.produces:
+                    ElementTree.SubElement(
+                        properties,
+                        "property",
+                        {
+                            "name": "entroping.auth.produces",
+                            "value": ",".join(test.auth.produces),
+                        },
+                    )
             for known_failure in test.known_failures:
                 ElementTree.SubElement(
                     properties,
@@ -318,6 +348,8 @@ def _failure_text(test: RunTestReport) -> str:
         f"severity: {test.severity or 'none'}",
         f"rule_ids: {', '.join(test.rule_ids) if test.rule_ids else 'none'}",
     ]
+    if test.auth is not None:
+        parts.append(f"auth: {_auth_summary(test)}")
     if test.safety is not None:
         parts.append(f"safety: {_safety_summary(test)}")
     if test.known_failures:
@@ -360,6 +392,7 @@ def _has_test_properties(test: RunTestReport) -> bool:
         or test.source is not None
         or test.negative_category is not None
         or test.severity is not None
+        or test.auth is not None
         or bool(test.known_failures)
         or test.safety is not None
         or test.retry.retry_count > 0
@@ -391,6 +424,14 @@ def _safety_summary(test: RunTestReport) -> str:
     )
 
 
+def _auth_summary(test: RunTestReport) -> str:
+    auth = cast(RunAuthEvidence, test.auth)
+    flow = auth.flow or "unspecified"
+    requires = ",".join(auth.requires) if auth.requires else "none"
+    produces = ",".join(auth.produces) if auth.produces else "none"
+    return f"flow={flow}; requires={requires}; produces={produces}"
+
+
 def _metadata_summary(test: RunTestReport) -> str:
     values = {
         "source": test.source,
@@ -398,4 +439,11 @@ def _metadata_summary(test: RunTestReport) -> str:
         "severity": test.severity,
     }
     present = [f"{key}={value}" for key, value in values.items() if value is not None]
+    if test.auth is not None:
+        if test.auth.flow is not None:
+            present.append(f"auth_flow={test.auth.flow}")
+        if test.auth.requires:
+            present.append(f"auth_requires={','.join(test.auth.requires)}")
+        if test.auth.produces:
+            present.append(f"auth_produces={','.join(test.auth.produces)}")
     return "; ".join(present) if present else "none"

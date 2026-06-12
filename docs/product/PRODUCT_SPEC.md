@@ -215,6 +215,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | ID | Requirement | Acceptance Criteria |
 | --- | --- | --- |
 | EXE-001 | Run suites by environment | `entroping run --env local` loads `envs/local.env` and environment variables |
+| EXE-001A | Model local auth chains | Hurl files can declare value-free `auth_flow`, `auth_requires`, and `auth_produces` metadata so dry-run plans and JSON/JUnit/HTML reports show auth variable names only; secret values still come from env vars, shell `HURL_VARIABLE_*`, secret managers, or gitignored env files and are passed to Hurl through the existing variables-file boundary |
 | EXE-002 | Filter by tags | `entroping run --tag smoke` runs matching tests across folders; `--tag-expression "smoke and not slow"` supports deterministic ad hoc boolean selection |
 | EXE-003 | Run in CI mode | `entroping run --ci` emits strict exit codes and CI-friendly logs |
 | EXE-004 | Run in parallel | `entroping run --parallel` uses bounded workers and deterministic aggregation |

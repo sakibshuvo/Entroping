@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from entroping.models.hurl import (
+    HurlMetadata,
     HurlMetadataSyntaxError,
     HurlTest,
     parse_hurl_exchanges,
@@ -34,6 +35,65 @@ def test_parse_hurl_metadata_extracts_tags_and_traceability_fields() -> None:
         "doc_url": "https://notion.so/workspace/CHK-001",
     }
     assert metadata.story_id == "CHK-001"
+
+
+def test_parse_hurl_metadata_extracts_auth_chain_variable_names() -> None:
+    metadata = parse_hurl_metadata(
+        "\n".join(
+            [
+                "# entroping: tags=smoke,auth",
+                "# entroping: auth_flow=oauth2-client-credentials",
+                "# entroping: auth_requires=access_token,csrf_token",
+                "# entroping: auth_produces=session_cookie",
+                "",
+                "GET {{base_url}}/profile",
+                "Authorization: Bearer {{access_token}}",
+                "HTTP 200",
+            ],
+        ),
+    )
+
+    assert metadata.auth_flow == "oauth2-client-credentials"
+    assert metadata.auth_requires == ("access_token", "csrf_token")
+    assert metadata.auth_produces == ("session_cookie",)
+
+
+def test_parse_hurl_metadata_rejects_malformed_auth_variable_without_echoing_value() -> None:
+    with pytest.raises(HurlMetadataSyntaxError) as excinfo:
+        parse_hurl_metadata(
+            "# entroping: auth_requires=Bearer live-auth-secret\n"
+            "GET {{base_url}}/profile\n"
+            "HTTP 200\n",
+        )
+
+    message = str(excinfo.value)
+    assert "invalid variable name in auth_requires" in message
+    assert "live-auth-secret" not in message
+
+
+def test_parse_hurl_metadata_rejects_malformed_auth_flow_without_echoing_value() -> None:
+    with pytest.raises(HurlMetadataSyntaxError) as excinfo:
+        parse_hurl_metadata("# entroping: auth_flow=oauth2 live-secret\n")
+
+    message = str(excinfo.value)
+    assert "auth_flow must be a value-free identifier" in message
+    assert "live-secret" not in message
+
+
+def test_parse_hurl_metadata_rejects_duplicate_auth_variable_names() -> None:
+    with pytest.raises(HurlMetadataSyntaxError, match="duplicate variable name in auth_requires"):
+        parse_hurl_metadata("# entroping: auth_requires=access_token,access_token\n")
+
+
+def test_hurl_metadata_auth_properties_validate_manual_metadata() -> None:
+    metadata = HurlMetadata(meta={"auth_requires": "Bearer live-auth-secret"})
+
+    with pytest.raises(HurlMetadataSyntaxError) as excinfo:
+        _ = metadata.auth_requires
+
+    message = str(excinfo.value)
+    assert "invalid variable name in auth_requires" in message
+    assert "live-auth-secret" not in message
 
 
 def test_hurl_test_exposes_metadata_tags() -> None:

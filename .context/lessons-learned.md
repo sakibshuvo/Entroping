@@ -1,5 +1,15 @@
 # Entroping Lessons Learned
 
+## 2026-06-12
+
+- Auth chaining should be modeled as Hurl-owned variable and capture behavior,
+  with Entroping adding value-free metadata and evidence only. Reports should
+  show flow IDs plus required/produced variable names, while token, cookie,
+  CSRF, and env values stay in env files, secret managers, or Hurl captures.
+- Secret redaction patterns need auth-specific regression tests. Generic
+  `token=` coverage does not automatically catch `csrf_token=` and
+  `x-csrf-token=` key/value output from Hurl or provider errors.
+
 ## 2026-06-11
 
 - Self-healing Hurl maintenance needs source evidence, not autonomy. Keep

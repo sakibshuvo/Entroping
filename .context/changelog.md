@@ -1,5 +1,13 @@
 # Entroping Changelog
 
+## 2026-06-12
+
+- Added issue #598's local auth-chain evidence boundary: Hurl metadata can
+  declare value-free `auth_flow`, `auth_requires`, and `auth_produces` names,
+  dry-run plans and JSON/JUnit/HTML run reports expose only those names, env
+  values still pass to Hurl through the existing variables-file path, and CSRF
+  token key/value redaction now shares the common secret-safety helper.
+
 ## 2026-06-11
 
 - Added issue #599's self-healing Hurl maintenance boundary: Architect

@@ -62,7 +62,12 @@ from entroping.core.traffic_store import TrafficStoreError, list_project_exchang
 from entroping.models.drift import DependencyDriftRoute, DriftReport
 from entroping.models.hurl import HurlTest
 from entroping.models.qanstitution import KnownFailure
-from entroping.models.report import RunReport, RunSafetyEvidence
+from entroping.models.report import (
+    RunAuthEvidence,
+    RunReport,
+    RunSafetyEvidence,
+    build_run_auth_evidence,
+)
 
 __all__ = [
     "DependencyDriftObservationError",
@@ -113,6 +118,7 @@ class RunPlanTest:
     injected_rule_ids: tuple[str, ...]
     missing_variables: tuple[str, ...]
     safety: RunSafetyEvidence | None = None
+    auth: RunAuthEvidence | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -707,6 +713,11 @@ def plan_run_workflow(
                 safety=safety.evidence_by_path.get(
                     execution_copy.source_path.expanduser().resolve()
                 ),
+                auth=build_run_auth_evidence(
+                    flow=execution_copy.auth_flow,
+                    requires=execution_copy.auth_requires,
+                    produces=execution_copy.auth_produces,
+                ),
             )
             for hurl_test, execution_copy in zip(selection.tests, execution_copies, strict=True)
         )
@@ -813,6 +824,11 @@ def run_execution_plan_to_dict(plan: RunExecutionPlan) -> dict[str, object]:
                     if test.safety is not None
                     else {}
                 ),
+                **(
+                    {"auth": _auth_evidence_to_dict(test.auth)}
+                    if test.auth is not None
+                    else {}
+                ),
             }
             for test in plan.tests
         ],
@@ -826,6 +842,14 @@ def _safety_evidence_to_dict(safety: RunSafetyEvidence) -> dict[str, object]:
         "safety_source": safety.safety_source,
         "methods": list(safety.methods),
         "blocked_reason": safety.blocked_reason,
+    }
+
+
+def _auth_evidence_to_dict(auth: RunAuthEvidence) -> dict[str, object]:
+    return {
+        "flow": auth.flow,
+        "requires": list(auth.requires),
+        "produces": list(auth.produces),
     }
 
 

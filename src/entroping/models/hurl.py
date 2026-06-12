@@ -9,6 +9,8 @@ from urllib.parse import urlsplit
 
 _METADATA_PREFIX = "# entroping:"
 _METADATA_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_VARIABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_AUTH_FLOW_RE = re.compile(r"^[A-Za-z0-9_.:-]+$")
 _REQUEST_LINE_RE = re.compile(
     r"^(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|CONNECT|TRACE)\s+(\S+)(?:\s+.*)?$",
 )
@@ -37,6 +39,24 @@ class HurlMetadata:
         """Return the linked OpenAPI operation identifier when present."""
 
         return self.meta.get("operation_id")
+
+    @property
+    def auth_flow(self) -> str | None:
+        """Return the value-free auth flow identifier when present."""
+
+        return self.meta.get("auth_flow")
+
+    @property
+    def auth_requires(self) -> tuple[str, ...]:
+        """Return Hurl variable names required by this auth flow."""
+
+        return _parse_auth_variable_names(self.meta.get("auth_requires"), key="auth_requires")
+
+    @property
+    def auth_produces(self) -> tuple[str, ...]:
+        """Return Hurl variable names produced by this auth flow."""
+
+        return _parse_auth_variable_names(self.meta.get("auth_produces"), key="auth_produces")
 
 
 @dataclass(frozen=True)
@@ -100,6 +120,15 @@ def parse_hurl_metadata(content: str, *, source: Path | None = None) -> HurlMeta
                 f"metadata value for {key!r} must not contain control characters",
                 source=source,
             )
+        if key == "auth_flow":
+            _validate_auth_flow(raw_value, line_number=line_number, source=source)
+        elif key in {"auth_requires", "auth_produces"}:
+            _parse_auth_variable_names(
+                raw_value,
+                key=key,
+                line_number=line_number,
+                source=source,
+            )
         if key in meta:
             _raise_metadata_error(line_number, f"duplicate metadata key {key!r}", source=source)
         meta[key] = raw_value
@@ -144,6 +173,57 @@ def _parse_tags(raw_value: str, *, line_number: int, source: Path | None) -> fro
         tags.add(tag)
 
     return frozenset(tags)
+
+
+def _validate_auth_flow(raw_value: str, *, line_number: int, source: Path | None) -> None:
+    if _AUTH_FLOW_RE.fullmatch(raw_value) is None:
+        _raise_metadata_error(
+            line_number,
+            "auth_flow must be a value-free identifier",
+            source=source,
+        )
+
+
+def _parse_auth_variable_names(
+    raw_value: str | None,
+    *,
+    key: str,
+    line_number: int | None = None,
+    source: Path | None = None,
+) -> tuple[str, ...]:
+    if raw_value is None:
+        return ()
+
+    names: list[str] = []
+    seen: set[str] = set()
+    for raw_name in raw_value.split(","):
+        name = raw_name.strip()
+        if not name or _VARIABLE_NAME_RE.fullmatch(name) is None:
+            _raise_auth_metadata_error(
+                line_number=line_number,
+                source=source,
+                message=f"invalid variable name in {key}",
+            )
+        if name in seen:
+            _raise_auth_metadata_error(
+                line_number=line_number,
+                source=source,
+                message=f"duplicate variable name in {key}",
+            )
+        names.append(name)
+        seen.add(name)
+    return tuple(names)
+
+
+def _raise_auth_metadata_error(
+    *,
+    line_number: int | None,
+    source: Path | None,
+    message: str,
+) -> None:
+    if line_number is None:
+        raise HurlMetadataSyntaxError(message)
+    _raise_metadata_error(line_number, message, source=source)
 
 
 def _raise_metadata_error(
