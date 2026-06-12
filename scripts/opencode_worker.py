@@ -16,6 +16,8 @@ from datetime import timezone as datetime_timezone
 from pathlib import Path
 from typing import Literal
 
+from ai_worker_file_safety import sensitive_selected_path_reason
+
 DEFAULT_MODEL = "deepseek/deepseek-v4-pro"
 DEFAULT_ARTIFACT_ROOT = Path(".entroping") / "ai-reviews"
 DEFAULT_TIMEOUT_SECONDS = 300.0
@@ -287,10 +289,17 @@ def _validate_files(repo_root: Path, raw_files: tuple[Path, ...]) -> tuple[Path,
             msg = f"input path must be a regular non-symlink file: {raw_file}"
             raise WorkerInputError(msg)
         try:
-            resolved.relative_to(repo_root)
+            relative_path = resolved.relative_to(repo_root).as_posix()
         except ValueError as exc:
             msg = f"input file must be inside repository: {raw_file}"
             raise WorkerInputError(msg) from exc
+        sensitive_reason = sensitive_selected_path_reason(relative_path)
+        if sensitive_reason is not None:
+            msg = (
+                "refusing to send selected file to OpenCode: "
+                f"{relative_path} {sensitive_reason}"
+            )
+            raise WorkerInputError(msg)
         validated.append(resolved)
     return tuple(dict.fromkeys(validated))
 
