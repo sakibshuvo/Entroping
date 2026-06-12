@@ -131,6 +131,45 @@ def test_qanstitution_schema_contract_covers_current_runtime_shape() -> None:
         Qanstitution.model_validate({**valid_policy, "redaction": {"headers": []}})
 
 
+def test_qanstitution_settings_normalize_and_validate_protected_environments() -> None:
+    law = Qanstitution.model_validate(
+        {
+            "project": "checkout-api",
+            "settings": {"protected_environments": [" Prod ", "prod", "PROTECTED"]},
+            "gates": [
+                {
+                    "id": "global_latency",
+                    "condition": "true",
+                    "gate": "duration < 2000",
+                    "enforcement": "block",
+                }
+            ],
+        }
+    )
+
+    assert law.settings.protected_environments == ["prod", "protected"]
+
+    for value, message in [
+        (" ", "must not be empty"),
+        ("pro\x1fd", "must not contain control characters"),
+    ]:
+        with pytest.raises(ValidationError, match=message):
+            Qanstitution.model_validate(
+                {
+                    "project": "checkout-api",
+                    "settings": {"protected_environments": [value]},
+                    "gates": [
+                        {
+                            "id": "global_latency",
+                            "condition": "true",
+                            "gate": "duration < 2000",
+                            "enforcement": "block",
+                        }
+                    ],
+                }
+            )
+
+
 @pytest.mark.parametrize(
     "version",
     [

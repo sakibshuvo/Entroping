@@ -776,6 +776,47 @@ def test_run_dry_run_reports_missing_variables_without_hurl_execution(
     assert plan["variables"]["missing"] == [{"name": "base_url", "paths": ["tests/health.hurl"]}]
 
 
+def test_run_dry_run_prints_protected_safety_blockers_without_hurl_execution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["init", "--minimal"])
+    (Path("tests") / "checkout.hurl").write_text(
+        "# entroping: tags=smoke\n\nPOST {{base_url}}/checkout\nHTTP 201\n",
+        encoding="utf-8",
+    )
+    (Path("envs") / "production.env").write_text(
+        "base_url=http://production.example.test\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "--dry-run",
+            "--env",
+            "production",
+            "--tag",
+            "smoke",
+            "--report",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Run plan blocked before Hurl execution." in result.output
+    assert "safety=unspecified" in result.output
+    assert "methods=POST" in result.output
+    assert "blocked=mutating method POST requires safety metadata" in result.output
+    plan = json.loads((Path("reports") / "run-plan.json").read_text(encoding="utf-8"))
+    assert plan["status"] == "blocked"
+    assert plan["tests"][0]["safety"]["methods"] == ["POST"]
+    assert "production.example.test" not in json.dumps(plan)
+
+
 def test_run_dry_run_uses_changed_from_selection_without_hurl_execution(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
