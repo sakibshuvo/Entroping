@@ -50,6 +50,9 @@ class HurlExecutionCopy:
     source: str | None = None
     negative_category: str | None = None
     severity: str | None = None
+    auth_flow: str | None = None
+    auth_requires: tuple[str, ...] = ()
+    auth_produces: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -115,6 +118,9 @@ def write_injected_execution_copy(
         source=parsed_test.metadata.meta.get("source"),
         negative_category=parsed_test.metadata.meta.get("negative_category"),
         severity=parsed_test.metadata.meta.get("severity"),
+        auth_flow=parsed_test.metadata.auth_flow,
+        auth_requires=parsed_test.metadata.auth_requires,
+        auth_produces=parsed_test.metadata.auth_produces,
     )
 
 

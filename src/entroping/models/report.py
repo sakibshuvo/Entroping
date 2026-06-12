@@ -64,6 +64,28 @@ class RunSafetyEvidence:
 
 
 @dataclass(frozen=True)
+class RunAuthEvidence:
+    """Value-free auth-chain evidence for one selected Hurl test."""
+
+    flow: str | None = None
+    requires: tuple[str, ...] = ()
+    produces: tuple[str, ...] = ()
+
+
+def build_run_auth_evidence(
+    *,
+    flow: str | None,
+    requires: tuple[str, ...],
+    produces: tuple[str, ...],
+) -> RunAuthEvidence | None:
+    """Return report-safe auth evidence only when a test declares auth metadata."""
+
+    if flow is None and not requires and not produces:
+        return None
+    return RunAuthEvidence(flow=flow, requires=requires, produces=produces)
+
+
+@dataclass(frozen=True)
 class RunTestReport:
     """Report row for one source Hurl test."""
 
@@ -86,6 +108,7 @@ class RunTestReport:
     known_failures: tuple[KnownFailureEvidence, ...] = ()
     retry: RunRetryEvidence = field(default_factory=RunRetryEvidence)
     safety: RunSafetyEvidence | None = None
+    auth: RunAuthEvidence | None = None
 
     @property
     def passed(self) -> bool:

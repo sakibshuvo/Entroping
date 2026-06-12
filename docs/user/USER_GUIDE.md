@@ -557,6 +557,9 @@ Prefer clear, stable assertions:
 ```hurl
 # entroping: tags=smoke,auth
 # entroping: story_id=AUTH-001
+# entroping: auth_flow=login-capture
+# entroping: auth_requires=user_email,user_password
+# entroping: auth_produces=auth_token
 
 POST {{base_url}}/auth/login
 Content-Type: application/json
@@ -577,6 +580,8 @@ Good tests:
 
 - Use variables for environment-specific values.
 - Capture IDs and tokens instead of hardcoding volatile values.
+- Declare auth flow metadata with variable names only when a test requires or
+  produces tokens, cookies, or CSRF values.
 - Tag meaningful suites such as `smoke`, `regression`, `security`, and `critical`.
 - Link important tests to user stories with `# entroping: story_id=...`.
 - Link external business systems with `# entroping: doc_url=...` when Jira, Notion, Linear, or monday.com remains the business source of truth.

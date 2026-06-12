@@ -51,6 +51,18 @@ def test_shared_secret_helpers_preserve_templates_and_redacted_values() -> None:
     assert redact_secret_like_values(text) == text
 
 
+def test_shared_secret_helpers_redact_csrf_token_key_values() -> None:
+    text = "csrf_token=live-csrf-secret\nx-csrf-token=header-csrf-secret"
+
+    redacted = redact_secret_like_values(text)
+
+    assert contains_secret_like_value(text) is True
+    assert "live-csrf-secret" not in redacted
+    assert "header-csrf-secret" not in redacted
+    assert "csrf_token=[REDACTED]" in redacted
+    assert "x-csrf-token=[REDACTED]" in redacted
+
+
 def test_shared_sensitive_key_matching_covers_http_and_payload_names() -> None:
     assert is_sensitive_key("X-API-Key") is True
     assert is_sensitive_key("refresh-token") is True

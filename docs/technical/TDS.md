@@ -994,6 +994,14 @@ for unresolved `{{variable}}` references. Resolved variables can come from
 `envs/<name>.env`, explicit shell `HURL_VARIABLE_<name>` values, Hurl
 `[Options] variable` entries, captures, or known Hurl built-ins. Missing-variable
 errors must list names and paths only; they must not print variable values.
+Auth chaining stays inside this deterministic Hurl/env boundary. Hurl files may
+declare value-free `# entroping: auth_flow=<id>`,
+`# entroping: auth_requires=<var>[,<var>]`, and
+`# entroping: auth_produces=<var>[,<var>]` metadata to describe local token,
+cookie, or CSRF setup. The metadata stores identifiers and variable names only:
+captures and variable substitution remain Hurl behavior, secret values come from
+env variables, secret managers, or gitignored env files, and run plans plus
+JSON/JUnit/HTML reports expose only names.
 `--drift-check` and `--report drift` compare the sanitized current run report
 against `.entroping/drift-baseline.json`. The MVP baseline compares test path,
 Hurl result status, exit code, injected QAnstitution rule IDs, material
@@ -1175,7 +1183,8 @@ No additional commands or flags should be implemented without updating the produ
   variable names only, never secret values.
 - `envs/*.env.example` can be committed.
 - Real `envs/*.env` files should be gitignored unless sanitized.
-- Logs and reports must redact known secret patterns.
+- Logs and reports must redact known secret patterns, including bearer tokens,
+  cookies, API keys, and CSRF token key/value forms.
 - LLM prompts must not include secrets.
 - Traffic persistence must apply redaction before storing raw data.
 
@@ -1206,6 +1215,7 @@ Runtime logs should include:
 - Test count, tag filters, and report types.
 - Gate IDs applied.
 - Agent role/model metadata, latency, token usage, and estimated cost where available.
+- Auth-chain flow IDs and Hurl variable names, never token or cookie values.
 - Hurl execution duration and exit status.
 
 Logs must not include request secrets, API keys, or sensitive captured bodies.

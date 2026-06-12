@@ -40,6 +40,9 @@ def _execution_copy(
     source_kind: str | None = None,
     negative_category: str | None = None,
     severity: str | None = None,
+    auth_flow: str | None = None,
+    auth_requires: tuple[str, ...] = (),
+    auth_produces: tuple[str, ...] = (),
 ) -> HurlExecutionCopy:
     return HurlExecutionCopy(
         source_path=source,
@@ -57,6 +60,9 @@ def _execution_copy(
         source=source_kind,
         negative_category=negative_category,
         severity=severity,
+        auth_flow=auth_flow,
+        auth_requires=auth_requires,
+        auth_produces=auth_produces,
     )
 
 
@@ -204,6 +210,72 @@ def test_reports_include_generated_negative_path_metadata(tmp_path: Path) -> Non
     html = html_path.read_text(encoding="utf-8")
     assert "boundary-values" in html
     assert "medium" in html
+
+
+def test_reports_include_auth_chain_evidence_without_secret_values(tmp_path: Path) -> None:
+    source = tmp_path / "tests" / "auth_chain.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "auth_chain.hurl"
+    report = build_run_report(
+        project="checkout-api",
+        environment="local",
+        execution_copies=[
+            _execution_copy(
+                source,
+                execution,
+                auth_flow="oauth2-client-credentials",
+                auth_requires=("access_token", "csrf_token"),
+                auth_produces=("session_cookie",),
+            )
+        ],
+        suite=_suite_result(
+            execution,
+            "Authorization: Bearer live-auth-secret\ncsrf_token=live-csrf-secret\n",
+        ),
+        project_root=tmp_path,
+    )
+
+    payload = report_writer.run_report_to_dict(report)
+    tests_payload = payload["tests"]
+    assert isinstance(tests_payload, list)
+    first_test = tests_payload[0]
+    assert isinstance(first_test, Mapping)
+    assert first_test["auth"] == {
+        "flow": "oauth2-client-credentials",
+        "requires": ["access_token", "csrf_token"],
+        "produces": ["session_cookie"],
+    }
+    serialized = json.dumps(payload)
+    assert "live-auth-secret" not in serialized
+    assert "live-csrf-secret" not in serialized
+
+    output = tmp_path / "reports" / "run-latest.json"
+    write_json_report(report, output)
+    loaded = load_run_report(output)
+    assert loaded.tests[0].auth is not None
+    assert loaded.tests[0].auth.flow == "oauth2-client-credentials"
+    assert loaded.tests[0].auth.requires == ("access_token", "csrf_token")
+    assert loaded.tests[0].auth.produces == ("session_cookie",)
+
+    junit_path = tmp_path / "reports" / "junit.xml"
+    write_junit_report(report, junit_path)
+    properties = ElementTree.parse(junit_path).getroot().find("testcase/properties")
+    assert properties is not None
+    values = {
+        property_node.attrib["name"]: property_node.attrib["value"]
+        for property_node in properties.findall("property")
+    }
+    assert values["entroping.auth.flow"] == "oauth2-client-credentials"
+    assert values["entroping.auth.requires"] == "access_token,csrf_token"
+    assert values["entroping.auth.produces"] == "session_cookie"
+
+    html_path = tmp_path / "reports" / "run-latest.html"
+    write_html_report(report, html_path)
+    html = html_path.read_text(encoding="utf-8")
+    assert "auth_flow=oauth2-client-credentials" in html
+    assert "auth_requires=access_token,csrf_token" in html
+    assert "auth_produces=session_cookie" in html
+    assert "live-auth-secret" not in html
+    assert "live-csrf-secret" not in html
 
 
 def test_reports_include_applied_known_failure_evidence(tmp_path: Path) -> None:
@@ -1032,6 +1104,97 @@ def test_load_run_report_round_trips_valid_known_failures_and_ignores_malformed_
         )
     ]
     assert report.tests[1].known_failures == ()
+
+
+def test_load_run_report_round_trips_auth_evidence_and_ignores_malformed_entries(
+    tmp_path: Path,
+) -> None:
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(
+        json.dumps(
+            {
+                "project": "checkout-api",
+                "environment": "local",
+                "generated_at": "2026-06-12T00:00:00+00:00",
+                "summary": {"total": 4, "passed": 4, "failed": 0, "exit_code": 0},
+                "tests": [
+                    {
+                        "path": "tests/auth.hurl",
+                        "execution_path": ".entroping/run/auth.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 42,
+                        "rule_ids": [],
+                        "stdout": "",
+                        "stderr": "",
+                        "auth": {
+                            "flow": " oauth2-client-credentials ",
+                            "requires": [
+                                " access_token ",
+                                "bad name",
+                                123,
+                                "access_token",
+                                "csrf_token",
+                            ],
+                            "produces": [" session_cookie "],
+                        },
+                    },
+                    {
+                        "path": "tests/no-auth.hurl",
+                        "execution_path": ".entroping/run/no-auth.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 10,
+                        "rule_ids": [],
+                        "stdout": "",
+                        "stderr": "",
+                        "auth": {},
+                    },
+                    {
+                        "path": "tests/malformed-auth.hurl",
+                        "execution_path": ".entroping/run/malformed-auth.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 10,
+                        "rule_ids": [],
+                        "stdout": "",
+                        "stderr": "",
+                        "auth": "not-a-dict",
+                    },
+                    {
+                        "path": "tests/invalid-flow.hurl",
+                        "execution_path": ".entroping/run/invalid-flow.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 10,
+                        "rule_ids": [],
+                        "stdout": "",
+                        "stderr": "",
+                        "auth": {
+                            "flow": "oauth2 live-secret",
+                            "requires": ["session_token"],
+                            "produces": [],
+                        },
+                    },
+                ],
+            },
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = load_run_report(latest)
+
+    assert report.tests[0].auth is not None
+    assert report.tests[0].auth.flow == "oauth2-client-credentials"
+    assert report.tests[0].auth.requires == ("access_token", "csrf_token")
+    assert report.tests[0].auth.produces == ("session_cookie",)
+    assert report.tests[1].auth is None
+    assert report.tests[2].auth is None
+    assert report.tests[3].auth is not None
+    assert report.tests[3].auth.flow is None
+    assert report.tests[3].auth.requires == ("session_token",)
 
 
 def test_load_run_report_trims_valid_operation_ids_and_ignores_malformed_values(

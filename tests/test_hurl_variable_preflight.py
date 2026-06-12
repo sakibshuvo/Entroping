@@ -82,3 +82,34 @@ def test_preflight_reports_absolute_source_path_outside_project(tmp_path: Path) 
 
     assert outside_source.resolve().as_posix() in str(excinfo.value)
     assert "missing_host" in str(excinfo.value)
+
+
+def test_preflight_treats_hurl_captures_as_chained_variables(tmp_path: Path) -> None:
+    execution_path = tmp_path / "execution.hurl"
+    execution_path.write_text(
+        "\n".join(
+            [
+                "POST {{base_url}}/login",
+                "HTTP 200",
+                "[Captures]",
+                "access_token: jsonpath \"$.token\"",
+                "",
+                "GET {{base_url}}/profile",
+                "Authorization: Bearer {{access_token}}",
+                "HTTP 200",
+            ],
+        ),
+        encoding="utf-8",
+    )
+
+    preflight_hurl_variables(
+        (
+            HurlExecutionCopy(
+                source_path=tmp_path / "tests" / "auth_chain.hurl",
+                execution_path=execution_path,
+                injected_gates=(),
+            ),
+        ),
+        variables={"base_url": "http://localhost:18080"},
+        project_root=tmp_path,
+    )
