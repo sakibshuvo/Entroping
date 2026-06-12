@@ -264,6 +264,13 @@
           "title": "Parallel Workers",
           "type": "integer"
         },
+        "protected_environments": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Protected Environments",
+          "type": "array"
+        },
         "retry": {
           "default": 0,
           "minimum": 0,

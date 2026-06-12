@@ -236,6 +236,10 @@ settings:
   parallel_workers: 4
   follow_redirects: true
   retry: 2
+  protected_environments:
+    - "prod"
+    - "production"
+    - "protected"
   env_defaults:
     base_url: "http://localhost:8080"
 ```
@@ -882,6 +886,21 @@ scheduled workers may complete, but Entroping schedules no additional tests
 after the first failure is observed. Latest-run state and requested reports
 include only executed tests and record `selected`, `executed`, `not_scheduled`,
 and `fail_fast` summary evidence.
+Protected-environment safety preflight runs after Hurl discovery and temporary
+gate injection but before variable preflight and Hurl subprocess execution.
+Environment names listed in `settings.protected_environments` default to
+`prod`, `production`, and `protected`; named suite manifests can also force the
+classification with `protected: true`. In protected runs, `GET`, `HEAD`, and
+`OPTIONS` are treated as read-only. `POST`, `PUT`, `PATCH`, `DELETE`, and
+unknown methods are mutating and fail closed unless the selected test or suite
+declares reviewed safety metadata: `read-only`, `idempotent`, or
+`teardown-backed`. A selected test can declare this through
+`# entroping: safety=<value>` or an equivalent safety tag. `destructive`
+metadata always blocks in protected environments and overrides suite defaults.
+Blocked runs do not call Hurl. They write latest-run state and requested JSON,
+JUnit, or HTML reports with status `blocked`, method-level safety evidence, and
+value-free reasons; they do not print request URLs, headers, bodies, cookies,
+or variable values.
 `--dry-run` builds a deterministic execution plan and stops before Hurl
 execution. It loads QAnstitution, resolves suite/tag/tag-expression/operation
 ID/changed-from/rerun selectors, loads environment variable names, writes
@@ -931,8 +950,8 @@ rerun-failures, tag, or tag-expression selectors, and run reports preserve
 optional per-test operation ID evidence in JSON, JUnit, and HTML artifacts.
 `--suite <name>` loads a committed `suites/<name>.yaml` manifest with schema
 version `entroping.suite.v1`. A suite can define `env`, `tags`, root-bounded
-`paths` globs, `reports`, `parallel`, `fail_fast`, and `drift_check`. The suite manifest
-feeds the same deterministic run workflow; it does not change default
+`paths` globs, `reports`, `parallel`, `fail_fast`, `drift_check`, `protected`,
+and `safety`. The suite manifest feeds the same deterministic run workflow; it does not change default
 `entroping run` behavior, and it cannot be combined with ad hoc selectors such
 as `--env`, `--tag`, `--report`, `--parallel`, `--fail-fast`, `--drift-check`,
 `--changed-from`, or `--rerun-failures`.

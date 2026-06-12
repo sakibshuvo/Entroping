@@ -35,7 +35,13 @@ from entroping.core.hurl_discovery import (
     discover_hurl_test_selection,
     normalize_operation_id_filters,
 )
-from entroping.core.hurl_runner import HurlRunOptions, HurlSuiteResult, run_hurl_files
+from entroping.core.hurl_runner import (
+    HurlAttemptEvidence,
+    HurlFileResult,
+    HurlRunOptions,
+    HurlSuiteResult,
+    run_hurl_files,
+)
 from entroping.core.hurl_variable_preflight import (
     HurlVariablePreflightError,
     MissingHurlVariable,
@@ -49,12 +55,14 @@ from entroping.core.report_writer import (
     write_junit_report,
 )
 from entroping.core.run_event_log import RunEventLog
+from entroping.core.run_safety import evaluate_run_safety
 from entroping.core.safe_write import SafeWriteError, safe_write_text
 from entroping.core.tag_expression import compile_tag_expression
 from entroping.core.traffic_store import TrafficStoreError, list_project_exchanges_readonly
 from entroping.models.drift import DependencyDriftRoute, DriftReport
 from entroping.models.hurl import HurlTest
 from entroping.models.qanstitution import KnownFailure
+from entroping.models.report import RunReport, RunSafetyEvidence
 
 __all__ = [
     "DependencyDriftObservationError",
@@ -104,6 +112,7 @@ class RunPlanTest:
     operation_id: str | None
     injected_rule_ids: tuple[str, ...]
     missing_variables: tuple[str, ...]
+    safety: RunSafetyEvidence | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -178,6 +187,8 @@ def execute_run_workflow(
     changed_from: str | None = None,
     discovery_roots: Sequence[Path] | None = None,
     selection_label: str | None = None,
+    protected_run: bool = False,
+    suite_safety: str | None = None,
 ) -> RunWorkflowResult:
     """Execute the deterministic Hurl governance loop without CLI concerns."""
 
@@ -226,9 +237,7 @@ def execute_run_workflow(
         )
         hurl_tests = selection.tests
         env_variables = (
-            load_environment_variables(environment, root=root)
-            if environment is not None
-            else {}
+            load_environment_variables(environment, root=root) if environment is not None else {}
         )
         env_variables.update(load_process_hurl_variables())
 
@@ -277,6 +286,71 @@ def execute_run_workflow(
                 execution_copies=execution_copies,
                 project_root=root,
             )
+            safety = evaluate_run_safety(
+                hurl_tests,
+                environment=environment,
+                protected_run=protected_run,
+                suite_safety=suite_safety,
+                protected_environments=law.settings.protected_environments,
+            )
+            if safety.blocks:
+                suite = _blocked_suite_result(
+                    execution_copies=execution_copies,
+                    safety_evidence_by_source_path=safety.evidence_by_path,
+                    timeout_ms=law.settings.timeout,
+                )
+                run_report = build_run_report(
+                    project=law.project,
+                    environment=environment or "default",
+                    execution_copies=_blocked_execution_copies(
+                        execution_copies=execution_copies,
+                        safety_evidence_by_source_path=safety.evidence_by_path,
+                    ),
+                    suite=suite,
+                    project_root=root,
+                    safety_evidence_by_source_path=safety.evidence_by_path,
+                )
+                for test in run_report.tests:
+                    event_log.record_test_result(
+                        path=test.path,
+                        status=test.status,
+                        exit_code=test.exit_code,
+                        duration_ms=test.duration_ms,
+                        timeout_ms=test.timeout_ms,
+                        rule_ids=test.rule_ids,
+                        operation_id=test.operation_id,
+                        stdout=test.stdout,
+                        stderr=test.stderr,
+                        stdout_truncated=test.retry.attempts[-1].stdout_truncated,
+                        stderr_truncated=test.retry.attempts[-1].stderr_truncated,
+                    )
+                latest_state = write_json_report(run_report, state_dir / "latest-run.json")
+                event_log.record_artifact(artifact_type="latest-run", path=latest_state)
+                blocked_artifacts = _write_requested_run_reports(
+                    run_report=run_report,
+                    report_formats=report_formats,
+                    reports_dir=root / "reports",
+                    event_log=event_log,
+                )
+                result = RunWorkflowResult(
+                    suite=suite,
+                    latest_state_path=latest_state,
+                    event_log_path=event_log.path,
+                    artifacts=tuple(blocked_artifacts),
+                    drift_report=None,
+                    drift_check=drift_check,
+                    selection=selection,
+                )
+                event_log.record_completed(
+                    status="blocked",
+                    exit_code=result.exit_code,
+                    duration_ms=_elapsed_ms(started_at),
+                    total=suite.total,
+                    passed=suite.passed,
+                    failed=suite.failed,
+                )
+                terminal_event_recorded = True
+                return result
             preflight_hurl_variables(
                 execution_copies,
                 variables=env_variables,
@@ -298,6 +372,7 @@ def execute_run_workflow(
                 execution_copies=execution_copies,
                 suite=suite,
                 project_root=root,
+                safety_evidence_by_source_path=safety.evidence_by_path,
             )
             for test in run_report.tests:
                 event_log.record_test_result(
@@ -335,9 +410,7 @@ def execute_run_workflow(
                 )
             dependency_baseline_path = state_dir / "dependency-baseline.json"
             if dependency_baseline_path.exists() and drift_report is not None:
-                dependency_baseline = load_dependency_drift_baseline(
-                    dependency_baseline_path
-                )
+                dependency_baseline = load_dependency_drift_baseline(dependency_baseline_path)
                 drift_report = append_dependency_drift_findings(
                     drift_report,
                     baseline=dependency_baseline,
@@ -346,18 +419,14 @@ def execute_run_workflow(
                 )
 
         reports_dir = root / "reports"
-        if "json" in report_formats:
-            artifact = write_json_report(run_report, reports_dir / "run-latest.json")
-            artifacts.append(artifact)
-            event_log.record_artifact(artifact_type="json-report", path=artifact)
-        if "junit" in report_formats:
-            artifact = write_junit_report(run_report, reports_dir / "junit.xml")
-            artifacts.append(artifact)
-            event_log.record_artifact(artifact_type="junit-report", path=artifact)
-        if "html" in report_formats:
-            artifact = write_html_report(run_report, reports_dir / "run-latest.html")
-            artifacts.append(artifact)
-            event_log.record_artifact(artifact_type="html-report", path=artifact)
+        artifacts.extend(
+            _write_requested_run_reports(
+                run_report=run_report,
+                report_formats=report_formats,
+                reports_dir=reports_dir,
+                event_log=event_log,
+            )
+        )
         if "drift" in report_formats and drift_report is not None:
             artifact = write_drift_report(drift_report, reports_dir / "drift.json")
             artifacts.append(artifact)
@@ -406,6 +475,84 @@ def execute_run_workflow(
         raise
 
 
+def _blocked_suite_result(
+    *,
+    execution_copies: Sequence[HurlExecutionCopy],
+    safety_evidence_by_source_path: dict[Path, RunSafetyEvidence],
+    timeout_ms: int,
+) -> HurlSuiteResult:
+    blocked_results: list[HurlFileResult] = []
+    for execution_copy in _blocked_execution_copies(
+        execution_copies=execution_copies,
+        safety_evidence_by_source_path=safety_evidence_by_source_path,
+    ):
+        evidence = safety_evidence_by_source_path[execution_copy.source_path.resolve()]
+        reason = evidence.blocked_reason or "Protected run blocked before Hurl execution"
+        blocked_results.append(
+            HurlFileResult(
+                path=execution_copy.execution_path,
+                command=("entroping", "run", "preflight"),
+                status="blocked",
+                exit_code=1,
+                stdout="",
+                stderr=f"Protected run blocked before Hurl execution: {reason}",
+                stdout_truncated=False,
+                stderr_truncated=False,
+                duration_ms=0,
+                timeout_ms=timeout_ms,
+                attempts=(
+                    HurlAttemptEvidence(
+                        attempt=1,
+                        status="blocked",
+                        exit_code=1,
+                        duration_ms=0,
+                        stdout_truncated=False,
+                        stderr_truncated=False,
+                    ),
+                ),
+            )
+        )
+    return HurlSuiteResult(results=tuple(blocked_results))
+
+
+def _blocked_execution_copies(
+    *,
+    execution_copies: Sequence[HurlExecutionCopy],
+    safety_evidence_by_source_path: dict[Path, RunSafetyEvidence],
+) -> tuple[HurlExecutionCopy, ...]:
+    blocked: list[HurlExecutionCopy] = []
+    for execution_copy in execution_copies:
+        evidence = safety_evidence_by_source_path.get(
+            execution_copy.source_path.expanduser().resolve()
+        )
+        if evidence is not None and evidence.blocked_reason is not None:
+            blocked.append(execution_copy)
+    return tuple(blocked)
+
+
+def _write_requested_run_reports(
+    *,
+    run_report: RunReport,
+    report_formats: Sequence[str],
+    reports_dir: Path,
+    event_log: RunEventLog,
+) -> list[Path]:
+    artifacts: list[Path] = []
+    if "json" in report_formats:
+        artifact = write_json_report(run_report, reports_dir / "run-latest.json")
+        artifacts.append(artifact)
+        event_log.record_artifact(artifact_type="json-report", path=artifact)
+    if "junit" in report_formats:
+        artifact = write_junit_report(run_report, reports_dir / "junit.xml")
+        artifacts.append(artifact)
+        event_log.record_artifact(artifact_type="junit-report", path=artifact)
+    if "html" in report_formats:
+        artifact = write_html_report(run_report, reports_dir / "run-latest.html")
+        artifacts.append(artifact)
+        event_log.record_artifact(artifact_type="html-report", path=artifact)
+    return artifacts
+
+
 def _validate_run_filters(
     *,
     tag_filters: tuple[str, ...],
@@ -439,6 +586,8 @@ def plan_run_workflow(
     changed_from: str | None = None,
     discovery_roots: Sequence[Path] | None = None,
     selection_label: str | None = None,
+    protected_run: bool = False,
+    suite_safety: str | None = None,
 ) -> RunExecutionPlan:
     """Build a deterministic run plan without invoking Hurl or writing run state."""
 
@@ -526,6 +675,13 @@ def plan_run_workflow(
             execution_copies=execution_copies,
             project_root=root,
         )
+        safety = evaluate_run_safety(
+            selection.tests,
+            environment=environment,
+            protected_run=protected_run,
+            suite_safety=suite_safety,
+            protected_environments=law.settings.protected_environments,
+        )
         missing = find_missing_hurl_variables(
             execution_copies,
             variables=env_variables,
@@ -535,11 +691,7 @@ def plan_run_workflow(
         for execution_copy in execution_copies:
             display_path = _display_path(execution_copy.source_path, root)
             names = tuple(
-                sorted(
-                    item.name
-                    for item in missing
-                    if item.path == execution_copy.source_path
-                )
+                sorted(item.name for item in missing if item.path == execution_copy.source_path)
             )
             missing_by_path[display_path] = names
 
@@ -549,9 +701,10 @@ def plan_run_workflow(
                 tags=tuple(hurl_test.metadata.tags),
                 operation_id=execution_copy.operation_id,
                 injected_rule_ids=tuple(gate.rule_id for gate in execution_copy.injected_gates),
-                missing_variables=missing_by_path[
-                    _display_path(execution_copy.source_path, root)
-                ],
+                missing_variables=missing_by_path[_display_path(execution_copy.source_path, root)],
+                safety=safety.evidence_by_path.get(
+                    execution_copy.source_path.expanduser().resolve()
+                ),
             )
             for hurl_test, execution_copy in zip(selection.tests, execution_copies, strict=True)
         )
@@ -564,12 +717,15 @@ def plan_run_workflow(
         )
 
     missing_variables = _group_missing_variables(missing, project_root=root)
-    status: RunPlanStatus = "blocked" if missing_variables else "ready"
-    message = (
-        "Run plan blocked by unresolved Hurl variables"
-        if missing_variables
-        else "Run plan ready; Hurl was not executed"
-    )
+    if safety.blocks:
+        status: RunPlanStatus = "blocked"
+        message = "Run plan blocked by protected-environment safety preflight"
+    elif missing_variables:
+        status = "blocked"
+        message = "Run plan blocked by unresolved Hurl variables"
+    else:
+        status = "ready"
+        message = "Run plan ready; Hurl was not executed"
     return RunExecutionPlan(
         status=status,
         message=message,
@@ -640,8 +796,7 @@ def run_execution_plan_to_dict(plan: RunExecutionPlan) -> dict[str, object]:
         "variables": {
             "provided_count": plan.provided_variable_count,
             "missing": [
-                {"name": item.name, "paths": list(item.paths)}
-                for item in plan.missing_variables
+                {"name": item.name, "paths": list(item.paths)} for item in plan.missing_variables
             ],
         },
         "tests": [
@@ -651,9 +806,24 @@ def run_execution_plan_to_dict(plan: RunExecutionPlan) -> dict[str, object]:
                 "operation_id": test.operation_id,
                 "injected_rule_ids": list(test.injected_rule_ids),
                 "missing_variables": list(test.missing_variables),
+                **(
+                    {"safety": _safety_evidence_to_dict(test.safety)}
+                    if test.safety is not None
+                    else {}
+                ),
             }
             for test in plan.tests
         ],
+    }
+
+
+def _safety_evidence_to_dict(safety: RunSafetyEvidence) -> dict[str, object]:
+    return {
+        "protected_environment": safety.protected_environment,
+        "safety": safety.safety,
+        "safety_source": safety.safety_source,
+        "methods": list(safety.methods),
+        "blocked_reason": safety.blocked_reason,
     }
 
 

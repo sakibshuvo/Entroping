@@ -54,6 +54,8 @@ def test_qanstitution_schema_contract_covers_current_runtime_shape() -> None:
     agents_schema = _object(properties["agents"])
     agent_names = _object(agents_schema["propertyNames"])
     gates_schema = _object(properties["gates"])
+    runtime_settings = _object(definitions["RuntimeSettings"])
+    settings_properties = _object(runtime_settings["properties"])
 
     assert schema["$schema"] == QANSTITUTION_SCHEMA_DRAFT
     assert schema["$id"] == QANSTITUTION_SCHEMA_ID
@@ -72,6 +74,7 @@ def test_qanstitution_schema_contract_covers_current_runtime_shape() -> None:
     assert "gate_groups" in properties
     assert "groups" in gate_group_properties
     assert "anyOf" in _object(gates_schema["items"])
+    assert "protected_environments" in settings_properties
     assert condition_schema["pattern"] == CONDITION_JSON_SCHEMA_PATTERN
     assert version_schema["enum"] == [*SUPPORTED_QANSTITUTION_VERSIONS, None]
     assert "schema compatibility marker" in str(version_schema["description"])
@@ -100,12 +103,14 @@ def test_qanstitution_schema_contract_covers_current_runtime_shape() -> None:
             "parallel_workers": 2,
             "follow_redirects": True,
             "retry": 0,
+            "protected_environments": ["prod", "production", "protected"],
         },
     }
 
     law = Qanstitution.model_validate(valid_policy)
 
     assert law.project == "checkout-api"
+    assert law.settings.protected_environments == ["prod", "production", "protected"]
     assert condition_pattern.fullmatch("tags contains 'smoke'") is not None
     assert condition_pattern.fullmatch("tags has 'smoke'") is None
     with pytest.raises(ValidationError, match="Unsupported QAnstitution condition syntax"):
@@ -218,9 +223,7 @@ def test_qanstitution_model_rejects_invalid_version_markers(version: str, messag
                 ],
             }
         )
-    assert "QANSTITUTION_REFERENCE.md#qanstitution-schema-compatibility" in str(
-        exc_info.value
-    )
+    assert "QANSTITUTION_REFERENCE.md#qanstitution-schema-compatibility" in str(exc_info.value)
 
 
 def test_qanstitution_model_rejects_malformed_known_failure_expiry() -> None:
@@ -362,18 +365,14 @@ def test_expand_qanstitution_gate_entries_accepts_typed_gate_group_reference() -
         }
     )
 
-    assert [(entry.rule.id, entry.group) for entry in expanded] == [
-        ("smoke_latency", "latency")
-    ]
+    assert [(entry.rule.id, entry.group) for entry in expanded] == [("smoke_latency", "latency")]
 
 
 def test_qanstitution_schema_authoring_guidance_is_public_and_editor_ready() -> None:
     vscode_settings = json.loads(
         (REPO_ROOT / ".vscode" / "settings.json").read_text(encoding="utf-8")
     )
-    schema_mapping = vscode_settings["yaml.schemas"][
-        "./docs/technical/qanstitution.schema.json"
-    ]
+    schema_mapping = vscode_settings["yaml.schemas"]["./docs/technical/qanstitution.schema.json"]
     reference = (REPO_ROOT / "docs" / "technical" / "QANSTITUTION_REFERENCE.md").read_text(
         encoding="utf-8"
     )

@@ -23,7 +23,7 @@ _VERSION_OUTPUT_LIMIT_BYTES = 4 * 1024
 HURL_MINIMUM_SUPPORTED_VERSION = (4, 3, 0)
 HURL_MINIMUM_SUPPORTED_VERSION_TEXT = "4.3.0"
 
-HurlRunStatus = Literal["passed", "failed", "timeout", "error"]
+HurlRunStatus = Literal["passed", "failed", "timeout", "error", "blocked"]
 
 
 @dataclass(frozen=True)

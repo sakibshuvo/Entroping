@@ -81,6 +81,7 @@ from entroping.models.report import (
     RunReport,
     RunReportSummary,
     RunRetryEvidence,
+    RunSafetyEvidence,
     RunTestReport,
 )
 
@@ -104,7 +105,7 @@ def test_run_report_v1_schema_contract_is_versioned_and_stable() -> None:
                 timeout_ms=2500,
                 operation_id="createCheckout",
                 rule_ids=("global_latency",),
-                stdout="HTTP 200\n\n{\"ok\":true}\n",
+                stdout='HTTP 200\n\n{"ok":true}\n',
                 stderr="",
                 response_status_code=200,
                 response_headers=(("content-type", "application/json"),),
@@ -117,6 +118,13 @@ def test_run_report_v1_schema_contract_is_versioned_and_stable() -> None:
                         expires="2026-06-30",
                         reason="Temporary upstream latency regression.",
                     ),
+                ),
+                safety=RunSafetyEvidence(
+                    protected_environment=True,
+                    safety="idempotent",
+                    safety_source="test metadata",
+                    methods=("POST",),
+                    blocked_reason=None,
                 ),
                 retry=RunRetryEvidence(
                     retry_count=1,
@@ -162,7 +170,7 @@ def test_run_report_v1_schema_contract_is_versioned_and_stable() -> None:
                 "timeout_ms": 2500,
                 "operation_id": "createCheckout",
                 "rule_ids": ["global_latency"],
-                "stdout": "HTTP 200\n\n{\"ok\":true}\n",
+                "stdout": 'HTTP 200\n\n{"ok":true}\n',
                 "stderr": "",
                 "known_failures": [
                     {
@@ -173,6 +181,13 @@ def test_run_report_v1_schema_contract_is_versioned_and_stable() -> None:
                         "reason": "Temporary upstream latency regression.",
                     }
                 ],
+                "safety": {
+                    "protected_environment": True,
+                    "safety": "idempotent",
+                    "safety_source": "test metadata",
+                    "methods": ["POST"],
+                    "blocked_reason": None,
+                },
                 "retry": {
                     "retry_count": 1,
                     "unstable": True,
@@ -269,9 +284,7 @@ def test_run_plan_v1_schema_contract_is_versioned_and_stable() -> None:
         effective_rule_ids=("global_latency",),
         injected_rule_ids=("global_latency",),
         provided_variable_count=0,
-        missing_variables=(
-            RunPlanVariableGap(name="base_url", paths=("tests/health.hurl",)),
-        ),
+        missing_variables=(RunPlanVariableGap(name="base_url", paths=("tests/health.hurl",)),),
         tests=(
             RunPlanTest(
                 path="tests/health.hurl",
@@ -279,6 +292,15 @@ def test_run_plan_v1_schema_contract_is_versioned_and_stable() -> None:
                 operation_id="health",
                 injected_rule_ids=("global_latency",),
                 missing_variables=("base_url",),
+                safety=RunSafetyEvidence(
+                    protected_environment=True,
+                    safety=None,
+                    safety_source=None,
+                    methods=("PATCH",),
+                    blocked_reason=(
+                        "mutating method PATCH requires safety metadata in protected environments"
+                    ),
+                ),
             ),
         ),
     )
@@ -332,6 +354,15 @@ def test_run_plan_v1_schema_contract_is_versioned_and_stable() -> None:
                 "operation_id": "health",
                 "injected_rule_ids": ["global_latency"],
                 "missing_variables": ["base_url"],
+                "safety": {
+                    "protected_environment": True,
+                    "safety": None,
+                    "safety_source": None,
+                    "methods": ["PATCH"],
+                    "blocked_reason": (
+                        "mutating method PATCH requires safety metadata in protected environments"
+                    ),
+                },
             }
         ],
     }
@@ -495,13 +526,10 @@ def test_agent_review_bundle_v1_schema_declares_versioned_value_free_fields() ->
 
 
 def test_traffic_artifact_approval_v1_schema_declares_value_free_fields() -> None:
-    schema = json.loads(
-        (SCHEMA_DIR / "traffic-artifact-approval.v1.schema.json").read_text()
-    )
+    schema = json.loads((SCHEMA_DIR / "traffic-artifact-approval.v1.schema.json").read_text())
 
     assert (
-        schema["properties"]["schema_version"]["const"]
-        == TRAFFIC_ARTIFACT_APPROVAL_SCHEMA_VERSION
+        schema["properties"]["schema_version"]["const"] == TRAFFIC_ARTIFACT_APPROVAL_SCHEMA_VERSION
     )
     assert "record_fingerprints" in schema["properties"]["source"]["properties"]
     assert "sha256" in schema["properties"]["artifacts"]["items"]["properties"]
@@ -814,9 +842,7 @@ def test_gate_coverage_report_v1_schema_contract_is_versioned_and_stable() -> No
                         path="tests/health.hurl",
                         tags=("smoke",),
                         operation_id="getHealth",
-                        exchanges=(
-                            GateCoverageExchangeReport(method="GET", path="/health"),
-                        ),
+                        exchanges=(GateCoverageExchangeReport(method="GET", path="/health"),),
                     ),
                 ),
             ),
@@ -986,9 +1012,7 @@ def test_effective_policy_diff_v1_schema_contract_is_versioned_and_stable() -> N
         )
     )
 
-    assert schema["properties"]["schema_version"]["const"] == (
-        EFFECTIVE_POLICY_DIFF_SCHEMA_VERSION
-    )
+    assert schema["properties"]["schema_version"]["const"] == (EFFECTIVE_POLICY_DIFF_SCHEMA_VERSION)
     assert payload["schema_version"] == "entroping.effective-policy-diff.v1"
     assert payload["status"] == "changed"
     assert payload["summary"] == {
@@ -1067,18 +1091,12 @@ def test_openapi_audit_v1_schema_contract_is_versioned_and_stable() -> None:
             HurlTest(
                 path=Path("tests/generated/get_health.hurl"),
                 metadata=HurlMetadata(meta={"source": "openapi", "operation_id": "getHealth"}),
-                exchanges=(
-                    HurlExchange(method="GET", url="{{base_url}}/health", path="/health"),
-                ),
+                exchanges=(HurlExchange(method="GET", url="{{base_url}}/health", path="/health"),),
             ),
             HurlTest(
                 path=Path("tests/generated/stale_checkout.hurl"),
-                metadata=HurlMetadata(
-                    meta={"source": "openapi", "operation_id": "staleCheckout"}
-                ),
-                exchanges=(
-                    HurlExchange(method="GET", url="{{base_url}}/stale", path="/stale"),
-                ),
+                metadata=HurlMetadata(meta={"source": "openapi", "operation_id": "staleCheckout"}),
+                exchanges=(HurlExchange(method="GET", url="{{base_url}}/stale", path="/stale"),),
             ),
         ],
     )
@@ -1118,9 +1136,7 @@ def test_openapi_audit_v1_schema_contract_is_versioned_and_stable() -> None:
                 "operation_id": "createCheckout",
                 "method": "POST",
                 "path": "/checkout",
-                "message": (
-                    "OpenAPI operation 'createCheckout' has no committed Hurl coverage."
-                ),
+                "message": ("OpenAPI operation 'createCheckout' has no committed Hurl coverage."),
             }
         ],
         "stale_references": [
@@ -1136,32 +1152,20 @@ def test_openapi_audit_v1_schema_contract_is_versioned_and_stable() -> None:
 def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
     versions = {
         "entroping.run-report.v1": SCHEMA_DIR / "run-report.v1.schema.json",
-        "entroping.run-delta-report.v1": (
-            SCHEMA_DIR / "run-delta-report.v1.schema.json"
-        ),
+        "entroping.run-delta-report.v1": (SCHEMA_DIR / "run-delta-report.v1.schema.json"),
         "entroping.drift-report.v1": SCHEMA_DIR / "drift-report.v1.schema.json",
-        "entroping.traceability-report.v1": (
-            SCHEMA_DIR / "traceability-report.v1.schema.json"
-        ),
+        "entroping.traceability-report.v1": (SCHEMA_DIR / "traceability-report.v1.schema.json"),
         "entroping.effective-policy-report.v1": (
             SCHEMA_DIR / "effective-policy-report.v1.schema.json"
         ),
-        "entroping.effective-policy-diff.v1": (
-            SCHEMA_DIR / "effective-policy-diff.v1.schema.json"
-        ),
+        "entroping.effective-policy-diff.v1": (SCHEMA_DIR / "effective-policy-diff.v1.schema.json"),
         "entroping.capture-summary.v1": SCHEMA_DIR / "capture-summary.v1.schema.json",
-        "entroping.gate-injection-report.v1": (
-            SCHEMA_DIR / "gate-injection-report.v1.schema.json"
-        ),
-        "entroping.gate-coverage-report.v1": (
-            SCHEMA_DIR / "gate-coverage-report.v1.schema.json"
-        ),
+        "entroping.gate-injection-report.v1": (SCHEMA_DIR / "gate-injection-report.v1.schema.json"),
+        "entroping.gate-coverage-report.v1": (SCHEMA_DIR / "gate-coverage-report.v1.schema.json"),
         "entroping.report-artifact-manifest.v1": (
             SCHEMA_DIR / "report-artifact-manifest.v1.schema.json"
         ),
-        "entroping.agent-review-bundle.v1": (
-            SCHEMA_DIR / "agent-review-bundle.v1.schema.json"
-        ),
+        "entroping.agent-review-bundle.v1": (SCHEMA_DIR / "agent-review-bundle.v1.schema.json"),
         "entroping.traffic-artifact-approval.v1": (
             SCHEMA_DIR / "traffic-artifact-approval.v1.schema.json"
         ),

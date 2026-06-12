@@ -260,14 +260,32 @@ After deployment, the platform team wants a tiny safe suite to validate critical
 
 ### Entroping Workflow
 
+Create a reviewed suite manifest:
+
+```yaml
+version: entroping.suite.v1
+name: prod-smoke
+env: prod-smoke
+protected: true
+safety: read-only
+tags:
+  - smoke
+reports:
+  - junit
+```
+
+Then run it in CI mode:
+
 ```bash
-entroping run --env prod-smoke --tag smoke --ci --report junit
+entroping run --suite prod-smoke --ci
 ```
 
 ### Expected Artifacts
 
 - JUnit report.
 - Failure with rule ID if a smoke gate breaks.
+- Blocked report evidence if a selected mutating test lacks reviewed safety
+  metadata or is marked `destructive`.
 
 ### Value
 

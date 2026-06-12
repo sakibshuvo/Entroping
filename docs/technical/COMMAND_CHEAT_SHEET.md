@@ -262,10 +262,14 @@ entroping run --env staging --drift-check --report drift
 
 `--suite <name>` reads `suites/<name>.yaml` with schema version
 `entroping.suite.v1`. Suite manifests can define `env`, `tags`, `paths`,
-`reports`, `parallel`, `fail_fast`, and `drift_check`. Suite paths are root-bounded local
-globs. `--suite` cannot be combined with ad hoc run selectors such as `--env`,
-`--tag`, `--tag-expression`, `--operation-id`, `--report`, `--parallel`, `--fail-fast`, `--drift-check`, `--changed-from`, or
-`--rerun-failures`; keep `--ci` for strict exit behavior. `--tag-expression`
+`reports`, `parallel`, `fail_fast`, `drift_check`, `protected`, and `safety`.
+Suite paths are root-bounded local globs. `protected: true` forces the
+protected-environment safety preflight, and `safety` can default selected tests
+to `read-only`, `idempotent`, `teardown-backed`, or `destructive`. `--suite`
+cannot be combined with ad hoc run selectors such as `--env`, `--tag`,
+`--tag-expression`, `--operation-id`, `--report`, `--parallel`, `--fail-fast`,
+`--drift-check`, `--changed-from`, or `--rerun-failures`; keep `--ci` for
+strict exit behavior. `--tag-expression`
 supports `and`, `or`, `not`, and parentheses over Entroping metadata tags. It
 cannot be combined with repeatable `--tag`; use `--tag` for simple OR selection
 and `--tag-expression` for ad hoc boolean selection.

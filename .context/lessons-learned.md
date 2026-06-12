@@ -2,6 +2,11 @@
 
 ## 2026-06-11
 
+- Protected production-style runs need a deterministic preflight before Hurl,
+  not a post-run warning. Keep environment names value-free in reports, require
+  explicit safety intent for mutating methods, and let test-level destructive
+  metadata override suite defaults so CI cannot accidentally bless teardown-free
+  state changes.
 - QAnstitution policy shape versioning is separate from package release
   versioning. Keep `version: "4.1"` as the supported explicit marker, allow
   omitted markers only for legacy files that match the current shape, and fail

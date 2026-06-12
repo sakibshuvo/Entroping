@@ -2,6 +2,12 @@
 
 ## 2026-06-11
 
+- Added issue #596's production safe-mode preflight so protected environments
+  default to `prod`, `production`, and `protected`, suite manifests can declare
+  `protected` plus safety intent, mutating Hurl methods block before subprocess
+  execution unless marked `read-only`, `idempotent`, or `teardown-backed`, and
+  JSON/JUnit/HTML/dry-run evidence explains blocked tests without leaking
+  environment values.
 - Accepted issue #595's Docker CI image boundary: GHCR image work is deferred
   until package-index proof, must include pinned Entroping/Hurl/hurlfmt,
   non-root runtime, OCI labels, digest-pinnable tags, rollback and smoke-check
