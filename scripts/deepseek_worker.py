@@ -330,11 +330,14 @@ def _validate_files(repo_root: Path, raw_files: tuple[Path, ...]) -> tuple[Path,
         path = raw_file.expanduser()
         if not path.is_absolute():
             path = repo_root / path
+        if path.is_symlink():
+            msg = f"input path must be a regular non-symlink file: {raw_file}"
+            raise DirectWorkerInputError(msg)
         resolved = path.resolve()
         if not resolved.exists():
             msg = f"input file does not exist: {raw_file}"
             raise DirectWorkerInputError(msg)
-        if not resolved.is_file() or resolved.is_symlink():
+        if not resolved.is_file():
             msg = f"input path must be a regular non-symlink file: {raw_file}"
             raise DirectWorkerInputError(msg)
         try:

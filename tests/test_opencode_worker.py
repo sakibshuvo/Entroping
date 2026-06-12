@@ -122,7 +122,11 @@ def test_opencode_worker_dry_run_writes_prompt_and_metadata(tmp_path: Path) -> N
     assert metadata["model"] == "deepseek/deepseek-v4-pro"
     prompt = (artifact_dir / "prompt.md").read_text(encoding="utf-8")
     assert "Codex remains the integrator" in prompt
-    assert str(target_file.resolve()) in prompt
+    assert "OpenCode receives preflight-vetted snapshots" in prompt
+    assert "Allowed Snapshot Files" in prompt
+    assert "Original Repo-Relative File Provenance" not in prompt
+    assert "README.md" in prompt
+    assert str(target_file.resolve()) not in prompt
     assert not (artifact_dir / "stdout.txt").exists()
 
 
@@ -346,6 +350,68 @@ def test_opencode_worker_nonzero_subprocess_exits_failed_and_writes_artifacts(
     assert target_file.read_text(encoding="utf-8") == original_content
 
 
+def test_opencode_worker_attaches_preflight_snapshot_to_subprocess(
+    tmp_path: Path,
+) -> None:
+    repo = make_worker_repo(tmp_path)
+    selected_file = repo / "notes.md"
+    selected_file.write_text("vetted snapshot content\n", encoding="utf-8")
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_opencode = write_fake_opencode(
+        fake_bin,
+        body=(
+            "#!/usr/bin/env bash\n"
+            "set -euo pipefail\n"
+            "attached=''\n"
+            "previous=''\n"
+            "for arg in \"$@\"; do\n"
+            "  if [[ \"$previous\" == '--file' ]]; then attached=\"$arg\"; fi\n"
+            "  previous=\"$arg\"\n"
+            "done\n"
+            "if [[ -z \"$attached\" ]]; then\n"
+            "  printf '%s\\n' 'missing attached snapshot' >&2\n"
+            "  exit 6\n"
+            "fi\n"
+            "printf '%s\\n' 'mutated live file content' > notes.md\n"
+            "printf '%s\\n' 'snapshot:'\n"
+            "cat \"$attached\"\n"
+            "printf '%s\\n' 'live:'\n"
+            "cat notes.md\n"
+        ),
+    )
+
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        "notes.md",
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--opencode-bin",
+        str(fake_opencode),
+        "--json",
+        cwd=repo,
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    artifact_dir = Path(str(payload["artifact_dir"]))
+    metadata = read_metadata(artifact_dir)
+    command = cast(list[str], metadata["command"])
+
+    assert "--file" in command
+    assert command[4].startswith("Review template")
+    assert command.index("--file") > 4
+    snapshot_path = Path(command[command.index("--file") + 1])
+    assert snapshot_path == artifact_dir / "selected-files" / "notes.md"
+    assert snapshot_path.read_text(encoding="utf-8") == "vetted snapshot content\n"
+    raw_output = (artifact_dir / "stdout.txt").read_text(encoding="utf-8")
+    assert "snapshot:\nvetted snapshot content\n" in raw_output
+    assert "live:\nmutated live file content\n" in raw_output
+    assert selected_file.read_text(encoding="utf-8") == "mutated live file content\n"
+
+
 def test_opencode_worker_timeout_is_inconclusive_and_bounded(tmp_path: Path) -> None:
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
@@ -426,6 +492,48 @@ def test_opencode_worker_rejects_file_outside_repo_before_model_call(tmp_path: P
 
     assert result.returncode == 2
     assert "input file must be inside repository" in result.stderr
+    assert not (tmp_path / "reviews").exists()
+
+
+def test_opencode_worker_rejects_symlink_before_subprocess(
+    tmp_path: Path,
+) -> None:
+    repo = make_worker_repo(tmp_path)
+    target_file = repo / "target.md"
+    target_file.write_text("safe content\n", encoding="utf-8")
+    symlink_file = repo / "linked.md"
+    try:
+        symlink_file.symlink_to(target_file)
+    except OSError as exc:
+        pytest.skip(f"symlinks unavailable: {exc}")
+    marker = tmp_path / "opencode-invoked"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_opencode = write_fake_opencode(
+        fake_bin,
+        body=(
+            "#!/usr/bin/env bash\n"
+            "set -euo pipefail\n"
+            f"printf invoked > '{marker}'\n"
+            "exit 99\n"
+        ),
+    )
+
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        "linked.md",
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--opencode-bin",
+        str(fake_opencode),
+        cwd=repo,
+    )
+
+    assert result.returncode == 2
+    assert "input path must be a regular non-symlink file" in result.stderr
+    assert not marker.exists()
     assert not (tmp_path / "reviews").exists()
 
 
