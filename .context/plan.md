@@ -38,6 +38,12 @@ project, and a Codex workspace with fast context rehydration.
   `tests/generated/security/` for operations with supported HTTP bearer/basic
   or API-key header/query/cookie schemes and explicit `401`/`403` responses;
   unsupported schemes are warnings rather than guessed tests.
+- Deterministic OpenAPI generation also emits bounded JSON negative-path Hurl
+  tests under `tests/generated/negative/` only when operations declare explicit
+  `400` or `422` validation responses. The generated corpus stays committed
+  and reviewable, carries category/severity/safety metadata, surfaces those
+  fields in run reports, and marks mutating negative tests `destructive` so
+  protected runs fail closed before Hurl.
 - HTML run reports escape header fields, summary text, rule IDs,
   known-failure summaries, and captured Hurl output before rendering.
 - Common filesystem symlink component traversal is centralized in

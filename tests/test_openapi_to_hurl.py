@@ -1,5 +1,7 @@
 """Unit tests for deterministic OpenAPI-to-Hurl compilation."""
 
+from pathlib import Path
+
 import pytest
 
 from entroping.bridge import openapi_to_hurl as openapi_compiler
@@ -8,6 +10,8 @@ from entroping.bridge.openapi_to_hurl import (
     compile_openapi_to_hurl,
     compile_openapi_to_hurl_with_report,
 )
+from entroping.core.run_safety import evaluate_run_safety
+from entroping.models.hurl import HurlTest, parse_hurl_exchanges, parse_hurl_metadata
 
 
 def _compile_single_operation(
@@ -215,8 +219,11 @@ def test_compile_openapi_generates_security_negative_tests_for_supported_schemes
         "tests/generated/security/get_account_invalid_api_key_cookie.hurl",
     ]
     joined = "\n---\n".join(item.content for item in result.files)
-    assert "# entroping: tags=auth,generated,negative,security" in joined
+    assert "# entroping: tags=auth,generated,invalid-auth,negative,security" in joined
     assert "# entroping: operation_id=getAccount" in joined
+    assert "# entroping: negative_category=invalid-auth" in joined
+    assert "# entroping: severity=high" in joined
+    assert "# entroping: safety=read-only" in joined
     assert "# entroping: security=missing_auth" in joined
     assert "# entroping: security=invalid_auth" in joined
     assert "# entroping: security_scheme=bearerAuth" in joined
@@ -227,6 +234,321 @@ def test_compile_openapi_generates_security_negative_tests_for_supported_schemes
     assert "?access_key=invalid-api-key" in joined
     assert "Cookie: session_id=invalid-session" in joined
     assert "HTTP 401" in joined
+
+
+def test_compile_openapi_generates_bounded_negative_path_corpus_with_safety_metadata() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/accounts/{account_id}/checkouts": {
+                "post": {
+                    "operationId": "createAccountCheckout",
+                    "parameters": [
+                        {
+                            "name": "account_id",
+                            "in": "path",
+                            "example": "acct-001",
+                            "schema": {"type": "string"},
+                        },
+                    ],
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["email", "quantity"],
+                                    "properties": {
+                                        "email": {
+                                            "type": "string",
+                                            "minLength": 3,
+                                        },
+                                        "quantity": {
+                                            "type": "integer",
+                                            "minimum": 1,
+                                            "maximum": 5,
+                                        },
+                                        "coupon": {"type": "string"},
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "responses": {
+                        "201": {"description": "created"},
+                        "400": {"description": "validation failed"},
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset({"checkout"}))
+
+    assert [item.relative_path for item in result.files] == [
+        "tests/generated/create_account_checkout.hurl",
+        "tests/generated/negative/create_account_checkout_malformed_json.hurl",
+        "tests/generated/negative/create_account_checkout_schema_violations.hurl",
+        "tests/generated/negative/create_account_checkout_boundary_values.hurl",
+        "tests/generated/negative/create_account_checkout_sqli_like_strings.hurl",
+        "tests/generated/negative/create_account_checkout_idor_path_variants.hurl",
+    ]
+    negative_files = result.files[1:]
+    joined = "\n---\n".join(item.content for item in negative_files)
+    for category in (
+        "malformed-json",
+        "schema-violations",
+        "boundary-values",
+        "sqli-like-strings",
+        "idor-path-variants",
+    ):
+        assert f"# entroping: negative_category={category}" in joined
+        matching = [
+            item
+            for item in negative_files
+            if f"# entroping: negative_category={category}" in item.content
+        ]
+        assert len(matching) == 1
+        assert parse_hurl_metadata(matching[0].content).tags >= frozenset(
+            {"checkout", "generated", "negative", category}
+        )
+
+    assert "# entroping: severity=medium" in joined
+    assert "# entroping: severity=high" in joined
+    assert "# entroping: safety=destructive" in joined
+    assert "HTTP 400" in joined
+    assert '"email": "xx"' in joined
+    assert '"quantity": 0' in joined
+    assert "\"coupon\": \"' OR '1'='1\"" in joined
+    assert "POST {{base_url}}/accounts/acct-other/checkouts" in joined
+
+    generated_tests = [
+        HurlTest(
+            path=Path(item.relative_path),
+            metadata=parse_hurl_metadata(item.content, source=Path(item.relative_path)),
+            exchanges=parse_hurl_exchanges(item.content),
+        )
+        for item in negative_files
+    ]
+    safety = evaluate_run_safety(
+        generated_tests,
+        environment="prod",
+        protected_run=False,
+        suite_safety=None,
+        protected_environments=("prod",),
+    )
+    assert len(safety.blocks) == len(negative_files)
+    assert {block.evidence.blocked_reason for block in safety.blocks} == {
+        "destructive tests are blocked in protected environments"
+    }
+
+
+def test_compile_openapi_rejects_duplicate_schema_negative_generated_paths(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def duplicate_schema_negative_file(**_: object) -> tuple[openapi_compiler.GeneratedHurlFile]:
+        return (
+            openapi_compiler.GeneratedHurlFile(
+                relative_path="tests/generated/get_health.hurl",
+                content="GET {{base_url}}/duplicate\nHTTP 400\n",
+            ),
+        )
+
+    monkeypatch.setattr(openapi_compiler, "_schema_negative_files", duplicate_schema_negative_file)
+
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {"/health": {"get": _ok_operation("getHealth")}},
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="duplicate Hurl path"):
+        compile_openapi_to_hurl_with_report(document, tags=frozenset())
+
+
+def test_compile_openapi_generates_only_malformed_negative_for_non_object_schema() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/bulk": {
+                "post": {
+                    "operationId": "createBulk",
+                    "requestBody": {
+                        "content": {
+                            "application/json": {
+                                "schema": {"type": "array", "items": {"type": "string"}},
+                            },
+                        },
+                    },
+                    "responses": {
+                        "202": {"description": "accepted"},
+                        "422": {"description": "validation failed"},
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset())
+
+    assert [item.relative_path for item in result.files] == [
+        "tests/generated/create_bulk.hurl",
+        "tests/generated/negative/create_bulk_malformed_json.hurl",
+    ]
+    negative_content = result.files[1].content
+    assert "# entroping: negative_category=malformed-json" in negative_content
+    assert '`{"entroping_malformed":`' in negative_content
+    assert "HTTP 422" in negative_content
+
+
+def test_compile_openapi_skips_inapplicable_object_negative_cases_without_guessing() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/payload": {
+                "post": {
+                    "operationId": "createPayload",
+                    "requestBody": {
+                        "content": {
+                            "application/json": {
+                                "schema": {"type": "object", "example": "unexpected"},
+                            },
+                        },
+                    },
+                    "responses": {
+                        "201": {"description": "created"},
+                        "400": {"description": "validation failed"},
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset())
+
+    assert [item.relative_path for item in result.files] == [
+        "tests/generated/create_payload.hurl",
+        "tests/generated/negative/create_payload_malformed_json.hurl",
+    ]
+    assert "# entroping: negative_category=schema-violations" not in result.files[1].content
+    assert "# entroping: negative_category=boundary-values" not in result.files[1].content
+    assert "# entroping: negative_category=sqli-like-strings" not in result.files[1].content
+    assert '"unexpected"' in result.files[0].content
+
+
+def test_compile_openapi_negative_boundaries_use_maximum_constraints() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/limits": {
+                "post": {
+                    "operationId": "createLimit",
+                    "requestBody": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["code", "level"],
+                                    "properties": {
+                                        "code": {"type": "string", "maxLength": 2},
+                                        "level": {"type": "integer", "maximum": 10},
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "responses": {
+                        "201": {"description": "created"},
+                        "400": {"description": "validation failed"},
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset())
+    boundary = next(
+        item
+        for item in result.files
+        if item.relative_path == "tests/generated/negative/create_limit_boundary_values.hurl"
+    )
+
+    assert '"code": "xx"' in result.files[0].content
+    assert '"level": 10' in result.files[0].content
+    assert '"code": "xxx"' in boundary.content
+    assert '"level": 11' in boundary.content
+
+
+def test_compile_openapi_idor_variants_preserve_scalar_path_types() -> None:
+    missing_example = object()
+
+    def idor_operation(
+        operation_id: str,
+        parameter_schema: dict[str, object],
+        *,
+        example: object = missing_example,
+    ) -> dict[str, object]:
+        parameter: dict[str, object] = {
+            "name": "value",
+            "in": "path",
+            "schema": parameter_schema,
+        }
+        if example is not missing_example:
+            parameter["example"] = example
+        return {
+            "operationId": operation_id,
+            "parameters": [parameter],
+            "requestBody": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "required": ["name"],
+                            "properties": {"name": {"type": "string"}},
+                        },
+                    },
+                },
+            },
+            "responses": {
+                "201": {"description": "created"},
+                "400": {"description": "validation failed"},
+            },
+        }
+
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/flags/{value}": {
+                "post": idor_operation("createFlag", {"type": "boolean"}, example=True)
+            },
+            "/counters/{value}": {
+                "post": idor_operation("createCounter", {"type": "integer"}, example=42)
+            },
+            "/ratios/{value}": {
+                "post": idor_operation("createRatio", {"type": "number"}, example=1.5)
+            },
+            "/slugs/{value}": {
+                "post": idor_operation("createSlug", {"type": "string"}, example="customer")
+            },
+            "/fallback/{value}": {
+                "post": idor_operation("createFallback", {"type": "string"})
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset())
+    idor_contents = [
+        item.content
+        for item in result.files
+        if item.relative_path.endswith("_idor_path_variants.hurl")
+    ]
+
+    assert len(idor_contents) == 5
+    joined = "\n---\n".join(idor_contents)
+    assert "POST {{base_url}}/flags/false" in joined
+    assert "POST {{base_url}}/counters/43" in joined
+    assert "POST {{base_url}}/ratios/2.5" in joined
+    assert "POST {{base_url}}/slugs/customer-other" in joined
+    assert "POST {{base_url}}/fallback/entroping-other" in joined
 
 
 def test_compile_openapi_reports_security_gaps_without_guessing() -> None:

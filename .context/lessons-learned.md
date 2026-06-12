@@ -2,6 +2,12 @@
 
 ## 2026-06-11
 
+- Negative-path fuzzing belongs in committed Hurl, not hidden runtime behavior.
+  Generate only bounded, deterministic cases from reviewed inputs, require
+  explicit failure responses before asserting expected status codes, tag and
+  annotate categories for suite/QAnstitution selection, and mark mutating
+  generated negatives as `destructive` so protected environments block before
+  Hurl execution.
 - Protected production-style runs need a deterministic preflight before Hurl,
   not a post-run warning. Keep environment names value-free in reports, require
   explicit safety intent for mutating methods, and let test-level destructive

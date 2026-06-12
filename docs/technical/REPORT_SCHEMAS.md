@@ -322,6 +322,11 @@ Writers include it in JSON, JUnit properties, and HTML output; loaders ignore
 missing, empty, or control-character values from older or malformed local
 reports.
 
+Generated negative tests can also expose optional `source`, `negative_category`,
+and `severity` fields from safe Hurl metadata. This lets JSON, JUnit, and HTML
+reports distinguish committed OpenAPI negative-path tests from spec-derived
+happy-path tests without serializing arbitrary metadata or raw request values.
+
 ## Producer Rules
 
 - Writers must include `schema_version` on versioned JSON report payloads.

@@ -67,6 +67,33 @@ def render_junit_report(report: RunReport) -> bytes:
                         "value": test.operation_id,
                     },
                 )
+            if test.source is not None:
+                ElementTree.SubElement(
+                    properties,
+                    "property",
+                    {
+                        "name": "entroping.source",
+                        "value": test.source,
+                    },
+                )
+            if test.negative_category is not None:
+                ElementTree.SubElement(
+                    properties,
+                    "property",
+                    {
+                        "name": "entroping.negative_category",
+                        "value": test.negative_category,
+                    },
+                )
+            if test.severity is not None:
+                ElementTree.SubElement(
+                    properties,
+                    "property",
+                    {
+                        "name": "entroping.severity",
+                        "value": test.severity,
+                    },
+                )
             for known_failure in test.known_failures:
                 ElementTree.SubElement(
                     properties,
@@ -252,6 +279,9 @@ def _html_output(test: RunTestReport) -> str:
         parts.append(f"<strong>Known failures</strong><ul>{items}</ul>")
     if test.safety is not None:
         parts.append(f"<strong>Safety</strong><p>{escape(_safety_summary(test))}</p>")
+    metadata_summary = _metadata_summary(test)
+    if metadata_summary != "none":
+        parts.append(f"<strong>Metadata</strong><p>{escape(metadata_summary)}</p>")
     if test.retry.retry_count > 0 or test.retry.unstable:
         items = "".join(_html_attempt_item(attempt) for attempt in test.retry.attempts)
         parts.append(
@@ -283,6 +313,9 @@ def _failure_text(test: RunTestReport) -> str:
         f"exit_code: {test.exit_code}",
         f"timeout_ms: {test.timeout_ms}",
         f"operation_id: {test.operation_id or 'none'}",
+        f"source: {test.source or 'none'}",
+        f"negative_category: {test.negative_category or 'none'}",
+        f"severity: {test.severity or 'none'}",
         f"rule_ids: {', '.join(test.rule_ids) if test.rule_ids else 'none'}",
     ]
     if test.safety is not None:
@@ -324,6 +357,9 @@ def _has_test_properties(test: RunTestReport) -> bool:
     return (
         test.timeout_ms > 0
         or test.operation_id is not None
+        or test.source is not None
+        or test.negative_category is not None
+        or test.severity is not None
         or bool(test.known_failures)
         or test.safety is not None
         or test.retry.retry_count > 0
@@ -353,3 +389,13 @@ def _safety_summary(test: RunTestReport) -> str:
         f"protected_environment={protected}; safety={safety}; source={source}; "
         f"methods={methods}; reason={blocked}"
     )
+
+
+def _metadata_summary(test: RunTestReport) -> str:
+    values = {
+        "source": test.source,
+        "negative_category": test.negative_category,
+        "severity": test.severity,
+    }
+    present = [f"{key}={value}" for key, value in values.items() if value is not None]
+    return "; ".join(present) if present else "none"

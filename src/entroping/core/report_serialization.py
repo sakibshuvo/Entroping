@@ -41,6 +41,9 @@ def load_run_report(path: Path) -> RunReport:
             stderr=item["stderr"],
             timeout_ms=_serialized_timeout_ms(item.get("timeout_ms")),
             operation_id=_serialized_operation_id(item.get("operation_id")),
+            source=_serialized_metadata_value(item.get("source")),
+            negative_category=_serialized_metadata_value(item.get("negative_category")),
+            severity=_serialized_metadata_value(item.get("severity")),
             response_status_code=_serialized_response_status(item.get("response")),
             response_headers=_serialized_response_headers(item.get("response")),
             response_body_shape=_serialized_response_body_shape(item.get("response")),
@@ -120,6 +123,12 @@ def _test_report_to_dict(test: RunTestReport) -> dict[str, object]:
     response = _response_to_dict(test)
     if test.operation_id is not None:
         payload["operation_id"] = test.operation_id
+    if test.source is not None:
+        payload["source"] = test.source
+    if test.negative_category is not None:
+        payload["negative_category"] = test.negative_category
+    if test.severity is not None:
+        payload["severity"] = test.severity
     if response is not None:
         payload["response"] = response
     if test.known_failures:
@@ -283,6 +292,10 @@ def _serialized_non_negative_int(value: object, *, default: int | None = None) -
 
 
 def _serialized_operation_id(value: object) -> str | None:
+    return _serialized_metadata_value(value)
+
+
+def _serialized_metadata_value(value: object) -> str | None:
     if not isinstance(value, str):
         return None
     stripped = value.strip()

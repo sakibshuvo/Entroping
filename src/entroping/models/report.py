@@ -77,6 +77,9 @@ class RunTestReport:
     stderr: str
     timeout_ms: int = 0
     operation_id: str | None = None
+    source: str | None = None
+    negative_category: str | None = None
+    severity: str | None = None
     response_status_code: int | None = None
     response_headers: tuple[tuple[str, str], ...] = ()
     response_body_shape: tuple[str, ...] = ()

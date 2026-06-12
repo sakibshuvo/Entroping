@@ -114,7 +114,14 @@ For OpenAPI operations with security requirements and an explicit `401` or
 `403` response, `architect build --new` also emits auth-negative tests under
 `tests/generated/security/` for supported HTTP bearer/basic and API-key
 header/query/cookie schemes. Unsupported security schemes are warning findings,
-not guessed tests.
+not guessed tests. Auth-negative files carry `negative_category=invalid-auth`,
+`severity`, and safety metadata too.
+For JSON request bodies with explicit `400` or `422` responses, it also emits
+bounded negative-path Hurl under `tests/generated/negative/` for malformed JSON,
+schema violations, boundary values, SQLi-like strings, and IDOR-style path
+variants. These files are committed/reviewable Hurl with `negative_category`,
+`severity`, category tags, and safety metadata; mutating generated negatives are
+`safety=destructive` and protected runs block them before Hurl execution.
 
 | Command | Purpose |
 | --- | --- |
