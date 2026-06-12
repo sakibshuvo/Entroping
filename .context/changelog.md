@@ -8,6 +8,9 @@
   execution unless marked `read-only`, `idempotent`, or `teardown-backed`, and
   JSON/JUnit/HTML/dry-run evidence explains blocked tests without leaking
   environment values.
+- Fixed issue #627's protected-block report accounting so mixed safe/unsafe
+  protected selections preserve selected, executed, and not-scheduled evidence
+  when the preflight stops before Hurl execution.
 - Accepted issue #595's Docker CI image boundary: GHCR image work is deferred
   until package-index proof, must include pinned Entroping/Hurl/hurlfmt,
   non-root runtime, OCI labels, digest-pinnable tags, rollback and smoke-check

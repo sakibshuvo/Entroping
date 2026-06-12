@@ -297,6 +297,7 @@ def execute_run_workflow(
                 suite = _blocked_suite_result(
                     execution_copies=execution_copies,
                     safety_evidence_by_source_path=safety.evidence_by_path,
+                    selected_count=selection.selected_count,
                     timeout_ms=law.settings.timeout,
                 )
                 run_report = build_run_report(
@@ -479,6 +480,7 @@ def _blocked_suite_result(
     *,
     execution_copies: Sequence[HurlExecutionCopy],
     safety_evidence_by_source_path: dict[Path, RunSafetyEvidence],
+    selected_count: int,
     timeout_ms: int,
 ) -> HurlSuiteResult:
     blocked_results: list[HurlFileResult] = []
@@ -512,7 +514,7 @@ def _blocked_suite_result(
                 ),
             )
         )
-    return HurlSuiteResult(results=tuple(blocked_results))
+    return HurlSuiteResult(results=tuple(blocked_results), selected_count=selected_count)
 
 
 def _blocked_execution_copies(
