@@ -32,6 +32,7 @@ def test_sensitive_selected_path_reason_rejects_credential_variants() -> None:
         "secret.env.prod",
         "secret.envrc",
         "secret.config",
+        "config/my-secret.config.yaml",
         "service-account.json",
     )
 
@@ -56,3 +57,38 @@ def test_sensitive_selected_path_reason_allows_ordinary_source_and_docs() -> Non
 
     for relative_path in allowed_paths:
         assert module.sensitive_selected_path_reason(relative_path) is None
+
+
+def test_secret_like_content_reason_rejects_secret_shapes() -> None:
+    module = _load_file_safety_module()
+
+    secret_content_by_label = (
+        ("private key block", "-----BEGIN PRIVATE KEY-----\nnot-real\n"),
+        (
+            "credential assignment",
+            "OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456\n"
+        ),
+        (
+            "credential assignment",
+            "PASSWORD=abc!def456ghi!klmno\n",
+        ),
+        ("bearer token", "Authorization: Bearer abcdefghijklmnopqrstuvwxyz123456\n"),
+    )
+
+    for label, content in secret_content_by_label:
+        assert module.secret_like_content_reason(content) == label
+
+
+def test_secret_like_content_reason_allows_non_secret_security_text() -> None:
+    module = _load_file_safety_module()
+
+    allowed_content = "\n".join(
+        [
+            "Document the bearer token flow without sample credentials.",
+            "TOKEN budget should stay under 4000.",
+            "PASSWORD must be configured outside source control.",
+            "The redaction test checks placeholder values only.",
+        ]
+    )
+
+    assert module.secret_like_content_reason(allowed_content) is None

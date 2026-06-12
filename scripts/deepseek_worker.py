@@ -19,7 +19,10 @@ from typing import Literal, cast
 from urllib import error, request
 from urllib.parse import urlparse
 
-from ai_worker_file_safety import sensitive_selected_path_reason
+from ai_worker_file_safety import (
+    secret_like_content_reason,
+    sensitive_selected_path_reason,
+)
 
 DEFAULT_MODEL = "deepseek-v4-pro"
 DEFAULT_BASE_URL = "https://api.deepseek.com"
@@ -33,23 +36,6 @@ Mode = Literal["review", "patch"]
 Status = Literal["completed", "dry-run", "failed", "inconclusive", "patch-proposed", "timed-out"]
 ThinkingMode = Literal["enabled", "disabled"]
 ReasoningEffort = Literal["high", "max"]
-SECRET_LIKE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    (
-        "private key block",
-        re.compile(r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----"),
-    ),
-    (
-        "credential assignment",
-        re.compile(
-            r"(?i)\b(?:[A-Z0-9_]*API[_-]?KEY|TOKEN|SECRET|PASSWORD)\b"
-            r"\s*[:=]\s*['\"]?[A-Za-z0-9][A-Za-z0-9._~+/\-=]{15,}"
-        ),
-    ),
-    (
-        "bearer token",
-        re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/\-=]{16,}"),
-    ),
-)
 
 
 @dataclass(frozen=True)
@@ -442,13 +428,13 @@ def _reject_sensitive_path(relative_path: str) -> None:
 
 
 def _reject_secret_like_content(relative_path: str, content: str) -> None:
-    for label, pattern in SECRET_LIKE_PATTERNS:
-        if pattern.search(content):
-            msg = (
-                "refusing to send selected file to DeepSeek: "
-                f"{relative_path} contains secret-like content ({label})"
-            )
-            raise DirectWorkerInputError(msg)
+    reason = secret_like_content_reason(content)
+    if reason is not None:
+        msg = (
+            "refusing to send selected file to DeepSeek: "
+            f"{relative_path} contains secret-like content ({reason})"
+        )
+        raise DirectWorkerInputError(msg)
 
 
 def _build_prompt(

@@ -1002,3 +1002,7 @@
   DeepSeek and OpenCode worker harnesses now reject sensitive credential-path
   variants such as `.env.backup`, `secret.env.prod`, and key/certificate backup
   names before provider review or subprocess execution can start.
+- Closed issue #663's remaining OpenCode worker gap by sharing DeepSeek's
+  secret-like content detection and rejecting selected files containing private
+  key blocks, credential assignments, or bearer-token-like text before OpenCode
+  subprocess execution.

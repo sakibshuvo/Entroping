@@ -421,3 +421,6 @@
   before any prompt, artifact, subprocess, or API request is created. Path
   preflight should catch backup/config variants, not only exact `.env` or key
   filenames.
+- When two provider-adjacent worker harnesses enforce the same secret-like
+  content boundary, keep the regex semantics in one shared helper so DeepSeek
+  direct calls and OpenCode subprocess routing cannot drift apart.
