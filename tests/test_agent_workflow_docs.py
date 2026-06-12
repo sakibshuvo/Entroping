@@ -1,5 +1,6 @@
 """Guardrails for agent workflow and growth documentation."""
 
+import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -69,6 +70,27 @@ def test_agent_control_plane_documents_direct_deepseek_worker_boundary() -> None
     assert "--thinking enabled --reasoning-effort high|max" in doc
     assert "does not replace Entroping's LiteLLM product boundary" in doc
     assert "never applies patches" in doc
+
+
+def test_deepseek_opencode_prompt_uses_supported_ai_job_commands() -> None:
+    prompt = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "deepseek-opencode-review.md"
+    ).read_text(encoding="utf-8")
+    ai_jobs_source = (REPO_ROOT / "scripts" / "ai_jobs.py").read_text(encoding="utf-8")
+    supported_commands = {"submit", "status", "run-next", "collect"}
+    actual_commands = set(
+        re.findall(r"subparsers\.add_parser\(\s*\"([a-z][a-z-]*)\"", ai_jobs_source)
+    )
+
+    assert supported_commands <= actual_commands
+
+    documented_commands = set(
+        re.findall(r"python scripts/ai_jobs\.py\s+([a-z][a-z-]*)", prompt)
+    )
+
+    assert "status" in documented_commands
+    assert "list" not in documented_commands
+    assert documented_commands <= supported_commands
 
 
 def test_public_repo_surface_classifies_ai_workers_as_maintainer_only() -> None:

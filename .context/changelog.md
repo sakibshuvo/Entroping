@@ -2,6 +2,10 @@
 
 ## 2026-06-12
 
+- Fixed issue #642's DeepSeek/OpenCode prompt-library drift so local AI worker
+  examples use the supported `scripts/ai_jobs.py status` command instead of a
+  stale `list` subcommand, with a docs guard preventing future unsupported
+  queue command examples.
 - Documented issue #638's context-factory rollout order: Obsidian discipline
   comes before generated wiki/Graphify layers, Understand Anything stays a
   human comprehension aid, CodeGraph remains scoped to `src/` and `tests/`,
