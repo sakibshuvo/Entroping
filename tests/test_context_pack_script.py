@@ -31,6 +31,8 @@ def test_context_pack_help_documents_modes() -> None:
 
     assert result.returncode == 0
     assert "--mode implementation|review|source|growth|handoff" in result.stdout
+    assert "--with-local-graphs" in result.stdout
+    assert "--graph-query" in result.stdout
     assert "NotebookLM" in result.stdout
     assert "Codex" in result.stdout
 
@@ -49,6 +51,26 @@ def test_context_pack_implementation_mode_includes_required_sources() -> None:
     assert "### docs/meta/AUTONOMOUS_DEVELOPMENT.md" not in result.stdout
     assert ".entroping/state.db" in result.stdout
     assert "graphify-out/" not in result.stdout
+    assert "agent-context-out/" not in result.stdout
+
+
+def test_context_pack_can_include_optional_graph_assisted_probe() -> None:
+    result = run_context_pack(
+        "--mode",
+        "implementation",
+        "--with-local-graphs",
+        "--graph-query",
+        "safe mode reports",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "## Optional Graph-Assisted Agent Context" in result.stdout
+    assert "schema: entroping.agent-context-probe.v1" in result.stdout
+    assert "Graphify: missing" in result.stdout
+    assert "CodeGraph: missing" in result.stdout
+    assert "Graph output is retrieval evidence, not authority." in result.stdout
+    assert "Verify every candidate against source files and tests" in result.stdout
+    assert "agent-context-out/" in result.stdout
 
 
 def test_autonomous_development_has_single_canonical_archive_entrypoint() -> None:

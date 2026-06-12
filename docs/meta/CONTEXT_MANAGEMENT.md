@@ -80,6 +80,19 @@ Use `implementation` for coding, `review` for critique, `source` for
 Gemini/NotebookLM reconciliation, `growth` for launch and monetization work, and
 `handoff` when a new Codex thread needs fast continuity.
 
+When local Graphify or CodeGraph output already exists, agents may opt into the
+optional graph-assisted agent context section:
+
+```bash
+scripts/context_pack.sh --mode implementation --with-local-graphs --graph-query "<issue title or symbol>"
+```
+
+This calls `scripts/agent_context_probe.py`, which reads local generated output
+only. It must skip cleanly when Graphify or CodeGraph output is absent, and
+Graphify/CodeGraph evidence is not authority. The section can suggest source
+files or tests to inspect, but it must not replace source reading, focused
+tests, or CI.
+
 `source` mode defaults to a sibling `../entroping-specs` archive. Override it
 when the source archive lives elsewhere:
 
@@ -143,6 +156,7 @@ findings can be reviewed without turning tool caches into project truth.
 | Understand Anything | `understand-anything-out/` |
 | CodeGraph | `codegraph-out/` |
 | Headroom | `headroom-out/` |
+| Agent context probe | `agent-context-out/` |
 
 Generated context outputs must remain ignored/local unless intentionally
 promoted into curated Markdown, an ADR, a GitHub issue, or `.context/` through
@@ -154,6 +168,30 @@ For normal onboarding, ordinary contributors must not be required to install
 Graphify, CodeGraph, Headroom, Obsidian plugins, LLM wiki tooling, or
 Understand Anything before they can build, test, review, or contribute to
 Entroping.
+
+## Agent Context Probe
+
+`scripts/agent_context_probe.py` is the bridge from generated graph output to
+agent prompts. It reads existing `graphify-out/` and `codegraph-out/` artifacts,
+matches them against issue terms or symbols, redacts obvious secret-like values,
+and emits a small text or JSON manifest with candidate file/test references.
+
+Use it directly when a worker prompt needs a compact manifest:
+
+```bash
+scripts/agent_context_probe.py --query "<issue title or symbol>" --format text
+scripts/agent_context_probe.py --query "<issue title or symbol>" --format json --output agent-context-out/probe.json
+```
+
+The probe never runs Graphify, CodeGraph, Hurl, provider calls, or product
+commands. It only summarizes local generated context that already exists.
+Generated probe output stays under `agent-context-out/`, remains ignored by Git,
+and is blocked by repo hygiene if accidentally tracked.
+
+Treat the manifest as a routing hint for agents: inspect the suggested files,
+run the focused tests, and escalate when the evidence points at Tier B/Tier C
+scope or sensitive boundaries. Do not use graph evidence to approve patches,
+lower autonomy tier, or skip deterministic gates.
 
 ## Obsidian Role
 

@@ -445,6 +445,7 @@ def test_context_tool_generated_outputs_stay_local_and_ignored() -> None:
         "`understand-anything-out/`",
         "`codegraph-out/`",
         "`headroom-out/`",
+        "`agent-context-out/`",
         (
             "Generated context outputs must remain ignored/local unless "
             "intentionally promoted into curated Markdown"
@@ -458,6 +459,35 @@ def test_context_tool_generated_outputs_stay_local_and_ignored() -> None:
             "CodeGraph, Headroom, Obsidian plugins, LLM wiki tooling, or "
             "Understand Anything"
         ),
+    ]
+
+    for term in required_terms:
+        assert term in combined
+
+
+def test_graph_assisted_agent_context_probe_is_optional_and_advisory() -> None:
+    control_plane = (
+        REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md"
+    ).read_text(encoding="utf-8")
+    context_management = (
+        REPO_ROOT / "docs" / "meta" / "CONTEXT_MANAGEMENT.md"
+    ).read_text(encoding="utf-8")
+    issue_worker = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "issue-worker.md"
+    ).read_text(encoding="utf-8")
+    combined = " ".join(
+        f"{control_plane}\n{context_management}\n{issue_worker}".split()
+    )
+
+    required_terms = [
+        "scripts/agent_context_probe.py",
+        "scripts/context_pack.sh --mode implementation --with-local-graphs",
+        "--graph-query",
+        "agent-context-out/",
+        "optional graph-assisted agent context",
+        "Graphify/CodeGraph evidence is not authority",
+        "must not replace source reading, focused tests, or CI",
+        "skip cleanly when Graphify or CodeGraph output is absent",
     ]
 
     for term in required_terms:

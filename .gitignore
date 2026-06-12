@@ -25,6 +25,7 @@ llm-wiki-out/
 understand-anything-out/
 codegraph-out/
 headroom-out/
+agent-context-out/
 .tmp.driveupload/
 
 # Secrets and local environment files

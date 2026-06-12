@@ -3,7 +3,7 @@ set -euo pipefail
 
 show_help() {
   cat <<'EOF'
-Usage: scripts/context_pack.sh [--mode implementation|review|source|growth|handoff]
+Usage: scripts/context_pack.sh [--mode implementation|review|source|growth|handoff] [--with-local-graphs] [--graph-query TEXT]
 
 Print a curated Entroping context pack for Codex, Claude Code, OpenCode,
 Gemini, NotebookLM, local Qwen, or another coding/review agent.
@@ -18,6 +18,14 @@ Modes:
 The pack is written to stdout. Redirect it to a temp file when needed:
 
   scripts/context_pack.sh --mode implementation > /tmp/entroping-context.md
+
+Opt into a local graph-assisted probe when Graphify/CodeGraph output already
+exists on the machine:
+
+  scripts/context_pack.sh --mode implementation --with-local-graphs --graph-query "issue title or symbol"
+
+The graph-assisted section is advisory only. It skips cleanly when local graph
+outputs are absent and must not replace source reading, focused tests, or CI.
 
 For source reconciliation, set ENTROPING_SOURCE_ROOT when the source archive is
 not a sibling directory named entroping-specs:
@@ -35,12 +43,23 @@ die() {
 }
 
 mode="implementation"
+with_local_graphs=false
+graph_queries=()
 
 while (($#)); do
   case "$1" in
     --mode)
       [[ $# -ge 2 ]] || die "--mode requires a value"
       mode="$2"
+      shift 2
+      ;;
+    --with-local-graphs)
+      with_local_graphs=true
+      shift
+      ;;
+    --graph-query)
+      [[ $# -ge 2 ]] || die "--graph-query requires a value"
+      graph_queries+=("$2")
       shift 2
       ;;
     -h|--help)
@@ -187,6 +206,19 @@ evidence through a GitHub issue, ADR, canonical product/technical doc, or
 context note before implementation.
 
 EOF
+fi
+
+if [[ "$with_local_graphs" == "true" ]]; then
+  graph_probe_args=("--repo-root" "$repo_root" "--format" "text")
+  if ((${#graph_queries[@]})); then
+    for graph_query in "${graph_queries[@]}"; do
+      graph_probe_args+=("--query" "$graph_query")
+    done
+  else
+    graph_probe_args+=("--query" "$mode")
+  fi
+  python3 scripts/agent_context_probe.py "${graph_probe_args[@]}"
+  printf '\n'
 fi
 
 printf '## Curated Files\n\n'

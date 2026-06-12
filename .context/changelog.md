@@ -2,6 +2,13 @@
 
 ## 2026-06-12
 
+- Added issue #650's optional graph-assisted agent context probe:
+  `scripts/agent_context_probe.py` reads existing local Graphify/CodeGraph
+  outputs, emits advisory text/JSON manifests with candidate file/test
+  evidence, redacts obvious secret-like values, writes only under ignored
+  `agent-context-out/`, and `scripts/context_pack.sh --with-local-graphs`
+  exposes it to Codex/OpenCode/DeepSeek without making graph tools required or
+  authoritative.
 - Documented issue #648's autonomous OpenCode shipping lanes: Tier A
   docs/tests/guard/script work can be implemented, PR'd, merged, and cleaned up
   by OpenCode/DeepSeek after issue-scoped worktrees, deterministic gates, PR
