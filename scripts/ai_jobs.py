@@ -222,7 +222,7 @@ def _submit_job(args: argparse.Namespace, repo_root: Path, job_root: Path) -> di
     queued_dir = _state_dir(job_root, "queued")
     queued_dir.mkdir(parents=True, exist_ok=True)
     job_path = queued_dir / f"{job_id}.json"
-    job_path.write_text(json.dumps(job, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _write_job(job_path, job)
     return {"status": "queued", "job_id": job_id, "job_path": str(job_path)}
 
 
@@ -648,7 +648,13 @@ def _read_job(path: Path) -> dict[str, object]:
 
 def _write_job(path: Path, job: dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(job, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    payload = json.dumps(job, indent=2, sort_keys=True) + "\n"
+    temporary_path = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        temporary_path.write_text(payload, encoding="utf-8")
+        temporary_path.replace(path)
+    finally:
+        temporary_path.unlink(missing_ok=True)
 
 
 def _new_job_id(*, mode: str) -> str:

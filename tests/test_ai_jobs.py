@@ -2,16 +2,29 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import stat
 import subprocess
 import sys
 import threading
 from pathlib import Path
+from types import ModuleType
 from typing import cast
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "ai_jobs.py"
+
+
+def load_ai_jobs_module() -> ModuleType:
+    spec = importlib.util.spec_from_file_location("entroping_ai_jobs_script", SCRIPT)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def run_ai_jobs(*args: str, cwd: Path = REPO_ROOT) -> subprocess.CompletedProcess[str]:
@@ -56,6 +69,39 @@ def write_fake_counting_opencode(
 def read_job(path: Path) -> dict[str, object]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     return cast(dict[str, object], payload)
+
+
+def test_ai_jobs_state_writes_do_not_truncate_visible_job_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ai_jobs = load_ai_jobs_module()
+    target = tmp_path / "running" / "job.json"
+    target.parent.mkdir()
+    target.write_text('{"job_id": "old", "queue_status": "running"}\n', encoding="utf-8")
+
+    original_write_text = Path.write_text
+    wrote_visible_path = False
+
+    def spy_write_text(
+        path: Path,
+        data: str,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
+    ) -> int:
+        nonlocal wrote_visible_path
+        if path == target:
+            wrote_visible_path = True
+        return original_write_text(path, data, encoding=encoding, errors=errors, newline=newline)
+
+    monkeypatch.setattr(Path, "write_text", spy_write_text)
+
+    ai_jobs._write_job(target, {"job_id": "new", "queue_status": "running"})
+
+    assert wrote_visible_path is False
+    assert read_job(target)["job_id"] == "new"
+    assert not list(target.parent.glob("*.tmp"))
 
 
 def test_ai_jobs_help_documents_queue_subcommands() -> None:

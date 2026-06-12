@@ -2,6 +2,11 @@
 
 ## 2026-06-11
 
+- Concurrent queue supervisors need atomic state-file replacement, not direct
+  JSON rewrites. A second process may scan `running/` for stale jobs while the
+  first process is updating a valid job; direct `write_text()` truncation can
+  make the reader see empty or partial JSON and falsely quarantine the job as
+  corrupt.
 - Negative-path fuzzing belongs in committed Hurl, not hidden runtime behavior.
   Generate only bounded, deterministic cases from reviewed inputs, require
   explicit failure responses before asserting expected status codes, tag and

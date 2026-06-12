@@ -2,6 +2,11 @@
 
 ## 2026-06-11
 
+- Fixed issue #630's AI worker queue state-write race so queued, running,
+  completed, and failed job JSON artifacts are written through same-directory
+  atomic replacement instead of direct truncation; concurrent `run-next`
+  processes no longer misclassify valid running jobs as corrupt while another
+  process rewrites their state.
 - Added a curated prompt library under `docs/meta/prompt-library/` for fresh
   Codex handoffs, issue workers, Spark-safe sessions, multi-agent marathons,
   thread steering, Gemini reviews, and DeepSeek/OpenCode reviews, with the
