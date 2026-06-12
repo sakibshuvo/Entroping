@@ -309,6 +309,11 @@
 - Project-local `AGENTS.md` is the fastest way to carry repo-specific Codex behavior across new threads. It should stay concise, stricter than generic docs, and focused on boundaries that are easy for an agent to violate.
 - A dependency audit must include optional extras before release. The default install can be clean while `uv run --all-extras --with pip-audit pip-audit --progress-spinner off` still catches future runtime surfaces such as mitmproxy.
 - Graphify should remain optional generated context. Keep `graphify-out/` ignored, and treat curated Markdown, ADRs, and `.context/` as the durable source of truth.
+- Graphify's first-pass natural-language retrieval did not beat `rg`,
+  `scripts/context_pack.sh`, or `docs/meta/DECISION_REGISTRY.yaml` during the
+  #602 pilot. Use it after ordinary repo discovery when a symbol is already
+  known and `graphify explain` or `graphify affected` can compact caller/test
+  impact evidence.
 - The autonomous workflow should stay Codex-first until OpenCode and local Qwen/oMLX have proven reliable on bounded read-only or review tasks. Cheap agents can draft and critique, but verified commits remain the product boundary.
 - A multi-agent workflow needs executable gates, not only principles. Keep one parent integrator, require local file evidence for claims, run deterministic checks before commit, and update context files so future threads inherit the decision trail.
 - GitHub Issues should track individual bugs, feature slices, and regressions; Obsidian should track phase-level progress, roadmap movement, ADRs, and durable lessons. Duplicating every issue into Markdown creates stale context.

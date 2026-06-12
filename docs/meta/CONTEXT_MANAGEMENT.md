@@ -99,17 +99,37 @@ the path to them so agents do not have to read the entire vault.
 
 ## Graphify Role
 
-Graphify is optional generated context. It can help find unexpected connections, central nodes, and graph summaries, but generated output should stay out of Git unless a result is promoted into curated Markdown.
+Graphify is optional generated context. It can help find unexpected connections,
+central nodes, symbol relationships, and graph summaries, but generated output
+should stay out of Git unless a result is promoted into curated Markdown.
 
 Recommended workflow:
 
 ```bash
 uv tool install graphifyy
-graphify install
-graphify <repo-root>
+graphify update <repo-root> --no-cluster
 ```
 
 Output belongs under `graphify-out/`, which is ignored by Git.
+
+The 2026-06-12 issue #602 pilot ran `graphify update . --no-cluster` against
+the active repo for issue #601's report artifact audit-chain task. Graphify did
+not beat `rg`, `scripts/context_pack.sh`, and
+`docs/meta/DECISION_REGISTRY.yaml` for initial task discovery: the broad natural
+language query found useful schema nodes but missed the core Python
+implementation until the query already knew exact names.
+
+Graphify was useful for symbol-known impact analysis. Once seeded with
+`write_report_artifact_manifest`, `graphify explain` and `graphify affected`
+showed the CLI caller, core helper graph, and direct tests more compactly than a
+plain text search. Keep it as a maintainer retrieval aid after ordinary repo
+discovery, especially before focused review or refactor planning. Do not use it
+to decide product truth, replace the decision registry, or generate mandatory
+implementation context.
+
+For normal onboarding, ordinary contributors must not be required to install
+Graphify, CodeGraph-style tools, Obsidian plugins, MCP indexes, or any generated
+graph stack before they can build, test, review, or contribute to Entroping.
 
 ## Cross-Project Context
 
