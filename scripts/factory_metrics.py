@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import os
 import re
@@ -17,6 +18,7 @@ from uuid import uuid4
 
 EVENT_SCHEMA_VERSION = "entroping.factory-metrics.v1"
 SUMMARY_SCHEMA_VERSION = "entroping.factory-metrics-summary.v1"
+REPORT_SCHEMA_VERSION = "entroping.factory-metrics-report.v1"
 DEFAULT_LEDGER = Path(".entroping") / "factory-metrics" / "events.jsonl"
 UTC_TZ = datetime_timezone.utc  # noqa: UP017 - factory scripts run under Python 3.9.
 
@@ -86,6 +88,7 @@ TEXT_FIELDS = {
     "worktree",
     "note",
 }
+CONTROL_CHARACTER_PATTERN = re.compile(r"[\x00-\x1f\x7f]")
 
 SECRET_REDACTIONS = (
     (
@@ -116,6 +119,13 @@ SECRET_REDACTIONS = (
         "<redacted>",
     ),
 )
+NOTE_MAX_LENGTH = 512
+NOTE_FORBIDDEN_PATTERN = re.compile(
+    r"(?i)(\braw[\s_-]+prompt\b|\bprompt[\s_-]+text\b|"
+    r"\bprovider[\s_-]+transcript\b|\braw[\s_-]+traffic\b|"
+    r"\brequest[\s_-]+body\b|\bresponse[\s_-]+body\b|"
+    r"(?<![A-Za-z0-9_])[\"']?(prompt|transcript|stdout|stderr)[\"']?\s*[:=])"
+)
 
 class FactoryMetricsError(Exception):
     """User-facing metrics CLI error."""
@@ -133,6 +143,19 @@ def _redact_text(value: str | None) -> str | None:
 
 def _contains_secret_like(value: str) -> bool:
     return _redact_text(value) != value
+
+
+def _contains_control_character(value: str) -> bool:
+    return CONTROL_CHARACTER_PATTERN.search(value) is not None
+
+
+def _validate_note(value: str) -> list[str]:
+    errors: list[str] = []
+    if len(value) > NOTE_MAX_LENGTH:
+        errors.append(f"note must be {NOTE_MAX_LENGTH} characters or fewer")
+    if NOTE_FORBIDDEN_PATTERN.search(value):
+        errors.append("note must not contain raw prompt or transcript material")
+    return errors
 
 
 def _lexical_absolute(path: Path) -> Path:
@@ -167,8 +190,7 @@ def _repo_root(explicit: str | None) -> Path:
     return Path(completed.stdout.strip()).resolve()
 
 
-def _safe_ledger_path(repo_root: Path, ledger: str | None) -> Path:
-    raw_path = Path(ledger).expanduser() if ledger else DEFAULT_LEDGER
+def _safe_factory_metrics_path(repo_root: Path, raw_path: Path, subject: str) -> Path:
     path = raw_path if raw_path.is_absolute() else repo_root / raw_path
     resolved = _lexical_absolute(path)
     factory_root = _lexical_absolute(repo_root / ".entroping" / "factory-metrics")
@@ -176,10 +198,21 @@ def _safe_ledger_path(repo_root: Path, ledger: str | None) -> Path:
         resolved.relative_to(factory_root)
     except ValueError as exc:
         raise FactoryMetricsError(
-            "ledger path must be under .entroping/factory-metrics/"
+            f"{subject} must be under .entroping/factory-metrics/"
         ) from exc
-    _ensure_no_symlink_components(repo_root, resolved, "ledger path")
+    _ensure_no_symlink_components(repo_root, resolved, subject)
     return resolved
+
+
+def _safe_ledger_path(repo_root: Path, ledger: str | None) -> Path:
+    raw_path = Path(ledger).expanduser() if ledger else DEFAULT_LEDGER
+    return _safe_factory_metrics_path(repo_root, raw_path, "ledger path")
+
+
+def _safe_report_path(repo_root: Path, output: str) -> Path:
+    return _safe_factory_metrics_path(
+        repo_root, Path(output).expanduser(), "report path"
+    )
 
 
 def _resolve_context_file(repo_root: Path, path: str | None) -> Path | None:
@@ -331,8 +364,12 @@ def _validate_event(event: dict[str, Any]) -> list[str]:
             continue
         if not isinstance(value, str):
             errors.append(f"{field} must be a string")
+        elif _contains_control_character(value):
+            errors.append(f"{field} must not contain control characters")
         elif _contains_secret_like(value):
             errors.append(f"{field} contains unredacted secret-like value")
+        elif field == "note":
+            errors.extend(_validate_note(value))
 
     for field in ("checks", "gates"):
         values = event.get(field)
@@ -344,6 +381,8 @@ def _validate_event(event: dict[str, Any]) -> list[str]:
         for index, value in enumerate(values):
             if not isinstance(value, str):
                 errors.append(f"{field}[{index}] must be a string")
+            elif _contains_control_character(value):
+                errors.append(f"{field}[{index}] must not contain control characters")
             elif _contains_secret_like(value):
                 errors.append(
                     f"{field}[{index}] contains unredacted secret-like value"
@@ -403,6 +442,201 @@ def _summary(events: list[dict[str, Any]]) -> dict[str, Any]:
         "outcomes": dict(sorted(outcomes.items())),
         "decisions": dict(sorted(decisions.items())),
     }
+
+
+def _empty_metric_totals() -> dict[str, int | float]:
+    return {metric: 0 for metric in ALL_METRICS}
+
+
+def _add_metrics(
+    target: dict[str, int | float], metrics: object
+) -> None:
+    if not isinstance(metrics, dict):
+        return
+    for metric in ALL_METRICS:
+        value = metrics.get(metric)
+        if isinstance(value, (int, float)):
+            target[metric] += value
+
+
+def _counter_dict(counter: Counter[str]) -> dict[str, int]:
+    return dict(sorted(counter.items()))
+
+
+def _safe_report_label(value: object) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    redacted = _redact_text(value)
+    if not redacted.strip():
+        return None
+    return redacted
+
+
+def _issue_label(event: dict[str, Any]) -> str:
+    issue = _safe_report_label(event.get("issue"))
+    if issue is not None:
+        return issue
+    return "unassigned"
+
+
+def _provider_model_label(event: dict[str, Any]) -> str | None:
+    provider = _safe_report_label(event.get("provider"))
+    model = _safe_report_label(event.get("model"))
+    if provider is not None and model is not None:
+        return f"{provider}/{model}"
+    return None
+
+
+def _report_bucket(issue: str) -> dict[str, Any]:
+    return {
+        "issue": issue,
+        "events": 0,
+        "metrics": _empty_metric_totals(),
+        "event_types": Counter(),
+        "roles": Counter(),
+        "agents": Counter(),
+        "providers": Counter(),
+        "models": Counter(),
+        "provider_models": Counter(),
+        "outcomes": Counter(),
+        "decisions": Counter(),
+    }
+
+
+def _record_report_counters(bucket: dict[str, Any], event: dict[str, Any]) -> None:
+    bucket["events"] += 1
+    _add_metrics(bucket["metrics"], event.get("metrics"))
+
+    for event_field, bucket_field in (
+        ("event_type", "event_types"),
+        ("role", "roles"),
+        ("agent", "agents"),
+        ("provider", "providers"),
+        ("model", "models"),
+        ("outcome", "outcomes"),
+        ("decision", "decisions"),
+    ):
+        value = _safe_report_label(event.get(event_field))
+        if value is not None:
+            bucket[bucket_field][value] += 1
+
+    provider_model = _provider_model_label(event)
+    if provider_model is not None:
+        bucket["provider_models"][provider_model] += 1
+
+
+def _finalize_report_bucket(bucket: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "issue": bucket["issue"],
+        "events": bucket["events"],
+        "metrics": bucket["metrics"],
+        "event_types": _counter_dict(bucket["event_types"]),
+        "roles": _counter_dict(bucket["roles"]),
+        "agents": _counter_dict(bucket["agents"]),
+        "providers": _counter_dict(bucket["providers"]),
+        "models": _counter_dict(bucket["models"]),
+        "provider_models": _counter_dict(bucket["provider_models"]),
+        "outcomes": _counter_dict(bucket["outcomes"]),
+        "decisions": _counter_dict(bucket["decisions"]),
+    }
+
+
+def _issue_sort_key(issue: str) -> tuple[bool, str]:
+    return issue == "unassigned", issue
+
+
+def _report(events: list[dict[str, Any]]) -> dict[str, Any]:
+    totals = _empty_metric_totals()
+    rollups = _report_bucket("all")
+    issues: dict[str, dict[str, Any]] = {}
+
+    for event in events:
+        issue = _issue_label(event)
+        if issue not in issues:
+            issues[issue] = _report_bucket(issue)
+
+        _add_metrics(totals, event.get("metrics"))
+        _record_report_counters(rollups, event)
+        _record_report_counters(issues[issue], event)
+
+    finalized_issues = [
+        _finalize_report_bucket(issues[issue])
+        for issue in sorted(issues, key=_issue_sort_key)
+    ]
+    finalized_rollups = _finalize_report_bucket(rollups)
+
+    return {
+        "schema_version": REPORT_SCHEMA_VERSION,
+        "total_events": len(events),
+        "totals": totals,
+        "roles": finalized_rollups["roles"],
+        "agents": finalized_rollups["agents"],
+        "providers": finalized_rollups["providers"],
+        "models": finalized_rollups["models"],
+        "provider_models": finalized_rollups["provider_models"],
+        "outcomes": finalized_rollups["outcomes"],
+        "decisions": finalized_rollups["decisions"],
+        "issues": finalized_issues,
+    }
+
+
+def _markdown_cell(value: object) -> str:
+    text = str(value)
+    escaped = html.escape(text, quote=False)
+    return escaped.replace("\n", " ").replace("|", r"\|").replace("`", r"\`")
+
+
+def _format_counter_values(values: dict[str, int]) -> str:
+    if not values:
+        return "-"
+    return ", ".join(f"{key}: {value}" for key, value in sorted(values.items()))
+
+
+def _render_report_markdown(report: dict[str, Any]) -> str:
+    totals = report["totals"]
+    lines = [
+        "# Factory Metrics Report",
+        "",
+        f"- Schema: `{report['schema_version']}`",
+        f"- Total events: {report['total_events']}",
+        f"- Estimated tokens: {totals['estimated_tokens']}",
+        f"- Cost USD: {totals['cost_usd']:.2f}",
+        f"- Duration seconds: {totals['duration_seconds']:.2f}",
+        "",
+        "| Issue | Events | Estimated tokens | Cost USD | Duration s | "
+        "Files read | Files touched | Tests | Gates | Outcomes | Decisions | "
+        "Roles | Agents | Provider/models |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | "
+        "--- | --- | --- | --- | --- |",
+    ]
+
+    for issue in report["issues"]:
+        metrics = issue["metrics"]
+        row = [
+            issue["issue"],
+            issue["events"],
+            metrics["estimated_tokens"],
+            f"{metrics['cost_usd']:.2f}",
+            f"{metrics['duration_seconds']:.2f}",
+            metrics["files_read"],
+            metrics["files_touched"],
+            metrics["tests_run"],
+            metrics["gates_run"],
+            _format_counter_values(issue["outcomes"]),
+            _format_counter_values(issue["decisions"]),
+            _format_counter_values(issue["roles"]),
+            _format_counter_values(issue["agents"]),
+            _format_counter_values(issue["provider_models"]),
+        ]
+        lines.append("| " + " | ".join(_markdown_cell(value) for value in row) + " |")
+
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _write_report_output(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
 
 
 def _print_payload(payload: dict[str, Any], as_json: bool) -> None:
@@ -465,6 +699,42 @@ def _summary_command(repo_root: Path, args: argparse.Namespace) -> int:
     return 0
 
 
+def _report_command(repo_root: Path, args: argparse.Namespace) -> int:
+    ledger = _safe_ledger_path(repo_root, args.ledger)
+    events, errors = _load_events(ledger)
+    if errors:
+        payload = {
+            "status": "invalid",
+            "ledger_path": str(ledger),
+            "events": len(events),
+            "errors": errors,
+        }
+        _print_payload(payload, args.format == "json")
+        return 1
+
+    report = _report(events)
+    if args.format == "json":
+        content = json.dumps(report, sort_keys=True)
+    else:
+        content = _render_report_markdown(report)
+
+    if args.output:
+        output_path = _safe_report_path(repo_root, args.output)
+        _write_report_output(output_path, content)
+        _print_payload(
+            {
+                "status": "written",
+                "output_path": str(output_path),
+                "schema_version": REPORT_SCHEMA_VERSION,
+            },
+            False,
+        )
+        return 0
+
+    print(content)
+    return 0
+
+
 def _add_common_output_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--ledger", help="JSONL ledger under .entroping/factory-metrics/")
     parser.add_argument("--json", action="store_true", help="Emit JSON output.")
@@ -513,6 +783,21 @@ def build_parser() -> argparse.ArgumentParser:
     summary = subparsers.add_parser("summary", help="Summarize a metrics ledger.")
     _add_common_output_args(summary)
 
+    report = subparsers.add_parser(
+        "report", help="Render a per-issue factory metrics report."
+    )
+    report.add_argument("--ledger", help="JSONL ledger under .entroping/factory-metrics/")
+    report.add_argument(
+        "--format",
+        choices=("json", "md"),
+        default="md",
+        help="Report format. Defaults to Markdown.",
+    )
+    report.add_argument(
+        "--output",
+        help="Optional report path under .entroping/factory-metrics/.",
+    )
+
     return parser
 
 
@@ -528,6 +813,8 @@ def main(argv: list[str] | None = None) -> int:
             return _validate_command(repo_root, args)
         if args.command == "summary":
             return _summary_command(repo_root, args)
+        if args.command == "report":
+            return _report_command(repo_root, args)
     except FactoryMetricsError as exc:
         parser.exit(2, f"{exc}\n")
 

@@ -163,6 +163,27 @@ def test_factory_metrics_docs_wire_opt_in_script_recording() -> None:
         assert term in combined
 
 
+def test_factory_metrics_docs_wire_per_issue_report_export() -> None:
+    context_doc = (REPO_ROOT / "docs" / "meta" / "CONTEXT_MANAGEMENT.md").read_text(
+        encoding="utf-8"
+    )
+    control_doc = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
+        encoding="utf-8"
+    )
+    combined = f"{context_doc}\n{control_doc}"
+
+    required_terms = [
+        "scripts/factory_metrics.py report --format json",
+        "scripts/factory_metrics.py report --format md --output "
+        ".entroping/factory-metrics/factory-report.md",
+        "entroping.factory-metrics-report.v1",
+        "per-issue",
+        "future extraction",
+    ]
+    for term in required_terms:
+        assert term in combined
+
+
 def test_agent_control_plane_documents_direct_deepseek_worker_boundary() -> None:
     doc = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
         encoding="utf-8"
