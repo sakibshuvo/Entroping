@@ -144,7 +144,7 @@ class HurlSuiteResult:
 
     @property
     def not_scheduled(self) -> int:
-        """Return selected files that were not scheduled after fail-fast stopped."""
+        """Return selected files that were not scheduled after an early stop."""
 
         selected = self.selected_count if self.selected_count is not None else self.total
         return max(0, selected - self.total)

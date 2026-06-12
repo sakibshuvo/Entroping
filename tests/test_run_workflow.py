@@ -366,6 +366,69 @@ def test_execute_run_workflow_blocks_unsafe_mutating_tests_in_protected_environm
     assert (tmp_path / "reports" / "run-latest.html").is_file()
 
 
+def test_execute_run_workflow_counts_unrun_selected_tests_when_protected_block_stops_run(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_project(tmp_path)
+    (tmp_path / "envs").mkdir()
+    (tmp_path / "envs" / "production.env").write_text(
+        "base_url=http://localhost:18080\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "tests" / "checkout.hurl").write_text(
+        "# entroping: tags=smoke\n\nPOST http://localhost:18080/orders\nHTTP 201\n",
+        encoding="utf-8",
+    )
+    subprocess_called = False
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+        fail_fast: bool = False,
+    ) -> HurlSuiteResult:
+        nonlocal subprocess_called
+        _ = (paths, options, max_workers, fail_fast)
+        subprocess_called = True
+        raise AssertionError("Hurl should not run when protected safety preflight blocks")
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
+
+    result = execute_run_workflow(
+        project_root=tmp_path,
+        environment="production",
+        tag_filters=("smoke",),
+        report_formats=("json", "junit", "html"),
+        parallel=False,
+        drift_check=False,
+    )
+
+    assert result.exit_code == 1
+    assert subprocess_called is False
+    assert result.selection.selected_count == 2
+    assert result.suite.total == 1
+    assert result.suite.not_scheduled == 1
+    latest = json.loads(result.latest_state_path.read_text(encoding="utf-8"))
+    assert latest["summary"] == {
+        "total": 1,
+        "passed": 0,
+        "failed": 1,
+        "exit_code": 1,
+        "selected": 2,
+        "executed": 1,
+        "not_scheduled": 1,
+        "fail_fast": False,
+    }
+    assert [test["path"] for test in latest["tests"]] == ["tests/checkout.hurl"]
+    assert latest["tests"][0]["status"] == "blocked"
+    assert "localhost:18080" not in json.dumps(latest)
+    assert (tmp_path / "reports" / "run-latest.json").is_file()
+    assert (tmp_path / "reports" / "junit.xml").is_file()
+    assert (tmp_path / "reports" / "run-latest.html").is_file()
+
+
 def test_execute_run_workflow_allows_idempotent_mutation_in_protected_environment(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

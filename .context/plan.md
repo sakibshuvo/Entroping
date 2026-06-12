@@ -1657,30 +1657,20 @@ without making deterministic `run` depend on AI or manifests.
 - Kept raw prompts, provider outputs, provider keys, env values, persona
   content, Hurl contents, raw traffic, and model approval out of the manifest.
 
-## Active Slice: Issue #596 Production Safe Run Mode
+## Active Slice: Issue #627 Protected Block Report Counts
 
-Outcome: make `entroping run` fail closed before Hurl execution when selected
-tests contain mutating HTTP methods against protected environments without
-explicit safety metadata.
+Outcome: preserve full selected/not-scheduled accounting when protected
+safe-mode preflight blocks a mixed safe/unsafe selected run before Hurl
+execution.
 
-- Preserve the existing v4.1 command surface. Use committed Hurl metadata,
-  suite metadata, and QAnstitution settings instead of adding a broad new
-  command family.
-- Classify `prod`, `production`, and `protected` environments as protected by
-  default, while keeping local/dev/staging/default non-protected unless a suite
-  or policy explicitly marks the run protected.
-- Treat `GET`, `HEAD`, and `OPTIONS` as read-only. Treat `POST`, `PUT`,
-  `PATCH`, and `DELETE` as mutating unless the selected test or suite declares
-  read-only, idempotent, or teardown-backed safety.
-- Run the preflight after discovery and temporary gate injection but before
-  Hurl subprocess execution, variable preflight, latest-run state writes, or
-  report writes that imply execution succeeded.
-- Emit value-free block evidence in dry-run plans and run reports: paths,
-  methods, environment classification, and the metadata reason, never env
-  values, request bodies, headers, cookies, or variable values.
-- Add TDD coverage for mutating methods, override attempts, suite interactions,
-  and CI exit behavior. Add docs/schema updates only to canonical run,
-  QAnstitution, suite, and report surfaces.
+- Keep the fix scoped to synthetic blocked-suite accounting and existing report
+  fields; do not change command flags, schemas, or Hurl execution behavior.
+- Report one blocked result for each unsafe selected test and carry the original
+  selected count so safe selected tests appear as not scheduled.
+- Keep safety evidence value-free: methods, classification, and block reason
+  only, without environment values, URLs, headers, bodies, cookies, or variables.
+- Add a failing regression before implementation and run the deterministic
+  runtime/report security gate before merge.
 
 ## Current Validation Queue
 
