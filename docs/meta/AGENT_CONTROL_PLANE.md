@@ -139,6 +139,10 @@ Run marathons in waves:
 
 ## Prompt Template
 
+Reusable copy-paste prompts live in
+`docs/meta/prompt-library/README.md`. Keep durable agent policy in this control
+plane and keep session launchers in the prompt library.
+
 ```text
 Work in <repo-root>.
 Use AGENTS.md as the project rules.

@@ -52,6 +52,7 @@ Use these first. They are the control panel for current work:
 - [[docs/meta/GOOD_FIRST_ISSUE_WALKTHROUGH|GOOD_FIRST_ISSUE_WALKTHROUGH]] - newcomer path from issue labels to validated PR.
 - [[docs/meta/ISSUE_TRACKING|ISSUE_TRACKING]] - GitHub issue tracking rules for bugs, features, and regressions.
 - [[docs/meta/OBSIDIAN_VS_GITHUB|OBSIDIAN_VS_GITHUB]] - practical guide for where ideas, bugs, roadmap, and context belong.
+- [[docs/meta/prompt-library/README|PROMPT_LIBRARY]] - reusable Codex, Spark, Gemini, DeepSeek, OpenCode, multi-agent, review, triage, CI, launch, and status prompts.
 - [[docs/meta/archive/OBSIDIAN_CONTEXT_ENGINE_GUIDE|OBSIDIAN_CONTEXT_ENGINE_GUIDE (archived)]] - historical context-engine strategy retained for traceability.
 - [[docs/meta/DECISION_REGISTRY.yaml|DECISION_REGISTRY]] - fast lookup layer for accepted decisions; summaries do not replace linked source material.
 - [[docs/meta/ENTROPING_PRODUCT_MAP.canvas|ENTROPING_PRODUCT_MAP]] - visual product/context map for the vault.
@@ -71,6 +72,7 @@ Use these first. They are the control panel for current work:
 - [[docs/meta/DISTRIBUTION_RECOMMENDATION|DISTRIBUTION_RECOMMENDATION]] - uv, PyPI, Homebrew tap, and standalone binary sequencing.
 - [[docs/meta/archive/AUTONOMOUS_DEVELOPMENT|AUTONOMOUS_DEVELOPMENT (archived)]] - historical Codex-first workflow and future OpenCode/oMLX plan.
 - [[docs/meta/AGENT_CONTROL_PLANE|AGENT_CONTROL_PLANE]] - Codex-first multi-agent control plane for Codex, Claude Code, OpenCode, Gemini, NotebookLM, and local Qwen.
+- [[docs/meta/prompt-library/README|PROMPT_LIBRARY]] - copy-paste prompt shelf for fresh sessions, issue workers, Spark-safe work, external reviews, bug bashes, launch audits, merge gates, and thread steering.
 - [[docs/meta/KNOWLEDGE_BASE_WORKFLOW|KNOWLEDGE_BASE_WORKFLOW]] - Obsidian-first brain, source-promotion rules, and hallucination controls.
 - [[docs/product/GROWTH_AND_MONETIZATION|GROWTH_AND_MONETIZATION]] - open-source credibility, hype loop, and open-core monetization path.
 - [[docs/assets/launch/README|Launch demo assets]] - two-minute GIF, terminal, report, and dependency-map proof kit.

@@ -21,6 +21,7 @@ site/
 .entroping/
 reports/
 graphify-out/
+.tmp.driveupload/
 
 # Secrets and local environment files
 .env

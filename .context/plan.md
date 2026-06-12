@@ -51,6 +51,19 @@ project, and a Codex workspace with fast context rehydration.
   by default or direct DeepSeek API with `--engine deepseek-api`; both paths
   write ignored artifacts for Codex review and never apply patches or affect
   Entroping runtime commands.
+- Reusable human-to-agent prompts now live under
+  `docs/meta/prompt-library/`; the agent control plane owns durable policy,
+  while the prompt library owns copy-paste launchers for fresh Codex sessions,
+  issue workers, Spark-safe sessions, multi-agent marathons, thread steering,
+  Gemini reviews, and DeepSeek/OpenCode reviews. The maintained prompt copies
+  default to `/Users/sakibshuvo/projects/Entroping` and
+  `/Users/sakibshuvo/projects/entroping-specs` to remove local setup friction.
+  The library also covers repeated maintenance prompts for PR merge gates,
+  bug bashes, backlog triage, roadmap/progress refreshes, launch-readiness
+  reviews, stable-core audits, context reconciliation, CI failure debugging,
+  security review, and after-sleep status reports. Local-path prompts include a
+  Codex Cloud fallback to the task-provided repository root so the library can
+  stay tracked without weakening cloud sessions.
 - Eye onboarding is honest about real proxy constraints: `watch` users should
   start in local/dev environments, expect per-client mitmproxy CA setup, and
   treat capture authorization and artifact review as their responsibility.

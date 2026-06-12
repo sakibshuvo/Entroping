@@ -2,6 +2,17 @@
 
 ## 2026-06-11
 
+- Added a curated prompt library under `docs/meta/prompt-library/` for fresh
+  Codex handoffs, issue workers, Spark-safe sessions, multi-agent marathons,
+  thread steering, Gemini reviews, and DeepSeek/OpenCode reviews, with the
+  vault index and agent control plane pointing to the reusable prompt shelf.
+  The library defaults to the maintainer's active Entroping and source-archive
+  paths so local sessions can paste prompts without placeholder replacement.
+  It now also includes reusable PR merge-gate, bug-bash, backlog-triage,
+  roadmap/progress, launch-readiness, stable-core, context-reconciliation, CI
+  debug, security-review, and after-sleep status prompts. Each local-path prompt
+  now tells Codex Cloud to use the task-provided repository root when the
+  maintainer macOS path is unavailable.
 - Added issue #596's production safe-mode preflight so protected environments
   default to `prod`, `production`, and `protected`, suite manifests can declare
   `protected` plus safety intent, mutating Hurl methods block before subprocess
