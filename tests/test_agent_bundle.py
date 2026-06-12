@@ -158,6 +158,92 @@ def test_agent_bundle_scope_filters_by_output_paths(tmp_path: Path) -> None:
     assert report.findings[0].role == "breaker"
 
 
+def test_agent_bundle_reports_source_evidence_and_scope_matches_preview_sources(
+    tmp_path: Path,
+) -> None:
+    _write_qanstitution(tmp_path, roles=("builder",))
+    _write_manifest(
+        tmp_path,
+        "20260604T010000Z-architect-refactor-builder-a.json",
+        agent="builder",
+        command="architect refactor",
+        mode="refactor",
+        output_paths=(),
+        source_evidence=(
+            {
+                "kind": "explicit_prompt",
+                "reference": "prompt_intent",
+                "sha256": "a" * 64,
+            },
+            {
+                "kind": "selected_hurl_target",
+                "reference": "tests/generated/checkout.hurl",
+                "sha256": "b" * 64,
+            },
+        ),
+    )
+
+    report = build_agent_bundle_report(
+        project_root=tmp_path,
+        scope=Path("tests/generated/checkout.hurl"),
+    )
+
+    assert report.summary.status == "pass"
+    manifest = report.roles[0].manifests[0]
+    assert manifest.output_paths == ()
+    assert [source.kind for source in manifest.source_evidence] == [
+        "explicit_prompt",
+        "selected_hurl_target",
+    ]
+    assert manifest.source_evidence[1].reference == "tests/generated/checkout.hurl"
+    markdown = render_agent_bundle_markdown(report)
+    assert "selected_hurl_target: tests/generated/checkout.hurl" in markdown
+    assert "a" * 64 not in markdown
+    assert "b" * 64 not in markdown
+
+
+def test_agent_bundle_accepts_source_evidence_without_hash(tmp_path: Path) -> None:
+    _write_qanstitution(tmp_path, roles=("builder",))
+    _write_manifest(
+        tmp_path,
+        "20260604T010000Z-architect-build-builder-a.json",
+        agent="builder",
+        source_evidence=(
+            {
+                "kind": "drift_report",
+                "reference": "reports/drift.json",
+                "sha256": None,
+            },
+        ),
+    )
+
+    report = build_agent_bundle_report(project_root=tmp_path)
+
+    assert report.summary.status == "pass"
+    assert report.roles[0].manifests[0].source_evidence[0].sha256 is None
+
+
+def test_agent_bundle_rejects_invalid_source_evidence_hash(tmp_path: Path) -> None:
+    _write_qanstitution(tmp_path, roles=("builder",))
+    _write_manifest(
+        tmp_path,
+        "20260604T010000Z-architect-build-builder-a.json",
+        agent="builder",
+        source_evidence=(
+            {
+                "kind": "drift_report",
+                "reference": "reports/drift.json",
+                "sha256": "not-a-sha",
+            },
+        ),
+    )
+
+    report = build_agent_bundle_report(project_root=tmp_path)
+
+    assert report.summary.status == "fail"
+    assert report.findings[0].kind == "invalid_manifest"
+
+
 def test_agent_bundle_rejects_secret_like_manifest_without_leaking(
     tmp_path: Path,
 ) -> None:
@@ -375,10 +461,11 @@ def _write_manifest(
     prompt_hash: str = "prompt-hash",
     provider: str | None = None,
     generated_at: str = "2026-06-04T01:00:00+00:00",
+    source_evidence: tuple[dict[str, object], ...] = (),
 ) -> None:
     manifest_dir = tmp_path / ".entroping" / "agent-runs"
     manifest_dir.mkdir(parents=True, exist_ok=True)
-    payload = {
+    payload: dict[str, object] = {
         "schema_version": "entroping.agent-run-manifest.v1",
         "generated_at": generated_at,
         "command": command,
@@ -413,4 +500,6 @@ def _write_manifest(
             "total_tokens": 30,
         },
     }
+    if source_evidence:
+        payload["source_evidence"] = list(source_evidence)
     (manifest_dir / name).write_text(json.dumps(payload), encoding="utf-8")

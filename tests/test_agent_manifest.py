@@ -5,6 +5,7 @@ import json
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -14,6 +15,8 @@ from entroping.core.agent_manifest import (
     AgentRunCostEvidence,
     AgentRunManifestError,
     AgentRunManifestInput,
+    AgentRunSourceEvidence,
+    AgentRunSourceKind,
     AgentRunUsageEvidence,
     write_agent_run_manifest,
 )
@@ -29,6 +32,7 @@ def test_write_agent_run_manifest_records_value_free_evidence(tmp_path: Path) ->
     output_path.parent.mkdir(parents=True)
     output_path.write_text("GET {{base_url}}/checkout\nHTTP 200\n", encoding="utf-8")
     intent = "Generate checkout coverage using sk-live-secret"
+    output_content = output_path.read_text(encoding="utf-8")
 
     result = write_agent_run_manifest(
         AgentRunManifestInput(
@@ -46,6 +50,18 @@ def test_write_agent_run_manifest_records_value_free_evidence(tmp_path: Path) ->
                 "user prompt with private checkout detail",
             ),
             output_paths=(output_path,),
+            source_evidence=(
+                AgentRunSourceEvidence(
+                    kind="explicit_prompt",
+                    reference="prompt_intent",
+                    sha256=hashlib.sha256(intent.encode("utf-8")).hexdigest(),
+                ),
+                AgentRunSourceEvidence(
+                    kind="selected_hurl_target",
+                    reference="tests/generated/checkout.hurl",
+                    sha256=hashlib.sha256(output_content.encode("utf-8")).hexdigest(),
+                ),
+            ),
             tags=("ai", "smoke"),
             validation_status="passed",
             structured_output_validated=True,
@@ -93,6 +109,18 @@ def test_write_agent_run_manifest_records_value_free_evidence(tmp_path: Path) ->
             ).hexdigest(),
         },
         "schema_version": AGENT_RUN_MANIFEST_SCHEMA_VERSION,
+        "source_evidence": [
+            {
+                "kind": "explicit_prompt",
+                "reference": "prompt_intent",
+                "sha256": hashlib.sha256(intent.encode("utf-8")).hexdigest(),
+            },
+            {
+                "kind": "selected_hurl_target",
+                "reference": "tests/generated/checkout.hurl",
+                "sha256": hashlib.sha256(output_content.encode("utf-8")).hexdigest(),
+            },
+        ],
         "tags": ["ai", "smoke"],
         "cost": {
             "estimated_usd": 0.000042,
@@ -138,6 +166,63 @@ def test_write_agent_run_manifest_rejects_invalid_cost_evidence(tmp_path: Path) 
                     estimated_usd=None,
                     input_cost_per_1m_tokens_usd=-0.01,
                     output_cost_per_1m_tokens_usd=None,
+                ),
+            )
+        )
+
+
+def test_write_agent_run_manifest_accepts_source_evidence_without_hash(
+    tmp_path: Path,
+) -> None:
+    result = write_agent_run_manifest(
+        replace(
+            _base_manifest_input(tmp_path),
+            source_evidence=(
+                AgentRunSourceEvidence(
+                    kind="failed_run",
+                    reference="reports/run-latest.json",
+                    sha256=None,
+                ),
+            ),
+        )
+    )
+
+    payload = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    assert payload["source_evidence"] == [
+        {
+            "kind": "failed_run",
+            "reference": "reports/run-latest.json",
+            "sha256": None,
+        }
+    ]
+
+
+def test_write_agent_run_manifest_rejects_invalid_source_hash(tmp_path: Path) -> None:
+    with pytest.raises(AgentRunManifestError, match="source evidence sha256"):
+        write_agent_run_manifest(
+            replace(
+                _base_manifest_input(tmp_path),
+                source_evidence=(
+                    AgentRunSourceEvidence(
+                        kind="drift_report",
+                        reference="reports/drift.json",
+                        sha256="not-a-sha",
+                    ),
+                ),
+            )
+        )
+
+
+def test_write_agent_run_manifest_rejects_invalid_source_kind(tmp_path: Path) -> None:
+    with pytest.raises(AgentRunManifestError, match="source evidence kind"):
+        write_agent_run_manifest(
+            replace(
+                _base_manifest_input(tmp_path),
+                source_evidence=(
+                    AgentRunSourceEvidence(
+                        kind=cast(AgentRunSourceKind, "unknown"),
+                        reference="reports/drift.json",
+                    ),
                 ),
             )
         )
@@ -189,6 +274,9 @@ def test_write_agent_run_manifest_rejects_symlinked_persona_path(tmp_path: Path)
     [
         ("agent", "", "agent"),
         ("model", "openai/gpt\n4", "model"),
+        ("model", "openai/sk-live-secret", "model"),
+        ("provider", "token=live-provider-secret", "provider"),
+        ("tag", "token=live-tag-secret", "tag"),
     ],
 )
 def test_write_agent_run_manifest_rejects_unsafe_text_fields(
@@ -201,6 +289,10 @@ def test_write_agent_run_manifest_rejects_unsafe_text_fields(
         base_input = _base_manifest_input(tmp_path)
         if field == "agent":
             updated = replace(base_input, agent=value)
+        elif field == "provider":
+            updated = replace(base_input, provider=value)
+        elif field == "tag":
+            updated = replace(base_input, tags=(value,))
         else:
             updated = replace(base_input, model=value)
         write_agent_run_manifest(updated)

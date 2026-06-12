@@ -1,6 +1,7 @@
 """Architect refactor orchestration for existing Architect-owned Hurl files."""
 
 import difflib
+import hashlib
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
@@ -20,6 +21,7 @@ from entroping.bridge.merge import (
 from entroping.core.agent_manifest import (
     AgentRunCostEvidence,
     AgentRunManifestInput,
+    AgentRunSourceEvidence,
     AgentRunUsageEvidence,
     write_agent_run_manifest,
 )
@@ -130,6 +132,7 @@ def run_architect_refactor(
                 input_cost_per_1m_tokens_usd=completion.cost.input_cost_per_1m_tokens_usd,
                 output_cost_per_1m_tokens_usd=completion.cost.output_cost_per_1m_tokens_usd,
             ),
+            source_evidence=_source_evidence_for_refactor(prompt, targets=targets),
         )
     )
     return ArchitectRefactorResult(
@@ -291,6 +294,28 @@ def _render_target_line(target: RefactorTarget) -> str:
     return f"- {target.display_path} (Managed-block manual target; block IDs: {block_ids})"
 
 
+def _source_evidence_for_refactor(
+    prompt: str,
+    *,
+    targets: tuple[RefactorTarget, ...],
+) -> tuple[AgentRunSourceEvidence, ...]:
+    return (
+        AgentRunSourceEvidence(
+            kind="explicit_prompt",
+            reference="prompt_intent",
+            sha256=_sha256(prompt),
+        ),
+        *(
+            AgentRunSourceEvidence(
+                kind="selected_hurl_target",
+                reference=target.display_path,
+                sha256=_sha256(target.content),
+            )
+            for target in targets
+        ),
+    )
+
+
 def _validate_selected_edits(
     edit_set: ArchitectEditSet,
     *,
@@ -369,3 +394,7 @@ def _render_refactor_preview_diff(
 
 def _display_path(path: Path, *, root: Path) -> str:
     return path.relative_to(root).as_posix()
+
+
+def _sha256(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()

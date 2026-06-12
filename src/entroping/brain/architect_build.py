@@ -1,5 +1,6 @@
 """Architect prompt-build orchestration."""
 
+import hashlib
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -22,6 +23,7 @@ from entroping.bridge.merge import (
 from entroping.core.agent_manifest import (
     AgentRunCostEvidence,
     AgentRunManifestInput,
+    AgentRunSourceEvidence,
     AgentRunUsageEvidence,
     write_agent_run_manifest,
 )
@@ -113,6 +115,13 @@ def run_architect_prompt_build(
                 input_cost_per_1m_tokens_usd=completion.cost.input_cost_per_1m_tokens_usd,
                 output_cost_per_1m_tokens_usd=completion.cost.output_cost_per_1m_tokens_usd,
             ),
+            source_evidence=(
+                AgentRunSourceEvidence(
+                    kind="explicit_prompt",
+                    reference="prompt_intent",
+                    sha256=_sha256(intent),
+                ),
+            ),
         )
     )
     return ArchitectPromptBuildResult(
@@ -156,6 +165,10 @@ def _render_prompt_intent(
     if tags:
         parts.append(f"Requested Entroping tags: {', '.join(tags)}")
     return "\n\n".join(parts)
+
+
+def _sha256(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
 def _apply_requested_tags(

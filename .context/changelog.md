@@ -2,6 +2,11 @@
 
 ## 2026-06-11
 
+- Added issue #599's self-healing Hurl maintenance boundary: Architect
+  proposals stay preview/diff/manifest-backed, `entroping run` remains
+  provider-free, agent-run manifests now carry value-free `source_evidence`,
+  and agent-bundle reports can scope preview evidence by selected Hurl target
+  without storing raw prompts, provider output, or Hurl contents.
 - Fixed issue #630's AI worker queue state-write race so queued, running,
   completed, and failed job JSON artifacts are written through same-directory
   atomic replacement instead of direct truncation; concurrent `run-next`

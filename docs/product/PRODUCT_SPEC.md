@@ -186,12 +186,13 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | INT-004 | Tag generated tests | `architect build --tag smoke` writes Entroping metadata comments that Hurl ignores safely; Breaker output is additionally tagged `breaker` |
 | INT-005 | Refactor existing Hurl tests | `architect refactor --target "tests/**/*.hurl" --prompt "<change>"` preserves comments and validates output |
 | INT-005A | Preview Hurl refactors | `architect refactor --target "tests/**/*.hurl" --prompt "<change>" --preview` renders a validated unified diff without writing target files; preview is review evidence, not execution proof |
+| INT-005B | Keep self-healing maintenance review-first | Architect may propose Hurl updates from an explicit prompt, OpenAPI diff, failing deterministic run evidence, or drift report; proposals stay diff/manifest-backed, never auto-commit or merge, and agent manifests record value-free source evidence |
 | INT-006 | Audit gaps | `architect audit --focus logic --output md|json` reports deterministic OpenAPI coverage gaps with an operation-to-Hurl matrix, stale operation references, and optional redacted traffic-vs-OpenAPI route findings when captured traffic state exists; `--changed-from <ref>` adds deterministic OpenAPI breaking-change diff findings without generating or deleting tests; `--focus auditor` runs an explicit Auditor review with validated Markdown or JSON findings |
 | INT-007 | Validate generated Hurl | Generated or refactored files must pass parser-backed syntax validation before being accepted |
 | INT-008 | Use configured model routing | Builder and Breaker load persona files and models for prompt builds; Auditor loads persona/model routing for explicit audit reviews |
 | INT-009 | Enforce source grounding | Generated endpoints and assertions must be traceable to OpenAPI, GraphQL schema, stories, observed traffic, dependencies, or explicit prompt context |
 | INT-010 | Keep AI out of deterministic runs | `entroping run` must not call the LLM; Breaker output is generated through Architect commands and committed as tests before execution |
-| INT-011 | Record sanitized AI budget evidence | Prompt-backed Architect build, refactor, and Auditor review outputs expose provider, latency, token counts when available, and estimated cost when local rate hints are configured, without storing prompts, secrets, or raw provider responses |
+| INT-011 | Record sanitized AI budget and source evidence | Prompt-backed Architect build, refactor, and Auditor review outputs expose provider, latency, token counts when available, estimated cost when local rate hints are configured, and value-free source evidence without storing prompts, secrets, target Hurl contents, or raw provider responses |
 
 ### 9.4 Traffic Observation
 

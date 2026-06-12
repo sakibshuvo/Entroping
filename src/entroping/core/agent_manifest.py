@@ -10,12 +10,29 @@ from typing import Final, Literal
 
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.safe_write import SafeWriteError, safe_write_text
+from entroping.models.secrets import contains_secret_like_value
 
 AGENT_RUN_MANIFEST_SCHEMA_VERSION: Final = "entroping.agent-run-manifest.v1"
 
 AgentRunCommand = Literal["architect build", "architect refactor", "architect audit"]
 AgentRunMode = Literal["create", "merge", "refactor", "review"]
 AgentRunValidationStatus = Literal["passed", "failed"]
+AgentRunSourceKind = Literal[
+    "explicit_prompt",
+    "openapi_diff",
+    "failed_run",
+    "drift_report",
+    "selected_hurl_target",
+]
+_AGENT_RUN_SOURCE_KINDS: Final[frozenset[str]] = frozenset(
+    (
+        "explicit_prompt",
+        "openapi_diff",
+        "failed_run",
+        "drift_report",
+        "selected_hurl_target",
+    )
+)
 
 
 class AgentRunManifestError(ValueError):
@@ -51,6 +68,15 @@ class AgentRunCostEvidence:
 
 
 @dataclass(frozen=True, slots=True)
+class AgentRunSourceEvidence:
+    """Value-free source evidence explaining why an Architect run proposed edits."""
+
+    kind: AgentRunSourceKind
+    reference: str
+    sha256: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class AgentRunManifestInput:
     """Input required to write one sanitized agent run manifest."""
 
@@ -72,6 +98,7 @@ class AgentRunManifestInput:
     usage: AgentRunUsageEvidence
     provider: str | None = None
     cost: AgentRunCostEvidence = field(default_factory=AgentRunCostEvidence.empty)
+    source_evidence: tuple[AgentRunSourceEvidence, ...] = ()
     generated_at: datetime | None = None
 
 
@@ -107,6 +134,9 @@ def write_agent_run_manifest(input_data: AgentRunManifestInput) -> AgentRunManif
         "output_paths": [
             _display_project_path(path, root=root, field="output path")
             for path in input_data.output_paths
+        ],
+        "source_evidence": [
+            _source_evidence_payload(source) for source in input_data.source_evidence
         ],
         "tags": sorted(_validate_plain_text(tag, field="tag") for tag in input_data.tags),
         "validation": {
@@ -194,6 +224,9 @@ def _validate_plain_text(value: str, *, field: str) -> str:
     if any(ord(character) < 32 or ord(character) == 127 for character in text):
         msg = f"{field} must not contain control characters"
         raise AgentRunManifestError(msg)
+    if contains_secret_like_value(text):
+        msg = f"{field} must not contain secret-like values"
+        raise AgentRunManifestError(msg)
     return text
 
 
@@ -213,6 +246,32 @@ def _validate_optional_cost(value: float | None, *, field: str) -> float | None:
         msg = f"{field} must be greater than or equal to 0"
         raise AgentRunManifestError(msg)
     return value
+
+
+def _source_evidence_payload(source: AgentRunSourceEvidence) -> dict[str, str | None]:
+    return {
+        "kind": _validate_source_kind(source.kind),
+        "reference": _validate_plain_text(source.reference, field="source evidence reference"),
+        "sha256": _validate_optional_sha256(source.sha256, field="source evidence sha256"),
+    }
+
+
+def _validate_source_kind(value: str) -> str:
+    text = _validate_plain_text(value, field="source evidence kind")
+    if text not in _AGENT_RUN_SOURCE_KINDS:
+        msg = f"source evidence kind must be one of {', '.join(sorted(_AGENT_RUN_SOURCE_KINDS))}"
+        raise AgentRunManifestError(msg)
+    return text
+
+
+def _validate_optional_sha256(value: str | None, *, field: str) -> str | None:
+    if value is None:
+        return None
+    text = _validate_plain_text(value, field=field)
+    if len(text) != 64 or any(character not in "0123456789abcdef" for character in text):
+        msg = f"{field} must be a lowercase SHA-256 hex digest"
+        raise AgentRunManifestError(msg)
+    return text
 
 
 def _sha256(value: str) -> str:

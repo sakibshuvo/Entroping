@@ -428,14 +428,23 @@ CLI output. `architect audit --focus auditor` uses the configured Auditor route
 to produce validated review findings without writing files. `entroping run`
 remains LLM-free.
 
+Self-healing Hurl maintenance stays a review-first Architect workflow, not an
+autonomous runtime repair loop. Accepted proposal inputs are an explicit prompt,
+an OpenAPI diff, a failed deterministic run or failure bundle, or a drift report.
+The proposal must remain previewable as a diff or structured artifact, pass
+structured provider-output validation and parser-backed Hurl validation before
+any target write, and require a human to review, write, commit, push, or merge
+the change.
+
 Prompt-backed Architect build, merge, refactor, and Auditor review paths also
 write value-free manifests under `.entroping/agent-runs/` with schema
 `entroping.agent-run-manifest.v1`. These manifests record role, model, persona
-path/digest, prompt hashes, output paths, tags, validation status, provider,
-latency, token counts, and estimated cost when per-million-token rates are
-configured and provider usage metadata is available. They are audit evidence
-only; they do not store raw prompts, provider output, persona content, secrets,
-traffic, or model approval.
+path/digest, prompt hashes, output paths, value-free source evidence such as
+prompt hashes and selected target content hashes, tags, validation status,
+provider, latency, token counts, and estimated cost when per-million-token rates
+are configured and provider usage metadata is available. They are audit evidence
+only; they do not store raw prompts, provider output, persona content, target
+Hurl contents, secrets, traffic, or model approval.
 
 The deterministic `architect build --new` OpenAPI path also validates every
 compiled Hurl file through the same parser-backed Hurl validation boundary
@@ -513,8 +522,11 @@ manual managed blocks before validation, validates final Hurl through the
 parser-backed Hurl validator, and writes through staged filesystem writes.
 Preview mode uses the same provider, parser, merge, and validation boundaries,
 then emits a redacted unified diff and value-free agent manifest without writing
-target Hurl files. Prompt build merge uses the same rules for existing files;
-merge without a prompt remains deferred.
+target Hurl files. Refactor manifests record `source_evidence` for the explicit
+prompt and selected Hurl targets using hashes rather than raw prompt or Hurl
+content, so review bundles can explain why a proposal exists without leaking
+secrets. Prompt build merge uses the same rules for existing files; merge
+without a prompt remains deferred.
 
 ## 10. Observation Design
 
@@ -1095,7 +1107,7 @@ redacted before serialization, and absolute project-root paths are relativized.
 | --- | --- | --- |
 | `entroping run` | `.entroping/latest-run.json` | Runtime state for follow-up report commands; uses `entroping.run-report.v1`; not committed. |
 | `entroping run` | `.entroping/latest-run-events.jsonl` | Sanitized execution progress events using `entroping.run-events.v1`; not committed. |
-| Prompt-backed `entroping architect ...` | `.entroping/agent-runs/*.json` | Value-free AI run evidence using `entroping.agent-run-manifest.v1`; not committed and not read by `run`. |
+| Prompt-backed `entroping architect ...` | `.entroping/agent-runs/*.json` | Value-free AI run evidence using `entroping.agent-run-manifest.v1`, including source-evidence hashes; not committed and not read by `run`. |
 | `entroping freeze` / `freeze --mock` / `map --export png` | `reports/approvals/*.json` | Value-free approval evidence for generated traffic artifacts using `entroping.traffic-artifact-approval.v1`. |
 | `entroping run --report json` | `reports/run-latest.json` | Machine-readable run report using `entroping.run-report.v1`. |
 | `entroping run --report junit` | `reports/junit.xml` | CI-compatible test report. |
