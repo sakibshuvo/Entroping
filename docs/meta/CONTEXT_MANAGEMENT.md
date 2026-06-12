@@ -100,6 +100,19 @@ when the source archive lives elsewhere:
 ENTROPING_SOURCE_ROOT=/path/to/entroping-specs scripts/context_pack.sh --mode source
 ```
 
+To measure context cost during a factory run, opt in explicitly:
+
+```bash
+scripts/context_pack.sh --mode implementation --record-factory-metrics
+scripts/context_pack.sh --mode review --record-factory-metrics --factory-role code_review_agent
+```
+
+Use `--factory-metrics-ledger` only for a ledger under
+`.entroping/factory-metrics/`, usually when a test or experiment needs a
+separate local file. Context-pack recording stores byte estimates, token
+estimates, file counts, role, mode, and outcome only; it does not persist the
+generated pack body.
+
 ## Context Engineering Layers
 
 Use context tools by layer, not by authority. GitHub Issues, PRs, CI, source
@@ -173,6 +186,14 @@ duration, cost, and accepted/rejected status. The ledger is ignored local
 operational evidence for budget and workflow tuning; it is not release proof,
 does not approve patches, and must not store raw prompts, provider transcripts,
 secrets, raw traffic, or product runtime evidence.
+
+Maintainer workflow scripts can append those events only when requested with
+`--record-factory-metrics`. `scripts/context_pack.sh` records context-pack
+size and file counts, while `scripts/opencode_worker.py` and
+`scripts/deepseek_worker.py` record worker status, selected-file byte counts,
+duration, provider/model metadata where known, and sanitized DeepSeek usage
+totals when available. Metrics failures are warnings for these workflow
+scripts; they must not hide the original context-pack or worker outcome.
 
 For normal onboarding, ordinary contributors must not be required to install
 Graphify, CodeGraph, Headroom, Obsidian plugins, LLM wiki tooling, or

@@ -8,6 +8,7 @@ import json
 import shutil
 import subprocess  # nosec B404
 import sys
+import time
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -36,6 +37,9 @@ class WorkerConfig:
     instruction: str | None
     dry_run: bool
     json_output: bool
+    record_factory_metrics: bool
+    factory_role: str | None
+    factory_metrics_ledger: Path | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,6 +86,7 @@ class WorkerInputError(ValueError):
 def run_worker(config: WorkerConfig) -> WorkerResult:
     """Run OpenCode in a bounded subprocess and write local artifacts."""
 
+    started_at = time.monotonic()
     artifact_dir = _new_artifact_dir(config.artifact_root, config.mode)
     artifact_dir.mkdir(parents=True, exist_ok=False)
 
@@ -98,6 +103,11 @@ def run_worker(config: WorkerConfig) -> WorkerResult:
             stderr="",
         )
         _write_metadata(config, result, command)
+        _record_factory_metrics(
+            config,
+            result,
+            duration_seconds=time.monotonic() - started_at,
+        )
         return result
 
     try:
@@ -126,6 +136,11 @@ def run_worker(config: WorkerConfig) -> WorkerResult:
             stderr=stderr,
         )
         _write_execution_artifacts(config, result, command)
+        _record_factory_metrics(
+            config,
+            result,
+            duration_seconds=time.monotonic() - started_at,
+        )
         return result
 
     status = _classify_status(config.mode, completed.returncode, completed.stdout)
@@ -137,6 +152,11 @@ def run_worker(config: WorkerConfig) -> WorkerResult:
         stderr=completed.stderr,
     )
     _write_execution_artifacts(config, result, command)
+    _record_factory_metrics(
+        config,
+        result,
+        duration_seconds=time.monotonic() - started_at,
+    )
     return result
 
 
@@ -183,6 +203,23 @@ def _parse_args() -> WorkerConfig:
         action="store_true",
         help="Write prompt and metadata without invoking OpenCode.",
     )
+    parser.add_argument(
+        "--record-factory-metrics",
+        action="store_true",
+        help="Append an ignored local software-factory metrics event.",
+    )
+    parser.add_argument(
+        "--factory-role",
+        help=(
+            "Factory role tag for metrics. Defaults to code_review_agent for "
+            "review mode and dev_agent for patch mode."
+        ),
+    )
+    parser.add_argument(
+        "--factory-metrics-ledger",
+        type=Path,
+        help="Metrics ledger path under .entroping/factory-metrics/.",
+    )
     parser.add_argument("--json", action="store_true", help="Print machine-readable summary.")
     args = parser.parse_args()
 
@@ -213,6 +250,9 @@ def _parse_args() -> WorkerConfig:
         instruction=args.instruction,
         dry_run=args.dry_run,
         json_output=args.json,
+        record_factory_metrics=bool(args.record_factory_metrics),
+        factory_role=args.factory_role,
+        factory_metrics_ledger=args.factory_metrics_ledger,
     )
 
 
@@ -392,6 +432,125 @@ def _write_metadata(config: WorkerConfig, result: WorkerResult, command: list[st
         json.dumps(metadata, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+
+
+def _record_factory_metrics(
+    config: WorkerConfig,
+    result: WorkerResult,
+    *,
+    duration_seconds: float,
+) -> None:
+    if not config.record_factory_metrics:
+        return
+
+    provider, model = _factory_provider_model(config.model)
+    context_bytes = _selected_files_bytes(config.files)
+    estimated_tokens = max(1, (context_bytes + 3) // 4)
+    command = [
+        sys.executable,
+        str(config.repo_root / "scripts" / "factory_metrics.py"),
+        "--repo-root",
+        str(config.repo_root),
+        "append",
+        "--event-type",
+        "worker_job",
+        "--role",
+        config.factory_role or _default_factory_role(config.mode),
+        "--agent",
+        "OpenCode",
+        "--tool",
+        "scripts/opencode_worker.py",
+        "--model",
+        model,
+        "--worktree",
+        str(config.repo_root),
+        "--context-bytes",
+        str(context_bytes),
+        "--estimated-tokens",
+        str(estimated_tokens),
+        "--candidate-files",
+        str(len(config.files)),
+        "--files-read",
+        str(len(config.files)),
+        "--duration-seconds",
+        f"{duration_seconds:.6f}",
+        "--outcome",
+        _factory_outcome(result.status),
+        "--decision",
+        _factory_decision(result.status),
+        "--note",
+        _factory_note(config, result),
+        "--json",
+    ]
+    if provider is not None:
+        command.extend(["--provider", provider])
+    if config.issue is not None:
+        command.extend(["--issue", config.issue])
+    if config.factory_metrics_ledger is not None:
+        command.extend(["--ledger", str(config.factory_metrics_ledger)])
+
+    completed = subprocess.run(  # nosec B603
+        command,
+        cwd=config.repo_root,
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    if completed.returncode != 0:
+        warning = (completed.stderr or completed.stdout).strip()
+        print(f"opencode_worker: factory metrics warning: {warning}", file=sys.stderr)
+
+
+def _selected_files_bytes(files: tuple[Path, ...]) -> int:
+    total = 0
+    for path in files:
+        try:
+            total += path.stat().st_size
+        except OSError:
+            continue
+    return total
+
+
+def _factory_provider_model(model: str) -> tuple[str | None, str]:
+    provider, separator, model_id = model.partition("/")
+    if separator:
+        return provider, model_id
+    return None, model
+
+
+def _default_factory_role(mode: Mode) -> str:
+    if mode == "patch":
+        return "dev_agent"
+    return "code_review_agent"
+
+
+def _factory_outcome(status: Status) -> str:
+    if status in {"completed", "dry-run", "patch-proposed"}:
+        return "success"
+    if status == "timed-out":
+        return "blocked"
+    if status == "failed":
+        return "failure"
+    return "inconclusive"
+
+
+def _factory_decision(status: Status) -> str:
+    if status == "dry-run":
+        return "not_applicable"
+    return "needs_review"
+
+
+def _factory_note(config: WorkerConfig, result: WorkerResult) -> str:
+    parts = [f"mode={config.mode}", f"status={result.status}"]
+    ignored_root = (config.repo_root / ".entroping").resolve()
+    try:
+        relative_artifact_dir = result.artifact_dir.resolve().relative_to(ignored_root)
+    except ValueError:
+        return ";".join(parts)
+    parts.append(f"artifact_dir=.entroping/{relative_artifact_dir.as_posix()}")
+    return ";".join(parts)
 
 
 if __name__ == "__main__":

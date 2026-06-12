@@ -7,6 +7,7 @@ import os
 import stat
 import subprocess
 import sys
+import uuid
 from pathlib import Path
 from typing import cast
 
@@ -61,6 +62,13 @@ def read_metadata(artifact_dir: Path) -> dict[str, object]:
     return cast(dict[str, object], payload)
 
 
+def read_metrics_events(ledger: Path) -> list[dict[str, object]]:
+    return [
+        cast(dict[str, object], json.loads(line))
+        for line in ledger.read_text(encoding="utf-8").splitlines()
+    ]
+
+
 def test_opencode_worker_help_documents_review_and_patch_modes() -> None:
     result = run_worker("--help")
 
@@ -69,6 +77,8 @@ def test_opencode_worker_help_documents_review_and_patch_modes() -> None:
     assert "review" in result.stdout
     assert "patch" in result.stdout
     assert "DeepSeek" in result.stdout
+    assert "--record-factory-metrics" in result.stdout
+    assert "--factory-metrics-ledger" in result.stdout
 
 
 def test_opencode_worker_dry_run_writes_prompt_and_metadata(tmp_path: Path) -> None:
@@ -101,6 +111,95 @@ def test_opencode_worker_dry_run_writes_prompt_and_metadata(tmp_path: Path) -> N
     assert "Codex remains the integrator" in prompt
     assert str(target_file.resolve()) in prompt
     assert not (artifact_dir / "stdout.txt").exists()
+
+
+def test_opencode_worker_records_opt_in_factory_metrics_for_dry_run(
+    tmp_path: Path,
+) -> None:
+    target_file = REPO_ROOT / "README.md"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    write_fake_git(fake_bin)
+    ledger = (
+        Path(".entroping")
+        / "factory-metrics"
+        / "tests"
+        / f"opencode-{uuid.uuid4().hex}.jsonl"
+    )
+    full_ledger = REPO_ROOT / ledger
+
+    try:
+        result = run_worker(
+            "--mode",
+            "review",
+            "--file",
+            str(target_file),
+            "--issue",
+            "654",
+            "--artifact-root",
+            str(tmp_path / "reviews"),
+            "--record-factory-metrics",
+            "--factory-role",
+            "code_review_agent",
+            "--factory-metrics-ledger",
+            ledger.as_posix(),
+            "--dry-run",
+            "--json",
+            env={"PATH": str(fake_bin)},
+        )
+
+        assert result.returncode == 0, result.stderr
+        events = read_metrics_events(full_ledger)
+        assert len(events) == 1
+        event = events[0]
+        metrics = cast(dict[str, object], event["metrics"])
+        assert event["event_type"] == "worker_job"
+        assert event["role"] == "code_review_agent"
+        assert event["agent"] == "OpenCode"
+        assert event["tool"] == "scripts/opencode_worker.py"
+        assert event["provider"] == "deepseek"
+        assert event["model"] == "deepseek-v4-pro"
+        assert event["issue"] == "654"
+        assert event["outcome"] == "success"
+        assert event["decision"] == "not_applicable"
+        assert metrics["context_bytes"] == target_file.stat().st_size
+        assert metrics["estimated_tokens"] == max(1, (target_file.stat().st_size + 3) // 4)
+        assert metrics["candidate_files"] == 1
+        assert metrics["files_read"] == 1
+        assert "Codex remains the integrator" not in full_ledger.read_text(
+            encoding="utf-8"
+        )
+    finally:
+        full_ledger.unlink(missing_ok=True)
+
+
+def test_opencode_worker_metrics_failure_does_not_mask_dry_run(
+    tmp_path: Path,
+) -> None:
+    target_file = REPO_ROOT / "README.md"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    write_fake_git(fake_bin)
+
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        str(target_file),
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--record-factory-metrics",
+        "--factory-metrics-ledger",
+        str(tmp_path / "unsafe-ledger.jsonl"),
+        "--dry-run",
+        "--json",
+        env={"PATH": str(fake_bin)},
+    )
+
+    assert result.returncode == 0
+    assert json.loads(result.stdout)["status"] == "dry-run"
+    assert "factory metrics warning" in result.stderr
+    assert not (tmp_path / "unsafe-ledger.jsonl").exists()
 
 
 def test_opencode_worker_patch_mode_captures_unified_diff(tmp_path: Path) -> None:

@@ -138,6 +138,30 @@ def test_agent_control_plane_routes_opencode_through_bounded_worker() -> None:
     assert "raw `opencode run`" in doc
 
 
+def test_factory_metrics_docs_wire_opt_in_script_recording() -> None:
+    context_doc = (REPO_ROOT / "docs" / "meta" / "CONTEXT_MANAGEMENT.md").read_text(
+        encoding="utf-8"
+    )
+    control_doc = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
+        encoding="utf-8"
+    )
+    combined = f"{context_doc}\n{control_doc}"
+
+    required_terms = [
+        "scripts/context_pack.sh --mode implementation --record-factory-metrics",
+        "scripts/opencode_worker.py",
+        "scripts/deepseek_worker.py",
+        "--record-factory-metrics",
+        "--factory-metrics-ledger",
+        "opt-in",
+        "raw prompts",
+        "provider transcripts",
+        "not release proof",
+    ]
+    for term in required_terms:
+        assert term in combined
+
+
 def test_agent_control_plane_documents_direct_deepseek_worker_boundary() -> None:
     doc = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
         encoding="utf-8"

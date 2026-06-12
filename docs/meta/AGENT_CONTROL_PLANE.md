@@ -97,6 +97,13 @@ script records local JSONL events with schema `entroping.factory-metrics.v1`
 under `.entroping/factory-metrics/`; it is maintainer/development workflow
 evidence, not product runtime evidence, and it must not store raw prompts,
 provider transcripts, secrets, raw traffic, or product runtime evidence.
+Recording from scripts is opt-in: use
+`scripts/context_pack.sh --mode implementation --record-factory-metrics` to
+measure context packs, and add `--record-factory-metrics` plus, when needed,
+`--factory-metrics-ledger` to `scripts/opencode_worker.py` or
+`scripts/deepseek_worker.py` worker runs. These hooks record counts, status,
+duration, provider/model metadata, and sanitized usage totals only; they are
+not release proof, patch approval, or a substitute for tests and CI.
 The factory framework owns workflow, context, metrics, and guardrails; the
 project owns product truth.
 
