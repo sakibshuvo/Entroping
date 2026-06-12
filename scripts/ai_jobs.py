@@ -325,6 +325,9 @@ def _run_next(
     job["worker_returncode"] = _int_value(worker_payload.get("returncode"), default=1)
     job["worker_process_returncode"] = worker_process_returncode
     job["artifact_dir"] = worker_payload.get("artifact_dir")
+    worker_usage = _usage_payload(worker_payload.get("usage"))
+    if worker_usage is not None:
+        job["usage"] = worker_usage
     job["completed_at"] = _now()
     job["updated_at"] = _now()
 
@@ -339,6 +342,7 @@ def _run_next(
             "job_path": str(terminal_path),
             "worker_status": worker_status,
             "artifact_dir": worker_payload.get("artifact_dir"),
+            **({"usage": worker_usage} if worker_usage is not None else {}),
         },
         0 if terminal_state == "completed" else 1,
     )
@@ -612,21 +616,83 @@ def _status(job_root: Path) -> dict[str, object]:
 
 def _collect(job_root: Path) -> dict[str, object]:
     _ensure_queue_dirs(job_root)
-    completed_jobs = []
+    completed_jobs: list[dict[str, object]] = []
     for path in sorted(_state_dir(job_root, "completed").glob("*.json")):
         job = _read_job(path)
-        completed_jobs.append(
-            {
-                "job_id": job.get("job_id"),
-                "engine": job.get("engine", "opencode"),
-                "mode": job.get("mode"),
-                "model": job.get("model"),
-                "issue": job.get("issue"),
-                "worker_status": job.get("worker_status"),
-                "artifact_dir": job.get("artifact_dir"),
-            }
-        )
-    return {"status": "ok", "job_root": str(job_root), "completed_jobs": completed_jobs}
+        record = {
+            "job_id": job.get("job_id"),
+            "engine": job.get("engine", "opencode"),
+            "profile": job.get("profile"),
+            "mode": job.get("mode"),
+            "model": job.get("model"),
+            "issue": job.get("issue"),
+            "worker_status": job.get("worker_status"),
+            "artifact_dir": job.get("artifact_dir"),
+        }
+        if isinstance(job.get("artifact_dir"), str):
+            record["metadata_path"] = str(Path(str(job["artifact_dir"])) / "metadata.json")
+        usage = _usage_payload(job.get("usage"))
+        if usage is not None:
+            record["usage"] = usage
+        completed_jobs.append(record)
+    return {
+        "status": "ok",
+        "job_root": str(job_root),
+        "summary": _completed_jobs_summary(completed_jobs),
+        "completed_jobs": completed_jobs,
+    }
+
+
+def _completed_jobs_summary(completed_jobs: list[dict[str, object]]) -> dict[str, object]:
+    usage_records = [
+        usage for job in completed_jobs if (usage := _usage_payload(job.get("usage"))) is not None
+    ]
+    return {
+        "total_completed": len(completed_jobs),
+        "by_engine": _count_field(completed_jobs, "engine"),
+        "by_profile": _count_field(completed_jobs, "profile"),
+        "by_mode": _count_field(completed_jobs, "mode"),
+        "by_worker_status": _count_field(completed_jobs, "worker_status"),
+        "by_model": _count_field(completed_jobs, "model"),
+        "usage": {
+            "known_jobs": len(usage_records),
+            "unknown_jobs": len(completed_jobs) - len(usage_records),
+            "totals": _usage_totals(usage_records),
+        },
+    }
+
+
+def _count_field(records: list[dict[str, object]], field: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for record in records:
+        raw_value = record.get(field)
+        value = raw_value if isinstance(raw_value, str) and raw_value else "unknown"
+        counts[value] = counts.get(value, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def _usage_totals(usage_records: list[dict[str, object]]) -> dict[str, int | float]:
+    totals: dict[str, int | float] = {}
+    for usage in usage_records:
+        for key, value in usage.items():
+            if isinstance(value, bool) or not isinstance(value, int | float):
+                continue
+            totals[key] = totals.get(key, 0) + value
+    return dict(sorted(totals.items()))
+
+
+def _usage_payload(value: object) -> dict[str, object] | None:
+    if not isinstance(value, dict):
+        return None
+    usage: dict[str, object] = {}
+    for key, item in value.items():
+        if (
+            isinstance(key, str)
+            and not isinstance(item, bool)
+            and isinstance(item, int | float)
+        ):
+            usage[key] = item
+    return usage or None
 
 
 def _ensure_queue_dirs(job_root: Path) -> None:
