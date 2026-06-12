@@ -21,6 +21,10 @@ site/
 .entroping/
 reports/
 graphify-out/
+llm-wiki-out/
+understand-anything-out/
+codegraph-out/
+headroom-out/
 .tmp.driveupload/
 
 # Secrets and local environment files

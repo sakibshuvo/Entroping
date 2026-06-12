@@ -131,6 +131,30 @@ require ordinary contributors to install graph, wiki, compression, or
 model-worker tooling before they can build, test, review, or contribute to
 Entroping.
 
+## Generated Context Tool Output Paths
+
+Use explicit local output directories for generated context tooling so useful
+findings can be reviewed without turning tool caches into project truth.
+
+| Tool layer | Local output path |
+| --- | --- |
+| Graphify | `graphify-out/` |
+| LLM wiki | `llm-wiki-out/` |
+| Understand Anything | `understand-anything-out/` |
+| CodeGraph | `codegraph-out/` |
+| Headroom | `headroom-out/` |
+
+Generated context outputs must remain ignored/local unless intentionally
+promoted into curated Markdown, an ADR, a GitHub issue, or `.context/` through
+normal review. Do not delete, archive, or rewrite context-preservation material
+just because generated output is noisy; compress with pointers and preserve the
+source history.
+
+For normal onboarding, ordinary contributors must not be required to install
+Graphify, CodeGraph, Headroom, Obsidian plugins, LLM wiki tooling, or
+Understand Anything before they can build, test, review, or contribute to
+Entroping.
+
 ## Obsidian Role
 
 Obsidian is the human navigation layer. It shows product evolution, ADRs, source links, and relationships between docs.

@@ -338,3 +338,38 @@ def test_context_factory_rollout_order_is_documented() -> None:
 
     for term in required_terms:
         assert term in normalized
+
+
+def test_context_tool_generated_outputs_stay_local_and_ignored() -> None:
+    control_plane = (
+        REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md"
+    ).read_text(encoding="utf-8")
+    context_management = (
+        REPO_ROOT / "docs" / "meta" / "CONTEXT_MANAGEMENT.md"
+    ).read_text(encoding="utf-8")
+    combined = " ".join(f"{control_plane}\n{context_management}".split())
+
+    required_terms = [
+        "## Generated Context Tool Output Paths",
+        "`graphify-out/`",
+        "`llm-wiki-out/`",
+        "`understand-anything-out/`",
+        "`codegraph-out/`",
+        "`headroom-out/`",
+        (
+            "Generated context outputs must remain ignored/local unless "
+            "intentionally promoted into curated Markdown"
+        ),
+        (
+            "Do not delete, archive, or rewrite context-preservation material "
+            "just because generated output is noisy"
+        ),
+        (
+            "ordinary contributors must not be required to install Graphify, "
+            "CodeGraph, Headroom, Obsidian plugins, LLM wiki tooling, or "
+            "Understand Anything"
+        ),
+    ]
+
+    for term in required_terms:
+        assert term in combined
