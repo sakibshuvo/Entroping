@@ -2,6 +2,9 @@
 
 ## 2026-06-12
 
+- Added issue #646's protected-block report evidence guard so JUnit and HTML
+  reports expose selected, executed, not-scheduled, and fail-fast summary counts
+  when protected safety preflight blocks a mixed selected run before Hurl.
 - Added issue #640's context-tool output hygiene boundary: generated Graphify,
   LLM wiki, Understand Anything, CodeGraph, and Headroom artifacts now have
   explicit ignored local output paths, repo hygiene rejects tracked generated

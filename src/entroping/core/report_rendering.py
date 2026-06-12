@@ -28,6 +28,14 @@ def render_junit_report(report: RunReport) -> bytes:
             "time": f"{sum(test.duration_ms for test in report.tests) / 1000:.3f}",
         },
     )
+    if _has_summary_scheduling_evidence(report):
+        properties = ElementTree.SubElement(testsuite, "properties")
+        for name, value in _summary_scheduling_properties(report):
+            ElementTree.SubElement(
+                properties,
+                "property",
+                {"name": name, "value": value},
+            )
 
     for test in report.tests:
         testcase = ElementTree.SubElement(
@@ -213,6 +221,7 @@ def render_html_report(report: RunReport) -> str:
         f"{report.summary.passed} passed, {report.summary.failed} failed, "
         f"{report.summary.total} total"
     )
+    scheduling_summary = _html_scheduling_summary(report)
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -236,6 +245,7 @@ def render_html_report(report: RunReport) -> str:
     <dt>Environment</dt><dd>{escape(report.environment)}</dd>
     <dt>Generated</dt><dd>{escape(report.generated_at)}</dd>
     <dt>Summary</dt><dd>{escape(summary)}</dd>
+{scheduling_summary}
   </dl>
   <table>
     <thead>
@@ -248,6 +258,38 @@ def render_html_report(report: RunReport) -> str:
 </body>
 </html>
 """
+
+
+def _has_summary_scheduling_evidence(report: RunReport) -> bool:
+    summary = report.summary
+    return (
+        summary.selected is not None
+        or summary.executed is not None
+        or summary.not_scheduled > 0
+        or summary.fail_fast
+    )
+
+
+def _summary_scheduling_properties(report: RunReport) -> tuple[tuple[str, str], ...]:
+    summary = report.summary
+    return (
+        ("entroping.summary.selected", str(summary.selected_count)),
+        ("entroping.summary.executed", str(summary.executed_count)),
+        ("entroping.summary.not_scheduled", str(summary.not_scheduled)),
+        ("entroping.summary.fail_fast", str(summary.fail_fast).lower()),
+    )
+
+
+def _html_scheduling_summary(report: RunReport) -> str:
+    if not _has_summary_scheduling_evidence(report):
+        return ""
+    summary = report.summary
+    return (
+        f"    <dt>Selected</dt><dd>{summary.selected_count}</dd>\n"
+        f"    <dt>Executed</dt><dd>{summary.executed_count}</dd>\n"
+        f"    <dt>Not scheduled</dt><dd>{summary.not_scheduled}</dd>\n"
+        f"    <dt>Fail fast</dt><dd>{str(summary.fail_fast).lower()}</dd>"
+    )
 
 
 def render_bug_report(report: RunReport) -> str:
