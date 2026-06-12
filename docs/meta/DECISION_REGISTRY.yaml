@@ -438,6 +438,10 @@ decisions:
     source_links:
       - path: docs/meta/AGENT_CONTROL_PLANE.md
         role: workflow-policy
+      - path: docs/meta/AGENT_ROLE_REGISTRY.yaml
+        role: role-registry
+      - path: scripts/factory_metrics.py
+        role: local-metrics-ledger
       - path: docs/meta/archive/AUTONOMOUS_DEVELOPMENT.md
         role: runbook
       - path: docs/meta/FEATURE_DELIVERY_CHECKLIST.md
@@ -447,7 +451,8 @@ decisions:
     related_docs:
       - docs/meta/prompt-library/issue-worker.md
       - docs/meta/prompt-library/multi-agent-marathon.md
+      - docs/meta/CONTEXT_MANAGEMENT.md
       - docs/meta/PROJECT_PROGRESS.md
-    related_issues: ["#648"]
+    related_issues: ["#648", "#652"]
     supersedes: []
     superseded_by: null

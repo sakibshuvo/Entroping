@@ -12,6 +12,7 @@ Forbidden tracked paths include:
   .DS_Store
   .obsidian/
   .entroping/
+  .entroping/factory-metrics/
   reports/
   graphify-out/
   llm-wiki-out/
@@ -51,6 +52,7 @@ is_forbidden_path() {
   case "$path" in
     .DS_Store|*/.DS_Store|\
     .obsidian/*|\
+    .entroping/factory-metrics/*|\
     .entroping/*|\
     reports/*|\
     graphify-out/*|\

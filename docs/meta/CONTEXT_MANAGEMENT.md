@@ -157,12 +157,22 @@ findings can be reviewed without turning tool caches into project truth.
 | CodeGraph | `codegraph-out/` |
 | Headroom | `headroom-out/` |
 | Agent context probe | `agent-context-out/` |
+| Factory metrics ledger | `.entroping/factory-metrics/` |
 
 Generated context outputs must remain ignored/local unless intentionally
 promoted into curated Markdown, an ADR, a GitHub issue, or `.context/` through
 normal review. Do not delete, archive, or rewrite context-preservation material
 just because generated output is noisy; compress with pointers and preserve the
 source history.
+
+Use `scripts/factory_metrics.py` to append, validate, or summarize local
+software-factory metrics with schema `entroping.factory-metrics.v1`. These
+events can record issue, PR, worktree, role, agent/tool, provider/model,
+context-byte/token estimates, file counts, tests, gates, CI/check outcomes,
+duration, cost, and accepted/rejected status. The ledger is ignored local
+operational evidence for budget and workflow tuning; it is not release proof,
+does not approve patches, and must not store raw prompts, provider transcripts,
+secrets, raw traffic, or product runtime evidence.
 
 For normal onboarding, ordinary contributors must not be required to install
 Graphify, CodeGraph, Headroom, Obsidian plugins, LLM wiki tooling, or
@@ -264,6 +274,10 @@ Current local agent tooling status:
 - OpenCode: available.
 - Direct DeepSeek worker: available through `scripts/deepseek_worker.py` and
   queued jobs with `scripts/ai_jobs.py submit --engine deepseek-api`.
+- Portable role registry: available through
+  `docs/meta/AGENT_ROLE_REGISTRY.yaml`.
+- Factory metrics ledger: available through `scripts/factory_metrics.py`, with
+  ignored events under `.entroping/factory-metrics/`.
 - Spec Kit `specify`: available.
 - oMLX: not installed in this shell yet.
 

@@ -24,6 +24,7 @@ def test_repo_hygiene_help_documents_forbidden_tracked_paths() -> None:
     assert "codegraph-out/" in result.stdout
     assert "headroom-out/" in result.stdout
     assert "agent-context-out/" in result.stdout
+    assert ".entroping/factory-metrics/" in result.stdout
 
 
 def test_gitignore_excludes_coverage_artifacts() -> None:
@@ -48,6 +49,7 @@ def test_gitignore_excludes_generated_context_tool_outputs() -> None:
         "codegraph-out/src-tests.json",
         "headroom-out/context-pack.json",
         "agent-context-out/probe.json",
+        ".entroping/factory-metrics/events.jsonl",
         ".obsidian/workspace.json",
     }
 
@@ -64,7 +66,9 @@ def test_gitignore_excludes_generated_context_tool_outputs() -> None:
 
 
 def test_repo_hygiene_rejects_forbidden_tracked_paths(tmp_path: Path) -> None:
-    subprocess.run(["git", "init"], check=True, cwd=tmp_path, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "init"], check=True, cwd=tmp_path, capture_output=True, text=True
+    )
     forbidden = tmp_path / ".DS_Store"
     forbidden.write_text("machine state\n", encoding="utf-8")
     subprocess.run(["git", "add", ".DS_Store"], check=True, cwd=tmp_path)
@@ -83,7 +87,9 @@ def test_repo_hygiene_rejects_forbidden_tracked_paths(tmp_path: Path) -> None:
 
 
 def test_repo_hygiene_rejects_tracked_context_tool_output(tmp_path: Path) -> None:
-    subprocess.run(["git", "init"], check=True, cwd=tmp_path, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "init"], check=True, cwd=tmp_path, capture_output=True, text=True
+    )
     generated = tmp_path / "agent-context-out" / "probe.json"
     generated.parent.mkdir()
     generated.write_text('{"generated": true}\n', encoding="utf-8")
@@ -100,6 +106,34 @@ def test_repo_hygiene_rejects_tracked_context_tool_output(tmp_path: Path) -> Non
     assert result.returncode == 1
     assert "Forbidden tracked local/generated files" in result.stderr
     assert "agent-context-out/probe.json" in result.stderr
+
+
+def test_repo_hygiene_rejects_tracked_factory_metrics(tmp_path: Path) -> None:
+    subprocess.run(
+        ["git", "init"], check=True, cwd=tmp_path, capture_output=True, text=True
+    )
+    generated = tmp_path / ".entroping" / "factory-metrics" / "events.jsonl"
+    generated.parent.mkdir(parents=True)
+    generated.write_text(
+        '{"schema_version":"entroping.factory-metrics.v1"}\n', encoding="utf-8"
+    )
+    subprocess.run(
+        ["git", "add", "-f", str(generated.relative_to(tmp_path))],
+        check=True,
+        cwd=tmp_path,
+    )
+
+    result = subprocess.run(
+        [str(REPO_ROOT / "scripts" / "repo_hygiene.sh")],
+        check=False,
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert "Forbidden tracked local/generated files" in result.stderr
+    assert ".entroping/factory-metrics/events.jsonl" in result.stderr
 
 
 def test_repo_hygiene_passes_current_repo() -> None:

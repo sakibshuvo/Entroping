@@ -2,6 +2,14 @@
 
 ## 2026-06-12
 
+- Added issue #652's portable factory role and metrics ledger: the
+  machine-readable `docs/meta/AGENT_ROLE_REGISTRY.yaml` defines Product Manager,
+  Architect, Dev Agent, QA Agent, Code Review Agent, Security Agent, Monitoring
+  Agent, and Integrator missions plus authority limits, while
+  `scripts/factory_metrics.py` appends, validates, and summarizes ignored local
+  workflow metrics under `.entroping/factory-metrics/` without storing raw
+  prompts, provider transcripts, secrets, raw traffic, product runtime evidence,
+  or involving `entroping run`.
 - Added issue #650's optional graph-assisted agent context probe:
   `scripts/agent_context_probe.py` reads existing local Graphify/CodeGraph
   outputs, emits advisory text/JSON manifests with candidate file/test
