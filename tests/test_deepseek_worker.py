@@ -12,6 +12,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import ClassVar, cast
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "deepseek_worker.py"
 
@@ -462,6 +464,55 @@ def test_deepseek_worker_rejects_secret_like_file_before_artifact_or_model_call(
     assert result.returncode == 2
     assert "refusing to send selected file to DeepSeek" in result.stderr
     assert "secret-like content" in result.stderr
+    assert not (tmp_path / "reviews").exists()
+    assert DeepSeekStubHandler.requests == []
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    (
+        ".env.backup",
+        "secret.env.prod",
+        "config/client.key.bak",
+        "certs/internal.pem.old",
+        "credentials.backup",
+    ),
+)
+def test_deepseek_worker_rejects_sensitive_path_variants_before_model_call(
+    tmp_path: Path,
+    relative_path: str,
+) -> None:
+    repo = make_worker_repo(tmp_path)
+    sensitive_file = repo / relative_path
+    sensitive_file.parent.mkdir(parents=True, exist_ok=True)
+    sensitive_file.write_text("placeholder only\n", encoding="utf-8")
+    DeepSeekStubHandler.requests = []
+    server = HTTPServer(("127.0.0.1", 0), DeepSeekStubHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        result = run_worker(
+            "--mode",
+            "review",
+            "--file",
+            relative_path,
+            "--artifact-root",
+            str(tmp_path / "reviews"),
+            "--base-url",
+            f"http://127.0.0.1:{server.server_port}",
+            "--api-key-env",
+            "ENTROPING_TEST_DEEPSEEK_KEY",
+            env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
+            cwd=repo,
+        )
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+    assert result.returncode == 2
+    assert "refusing to send selected file to DeepSeek" in result.stderr
+    assert "sensitive credential file" in result.stderr
     assert not (tmp_path / "reviews").exists()
     assert DeepSeekStubHandler.requests == []
 

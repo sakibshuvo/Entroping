@@ -19,6 +19,8 @@ from typing import Literal, cast
 from urllib import error, request
 from urllib.parse import urlparse
 
+from ai_worker_file_safety import sensitive_selected_path_reason
+
 DEFAULT_MODEL = "deepseek-v4-pro"
 DEFAULT_BASE_URL = "https://api.deepseek.com"
 DEFAULT_API_KEY_ENV = "DEEPSEEK_API_KEY"
@@ -31,20 +33,6 @@ Mode = Literal["review", "patch"]
 Status = Literal["completed", "dry-run", "failed", "inconclusive", "patch-proposed", "timed-out"]
 ThinkingMode = Literal["enabled", "disabled"]
 ReasoningEffort = Literal["high", "max"]
-SENSITIVE_PATH_NAMES = frozenset(
-    {
-        ".env",
-        ".env.local",
-        ".env.production",
-        ".npmrc",
-        ".pypirc",
-        "credentials",
-        "credentials.json",
-        "id_rsa",
-        "id_ed25519",
-    }
-)
-SENSITIVE_PATH_SUFFIXES = (".key", ".pem", ".p12", ".pfx")
 SECRET_LIKE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     (
         "private key block",
@@ -444,12 +432,11 @@ def _prepare_context_files(config: DirectWorkerConfig) -> tuple[PreparedContextF
 
 
 def _reject_sensitive_path(relative_path: str) -> None:
-    parts = [part.lower() for part in Path(relative_path).parts]
-    name = parts[-1]
-    if name in SENSITIVE_PATH_NAMES or name.endswith(SENSITIVE_PATH_SUFFIXES):
+    reason = sensitive_selected_path_reason(relative_path)
+    if reason is not None:
         msg = (
             "refusing to send selected file to DeepSeek: "
-            f"{relative_path} looks like a sensitive credential file"
+            f"{relative_path} {reason}"
         )
         raise DirectWorkerInputError(msg)
 

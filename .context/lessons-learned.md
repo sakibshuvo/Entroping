@@ -417,3 +417,7 @@
 - When a transitive optional dependency has a known vulnerability but the
   upstream package still caps the fixed version, prefer a narrow resolver
   override plus optional-smoke/security-gate proof over ignoring the advisory.
+- Provider-adjacent maintainer workers should reject sensitive selected paths
+  before any prompt, artifact, subprocess, or API request is created. Path
+  preflight should catch backup/config variants, not only exact `.env` or key
+  filenames.

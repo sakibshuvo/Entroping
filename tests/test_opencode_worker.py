@@ -57,6 +57,17 @@ def write_fake_git(path: Path) -> Path:
     return binary
 
 
+def make_worker_repo(tmp_path: Path) -> Path:
+    repo = tmp_path / "worker-repo"
+    repo.mkdir()
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    prompt_dir = repo / "prompts" / "opencode"
+    prompt_dir.mkdir(parents=True)
+    (prompt_dir / "review.md").write_text("Review template\n", encoding="utf-8")
+    (prompt_dir / "patch.md").write_text("Patch template\n", encoding="utf-8")
+    return repo
+
+
 def read_metadata(artifact_dir: Path) -> dict[str, object]:
     payload = json.loads((artifact_dir / "metadata.json").read_text(encoding="utf-8"))
     return cast(dict[str, object], payload)
@@ -413,4 +424,42 @@ def test_opencode_worker_rejects_file_outside_repo_before_model_call(tmp_path: P
 
     assert result.returncode == 2
     assert "input file must be inside repository" in result.stderr
+    assert not (tmp_path / "reviews").exists()
+
+
+def test_opencode_worker_rejects_sensitive_path_before_subprocess(
+    tmp_path: Path,
+) -> None:
+    repo = make_worker_repo(tmp_path)
+    sensitive_file = repo / "secret.env.prod"
+    sensitive_file.write_text("placeholder only\n", encoding="utf-8")
+    marker = tmp_path / "opencode-invoked"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_opencode = write_fake_opencode(
+        fake_bin,
+        body=(
+            "#!/usr/bin/env bash\n"
+            "set -euo pipefail\n"
+            f"printf invoked > '{marker}'\n"
+            "exit 99\n"
+        ),
+    )
+
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        "secret.env.prod",
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--opencode-bin",
+        str(fake_opencode),
+        cwd=repo,
+    )
+
+    assert result.returncode == 2
+    assert "refusing to send selected file to OpenCode" in result.stderr
+    assert "sensitive credential file" in result.stderr
+    assert not marker.exists()
     assert not (tmp_path / "reviews").exists()

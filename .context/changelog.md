@@ -998,3 +998,7 @@
   non-vulnerable `>=6.5.6` line, currently locked to 6.5.7, until mitmproxy
   relaxes its current 6.5.5 upper bound; optional extras smoke and security
   gates pass with the override.
+- Hardened issue #661's provider-adjacent AI worker file selection: direct
+  DeepSeek and OpenCode worker harnesses now reject sensitive credential-path
+  variants such as `.env.backup`, `secret.env.prod`, and key/certificate backup
+  names before provider review or subprocess execution can start.
