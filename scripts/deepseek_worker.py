@@ -12,7 +12,8 @@ import sys
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
+from datetime import timezone as datetime_timezone
 from pathlib import Path
 from typing import Literal, cast
 from urllib import error, request
@@ -25,6 +26,7 @@ DEFAULT_ARTIFACT_ROOT = Path(".entroping") / "ai-reviews"
 DEFAULT_TIMEOUT_SECONDS = 300.0
 DEFAULT_MAX_TOKENS = 4096
 DEFAULT_MAX_FILE_BYTES = 64_000
+UTC_TZ = datetime_timezone.utc  # noqa: UP017 - factory scripts run under Python 3.9.
 Mode = Literal["review", "patch"]
 Status = Literal["completed", "dry-run", "failed", "inconclusive", "patch-proposed", "timed-out"]
 ThinkingMode = Literal["enabled", "disabled"]
@@ -62,7 +64,7 @@ SECRET_LIKE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class DirectWorkerConfig:
     """Validated direct DeepSeek worker configuration."""
 
@@ -87,7 +89,7 @@ class DirectWorkerConfig:
     factory_metrics_ledger: Path | None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class DirectWorkerResult:
     """Direct DeepSeek worker execution result."""
 
@@ -100,7 +102,7 @@ class DirectWorkerResult:
     usage: dict[str, object] | None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class PreparedContextFile:
     """Validated file content allowed to leave the local machine."""
 
@@ -677,13 +679,13 @@ def _usage_object(payload: dict[str, object]) -> dict[str, object] | None:
         return None
     safe_usage: dict[str, object] = {}
     for key, value in usage.items():
-        if isinstance(key, str) and isinstance(value, int | float | str):
+        if isinstance(key, str) and isinstance(value, (int, float, str)):
             safe_usage[key] = value
     return safe_usage
 
 
 def _new_artifact_dir(artifact_root: Path, mode: Mode) -> Path:
-    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(UTC_TZ).strftime("%Y%m%dT%H%M%SZ")
     suffix = uuid.uuid4().hex[:8]
     return artifact_root / f"{timestamp}-deepseek-{mode}-{suffix}"
 
@@ -772,7 +774,7 @@ def _write_metadata(
         "thinking": config.thinking,
         "reasoning_effort": config.reasoning_effort,
         "usage": result.usage,
-        "created_at": datetime.now(UTC).isoformat(),
+        "created_at": datetime.now(UTC_TZ).isoformat(),
         "dry_run": config.dry_run,
     }
     (result.artifact_dir / "metadata.json").write_text(
@@ -880,7 +882,7 @@ def _usage_total_tokens(usage: dict[str, object] | None) -> int | None:
 def _numeric_usage_value(value: object) -> int | None:
     if isinstance(value, bool):
         return None
-    if isinstance(value, int | float) and value >= 0:
+    if isinstance(value, (int, float)) and value >= 0:
         return int(value)
     if isinstance(value, str) and value.isdigit():
         return int(value)

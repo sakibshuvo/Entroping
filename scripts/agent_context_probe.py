@@ -313,7 +313,7 @@ def _json_text(value: Any) -> str:
     if isinstance(value, dict):
         parts = []
         for key, item in value.items():
-            if isinstance(item, str | int | float | bool) or item is None:
+            if isinstance(item, (str, int, float, bool)) or item is None:
                 parts.append(f"{key}: {item}")
             else:
                 parts.append(f"{key}: {_json_text(item)}")

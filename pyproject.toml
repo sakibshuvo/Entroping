@@ -53,6 +53,13 @@ build-backend = "hatchling.build"
 line-length = 100
 target-version = "py312"
 
+[tool.uv]
+# mitmproxy 12.2.3 still caps Tornado at 6.5.5, but the security gate
+# requires the patched Tornado line until upstream relaxes the bound.
+override-dependencies = [
+  "tornado>=6.5.6",
+]
+
 [tool.ruff.lint]
 select = ["B", "E", "F", "I", "SIM", "UP"]
 

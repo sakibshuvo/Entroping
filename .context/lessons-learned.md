@@ -410,3 +410,10 @@
   payloads and expose broken-chain diagnostics, but they are still local
   integrity evidence rather than signing, notarization, SOC2, hosted audit-log,
   or enterprise retention claims.
+- Maintainer/factory scripts may run under the host `python3` even though the
+  product package requires Python 3.12+. If shell scripts invoke a Python helper
+  with `python3`, guard against evaluated Python 3.10+/3.11-only APIs such as
+  `datetime.UTC`, `dataclass(slots=True)`, and `isinstance(x, A | B)`.
+- When a transitive optional dependency has a known vulnerability but the
+  upstream package still caps the fixed version, prefer a narrow resolver
+  override plus optional-smoke/security-gate proof over ignoring the advisory.

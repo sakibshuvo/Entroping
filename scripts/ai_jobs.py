@@ -8,7 +8,8 @@ import json
 import subprocess  # nosec B404
 import sys
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
+from datetime import timezone as datetime_timezone
 from pathlib import Path
 from typing import Literal
 
@@ -28,6 +29,7 @@ DEEPSEEK_API_MODEL_PROFILES = {
     "flash": "deepseek-v4-flash",
     "pro": "deepseek-v4-pro",
 }
+UTC_TZ = datetime_timezone.utc  # noqa: UP017 - factory scripts run under Python 3.9.
 
 Mode = Literal["review", "patch"]
 QueueState = Literal["queued", "running", "completed", "failed"]
@@ -397,7 +399,7 @@ def _is_stale_running_job(job: dict[str, object]) -> bool:
         return False
     timeout_seconds = _float_value(job.get("timeout_seconds"), default=DEFAULT_TIMEOUT_SECONDS)
     stale_after = started_at + timedelta(seconds=timeout_seconds + STALE_RUNNING_GRACE_SECONDS)
-    return datetime.now(UTC) > stale_after
+    return datetime.now(UTC_TZ) > stale_after
 
 
 def _parse_job_timestamp(value: object) -> datetime | None:
@@ -408,8 +410,8 @@ def _parse_job_timestamp(value: object) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=UTC)
-    return parsed.astimezone(UTC)
+        return parsed.replace(tzinfo=UTC_TZ)
+    return parsed.astimezone(UTC_TZ)
 
 
 def _fail_running_job(
@@ -704,7 +706,7 @@ def _usage_totals(usage_records: list[dict[str, object]]) -> dict[str, int | flo
     totals: dict[str, int | float] = {}
     for usage in usage_records:
         for key, value in usage.items():
-            if isinstance(value, bool) or not isinstance(value, int | float):
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
                 continue
             totals[key] = totals.get(key, 0) + value
     return dict(sorted(totals.items()))
@@ -718,7 +720,7 @@ def _usage_payload(value: object) -> dict[str, object] | None:
         if (
             isinstance(key, str)
             and not isinstance(item, bool)
-            and isinstance(item, int | float)
+            and isinstance(item, (int, float))
         ):
             usage[key] = item
     return usage or None
@@ -753,13 +755,13 @@ def _write_job(path: Path, job: dict[str, object]) -> None:
 
 
 def _new_job_id(*, mode: str) -> str:
-    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(UTC_TZ).strftime("%Y%m%dT%H%M%SZ")
     suffix = uuid.uuid4().hex[:8]
     return f"{timestamp}-{mode}-{suffix}"
 
 
 def _now() -> str:
-    return datetime.now(UTC).isoformat()
+    return datetime.now(UTC_TZ).isoformat()
 
 
 def _int_value(value: object, *, default: int) -> int:
@@ -769,7 +771,7 @@ def _int_value(value: object, *, default: int) -> int:
 
 
 def _float_value(value: object, *, default: float) -> float:
-    if isinstance(value, int | float):
+    if isinstance(value, (int, float)):
         return float(value)
     return default
 
