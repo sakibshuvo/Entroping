@@ -2,6 +2,10 @@
 
 ## 2026-06-13
 
+- Fixed issue #673's AI worker selected-file safety gap so the shared
+  OpenCode/DeepSeek preflight rejects quoted JSON credential assignments such
+  as `api_key`, `access_token`, and `client_secret` before subprocess or model
+  calls, while preserving non-secret documentation and placeholder examples.
 - Fixed issue #672's Architect provider routing boundary so `api_base` must
   target a local loopback OpenAI-compatible endpoint at QAnstitution load time
   and again before LiteLLM key lookup/provider invocation; tampered prompt

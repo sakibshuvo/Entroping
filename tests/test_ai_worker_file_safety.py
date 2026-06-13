@@ -72,6 +72,18 @@ def test_secret_like_content_reason_rejects_secret_shapes() -> None:
             "credential assignment",
             "PASSWORD=abc!def456ghi!klmno\n",
         ),
+        (
+            "credential assignment",
+            '{"api_key": "sk-proj-abcdefghijklmnopqrstuvwxyz123456"}\n',
+        ),
+        (
+            "credential assignment",
+            '{"access_token": "ghp_abcdefghijklmnopqrstuvwxyz123456"}\n',
+        ),
+        (
+            "credential assignment",
+            '{"client_secret": "xoxb-abcdefghijklmnopqrstuvwxyz123456"}\n',
+        ),
         ("bearer token", "Authorization: Bearer abcdefghijklmnopqrstuvwxyz123456\n"),
     )
 
@@ -87,6 +99,9 @@ def test_secret_like_content_reason_allows_non_secret_security_text() -> None:
             "Document the bearer token flow without sample credentials.",
             "TOKEN budget should stay under 4000.",
             "PASSWORD must be configured outside source control.",
+            '{"api_key": "read from ENTROPING_API_KEY at runtime"}',
+            '{"access_token": "<redacted>"}',
+            '{"client_secret": "placeholder"}',
             "The redaction test checks placeholder values only.",
         ]
     )

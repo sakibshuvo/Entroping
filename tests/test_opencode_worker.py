@@ -584,6 +584,10 @@ def test_opencode_worker_rejects_sensitive_path_before_subprocess(
             "credential assignment",
         ),
         (
+            '{"access_token": "ghp_abcdefghijklmnopqrstuvwxyz123456"}\n',
+            "credential assignment",
+        ),
+        (
             "Authorization: Bearer abcdefghijklmnopqrstuvwxyz123456\n",
             "bearer token",
         ),
@@ -625,6 +629,7 @@ def test_opencode_worker_rejects_secret_like_content_before_subprocess(
     assert result.returncode == 2
     assert "refusing to send selected file to OpenCode" in result.stderr
     assert f"secret-like content ({label})" in result.stderr
+    assert "abcdefghijklmnopqrstuvwxyz123456" not in result.stderr
     assert not marker.exists()
     assert not (tmp_path / "reviews").exists()
 
