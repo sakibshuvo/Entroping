@@ -7,7 +7,8 @@ Usage: scripts/doc_governance_check.sh [--root <path>]
 
 Validates the documentation control plane so humans and agents cannot silently
 remove roadmap, progress, PR, or agent-governance guardrails.
-It also runs the public claims audit when that script is present.
+It also runs Markdown freshness, public claims, and source-preservation checks
+when those scripts are present.
 
 Required anchors include:
   README.md links ROADMAP.md
@@ -15,6 +16,7 @@ Required anchors include:
   docs/meta/DOCS_GOVERNANCE.md defines the update matrix
   docs/meta/DECISION_REGISTRY.yaml preserves durable decision pointers
   .github/pull_request_template.md requires a Documentation Impact Declaration
+  scripts/docs_freshness_check.py rejects stale or corrupt Markdown context
   scripts/feature_gate.sh runs this check
 
 Options:
@@ -94,11 +96,23 @@ require_marker "docs/meta/DOCS_GOVERNANCE.md" "DECISION_REGISTRY.yaml"
 require_marker ".github/pull_request_template.md" "## Documentation Impact Declaration"
 require_marker ".github/pull_request_template.md" "Roadmap/progress updated:"
 require_marker "scripts/feature_gate.sh" "scripts/doc_governance_check.sh"
+require_marker "scripts/docs_freshness_check.py" "Markdown freshness OK"
 require_marker "scripts/public_claims_audit.py" "Public claims audit OK"
 require_marker "docs/meta/FEATURE_DELIVERY_CHECKLIST.md" "scripts/doc_governance_check.sh"
 require_marker "docs/meta/FEATURE_DELIVERY_CHECKLIST.md" "Documentation Impact Declaration"
 require_marker "docs/meta/PROJECT_PROGRESS.md" "DOCS_GOVERNANCE"
 require_marker "AGENTS.md" "docs/meta/DOCS_GOVERNANCE.md"
+
+if [[ -s "$repo_root/scripts/docs_freshness_check.py" ]]; then
+  if ! freshness_output="$(python3 "$repo_root/scripts/docs_freshness_check.py" --root "$repo_root" 2>&1)"; then
+    failures+=("scripts/docs_freshness_check.py: failed Markdown freshness check")
+    while IFS= read -r line; do
+      failures+=("Markdown freshness check: $line")
+    done <<< "$freshness_output"
+  fi
+else
+  failures+=("scripts/docs_freshness_check.py: missing Markdown freshness check")
+fi
 
 if [[ -s "$repo_root/scripts/public_claims_audit.py" ]]; then
   if ! claims_output="$(python3 "$repo_root/scripts/public_claims_audit.py" --root "$repo_root" 2>&1)"; then
