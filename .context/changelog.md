@@ -1042,3 +1042,9 @@
   attaches those snapshots to OpenCode instead of relying on live repo reads.
   The same selected-file boundary now rejects symlink inputs before resolving
   paths in both OpenCode and direct DeepSeek maintainer workers.
+- Closed issue #677's OpenCode worker artifact-isolation follow-up: OpenCode
+  subprocesses now run from a child scratch cwd under the ignored artifact
+  directory, selected-file snapshots remain outside the live repo, and
+  parent-owned stdout/stderr/metadata/proposal artifacts are written through
+  temp-file replacement so worker-created symlink path entries cannot redirect
+  captured output.

@@ -451,3 +451,7 @@
   do not make the provider-facing tool re-read mutable live repo paths.
 - Check selected paths for symlinks before calling `Path.resolve()`; resolving
   first follows the link and defeats an intended final-path symlink rejection.
+- Subprocess cwd changes are not an artifact integrity boundary by themselves.
+  Run provider-adjacent workers from a child scratch directory and write
+  parent-owned artifacts via temp-file replacement so child-created symlinks or
+  path entries cannot redirect captured output.

@@ -373,10 +373,11 @@ def test_opencode_worker_attaches_preflight_snapshot_to_subprocess(
             "  printf '%s\\n' 'missing attached snapshot' >&2\n"
             "  exit 6\n"
             "fi\n"
+            "printf '%s\\n' \"worker-cwd=$PWD\" > opencode-cwd.txt\n"
             "printf '%s\\n' 'mutated live file content' > notes.md\n"
             "printf '%s\\n' 'snapshot:'\n"
             "cat \"$attached\"\n"
-            "printf '%s\\n' 'live:'\n"
+            "printf '%s\\n' 'worker-cwd-note:'\n"
             "cat notes.md\n"
         ),
     )
@@ -408,8 +409,62 @@ def test_opencode_worker_attaches_preflight_snapshot_to_subprocess(
     assert snapshot_path.read_text(encoding="utf-8") == "vetted snapshot content\n"
     raw_output = (artifact_dir / "stdout.txt").read_text(encoding="utf-8")
     assert "snapshot:\nvetted snapshot content\n" in raw_output
-    assert "live:\nmutated live file content\n" in raw_output
-    assert selected_file.read_text(encoding="utf-8") == "mutated live file content\n"
+    assert "worker-cwd-note:\nmutated live file content\n" in raw_output
+    worker_cwd = artifact_dir / "worker-cwd"
+    assert (worker_cwd / "opencode-cwd.txt").read_text(encoding="utf-8").strip() == (
+        f"worker-cwd={worker_cwd}"
+    )
+    assert not (artifact_dir / "opencode-cwd.txt").exists()
+    assert selected_file.read_text(encoding="utf-8") == "vetted snapshot content\n"
+
+
+def test_opencode_worker_parent_artifacts_are_outside_worker_writable_cwd(
+    tmp_path: Path,
+) -> None:
+    repo = make_worker_repo(tmp_path)
+    selected_file = repo / "notes.md"
+    selected_file.write_text("vetted snapshot content\n", encoding="utf-8")
+    victim = tmp_path / "victim.txt"
+    victim.write_text("untouched\n", encoding="utf-8")
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_opencode = write_fake_opencode(
+        fake_bin,
+        body=(
+            "#!/usr/bin/env bash\n"
+            "set -euo pipefail\n"
+            "ln -sf \"$VICTIM\" stdout.txt\n"
+            "ln -sf \"$VICTIM\" ../stdout.txt\n"
+            "printf '%s\\n' \"worker-cwd=$PWD\"\n"
+            "printf '%s\\n' 'captured stdout stays in parent artifact file'\n"
+        ),
+    )
+
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        "notes.md",
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--opencode-bin",
+        str(fake_opencode),
+        "--json",
+        cwd=repo,
+        env={"VICTIM": str(victim)},
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    artifact_dir = Path(str(payload["artifact_dir"]))
+    worker_cwd = artifact_dir / "worker-cwd"
+    raw_output = (artifact_dir / "stdout.txt").read_text(encoding="utf-8")
+
+    assert f"worker-cwd={worker_cwd}\n" in raw_output
+    assert "captured stdout stays in parent artifact file\n" in raw_output
+    assert victim.read_text(encoding="utf-8") == "untouched\n"
+    assert (worker_cwd / "stdout.txt").is_symlink()
+    assert not (artifact_dir / "stdout.txt").is_symlink()
 
 
 def test_opencode_worker_timeout_is_inconclusive_and_bounded(tmp_path: Path) -> None:
