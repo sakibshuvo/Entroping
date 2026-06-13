@@ -7,6 +7,7 @@ models. It must not own proxy capture, SQLite persistence, or report writing.
 import json
 import math
 import re
+from base64 import b64encode
 from dataclasses import dataclass
 
 from entroping.bridge.traffic_sessions import TrafficSessionCandidate, TrafficSessionRecord
@@ -15,6 +16,22 @@ from entroping.models.traffic import TrafficBody, TrafficResponse
 
 _SAFE_FILE_STEM_RE = re.compile(r"[^A-Za-z0-9_.-]+")
 _JSONPATH_FIELD_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_HURL_REQUEST_LINE_RE = re.compile(
+    r"^(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|CONNECT|TRACE)\s+\S+(?:\s+.*)?$",
+)
+_HURL_RESPONSE_LINE_RE = re.compile(r"^HTTP\s+\S+")
+_HURL_SECTION_LINES = frozenset(
+    {
+        "[Asserts]",
+        "[BasicAuth]",
+        "[Captures]",
+        "[Cookies]",
+        "[FormParams]",
+        "[MultipartFormData]",
+        "[Options]",
+        "[QueryStringParams]",
+    }
+)
 _HOP_BY_HOP_REQUEST_HEADERS = frozenset(
     {
         "accept-encoding",
@@ -142,7 +159,31 @@ def _safe_body_lines(text: str) -> list[str]:
     if _has_hurl_template_delimiter(text):
         msg = "traffic body contains Hurl template delimiters"
         raise TrafficHurlCompilationError(msg)
+    if _contains_hurl_structural_line(text):
+        return _base64_body_lines(text)
     return text.splitlines() or [""]
+
+
+def _contains_hurl_structural_line(text: str) -> bool:
+    for line in text.splitlines():
+        stripped = line.strip()
+        if (
+            _HURL_REQUEST_LINE_RE.fullmatch(stripped)
+            or _HURL_RESPONSE_LINE_RE.fullmatch(stripped)
+            or stripped.startswith("#")
+            or _is_hurl_section_line(stripped)
+        ):
+            return True
+    return False
+
+
+def _is_hurl_section_line(line: str) -> bool:
+    return line in _HURL_SECTION_LINES
+
+
+def _base64_body_lines(text: str) -> list[str]:
+    encoded = b64encode(text.encode("utf-8")).decode("ascii")
+    return [f"base64,{encoded};"]
 
 
 def _golden_assertions(response: TrafficResponse) -> list[str]:

