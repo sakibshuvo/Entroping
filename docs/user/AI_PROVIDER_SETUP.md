@@ -110,8 +110,10 @@ agents:
     max_tokens: 4096
 ```
 
-`api_base` is the local OpenAI-compatible endpoint base URL. `api_key_env` is
-the name of an environment variable, not the key itself.
+`api_base` is the local OpenAI-compatible endpoint base URL and must target a
+loopback host such as `localhost`, `127.0.0.1`, or `::1`. Entroping does not
+accept arbitrary remote `api_base` overrides. `api_key_env` is the name of an
+environment variable, not the key itself.
 
 If the local server accepts unauthenticated requests, omit `api_key_env`. If it
 expects a placeholder key, export a local-only environment variable:
@@ -218,8 +220,8 @@ If Architect fails before calling the model:
 - Run `entroping doctor` and fix any unsafe, missing, oversized, non-Markdown,
   or secret-like persona file warnings.
 - Check that the persona file exists under the project root.
-- Check that `api_base` is an `http` or `https` URL without userinfo, query
-  parameters, or fragments.
+- Check that `api_base` is an `http` or `https` URL for a local loopback host,
+  without userinfo, query parameters, or fragments.
 - Check that `api_key_env` is a valid environment variable name.
 
 If LiteLLM reports provider errors:

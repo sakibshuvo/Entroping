@@ -14,6 +14,10 @@ from entroping.brain.safety import (
     has_disallowed_control,
     redact_secret_like_values,
 )
+from entroping.models.qanstitution import (
+    validate_agent_api_base,
+    validate_agent_api_key_env,
+)
 
 CompletionFunc = Callable[..., object]
 
@@ -137,7 +141,10 @@ def _completion_kwargs(package: ArchitectPromptPackage) -> dict[str, object]:
     if package.max_tokens is not None:
         kwargs["max_tokens"] = package.max_tokens
     if package.api_base is not None:
-        kwargs["api_base"] = package.api_base
+        try:
+            kwargs["api_base"] = validate_agent_api_base(package.api_base)
+        except ValueError as exc:
+            raise BrainProviderError(str(exc)) from exc
     if package.api_key_env is not None:
         kwargs["api_key"] = _read_api_key(package.api_key_env)
     return kwargs
@@ -178,12 +185,14 @@ def _validate_safe_payload_value(path: str, value: object) -> None:
         for index, item in enumerate(value):
             _validate_safe_payload_value(f"{path}[{index}]", item)
 
-
-
 def _read_api_key(env_name: str) -> str:
-    value = os.environ.get(env_name)
+    try:
+        safe_env_name = cast(str, validate_agent_api_key_env(env_name))
+    except ValueError as exc:
+        raise BrainProviderError(str(exc)) from exc
+    value = os.environ.get(safe_env_name)
     if value is None or not value.strip():
-        msg = f"API key environment variable is not set: {env_name}"
+        msg = f"API key environment variable is not set: {safe_env_name}"
         raise BrainProviderError(msg)
     return value
 

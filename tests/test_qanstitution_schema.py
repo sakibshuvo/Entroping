@@ -45,8 +45,10 @@ def test_qanstitution_schema_contract_covers_current_runtime_shape() -> None:
     definitions = _object(schema["$defs"])
     properties = _object(schema["properties"])
     gate_rule = _object(definitions["GateRule"])
+    agent_config = _object(definitions["AgentConfig"])
     gate_group = _object(definitions["GateGroup"])
     gate_group_reference = _object(definitions["GateGroupReference"])
+    agent_properties = _object(agent_config["properties"])
     gate_properties = _object(gate_rule["properties"])
     gate_group_properties = _object(gate_group["properties"])
     condition_schema = _object(gate_properties["condition"])
@@ -78,6 +80,9 @@ def test_qanstitution_schema_contract_covers_current_runtime_shape() -> None:
     assert condition_schema["pattern"] == CONDITION_JSON_SCHEMA_PATTERN
     assert version_schema["enum"] == [*SUPPORTED_QANSTITUTION_VERSIONS, None]
     assert "schema compatibility marker" in str(version_schema["description"])
+    assert "local loopback" in str(
+        _object(agent_properties["api_base"])["description"]
+    )
 
     condition_pattern = re.compile(str(condition_schema["pattern"]))
     valid_policy = {

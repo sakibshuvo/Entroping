@@ -426,9 +426,13 @@ agents:
     max_tokens: 4096
 ```
 
-`api_base` must be an `http` or `https` URL without userinfo, query
-parameters, or fragments. `api_key_env` must be a valid environment variable
-name. Optional `input_cost_per_1m_tokens_usd` and
+`api_base` must be an `http` or `https` URL targeting a local loopback host
+such as `localhost`, `127.0.0.1`, or `::1`; it must not include userinfo, query
+parameters, or fragments. Entroping does not accept arbitrary remote
+`api_base` overrides because pairing them with `api_key_env` could route
+prompts and provider keys outside the configured provider boundary.
+`api_key_env` must be a valid environment variable name. Optional
+`input_cost_per_1m_tokens_usd` and
 `output_cost_per_1m_tokens_usd` are local estimation hints used in value-free
 Architect run evidence when providers return token usage. No API keys in qanstitution.yaml.
 

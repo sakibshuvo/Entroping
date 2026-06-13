@@ -2,6 +2,11 @@
 
 ## 2026-06-13
 
+- Fixed issue #672's Architect provider routing boundary so `api_base` must
+  target a local loopback OpenAI-compatible endpoint at QAnstitution load time
+  and again before LiteLLM key lookup/provider invocation; tampered prompt
+  packages also revalidate `api_key_env` before reading environment variables,
+  and provider setup docs/schema metadata now state the loopback-only rule.
 - Fixed issue #671's traffic-to-Hurl body injection gap so captured request
   bodies that contain Hurl request lines, response lines, sections, or comments
   are emitted as inert `base64,...;` Hurl body data before freeze writes

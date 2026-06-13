@@ -80,7 +80,9 @@ agents:
     temperature: 0.1
 ```
 
-`api_base` is a provider endpoint. `api_key_env` is only the environment
+`api_base` is a local loopback OpenAI-compatible provider endpoint. Entroping
+does not accept arbitrary remote `api_base` overrides because `api_key_env` can
+route provider credentials into that call. `api_key_env` is only the environment
 variable name that holds a local or cloud provider key.
 
 ## 5. Credential Handling

@@ -470,8 +470,8 @@ The Brain is local-first and cloud-second:
 - Default local provider should be Ollama where available.
 - Cloud models are configured explicitly through model IDs such as `anthropic/...`, `openai/...`, `gemini/...`, or `deepseek/...`.
 - Local OpenAI-compatible runtimes, including oMLX, can be configured with
-  non-secret `api_base` endpoint metadata and optional `api_key_env`
-  environment-variable names on each agent.
+  non-secret loopback-only `api_base` endpoint metadata and optional
+  `api_key_env` environment-variable names on each agent.
 - Entroping must not shell out to external Gemini, Claude, or ChatGPT CLIs for intelligence.
 - If a local model is missing, the CLI should fail with helpful setup guidance or, in a future UX layer, offer an explicit pull/start flow.
 - API keys must come from environment variables or OS credential storage. Do not write provider keys into `qanstitution.yaml`, `.env.example`, logs, reports, or traffic state.

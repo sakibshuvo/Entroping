@@ -48,6 +48,24 @@ def test_agent_config_accepts_provider_connection_metadata() -> None:
     assert config.output_cost_per_1m_tokens_usd == 1.25
 
 
+@pytest.mark.parametrize(
+    "api_base",
+    [
+        "http://localhost:8000/v1",
+        "http://localhost.:8000/v1",
+        "http://[::1]:8000/v1",
+    ],
+)
+def test_agent_config_accepts_loopback_provider_api_base(api_base: str) -> None:
+    config = AgentConfig(
+        source="agents/builder.md",
+        model="openai/qwen3-coder",
+        api_base=api_base,
+    )
+
+    assert config.api_base == api_base
+
+
 def test_agent_config_rejects_negative_cost_metadata() -> None:
     with pytest.raises(ValidationError, match="greater than or equal to 0"):
         AgentConfig(
@@ -71,6 +89,8 @@ def test_agent_config_rejects_negative_cost_metadata() -> None:
         ("http://user:pass@127.0.0.1:8000/v1", "api_base must not contain userinfo"),
         ("http://127.0.0.1:8000/v1?token=secret", "api_base must not contain query"),
         ("http://127.0.0.1:8000/v1#models", "api_base must not contain fragments"),
+        ("https://api.evil.example/v1", "api_base must target a local loopback host"),
+        ("http://:8000/v1", "api_base must target a local loopback host"),
         ("sk-proj-live-secret", "api_base must not look like a secret"),
         ("http://127.0.0.1:8000/v1\x00", "api_base must not contain control characters"),
     ],
