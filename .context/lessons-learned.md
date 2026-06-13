@@ -1,5 +1,13 @@
 # Entroping Lessons Learned
 
+## 2026-06-13
+
+- Captured traffic bodies are untrusted syntax, not just untrusted values. When
+  body lines can look like Hurl request lines, response lines, sections, or
+  comments, the traffic compiler should render them through inert Hurl body
+  syntax before any parser, gate injector, or freeze writer can reinterpret
+  them as executable test structure or Entroping metadata.
+
 ## 2026-06-12
 
 - Software-factory metrics should be useful evidence, not another authority

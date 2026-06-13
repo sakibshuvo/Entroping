@@ -1,5 +1,13 @@
 # Entroping Changelog
 
+## 2026-06-13
+
+- Fixed issue #671's traffic-to-Hurl body injection gap so captured request
+  bodies that contain Hurl request lines, response lines, sections, or comments
+  are emitted as inert `base64,...;` Hurl body data before freeze writes
+  generated tests; bridge and freeze regressions prove injected body text no
+  longer creates extra parsed exchanges or Entroping metadata.
+
 ## 2026-06-12
 
 - Added issue #669's Markdown freshness guardrail:
