@@ -2,6 +2,14 @@
 
 ## 2026-06-12
 
+- Added issue #669's Markdown freshness guardrail:
+  `scripts/docs_freshness_check.py` now audits current tracked Markdown for
+  corrupt encodings, NUL bytes, merge markers, broken local Markdown links,
+  unmarked stale active-repo paths, deprecated command literals outside
+  deprecation context, unsupported readiness/security claims, and placeholder
+  markers; `scripts/doc_governance_check.sh` runs it before the existing
+  public-claims and source-preservation gates so agents use current Markdown as
+  context truth and reserve deleted historical paths for explicit archaeology.
 - Added issue #667's factory metrics report export:
   `scripts/factory_metrics.py report` now renders schema-versioned JSON or
   Markdown per-issue cost/yield summaries from ignored local metrics ledgers,
