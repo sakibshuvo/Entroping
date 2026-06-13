@@ -2,6 +2,11 @@
 
 ## 2026-06-13
 
+- Provider routing metadata needs validation at both authoring and invocation
+  boundaries. QAnstitution validators protect normal config loading, but the
+  LiteLLM adapter should revalidate `api_base` and `api_key_env` before reading
+  provider keys or building a completion payload so tampered prompt packages
+  cannot route prompts or credentials to unintended endpoints.
 - Captured traffic bodies are untrusted syntax, not just untrusted values. When
   body lines can look like Hurl request lines, response lines, sections, or
   comments, the traffic compiler should render them through inert Hurl body

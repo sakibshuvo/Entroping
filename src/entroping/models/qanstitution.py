@@ -4,6 +4,7 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
+from ipaddress import ip_address
 from typing import Literal, cast
 from urllib.parse import urlparse
 
@@ -63,7 +64,16 @@ class AgentConfig(BaseModel):
 
     source: str
     model: str
-    api_base: str | None = None
+    api_base: str | None = Field(
+        default=None,
+        json_schema_extra={
+            "description": (
+                "Optional local OpenAI-compatible endpoint base URL. "
+                "Must target a local loopback host such as localhost, "
+                "127.0.0.1, or ::1."
+            )
+        },
+    )
     api_key_env: str | None = None
     input_cost_per_1m_tokens_usd: float | None = Field(
         default=None,
@@ -100,55 +110,82 @@ class AgentConfig(BaseModel):
     def validate_api_base(cls, value: str | None) -> str | None:
         """Validate an optional OpenAI-compatible provider base URL."""
 
-        if value is None:
-            return None
-        api_base = value.strip()
-        if not api_base:
-            msg = "api_base must not be empty"
-            raise ValueError(msg)
-        if any(ord(character) < 32 or ord(character) == 127 for character in api_base):
-            msg = "api_base must not contain control characters"
-            raise ValueError(msg)
-        if _looks_like_secret(api_base):
-            msg = "api_base must not look like a secret"
-            raise ValueError(msg)
-
-        parsed = urlparse(api_base)
-        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-            msg = "api_base must use http or https"
-            raise ValueError(msg)
-        if parsed.username is not None or parsed.password is not None:
-            msg = "api_base must not contain userinfo"
-            raise ValueError(msg)
-        if parsed.query:
-            msg = "api_base must not contain query parameters"
-            raise ValueError(msg)
-        if parsed.fragment:
-            msg = "api_base must not contain fragments"
-            raise ValueError(msg)
-        return api_base
+        return validate_agent_api_base(value)
 
     @field_validator("api_key_env")
     @classmethod
     def validate_api_key_env(cls, value: str | None) -> str | None:
         """Validate an optional environment variable name for provider auth."""
 
-        if value is None:
-            return None
-        api_key_env = value.strip()
-        if not api_key_env:
-            msg = "api_key_env must not be empty"
-            raise ValueError(msg)
-        if any(ord(character) < 32 or ord(character) == 127 for character in api_key_env):
-            msg = "api_key_env must not contain control characters"
-            raise ValueError(msg)
-        if _looks_like_secret(api_key_env):
-            msg = "api_key_env must not look like a secret"
-            raise ValueError(msg)
-        if _ENV_NAME_RE.fullmatch(api_key_env) is None:
-            msg = "api_key_env must be an environment variable name"
-            raise ValueError(msg)
-        return api_key_env
+        return validate_agent_api_key_env(value)
+
+
+def validate_agent_api_base(value: str | None) -> str | None:
+    """Validate local OpenAI-compatible provider endpoint metadata."""
+
+    if value is None:
+        return None
+    api_base = value.strip()
+    if not api_base:
+        msg = "api_base must not be empty"
+        raise ValueError(msg)
+    if any(ord(character) < 32 or ord(character) == 127 for character in api_base):
+        msg = "api_base must not contain control characters"
+        raise ValueError(msg)
+    if _looks_like_secret(api_base):
+        msg = "api_base must not look like a secret"
+        raise ValueError(msg)
+
+    parsed = urlparse(api_base)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        msg = "api_base must use http or https"
+        raise ValueError(msg)
+    if parsed.username is not None or parsed.password is not None:
+        msg = "api_base must not contain userinfo"
+        raise ValueError(msg)
+    if parsed.query:
+        msg = "api_base must not contain query parameters"
+        raise ValueError(msg)
+    if parsed.fragment:
+        msg = "api_base must not contain fragments"
+        raise ValueError(msg)
+    if not _is_loopback_host(parsed.hostname):
+        msg = "api_base must target a local loopback host"
+        raise ValueError(msg)
+    return api_base
+
+
+def validate_agent_api_key_env(value: str | None) -> str | None:
+    """Validate an optional environment variable name for provider auth."""
+
+    if value is None:
+        return None
+    api_key_env = value.strip()
+    if not api_key_env:
+        msg = "api_key_env must not be empty"
+        raise ValueError(msg)
+    if any(ord(character) < 32 or ord(character) == 127 for character in api_key_env):
+        msg = "api_key_env must not contain control characters"
+        raise ValueError(msg)
+    if _looks_like_secret(api_key_env):
+        msg = "api_key_env must not look like a secret"
+        raise ValueError(msg)
+    if _ENV_NAME_RE.fullmatch(api_key_env) is None:
+        msg = "api_key_env must be an environment variable name"
+        raise ValueError(msg)
+    return api_key_env
+
+
+def _is_loopback_host(hostname: str | None) -> bool:
+    if hostname is None:
+        return False
+    normalized = hostname.lower().rstrip(".")
+    if normalized == "localhost":
+        return True
+    try:
+        return ip_address(normalized).is_loopback
+    except ValueError:
+        return False
 
 
 class GateRule(BaseModel):

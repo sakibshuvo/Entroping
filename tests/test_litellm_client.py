@@ -213,6 +213,43 @@ def test_litellm_client_passes_openai_compatible_provider_metadata(
     assert calls[0]["api_key"] == "local-provider-key"
 
 
+def test_litellm_client_rejects_disallowed_api_base_before_api_key_lookup(
+    tmp_path: Path,
+) -> None:
+    package = _package(tmp_path).model_copy(
+        update={
+            "api_base": "https://api.evil.example/v1",
+            "api_key_env": "ENTROPING_MISSING_KEY",
+        }
+    )
+    calls: list[dict[str, object]] = []
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        calls.append(kwargs)
+        return {"choices": [{"message": {"content": '{"summary":"ok","edits":[]}'}}]}
+
+    with pytest.raises(BrainProviderError, match="api_base must target a local loopback host"):
+        LiteLLMClient(completion_func=fake_completion).complete(package)
+
+    assert calls == []
+
+
+def test_litellm_client_rejects_unsafe_api_key_env_before_lookup(
+    tmp_path: Path,
+) -> None:
+    package = _package(tmp_path).model_copy(update={"api_key_env": "sk-proj-live-secret"})
+    calls: list[dict[str, object]] = []
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        calls.append(kwargs)
+        return {"choices": [{"message": {"content": '{"summary":"ok","edits":[]}'}}]}
+
+    with pytest.raises(BrainProviderError, match="api_key_env must not look like a secret"):
+        LiteLLMClient(completion_func=fake_completion).complete(package)
+
+    assert calls == []
+
+
 def test_litellm_client_rejects_missing_api_key_env(tmp_path: Path) -> None:
     package = _package(tmp_path).model_copy(update={"api_key_env": "ENTROPING_MISSING_KEY"})
 
@@ -341,6 +378,36 @@ def test_litellm_client_rejects_control_characters_in_completion_payload_fields(
 
     with pytest.raises(BrainProviderError, match="control characters"):
         LiteLLMClient(completion_func=fake_completion).complete(package)
+
+    assert calls == []
+
+
+def test_litellm_client_rejects_control_payload_from_boundary_kwargs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, object]] = []
+    original_package = _package(tmp_path)
+
+    def fake_completion(**kwargs: object) -> dict[str, object]:
+        calls.append(kwargs)
+        return {"choices": [{"message": {"content": '{"summary":"ok","edits":[]}'}}]}
+
+    def fake_kwargs(_: ArchitectPromptPackage) -> dict[str, object]:
+        return {
+            "model": "openai/gpt\x00",
+            "messages": [message.model_dump() for message in original_package.messages],
+            "temperature": original_package.temperature,
+        }
+
+    monkeypatch.setattr(
+        litellm_client,
+        "_completion_kwargs",
+        fake_kwargs,
+    )
+
+    with pytest.raises(BrainProviderError, match="control characters"):
+        LiteLLMClient(completion_func=fake_completion).complete(original_package)
 
     assert calls == []
 
