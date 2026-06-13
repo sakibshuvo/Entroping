@@ -2,6 +2,11 @@
 
 ## 2026-06-13
 
+- Secret-like content detection for selected AI-worker files must handle syntax
+  shape, not only bare shell-style assignments. Quoted JSON keys such as
+  `api_key`, `access_token`, and `client_secret` can carry real provider
+  credentials and need shared detector regressions plus worker call-path tests
+  that prove the value is never echoed or sent to a subprocess/model.
 - Provider routing metadata needs validation at both authoring and invocation
   boundaries. QAnstitution validators protect normal config loading, but the
   LiteLLM adapter should revalidate `api_base` and `api_key_env` before reading

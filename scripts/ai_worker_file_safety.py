@@ -68,8 +68,10 @@ SECRET_LIKE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     (
         "credential assignment",
         re.compile(
-            r"(?i)\b(?:[A-Z0-9_]*API[_-]?KEY|TOKEN|SECRET|PASSWORD)\b"
-            r"\s*[:=]\s*['\"]?[^\s'\"]{16,}"
+            r"(?i)(?:^|[^A-Z0-9_-])['\"]?"
+            r"(?:[A-Z0-9_-]*API[_-]?KEY|[A-Z0-9_-]*TOKEN|"
+            r"[A-Z0-9_-]*SECRET|PASSWORD|PRIVATE[_-]?KEY|PRIVATEKEY)"
+            r"['\"]?\s*[:=]\s*['\"]?[^\s'\"]{16,}"
         ),
     ),
     (

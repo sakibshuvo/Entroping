@@ -469,15 +469,20 @@ def test_deepseek_worker_rejects_symlink_before_artifact_or_model_call(
     assert DeepSeekStubHandler.requests == []
 
 
+@pytest.mark.parametrize(
+    "content",
+    (
+        "OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456\n",
+        '{"client_secret": "xoxb-abcdefghijklmnopqrstuvwxyz123456"}\n',
+    ),
+)
 def test_deepseek_worker_rejects_secret_like_file_before_artifact_or_model_call(
     tmp_path: Path,
+    content: str,
 ) -> None:
     repo = make_worker_repo(tmp_path)
     secret_file = repo / "notes.md"
-    secret_file.write_text(
-        "OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456\n",
-        encoding="utf-8",
-    )
+    secret_file.write_text(content, encoding="utf-8")
     DeepSeekStubHandler.requests = []
     server = HTTPServer(("127.0.0.1", 0), DeepSeekStubHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -505,6 +510,7 @@ def test_deepseek_worker_rejects_secret_like_file_before_artifact_or_model_call(
     assert result.returncode == 2
     assert "refusing to send selected file to DeepSeek" in result.stderr
     assert "secret-like content" in result.stderr
+    assert "abcdefghijklmnopqrstuvwxyz123456" not in result.stderr
     assert not (tmp_path / "reviews").exists()
     assert DeepSeekStubHandler.requests == []
 
