@@ -130,10 +130,12 @@ def run_worker(config: WorkerConfig) -> WorkerResult:
         )
         return result
 
+    worker_cwd = artifact_dir / "worker-cwd"
+    worker_cwd.mkdir(exist_ok=False)
     try:
         completed = subprocess.run(  # nosec B603
             command,
-            cwd=config.repo_root,
+            cwd=worker_cwd.resolve(),
             check=False,
             capture_output=True,
             text=True,
@@ -541,13 +543,23 @@ def _write_execution_artifacts(
     result: WorkerResult,
     command: list[str],
 ) -> None:
-    (result.artifact_dir / "stdout.txt").write_text(result.stdout, encoding="utf-8")
-    (result.artifact_dir / "stderr.txt").write_text(result.stderr, encoding="utf-8")
+    _write_artifact_text(result.artifact_dir / "stdout.txt", result.stdout)
+    _write_artifact_text(result.artifact_dir / "stderr.txt", result.stderr)
     if config.mode == "patch":
         proposal = _extract_unified_diff(result.stdout)
         if proposal is not None:
-            (result.artifact_dir / "proposal.diff").write_text(proposal, encoding="utf-8")
+            _write_artifact_text(result.artifact_dir / "proposal.diff", proposal)
     _write_metadata(config, result, command)
+
+
+def _write_artifact_text(path: Path, content: str) -> None:
+    temp_path = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        temp_path.write_text(content, encoding="utf-8")
+        temp_path.replace(path)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
 
 
 def _write_metadata(config: WorkerConfig, result: WorkerResult, command: list[str]) -> None:
@@ -566,9 +578,9 @@ def _write_metadata(config: WorkerConfig, result: WorkerResult, command: list[st
         "created_at": datetime.now(UTC_TZ).isoformat(),
         "dry_run": config.dry_run,
     }
-    (result.artifact_dir / "metadata.json").write_text(
+    _write_artifact_text(
+        result.artifact_dir / "metadata.json",
         json.dumps(metadata, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
     )
 
 
