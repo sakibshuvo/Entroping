@@ -2,6 +2,10 @@
 
 ## 2026-06-14
 
+- Finished-issue factory metrics should remain opt-in for reports. Active
+  worktree metrics are the default feedback loop, while archive inclusion is a
+  retrospective mode that must label malformed archived ledgers by source path
+  and avoid symlink traversal.
 - Issue worktree cleanup should preserve ignored factory telemetry before
   deleting the worktree. Otherwise cost, token, and yield evidence disappears
   exactly when the issue is finished and ready for retrospective analysis.
