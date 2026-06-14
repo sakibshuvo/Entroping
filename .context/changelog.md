@@ -2,6 +2,11 @@
 
 ## 2026-06-14
 
+- Added issue #705's OpenCode Desktop tooling setup checklist:
+  `docs/meta/prompt-library/opencode-desktop-handoff.md` now distinguishes
+  Codex-native tools from OpenCode-exposed equivalents and covers read-only MCP,
+  hooks, branch hygiene, dirty worktree checks, secret/local-state hygiene,
+  PR-body evidence, CI, provider lanes, and metrics hooks.
 - Added issue #709's architecture-boundary brief prompt:
   `docs/meta/prompt-library/architecture-boundary-brief.md` now gives
   OpenCode/DeepSeek worker packets explicit ownership, allowed files,

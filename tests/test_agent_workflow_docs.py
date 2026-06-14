@@ -91,6 +91,56 @@ def test_prompt_library_includes_architecture_boundary_brief_template() -> None:
     assert "| [Architecture boundary brief](architecture-boundary-brief.md) |" in readme
 
 
+def test_opencode_desktop_handoff_documents_tooling_setup_checklist() -> None:
+    doc = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-desktop-handoff.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(doc.split())
+
+    required_terms = [
+        "## OpenCode Desktop Tooling Setup Checklist",
+        "Codex-native tools are not automatically available inside OpenCode",
+        "OpenCode-exposed equivalents",
+        "Codex Security",
+        "Browser",
+        "Computer Use",
+        "thread tools",
+        "Codex-specific MCP state",
+        "OpenCode MCP servers are not Codex MCP state",
+        "the worker must say so instead of implying Codex tool access",
+        "Start with narrow read-only MCP access",
+        "GitHub MCP",
+        "filesystem MCP",
+        "hooks",
+        "branch/no-main",
+        "dirty worktree",
+        "secrets",
+        "local state",
+        "PR-body",
+        "CI",
+        "scripts/factory_metrics.py",
+        "scripts/opencode_worker.py",
+        "scripts/ai_jobs.py run-next",
+        "MCP credentials",
+        "provider keys",
+        "`.opencode` state",
+        "Do not commit local OpenCode config",
+        "opencode/native-deepseek",
+        "deepseek/deepseek-v4-pro",
+        "OpenCode Go is the Kimi/Qwen/model-variety lane",
+        "opencode-go/kimi-k2.7-code",
+        "opencode-go/qwen3.7-max",
+        "opencode-go/other",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+
 def test_agent_control_plane_defines_risk_tiered_software_factory() -> None:
     doc = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
         encoding="utf-8"
