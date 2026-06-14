@@ -39,6 +39,29 @@ def test_public_claims_audit_rejects_unsupported_production_claim(tmp_path: Path
     assert "guaranteed secure" in result.stderr
 
 
+def test_public_claims_audit_skips_generated_context_tool_outputs(tmp_path: Path) -> None:
+    generated_paths = [
+        "graphify-out/README.md",
+        "llm-wiki-out/README.md",
+        "understand-anything-out/repo/README.md",
+        ".understand-anything/knowledge.md",
+        "codegraph-out/report.md",
+        ".codegraph/report.md",
+        "headroom-out/report.md",
+        "agent-context-out/probe.md",
+    ]
+    for path in generated_paths:
+        target = tmp_path / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("External tool says production-ready.\n", encoding="utf-8")
+    (tmp_path / "README.md").write_text("# Demo\n\nNo launch claim here.\n", encoding="utf-8")
+
+    result = run_public_claims_audit("--root", str(tmp_path))
+
+    assert result.returncode == 0, result.stderr
+    assert "Public claims audit OK" in result.stdout
+
+
 def test_public_claims_audit_is_part_of_documentation_governance() -> None:
     doc_governance = (REPO_ROOT / "scripts" / "doc_governance_check.sh").read_text(
         encoding="utf-8"

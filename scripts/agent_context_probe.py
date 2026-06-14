@@ -281,15 +281,30 @@ def _artifact_records(path: Path) -> Iterable[tuple[int | None, str]]:
             lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
         except OSError:
             return
-        for line_number, line in enumerate(lines, start=1):
-            yield line_number, line
+        yield from enumerate(lines, start=1)
         return
 
     try:
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
     except OSError:
         return
+    yield from _text_records(lines)
+
+
+def _text_records(lines: list[str]) -> Iterable[tuple[int | None, str]]:
+    current_source_path: str | None = None
     for line_number, line in enumerate(lines, start=1):
+        if line.startswith("####"):
+            references = _referenced_paths(line)
+            if references:
+                current_source_path = references[0]
+            yield line_number, line
+            continue
+
+        if current_source_path and line.strip() and not _referenced_paths(line):
+            yield line_number, f"{current_source_path}: {line}"
+            continue
+
         yield line_number, line
 
 

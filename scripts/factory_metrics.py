@@ -128,6 +128,14 @@ CONTEXT_SCORECARD_PROOF_STATUSES = {
     "baseline_component",
     "insufficient",
 }
+CONTEXT_SCORECARD_SETUP_STATUSES = {
+    "available",
+    "blocked",
+    "failed",
+    "installed",
+    "missing",
+    "not_applicable",
+}
 CONTEXT_SCORECARD_ALLOWED_SOURCE_TYPES = {
     "repo_source",
     "test",
@@ -171,10 +179,17 @@ CONTEXT_SCORECARD_EVALUATION_KEYS = {
     "proof_status",
     "status_before",
     "recommended_status",
+    "setup",
     "evidence_sources",
     "trials",
 }
 CONTEXT_SCORECARD_EVIDENCE_KEYS = {"source_type", "reference", "summary"}
+CONTEXT_SCORECARD_SETUP_KEYS = {
+    "status",
+    "duration_seconds",
+    "command",
+    "failure_reason",
+}
 CONTEXT_SCORECARD_TRIAL_KEYS = {
     "issue",
     "packet_type",
@@ -726,6 +741,48 @@ def _validate_context_scorecard_evidence(
         _validate_scorecard_text(source.get("summary"), f"{source_path}.summary", errors)
 
 
+def _validate_context_scorecard_setup(
+    setup: object,
+    path: str,
+    errors: list[str],
+) -> None:
+    if setup is None:
+        return
+    if not isinstance(setup, dict):
+        errors.append(f"{path} must be an object")
+        return
+
+    for key in sorted(set(setup) - CONTEXT_SCORECARD_SETUP_KEYS):
+        errors.append(f"{path}.{key} is not supported")
+
+    status = setup.get("status")
+    _validate_scorecard_text(status, f"{path}.status", errors)
+    if isinstance(status, str) and status not in CONTEXT_SCORECARD_SETUP_STATUSES:
+        errors.append(f"{path}.status is not supported")
+
+    duration_seconds = setup.get("duration_seconds")
+    if duration_seconds is not None:
+        if not _is_number(duration_seconds):
+            errors.append(f"{path}.duration_seconds must be numeric")
+        elif duration_seconds < 0:
+            errors.append(
+                f"{path}.duration_seconds must be greater than or equal to 0"
+            )
+
+    _validate_scorecard_text(
+        setup.get("command"),
+        f"{path}.command",
+        errors,
+        required=False,
+    )
+    _validate_scorecard_text(
+        setup.get("failure_reason"),
+        f"{path}.failure_reason",
+        errors,
+        required=False,
+    )
+
+
 def _validate_context_scorecard_trial(
     trial: object,
     path: str,
@@ -797,6 +854,7 @@ def _validate_context_scorecard_evaluation(
     ):
         errors.append(f"{path}.recommended_status is not supported")
 
+    _validate_context_scorecard_setup(evaluation.get("setup"), f"{path}.setup", errors)
     _validate_context_scorecard_evidence(
         evaluation.get("evidence_sources"),
         f"{path}.evidence_sources",
@@ -1180,6 +1238,28 @@ def _context_tool_source_counts(evaluation: dict[str, Any]) -> dict[str, int]:
     return _counter_dict(counter)
 
 
+def _context_tool_setup_entry(evaluation: dict[str, Any]) -> dict[str, Any]:
+    setup = evaluation.get("setup")
+    if not isinstance(setup, dict):
+        return {
+            "status": "not_recorded",
+            "duration_seconds": None,
+            "command": None,
+            "failure_reason": None,
+        }
+
+    duration_seconds = setup.get("duration_seconds")
+    if duration_seconds is not None and not _is_number(duration_seconds):
+        duration_seconds = None
+
+    return {
+        "status": _safe_report_label(setup.get("status")) or "unknown",
+        "duration_seconds": duration_seconds,
+        "command": _safe_report_label(setup.get("command")),
+        "failure_reason": _safe_report_label(setup.get("failure_reason")),
+    }
+
+
 def _best_context_trial(
     trial_comparisons: list[dict[str, Any]],
 ) -> dict[str, Any] | None:
@@ -1218,6 +1298,7 @@ def _context_tool_report_entry(evaluation: dict[str, Any]) -> dict[str, Any]:
             _safe_report_label(evaluation.get("recommended_status")) or "unknown"
         ),
         "trial_count": len(valid_trials),
+        "setup": _context_tool_setup_entry(evaluation),
         "evidence_count": len(evaluation.get("evidence_sources", []))
         if isinstance(evaluation.get("evidence_sources"), list)
         else 0,
@@ -1242,6 +1323,7 @@ def _context_scorecard_report(scorecard: dict[str, Any]) -> dict[str, Any]:
     ]
     recommendations = Counter(str(entry["recommended_status"]) for entry in tool_entries)
     proof_statuses = Counter(str(entry["proof_status"]) for entry in tool_entries)
+    setup_statuses = Counter(str(entry["setup"]["status"]) for entry in tool_entries)
     baseline = scorecard.get("baseline", {})
     baseline_components = baseline.get("components") if isinstance(baseline, dict) else []
 
@@ -1259,6 +1341,7 @@ def _context_scorecard_report(scorecard: dict[str, Any]) -> dict[str, Any]:
         "total_trials": sum(int(entry["trial_count"]) for entry in tool_entries),
         "tools_by_recommendation": _counter_dict(recommendations),
         "tools_by_proof_status": _counter_dict(proof_statuses),
+        "tools_by_setup_status": _counter_dict(setup_statuses),
         "tools": tool_entries,
     }
 
@@ -1282,16 +1365,18 @@ def _render_context_scorecard_markdown(report: dict[str, Any]) -> str:
             "",
             "## Tool Decisions",
             "",
-            "| Tool | Proof | Recommendation | Trials | Evidence | Best issue | "
+            "| Tool | Setup | Proof | Recommendation | Trials | Evidence | Best issue | "
             "Improvements | Regressions | Improved metrics |",
-            "| --- | --- | --- | ---: | ---: | --- | ---: | ---: | --- |",
+            "| --- | --- | --- | --- | ---: | ---: | --- | ---: | ---: | --- |",
         ]
     )
 
     for tool in report["tools"]:
         best_trial = tool["best_trial"] if isinstance(tool["best_trial"], dict) else {}
+        setup = tool["setup"] if isinstance(tool["setup"], dict) else {}
         row = [
             tool["tool"],
+            setup.get("status", "not_recorded"),
             tool["proof_status"],
             tool["recommended_status"],
             tool["trial_count"],

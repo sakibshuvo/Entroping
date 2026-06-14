@@ -2,6 +2,15 @@
 
 ## 2026-06-14
 
+- Full tool trials must record setup failure as first-class evidence. Issue
+  #712 showed that Graphify and CodeGraph can be locally available while still
+  producing noisy or incomplete retrieval, Headroom can expose a savings profile
+  without real proxy evidence, and Understand Anything can install/build/test in
+  an ignored clone while remaining unavailable to the current Codex session.
+- CodeGraph line-numbered source is useful for worker handoff only when the
+  file heading is preserved. `scripts/agent_context_probe.py` should carry
+  `#### path` headings into following source lines so agents get grounded
+  candidate paths instead of context-free snippets.
 - Context tools should earn active workflow status through a local scorecard,
   not vibe. Measure grounded file hits, nonexistent or stale references,
   forbidden-scope incidents, retrieval precision/recall, recovery time, review

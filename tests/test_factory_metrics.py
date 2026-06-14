@@ -121,10 +121,11 @@ def _context_tool_evaluation(
     tool: str = "Graphify",
     proof_status: str = "measured",
     recommended_status: str = "optional_manual",
+    setup: dict[str, Any] | None = None,
     trials: list[dict[str, Any]] | None = None,
     evidence_sources: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
-    return {
+    evaluation: dict[str, Any] = {
         "tool": tool,
         "tool_layer": "graph_context",
         "proof_status": proof_status,
@@ -167,6 +168,9 @@ def _context_tool_evaluation(
             }
         ],
     }
+    if setup is not None:
+        evaluation["setup"] = setup
+    return evaluation
 
 
 def _write_jsonl(path: Path, *events: dict[str, Any]) -> None:
@@ -1259,6 +1263,114 @@ def test_context_tool_scorecard_report_measures_tools_against_baseline(
     assert codegraph["trial_count"] == 0
     assert codegraph["strongest_improvement_count"] == 0
     assert codegraph["missing_required_metrics"] == []
+
+
+def test_context_tool_scorecard_reports_setup_failure_evidence(
+    tmp_path: Path,
+) -> None:
+    scorecard_path = (
+        tmp_path / ".entroping" / "factory-metrics" / "context-tools" / "scorecard.json"
+    )
+    scorecard_path.parent.mkdir(parents=True)
+    scorecard = _context_tool_scorecard(
+        tool_evaluations=[
+            _context_tool_evaluation(
+                tool="Understand Anything",
+                proof_status="not_measured",
+                recommended_status="probation",
+                setup={
+                    "status": "blocked",
+                    "duration_seconds": 42.5,
+                    "command": "inspect installer without modifying Codex config",
+                    "failure_reason": (
+                        "Codex slash-command plugin install would mutate user-local "
+                        "state and cannot become active in this running session."
+                    ),
+                },
+                trials=[],
+                evidence_sources=[
+                    {
+                        "source_type": "generated_understand_anything",
+                        "reference": "understand-anything-out/setup-inspection.json",
+                        "summary": "Installer was inspected but not activated.",
+                    }
+                ],
+            )
+        ]
+    )
+    scorecard_path.write_text(json.dumps(scorecard), encoding="utf-8")
+
+    result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "context-scorecard",
+        "report",
+        "--input",
+        str(scorecard_path),
+        "--format",
+        "json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    [tool] = json.loads(result.stdout)["tools"]
+    assert tool["setup"] == {
+        "status": "blocked",
+        "duration_seconds": 42.5,
+        "command": "inspect installer without modifying Codex config",
+        "failure_reason": (
+            "Codex slash-command plugin install would mutate user-local "
+            "state and cannot become active in this running session."
+        ),
+    }
+
+
+def test_context_tool_scorecard_rejects_invalid_setup_metadata(
+    tmp_path: Path,
+) -> None:
+    scorecard_path = (
+        tmp_path / ".entroping" / "factory-metrics" / "context-tools" / "scorecard.json"
+    )
+    scorecard_path.parent.mkdir(parents=True)
+    scorecard = _context_tool_scorecard(
+        tool_evaluations=[
+            _context_tool_evaluation(
+                setup={
+                    "status": "imaginary",
+                    "duration_seconds": -1,
+                    "command": "raw prompt: leak this",
+                    "failure_reason": "api_key=live-secret-token",
+                }
+            )
+        ]
+    )
+    scorecard_path.write_text(json.dumps(scorecard), encoding="utf-8")
+
+    result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "context-scorecard",
+        "validate",
+        "--input",
+        str(scorecard_path),
+        "--json",
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "invalid"
+    assert "tool_evaluations[0].setup.status is not supported" in payload["errors"]
+    assert (
+        "tool_evaluations[0].setup.duration_seconds must be greater than or equal to 0"
+        in payload["errors"]
+    )
+    assert (
+        "tool_evaluations[0].setup.command must not contain raw prompt or transcript material"
+        in payload["errors"]
+    )
+    assert (
+        "tool_evaluations[0].setup.failure_reason contains unredacted secret-like value"
+        in payload["errors"]
+    )
 
 
 def test_context_tool_scorecard_rejects_missing_evidence_as_active_proof(

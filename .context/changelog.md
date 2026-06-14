@@ -2,6 +2,16 @@
 
 ## 2026-06-14
 
+- Ran issue #712's full context-tool trial across curated Markdown/Obsidian,
+  Graphify, LLM wiki pattern, Understand Anything, CodeGraph, Headroom, and
+  the repo-native agent context probe. The scorecard now records setup status,
+  setup duration, setup command, and setup failure reason; generated-output
+  hygiene covers `.codegraph/` and `.understand-anything/`; and
+  `scripts/agent_context_probe.py` preserves CodeGraph source-heading paths for
+  line-numbered snippets. The measured decision is active curated Markdown plus
+  active agent context probe, optional-manual Graphify/CodeGraph/LLM wiki
+  pattern, and probationary Headroom/Understand Anything until real local
+  evidence proves savings or live graph value.
 - Added issue #710's context-tool proof/discard scorecard:
   `scripts/factory_metrics.py context-scorecard validate/report` now validates
   local value-free scorecards with schema
