@@ -143,14 +143,62 @@ def test_deepseek_worker_dry_run_writes_prompt_and_metadata_without_api_key(
     assert metadata["mode"] == "review"
     assert metadata["model"] == "deepseek-v4-pro"
     assert metadata["api_key_env"] == "DEEPSEEK_API_KEY"
+    assert (
+        metadata["capability_context_version"]
+        == "entroping.deepseek-capability-context.v1"
+    )
     prompt = (artifact_dir / "prompt.md").read_text(encoding="utf-8")
     assert "Codex remains the integrator" in prompt
+    assert "## Factory Capability Context" in prompt
+    assert "Direct DeepSeek API workers do not have live MCP" in prompt
+    assert "scripts/context_pack.sh --mode implementation" in prompt
+    assert "scripts/agent_context_probe.py" in prompt
+    assert "scripts/factory_metrics.py" in prompt
+    assert "scripts/ai_jobs.py" in prompt
+    assert "scripts/opencode_worker.py" in prompt
+    assert "scripts/deepseek_worker.py" in prompt
+    assert "Graphify, CodeGraph, Headroom, Spark, Kimi, or MCP" in prompt
+    assert "entroping run remains deterministic" in prompt
     assert str(target_file.resolve()) in prompt
     assert "## Bounded File Contents" in prompt
     assert "### File: README.md" in prompt
     assert "# Entroping" in prompt
     assert not (artifact_dir / "stdout.txt").exists()
     assert "secret" not in (artifact_dir / "metadata.json").read_text(encoding="utf-8")
+
+
+def test_deepseek_worker_patch_dry_run_includes_capability_context(
+    tmp_path: Path,
+) -> None:
+    target_file = REPO_ROOT / "README.md"
+
+    result = run_worker(
+        "--mode",
+        "patch",
+        "--file",
+        str(target_file),
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--dry-run",
+        "--json",
+        env={"DEEPSEEK_API_KEY": ""},
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    artifact_dir = Path(str(payload["artifact_dir"]))
+    metadata = read_metadata(artifact_dir)
+    prompt = (artifact_dir / "prompt.md").read_text(encoding="utf-8")
+
+    assert metadata["mode"] == "patch"
+    assert (
+        metadata["capability_context_version"]
+        == "entroping.deepseek-capability-context.v1"
+    )
+    assert "# Entroping Direct DeepSeek Patch Worker" in prompt
+    assert "## Factory Capability Context" in prompt
+    assert "Direct DeepSeek API workers do not have live MCP" in prompt
+    assert "Return a single unified diff only" in prompt
 
 
 def test_deepseek_worker_records_opt_in_factory_metrics_for_dry_run(
@@ -292,8 +340,15 @@ def test_deepseek_worker_posts_openai_compatible_request_and_writes_artifacts(
     assert "reasoning_effort" not in body
     assert "messages" in body
     messages = cast(list[dict[str, str]], body["messages"])
+    assert "## Factory Capability Context" in messages[1]["content"]
+    assert "Direct DeepSeek API workers do not have live MCP" in messages[1]["content"]
+    assert "scripts/context_pack.sh --mode implementation" in messages[1]["content"]
     assert "## Bounded File Contents" in messages[1]["content"]
     assert "# Entroping" in messages[1]["content"]
+    assert (
+        metadata["capability_context_version"]
+        == "entroping.deepseek-capability-context.v1"
+    )
     assert metadata["status"] == "completed"
     assert metadata["usage"] == {
         "completion_tokens": 7,

@@ -2,6 +2,12 @@
 
 ## 2026-06-14
 
+- Added issue #690's direct DeepSeek capability context manifest:
+  `scripts/deepseek_worker.py` now injects a versioned Factory Capability
+  Context into review and patch prompts so paid direct API workers know they
+  have no live MCP/tool/skill execution, can cite the valid repo harnesses, and
+  must keep Codex or humans responsible for applying patches, tests, PRs, and
+  Tier B/Tier C decisions.
 - Added issue #688's finished-issue factory metrics report aggregation:
   `scripts/factory_metrics.py report --include-finished-issues` now loads
   archived `.jsonl` ledgers from the ignored

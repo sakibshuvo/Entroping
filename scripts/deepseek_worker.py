@@ -31,6 +31,7 @@ DEFAULT_ARTIFACT_ROOT = Path(".entroping") / "ai-reviews"
 DEFAULT_TIMEOUT_SECONDS = 300.0
 DEFAULT_MAX_TOKENS = 4096
 DEFAULT_MAX_FILE_BYTES = 64_000
+CAPABILITY_CONTEXT_VERSION = "entroping.deepseek-capability-context.v1"
 UTC_TZ = datetime_timezone.utc  # noqa: UP017 - factory scripts run under Python 3.9.
 Mode = Literal["review", "patch"]
 Status = Literal["completed", "dry-run", "failed", "inconclusive", "patch-proposed", "timed-out"]
@@ -457,9 +458,9 @@ def _build_prompt(
         f"- Issue: {config.issue or 'not provided'}",
         "- Context pack command: scripts/context_pack.sh --mode review",
         "",
-        "## Allowed Files",
-        "",
     ]
+    lines.extend(_factory_capability_context(config))
+    lines.extend(["", "## Allowed Files", ""])
     lines.extend(f"- {path}" for path in relative_files)
     lines.extend(["", "## Absolute File Paths", ""])
     lines.extend(f"- {path}" for path in absolute_files)
@@ -490,6 +491,66 @@ def _build_prompt(
     if config.instruction is not None:
         lines.extend(["", "## Task Instruction", "", config.instruction.strip()])
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _factory_capability_context(config: DirectWorkerConfig) -> list[str]:
+    """Return deterministic worker capability and authority context."""
+
+    if config.mode == "patch":
+        mode_contract = (
+            "Patch mode may propose a single unified diff only, scoped to the "
+            "allowed files, with tests or docs only when those files are listed."
+        )
+    else:
+        mode_contract = (
+            "Review mode returns concrete findings with file, line, severity, "
+            "evidence, and a proposed fix; uncertain claims stay inconclusive."
+        )
+
+    return [
+        "## Factory Capability Context",
+        "",
+        (
+            "- Direct DeepSeek API workers do not have live MCP, tool, skill, "
+            "shell, browser, filesystem, GitHub, or Codex skill execution. Use "
+            "only this bounded prompt; propose commands or diffs for Codex or "
+            "a human to run."
+        ),
+        (
+            "- Codex or a human integrator owns applying patches, running "
+            "tests, opening or merging PRs, closing issues, and Tier B/Tier C "
+            "decisions. Keep one GitHub issue, one worktree, and the listed "
+            "files in scope."
+        ),
+        (
+            "- Valid repo harnesses and context anchors: "
+            "`scripts/context_pack.sh --mode implementation`, "
+            "`scripts/context_pack.sh --mode implementation --with-local-graphs "
+            "--graph-query \"<issue or symbol>\"`, "
+            "`scripts/agent_context_probe.py`, `scripts/factory_metrics.py`, "
+            "`scripts/ai_jobs.py`, `scripts/opencode_worker.py`, and "
+            "`scripts/deepseek_worker.py`."
+        ),
+        (
+            "- Graphify, CodeGraph, Headroom, Spark, Kimi, and MCP are optional "
+            "external or local aids. Do not claim Graphify, CodeGraph, "
+            "Headroom, Spark, Kimi, or MCP output exists unless it is included "
+            "in this prompt or verified by Codex."
+        ),
+        (
+            "- Context safety: use selected files only; do not request, infer, "
+            "or emit secrets, raw traffic, provider transcripts, prompt "
+            "transcripts, environment values, local cache state, or ignored "
+            "generated artifacts."
+        ),
+        (
+            "- Product boundary: entroping run remains deterministic, "
+            "Hurl-backed, QAnstitution-governed, and provider-free. Do not "
+            "move DeepSeek, OpenCode, Spark, Kimi, MCP, or other provider calls "
+            "into product runtime behavior."
+        ),
+        f"- Mode contract: {mode_contract}",
+    ]
 
 
 def _markdown_fence(content: str) -> str:
@@ -744,6 +805,7 @@ def _write_metadata(
         "max_tokens": config.max_tokens,
         "max_file_bytes": config.max_file_bytes,
         "context_policy": "bounded-file-content-v1",
+        "capability_context_version": CAPABILITY_CONTEXT_VERSION,
         "base_url": config.base_url,
         "endpoint": endpoint,
         "api_key_env": config.api_key_env,
