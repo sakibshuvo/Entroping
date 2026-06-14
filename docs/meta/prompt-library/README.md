@@ -73,6 +73,7 @@ archive is mounted or attached to the cloud task.
 | [Spark-safe worker](spark-safe-worker.md) | Use low-risk Codex Spark capacity for docs/tests/project hygiene. |
 | [Multi-agent marathon](multi-agent-marathon.md) | Run several bounded sessions while one parent thread owns integration. |
 | [OpenCode Desktop handoff](opencode-desktop-handoff.md) | Start OpenCode Desktop/OpenCode Go implementation or PR verification sessions with explicit provider lane, billing, model, role, and merge authority. |
+| [Model-comparison trial](model-comparison-trial.md) | Compare Codex, OpenCode native DeepSeek, direct DeepSeek API, OpenCode Go Kimi/Qwen, and local/offline models through evidence. |
 | [Thread steering](thread-steering.md) | Interrupt or redirect a running Codex thread without losing its current work. |
 | [Gemini review](gemini-review.md) | Ask Gemini or NotebookLM for a brutal product/engineering review. |
 | [DeepSeek/OpenCode review](deepseek-opencode-review.md) | Ask DeepSeek/OpenCode for bounded repo review, bug bash, or patch proposals. |
@@ -101,6 +102,10 @@ archive is mounted or attached to the cloud task.
   `opencode-desktop-handoff.md` so provider host, billing path, concrete model
   id, role, autonomy tier, allowed files, and merge authority are explicit
   before work starts.
+- Model/cost experiments: use `model-comparison-trial.md` so trial identity,
+  files changed/read, tests/gates, CI, cost/token/context evidence, accepted,
+  rejected, and stale findings, and reviewer overrides are recorded before
+  drawing conclusions.
 - Large overnight push: use `multi-agent-marathon.md` and keep a parent
   integrator thread open.
 - Another thread already started: paste `thread-steering.md` before adding new

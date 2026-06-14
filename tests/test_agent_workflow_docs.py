@@ -141,6 +141,68 @@ def test_opencode_desktop_handoff_documents_tooling_setup_checklist() -> None:
         assert term in normalized
 
 
+def test_prompt_library_includes_model_comparison_trial_prompt() -> None:
+    prompt = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "model-comparison-trial.md"
+    ).read_text(encoding="utf-8")
+    readme = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "README.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(prompt.split())
+
+    required_terms = [
+        "type: prompt",
+        "status: active",
+        "## Trial Prompt",
+        "## Evidence Rules",
+        "## Scoring",
+        "Codex",
+        "OpenCode native DeepSeek",
+        "direct DeepSeek API",
+        "OpenCode Go Kimi",
+        "OpenCode Go Qwen",
+        "local/offline",
+        "issue number",
+        "provider lane",
+        "provider host",
+        "billing path",
+        "model id",
+        "role",
+        "autonomy tier",
+        "files changed",
+        "files read",
+        "tests/gates",
+        "CI status",
+        "cost/token/context evidence",
+        "accepted findings",
+        "rejected findings",
+        "stale findings",
+        "reviewer overrides",
+        "Do not score models by confidence or style alone",
+        "tests, diffs, CI, security/architecture review, and reviewer effort",
+        "No model output is source of truth",
+        "Codex Cloud or another host",
+        "scripts/factory_metrics.py report",
+        ".entroping/factory-metrics/",
+        "opencode/native-deepseek",
+        "deepseek-api/direct",
+        "opencode-go/kimi-k2.7-code",
+        "opencode-go/qwen3.7-max",
+        "opencode-go/other",
+        "fewer mismatched or missing issue/PR references",
+        "Unknown cost or token values do not disqualify",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+    assert "| [Model-comparison trial](model-comparison-trial.md) |" in readme
+
+
 def test_agent_control_plane_defines_risk_tiered_software_factory() -> None:
     doc = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
         encoding="utf-8"

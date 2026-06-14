@@ -2,6 +2,11 @@
 
 ## 2026-06-14
 
+- Model comparisons need evidence fields before the trial starts. Require
+  provider lane, provider host, billing path, model id, autonomy tier, files
+  changed/read, tests/gates, CI status, cost/token/context evidence when
+  available, accepted/rejected/stale findings, and reviewer overrides; never
+  score models by confidence or style alone.
 - OpenCode Desktop should get an explicit capability checklist before it is
   treated like Codex. Codex plugins, skills, Codex Security, Browser, Computer
   Use, thread tools, and Codex MCP state are not automatically portable; start
