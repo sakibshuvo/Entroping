@@ -132,6 +132,252 @@ def test_pr_body_check_accepts_local_body_file(tmp_path: Path) -> None:
     assert "PR documentation impact declaration OK" in result.stdout
 
 
+def test_pr_body_check_accepts_normal_pr_body_without_opencode_evidence(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Reviewer notes mention OpenCode and DeepSeek, but this is a normal PR.\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: default validation only checks docs impact.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check("--body-file", str(body_path))
+
+    assert result.returncode == 0, result.stderr
+    assert "PR documentation impact declaration OK" in result.stdout
+
+
+def test_pr_body_check_rejects_opencode_evidence_missing_provider_lane(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "OpenCode worker used DeepSeek V4 Pro.\n\n"
+        "Closes #706\n\n"
+        "## Agent Autonomy Declaration\n\n"
+        "- [x] Tier A autonomous lane: low-risk docs/tests/guard/script work only.\n"
+        "- [x] Merge authority: Tier A only after local gates and GitHub CI.\n\n"
+        "## OpenCode Provider Lane Evidence\n\n"
+        "- Provider host: OpenCode native provider\n"
+        "- Billing path: paid DeepSeek inside OpenCode\n"
+        "- Model id: deepseek/deepseek-v4-pro\n"
+        "- Autonomy tier: Tier A autonomous lane\n"
+        "- Merge authority: Tier A only after local gates, GitHub CI, "
+        "PR declaration, and finish cleanup\n"
+        "- Commands run: uv run pytest tests/test_doc_governance_script.py -q\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: checker-only validation.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--require-opencode-evidence",
+        "--issue",
+        "706",
+    )
+
+    assert result.returncode == 1
+    assert "provider lane" in result.stderr
+
+
+def test_pr_body_check_rejects_opencode_evidence_empty_provider_lane(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "OpenCode worker used DeepSeek V4 Pro.\n\n"
+        "Closes #706\n\n"
+        "## Agent Autonomy Declaration\n\n"
+        "- [x] Tier A autonomous lane: low-risk docs/tests/guard/script work only.\n"
+        "- [x] Merge authority: Tier A only after local gates and GitHub CI.\n\n"
+        "## OpenCode Provider Lane Evidence\n\n"
+        "- Provider lane: \n"
+        "- Provider host: OpenCode native provider\n"
+        "- Billing path: paid DeepSeek inside OpenCode\n"
+        "- Model id: deepseek/deepseek-v4-pro\n"
+        "- Autonomy tier: Tier A autonomous lane\n"
+        "- Merge authority: Tier A only after local gates, GitHub CI, "
+        "PR declaration, and finish cleanup\n"
+        "- Commands run: uv run pytest tests/test_doc_governance_script.py -q\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: checker-only validation.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--require-opencode-evidence",
+        "--issue",
+        "706",
+    )
+
+    assert result.returncode == 1
+    assert "provider lane" in result.stderr
+
+
+def test_pr_body_check_requires_issue_for_opencode_evidence(tmp_path: Path) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Tier A OpenCode worker guard update.\n\n"
+        "Closes #706\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: checker-only validation.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--require-opencode-evidence",
+    )
+
+    assert result.returncode == 2
+    assert "--issue is required" in result.stderr
+
+
+def test_pr_body_check_rejects_checked_empty_autonomy_detail(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Tier A OpenCode worker guard update.\n\n"
+        "Closes #706\n\n"
+        "## Agent Autonomy Declaration\n\n"
+        "- [x] Merge authority:\n\n"
+        "## OpenCode Provider Lane Evidence\n\n"
+        "- Provider lane: opencode/native-deepseek\n"
+        "- Provider host: OpenCode native provider\n"
+        "- Billing path: paid DeepSeek inside OpenCode\n"
+        "- Model id: deepseek/deepseek-v4-pro\n"
+        "- Autonomy tier: Tier A autonomous lane\n"
+        "- Merge authority: Tier A only after local gates, GitHub CI, "
+        "PR declaration, and finish cleanup\n"
+        "- Commands run: uv run pytest tests/test_doc_governance_script.py -q\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: checker-only validation.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--require-opencode-evidence",
+        "--issue",
+        "706",
+    )
+
+    assert result.returncode == 1
+    assert "Checked agent autonomy declaration needs detail" in result.stderr
+
+
+def test_pr_body_check_rejects_ambiguous_opencode_wording_without_lane(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Implemented by OpenCode with DeepSeek V4 Pro.\n\n"
+        "Closes #706\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: checker-only validation.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--require-opencode-evidence",
+        "--issue",
+        "706",
+    )
+
+    assert result.returncode == 1
+    assert "concrete provider lane" in result.stderr
+
+
+def test_pr_body_check_rejects_opencode_evidence_missing_closing_keyword(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Tier A OpenCode worker guard update.\n\n"
+        "## Agent Autonomy Declaration\n\n"
+        "- [x] Tier A autonomous lane: low-risk docs/tests/guard/script work only.\n"
+        "- [x] Merge authority: Tier A only after local gates and GitHub CI.\n\n"
+        "## OpenCode Provider Lane Evidence\n\n"
+        "- Provider lane: opencode/native-deepseek\n"
+        "- Provider host: OpenCode native provider\n"
+        "- Billing path: paid DeepSeek inside OpenCode\n"
+        "- Model id: deepseek/deepseek-v4-pro\n"
+        "- Autonomy tier: Tier A autonomous lane\n"
+        "- Merge authority: Tier A only after local gates, GitHub CI, "
+        "PR declaration, and finish cleanup\n"
+        "- Commands run: uv run pytest tests/test_doc_governance_script.py -q\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: checker-only validation.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--require-opencode-evidence",
+        "--issue",
+        "706",
+    )
+
+    assert result.returncode == 1
+    assert "Closes #706" in result.stderr
+
+
+def test_pr_body_check_accepts_tier_a_opencode_provider_lane_evidence(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Tier A OpenCode worker guard update.\n\n"
+        "Closes #706\n\n"
+        "## Agent Autonomy Declaration\n\n"
+        "- [x] Tier A autonomous lane: low-risk docs/tests/guard/script work only.\n"
+        "- [x] Merge authority: Tier A only after local gates and GitHub CI.\n\n"
+        "## OpenCode Provider Lane Evidence\n\n"
+        "- Provider lane: opencode/native-deepseek\n"
+        "- Provider host: OpenCode native provider\n"
+        "- Billing path: paid DeepSeek inside OpenCode\n"
+        "- Model id: deepseek/deepseek-v4-pro\n"
+        "- Autonomy tier: Tier A autonomous lane\n"
+        "- Merge authority: Tier A only after local gates, GitHub CI, "
+        "PR declaration, and finish cleanup\n"
+        "- Commands run: uv run pytest tests/test_doc_governance_script.py -q\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: checker-only validation.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--require-opencode-evidence",
+        "--issue",
+        "706",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "PR documentation impact declaration OK" in result.stdout
+
+
 def test_pr_body_check_rejects_local_body_file_missing_declaration(tmp_path: Path) -> None:
     body_path = tmp_path / "pr-body.md"
     body_path.write_text("## Summary\nOnly summary\n", encoding="utf-8")

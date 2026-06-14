@@ -51,6 +51,20 @@ Commands run:
 - [ ] Merge authority:
 - [ ] If autonomous, CI passed before merge and the PR includes `Closes #<issue>`.
 
+## OpenCode Provider Lane Evidence
+
+Complete this section for OpenCode/DeepSeek-produced or autonomous-lane PRs.
+Before merge, strict validation can run with
+`scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue>`.
+
+- Provider lane:
+- Provider host:
+- Billing path:
+- Model id:
+- Autonomy tier:
+- Merge authority:
+- Commands run:
+
 ## Documentation Impact Declaration
 
 - [ ] No docs update needed. Reason:

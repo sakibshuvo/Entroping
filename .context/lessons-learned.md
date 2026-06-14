@@ -2,6 +2,11 @@
 
 ## 2026-06-14
 
+- OpenCode/DeepSeek PR evidence needs a machine-checkable shape. Keep normal
+  PR-body validation backward compatible, but use an explicit strict flag for
+  provider-lane PRs so bare `OpenCode` or `DeepSeek` claims cannot hide the
+  provider host, billing path, model id, autonomy tier, merge authority,
+  commands run, or closing issue evidence.
 - Model-comparison metrics need unknown counts, not zero-filled confidence. A
   factory report can still sum known cost, token, and duration values for
   compatibility, but model-lane decisions should expose when a worker run did

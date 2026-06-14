@@ -122,7 +122,8 @@ Workflow:
    python scripts/factory_metrics.py --help
 8. Review git diff for unrelated edits, secrets, generated local state, provider transcripts, Graphify output, and .entroping artifacts.
 9. Commit with a Conventional Commit message.
-10. Push and open a PR with Closes #<issue-number>, a checked Documentation Impact Declaration, commands run, and Agent Autonomy Declaration when applicable.
+10. Push and open a PR with Closes #<issue-number>, a checked Documentation Impact Declaration, commands run, Agent Autonomy Declaration when applicable, and OpenCode Provider Lane Evidence when OpenCode/DeepSeek produced the work.
+    Run `scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue-number>` before autonomous Tier A merge or before handing the PR to Codex/human review.
 11. Do not merge Tier B/Tier C. Tier B/Tier C requires Codex or human review before merge.
 12. Merge Tier A only when the issue and diff stayed Tier A, local gates passed, GitHub CI is green, the PR declares authority, and scripts/finish_issue.sh cleanup will run.
 

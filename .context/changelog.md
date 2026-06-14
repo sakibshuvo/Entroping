@@ -2,6 +2,12 @@
 
 ## 2026-06-14
 
+- Added issue #706's OpenCode provider-lane PR-body preflight:
+  `scripts/pr_body_check.py --require-opencode-evidence --issue <issue>` now
+  preserves the existing documentation-impact validation by default while
+  optionally requiring concrete provider lane, provider host, billing path,
+  model id, autonomy tier, merge authority, commands run, and `Closes #<issue>`
+  evidence for OpenCode/DeepSeek-produced PRs.
 - Added issue #707's model-comparison view to factory metrics reports:
   `scripts/factory_metrics.py report` now emits additive `model_comparison`
   rows grouped by issue, role, provider lane, and model id, with known and

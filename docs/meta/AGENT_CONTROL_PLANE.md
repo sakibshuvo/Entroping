@@ -192,6 +192,15 @@ Tier A merge conditions are all required:
   one issue-scoped worktree.
 - The PR includes an Agent Autonomy Declaration, checked Documentation Impact
   Declaration, and `Closes #<issue>`.
+- OpenCode/DeepSeek-produced PRs record provider lane, provider host, billing
+  path, concrete model id when known, autonomy tier, merge authority, and
+  commands run in the PR body. Validate that evidence before autonomous Tier A
+  merge or Codex review with:
+
+```bash
+scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue>
+```
+
 - The diff touches only Tier A surfaces and contains no generated local state,
   secrets, `.entroping/`, Graphify output, provider transcripts, or local env
   files.
