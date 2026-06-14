@@ -75,6 +75,7 @@ archive is mounted or attached to the cloud task.
 | [OpenCode Desktop handoff](opencode-desktop-handoff.md) | Start OpenCode Desktop/OpenCode Go implementation or PR verification sessions with explicit provider lane, billing, model, role, and merge authority. |
 | [Model-comparison trial](model-comparison-trial.md) | Compare Codex, OpenCode native DeepSeek, direct DeepSeek API, OpenCode Go Kimi/Qwen, and local/offline models through evidence. |
 | [Codex-outage daily operations](codex-outage-daily-operations.md) | Run daily OpenCode/DeepSeek operations safely when Codex capacity is low or unavailable. |
+| [OpenCode-only week monitoring](opencode-week-monitoring.md) | Watch OpenCode/DeepSeek PRs, CI, ready issues, cleanup candidates, and factory metrics without mutating repo state. |
 | [Thread steering](thread-steering.md) | Interrupt or redirect a running Codex thread without losing its current work. |
 | [Gemini review](gemini-review.md) | Ask Gemini or NotebookLM for a brutal product/engineering review. |
 | [DeepSeek/OpenCode review](deepseek-opencode-review.md) | Ask DeepSeek/OpenCode for bounded repo review, bug bash, or patch proposals. |
@@ -111,6 +112,9 @@ archive is mounted or attached to the cloud task.
   `codex-outage-daily-operations.md` to inspect PRs/issues, select only ready
   scoped issues, enforce stop conditions, watch CI, run finish cleanup, and
   return after-sleep status.
+- OpenCode-only monitoring week: use `opencode-week-monitoring.md` to check
+  open PRs, CI rollups, ready issues, merged PR cleanup candidates, and factory
+  metrics while staying read-only by default.
 - Large overnight push: use `multi-agent-marathon.md` and keep a parent
   integrator thread open.
 - Another thread already started: paste `thread-steering.md` before adding new

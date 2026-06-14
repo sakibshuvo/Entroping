@@ -2,6 +2,11 @@
 
 ## 2026-06-14
 
+- Added issue #708's OpenCode-only week monitoring prompt:
+  `docs/meta/prompt-library/opencode-week-monitoring.md` now gives cheap
+  OpenCode/DeepSeek workers a read-only monitor for open PRs, CI rollups, ready
+  issues, merged PRs needing `finish_issue.sh`, factory metrics status,
+  blockers, and safe next actions without mutating repo or GitHub state.
 - Added issue #702's Codex-outage OpenCode/DeepSeek work queue to the agent
   control plane: `docs/meta/AGENT_CONTROL_PLANE.md` now records the one-week
   low-Codex-capacity queue index, child issue order, provider lanes, autonomy
