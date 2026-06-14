@@ -2,6 +2,9 @@
 
 ## 2026-06-14
 
+- Issue worktree cleanup should preserve ignored factory telemetry before
+  deleting the worktree. Otherwise cost, token, and yield evidence disappears
+  exactly when the issue is finished and ready for retrospective analysis.
 - Graph/context artifacts should be treated as heterogeneous evidence, not a
   single preferred array. Graphify and CodeGraph JSON can expose useful
   candidates in later list-valued fields such as edges, so context probes

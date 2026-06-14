@@ -31,7 +31,8 @@ def create_repo_with_worktree(
     run_git(repo, "config", "user.email", "test@example.com")
     run_git(repo, "config", "user.name", "Test User")
     (repo / "README.md").write_text("fixture\n", encoding="utf-8")
-    run_git(repo, "add", "README.md")
+    (repo / ".gitignore").write_text(".entroping/\n", encoding="utf-8")
+    run_git(repo, "add", ".gitignore", "README.md")
     run_git(repo, "commit", "-m", "init")
 
     worktree = tmp_path / f"Entroping-issue-{issue_number}"
@@ -216,6 +217,18 @@ def run_finish_issue(
     )
 
 
+def write_factory_metrics_fixture(worktree: Path) -> tuple[Path, Path]:
+    metrics_dir = worktree / ".entroping" / "factory-metrics"
+    nested_dir = metrics_dir / "workers" / "deepseek"
+    nested_dir.mkdir(parents=True)
+    root_ledger = metrics_dir / "events.jsonl"
+    nested_ledger = nested_dir / "events.jsonl"
+    root_ledger.write_text('{"role":"codex","tokens":10}\n', encoding="utf-8")
+    nested_ledger.write_text('{"role":"deepseek","tokens":25}\n', encoding="utf-8")
+    (metrics_dir / "ignored.txt").write_text("not a ledger\n", encoding="utf-8")
+    return root_ledger, nested_ledger
+
+
 def test_finish_issue_dry_run_reports_verified_cleanup_plan(tmp_path: Path) -> None:
     repo, worktree = create_repo_with_worktree(tmp_path)
     fake_bin = write_fake_gh(tmp_path)
@@ -228,6 +241,66 @@ def test_finish_issue_dry_run_reports_verified_cleanup_plan(tmp_path: Path) -> N
     assert "Would remove worktree" in result.stdout
     assert "Would delete local branch: feat/dry-run" in result.stdout
     assert worktree.exists()
+
+
+def test_finish_issue_dry_run_reports_factory_metrics_without_writing(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    write_factory_metrics_fixture(worktree)
+    fake_bin = write_fake_gh(tmp_path)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99", "--dry-run")
+
+    assert result.returncode == 0, result.stderr
+    assert "Would preserve factory metrics ledgers" in result.stdout
+    assert "events.jsonl" in result.stdout
+    assert "workers/deepseek/events.jsonl" in result.stdout
+    assert "ignored.txt" not in result.stdout
+    assert not (
+        repo
+        / ".entroping"
+        / "factory-metrics"
+        / "finished-issues"
+        / "issue-99"
+    ).exists()
+    assert worktree.exists()
+
+
+def test_finish_issue_preserves_factory_metrics_before_worktree_removal(
+    tmp_path: Path,
+) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    root_ledger, nested_ledger = write_factory_metrics_fixture(worktree)
+    root_content = root_ledger.read_text(encoding="utf-8")
+    nested_content = nested_ledger.read_text(encoding="utf-8")
+    metrics_dir = worktree / ".entroping" / "factory-metrics"
+    try:
+        (metrics_dir / "linked.jsonl").symlink_to(root_ledger)
+        (metrics_dir / "linked-workers").symlink_to(metrics_dir / "workers")
+    except OSError:
+        pass
+    fake_bin = write_fake_gh(tmp_path)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99")
+
+    assert result.returncode == 0, result.stderr
+    assert "Preserved factory metrics ledgers (2 files)" in result.stdout
+    destination = (
+        repo
+        / ".entroping"
+        / "factory-metrics"
+        / "finished-issues"
+        / "issue-99"
+    )
+    assert (destination / "events.jsonl").read_text(encoding="utf-8") == root_content
+    assert (
+        destination / "workers" / "deepseek" / "events.jsonl"
+    ).read_text(encoding="utf-8") == nested_content
+    assert not (destination / "ignored.txt").exists()
+    assert not (destination / "linked.jsonl").exists()
+    assert not (destination / "linked-workers").exists()
+    assert not worktree.exists()
 
 
 def test_finish_issue_rejects_dirty_worktree_before_cleanup(tmp_path: Path) -> None:
