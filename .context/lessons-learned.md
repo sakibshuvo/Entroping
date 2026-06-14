@@ -2,6 +2,10 @@
 
 ## 2026-06-14
 
+- Monitoring is not merge authority. OpenCode-only week monitors should stay
+  read-only by default, report PR/CI/cleanup/factory-metrics state, and treat
+  failing CI or missing close keywords as blockers instead of taking corrective
+  mutation actions.
 - A Codex-outage queue belongs in the agent control plane, not chat memory.
   Keep the queue as a GitHub-issue-backed index with child issues owning
   implementation, explicit provider lanes, autonomy tiers, merge authority,

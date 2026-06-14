@@ -259,6 +259,62 @@ def test_prompt_library_includes_codex_outage_daily_operations_prompt() -> None:
     )
 
 
+def test_prompt_library_includes_opencode_week_monitoring_prompt() -> None:
+    prompt = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-week-monitoring.md"
+    ).read_text(encoding="utf-8")
+    readme = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "README.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(prompt.split())
+
+    required_terms = [
+        "type: prompt",
+        "status: active",
+        "read-only by default",
+        "Do not mutate issues, pull requests, branches, or main",
+        "Do not run git pull",
+        "gh pr list",
+        "isDraft,mergeStateStatus,statusCheckRollup,closingIssuesReferences",
+        "statusCheckRollup",
+        "gh run list",
+        "workflowName,headBranch",
+        "gh issue list",
+        "status:ready",
+        "merged PRs needing `scripts/finish_issue.sh`",
+        "scripts/factory_metrics.py report --include-finished-issues",
+        "factory_metrics.py unavailable",
+        "continue with the remaining read-only checks",
+        "after-sleep status",
+        "blockers",
+        "safe next actions",
+        "failing CI",
+        "missing close keywords",
+        "block merge or cleanup",
+        (
+            "Do not claim launch, stable-core, package-index, enterprise, "
+            "security, or adoption readiness"
+        ),
+        "opencode/native-deepseek",
+        "deepseek-api/direct",
+        "opencode-go/kimi-k2.7-code",
+        "opencode-go/qwen3.7-max",
+        "opencode-go/other",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+    assert (
+        "| [OpenCode-only week monitoring](opencode-week-monitoring.md) |"
+        in readme
+    )
+
+
 def test_agent_control_plane_documents_codex_outage_worker_queue() -> None:
     doc = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
         encoding="utf-8"
