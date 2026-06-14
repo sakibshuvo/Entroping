@@ -69,6 +69,7 @@ archive is mounted or attached to the cloud task.
 | --- | --- |
 | [Codex session handoff](codex-session-handoff.md) | Start a fresh Codex thread in the proper project folder. |
 | [Issue worker](issue-worker.md) | Give a coding agent one GitHub issue and an isolated worktree, including the Autonomous Tier A OpenCode/DeepSeek Worker Prompt. |
+| [Architecture boundary brief](architecture-boundary-brief.md) | Attach ownership, allowed files, forbidden files, invariants, tests, provider/runtime constraints, and stop conditions to worker issue packets. |
 | [Spark-safe worker](spark-safe-worker.md) | Use low-risk Codex Spark capacity for docs/tests/project hygiene. |
 | [Multi-agent marathon](multi-agent-marathon.md) | Run several bounded sessions while one parent thread owns integration. |
 | [OpenCode Desktop handoff](opencode-desktop-handoff.md) | Start OpenCode Desktop/OpenCode Go implementation or PR verification sessions with explicit provider lane, billing, model, role, and merge authority. |
@@ -91,6 +92,9 @@ archive is mounted or attached to the cloud task.
 - New Codex thread: start with `codex-session-handoff.md`.
 - One implementation slice: use `issue-worker.md`; use its autonomous variant
   only for Tier A docs/tests/guard/script work.
+- Worker packet with architecture risk: attach `architecture-boundary-brief.md`
+  before implementation so the agent has explicit ownership, invariant, test,
+  provider/runtime, and stop-condition boundaries.
 - Low-token or cheaper model work: use `spark-safe-worker.md` or
   `deepseek-opencode-review.md`.
 - OpenCode Desktop/OpenCode Go write sessions: use

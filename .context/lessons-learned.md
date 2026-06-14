@@ -2,6 +2,11 @@
 
 ## 2026-06-14
 
+- Cheap worker packets need architecture boundaries before implementation, not
+  after review. Attach ownership, allowed files, forbidden files, invariants,
+  required tests, provider/runtime constraints, and stop conditions when the
+  issue is assigned so models have less room to drift into runtime or
+  architecture scope.
 - OpenCode/DeepSeek PR evidence needs a machine-checkable shape. Keep normal
   PR-body validation backward compatible, but use an explicit strict flag for
   provider-lane PRs so bare `OpenCode` or `DeepSeek` claims cannot hide the
