@@ -2,6 +2,13 @@
 
 ## 2026-06-14
 
+- Added issue #703's model-comparison trial prompt:
+  `docs/meta/prompt-library/model-comparison-trial.md` now makes Codex,
+  OpenCode native DeepSeek, direct DeepSeek API, OpenCode Go Kimi/Qwen, and
+  local/offline model comparisons record provider lane, model id,
+  cost/token/context evidence, files changed/read, tests/gates, CI status,
+  accepted/rejected/stale findings, and reviewer overrides before drawing
+  conclusions.
 - Added issue #705's OpenCode Desktop tooling setup checklist:
   `docs/meta/prompt-library/opencode-desktop-handoff.md` now distinguishes
   Codex-native tools from OpenCode-exposed equivalents and covers read-only MCP,
