@@ -2,6 +2,12 @@
 
 ## 2026-06-14
 
+- Added issue #700's OpenCode Desktop handoff prompt:
+  `docs/meta/prompt-library/opencode-desktop-handoff.md` now gives OpenCode
+  Desktop/OpenCode Go workers implementation and PR-verification launch prompts
+  that require provider lane, billing path, model id, role, autonomy tier,
+  allowed files, forbidden files, optional graph-context boundaries, metrics
+  evidence, and merge authority before work starts.
 - Documented issue #698's provider-lane taxonomy:
   `docs/meta/AGENT_CONTROL_PLANE.md` now distinguishes `deepseek-api/direct`,
   `opencode/native-deepseek`, `opencode-go/kimi-k2.7-code`,

@@ -641,6 +641,47 @@ def test_prompt_library_contains_autonomous_tier_a_worker_prompt() -> None:
         assert term in combined
 
 
+def test_prompt_library_contains_opencode_desktop_handoff_prompts() -> None:
+    prompt_path = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-desktop-handoff.md"
+    )
+    prompt = prompt_path.read_text(encoding="utf-8")
+    catalog = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "README.md"
+    ).read_text(encoding="utf-8")
+    combined = " ".join(f"{prompt}\n{catalog}".split())
+
+    required_terms = [
+        "OpenCode Desktop Handoff Prompt",
+        "OpenCode Desktop Implementation Worker Prompt",
+        "OpenCode Desktop PR Verification Prompt",
+        "opencode/native-deepseek",
+        "opencode-go/kimi-k2.7-code",
+        "opencode-go/qwen3.7-max",
+        "provider host, billing path, and concrete model id",
+        "paid DeepSeek inside OpenCode",
+        "OpenCode Go is the Kimi/Qwen/model-variety lane",
+        "Autonomy tier",
+        "Merge authority",
+        "Allowed files",
+        "Forbidden files",
+        "scripts/start_issue.sh",
+        "scripts/context_pack.sh --mode implementation --with-local-graphs",
+        "Graphify/CodeGraph evidence is not authority",
+        "scripts/factory_metrics.py",
+        "Agent Autonomy Declaration",
+        "Tier B/Tier C requires Codex or human review before merge",
+        "Closes #<issue-number>",
+    ]
+
+    for term in required_terms:
+        assert term in combined
+
+
 def test_pull_request_template_requires_agent_autonomy_declaration() -> None:
     template = (REPO_ROOT / ".github" / "pull_request_template.md").read_text(
         encoding="utf-8"
