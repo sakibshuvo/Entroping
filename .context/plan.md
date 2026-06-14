@@ -57,6 +57,11 @@ project, and a Codex workspace with fast context rehydration.
   by default or direct DeepSeek API with `--engine deepseek-api`; both paths
   write ignored artifacts for Codex review and never apply patches or affect
   Entroping runtime commands.
+- OpenCode-hosted DeepSeek V4 Pro is the tool-enabled DeepSeek lane: it can use
+  only OpenCode-configured agents, plugins, MCP servers, hooks, shell/tools, and
+  GitHub integrations that are present and permissioned by the OpenCode host.
+  Codex-native plugins, skills, security/browser/computer-use/thread tools, and
+  Codex-specific MCP state are not automatically transferable.
 - Reusable human-to-agent prompts now live under
   `docs/meta/prompt-library/`; the agent control plane owns durable policy,
   while the prompt library owns copy-paste launchers for fresh Codex sessions,

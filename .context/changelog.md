@@ -2,6 +2,18 @@
 
 ## 2026-06-14
 
+- Added issue #692's OpenCode-hosted DeepSeek tool-lane boundary:
+  `scripts/opencode_worker.py` now injects a versioned OpenCode Host Capability
+  Context into review and patch prompts, records the context version in worker
+  metadata, and states that DeepSeek V4 Pro may use only OpenCode-configured
+  agents, plugins, MCP servers, hooks, shell/tools, and GitHub integrations
+  that are present and permissioned by OpenCode. Codex-native plugins, skills,
+  Codex Security, Browser, Computer Use, thread tools, and Codex-specific MCP
+  state remain unavailable unless OpenCode exposes equivalents, and the harness
+  still forbids permission bypasses, raw traffic, product-runtime provider
+  calls, and autonomous Tier B/Tier C merge authority. OpenCode stdout/stderr
+  that matches the shared secret-like detector is now withheld before artifact
+  persistence and marks the worker run failed.
 - Added issue #690's direct DeepSeek capability context manifest:
   `scripts/deepseek_worker.py` now injects a versioned Factory Capability
   Context into review and patch prompts so paid direct API workers know they

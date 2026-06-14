@@ -203,6 +203,20 @@ def test_agent_control_plane_documents_direct_deepseek_worker_boundary() -> None
     assert "never applies patches" in doc
 
 
+def test_agent_control_plane_documents_opencode_hosted_deepseek_tool_lane() -> None:
+    doc = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
+        encoding="utf-8"
+    )
+    normalized = " ".join(doc.split())
+
+    assert "OpenCode-hosted DeepSeek V4 Pro is the tool-enabled DeepSeek lane" in doc
+    assert "OpenCode-configured agents, plugins, MCP servers, hooks" in doc
+    assert "Codex-native plugins, skills, Codex Security, Browser, Computer Use" in doc
+    assert "unless the OpenCode host exposes equivalent capabilities" in normalized
+    assert "--dangerously-skip-permissions" in doc
+    assert "OpenCode Host Capability Context" in doc
+
+
 def test_deepseek_opencode_prompt_uses_supported_ai_job_commands() -> None:
     prompt = (
         REPO_ROOT / "docs" / "meta" / "prompt-library" / "deepseek-opencode-review.md"
