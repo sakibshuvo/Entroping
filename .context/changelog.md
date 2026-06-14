@@ -2,6 +2,12 @@
 
 ## 2026-06-14
 
+- Added issue #704's Codex-outage daily operations prompt:
+  `docs/meta/prompt-library/codex-outage-daily-operations.md` now gives
+  OpenCode/DeepSeek workers a daily low-Codex-capacity loop for pulling main,
+  inspecting PRs/issues, choosing only ready scoped issues, using provider
+  lanes, running focused tests/gates and CI, finishing issue cleanup, enforcing
+  emergency stop conditions, and returning after-sleep status.
 - Added issue #703's model-comparison trial prompt:
   `docs/meta/prompt-library/model-comparison-trial.md` now makes Codex,
   OpenCode native DeepSeek, direct DeepSeek API, OpenCode Go Kimi/Qwen, and

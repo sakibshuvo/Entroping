@@ -2,6 +2,11 @@
 
 ## 2026-06-14
 
+- Codex-outage operations need a daily loop with explicit stop conditions. A
+  cheap-worker day should start from fresh main, inspect open PRs and ready
+  issues, use issue worktrees and provider lanes, run focused tests/gates plus
+  CI, finish cleanup, and return after-sleep status; Tier B/Tier C PRs wait for
+  Codex or human review before merge.
 - Model comparisons need evidence fields before the trial starts. Require
   provider lane, provider host, billing path, model id, autonomy tier, files
   changed/read, tests/gates, CI status, cost/token/context evidence when

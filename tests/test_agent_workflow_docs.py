@@ -203,6 +203,62 @@ def test_prompt_library_includes_model_comparison_trial_prompt() -> None:
     assert "| [Model-comparison trial](model-comparison-trial.md) |" in readme
 
 
+def test_prompt_library_includes_codex_outage_daily_operations_prompt() -> None:
+    prompt = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "codex-outage-daily-operations.md"
+    ).read_text(encoding="utf-8")
+    readme = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "README.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(prompt.split())
+
+    required_terms = [
+        "type: prompt",
+        "status: active",
+        "## Daily Loop",
+        "git pull --ff-only",
+        "git status --short",
+        "gh pr list",
+        "gh issue list",
+        "status:ready",
+        "scripts/start_issue.sh",
+        "provider lanes",
+        "opencode/native-deepseek",
+        "deepseek-api/direct",
+        "opencode-go/kimi-k2.7-code",
+        "opencode-go/qwen3.7-max",
+        "focused tests/gates",
+        "gh pr checks",
+        "scripts/finish_issue.sh",
+        "after-sleep status",
+        "Tier B/Tier C PRs must wait for Codex or human review before merge",
+        "opencode-desktop-handoff.md",
+        "issue-worker.md",
+        "after-sleep-status.md",
+        "pr-review-merge-gate.md",
+        "failing security gate",
+        "forbidden file touched",
+        "ambiguous scope",
+        "secret exposure risk",
+        "CI red",
+        "merge conflict",
+        "stale main",
+        "missing close keyword",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+    assert (
+        "| [Codex-outage daily operations](codex-outage-daily-operations.md) |"
+        in readme
+    )
+
+
 def test_agent_control_plane_defines_risk_tiered_software_factory() -> None:
     doc = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
         encoding="utf-8"
