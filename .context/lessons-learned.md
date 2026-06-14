@@ -2,6 +2,11 @@
 
 ## 2026-06-14
 
+- OpenCode Desktop should get an explicit capability checklist before it is
+  treated like Codex. Codex plugins, skills, Codex Security, Browser, Computer
+  Use, thread tools, and Codex MCP state are not automatically portable; start
+  OpenCode with narrow read-only GitHub/filesystem MCP, explicit hooks,
+  provider lanes, PR-body evidence, CI, and local-state hygiene.
 - Cheap worker packets need architecture boundaries before implementation, not
   after review. Attach ownership, allowed files, forbidden files, invariants,
   required tests, provider/runtime constraints, and stop conditions when the

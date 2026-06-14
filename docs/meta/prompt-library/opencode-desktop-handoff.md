@@ -34,6 +34,68 @@ OpenCode Go is the Kimi/Qwen/model-variety lane, not the default DeepSeek lane.
 Every handoff must record provider host, billing path, and concrete model id
 when known.
 
+## OpenCode Desktop Tooling Setup Checklist
+
+Use this checklist before treating OpenCode Desktop or OpenCode CLI as an
+Entroping worker with Codex-like capabilities. Codex-native tools are not
+automatically available inside OpenCode; configure OpenCode-exposed equivalents
+explicitly and verify them in the active OpenCode host before relying on them.
+
+Capability boundary:
+
+- Codex-native plugins, skills, Codex Security, Browser, Computer Use, thread
+  tools, and Codex-specific MCP state are not automatically available inside
+  OpenCode.
+- OpenCode-exposed equivalents must be named by host, permission, and source.
+  If OpenCode does not expose an equivalent capability, the worker must say so
+  instead of implying Codex tool access.
+- OpenCode MCP servers are not Codex MCP state. A GitHub MCP server,
+  filesystem MCP server, hook, or plugin must be configured and permissioned in
+  OpenCode before a worker can rely on it.
+- Start with narrow read-only MCP access. Prefer read-only GitHub MCP and
+  read-only filesystem MCP scopes first; add write scopes only after one
+  issue-scoped trial proves the guardrails.
+- Hooks should enforce branch/no-main checks, dirty worktree checks, local-state
+  hygiene, and secret scans. Do not let hooks commit, push, merge, or change
+  project-board state without the issue's documented autonomy tier.
+
+Setup items to verify locally, without committing local config:
+
+- Project rules: `AGENTS.md`, `docs/meta/AGENT_CONTROL_PLANE.md`,
+  `docs/meta/DOCS_GOVERNANCE.md`, and the assigned issue body are in the first
+  prompt.
+- Provider lanes: `opencode/native-deepseek` with model
+  `deepseek/deepseek-v4-pro` means paid DeepSeek inside OpenCode; OpenCode Go
+  is the Kimi/Qwen/model-variety lane, including
+  `opencode-go/kimi-k2.7-code`, `opencode-go/qwen3.7-max`, and
+  `opencode-go/other`.
+- GitHub access: begin with read-only PR/issue/check access; require explicit
+  approval and green CI before any Tier A autonomous merge.
+- Filesystem access: scope to the issue worktree, never the stale path
+  `/Users/sakibshuvo/Documents/Entroping`, and keep main read-only except for
+  `scripts/finish_issue.sh` cleanup from a separate checkout.
+- Branch hygiene: block direct edits to `main`; require
+  `scripts/start_issue.sh`, `git status --short`, and a clean dirty worktree
+  check before edits.
+- Secret and local state hygiene: Do not commit local OpenCode config,
+  `.opencode` state, MCP credentials, provider keys, `.entroping/`, Graphify
+  output, CodeGraph output, Headroom output, provider transcripts, reports, or
+  environment files.
+- PR-body evidence: include `Closes #<issue>`, commands run, Agent Autonomy
+  Declaration, Documentation Impact Declaration, and OpenCode Provider Lane
+  Evidence; validate with
+  `scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue>`.
+- CI and finish cleanup: merge only through a PR after GitHub CI is green, then
+  run `scripts/finish_issue.sh <issue>` from a separate checkout.
+- Metrics hooks: record useful context, cost, model, and gate evidence with
+  `scripts/factory_metrics.py` and
+  `scripts/context_pack.sh --record-factory-metrics` when practical. Use
+  `scripts/opencode_worker.py --record-factory-metrics` for OpenCode Desktop or
+  OpenCode CLI workers, `scripts/deepseek_worker.py --record-factory-metrics`
+  for direct DeepSeek API workers, and
+  `scripts/ai_jobs.py run-next --record-factory-metrics` for queued batch jobs.
+  These metrics are local workflow evidence, not release proof.
+
 ## OpenCode Desktop Implementation Worker Prompt
 
 ```text
