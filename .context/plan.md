@@ -71,6 +71,11 @@ project, and a Codex workspace with fast context rehydration.
   `opencode-go/kimi-k2.7-code`, `opencode-go/qwen3.7-max`, or
   `opencode-go/other`, and handoffs should record provider host, billing path,
   and concrete model id.
+- OpenCode Desktop/OpenCode Go issue handoffs now have reusable prompt-library
+  launchers that require provider lane, billing path, model id, role, autonomy
+  tier, allowed files, forbidden files, optional graph-context boundaries,
+  verification evidence, and merge authority before parallel workers edit or
+  review a PR.
 - Reusable human-to-agent prompts now live under
   `docs/meta/prompt-library/`; the agent control plane owns durable policy,
   while the prompt library owns copy-paste launchers for fresh Codex sessions,

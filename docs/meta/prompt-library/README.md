@@ -71,6 +71,7 @@ archive is mounted or attached to the cloud task.
 | [Issue worker](issue-worker.md) | Give a coding agent one GitHub issue and an isolated worktree, including the Autonomous Tier A OpenCode/DeepSeek Worker Prompt. |
 | [Spark-safe worker](spark-safe-worker.md) | Use low-risk Codex Spark capacity for docs/tests/project hygiene. |
 | [Multi-agent marathon](multi-agent-marathon.md) | Run several bounded sessions while one parent thread owns integration. |
+| [OpenCode Desktop handoff](opencode-desktop-handoff.md) | Start OpenCode Desktop/OpenCode Go implementation or PR verification sessions with explicit provider lane, billing, model, role, and merge authority. |
 | [Thread steering](thread-steering.md) | Interrupt or redirect a running Codex thread without losing its current work. |
 | [Gemini review](gemini-review.md) | Ask Gemini or NotebookLM for a brutal product/engineering review. |
 | [DeepSeek/OpenCode review](deepseek-opencode-review.md) | Ask DeepSeek/OpenCode for bounded repo review, bug bash, or patch proposals. |
@@ -92,6 +93,10 @@ archive is mounted or attached to the cloud task.
   only for Tier A docs/tests/guard/script work.
 - Low-token or cheaper model work: use `spark-safe-worker.md` or
   `deepseek-opencode-review.md`.
+- OpenCode Desktop/OpenCode Go write sessions: use
+  `opencode-desktop-handoff.md` so provider host, billing path, concrete model
+  id, role, autonomy tier, allowed files, and merge authority are explicit
+  before work starts.
 - Large overnight push: use `multi-agent-marathon.md` and keep a parent
   integrator thread open.
 - Another thread already started: paste `thread-steering.md` before adding new

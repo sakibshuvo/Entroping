@@ -2,6 +2,10 @@
 
 ## 2026-06-14
 
+- OpenCode Desktop sessions need an explicit preflight contract, not just a
+  model choice. Handoffs should name provider lane, billing path, model id,
+  role, autonomy tier, allowed files, forbidden files, and merge authority
+  before any parallel worker edits an issue worktree.
 - Provider choice needs a lane label, not just a model name. For factory metrics
   and handoffs, record host, billing path, and concrete model id so OpenCode Go
   Kimi/Qwen experiments do not get confused with paid direct DeepSeek API work.
