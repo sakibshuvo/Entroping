@@ -2,6 +2,11 @@
 
 ## 2026-06-14
 
+- Documented issue #698's provider-lane taxonomy:
+  `docs/meta/AGENT_CONTROL_PLANE.md` now distinguishes `deepseek-api/direct`,
+  `opencode/native-deepseek`, `opencode-go/kimi-k2.7-code`,
+  `opencode-go/qwen3.7-max`, `opencode-go/other`, and `local/offline`, with
+  OpenCode Go positioned as the Kimi/Qwen/model-variety lane.
 - Fixed issue #696's direct DeepSeek response-payload artifact gap:
   `scripts/deepseek_worker.py` now checks serialized provider response payloads
   with the shared secret-like detector before execution artifacts are written,

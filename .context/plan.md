@@ -66,6 +66,11 @@ project, and a Codex workspace with fast context rehydration.
   GitHub integrations that are present and permissioned by the OpenCode host.
   Codex-native plugins, skills, security/browser/computer-use/thread tools, and
   Codex-specific MCP state are not automatically transferable.
+- Model-provider lanes are explicit: `deepseek-api/direct` is the cheap queued
+  worker lane, OpenCode Go is the Kimi/Qwen/model-variety lane through
+  `opencode-go/kimi-k2.7-code`, `opencode-go/qwen3.7-max`, or
+  `opencode-go/other`, and handoffs should record provider host, billing path,
+  and concrete model id.
 - Reusable human-to-agent prompts now live under
   `docs/meta/prompt-library/`; the agent control plane owns durable policy,
   while the prompt library owns copy-paste launchers for fresh Codex sessions,

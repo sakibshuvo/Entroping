@@ -221,6 +221,29 @@ def test_agent_control_plane_documents_opencode_hosted_deepseek_tool_lane() -> N
     assert "OpenCode Host Capability Context" in doc
 
 
+def test_agent_control_plane_distinguishes_provider_host_billing_model_lanes() -> None:
+    doc = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
+        encoding="utf-8"
+    )
+    normalized = " ".join(doc.split())
+
+    required_terms = [
+        "deepseek-api/direct",
+        "opencode/native-deepseek",
+        "opencode-go/kimi-k2.7-code",
+        "opencode-go/qwen3.7-max",
+        "opencode-go/other",
+        "local/offline",
+        "OpenCode Go is the Kimi/Qwen/model-variety lane",
+        "not the default DeepSeek lane",
+        "Direct DeepSeek API remains the default cheap queued worker lane",
+        "provider host, billing path, and concrete model id",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+
 def test_deepseek_opencode_prompt_uses_supported_ai_job_commands() -> None:
     prompt = (
         REPO_ROOT / "docs" / "meta" / "prompt-library" / "deepseek-opencode-review.md"
