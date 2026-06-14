@@ -120,14 +120,61 @@ def test_opencode_worker_dry_run_writes_prompt_and_metadata(tmp_path: Path) -> N
     assert metadata["status"] == "dry-run"
     assert metadata["mode"] == "review"
     assert metadata["model"] == "deepseek/deepseek-v4-pro"
+    assert (
+        metadata["capability_context_version"]
+        == "entroping.opencode-host-capability-context.v1"
+    )
     prompt = (artifact_dir / "prompt.md").read_text(encoding="utf-8")
     assert "Codex remains the integrator" in prompt
+    assert "## OpenCode Host Capability Context" in prompt
+    assert "OpenCode-hosted DeepSeek V4 Pro is the tool-enabled DeepSeek lane" in prompt
+    assert "OpenCode-configured agents, plugins, MCP servers, hooks" in prompt
+    assert "Codex-native plugins, skills, Codex Security, Browser, Computer Use" in prompt
+    assert "--dangerously-skip-permissions" in prompt
+    assert "entroping run remains deterministic" in prompt
     assert "OpenCode receives preflight-vetted snapshots" in prompt
     assert "Allowed Snapshot Files" in prompt
     assert "Original Repo-Relative File Provenance" not in prompt
     assert "README.md" in prompt
     assert str(target_file.resolve()) not in prompt
     assert not (artifact_dir / "stdout.txt").exists()
+
+
+def test_opencode_worker_patch_dry_run_includes_host_capability_context(
+    tmp_path: Path,
+) -> None:
+    target_file = REPO_ROOT / "README.md"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    write_fake_git(fake_bin)
+
+    result = run_worker(
+        "--mode",
+        "patch",
+        "--file",
+        str(target_file),
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--dry-run",
+        "--json",
+        env={"PATH": str(fake_bin)},
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    artifact_dir = Path(str(payload["artifact_dir"]))
+    metadata = read_metadata(artifact_dir)
+    prompt = (artifact_dir / "prompt.md").read_text(encoding="utf-8")
+
+    assert metadata["mode"] == "patch"
+    assert (
+        metadata["capability_context_version"]
+        == "entroping.opencode-host-capability-context.v1"
+    )
+    assert "# Entroping OpenCode Patch Worker" in prompt
+    assert "## OpenCode Host Capability Context" in prompt
+    assert "OpenCode-hosted DeepSeek V4 Pro is the tool-enabled DeepSeek lane" in prompt
+    assert "Patch mode may propose a single unified diff only" in prompt
 
 
 def test_opencode_worker_records_opt_in_factory_metrics_for_dry_run(
@@ -257,6 +304,7 @@ def test_opencode_worker_patch_mode_captures_unified_diff(tmp_path: Path) -> Non
     assert metadata["returncode"] == 0
     command = cast(list[str], metadata["command"])
     assert command[:3] == [str(fake_opencode), "run", "--model"]
+    assert "--dangerously-skip-permissions" not in command
     proposal = (artifact_dir / "proposal.diff").read_text(encoding="utf-8")
     assert "diff --git a/example.py b/example.py" in proposal
     assert target_file.read_text(encoding="utf-8") == original_content
@@ -301,6 +349,52 @@ def test_opencode_worker_patch_mode_extracts_diff_from_noisy_output(tmp_path: Pa
     assert "I found one improvement" in raw_output
     assert proposal.startswith("diff --git a/example.py b/example.py\n")
     assert "```" not in proposal
+
+
+def test_opencode_worker_withholds_secret_like_subprocess_output(
+    tmp_path: Path,
+) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_opencode = write_fake_opencode(
+        fake_bin,
+        body=(
+            "#!/usr/bin/env bash\n"
+            "set -euo pipefail\n"
+            "printf '%s\\n' 'api_key = \"abcdefghijklmnopqrstuvwxyz123456\"'\n"
+            "printf '%s\\n' 'ordinary diagnostic' >&2\n"
+        ),
+    )
+    target_file = REPO_ROOT / "README.md"
+
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        str(target_file),
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--opencode-bin",
+        str(fake_opencode),
+        "--json",
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    artifact_dir = Path(str(payload["artifact_dir"]))
+    metadata = read_metadata(artifact_dir)
+    persisted_stdout = (artifact_dir / "stdout.txt").read_text(encoding="utf-8")
+    persisted_stderr = (artifact_dir / "stderr.txt").read_text(encoding="utf-8")
+    persisted_metadata = (artifact_dir / "metadata.json").read_text(encoding="utf-8")
+
+    assert metadata["status"] == "failed"
+    assert "OpenCode stdout withheld because it contained secret-like content" in (
+        persisted_stdout
+    )
+    assert "ordinary diagnostic" in persisted_stderr
+    assert "abcdefghijklmnopqrstuvwxyz123456" not in persisted_stdout
+    assert "abcdefghijklmnopqrstuvwxyz123456" not in persisted_stderr
+    assert "abcdefghijklmnopqrstuvwxyz123456" not in persisted_metadata
 
 
 def test_opencode_worker_nonzero_subprocess_exits_failed_and_writes_artifacts(

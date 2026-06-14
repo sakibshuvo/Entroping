@@ -60,6 +60,16 @@ OpenCode/DeepSeek work. The worker has `review` mode for bounded findings and
 Patch mode never applies changes; Codex validates and applies any useful diff
 inside the issue worktree, then runs the normal gates.
 
+OpenCode-hosted DeepSeek V4 Pro is the tool-enabled DeepSeek lane. It may use
+OpenCode-configured agents, plugins, MCP servers, hooks, shell/tools, and
+GitHub integrations only when those capabilities are present in the active
+OpenCode host and permissioned there. Codex-native plugins, skills, Codex Security, Browser, Computer Use, thread tools, and Codex-specific MCP state are
+not automatically available unless the OpenCode host exposes equivalent
+capabilities. The `scripts/opencode_worker.py` prompt includes an OpenCode Host Capability Context that preserves this boundary, forbids
+`--dangerously-skip-permissions`, keeps selected-file snapshots as the worker's
+truth surface, and keeps `entroping run` deterministic, Hurl-backed,
+QAnstitution-governed, and provider-free.
+
 Use `scripts/deepseek_worker.py` when OpenCode is the wrong dependency for a
 paid DeepSeek Flash or Pro task. It calls DeepSeek's OpenAI-compatible chat
 completion endpoint with an env-provided `DEEPSEEK_API_KEY`, includes selected

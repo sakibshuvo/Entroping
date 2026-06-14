@@ -25,6 +25,7 @@ DEFAULT_MODEL = "deepseek/deepseek-v4-pro"
 DEFAULT_ARTIFACT_ROOT = Path(".entroping") / "ai-reviews"
 DEFAULT_TIMEOUT_SECONDS = 300.0
 DEFAULT_MAX_FILE_BYTES = 64_000
+CAPABILITY_CONTEXT_VERSION = "entroping.opencode-host-capability-context.v1"
 UTC_TZ = datetime_timezone.utc  # noqa: UP017 - factory scripts run under Python 3.9.
 Mode = Literal["review", "patch"]
 Status = Literal["completed", "dry-run", "failed", "inconclusive", "patch-proposed", "timed-out"]
@@ -157,6 +158,7 @@ def run_worker(config: WorkerConfig) -> WorkerResult:
             stdout=stdout,
             stderr=stderr,
         )
+        result = _withhold_secret_like_worker_output(result)
         _write_execution_artifacts(config, result, command)
         _record_factory_metrics(
             config,
@@ -173,6 +175,7 @@ def run_worker(config: WorkerConfig) -> WorkerResult:
         stdout=completed.stdout,
         stderr=completed.stderr,
     )
+    result = _withhold_secret_like_worker_output(result)
     _write_execution_artifacts(config, result, command)
     _record_factory_metrics(
         config,
@@ -425,15 +428,21 @@ def _build_prompt(
         f"- Issue: {config.issue or 'not provided'}",
         "- Context pack command: scripts/context_pack.sh --mode review",
         "",
-        "## Attached File Snapshots",
-        "",
-        (
-            "OpenCode receives preflight-vetted snapshots through `--file`. "
-            "Review only the attached snapshot files below; do not read "
-            "selected files from the live repository during this worker run."
-        ),
-        "",
     ]
+    lines.extend(_opencode_host_capability_context(config))
+    lines.extend(
+        [
+            "",
+            "## Attached File Snapshots",
+            "",
+            (
+                "OpenCode receives preflight-vetted snapshots through `--file`. "
+                "Review only the attached snapshot files below; do not read "
+                "selected files from the live repository during this worker run."
+            ),
+            "",
+        ]
+    )
     lines.extend(f"- {path}" for path in snapshot_paths)
     lines.extend(
         [
@@ -446,6 +455,71 @@ def _build_prompt(
     if config.instruction is not None:
         lines.extend(["", "## Task Instruction", "", config.instruction.strip()])
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _opencode_host_capability_context(config: WorkerConfig) -> list[str]:
+    """Return deterministic OpenCode host capability and authority context."""
+
+    if config.mode == "patch":
+        mode_contract = (
+            "Patch mode may propose a single unified diff only, scoped to the "
+            "attached snapshots and allowed issue, with tests or docs only when "
+            "that work is inside the listed scope."
+        )
+    else:
+        mode_contract = (
+            "Review mode returns concrete findings with file, line, severity, "
+            "evidence, and a proposed fix; uncertain claims stay inconclusive."
+        )
+
+    return [
+        "## OpenCode Host Capability Context",
+        "",
+        (
+            "- OpenCode-hosted DeepSeek V4 Pro is the tool-enabled DeepSeek "
+            f"lane; this worker run uses `{config.model}` through the OpenCode "
+            "host, not the direct DeepSeek API worker."
+        ),
+        (
+            "- OpenCode may use OpenCode-configured agents, plugins, MCP "
+            "servers, hooks, shell/tools, and GitHub integrations only when "
+            "they are present in the active OpenCode host and permissioned by "
+            "that host."
+        ),
+        (
+            "- Codex-native plugins, skills, Codex Security, Browser, Computer "
+            "Use, thread tools, and Codex-specific MCP state are not "
+            "automatically available through OpenCode unless the OpenCode host "
+            "exposes equivalent capabilities."
+        ),
+        (
+            "- This harness must not pass `--dangerously-skip-permissions`; "
+            "permission prompts, denials, and host policy are part of the "
+            "safety boundary."
+        ),
+        (
+            "- Use attached preflight snapshots as the selected-file truth. If "
+            "additional repo inspection is needed, cite exact commands and "
+            "evidence; do not turn generated context into authority."
+        ),
+        (
+            "- Do not request, read, emit, or persist secrets, raw traffic, "
+            "provider transcripts, prompt transcripts, environment values, "
+            "local cache state, or ignored generated artifacts."
+        ),
+        (
+            "- Product boundary: entroping run remains deterministic, "
+            "Hurl-backed, QAnstitution-governed, and provider-free. Do not "
+            "move OpenCode, DeepSeek, MCP, plugin, hook, or other provider "
+            "calls into product runtime behavior."
+        ),
+        (
+            "- Authority boundary: Codex or a human integrator owns Tier B/Tier "
+            "C review, applying patches, opening or merging PRs, closing "
+            "issues, and release/security/architecture decisions."
+        ),
+        f"- Mode contract: {mode_contract}",
+    ]
 
 
 def _template_path(repo_root: Path, mode: Mode) -> Path:
@@ -538,6 +612,36 @@ def _extract_unified_diff(output: str) -> str | None:
     return diff
 
 
+def _withhold_secret_like_worker_output(result: WorkerResult) -> WorkerResult:
+    stdout_reason = secret_like_content_reason(result.stdout)
+    stderr_reason = secret_like_content_reason(result.stderr)
+    if stdout_reason is None and stderr_reason is None:
+        return result
+
+    return WorkerResult(
+        status="failed",
+        artifact_dir=result.artifact_dir,
+        returncode=result.returncode,
+        stdout=(
+            _withheld_output_message("stdout", stdout_reason)
+            if stdout_reason is not None
+            else result.stdout
+        ),
+        stderr=(
+            _withheld_output_message("stderr", stderr_reason)
+            if stderr_reason is not None
+            else result.stderr
+        ),
+    )
+
+
+def _withheld_output_message(stream_name: str, reason: str) -> str:
+    return (
+        f"OpenCode {stream_name} withheld because it contained secret-like "
+        f"content ({reason}).\n"
+    )
+
+
 def _write_execution_artifacts(
     config: WorkerConfig,
     result: WorkerResult,
@@ -574,6 +678,7 @@ def _write_metadata(config: WorkerConfig, result: WorkerResult, command: list[st
         "returncode": result.returncode,
         "timeout_seconds": config.timeout_seconds,
         "max_file_bytes": config.max_file_bytes,
+        "capability_context_version": CAPABILITY_CONTEXT_VERSION,
         "command": command,
         "created_at": datetime.now(UTC_TZ).isoformat(),
         "dry_run": config.dry_run,

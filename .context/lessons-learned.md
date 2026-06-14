@@ -2,6 +2,15 @@
 
 ## 2026-06-14
 
+- "Tool-enabled DeepSeek" needs to name the host. OpenCode-hosted DeepSeek V4
+  Pro can use OpenCode-configured agents, plugins, MCP servers, hooks,
+  shell/tools, and GitHub integrations only when OpenCode has them configured
+  and permissioned; Codex plugins, skills, security scans, browser/computer-use
+  tools, thread tools, and Codex MCP state are not model-native capabilities.
+- AI-worker output needs the same secret-shape skepticism as selected input.
+  Even vetted snapshots can produce generated stdout/stderr that looks like a
+  credential, so worker artifacts should withhold those streams before writing
+  local review evidence.
 - Direct API workers need explicit negative capability context, not only file
   context. A cheap DeepSeek review is more useful when the prompt says it has no
   live MCP, shell, filesystem, GitHub, Codex skill, Spark, Graphify, CodeGraph,
