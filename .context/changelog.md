@@ -1,5 +1,12 @@
 # Entroping Changelog
 
+## 2026-06-14
+
+- Fixed issue #682's AI worker queue selected-file symlink gap so
+  `scripts/ai_jobs.py submit` rejects symlinked input files and files reached
+  through symlinked directories before path resolution, preserving the
+  OpenCode/DeepSeek preflight boundary before any worker job can be queued.
+
 ## 2026-06-13
 
 - Fixed issue #673's AI worker selected-file safety gap so the shared

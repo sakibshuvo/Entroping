@@ -281,11 +281,14 @@ def _validate_files(repo_root: Path, raw_files: tuple[Path, ...]) -> list[str]:
         path = raw_file.expanduser()
         if not path.is_absolute():
             path = repo_root / path
+        if _has_symlink_component(path):
+            msg = f"input path must be a regular non-symlink file: {raw_file}"
+            raise AiJobError(msg)
         resolved = path.resolve()
         if not resolved.exists():
             msg = f"input file does not exist: {raw_file}"
             raise AiJobError(msg)
-        if not resolved.is_file() or resolved.is_symlink():
+        if not resolved.is_file():
             msg = f"input path must be a regular non-symlink file: {raw_file}"
             raise AiJobError(msg)
         try:
@@ -295,6 +298,10 @@ def _validate_files(repo_root: Path, raw_files: tuple[Path, ...]) -> list[str]:
             raise AiJobError(msg) from exc
         validated.append(relative.as_posix())
     return list(dict.fromkeys(validated))
+
+
+def _has_symlink_component(path: Path) -> bool:
+    return any(candidate.is_symlink() for candidate in (path, *path.parents))
 
 
 def _run_next(
