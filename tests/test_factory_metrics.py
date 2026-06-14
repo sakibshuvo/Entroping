@@ -17,7 +17,6 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "factory_metrics.py"
 ROLE_REGISTRY = REPO_ROOT / "docs" / "meta" / "AGENT_ROLE_REGISTRY.yaml"
 PYTHON3_FACTORY_ENTRYPOINTS = (
-    REPO_ROOT / "scripts" / "agent_context_probe.py",
     REPO_ROOT / "scripts" / "ai_jobs.py",
     REPO_ROOT / "scripts" / "deepseek_worker.py",
     REPO_ROOT / "scripts" / "factory_metrics.py",

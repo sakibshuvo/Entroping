@@ -112,16 +112,18 @@ short reviews; opt into `--thinking enabled --reasoning-effort high|max` only
 for deliberate deep-review jobs. The generated prompt includes a Factory
 Capability Context section defined in `scripts/deepseek_worker.py` that tells
 direct DeepSeek API workers they have no live MCP, shell, filesystem, GitHub,
-Codex skill, Spark, Graphify, CodeGraph, or Headroom execution unless that
-evidence is explicitly supplied in the prompt. This context should reduce
-hallucinated tool use while preserving Codex or human integration authority.
+Codex skill, Spark, Kimi, or MCP execution unless that evidence is explicitly
+supplied in the prompt. Graphify, CodeGraph, and Headroom are inactive for
+active Entroping agent workflow and should not be requested from direct
+DeepSeek workers. This context should reduce hallucinated tool use while
+preserving Codex or human integration authority.
 
 local Qwen/oMLX handles private summarization, triage, and low-risk review. Use
 it for source-archive summarization, duplicate-finding, wording variants, and
 offline review prompts before sending anything sensitive to cloud models.
 
-Generated codegraph, Graphify, and Obsidian graph output is evidence, not authority.
-They can help humans and agents navigate relationships, but local tests, source
+Generated graph, wiki, and compression output is evidence, not authority. It
+can help humans navigate relationships when useful, but local tests, source
 files, ADRs, GitHub Issues, and CI decide truth.
 Use the generated context-tool output paths documented in
 `docs/meta/CONTEXT_MANAGEMENT.md`; generated graph, wiki, comprehension,
@@ -152,8 +154,9 @@ The same script owns the context-tool scorecard protocol with schema
 `entroping.context-tool-scorecard-report.v1`; use
 `scripts/factory_metrics.py context-scorecard validate` and
 `scripts/factory_metrics.py context-scorecard report --format json` before
-promoting Graphify, Obsidian/curated Markdown, Understand Anything, CodeGraph,
-or Headroom into the active agent workflow.
+promoting Obsidian/curated Markdown, Understand Anything, or any future
+context tool into the active agent workflow. Graphify, CodeGraph, and Headroom
+are currently measured as inactive for active workflow.
 Recording from scripts is opt-in: use
 `scripts/context_pack.sh --mode implementation --record-factory-metrics` to
 measure context packs, use `scripts/ai_jobs.py run-next
@@ -226,15 +229,14 @@ preserve product evolution, source history, rejected ideas, open questions, and
 durable rationale so a fresh agent can rehydrate the project without treating
 old chat context as current truth.
 
-Graphify, Understand Anything, CodeGraph, and Obsidian graph views are
-comprehension and retrieval aids. They can reduce exploration cost, show
-relationships, support onboarding, and guide impact analysis, but they do not
-promote requirements, override tests, replace ADRs, or approve patches.
-
-Headroom and other compression tools are economic tooling. They can reduce
-token spend around noisy, re-fetchable context after retrieval behavior is
-stable, but they must not hide exact diffs, failing test output, security
-findings, audit evidence, or secrets-sensitive material.
+Graphify, CodeGraph, and Headroom are inactive for active agent workflow. Do
+not route normal Codex, OpenCode, DeepSeek, or Spark sessions through them. Use
+`rg`, `scripts/context_pack.sh`, `docs/meta/DECISION_REGISTRY.yaml`, GitHub
+issues, source files, tests, and CI first. Understand Anything remains
+optional for human comprehension and onboarding; it does not promote
+requirements, override tests, replace ADRs, or approve patches. Any future
+retrieval or compression tool must not hide exact diffs, failing test output,
+security findings, audit evidence, or secrets-sensitive material.
 
 `entroping run` remains deterministic, Hurl-based, QAnstitution-governed, and
 provider-free. No context, graph, compression, or helper-agent tool may move LLM
@@ -260,18 +262,9 @@ scripts/context_pack.sh --mode handoff
 
 Use `implementation` for coding, `review` for critique, `source` for Gemini/NotebookLM reconciliation, `growth` for open-source positioning, and `handoff` when starting a fresh thread.
 
-When local Graphify/CodeGraph output exists, agents may add an optional
-graph-assisted agent context section:
-
-```bash
-scripts/context_pack.sh --mode implementation --with-local-graphs --graph-query "<issue title or symbol>"
-```
-
-That opt-in section is produced by `scripts/agent_context_probe.py`, can write
-ignored manifests under `agent-context-out/`, and must skip cleanly when
-Graphify or CodeGraph output is absent. Graphify/CodeGraph evidence is not
-authority; it can narrow file and test discovery, but it must not replace source
-reading, focused tests, or CI.
+Do not route context packs through Graphify, CodeGraph, or Headroom. The
+active workflow is the curated pack plus targeted repo discovery with `rg`,
+source reads, tests, docs, GitHub issues, ADRs, and CI evidence.
 
 ## Agent Roles
 

@@ -559,3 +559,8 @@
 - GitHub Project lifecycle scripts should not treat the first page of Project
   items as the whole board. Use a documented, validated lookup window before
   deciding an issue item is missing and falling back to item-add recovery.
+- Context tools must earn active workflow status with repeated issue evidence.
+  Graphify, CodeGraph, and Headroom created more routing/setup surface than
+  value for Entroping; keep curated Git-backed Markdown and deterministic repo
+  discovery active, and leave generated graph/compression output as local
+  discard or experiment evidence until a new scorecard proves otherwise.

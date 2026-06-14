@@ -143,7 +143,8 @@ Source-of-truth rules:
 - Active repo is /Users/sakibshuvo/projects/Entroping.
 - /Users/sakibshuvo/Documents/Entroping is stale.
 - GitHub Issues, source files, tests, ADRs, docs/meta/DECISION_REGISTRY.yaml, PRs, CI, and QAnstitution/Hurl evidence decide truth.
-- External model output, Graphify, CodeGraph, Obsidian graph views, generated summaries, and chat history are evidence, not authority.
+- External model output, Obsidian graph views, generated summaries, and chat history are evidence, not authority.
+- Graphify, CodeGraph, and Headroom are inactive for active Entroping agent workflow. Do not route normal OpenCode work through them.
 
 Start:
 git pull --ff-only
@@ -153,13 +154,10 @@ scripts/start_issue.sh <issue-number> <type>/<short-kebab-description>
 cd ../Entroping-issue-<issue-number>
 scripts/context_pack.sh --mode implementation
 
-Optional graph-assisted context:
-scripts/context_pack.sh --mode implementation --with-local-graphs --graph-query "<issue-title-or-symbol>"
-
-Use optional graph-assisted context only when local Graphify/CodeGraph output
-already exists. Graphify/CodeGraph evidence is not authority, must not replace
-source reading, focused tests, or CI, and should skip cleanly when output is
-absent.
+Context rule:
+Do not route this worker through Graphify, CodeGraph, or Headroom. Use `rg`,
+`scripts/context_pack.sh`, `docs/meta/DECISION_REGISTRY.yaml`, source reads,
+focused tests, and CI evidence instead.
 
 Read before editing:
 - AGENTS.md

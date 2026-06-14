@@ -526,17 +526,15 @@ def _factory_capability_context(config: DirectWorkerConfig) -> list[str]:
         (
             "- Valid repo harnesses and context anchors: "
             "`scripts/context_pack.sh --mode implementation`, "
-            "`scripts/context_pack.sh --mode implementation --with-local-graphs "
-            "--graph-query \"<issue or symbol>\"`, "
-            "`scripts/agent_context_probe.py`, `scripts/factory_metrics.py`, "
-            "`scripts/ai_jobs.py`, `scripts/opencode_worker.py`, and "
-            "`scripts/deepseek_worker.py`."
+            "`scripts/factory_metrics.py`, `scripts/ai_jobs.py`, "
+            "`scripts/opencode_worker.py`, and `scripts/deepseek_worker.py`."
         ),
         (
-            "- Graphify, CodeGraph, Headroom, Spark, Kimi, and MCP are optional "
-            "external or local aids. Do not claim Graphify, CodeGraph, "
-            "Headroom, Spark, Kimi, or MCP output exists unless it is included "
-            "in this prompt or verified by Codex."
+            "- Graphify, CodeGraph, and Headroom are not active workflow "
+            "dependencies for Entroping workers. Do not request them, route "
+            "through them, or claim their output exists. Spark, Kimi, and MCP "
+            "are also absent unless this prompt explicitly includes evidence "
+            "from a host that has those capabilities."
         ),
         (
             "- Context safety: use selected files only; do not request, infer, "
