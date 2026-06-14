@@ -2,6 +2,9 @@
 
 ## 2026-06-14
 
+- Archived factory metrics ledgers carry issue context in their path. Report
+  aggregation should use `finished-issues/issue-<number>/...` as a default for
+  missing issue fields without overwriting explicit event issue values.
 - Monitoring is not merge authority. OpenCode-only week monitors should stay
   read-only by default, report PR/CI/cleanup/factory-metrics state, and treat
   failing CI or missing close keywords as blockers instead of taking corrective

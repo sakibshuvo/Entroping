@@ -23,6 +23,7 @@ CONTEXT_SCORECARD_SCHEMA_VERSION = "entroping.context-tool-scorecard.v1"
 CONTEXT_SCORECARD_REPORT_SCHEMA_VERSION = "entroping.context-tool-scorecard-report.v1"
 DEFAULT_LEDGER = Path(".entroping") / "factory-metrics" / "events.jsonl"
 FINISHED_ISSUES_DIR = Path(".entroping") / "factory-metrics" / "finished-issues"
+FINISHED_ISSUE_DIR_RE = re.compile(r"^issue-(?P<issue>\d+)$")
 UTC_TZ = datetime_timezone.utc  # noqa: UP017 - factory scripts run under Python 3.9.
 
 ROLES = {
@@ -342,6 +343,37 @@ def _finished_issue_ledger_label(repo_root: Path, ledger: Path) -> str:
         return ledger.as_posix()
 
 
+def _finished_issue_from_ledger_path(repo_root: Path, ledger: Path) -> str | None:
+    archive_root = _finished_issues_root(repo_root)
+    try:
+        relative = _lexical_absolute(ledger).relative_to(archive_root)
+    except ValueError:
+        return None
+    if not relative.parts:
+        return None
+    match = FINISHED_ISSUE_DIR_RE.fullmatch(relative.parts[0])
+    if match is None:
+        return None
+    return match.group("issue")
+
+
+def _events_with_default_issue(
+    events: list[dict[str, Any]], default_issue: str | None
+) -> list[dict[str, Any]]:
+    if default_issue is None:
+        return events
+
+    attributed: list[dict[str, Any]] = []
+    for event in events:
+        if _safe_report_label(event.get("issue")) is not None:
+            attributed.append(event)
+            continue
+        attributed_event = dict(event)
+        attributed_event["issue"] = default_issue
+        attributed.append(attributed_event)
+    return attributed
+
+
 def _iter_finished_issue_ledgers(repo_root: Path) -> list[Path]:
     archive_root = _finished_issues_root(repo_root)
     if (
@@ -376,6 +408,9 @@ def _load_report_events(
     repo_root: Path, ledger: Path, *, include_finished_issues: bool
 ) -> tuple[list[dict[str, Any]], list[str]]:
     events, errors = _load_events(ledger)
+    events = _events_with_default_issue(
+        events, _finished_issue_from_ledger_path(repo_root, ledger)
+    )
     if not include_finished_issues:
         return events, errors
 
@@ -388,7 +423,12 @@ def _load_report_events(
             archived_ledger,
             error_prefix=f"{label}: ",
         )
-        events.extend(archived_events)
+        events.extend(
+            _events_with_default_issue(
+                archived_events,
+                _finished_issue_from_ledger_path(repo_root, archived_ledger),
+            )
+        )
         errors.extend(archived_errors)
 
     return events, errors
