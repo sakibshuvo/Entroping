@@ -297,8 +297,9 @@ def _json_records(value: Any) -> Iterable[tuple[int | None, str]]:
     if isinstance(value, dict):
         list_values = [item for item in value.values() if isinstance(item, list)]
         if list_values:
-            for item in list_values[0]:
-                yield None, _json_text(item)
+            for items in list_values:
+                for item in items:
+                    yield None, _json_text(item)
             return
         yield None, _json_text(value)
         return

@@ -2,6 +2,10 @@
 
 ## 2026-06-14
 
+- Fixed issue #684's graph-assisted context probe gap so
+  `scripts/agent_context_probe.py` reads every list-valued field in Graphify or
+  CodeGraph JSON artifacts instead of only the first, preserving edge evidence
+  such as source/test relationships for agent retrieval.
 - Fixed issue #682's AI worker queue selected-file symlink gap so
   `scripts/ai_jobs.py submit` rejects symlinked input files and files reached
   through symlinked directories before path resolution, preserving the
