@@ -205,6 +205,9 @@ by issue, including an `unassigned` bucket for exploratory runs. It summarizes
 roles, agents, outcomes, decisions, provider/model usage, context bytes,
 estimated tokens, duration, cost, file counts, tests, and gates without
 rendering notes, prompts, transcripts, stdout/stderr, raw traffic, or secrets.
+Its additive `model_comparison` view groups by issue, role, provider lane, and
+model id, and records known and unknown metric counts so missing token, cost, or
+duration evidence is visible instead of inferred.
 Keep the report local unless a finding is promoted into a GitHub issue, PR,
 ADR, or canonical doc. This is the measurement layer for future extraction into
 a reusable software-factory template, not a replacement for Entroping's source

@@ -142,7 +142,11 @@ It also exports a per-issue report with schema
 `entroping.factory-metrics-report.v1` so maintainers can compare context size,
 estimated tokens, duration, cost, roles, provider/model usage, outcomes, and
 accepted/rejected yield before future extraction into a reusable software
-factory template.
+factory template. The report also includes an additive `model_comparison` view
+grouped by issue, role, provider lane, and model id so OpenCode native
+DeepSeek, direct DeepSeek API, OpenCode Go Kimi/Qwen, local models, Spark, and
+Codex runs can be compared without collapsing missing cost or token evidence
+into guessed values.
 The same script owns the context-tool scorecard protocol with schema
 `entroping.context-tool-scorecard.v1` and report schema
 `entroping.context-tool-scorecard-report.v1`; use

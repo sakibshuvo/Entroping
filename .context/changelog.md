@@ -2,6 +2,11 @@
 
 ## 2026-06-14
 
+- Added issue #707's model-comparison view to factory metrics reports:
+  `scripts/factory_metrics.py report` now emits additive `model_comparison`
+  rows grouped by issue, role, provider lane, and model id, with known and
+  unknown metric counts so missing token, cost, or duration evidence remains
+  explicit for Codex/OpenCode/DeepSeek/Spark/local model comparisons.
 - Ran issue #712's full context-tool trial across curated Markdown/Obsidian,
   Graphify, LLM wiki pattern, Understand Anything, CodeGraph, Headroom, and
   the repo-native agent context probe. The scorecard now records setup status,
