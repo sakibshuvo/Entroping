@@ -48,17 +48,11 @@ Read:
 - The files named by scripts/context_pack.sh --mode implementation
 - The GitHub issue body and comments
 
-Optional graph-assisted context:
+Context rule:
 
-```bash
-scripts/context_pack.sh --mode implementation --with-local-graphs --graph-query "<issue-title-or-symbol>"
-```
-
-Use the optional graph-assisted agent context only when local Graphify or
-CodeGraph output already exists. It is a routing aid for candidate files and
-tests. Graphify/CodeGraph evidence is not authority, must not replace source
-reading, focused tests, or CI, and should skip cleanly when Graphify or
-CodeGraph output is absent.
+Do not route this worker through Graphify, CodeGraph, or Headroom. Use `rg`,
+`scripts/context_pack.sh`, `docs/meta/DECISION_REGISTRY.yaml`, GitHub issue
+evidence, source reads, focused tests, and CI first.
 
 Workflow:
 1. Reproduce or write a failing test first when practical.
@@ -156,19 +150,14 @@ Read:
 - The files named by scripts/context_pack.sh --mode implementation
 - The GitHub issue body and comments
 
-Optional graph-assisted context:
+Context rule:
 
-```bash
-scripts/context_pack.sh --mode implementation --with-local-graphs --graph-query "<issue-title-or-symbol>"
-```
-
-Use the optional graph-assisted agent context only when it keeps the issue
-inside Tier A. It can suggest candidate files and tests, but
-Graphify/CodeGraph evidence is not authority, must not replace source reading,
-focused tests, or CI, and should skip cleanly when Graphify or CodeGraph output
-is absent. Stop and escalate when the probe points to Tier B/Tier C scope,
-secrets-sensitive material, runtime behavior, Hurl runner behavior, redaction,
-proxy, provider boundaries, release publishing, or architecture boundaries.
+Do not route this worker through Graphify, CodeGraph, or Headroom. They are
+inactive for active Entroping agent workflow. Use `rg`, source reads, focused
+tests, and CI evidence instead; stop and escalate when discovery points to
+Tier B/Tier C scope, secrets-sensitive material, runtime behavior, Hurl runner
+behavior, redaction, proxy, provider boundaries, release publishing, or
+architecture boundaries.
 
 Workflow:
 1. Confirm the issue and planned diff are Tier A. If not, stop.

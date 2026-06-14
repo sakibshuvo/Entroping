@@ -62,13 +62,13 @@ scripts/start_issue.sh <issue-number> <type>/<short-kebab-description>
 cd ../Entroping-issue-<issue-number>
 scripts/context_pack.sh --mode implementation
 
-Optional context-tool measurement:
-scripts/context_pack.sh --mode implementation --with-local-graphs --graph-query "<issue-title>"
-scripts/agent_context_probe.py --query "<issue-title>" --format text
-uvx --from headroom-ai headroom loc .
-
-Use Graphify, CodeGraph, Headroom, Obsidian graph views, and generated summaries
-only as routing evidence. They do not replace source reads, tests, PR review, or CI.
+Context/tool measurement:
+Use `scripts/factory_metrics.py report` and any issue-specific scorecard
+evidence already recorded under `.entroping/factory-metrics/`. Do not run or
+require Graphify, CodeGraph, or Headroom for this trial; they are inactive for
+active Entroping agent workflow. Obsidian graph views and generated summaries
+are routing evidence only. They do not replace source reads, tests, PR review,
+or CI.
 
 Work:
 1. Confirm allowed files, forbidden files, merge authority, and stop conditions.

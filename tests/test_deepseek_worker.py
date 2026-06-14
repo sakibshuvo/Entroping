@@ -153,12 +153,13 @@ def test_deepseek_worker_dry_run_writes_prompt_and_metadata_without_api_key(
     assert "## Factory Capability Context" in prompt
     assert "Direct DeepSeek API workers do not have live MCP" in prompt
     assert "scripts/context_pack.sh --mode implementation" in prompt
-    assert "scripts/agent_context_probe.py" in prompt
     assert "scripts/factory_metrics.py" in prompt
     assert "scripts/ai_jobs.py" in prompt
     assert "scripts/opencode_worker.py" in prompt
     assert "scripts/deepseek_worker.py" in prompt
-    assert "Graphify, CodeGraph, Headroom, Spark, Kimi, or MCP" in prompt
+    assert "scripts/agent_context_probe.py" not in prompt
+    assert "--with-local-graphs" not in prompt
+    assert "Graphify, CodeGraph, and Headroom are not active workflow" in prompt
     assert "entroping run remains deterministic" in prompt
     assert str(target_file.resolve()) in prompt
     assert "## Bounded File Contents" in prompt

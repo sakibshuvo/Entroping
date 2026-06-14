@@ -33,8 +33,10 @@ def test_context_pack_help_documents_modes() -> None:
 
     assert result.returncode == 0
     assert "--mode implementation|review|source|growth|handoff" in result.stdout
-    assert "--with-local-graphs" in result.stdout
-    assert "--graph-query" in result.stdout
+    assert "--with-local-graphs" not in result.stdout
+    assert "--graph-query" not in result.stdout
+    assert "Graphify" not in result.stdout
+    assert "CodeGraph" not in result.stdout
     assert "--record-factory-metrics" in result.stdout
     assert "--factory-metrics-ledger" in result.stdout
     assert "NotebookLM" in result.stdout
@@ -58,23 +60,11 @@ def test_context_pack_implementation_mode_includes_required_sources() -> None:
     assert "agent-context-out/" not in result.stdout
 
 
-def test_context_pack_can_include_optional_graph_assisted_probe() -> None:
-    result = run_context_pack(
-        "--mode",
-        "implementation",
-        "--with-local-graphs",
-        "--graph-query",
-        "safe mode reports",
-    )
+def test_context_pack_rejects_removed_graph_assisted_probe_option() -> None:
+    result = run_context_pack("--with-local-graphs")
 
-    assert result.returncode == 0, result.stderr
-    assert "## Optional Graph-Assisted Agent Context" in result.stdout
-    assert "schema: entroping.agent-context-probe.v1" in result.stdout
-    assert "Graphify: missing" in result.stdout
-    assert "CodeGraph: missing" in result.stdout
-    assert "Graph output is retrieval evidence, not authority." in result.stdout
-    assert "Verify every candidate against source files and tests" in result.stdout
-    assert "agent-context-out/" in result.stdout
+    assert result.returncode == 2
+    assert "unknown option: --with-local-graphs" in result.stderr
 
 
 def test_context_pack_records_opt_in_factory_metrics_without_persisting_pack() -> None:

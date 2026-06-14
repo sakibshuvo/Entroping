@@ -1180,3 +1180,8 @@
   `finish_issue.sh` now search a larger validated Project item window before
   deciding an issue is missing from the board, preserving the existing add/retry
   recovery path while avoiding duplicate-add attempts on larger project boards.
+- Closed issue #724's context-tool cleanup: Graphify, CodeGraph, and Headroom
+  are inactive for active agent workflow, graph-assisted context-pack/probe
+  routing is removed, and prompt-library handoffs now direct workers back to
+  `rg`, `scripts/context_pack.sh`, the decision registry, source files, tests,
+  GitHub issues, and CI.

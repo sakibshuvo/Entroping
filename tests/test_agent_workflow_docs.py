@@ -396,7 +396,7 @@ def test_agent_control_plane_defines_risk_tiered_software_factory() -> None:
         "Tier C restricted lane",
         "OpenCode and free-model workers receive bounded issue prompts",
         "local Qwen/oMLX handles private summarization, triage, and low-risk review",
-        "Generated codegraph, Graphify, and Obsidian graph output is evidence, not authority",
+        "Generated graph, wiki, and compression output is evidence, not authority",
         "One write agent per issue-scoped worktree",
     ]
     for term in required_terms:
@@ -857,10 +857,10 @@ def test_context_engineering_factory_boundary_is_canonical() -> None:
         ),
         "Obsidian, the LLM wiki, and curated source exports are the memory layer",
         (
-            "Graphify, Understand Anything, CodeGraph, and Obsidian graph views "
-            "are comprehension and retrieval aids"
+            "Graphify, CodeGraph, and Headroom are inactive for active agent "
+            "workflow"
         ),
-        "Headroom and other compression tools are economic tooling",
+        "Understand Anything remains optional for human comprehension",
         (
             "must not hide exact diffs, failing test output, security findings, "
             "audit evidence, or secrets-sensitive material"
@@ -889,14 +889,9 @@ def test_context_factory_rollout_order_is_documented() -> None:
     required_terms = [
         "## Context Factory Rollout Order",
         "Phase 1 - Obsidian vault discipline",
-        "Phase 2 - LLM wiki plus Graphify over the repo and vault",
+        "Phase 2 - curated Markdown and LLM-wiki style source maps",
         "Phase 3 - Understand Anything for human comprehension and onboarding",
-        "Phase 4 - CodeGraph for `src/` and `tests/` impact analysis",
-        "Phase 5 - Headroom around Codex and OpenCode after retrieval behavior is stable",
-        (
-            "Phase 6 - bounded cheap, Chinese, and local model workers behind "
-            "Codex-owned validation"
-        ),
+        "Phase 4 - bounded cheap, Chinese, and local model workers behind Codex-owned validation",
         (
             "Do not advance a layer until the previous layer has a documented "
             "owner, ignored generated-output path, and reviewable promotion path"
@@ -927,7 +922,6 @@ def test_context_tool_generated_outputs_stay_local_and_ignored() -> None:
         "`understand-anything-out/`",
         "`codegraph-out/`",
         "`headroom-out/`",
-        "`agent-context-out/`",
         (
             "Generated context outputs must remain ignored/local unless "
             "intentionally promoted into curated Markdown"
@@ -947,7 +941,7 @@ def test_context_tool_generated_outputs_stay_local_and_ignored() -> None:
         assert term in combined
 
 
-def test_graph_assisted_agent_context_probe_is_optional_and_advisory() -> None:
+def test_unproven_context_tools_are_not_active_agent_dependencies() -> None:
     control_plane = (
         REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md"
     ).read_text(encoding="utf-8")
@@ -962,18 +956,28 @@ def test_graph_assisted_agent_context_probe_is_optional_and_advisory() -> None:
     )
 
     required_terms = [
-        "scripts/agent_context_probe.py",
-        "scripts/context_pack.sh --mode implementation --with-local-graphs",
-        "--graph-query",
-        "agent-context-out/",
-        "optional graph-assisted agent context",
-        "Graphify/CodeGraph evidence is not authority",
-        "must not replace source reading, focused tests, or CI",
-        "skip cleanly when Graphify or CodeGraph output is absent",
+        "Graphify, CodeGraph, and Headroom are inactive for active agent workflow",
+        "Do not route normal Codex, OpenCode, DeepSeek, or Spark sessions through them",
+        (
+            "Use `rg`, `scripts/context_pack.sh`, "
+            "`docs/meta/DECISION_REGISTRY.yaml`, GitHub issues, source files, "
+            "tests, and CI first"
+        ),
+        "Understand Anything remains optional for human comprehension",
     ]
 
     for term in required_terms:
         assert term in combined
+
+    forbidden_terms = [
+        "scripts/context_pack.sh --mode implementation --with-local-graphs",
+        "scripts/agent_context_probe.py",
+        "--graph-query",
+        "optional graph-assisted agent context",
+    ]
+
+    for term in forbidden_terms:
+        assert term not in combined
 
 
 def test_factory_role_registry_and_metrics_ledger_are_portable_guardrails() -> None:
@@ -1065,8 +1069,8 @@ def test_prompt_library_contains_opencode_desktop_handoff_prompts() -> None:
         "Allowed files",
         "Forbidden files",
         "scripts/start_issue.sh",
-        "scripts/context_pack.sh --mode implementation --with-local-graphs",
-        "Graphify/CodeGraph evidence is not authority",
+        "Graphify, CodeGraph, and Headroom are inactive for active Entroping agent workflow",
+        "Do not route normal OpenCode work through them",
         "scripts/factory_metrics.py",
         "Agent Autonomy Declaration",
         "Tier B/Tier C requires Codex or human review before merge",
