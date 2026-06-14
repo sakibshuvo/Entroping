@@ -210,6 +210,56 @@ ADR, or canonical doc. This is the measurement layer for future extraction into
 a reusable software-factory template, not a replacement for Entroping's source
 of truth.
 
+Use the context-tool scorecard when deciding whether Graphify, the curated
+Markdown vault/Obsidian view, Understand Anything, CodeGraph, or Headroom
+deserves active workflow status:
+
+```bash
+scripts/factory_metrics.py context-scorecard validate --input .entroping/factory-metrics/context-tools/issue-710-scorecard.json
+scripts/factory_metrics.py context-scorecard report --input .entroping/factory-metrics/context-tools/issue-710-scorecard.json --format json
+scripts/factory_metrics.py context-scorecard report --input .entroping/factory-metrics/context-tools/issue-710-scorecard.json --format md --output .entroping/factory-metrics/context-tool-scorecard.md
+```
+
+The scorecard input uses schema `entroping.context-tool-scorecard.v1`; reports
+use schema `entroping.context-tool-scorecard-report.v1`. Keep both local unless
+the finding is promoted into a GitHub issue, PR, ADR, or canonical doc. The
+scorecard records only value-free measurement summaries and evidence pointers;
+it must not store raw prompts, provider transcripts, secrets, raw traffic, or
+product runtime evidence.
+
+Every measured trial compares the tool-assisted path against the repo-native
+baseline and records these fields:
+
+- `grounded_file_hit_rate`
+- `nonexistent_reference_count`
+- `forbidden_scope_incidents`
+- `retrieval_precision`
+- `retrieval_recall`
+- `stale_claim_count`
+- `context_recovery_time_seconds`
+- `review_correction_count`
+- `human_steering_count`
+- `accepted_output_ratio`
+- `context_bytes`
+- `estimated_tokens`
+
+Allowed scorecard evidence is source-linked and reviewable: repo files, tests,
+GitHub issues or PRs, CI checks, ADRs, the decision registry, curated Markdown,
+generated Graphify/wiki/CodeGraph/Headroom/Understand Anything output, and
+factory metrics. Obsidian workspace/cache/plugin state is not scorecard
+evidence, and neither are provider transcripts, raw prompts, raw traffic, or
+product runtime artifacts.
+
+Keep/downgrade/discard decisions follow the measured scorecard:
+
+- active only when measured evidence improves at least two metrics against
+  the baseline without hiding necessary evidence.
+- `optional_manual` when a tool helps a narrow case, such as Graphify
+  symbol-known impact analysis.
+- `probation` when the tool is plausible but has insufficient local evidence.
+- `discard` when it adds setup cost, stale context, noisy retrieval, human
+  babysitting, or hallucination risk without measurable improvement.
+
 Maintainer workflow scripts can append those events only when requested with
 `--record-factory-metrics`. `scripts/context_pack.sh` records context-pack
 size and file counts, while `scripts/opencode_worker.py` and

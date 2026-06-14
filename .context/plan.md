@@ -76,6 +76,10 @@ project, and a Codex workspace with fast context rehydration.
   tier, allowed files, forbidden files, optional graph-context boundaries,
   verification evidence, and merge authority before parallel workers edit or
   review a PR.
+- Context-tool promotion now runs through a value-free local scorecard:
+  `scripts/factory_metrics.py context-scorecard` compares Graphify, Obsidian
+  graph views, Understand Anything, CodeGraph, and Headroom against the
+  repo-native baseline before any tool becomes active workflow dependency.
 - Reusable human-to-agent prompts now live under
   `docs/meta/prompt-library/`; the agent control plane owns durable policy,
   while the prompt library owns copy-paste launchers for fresh Codex sessions,

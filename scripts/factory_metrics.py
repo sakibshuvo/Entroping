@@ -19,6 +19,8 @@ from uuid import uuid4
 EVENT_SCHEMA_VERSION = "entroping.factory-metrics.v1"
 SUMMARY_SCHEMA_VERSION = "entroping.factory-metrics-summary.v1"
 REPORT_SCHEMA_VERSION = "entroping.factory-metrics-report.v1"
+CONTEXT_SCORECARD_SCHEMA_VERSION = "entroping.context-tool-scorecard.v1"
+CONTEXT_SCORECARD_REPORT_SCHEMA_VERSION = "entroping.context-tool-scorecard-report.v1"
 DEFAULT_LEDGER = Path(".entroping") / "factory-metrics" / "events.jsonl"
 FINISHED_ISSUES_DIR = Path(".entroping") / "factory-metrics" / "finished-issues"
 UTC_TZ = datetime_timezone.utc  # noqa: UP017 - factory scripts run under Python 3.9.
@@ -78,6 +80,109 @@ ALLOWED_EVENT_KEYS = {
     "outcome",
     "decision",
     "note",
+}
+CONTEXT_SCORECARD_REQUIRED_METRICS = (
+    "grounded_file_hit_rate",
+    "nonexistent_reference_count",
+    "forbidden_scope_incidents",
+    "retrieval_precision",
+    "retrieval_recall",
+    "stale_claim_count",
+    "context_recovery_time_seconds",
+    "review_correction_count",
+    "human_steering_count",
+    "accepted_output_ratio",
+    "context_bytes",
+    "estimated_tokens",
+)
+CONTEXT_SCORECARD_HIGHER_IS_BETTER = {
+    "grounded_file_hit_rate",
+    "retrieval_precision",
+    "retrieval_recall",
+    "accepted_output_ratio",
+}
+CONTEXT_SCORECARD_RATE_METRICS = {
+    "grounded_file_hit_rate",
+    "retrieval_precision",
+    "retrieval_recall",
+    "accepted_output_ratio",
+}
+CONTEXT_SCORECARD_INTEGER_METRICS = {
+    "nonexistent_reference_count",
+    "forbidden_scope_incidents",
+    "stale_claim_count",
+    "review_correction_count",
+    "human_steering_count",
+    "context_bytes",
+    "estimated_tokens",
+}
+CONTEXT_SCORECARD_RECOMMENDATIONS = {
+    "active",
+    "optional_manual",
+    "probation",
+    "discard",
+}
+CONTEXT_SCORECARD_PROOF_STATUSES = {
+    "measured",
+    "not_measured",
+    "baseline_component",
+    "insufficient",
+}
+CONTEXT_SCORECARD_ALLOWED_SOURCE_TYPES = {
+    "repo_source",
+    "test",
+    "github_issue",
+    "github_pr",
+    "ci_check",
+    "decision_registry",
+    "adr",
+    "curated_markdown",
+    "generated_graph",
+    "generated_wiki",
+    "generated_codegraph",
+    "generated_headroom",
+    "generated_understand_anything",
+    "factory_metrics",
+}
+CONTEXT_SCORECARD_FORBIDDEN_SOURCE_TYPES = {
+    "obsidian_workspace_state",
+    "obsidian_plugin_cache",
+    "provider_transcript",
+    "raw_prompt",
+    "raw_traffic",
+    "product_runtime_evidence",
+}
+CONTEXT_SCORECARD_REQUIRED_BASELINE_COMPONENTS = {
+    "rg",
+    "scripts/context_pack.sh",
+    "docs/meta/DECISION_REGISTRY.yaml",
+}
+CONTEXT_SCORECARD_ALLOWED_KEYS = {
+    "schema_version",
+    "scorecard_id",
+    "recorded_at",
+    "baseline",
+    "tool_evaluations",
+}
+CONTEXT_SCORECARD_BASELINE_KEYS = {"name", "components"}
+CONTEXT_SCORECARD_EVALUATION_KEYS = {
+    "tool",
+    "tool_layer",
+    "proof_status",
+    "status_before",
+    "recommended_status",
+    "evidence_sources",
+    "trials",
+}
+CONTEXT_SCORECARD_EVIDENCE_KEYS = {"source_type", "reference", "summary"}
+CONTEXT_SCORECARD_TRIAL_KEYS = {
+    "issue",
+    "packet_type",
+    "workflow",
+    "baseline_workflow",
+    "metrics",
+    "baseline_metrics",
+    "evidence_summary",
 }
 TEXT_FIELDS = {
     "agent",
@@ -280,6 +385,20 @@ def _safe_report_path(repo_root: Path, output: str) -> Path:
     )
 
 
+def _safe_context_scorecard_input_path(repo_root: Path, raw_input: str) -> Path:
+    raw_path = Path(raw_input).expanduser()
+    path = raw_path if raw_path.is_absolute() else repo_root / raw_path
+    resolved = _lexical_absolute(path)
+    try:
+        resolved.relative_to(repo_root)
+    except ValueError as exc:
+        raise FactoryMetricsError("scorecard input must be under repo root") from exc
+    _ensure_no_symlink_components(repo_root, resolved, "scorecard input")
+    if not resolved.is_file():
+        raise FactoryMetricsError("scorecard input must be an existing file")
+    return resolved
+
+
 def _resolve_context_file(repo_root: Path, path: str | None) -> Path | None:
     if not path:
         return None
@@ -476,6 +595,272 @@ def _validate_event(event: dict[str, Any]) -> list[str]:
             errors.append(f"metrics.{metric} must be numeric")
         elif value < 0:
             errors.append(f"metrics.{metric} must be greater than or equal to 0")
+
+    return errors
+
+
+def _load_context_scorecard(path: Path) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise FactoryMetricsError(f"scorecard input is invalid JSON: {exc.msg}") from exc
+    if not isinstance(value, dict):
+        raise FactoryMetricsError("scorecard input must be a JSON object")
+    return value
+
+
+def _is_number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _scorecard_metric_value(value: object) -> int | float | None:
+    return value if _is_number(value) else None
+
+
+def _validate_scorecard_text(
+    value: object,
+    path: str,
+    errors: list[str],
+    *,
+    required: bool = True,
+) -> None:
+    if value is None:
+        if required:
+            errors.append(f"{path} is required")
+        return
+    if not isinstance(value, str) or not value.strip():
+        errors.append(f"{path} must be a non-empty string")
+        return
+    if _contains_control_character(value):
+        errors.append(f"{path} must not contain control characters")
+    if _contains_secret_like(value):
+        errors.append(f"{path} contains unredacted secret-like value")
+    if NOTE_FORBIDDEN_PATTERN.search(value):
+        errors.append(f"{path} must not contain raw prompt or transcript material")
+
+
+def _validate_scorecard_string_list(
+    value: object,
+    path: str,
+    errors: list[str],
+    *,
+    required_values: set[str] | None = None,
+) -> None:
+    if not isinstance(value, list) or not value:
+        errors.append(f"{path} must be a non-empty list")
+        return
+
+    seen_values: set[str] = set()
+    for index, item in enumerate(value):
+        item_path = f"{path}[{index}]"
+        _validate_scorecard_text(item, item_path, errors)
+        if isinstance(item, str):
+            seen_values.add(item)
+
+    if required_values is not None:
+        for required_value in sorted(required_values - seen_values):
+            errors.append(f"{path} must include {required_value}")
+
+
+def _validate_context_scorecard_metrics(
+    metrics: object,
+    path: str,
+    errors: list[str],
+) -> None:
+    if not isinstance(metrics, dict):
+        errors.append(f"{path} must be an object")
+        return
+
+    for key in sorted(set(metrics) - set(CONTEXT_SCORECARD_REQUIRED_METRICS)):
+        errors.append(f"{path}.{key} is not a supported metric")
+
+    for metric in CONTEXT_SCORECARD_REQUIRED_METRICS:
+        metric_path = f"{path}.{metric}"
+        value = metrics.get(metric)
+        if value is None:
+            errors.append(f"{metric_path} is required")
+            continue
+        if metric in CONTEXT_SCORECARD_INTEGER_METRICS:
+            if not isinstance(value, int) or isinstance(value, bool):
+                errors.append(f"{metric_path} must be an integer")
+                continue
+        elif not _is_number(value):
+            errors.append(f"{metric_path} must be numeric")
+            continue
+        if value < 0:
+            errors.append(f"{metric_path} must be greater than or equal to 0")
+        if metric in CONTEXT_SCORECARD_RATE_METRICS and value > 1:
+            errors.append(f"{metric_path} must be between 0 and 1")
+
+
+def _validate_context_scorecard_evidence(
+    evidence_sources: object,
+    path: str,
+    errors: list[str],
+) -> None:
+    if not isinstance(evidence_sources, list) or not evidence_sources:
+        errors.append(f"{path} must not be empty")
+        return
+
+    for index, source in enumerate(evidence_sources):
+        source_path = f"{path}[{index}]"
+        if not isinstance(source, dict):
+            errors.append(f"{source_path} must be an object")
+            continue
+        for key in sorted(set(source) - CONTEXT_SCORECARD_EVIDENCE_KEYS):
+            errors.append(f"{source_path}.{key} is not supported")
+
+        source_type = source.get("source_type")
+        _validate_scorecard_text(source_type, f"{source_path}.source_type", errors)
+        if isinstance(source_type, str):
+            if source_type in CONTEXT_SCORECARD_FORBIDDEN_SOURCE_TYPES:
+                errors.append(
+                    f"{source_path}.source_type {source_type} is not accepted evidence"
+                )
+            elif source_type not in CONTEXT_SCORECARD_ALLOWED_SOURCE_TYPES:
+                errors.append(
+                    f"{source_path}.source_type {source_type} is not supported"
+                )
+
+        _validate_scorecard_text(source.get("reference"), f"{source_path}.reference", errors)
+        _validate_scorecard_text(source.get("summary"), f"{source_path}.summary", errors)
+
+
+def _validate_context_scorecard_trial(
+    trial: object,
+    path: str,
+    errors: list[str],
+) -> None:
+    if not isinstance(trial, dict):
+        errors.append(f"{path} must be an object")
+        return
+
+    for key in sorted(set(trial) - CONTEXT_SCORECARD_TRIAL_KEYS):
+        errors.append(f"{path}.{key} is not supported")
+
+    for field in ("issue", "packet_type", "workflow", "baseline_workflow"):
+        _validate_scorecard_text(trial.get(field), f"{path}.{field}", errors)
+    _validate_scorecard_text(
+        trial.get("evidence_summary"),
+        f"{path}.evidence_summary",
+        errors,
+        required=False,
+    )
+    _validate_context_scorecard_metrics(trial.get("metrics"), f"{path}.metrics", errors)
+    _validate_context_scorecard_metrics(
+        trial.get("baseline_metrics"),
+        f"{path}.baseline_metrics",
+        errors,
+    )
+
+
+def _context_trial_improvement_count(trial: object) -> int:
+    if not isinstance(trial, dict):
+        return 0
+    metrics = trial.get("metrics")
+    baseline_metrics = trial.get("baseline_metrics")
+    if not isinstance(metrics, dict) or not isinstance(baseline_metrics, dict):
+        return 0
+    comparison = _compare_context_tool_trial(trial)
+    return int(comparison["improvement_count"])
+
+
+def _validate_context_scorecard_evaluation(
+    evaluation: object,
+    path: str,
+    errors: list[str],
+) -> None:
+    if not isinstance(evaluation, dict):
+        errors.append(f"{path} must be an object")
+        return
+
+    for key in sorted(set(evaluation) - CONTEXT_SCORECARD_EVALUATION_KEYS):
+        errors.append(f"{path}.{key} is not supported")
+
+    for field in ("tool", "tool_layer", "status_before"):
+        _validate_scorecard_text(evaluation.get(field), f"{path}.{field}", errors)
+
+    proof_status = evaluation.get("proof_status")
+    _validate_scorecard_text(proof_status, f"{path}.proof_status", errors)
+    if isinstance(proof_status, str) and proof_status not in CONTEXT_SCORECARD_PROOF_STATUSES:
+        errors.append(f"{path}.proof_status is not supported")
+
+    recommended_status = evaluation.get("recommended_status")
+    _validate_scorecard_text(
+        recommended_status,
+        f"{path}.recommended_status",
+        errors,
+    )
+    if (
+        isinstance(recommended_status, str)
+        and recommended_status not in CONTEXT_SCORECARD_RECOMMENDATIONS
+    ):
+        errors.append(f"{path}.recommended_status is not supported")
+
+    _validate_context_scorecard_evidence(
+        evaluation.get("evidence_sources"),
+        f"{path}.evidence_sources",
+        errors,
+    )
+
+    trials = evaluation.get("trials")
+    if not isinstance(trials, list):
+        errors.append(f"{path}.trials must be a list")
+        trials = []
+    for index, trial in enumerate(trials):
+        _validate_context_scorecard_trial(trial, f"{path}.trials[{index}]", errors)
+
+    if proof_status == "measured" and not trials:
+        errors.append(f"{path}.proof_status measured requires at least one trial")
+    if recommended_status == "active" and not trials:
+        errors.append(f"{path} cannot recommend active without measured trials")
+    elif recommended_status == "active":
+        best_improvement_count = max(
+            (_context_trial_improvement_count(trial) for trial in trials),
+            default=0,
+        )
+        if best_improvement_count < 2:
+            errors.append(
+                f"{path} cannot recommend active without at least two measured improvements"
+            )
+
+
+def _validate_context_tool_scorecard(scorecard: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    for key in sorted(set(scorecard) - CONTEXT_SCORECARD_ALLOWED_KEYS):
+        errors.append(f"{key} is not supported")
+
+    if scorecard.get("schema_version") != CONTEXT_SCORECARD_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {CONTEXT_SCORECARD_SCHEMA_VERSION}")
+
+    _validate_scorecard_text(scorecard.get("scorecard_id"), "scorecard_id", errors)
+    _validate_scorecard_text(scorecard.get("recorded_at"), "recorded_at", errors)
+
+    baseline = scorecard.get("baseline")
+    if not isinstance(baseline, dict):
+        errors.append("baseline must be an object")
+    else:
+        for key in sorted(set(baseline) - CONTEXT_SCORECARD_BASELINE_KEYS):
+            errors.append(f"baseline.{key} is not supported")
+        _validate_scorecard_text(baseline.get("name"), "baseline.name", errors)
+        _validate_scorecard_string_list(
+            baseline.get("components"),
+            "baseline.components",
+            errors,
+            required_values=CONTEXT_SCORECARD_REQUIRED_BASELINE_COMPONENTS,
+        )
+
+    tool_evaluations = scorecard.get("tool_evaluations")
+    if not isinstance(tool_evaluations, list) or not tool_evaluations:
+        errors.append("tool_evaluations must be a non-empty list")
+        return errors
+
+    for index, evaluation in enumerate(tool_evaluations):
+        _validate_context_scorecard_evaluation(
+            evaluation,
+            f"tool_evaluations[{index}]",
+            errors,
+        )
 
     return errors
 
@@ -706,6 +1091,245 @@ def _render_report_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _compare_metric(
+    metric: str,
+    value: int | float,
+    baseline_value: int | float,
+) -> str:
+    if value == baseline_value:
+        return "unchanged"
+    if metric in CONTEXT_SCORECARD_HIGHER_IS_BETTER:
+        return "improved" if value > baseline_value else "regressed"
+    return "improved" if value < baseline_value else "regressed"
+
+
+def _compare_context_tool_trial(trial: dict[str, Any]) -> dict[str, Any]:
+    metrics = trial.get("metrics")
+    baseline_metrics = trial.get("baseline_metrics")
+    improved_metrics: list[str] = []
+    regressed_metrics: list[str] = []
+    unchanged_metrics: list[str] = []
+    deltas: dict[str, int | float] = {}
+
+    if not isinstance(metrics, dict) or not isinstance(baseline_metrics, dict):
+        metrics = {}
+        baseline_metrics = {}
+
+    for metric in CONTEXT_SCORECARD_REQUIRED_METRICS:
+        value = _scorecard_metric_value(metrics.get(metric))
+        baseline_value = _scorecard_metric_value(baseline_metrics.get(metric))
+        if value is None or baseline_value is None:
+            continue
+        deltas[metric] = value - baseline_value
+        comparison = _compare_metric(metric, value, baseline_value)
+        if comparison == "improved":
+            improved_metrics.append(metric)
+        elif comparison == "regressed":
+            regressed_metrics.append(metric)
+        else:
+            unchanged_metrics.append(metric)
+
+    return {
+        "issue": _safe_report_label(trial.get("issue")) or "unknown",
+        "packet_type": _safe_report_label(trial.get("packet_type")) or "unknown",
+        "workflow": _safe_report_label(trial.get("workflow")) or "unknown",
+        "baseline_workflow": (
+            _safe_report_label(trial.get("baseline_workflow")) or "unknown"
+        ),
+        "improvement_count": len(improved_metrics),
+        "regression_count": len(regressed_metrics),
+        "improved_metrics": improved_metrics,
+        "regressed_metrics": regressed_metrics,
+        "unchanged_metrics": unchanged_metrics,
+        "deltas": deltas,
+    }
+
+
+def _context_tool_missing_metrics(evaluation: dict[str, Any]) -> list[str]:
+    missing: set[str] = set()
+    trials = evaluation.get("trials")
+    if not isinstance(trials, list):
+        return list(CONTEXT_SCORECARD_REQUIRED_METRICS)
+
+    for trial in trials:
+        if not isinstance(trial, dict):
+            missing.update(CONTEXT_SCORECARD_REQUIRED_METRICS)
+            continue
+        for field in ("metrics", "baseline_metrics"):
+            metrics = trial.get(field)
+            if not isinstance(metrics, dict):
+                missing.update(CONTEXT_SCORECARD_REQUIRED_METRICS)
+                continue
+            for metric in CONTEXT_SCORECARD_REQUIRED_METRICS:
+                if metric not in metrics:
+                    missing.add(metric)
+
+    return sorted(missing)
+
+
+def _context_tool_source_counts(evaluation: dict[str, Any]) -> dict[str, int]:
+    counter: Counter[str] = Counter()
+    evidence_sources = evaluation.get("evidence_sources")
+    if isinstance(evidence_sources, list):
+        for source in evidence_sources:
+            if not isinstance(source, dict):
+                continue
+            source_type = _safe_report_label(source.get("source_type"))
+            if source_type is not None:
+                counter[source_type] += 1
+    return _counter_dict(counter)
+
+
+def _best_context_trial(
+    trial_comparisons: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    if not trial_comparisons:
+        return None
+    return max(
+        trial_comparisons,
+        key=lambda trial: (
+            int(trial["improvement_count"]),
+            -int(trial["regression_count"]),
+            str(trial["issue"]),
+        ),
+    )
+
+
+def _context_tool_report_entry(evaluation: dict[str, Any]) -> dict[str, Any]:
+    trials = evaluation.get("trials")
+    valid_trials = (
+        [trial for trial in trials if isinstance(trial, dict)]
+        if isinstance(trials, list)
+        else []
+    )
+    trial_comparisons = [_compare_context_tool_trial(trial) for trial in valid_trials]
+    best_trial = _best_context_trial(trial_comparisons)
+
+    return {
+        "tool": _safe_report_label(evaluation.get("tool")) or "unknown",
+        "tool_layer": _safe_report_label(evaluation.get("tool_layer")) or "unknown",
+        "proof_status": (
+            _safe_report_label(evaluation.get("proof_status")) or "unknown"
+        ),
+        "status_before": (
+            _safe_report_label(evaluation.get("status_before")) or "unknown"
+        ),
+        "recommended_status": (
+            _safe_report_label(evaluation.get("recommended_status")) or "unknown"
+        ),
+        "trial_count": len(valid_trials),
+        "evidence_count": len(evaluation.get("evidence_sources", []))
+        if isinstance(evaluation.get("evidence_sources"), list)
+        else 0,
+        "source_type_counts": _context_tool_source_counts(evaluation),
+        "missing_required_metrics": _context_tool_missing_metrics(evaluation),
+        "trials": trial_comparisons,
+        "strongest_improvement_count": int(best_trial["improvement_count"])
+        if best_trial
+        else 0,
+        "strongest_regression_count": int(best_trial["regression_count"])
+        if best_trial
+        else 0,
+        "best_trial": best_trial,
+    }
+
+
+def _context_scorecard_report(scorecard: dict[str, Any]) -> dict[str, Any]:
+    tool_entries = [
+        _context_tool_report_entry(evaluation)
+        for evaluation in scorecard.get("tool_evaluations", [])
+        if isinstance(evaluation, dict)
+    ]
+    recommendations = Counter(str(entry["recommended_status"]) for entry in tool_entries)
+    proof_statuses = Counter(str(entry["proof_status"]) for entry in tool_entries)
+    baseline = scorecard.get("baseline", {})
+    baseline_components = baseline.get("components") if isinstance(baseline, dict) else []
+
+    return {
+        "schema_version": CONTEXT_SCORECARD_REPORT_SCHEMA_VERSION,
+        "scorecard_id": _safe_report_label(scorecard.get("scorecard_id")) or "unknown",
+        "baseline": _safe_report_label(baseline.get("name"))
+        if isinstance(baseline, dict)
+        else "unknown",
+        "baseline_components": baseline_components
+        if isinstance(baseline_components, list)
+        else [],
+        "required_metrics": list(CONTEXT_SCORECARD_REQUIRED_METRICS),
+        "total_tools": len(tool_entries),
+        "total_trials": sum(int(entry["trial_count"]) for entry in tool_entries),
+        "tools_by_recommendation": _counter_dict(recommendations),
+        "tools_by_proof_status": _counter_dict(proof_statuses),
+        "tools": tool_entries,
+    }
+
+
+def _render_context_scorecard_markdown(report: dict[str, Any]) -> str:
+    lines = [
+        "# Context Tool Scorecard Report",
+        "",
+        f"- Schema: `{report['schema_version']}`",
+        f"- Scorecard: `{report['scorecard_id']}`",
+        f"- Baseline: {report['baseline']}",
+        f"- Total tools: {report['total_tools']}",
+        f"- Total trials: {report['total_trials']}",
+        "",
+        "## Baseline Components",
+        "",
+    ]
+    lines.extend(f"- `{component}`" for component in report["baseline_components"])
+    lines.extend(
+        [
+            "",
+            "## Tool Decisions",
+            "",
+            "| Tool | Proof | Recommendation | Trials | Evidence | Best issue | "
+            "Improvements | Regressions | Improved metrics |",
+            "| --- | --- | --- | ---: | ---: | --- | ---: | ---: | --- |",
+        ]
+    )
+
+    for tool in report["tools"]:
+        best_trial = tool["best_trial"] if isinstance(tool["best_trial"], dict) else {}
+        row = [
+            tool["tool"],
+            tool["proof_status"],
+            tool["recommended_status"],
+            tool["trial_count"],
+            tool["evidence_count"],
+            best_trial.get("issue", "-"),
+            tool["strongest_improvement_count"],
+            tool["strongest_regression_count"],
+            ", ".join(best_trial.get("improved_metrics", [])) or "-",
+        ]
+        lines.append("| " + " | ".join(_markdown_cell(value) for value in row) + " |")
+
+    lines.extend(
+        [
+            "",
+            "## Trial Comparisons",
+            "",
+            "| Tool | Issue | Workflow | Improvements | Regressions | "
+            "Improved metrics | Regressed metrics |",
+            "| --- | --- | --- | ---: | ---: | --- | --- |",
+        ]
+    )
+    for tool in report["tools"]:
+        for trial in tool["trials"]:
+            row = [
+                tool["tool"],
+                trial["issue"],
+                trial["workflow"],
+                trial["improvement_count"],
+                trial["regression_count"],
+                ", ".join(trial["improved_metrics"]) or "-",
+                ", ".join(trial["regressed_metrics"]) or "-",
+            ]
+            lines.append("| " + " | ".join(_markdown_cell(value) for value in row) + " |")
+
+    lines.append("")
+    return "\n".join(lines)
+
+
 def _write_report_output(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
@@ -811,6 +1435,67 @@ def _report_command(repo_root: Path, args: argparse.Namespace) -> int:
     return 0
 
 
+def _context_scorecard_validate_command(repo_root: Path, args: argparse.Namespace) -> int:
+    input_path = _safe_context_scorecard_input_path(repo_root, args.input)
+    scorecard = _load_context_scorecard(input_path)
+    errors = _validate_context_tool_scorecard(scorecard)
+    tool_evaluations = scorecard.get("tool_evaluations")
+    payload = {
+        "status": "invalid" if errors else "valid",
+        "input_path": str(input_path),
+        "schema_version": CONTEXT_SCORECARD_SCHEMA_VERSION,
+        "tools": len(tool_evaluations) if isinstance(tool_evaluations, list) else 0,
+        "errors": errors,
+    }
+    _print_payload(payload, args.json)
+    return 1 if errors else 0
+
+
+def _context_scorecard_report_command(repo_root: Path, args: argparse.Namespace) -> int:
+    input_path = _safe_context_scorecard_input_path(repo_root, args.input)
+    scorecard = _load_context_scorecard(input_path)
+    errors = _validate_context_tool_scorecard(scorecard)
+    if errors:
+        payload = {
+            "status": "invalid",
+            "input_path": str(input_path),
+            "schema_version": CONTEXT_SCORECARD_SCHEMA_VERSION,
+            "errors": errors,
+        }
+        _print_payload(payload, args.format == "json")
+        return 1
+
+    report = _context_scorecard_report(scorecard)
+    if args.format == "json":
+        content = json.dumps(report, sort_keys=True)
+    else:
+        content = _render_context_scorecard_markdown(report)
+
+    if args.output:
+        output_path = _safe_report_path(repo_root, args.output)
+        _write_report_output(output_path, content)
+        _print_payload(
+            {
+                "status": "written",
+                "output_path": str(output_path),
+                "schema_version": CONTEXT_SCORECARD_REPORT_SCHEMA_VERSION,
+            },
+            False,
+        )
+        return 0
+
+    print(content)
+    return 0
+
+
+def _context_scorecard_command(repo_root: Path, args: argparse.Namespace) -> int:
+    if args.scorecard_command == "validate":
+        return _context_scorecard_validate_command(repo_root, args)
+    if args.scorecard_command == "report":
+        return _context_scorecard_report_command(repo_root, args)
+    raise FactoryMetricsError(f"unsupported context-scorecard command: {args.scorecard_command}")
+
+
 def _add_common_output_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--ledger", help="JSONL ledger under .entroping/factory-metrics/")
     parser.add_argument("--json", action="store_true", help="Emit JSON output.")
@@ -882,6 +1567,38 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    scorecard = subparsers.add_parser(
+        "context-scorecard",
+        help="Validate or report context-tool proof/discard scorecards.",
+    )
+    scorecard_subparsers = scorecard.add_subparsers(
+        dest="scorecard_command",
+        required=True,
+    )
+
+    scorecard_validate = scorecard_subparsers.add_parser(
+        "validate",
+        help="Validate a context-tool scorecard.",
+    )
+    scorecard_validate.add_argument("--input", required=True, help="Scorecard JSON file.")
+    scorecard_validate.add_argument("--json", action="store_true", help="Emit JSON output.")
+
+    scorecard_report = scorecard_subparsers.add_parser(
+        "report",
+        help="Render a context-tool scorecard report.",
+    )
+    scorecard_report.add_argument("--input", required=True, help="Scorecard JSON file.")
+    scorecard_report.add_argument(
+        "--format",
+        choices=("json", "md"),
+        default="md",
+        help="Report format. Defaults to Markdown.",
+    )
+    scorecard_report.add_argument(
+        "--output",
+        help="Optional report path under .entroping/factory-metrics/.",
+    )
+
     return parser
 
 
@@ -899,6 +1616,8 @@ def main(argv: list[str] | None = None) -> int:
             return _summary_command(repo_root, args)
         if args.command == "report":
             return _report_command(repo_root, args)
+        if args.command == "context-scorecard":
+            return _context_scorecard_command(repo_root, args)
     except FactoryMetricsError as exc:
         parser.exit(2, f"{exc}\n")
 

@@ -2,6 +2,12 @@
 
 ## 2026-06-14
 
+- Context tools should earn active workflow status through a local scorecard,
+  not vibe. Measure grounded file hits, nonexistent or stale references,
+  forbidden-scope incidents, retrieval precision/recall, recovery time, review
+  corrections, human steering, accepted-output ratio, context bytes, and
+  estimated tokens against the repo-native baseline before promoting Graphify,
+  Obsidian graph views, Understand Anything, CodeGraph, or Headroom.
 - OpenCode Desktop sessions need an explicit preflight contract, not just a
   model choice. Handoffs should name provider lane, billing path, model id,
   role, autonomy tier, allowed files, forbidden files, and merge authority

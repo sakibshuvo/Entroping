@@ -74,6 +74,101 @@ def _factory_event(
     }
 
 
+def _required_context_tool_metrics(**overrides: int | float) -> dict[str, int | float]:
+    metrics: dict[str, int | float] = {
+        "grounded_file_hit_rate": 1.0,
+        "nonexistent_reference_count": 0,
+        "forbidden_scope_incidents": 0,
+        "retrieval_precision": 0.5,
+        "retrieval_recall": 0.5,
+        "stale_claim_count": 0,
+        "context_recovery_time_seconds": 120,
+        "review_correction_count": 1,
+        "human_steering_count": 1,
+        "accepted_output_ratio": 0.5,
+        "context_bytes": 4000,
+        "estimated_tokens": 1000,
+    }
+    metrics.update(overrides)
+    return metrics
+
+
+def _context_tool_scorecard(
+    *,
+    tool_evaluations: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "schema_version": "entroping.context-tool-scorecard.v1",
+        "scorecard_id": "issue-710-context-tools",
+        "recorded_at": "2026-06-14T00:00:00Z",
+        "baseline": {
+            "name": "repo-native baseline",
+            "components": [
+                "rg",
+                "scripts/context_pack.sh",
+                "docs/meta/DECISION_REGISTRY.yaml",
+                "curated Git-backed Markdown",
+                "GitHub issues, PRs, and CI",
+                "tests and gates",
+            ],
+        },
+        "tool_evaluations": tool_evaluations,
+    }
+
+
+def _context_tool_evaluation(
+    *,
+    tool: str = "Graphify",
+    proof_status: str = "measured",
+    recommended_status: str = "optional_manual",
+    trials: list[dict[str, Any]] | None = None,
+    evidence_sources: list[dict[str, str]] | None = None,
+) -> dict[str, Any]:
+    return {
+        "tool": tool,
+        "tool_layer": "graph_context",
+        "proof_status": proof_status,
+        "status_before": "probation",
+        "recommended_status": recommended_status,
+        "evidence_sources": evidence_sources
+        if evidence_sources is not None
+        else [
+            {
+                "source_type": "github_issue",
+                "reference": "#602",
+                "summary": "Graphify pilot against report audit-chain issue.",
+            },
+            {
+                "source_type": "curated_markdown",
+                "reference": "docs/meta/CONTEXT_MANAGEMENT.md#Graphify Role",
+                "summary": "Canonical context-tool boundary.",
+            },
+        ],
+        "trials": trials
+        if trials is not None
+        else [
+            {
+                "issue": "602",
+                "packet_type": "source_test_impact",
+                "workflow": "graphify_assisted",
+                "baseline_workflow": "repo_native",
+                "metrics": _required_context_tool_metrics(
+                    retrieval_precision=0.75,
+                    retrieval_recall=0.75,
+                    context_recovery_time_seconds=90,
+                    context_bytes=4500,
+                    estimated_tokens=1125,
+                ),
+                "baseline_metrics": _required_context_tool_metrics(),
+                "evidence_summary": (
+                    "Graphify helped only after exact symbol seeding; baseline "
+                    "was better for initial orientation."
+                ),
+            }
+        ],
+    }
+
+
 def _write_jsonl(path: Path, *events: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -1090,3 +1185,166 @@ def test_factory_metrics_report_builder_redacts_labels_defensively() -> None:
     assert "raw-secret-token" not in serialized
     assert "ghp_FAKE_NOT_A_SECRET_1234567890" not in serialized
     assert "<redacted>" in serialized
+
+
+def test_context_tool_scorecard_report_measures_tools_against_baseline(
+    tmp_path: Path,
+) -> None:
+    scorecard_path = (
+        tmp_path / ".entroping" / "factory-metrics" / "context-tools" / "scorecard.json"
+    )
+    scorecard_path.parent.mkdir(parents=True)
+    scorecard = _context_tool_scorecard(
+        tool_evaluations=[
+            _context_tool_evaluation(),
+            _context_tool_evaluation(
+                tool="CodeGraph",
+                proof_status="not_measured",
+                recommended_status="probation",
+                trials=[],
+                evidence_sources=[
+                    {
+                        "source_type": "curated_markdown",
+                        "reference": "docs/meta/CONTEXT_MANAGEMENT.md",
+                        "summary": "CodeGraph remains unproven in this repo.",
+                    }
+                ],
+            ),
+        ]
+    )
+    scorecard_path.write_text(json.dumps(scorecard), encoding="utf-8")
+
+    result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "context-scorecard",
+        "report",
+        "--input",
+        str(scorecard_path),
+        "--format",
+        "json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)
+    assert report["schema_version"] == "entroping.context-tool-scorecard-report.v1"
+    assert report["scorecard_id"] == "issue-710-context-tools"
+    assert report["baseline_components"][:3] == [
+        "rg",
+        "scripts/context_pack.sh",
+        "docs/meta/DECISION_REGISTRY.yaml",
+    ]
+    assert report["total_tools"] == 2
+    assert report["total_trials"] == 1
+    assert report["tools_by_recommendation"] == {
+        "optional_manual": 1,
+        "probation": 1,
+    }
+
+    tools = {tool["tool"]: tool for tool in report["tools"]}
+    graphify = tools["Graphify"]
+    assert graphify["proof_status"] == "measured"
+    assert graphify["recommended_status"] == "optional_manual"
+    assert graphify["strongest_improvement_count"] == 3
+    assert graphify["strongest_regression_count"] == 2
+    assert graphify["trial_count"] == 1
+    assert len(graphify["trials"]) == 1
+    assert graphify["trials"][0]["workflow"] == "graphify_assisted"
+    assert graphify["missing_required_metrics"] == []
+    assert "retrieval_precision" in graphify["best_trial"]["improved_metrics"]
+    assert "context_recovery_time_seconds" in graphify["best_trial"]["improved_metrics"]
+
+    codegraph = tools["CodeGraph"]
+    assert codegraph["proof_status"] == "not_measured"
+    assert codegraph["trial_count"] == 0
+    assert codegraph["strongest_improvement_count"] == 0
+    assert codegraph["missing_required_metrics"] == []
+
+
+def test_context_tool_scorecard_rejects_missing_evidence_as_active_proof(
+    tmp_path: Path,
+) -> None:
+    scorecard_path = (
+        tmp_path / ".entroping" / "factory-metrics" / "context-tools" / "scorecard.json"
+    )
+    scorecard_path.parent.mkdir(parents=True)
+    scorecard = _context_tool_scorecard(
+        tool_evaluations=[
+            _context_tool_evaluation(
+                proof_status="measured",
+                recommended_status="active",
+                evidence_sources=[],
+                trials=[],
+            )
+        ]
+    )
+    scorecard_path.write_text(json.dumps(scorecard), encoding="utf-8")
+
+    result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "context-scorecard",
+        "validate",
+        "--input",
+        str(scorecard_path),
+        "--json",
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "invalid"
+    assert "tool_evaluations[0].evidence_sources must not be empty" in payload["errors"]
+    assert (
+        "tool_evaluations[0] cannot recommend active without measured trials"
+        in payload["errors"]
+    )
+
+
+def test_context_tool_scorecard_rejects_non_authoritative_evidence(
+    tmp_path: Path,
+) -> None:
+    scorecard_path = (
+        tmp_path / ".entroping" / "factory-metrics" / "context-tools" / "scorecard.json"
+    )
+    scorecard_path.parent.mkdir(parents=True)
+    scorecard = _context_tool_scorecard(
+        tool_evaluations=[
+            _context_tool_evaluation(
+                evidence_sources=[
+                    {
+                        "source_type": "obsidian_workspace_state",
+                        "reference": ".obsidian/workspace.json",
+                        "summary": "UI graph state looked useful.",
+                    },
+                    {
+                        "source_type": "provider_transcript",
+                        "reference": "local-provider-output",
+                        "summary": "Provider transcript said the tool helped.",
+                    },
+                ],
+            )
+        ]
+    )
+    scorecard_path.write_text(json.dumps(scorecard), encoding="utf-8")
+
+    result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "context-scorecard",
+        "validate",
+        "--input",
+        str(scorecard_path),
+        "--json",
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "invalid"
+    assert (
+        "tool_evaluations[0].evidence_sources[0].source_type "
+        "obsidian_workspace_state is not accepted evidence"
+    ) in payload["errors"]
+    assert (
+        "tool_evaluations[0].evidence_sources[1].source_type "
+        "provider_transcript is not accepted evidence"
+    ) in payload["errors"]

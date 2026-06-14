@@ -143,6 +143,13 @@ It also exports a per-issue report with schema
 estimated tokens, duration, cost, roles, provider/model usage, outcomes, and
 accepted/rejected yield before future extraction into a reusable software
 factory template.
+The same script owns the context-tool scorecard protocol with schema
+`entroping.context-tool-scorecard.v1` and report schema
+`entroping.context-tool-scorecard-report.v1`; use
+`scripts/factory_metrics.py context-scorecard validate` and
+`scripts/factory_metrics.py context-scorecard report --format json` before
+promoting Graphify, Obsidian/curated Markdown, Understand Anything, CodeGraph,
+or Headroom into the active agent workflow.
 Recording from scripts is opt-in: use
 `scripts/context_pack.sh --mode implementation --record-factory-metrics` to
 measure context packs, use `scripts/ai_jobs.py run-next

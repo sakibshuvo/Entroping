@@ -184,6 +184,40 @@ def test_factory_metrics_docs_wire_per_issue_report_export() -> None:
         assert term in combined
 
 
+def test_context_tool_scorecard_docs_define_measurement_gate() -> None:
+    context_doc = (REPO_ROOT / "docs" / "meta" / "CONTEXT_MANAGEMENT.md").read_text(
+        encoding="utf-8"
+    )
+    control_doc = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
+        encoding="utf-8"
+    )
+    combined = " ".join(f"{context_doc}\n{control_doc}".split())
+
+    required_terms = [
+        "scripts/factory_metrics.py context-scorecard validate",
+        "scripts/factory_metrics.py context-scorecard report --format json",
+        "entroping.context-tool-scorecard.v1",
+        "entroping.context-tool-scorecard-report.v1",
+        "grounded_file_hit_rate",
+        "nonexistent_reference_count",
+        "forbidden_scope_incidents",
+        "retrieval_precision",
+        "retrieval_recall",
+        "stale_claim_count",
+        "context_recovery_time_seconds",
+        "review_correction_count",
+        "human_steering_count",
+        "accepted_output_ratio",
+        "context_bytes",
+        "estimated_tokens",
+        "active only when measured evidence improves at least two metrics",
+        "Obsidian workspace/cache/plugin state is not scorecard evidence",
+        "raw prompts, provider transcripts, secrets, raw traffic, or product runtime evidence",
+    ]
+    for term in required_terms:
+        assert term in combined
+
+
 def test_agent_control_plane_documents_direct_deepseek_worker_boundary() -> None:
     doc = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
         encoding="utf-8"
