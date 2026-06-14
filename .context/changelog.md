@@ -2,6 +2,15 @@
 
 ## 2026-06-14
 
+- Added issue #710's context-tool proof/discard scorecard:
+  `scripts/factory_metrics.py context-scorecard validate/report` now validates
+  local value-free scorecards with schema
+  `entroping.context-tool-scorecard.v1` and renders reports with schema
+  `entroping.context-tool-scorecard-report.v1`, comparing Graphify, Obsidian
+  graph views, Understand Anything, CodeGraph, and Headroom against the
+  repo-native `rg`/context-pack/decision-registry/curated-Markdown baseline
+  without storing raw prompts, provider transcripts, secrets, raw traffic, or
+  product runtime evidence.
 - Added issue #700's OpenCode Desktop handoff prompt:
   `docs/meta/prompt-library/opencode-desktop-handoff.md` now gives OpenCode
   Desktop/OpenCode Go workers implementation and PR-verification launch prompts
