@@ -131,6 +131,77 @@ def test_agent_context_probe_extracts_candidates_from_local_graph_outputs(
     assert statuses["CodeGraph"]["candidate_count"] == 2
 
 
+def test_agent_context_probe_yields_candidates_from_all_list_valued_dict_fields(
+    tmp_path: Path,
+) -> None:
+    graphify_report = tmp_path / "graphify-out" / "multi-list.json"
+    graphify_report.parent.mkdir()
+    graphify_report.write_text(
+        json.dumps(
+            {
+                "nodes": [
+                    {
+                        "path": "src/entroping/core/unrelated.py",
+                        "summary": "unrelated helper",
+                    }
+                ],
+                "edges": [
+                    {
+                        "from": "src/entroping/core/unrelated.py",
+                        "to": "tests/test_run_workflow.py",
+                        "summary": "safe mode report via edge relationship",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_probe(
+        "--repo-root",
+        str(tmp_path),
+        "--query",
+        "safe mode report",
+        "--format",
+        "json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    manifest = json.loads(result.stdout)
+    candidates = manifest["candidates"]
+
+    assert len(candidates) == 1
+    edge_candidate = candidates[0]
+    assert edge_candidate["tool"] == "Graphify"
+    assert "safe" in edge_candidate["matched_terms"]
+    assert "report" in edge_candidate["matched_terms"]
+    assert "tests/test_run_workflow.py" in edge_candidate["referenced_paths"]
+
+
+def test_agent_context_probe_dict_without_list_fields_still_yields_text(
+    tmp_path: Path,
+) -> None:
+    graphify_report = tmp_path / "graphify-out" / "dict.json"
+    graphify_report.parent.mkdir()
+    graphify_report.write_text(
+        json.dumps({"summary": "safe mode report overview", "version": 1}),
+        encoding="utf-8",
+    )
+
+    result = run_probe(
+        "--repo-root",
+        str(tmp_path),
+        "--query",
+        "safe mode report",
+        "--format",
+        "json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    manifest = json.loads(result.stdout)
+    assert any("safe mode report" in c["snippet"] for c in manifest["candidates"])
+
+
 def test_agent_context_probe_writes_only_under_agent_context_out(
     tmp_path: Path,
 ) -> None:

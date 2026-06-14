@@ -2,6 +2,10 @@
 
 ## 2026-06-14
 
+- Graph/context artifacts should be treated as heterogeneous evidence, not a
+  single preferred array. Graphify and CodeGraph JSON can expose useful
+  candidates in later list-valued fields such as edges, so context probes
+  should scan all list fields and let source files/tests decide truth.
 - Selected provider-worker input paths need component-level symlink checks
   before resolution. A final-path `is_symlink()` check is not enough because a
   symlinked parent directory can still make `Path.resolve()` follow an
