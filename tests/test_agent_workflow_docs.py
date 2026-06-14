@@ -177,6 +177,8 @@ def test_factory_metrics_docs_wire_per_issue_report_export() -> None:
         "scripts/factory_metrics.py report --format md --output "
         ".entroping/factory-metrics/factory-report.md",
         "entroping.factory-metrics-report.v1",
+        "model_comparison",
+        "provider lane",
         "per-issue",
         "future extraction",
     ]

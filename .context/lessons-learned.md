@@ -2,6 +2,10 @@
 
 ## 2026-06-14
 
+- Model-comparison metrics need unknown counts, not zero-filled confidence. A
+  factory report can still sum known cost, token, and duration values for
+  compatibility, but model-lane decisions should expose when a worker run did
+  not report a metric so cheap lanes are not credited with guessed savings.
 - Full tool trials must record setup failure as first-class evidence. Issue
   #712 showed that Graphify and CodeGraph can be locally available while still
   producing noisy or incomplete retrieval, Headroom can expose a savings profile

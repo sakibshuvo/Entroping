@@ -847,6 +847,111 @@ def test_factory_metrics_report_groups_cost_and_yield_by_issue(
     assert "note" not in report_json
 
 
+def test_factory_metrics_report_adds_model_comparison_view(
+    tmp_path: Path,
+) -> None:
+    ledger = tmp_path / ".entroping" / "factory-metrics" / "events.jsonl"
+    direct_deepseek = _factory_event(
+        issue="707",
+        role="dev_agent",
+        agent="DeepSeek",
+    )
+    direct_deepseek.update(
+        {
+            "provider": "deepseek-api/direct",
+            "model": "deepseek-v4-pro",
+            "metrics": {
+                "estimated_tokens": 2400,
+                "duration_seconds": 18.5,
+                "cost_usd": 0.04,
+                "files_touched": 2,
+            },
+            "decision": "accepted",
+        }
+    )
+    kimi_review = _factory_event(
+        issue="707",
+        role="code_review_agent",
+        agent="OpenCode",
+    )
+    kimi_review.update(
+        {
+            "provider": "opencode-go/kimi-k2.7-code",
+            "model": "kimi-k2.7-code",
+            "metrics": {
+                "duration_seconds": 22.0,
+                "files_read": 3,
+            },
+            "decision": "rejected",
+        }
+    )
+    local_triage = _factory_event(
+        issue="707",
+        role="qa_agent",
+        agent="Local",
+    )
+    local_triage["metrics"] = {"estimated_tokens": 600}
+    local_triage["decision"] = "needs_review"
+    _write_jsonl(ledger, direct_deepseek, kimi_review, local_triage)
+
+    result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "report",
+        "--ledger",
+        str(ledger),
+        "--format",
+        "json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)
+    rows = {
+        (
+            row["issue"],
+            row["role"],
+            row["provider_lane"],
+            row["model_id"],
+        ): row
+        for row in report["model_comparison"]
+    }
+
+    direct = rows[
+        ("707", "dev_agent", "deepseek-api/direct", "deepseek-v4-pro")
+    ]
+    assert direct["events"] == 1
+    assert direct["metrics"]["estimated_tokens"] == 2400
+    assert direct["metrics"]["cost_usd"] == 0.04
+    assert direct["known_metric_counts"]["estimated_tokens"] == 1
+    assert direct["unknown_metric_counts"]["estimated_tokens"] == 0
+    assert direct["decisions"] == {"accepted": 1}
+    assert direct["accepted_output_ratio"] == 1.0
+
+    kimi = rows[
+        (
+            "707",
+            "code_review_agent",
+            "opencode-go/kimi-k2.7-code",
+            "kimi-k2.7-code",
+        )
+    ]
+    assert kimi["metrics"]["duration_seconds"] == 22.0
+    assert kimi["known_metric_counts"]["cost_usd"] == 0
+    assert kimi["unknown_metric_counts"]["cost_usd"] == 1
+    assert kimi["unknown_metric_counts"]["estimated_tokens"] == 1
+    assert kimi["decisions"] == {"rejected": 1}
+    assert kimi["accepted_output_ratio"] == 0.0
+
+    unknown = rows[("707", "qa_agent", "unknown", "unknown")]
+    assert unknown["metrics"]["estimated_tokens"] == 600
+    assert unknown["known_metric_counts"]["estimated_tokens"] == 1
+    assert unknown["unknown_metric_counts"]["cost_usd"] == 1
+    assert unknown["accepted_output_ratio"] is None
+
+    issues = {issue["issue"]: issue for issue in report["issues"]}
+    assert issues["707"]["model_comparison"] == report["model_comparison"]
+
+
 def test_factory_metrics_report_can_include_finished_issue_archives(
     tmp_path: Path,
 ) -> None:

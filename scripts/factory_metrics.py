@@ -1002,6 +1002,10 @@ def _provider_model_label(event: dict[str, Any]) -> str | None:
     return None
 
 
+def _unknown_safe_report_label(value: object) -> str:
+    return _safe_report_label(value) or "unknown"
+
+
 def _report_bucket(issue: str) -> dict[str, Any]:
     return {
         "issue": issue,
@@ -1015,10 +1019,58 @@ def _report_bucket(issue: str) -> dict[str, Any]:
         "provider_models": Counter(),
         "outcomes": Counter(),
         "decisions": Counter(),
+        "model_comparison": {},
     }
 
 
-def _record_report_counters(bucket: dict[str, Any], event: dict[str, Any]) -> None:
+def _record_model_comparison(
+    bucket: dict[str, Any],
+    event: dict[str, Any],
+    *,
+    issue: str,
+) -> None:
+    role = _unknown_safe_report_label(event.get("role"))
+    provider_lane = _unknown_safe_report_label(event.get("provider"))
+    model_id = _unknown_safe_report_label(event.get("model"))
+    key = (issue, role, provider_lane, model_id)
+    rows = bucket["model_comparison"]
+    if key not in rows:
+        rows[key] = {
+            "issue": issue,
+            "role": role,
+            "provider_lane": provider_lane,
+            "model_id": model_id,
+            "events": 0,
+            "metrics": _empty_metric_totals(),
+            "known_metric_counts": Counter(),
+            "outcomes": Counter(),
+            "decisions": Counter(),
+        }
+
+    row = rows[key]
+    row["events"] += 1
+    metrics = event.get("metrics")
+    _add_metrics(row["metrics"], metrics)
+    if isinstance(metrics, dict):
+        for metric in ALL_METRICS:
+            if isinstance(metrics.get(metric), (int, float)):
+                row["known_metric_counts"][metric] += 1
+
+    for event_field, bucket_field in (
+        ("outcome", "outcomes"),
+        ("decision", "decisions"),
+    ):
+        value = _safe_report_label(event.get(event_field))
+        if value is not None:
+            row[bucket_field][value] += 1
+
+
+def _record_report_counters(
+    bucket: dict[str, Any],
+    event: dict[str, Any],
+    *,
+    comparison_issue: str | None = None,
+) -> None:
     bucket["events"] += 1
     _add_metrics(bucket["metrics"], event.get("metrics"))
 
@@ -1039,6 +1091,51 @@ def _record_report_counters(bucket: dict[str, Any], event: dict[str, Any]) -> No
     if provider_model is not None:
         bucket["provider_models"][provider_model] += 1
 
+    _record_model_comparison(
+        bucket,
+        event,
+        issue=comparison_issue or bucket["issue"],
+    )
+
+
+def _finalize_model_comparison(
+    rows: dict[tuple[str, str, str, str], dict[str, Any]],
+) -> list[dict[str, Any]]:
+    finalized: list[dict[str, Any]] = []
+    for key in sorted(rows):
+        row = rows[key]
+        known_metric_counts = Counter(row["known_metric_counts"])
+        unknown_metric_counts = {
+            metric: row["events"] - known_metric_counts.get(metric, 0)
+            for metric in ALL_METRICS
+        }
+        decisions = Counter(row["decisions"])
+        accepted = decisions.get("accepted", 0)
+        rejected = decisions.get("rejected", 0)
+        denominator = accepted + rejected
+        accepted_output_ratio = (
+            accepted / denominator if denominator else None
+        )
+        finalized.append(
+            {
+                "issue": row["issue"],
+                "role": row["role"],
+                "provider_lane": row["provider_lane"],
+                "model_id": row["model_id"],
+                "events": row["events"],
+                "metrics": row["metrics"],
+                "known_metric_counts": {
+                    metric: known_metric_counts.get(metric, 0)
+                    for metric in ALL_METRICS
+                },
+                "unknown_metric_counts": unknown_metric_counts,
+                "outcomes": _counter_dict(row["outcomes"]),
+                "decisions": _counter_dict(decisions),
+                "accepted_output_ratio": accepted_output_ratio,
+            }
+        )
+    return finalized
+
 
 def _finalize_report_bucket(bucket: dict[str, Any]) -> dict[str, Any]:
     return {
@@ -1053,6 +1150,7 @@ def _finalize_report_bucket(bucket: dict[str, Any]) -> dict[str, Any]:
         "provider_models": _counter_dict(bucket["provider_models"]),
         "outcomes": _counter_dict(bucket["outcomes"]),
         "decisions": _counter_dict(bucket["decisions"]),
+        "model_comparison": _finalize_model_comparison(bucket["model_comparison"]),
     }
 
 
@@ -1071,8 +1169,8 @@ def _report(events: list[dict[str, Any]]) -> dict[str, Any]:
             issues[issue] = _report_bucket(issue)
 
         _add_metrics(totals, event.get("metrics"))
-        _record_report_counters(rollups, event)
-        _record_report_counters(issues[issue], event)
+        _record_report_counters(rollups, event, comparison_issue=issue)
+        _record_report_counters(issues[issue], event, comparison_issue=issue)
 
     finalized_issues = [
         _finalize_report_bucket(issues[issue])
@@ -1091,6 +1189,7 @@ def _report(events: list[dict[str, Any]]) -> dict[str, Any]:
         "provider_models": finalized_rollups["provider_models"],
         "outcomes": finalized_rollups["outcomes"],
         "decisions": finalized_rollups["decisions"],
+        "model_comparison": finalized_rollups["model_comparison"],
         "issues": finalized_issues,
     }
 
@@ -1105,6 +1204,17 @@ def _format_counter_values(values: dict[str, int]) -> str:
     if not values:
         return "-"
     return ", ".join(f"{key}: {value}" for key, value in sorted(values.items()))
+
+
+def _format_unknown_metric_counts(values: dict[str, int]) -> str:
+    unknowns = {key: value for key, value in values.items() if value}
+    return _format_counter_values(unknowns)
+
+
+def _format_ratio(value: object) -> str:
+    if isinstance(value, (int, float)):
+        return f"{value:.2f}"
+    return "unknown"
 
 
 def _render_report_markdown(report: dict[str, Any]) -> str:
@@ -1144,6 +1254,35 @@ def _render_report_markdown(report: dict[str, Any]) -> str:
             _format_counter_values(issue["provider_models"]),
         ]
         lines.append("| " + " | ".join(_markdown_cell(value) for value in row) + " |")
+
+    lines.extend(
+        [
+            "",
+            "## Model Comparison",
+            "",
+            "| Issue | Role | Provider lane | Model ID | Events | Estimated tokens | "
+            "Cost USD | Duration s | Unknown metrics | Outcomes | Decisions | "
+            "Accepted ratio |",
+            "| --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- | --- | ---: |",
+        ]
+    )
+    for row in report["model_comparison"]:
+        metrics = row["metrics"]
+        values = [
+            row["issue"],
+            row["role"],
+            row["provider_lane"],
+            row["model_id"],
+            row["events"],
+            metrics["estimated_tokens"],
+            f"{metrics['cost_usd']:.2f}",
+            f"{metrics['duration_seconds']:.2f}",
+            _format_unknown_metric_counts(row["unknown_metric_counts"]),
+            _format_counter_values(row["outcomes"]),
+            _format_counter_values(row["decisions"]),
+            _format_ratio(row["accepted_output_ratio"]),
+        ]
+        lines.append("| " + " | ".join(_markdown_cell(value) for value in values) + " |")
 
     lines.append("")
     return "\n".join(lines)
