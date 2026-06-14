@@ -20,6 +20,7 @@ EVENT_SCHEMA_VERSION = "entroping.factory-metrics.v1"
 SUMMARY_SCHEMA_VERSION = "entroping.factory-metrics-summary.v1"
 REPORT_SCHEMA_VERSION = "entroping.factory-metrics-report.v1"
 DEFAULT_LEDGER = Path(".entroping") / "factory-metrics" / "events.jsonl"
+FINISHED_ISSUES_DIR = Path(".entroping") / "factory-metrics" / "finished-issues"
 UTC_TZ = datetime_timezone.utc  # noqa: UP017 - factory scripts run under Python 3.9.
 
 ROLES = {
@@ -209,6 +210,70 @@ def _safe_ledger_path(repo_root: Path, ledger: str | None) -> Path:
     return _safe_factory_metrics_path(repo_root, raw_path, "ledger path")
 
 
+def _finished_issues_root(repo_root: Path) -> Path:
+    return _lexical_absolute(repo_root / FINISHED_ISSUES_DIR)
+
+
+def _finished_issue_ledger_label(repo_root: Path, ledger: Path) -> str:
+    factory_root = _lexical_absolute(repo_root / ".entroping" / "factory-metrics")
+    try:
+        return ledger.relative_to(factory_root).as_posix()
+    except ValueError:
+        return ledger.as_posix()
+
+
+def _iter_finished_issue_ledgers(repo_root: Path) -> list[Path]:
+    archive_root = _finished_issues_root(repo_root)
+    if (
+        not archive_root.exists()
+        or archive_root.is_symlink()
+        or not archive_root.is_dir()
+    ):
+        return []
+
+    ledgers: list[Path] = []
+    for current_root, dirnames, filenames in os.walk(archive_root, followlinks=False):
+        current = Path(current_root)
+        dirnames[:] = sorted(
+            dirname for dirname in dirnames if not (current / dirname).is_symlink()
+        )
+        for filename in sorted(filenames):
+            candidate = current / filename
+            if (
+                candidate.suffix == ".jsonl"
+                and not candidate.is_symlink()
+                and candidate.is_file()
+            ):
+                ledgers.append(candidate)
+
+    return sorted(
+        ledgers,
+        key=lambda ledger: ledger.relative_to(archive_root).as_posix(),
+    )
+
+
+def _load_report_events(
+    repo_root: Path, ledger: Path, *, include_finished_issues: bool
+) -> tuple[list[dict[str, Any]], list[str]]:
+    events, errors = _load_events(ledger)
+    if not include_finished_issues:
+        return events, errors
+
+    active_ledger = _lexical_absolute(ledger)
+    for archived_ledger in _iter_finished_issue_ledgers(repo_root):
+        if archived_ledger == active_ledger:
+            continue
+        label = _finished_issue_ledger_label(repo_root, archived_ledger)
+        archived_events, archived_errors = _load_events(
+            archived_ledger,
+            error_prefix=f"{label}: ",
+        )
+        events.extend(archived_events)
+        errors.extend(archived_errors)
+
+    return events, errors
+
+
 def _safe_report_path(repo_root: Path, output: str) -> Path:
     return _safe_factory_metrics_path(
         repo_root, Path(output).expanduser(), "report path"
@@ -303,7 +368,9 @@ def _append_jsonl(path: Path, event: dict[str, Any]) -> None:
         handle.write("\n")
 
 
-def _load_events(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
+def _load_events(
+    path: Path, *, error_prefix: str = ""
+) -> tuple[list[dict[str, Any]], list[str]]:
     events: list[dict[str, Any]] = []
     errors: list[str] = []
     if not path.exists():
@@ -317,13 +384,18 @@ def _load_events(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
             try:
                 value = json.loads(stripped)
             except json.JSONDecodeError as exc:
-                errors.append(f"line {line_number}: invalid JSON: {exc.msg}")
+                errors.append(
+                    f"{error_prefix}line {line_number}: invalid JSON: {exc.msg}"
+                )
                 continue
             if not isinstance(value, dict):
-                errors.append(f"line {line_number}: event must be an object")
+                errors.append(
+                    f"{error_prefix}line {line_number}: event must be an object"
+                )
                 continue
             errors.extend(
-                f"line {line_number}: {message}" for message in _validate_event(value)
+                f"{error_prefix}line {line_number}: {message}"
+                for message in _validate_event(value)
             )
             events.append(value)
     return events, errors
@@ -701,7 +773,11 @@ def _summary_command(repo_root: Path, args: argparse.Namespace) -> int:
 
 def _report_command(repo_root: Path, args: argparse.Namespace) -> int:
     ledger = _safe_ledger_path(repo_root, args.ledger)
-    events, errors = _load_events(ledger)
+    events, errors = _load_report_events(
+        repo_root,
+        ledger,
+        include_finished_issues=args.include_finished_issues,
+    )
     if errors:
         payload = {
             "status": "invalid",
@@ -796,6 +872,14 @@ def build_parser() -> argparse.ArgumentParser:
     report.add_argument(
         "--output",
         help="Optional report path under .entroping/factory-metrics/.",
+    )
+    report.add_argument(
+        "--include-finished-issues",
+        action="store_true",
+        help=(
+            "Include archived finished-issue ledgers under "
+            ".entroping/factory-metrics/finished-issues/."
+        ),
     )
 
     return parser

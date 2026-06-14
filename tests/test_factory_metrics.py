@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import pytest
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -49,6 +50,36 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
         for line in path.read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
+
+
+def _factory_event(
+    *,
+    issue: str,
+    agent: str = "Codex",
+    role: str = "integrator",
+    event_type: str = "worker_job",
+    estimated_tokens: int = 0,
+) -> dict[str, Any]:
+    return {
+        "schema_version": "entroping.factory-metrics.v1",
+        "event_id": f"event-{issue}-{agent}",
+        "recorded_at": "2026-06-14T00:00:00Z",
+        "event_type": event_type,
+        "role": role,
+        "agent": agent,
+        "issue": issue,
+        "metrics": {"estimated_tokens": estimated_tokens},
+        "outcome": "success",
+        "decision": "accepted",
+    }
+
+
+def _write_jsonl(path: Path, *events: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "".join(f"{json.dumps(event, sort_keys=True)}\n" for event in events),
+        encoding="utf-8",
+    )
 
 
 def test_agent_role_registry_defines_portable_factory_roles() -> None:
@@ -715,6 +746,200 @@ def test_factory_metrics_report_groups_cost_and_yield_by_issue(
     report_json = json.dumps(report)
     assert "provider response omitted" not in report_json
     assert "note" not in report_json
+
+
+def test_factory_metrics_report_can_include_finished_issue_archives(
+    tmp_path: Path,
+) -> None:
+    ledger = tmp_path / ".entroping" / "factory-metrics" / "events.jsonl"
+    archive_root = tmp_path / ".entroping" / "factory-metrics" / "finished-issues"
+    active = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "append",
+        "--event-type",
+        "worker_job",
+        "--role",
+        "integrator",
+        "--agent",
+        "Codex",
+        "--issue",
+        "688",
+        "--estimated-tokens",
+        "100",
+        "--ledger",
+        str(ledger),
+    )
+    _write_jsonl(
+        archive_root / "issue-686" / "events.jsonl",
+        _factory_event(issue="686", agent="Codex", estimated_tokens=10),
+    )
+    _write_jsonl(
+        archive_root / "issue-686" / "workers" / "deepseek" / "events.jsonl",
+        _factory_event(
+            issue="686",
+            agent="DeepSeek",
+            role="dev_agent",
+            estimated_tokens=25,
+        ),
+    )
+    assert active.returncode == 0, active.stderr
+
+    default_result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "report",
+        "--ledger",
+        str(ledger),
+        "--format",
+        "json",
+    )
+    included_result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "report",
+        "--ledger",
+        str(ledger),
+        "--format",
+        "json",
+        "--include-finished-issues",
+    )
+
+    assert default_result.returncode == 0, default_result.stderr
+    default_report = json.loads(default_result.stdout)
+    assert default_report["total_events"] == 1
+    assert [issue["issue"] for issue in default_report["issues"]] == ["688"]
+
+    assert included_result.returncode == 0, included_result.stderr
+    report = json.loads(included_result.stdout)
+    assert report["total_events"] == 3
+    assert report["totals"]["estimated_tokens"] == 135
+    issues = {issue["issue"]: issue for issue in report["issues"]}
+    assert list(issues) == ["686", "688"]
+    assert issues["686"]["events"] == 2
+    assert issues["686"]["metrics"]["estimated_tokens"] == 35
+    assert issues["686"]["agents"] == {"Codex": 1, "DeepSeek": 1}
+    assert issues["688"]["events"] == 1
+
+
+def test_factory_metrics_report_labels_malformed_finished_archives(
+    tmp_path: Path,
+) -> None:
+    ledger = tmp_path / ".entroping" / "factory-metrics" / "events.jsonl"
+    archive_ledger = (
+        tmp_path
+        / ".entroping"
+        / "factory-metrics"
+        / "finished-issues"
+        / "issue-686"
+        / "events.jsonl"
+    )
+    _write_jsonl(ledger, _factory_event(issue="688", estimated_tokens=100))
+    archive_ledger.parent.mkdir(parents=True)
+    archive_ledger.write_text("{not-json}\n", encoding="utf-8")
+
+    result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "report",
+        "--ledger",
+        str(ledger),
+        "--format",
+        "json",
+        "--include-finished-issues",
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "invalid"
+    assert payload["ledger_path"] == str(ledger)
+    assert payload["events"] == 1
+    assert payload["errors"] == [
+        "finished-issues/issue-686/events.jsonl: line 1: invalid JSON: "
+        "Expecting property name enclosed in double quotes"
+    ]
+
+
+def test_factory_metrics_report_does_not_follow_finished_archive_symlinks(
+    tmp_path: Path,
+) -> None:
+    ledger = tmp_path / ".entroping" / "factory-metrics" / "events.jsonl"
+    archive_root = tmp_path / ".entroping" / "factory-metrics" / "finished-issues"
+    outside = tmp_path / "outside"
+    _write_jsonl(ledger, _factory_event(issue="688", estimated_tokens=100))
+    _write_jsonl(
+        archive_root / "issue-686" / "events.jsonl",
+        _factory_event(issue="686", estimated_tokens=10),
+    )
+    _write_jsonl(
+        outside / "linked-file-source.jsonl",
+        _factory_event(issue="999", estimated_tokens=999),
+    )
+    _write_jsonl(
+        outside / "linked-dir-source" / "events.jsonl",
+        _factory_event(issue="998", estimated_tokens=998),
+    )
+    try:
+        (archive_root / "issue-686" / "linked.jsonl").symlink_to(
+            outside / "linked-file-source.jsonl"
+        )
+        (archive_root / "issue-linked").symlink_to(
+            outside / "linked-dir-source",
+            target_is_directory=True,
+        )
+    except OSError as exc:
+        pytest.skip(f"symlinks are not available in this environment: {exc}")
+
+    result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "report",
+        "--ledger",
+        str(ledger),
+        "--format",
+        "json",
+        "--include-finished-issues",
+    )
+
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)
+    assert report["total_events"] == 2
+    assert report["totals"]["estimated_tokens"] == 110
+    assert [issue["issue"] for issue in report["issues"]] == ["686", "688"]
+
+
+def test_factory_metrics_report_does_not_double_count_selected_archive_ledger(
+    tmp_path: Path,
+) -> None:
+    archived_ledger = (
+        tmp_path
+        / ".entroping"
+        / "factory-metrics"
+        / "finished-issues"
+        / "issue-686"
+        / "events.jsonl"
+    )
+    _write_jsonl(
+        archived_ledger,
+        _factory_event(issue="686", estimated_tokens=10),
+    )
+
+    result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "report",
+        "--ledger",
+        str(archived_ledger),
+        "--format",
+        "json",
+        "--include-finished-issues",
+    )
+
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)
+    assert report["total_events"] == 1
+    assert report["totals"]["estimated_tokens"] == 10
+    assert [issue["issue"] for issue in report["issues"]] == ["686"]
 
 
 def test_factory_metrics_report_writes_markdown_under_factory_metrics_root(

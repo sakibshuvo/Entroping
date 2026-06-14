@@ -2,6 +2,12 @@
 
 ## 2026-06-14
 
+- Added issue #688's finished-issue factory metrics report aggregation:
+  `scripts/factory_metrics.py report --include-finished-issues` now loads
+  archived `.jsonl` ledgers from the ignored
+  `.entroping/factory-metrics/finished-issues/` tree, keeps default reports
+  unchanged, labels malformed archived events by archive-relative path, and
+  skips symlinked archive files or directories.
 - Fixed issue #686's issue-worktree metrics retention gap so
   `scripts/finish_issue.sh` preserves `.jsonl` factory metrics ledgers from
   the issue worktree into the main checkout's ignored
