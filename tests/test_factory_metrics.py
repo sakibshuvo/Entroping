@@ -1026,6 +1026,80 @@ def test_factory_metrics_report_can_include_finished_issue_archives(
     assert issues["688"]["events"] == 1
 
 
+def test_factory_metrics_report_attributes_archived_events_without_issue(
+    tmp_path: Path,
+) -> None:
+    ledger = tmp_path / ".entroping" / "factory-metrics" / "events.jsonl"
+    archived_ledger = (
+        tmp_path
+        / ".entroping"
+        / "factory-metrics"
+        / "finished-issues"
+        / "issue-708"
+        / "issue-708"
+        / "events.jsonl"
+    )
+    missing_issue_event = _factory_event(
+        issue="placeholder",
+        event_type="context_pack",
+        estimated_tokens=100,
+    )
+    missing_issue_event.pop("issue")
+    empty_issue_event = _factory_event(
+        issue="",
+        agent="Codex",
+        event_type="gate_run",
+        estimated_tokens=200,
+    )
+    explicit_issue_event = _factory_event(
+        issue="709",
+        agent="DeepSeek",
+        estimated_tokens=300,
+    )
+    _write_jsonl(ledger, _factory_event(issue="688", estimated_tokens=50))
+    _write_jsonl(
+        archived_ledger,
+        missing_issue_event,
+        empty_issue_event,
+        explicit_issue_event,
+    )
+
+    included_result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "report",
+        "--ledger",
+        str(ledger),
+        "--format",
+        "json",
+        "--include-finished-issues",
+    )
+    explicit_result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "report",
+        "--ledger",
+        str(archived_ledger),
+        "--format",
+        "json",
+    )
+
+    assert included_result.returncode == 0, included_result.stderr
+    included_report = json.loads(included_result.stdout)
+    included_issues = {issue["issue"]: issue for issue in included_report["issues"]}
+    assert included_issues["708"]["events"] == 2
+    assert included_issues["708"]["metrics"]["estimated_tokens"] == 300
+    assert included_issues["709"]["events"] == 1
+    assert "unassigned" not in included_issues
+
+    assert explicit_result.returncode == 0, explicit_result.stderr
+    explicit_report = json.loads(explicit_result.stdout)
+    explicit_issues = {issue["issue"]: issue for issue in explicit_report["issues"]}
+    assert explicit_issues["708"]["events"] == 2
+    assert explicit_issues["709"]["events"] == 1
+    assert "unassigned" not in explicit_issues
+
+
 def test_factory_metrics_report_labels_malformed_finished_archives(
     tmp_path: Path,
 ) -> None:

@@ -2,6 +2,9 @@
 
 ## 2026-06-14
 
+- Fixed issue #722's finished-ledger attribution bug: factory metrics reports now
+  use the archived `finished-issues/issue-<number>/...` path as a default issue
+  only when an event omits the issue field, preserving explicit issue values.
 - Added issue #708's OpenCode-only week monitoring prompt:
   `docs/meta/prompt-library/opencode-week-monitoring.md` now gives cheap
   OpenCode/DeepSeek workers a read-only monitor for open PRs, CI rollups, ready
