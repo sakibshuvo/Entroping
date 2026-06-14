@@ -1,5 +1,12 @@
 # Entroping Lessons Learned
 
+## 2026-06-14
+
+- Selected provider-worker input paths need component-level symlink checks
+  before resolution. A final-path `is_symlink()` check is not enough because a
+  symlinked parent directory can still make `Path.resolve()` follow an
+  unreviewed path into an apparently valid repository-relative file.
+
 ## 2026-06-13
 
 - Secret-like content detection for selected AI-worker files must handle syntax

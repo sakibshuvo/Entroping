@@ -272,6 +272,48 @@ def test_ai_jobs_submit_rejects_unknown_model_profile(tmp_path: Path) -> None:
     assert "unknown model profile" in result.stderr
 
 
+def test_ai_jobs_submit_rejects_symlinked_input_files(tmp_path: Path) -> None:
+    symlink = tmp_path / "linked-readme.md"
+    symlink.symlink_to(REPO_ROOT / "README.md")
+
+    result = run_ai_jobs(
+        "submit",
+        "--mode",
+        "review",
+        "--profile",
+        "flash-free",
+        "--file",
+        str(symlink),
+        "--job-root",
+        str(tmp_path / "ai-jobs"),
+    )
+
+    assert result.returncode == 2
+    assert "input path must be a regular non-symlink file" in result.stderr
+
+
+def test_ai_jobs_submit_rejects_input_files_under_symlinked_directories(
+    tmp_path: Path,
+) -> None:
+    symlinked_repo = tmp_path / "repo-link"
+    symlinked_repo.symlink_to(REPO_ROOT, target_is_directory=True)
+
+    result = run_ai_jobs(
+        "submit",
+        "--mode",
+        "review",
+        "--profile",
+        "flash-free",
+        "--file",
+        str(symlinked_repo / "README.md"),
+        "--job-root",
+        str(tmp_path / "ai-jobs"),
+    )
+
+    assert result.returncode == 2
+    assert "input path must be a regular non-symlink file" in result.stderr
+
+
 def test_ai_jobs_run_next_routes_deepseek_api_engine_to_direct_worker(
     tmp_path: Path,
 ) -> None:
