@@ -16,7 +16,9 @@ Forbidden tracked paths include:
   reports/
   graphify-out/
   llm-wiki-out/
+  .understand-anything/
   understand-anything-out/
+  .codegraph/
   codegraph-out/
   headroom-out/
   agent-context-out/
@@ -57,7 +59,9 @@ is_forbidden_path() {
     reports/*|\
     graphify-out/*|\
     llm-wiki-out/*|\
+    .understand-anything/*|\
     understand-anything-out/*|\
+    .codegraph/*|\
     codegraph-out/*|\
     headroom-out/*|\
     agent-context-out/*|\

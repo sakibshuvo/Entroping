@@ -178,6 +178,42 @@ def test_agent_context_probe_yields_candidates_from_all_list_valued_dict_fields(
     assert "tests/test_run_workflow.py" in edge_candidate["referenced_paths"]
 
 
+def test_agent_context_probe_carries_codegraph_source_heading_into_code_lines(
+    tmp_path: Path,
+) -> None:
+    codegraph_report = tmp_path / "codegraph-out" / "explore.txt"
+    codegraph_report.parent.mkdir()
+    codegraph_report.write_text(
+        "\n".join(
+            [
+                "#### scripts/factory_metrics.py — _compare_context_tool_trial(function)",
+                "```python",
+                "1176    for metric in CONTEXT_SCORECARD_REQUIRED_METRICS:",
+                "1177        value = _scorecard_metric_value(metrics.get(metric))",
+                "```",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_probe(
+        "--repo-root",
+        str(tmp_path),
+        "--query",
+        "CONTEXT_SCORECARD_REQUIRED_METRICS",
+        "--format",
+        "json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    manifest = json.loads(result.stdout)
+    candidates = manifest["candidates"]
+
+    assert len(candidates) == 1
+    assert candidates[0]["tool"] == "CodeGraph"
+    assert candidates[0]["referenced_paths"] == ["scripts/factory_metrics.py"]
+
+
 def test_agent_context_probe_dict_without_list_fields_still_yields_text(
     tmp_path: Path,
 ) -> None:

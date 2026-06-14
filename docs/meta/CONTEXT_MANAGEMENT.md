@@ -227,6 +227,13 @@ scorecard records only value-free measurement summaries and evidence pointers;
 it must not store raw prompts, provider transcripts, secrets, raw traffic, or
 product runtime evidence.
 
+Each tool evaluation may also record setup evidence with `setup.status`,
+`setup.duration_seconds`, `setup.command`, and `setup.failure_reason`. Use that
+for tools that install but are not callable in the current agent session, tools
+that need a CLI restart, tools with stale upstream lockfiles, or tools that have
+no real local performance logs. Setup evidence follows the same redaction and
+no-transcript rules as trial evidence.
+
 Every measured trial compares the tool-assisted path against the repo-native
 baseline and records these fields:
 
@@ -259,6 +266,36 @@ Keep/downgrade/discard decisions follow the measured scorecard:
 - `probation` when the tool is plausible but has insufficient local evidence.
 - `discard` when it adds setup cost, stale context, noisy retrieval, human
   babysitting, or hallucination risk without measurable improvement.
+
+Issue #712's full trial measured seven context/tool layers across initial
+orientation, symbol-known impact, docs contradiction, large-context compression,
+and worker-handoff packets. The operational decision after that trial is:
+
+- Keep curated Git-backed Markdown plus the Obsidian view as active source-truth
+  navigation. Obsidian remains a viewer; Git-backed Markdown, ADRs, decision
+  registry entries, issues, tests, and CI are the evidence.
+- Keep `scripts/agent_context_probe.py` active for compact graph-assisted worker
+  handoff. It is deterministic, advisory only, and now preserves CodeGraph
+  source-heading paths for line-numbered snippets.
+- Keep Graphify as `optional_manual`. It built a large local graph quickly and
+  its benchmark suggested token reduction, but the measured broad/context
+  queries missed this issue's relevant source and docs. Use it only after
+  ordinary repo discovery, especially for exact-symbol or graph-shape review.
+- Keep CodeGraph as `optional_manual` for exact symbol/source exploration. It
+  found useful line-numbered source, but underreported tests and made a false
+  no-coverage claim during the trial, so agents must verify CodeGraph output
+  against source files and tests before acting.
+- Keep Headroom on `probation`. Its `sg`/ast-grep and `loc` wrappers are useful
+  local probes, and its smoke fixture proves the savings checker can work, but
+  no real Entroping/Codex proxy log proved token savings.
+- Keep Understand Anything on `probation`. A fake-home install, non-frozen
+  package install, core build, and external core tests worked in an ignored
+  clone, but the skills require a CLI restart and were not callable in the
+  current Codex session. Do not require it in the active workflow until a fresh
+  session generates and validates an Entroping graph.
+- Treat the LLM wiki pattern as `optional_manual`. In Entroping, the practical
+  implementation remains curated Markdown plus the decision registry unless a
+  real wiki graph proves better measured retrieval.
 
 Maintainer workflow scripts can append those events only when requested with
 `--record-factory-metrics`. `scripts/context_pack.sh` records context-pack
@@ -341,6 +378,67 @@ discovery, especially before focused review or refactor planning. Do not use it
 to decide product truth, replace the decision registry, or generate mandatory
 implementation context.
 
+The issue #712 full trial reinforced this boundary. `graphify update .
+--no-cluster` completed quickly and wrote ignored output, but broad queries for
+the current context-tool work returned stale/irrelevant graph neighborhoods.
+Graphify is therefore not an active first-pass discovery dependency.
+
+## CodeGraph Role
+
+CodeGraph is optional generated code context for `src/`, `tests`, and closely
+scoped support scripts. Use it when you already have a symbol, file, or changed
+source path and want line-numbered source, call context, or a compact worker
+handoff candidate list.
+
+Recommended local workflow:
+
+```bash
+CODEGRAPH_TELEMETRY=0 npx -y @colbymchenry/codegraph init <repo-root>
+CODEGRAPH_TELEMETRY=0 npx -y @colbymchenry/codegraph query <symbol> --path <repo-root> --json
+CODEGRAPH_TELEMETRY=0 npx -y @colbymchenry/codegraph explore <terms> --path <repo-root> --max-files 8
+```
+
+Output belongs under `.codegraph/` and `codegraph-out/`, which are ignored by
+Git. CodeGraph output is advisory only: the issue #712 trial found useful
+`scripts/factory_metrics.py` source snippets, but it also underreported related
+tests and claimed scorecard functions had no covering tests. Verify every
+candidate with `rg`, source reads, and focused tests before patching.
+
+## Headroom Role
+
+Headroom is a probationary local context-optimization layer. Use `headroom loc`
+for quick repo-shape sizing and `headroom sg` for AST-backed structural search
+when that beats plain text search. Do not claim token savings from Headroom
+unless `headroom agent-savings --check-perf` has real local proxy/eval evidence
+for the current agent lane.
+
+Recommended local probes:
+
+```bash
+uvx --from headroom-ai headroom loc <repo-root>
+uvx --from headroom-ai headroom sg run -p '<pattern>' -l python scripts tests
+uvx --from headroom-ai headroom agent-savings --check-perf --hours 24
+```
+
+Output belongs under `headroom-out/`, which is ignored by Git. Issue #712 found
+that Headroom's smoke fixture can prove savings mechanics, but the live
+Entroping check had no usable proxy evidence and therefore did not prove token
+savings.
+
+## Understand Anything Role
+
+Understand Anything is a probationary onboarding and interactive-graph tool.
+It is not an active dependency for Codex/OpenCode sessions until the relevant
+agent host has loaded its skills and an Entroping graph exists under ignored
+`.understand-anything/` output.
+
+Issue #712 verified the installer in a fake home and built/tested the external
+core package in an ignored clone. The frozen package install failed because the
+upstream lockfile was stale, while a non-frozen install, core build, and core
+tests passed. Because the skills require a CLI restart and no live `/understand`
+command was available in the current Codex session, this tool remains
+probationary for Entroping.
+
 For normal onboarding, ordinary contributors must not be required to install
 Graphify, CodeGraph-style tools, Obsidian plugins, MCP indexes, or any generated
 graph stack before they can build, test, review, or contribute to Entroping.
@@ -376,6 +474,13 @@ Current local agent tooling status:
   `docs/meta/AGENT_ROLE_REGISTRY.yaml`.
 - Factory metrics ledger: available through `scripts/factory_metrics.py`, with
   ignored events under `.entroping/factory-metrics/`.
+- Graphify: available in this shell; optional manual generated context only.
+- CodeGraph: available through `npx` with `CODEGRAPH_TELEMETRY=0`; optional
+  manual code-context aid only.
+- Headroom: available through `uvx --from headroom-ai`; probationary until real
+  local proxy/eval evidence proves savings.
+- Understand Anything: installable/testable in an ignored clone, but not active
+  in this Codex session without a restart and generated graph.
 - Spec Kit `specify`: available.
 - oMLX: not installed in this shell yet.
 

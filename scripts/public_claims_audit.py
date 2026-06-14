@@ -20,16 +20,24 @@ UNSUPPORTED_CLAIMS = (
 
 EXCLUDED_DIRS = {
     ".git",
+    ".codegraph",
     ".context",
     ".entroping",
     ".mypy_cache",
     ".pytest_cache",
     ".ruff_cache",
+    ".understand-anything",
     ".venv",
+    "agent-context-out",
+    "codegraph-out",
     "dist",
+    "graphify-out",
+    "headroom-out",
     "htmlcov",
+    "llm-wiki-out",
     "node_modules",
     "reports",
+    "understand-anything-out",
 }
 
 

@@ -22,7 +22,9 @@ site/
 reports/
 graphify-out/
 llm-wiki-out/
+.understand-anything/
 understand-anything-out/
+.codegraph/
 codegraph-out/
 headroom-out/
 agent-context-out/
