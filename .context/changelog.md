@@ -2,6 +2,11 @@
 
 ## 2026-06-14
 
+- Added issue #702's Codex-outage OpenCode/DeepSeek work queue to the agent
+  control plane: `docs/meta/AGENT_CONTROL_PLANE.md` now records the one-week
+  low-Codex-capacity queue index, child issue order, provider lanes, autonomy
+  tiers, merge authority, acceptance rules, and forbidden runtime/security
+  scopes for OpenCode Desktop/OpenCode Go and paid DeepSeek API workers.
 - Added issue #704's Codex-outage daily operations prompt:
   `docs/meta/prompt-library/codex-outage-daily-operations.md` now gives
   OpenCode/DeepSeek workers a daily low-Codex-capacity loop for pulling main,
