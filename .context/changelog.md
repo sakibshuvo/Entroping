@@ -2,6 +2,11 @@
 
 ## 2026-06-14
 
+- Fixed issue #696's direct DeepSeek response-payload artifact gap:
+  `scripts/deepseek_worker.py` now checks serialized provider response payloads
+  with the shared secret-like detector before execution artifacts are written,
+  marks unsafe response-payload runs failed, skips raw response/proposal
+  artifacts, and records only value-free failure evidence.
 - Fixed issue #694's direct DeepSeek output artifact gap:
   `scripts/deepseek_worker.py` now checks generated stdout/stderr with the
   shared secret-like detector before writing execution artifacts, marks the

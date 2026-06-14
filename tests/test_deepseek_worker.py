@@ -549,6 +549,79 @@ def test_deepseek_worker_patch_mode_writes_proposal_for_safe_diff(
     assert "```" not in proposal
 
 
+def test_deepseek_worker_withholds_secret_like_response_payload_without_proposal(
+    tmp_path: Path,
+) -> None:
+    DeepSeekStubHandler.requests = []
+    DeepSeekStubHandler.response_payload = {
+        "id": "chatcmpl-test",
+        "choices": [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": (
+                        "diff --git a/example.py b/example.py\n"
+                        "--- a/example.py\n"
+                        "+++ b/example.py\n"
+                        "@@ -1 +1 @@\n"
+                        "-old\n"
+                        "+new\n"
+                    ),
+                }
+            }
+        ],
+        "provider_debug": {"api_key": "sk-proj-abcdefghijklmnopqrstuvwxyz123456"},
+        "usage": {
+            "prompt_tokens": 11,
+            "completion_tokens": 7,
+            "total_tokens": 18,
+        },
+    }
+    server = HTTPServer(("127.0.0.1", 0), DeepSeekStubHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base_url = f"http://127.0.0.1:{server.server_port}"
+
+    try:
+        result = run_worker(
+            "--mode",
+            "patch",
+            "--file",
+            "README.md",
+            "--artifact-root",
+            str(tmp_path / "reviews"),
+            "--base-url",
+            base_url,
+            "--api-key-env",
+            "ENTROPING_TEST_DEEPSEEK_KEY",
+            "--json",
+            env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
+        )
+    finally:
+        DeepSeekStubHandler.response_payload = None
+        server.shutdown()
+        thread.join(timeout=2)
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    artifact_dir = Path(str(payload["artifact_dir"]))
+    metadata = read_metadata(artifact_dir)
+    persisted_stdout = (artifact_dir / "stdout.txt").read_text(encoding="utf-8")
+    persisted_stderr = (artifact_dir / "stderr.txt").read_text(encoding="utf-8")
+    persisted_metadata = (artifact_dir / "metadata.json").read_text(encoding="utf-8")
+
+    assert metadata["status"] == "failed"
+    assert "DeepSeek response payload withheld because it contained secret-like content" in (
+        persisted_stderr
+    )
+    assert "diff --git a/example.py b/example.py" in persisted_stdout
+    assert not (artifact_dir / "proposal.diff").exists()
+    assert not (artifact_dir / "response.json").exists()
+    assert "sk-proj-abcdefghijklmnopqrstuvwxyz123456" not in persisted_stdout
+    assert "sk-proj-abcdefghijklmnopqrstuvwxyz123456" not in persisted_stderr
+    assert "sk-proj-abcdefghijklmnopqrstuvwxyz123456" not in persisted_metadata
+
+
 def test_deepseek_worker_withholds_secret_like_patch_output_without_proposal(
     tmp_path: Path,
 ) -> None:

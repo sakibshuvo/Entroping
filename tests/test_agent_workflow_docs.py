@@ -198,6 +198,7 @@ def test_agent_control_plane_documents_direct_deepseek_worker_boundary() -> None
     assert "secret-like content" in normalized
     assert "Before generated output artifacts are written" in normalized
     assert "withholds secret-like stdout/stderr" in normalized
+    assert "serialized response payloads" in normalized
     assert "skips raw response/proposal artifacts" in normalized
     assert "maintainer-only local development tooling" in doc
     assert "--thinking disabled" in doc

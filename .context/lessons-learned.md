@@ -2,6 +2,9 @@
 
 ## 2026-06-14
 
+- A provider response can carry unsafe local-only evidence outside the assistant
+  content. Direct worker artifact safety should scan the serialized provider
+  payload before writing `response.json`, even when stdout/stderr are safe.
 - Direct provider response JSON can duplicate unsafe assistant output. When a
   worker withholds secret-like stdout/stderr, it should also skip raw response
   and patch-proposal artifacts for that run, otherwise the same generated value

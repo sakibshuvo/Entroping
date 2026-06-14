@@ -774,26 +774,50 @@ def _withhold_secret_like_worker_output(
 ) -> DirectWorkerResult:
     stdout_reason = secret_like_content_reason(result.stdout)
     stderr_reason = secret_like_content_reason(result.stderr)
+    response_payload_reason = None
     if stdout_reason is None and stderr_reason is None:
+        response_payload_reason = _secret_like_response_payload_reason(
+            result.response_payload
+        )
+    if (
+        stdout_reason is None
+        and stderr_reason is None
+        and response_payload_reason is None
+    ):
         return result
+
+    stdout = result.stdout
+    if stdout_reason is not None:
+        stdout = _withheld_output_message("stdout", stdout_reason)
+
+    stderr = result.stderr
+    if stderr_reason is not None:
+        stderr = _withheld_output_message("stderr", stderr_reason)
+    elif response_payload_reason is not None:
+        stderr = _withheld_output_message("response payload", response_payload_reason)
 
     return DirectWorkerResult(
         status="failed",
         artifact_dir=result.artifact_dir,
         returncode=result.returncode if result.returncode != 0 else 1,
-        stdout=(
-            _withheld_output_message("stdout", stdout_reason)
-            if stdout_reason is not None
-            else result.stdout
-        ),
-        stderr=(
-            _withheld_output_message("stderr", stderr_reason)
-            if stderr_reason is not None
-            else result.stderr
-        ),
+        stdout=stdout,
+        stderr=stderr,
         response_payload=None,
         usage=result.usage,
     )
+
+
+def _secret_like_response_payload_reason(
+    response_payload: dict[str, object] | None,
+) -> str | None:
+    if response_payload is None:
+        return None
+    serialized_payload = json.dumps(
+        response_payload,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return secret_like_content_reason(serialized_payload)
 
 
 def _withheld_output_message(stream_name: str, reason: str) -> str:
