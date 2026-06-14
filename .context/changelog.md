@@ -2,6 +2,11 @@
 
 ## 2026-06-14
 
+- Fixed issue #686's issue-worktree metrics retention gap so
+  `scripts/finish_issue.sh` preserves `.jsonl` factory metrics ledgers from
+  the issue worktree into the main checkout's ignored
+  `.entroping/factory-metrics/finished-issues/issue-<number>/` archive before
+  deleting the worktree, while dry-run reports the plan without writing.
 - Fixed issue #684's graph-assisted context probe gap so
   `scripts/agent_context_probe.py` reads every list-valued field in Graphify or
   CodeGraph JSON artifacts instead of only the first, preserving edge evidence
