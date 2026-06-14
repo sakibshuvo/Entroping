@@ -196,6 +196,9 @@ def test_agent_control_plane_documents_direct_deepseek_worker_boundary() -> None
     assert "bounded UTF-8 prompt context" in doc
     assert "Before any artifact is written or provider request is made" in normalized
     assert "secret-like content" in normalized
+    assert "Before generated output artifacts are written" in normalized
+    assert "withholds secret-like stdout/stderr" in normalized
+    assert "skips raw response/proposal artifacts" in normalized
     assert "maintainer-only local development tooling" in doc
     assert "--thinking disabled" in doc
     assert "--thinking enabled --reasoning-effort high|max" in doc

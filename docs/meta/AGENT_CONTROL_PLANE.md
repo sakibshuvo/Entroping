@@ -78,9 +78,13 @@ stdout/stderr, response, proposal diff, and value-free metadata under
 `.entroping/ai-reviews/`, and never applies patches. Before any artifact is
 written or provider request is made, the worker rejects selected files that are
 too large, binary, non-UTF-8, credential-path-like, or contain secret-like
-content. This is maintainer-only local development tooling for cheap worker
-output; it does not replace Entroping's LiteLLM product boundary, and it must
-not be called by `entroping run`. Direct DeepSeek workers default to
+content. Before generated output artifacts are written, the worker withholds
+secret-like stdout/stderr, skips raw response/proposal artifacts for that run,
+and records only value-free failure evidence. This is maintainer-only local development tooling
+for cheap worker output; it
+does not replace Entroping's LiteLLM product boundary, and it must not be called
+by `entroping run`.
+Direct DeepSeek workers default to
 `--thinking disabled` to avoid empty hidden-reasoning output and token burn for
 short reviews; opt into `--thinking enabled --reasoning-effort high|max` only
 for deliberate deep-review jobs. The generated prompt includes a Factory

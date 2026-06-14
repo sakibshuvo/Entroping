@@ -155,6 +155,7 @@ def run_worker(config: DirectWorkerConfig) -> DirectWorkerResult:
         return result
 
     result = _call_deepseek(config, endpoint, api_key, request_body, artifact_dir)
+    result = _withhold_secret_like_worker_output(result)
     _write_execution_artifacts(config, result, endpoint)
     _record_factory_metrics(
         config,
@@ -768,6 +769,40 @@ def _extract_unified_diff(output: str) -> str | None:
     return diff
 
 
+def _withhold_secret_like_worker_output(
+    result: DirectWorkerResult,
+) -> DirectWorkerResult:
+    stdout_reason = secret_like_content_reason(result.stdout)
+    stderr_reason = secret_like_content_reason(result.stderr)
+    if stdout_reason is None and stderr_reason is None:
+        return result
+
+    return DirectWorkerResult(
+        status="failed",
+        artifact_dir=result.artifact_dir,
+        returncode=result.returncode if result.returncode != 0 else 1,
+        stdout=(
+            _withheld_output_message("stdout", stdout_reason)
+            if stdout_reason is not None
+            else result.stdout
+        ),
+        stderr=(
+            _withheld_output_message("stderr", stderr_reason)
+            if stderr_reason is not None
+            else result.stderr
+        ),
+        response_payload=None,
+        usage=result.usage,
+    )
+
+
+def _withheld_output_message(stream_name: str, reason: str) -> str:
+    return (
+        f"DeepSeek {stream_name} withheld because it contained secret-like "
+        f"content ({reason}).\n"
+    )
+
+
 def _write_execution_artifacts(
     config: DirectWorkerConfig,
     result: DirectWorkerResult,
@@ -780,7 +815,7 @@ def _write_execution_artifacts(
             json.dumps(result.response_payload, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
-    if config.mode == "patch":
+    if config.mode == "patch" and result.status == "patch-proposed":
         proposal = _extract_unified_diff(result.stdout)
         if proposal is not None:
             (result.artifact_dir / "proposal.diff").write_text(proposal, encoding="utf-8")
