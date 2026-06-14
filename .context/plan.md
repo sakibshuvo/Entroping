@@ -57,6 +57,10 @@ project, and a Codex workspace with fast context rehydration.
   by default or direct DeepSeek API with `--engine deepseek-api`; both paths
   write ignored artifacts for Codex review and never apply patches or affect
   Entroping runtime commands.
+- Direct DeepSeek API worker output is checked before execution artifacts are
+  written: secret-like generated stdout/stderr is withheld, raw response and
+  patch-proposal artifacts are skipped for that run, and the worker reports a
+  value-free failed result.
 - OpenCode-hosted DeepSeek V4 Pro is the tool-enabled DeepSeek lane: it can use
   only OpenCode-configured agents, plugins, MCP servers, hooks, shell/tools, and
   GitHub integrations that are present and permissioned by the OpenCode host.

@@ -63,6 +63,7 @@ class DeepSeekStubHandler(BaseHTTPRequestHandler):
     """Tiny local OpenAI-compatible endpoint for direct-worker tests."""
 
     requests: ClassVar[list[dict[str, object]]] = []
+    response_payload: ClassVar[dict[str, object] | None] = None
 
     def do_POST(self) -> None:  # noqa: N802
         length = int(self.headers.get("Content-Length", "0"))
@@ -74,7 +75,7 @@ class DeepSeekStubHandler(BaseHTTPRequestHandler):
                 "body": json.loads(body),
             }
         )
-        response = {
+        response = DeepSeekStubHandler.response_payload or {
             "id": "chatcmpl-test",
             "choices": [
                 {
@@ -361,6 +362,255 @@ def test_deepseek_worker_posts_openai_compatible_request_and_writes_artifacts(
     assert "test-secret-token" not in (artifact_dir / "metadata.json").read_text(
         encoding="utf-8"
     )
+
+
+def test_deepseek_worker_withholds_secret_like_assistant_output(
+    tmp_path: Path,
+) -> None:
+    DeepSeekStubHandler.requests = []
+    DeepSeekStubHandler.response_payload = {
+        "id": "chatcmpl-test",
+        "choices": [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": 'api_key = "abcdefghijklmnopqrstuvwxyz123456"',
+                }
+            }
+        ],
+        "usage": {
+            "prompt_tokens": 11,
+            "completion_tokens": 7,
+            "total_tokens": 18,
+        },
+    }
+    server = HTTPServer(("127.0.0.1", 0), DeepSeekStubHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base_url = f"http://127.0.0.1:{server.server_port}"
+
+    try:
+        result = run_worker(
+            "--mode",
+            "review",
+            "--file",
+            "README.md",
+            "--artifact-root",
+            str(tmp_path / "reviews"),
+            "--base-url",
+            base_url,
+            "--api-key-env",
+            "ENTROPING_TEST_DEEPSEEK_KEY",
+            "--json",
+            env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
+        )
+    finally:
+        DeepSeekStubHandler.response_payload = None
+        server.shutdown()
+        thread.join(timeout=2)
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    artifact_dir = Path(str(payload["artifact_dir"]))
+    metadata = read_metadata(artifact_dir)
+    persisted_stdout = (artifact_dir / "stdout.txt").read_text(encoding="utf-8")
+    persisted_stderr = (artifact_dir / "stderr.txt").read_text(encoding="utf-8")
+    persisted_metadata = (artifact_dir / "metadata.json").read_text(encoding="utf-8")
+
+    assert metadata["status"] == "failed"
+    assert "DeepSeek stdout withheld because it contained secret-like content" in (
+        persisted_stdout
+    )
+    assert persisted_stderr == ""
+    assert not (artifact_dir / "response.json").exists()
+    assert "abcdefghijklmnopqrstuvwxyz123456" not in persisted_stdout
+    assert "abcdefghijklmnopqrstuvwxyz123456" not in persisted_stderr
+    assert "abcdefghijklmnopqrstuvwxyz123456" not in persisted_metadata
+
+
+def test_deepseek_worker_withholds_secret_like_error_response(
+    tmp_path: Path,
+) -> None:
+    class SecretErrorHandler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:  # noqa: N802
+            body = b'{"error": "token=abcdefghijklmnopqrstuvwxyz123456"}'
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format: str, *args: object) -> None:
+            return
+
+    server = HTTPServer(("127.0.0.1", 0), SecretErrorHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base_url = f"http://127.0.0.1:{server.server_port}"
+
+    try:
+        result = run_worker(
+            "--mode",
+            "review",
+            "--file",
+            "README.md",
+            "--artifact-root",
+            str(tmp_path / "reviews"),
+            "--base-url",
+            base_url,
+            "--api-key-env",
+            "ENTROPING_TEST_DEEPSEEK_KEY",
+            "--json",
+            env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
+        )
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    artifact_dir = Path(str(payload["artifact_dir"]))
+    metadata = read_metadata(artifact_dir)
+    persisted_stdout = (artifact_dir / "stdout.txt").read_text(encoding="utf-8")
+    persisted_stderr = (artifact_dir / "stderr.txt").read_text(encoding="utf-8")
+    persisted_metadata = (artifact_dir / "metadata.json").read_text(encoding="utf-8")
+
+    assert metadata["status"] == "failed"
+    assert persisted_stdout == ""
+    assert "DeepSeek stderr withheld because it contained secret-like content" in (
+        persisted_stderr
+    )
+    assert not (artifact_dir / "response.json").exists()
+    assert "abcdefghijklmnopqrstuvwxyz123456" not in persisted_stdout
+    assert "abcdefghijklmnopqrstuvwxyz123456" not in persisted_stderr
+    assert "abcdefghijklmnopqrstuvwxyz123456" not in persisted_metadata
+
+
+def test_deepseek_worker_patch_mode_writes_proposal_for_safe_diff(
+    tmp_path: Path,
+) -> None:
+    DeepSeekStubHandler.requests = []
+    DeepSeekStubHandler.response_payload = {
+        "id": "chatcmpl-test",
+        "choices": [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": (
+                        "Implementation proposal:\n"
+                        "```diff\n"
+                        "diff --git a/example.py b/example.py\n"
+                        "--- a/example.py\n"
+                        "+++ b/example.py\n"
+                        "@@ -1 +1 @@\n"
+                        "-old\n"
+                        "+new\n"
+                        "```\n"
+                    ),
+                }
+            }
+        ],
+    }
+    server = HTTPServer(("127.0.0.1", 0), DeepSeekStubHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base_url = f"http://127.0.0.1:{server.server_port}"
+
+    try:
+        result = run_worker(
+            "--mode",
+            "patch",
+            "--file",
+            "README.md",
+            "--artifact-root",
+            str(tmp_path / "reviews"),
+            "--base-url",
+            base_url,
+            "--api-key-env",
+            "ENTROPING_TEST_DEEPSEEK_KEY",
+            "--json",
+            env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
+        )
+    finally:
+        DeepSeekStubHandler.response_payload = None
+        server.shutdown()
+        thread.join(timeout=2)
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    artifact_dir = Path(str(payload["artifact_dir"]))
+    metadata = read_metadata(artifact_dir)
+    raw_output = (artifact_dir / "stdout.txt").read_text(encoding="utf-8")
+    proposal = (artifact_dir / "proposal.diff").read_text(encoding="utf-8")
+
+    assert metadata["status"] == "patch-proposed"
+    assert "Implementation proposal" in raw_output
+    assert proposal.startswith("diff --git a/example.py b/example.py\n")
+    assert "```" not in proposal
+
+
+def test_deepseek_worker_withholds_secret_like_patch_output_without_proposal(
+    tmp_path: Path,
+) -> None:
+    DeepSeekStubHandler.requests = []
+    DeepSeekStubHandler.response_payload = {
+        "id": "chatcmpl-test",
+        "choices": [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": (
+                        "diff --git a/example.py b/example.py\n"
+                        "--- a/example.py\n"
+                        "+++ b/example.py\n"
+                        "@@ -1 +1 @@\n"
+                        '-old = "value"\n'
+                        '+api_key = "abcdefghijklmnopqrstuvwxyz123456"\n'
+                    ),
+                }
+            }
+        ],
+    }
+    server = HTTPServer(("127.0.0.1", 0), DeepSeekStubHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base_url = f"http://127.0.0.1:{server.server_port}"
+
+    try:
+        result = run_worker(
+            "--mode",
+            "patch",
+            "--file",
+            "README.md",
+            "--artifact-root",
+            str(tmp_path / "reviews"),
+            "--base-url",
+            base_url,
+            "--api-key-env",
+            "ENTROPING_TEST_DEEPSEEK_KEY",
+            "--json",
+            env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
+        )
+    finally:
+        DeepSeekStubHandler.response_payload = None
+        server.shutdown()
+        thread.join(timeout=2)
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    artifact_dir = Path(str(payload["artifact_dir"]))
+    metadata = read_metadata(artifact_dir)
+    persisted_stdout = (artifact_dir / "stdout.txt").read_text(encoding="utf-8")
+    persisted_metadata = (artifact_dir / "metadata.json").read_text(encoding="utf-8")
+
+    assert metadata["status"] == "failed"
+    assert "DeepSeek stdout withheld because it contained secret-like content" in (
+        persisted_stdout
+    )
+    assert not (artifact_dir / "proposal.diff").exists()
+    assert not (artifact_dir / "response.json").exists()
+    assert "abcdefghijklmnopqrstuvwxyz123456" not in persisted_stdout
+    assert "abcdefghijklmnopqrstuvwxyz123456" not in persisted_metadata
 
 
 def test_deepseek_worker_records_usage_tokens_when_available(

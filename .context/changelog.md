@@ -2,6 +2,12 @@
 
 ## 2026-06-14
 
+- Fixed issue #694's direct DeepSeek output artifact gap:
+  `scripts/deepseek_worker.py` now checks generated stdout/stderr with the
+  shared secret-like detector before writing execution artifacts, marks the
+  worker run failed when unsafe generated output appears, writes only
+  value-free withheld-output markers, and skips raw response/proposal artifacts
+  that could contain the same generated value.
 - Added issue #692's OpenCode-hosted DeepSeek tool-lane boundary:
   `scripts/opencode_worker.py` now injects a versioned OpenCode Host Capability
   Context into review and patch prompts, records the context version in worker

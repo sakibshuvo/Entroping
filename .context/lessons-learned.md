@@ -2,6 +2,10 @@
 
 ## 2026-06-14
 
+- Direct provider response JSON can duplicate unsafe assistant output. When a
+  worker withholds secret-like stdout/stderr, it should also skip raw response
+  and patch-proposal artifacts for that run, otherwise the same generated value
+  can leak through a different local evidence file.
 - "Tool-enabled DeepSeek" needs to name the host. OpenCode-hosted DeepSeek V4
   Pro can use OpenCode-configured agents, plugins, MCP servers, hooks,
   shell/tools, and GitHub integrations only when OpenCode has them configured
