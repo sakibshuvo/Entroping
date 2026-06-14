@@ -2,6 +2,11 @@
 
 ## 2026-06-14
 
+- Added issue #709's architecture-boundary brief prompt:
+  `docs/meta/prompt-library/architecture-boundary-brief.md` now gives
+  OpenCode/DeepSeek worker packets explicit ownership, allowed files,
+  forbidden files, architecture invariants, tests, provider/runtime
+  constraints, and stop conditions before edits begin.
 - Added issue #706's OpenCode provider-lane PR-body preflight:
   `scripts/pr_body_check.py --require-opencode-evidence --issue <issue>` now
   preserves the existing documentation-impact validation by default while

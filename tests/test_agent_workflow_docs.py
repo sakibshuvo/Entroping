@@ -21,6 +21,76 @@ def test_agent_control_plane_documents_cross_agent_guardrails() -> None:
     assert "No helper agent is a source of truth" in doc
 
 
+def test_prompt_library_includes_architecture_boundary_brief_template() -> None:
+    prompt = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "architecture-boundary-brief.md"
+    ).read_text(encoding="utf-8")
+    readme = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "README.md"
+    ).read_text(encoding="utf-8")
+    combined = " ".join(prompt.split())
+
+    required_terms = [
+        "type: prompt",
+        "status: active",
+        "Ownership Boundary",
+        "Allowed Files",
+        "Forbidden Files",
+        "Architecture Invariants",
+        "Tests To Run",
+        "Architecture Tests",
+        "Provider And Runtime Constraints",
+        "Stop Conditions",
+        "hexagonal architecture",
+        "deterministic Hurl execution",
+        "QAnstitution branding",
+        "`entroping run` provider-free",
+        "local files, tests, ADRs, and GitHub evidence",
+        "not model summaries",
+        "docs/meta/AGENT_ROLE_REGISTRY.yaml",
+        "AGENT_CONTROL_PLANE.md",
+        "LiteLLM",
+        "Do not send secrets",
+        "redaction",
+        "proxy",
+        "release publishing",
+        "architecture boundary",
+        "scripts/feature_gate.sh",
+        "scripts/regression.sh --security",
+    ]
+
+    for term in required_terms:
+        assert term in combined
+
+    required_stop_terms = [
+        "Tier A into Tier B or Tier C scope",
+        "outside the Allowed Files list",
+        "weakens hexagonal architecture",
+        "deterministic Hurl execution",
+        "QAnstitution branding",
+        "`entroping run` provider-free",
+        "model summaries",
+        "local repo files",
+        "security gate",
+        "GitHub CI",
+        "secrets",
+        "raw traffic",
+        "provider transcripts",
+    ]
+    stop_section = prompt.split("## Stop Conditions", maxsplit=1)[1]
+    normalized_stop_section = " ".join(stop_section.split())
+    stop_bullets = re.findall(r"(?m)^- .+$", stop_section)
+    assert len(stop_bullets) >= 7
+    for term in required_stop_terms:
+        assert term in normalized_stop_section
+
+    assert "| [Architecture boundary brief](architecture-boundary-brief.md) |" in readme
+
+
 def test_agent_control_plane_defines_risk_tiered_software_factory() -> None:
     doc = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
         encoding="utf-8"
