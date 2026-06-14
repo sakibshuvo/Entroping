@@ -79,8 +79,9 @@ stdout/stderr, response, proposal diff, and value-free metadata under
 written or provider request is made, the worker rejects selected files that are
 too large, binary, non-UTF-8, credential-path-like, or contain secret-like
 content. Before generated output artifacts are written, the worker withholds
-secret-like stdout/stderr, skips raw response/proposal artifacts for that run,
-and records only value-free failure evidence. This is maintainer-only local development tooling
+secret-like stdout/stderr and serialized response payloads, skips raw
+response/proposal artifacts for that run, and records only value-free failure
+evidence. This is maintainer-only local development tooling
 for cheap worker output; it
 does not replace Entroping's LiteLLM product boundary, and it must not be called
 by `entroping run`.
