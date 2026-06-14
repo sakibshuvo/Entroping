@@ -54,6 +54,27 @@ worker and lists completed artifact directories for Codex review. The queue is
 an artifact conveyor, not an authority layer: it never applies patches,
 commits, pushes, merges, or changes release status.
 
+## Model Provider Lane Taxonomy
+
+Use durable lane names when planning, running, or recording multi-model factory
+work:
+
+| Lane | Default use |
+| --- | --- |
+| `deepseek-api/direct` | Paid direct DeepSeek API through `scripts/deepseek_worker.py` or `scripts/ai_jobs.py --engine deepseek-api`. Direct DeepSeek API remains the default cheap queued worker lane for 24/7 review and patch proposals. |
+| `opencode/native-deepseek` | DeepSeek configured directly inside the OpenCode host. Use only when explicitly requested or when the direct API lane is unsuitable. |
+| `opencode-go/kimi-k2.7-code` | OpenCode Go subscription lane for Kimi K2.7 Code coding experiments, long-context review, and model comparison. |
+| `opencode-go/qwen3.7-max` | OpenCode Go subscription lane for Qwen3.7 Max coding experiments and model comparison. |
+| `opencode-go/other` | OpenCode Go subscription lane for MiniMax, GLM, MiMo, or other curated Go models when Kimi/Qwen are not the intended worker. |
+| `local/offline` | Local model lane for private summarization, context compression, offline triage, and emergency fallback. |
+
+OpenCode Go is the Kimi/Qwen/model-variety lane, not the default DeepSeek lane.
+Every worker artifact, metrics event, review note, or handoff should name the
+provider host, billing path, and concrete model id when known. Do not write only
+`OpenCode`, `DeepSeek`, or `Kimi` when the useful distinction is
+`opencode-go/kimi-k2.7-code`, `opencode-go/qwen3.7-max`,
+`opencode/native-deepseek`, or `deepseek-api/direct`.
+
 Use `scripts/opencode_worker.py` instead of raw `opencode run` for repeatable
 OpenCode/DeepSeek work. The worker has `review` mode for bounded findings and
 `patch` mode for a patch proposal artifact under `.entroping/ai-reviews/`.

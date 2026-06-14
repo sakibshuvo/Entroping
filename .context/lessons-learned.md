@@ -2,6 +2,9 @@
 
 ## 2026-06-14
 
+- Provider choice needs a lane label, not just a model name. For factory metrics
+  and handoffs, record host, billing path, and concrete model id so OpenCode Go
+  Kimi/Qwen experiments do not get confused with paid direct DeepSeek API work.
 - A provider response can carry unsafe local-only evidence outside the assistant
   content. Direct worker artifact safety should scan the serialized provider
   payload before writing `response.json`, even when stdout/stderr are safe.
