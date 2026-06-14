@@ -73,7 +73,12 @@ output; it does not replace Entroping's LiteLLM product boundary, and it must
 not be called by `entroping run`. Direct DeepSeek workers default to
 `--thinking disabled` to avoid empty hidden-reasoning output and token burn for
 short reviews; opt into `--thinking enabled --reasoning-effort high|max` only
-for deliberate deep-review jobs.
+for deliberate deep-review jobs. The generated prompt includes a Factory
+Capability Context section defined in `scripts/deepseek_worker.py` that tells
+direct DeepSeek API workers they have no live MCP, shell, filesystem, GitHub,
+Codex skill, Spark, Graphify, CodeGraph, or Headroom execution unless that
+evidence is explicitly supplied in the prompt. This context should reduce
+hallucinated tool use while preserving Codex or human integration authority.
 
 local Qwen/oMLX handles private summarization, triage, and low-risk review. Use
 it for source-archive summarization, duplicate-finding, wording variants, and

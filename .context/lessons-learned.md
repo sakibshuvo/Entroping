@@ -2,6 +2,11 @@
 
 ## 2026-06-14
 
+- Direct API workers need explicit negative capability context, not only file
+  context. A cheap DeepSeek review is more useful when the prompt says it has no
+  live MCP, shell, filesystem, GitHub, Codex skill, Spark, Graphify, CodeGraph,
+  or Headroom execution unless evidence is included, because that keeps tool
+  hallucinations from becoming patch assumptions.
 - Finished-issue factory metrics should remain opt-in for reports. Active
   worktree metrics are the default feedback loop, while archive inclusion is a
   retrospective mode that must label malformed archived ledgers by source path
