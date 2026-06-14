@@ -19,6 +19,8 @@ Environment:
   ENTROPING_REPO             GitHub repo. Default: sakibshuvo/Entroping
   ENTROPING_PROJECT_OWNER    GitHub project owner. Default: sakibshuvo
   ENTROPING_PROJECT_NUMBER   GitHub project number. Default: 1
+  ENTROPING_PROJECT_ITEM_LIST_LIMIT
+                            Project item lookup window. Default: 1000
   ENTROPING_WORKTREE_PARENT  Parent directory for worktrees.
 USAGE
 }
@@ -30,6 +32,14 @@ die() {
 
 warn() {
   printf 'start_issue warning: %s\n' "$*" >&2
+}
+
+project_item_list_limit() {
+  local limit="${ENTROPING_PROJECT_ITEM_LIST_LIMIT:-1000}"
+  if [[ ! "$limit" =~ ^[1-9][0-9]*$ ]]; then
+    limit="1000"
+  fi
+  printf '%s\n' "$limit"
 }
 
 json_key() {
@@ -85,6 +95,7 @@ retry_project_item_id() {
   local attempt
   local items_json
   local item_id
+  local item_list_limit
 
   if [[ ! "$attempts" =~ ^[1-9][0-9]*$ ]]; then
     attempts="3"
@@ -92,9 +103,10 @@ retry_project_item_id() {
   if [[ ! "$delay_seconds" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
     delay_seconds="1"
   fi
+  item_list_limit=$(project_item_list_limit)
 
   for ((attempt = 1; attempt <= attempts; attempt++)); do
-    if ! items_json=$(gh project item-list "$project_number" --owner "$project_owner" --limit 200 --format json 2>/dev/null); then
+    if ! items_json=$(gh project item-list "$project_number" --owner "$project_owner" --limit "$item_list_limit" --format json 2>/dev/null); then
       return 2
     fi
     if item_id=$(json_project_item_id "$items_json" "$issue_number"); then
@@ -161,6 +173,7 @@ update_issue_tracking() {
   local items_json
   local item_id
   local item_lookup_status
+  local item_list_limit
 
   project_graphql_quota_allows_update || return 0
 
@@ -181,7 +194,8 @@ update_issue_tracking() {
   status_field_id=$(printf '%s\n' "$ids" | sed -n '1p')
   in_progress_option_id=$(printf '%s\n' "$ids" | sed -n '2p')
 
-  if ! items_json=$(gh project item-list "$project_number" --owner "$project_owner" --limit 200 --format json 2>/dev/null); then
+  item_list_limit=$(project_item_list_limit)
+  if ! items_json=$(gh project item-list "$project_number" --owner "$project_owner" --limit "$item_list_limit" --format json 2>/dev/null); then
     warn "could not read GitHub Project items"
     return 0
   fi

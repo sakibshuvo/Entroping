@@ -1048,3 +1048,7 @@
   parent-owned stdout/stderr/metadata/proposal artifacts are written through
   temp-file replacement so worker-created symlink path entries cannot redirect
   captured output.
+- Closed issue #679's issue-lifecycle Project lookup gap: `start_issue.sh` and
+  `finish_issue.sh` now search a larger validated Project item window before
+  deciding an issue is missing from the board, preserving the existing add/retry
+  recovery path while avoiding duplicate-add attempts on larger project boards.
