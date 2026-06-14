@@ -2,6 +2,10 @@
 
 ## 2026-06-14
 
+- A Codex-outage queue belongs in the agent control plane, not chat memory.
+  Keep the queue as a GitHub-issue-backed index with child issues owning
+  implementation, explicit provider lanes, autonomy tiers, merge authority,
+  gates, and forbidden runtime/security scopes.
 - Codex-outage operations need a daily loop with explicit stop conditions. A
   cheap-worker day should start from fresh main, inspect open PRs and ready
   issues, use issue worktrees and provider lanes, run focused tests/gates plus

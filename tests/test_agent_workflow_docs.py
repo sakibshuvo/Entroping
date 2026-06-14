@@ -259,6 +259,71 @@ def test_prompt_library_includes_codex_outage_daily_operations_prompt() -> None:
     )
 
 
+def test_agent_control_plane_documents_codex_outage_worker_queue() -> None:
+    doc = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
+        encoding="utf-8"
+    )
+    normalized = " ".join(doc.split())
+
+    required_terms = [
+        "## Codex-Outage OpenCode/DeepSeek Work Queue",
+        "#702",
+        "one-week Codex-low-availability queue",
+        "OpenCode Desktop",
+        "OpenCode Go",
+        "paid DeepSeek API",
+        "queue index",
+        "Child issues own implementation",
+        "Codex produces guardrails, backlog packets, architecture boundaries, and review prompts",
+        "scripts/start_issue.sh",
+        "one issue per worktree",
+        "Tier A",
+        "Tier B",
+        "Tier C",
+        "opencode/native-deepseek",
+        "deepseek-api/direct",
+        "opencode-go/kimi-k2.7-code",
+        "opencode-go/qwen3.7-max",
+        "provider host",
+        "billing path",
+        "concrete model id",
+        "opencode-desktop-handoff.md",
+        "issue-worker.md",
+        "GitHub issue state remains authoritative",
+        "#703",
+        "#704",
+        "#705",
+        "#708",
+        "#709",
+        "#706",
+        "#707",
+        "#710",
+        "allowed files",
+        "forbidden files",
+        "focused tests",
+        "gates",
+        "merge authority",
+        "GitHub CI",
+        "scripts/finish_issue.sh",
+        "Closes #<issue>",
+        "entroping run",
+        "Hurl runner behavior",
+        "redaction",
+        "proxy capture",
+        "provider runtime boundaries",
+        "release publishing",
+        "secrets",
+        "dependencies",
+        "audit evidence",
+        "issue outcome, diff quality, tests, CI, and review findings",
+        "model-comparison-trial.md",
+        "scripts/factory_metrics.py report",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+
 def test_agent_control_plane_defines_risk_tiered_software_factory() -> None:
     doc = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
         encoding="utf-8"

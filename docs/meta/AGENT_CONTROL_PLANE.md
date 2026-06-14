@@ -315,6 +315,80 @@ Run marathons in waves:
 7. Merge Tier A autonomously only when the lane conditions are met; otherwise merge only after human or Codex review.
 8. Run `scripts/finish_issue.sh` after merge to clean worktrees and project-board state.
 
+## Codex-Outage OpenCode/DeepSeek Work Queue
+
+#702 is the one-week Codex-low-availability queue for OpenCode Desktop,
+OpenCode Go, and paid DeepSeek API work. It is a queue index, not a separate
+source of truth and not product roadmap proof. Child issues own implementation;
+the queue keeps the worker order, risk tier, provider lane, and merge authority
+explicit so low-cost workers do not improvise architecture, security, or release
+decisions while Codex capacity is low.
+
+Operating model:
+
+- Codex produces guardrails, backlog packets, architecture boundaries, and
+  review prompts while available.
+- OpenCode/DeepSeek workers execute only one issue per worktree using
+  `scripts/start_issue.sh`.
+- Tier A issues may merge autonomously only after the documented lane
+  conditions, local gates, GitHub CI, `Closes #<issue>`, and
+  `scripts/finish_issue.sh` cleanup.
+- Tier B issues may produce a PR, but Codex or a human must review before
+  merge.
+- Tier C issues are review/proposal only and must not merge autonomously.
+
+Provider lanes:
+
+- `opencode/native-deepseek`: OpenCode host using paid DeepSeek inside
+  OpenCode.
+- `deepseek-api/direct`: direct paid DeepSeek API through repo-local worker
+  scripts.
+- `opencode-go/kimi-k2.7-code`: OpenCode Go Kimi lane after that subscription
+  is active.
+- `opencode-go/qwen3.7-max`: OpenCode Go Qwen lane after that subscription is
+  active.
+- `opencode-go/other`: other OpenCode Go curated models.
+
+Every worker handoff must name provider host, billing path, and concrete model
+id when known. Use `opencode-desktop-handoff.md` for OpenCode Desktop or
+OpenCode Go sessions. Use `issue-worker.md` only when the issue is already
+scoped and the autonomy tier is clear.
+
+Recommended rehearsal order:
+
+This order records the planned queue and the evidence trail across completed
+and remaining child issues. GitHub issue state remains authoritative for whether
+each child is still open, merged, blocked, or finished.
+
+1. #703 - first `opencode/native-deepseek` rehearsal for prompt-library docs
+   and a guard test.
+2. #704 - Codex-outage daily operations prompt.
+3. #705 - OpenCode Desktop plugin/MCP/hook setup checklist.
+4. #708 - OpenCode-only week monitoring prompt.
+5. #709 - architecture-boundary brief template for worker issue packets.
+6. #706 - PR body validator for provider-lane evidence.
+7. #707 - factory metrics model-comparison report.
+8. #710 - prove or discard Graphify, Obsidian, and CodeGraph context value.
+
+Queue acceptance rules:
+
+- Child issues must be ready, narrow, and tagged with a clear autonomy tier.
+- Each child issue must name allowed files, forbidden files, focused tests,
+  gates, and merge authority.
+- The queue must include at least one immediate `opencode/native-deepseek`
+  rehearsal issue.
+- OpenCode Go model-variety work for Kimi/Qwen starts only after the
+  subscription is active and the handoff names the concrete lane.
+- No issue in this queue may ask unattended workers to touch `entroping run`,
+  Hurl runner behavior, redaction, proxy capture, provider runtime boundaries,
+  release publishing, secrets, dependencies, raw traffic, or audit evidence.
+- Do not lower security, docs governance, CI, or coverage expectations, and do
+  not treat model output as source of truth.
+- Compare Codex, DeepSeek, Kimi, Qwen, or local/offline performance through
+  issue outcome, diff quality, tests, CI, and review findings, not anecdotes.
+  Use `model-comparison-trial.md` for the trial prompt and
+  `scripts/factory_metrics.py report` for local value-free metrics summaries.
+
 ## Hallucination Controls
 
 - Every implementation claim needs a file path, test, command, issue, or ADR.
