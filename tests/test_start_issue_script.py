@@ -308,6 +308,91 @@ def test_start_issue_adds_missing_issue_to_project_before_marking_in_progress(
     assert (worktree_parent / "Entroping-issue-99").is_dir()
 
 
+def test_start_issue_finds_existing_project_item_beyond_first_200(
+    tmp_path: Path,
+) -> None:
+    repo = create_start_issue_fixture_repo(tmp_path)
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_state = tmp_path / "fake-gh-state"
+    fake_state.mkdir()
+    fake_gh = fake_bin / "gh"
+    fake_gh.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        "state_dir=\"${FAKE_GH_STATE:?}\"\n"
+        "calls=\"$state_dir/calls.log\"\n"
+        "if [[ \"$1 $2\" == \"issue view\" ]]; then\n"
+        "  printf '%s\\n' "
+        '\'{\"title\":\"Large project feature\",\"url\":\"https://github.com/sakibshuvo/Entroping/issues/99\",\"state\":\"OPEN\"}\'\n'
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"$1 $2\" == \"issue edit\" ]]; then\n"
+        "  printf 'issue edit %s\\n' \"$*\" >> \"$calls\"\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"$1 $2\" == \"project view\" ]]; then\n"
+        "  printf '%s\\n' '{\"id\":\"project-id\"}'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"$1 $2\" == \"project field-list\" ]]; then\n"
+        "  printf '%s\\n' "
+        "'{\"fields\":[{\"name\":\"Status\",\"id\":\"field-id\","
+        "\"options\":[{\"name\":\"In Progress\",\"id\":\"in-progress-id\"}]}]}'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"$1 $2\" == \"project item-list\" ]]; then\n"
+        "  printf 'project item-list %s\\n' \"$*\" >> \"$calls\"\n"
+        "  limit=0\n"
+        "  previous=''\n"
+        "  for arg in \"$@\"; do\n"
+        "    if [[ \"$previous\" == '--limit' ]]; then limit=\"$arg\"; fi\n"
+        "    previous=\"$arg\"\n"
+        "  done\n"
+        "  if ((limit > 200)); then\n"
+        "    printf '%s\\n' '{\"items\":[{\"id\":\"late-item-id\",\"content\":{\"number\":99}}]}'\n"
+        "  else\n"
+        "    printf '%s\\n' '{\"items\":[]}'\n"
+        "  fi\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"$1 $2\" == \"project item-add\" ]]; then\n"
+        "  printf 'project item-add %s\\n' \"$*\" >> \"$calls\"\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"$1 $2\" == \"project item-edit\" ]]; then\n"
+        "  printf 'project item-edit %s\\n' \"$*\" >> \"$calls\"\n"
+        "  exit 0\n"
+        "fi\n"
+        "echo \"unexpected gh args: $*\" >&2\n"
+        "exit 2\n",
+        encoding="utf-8",
+    )
+    fake_gh.chmod(fake_gh.stat().st_mode | stat.S_IXUSR)
+    worktree_parent = tmp_path / "worktrees"
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
+    env["FAKE_GH_STATE"] = str(fake_state)
+    env["ENTROPING_WORKTREE_PARENT"] = str(worktree_parent)
+
+    result = subprocess.run(
+        [str(START_ISSUE_SCRIPT), "99", "feat/large-project"],
+        check=False,
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    calls = (fake_state / "calls.log").read_text(encoding="utf-8")
+    assert "project item-list" in calls
+    assert "project item-add" not in calls
+    assert "project item-edit" in calls
+    assert "late-item-id" in calls
+    assert (worktree_parent / "Entroping-issue-99").is_dir()
+
+
 def test_start_issue_skips_project_update_when_graphql_quota_is_exhausted(
     tmp_path: Path,
 ) -> None:

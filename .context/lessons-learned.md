@@ -455,3 +455,6 @@
   Run provider-adjacent workers from a child scratch directory and write
   parent-owned artifacts via temp-file replacement so child-created symlinks or
   path entries cannot redirect captured output.
+- GitHub Project lifecycle scripts should not treat the first page of Project
+  items as the whole board. Use a documented, validated lookup window before
+  deciding an issue item is missing and falling back to item-add recovery.
