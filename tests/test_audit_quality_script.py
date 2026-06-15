@@ -22,6 +22,7 @@ def test_audit_quality_help_documents_quality_gates() -> None:
 
     assert result.returncode == 0
     assert "test taxonomy" in result.stdout
+    assert "quality trend summary" in result.stdout
     assert "pytest-cov" in result.stdout
     assert "radon" in result.stdout
     assert "ENTROPING_MAX_COMPLEXITY_RANK  Highest allowed Radon CC rank. Default: D." in (
@@ -39,6 +40,7 @@ def test_audit_quality_dry_run_shows_repeatable_steps() -> None:
     assert "Would run coverage gate" in result.stdout
     assert "Would run Radon complexity gate" in result.stdout
     assert "Would run Vulture dead-code discovery" in result.stdout
+    assert "Would write quality trend summary" in result.stdout
     assert "coverage fail-under: 100" in result.stdout
     assert "max complexity rank: D" in result.stdout
 
@@ -48,3 +50,10 @@ def test_audit_quality_rejects_unknown_options() -> None:
 
     assert result.returncode == 2
     assert "Unknown option: --bogus" in result.stderr
+
+
+def test_audit_quality_mi_gate_checks_all_list_entries() -> None:
+    script = SCRIPT.read_text(encoding="utf-8")
+
+    assert "for candidate in entry" in script
+    assert "entry[0]" not in script

@@ -2,6 +2,11 @@
 
 ## 2026-06-15
 
+- Added issue #736's quality trend summary:
+  `scripts/audit_quality.sh` now writes `reports/quality-trend.json` through
+  `scripts/quality_trend_summary.py`, capturing deterministic coverage,
+  complexity, maintainability, dead-code, and test-taxonomy metrics plus
+  optional numeric deltas from `ENTROPING_QUALITY_TREND_PREVIOUS`.
 - Added issue #735's AI artifact hygiene scanner:
   `scripts/ai_artifact_hygiene.py` now audits tracked paths for generated
   worker/context artifacts, prompt or provider dumps, raw stdout/stderr
