@@ -28,6 +28,7 @@ Coverage gaps:
 - [ ] `git diff --check`
 - [ ] `git diff --cached --check`
 - [ ] CI passed.
+- [ ] Sensitive-surface changes include `scripts/feature_gate.sh --security` or `scripts/regression.sh --security` evidence.
 
 Commands run:
 

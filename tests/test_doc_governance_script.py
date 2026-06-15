@@ -114,6 +114,7 @@ def test_pr_body_check_help_documents_local_body_file_mode() -> None:
 
     assert result.returncode == 0
     assert "--body-file" in result.stdout
+    assert "--changed-file" in result.stdout
 
 
 def test_pr_body_check_accepts_local_body_file(tmp_path: Path) -> None:
@@ -145,6 +146,84 @@ def test_pr_body_check_accepts_normal_pr_body_without_opencode_evidence(
     )
 
     result = run_pr_body_check("--body-file", str(body_path))
+
+    assert result.returncode == 0, result.stderr
+    assert "PR documentation impact declaration OK" in result.stdout
+
+
+def test_pr_body_check_allows_non_sensitive_changed_files_without_security_gate(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Docs-only cleanup.\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: docs-only validation fixture.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--changed-file",
+        "docs/meta/PROJECT_PROGRESS.md",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "PR documentation impact declaration OK" in result.stdout
+
+
+def test_pr_body_check_rejects_sensitive_changed_files_without_security_gate(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Runner change.\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: script-only validation fixture.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--changed-file",
+        "src/entroping/core/hurl_runner.py",
+    )
+
+    assert result.returncode == 1
+    assert "Sensitive surface changes require documented security gate evidence" in result.stderr
+    assert "src/entroping/core/hurl_runner.py" in result.stderr
+    assert "hurl-runner" in result.stderr
+
+
+def test_pr_body_check_accepts_sensitive_changed_files_with_security_gate(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Worker preflight change.\n\n"
+        "## Verification\n\n"
+        "- [x] `scripts/feature_gate.sh --security` for dependency, subprocess, "
+        "LLM, proxy, report, or filesystem-sensitive work.\n\n"
+        "Commands run:\n\n"
+        "```text\n"
+        "scripts/regression.sh --security\n"
+        "```\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: script-only validation fixture.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--changed-file",
+        "scripts/deepseek_worker.py",
+    )
 
     assert result.returncode == 0, result.stderr
     assert "PR documentation impact declaration OK" in result.stdout

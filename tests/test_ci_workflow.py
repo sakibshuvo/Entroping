@@ -32,6 +32,9 @@ def test_ci_workflow_enforces_security_and_quality_gates() -> None:
 
     assert "scripts/regression.sh --security" in checks_run_blocks
     assert 'scripts/pr_body_check.py "$GITHUB_EVENT_PATH"' in checks_run_blocks
+    assert "--changed-file" in checks_run_blocks
+    assert "git diff --name-only" in checks_run_blocks
+    assert "GITHUB_BASE_REF" in checks_run_blocks
     assert "scripts/regression.sh\n" not in checks_run_blocks
     assert quality_audit["needs"] == "checks"
     assert "scripts/audit_quality.sh" in quality_run_blocks
