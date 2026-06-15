@@ -13,6 +13,29 @@ tags:
 
 Entroping uses layered context so Codex, Obsidian, and future graph tooling can rehydrate the project quickly without depending on one long chat thread.
 
+## Repo-Native Context Budget Baseline
+
+Context is evidence, not memory. Start each issue with one named question: what
+local evidence is needed to change, review, or merge this issue?
+
+`rg`, `scripts/context_pack.sh`, `docs/meta/DECISION_REGISTRY.yaml`, GitHub
+issues, source files, focused tests, CI, and `scripts/factory_metrics.py
+report` are the active context-cost baseline. Load that baseline first, then
+add files only when they answer the issue question. Do not add generated
+context because it is interesting, visual, popular, or already installed.
+
+Load extra context only when it answers the named issue question and records an
+evidence pointer: a file path, test, issue, PR, CI check, ADR, decision-registry
+entry, or curated Markdown section. Generated graph, wiki, comprehension, or
+compression output must be promoted through that evidence path before it can
+shape implementation or review.
+
+Use `scripts/context_pack.sh --record-factory-metrics` and
+`scripts/factory_metrics.py report` when token or cost claims matter. No
+token-saving claim is accepted without measured local evidence from the current
+workflow lane. If the measurement is missing, say it is missing instead of
+crediting a tool or model with guessed savings.
+
 ## Context Tiers
 
 Do not read the entire vault for every task. Obsidian preserves context by making the graph navigable; Codex preserves context by reading the smallest source set that can govern the current change.

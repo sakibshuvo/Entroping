@@ -8,6 +8,12 @@ Usage: scripts/context_pack.sh [--mode implementation|review|source|growth|hando
 Print a curated Entroping context pack for Codex, Claude Code, OpenCode,
 Gemini, NotebookLM, local Qwen, or another coding/review agent.
 
+Default to the repo-native context budget baseline: start with a named issue
+question; use rg, this context pack, the decision registry, GitHub issue
+evidence, source files, focused tests, CI, and factory metrics. Do not add
+generated context because it is interesting, visual, popular, or already
+installed.
+
 Modes:
   implementation  Default. Rules, current plan, MVP, TDS, command surface, tests.
   review          Diff/review-oriented rules, progress, changelog, lessons, tests.

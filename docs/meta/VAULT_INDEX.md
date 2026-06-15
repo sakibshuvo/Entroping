@@ -18,7 +18,7 @@ Use these first. They are the control panel for current work:
 
 - [[docs/meta/PROJECT_PROGRESS|PROJECT_PROGRESS]] - current alpha status, issue queue, and next slice.
 - [[docs/meta/FEATURE_DELIVERY_CHECKLIST|FEATURE_DELIVERY_CHECKLIST]] - required gate for every non-trivial change.
-- [[docs/meta/CONTEXT_MANAGEMENT|CONTEXT_MANAGEMENT]] - how Codex, Obsidian, `.context`, and Graphify fit together.
+- [[docs/meta/CONTEXT_MANAGEMENT|CONTEXT_MANAGEMENT]] - repo-native context budget baseline, Obsidian/vault role, and optional context-tool boundaries.
 - [[docs/meta/DECISION_REGISTRY.yaml|DECISION_REGISTRY]] - durable decision index with pointers back to ADRs, docs, issues, and source evidence.
 - `AGENTS.md` - project-local Codex implementation rules.
 - `.context/plan.md` - active implementation milestone and handoff context.

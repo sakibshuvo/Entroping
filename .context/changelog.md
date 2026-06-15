@@ -1,5 +1,14 @@
 # Entroping Changelog
 
+## 2026-06-15
+
+- Added issue #726's repo-native context budget baseline: the canonical
+  context-management docs, agent control plane, issue-worker prompt, and
+  `scripts/context_pack.sh --help` now state that agents should start from
+  `rg`, `scripts/context_pack.sh`, the decision registry, GitHub issues, source
+  files, focused tests, CI, and factory metrics before loading any generated
+  context, and token-saving claims require measured local evidence.
+
 ## 2026-06-14
 
 - Fixed issue #722's finished-ledger attribution bug: factory metrics reports now

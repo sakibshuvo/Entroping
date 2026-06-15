@@ -54,6 +54,18 @@ Do not route this worker through Graphify, CodeGraph, or Headroom. Use `rg`,
 `scripts/context_pack.sh`, `docs/meta/DECISION_REGISTRY.yaml`, GitHub issue
 evidence, source reads, focused tests, and CI first.
 
+Context is evidence, not memory. Start each issue with one named question: what
+local evidence is needed to change, review, or merge this issue? `rg`,
+`scripts/context_pack.sh`, `docs/meta/DECISION_REGISTRY.yaml`, GitHub issues,
+source files, focused tests, CI, and `scripts/factory_metrics.py report` are
+the active context-cost baseline. Do not add generated context because it is
+interesting, visual, popular, or already installed. Load extra context only
+when it answers the named issue question and records an evidence pointer. Use
+`scripts/context_pack.sh --record-factory-metrics` and
+`scripts/factory_metrics.py report` when token or cost claims matter. No
+token-saving claim is accepted without measured local evidence from the current
+workflow lane.
+
 Workflow:
 1. Reproduce or write a failing test first when practical.
 2. Make the smallest implementation change.
@@ -158,6 +170,13 @@ tests, and CI evidence instead; stop and escalate when discovery points to
 Tier B/Tier C scope, secrets-sensitive material, runtime behavior, Hurl runner
 behavior, redaction, proxy, provider boundaries, release publishing, or
 architecture boundaries.
+
+Context is evidence, not memory. Start with the named issue question, use
+repo-native evidence first, and do not add generated context because it is
+interesting, visual, popular, or already installed. If token or cost savings
+are part of the claim, record them with `scripts/context_pack.sh
+--record-factory-metrics` or the worker metrics hooks and inspect
+`scripts/factory_metrics.py report`; otherwise report the measurement gap.
 
 Workflow:
 1. Confirm the issue and planned diff are Tier A. If not, stop.
