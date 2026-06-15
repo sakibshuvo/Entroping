@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO, Literal
 
+from entroping.core.path_safety import first_symlink_path_component
 from entroping.models.secrets import REDACTED, redact_secret_like_values
 
 _DEFAULT_OUTPUT_LIMIT_BYTES = 64 * 1024
@@ -20,6 +21,7 @@ _VARIABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _VERSION_RE = re.compile(r"\b(?P<major>\d+)\.(?P<minor>\d+)(?:\.(?P<patch>\d+))?\b")
 _VERSION_TIMEOUT_SECONDS = 2.0
 _VERSION_OUTPUT_LIMIT_BYTES = 4 * 1024
+_HOST_LEVEL_SYMLINK_ANCHOR_NAMES = frozenset({"tmp", "var"})
 HURL_MINIMUM_SUPPORTED_VERSION = (4, 3, 0)
 HURL_MINIMUM_SUPPORTED_VERSION_TEXT = "4.3.0"
 
@@ -382,8 +384,9 @@ def validate_hurl_path(path: Path) -> Path:
     """Resolve a Hurl file path and reject non-Hurl inputs."""
 
     expanded = path.expanduser()
-    if expanded.is_symlink():
-        msg = f"Refusing to execute symlinked Hurl file: {expanded}"
+    symlink_component = _first_hurl_execution_symlink_component(expanded)
+    if symlink_component is not None:
+        msg = f"Refusing to execute symlinked Hurl file path component: {symlink_component}"
         raise ValueError(msg)
 
     resolved = expanded.resolve()
@@ -470,7 +473,7 @@ def _resolve_hurl_binary(binary: str) -> str:
     if resolved is None:
         msg = f"Hurl binary not found: {selector}"
         raise HurlBinaryNotFoundError(msg)
-    return resolved
+    return str(Path(resolved).resolve())
 
 
 def _is_path_like_binary_selector(binary: str) -> bool:
@@ -482,6 +485,10 @@ def _resolve_explicit_hurl_binary_path(binary: str) -> str:
     if not expanded.is_absolute():
         msg = "Hurl binary path must be absolute when a path is provided"
         raise ValueError(msg)
+    symlink_component = _first_hurl_execution_symlink_component(expanded)
+    if symlink_component is not None:
+        msg = f"Refusing symlinked Hurl binary path component: {symlink_component}"
+        raise ValueError(msg)
 
     resolved = expanded.resolve()
     if not resolved.is_file():
@@ -491,6 +498,29 @@ def _resolve_explicit_hurl_binary_path(binary: str) -> str:
         msg = f"Hurl binary is not executable: {resolved}"
         raise HurlBinaryNotFoundError(msg)
     return str(resolved)
+
+
+def _first_hurl_execution_symlink_component(path: Path) -> Path | None:
+    symlink_component = first_symlink_path_component(path)
+    if symlink_component is None:
+        return None
+    # macOS exposes common temp paths through host-level aliases such as
+    # /var -> /private/var. Ignore only that top-level anchor, then keep
+    # checking user-selected descendants before resolution.
+    if _is_host_level_symlink_anchor(path, symlink_component):
+        return first_symlink_path_component(path, root=symlink_component)
+    return symlink_component
+
+
+def _is_host_level_symlink_anchor(path: Path, component: Path) -> bool:
+    if not path.is_absolute() or len(path.parts) < 2:
+        return False
+    expected_anchor = Path(path.anchor) / path.parts[1]
+    return (
+        component == expected_anchor
+        and component.parent == Path(path.anchor)
+        and component.name in _HOST_LEVEL_SYMLINK_ANCHOR_NAMES
+    )
 
 
 def _should_check_hurl_version(binary: str, resolved: str) -> bool:

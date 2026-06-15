@@ -9,6 +9,7 @@ from typing import BinaryIO
 
 import pytest
 
+from entroping.core import hurl_runner
 from entroping.core.hurl_runner import (
     HurlBinaryNotFoundError,
     HurlRunnerError,
@@ -31,6 +32,19 @@ def _write_executable(path: Path, body: str) -> Path:
     path.write_text(body, encoding="utf-8")
     path.chmod(path.stat().st_mode | 0o111)
     return path
+
+
+def _host_symlink_anchor_alias(path: Path) -> Path | None:
+    resolved = path.resolve()
+    for anchor in (Path("/var"), Path("/tmp")):
+        if not anchor.is_symlink():
+            continue
+        try:
+            relative = resolved.relative_to(anchor.resolve())
+        except ValueError:
+            continue
+        return anchor / relative
+    return None
 
 
 def test_discover_hurl_reports_binary_availability(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -65,6 +79,27 @@ def test_discover_hurl_trusts_parent_path_precedence_for_bare_name(
     assert status.version_checked is True
     assert status.version == "8.0.1"
     assert status.version_output == "hurl 8.0.1 earlier"
+
+
+def test_discover_hurl_resolves_path_selected_binary_symlink(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bin_dir = tmp_path / "bin"
+    real_hurl = _write_executable(
+        tmp_path / "Cellar" / "hurl" / "8.0.1" / "bin" / "hurl",
+        "#!/bin/sh\necho 'hurl 8.0.1 cellar'\n",
+    )
+    bin_dir.mkdir()
+    (bin_dir / "hurl").symlink_to(real_hurl)
+    monkeypatch.setenv("PATH", str(bin_dir))
+
+    status = discover_hurl("hurl")
+
+    assert status.available is True
+    assert status.path == str(real_hurl)
+    assert status.version_checked is True
+    assert status.version == "8.0.1"
 
 
 def test_discover_hurl_missing_default_binary_does_not_claim_version_check(
@@ -302,7 +337,7 @@ def test_run_hurl_file_invokes_hurl_with_argument_array_and_redacts_output(
 
     assert calls == [
         {
-            "args": ["/bin/hurl", str(hurl_file.resolve())],
+            "args": [str(Path("/bin/hurl").resolve()), str(hurl_file.resolve())],
             "timeout": 1.5,
             "check": False,
             "shell": False,
@@ -400,7 +435,7 @@ def test_run_hurl_file_passes_variables_as_argument_array_and_redacts_values(
 
     assert calls == [
         [
-            "/bin/hurl",
+            str(Path("/bin/hurl").resolve()),
             "--variables-file",
             str(variables_files[0]),
             str(hurl_file.resolve()),
@@ -1056,6 +1091,53 @@ def test_run_hurl_file_rejects_non_executable_explicit_binary_path(tmp_path: Pat
         run_hurl_file(hurl_file, HurlRunOptions(binary=str(non_executable)))
 
 
+def test_run_hurl_file_rejects_explicit_binary_under_symlinked_parent(
+    tmp_path: Path,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "health.hurl")
+    real_bin = tmp_path / "real-bin"
+    linked_bin = tmp_path / "linked-bin"
+    _write_executable(real_bin / "hurl", "#!/bin/sh\necho hurl\n")
+    linked_bin.symlink_to(real_bin, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="symlinked Hurl binary path"):
+        run_hurl_file(hurl_file, HurlRunOptions(binary=str(linked_bin / "hurl")))
+
+
+def test_run_hurl_file_allows_explicit_binary_through_host_symlink_anchor(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "health.hurl")
+    real_binary = _write_executable(tmp_path / "bin" / "hurl", "#!/bin/sh\necho hurl\n")
+    binary_alias = _host_symlink_anchor_alias(real_binary)
+    if binary_alias is None:
+        pytest.skip("host does not expose tmp path through a symlinked anchor")
+    calls: list[list[str]] = []
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stderr, timeout, check, env, shell)
+        calls.append(args)
+        stdout.write(b"ok\n")
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+
+    result = run_hurl_file(hurl_file, HurlRunOptions(binary=str(binary_alias)))
+
+    assert result.passed
+    assert calls[0][0] == str(real_binary.resolve())
+
+
 def test_validate_hurl_path_rejects_unsafe_or_invalid_paths(tmp_path: Path) -> None:
     target = _write_hurl(tmp_path / "real" / "health.hurl")
     symlink = tmp_path / "tests" / "linked.hurl"
@@ -1072,6 +1154,64 @@ def test_validate_hurl_path_rejects_unsafe_or_invalid_paths(tmp_path: Path) -> N
 
     with pytest.raises(ValueError, match="Hurl file not found"):
         validate_hurl_path(tmp_path / "tests" / "missing.hurl")
+
+
+def test_validate_hurl_path_rejects_symlinked_parent_directory(tmp_path: Path) -> None:
+    real_tests = tmp_path / "real-tests"
+    linked_tests = tmp_path / "linked-tests"
+    _write_hurl(real_tests / "health.hurl")
+    linked_tests.symlink_to(real_tests, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="symlinked Hurl file path component"):
+        validate_hurl_path(linked_tests / "health.hurl")
+
+
+def test_validate_hurl_path_allows_host_symlink_anchor_for_real_file(
+    tmp_path: Path,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "health.hurl")
+    hurl_alias = _host_symlink_anchor_alias(hurl_file)
+    if hurl_alias is None:
+        pytest.skip("host does not expose tmp path through a symlinked anchor")
+
+    assert validate_hurl_path(hurl_alias) == hurl_file.resolve()
+
+
+def test_hurl_execution_symlink_anchor_allowlist_is_narrow() -> None:
+    assert not hurl_runner._is_host_level_symlink_anchor(
+        Path("/custom-symlink/tests/health.hurl"),
+        Path("/custom-symlink"),
+    )
+    assert not hurl_runner._is_host_level_symlink_anchor(
+        Path("relative/tests/health.hurl"),
+        Path("relative"),
+    )
+
+
+def test_hurl_execution_symlink_component_rechecks_allowed_anchor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[Path | None] = []
+
+    def fake_first_symlink_path_component(
+        path: Path,
+        *,
+        root: Path | None = None,
+    ) -> Path | None:
+        _ = path
+        calls.append(root)
+        return Path("/tmp") if root is None else None
+
+    monkeypatch.setattr(
+        hurl_runner,
+        "first_symlink_path_component",
+        fake_first_symlink_path_component,
+    )
+
+    assert hurl_runner._first_hurl_execution_symlink_component(
+        Path("/tmp/tests/health.hurl")
+    ) is None
+    assert calls == [None, Path("/tmp")]
 
 
 def test_run_hurl_files_aggregates_deterministic_exit_code(
