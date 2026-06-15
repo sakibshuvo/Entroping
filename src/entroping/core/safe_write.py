@@ -35,6 +35,28 @@ def safe_write_bytes(
     return _safe_write(path, content, artifact=artifact, root=root)
 
 
+def safe_append_text(
+    path: Path,
+    content: str,
+    *,
+    artifact: str,
+    root: Path | None = None,
+) -> Path:
+    """Append UTF-8 text after validating the destination path is safe."""
+
+    root_path = root.expanduser().resolve() if root is not None else None
+    destination = _prepare_destination(path, artifact=artifact, root=root_path)
+    try:
+        with destination.open("ab") as handle:
+            handle.write(content.encode("utf-8"))
+            handle.flush()
+            os.fsync(handle.fileno())
+    except OSError as exc:
+        msg = f"Could not append {artifact} {destination}: {exc}"
+        raise SafeWriteError(msg) from exc
+    return destination
+
+
 def _safe_write(
     path: Path,
     content: bytes,
