@@ -18,6 +18,10 @@ DEFAULT_ARTIFACT_ROOT = Path(".entroping") / "ai-reviews"
 DEFAULT_TIMEOUT_SECONDS = 300.0
 STALE_RUNNING_GRACE_SECONDS = 60.0
 SCHEMA_VERSION = "entroping.ai-job.v1"
+CONTEXT_MANIFEST_COMMAND = "scripts/context_pack.sh --mode implementation --manifest"
+TIER_A_MERGE_AUTHORITY = (
+    "Tier A only after local gates, GitHub CI, PR declaration, and finish cleanup"
+)
 QUEUE_STATES = ("queued", "running", "completed", "failed")
 SUCCESSFUL_WORKER_STATUSES = {"completed", "dry-run", "inconclusive", "patch-proposed"}
 MODEL_PROFILES = {
@@ -34,6 +38,7 @@ UTC_TZ = datetime_timezone.utc  # noqa: UP017 - factory scripts run under Python
 Mode = Literal["review", "patch"]
 QueueState = Literal["queued", "running", "completed", "failed"]
 WorkerEngine = Literal["opencode", "deepseek-api"]
+AutonomyTier = Literal["tier_a", "tier_b", "tier_c"]
 
 
 class AiJobError(ValueError):
@@ -78,10 +83,20 @@ def _parse_args() -> argparse.Namespace:
     )
     submit.add_argument(
         "--profile",
-        default="pro",
-        help="Model profile: flash-free, flash, or pro. Default: pro.",
+        help=(
+            "Model profile: flash-free, flash, or pro. Default: pro, or "
+            "flash-free for --autonomy-tier tier-a on OpenCode."
+        ),
     )
     submit.add_argument("--model", help="Explicit OpenCode model id; overrides --profile.")
+    submit.add_argument(
+        "--autonomy-tier",
+        choices=("tier-a", "tier-b", "tier-c"),
+        help=(
+            "Declared worker autonomy tier. tier-a defaults to cheap worker "
+            "routing and a context-manifest-first worker instruction."
+        ),
+    )
     submit.add_argument(
         "--file",
         dest="files",
@@ -216,15 +231,28 @@ def _submit_job(args: argparse.Namespace, repo_root: Path, job_root: Path) -> di
         raise AiJobError(msg)
 
     engine: WorkerEngine = args.engine
-    model, profile = _resolve_model(engine=engine, profile=str(args.profile), model=args.model)
+    autonomy_tier = _normalize_autonomy_tier(args.autonomy_tier)
+    profile = _default_profile(
+        engine=engine,
+        autonomy_tier=autonomy_tier,
+        profile=args.profile,
+    )
+    model, resolved_profile = _resolve_model(engine=engine, profile=profile, model=args.model)
     job_id = _new_job_id(mode=str(args.mode))
+    worker_instruction = _worker_instruction(
+        autonomy_tier=autonomy_tier,
+        engine=engine,
+        profile=resolved_profile,
+        model=model,
+        instruction=args.instruction,
+    )
     job = {
         "schema_version": SCHEMA_VERSION,
         "job_id": job_id,
         "queue_status": "queued",
         "engine": engine,
         "mode": str(args.mode),
-        "profile": profile,
+        "profile": resolved_profile,
         "model": model,
         "issue": args.issue,
         "instruction": args.instruction,
@@ -234,6 +262,18 @@ def _submit_job(args: argparse.Namespace, repo_root: Path, job_root: Path) -> di
         "created_at": _now(),
         "updated_at": _now(),
     }
+    if autonomy_tier is not None:
+        job["autonomy_tier"] = autonomy_tier
+        job.update(
+            _routing_metadata(
+                autonomy_tier=autonomy_tier,
+                engine=engine,
+                profile=resolved_profile,
+                model=model,
+            )
+        )
+    if worker_instruction is not None:
+        job["worker_instruction"] = worker_instruction
 
     queued_dir = _state_dir(job_root, "queued")
     queued_dir.mkdir(parents=True, exist_ok=True)
@@ -263,6 +303,119 @@ def _resolve_model(*, engine: WorkerEngine, profile: str, model: str | None) -> 
         msg = f"unknown model profile: {profile!r}; expected one of: {known}"
         raise AiJobError(msg)
     return profiles[profile], profile
+
+
+def _normalize_autonomy_tier(raw_tier: str | None) -> AutonomyTier | None:
+    if raw_tier is None:
+        return None
+    known_tiers: dict[str, AutonomyTier] = {
+        "tier-a": "tier_a",
+        "tier-b": "tier_b",
+        "tier-c": "tier_c",
+    }
+    normalized = known_tiers.get(raw_tier)
+    if normalized is None:
+        msg = f"unknown autonomy tier: {raw_tier!r}"
+        raise AiJobError(msg)
+    return normalized
+
+
+def _default_profile(
+    *,
+    engine: WorkerEngine,
+    autonomy_tier: AutonomyTier | None,
+    profile: str | None,
+) -> str:
+    if profile is not None:
+        return profile
+    if autonomy_tier == "tier_a" and engine == "opencode":
+        return "flash-free"
+    if autonomy_tier == "tier_a" and engine == "deepseek-api":
+        return "flash"
+    return "pro"
+
+
+def _routing_metadata(
+    *,
+    autonomy_tier: AutonomyTier,
+    engine: WorkerEngine,
+    profile: str,
+    model: str,
+) -> dict[str, str | bool]:
+    merge_authority = (
+        TIER_A_MERGE_AUTHORITY if autonomy_tier == "tier_a" else "Codex/human required"
+    )
+    metadata: dict[str, str | bool] = {
+        "context_manifest_command": CONTEXT_MANIFEST_COMMAND,
+        "context_manifest_required": True,
+        "merge_authority": merge_authority,
+    }
+    if engine == "deepseek-api":
+        metadata.update(
+            {
+                "provider_lane": "deepseek-api/direct",
+                "provider_host": "repo-local DeepSeek worker",
+                "billing_path": "paid direct DeepSeek API",
+            }
+        )
+        return metadata
+
+    metadata.update(
+        {
+            "provider_lane": "opencode/native-deepseek",
+            "provider_host": "OpenCode",
+            "billing_path": (
+                "OpenCode free-model lane"
+                if profile == "flash-free" or "flash-free" in model
+                else "OpenCode configured provider"
+            ),
+        }
+    )
+    return metadata
+
+
+def _worker_instruction(
+    *,
+    autonomy_tier: AutonomyTier | None,
+    engine: WorkerEngine,
+    profile: str,
+    model: str,
+    instruction: str | None,
+) -> str | None:
+    if autonomy_tier != "tier_a":
+        return instruction
+
+    metadata = _routing_metadata(
+        autonomy_tier=autonomy_tier,
+        engine=engine,
+        profile=profile,
+        model=model,
+    )
+    lines = [
+        "Tier A cheap-worker context contract:",
+        f"- Provider lane: {metadata['provider_lane']}",
+        f"- Provider host: {metadata['provider_host']}",
+        f"- Billing path: {metadata['billing_path']}",
+        f"- Model id: {model}",
+        f"- Start with `{CONTEXT_MANIFEST_COMMAND}`.",
+        (
+            "- Use the manifest inventory first, then request only the needed "
+            "files/snippets before loading full file content."
+        ),
+        (
+            "- Stop and escalate if the issue crosses into Tier B or Tier C, "
+            "security-sensitive work, runtime behavior, provider boundaries, "
+            "release behavior, secrets handling, raw traffic, or audit evidence."
+        ),
+        (
+            "- Product boundary: entroping run remains deterministic, "
+            "Hurl-backed, QAnstitution-governed, and provider-free."
+        ),
+        f"- Merge authority: {TIER_A_MERGE_AUTHORITY}.",
+    ]
+    if instruction is not None and instruction.strip():
+        lines.extend(["", "Task-specific instruction:", instruction.strip()])
+    return "\n".join(lines)
 
 
 def _model_profiles(engine: WorkerEngine) -> dict[str, str]:
@@ -343,11 +496,12 @@ def _run_next(
     terminal_state: QueueState = (
         "completed" if worker_status in SUCCESSFUL_WORKER_STATUSES else "failed"
     )
+    artifact_dir = _optional_string(worker_payload.get("artifact_dir"))
     job["queue_status"] = terminal_state
     job["worker_status"] = worker_status
     job["worker_returncode"] = _int_value(worker_payload.get("returncode"), default=1)
     job["worker_process_returncode"] = worker_process_returncode
-    job["artifact_dir"] = worker_payload.get("artifact_dir")
+    job["artifact_dir"] = artifact_dir
     worker_usage = _usage_payload(worker_payload.get("usage"))
     if worker_usage is not None:
         job["usage"] = worker_usage
@@ -364,7 +518,7 @@ def _run_next(
             "job_id": job["job_id"],
             "job_path": str(terminal_path),
             "worker_status": worker_status,
-            "artifact_dir": worker_payload.get("artifact_dir"),
+            "artifact_dir": artifact_dir,
             **({"usage": worker_usage} if worker_usage is not None else {}),
         },
         0 if terminal_state == "completed" else 1,
@@ -518,8 +672,9 @@ def _run_worker(
         command.extend(["--file", scoped_file])
     if job.get("issue") is not None:
         command.extend(["--issue", str(job["issue"])])
-    if job.get("instruction") is not None:
-        command.extend(["--instruction", str(job["instruction"])])
+    worker_instruction = _effective_worker_instruction(job)
+    if worker_instruction is not None:
+        command.extend(["--instruction", worker_instruction])
     if args.opencode_bin is not None:
         command.extend(["--opencode-bin", str(args.opencode_bin)])
     if args.worker_dry_run:
@@ -593,8 +748,9 @@ def _run_deepseek_worker(
         command.extend(["--file", scoped_file])
     if job.get("issue") is not None:
         command.extend(["--issue", str(job["issue"])])
-    if job.get("instruction") is not None:
-        command.extend(["--instruction", str(job["instruction"])])
+    worker_instruction = _effective_worker_instruction(job)
+    if worker_instruction is not None:
+        command.extend(["--instruction", worker_instruction])
     if args.worker_dry_run:
         command.append("--dry-run")
     _extend_factory_metrics_args(command, args)
@@ -629,6 +785,14 @@ def _run_deepseek_worker(
             "artifact_dir": None,
         }
     return payload, completed.returncode
+
+
+def _effective_worker_instruction(job: dict[str, object]) -> str | None:
+    for key in ("worker_instruction", "instruction"):
+        value = job.get(key)
+        if isinstance(value, str) and value.strip():
+            return value
+    return None
 
 
 def _extend_factory_metrics_args(command: list[str], args: argparse.Namespace) -> None:
@@ -731,6 +895,12 @@ def _usage_payload(value: object) -> dict[str, object] | None:
         ):
             usage[key] = item
     return usage or None
+
+
+def _optional_string(value: object) -> str | None:
+    if isinstance(value, str) and value:
+        return value
+    return None
 
 
 def _ensure_queue_dirs(job_root: Path) -> None:

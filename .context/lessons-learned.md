@@ -2,6 +2,11 @@
 
 ## 2026-06-15
 
+- Cheap-worker defaults should be executable, not just conversational.
+  `scripts/ai_jobs.py submit --autonomy-tier tier-a` now carries the cheap
+  provider/profile default, manifest-first context contract, and merge-authority
+  metadata in the queued job itself, so OpenCode/DeepSeek workers do not rely
+  on chat memory for cost-control boundaries.
 - Quality drift claims need a deterministic trend artifact. Keep quality audit
   comparisons in `reports/quality-trend.json` with stable numeric fields and
   optional previous-run deltas, rather than inferring improvement from CI logs

@@ -170,6 +170,85 @@ def test_ai_jobs_run_next_help_documents_factory_metrics_options() -> None:
     assert "--factory-metrics-ledger" in result.stdout
 
 
+def test_ai_jobs_submit_tier_a_defaults_to_cheap_opencode_context_contract(
+    tmp_path: Path,
+) -> None:
+    job_root = tmp_path / "ai-jobs"
+
+    result = run_ai_jobs(
+        "submit",
+        "--mode",
+        "review",
+        "--autonomy-tier",
+        "tier-a",
+        "--file",
+        "README.md",
+        "--issue",
+        "737",
+        "--job-root",
+        str(job_root),
+        "--json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    job = read_job(Path(str(payload["job_path"])))
+
+    assert job["engine"] == "opencode"
+    assert job["profile"] == "flash-free"
+    assert job["model"] == "opencode/deepseek-v4-flash-free"
+    assert job["autonomy_tier"] == "tier_a"
+    assert job["provider_lane"] == "opencode/native-deepseek"
+    assert job["provider_host"] == "OpenCode"
+    assert job["billing_path"] == "OpenCode free-model lane"
+    assert job["context_manifest_command"] == (
+        "scripts/context_pack.sh --mode implementation --manifest"
+    )
+    assert job["merge_authority"] == (
+        "Tier A only after local gates, GitHub CI, PR declaration, and finish cleanup"
+    )
+    worker_instruction = str(job["worker_instruction"])
+    assert "scripts/context_pack.sh --mode implementation --manifest" in worker_instruction
+    assert "request only the needed files/snippets" in worker_instruction
+    assert "Stop and escalate if the issue crosses into Tier B or Tier C" in worker_instruction
+    assert "entroping run remains deterministic" in worker_instruction
+
+
+def test_ai_jobs_submit_tier_a_deepseek_api_defaults_to_flash(
+    tmp_path: Path,
+) -> None:
+    job_root = tmp_path / "ai-jobs"
+
+    result = run_ai_jobs(
+        "submit",
+        "--mode",
+        "review",
+        "--autonomy-tier",
+        "tier-a",
+        "--engine",
+        "deepseek-api",
+        "--file",
+        "README.md",
+        "--issue",
+        "737",
+        "--job-root",
+        str(job_root),
+        "--json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    job = read_job(Path(str(payload["job_path"])))
+
+    assert job["engine"] == "deepseek-api"
+    assert job["profile"] == "flash"
+    assert job["model"] == "deepseek-v4-flash"
+    assert job["autonomy_tier"] == "tier_a"
+    assert job["provider_lane"] == "deepseek-api/direct"
+    assert job["provider_host"] == "repo-local DeepSeek worker"
+    assert job["billing_path"] == "paid direct DeepSeek API"
+
+
 def test_ai_jobs_submit_writes_queued_job_with_model_profile(tmp_path: Path) -> None:
     job_root = tmp_path / "ai-jobs"
 
@@ -575,6 +654,114 @@ def test_ai_jobs_worker_command_does_not_record_metrics_by_default(
     assert "--record-factory-metrics" not in captured_command
     assert "--factory-role" not in captured_command
     assert "--factory-metrics-ledger" not in captured_command
+
+
+def test_ai_jobs_run_next_sanitizes_worker_payload_before_persisting_job(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ai_jobs = load_ai_jobs_module()
+    job_root = tmp_path / "ai-jobs"
+    queued_path = job_root / "queued" / "job.json"
+    ai_jobs._write_job(
+        queued_path,
+        {
+            "schema_version": "entroping.ai-job.v1",
+            "job_id": "job",
+            "queue_status": "queued",
+            "engine": "opencode",
+            "mode": "review",
+            "model": "opencode/deepseek-v4-flash-free",
+            "files": ["README.md"],
+            "timeout_seconds": 1,
+            "attempts": 0,
+        },
+    )
+
+    def fake_run_worker(
+        args: SimpleNamespace,
+        repo_root: Path,
+        job: dict[str, object],
+    ) -> tuple[dict[str, object], int]:
+        return (
+            {
+                "status": "completed",
+                "returncode": "not-an-int",
+                "artifact_dir": {"unexpected": "object"},
+                "usage": {
+                    "completion_tokens": 2,
+                    "prompt_tokens": 3,
+                    "raw_response": "must not persist",
+                },
+            },
+            0,
+        )
+
+    monkeypatch.setattr(ai_jobs, "_run_worker", fake_run_worker)
+    args = SimpleNamespace()
+
+    payload, returncode = ai_jobs._run_next(args, REPO_ROOT, job_root)
+
+    assert returncode == 0
+    completed_path = Path(str(payload["job_path"]))
+    job = read_job(completed_path)
+    assert payload["artifact_dir"] is None
+    assert job["artifact_dir"] is None
+    assert job["worker_returncode"] == 1
+    assert job["usage"] == {"completion_tokens": 2, "prompt_tokens": 3}
+    assert "raw_response" not in completed_path.read_text(encoding="utf-8")
+
+
+def test_ai_jobs_run_next_prefers_worker_instruction_context_contract(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ai_jobs = load_ai_jobs_module()
+    captured_command: list[str] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        captured_command[:] = command
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout=json.dumps(
+                {
+                    "status": "dry-run",
+                    "returncode": 0,
+                    "artifact_dir": str(tmp_path / "artifact"),
+                }
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr(ai_jobs.subprocess, "run", fake_run)
+    args = SimpleNamespace(
+        artifact_root=tmp_path / "ai-reviews",
+        opencode_bin=None,
+        worker_dry_run=True,
+        record_factory_metrics=False,
+        factory_role=None,
+        factory_metrics_ledger=None,
+    )
+    job = {
+        "engine": "opencode",
+        "mode": "review",
+        "model": "opencode/deepseek-v4-flash-free",
+        "files": ["README.md"],
+        "timeout_seconds": 1,
+        "instruction": "Raw user instruction.",
+        "worker_instruction": (
+            "Tier A context contract.\n"
+            "Use scripts/context_pack.sh --mode implementation --manifest first."
+        ),
+    }
+
+    payload, returncode = ai_jobs._run_worker(args, REPO_ROOT, job)
+
+    assert returncode == 0
+    assert payload["status"] == "dry-run"
+    instruction_index = captured_command.index("--instruction") + 1
+    assert captured_command[instruction_index] == job["worker_instruction"]
 
 
 def test_ai_jobs_run_next_preserves_deepseek_usage_for_budget_review(
