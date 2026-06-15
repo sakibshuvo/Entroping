@@ -73,6 +73,7 @@ archive is mounted or attached to the cloud task.
 | [Spark-safe worker](spark-safe-worker.md) | Use low-risk Codex Spark capacity for docs/tests/project hygiene. |
 | [Multi-agent marathon](multi-agent-marathon.md) | Run several bounded sessions while one parent thread owns integration. |
 | [OpenCode Desktop handoff](opencode-desktop-handoff.md) | Start OpenCode Desktop/OpenCode Go implementation or PR verification sessions with explicit provider lane, billing, model, role, merge authority, and `scripts/opencode_readiness.py` preflight evidence. |
+| [OpenCode Codex review request](opencode-codex-review-request.md) | Let OpenCode request a read-only Codex CLI review of an OpenCode-produced local diff or PR before merge. |
 | [Model-comparison trial](model-comparison-trial.md) | Compare Codex, OpenCode native DeepSeek, direct DeepSeek API, OpenCode Go Kimi/Qwen, and local/offline models through evidence. |
 | [Codex-outage daily operations](codex-outage-daily-operations.md) | Run daily OpenCode/DeepSeek operations safely when Codex capacity is low or unavailable. |
 | [OpenCode-only week monitoring](opencode-week-monitoring.md) | Watch OpenCode/DeepSeek PRs, CI, ready issues, cleanup candidates, and factory metrics without mutating repo state. |
@@ -107,6 +108,9 @@ archive is mounted or attached to the cloud task.
   id, role, autonomy tier, allowed files, merge authority, and
   `uv run python scripts/opencode_readiness.py --mode implementation --require-clean --format json`
   evidence are explicit before work starts.
+- OpenCode requesting Codex CLI review: use
+  `opencode-codex-review-request.md` for a read-only local-diff review with
+  `codex review` or a PR evidence review with `codex exec`.
 - Model/cost experiments: use `model-comparison-trial.md` so trial identity,
   files changed/read, tests/gates, CI, cost/token/context evidence, accepted,
   rejected, and stale findings, and reviewer overrides are recorded before
