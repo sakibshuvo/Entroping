@@ -24,7 +24,7 @@ This is the daily dashboard. GitHub Issues track individual tasks; this note kee
 ## Current Target
 
 **Goal:** finish the v0.4 integration path without reopening completed onboarding/product-depth work; stable-core readiness stays tied to external evidence.
-Current local queue: software-factory hardening issues #735-#738 cover security, quality, context preservation, and token efficiency.
+Current local queue: software-factory hardening issues #737-#738 cover context preservation and token efficiency after the security/quality guard slices.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 Current deterministic loop (`entroping run` remains deterministic, Hurl-backed, QAnstitution-governed, and provider-free):
@@ -39,9 +39,9 @@ With #517-#523 and #548 closed, keep local work limited to review-proven defects
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | #735 | Enforce AI-artifact hygiene gates. |
-| 2 | #736 | Add quality trend evidence for factory gates. |
-| 3 | #737-#738 | Add cheap-model defaults and docs-prune candidates from inventory. |
+| 1 | #737 | Add tier-a cheap-model review defaults. |
+| 2 | #738 | Generate docs-prune candidates from inventory. |
+| 3 | Stable-core blocked queue | Wait for package-index, downstream, compatibility, and external CI proof before #303-#310 move. |
 
 ## External Stable-Core Blockers
 Stable-core readiness remains blocked by evidence that cannot be manufactured entirely inside this repo.
@@ -55,7 +55,7 @@ Stable-core readiness remains blocked by evidence that cannot be manufactured en
 ## Latest Evidence
 | Evidence | Status | Anchor |
 | --- | --- | --- |
-| [Context-pack manifest](https://github.com/sakibshuvo/Entroping/issues/732) / [Sensitive-surface PR preflight](https://github.com/sakibshuvo/Entroping/issues/733) / [Direct-provider import guard](https://github.com/sakibshuvo/Entroping/issues/734) / [AI-artifact hygiene](https://github.com/sakibshuvo/Entroping/issues/735) | Done | Context packs now have manifests and strict budgets; PR body checks classify sensitive paths; architecture tests reject direct provider SDK imports in product runtime; repo and docs governance reject committed AI artifact leaks. |
+| [Context-pack manifest](https://github.com/sakibshuvo/Entroping/issues/732) / [Sensitive-surface PR preflight](https://github.com/sakibshuvo/Entroping/issues/733) / [Direct-provider import guard](https://github.com/sakibshuvo/Entroping/issues/734) / [AI-artifact hygiene](https://github.com/sakibshuvo/Entroping/issues/735) / [Quality trend summary](https://github.com/sakibshuvo/Entroping/issues/736) | Done | Context packs now have manifests and strict budgets; PR body checks classify sensitive paths; architecture tests reject direct provider SDK imports in product runtime; repo and docs governance reject committed AI artifact leaks; quality audits now emit deterministic trend metrics for coverage, complexity, maintainability, dead-code, and test taxonomy. |
 | [Security hardening: traffic body syntax](https://github.com/sakibshuvo/Entroping/issues/671) / [Architect provider routing](https://github.com/sakibshuvo/Entroping/issues/672) | Done | Traffic-to-Hurl freeze generation treats captured request bodies that look like Hurl structure or Entroping metadata as inert Hurl body data; Architect `api_base` now stays loopback-only at config load and LiteLLM invocation time, with `api_key_env` revalidated before provider-key lookup. |
 | [Factory model-comparison report](https://github.com/sakibshuvo/Entroping/issues/707) / [#722](https://github.com/sakibshuvo/Entroping/issues/722) | Done | `scripts/factory_metrics.py report` now includes additive `model_comparison` rows by issue, role, provider lane, and model id, with known and unknown metric counts for token, cost, duration, and other workflow evidence; finished issue archive paths also supply the default issue for archived events that omit one without overwriting explicit event issue values. |
 | [OpenCode-only week monitoring prompt](https://github.com/sakibshuvo/Entroping/issues/708) | Done | `docs/meta/prompt-library/opencode-week-monitoring.md` gives OpenCode/DeepSeek workers a read-only monitor for open PRs, CI rollups, ready issues, merged PRs needing `finish_issue.sh`, factory metrics status, blockers, and safe next actions without mutating repo or GitHub state. |

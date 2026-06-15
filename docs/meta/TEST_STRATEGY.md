@@ -134,6 +134,10 @@ The quality audit is intentionally heavier than `scripts/regression.sh`. It
 runs the test taxonomy report, the full test suite with a default 100 percent
 coverage threshold, records ignored JSON audit artifacts under `reports/`, then
 checks Radon complexity, Radon maintainability, and Vulture dead-code discovery.
+It also writes `reports/quality-trend.json`, a deterministic trend summary that
+captures coverage, complexity, maintainability, dead-code, and test-taxonomy
+fields for comparison across runs; set `ENTROPING_QUALITY_TREND_PREVIOUS` to a
+previous trend JSON path when a local audit should include numeric deltas.
 The default Radon cyclomatic-complexity ceiling is rank D; any rank E or F block
 must be refactored or explicitly justified before release-hardening claims.
 

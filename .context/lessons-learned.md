@@ -2,6 +2,10 @@
 
 ## 2026-06-15
 
+- Quality drift claims need a deterministic trend artifact. Keep quality audit
+  comparisons in `reports/quality-trend.json` with stable numeric fields and
+  optional previous-run deltas, rather than inferring improvement from CI logs
+  or chat summaries.
 - AI worker artifacts need a committed-path guard in addition to ignored
   directories. Keep raw prompts, provider responses, stdout/stderr captures,
   cookies, raw traffic, and token-shaped values in ignored `.entroping/`

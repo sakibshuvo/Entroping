@@ -86,6 +86,10 @@ project, and a Codex workspace with fast context rehydration.
   governance so raw worker prompts, provider responses, stdout/stderr captures,
   cookies, raw traffic, token-shaped values, and generated artifact paths stay
   out of tracked docs/context.
+- Quality audit trend evidence is a generated report:
+  `scripts/audit_quality.sh` writes `reports/quality-trend.json` with stable
+  coverage, complexity, maintainability, dead-code, and test-taxonomy metrics,
+  plus optional numeric deltas from `ENTROPING_QUALITY_TREND_PREVIOUS`.
 - Documentation diet now has an executable inventory:
   `scripts/docs_inventory.py --strict` classifies tracked Markdown as
   active/reference/archive, keeps default agent Markdown context under budget,
