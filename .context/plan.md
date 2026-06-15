@@ -81,6 +81,11 @@ project, and a Codex workspace with fast context rehydration.
   Understand Anything, and any future context tool against the repo-native
   baseline before a tool becomes active workflow dependency; retired generated
   context tools have been removed from active workflow surfaces.
+- AI/context artifact hygiene is an executable gate:
+  `scripts/ai_artifact_hygiene.py` runs through repo hygiene and docs
+  governance so raw worker prompts, provider responses, stdout/stderr captures,
+  cookies, raw traffic, token-shaped values, and generated artifact paths stay
+  out of tracked docs/context.
 - Documentation diet now has an executable inventory:
   `scripts/docs_inventory.py --strict` classifies tracked Markdown as
   active/reference/archive, keeps default agent Markdown context under budget,
