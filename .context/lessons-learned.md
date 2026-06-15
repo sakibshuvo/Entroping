@@ -2,6 +2,10 @@
 
 ## 2026-06-15
 
+- Docs-prune tooling should propose, not delete. `scripts/docs_inventory.py`
+  can now surface archive/source, stale-reference, duplicate-title, and
+  default-agent-risk candidates with evidence paths, but pruning or archiving
+  still needs a human/Codex-reviewed issue and canonical-doc judgment.
 - Cheap-worker defaults should be executable, not just conversational.
   `scripts/ai_jobs.py submit --autonomy-tier tier-a` now carries the cheap
   provider/profile default, manifest-first context contract, and merge-authority

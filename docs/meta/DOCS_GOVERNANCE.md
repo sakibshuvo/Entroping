@@ -70,10 +70,13 @@ is generated from tracked repo files; do not create a second hand-maintained
 Markdown tracker for the same purpose.
 
 The inventory classifies tracked Markdown as active, reference, or archive,
-records owner and audience hints, marks the default agent-context files, and
-enforces the default-agent Markdown budget. `README.md` and
-`docs/meta/VAULT_INDEX.md` remain important reference/navigation surfaces, but
-they are not default implementation context.
+records owner and audience hints, marks the default agent-context files,
+reports non-destructive prune/archive candidates, and enforces the
+default-agent Markdown budget. Candidate categories point to stale reference
+docs, duplicate titles, default-agent context risk, or archive/source status;
+they are review evidence only and must not delete docs automatically.
+`README.md` and `docs/meta/VAULT_INDEX.md` remain important
+reference/navigation surfaces, but they are not default implementation context.
 
 ## Public Docs Curation Rule
 

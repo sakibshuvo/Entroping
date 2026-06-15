@@ -104,10 +104,11 @@ def test_project_progress_stays_a_short_daily_dashboard() -> None:
     assert "after #491 closes" not in progress
     assert "after #501" not in progress
     assert "Current local queue: #517-#523" not in progress
-    assert "software-factory hardening issue #738" in progress
-    assert "| 1 | #738 | Generate docs-prune candidates" in progress
+    assert "software-factory hardening issues #732-#738 are complete" in progress
+    assert "| 1 | New issue intake" in progress
     assert "| 2 | Stable-core blocked queue" in progress
     assert "Tier A cheap-worker defaults" in progress
+    assert "Docs-prune candidate report" in progress
     assert "stable-core compatibility decision" in progress
     assert "Compatibility discipline" not in progress
     assert "Policy-diff CI failure mode" in progress
