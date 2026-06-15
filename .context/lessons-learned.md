@@ -2,6 +2,11 @@
 
 ## 2026-06-15
 
+- Four-gate factory readiness should be explicit and machine-checkable. Use
+  `scripts/factory_metrics.py readiness --issue <issue> --format json` to
+  prove quality, security, context preservation, and token/cost evidence from
+  local metrics before making handoff or merge-readiness claims; missing
+  metrics should fail closed instead of being inferred from chat.
 - Docs-prune tooling should propose, not delete. `scripts/docs_inventory.py`
   can now surface archive/source, stale-reference, duplicate-title, and
   default-agent-risk candidates with evidence paths, but pruning or archiving

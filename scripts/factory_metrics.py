@@ -21,6 +21,7 @@ SUMMARY_SCHEMA_VERSION = "entroping.factory-metrics-summary.v1"
 REPORT_SCHEMA_VERSION = "entroping.factory-metrics-report.v1"
 CONTEXT_SCORECARD_SCHEMA_VERSION = "entroping.context-tool-scorecard.v1"
 CONTEXT_SCORECARD_REPORT_SCHEMA_VERSION = "entroping.context-tool-scorecard-report.v1"
+READINESS_SCHEMA_VERSION = "entroping.factory-readiness.v1"
 DEFAULT_LEDGER = Path(".entroping") / "factory-metrics" / "events.jsonl"
 FINISHED_ISSUES_DIR = Path(".entroping") / "factory-metrics" / "finished-issues"
 FINISHED_ISSUE_DIR_RE = re.compile(r"^issue-(?P<issue>\d+)$")
@@ -198,6 +199,60 @@ CONTEXT_SCORECARD_TRIAL_KEYS = {
     "baseline_metrics",
     "evidence_summary",
 }
+READINESS_GATES = (
+    "quality",
+    "security",
+    "context_preservation",
+    "token_cost_efficiency",
+)
+READINESS_MISSING_MESSAGES = {
+    "quality": (
+        "quality evidence requires a successful test, quality check, or gate-run "
+        "event for the issue"
+    ),
+    "security": (
+        "security evidence requires a successful security gate/review event or "
+        "explicit security:not-applicable marker"
+    ),
+    "context_preservation": (
+        "context preservation evidence requires a successful context_pack event "
+        "with bounded context bytes, estimated tokens, and file counts"
+    ),
+    "token_cost_efficiency": (
+        "token/cost evidence requires provider/model plus token or cost metrics, "
+        "cost metrics, or an explicit provider:not-applicable/no-provider marker"
+    ),
+}
+QUALITY_MARKERS = (
+    "pytest",
+    "test",
+    "tests",
+    "ruff",
+    "coverage",
+    "quality",
+    "feature_gate",
+    "feature-gate",
+    "feature gate",
+    "scripts/check.sh",
+    "scripts/feature_gate.sh",
+    "doc_governance_check",
+)
+SECURITY_MARKERS = (
+    "security",
+    "security:not-applicable",
+    "vulnerab",
+    "license policy",
+    "no known vulnerabilities",
+    "scripts/regression.sh --security",
+    "scripts/feature_gate.sh --security",
+)
+NO_PROVIDER_MARKERS = (
+    "provider:not-applicable",
+    "no-provider",
+    "no provider",
+    "llm-free",
+    "llm free",
+)
 TEXT_FIELDS = {
     "agent",
     "tool",
@@ -1326,6 +1381,264 @@ def _render_report_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _numeric_metric(event: dict[str, Any], metric: str) -> int | float | None:
+    metrics = event.get("metrics")
+    if not isinstance(metrics, dict):
+        return None
+    value = metrics.get(metric)
+    return value if isinstance(value, (int, float)) else None
+
+
+def _positive_event(event: dict[str, Any]) -> bool:
+    outcome = _safe_report_label(event.get("outcome"))
+    decision = _safe_report_label(event.get("decision"))
+    return outcome not in {"blocked", "failure", "inconclusive"} and decision not in {
+        "escalated",
+        "rejected",
+    }
+
+
+def _event_text_values(event: dict[str, Any]) -> list[str]:
+    values: list[str] = []
+    for key in ("event_type", "role", "tool", "provider", "model"):
+        value = _safe_report_label(event.get(key))
+        if value is not None:
+            values.append(value)
+    for field in ("gates", "checks"):
+        raw_values = event.get(field)
+        if not isinstance(raw_values, list):
+            continue
+        for raw_value in raw_values:
+            value = _safe_report_label(raw_value)
+            if value is not None:
+                values.append(value)
+    return values
+
+
+def _matched_markers(event: dict[str, Any], markers: tuple[str, ...]) -> list[str]:
+    matched: list[str] = []
+    for value in _event_text_values(event):
+        lowered = value.lower()
+        if any(marker in lowered for marker in markers):
+            matched.append(value)
+    return matched
+
+
+def _readiness_quality_markers(event: dict[str, Any]) -> list[str]:
+    markers = _matched_markers(event, QUALITY_MARKERS)
+    tests_run = _numeric_metric(event, "tests_run")
+    gates_run = _numeric_metric(event, "gates_run")
+    if tests_run is not None and tests_run > 0:
+        markers.append(f"tests_run:{int(tests_run)}")
+    if gates_run is not None and gates_run > 0 and markers:
+        markers.append(f"gates_run:{int(gates_run)}")
+    if _safe_report_label(event.get("event_type")) == "gate_run" and markers:
+        markers.append("event_type:gate_run")
+    return sorted(set(markers))
+
+
+def _readiness_security_markers(event: dict[str, Any]) -> list[str]:
+    markers = _matched_markers(event, SECURITY_MARKERS)
+    if _safe_report_label(event.get("role")) == "security_agent":
+        markers.append("role:security_agent")
+    return sorted(set(markers))
+
+
+def _readiness_context_markers(event: dict[str, Any]) -> list[str]:
+    if _safe_report_label(event.get("event_type")) != "context_pack":
+        return []
+    context_bytes = _numeric_metric(event, "context_bytes")
+    estimated_tokens = _numeric_metric(event, "estimated_tokens")
+    candidate_files = _numeric_metric(event, "candidate_files")
+    files_read = _numeric_metric(event, "files_read")
+    if (
+        context_bytes is None
+        or context_bytes <= 0
+        or estimated_tokens is None
+        or estimated_tokens <= 0
+        or (
+            (candidate_files is None or candidate_files <= 0)
+            and (files_read is None or files_read <= 0)
+        )
+    ):
+        return []
+
+    markers = [
+        "event_type:context_pack",
+        f"context_bytes:{int(context_bytes)}",
+        f"estimated_tokens:{int(estimated_tokens)}",
+    ]
+    if candidate_files is not None and candidate_files > 0:
+        markers.append(f"candidate_files:{int(candidate_files)}")
+    if files_read is not None and files_read > 0:
+        markers.append(f"files_read:{int(files_read)}")
+    return markers
+
+
+def _readiness_token_markers(event: dict[str, Any]) -> list[str]:
+    markers = _matched_markers(event, NO_PROVIDER_MARKERS)
+    if markers:
+        return sorted(set(markers))
+
+    estimated_tokens = _numeric_metric(event, "estimated_tokens")
+    cost_usd = _numeric_metric(event, "cost_usd")
+    provider = _safe_report_label(event.get("provider"))
+    model = _safe_report_label(event.get("model"))
+    has_provider_model = provider is not None and model is not None
+    if estimated_tokens is not None and estimated_tokens > 0 and (
+        has_provider_model or cost_usd is not None
+    ):
+        if provider is not None:
+            markers.append(f"provider:{provider}")
+        if model is not None:
+            markers.append(f"model:{model}")
+        markers.append(f"estimated_tokens:{int(estimated_tokens)}")
+        if cost_usd is not None:
+            markers.append(f"cost_usd:{cost_usd:.4f}")
+    return sorted(set(markers))
+
+
+def _readiness_gate_markers(event: dict[str, Any], gate: str) -> list[str]:
+    if not _positive_event(event):
+        return []
+    if gate == "quality":
+        return _readiness_quality_markers(event)
+    if gate == "security":
+        return _readiness_security_markers(event)
+    if gate == "context_preservation":
+        return _readiness_context_markers(event)
+    if gate == "token_cost_efficiency":
+        return _readiness_token_markers(event)
+    return []
+
+
+def _readiness_evidence_entry(
+    event: dict[str, Any],
+    markers: list[str],
+) -> dict[str, Any]:
+    entry: dict[str, Any] = {
+        "event_id": _safe_report_label(event.get("event_id")) or "unknown",
+        "event_type": _safe_report_label(event.get("event_type")) or "unknown",
+        "role": _safe_report_label(event.get("role")) or "unknown",
+        "agent": _safe_report_label(event.get("agent")) or "unknown",
+        "markers": markers,
+    }
+    provider = _safe_report_label(event.get("provider"))
+    model = _safe_report_label(event.get("model"))
+    if provider is not None:
+        entry["provider"] = provider
+    if model is not None:
+        entry["model"] = model
+    return entry
+
+
+def _readiness_gate_result(
+    events: list[dict[str, Any]],
+    gate: str,
+) -> dict[str, Any]:
+    evidence = []
+    for event in events:
+        markers = _readiness_gate_markers(event, gate)
+        if markers:
+            evidence.append(_readiness_evidence_entry(event, markers))
+
+    return {
+        "status": "pass" if evidence else "fail",
+        "evidence_count": len(evidence),
+        "evidence": evidence,
+        "missing": [] if evidence else [READINESS_MISSING_MESSAGES[gate]],
+    }
+
+
+def _readiness_report(events: list[dict[str, Any]], issue: str) -> dict[str, Any]:
+    issue_events = [
+        event
+        for event in events
+        if _safe_report_label(event.get("issue")) == issue
+    ]
+    gates = {
+        gate: _readiness_gate_result(issue_events, gate)
+        for gate in READINESS_GATES
+    }
+    missing_gates = [
+        gate for gate in READINESS_GATES if gates[gate]["status"] != "pass"
+    ]
+    return {
+        "schema_version": READINESS_SCHEMA_VERSION,
+        "issue": issue,
+        "status": "fail" if missing_gates else "pass",
+        "events_considered": len(issue_events),
+        "required_gates": list(READINESS_GATES),
+        "missing_gates": missing_gates,
+        "gates": gates,
+    }
+
+
+def _render_readiness_markdown(report: dict[str, Any]) -> str:
+    lines = [
+        "# Factory Readiness Scorecard",
+        "",
+        f"- Schema: `{report['schema_version']}`",
+        f"- Issue: `{report['issue']}`",
+        f"- Status: `{report['status']}`",
+        f"- Events considered: {report['events_considered']}",
+        "",
+        "| Gate | Status | Evidence | Missing |",
+        "| --- | --- | ---: | --- |",
+    ]
+
+    for gate in report["required_gates"]:
+        result = report["gates"][gate]
+        missing = "; ".join(result["missing"]) if result["missing"] else "-"
+        lines.append(
+            "| "
+            + " | ".join(
+                _markdown_cell(value)
+                for value in (
+                    gate,
+                    result["status"],
+                    result["evidence_count"],
+                    missing,
+                )
+            )
+            + " |"
+        )
+
+    lines.extend(["", "## Evidence", ""])
+    for gate in report["required_gates"]:
+        result = report["gates"][gate]
+        lines.extend([f"### {gate}", ""])
+        if not result["evidence"]:
+            lines.extend(["- No accepted evidence.", ""])
+            continue
+        for evidence in result["evidence"]:
+            provider = evidence.get("provider")
+            model = evidence.get("model")
+            provider_model_parts = []
+            if provider is not None:
+                provider_model_parts.append(f"provider={provider}")
+            if model is not None:
+                provider_model_parts.append(f"model={model}")
+            provider_model = (
+                " " + " ".join(provider_model_parts)
+                if provider_model_parts
+                else ""
+            )
+            markers = ", ".join(evidence["markers"])
+            lines.append(
+                "- "
+                f"`{_markdown_cell(evidence['event_id'])}` "
+                f"{_markdown_cell(evidence['event_type'])} "
+                f"role={_markdown_cell(evidence['role'])} "
+                f"agent={_markdown_cell(evidence['agent'])}"
+                f"{_markdown_cell(provider_model)} "
+                f"markers={_markdown_cell(markers)}"
+            )
+        lines.append("")
+
+    return "\n".join(lines)
+
+
 def _compare_metric(
     metric: str,
     value: int | float,
@@ -1697,6 +2010,51 @@ def _report_command(repo_root: Path, args: argparse.Namespace) -> int:
     return 0
 
 
+def _readiness_command(repo_root: Path, args: argparse.Namespace) -> int:
+    ledger = _safe_ledger_path(repo_root, args.ledger)
+    events, errors = _load_report_events(
+        repo_root,
+        ledger,
+        include_finished_issues=args.include_finished_issues,
+    )
+    if errors:
+        payload = {
+            "status": "invalid",
+            "ledger_path": str(ledger),
+            "events": len(events),
+            "errors": errors,
+        }
+        _print_payload(payload, args.format == "json")
+        return 1
+
+    issue = _safe_report_label(args.issue)
+    if issue is None:
+        raise FactoryMetricsError("issue must be a non-empty string")
+
+    report = _readiness_report(events, issue)
+    if args.format == "json":
+        content = json.dumps(report, sort_keys=True)
+    else:
+        content = _render_readiness_markdown(report)
+
+    if args.output:
+        output_path = _safe_report_path(repo_root, args.output)
+        _write_report_output(output_path, content)
+        _print_payload(
+            {
+                "status": "written",
+                "output_path": str(output_path),
+                "schema_version": READINESS_SCHEMA_VERSION,
+                "readiness_status": report["status"],
+            },
+            False,
+        )
+        return 1 if report["status"] != "pass" else 0
+
+    print(content)
+    return 1 if report["status"] != "pass" else 0
+
+
 def _context_scorecard_validate_command(repo_root: Path, args: argparse.Namespace) -> int:
     input_path = _safe_context_scorecard_input_path(repo_root, args.input)
     scorecard = _load_context_scorecard(input_path)
@@ -1829,6 +2187,34 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    readiness = subparsers.add_parser(
+        "readiness",
+        help="Evaluate whether an issue has quality, security, context, and cost evidence.",
+    )
+    readiness.add_argument("--issue", required=True, help="Issue number or label.")
+    readiness.add_argument(
+        "--ledger",
+        help="JSONL ledger under .entroping/factory-metrics/",
+    )
+    readiness.add_argument(
+        "--format",
+        choices=("json", "md"),
+        default="md",
+        help="Report format. Defaults to Markdown.",
+    )
+    readiness.add_argument(
+        "--output",
+        help="Optional report path under .entroping/factory-metrics/.",
+    )
+    readiness.add_argument(
+        "--include-finished-issues",
+        action="store_true",
+        help=(
+            "Include archived finished-issue ledgers under "
+            ".entroping/factory-metrics/finished-issues/."
+        ),
+    )
+
     scorecard = subparsers.add_parser(
         "context-scorecard",
         help="Validate or report context-tool proof/discard scorecards.",
@@ -1878,6 +2264,8 @@ def main(argv: list[str] | None = None) -> int:
             return _summary_command(repo_root, args)
         if args.command == "report":
             return _report_command(repo_root, args)
+        if args.command == "readiness":
+            return _readiness_command(repo_root, args)
         if args.command == "context-scorecard":
             return _context_scorecard_command(repo_root, args)
     except FactoryMetricsError as exc:

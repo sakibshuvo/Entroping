@@ -87,6 +87,11 @@ project, and a Codex workspace with fast context rehydration.
   Understand Anything, and any future context tool against the repo-native
   baseline before a tool becomes active workflow dependency; retired generated
   context tools have been removed from active workflow surfaces.
+- Issue-level factory readiness now has a value-free local scorecard:
+  `scripts/factory_metrics.py readiness --issue <issue>` checks local metrics
+  evidence for quality, security, context preservation, and token/cost
+  efficiency before a handoff, PR, or finish decision claims the software
+  factory evidence is complete.
 - AI/context artifact hygiene is an executable gate:
   `scripts/ai_artifact_hygiene.py` runs through repo hygiene and docs
   governance so raw worker prompts, provider responses, stdout/stderr captures,

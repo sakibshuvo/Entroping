@@ -187,6 +187,11 @@ a substitute for tests and CI.
 Use `scripts/factory_metrics.py report --format json` for machine-readable
 analysis and `scripts/factory_metrics.py report --format md --output
 .entroping/factory-metrics/factory-report.md` for a local human review report.
+Use `scripts/factory_metrics.py readiness --issue <issue> --format json` before
+claiming an issue has software-factory readiness across quality, security,
+context preservation, and token/cost efficiency. The readiness report uses
+schema `entroping.factory-readiness.v1`, returns nonzero when a gate lacks
+evidence, and prints only value-free event metadata and matched markers.
 The factory framework owns workflow, context, metrics, and guardrails; the
 project owns product truth.
 
@@ -226,6 +231,9 @@ scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --iss
   secrets, `.entroping/`, provider transcripts, or local env files.
 - Focused tests run for the touched surface, `scripts/regression.sh --security`
   passes, and GitHub CI is green.
+- If the issue recorded factory metrics, `scripts/factory_metrics.py readiness
+  --issue <issue> --format json` passes or the PR explains the missing local
+  metrics evidence without downgrading required gates.
 - The worker reviews the final diff, merges only through the PR, then runs
   `scripts/finish_issue.sh` from a separate checkout.
 
@@ -244,6 +252,9 @@ claims are real.
 The active context-cost baseline is repo-native: `rg`,
 `scripts/context_pack.sh`, `docs/meta/DECISION_REGISTRY.yaml`, GitHub issues,
 source files, focused tests, CI, and `scripts/factory_metrics.py report`.
+Use `scripts/factory_metrics.py readiness --issue <issue> --format json` to
+turn those local metrics into a four-gate issue scorecard before a handoff or
+merge readiness claim.
 Context is evidence, not memory. Start each issue with one named question: what
 local evidence is needed to change, review, or merge this issue? Do not add
 generated context because it is interesting, visual, popular, or already

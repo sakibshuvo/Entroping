@@ -1395,6 +1395,296 @@ def test_factory_metrics_report_builder_redacts_labels_defensively() -> None:
     assert "<redacted>" in serialized
 
 
+def test_factory_metrics_readiness_passes_when_four_gate_evidence_is_present(
+    tmp_path: Path,
+) -> None:
+    ledger = tmp_path / ".entroping" / "factory-metrics" / "events.jsonl"
+    context_event = _factory_event(
+        issue="746",
+        event_type="context_pack",
+        role="integrator",
+        agent="Codex",
+        estimated_tokens=2500,
+    )
+    context_event["metrics"].update(
+        {
+            "context_bytes": 10000,
+            "candidate_files": 8,
+            "files_read": 4,
+        }
+    )
+    quality_event = _factory_event(
+        issue="746",
+        event_type="gate_run",
+        role="qa_agent",
+        agent="Codex",
+    )
+    quality_event.update(
+        {
+            "metrics": {"tests_run": 32, "gates_run": 1},
+            "gates": ["scripts/feature_gate.sh"],
+            "checks": ["pytest tests/test_factory_metrics.py"],
+        }
+    )
+    security_event = _factory_event(
+        issue="746",
+        event_type="gate_run",
+        role="security_agent",
+        agent="Codex",
+    )
+    security_event.update(
+        {
+            "metrics": {"gates_run": 1},
+            "gates": ["scripts/regression.sh --security"],
+            "checks": ["license policy OK", "no known vulnerabilities"],
+        }
+    )
+    worker_event = _factory_event(
+        issue="746",
+        event_type="worker_job",
+        role="code_review_agent",
+        agent="DeepSeek",
+        estimated_tokens=1200,
+    )
+    worker_event.update(
+        {
+            "provider": "deepseek-api/direct",
+            "model": "deepseek-v4-flash",
+            "metrics": {"estimated_tokens": 1200, "cost_usd": 0.01},
+            "note": "provider response omitted",
+        }
+    )
+    _write_jsonl(ledger, context_event, quality_event, security_event, worker_event)
+
+    result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "readiness",
+        "--issue",
+        "746",
+        "--ledger",
+        str(ledger),
+        "--format",
+        "json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["schema_version"] == "entroping.factory-readiness.v1"
+    assert payload["status"] == "pass"
+    assert payload["issue"] == "746"
+    assert payload["events_considered"] == 4
+    assert payload["missing_gates"] == []
+    assert set(payload["gates"]) == {
+        "quality",
+        "security",
+        "context_preservation",
+        "token_cost_efficiency",
+    }
+    assert all(gate["status"] == "pass" for gate in payload["gates"].values())
+    assert "provider response omitted" not in result.stdout
+
+    markdown = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "readiness",
+        "--issue",
+        "746",
+        "--ledger",
+        str(ledger),
+        "--format",
+        "md",
+    )
+
+    assert markdown.returncode == 0, markdown.stderr
+    assert "# Factory Readiness Scorecard" in markdown.stdout
+    assert "| quality | pass |" in markdown.stdout
+    assert "scripts/regression.sh --security" in markdown.stdout
+    assert "provider response omitted" not in markdown.stdout
+
+
+def test_factory_metrics_readiness_fails_with_actionable_missing_gates(
+    tmp_path: Path,
+) -> None:
+    ledger = tmp_path / ".entroping" / "factory-metrics" / "events.jsonl"
+    context_event = _factory_event(
+        issue="746",
+        event_type="context_pack",
+        role="integrator",
+        agent="Codex",
+        estimated_tokens=1200,
+    )
+    context_event["metrics"].update(
+        {"context_bytes": 4800, "candidate_files": 4, "files_read": 2}
+    )
+    _write_jsonl(ledger, context_event)
+
+    result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "readiness",
+        "--issue",
+        "746",
+        "--ledger",
+        str(ledger),
+        "--format",
+        "json",
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "fail"
+    assert payload["events_considered"] == 1
+    assert payload["gates"]["context_preservation"]["status"] == "pass"
+    assert payload["gates"]["quality"]["status"] == "fail"
+    assert payload["gates"]["security"]["status"] == "fail"
+    assert payload["gates"]["token_cost_efficiency"]["status"] == "fail"
+    assert payload["missing_gates"] == [
+        "quality",
+        "security",
+        "token_cost_efficiency",
+    ]
+    assert "quality evidence requires" in payload["gates"]["quality"]["missing"][0]
+    assert "security evidence requires" in payload["gates"]["security"]["missing"][0]
+    assert (
+        "token/cost evidence requires"
+        in payload["gates"]["token_cost_efficiency"]["missing"][0]
+    )
+
+
+def test_factory_metrics_readiness_accepts_explicit_not_applicable_evidence(
+    tmp_path: Path,
+) -> None:
+    ledger = tmp_path / ".entroping" / "factory-metrics" / "events.jsonl"
+    context_event = _factory_event(
+        issue="746",
+        event_type="context_pack",
+        role="integrator",
+        agent="Codex",
+        estimated_tokens=900,
+    )
+    context_event["metrics"].update(
+        {"context_bytes": 3600, "candidate_files": 3, "files_read": 2}
+    )
+    quality_event = _factory_event(
+        issue="746",
+        event_type="gate_run",
+        role="qa_agent",
+        agent="Codex",
+    )
+    quality_event.update({"metrics": {"tests_run": 1}, "checks": ["docs guard test"]})
+    security_event = _factory_event(
+        issue="746",
+        event_type="gate_run",
+        role="security_agent",
+        agent="Codex",
+    )
+    security_event.update(
+        {
+            "checks": ["security:not-applicable"],
+            "metrics": {"gates_run": 1},
+        }
+    )
+    no_provider_event = _factory_event(
+        issue="746",
+        event_type="outcome",
+        role="integrator",
+        agent="Codex",
+    )
+    no_provider_event.update(
+        {
+            "checks": ["provider:not-applicable", "llm-free"],
+            "metrics": {"estimated_tokens": 0, "cost_usd": 0.0},
+        }
+    )
+    _write_jsonl(ledger, context_event, quality_event, security_event, no_provider_event)
+
+    result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "readiness",
+        "--issue",
+        "746",
+        "--ledger",
+        str(ledger),
+        "--format",
+        "json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "pass"
+    assert (
+        "security:not-applicable"
+        in payload["gates"]["security"]["evidence"][0]["markers"]
+    )
+    assert payload["gates"]["token_cost_efficiency"]["status"] == "pass"
+    assert "provider:not-applicable" in json.dumps(
+        payload["gates"]["token_cost_efficiency"]
+    )
+
+
+def test_factory_metrics_readiness_rejects_zero_cost_without_provider_or_no_provider(
+    tmp_path: Path,
+) -> None:
+    ledger = tmp_path / ".entroping" / "factory-metrics" / "events.jsonl"
+    context_event = _factory_event(
+        issue="746",
+        event_type="context_pack",
+        role="integrator",
+        agent="Codex",
+        estimated_tokens=900,
+    )
+    context_event["metrics"].update(
+        {"context_bytes": 3600, "candidate_files": 3, "files_read": 2}
+    )
+    quality_event = _factory_event(
+        issue="746",
+        event_type="gate_run",
+        role="qa_agent",
+        agent="Codex",
+    )
+    quality_event.update({"metrics": {"tests_run": 1}, "checks": ["docs guard test"]})
+    security_event = _factory_event(
+        issue="746",
+        event_type="gate_run",
+        role="security_agent",
+        agent="Codex",
+    )
+    security_event.update({"checks": ["security:not-applicable"]})
+    weak_cost_event = _factory_event(
+        issue="746",
+        event_type="outcome",
+        role="integrator",
+        agent="Codex",
+    )
+    weak_cost_event.update(
+        {
+            "checks": ["cost budget noted"],
+            "metrics": {"estimated_tokens": 0, "cost_usd": 0.0},
+        }
+    )
+    _write_jsonl(ledger, context_event, quality_event, security_event, weak_cost_event)
+
+    result = run_factory_metrics(
+        "--repo-root",
+        str(tmp_path),
+        "readiness",
+        "--issue",
+        "746",
+        "--ledger",
+        str(ledger),
+        "--format",
+        "json",
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "fail"
+    assert payload["missing_gates"] == ["token_cost_efficiency"]
+    assert payload["gates"]["token_cost_efficiency"]["evidence"] == []
+
+
 def test_context_tool_scorecard_report_measures_tools_against_baseline(
     tmp_path: Path,
 ) -> None:

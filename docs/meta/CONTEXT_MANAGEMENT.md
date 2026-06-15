@@ -35,6 +35,9 @@ Use `scripts/context_pack.sh --record-factory-metrics` and
 token-saving claim is accepted without measured local evidence from the current
 workflow lane. If the measurement is missing, say it is missing instead of
 crediting a tool or model with guessed savings.
+Use `scripts/factory_metrics.py readiness --issue <issue> --format json` when
+an issue handoff, PR, or finish decision claims quality, security, context
+preservation, and token/cost evidence are all present.
 
 ## Context Tiers
 
@@ -161,8 +164,9 @@ scripts/ai_jobs.py run-next --record-factory-metrics
 Use `--factory-metrics-ledger` only for a ledger under
 `.entroping/factory-metrics/`, usually when a test or experiment needs a
 separate local file. Context-pack recording stores byte estimates, token
-estimates, file counts, role, mode, and outcome only; it does not persist the
-generated pack body.
+estimates, file counts, role, mode, outcome, and value-free event metadata
+such as event id, timestamp, event type, agent, tool, and optional
+provider/model labels; it does not persist the generated pack body.
 
 ## Context Engineering Layers
 
@@ -245,6 +249,8 @@ actually improving context cost and review yield:
 ```bash
 scripts/factory_metrics.py report --format json
 scripts/factory_metrics.py report --format md --output .entroping/factory-metrics/factory-report.md
+scripts/factory_metrics.py readiness --issue <issue> --format json
+scripts/factory_metrics.py readiness --issue <issue> --format md --output .entroping/factory-metrics/issue-<issue>-readiness.md
 ```
 
 The report uses schema `entroping.factory-metrics-report.v1` and groups events
@@ -255,6 +261,11 @@ rendering notes, prompts, transcripts, stdout/stderr, raw traffic, or secrets.
 Its additive `model_comparison` view groups by issue, role, provider lane, and
 model id, and records known and unknown metric counts so missing token, cost, or
 duration evidence is visible instead of inferred.
+The readiness scorecard uses schema `entroping.factory-readiness.v1` and checks
+whether an issue ledger has all four handoff gates: quality, security, context
+preservation, and token/cost efficiency. It returns nonzero when evidence is
+missing and emits only value-free event metadata, matched markers, and missing
+reasons.
 Keep the report local unless a finding is promoted into a GitHub issue, PR,
 ADR, or canonical doc. This is the measurement layer for future extraction into
 a reusable software-factory template, not a replacement for Entroping's source
