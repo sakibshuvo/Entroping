@@ -34,7 +34,9 @@ PROVIDER_LANES = (
 AMBIGUOUS_PROVIDER_RE = re.compile(r"\b(?:OpenCode|DeepSeek|Kimi)\b", re.IGNORECASE)
 SECURITY_GATE_RE = re.compile(
     r"(?im)"
-    r"^\s*-\s*\[[xX]\]\s*`scripts/(?:feature_gate\.sh --security|regression\.sh --security)`"
+    r"^\s*-\s*\[[xX]\]\s*`?"
+    r"scripts/(?:feature_gate\.sh --security|regression\.sh --security)"
+    r"`?(?:\s|$)"
     r"|^\s*scripts/(?:feature_gate\.sh --security|regression\.sh --security)\s*$",
 )
 SENSITIVE_SURFACE_PATTERNS = (
@@ -226,7 +228,7 @@ def _validate_opencode_evidence(body: str, *, issue: str | None) -> list[str]:
         if not _has_concrete_value(value):
             failures.append(f"OpenCode evidence must include {label.lower()}.")
             continue
-        if label == "Provider lane" and value is not None and _known_provider_lane(value) is None:
+        if label == "Provider lane" and value is not None and value not in PROVIDER_LANES:
             allowed = ", ".join(PROVIDER_LANES)
             failures.append(f"OpenCode evidence provider lane must be one of: {allowed}.")
 
