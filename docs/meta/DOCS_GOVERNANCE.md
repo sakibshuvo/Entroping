@@ -180,7 +180,10 @@ PR template -> PR body check in CI -> doc governance check -> feature gate -> re
 ```
 
 - `.github/pull_request_template.md` forces the declaration.
-- `scripts/pr_body_check.py` validates the declaration on pull requests.
+- `scripts/pr_body_check.py` validates the declaration on pull requests and,
+  when CI or a local preflight passes changed files with `--changed-file`,
+  requires security-gate evidence for sensitive runner, redaction, provider,
+  proxy, report-evidence, worker, or secret-adjacent surfaces.
 - `scripts/doc_governance_check.sh` validates the documentation control plane.
 - `scripts/docs_freshness_check.py` rejects stale paths, broken local Markdown
   links, merge markers, unsupported readiness/security claims, deprecated

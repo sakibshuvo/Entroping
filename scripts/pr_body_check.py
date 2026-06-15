@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import os
 import re
@@ -31,6 +32,86 @@ PROVIDER_LANES = (
     "local/offline",
 )
 AMBIGUOUS_PROVIDER_RE = re.compile(r"\b(?:OpenCode|DeepSeek|Kimi)\b", re.IGNORECASE)
+SECURITY_GATE_RE = re.compile(
+    r"(?im)"
+    r"^\s*-\s*\[[xX]\]\s*`scripts/(?:feature_gate\.sh --security|regression\.sh --security)`"
+    r"|^\s*scripts/(?:feature_gate\.sh --security|regression\.sh --security)\s*$",
+)
+SENSITIVE_SURFACE_PATTERNS = (
+    (
+        "hurl-runner",
+        (
+            "src/entroping/core/hurl_runner.py",
+            "src/entroping/core/run_workflow.py",
+            "src/entroping/cli/run.py",
+            "tests/test_hurl_runner.py",
+            "tests/test_run_workflow*.py",
+            "tests/test_cli_run_command.py",
+        ),
+    ),
+    (
+        "redaction",
+        (
+            "src/entroping/core/redaction*.py",
+            "src/entroping/eye/*",
+            "src/entroping/bridge/traffic_*",
+            "tests/test_traffic*.py",
+            "tests/test_capture*.py",
+        ),
+    ),
+    (
+        "provider-boundary",
+        (
+            "src/entroping/brain/*",
+            "src/entroping/core/litellm_client.py",
+            "tests/test_litellm_client.py",
+            "tests/test_brain_provider_setup_docs.py",
+            "docs/user/AI_PROVIDER_SETUP.md",
+        ),
+    ),
+    (
+        "proxy-capture",
+        (
+            "src/entroping/eye/*",
+            "tests/test_traffic_proxy.py",
+            "docs/user/EYE*.md",
+        ),
+    ),
+    (
+        "report-evidence",
+        (
+            "src/entroping/core/report_writer.py",
+            "src/entroping/cli/report.py",
+            "src/entroping/reports/*",
+            "tests/test_report*.py",
+            "tests/test_*report*.py",
+        ),
+    ),
+    (
+        "ai-worker",
+        (
+            "scripts/opencode_worker.py",
+            "scripts/deepseek_worker.py",
+            "scripts/ai_jobs.py",
+            "tests/test_opencode_worker.py",
+            "tests/test_deepseek_worker.py",
+            "tests/test_ai_jobs.py",
+        ),
+    ),
+    (
+        "secret-adjacent",
+        (
+            ".github/workflows/*",
+            "SECURITY.md",
+            ".env*",
+            "*.env",
+            "*.pem",
+            "*.key",
+            "*secret*",
+            "*credential*",
+        ),
+    ),
+)
 
 
 def _extract_section(body: str, title: str) -> str | None:
@@ -84,6 +165,34 @@ def _has_closing_keyword(body: str, issue: str | None) -> bool:
     return re.search(r"(?im)\bCloses\s+#\d+\b", body) is not None
 
 
+def _normalize_changed_file(path: str) -> str:
+    return path.strip().lstrip("./").replace("\\", "/")
+
+
+def sensitive_surface_reason(path: str) -> str | None:
+    normalized = _normalize_changed_file(path)
+    if not normalized:
+        return None
+
+    for reason, patterns in SENSITIVE_SURFACE_PATTERNS:
+        if any(fnmatch.fnmatchcase(normalized, pattern) for pattern in patterns):
+            return reason
+    return None
+
+
+def _sensitive_changed_files(changed_files: list[str]) -> list[tuple[str, str]]:
+    sensitive: list[tuple[str, str]] = []
+    for path in changed_files:
+        reason = sensitive_surface_reason(path)
+        if reason is not None:
+            sensitive.append((_normalize_changed_file(path), reason))
+    return sensitive
+
+
+def _has_security_gate_evidence(body: str) -> bool:
+    return SECURITY_GATE_RE.search(body) is not None
+
+
 def _validate_opencode_evidence(body: str, *, issue: str | None) -> list[str]:
     failures: list[str] = []
 
@@ -129,6 +238,7 @@ def validate_body(
     *,
     require_opencode_evidence: bool = False,
     issue: str | None = None,
+    changed_files: list[str] | None = None,
 ) -> list[str]:
     section = _extract_section(body, SECTION_TITLE)
     if section is None:
@@ -147,6 +257,16 @@ def validate_body(
 
     if require_opencode_evidence:
         failures.extend(_validate_opencode_evidence(body, issue=issue))
+
+    sensitive_changed = _sensitive_changed_files(changed_files or [])
+    if sensitive_changed and not _has_security_gate_evidence(body):
+        details = ", ".join(f"{path} ({reason})" for path, reason in sensitive_changed)
+        failures.append(
+            "Sensitive surface changes require documented security gate evidence: "
+            "check `scripts/feature_gate.sh --security` or list "
+            "`scripts/regression.sh --security` in Commands run. "
+            f"Sensitive files: {details}.",
+        )
 
     return failures
 
@@ -176,6 +296,15 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
+        "--changed-file",
+        action="append",
+        default=[],
+        help=(
+            "Repo-relative changed file path. Repeat to require security-gate "
+            "evidence when sensitive surfaces are touched."
+        ),
+    )
+    parser.add_argument(
         "event_path",
         nargs="?",
         default=os.environ.get("GITHUB_EVENT_PATH"),
@@ -192,6 +321,7 @@ def main(argv: list[str] | None = None) -> int:
             body,
             require_opencode_evidence=args.require_opencode_evidence,
             issue=args.issue,
+            changed_files=args.changed_file,
         )
         if failures:
             print("PR documentation impact declaration failed:", file=sys.stderr)
@@ -217,6 +347,7 @@ def main(argv: list[str] | None = None) -> int:
         body,
         require_opencode_evidence=args.require_opencode_evidence,
         issue=args.issue,
+        changed_files=args.changed_file,
     )
     if failures:
         print("PR documentation impact declaration failed:", file=sys.stderr)

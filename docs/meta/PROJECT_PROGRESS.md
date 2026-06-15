@@ -24,7 +24,7 @@ This is the daily dashboard. GitHub Issues track individual tasks; this note kee
 ## Current Target
 
 **Goal:** finish the v0.4 integration path without reopening completed onboarding/product-depth work; stable-core readiness stays tied to external evidence.
-Current local queue: software-factory hardening issues #732-#738 cover quality, security, context preservation, and token efficiency.
+Current local queue: software-factory hardening issues #733-#738 cover security, quality, context preservation, and token efficiency.
 
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 Current deterministic loop (`entroping run` remains deterministic, Hurl-backed, QAnstitution-governed, and provider-free):
@@ -39,8 +39,8 @@ With #517-#523 and #548 closed, keep local work limited to review-proven defects
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | #732 | Add context-pack manifests and byte budgets so agents can plan work before loading full context. |
-| 2 | #733-#735 | Enforce sensitive-surface, direct-provider, and AI-artifact hygiene gates. |
+| 1 | #733 | Enforce sensitive-surface PR preflight evidence for security-sensitive paths. |
+| 2 | #734-#735 | Enforce direct-provider and AI-artifact hygiene gates. |
 | 3 | #736-#738 | Add quality trend evidence, cheap-model defaults, and docs-prune candidates from inventory. |
 
 ## External Stable-Core Blockers
@@ -55,7 +55,7 @@ Stable-core readiness remains blocked by evidence that cannot be manufactured en
 ## Latest Evidence
 | Evidence | Status | Anchor |
 | --- | --- | --- |
-| [Context-pack manifest and budget guard](https://github.com/sakibshuvo/Entroping/issues/732) | Done | `scripts/context_pack.sh --manifest` is the measured planning surface for worker context selection, and `--strict-budget` prevents silent context growth when a mode exceeds its explicit byte budget. |
+| [Context-pack manifest](https://github.com/sakibshuvo/Entroping/issues/732) / [Sensitive-surface PR preflight](https://github.com/sakibshuvo/Entroping/issues/733) | Done | Context packs now have content-free manifests and strict byte budgets; PR body checks classify sensitive changed paths and require documented security-gate evidence. |
 | [Security hardening: traffic body syntax](https://github.com/sakibshuvo/Entroping/issues/671) / [Architect provider routing](https://github.com/sakibshuvo/Entroping/issues/672) | Done | Traffic-to-Hurl freeze generation treats captured request bodies that look like Hurl structure or Entroping metadata as inert Hurl body data; Architect `api_base` now stays loopback-only at config load and LiteLLM invocation time, with `api_key_env` revalidated before provider-key lookup. |
 | [Factory model-comparison report](https://github.com/sakibshuvo/Entroping/issues/707) / [#722](https://github.com/sakibshuvo/Entroping/issues/722) | Done | `scripts/factory_metrics.py report` now includes additive `model_comparison` rows by issue, role, provider lane, and model id, with known and unknown metric counts for token, cost, duration, and other workflow evidence; finished issue archive paths also supply the default issue for archived events that omit one without overwriting explicit event issue values. |
 | [OpenCode-only week monitoring prompt](https://github.com/sakibshuvo/Entroping/issues/708) | Done | `docs/meta/prompt-library/opencode-week-monitoring.md` gives OpenCode/DeepSeek workers a read-only monitor for open PRs, CI rollups, ready issues, merged PRs needing `finish_issue.sh`, factory metrics status, blockers, and safe next actions without mutating repo or GitHub state. |

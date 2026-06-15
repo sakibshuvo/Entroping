@@ -90,6 +90,10 @@ project, and a Codex workspace with fast context rehydration.
   `scripts/context_pack.sh --manifest` reports selected files, reasons, byte
   counts, estimated tokens, and mode budgets before a worker loads the full
   pack, while `--strict-budget` blocks silent context growth in measured lanes.
+- PR evidence now has a sensitive-surface preflight:
+  `scripts/pr_body_check.py --changed-file` requires security-gate evidence
+  when runner, redaction, provider, proxy, report-evidence, worker, or
+  secret-adjacent files change, and CI feeds PR changed files into that check.
 - Reusable human-to-agent prompts now live under
   `docs/meta/prompt-library/`; the agent control plane owns durable policy,
   while the prompt library owns copy-paste launchers for fresh Codex sessions,

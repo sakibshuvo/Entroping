@@ -2,6 +2,11 @@
 
 ## 2026-06-15
 
+- Sensitive-surface merge evidence should be deterministic and path-based.
+  Pass changed files into `scripts/pr_body_check.py --changed-file` and require
+  `scripts/feature_gate.sh --security` or `scripts/regression.sh --security`
+  evidence before merge for runner, redaction, provider, proxy,
+  report-evidence, worker, or secret-adjacent changes.
 - Context cost controls need a content-free planning surface. Use
   `scripts/context_pack.sh --manifest` before loading full packs into worker
   prompts, and use `--strict-budget` when a workflow should fail on silent

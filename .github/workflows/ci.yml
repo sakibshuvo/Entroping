@@ -35,7 +35,14 @@ jobs:
 
       - name: Validate PR documentation impact declaration
         if: github.event_name == 'pull_request'
-        run: scripts/pr_body_check.py "$GITHUB_EVENT_PATH"
+        shell: bash
+        run: |
+          git fetch --no-tags --depth=1 origin "$GITHUB_BASE_REF:refs/remotes/origin/$GITHUB_BASE_REF"
+          changed_args=()
+          while IFS= read -r path; do
+            changed_args+=(--changed-file "$path")
+          done < <(git diff --name-only "origin/$GITHUB_BASE_REF...HEAD")
+          scripts/pr_body_check.py "$GITHUB_EVENT_PATH" "${changed_args[@]}"
 
       - name: Run regression suite
         run: scripts/regression.sh --security

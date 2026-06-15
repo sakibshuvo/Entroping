@@ -2,6 +2,11 @@
 
 ## 2026-06-15
 
+- Added issue #733's sensitive-surface PR preflight:
+  `scripts/pr_body_check.py --changed-file` now classifies runner, redaction,
+  provider, proxy, report-evidence, worker, and secret-adjacent paths and
+  requires checked or command-listed security-gate evidence when those surfaces
+  change; CI passes PR changed files into the checker.
 - Added issue #732's context-pack manifest and budget guard:
   `scripts/context_pack.sh --manifest` now emits a content-free JSON inventory
   with selected files, selection reasons, byte counts, estimated tokens, and
