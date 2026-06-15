@@ -320,6 +320,12 @@ loaders keep treating missing or malformed values from older local reports as
 `0`. Timeout failures use status `timeout`, exit code `124`, and distinct JUnit
 failure type `entroping.hurl.timeout`.
 
+Run report summary scheduling fields (`selected`, `executed`,
+`not_scheduled`, and `fail_fast`) are optional evidence across JSON, JUnit, and
+HTML. Writers emit them only when fail-fast stopped scheduling or selected tests
+were otherwise not scheduled; normal full runs omit the suite-level scheduling
+block while still recording ordinary totals.
+
 `entroping.run-report.v1` includes optional per-test `operation_id` evidence
 when the source Hurl file has safe `# entroping: operation_id=<id>` metadata.
 Writers include it in JSON, JUnit properties, and HTML output; loaders ignore

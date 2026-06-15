@@ -152,13 +152,28 @@ class RunReportSummary:
     def selected_count(self) -> int:
         """Return selected tests, defaulting to executed total for old reports."""
 
-        return self.total if self.selected is None else self.selected
+        total = _non_negative_count(self.total)
+        return total if self.selected is None else _non_negative_count(self.selected, default=total)
 
     @property
     def executed_count(self) -> int:
         """Return executed tests, defaulting to total for old reports."""
 
-        return self.total if self.executed is None else self.executed
+        total = _non_negative_count(self.total)
+        return total if self.executed is None else _non_negative_count(self.executed, default=total)
+
+    @property
+    def not_scheduled_count(self) -> int:
+        """Return selected tests that did not produce a report row."""
+
+        selected_gap = max(0, self.selected_count - self.executed_count)
+        return max(_non_negative_count(self.not_scheduled), selected_gap)
+
+    @property
+    def has_scheduling_evidence(self) -> bool:
+        """Return whether suite scheduling fields add evidence beyond totals."""
+
+        return self.fail_fast or self.not_scheduled_count > 0
 
 
 @dataclass(frozen=True)
@@ -170,3 +185,9 @@ class RunReport:
     generated_at: str
     summary: RunReportSummary
     tests: tuple[RunTestReport, ...]
+
+
+def _non_negative_count(value: object, *, default: int = 0) -> int:
+    if type(value) is int and value >= 0:
+        return value
+    return default
