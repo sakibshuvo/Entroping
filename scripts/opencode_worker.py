@@ -8,6 +8,7 @@ import json
 import shutil
 import subprocess  # nosec B404
 import sys
+import tempfile
 import time
 import uuid
 from dataclasses import dataclass
@@ -275,17 +276,13 @@ def _parse_args() -> WorkerConfig:
         raise WorkerInputError(msg)
 
     opencode_bin = _resolve_opencode_bin(args.opencode_bin, required=not args.dry_run)
-    artifact_root = args.artifact_root
-    if not artifact_root.is_absolute():
-        artifact_root = repo_root / artifact_root
-
     mode: Mode = args.mode
     return WorkerConfig(
         mode=mode,
         model=args.model,
         repo_root=repo_root,
         files=files,
-        artifact_root=artifact_root.expanduser().resolve(),
+        artifact_root=_resolve_artifact_root(repo_root, args.artifact_root),
         opencode_bin=opencode_bin,
         timeout_seconds=args.timeout_seconds,
         max_file_bytes=max_file_bytes,
@@ -314,6 +311,46 @@ def _repo_root() -> Path:
     return Path(completed.stdout.strip()).resolve()
 
 
+def _resolve_artifact_root(repo_root: Path, raw_root: Path) -> Path:
+    artifact_root = raw_root.expanduser()
+    relative_root = not artifact_root.is_absolute()
+    if relative_root:
+        artifact_root = repo_root / artifact_root
+    if _has_symlink_component(artifact_root):
+        msg = "artifact root must not use symlink components"
+        raise WorkerInputError(msg)
+    resolved = artifact_root.resolve()
+    if relative_root:
+        try:
+            resolved.relative_to(repo_root)
+        except ValueError as exc:
+            msg = "artifact root must stay inside repository"
+            raise WorkerInputError(msg) from exc
+    elif not (
+        _path_is_relative_to(resolved, repo_root)
+        or _path_is_relative_to(resolved, _system_temp_root())
+    ):
+        msg = "artifact root must stay inside repository or system temp directory"
+        raise WorkerInputError(msg)
+    return resolved
+
+
+def _path_is_relative_to(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+    except ValueError:
+        return False
+    return True
+
+
+def _system_temp_root() -> Path:
+    return Path(tempfile.gettempdir()).resolve()
+
+
+def _has_symlink_component(path: Path) -> bool:
+    return any(candidate.is_symlink() for candidate in (path, *path.parents))
+
+
 def _validate_files(
     repo_root: Path,
     raw_files: tuple[Path, ...],
@@ -325,7 +362,7 @@ def _validate_files(
         path = raw_file.expanduser()
         if not path.is_absolute():
             path = repo_root / path
-        if path.is_symlink():
+        if _has_symlink_component(path):
             msg = f"input path must be a regular non-symlink file: {raw_file}"
             raise WorkerInputError(msg)
         resolved = path.resolve()
