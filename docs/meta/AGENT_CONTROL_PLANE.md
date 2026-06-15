@@ -124,10 +124,11 @@ evidence. This is maintainer-only local development tooling
 for cheap worker output; it
 does not replace Entroping's LiteLLM product boundary, and it must not be called
 by `entroping run`.
-Direct DeepSeek workers default to
-`--thinking disabled` to avoid empty hidden-reasoning output and token burn for
-short reviews; opt into `--thinking enabled --reasoning-effort high|max` only
-for deliberate deep-review jobs. The generated prompt includes a Factory
+Direct DeepSeek workers, including queued `scripts/ai_jobs.py run-next`
+invocations, default to `--thinking disabled` to avoid empty hidden-reasoning
+output and token burn for short reviews; opt into
+`--thinking enabled --reasoning-effort high|max` only for deliberate deep-review
+jobs. The generated prompt includes a Factory
 Capability Context section defined in `scripts/deepseek_worker.py` that tells
 direct DeepSeek API workers they have no live MCP, shell, filesystem, GitHub,
 Codex skill, Spark, Kimi, or MCP execution unless that evidence is explicitly

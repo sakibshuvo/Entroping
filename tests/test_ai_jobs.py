@@ -198,6 +198,9 @@ def test_ai_jobs_run_next_help_documents_factory_metrics_options() -> None:
     assert "--record-factory-metrics" in result.stdout
     assert "--factory-role" in result.stdout
     assert "--factory-metrics-ledger" in result.stdout
+    assert "--deepseek-thinking {enabled,disabled}" in result.stdout
+    assert "Default:" in result.stdout
+    assert "disabled; use enabled only for deliberate deep-review" in result.stdout
 
 
 def test_ai_jobs_submit_tier_a_defaults_to_cheap_opencode_context_contract(
@@ -1022,6 +1025,57 @@ def test_ai_jobs_run_next_prefers_worker_instruction_context_contract(
     assert captured_command[instruction_index] == job["worker_instruction"]
 
 
+def test_ai_jobs_deepseek_worker_command_omits_reasoning_effort_by_default(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ai_jobs = load_ai_jobs_module()
+    captured_command: list[str] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        captured_command[:] = command
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout=json.dumps(
+                {
+                    "status": "dry-run",
+                    "returncode": 0,
+                    "artifact_dir": str(tmp_path / "artifact"),
+                }
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr(ai_jobs.subprocess, "run", fake_run)
+    args = SimpleNamespace(
+        artifact_root=tmp_path / "ai-reviews",
+        deepseek_base_url="https://api.deepseek.com",
+        deepseek_api_key_env="DEEPSEEK_API_KEY",
+        deepseek_thinking="disabled",
+        deepseek_reasoning_effort="high",
+        worker_dry_run=True,
+        record_factory_metrics=False,
+        factory_role=None,
+        factory_metrics_ledger=None,
+    )
+    job = {
+        "engine": "deepseek-api",
+        "mode": "review",
+        "model": "deepseek-v4-pro",
+        "files": ["README.md"],
+        "timeout_seconds": 1,
+    }
+
+    payload, returncode = ai_jobs._run_deepseek_worker(args, REPO_ROOT, job)
+
+    assert returncode == 0
+    assert payload["status"] == "dry-run"
+    thinking_index = captured_command.index("--thinking") + 1
+    assert captured_command[thinking_index] == "disabled"
+    assert "--reasoning-effort" not in captured_command
+
+
 def test_ai_jobs_run_next_preserves_deepseek_usage_for_budget_review(
     tmp_path: Path,
 ) -> None:
@@ -1081,6 +1135,10 @@ def test_ai_jobs_run_next_preserves_deepseek_usage_for_budget_review(
 
     assert payload["usage"] == expected_usage
     assert job["usage"] == expected_usage
+    request = DeepSeekQueueStubHandler.requests[0]
+    body = cast(dict[str, object], request["body"])
+    assert body["thinking"] == {"type": "disabled"}
+    assert "reasoning_effort" not in body
     assert collect_payload["completed_jobs"][0]["usage"] == expected_usage
     assert collect_payload["summary"]["by_engine"] == {"deepseek-api": 1}
     assert collect_payload["summary"]["by_profile"] == {"pro": 1}
@@ -1099,6 +1157,62 @@ def test_ai_jobs_run_next_preserves_deepseek_usage_for_budget_review(
     assert "Concrete finding" not in collect.stdout
     assert "test-secret-token" not in result.stdout
     assert "test-secret-token" not in collect.stdout
+
+
+def test_ai_jobs_run_next_deepseek_thinking_enabled_is_explicit_opt_in(
+    tmp_path: Path,
+) -> None:
+    job_root = tmp_path / "ai-jobs"
+    artifact_root = tmp_path / "ai-reviews"
+    DeepSeekQueueStubHandler.requests = []
+    server = HTTPServer(("127.0.0.1", 0), DeepSeekQueueStubHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base_url = f"http://127.0.0.1:{server.server_port}"
+
+    submit = run_ai_jobs(
+        "submit",
+        "--mode",
+        "review",
+        "--engine",
+        "deepseek-api",
+        "--profile",
+        "pro",
+        "--file",
+        "README.md",
+        "--job-root",
+        str(job_root),
+        "--json",
+    )
+    assert submit.returncode == 0, submit.stderr
+
+    try:
+        result = run_ai_jobs(
+            "run-next",
+            "--job-root",
+            str(job_root),
+            "--artifact-root",
+            str(artifact_root),
+            "--deepseek-base-url",
+            base_url,
+            "--deepseek-api-key-env",
+            "ENTROPING_TEST_DEEPSEEK_KEY",
+            "--deepseek-thinking",
+            "enabled",
+            "--deepseek-reasoning-effort",
+            "max",
+            "--json",
+            env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
+        )
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+    assert result.returncode == 0, result.stderr
+    request = DeepSeekQueueStubHandler.requests[0]
+    body = cast(dict[str, object], request["body"])
+    assert body["thinking"] == {"type": "enabled"}
+    assert body["reasoning_effort"] == "max"
 
 
 def test_ai_jobs_run_next_concurrent_invocations_process_distinct_jobs_once(tmp_path: Path) -> None:

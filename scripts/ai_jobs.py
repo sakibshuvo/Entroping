@@ -139,8 +139,11 @@ def _parse_args() -> argparse.Namespace:
     run_next.add_argument(
         "--deepseek-thinking",
         choices=("enabled", "disabled"),
-        default="enabled",
-        help="Direct DeepSeek thinking mode toggle.",
+        default="disabled",
+        help=(
+            "Direct DeepSeek thinking mode toggle. Default: disabled; use enabled "
+            "only for deliberate deep-review jobs."
+        ),
     )
     run_next.add_argument(
         "--deepseek-reasoning-effort",
@@ -839,10 +842,10 @@ def _run_deepseek_worker(
         str(args.deepseek_api_key_env),
         "--thinking",
         str(args.deepseek_thinking),
-        "--reasoning-effort",
-        str(args.deepseek_reasoning_effort),
         "--json",
     ]
+    if args.deepseek_thinking == "enabled":
+        command.extend(["--reasoning-effort", str(args.deepseek_reasoning_effort)])
     for scoped_file in _string_list(job.get("files")):
         command.extend(["--file", scoped_file])
     if job.get("issue") is not None:
