@@ -81,6 +81,11 @@ project, and a Codex workspace with fast context rehydration.
   Understand Anything, and any future context tool against the repo-native
   baseline before a tool becomes active workflow dependency; retired generated
   context tools have been removed from active workflow surfaces.
+- Documentation diet now has an executable inventory:
+  `scripts/docs_inventory.py --strict` classifies tracked Markdown as
+  active/reference/archive, keeps default agent Markdown context under budget,
+  and lets agents prune context packs without creating another Markdown
+  tracker.
 - Reusable human-to-agent prompts now live under
   `docs/meta/prompt-library/`; the agent control plane owns durable policy,
   while the prompt library owns copy-paste launchers for fresh Codex sessions,

@@ -119,8 +119,6 @@ add_file() {
 
 add_base_files() {
   add_file "AGENTS.md"
-  add_file "README.md"
-  add_file "docs/meta/VAULT_INDEX.md"
   add_file "docs/meta/DECISION_REGISTRY.yaml"
   add_file ".context/plan.md"
   add_file "docs/meta/PROJECT_PROGRESS.md"
@@ -146,6 +144,7 @@ case "$mode" in
     add_file ".github/pull_request_template.md"
     ;;
   source)
+    add_file "docs/meta/VAULT_INDEX.md"
     add_file "sources/SOURCE_MAP.md"
     add_file "docs/meta/KNOWLEDGE_BASE_WORKFLOW.md"
     add_file "docs/meta/OBSIDIAN_CONTEXT_ENGINE_GUIDE.md"
@@ -154,6 +153,7 @@ case "$mode" in
     add_file "docs/evolution/CREATOR_INTENT_AUDIT.md"
     ;;
   growth)
+    add_file "README.md"
     add_file "docs/product/PRODUCT_SPEC.md"
     add_file "docs/product/MARKETING_NOTE.md"
     add_file "docs/product/GROWTH_AND_MONETIZATION.md"
@@ -162,6 +162,8 @@ case "$mode" in
     add_file "SECURITY.md"
     ;;
   handoff)
+    add_file "docs/meta/VAULT_INDEX.md"
+    add_file "docs/meta/FEATURE_DELIVERY_CHECKLIST.md"
     add_file ".context/changelog.md"
     add_file ".context/lessons-learned.md"
     add_file "docs/meta/CONTEXT_MANAGEMENT.md"

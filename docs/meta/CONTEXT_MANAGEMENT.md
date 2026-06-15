@@ -40,6 +40,12 @@ crediting a tool or model with guessed savings.
 
 Do not read the entire vault for every task. Obsidian preserves context by making the graph navigable; Codex preserves context by reading the smallest source set that can govern the current change.
 
+Use `scripts/docs_inventory.py --format json --strict` to audit the tracked
+Markdown set when a review says there is too much documentation. The strict
+inventory keeps the default agent Markdown context at or below its budget,
+flags duplicate active titles, and confirms generated/wiki context has not
+become active workflow by accident.
+
 ### Always Read
 
 1. `AGENTS.md` - implementation rules for Codex.
@@ -62,6 +68,7 @@ Do not read the entire vault for every task. Obsidian preserves context by makin
 - `docs/meta/VAULT_INDEX.md` - Obsidian vault map.
 - `.context/changelog.md` - recent work.
 - `.context/lessons-learned.md` - durable pitfalls and decisions.
+- `docs/meta/FEATURE_DELIVERY_CHECKLIST.md` - review and merge checklist.
 - `docs/meta/DECISION_REGISTRY.yaml` - accepted decisions, supersession state, and source pointers.
 - `docs/meta/ISSUE_TRACKING.md` - GitHub issue tracking rules.
 
@@ -81,9 +88,10 @@ Use this when starting a fresh thread:
 
 ```text
 Work in <repo-root>.
-Read AGENTS.md, README.md, docs/meta/VAULT_INDEX.md, .context/plan.md, docs/product/MVP_PLAN.md, docs/technical/TDS.md, and docs/meta/PROJECT_PROGRESS.md first.
+Read AGENTS.md, docs/meta/PROJECT_PROGRESS.md, .context/plan.md, docs/meta/FEATURE_DELIVERY_CHECKLIST.md, and docs/meta/DECISION_REGISTRY.yaml first.
 Preserve the locked v4.1 command surface and implement only the next narrow milestone.
-Follow docs/meta/archive/AUTONOMOUS_DEVELOPMENT.md, docs/meta/FEATURE_DELIVERY_CHECKLIST.md, docs/meta/ISSUE_TRACKING.md, and docs/meta/TEST_STRATEGY.md for the Codex-first workflow, TDD expectations, regression gates, multi-agent guardrails, issue tracking, and context updates.
+Use README.md and docs/meta/VAULT_INDEX.md as reference/navigation only when the issue needs public positioning or vault history.
+Follow docs/meta/archive/AUTONOMOUS_DEVELOPMENT.md, docs/meta/ISSUE_TRACKING.md, and docs/meta/TEST_STRATEGY.md for the Codex-first workflow, TDD expectations, regression gates, multi-agent guardrails, issue tracking, and context updates.
 ```
 
 ## Agent Context Packs
@@ -102,6 +110,10 @@ scripts/context_pack.sh --mode handoff
 Use `implementation` for coding, `review` for critique, `source` for
 Gemini/NotebookLM reconciliation, `growth` for launch and monetization work, and
 `handoff` when a new Codex thread needs fast continuity.
+`implementation` mode intentionally omits `README.md` and
+`docs/meta/VAULT_INDEX.md`; use `growth`, `source`, or `handoff` mode when
+public positioning, vault navigation, or product-history context is the named
+issue question.
 
 `source` mode defaults to a sibling `../entroping-specs` archive. Override it
 when the source archive lives elsewhere:

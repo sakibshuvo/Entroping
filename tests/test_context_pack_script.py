@@ -60,6 +60,26 @@ def test_context_pack_implementation_mode_includes_required_sources() -> None:
     assert "agent-context-out/" not in result.stdout
 
 
+def test_context_pack_implementation_mode_prunes_reference_navigation_docs() -> None:
+    result = run_context_pack("--mode", "implementation")
+
+    assert result.returncode == 0, result.stderr
+    assert "### README.md" not in result.stdout
+    assert "### docs/meta/VAULT_INDEX.md" not in result.stdout
+    assert "### docs/meta/DECISION_REGISTRY.yaml" in result.stdout
+    assert "### docs/meta/PROJECT_PROGRESS.md" in result.stdout
+    assert "### .context/plan.md" in result.stdout
+
+
+def test_context_pack_handoff_mode_includes_review_checklist() -> None:
+    result = run_context_pack("--mode", "handoff")
+
+    assert result.returncode == 0, result.stderr
+    assert "### docs/meta/VAULT_INDEX.md" in result.stdout
+    assert "### docs/meta/FEATURE_DELIVERY_CHECKLIST.md" in result.stdout
+    assert "### .context/changelog.md" in result.stdout
+
+
 def test_context_pack_rejects_removed_graph_assisted_probe_option() -> None:
     result = run_context_pack("--with-local-graphs")
 
