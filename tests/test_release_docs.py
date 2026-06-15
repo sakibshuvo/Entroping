@@ -104,8 +104,9 @@ def test_project_progress_stays_a_short_daily_dashboard() -> None:
     assert "after #491 closes" not in progress
     assert "after #501" not in progress
     assert "Current local queue: #517-#523" not in progress
-    assert "Current local queue: only review-proven local gaps should be worked" in progress
-    assert "| 1 | #303-#306 | Package-index proof" in progress
+    assert "software-factory hardening issues #732-#738" in progress
+    assert "| 1 | #732 | Add context-pack manifests" in progress
+    assert "| 2 | #733-#735 | Enforce sensitive-surface" in progress
     assert "stable-core compatibility decision" in progress
     assert "Compatibility discipline" not in progress
     assert "Policy-diff CI failure mode" in progress

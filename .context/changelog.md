@@ -2,6 +2,11 @@
 
 ## 2026-06-15
 
+- Added issue #732's context-pack manifest and budget guard:
+  `scripts/context_pack.sh --manifest` now emits a content-free JSON inventory
+  with selected files, selection reasons, byte counts, estimated tokens, and
+  mode budget status, while `--strict-budget` fails context packs that exceed
+  their explicit byte budget.
 - Added issue #730's documentation diet guard: `scripts/docs_inventory.py`
   now inventories tracked Markdown by active/reference/archive tier, owner,
   audience, canonical/default-agent status, and stale-risk hints; documentation

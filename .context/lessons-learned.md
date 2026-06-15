@@ -2,6 +2,10 @@
 
 ## 2026-06-15
 
+- Context cost controls need a content-free planning surface. Use
+  `scripts/context_pack.sh --manifest` before loading full packs into worker
+  prompts, and use `--strict-budget` when a workflow should fail on silent
+  context growth instead of absorbing extra token cost.
 - Documentation diet needs an executable inventory, not another tracker.
   `scripts/docs_inventory.py --strict` keeps default agent Markdown context
   budgeted and classifies the full tracked Markdown set so review complaints

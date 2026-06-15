@@ -86,6 +86,10 @@ project, and a Codex workspace with fast context rehydration.
   active/reference/archive, keeps default agent Markdown context under budget,
   and lets agents prune context packs without creating another Markdown
   tracker.
+- Agent context packs now have a content-free planning surface:
+  `scripts/context_pack.sh --manifest` reports selected files, reasons, byte
+  counts, estimated tokens, and mode budgets before a worker loads the full
+  pack, while `--strict-budget` blocks silent context growth in measured lanes.
 - Reusable human-to-agent prompts now live under
   `docs/meta/prompt-library/`; the agent control plane owns durable policy,
   while the prompt library owns copy-paste launchers for fresh Codex sessions,
