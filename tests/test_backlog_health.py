@@ -1,19 +1,37 @@
 """Backlog health guard for issue marathons."""
 
+import importlib.util
 import json
+import os
 import subprocess
 from pathlib import Path
+from typing import Any, NoReturn
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "backlog_health.py"
 
 
-def run_backlog_health(*args: str) -> subprocess.CompletedProcess[str]:
+def load_backlog_health_module() -> Any:
+    spec = importlib.util.spec_from_file_location("backlog_health", SCRIPT)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def run_backlog_health(
+    *args: str,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["python", str(SCRIPT), *args],
         check=False,
         cwd=REPO_ROOT,
         capture_output=True,
+        env=env,
         text=True,
     )
 
@@ -33,6 +51,13 @@ def test_backlog_health_accepts_well_labeled_issue_fixture(tmp_path: Path) -> No
                         {"name": "status:in-progress"},
                     ],
                     "milestone": {"title": "v0.4.0-alpha integrations"},
+                },
+                {
+                    "number": 281,
+                    "title": "factory: string label compatibility fixture",
+                    "url": "https://github.com/sakibshuvo/Entroping/issues/281",
+                    "labels": ["type:bug", "priority:p3", "status:blocked"],
+                    "milestone": {"title": "v0.4.0-alpha integrations"},
                 }
             ]
         ),
@@ -43,7 +68,7 @@ def test_backlog_health_accepts_well_labeled_issue_fixture(tmp_path: Path) -> No
 
     assert result.returncode == 0, result.stderr
     assert "Backlog health OK" in result.stdout
-    assert "issues checked: 1" in result.stdout
+    assert "issues checked: 2" in result.stdout
 
 
 def test_backlog_health_rejects_untriaged_issue_fixture(tmp_path: Path) -> None:
@@ -70,6 +95,131 @@ def test_backlog_health_rejects_untriaged_issue_fixture(tmp_path: Path) -> None:
     assert "#280: missing status:* label" in result.stderr
     assert "#280: missing priority:* label" in result.stderr
     assert "#280: missing milestone" in result.stderr
+
+
+def test_backlog_health_reports_malformed_input_without_traceback(tmp_path: Path) -> None:
+    fixture = tmp_path / "issues.json"
+    fixture.write_text("{not json", encoding="utf-8")
+
+    result = run_backlog_health("--input", str(fixture))
+
+    assert result.returncode == 1
+    assert "Backlog health check failed:" in result.stderr
+    assert "invalid issue JSON" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_backlog_health_reports_non_utf8_input_without_traceback(tmp_path: Path) -> None:
+    fixture = tmp_path / "issues.json"
+    fixture.write_bytes(b"\xff\xfe")
+
+    result = run_backlog_health("--input", str(fixture))
+
+    assert result.returncode == 1
+    assert "Backlog health check failed:" in result.stderr
+    assert "issue JSON file is not valid UTF-8" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected"),
+    (
+        ({"issues": []}, "issue payload must be a list"),
+        (["not an issue object"], "issue payload item 0 must be an object"),
+    ),
+)
+def test_backlog_health_reports_invalid_issue_payload_shape_without_traceback(
+    tmp_path: Path,
+    payload: object,
+    expected: str,
+) -> None:
+    fixture = tmp_path / "issues.json"
+    fixture.write_text(json.dumps(payload), encoding="utf-8")
+
+    result = run_backlog_health("--input", str(fixture))
+
+    assert result.returncode == 1
+    assert "Backlog health check failed:" in result.stderr
+    assert expected in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_backlog_health_reports_malformed_github_cli_json_without_traceback(
+    tmp_path: Path,
+) -> None:
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    fake_gh = bin_dir / "gh"
+    fake_gh.write_text("#!/bin/sh\nprintf '{not json'\n", encoding="utf-8")
+    fake_gh.chmod(0o755)
+    env = os.environ.copy()
+    env["PATH"] = f"{bin_dir}{os.pathsep}{env['PATH']}"
+
+    result = run_backlog_health("--repo", "sakibshuvo/Entroping", env=env)
+
+    assert result.returncode == 1
+    assert "Backlog health check failed:" in result.stderr
+    assert "gh issue list returned invalid JSON" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_backlog_health_reports_github_cli_failure_without_traceback(
+    tmp_path: Path,
+) -> None:
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    fake_gh = bin_dir / "gh"
+    fake_gh.write_text("#!/bin/sh\necho 'auth failed' >&2\nexit 1\n", encoding="utf-8")
+    fake_gh.chmod(0o755)
+    env = os.environ.copy()
+    env["PATH"] = f"{bin_dir}{os.pathsep}{env['PATH']}"
+
+    result = run_backlog_health("--repo", "sakibshuvo/Entroping", env=env)
+
+    assert result.returncode == 1
+    assert "Backlog health check failed:" in result.stderr
+    assert "gh issue list failed: auth failed" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_backlog_health_reports_nonpositive_limit_without_traceback() -> None:
+    result = run_backlog_health("--limit", "0")
+
+    assert result.returncode == 1
+    assert "Backlog health check failed:" in result.stderr
+    assert "--limit must be greater than zero" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_backlog_health_converts_github_cli_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_backlog_health_module()
+
+    def raise_timeout(*_args: object, **_kwargs: object) -> NoReturn:
+        raise subprocess.TimeoutExpired(cmd=["gh", "issue", "list"], timeout=30)
+
+    monkeypatch.setattr(module.subprocess, "run", raise_timeout)
+
+    with pytest.raises(ValueError, match="gh issue list timed out after 30 seconds"):
+        module._load_issues_from_gh(repo="sakibshuvo/Entroping", limit=200)
+
+
+def test_backlog_health_decodes_github_cli_output_as_utf8(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_backlog_health_module()
+    captured_kwargs: dict[str, object] = {}
+
+    def complete(
+        args: list[str],
+        **kwargs: object,
+    ) -> subprocess.CompletedProcess[str]:
+        captured_kwargs.update(kwargs)
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout="[]", stderr="")
+
+    monkeypatch.setattr(module.subprocess, "run", complete)
+
+    assert module._load_issues_from_gh(repo="sakibshuvo/Entroping", limit=200) == []
+    assert captured_kwargs.get("encoding") == "utf-8"
 
 
 def test_backlog_health_help_documents_github_cli_mode() -> None:

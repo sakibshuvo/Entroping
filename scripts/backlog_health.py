@@ -30,7 +30,7 @@ def main() -> int:
     try:
         issues = _load_issues(args.input, repo=args.repo, limit=args.limit)
     except ValueError as exc:
-        print(f"Backlog health failed: {exc}", file=sys.stderr)
+        print(f"Backlog health check failed: {exc}", file=sys.stderr)
         return 1
 
     failures = _health_failures(issues)
@@ -47,7 +47,16 @@ def main() -> int:
 
 def _load_issues(input_path: Path | None, *, repo: str, limit: int) -> list[dict[str, Any]]:
     if input_path is not None:
-        payload = json.loads(input_path.read_text(encoding="utf-8"))
+        try:
+            issue_json = input_path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            raise ValueError(f"issue JSON file is not valid UTF-8: {input_path}") from exc
+        except OSError as exc:
+            raise ValueError(f"could not read issue JSON file {input_path}: {exc}") from exc
+        try:
+            payload = json.loads(issue_json)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"invalid issue JSON in {input_path}: {exc.msg}") from exc
     else:
         payload = _load_issues_from_gh(repo=repo, limit=limit)
     if not isinstance(payload, list):
@@ -76,16 +85,27 @@ def _load_issues_from_gh(*, repo: str, limit: int) -> object:
         "--json",
         "number,title,url,labels,milestone",
     ]
-    completed = subprocess.run(  # nosec B603
-        command,
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
+    try:
+        completed = subprocess.run(  # nosec B603
+            command,
+            check=False,
+            capture_output=True,
+            encoding="utf-8",
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise ValueError(f"gh issue list timed out after {exc.timeout:g} seconds") from exc
+    except UnicodeDecodeError as exc:
+        raise ValueError("gh issue list returned output that was not valid text") from exc
+    except OSError as exc:
+        raise ValueError(f"could not run gh issue list: {exc}") from exc
     if completed.returncode != 0:
-        raise ValueError(completed.stderr.strip() or "gh issue list failed")
-    return json.loads(completed.stdout)
+        details = completed.stderr.strip() or completed.stdout.strip() or "unknown error"
+        raise ValueError(f"gh issue list failed: {details}")
+    try:
+        return json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"gh issue list returned invalid JSON: {exc.msg}") from exc
 
 
 def _health_failures(issues: list[dict[str, Any]]) -> tuple[str, ...]:
