@@ -261,13 +261,7 @@ def render_html_report(report: RunReport) -> str:
 
 
 def _has_summary_scheduling_evidence(report: RunReport) -> bool:
-    summary = report.summary
-    return (
-        summary.selected is not None
-        or summary.executed is not None
-        or summary.not_scheduled > 0
-        or summary.fail_fast
-    )
+    return report.summary.has_scheduling_evidence
 
 
 def _summary_scheduling_properties(report: RunReport) -> tuple[tuple[str, str], ...]:
@@ -275,7 +269,7 @@ def _summary_scheduling_properties(report: RunReport) -> tuple[tuple[str, str], 
     return (
         ("entroping.summary.selected", str(summary.selected_count)),
         ("entroping.summary.executed", str(summary.executed_count)),
-        ("entroping.summary.not_scheduled", str(summary.not_scheduled)),
+        ("entroping.summary.not_scheduled", str(summary.not_scheduled_count)),
         ("entroping.summary.fail_fast", str(summary.fail_fast).lower()),
     )
 
@@ -287,7 +281,7 @@ def _html_scheduling_summary(report: RunReport) -> str:
     return (
         f"    <dt>Selected</dt><dd>{summary.selected_count}</dd>\n"
         f"    <dt>Executed</dt><dd>{summary.executed_count}</dd>\n"
-        f"    <dt>Not scheduled</dt><dd>{summary.not_scheduled}</dd>\n"
+        f"    <dt>Not scheduled</dt><dd>{summary.not_scheduled_count}</dd>\n"
         f"    <dt>Fail fast</dt><dd>{str(summary.fail_fast).lower()}</dd>"
     )
 

@@ -92,12 +92,12 @@ def run_report_to_dict(report: RunReport) -> dict[str, object]:
         "failed": report.summary.failed,
         "exit_code": report.summary.exit_code,
     }
-    if report.summary.fail_fast or report.summary.not_scheduled:
+    if report.summary.has_scheduling_evidence:
         summary.update(
             {
                 "selected": report.summary.selected_count,
                 "executed": report.summary.executed_count,
-                "not_scheduled": report.summary.not_scheduled,
+                "not_scheduled": report.summary.not_scheduled_count,
                 "fail_fast": report.summary.fail_fast,
             }
         )

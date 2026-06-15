@@ -820,6 +820,115 @@ def test_junit_report_includes_suite_scheduling_properties(tmp_path: Path) -> No
     }
 
 
+def test_normal_run_omits_suite_scheduling_evidence_across_report_formats(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "tests" / "health.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
+    report = build_run_report(
+        project="checkout-api",
+        environment="local",
+        execution_copies=[_execution_copy(source, execution)],
+        suite=HurlSuiteResult(
+            results=(
+                HurlFileResult(
+                    path=execution,
+                    command=("/bin/hurl", str(execution)),
+                    status="passed",
+                    exit_code=0,
+                    stdout="HTTP 200\n",
+                    stderr="",
+                    stdout_truncated=False,
+                    stderr_truncated=False,
+                    duration_ms=10,
+                ),
+            ),
+        ),
+        project_root=tmp_path,
+    )
+
+    payload = report_writer.run_report_to_dict(report)
+    assert payload["summary"] == {
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "exit_code": 0,
+    }
+
+    junit_path = tmp_path / "reports" / "junit.xml"
+    write_junit_report(report, junit_path)
+    assert ElementTree.parse(junit_path).getroot().find("properties") is None
+
+    html_path = tmp_path / "reports" / "run-latest.html"
+    write_html_report(report, html_path)
+    html = html_path.read_text(encoding="utf-8")
+    assert "<dt>Selected</dt>" not in html
+    assert "<dt>Executed</dt>" not in html
+    assert "<dt>Not scheduled</dt>" not in html
+    assert "<dt>Fail fast</dt>" not in html
+
+
+def test_selected_executed_gap_derives_scheduling_evidence_across_report_formats(
+    tmp_path: Path,
+) -> None:
+    report = RunReport(
+        project="checkout-api",
+        environment="local",
+        generated_at="2026-06-15T00:00:00+00:00",
+        summary=RunReportSummary(
+            total=1,
+            passed=0,
+            failed=1,
+            exit_code=1,
+            selected=2,
+            executed=1,
+        ),
+        tests=(
+            RunTestReport(
+                path="tests/write.hurl",
+                execution_path=".entroping/run-1/write.hurl",
+                status="blocked",
+                exit_code=1,
+                duration_ms=0,
+                rule_ids=(),
+                stdout="",
+                stderr="Protected run blocked before Hurl execution",
+            ),
+        ),
+    )
+
+    payload = report_writer.run_report_to_dict(report)
+    assert payload["summary"] == {
+        "total": 1,
+        "passed": 0,
+        "failed": 1,
+        "exit_code": 1,
+        "selected": 2,
+        "executed": 1,
+        "not_scheduled": 1,
+        "fail_fast": False,
+    }
+
+    junit_path = tmp_path / "reports" / "junit.xml"
+    write_junit_report(report, junit_path)
+    suite_properties = ElementTree.parse(junit_path).getroot().findall("properties/property")
+    values = {item.attrib["name"]: item.attrib["value"] for item in suite_properties}
+    assert values == {
+        "entroping.summary.selected": "2",
+        "entroping.summary.executed": "1",
+        "entroping.summary.not_scheduled": "1",
+        "entroping.summary.fail_fast": "false",
+    }
+
+    html_path = tmp_path / "reports" / "run-latest.html"
+    write_html_report(report, html_path)
+    html = html_path.read_text(encoding="utf-8")
+    assert "<dt>Selected</dt><dd>2</dd>" in html
+    assert "<dt>Executed</dt><dd>1</dd>" in html
+    assert "<dt>Not scheduled</dt><dd>1</dd>" in html
+    assert "<dt>Fail fast</dt><dd>false</dd>" in html
+
+
 def test_html_report_includes_safety_summary_and_none_fallback(tmp_path: Path) -> None:
     source = tmp_path / "tests" / "checkout.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "checkout.hurl"

@@ -926,7 +926,9 @@ Parallel fail-fast remains bounded by `settings.parallel_workers`: already
 scheduled workers may complete, but Entroping schedules no additional tests
 after the first failure is observed. Latest-run state and requested reports
 include only executed tests and record `selected`, `executed`, `not_scheduled`,
-and `fail_fast` summary evidence.
+and `fail_fast` summary evidence. Normal full runs omit those suite-level
+scheduling fields from JSON, JUnit, and HTML because the ordinary totals already
+describe the run.
 Protected-environment safety preflight runs after Hurl discovery and temporary
 gate injection but before variable preflight and Hurl subprocess execution.
 Environment names listed in `settings.protected_environments` default to
