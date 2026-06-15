@@ -101,6 +101,12 @@ scripts/check.sh
 scripts/audit_quality.sh
 ```
 
+- [ ] When factory metrics were recorded for the issue, check the four-gate scorecard:
+
+```bash
+scripts/factory_metrics.py readiness --issue <issue> --format json
+```
+
 - [ ] Record any skipped check and the concrete reason in the final handoff or PR.
 
 ## 6. Regression And Architecture Review
@@ -155,6 +161,7 @@ No security pass for sensitive boundaries -> no merge.
 No Documentation Impact Declaration -> no PR.
 No context update -> no durable memory.
 No Agent Autonomy Declaration -> no autonomous merge.
+No quality/security/context/token-cost evidence -> no software-factory readiness claim.
 Tier C restricted lane -> no autonomous merge.
 No CI green -> no autonomous merge.
 No parent integrator approval -> no Tier B/Tier C multi-agent patch lands.

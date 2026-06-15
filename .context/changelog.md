@@ -2,6 +2,12 @@
 
 ## 2026-06-15
 
+- Added issue #746's four-gate factory readiness scorecard:
+  `scripts/factory_metrics.py readiness --issue <issue>` now emits
+  schema-versioned JSON or Markdown and returns nonzero unless issue metrics
+  evidence covers quality, security, context preservation, and token/cost
+  efficiency without printing notes, prompts, transcripts, raw traffic, or
+  secrets.
 - Added issue #738's docs-prune candidate report:
   `scripts/docs_inventory.py` now emits non-destructive prune/archive
   candidates for archive/source material, stale reference docs, duplicate
