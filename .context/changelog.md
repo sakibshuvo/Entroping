@@ -2,6 +2,10 @@
 
 ## 2026-06-15
 
+- Added issue #734's direct-provider runtime import guard hardening:
+  the executable architecture guard now rejects direct DeepSeek-style provider
+  SDK imports in `src/entroping` while preserving maintainer-only worker scripts
+  outside product runtime.
 - Added issue #733's sensitive-surface PR preflight:
   `scripts/pr_body_check.py --changed-file` now classifies runner, redaction,
   provider, proxy, report-evidence, worker, and secret-adjacent paths and

@@ -45,12 +45,16 @@ class ImportViolation:
 _DIRECT_PROVIDER_PREFIXES = (
     "anthropic",
     "cohere",
+    "deepseek",
     "genai",
     "google.ai",
     "google.genai",
     "google.generativeai",
+    "moonshot",
     "mistralai",
     "openai",
+    "qianfan",
+    "zhipuai",
 )
 
 
@@ -190,6 +194,9 @@ def _is_importlib_import_module(node: ast.expr) -> bool:
         and node.attr == "import_module"
         and isinstance(node.value, ast.Name)
         and node.value.id == "importlib"
+    ) or (
+        isinstance(node, ast.Name)
+        and node.id == "import_module"
     )
 
 

@@ -94,6 +94,10 @@ project, and a Codex workspace with fast context rehydration.
   `scripts/pr_body_check.py --changed-file` requires security-gate evidence
   when runner, redaction, provider, proxy, report-evidence, worker, or
   secret-adjacent files change, and CI feeds PR changed files into that check.
+- Product runtime direct-provider imports are guarded:
+  `tests/test_architecture_boundaries.py` rejects direct SDK imports such as
+  DeepSeek/OpenAI/Anthropic/Gemini-style providers under `src/entroping`; worker
+  scripts stay maintainer tooling and do not change the LiteLLM product boundary.
 - Reusable human-to-agent prompts now live under
   `docs/meta/prompt-library/`; the agent control plane owns durable policy,
   while the prompt library owns copy-paste launchers for fresh Codex sessions,
