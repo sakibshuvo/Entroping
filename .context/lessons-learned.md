@@ -2,6 +2,10 @@
 
 ## 2026-06-15
 
+- Product runtime provider boundaries need executable SDK-prefix coverage.
+  Direct DeepSeek-style SDK imports belong in maintainer-only ignored worker
+  tooling, not in `src/entroping`; product model calls still route through
+  LiteLLM.
 - Sensitive-surface merge evidence should be deterministic and path-based.
   Pass changed files into `scripts/pr_body_check.py --changed-file` and require
   `scripts/feature_gate.sh --security` or `scripts/regression.sh --security`

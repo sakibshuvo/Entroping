@@ -104,9 +104,9 @@ def test_project_progress_stays_a_short_daily_dashboard() -> None:
     assert "after #491 closes" not in progress
     assert "after #501" not in progress
     assert "Current local queue: #517-#523" not in progress
-    assert "software-factory hardening issues #733-#738" in progress
-    assert "| 1 | #733 | Enforce sensitive-surface PR preflight" in progress
-    assert "| 2 | #734-#735 | Enforce direct-provider" in progress
+    assert "software-factory hardening issues #734-#738" in progress
+    assert "| 1 | #734 | Harden direct-provider runtime import guard" in progress
+    assert "| 2 | #735 | Enforce AI-artifact hygiene gates" in progress
     assert "stable-core compatibility decision" in progress
     assert "Compatibility discipline" not in progress
     assert "Policy-diff CI failure mode" in progress

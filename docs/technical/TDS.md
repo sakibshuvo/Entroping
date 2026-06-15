@@ -64,7 +64,10 @@ src/entroping/
 these dependency rules. It parses Python imports with `ast` and fails the normal
 test suite if domain or bridge code imports adapters, deterministic run-core
 modules import Brain/LiteLLM code, or source modules import provider SDKs directly
-instead of going through LiteLLM.
+instead of going through LiteLLM. Direct-provider SDK prefixes such as OpenAI,
+Anthropic, Gemini, DeepSeek, and common model-provider SDKs are rejected inside
+`src/entroping`; maintainer-only worker scripts remain outside the product
+runtime boundary and produce ignored local artifacts for Codex validation.
 
 Current Brain foundation modules:
 

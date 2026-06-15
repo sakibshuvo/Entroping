@@ -75,7 +75,7 @@ def test_provider_checker_detects_synthetic_direct_sdk_imports(tmp_path: Path) -
     package = tmp_path / "entroping"
     (package / "brain").mkdir(parents=True)
     (package / "brain" / "leaky.py").write_text(
-        "import openai\nfrom anthropic import Anthropic\n",
+        "import deepseek\nimport openai\nfrom anthropic import Anthropic\n",
         encoding="utf-8",
     )
 
@@ -83,8 +83,25 @@ def test_provider_checker_detects_synthetic_direct_sdk_imports(tmp_path: Path) -
     violations = find_provider_imports(modules)
 
     assert violations
+    assert "entroping.brain.leaky imports deepseek" in format_violations(violations)
     assert "entroping.brain.leaky imports openai" in format_violations(violations)
     assert "entroping.brain.leaky imports anthropic" in format_violations(violations)
+
+
+def test_provider_checker_detects_bare_import_module_dynamic_imports(
+    tmp_path: Path,
+) -> None:
+    package = tmp_path / "entroping"
+    (package / "brain").mkdir(parents=True)
+    (package / "brain" / "dynamic_leak.py").write_text(
+        "from importlib import import_module\n\nimport_module('deepseek')\n",
+        encoding="utf-8",
+    )
+
+    modules = collect_python_modules(package, package_name="entroping")
+    violations = find_provider_imports(modules)
+
+    assert "entroping.brain.dynamic_leak imports deepseek" in format_violations(violations)
 
 
 def test_domain_and_bridge_modules_do_not_import_adapters() -> None:
