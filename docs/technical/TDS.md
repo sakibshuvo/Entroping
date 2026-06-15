@@ -330,10 +330,14 @@ Requirements:
 - Locate `hurl` through PATH or explicit config.
 - Hurl binary trust policy:
   - A bare binary name such as `hurl` intentionally trusts the parent process
-    `PATH`, matching normal CLI and CI setup behavior.
-  - An explicit binary path must be absolute, executable, and resolved before
-    execution; this lets high-assurance or CI callers pin the reviewed Hurl
-    binary and bypass earlier `PATH` entries.
+    `PATH`, matching normal CLI and CI setup behavior, then executes the
+    resolved binary target so PATH-selected symlinks such as Homebrew shims are
+    safe to reuse as explicit paths.
+  - An explicit binary path must be absolute, executable, free of symlinked
+    user-selected components, and resolved before execution; this lets
+    high-assurance or CI callers pin the reviewed Hurl binary and bypass
+    earlier `PATH` entries. Host-level filesystem aliases such as macOS
+    `/var -> /private/var` do not make an otherwise direct path unsafe.
   - Relative binary paths such as `./hurl` are rejected because they depend on
     the current working directory and can be spoofed by local project files.
   - The child process still receives a minimized `PATH` containing only the
@@ -1031,6 +1035,9 @@ or changed failures, exits `0` when failures only resolve or stay unchanged,
 and never renders raw stdout, stderr, headers, bodies, prompts, provider data,
 or secrets.
 
+`entroping run` resolves selected source `.hurl` files only after rejecting
+leaf symlinks and symlinked user-selected path components while tolerating
+host-level filesystem aliases such as macOS `/var -> /private/var`.
 `entroping report gate-injection --target <path>` resolves the effective
 QAnstitution, parses selected local Hurl metadata, and writes
 `reports/gate-injection.md` or `reports/gate-injection.json` showing gate ID,

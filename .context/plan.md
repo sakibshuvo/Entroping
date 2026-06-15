@@ -49,6 +49,10 @@ project, and a Codex workspace with fast context rehydration.
 - Common filesystem symlink component traversal is centralized in
   `entroping.core.path_safety`; adapters keep local exception types and
   user-facing messages while sharing the same traversal primitive.
+- Hurl runner read paths reject symlinked components before resolution for
+  selected source `.hurl` files and explicit absolute Hurl binary paths, while
+  bare `hurl` continues to trust the parent process `PATH` by design, resolves
+  the PATH-selected binary target, and tolerates host-level filesystem aliases.
 - Public onboarding is launch-first: README points new users to the demo,
   public docs, roadmap, and a short project-context handoff, while MkDocs groups
   deeper references by reader task instead of exposing maintainer memory as a

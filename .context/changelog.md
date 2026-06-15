@@ -2,6 +2,12 @@
 
 ## 2026-06-15
 
+- Fixed issue #748's Hurl runner symlink-component gap:
+  selected source `.hurl` paths and explicit absolute Hurl binary paths now
+  reject symlinked path components before resolution, preserving the reviewed
+  deterministic subprocess boundary while keeping bare `hurl` PATH discovery
+  behavior, resolved PATH-selected binary symlinks, and host-level filesystem
+  aliases intact.
 - Added issue #746's four-gate factory readiness scorecard:
   `scripts/factory_metrics.py readiness --issue <issue>` now emits
   schema-versioned JSON or Markdown and returns nonzero unless issue metrics

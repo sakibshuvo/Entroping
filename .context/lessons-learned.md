@@ -2,6 +2,12 @@
 
 ## 2026-06-15
 
+- Read-side Hurl execution paths need the same component-level symlink checks
+  as write paths. Validate selected `.hurl` files and explicit binary paths
+  before `Path.resolve()` so reviewed tests and pinned runner binaries cannot
+  be reached through unreviewed symlinked ancestors, but do not reject
+  host-level filesystem aliases such as macOS `/var -> /private/var` before
+  checking the user-selected descendants.
 - Four-gate factory readiness should be explicit and machine-checkable. Use
   `scripts/factory_metrics.py readiness --issue <issue> --format json` to
   prove quality, security, context preservation, and token/cost evidence from
