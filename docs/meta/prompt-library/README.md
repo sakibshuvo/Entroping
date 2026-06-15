@@ -99,7 +99,9 @@ archive is mounted or attached to the cloud task.
   before implementation so the agent has explicit ownership, invariant, test,
   provider/runtime, and stop-condition boundaries.
 - Low-token or cheaper model work: use `spark-safe-worker.md` or
-  `deepseek-opencode-review.md`.
+  `deepseek-opencode-review.md`; for queued low-risk Tier A work, prefer
+  `scripts/ai_jobs.py submit --autonomy-tier tier-a` so the worker defaults to
+  cheap routing and a context-pack manifest first.
 - OpenCode Desktop/OpenCode Go write sessions: use
   `opencode-desktop-handoff.md` so provider host, billing path, concrete model
   id, role, autonomy tier, allowed files, and merge authority are explicit

@@ -399,6 +399,10 @@ def test_agent_control_plane_defines_risk_tiered_software_factory() -> None:
         "local Qwen/oMLX handles private summarization, triage, and low-risk review",
         "Generated graph, wiki, and compression output is evidence, not authority",
         "One write agent per issue-scoped worktree",
+        "scripts/ai_jobs.py submit --autonomy-tier tier-a",
+        "context-manifest command",
+        "needed files/snippets",
+        "Tier B and Tier C stay Codex/human reviewed",
     ]
     for term in required_terms:
         assert term in doc
@@ -1155,6 +1159,8 @@ def test_prompt_library_contains_autonomous_tier_a_worker_prompt() -> None:
         "`scripts/regression.sh --security`",
         "`Closes #<issue-number>`",
         "`scripts/finish_issue.sh <issue-number>`",
+        "scripts/context_pack.sh --mode implementation --manifest",
+        "needed files/snippets",
         "CI is green",
     ]
 

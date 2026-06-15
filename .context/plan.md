@@ -57,6 +57,12 @@ project, and a Codex workspace with fast context rehydration.
   by default or direct DeepSeek API with `--engine deepseek-api`; both paths
   write ignored artifacts for Codex review and never apply patches or affect
   Entroping runtime commands.
+- Low-risk Tier A AI jobs now have executable cheap-worker defaults:
+  `scripts/ai_jobs.py submit --autonomy-tier tier-a` uses OpenCode
+  `flash-free` by default, uses direct DeepSeek `flash` when `--engine
+  deepseek-api` is selected, stores provider lane/host/billing and merge
+  authority metadata, and injects a manifest-first context instruction before
+  workers request file snippets.
 - Direct DeepSeek API worker output is checked before execution artifacts are
   written: secret-like generated stdout/stderr and serialized response payloads
   are withheld, raw response and patch-proposal artifacts are skipped for that

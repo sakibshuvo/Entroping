@@ -127,6 +127,25 @@ def test_deterministic_run_core_modules_do_not_import_brain_or_litellm() -> None
     assert not violations, format_violations(violations)
 
 
+def test_product_source_does_not_import_factory_worker_routing() -> None:
+    modules = collect_python_modules(SOURCE_ROOT, package_name="entroping")
+    rules = (
+        ImportBoundaryRule(
+            source_prefixes=("entroping",),
+            forbidden_import_prefixes=(
+                "scripts.ai_jobs",
+                "scripts.opencode_worker",
+                "scripts.deepseek_worker",
+            ),
+            reason="factory worker routing must stay maintainer tooling, not product runtime",
+        ),
+    )
+
+    violations = find_forbidden_imports(modules, rules=rules)
+
+    assert not violations, format_violations(violations)
+
+
 def test_litellm_is_the_only_model_provider_abstraction_in_source() -> None:
     modules = collect_python_modules(SOURCE_ROOT, package_name="entroping")
 

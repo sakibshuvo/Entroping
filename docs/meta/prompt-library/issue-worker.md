@@ -159,13 +159,16 @@ Read:
 - docs/meta/AGENT_CONTROL_PLANE.md
 - docs/meta/DOCS_GOVERNANCE.md
 - docs/meta/FEATURE_DELIVERY_CHECKLIST.md
-- The files named by scripts/context_pack.sh --mode implementation
+- Run scripts/context_pack.sh --mode implementation --manifest first.
+- Read only the files from the manifest that answer the issue question.
 - The GitHub issue body and comments
 
 Context rule:
 
-Do not route this worker through external generated-context tooling. Use `rg`,
-source reads, focused tests, and CI evidence instead; stop and escalate when
+Do not route this worker through external generated-context tooling. Start from
+`scripts/context_pack.sh --mode implementation --manifest`, then request only
+the needed files/snippets before loading full file content. Use `rg`, source
+reads, focused tests, and CI evidence after the manifest; stop and escalate when
 discovery points to Tier B/Tier C scope, secrets-sensitive material, runtime
 behavior, Hurl runner behavior, redaction, proxy, provider boundaries, release
 publishing, or architecture boundaries.

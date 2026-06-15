@@ -47,12 +47,30 @@ against the repo, issue, deterministic gates, and GitHub CI.
 Use `scripts/ai_jobs.py` when batching affordable worker tasks. It queues
 bounded jobs under `.entroping/ai-jobs/`, maps cost profiles such as
 `flash-free` to `opencode/deepseek-v4-flash-free` through the default
-OpenCode engine and `pro` to `deepseek/deepseek-v4-pro`. It can also route paid
-jobs through direct DeepSeek with `--engine deepseek-api` and `pro` mapped to
-`deepseek-v4-pro`. The queue runs the oldest job through the selected bounded
-worker and lists completed artifact directories for Codex review. The queue is
-an artifact conveyor, not an authority layer: it never applies patches,
-commits, pushes, merges, or changes release status.
+OpenCode engine and `pro` to `deepseek/deepseek-v4-pro`. For low-risk docs,
+tests, guard-test, prompt-library, and non-runtime script proposals, submit
+Tier A jobs with:
+
+```bash
+scripts/ai_jobs.py submit --autonomy-tier tier-a --mode review --file <path>
+```
+
+`--autonomy-tier tier-a` defaults OpenCode jobs to `flash-free`, records
+provider lane, host, billing path, model id, context-manifest command, and
+merge authority in the queued job, and injects a worker instruction that starts
+from `scripts/context_pack.sh --mode implementation --manifest` before asking
+for only the needed files/snippets. If Tier A is deliberately routed through
+direct DeepSeek with `--engine deepseek-api`, the default profile is `flash`
+instead of `pro`. Tier B and Tier C stay Codex/human reviewed and must not use
+cheap routing to bypass security, architecture, provider, release, or runtime
+authority.
+
+The queue can still route paid jobs through direct DeepSeek with
+`--engine deepseek-api` and `pro` mapped to `deepseek-v4-pro`. The queue runs
+the oldest job through the selected bounded worker and lists completed artifact
+directories for Codex review. The queue is an artifact conveyor, not an
+authority layer: it never applies patches, commits, pushes, merges, or changes
+release status.
 
 ## Model Provider Lane Taxonomy
 
@@ -133,12 +151,13 @@ The portable software-factory protocol is split between
 `docs/meta/AGENT_ROLE_REGISTRY.yaml` and `scripts/factory_metrics.py`. The
 registry gives Product Manager, Architect, Dev Agent, QA Agent, Code Review
 Agent, Security Agent, Monitoring Agent, and Integrator roles consistent
-missions, authority limits, context modes, and metrics tags across Codex,
-Claude Code, OpenCode, DeepSeek, Gemini, Spark, and local models. The metrics
-script records local JSONL events with schema `entroping.factory-metrics.v1`
-under `.entroping/factory-metrics/`; it is maintainer/development workflow
-evidence, not product runtime evidence, and it must not store raw prompts,
-provider transcripts, secrets, raw traffic, or product runtime evidence.
+missions, authority limits, context modes, Tier A cheap-worker routing
+defaults, and metrics tags across Codex, Claude Code, OpenCode, DeepSeek,
+Gemini, Spark, and local models. The metrics script records local JSONL events
+with schema `entroping.factory-metrics.v1` under `.entroping/factory-metrics/`;
+it is maintainer/development workflow evidence, not product runtime evidence,
+and it must not store raw prompts, provider transcripts, secrets, raw traffic,
+or product runtime evidence.
 It also exports a per-issue report with schema
 `entroping.factory-metrics-report.v1` so maintainers can compare context size,
 estimated tokens, duration, cost, roles, provider/model usage, outcomes, and

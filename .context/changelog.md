@@ -2,6 +2,11 @@
 
 ## 2026-06-15
 
+- Added issue #737's Tier A cheap-worker defaults:
+  `scripts/ai_jobs.py submit --autonomy-tier tier-a` now defaults OpenCode
+  jobs to `flash-free`, direct DeepSeek API jobs to `flash`, records provider
+  lane/host/billing/merge-authority metadata, and injects a
+  context-pack-manifest-first worker instruction.
 - Added issue #736's quality trend summary:
   `scripts/audit_quality.sh` now writes `reports/quality-trend.json` through
   `scripts/quality_trend_summary.py`, capturing deterministic coverage,

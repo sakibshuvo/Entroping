@@ -125,6 +125,10 @@ scripts/context_pack.sh --mode implementation --manifest
 The manifest uses schema `entroping.context-pack-manifest.v1` and records the
 selected file inventory, per-file byte counts, selection reasons, total context
 bytes, estimated tokens, and the mode budget. It does not include file content.
+Queued low-risk Tier A worker jobs should use
+`scripts/ai_jobs.py submit --autonomy-tier tier-a`, which records the manifest
+command in the queued job and injects a worker instruction to request only the
+needed files/snippets after reviewing the manifest.
 Use `--strict-budget` when a workflow should fail instead of silently expanding
 agent context:
 
