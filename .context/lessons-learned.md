@@ -2,6 +2,10 @@
 
 ## 2026-06-15
 
+- Queue supervisors should fail malformed running state closed. A worker job in
+  `running/` with missing or unparsable timestamps cannot prove it is active,
+  so `run-next` should retire it before queued work instead of requiring manual
+  cleanup or waiting forever.
 - Read-side Hurl execution paths need the same component-level symlink checks
   as write paths. Validate selected `.hurl` files and explicit binary paths
   before `Path.resolve()` so reviewed tests and pinned runner binaries cannot

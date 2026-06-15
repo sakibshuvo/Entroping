@@ -86,6 +86,36 @@ def read_metrics_events(ledger: Path) -> list[dict[str, object]]:
     ]
 
 
+def write_running_job(
+    running_dir: Path,
+    *,
+    job_id: str,
+    started_at: str | None,
+    updated_at: str | None,
+    timeout_seconds: int = 1,
+) -> Path:
+    running_dir.mkdir(parents=True, exist_ok=True)
+    job: dict[str, object] = {
+        "schema_version": "entroping.ai-job.v1",
+        "job_id": job_id,
+        "queue_status": "running",
+        "engine": "opencode",
+        "mode": "review",
+        "profile": "pro",
+        "model": "deepseek/deepseek-v4-pro",
+        "files": ["README.md"],
+        "timeout_seconds": timeout_seconds,
+        "attempts": 1,
+    }
+    if started_at is not None:
+        job["started_at"] = started_at
+    if updated_at is not None:
+        job["updated_at"] = updated_at
+    path = running_dir / f"{job_id}.json"
+    path.write_text(json.dumps(job, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path
+
+
 class DeepSeekQueueStubHandler(BaseHTTPRequestHandler):
     requests: list[dict[str, object]] = []
 
@@ -1096,29 +1126,11 @@ def test_ai_jobs_run_next_recoverable_from_corrupt_queued_artifact(tmp_path: Pat
 def test_ai_jobs_run_next_fails_stale_running_job_before_new_work(tmp_path: Path) -> None:
     job_root = tmp_path / "ai-jobs"
     running = job_root / "running"
-    running.mkdir(parents=True)
-    stale_path = running / "stale-job.json"
-    stale_path.write_text(
-        json.dumps(
-            {
-                "schema_version": "entroping.ai-job.v1",
-                "job_id": "stale-job",
-                "queue_status": "running",
-                "engine": "opencode",
-                "mode": "review",
-                "profile": "pro",
-                "model": "deepseek/deepseek-v4-pro",
-                "files": ["README.md"],
-                "timeout_seconds": 1,
-                "attempts": 1,
-                "started_at": "1970-01-01T00:00:00+00:00",
-                "updated_at": "1970-01-01T00:00:00+00:00",
-            },
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n",
-        encoding="utf-8",
+    stale_path = write_running_job(
+        running,
+        job_id="stale-job",
+        started_at="1970-01-01T00:00:00+00:00",
+        updated_at="1970-01-01T00:00:00+00:00",
     )
 
     result = run_ai_jobs(
@@ -1140,6 +1152,109 @@ def test_ai_jobs_run_next_fails_stale_running_job_before_new_work(tmp_path: Path
     assert job["worker_status"] == "stale-running-job"
     assert not stale_path.exists()
     assert not list(running.glob("*.json"))
+
+
+@pytest.mark.parametrize(
+    ("started_at", "updated_at"),
+    [
+        ("not-a-timestamp", "also-invalid"),
+        (None, None),
+    ],
+)
+def test_ai_jobs_run_next_fails_invalid_running_job_timestamps(
+    tmp_path: Path,
+    started_at: str | None,
+    updated_at: str | None,
+) -> None:
+    job_root = tmp_path / "ai-jobs"
+    running = job_root / "running"
+    invalid_path = write_running_job(
+        running,
+        job_id="invalid-running-job",
+        started_at=started_at,
+        updated_at=updated_at,
+    )
+
+    result = run_ai_jobs("run-next", "--job-root", str(job_root), "--json")
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    failed_path = Path(str(payload["job_path"]))
+    job = read_job(failed_path)
+
+    assert payload["worker_status"] == "invalid-running-job"
+    assert failed_path.parent == job_root / "failed"
+    assert job["job_id"] == "invalid-running-job"
+    assert job["queue_status"] == "failed"
+    assert job["worker_status"] == "invalid-running-job"
+    assert not invalid_path.exists()
+    assert not list(running.glob("*.json"))
+
+
+def test_ai_jobs_run_next_drains_all_stale_running_jobs_before_queued_work(
+    tmp_path: Path,
+) -> None:
+    job_root = tmp_path / "ai-jobs"
+    artifact_root = tmp_path / "ai-reviews"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_opencode = write_fake_opencode(
+        fake_bin,
+        body="#!/usr/bin/env bash\nprintf '%s\\n' 'worker review output'\\n",
+    )
+    running = job_root / "running"
+    first_stale = write_running_job(
+        running,
+        job_id="000-stale",
+        started_at="1970-01-01T00:00:00+00:00",
+        updated_at="1970-01-01T00:00:00+00:00",
+    )
+    second_stale = write_running_job(
+        running,
+        job_id="001-stale",
+        started_at="1970-01-01T00:00:00+00:00",
+        updated_at="1970-01-01T00:00:00+00:00",
+    )
+    submit = run_ai_jobs(
+        "submit",
+        "--mode",
+        "review",
+        "--profile",
+        "pro",
+        "--file",
+        "README.md",
+        "--job-root",
+        str(job_root),
+        "--json",
+    )
+    assert submit.returncode == 0, submit.stderr
+
+    result = run_ai_jobs(
+        "run-next",
+        "--job-root",
+        str(job_root),
+        "--artifact-root",
+        str(artifact_root),
+        "--opencode-bin",
+        str(fake_opencode),
+        "--json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "completed"
+    assert payload["running_jobs_failed_before_claim"] == 2
+    assert not first_stale.exists()
+    assert not second_stale.exists()
+    assert not list(running.glob("*.json"))
+    failed_jobs = [read_job(path) for path in (job_root / "failed").glob("*.json")]
+    assert {
+        str(job["job_id"]): str(job["worker_status"])
+        for job in failed_jobs
+    } == {
+        "000-stale": "stale-running-job",
+        "001-stale": "stale-running-job",
+    }
 
 
 def test_ai_jobs_status_summarizes_counts_without_raw_output(tmp_path: Path) -> None:

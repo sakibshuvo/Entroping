@@ -463,12 +463,12 @@ def _run_next(
     job_root: Path,
 ) -> tuple[dict[str, object], int]:
     _ensure_queue_dirs(job_root)
-    stale_result = _fail_next_stale_running_job(job_root)
-    if stale_result is not None:
-        return stale_result
+    recovered_running_jobs = _fail_recoverable_running_jobs(job_root)
 
     running_path = _claim_next_queued_job(job_root)
     if running_path is None:
+        if recovered_running_jobs:
+            return _running_recovery_result(recovered_running_jobs)
         return {"status": "empty", "job_root": str(job_root)}, 0
 
     try:
@@ -519,6 +519,11 @@ def _run_next(
             "job_path": str(terminal_path),
             "worker_status": worker_status,
             "artifact_dir": artifact_dir,
+            **(
+                {"running_jobs_failed_before_claim": len(recovered_running_jobs)}
+                if recovered_running_jobs
+                else {}
+            ),
             **({"usage": worker_usage} if worker_usage is not None else {}),
         },
         0 if terminal_state == "completed" else 1,
@@ -540,27 +545,45 @@ def _claim_next_queued_job(job_root: Path) -> Path | None:
     return None
 
 
-def _fail_next_stale_running_job(job_root: Path) -> tuple[dict[str, object], int] | None:
+def _fail_recoverable_running_jobs(job_root: Path) -> list[tuple[dict[str, object], int]]:
+    recovered: list[tuple[dict[str, object], int]] = []
     for running_path in sorted(_state_dir(job_root, "running").glob("*.json")):
         try:
             job = _read_job(running_path)
         except (AiJobError, json.JSONDecodeError, OSError, UnicodeDecodeError) as exc:
-            return _fail_corrupt_claimed_job(job_root, running_path, exc)
-        if not _is_stale_running_job(job):
+            recovered.append(_fail_corrupt_claimed_job(job_root, running_path, exc))
             continue
-        return _fail_running_job(job_root, running_path, job, worker_status="stale-running-job")
-    return None
+        failure_status = _recoverable_running_job_status(job)
+        if failure_status is None:
+            continue
+        recovered.append(
+            _fail_running_job(job_root, running_path, job, worker_status=failure_status)
+        )
+    return recovered
 
 
-def _is_stale_running_job(job: dict[str, object]) -> bool:
+def _running_recovery_result(
+    recovered: list[tuple[dict[str, object], int]],
+) -> tuple[dict[str, object], int]:
+    payload, exit_code = recovered[0]
+    payload = {
+        **payload,
+        "running_jobs_failed_before_claim": len(recovered),
+    }
+    return payload, exit_code
+
+
+def _recoverable_running_job_status(job: dict[str, object]) -> str | None:
     started_at = _parse_job_timestamp(job.get("started_at")) or _parse_job_timestamp(
         job.get("updated_at")
     )
     if started_at is None:
-        return False
+        return "invalid-running-job"
     timeout_seconds = _float_value(job.get("timeout_seconds"), default=DEFAULT_TIMEOUT_SECONDS)
     stale_after = started_at + timedelta(seconds=timeout_seconds + STALE_RUNNING_GRACE_SECONDS)
-    return datetime.now(UTC_TZ) > stale_after
+    if datetime.now(UTC_TZ) > stale_after:
+        return "stale-running-job"
+    return None
 
 
 def _parse_job_timestamp(value: object) -> datetime | None:

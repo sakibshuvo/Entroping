@@ -2,6 +2,11 @@
 
 ## 2026-06-15
 
+- Fixed issue #750's AI job running-state recovery gap:
+  `scripts/ai_jobs.py run-next` now fails malformed running jobs with missing
+  or unparsable timestamps, drains all stale or invalid running jobs before
+  claiming queued work, and reports how many running jobs were failed before
+  continuing.
 - Fixed issue #748's Hurl runner symlink-component gap:
   selected source `.hurl` paths and explicit absolute Hurl binary paths now
   reject symlinked path components before resolution, preserving the reviewed
