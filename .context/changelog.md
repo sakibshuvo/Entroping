@@ -2,6 +2,11 @@
 
 ## 2026-06-15
 
+- Added issue #768's OpenCode-to-Codex review request prompt:
+  `docs/meta/prompt-library/opencode-codex-review-request.md` now gives
+  OpenCode, OpenCode Go, DeepSeek, and local worker sessions a read-only Codex
+  CLI review wrapper for local diffs and PRs, preserving provider-lane,
+  autonomy-tier, source-of-truth, no-edit, and PR-evidence boundaries.
 - Added issue #766's OpenCode independent-session readiness kit:
   `scripts/opencode_readiness.py` now checks the active repo path,
   branch/worktree state, OpenCode binary/version, required workflow files,

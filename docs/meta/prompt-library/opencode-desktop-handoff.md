@@ -235,6 +235,10 @@ Final handoff:
 
 ## OpenCode Desktop PR Verification Prompt
 
+For a Codex CLI review requested from OpenCode, prefer the dedicated
+`opencode-codex-review-request.md` prompt. The prompt below is still useful
+when the verifier is another OpenCode session or a human copy-paste review.
+
 ```text
 You are verifying an OpenCode-produced Entroping PR before merge.
 
