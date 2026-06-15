@@ -72,7 +72,7 @@ archive is mounted or attached to the cloud task.
 | [Architecture boundary brief](architecture-boundary-brief.md) | Attach ownership, allowed files, forbidden files, invariants, tests, provider/runtime constraints, and stop conditions to worker issue packets. |
 | [Spark-safe worker](spark-safe-worker.md) | Use low-risk Codex Spark capacity for docs/tests/project hygiene. |
 | [Multi-agent marathon](multi-agent-marathon.md) | Run several bounded sessions while one parent thread owns integration. |
-| [OpenCode Desktop handoff](opencode-desktop-handoff.md) | Start OpenCode Desktop/OpenCode Go implementation or PR verification sessions with explicit provider lane, billing, model, role, and merge authority. |
+| [OpenCode Desktop handoff](opencode-desktop-handoff.md) | Start OpenCode Desktop/OpenCode Go implementation or PR verification sessions with explicit provider lane, billing, model, role, merge authority, and `scripts/opencode_readiness.py` preflight evidence. |
 | [Model-comparison trial](model-comparison-trial.md) | Compare Codex, OpenCode native DeepSeek, direct DeepSeek API, OpenCode Go Kimi/Qwen, and local/offline models through evidence. |
 | [Codex-outage daily operations](codex-outage-daily-operations.md) | Run daily OpenCode/DeepSeek operations safely when Codex capacity is low or unavailable. |
 | [OpenCode-only week monitoring](opencode-week-monitoring.md) | Watch OpenCode/DeepSeek PRs, CI, ready issues, cleanup candidates, and factory metrics without mutating repo state. |
@@ -104,8 +104,9 @@ archive is mounted or attached to the cloud task.
   cheap routing and a context-pack manifest first.
 - OpenCode Desktop/OpenCode Go write sessions: use
   `opencode-desktop-handoff.md` so provider host, billing path, concrete model
-  id, role, autonomy tier, allowed files, and merge authority are explicit
-  before work starts.
+  id, role, autonomy tier, allowed files, merge authority, and
+  `uv run python scripts/opencode_readiness.py --mode implementation --require-clean --format json`
+  evidence are explicit before work starts.
 - Model/cost experiments: use `model-comparison-trial.md` so trial identity,
   files changed/read, tests/gates, CI, cost/token/context evidence, accepted,
   rejected, and stale findings, and reviewer overrides are recorded before

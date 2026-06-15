@@ -2,6 +2,14 @@
 
 ## 2026-06-15
 
+- OpenCode independence needs executable setup evidence. Run
+  `uv run python scripts/opencode_readiness.py --mode implementation --require-clean --format json`
+  from the issue worktree before edits, and use verification/monitoring modes
+  for read-only sessions. The check proves repo path, branch/worktree state,
+  OpenCode version, prompt guardrails, command surfaces, and ignored local
+  OpenCode/Codex/artifact boundaries without reading provider keys, MCP
+  credentials, local config values, prompts, transcripts, raw traffic, or
+  `.entroping/` artifacts.
 - Queue supervisors should fail malformed running state closed. A worker job in
   `running/` with missing or unparsable timestamps cannot prove it is active,
   so `run-next` should retire it before queued work instead of requiring manual

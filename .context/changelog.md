@@ -2,6 +2,14 @@
 
 ## 2026-06-15
 
+- Added issue #766's OpenCode independent-session readiness kit:
+  `scripts/opencode_readiness.py` now checks the active repo path,
+  branch/worktree state, OpenCode binary/version, required workflow files,
+  prompt-library guardrails, command help surfaces, ignored local
+  OpenCode/Codex/artifact paths, and tracked local-state leaks without reading
+  provider keys, MCP credentials, local config values, prompts, transcripts, or
+  `.entroping/` artifacts. The OpenCode handoff prompt now runs the preflight
+  before independent implementation and PR verification.
 - Fixed issue #750's AI job running-state recovery gap:
   `scripts/ai_jobs.py run-next` now fails malformed running jobs with missing
   or unparsable timestamps, drains all stale or invalid running jobs before
