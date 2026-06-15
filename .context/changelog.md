@@ -2,6 +2,11 @@
 
 ## 2026-06-15
 
+- Added issue #738's docs-prune candidate report:
+  `scripts/docs_inventory.py` now emits non-destructive prune/archive
+  candidates for archive/source material, stale reference docs, duplicate
+  titles, and default-agent context risk while keeping deletion/manual archive
+  decisions outside the tool.
 - Added issue #737's Tier A cheap-worker defaults:
   `scripts/ai_jobs.py submit --autonomy-tier tier-a` now defaults OpenCode
   jobs to `flash-free`, direct DeepSeek API jobs to `flash`, records provider

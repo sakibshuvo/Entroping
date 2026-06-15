@@ -99,8 +99,8 @@ project, and a Codex workspace with fast context rehydration.
 - Documentation diet now has an executable inventory:
   `scripts/docs_inventory.py --strict` classifies tracked Markdown as
   active/reference/archive, keeps default agent Markdown context under budget,
-  and lets agents prune context packs without creating another Markdown
-  tracker.
+  emits non-destructive prune/archive candidates with evidence paths, and lets
+  agents prune context packs without creating another Markdown tracker.
 - Agent context packs now have a content-free planning surface:
   `scripts/context_pack.sh --manifest` reports selected files, reasons, byte
   counts, estimated tokens, and mode budgets before a worker loads the full

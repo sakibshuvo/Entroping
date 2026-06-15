@@ -43,8 +43,10 @@ Do not read the entire vault for every task. Obsidian preserves context by makin
 Use `scripts/docs_inventory.py --format json --strict` to audit the tracked
 Markdown set when a review says there is too much documentation. The strict
 inventory keeps the default agent Markdown context at or below its budget,
-flags duplicate active titles, and confirms generated/wiki context has not
-become active workflow by accident.
+flags duplicate active titles, confirms generated/wiki context has not become
+active workflow by accident, and reports non-destructive prune/archive
+candidates for stale reference docs, duplicate titles, default-agent context
+risk, and archive/source material.
 
 ### Always Read
 

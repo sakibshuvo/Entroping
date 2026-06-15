@@ -34,6 +34,7 @@ CANONICAL_PATHS = frozenset(
         "CODE_OF_CONDUCT.md",
         ".github/pull_request_template.md",
         "docs/meta/DOCS_GOVERNANCE.md",
+        "docs/meta/FEATURE_DELIVERY_CHECKLIST.md",
         "docs/meta/PROJECT_PROGRESS.md",
         "docs/meta/VAULT_INDEX.md",
         ".context/plan.md",
@@ -98,6 +99,26 @@ class MarkdownEntry:
             "frontmatter_status": self.frontmatter_status,
             "line_count": self.line_count,
             "stale_risk": list(self.stale_risk),
+        }
+
+
+@dataclass(frozen=True)
+class PruneCandidate:
+    """One non-destructive documentation prune/archive review candidate."""
+
+    path: str
+    category: str
+    action: str
+    reason: str
+    evidence_paths: tuple[str, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "path": self.path,
+            "category": self.category,
+            "action": self.action,
+            "reason": self.reason,
+            "evidence_paths": list(self.evidence_paths),
         }
 
 
@@ -260,6 +281,8 @@ def _audience(*, relative_path: str, archive: bool) -> str:
         return "archive"
     if relative_path in PUBLIC_ROOT_PATHS:
         return "public"
+    if relative_path == "docs/index.md":
+        return "public"
     if relative_path.startswith(
         (
             "docs/user/",
@@ -267,7 +290,6 @@ def _audience(*, relative_path: str, archive: bool) -> str:
             "docs/technical/",
             "docs/architecture/",
             "docs/assets/",
-            "docs/index.md",
             "examples/",
             "decisions/",
         )
@@ -335,6 +357,10 @@ def _build_report(entries: tuple[MarkdownEntry, ...]) -> dict[str, Any]:
     by_tier = Counter(entry.tier for entry in entries)
     by_owner = Counter(entry.owner for entry in entries)
     by_audience = Counter(entry.audience for entry in entries)
+    prune_candidates = _prune_candidates(entries)
+    by_prune_candidate_category = Counter(
+        candidate.category for candidate in prune_candidates
+    )
     active_title_groups = _active_title_groups(entries)
     duplicate_active_titles = {
         title: paths for title, paths in active_title_groups.items() if len(paths) > 1
@@ -359,9 +385,97 @@ def _build_report(entries: tuple[MarkdownEntry, ...]) -> dict[str, Any]:
             "llm_wiki_active_count": llm_wiki_active_count,
             "duplicate_active_title_count": len(duplicate_active_titles),
             "duplicate_active_titles": duplicate_active_titles,
+            "prune_candidate_count": len(prune_candidates),
+            "by_prune_candidate_category": dict(
+                sorted(by_prune_candidate_category.items())
+            ),
         },
         "files": [entry.to_dict() for entry in entries],
+        "prune_candidates": [candidate.to_dict() for candidate in prune_candidates],
     }
+
+
+def _prune_candidates(entries: tuple[MarkdownEntry, ...]) -> list[PruneCandidate]:
+    candidates: list[PruneCandidate] = []
+    for entry in entries:
+        if entry.default_agent_context and (entry.stale_risk or not entry.canonical):
+            candidates.append(
+                PruneCandidate(
+                    path=entry.path,
+                    category="default-agent-risk",
+                    action="review-default-agent-context",
+                    reason=(
+                        "Default agent context file has stale-risk markers or "
+                        "is not canonical; review before keeping it in the "
+                        "default agent context pack."
+                    ),
+                    evidence_paths=(entry.path,),
+                )
+            )
+        if entry.tier == "reference" and entry.stale_risk:
+            candidates.append(
+                PruneCandidate(
+                    path=entry.path,
+                    category="stale-reference",
+                    action="review-for-archive-or-canonical-update",
+                    reason=(
+                        "Reference doc has stale-risk markers; compare against "
+                        "canonical docs before promoting, pruning, or archiving."
+                    ),
+                    evidence_paths=("docs/meta/DOCS_GOVERNANCE.md",),
+                )
+            )
+        if entry.tier == "archive":
+            candidates.append(
+                PruneCandidate(
+                    path=entry.path,
+                    category="archive-reference",
+                    action="keep-out-of-default-context",
+                    reason=(
+                        "Document is already archive/source status; keep it out "
+                        "of default agent context unless a current issue, ADR, "
+                        "or canonical doc cites it."
+                    ),
+                    evidence_paths=(entry.path,),
+                )
+            )
+
+    candidates.extend(_duplicate_title_candidates(entries))
+    return sorted(
+        candidates,
+        key=lambda candidate: (candidate.category, candidate.path, candidate.action),
+    )
+
+
+def _duplicate_title_candidates(
+    entries: tuple[MarkdownEntry, ...],
+) -> list[PruneCandidate]:
+    candidates: list[PruneCandidate] = []
+    for title, grouped_entries in _title_groups(entries).items():
+        if len(grouped_entries) <= 1:
+            continue
+        canonical_paths = sorted(entry.path for entry in grouped_entries if entry.canonical)
+        for entry in grouped_entries:
+            if canonical_paths and entry.path in canonical_paths:
+                continue
+            evidence_paths = tuple(
+                canonical_paths
+                or sorted(other.path for other in grouped_entries if other.path != entry.path)
+            )
+            candidates.append(
+                PruneCandidate(
+                    path=entry.path,
+                    category="duplicate-title",
+                    action="review-duplicate-title",
+                    reason=(
+                        f"Markdown title {title!r} is duplicated; compare "
+                        "against canonical docs or the listed peer paths before "
+                        "pruning or archiving."
+                    ),
+                    evidence_paths=evidence_paths,
+                )
+            )
+    return candidates
 
 
 def _active_title_groups(entries: tuple[MarkdownEntry, ...]) -> dict[str, list[str]]:
@@ -369,6 +483,13 @@ def _active_title_groups(entries: tuple[MarkdownEntry, ...]) -> dict[str, list[s
     for entry in entries:
         if entry.tier == "active":
             grouped[entry.title].append(entry.path)
+    return dict(sorted(grouped.items()))
+
+
+def _title_groups(entries: tuple[MarkdownEntry, ...]) -> dict[str, list[MarkdownEntry]]:
+    grouped: dict[str, list[MarkdownEntry]] = defaultdict(list)
+    for entry in entries:
+        grouped[entry.title].append(entry)
     return dict(sorted(grouped.items()))
 
 
@@ -424,6 +545,32 @@ def _format_markdown(report: dict[str, Any]) -> str:
     lines.extend(
         [
             "",
+            "## Prune Candidates",
+            "",
+        ]
+    )
+    prune_candidates = report["prune_candidates"]
+    if prune_candidates:
+        lines.extend(
+            [
+                "| Path | Category | Action | Reason | Evidence |",
+                "| --- | --- | --- | --- | --- |",
+            ]
+        )
+        for candidate in prune_candidates:
+            evidence = ", ".join(
+                f"`{path}`" for path in candidate["evidence_paths"]
+            )
+            lines.append(
+                f"| `{candidate['path']}` | {candidate['category']} | "
+                f"{candidate['action']} | {_markdown_cell(candidate['reason'])} | "
+                f"{evidence} |"
+            )
+    else:
+        lines.append("No prune candidates reported.")
+    lines.extend(
+        [
+            "",
             "## Files",
             "",
             "| Path | Tier | Owner | Audience | Default Agent Context | Canonical | Stale Risk |",
@@ -439,6 +586,10 @@ def _format_markdown(report: dict[str, Any]) -> str:
             f"{entry['audience']} | {default_context} | {canonical} | {risks} |"
         )
     return "\n".join(lines)
+
+
+def _markdown_cell(value: str) -> str:
+    return value.replace("|", "\\|")
 
 
 if __name__ == "__main__":
