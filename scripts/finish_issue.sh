@@ -97,7 +97,7 @@ for check in checks:
     else:
         state = str(check.get("state") or check.get("status") or "").upper()
         conclusion = str(check.get("conclusion") or "").upper()
-        if state not in {"SUCCESS", "COMPLETED"} and conclusion not in allowed_check_run_conclusions:
+        if state not in {"SUCCESS", "COMPLETED"} or conclusion not in allowed_check_run_conclusions:
             bad.append(f"{name}: unrecognized check state")
 
 if bad:

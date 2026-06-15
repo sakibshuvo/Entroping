@@ -316,6 +316,39 @@ def test_finish_issue_rejects_dirty_worktree_before_cleanup(tmp_path: Path) -> N
     assert run_git(repo, "branch", "--list", "feat/dry-run").stdout.strip()
 
 
+def test_finish_issue_rejects_unknown_failed_ci_rollup_entry(tmp_path: Path) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    checks_json = (
+        '[{"__typename":"UnexpectedCheck","name":"custom-ci",'
+        '"status":"COMPLETED","conclusion":"FAILURE"}]'
+    )
+    fake_bin = write_fake_gh(tmp_path, checks_json=checks_json)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99")
+
+    assert result.returncode == 1
+    assert "closing PR has non-passing checks" in result.stderr
+    assert "custom-ci: unrecognized check state" in result.stderr
+    assert worktree.exists()
+    assert run_git(repo, "branch", "--list", "feat/dry-run").stdout.strip()
+
+
+def test_finish_issue_accepts_unknown_passing_ci_rollup_entry(tmp_path: Path) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    checks_json = (
+        '[{"__typename":"UnexpectedCheck","name":"custom-ci",'
+        '"status":"COMPLETED","conclusion":"SUCCESS"}]'
+    )
+    fake_bin = write_fake_gh(tmp_path, checks_json=checks_json)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99")
+
+    assert result.returncode == 0, result.stderr
+    assert "CI checks verified: 1" in result.stdout
+    assert not worktree.exists()
+    assert run_git(repo, "branch", "--list", "feat/dry-run").stdout.strip() == ""
+
+
 def test_finish_issue_removes_clean_worktree_and_squash_merged_branch(tmp_path: Path) -> None:
     repo, worktree = create_repo_with_worktree(tmp_path)
     fake_bin = write_fake_gh(tmp_path)
