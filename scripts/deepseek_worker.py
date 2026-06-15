@@ -9,6 +9,7 @@ import os
 import re
 import subprocess  # nosec B404
 import sys
+import tempfile
 import time
 import uuid
 from dataclasses import dataclass
@@ -281,10 +282,6 @@ def _parse_args() -> DirectWorkerConfig:
 
     api_key_env = _validate_env_name(str(args.api_key_env))
     base_url = _validate_base_url(str(args.base_url))
-    artifact_root = args.artifact_root
-    if not artifact_root.is_absolute():
-        artifact_root = repo_root / artifact_root
-
     mode: Mode = args.mode
     thinking: ThinkingMode = args.thinking
     reasoning_effort: ReasoningEffort = args.reasoning_effort
@@ -293,7 +290,7 @@ def _parse_args() -> DirectWorkerConfig:
         model=str(args.model),
         repo_root=repo_root,
         files=files,
-        artifact_root=artifact_root.expanduser().resolve(),
+        artifact_root=_resolve_artifact_root(repo_root, args.artifact_root),
         base_url=base_url,
         api_key_env=api_key_env,
         timeout_seconds=float(args.timeout_seconds),
@@ -326,13 +323,53 @@ def _repo_root() -> Path:
     return Path(completed.stdout.strip()).resolve()
 
 
+def _resolve_artifact_root(repo_root: Path, raw_root: Path) -> Path:
+    artifact_root = raw_root.expanduser()
+    relative_root = not artifact_root.is_absolute()
+    if relative_root:
+        artifact_root = repo_root / artifact_root
+    if _has_symlink_component(artifact_root):
+        msg = "artifact root must not use symlink components"
+        raise DirectWorkerInputError(msg)
+    resolved = artifact_root.resolve()
+    if relative_root:
+        try:
+            resolved.relative_to(repo_root)
+        except ValueError as exc:
+            msg = "artifact root must stay inside repository"
+            raise DirectWorkerInputError(msg) from exc
+    elif not (
+        _path_is_relative_to(resolved, repo_root)
+        or _path_is_relative_to(resolved, _system_temp_root())
+    ):
+        msg = "artifact root must stay inside repository or system temp directory"
+        raise DirectWorkerInputError(msg)
+    return resolved
+
+
+def _path_is_relative_to(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+    except ValueError:
+        return False
+    return True
+
+
+def _system_temp_root() -> Path:
+    return Path(tempfile.gettempdir()).resolve()
+
+
+def _has_symlink_component(path: Path) -> bool:
+    return any(candidate.is_symlink() for candidate in (path, *path.parents))
+
+
 def _validate_files(repo_root: Path, raw_files: tuple[Path, ...]) -> tuple[Path, ...]:
     validated: list[Path] = []
     for raw_file in raw_files:
         path = raw_file.expanduser()
         if not path.is_absolute():
             path = repo_root / path
-        if path.is_symlink():
+        if _has_symlink_component(path):
             msg = f"input path must be a regular non-symlink file: {raw_file}"
             raise DirectWorkerInputError(msg)
         resolved = path.resolve()

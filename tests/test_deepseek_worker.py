@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -846,6 +847,94 @@ def test_deepseek_worker_rejects_symlink_before_artifact_or_model_call(
     assert "input path must be a regular non-symlink file" in result.stderr
     assert not (tmp_path / "reviews").exists()
     assert DeepSeekStubHandler.requests == []
+
+
+def test_deepseek_worker_rejects_symlinked_artifact_root_before_artifacts(
+    tmp_path: Path,
+) -> None:
+    repo = make_worker_repo(tmp_path)
+    target_file = repo / "target.md"
+    target_file.write_text("safe content\n", encoding="utf-8")
+    outside_artifact_root = tmp_path / "outside-reviews"
+    outside_artifact_root.mkdir()
+    linked_artifact_root = tmp_path / "linked-reviews"
+    try:
+        linked_artifact_root.symlink_to(outside_artifact_root, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlinks unavailable: {exc}")
+
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        "target.md",
+        "--artifact-root",
+        str(linked_artifact_root),
+        "--dry-run",
+        "--json",
+        cwd=repo,
+        env={"DEEPSEEK_API_KEY": ""},
+    )
+
+    assert result.returncode == 2
+    assert "artifact root must not use symlink components" in result.stderr
+    assert list(outside_artifact_root.iterdir()) == []
+
+
+def test_deepseek_worker_rejects_relative_artifact_root_escape(
+    tmp_path: Path,
+) -> None:
+    repo = make_worker_repo(tmp_path)
+    target_file = repo / "target.md"
+    target_file.write_text("safe content\n", encoding="utf-8")
+
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        "target.md",
+        "--artifact-root",
+        "../outside-reviews",
+        "--dry-run",
+        "--json",
+        cwd=repo,
+        env={"DEEPSEEK_API_KEY": ""},
+    )
+
+    assert result.returncode == 2
+    assert "artifact root must stay inside repository" in result.stderr
+    assert not (tmp_path / "outside-reviews").exists()
+
+
+def test_deepseek_worker_rejects_arbitrary_absolute_artifact_root_outside_repo_and_temp(
+    tmp_path: Path,
+) -> None:
+    repo = make_worker_repo(tmp_path)
+    target_file = repo / "target.md"
+    target_file.write_text("safe content\n", encoding="utf-8")
+    outside_artifact_root = REPO_ROOT.parent / f"outside-reviews-{uuid.uuid4().hex}"
+
+    try:
+        result = run_worker(
+            "--mode",
+            "review",
+            "--file",
+            "target.md",
+            "--artifact-root",
+            str(outside_artifact_root),
+            "--dry-run",
+            "--json",
+            cwd=repo,
+            env={"DEEPSEEK_API_KEY": ""},
+        )
+    finally:
+        shutil.rmtree(outside_artifact_root, ignore_errors=True)
+
+    assert result.returncode == 2
+    assert (
+        "artifact root must stay inside repository or system temp directory"
+        in result.stderr
+    )
 
 
 @pytest.mark.parametrize(

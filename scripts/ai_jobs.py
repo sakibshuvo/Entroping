@@ -7,6 +7,7 @@ import argparse
 import json
 import subprocess  # nosec B404
 import sys
+import tempfile
 import uuid
 from datetime import datetime, timedelta
 from datetime import timezone as datetime_timezone
@@ -179,7 +180,7 @@ def _parse_args() -> argparse.Namespace:
 
 def _dispatch(args: argparse.Namespace) -> int:
     repo_root = _repo_root()
-    job_root = _resolve_root(repo_root, args.job_root)
+    job_root = _resolve_root(repo_root, args.job_root, "job root")
 
     if args.command == "submit":
         payload = _submit_job(args, repo_root, job_root)
@@ -217,11 +218,40 @@ def _repo_root() -> Path:
     return Path(completed.stdout.strip()).resolve()
 
 
-def _resolve_root(repo_root: Path, raw_root: Path) -> Path:
+def _resolve_root(repo_root: Path, raw_root: Path, purpose: str = "root") -> Path:
     root = raw_root.expanduser()
-    if not root.is_absolute():
+    relative_root = not root.is_absolute()
+    if relative_root:
         root = repo_root / root
-    return root.resolve()
+    if _has_symlink_component(root):
+        msg = f"{purpose} must not use symlink components"
+        raise AiJobError(msg)
+    resolved = root.resolve()
+    if relative_root:
+        try:
+            resolved.relative_to(repo_root)
+        except ValueError as exc:
+            msg = f"{purpose} must stay inside repository"
+            raise AiJobError(msg) from exc
+    elif not (
+        _path_is_relative_to(resolved, repo_root)
+        or _path_is_relative_to(resolved, _system_temp_root())
+    ):
+        msg = f"{purpose} must stay inside repository or system temp directory"
+        raise AiJobError(msg)
+    return resolved
+
+
+def _path_is_relative_to(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+    except ValueError:
+        return False
+    return True
+
+
+def _system_temp_root() -> Path:
+    return Path(tempfile.gettempdir()).resolve()
 
 
 def _submit_job(args: argparse.Namespace, repo_root: Path, job_root: Path) -> dict[str, object]:
@@ -464,6 +494,13 @@ def _run_next(
 ) -> tuple[dict[str, object], int]:
     _ensure_queue_dirs(job_root)
     recovered_running_jobs = _fail_recoverable_running_jobs(job_root)
+    if recovered_running_jobs and not any(_state_dir(job_root, "queued").glob("*.json")):
+        return _running_recovery_result(recovered_running_jobs)
+    artifact_root = _resolve_root(
+        repo_root,
+        getattr(args, "artifact_root", DEFAULT_ARTIFACT_ROOT),
+        "artifact root",
+    )
 
     running_path = _claim_next_queued_job(job_root)
     if running_path is None:
@@ -492,16 +529,36 @@ def _run_next(
             "error": f"worker supervisor failed: {exc}",
         }
         worker_process_returncode = 1
-    worker_status = str(worker_payload.get("status", "failed"))
+    artifact_validation_error: str | None = None
+    try:
+        artifact_dir = _validated_worker_artifact_dir(
+            artifact_root,
+            worker_payload.get("artifact_dir"),
+        )
+    except AiJobError as exc:
+        artifact_validation_error = str(exc)
+        artifact_dir = None
+    worker_status = (
+        "invalid-worker-artifact-dir"
+        if artifact_validation_error is not None
+        else str(worker_payload.get("status", "failed"))
+    )
     terminal_state: QueueState = (
         "completed" if worker_status in SUCCESSFUL_WORKER_STATUSES else "failed"
     )
-    artifact_dir = _optional_string(worker_payload.get("artifact_dir"))
     job["queue_status"] = terminal_state
     job["worker_status"] = worker_status
-    job["worker_returncode"] = _int_value(worker_payload.get("returncode"), default=1)
-    job["worker_process_returncode"] = worker_process_returncode
+    job["worker_returncode"] = (
+        1
+        if artifact_validation_error is not None
+        else _int_value(worker_payload.get("returncode"), default=1)
+    )
+    job["worker_process_returncode"] = (
+        1 if artifact_validation_error is not None else worker_process_returncode
+    )
     job["artifact_dir"] = artifact_dir
+    if artifact_validation_error is not None:
+        job["error"] = artifact_validation_error
     worker_usage = _usage_payload(worker_payload.get("usage"))
     if worker_usage is not None:
         job["usage"] = worker_usage
@@ -662,6 +719,25 @@ def _fail_corrupt_claimed_job(
     )
 
 
+def _validated_worker_artifact_dir(artifact_root: Path, raw_value: object) -> str | None:
+    artifact_dir = _optional_string(raw_value)
+    if artifact_dir is None:
+        return None
+    path = Path(artifact_dir).expanduser()
+    if not path.is_absolute():
+        path = artifact_root / path
+    if _has_symlink_component(path):
+        msg = "worker artifact_dir must not use symlink components"
+        raise AiJobError(msg)
+    resolved = path.resolve()
+    try:
+        resolved.relative_to(artifact_root)
+    except ValueError as exc:
+        msg = "worker artifact_dir must stay under artifact root"
+        raise AiJobError(msg) from exc
+    return str(resolved)
+
+
 def _run_worker(
     args: argparse.Namespace,
     repo_root: Path,
@@ -673,7 +749,7 @@ def _run_worker(
     if engine != "opencode":
         return {"status": "failed", "returncode": 1, "artifact_dir": None}, 1
 
-    artifact_root = _resolve_root(repo_root, args.artifact_root)
+    artifact_root = _resolve_root(repo_root, args.artifact_root, "artifact root")
     job_timeout_seconds = _float_value(
         job.get("timeout_seconds"),
         default=DEFAULT_TIMEOUT_SECONDS,
@@ -741,7 +817,7 @@ def _run_deepseek_worker(
     repo_root: Path,
     job: dict[str, object],
 ) -> tuple[dict[str, object], int]:
-    artifact_root = _resolve_root(repo_root, args.artifact_root)
+    artifact_root = _resolve_root(repo_root, args.artifact_root, "artifact root")
     job_timeout_seconds = _float_value(
         job.get("timeout_seconds"),
         default=DEFAULT_TIMEOUT_SECONDS,

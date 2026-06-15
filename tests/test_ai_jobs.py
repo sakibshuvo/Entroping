@@ -686,6 +686,124 @@ def test_ai_jobs_worker_command_does_not_record_metrics_by_default(
     assert "--factory-metrics-ledger" not in captured_command
 
 
+def test_ai_jobs_rejects_relative_job_root_escape() -> None:
+    ai_jobs = load_ai_jobs_module()
+
+    with pytest.raises(ai_jobs.AiJobError, match="job root must stay inside repository"):
+        ai_jobs._resolve_root(REPO_ROOT, Path(".."), "job root")
+
+
+def test_ai_jobs_rejects_arbitrary_absolute_job_root_outside_repo_and_temp() -> None:
+    ai_jobs = load_ai_jobs_module()
+
+    with pytest.raises(
+        ai_jobs.AiJobError,
+        match="job root must stay inside repository or system temp directory",
+    ):
+        ai_jobs._resolve_root(
+            REPO_ROOT,
+            REPO_ROOT.parent / "outside-entroping-ai-jobs",
+            "job root",
+        )
+
+
+def test_ai_jobs_rejects_symlinked_job_root_before_state_creation(
+    tmp_path: Path,
+) -> None:
+    outside_root = tmp_path / "outside-ai-jobs"
+    outside_root.mkdir()
+    linked_root = tmp_path / "linked-ai-jobs"
+    try:
+        linked_root.symlink_to(outside_root, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlinks unavailable: {exc}")
+
+    result = run_ai_jobs("status", "--job-root", str(linked_root), "--json")
+
+    assert result.returncode == 2
+    assert "job root must not use symlink components" in result.stderr
+    assert list(outside_root.iterdir()) == []
+
+
+def test_ai_jobs_run_next_rejects_symlinked_artifact_root_before_claiming(
+    tmp_path: Path,
+) -> None:
+    job_root = tmp_path / "ai-jobs"
+    outside_artifact_root = tmp_path / "outside-ai-reviews"
+    outside_artifact_root.mkdir()
+    linked_artifact_root = tmp_path / "linked-ai-reviews"
+    try:
+        linked_artifact_root.symlink_to(outside_artifact_root, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlinks unavailable: {exc}")
+    submit = run_ai_jobs(
+        "submit",
+        "--job-root",
+        str(job_root),
+        "--mode",
+        "review",
+        "--file",
+        "README.md",
+        "--json",
+    )
+    assert submit.returncode == 0, submit.stderr
+
+    result = run_ai_jobs(
+        "run-next",
+        "--job-root",
+        str(job_root),
+        "--artifact-root",
+        str(linked_artifact_root),
+        "--worker-dry-run",
+        "--json",
+    )
+
+    assert result.returncode == 2
+    assert "artifact root must not use symlink components" in result.stderr
+    assert len(list((job_root / "queued").glob("*.json"))) == 1
+    assert not list((job_root / "running").glob("*.json"))
+    assert list(outside_artifact_root.iterdir()) == []
+
+
+def test_ai_jobs_run_next_recovers_stale_job_before_artifact_root_rejection(
+    tmp_path: Path,
+) -> None:
+    job_root = tmp_path / "ai-jobs"
+    running = job_root / "running"
+    stale_path = write_running_job(
+        running,
+        job_id="stale-job",
+        started_at="1970-01-01T00:00:00+00:00",
+        updated_at="1970-01-01T00:00:00+00:00",
+    )
+    outside_artifact_root = tmp_path / "outside-ai-reviews"
+    outside_artifact_root.mkdir()
+    linked_artifact_root = tmp_path / "linked-ai-reviews"
+    try:
+        linked_artifact_root.symlink_to(outside_artifact_root, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlinks unavailable: {exc}")
+
+    result = run_ai_jobs(
+        "run-next",
+        "--job-root",
+        str(job_root),
+        "--artifact-root",
+        str(linked_artifact_root),
+        "--json",
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    failed_path = Path(str(payload["job_path"]))
+    job = read_job(failed_path)
+    assert payload["worker_status"] == "stale-running-job"
+    assert failed_path.parent == job_root / "failed"
+    assert job["job_id"] == "stale-job"
+    assert not stale_path.exists()
+    assert list(outside_artifact_root.iterdir()) == []
+
+
 def test_ai_jobs_run_next_sanitizes_worker_payload_before_persisting_job(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -740,6 +858,116 @@ def test_ai_jobs_run_next_sanitizes_worker_payload_before_persisting_job(
     assert job["worker_returncode"] == 1
     assert job["usage"] == {"completion_tokens": 2, "prompt_tokens": 3}
     assert "raw_response" not in completed_path.read_text(encoding="utf-8")
+
+
+def test_ai_jobs_run_next_rejects_worker_artifact_dir_outside_artifact_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ai_jobs = load_ai_jobs_module()
+    job_root = tmp_path / "ai-jobs"
+    artifact_root = tmp_path / "ai-reviews"
+    queued_path = job_root / "queued" / "job.json"
+    ai_jobs._write_job(
+        queued_path,
+        {
+            "schema_version": "entroping.ai-job.v1",
+            "job_id": "job",
+            "queue_status": "queued",
+            "engine": "opencode",
+            "mode": "review",
+            "model": "opencode/deepseek-v4-flash-free",
+            "files": ["README.md"],
+            "timeout_seconds": 1,
+            "attempts": 0,
+        },
+    )
+
+    def fake_run_worker(
+        args: SimpleNamespace,
+        repo_root: Path,
+        job: dict[str, object],
+    ) -> tuple[dict[str, object], int]:
+        return (
+            {
+                "status": "completed",
+                "returncode": 0,
+                "artifact_dir": str(tmp_path / "outside-review"),
+            },
+            0,
+        )
+
+    monkeypatch.setattr(ai_jobs, "_run_worker", fake_run_worker)
+    args = SimpleNamespace(artifact_root=artifact_root)
+
+    payload, returncode = ai_jobs._run_next(args, REPO_ROOT, job_root)
+
+    assert returncode == 1
+    failed_path = Path(str(payload["job_path"]))
+    job = read_job(failed_path)
+    assert payload["status"] == "failed"
+    assert payload["worker_status"] == "invalid-worker-artifact-dir"
+    assert payload["artifact_dir"] is None
+    assert job["worker_status"] == "invalid-worker-artifact-dir"
+    assert job["artifact_dir"] is None
+    assert "outside-review" not in failed_path.read_text(encoding="utf-8")
+
+
+def test_ai_jobs_run_next_rejects_worker_artifact_dir_with_symlink_component(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ai_jobs = load_ai_jobs_module()
+    job_root = tmp_path / "ai-jobs"
+    artifact_root = tmp_path / "ai-reviews"
+    real_artifact_parent = artifact_root / "real"
+    real_artifact_parent.mkdir(parents=True)
+    linked_artifact_parent = artifact_root / "linked"
+    try:
+        linked_artifact_parent.symlink_to(real_artifact_parent, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlinks unavailable: {exc}")
+    queued_path = job_root / "queued" / "job.json"
+    ai_jobs._write_job(
+        queued_path,
+        {
+            "schema_version": "entroping.ai-job.v1",
+            "job_id": "job",
+            "queue_status": "queued",
+            "engine": "opencode",
+            "mode": "review",
+            "model": "opencode/deepseek-v4-flash-free",
+            "files": ["README.md"],
+            "timeout_seconds": 1,
+            "attempts": 0,
+        },
+    )
+
+    def fake_run_worker(
+        args: SimpleNamespace,
+        repo_root: Path,
+        job: dict[str, object],
+    ) -> tuple[dict[str, object], int]:
+        return (
+            {
+                "status": "completed",
+                "returncode": 0,
+                "artifact_dir": str(linked_artifact_parent / "review-1"),
+            },
+            0,
+        )
+
+    monkeypatch.setattr(ai_jobs, "_run_worker", fake_run_worker)
+    args = SimpleNamespace(artifact_root=artifact_root)
+
+    payload, returncode = ai_jobs._run_next(args, REPO_ROOT, job_root)
+
+    assert returncode == 1
+    failed_path = Path(str(payload["job_path"]))
+    job = read_job(failed_path)
+    assert payload["worker_status"] == "invalid-worker-artifact-dir"
+    assert job["artifact_dir"] is None
+    assert "linked" not in failed_path.read_text(encoding="utf-8")
 
 
 def test_ai_jobs_run_next_prefers_worker_instruction_context_contract(
