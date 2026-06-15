@@ -1,6 +1,7 @@
 """Guardrails for agent workflow and growth documentation."""
 
 import re
+import subprocess
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -978,6 +979,70 @@ def test_unproven_context_tools_are_not_active_agent_dependencies() -> None:
 
     for term in forbidden_terms:
         assert term not in combined
+
+
+def test_repo_native_context_budget_baseline_is_canonical() -> None:
+    control_plane = (
+        REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md"
+    ).read_text(encoding="utf-8")
+    context_management = (
+        REPO_ROOT / "docs" / "meta" / "CONTEXT_MANAGEMENT.md"
+    ).read_text(encoding="utf-8")
+    issue_worker = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "issue-worker.md"
+    ).read_text(encoding="utf-8")
+    combined = " ".join(
+        f"{control_plane}\n{context_management}\n{issue_worker}".split()
+    )
+
+    required_terms = [
+        "## Repo-Native Context Budget Baseline",
+        "Context is evidence, not memory",
+        (
+            "Start each issue with one named question: what local evidence is "
+            "needed to change, review, or merge this issue?"
+        ),
+        (
+            "`rg`, `scripts/context_pack.sh`, "
+            "`docs/meta/DECISION_REGISTRY.yaml`, GitHub issues, source files, "
+            "focused tests, CI, and `scripts/factory_metrics.py report` are "
+            "the active context-cost baseline"
+        ),
+        (
+            "Do not add generated context because it is interesting, visual, "
+            "popular, or already installed"
+        ),
+        (
+            "Load extra context only when it answers the named issue question "
+            "and records an evidence pointer"
+        ),
+        (
+            "Use `scripts/context_pack.sh --record-factory-metrics` and "
+            "`scripts/factory_metrics.py report` when token or cost claims "
+            "matter"
+        ),
+        (
+            "No token-saving claim is accepted without measured local evidence "
+            "from the current workflow lane"
+        ),
+    ]
+
+    for term in required_terms:
+        assert term in combined
+
+    help_result = subprocess.run(
+        [str(REPO_ROOT / "scripts" / "context_pack.sh"), "--help"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    help_text = " ".join(help_result.stdout.split())
+    for term in [
+        "repo-native context budget baseline",
+        "Do not add generated context because it is interesting",
+        "--record-factory-metrics",
+    ]:
+        assert term in help_text
 
 
 def test_factory_role_registry_and_metrics_ledger_are_portable_guardrails() -> None:

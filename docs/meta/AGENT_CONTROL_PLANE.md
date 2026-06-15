@@ -224,6 +224,18 @@ QAnstitution/Hurl evidence remain the source-of-truth layer. These surfaces
 decide whether Entroping behavior, architecture, security posture, and release
 claims are real.
 
+The active context-cost baseline is repo-native: `rg`,
+`scripts/context_pack.sh`, `docs/meta/DECISION_REGISTRY.yaml`, GitHub issues,
+source files, focused tests, CI, and `scripts/factory_metrics.py report`.
+Context is evidence, not memory. Start each issue with one named question: what
+local evidence is needed to change, review, or merge this issue? Do not add
+generated context because it is interesting, visual, popular, or already
+installed. Load extra context only when it answers the named issue question and
+records an evidence pointer. Use `scripts/context_pack.sh
+--record-factory-metrics` and `scripts/factory_metrics.py report` when token or
+cost claims matter. No token-saving claim is accepted without measured local
+evidence from the current workflow lane.
+
 Obsidian, the LLM wiki, and curated source exports are the memory layer. They
 preserve product evolution, source history, rejected ideas, open questions, and
 durable rationale so a fresh agent can rehydrate the project without treating

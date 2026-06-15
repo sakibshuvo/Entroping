@@ -1,5 +1,17 @@
 # Entroping Lessons Learned
 
+## 2026-06-15
+
+- Context should enter an agent session because it answers a named issue
+  question, not because a graph, wiki, dashboard, or compression tool is
+  available. The winning baseline is still `rg`, `scripts/context_pack.sh`,
+  `docs/meta/DECISION_REGISTRY.yaml`, GitHub issue evidence, source files,
+  focused tests, CI, and factory metrics.
+- Token and cost claims need local measurement from the active workflow lane.
+  If `scripts/context_pack.sh --record-factory-metrics`, worker metrics hooks,
+  or `scripts/factory_metrics.py report` do not contain evidence, the correct
+  answer is "not measured", not a guessed savings claim.
+
 ## 2026-06-14
 
 - Archived factory metrics ledgers carry issue context in their path. Report
