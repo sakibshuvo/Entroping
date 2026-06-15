@@ -2,6 +2,10 @@
 
 ## 2026-06-15
 
+- Retired context tools should not stay named in active prompts after a discard
+  decision. If a tool fails the scorecard, remove install commands, named
+  output directories, prompt routing, and fixture names; keep only generic
+  retired-tool lessons and issue links.
 - Context should enter an agent session because it answers a named issue
   question, not because a graph, wiki, dashboard, or compression tool is
   available. The winning baseline is still `rg`, `scripts/context_pack.sh`,
@@ -55,20 +59,22 @@
   compatibility, but model-lane decisions should expose when a worker run did
   not report a metric so cheap lanes are not credited with guessed savings.
 - Full tool trials must record setup failure as first-class evidence. Issue
-  #712 showed that Graphify and CodeGraph can be locally available while still
-  producing noisy or incomplete retrieval, Headroom can expose a savings profile
-  without real proxy evidence, and Understand Anything can install/build/test in
-  an ignored clone while remaining unavailable to the current Codex session.
-- CodeGraph line-numbered source is useful for worker handoff only when the
-  file heading is preserved. `scripts/agent_context_probe.py` should carry
+  #712 showed that retired graph-context tools can be locally available while
+  still producing noisy or incomplete retrieval, retired compression tooling can
+  expose a savings profile without real proxy evidence, and Understand Anything
+  can install/build/test in an ignored clone while remaining unavailable to the
+  current Codex session.
+- Retired symbol-context tooling line-numbered source is useful for worker
+  handoff only when the file heading is preserved.
+  `scripts/agent_context_probe.py` should carry
   `#### path` headings into following source lines so agents get grounded
   candidate paths instead of context-free snippets.
 - Context tools should earn active workflow status through a local scorecard,
   not vibe. Measure grounded file hits, nonexistent or stale references,
   forbidden-scope incidents, retrieval precision/recall, recovery time, review
   corrections, human steering, accepted-output ratio, context bytes, and
-  estimated tokens against the repo-native baseline before promoting Graphify,
-  Obsidian graph views, Understand Anything, CodeGraph, or Headroom.
+  estimated tokens against the repo-native baseline before promoting graph,
+  wiki, comprehension, symbol-context, or compression tools.
 - OpenCode Desktop sessions need an explicit preflight contract, not just a
   model choice. Handoffs should name provider lane, billing path, model id,
   role, autonomy tier, allowed files, forbidden files, and merge authority
@@ -94,8 +100,8 @@
   local review evidence.
 - Direct API workers need explicit negative capability context, not only file
   context. A cheap DeepSeek review is more useful when the prompt says it has no
-  live MCP, shell, filesystem, GitHub, Codex skill, Spark, Graphify, CodeGraph,
-  or Headroom execution unless evidence is included, because that keeps tool
+  live MCP, shell, filesystem, GitHub, Codex skill, Spark, retired graph tooling, retired symbol-context tooling,
+  or retired compression tooling execution unless evidence is included, because that keeps tool
   hallucinations from becoming patch assumptions.
 - Finished-issue factory metrics should remain opt-in for reports. Active
   worktree metrics are the default feedback loop, while archive inclusion is a
@@ -105,7 +111,7 @@
   deleting the worktree. Otherwise cost, token, and yield evidence disappears
   exactly when the issue is finished and ready for retrospective analysis.
 - Graph/context artifacts should be treated as heterogeneous evidence, not a
-  single preferred array. Graphify and CodeGraph JSON can expose useful
+  single preferred array. retired graph-context tools JSON can expose useful
   candidates in later list-valued fields such as edges, so context probes
   should scan all list fields and let source files/tests decide truth.
 - Selected provider-worker input paths need component-level symlink checks
@@ -443,17 +449,18 @@
 - Prefer a small typed agent router for the MVP before adopting orchestration dependencies.
 - Project-local `AGENTS.md` is the fastest way to carry repo-specific Codex behavior across new threads. It should stay concise, stricter than generic docs, and focused on boundaries that are easy for an agent to violate.
 - A dependency audit must include optional extras before release. The default install can be clean while `uv run --all-extras --with pip-audit pip-audit --progress-spinner off` still catches future runtime surfaces such as mitmproxy.
-- Graphify should remain optional generated context. Keep `graphify-out/` ignored, and treat curated Markdown, ADRs, and `.context/` as the durable source of truth.
-- Graphify's first-pass natural-language retrieval did not beat `rg`,
+- Retired graph tooling should remain optional generated context. Keep local
+  generated output ignored, and treat curated Markdown, ADRs, and `.context/`
+  as the durable source of truth.
+- Retired graph tooling's first-pass natural-language retrieval did not beat `rg`,
   `scripts/context_pack.sh`, or `docs/meta/DECISION_REGISTRY.yaml` during the
   #602 pilot. Use it after ordinary repo discovery when a symbol is already
-  known and `graphify explain` or `graphify affected` can compact caller/test
-  impact evidence.
+  known and impact queries can compact caller/test impact evidence.
 - Context-engineering tools are useful only when their layer is explicit:
-  Obsidian/LLM wiki preserves memory, Graphify/Understand Anything improves
-  comprehension, CodeGraph helps focused `src/` and `tests/` impact analysis,
-  Headroom reduces token cost after retrieval stabilizes, and none of them
-  outrank repo files, tests, CI, ADRs, the decision registry, or
+  Obsidian/LLM wiki preserves memory, comprehension tools support onboarding,
+  symbol-context tools help focused `src/` and `tests/` impact analysis,
+  compression tools are only useful after retrieval stabilizes, and none of
+  them outrank repo files, tests, CI, ADRs, the decision registry, or
   QAnstitution/Hurl evidence.
 - The autonomous workflow should stay Codex-first until OpenCode and local Qwen/oMLX have proven reliable on bounded read-only or review tasks. Cheap agents can draft and critique, but verified commits remain the product boundary.
 - A multi-agent workflow needs executable gates, not only principles. Keep one parent integrator, require local file evidence for claims, run deterministic checks before commit, and update context files so future threads inherit the decision trail.
@@ -572,7 +579,7 @@
   items as the whole board. Use a documented, validated lookup window before
   deciding an issue item is missing and falling back to item-add recovery.
 - Context tools must earn active workflow status with repeated issue evidence.
-  Graphify, CodeGraph, and Headroom created more routing/setup surface than
+  retired generated context tools created more routing/setup surface than
   value for Entroping; keep curated Git-backed Markdown and deterministic repo
   discovery active, and leave generated graph/compression output as local
   discard or experiment evidence until a new scorecard proves otherwise.

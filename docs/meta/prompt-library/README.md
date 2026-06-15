@@ -53,7 +53,7 @@ archive is mounted or attached to the cloud task.
   and merge readiness for Tier B/Tier C work.
 - Allow OpenCode/DeepSeek to merge only Tier A autonomous lane work after the
   PR declares merge authority, required local gates pass, and CI is green.
-- Treat Gemini, DeepSeek, OpenCode, NotebookLM, Graphify, CodeGraph, and local
+- Treat Gemini, DeepSeek, OpenCode, NotebookLM, and local
   models as evidence sources, not authorities.
 - Declare the role from `docs/meta/AGENT_ROLE_REGISTRY.yaml` before starting
   worker prompts, and record local budget/context outcomes with

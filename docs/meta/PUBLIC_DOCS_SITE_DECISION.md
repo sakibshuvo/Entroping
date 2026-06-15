@@ -75,7 +75,7 @@ artifact from `main`.
 - Do not move product, technical, user, or meta docs out of `docs/` for the site.
 - Do not make the docs site the project tracker; GitHub Issues and milestones
   remain the tracker.
-- Do not publish Obsidian UI state, Graphify output, reports, `.entroping/`, or
+- Do not publish Obsidian UI state, generated local context output, reports, `.entroping/`, or
   generated site output.
 - Keep `site/` ignored when local builds are introduced.
 - Keep the public navigation curated; Obsidian-only notes, source exports, and

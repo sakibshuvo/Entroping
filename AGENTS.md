@@ -50,7 +50,7 @@ These instructions extend the global Codex rules for this repository. If a rule 
 - Keep `docs/meta/PROJECT_PROGRESS.md` current after meaningful feature, bug, or roadmap changes.
 - Add or update an ADR when a product or architecture decision should survive context resets.
 - Use `.context/plan.md` for the active implementation plan, `.context/changelog.md` for concise changes, and `.context/lessons-learned.md` for durable pitfalls and decisions.
-- Keep Obsidian/Graphify generated state out of Git unless it is intentionally curated Markdown.
+- Keep Obsidian workspace state and generated local context output out of Git unless it is intentionally curated Markdown.
 - Use GitHub Issues as the canonical tracker for individual bugs, feature slices, and regressions.
 - Keep `.codex/` and installed skills/plugins user-local. Project behavior belongs in this file, tracked scripts, issue prompts, docs, and CI.
 
@@ -76,4 +76,4 @@ These instructions extend the global Codex rules for this repository. If a rule 
 - `scripts/feature_gate.sh` runs `scripts/repo_hygiene.sh`; do not bypass it when local state or generated files are involved.
 - Optional local hooks can be installed with `scripts/install_hooks.sh`, but hooks are convenience only and do not replace CI or the feature gate.
 - Review `git diff` before staging or committing.
-- Do not commit `.DS_Store`, `.venv/`, `.entroping/`, generated reports, local env files, Graphify output, or Obsidian workspace/cache/plugin state.
+- Do not commit `.DS_Store`, `.venv/`, `.entroping/`, generated reports, local env files, generated local context output, or Obsidian workspace/cache/plugin state.

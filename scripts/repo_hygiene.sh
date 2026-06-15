@@ -6,7 +6,7 @@ show_help() {
 Usage: scripts/repo_hygiene.sh
 
 Fails when local machine state, runtime state, caches, reports, or generated
-graph output are tracked by Git.
+local output are tracked by Git.
 
 Forbidden tracked paths include:
   .DS_Store
@@ -14,13 +14,9 @@ Forbidden tracked paths include:
   .entroping/
   .entroping/factory-metrics/
   reports/
-  graphify-out/
   llm-wiki-out/
   .understand-anything/
   understand-anything-out/
-  .codegraph/
-  codegraph-out/
-  headroom-out/
   agent-context-out/
   .venv/
   .mypy_cache/
@@ -57,13 +53,9 @@ is_forbidden_path() {
     .entroping/factory-metrics/*|\
     .entroping/*|\
     reports/*|\
-    graphify-out/*|\
     llm-wiki-out/*|\
     .understand-anything/*|\
     understand-anything-out/*|\
-    .codegraph/*|\
-    codegraph-out/*|\
-    headroom-out/*|\
     agent-context-out/*|\
     .venv/*|\
     .mypy_cache/*|\

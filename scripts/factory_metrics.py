@@ -148,8 +148,6 @@ CONTEXT_SCORECARD_ALLOWED_SOURCE_TYPES = {
     "curated_markdown",
     "generated_graph",
     "generated_wiki",
-    "generated_codegraph",
-    "generated_headroom",
     "generated_understand_anything",
     "factory_metrics",
 }

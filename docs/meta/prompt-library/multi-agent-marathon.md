@@ -55,7 +55,7 @@ For each write worker:
 - create or confirm the issue,
 - create an issue worktree with scripts/start_issue.sh,
 - give the worker the exact issue-worker prompt,
-- do not route workers through Graphify, CodeGraph, or Headroom; use `rg`,
+- do not route workers through external generated-context tooling; use `rg`,
   context packs, source reads, focused tests, and CI evidence,
 - require focused tests and gates,
 - require a PR with Closes #<issue>.

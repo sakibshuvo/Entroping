@@ -335,7 +335,8 @@ Allowed unattended work:
 - Run tests and audits.
 - Produce draft specs.
 - Explore code and summarize.
-- Generate Graphify reports into ignored output.
+- Generate external context reports into ignored output only when explicitly
+  needed for a measured experiment.
 
 Not allowed unattended:
 

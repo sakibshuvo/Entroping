@@ -78,9 +78,8 @@ Setup items to verify locally, without committing local config:
   `scripts/start_issue.sh`, `git status --short`, and a clean dirty worktree
   check before edits.
 - Secret and local state hygiene: Do not commit local OpenCode config,
-  `.opencode` state, MCP credentials, provider keys, `.entroping/`, Graphify
-  output, CodeGraph output, Headroom output, provider transcripts, reports, or
-  environment files.
+  `.opencode` state, MCP credentials, provider keys, `.entroping/`, generated
+  local context output, provider transcripts, reports, or environment files.
 - PR-body evidence: include `Closes #<issue>`, commands run, Agent Autonomy
   Declaration, Documentation Impact Declaration, and OpenCode Provider Lane
   Evidence; validate with
@@ -144,7 +143,7 @@ Source-of-truth rules:
 - /Users/sakibshuvo/Documents/Entroping is stale.
 - GitHub Issues, source files, tests, ADRs, docs/meta/DECISION_REGISTRY.yaml, PRs, CI, and QAnstitution/Hurl evidence decide truth.
 - External model output, Obsidian graph views, generated summaries, and chat history are evidence, not authority.
-- Graphify, CodeGraph, and Headroom are inactive for active Entroping agent workflow. Do not route normal OpenCode work through them.
+- Retired generated context tooling is not part of active Entroping agent workflow. Do not route normal OpenCode work through external context tools.
 
 Start:
 git pull --ff-only
@@ -155,7 +154,7 @@ cd ../Entroping-issue-<issue-number>
 scripts/context_pack.sh --mode implementation
 
 Context rule:
-Do not route this worker through Graphify, CodeGraph, or Headroom. Use `rg`,
+Do not route this worker through external generated-context tooling. Use `rg`,
 `scripts/context_pack.sh`, `docs/meta/DECISION_REGISTRY.yaml`, source reads,
 focused tests, and CI evidence instead.
 
@@ -180,7 +179,7 @@ Workflow:
    - security/provider/subprocess/path/dependency work: scripts/feature_gate.sh --security and scripts/regression.sh --security
 7. Record useful cost/context evidence when practical:
    python scripts/factory_metrics.py --help
-8. Review git diff for unrelated edits, secrets, generated local state, provider transcripts, Graphify output, and .entroping artifacts.
+8. Review git diff for unrelated edits, secrets, generated local state, provider transcripts, and .entroping artifacts.
 9. Commit with a Conventional Commit message.
 10. Push and open a PR with Closes #<issue-number>, a checked Documentation Impact Declaration, commands run, Agent Autonomy Declaration when applicable, and OpenCode Provider Lane Evidence when OpenCode/DeepSeek produced the work.
     Run `scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue-number>` before autonomous Tier A merge or before handing the PR to Codex/human review.
@@ -230,7 +229,7 @@ Review:
 3. Confirm Documentation Impact Declaration is checked and accurate.
 4. Confirm Agent Autonomy Declaration is present for any autonomous claim.
 5. Confirm the diff touches only the declared allowed files.
-6. Confirm no secrets, local env files, provider transcripts, Graphify output, .entroping artifacts, reports, .DS_Store, or generated local state are tracked.
+6. Confirm no secrets, local env files, provider transcripts, .entroping artifacts, reports, .DS_Store, or generated local state are tracked.
 7. Confirm tests match the changed behavior and any behavior change has a meaningful regression.
 8. Confirm architecture, QAnstitution branding, deterministic Hurl execution, and provider boundaries were not weakened.
 9. Confirm Tier B/Tier C requires Codex or human review before merge.

@@ -6,7 +6,6 @@ tags:
   - obsidian
   - notebooklm
   - gemini
-  - graphify
   - context
   - hallucination-control
 ---
@@ -29,9 +28,9 @@ For the fuller operating model, read
 OBSIDIAN_VS_GITHUB owns day-to-day placement rules: where bugs, feature ideas,
 roadmap changes, and current work status go.
 
-KNOWLEDGE_BASE_WORKFLOW owns source promotion: how Gemini, NotebookLM, Graphify,
-source exports, and historical brainstorms become issues, ADRs, canonical docs,
-or archival evidence.
+KNOWLEDGE_BASE_WORKFLOW owns source promotion: how Gemini, NotebookLM, source
+exports, and historical brainstorms become issues, ADRs, canonical docs, or
+archival evidence.
 
 When the two guides overlap, keep operational task status in
 `OBSIDIAN_VS_GITHUB` and keep source-evidence/hallucination-control rules here.
@@ -127,22 +126,6 @@ Weekly, or after a large marathon:
 - Move completed work from "current" language to done or later.
 - Add a short dated note to `docs/evolution/EVOLUTION_TIMELINE.md` only when the product story changed.
 - Check `sources/SOURCE_MAP.md` when new Gemini or NotebookLM exports arrive.
-
-## Graphify Role
-
-Graphify is a generated analysis layer, not the project memory.
-
-Use it to find central notes, weakly linked areas, and surprising relationships. Keep generated output ignored unless a finding is promoted into curated Markdown.
-
-Recommended local flow:
-
-```bash
-uv tool install graphifyy
-graphify install
-graphify <repo-root>
-```
-
-Output belongs under `graphify-out/`, which is ignored by Git.
 
 ## Hallucination Prevention
 

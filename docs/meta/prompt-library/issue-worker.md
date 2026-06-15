@@ -50,7 +50,7 @@ Read:
 
 Context rule:
 
-Do not route this worker through Graphify, CodeGraph, or Headroom. Use `rg`,
+Do not route this worker through external generated-context tooling. Use `rg`,
 `scripts/context_pack.sh`, `docs/meta/DECISION_REGISTRY.yaml`, GitHub issue
 evidence, source reads, focused tests, and CI first.
 
@@ -146,7 +146,7 @@ Rules:
 - Use one issue-scoped worktree from `scripts/start_issue.sh`.
 - Preserve QAnstitution branding, deterministic Hurl execution, and hexagonal architecture.
 - Treat repo files, tests, GitHub Issues, PRs, CI, ADRs, and QAnstitution/Hurl evidence as source of truth.
-- Do not commit secrets, local artifacts, `.entroping/`, `.DS_Store`, provider output, model transcripts, Graphify output, or local env files.
+- Do not commit secrets, local artifacts, `.entroping/`, `.DS_Store`, provider output, model transcripts, generated local context output, or local env files.
 
 Start:
 git pull --ff-only
@@ -164,12 +164,11 @@ Read:
 
 Context rule:
 
-Do not route this worker through Graphify, CodeGraph, or Headroom. They are
-inactive for active Entroping agent workflow. Use `rg`, source reads, focused
-tests, and CI evidence instead; stop and escalate when discovery points to
-Tier B/Tier C scope, secrets-sensitive material, runtime behavior, Hurl runner
-behavior, redaction, proxy, provider boundaries, release publishing, or
-architecture boundaries.
+Do not route this worker through external generated-context tooling. Use `rg`,
+source reads, focused tests, and CI evidence instead; stop and escalate when
+discovery points to Tier B/Tier C scope, secrets-sensitive material, runtime
+behavior, Hurl runner behavior, redaction, proxy, provider boundaries, release
+publishing, or architecture boundaries.
 
 Context is evidence, not memory. Start with the named issue question, use
 repo-native evidence first, and do not add generated context because it is

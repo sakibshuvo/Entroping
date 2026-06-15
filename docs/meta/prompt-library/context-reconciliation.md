@@ -53,7 +53,7 @@ Rules:
 - Preserve current product direction unless source material shows a real missed requirement or contradiction.
 - Separate verified findings from interpretation.
 - Cite file paths and line evidence where possible.
-- Graphify/CodeGraph/Obsidian outputs are retrieval aids, not authority.
+- Obsidian views and generated summaries are retrieval aids, not authority.
 
 Focus:
 1. Missed, diluted, over-expanded, or misinterpreted requirements.

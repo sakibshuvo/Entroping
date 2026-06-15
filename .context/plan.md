@@ -77,9 +77,10 @@ project, and a Codex workspace with fast context rehydration.
   verification evidence, and merge authority before parallel workers edit or
   review a PR.
 - Context-tool promotion now runs through a value-free local scorecard:
-  `scripts/factory_metrics.py context-scorecard` compares Graphify, Obsidian
-  graph views, Understand Anything, CodeGraph, and Headroom against the
-  repo-native baseline before any tool becomes active workflow dependency.
+  `scripts/factory_metrics.py context-scorecard` compares Obsidian graph views,
+  Understand Anything, and any future context tool against the repo-native
+  baseline before a tool becomes active workflow dependency; retired generated
+  context tools have been removed from active workflow surfaces.
 - Reusable human-to-agent prompts now live under
   `docs/meta/prompt-library/`; the agent control plane owns durable policy,
   while the prompt library owns copy-paste launchers for fresh Codex sessions,
@@ -1734,7 +1735,7 @@ merged through GitHub before starting the next branch:
 - Studio mutation workflows beyond read-only report-backed inspection.
 - Nuitka packaging.
 - Hosted/cloud features.
-- Graphify-generated artifacts in Git.
+- Generated context-tool artifacts in Git.
 
 ## Working Context Loop
 
@@ -1768,7 +1769,7 @@ scripts/start_issue.sh <issue-number> <type>/<short-kebab-description> --dry-run
 - Keep `entroping run` deterministic and LLM-free.
 - Keep Hurl as the only API execution engine.
 - Do not send secrets or raw traffic to LLM providers.
-- Keep generated state, reports, local env files, and Graphify output out of Git.
+- Keep generated state, reports, local env files, and generated local context output out of Git.
 - Treat security and quality checks as release gates.
 - Use the feature delivery checklist for TDD, regression, architecture, security, multi-agent, documentation, and commit-readiness gates.
 - Use GitHub Issues for individual work items and `docs/meta/PROJECT_PROGRESS.md` for simple Obsidian progress tracking.

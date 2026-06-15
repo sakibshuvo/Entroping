@@ -117,7 +117,7 @@ def _context_tool_scorecard(
 
 def _context_tool_evaluation(
     *,
-    tool: str = "Graphify",
+    tool: str = "ContextMap",
     proof_status: str = "measured",
     recommended_status: str = "optional_manual",
     setup: dict[str, Any] | None = None,
@@ -136,11 +136,11 @@ def _context_tool_evaluation(
             {
                 "source_type": "github_issue",
                 "reference": "#602",
-                "summary": "Graphify pilot against report audit-chain issue.",
+                "summary": "Context-map pilot against report audit-chain issue.",
             },
             {
                 "source_type": "curated_markdown",
-                "reference": "docs/meta/CONTEXT_MANAGEMENT.md#Graphify Role",
+                "reference": "docs/meta/CONTEXT_MANAGEMENT.md",
                 "summary": "Canonical context-tool boundary.",
             },
         ],
@@ -150,7 +150,7 @@ def _context_tool_evaluation(
             {
                 "issue": "602",
                 "packet_type": "source_test_impact",
-                "workflow": "graphify_assisted",
+                "workflow": "context_map_assisted",
                 "baseline_workflow": "repo_native",
                 "metrics": _required_context_tool_metrics(
                     retrieval_precision=0.75,
@@ -161,8 +161,8 @@ def _context_tool_evaluation(
                 ),
                 "baseline_metrics": _required_context_tool_metrics(),
                 "evidence_summary": (
-                    "Graphify helped only after exact symbol seeding; baseline "
-                    "was better for initial orientation."
+                    "Context-map output helped only after exact symbol seeding; "
+                    "baseline was better for initial orientation."
                 ),
             }
         ],
@@ -1380,7 +1380,7 @@ def test_context_tool_scorecard_report_measures_tools_against_baseline(
         tool_evaluations=[
             _context_tool_evaluation(),
             _context_tool_evaluation(
-                tool="CodeGraph",
+                tool="SymbolLens",
                 proof_status="not_measured",
                 recommended_status="probation",
                 trials=[],
@@ -1388,7 +1388,7 @@ def test_context_tool_scorecard_report_measures_tools_against_baseline(
                     {
                         "source_type": "curated_markdown",
                         "reference": "docs/meta/CONTEXT_MANAGEMENT.md",
-                        "summary": "CodeGraph remains unproven in this repo.",
+                        "summary": "SymbolLens remains unproven in this repo.",
                     }
                 ],
             ),
@@ -1424,23 +1424,26 @@ def test_context_tool_scorecard_report_measures_tools_against_baseline(
     }
 
     tools = {tool["tool"]: tool for tool in report["tools"]}
-    graphify = tools["Graphify"]
-    assert graphify["proof_status"] == "measured"
-    assert graphify["recommended_status"] == "optional_manual"
-    assert graphify["strongest_improvement_count"] == 3
-    assert graphify["strongest_regression_count"] == 2
-    assert graphify["trial_count"] == 1
-    assert len(graphify["trials"]) == 1
-    assert graphify["trials"][0]["workflow"] == "graphify_assisted"
-    assert graphify["missing_required_metrics"] == []
-    assert "retrieval_precision" in graphify["best_trial"]["improved_metrics"]
-    assert "context_recovery_time_seconds" in graphify["best_trial"]["improved_metrics"]
+    context_map = tools["ContextMap"]
+    assert context_map["proof_status"] == "measured"
+    assert context_map["recommended_status"] == "optional_manual"
+    assert context_map["strongest_improvement_count"] == 3
+    assert context_map["strongest_regression_count"] == 2
+    assert context_map["trial_count"] == 1
+    assert len(context_map["trials"]) == 1
+    assert context_map["trials"][0]["workflow"] == "context_map_assisted"
+    assert context_map["missing_required_metrics"] == []
+    assert "retrieval_precision" in context_map["best_trial"]["improved_metrics"]
+    assert (
+        "context_recovery_time_seconds"
+        in context_map["best_trial"]["improved_metrics"]
+    )
 
-    codegraph = tools["CodeGraph"]
-    assert codegraph["proof_status"] == "not_measured"
-    assert codegraph["trial_count"] == 0
-    assert codegraph["strongest_improvement_count"] == 0
-    assert codegraph["missing_required_metrics"] == []
+    symbol_lens = tools["SymbolLens"]
+    assert symbol_lens["proof_status"] == "not_measured"
+    assert symbol_lens["trial_count"] == 0
+    assert symbol_lens["strongest_improvement_count"] == 0
+    assert symbol_lens["missing_required_metrics"] == []
 
 
 def test_context_tool_scorecard_reports_setup_failure_evidence(

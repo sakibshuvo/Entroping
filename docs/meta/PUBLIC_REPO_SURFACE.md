@@ -28,7 +28,6 @@ tool first: README, roadmap, docs, package code, tests, examples, ADRs, and CI.
 | `.context/lessons-learned.md` | Maintainer/agent handoff | Tracked durable failure and decision memory |
 | `scripts/ai_jobs.py`, `scripts/opencode_worker.py`, `scripts/deepseek_worker.py` | Maintainer-only AI worker tooling | Tracked to produce bounded local review/patch artifacts; not product APIs, user commands, or automatic patch applicators |
 | `.obsidian/` | Obsidian machine state | Local-only; do not track |
-| `graphify-out/` | Generated graph output | Local-only; promote useful findings into docs |
 | `.entroping/` and `reports/` | Runtime/generated artifacts | Local-only unless a curated asset is intentionally copied into docs |
 
 ## Decisions

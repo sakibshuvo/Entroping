@@ -6,7 +6,7 @@ tags:
   - obsidian
   - context
   - agents
-  - graphify
+  - retired-context-tools
   - llm-wiki
 ---
 
@@ -27,7 +27,7 @@ The durable model is:
 GitHub/repo is canonical.
 Obsidian is the local thinking interface.
 Agents read and write curated Markdown through rules.
-Graphify audits the graph, but never becomes truth.
+External context tools may audit the graph, but never become truth.
 ```
 
 If Obsidian is removed later, Entroping should still work. The project depends
@@ -126,7 +126,7 @@ Follow these rules for every note, agent session, and source import:
    ADR, canonical doc, or `.context/` handoff note.
 5. **Every factual claim needs a path.** Agents must cite local files, source
    exports, tests, command output, issues, or PRs.
-6. **Generated graph output is advisory.** Graphify can suggest weak links or
+6. **Generated graph output is advisory.** External tools can suggest weak links or
    stale clusters, but its output stays ignored unless promoted into curated
    Markdown.
 
@@ -346,9 +346,9 @@ Optional plugins:
 - **Tasks or Project Manager:** useful in personal vaults, but avoid them for
   Entroping execution because GitHub Issues are canonical.
 
-## Graphify Workflow
+## External Context Tool Workflow
 
-Run Graphify weekly or after a large marathon.
+Run external context tooling only for a measured experiment.
 
 Useful questions:
 
@@ -359,7 +359,7 @@ Useful questions:
 - Which ADRs are weakly linked to implementation docs?
 - Which product claims lack evidence?
 
-Keep generated output under ignored folders such as `graphify-out/`. Promote
+Keep generated output under ignored local folders. Promote
 only reviewed findings into issues, ADRs, canonical docs, or `.context/`.
 
 ## Agent Workflow
@@ -392,7 +392,7 @@ After the session:
 3. Update `.context/lessons-learned.md` only for durable lessons.
 4. Add or update an ADR only for durable decisions.
 5. Update product, user, or technical docs only if behavior changed.
-6. Leave Obsidian UI state and Graphify output out of Git.
+6. Leave Obsidian UI state and generated local context output out of Git.
 
 ## Anti-Hallucination Controls
 

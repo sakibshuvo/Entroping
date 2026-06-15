@@ -113,6 +113,6 @@ Stop and report before editing or merging if:
   diff.
 - You find raw traffic, provider transcripts, or audit evidence contents in the
   diff.
-- You find generated local state such as `.entroping/`, Graphify output,
-  CodeGraph output, Headroom output, reports, or cache files in the diff.
+- You find generated local state such as `.entroping/`, generated context
+  output, reports, or cache files in the diff.
 ```

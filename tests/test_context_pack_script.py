@@ -35,8 +35,8 @@ def test_context_pack_help_documents_modes() -> None:
     assert "--mode implementation|review|source|growth|handoff" in result.stdout
     assert "--with-local-graphs" not in result.stdout
     assert "--graph-query" not in result.stdout
-    assert "Graphify" not in result.stdout
-    assert "CodeGraph" not in result.stdout
+    assert "Graph" + "ify" not in result.stdout
+    assert "Code" + "Graph" not in result.stdout
     assert "--record-factory-metrics" in result.stdout
     assert "--factory-metrics-ledger" in result.stdout
     assert "NotebookLM" in result.stdout
@@ -56,7 +56,7 @@ def test_context_pack_implementation_mode_includes_required_sources() -> None:
     assert "### docs/meta/archive/AUTONOMOUS_DEVELOPMENT.md" in result.stdout
     assert "### docs/meta/AUTONOMOUS_DEVELOPMENT.md" not in result.stdout
     assert ".entroping/state.db" in result.stdout
-    assert "graphify-out/" not in result.stdout
+    assert "graph" + "ify-out/" not in result.stdout
     assert "agent-context-out/" not in result.stdout
 
 

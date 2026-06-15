@@ -50,7 +50,7 @@ handoff note.
 This guide owns day-to-day placement rules for bugs, feature ideas, roadmap
 changes, current work status, and handoff context. Use
 [[docs/meta/KNOWLEDGE_BASE_WORKFLOW|KNOWLEDGE_BASE_WORKFLOW]] for source
-promotion, Gemini/NotebookLM export handling, Graphify output, and
+promotion, Gemini/NotebookLM export handling, generated local context output, and
 hallucination-control rules.
 
 ## Where Things Go

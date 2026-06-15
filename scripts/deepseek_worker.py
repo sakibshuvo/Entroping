@@ -530,11 +530,11 @@ def _factory_capability_context(config: DirectWorkerConfig) -> list[str]:
             "`scripts/opencode_worker.py`, and `scripts/deepseek_worker.py`."
         ),
         (
-            "- Graphify, CodeGraph, and Headroom are not active workflow "
-            "dependencies for Entroping workers. Do not request them, route "
-            "through them, or claim their output exists. Spark, Kimi, and MCP "
-            "are also absent unless this prompt explicitly includes evidence "
-            "from a host that has those capabilities."
+            "- Retired generated context tooling is not an active workflow "
+            "dependency for Entroping workers. Do not request external context "
+            "tools, route through them, or claim their output exists. Spark, "
+            "Kimi, and MCP are also absent unless this prompt explicitly "
+            "includes evidence from a host that has those capabilities."
         ),
         (
             "- Context safety: use selected files only; do not request, infer, "
