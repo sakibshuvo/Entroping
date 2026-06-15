@@ -75,6 +75,8 @@ def test_opencode_readiness_json_preflight_passes_with_fake_opencode(
     result = run_readiness(
         "--opencode-bin",
         str(fake_opencode),
+        "--expected-repo-prefix",
+        str(REPO_ROOT.parent),
         "--format",
         "json",
     )
