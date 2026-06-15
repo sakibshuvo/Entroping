@@ -3,7 +3,7 @@ set -euo pipefail
 
 show_help() {
   cat <<'EOF'
-Usage: scripts/context_pack.sh [--mode implementation|review|source|growth|handoff] [--record-factory-metrics]
+Usage: scripts/context_pack.sh [--mode implementation|review|source|growth|handoff] [--manifest] [--strict-budget] [--record-factory-metrics]
 
 Print a curated Entroping context pack for Codex, Claude Code, OpenCode,
 Gemini, NotebookLM, local Qwen, or another coding/review agent.
@@ -24,6 +24,18 @@ Modes:
 The pack is written to stdout. Redirect it to a temp file when needed:
 
   scripts/context_pack.sh --mode implementation > /tmp/entroping-context.md
+
+Print only a JSON manifest with file inventory, byte counts, estimated tokens,
+and budget status when an agent needs retrieval planning without loading the
+full context body:
+
+  scripts/context_pack.sh --mode implementation --manifest
+
+Use --strict-budget to fail when the generated pack exceeds its mode budget.
+Budget overrides are available for local experiments and tests with
+ENTROPING_CONTEXT_PACK_BUDGET_<MODE>, for example:
+
+  ENTROPING_CONTEXT_PACK_BUDGET_IMPLEMENTATION=330000 scripts/context_pack.sh --mode implementation --strict-budget
 
 Opt into ignored local software-factory metrics when measuring context cost:
 
@@ -49,6 +61,8 @@ die() {
 }
 
 mode="implementation"
+manifest=false
+strict_budget=false
 record_factory_metrics=false
 factory_role="integrator"
 factory_metrics_ledger=""
@@ -59,6 +73,14 @@ while (($#)); do
       [[ $# -ge 2 ]] || die "--mode requires a value"
       mode="$2"
       shift 2
+      ;;
+    --manifest)
+      manifest=true
+      shift
+      ;;
+    --strict-budget)
+      strict_budget=true
+      shift
       ;;
     --record-factory-metrics)
       record_factory_metrics=true
@@ -176,6 +198,154 @@ esac
 branch="$(git branch --show-current 2>/dev/null || true)"
 status="$(git status --short 2>/dev/null || true)"
 
+mode_budget_bytes() {
+  local default_budget
+  local upper_mode
+  local env_name
+  local override
+
+  case "$mode" in
+    implementation)
+      default_budget=330000
+      ;;
+    review)
+      default_budget=405000
+      ;;
+    source)
+      default_budget=225000
+      ;;
+    growth)
+      default_budget=250000
+      ;;
+    handoff)
+      default_budget=425000
+      ;;
+    *)
+      die "unknown mode: $mode"
+      ;;
+  esac
+
+  upper_mode="$(printf '%s' "$mode" | tr '[:lower:]' '[:upper:]')"
+  env_name="ENTROPING_CONTEXT_PACK_BUDGET_${upper_mode}"
+  override="${!env_name:-}"
+  if [[ -n "$override" ]]; then
+    [[ "$override" =~ ^[0-9]+$ ]] \
+      || die "$env_name must be a non-negative integer byte budget"
+    printf '%s\n' "$override"
+    return 0
+  fi
+
+  printf '%s\n' "$default_budget"
+}
+
+context_pack_bytes() {
+  local pack_file="$1"
+  local context_bytes
+
+  context_bytes="$(wc -c < "$pack_file" | tr -d '[:space:]')"
+  if [[ -z "$context_bytes" ]]; then
+    context_bytes=0
+  fi
+  printf '%s\n' "$context_bytes"
+}
+
+file_reason() {
+  local path="$1"
+
+  case "$path" in
+    AGENTS.md)
+      printf 'agent-rules\n'
+      ;;
+    docs/meta/DECISION_REGISTRY.yaml)
+      printf 'decision-registry\n'
+      ;;
+    .context/plan.md)
+      printf 'active-plan\n'
+      ;;
+    docs/meta/PROJECT_PROGRESS.md)
+      printf 'project-progress\n'
+      ;;
+    docs/meta/FEATURE_DELIVERY_CHECKLIST.md)
+      printf 'delivery-checklist\n'
+      ;;
+    docs/meta/archive/AUTONOMOUS_DEVELOPMENT.md)
+      printf 'autonomous-workflow\n'
+      ;;
+    docs/product/MVP_PLAN.md)
+      printf 'mvp-scope\n'
+      ;;
+    docs/technical/TDS.md)
+      printf 'architecture\n'
+      ;;
+    docs/technical/COMMAND_CHEAT_SHEET.md)
+      printf 'command-surface\n'
+      ;;
+    docs/meta/TEST_STRATEGY.md)
+      printf 'test-strategy\n'
+      ;;
+    .context/changelog.md)
+      printf 'context-changelog\n'
+      ;;
+    .context/lessons-learned.md)
+      printf 'lessons-learned\n'
+      ;;
+    .github/pull_request_template.md)
+      printf 'pr-evidence-template\n'
+      ;;
+    docs/meta/AGENT_CONTROL_PLANE.md)
+      printf 'agent-control-plane\n'
+      ;;
+    docs/meta/VAULT_INDEX.md)
+      printf 'vault-index\n'
+      ;;
+    sources/SOURCE_MAP.md)
+      printf 'source-map\n'
+      ;;
+    docs/meta/KNOWLEDGE_BASE_WORKFLOW.md)
+      printf 'knowledge-base-workflow\n'
+      ;;
+    docs/meta/OBSIDIAN_CONTEXT_ENGINE_GUIDE.md)
+      printf 'obsidian-context-guide\n'
+      ;;
+    docs/evolution/REQUIREMENTS_ANALYSIS.md)
+      printf 'requirements-evidence\n'
+      ;;
+    docs/evolution/EVOLUTION_TIMELINE.md)
+      printf 'evolution-timeline\n'
+      ;;
+    docs/evolution/CREATOR_INTENT_AUDIT.md)
+      printf 'creator-intent-audit\n'
+      ;;
+    README.md)
+      printf 'public-positioning\n'
+      ;;
+    docs/product/PRODUCT_SPEC.md)
+      printf 'product-spec\n'
+      ;;
+    docs/product/MARKETING_NOTE.md)
+      printf 'marketing-note\n'
+      ;;
+    docs/product/GROWTH_AND_MONETIZATION.md)
+      printf 'growth-monetization\n'
+      ;;
+    docs/meta/RELEASE_CHECKLIST.md)
+      printf 'release-checklist\n'
+      ;;
+    CONTRIBUTING.md)
+      printf 'contribution-rules\n'
+      ;;
+    SECURITY.md)
+      printf 'security-policy\n'
+      ;;
+    docs/meta/CONTEXT_MANAGEMENT.md)
+      printf 'context-management\n'
+      ;;
+    *)
+      die "missing context manifest reason for: $path"
+      ;;
+  esac
+}
+
 emit_context_pack() {
   printf '# Entroping Agent Context Pack\n\n'
   printf '%s\n' "- Mode: $mode"
@@ -235,6 +405,83 @@ EOF
   done
 }
 
+emit_context_pack_manifest() {
+  local pack_file="$1"
+  local budget_bytes="$2"
+  local manifest_args
+  local path
+  local reason
+
+  manifest_args=(
+    "$mode"
+    "$repo_root"
+    "${branch:-detached}"
+    "$source_root"
+    "$budget_bytes"
+    "$pack_file"
+  )
+  for path in "${files[@]}"; do
+    reason="$(file_reason "$path")"
+    manifest_args+=("$path" "$reason")
+  done
+
+  python3 - "${manifest_args[@]}" <<'PY'
+import json
+import os
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+mode, repo, branch, source_root, budget_raw, pack_file, *raw_files = sys.argv[1:]
+budget_bytes = int(budget_raw)
+context_bytes = os.path.getsize(pack_file)
+estimated_tokens = max(1, (context_bytes + 3) // 4)
+
+files = []
+for index in range(0, len(raw_files), 2):
+    path = raw_files[index]
+    reason = raw_files[index + 1]
+    file_path = Path(path)
+    files.append(
+        {
+            "path": path,
+            "bytes": file_path.stat().st_size,
+            "reason": reason,
+        }
+    )
+
+manifest = {
+    "schema": "entroping.context-pack-manifest.v1",
+    "mode": mode,
+    "repo": repo,
+    "branch": branch,
+    "source_archive": source_root,
+    "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+    "file_count": len(files),
+    "files": files,
+    "context_bytes": context_bytes,
+    "estimated_tokens": estimated_tokens,
+    "budget_bytes": budget_bytes,
+    "budget_status": "pass" if context_bytes <= budget_bytes else "fail",
+}
+
+print(json.dumps(manifest, indent=2, sort_keys=True))
+PY
+}
+
+enforce_context_pack_budget() {
+  local pack_file="$1"
+  local budget_bytes="$2"
+  local context_bytes
+
+  context_bytes="$(context_pack_bytes "$pack_file")"
+  if ((context_bytes > budget_bytes)); then
+    printf 'context_pack: %s context pack exceeds budget: %s bytes > %s byte budget\n' \
+      "$mode" "$context_bytes" "$budget_bytes" >&2
+    return 1
+  fi
+}
+
 record_context_pack_metrics() {
   local pack_file="$1"
   local context_bytes
@@ -242,10 +489,7 @@ record_context_pack_metrics() {
   local metrics_output
   local metrics_args
 
-  context_bytes="$(wc -c < "$pack_file" | tr -d '[:space:]')"
-  if [[ -z "$context_bytes" ]]; then
-    context_bytes=0
-  fi
+  context_bytes="$(context_pack_bytes "$pack_file")"
   estimated_tokens=$(((context_bytes + 3) / 4))
   if ((estimated_tokens < 1)); then
     estimated_tokens=1
@@ -278,15 +522,31 @@ record_context_pack_metrics() {
   fi
 }
 
-if [[ "$record_factory_metrics" == "true" ]]; then
+if [[ "$record_factory_metrics" == "true" || "$manifest" == "true" || "$strict_budget" == "true" ]]; then
   tmp_pack="$(mktemp "${TMPDIR:-/tmp}/entroping-context-pack.XXXXXX")"
   cleanup_context_pack_metrics() {
     rm -f "$tmp_pack"
   }
   trap cleanup_context_pack_metrics EXIT
   emit_context_pack > "$tmp_pack"
-  cat "$tmp_pack"
-  record_context_pack_metrics "$tmp_pack"
+
+  budget_bytes="$(mode_budget_bytes)"
+
+  if [[ "$manifest" == "true" ]]; then
+    emit_context_pack_manifest "$tmp_pack" "$budget_bytes"
+  fi
+
+  if [[ "$strict_budget" == "true" ]]; then
+    enforce_context_pack_budget "$tmp_pack" "$budget_bytes" || exit 2
+  fi
+
+  if [[ "$manifest" != "true" ]]; then
+    cat "$tmp_pack"
+  fi
+
+  if [[ "$record_factory_metrics" == "true" ]]; then
+    record_context_pack_metrics "$tmp_pack"
+  fi
 else
   emit_context_pack
 fi

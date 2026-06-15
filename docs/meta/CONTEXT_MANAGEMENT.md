@@ -115,6 +115,28 @@ Gemini/NotebookLM reconciliation, `growth` for launch and monetization work, and
 public positioning, vault navigation, or product-history context is the named
 issue question.
 
+Use the manifest first when planning work for Codex, OpenCode, DeepSeek, Spark,
+or another worker that should not load the full pack immediately:
+
+```bash
+scripts/context_pack.sh --mode implementation --manifest
+```
+
+The manifest uses schema `entroping.context-pack-manifest.v1` and records the
+selected file inventory, per-file byte counts, selection reasons, total context
+bytes, estimated tokens, and the mode budget. It does not include file content.
+Use `--strict-budget` when a workflow should fail instead of silently expanding
+agent context:
+
+```bash
+scripts/context_pack.sh --mode implementation --strict-budget
+scripts/context_pack.sh --mode implementation --manifest --strict-budget
+```
+
+Per-mode byte budgets are intentionally explicit in `scripts/context_pack.sh`.
+Use `ENTROPING_CONTEXT_PACK_BUDGET_<MODE>` only for local experiments and tests;
+do not raise a budget without a PR that explains the context-cost reason.
+
 `source` mode defaults to a sibling `../entroping-specs` archive. Override it
 when the source archive lives elsewhere:
 

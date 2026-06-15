@@ -16,6 +16,9 @@ def run_context_pack(
     env: Mapping[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     command_env = os.environ.copy()
+    for key in list(command_env):
+        if key.startswith("ENTROPING_CONTEXT_PACK_BUDGET_"):
+            del command_env[key]
     if env is not None:
         command_env.update(env)
     return subprocess.run(
@@ -33,6 +36,8 @@ def test_context_pack_help_documents_modes() -> None:
 
     assert result.returncode == 0
     assert "--mode implementation|review|source|growth|handoff" in result.stdout
+    assert "--manifest" in result.stdout
+    assert "--strict-budget" in result.stdout
     assert "--with-local-graphs" not in result.stdout
     assert "--graph-query" not in result.stdout
     assert "Graph" + "ify" not in result.stdout
@@ -41,6 +46,74 @@ def test_context_pack_help_documents_modes() -> None:
     assert "--factory-metrics-ledger" in result.stdout
     assert "NotebookLM" in result.stdout
     assert "Codex" in result.stdout
+
+
+def test_context_pack_manifest_reports_budgeted_file_inventory_without_pack_body() -> None:
+    result = run_context_pack("--mode", "implementation", "--manifest")
+
+    assert result.returncode == 0, result.stderr
+    manifest = json.loads(result.stdout)
+    assert manifest["schema"] == "entroping.context-pack-manifest.v1"
+    assert manifest["mode"] == "implementation"
+    assert manifest["repo"] == str(REPO_ROOT)
+    assert manifest["branch"]
+    assert manifest["file_count"] == len(manifest["files"])
+    assert manifest["file_count"] >= 1
+    assert manifest["context_bytes"] > 0
+    assert manifest["estimated_tokens"] == (manifest["context_bytes"] + 3) // 4
+    assert manifest["budget_bytes"] >= manifest["context_bytes"]
+    assert manifest["budget_status"] == "pass"
+    assert manifest["generated_at"].endswith("Z")
+
+    by_path = {entry["path"]: entry for entry in manifest["files"]}
+    assert "AGENTS.md" in by_path
+    assert by_path["AGENTS.md"]["bytes"] > 0
+    assert by_path["AGENTS.md"]["reason"] == "agent-rules"
+    assert "docs/meta/DECISION_REGISTRY.yaml" in by_path
+    assert by_path["docs/meta/DECISION_REGISTRY.yaml"]["reason"] == "decision-registry"
+    assert "README.md" not in by_path
+    assert "docs/meta/VAULT_INDEX.md" not in by_path
+
+    assert "# Entroping Agent Context Pack" not in result.stdout
+    assert "Required Agent Rules" not in result.stdout
+    assert "Current Git Status" not in result.stdout
+    assert "content" not in manifest["files"][0]
+
+
+def test_context_pack_manifest_uses_python39_compatible_datetime_api() -> None:
+    script = SCRIPT.read_text(encoding="utf-8")
+
+    assert "from datetime import UTC" not in script
+    assert "timezone.utc" in script
+
+
+def test_context_pack_manifest_rejects_unexplained_file_reasons() -> None:
+    script = SCRIPT.read_text(encoding="utf-8")
+
+    assert "mode-%s-context" not in script
+
+
+def test_context_pack_strict_budget_passes_for_default_implementation_budget() -> None:
+    result = run_context_pack("--mode", "implementation", "--strict-budget")
+
+    assert result.returncode == 0, result.stderr
+    assert "# Entroping Agent Context Pack" in result.stdout
+
+
+def test_context_pack_strict_budget_rejects_over_budget_override() -> None:
+    result = run_context_pack(
+        "--mode",
+        "implementation",
+        "--manifest",
+        "--strict-budget",
+        env={"ENTROPING_CONTEXT_PACK_BUDGET_IMPLEMENTATION": "1"},
+    )
+
+    assert result.returncode == 2
+    assert "implementation context pack exceeds budget" in result.stderr
+    manifest = json.loads(result.stdout)
+    assert manifest["budget_bytes"] == 1
+    assert manifest["budget_status"] == "fail"
 
 
 def test_context_pack_implementation_mode_includes_required_sources() -> None:
