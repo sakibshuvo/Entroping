@@ -7,8 +7,8 @@ Usage: scripts/doc_governance_check.sh [--root <path>]
 
 Validates the documentation control plane so humans and agents cannot silently
 remove roadmap, progress, PR, or agent-governance guardrails.
-It also runs Markdown freshness, public claims, and source-preservation checks
-when those scripts are present.
+It also runs Markdown freshness, documentation inventory, public claims, and
+source-preservation checks when those scripts are present.
 
 Required anchors include:
   README.md links ROADMAP.md
@@ -17,6 +17,8 @@ Required anchors include:
   docs/meta/DECISION_REGISTRY.yaml preserves durable decision pointers
   .github/pull_request_template.md requires a Documentation Impact Declaration
   scripts/docs_freshness_check.py rejects stale or corrupt Markdown context
+  scripts/docs_inventory.py reports Markdown tiers and enforces the default
+    agent context budget
   scripts/feature_gate.sh runs this check
 
 Options:
@@ -97,6 +99,7 @@ require_marker ".github/pull_request_template.md" "## Documentation Impact Decla
 require_marker ".github/pull_request_template.md" "Roadmap/progress updated:"
 require_marker "scripts/feature_gate.sh" "scripts/doc_governance_check.sh"
 require_marker "scripts/docs_freshness_check.py" "Markdown freshness OK"
+require_marker "scripts/docs_inventory.py" "Documentation Inventory"
 require_marker "scripts/public_claims_audit.py" "Public claims audit OK"
 require_marker "docs/meta/FEATURE_DELIVERY_CHECKLIST.md" "scripts/doc_governance_check.sh"
 require_marker "docs/meta/FEATURE_DELIVERY_CHECKLIST.md" "Documentation Impact Declaration"
@@ -112,6 +115,17 @@ if [[ -s "$repo_root/scripts/docs_freshness_check.py" ]]; then
   fi
 else
   failures+=("scripts/docs_freshness_check.py: missing Markdown freshness check")
+fi
+
+if [[ -s "$repo_root/scripts/docs_inventory.py" ]]; then
+  if ! inventory_output="$(python3 "$repo_root/scripts/docs_inventory.py" --root "$repo_root" --strict 2>&1)"; then
+    failures+=("scripts/docs_inventory.py: failed documentation inventory check")
+    while IFS= read -r line; do
+      failures+=("documentation inventory check: $line")
+    done <<< "$inventory_output"
+  fi
+else
+  failures+=("scripts/docs_inventory.py: missing documentation inventory check")
 fi
 
 if [[ -s "$repo_root/scripts/public_claims_audit.py" ]]; then

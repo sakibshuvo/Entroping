@@ -2,6 +2,11 @@
 
 ## 2026-06-15
 
+- Added issue #730's documentation diet guard: `scripts/docs_inventory.py`
+  now inventories tracked Markdown by active/reference/archive tier, owner,
+  audience, canonical/default-agent status, and stale-risk hints; documentation
+  governance runs it in strict mode, and implementation context packs no longer
+  load README/vault navigation by default.
 - Added issue #728's retired context-tool surface cleanup: active docs,
   prompts, hygiene/public-claim scripts, Hurl discovery ignores, and scorecard
   fixtures no longer name the discarded graph/compression tools or their

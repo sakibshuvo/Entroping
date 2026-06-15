@@ -62,6 +62,19 @@ prose. It should point to existing ADRs, docs, issues, and source exports. It
 must not replace those sources, summarize away contradictions, or become a
 second backlog.
 
+## Documentation Inventory Rule
+
+Use `scripts/docs_inventory.py --format json --strict` when the problem is
+Markdown sprawl, active-context drift, or agent onboarding cost. The inventory
+is generated from tracked repo files; do not create a second hand-maintained
+Markdown tracker for the same purpose.
+
+The inventory classifies tracked Markdown as active, reference, or archive,
+records owner and audience hints, marks the default agent-context files, and
+enforces the default-agent Markdown budget. `README.md` and
+`docs/meta/VAULT_INDEX.md` remain important reference/navigation surfaces, but
+they are not default implementation context.
+
 ## Public Docs Curation Rule
 
 Public docs should lead with the shortest path to understanding, installing,
@@ -172,6 +185,8 @@ PR template -> PR body check in CI -> doc governance check -> feature gate -> re
 - `scripts/docs_freshness_check.py` rejects stale paths, broken local Markdown
   links, merge markers, unsupported readiness/security claims, deprecated
   command literals, and placeholder markers in current tracked Markdown.
+- `scripts/docs_inventory.py --strict` reports tracked Markdown tiers and
+  rejects default-agent context drift or duplicate active titles.
 - `scripts/source_preservation_check.py` validates the decision registry,
   source-history anchors, and local registry links.
 - `scripts/public_claims_audit.py` rejects unsupported production-readiness and

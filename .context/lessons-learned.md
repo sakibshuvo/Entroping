@@ -2,6 +2,10 @@
 
 ## 2026-06-15
 
+- Documentation diet needs an executable inventory, not another tracker.
+  `scripts/docs_inventory.py --strict` keeps default agent Markdown context
+  budgeted and classifies the full tracked Markdown set so review complaints
+  about "too much documentation" can turn into measured prune/archive issues.
 - Retired context tools should not stay named in active prompts after a discard
   decision. If a tool fails the scorecard, remove install commands, named
   output directories, prompt routing, and fixture names; keep only generic
