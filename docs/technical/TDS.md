@@ -969,9 +969,12 @@ progress log using schema `entroping.run-events.v1`. Events include run start,
 selected test paths, safe tags and rule IDs, per-test status/duration/timeout
 evidence, artifact paths, no-match or error events, and completion status. The
 log omits variables and raw passing stdout/stderr; failed stdout/stderr and
-error messages use the existing Hurl output redaction path. The writer rewrites
-the current JSONL content with the same safe artifact writer used by reports so
-latest evidence remains valid if execution is interrupted.
+error messages use the existing Hurl output redaction path. The writer resets
+stale latest-run event evidence with a safe first-line write, then appends each
+subsequent JSONL event line through the same root and symlink safety checks so
+large runs do not repeatedly rewrite accumulated evidence. A crash during
+append may leave one incomplete trailing line; run-event readers recover the
+complete JSONL prefix and reject malformed completed lines.
 `--changed-from <ref>` uses `git diff --name-status` to select existing changed
 `.hurl` files from a base ref. Deleted files are skipped, rename targets are
 used, and paths outside the project root are rejected before discovery. This is

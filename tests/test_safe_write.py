@@ -5,7 +5,12 @@ from pathlib import Path
 import pytest
 
 from entroping.core import safe_write
-from entroping.core.safe_write import SafeWriteError, safe_write_bytes, safe_write_text
+from entroping.core.safe_write import (
+    SafeWriteError,
+    safe_append_text,
+    safe_write_bytes,
+    safe_write_text,
+)
 
 
 def test_safe_write_text_writes_utf8_file_atomically(tmp_path: Path) -> None:
@@ -24,6 +29,68 @@ def test_safe_write_bytes_writes_binary_file_atomically(tmp_path: Path) -> None:
 
     assert written == output.resolve()
     assert output.read_bytes() == b"\x89PNG\r\n"
+
+
+def test_safe_append_text_appends_utf8_without_replacing_file(tmp_path: Path) -> None:
+    output = tmp_path / ".entroping" / "latest-run-events.jsonl"
+    safe_write_text(output, '{"event":"first"}\n', artifact="run event log", root=tmp_path)
+
+    written = safe_append_text(
+        output,
+        '{"event":"second"}\n',
+        artifact="run event log",
+        root=tmp_path,
+    )
+
+    assert written == output.resolve()
+    assert output.read_text(encoding="utf-8") == (
+        '{"event":"first"}\n{"event":"second"}\n'
+    )
+
+
+def test_safe_append_text_rejects_symlinked_parent_directory(tmp_path: Path) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (tmp_path / ".entroping").symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(SafeWriteError, match="symlinked path component"):
+        safe_append_text(
+            tmp_path / ".entroping" / "latest-run-events.jsonl",
+            "{}\n",
+            artifact="run event log",
+            root=tmp_path,
+        )
+
+    assert not (outside / "latest-run-events.jsonl").exists()
+
+
+def test_safe_append_text_wraps_append_failures(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = tmp_path / ".entroping" / "latest-run-events.jsonl"
+    safe_write_text(output, "old\n", artifact="run event log", root=tmp_path)
+
+    class AppendFailPath:
+        def open(self, mode: str) -> object:
+            assert mode == "ab"
+            raise OSError("append failed")
+
+    def fake_prepare_destination(
+        path: Path,
+        *,
+        artifact: str,
+        root: Path | None,
+    ) -> AppendFailPath:
+        _ = path, artifact, root
+        return AppendFailPath()
+
+    monkeypatch.setattr(safe_write, "_prepare_destination", fake_prepare_destination)
+
+    with pytest.raises(SafeWriteError, match="append failed"):
+        safe_append_text(output, "new\n", artifact="run event log", root=tmp_path)
+
+    assert output.read_text(encoding="utf-8") == "old\n"
 
 
 def test_safe_write_resolves_relative_path_against_root(tmp_path: Path) -> None:

@@ -1,12 +1,12 @@
 """Sanitized JSONL execution event logs for deterministic runs."""
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
 from entroping.core.hurl_runner import redact_hurl_output
-from entroping.core.safe_write import SafeWriteError, safe_write_text
+from entroping.core.safe_write import SafeWriteError, safe_append_text, safe_write_text
 
 RUN_EVENT_LOG_SCHEMA_VERSION = "entroping.run-events.v1"
 
@@ -15,13 +15,38 @@ class RunEventLogError(RuntimeError):
     """Raised when execution event evidence cannot be written safely."""
 
 
+def read_run_events(path: Path) -> list[dict[str, object]]:
+    """Read valid run events, ignoring one incomplete trailing JSONL record."""
+
+    if not path.exists():
+        return []
+    content = path.read_text(encoding="utf-8")
+    events: list[dict[str, object]] = []
+    lines = content.splitlines()
+    for line_number, line in enumerate(lines, start=1):
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError as exc:
+            if line_number == len(lines) and not content.endswith("\n"):
+                break
+            msg = f"run event log contains invalid JSON on line {line_number}"
+            raise RunEventLogError(msg) from exc
+        if not isinstance(event, dict):
+            msg = f"run event log line {line_number} is not an object"
+            raise RunEventLogError(msg)
+        events.append(event)
+    return events
+
+
 @dataclass(slots=True)
 class RunEventLog:
-    """Append-safe enough JSONL writer for latest run progress evidence."""
+    """JSONL writer for latest run progress evidence."""
 
     project_root: Path
     path: Path
-    _events: list[dict[str, object]] = field(default_factory=list)
+    _initialized: bool = False
 
     @classmethod
     def open_project(cls, project_root: Path) -> "RunEventLog":
@@ -157,28 +182,31 @@ class RunEventLog:
         )
 
     def _append(self, event: str, **fields: object) -> None:
-        self._events.append(
-            {
-                "schema_version": RUN_EVENT_LOG_SCHEMA_VERSION,
-                "event": event,
-                "timestamp": datetime.now(UTC).isoformat(),
-                **fields,
-            }
-        )
-        self._write()
+        payload = {
+            "schema_version": RUN_EVENT_LOG_SCHEMA_VERSION,
+            "event": event,
+            "timestamp": datetime.now(UTC).isoformat(),
+            **fields,
+        }
+        self._write_line(json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n")
 
-    def _write(self) -> None:
-        content = "".join(
-            json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n"
-            for event in self._events
-        )
+    def _write_line(self, line: str) -> None:
         try:
-            safe_write_text(
-                self.path,
-                content,
-                artifact="run event log",
-                root=self.project_root,
-            )
+            if self._initialized:
+                safe_append_text(
+                    self.path,
+                    line,
+                    artifact="run event log",
+                    root=self.project_root,
+                )
+            else:
+                safe_write_text(
+                    self.path,
+                    line,
+                    artifact="run event log",
+                    root=self.project_root,
+                )
+                self._initialized = True
         except SafeWriteError as exc:
             raise RunEventLogError(str(exc)) from exc
 

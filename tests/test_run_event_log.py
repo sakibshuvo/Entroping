@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from entroping.core import run_event_log
-from entroping.core.run_event_log import RunEventLog, RunEventLogError
+from entroping.core import run_event_log, safe_write
+from entroping.core.run_event_log import RunEventLog, RunEventLogError, read_run_events
 from entroping.core.safe_write import SafeWriteError
 
 
@@ -75,3 +75,153 @@ def test_event_log_wraps_safe_write_errors(
             passed=0,
             failed=0,
         )
+
+
+def test_event_log_appends_after_initial_safe_rewrite(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_safe_write_text = safe_write.safe_write_text
+    original_safe_append_text = safe_write.safe_append_text
+    rewrite_payloads: list[str] = []
+    append_payloads: list[str] = []
+
+    def spy_safe_write_text(
+        path: Path,
+        content: str,
+        *,
+        artifact: str,
+        root: Path | None = None,
+    ) -> Path:
+        rewrite_payloads.append(content)
+        return original_safe_write_text(path, content, artifact=artifact, root=root)
+
+    def spy_safe_append_text(
+        path: Path,
+        content: str,
+        *,
+        artifact: str,
+        root: Path | None = None,
+    ) -> Path:
+        append_payloads.append(content)
+        return original_safe_append_text(path, content, artifact=artifact, root=root)
+
+    monkeypatch.setattr(
+        "entroping.core.run_event_log.safe_write_text",
+        spy_safe_write_text,
+    )
+    monkeypatch.setattr(
+        "entroping.core.run_event_log.safe_append_text",
+        spy_safe_append_text,
+    )
+    log = RunEventLog.open_project(tmp_path)
+
+    log.record_artifact(artifact_type="json-report", path=tmp_path / "reports" / "one.json")
+    log.record_artifact(artifact_type="junit-report", path=tmp_path / "reports" / "two.xml")
+    log.record_artifact(artifact_type="html-report", path=tmp_path / "reports" / "three.html")
+
+    assert len(rewrite_payloads) == 1
+    assert rewrite_payloads[0].count("\n") == 1
+    assert len(append_payloads) == 2
+    assert all(payload.count("\n") == 1 for payload in append_payloads)
+    events = _read_jsonl(log.path)
+    assert [event["artifact_type"] for event in events] == [
+        "json-report",
+        "junit-report",
+        "html-report",
+    ]
+
+
+def test_event_log_initial_write_resets_stale_latest_events(tmp_path: Path) -> None:
+    stale_log = tmp_path / ".entroping" / "latest-run-events.jsonl"
+    stale_log.parent.mkdir()
+    stale_log.write_text('{"event":"stale"}\n', encoding="utf-8")
+    log = RunEventLog.open_project(tmp_path)
+
+    log.record_artifact(artifact_type="json-report", path=tmp_path / "reports" / "one.json")
+
+    events = _read_jsonl(log.path)
+    assert [event["event"] for event in events] == ["artifact_written"]
+    assert "stale" not in log.path.read_text(encoding="utf-8")
+
+
+def test_event_log_wraps_safe_append_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    log = RunEventLog.open_project(tmp_path)
+    log.record_artifact(artifact_type="json-report", path=tmp_path / "reports" / "one.json")
+
+    def fail_safe_append_text(
+        path: Path,
+        content: str,
+        *,
+        artifact: str,
+        root: Path | None = None,
+    ) -> Path:
+        _ = (path, content, artifact, root)
+        raise SafeWriteError("append blocked")
+
+    monkeypatch.setattr(
+        "entroping.core.run_event_log.safe_append_text",
+        fail_safe_append_text,
+    )
+
+    with pytest.raises(RunEventLogError, match="append blocked"):
+        log.record_artifact(artifact_type="junit-report", path=tmp_path / "reports" / "two.xml")
+
+
+def test_read_run_events_recovers_valid_prefix_from_partial_trailing_line(
+    tmp_path: Path,
+) -> None:
+    log_path = tmp_path / ".entroping" / "latest-run-events.jsonl"
+    log_path.parent.mkdir()
+    log_path.write_text(
+        '{"event":"run_started","schema_version":"entroping.run-events.v1"}\n'
+        '{"event":"partial"',
+        encoding="utf-8",
+    )
+
+    events = read_run_events(log_path)
+
+    assert [event["event"] for event in events] == ["run_started"]
+
+
+def test_read_run_events_rejects_complete_malformed_line(tmp_path: Path) -> None:
+    log_path = tmp_path / ".entroping" / "latest-run-events.jsonl"
+    log_path.parent.mkdir()
+    log_path.write_text(
+        '{"event":"run_started","schema_version":"entroping.run-events.v1"}\n'
+        "not-json\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RunEventLogError, match="invalid JSON on line 2"):
+        read_run_events(log_path)
+
+
+def test_read_run_events_rejects_non_object_line(tmp_path: Path) -> None:
+    log_path = tmp_path / ".entroping" / "latest-run-events.jsonl"
+    log_path.parent.mkdir()
+    log_path.write_text("[]\n", encoding="utf-8")
+
+    with pytest.raises(RunEventLogError, match="line 1 is not an object"):
+        read_run_events(log_path)
+
+
+def test_read_run_events_skips_blank_lines(tmp_path: Path) -> None:
+    log_path = tmp_path / ".entroping" / "latest-run-events.jsonl"
+    log_path.parent.mkdir()
+    log_path.write_text(
+        "\n"
+        '{"event":"run_started","schema_version":"entroping.run-events.v1"}\n',
+        encoding="utf-8",
+    )
+
+    events = read_run_events(log_path)
+
+    assert [event["event"] for event in events] == ["run_started"]
+
+
+def test_read_run_events_returns_empty_list_when_log_is_missing(tmp_path: Path) -> None:
+    assert read_run_events(tmp_path / ".entroping" / "latest-run-events.jsonl") == []
