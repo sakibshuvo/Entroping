@@ -20,6 +20,8 @@ site/
 # Local runtime state and generated outputs
 .entroping/
 reports/
+.codex/
+.opencode/
 llm-wiki-out/
 .understand-anything/
 understand-anything-out/

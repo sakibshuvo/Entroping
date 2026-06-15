@@ -95,6 +95,39 @@ Setup items to verify locally, without committing local config:
   `scripts/ai_jobs.py run-next --record-factory-metrics` for queued batch jobs.
   These metrics are local workflow evidence, not release proof.
 
+## Independent Session Preflight
+
+Before an OpenCode Desktop or OpenCode CLI session edits files, run the
+repo-native readiness preflight from the issue worktree:
+
+```bash
+uv run python scripts/opencode_readiness.py --mode implementation --require-clean --format json
+```
+
+For PR verification or monitoring sessions that should stay read-only, use:
+
+```bash
+uv run python scripts/opencode_readiness.py --mode verification --format json
+```
+
+The preflight checks the active repo path, branch/worktree state, OpenCode
+binary version, required workflow files, prompt-library guardrails, required
+command help surfaces, ignored local OpenCode/Codex/artifact paths, and tracked
+local-state leaks. It does not read provider keys, MCP credentials, local
+OpenCode config values, provider transcripts, raw prompts, or `.entroping/`
+artifacts.
+For another checkout layout, pass `--stale-repo-path` and
+`--expected-repo-prefix`, or set `ENTROPING_STALE_REPO_PATHS` and
+`ENTROPING_EXPECTED_REPO_PREFIX`, instead of editing the prompt-library paths.
+
+Failing status means stop and fix the setup or escalate to Codex/human review.
+Warning status must be explained in the handoff; common examples are a dirty
+worktree after edits, missing optional local OpenCode config, or present local
+OpenCode config whose provider, MCP, hook, and skill contents were not inspected
+because they may contain secrets. Passing preflight is not merge authority.
+Tier A/B/C scope, deterministic gates, PR evidence, CI, and
+`scripts/finish_issue.sh` still decide whether work can land.
+
 ## OpenCode Desktop Implementation Worker Prompt
 
 ```text
@@ -151,6 +184,7 @@ git status --short
 git branch --show-current
 scripts/start_issue.sh <issue-number> <type>/<short-kebab-description>
 cd ../Entroping-issue-<issue-number>
+uv run python scripts/opencode_readiness.py --mode implementation --require-clean --format json
 scripts/context_pack.sh --mode implementation
 
 Context rule:
@@ -219,23 +253,25 @@ Expected provider lane:
 Start:
 git pull --ff-only
 git status --short
+uv run python scripts/opencode_readiness.py --mode verification --format json
 gh pr view <pr-number> --repo sakibshuvo/Entroping --json number,title,state,mergeable,headRefName,baseRefName,body,closingIssuesReferences
 gh pr diff <pr-number> --repo sakibshuvo/Entroping
 gh pr checks <pr-number> --repo sakibshuvo/Entroping --watch
 
 Review:
-1. Confirm the PR body names provider host, billing path, and concrete model id when known.
-2. Confirm `Closes #<issue-number>` is present.
-3. Confirm Documentation Impact Declaration is checked and accurate.
-4. Confirm Agent Autonomy Declaration is present for any autonomous claim.
-5. Confirm the diff touches only the declared allowed files.
-6. Confirm no secrets, local env files, provider transcripts, .entroping artifacts, reports, .DS_Store, or generated local state are tracked.
-7. Confirm tests match the changed behavior and any behavior change has a meaningful regression.
-8. Confirm architecture, QAnstitution branding, deterministic Hurl execution, and provider boundaries were not weakened.
-9. Confirm Tier B/Tier C requires Codex or human review before merge.
-10. Run focused local tests when the diff, CI, or evidence looks suspicious.
-11. Merge only if the autonomy tier permits it and GitHub CI is green.
-12. After merge, run scripts/finish_issue.sh <issue-number> from a separate checkout.
+1. Confirm OpenCode readiness preflight returned pass or explain warnings.
+2. Confirm the PR body names provider host, billing path, and concrete model id when known.
+3. Confirm `Closes #<issue-number>` is present.
+4. Confirm Documentation Impact Declaration is checked and accurate.
+5. Confirm Agent Autonomy Declaration is present for any autonomous claim.
+6. Confirm the diff touches only the declared allowed files.
+7. Confirm no secrets, local env files, provider transcripts, .entroping artifacts, reports, .DS_Store, `.opencode` state, `.codex` state, or generated local state are tracked.
+8. Confirm tests match the changed behavior and any behavior change has a meaningful regression.
+9. Confirm architecture, QAnstitution branding, deterministic Hurl execution, and provider boundaries were not weakened.
+10. Confirm Tier B/Tier C requires Codex or human review before merge.
+11. Run focused local tests when the diff, CI, or evidence looks suspicious.
+12. Merge only if the autonomy tier permits it and GitHub CI is green.
+13. After merge, run scripts/finish_issue.sh <issue-number> from a separate checkout.
 
 Return:
 - merge recommendation: merge | do not merge | needs author action,

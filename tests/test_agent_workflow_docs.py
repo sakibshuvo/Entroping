@@ -19,6 +19,7 @@ def test_agent_control_plane_documents_cross_agent_guardrails() -> None:
     assert "NotebookLM" in doc
     assert "local Qwen" in doc
     assert "scripts/context_pack.sh --mode implementation" in doc
+    assert "scripts/opencode_readiness.py --mode implementation" in doc
     assert "No helper agent is a source of truth" in doc
 
 
@@ -136,6 +137,18 @@ def test_opencode_desktop_handoff_documents_tooling_setup_checklist() -> None:
         "opencode-go/kimi-k2.7-code",
         "opencode-go/qwen3.7-max",
         "opencode-go/other",
+        "## Independent Session Preflight",
+        "scripts/opencode_readiness.py --mode implementation --require-clean --format json",
+        "scripts/opencode_readiness.py --mode verification --format json",
+        "does not read provider keys",
+        "MCP credentials",
+        "--stale-repo-path",
+        "--expected-repo-prefix",
+        "ENTROPING_STALE_REPO_PATHS",
+        "ENTROPING_EXPECTED_REPO_PREFIX",
+        "Failing status means stop",
+        ".codex",
+        "Passing preflight is not merge authority",
     ]
 
     for term in required_terms:

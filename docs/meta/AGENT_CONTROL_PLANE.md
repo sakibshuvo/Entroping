@@ -108,6 +108,21 @@ capabilities. The `scripts/opencode_worker.py` prompt includes an OpenCode Host 
 `--dangerously-skip-permissions`, keeps selected-file snapshots as the worker's
 truth surface, and keeps `entroping run` deterministic, Hurl-backed,
 QAnstitution-governed, and provider-free.
+Before an OpenCode Desktop or OpenCode CLI session edits files independently,
+run `uv run python scripts/opencode_readiness.py --mode implementation
+--require-clean --format json` from the issue worktree. For PR verification or
+read-only monitoring, use `--mode verification` or `--mode monitoring` instead.
+The preflight checks OpenCode availability, active repo path, branch/worktree
+state, prompt-library guardrails, required workflow command surfaces, ignored
+local OpenCode/Codex/artifact paths, and tracked local-state leaks without
+reading provider keys, MCP credentials, local config values, prompts,
+provider transcripts, raw traffic, or `.entroping/` artifacts. A failing
+preflight is a stop condition; a passing preflight is only setup evidence, not
+merge authority.
+For non-maintainer checkout layouts, configure rejected stale checkouts and the
+expected active parent with `--stale-repo-path`, `--expected-repo-prefix`,
+`ENTROPING_STALE_REPO_PATHS`, or `ENTROPING_EXPECTED_REPO_PREFIX` rather than
+rewriting the canonical prompt defaults.
 
 Use `scripts/deepseek_worker.py` when OpenCode is the wrong dependency for a
 paid DeepSeek Flash or Pro task. It calls DeepSeek's OpenAI-compatible chat
