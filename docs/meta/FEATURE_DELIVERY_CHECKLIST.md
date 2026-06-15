@@ -39,7 +39,7 @@ Use this checklist for every non-trivial Entroping feature. It is the executable
 - [ ] Assign merge authority for the branch: autonomous worker for Tier A only after gates and CI, or human/Codex for Tier B/Tier C.
 - [ ] Give every helper agent a bounded brief with allowed files, read-only versus write access, and expected output.
 - [ ] Do not let two agents edit the same file family at the same time.
-- [ ] Treat OpenCode, DeepSeek, local Qwen/oMLX, Graphify, and generated summaries as evidence sources, not authority unless a Tier A PR independently proves itself through deterministic gates and CI.
+- [ ] Treat OpenCode, DeepSeek, local Qwen/oMLX, and generated summaries as evidence sources, not authority unless a Tier A PR independently proves itself through deterministic gates and CI.
 - [ ] Require helper findings to cite local file paths, line numbers, and a reproducible command or reasoning path.
 - [ ] Resolve Tier B/Tier C conflicts in the parent thread before applying patches; Tier A workers must stop and escalate when scope becomes ambiguous or restricted.
 
@@ -133,7 +133,7 @@ scripts/audit_quality.sh
 - [ ] Update `.context/changelog.md` for meaningful changes.
 - [ ] Update `.context/lessons-learned.md` for durable pitfalls, decisions, or commands.
 - [ ] Add or update an ADR for decisions that should survive context resets.
-- [ ] Keep Obsidian workspace state, Graphify output, local env files, reports, and `.entroping/` out of Git.
+- [ ] Keep Obsidian workspace state, generated local context output, local env files, reports, and `.entroping/` out of Git.
 
 ## 9. Commit Readiness
 

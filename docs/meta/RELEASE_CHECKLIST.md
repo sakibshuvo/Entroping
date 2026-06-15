@@ -159,7 +159,7 @@ Before tagging:
 - Review `reports/performance-smoke.json` from
   `uv run python scripts/performance_smoke.py` before making stable-core
   scalability claims.
-- Confirm no secrets, local env files, `.entroping/`, generated reports, Graphify output, or Obsidian UI state are tracked.
+- Confirm no secrets, local env files, `.entroping/`, generated reports, generated local context output, or Obsidian UI state are tracked.
 - Confirm public Markdown passes `python scripts/public_claims_audit.py` before
   publishing release notes, launch copy, or README changes.
 - Confirm `watch` is described as capture-only, `freeze` is described as Hurl/mock generation from redacted traffic, `map` is described as Mermaid/DOT/Markdown/PNG export with optional Graphviz, and `studio` is clearly presented as an interactive read-only TUI rather than a mutation workflow.

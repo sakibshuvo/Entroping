@@ -821,23 +821,24 @@ def test_agent_workflow_docs_use_portable_repo_and_source_placeholders() -> None
     assert "ENTROPING_SOURCE_ROOT" in combined
 
 
-def test_context_management_records_graph_context_pilot_boundary() -> None:
+def test_context_management_records_retired_context_tool_boundary() -> None:
     doc = (REPO_ROOT / "docs" / "meta" / "CONTEXT_MANAGEMENT.md").read_text(
         encoding="utf-8"
     )
     normalized = " ".join(doc.split())
 
-    assert "2026-06-12 issue #602 pilot" in doc
+    assert "Issue #712's full trial" in doc
+    assert "Issue #724 converts that evidence into cleanup" in doc
+    assert "Retired generated context tooling is not part of active agent workflow" in doc
+    assert "Remove retired generated context tooling from active workflow" in doc
     assert (
-        "Graphify did not beat `rg`, `scripts/context_pack.sh`, and "
-        "`docs/meta/DECISION_REGISTRY.yaml`"
-    ) in normalized
-    assert "symbol-known impact analysis" in normalized
-    assert (
-        "ordinary contributors must not be required to install Graphify"
+        "ordinary contributors must not be required to install external graph"
         in normalized
     )
-    assert "graphify update . --no-cluster" in doc
+    assert (
+        "Agents should use `rg`, source reads, tests, and measured factory metrics"
+        in normalized
+    )
 
 
 def test_context_engineering_factory_boundary_is_canonical() -> None:
@@ -858,7 +859,7 @@ def test_context_engineering_factory_boundary_is_canonical() -> None:
         ),
         "Obsidian, the LLM wiki, and curated source exports are the memory layer",
         (
-            "Graphify, CodeGraph, and Headroom are inactive for active agent "
+            "Retired generated context tooling is not part of active agent "
             "workflow"
         ),
         "Understand Anything remains optional for human comprehension",
@@ -918,11 +919,8 @@ def test_context_tool_generated_outputs_stay_local_and_ignored() -> None:
 
     required_terms = [
         "## Generated Context Tool Output Paths",
-        "`graphify-out/`",
         "`llm-wiki-out/`",
         "`understand-anything-out/`",
-        "`codegraph-out/`",
-        "`headroom-out/`",
         (
             "Generated context outputs must remain ignored/local unless "
             "intentionally promoted into curated Markdown"
@@ -932,9 +930,8 @@ def test_context_tool_generated_outputs_stay_local_and_ignored() -> None:
             "just because generated output is noisy"
         ),
         (
-            "ordinary contributors must not be required to install Graphify, "
-            "CodeGraph, Headroom, Obsidian plugins, LLM wiki tooling, or "
-            "Understand Anything"
+            "ordinary contributors must not be required to install external "
+            "graph, compression, Obsidian plugin, LLM wiki, or comprehension tools"
         ),
     ]
 
@@ -957,8 +954,11 @@ def test_unproven_context_tools_are_not_active_agent_dependencies() -> None:
     )
 
     required_terms = [
-        "Graphify, CodeGraph, and Headroom are inactive for active agent workflow",
-        "Do not route normal Codex, OpenCode, DeepSeek, or Spark sessions through them",
+        "Retired generated context tooling is not part of active agent workflow",
+        (
+            "Do not route normal Codex, OpenCode, DeepSeek, or Spark sessions "
+            "through external context tools"
+        ),
         (
             "Use `rg`, `scripts/context_pack.sh`, "
             "`docs/meta/DECISION_REGISTRY.yaml`, GitHub issues, source files, "
@@ -1043,6 +1043,63 @@ def test_repo_native_context_budget_baseline_is_canonical() -> None:
         "--record-factory-metrics",
     ]:
         assert term in help_text
+
+
+def test_retired_context_tools_are_not_named_in_active_workflow_surfaces() -> None:
+    active_paths = [
+        "AGENTS.md",
+        "CONTRIBUTING.md",
+        "README.md",
+        "scripts/deepseek_worker.py",
+        "scripts/factory_metrics.py",
+        "scripts/public_claims_audit.py",
+        "scripts/repo_hygiene.sh",
+        "src/entroping/core/hurl_discovery.py",
+        "docs/meta/AGENT_CONTROL_PLANE.md",
+        "docs/meta/CONTEXT_MANAGEMENT.md",
+        "docs/meta/FEATURE_DELIVERY_CHECKLIST.md",
+        "docs/meta/KNOWLEDGE_BASE_WORKFLOW.md",
+        "docs/meta/OBSIDIAN_START_HERE.md",
+        "docs/meta/OBSIDIAN_VS_GITHUB.md",
+        "docs/meta/PROJECT_PROGRESS.md",
+        "docs/meta/PUBLIC_DOCS_SITE_DECISION.md",
+        "docs/meta/PUBLIC_REPO_SURFACE.md",
+        "docs/meta/PYPI_RELEASE_RUNBOOK.md",
+        "docs/meta/RELEASE_CHECKLIST.md",
+        "docs/meta/prompt-library/README.md",
+        "docs/meta/prompt-library/architecture-boundary-brief.md",
+        "docs/meta/prompt-library/codex-outage-daily-operations.md",
+        "docs/meta/prompt-library/context-reconciliation.md",
+        "docs/meta/prompt-library/issue-worker.md",
+        "docs/meta/prompt-library/model-comparison-trial.md",
+        "docs/meta/prompt-library/multi-agent-marathon.md",
+        "docs/meta/prompt-library/opencode-desktop-handoff.md",
+        "tests/test_deepseek_worker.py",
+        "tests/test_factory_metrics.py",
+        "tests/test_public_claims_audit.py",
+        "tests/test_repo_hygiene_script.py",
+    ]
+    retired_terms = [
+        "Graph" + "ify",
+        "graph" + "ify",
+        "Code" + "Graph",
+        "code" + "graph",
+        "Head" + "room",
+        "head" + "room",
+        "." + "code" + "graph",
+        "graph" + "ify-out",
+        "code" + "graph-out",
+        "head" + "room-out",
+    ]
+
+    violations: list[str] = []
+    for path in active_paths:
+        text = (REPO_ROOT / path).read_text(encoding="utf-8")
+        for term in retired_terms:
+            if term in text:
+                violations.append(f"{path}: {term}")
+
+    assert violations == []
 
 
 def test_factory_role_registry_and_metrics_ledger_are_portable_guardrails() -> None:
@@ -1134,8 +1191,8 @@ def test_prompt_library_contains_opencode_desktop_handoff_prompts() -> None:
         "Allowed files",
         "Forbidden files",
         "scripts/start_issue.sh",
-        "Graphify, CodeGraph, and Headroom are inactive for active Entroping agent workflow",
-        "Do not route normal OpenCode work through them",
+        "Retired generated context tooling is not part of active Entroping agent workflow",
+        "Do not route normal OpenCode work through external context tools",
         "scripts/factory_metrics.py",
         "Agent Autonomy Declaration",
         "Tier B/Tier C requires Codex or human review before merge",

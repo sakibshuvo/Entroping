@@ -73,22 +73,6 @@ Recommended first settings:
 - Keep source files in `<source-archive>`; this vault links to them but does not replace them. Use `ENTROPING_SOURCE_ROOT` when the archive is not the sibling `../entroping-specs` folder.
 - Keep project-agent rules in `AGENTS.md`; new Codex threads should read it before implementation.
 
-## Graphify Later
-
-Graphify can generate an external knowledge graph and report, but it is optional. Start with Obsidian's built-in graph first because it is local, simple, and already enough for the current Markdown set.
-
-If you later want Graphify:
-
-```bash
-uv tool install graphifyy
-graphify install
-graphify <repo-root>
-```
-
-Keep generated output under `graphify-out/`, which is ignored by Git.
-
-Do not treat Graphify output as canonical. Promote useful findings back into curated Markdown docs, ADRs, or `.context/` notes.
-
 ## Systematic Updates
 
 Update Obsidian-facing Markdown when the project state changes:

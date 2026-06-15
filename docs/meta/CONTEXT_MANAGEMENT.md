@@ -132,10 +132,10 @@ remain product truth. Obsidian, the LLM wiki pattern, and curated source
 exports preserve memory only when their useful output is Git-backed Markdown,
 ADR links, issue links, or decision-registry entries.
 
-Graphify, CodeGraph, and Headroom are inactive for active agent workflow. Do
-not route normal Codex, OpenCode, DeepSeek, or Spark sessions through them, and
-do not ask workers to install or query them before coding, review, or merge
-work. Use `rg`, `scripts/context_pack.sh`,
+Retired generated context tooling is not part of active agent workflow. Do not
+route normal Codex, OpenCode, DeepSeek, or Spark sessions through external
+context tools unless a future issue re-promotes a replacement through measured
+scorecard evidence. Use `rg`, `scripts/context_pack.sh`,
 `docs/meta/DECISION_REGISTRY.yaml`, GitHub issues, source files, tests, and CI
 first. Understand Anything remains optional for human comprehension and
 onboarding; it does not approve patches, change requirements, or replace source
@@ -176,11 +176,8 @@ findings can be reviewed without turning tool caches into project truth.
 
 | Tool layer | Local output path |
 | --- | --- |
-| Graphify | `graphify-out/` |
 | LLM wiki | `llm-wiki-out/` |
 | Understand Anything | `understand-anything-out/` |
-| CodeGraph | `codegraph-out/` |
-| Headroom | `headroom-out/` |
 | Factory metrics ledger | `.entroping/factory-metrics/` |
 
 Generated context outputs must remain ignored/local unless intentionally
@@ -266,17 +263,16 @@ baseline and records these fields:
 Allowed scorecard evidence is source-linked and reviewable: repo files, tests,
 GitHub issues or PRs, CI checks, ADRs, the decision registry, curated Markdown,
 generated wiki/Understand Anything output, and factory metrics. Historical
-Graphify, CodeGraph, or Headroom trial output can be cited as discard evidence,
-but it is not an active workflow dependency. Obsidian workspace/cache/plugin
-state is not scorecard evidence, and neither are provider transcripts, raw
-prompts, raw traffic, or product runtime artifacts.
+retired-tool trial output can be cited as discard evidence, but it is not an
+active workflow dependency. Obsidian workspace/cache/plugin state is not
+scorecard evidence, and neither are provider transcripts, raw prompts, raw
+traffic, or product runtime artifacts.
 
 Keep/downgrade/discard decisions follow the measured scorecard:
 
 - active only when measured evidence improves at least two metrics against
   the baseline without hiding necessary evidence.
-- `optional_manual` when a tool helps a narrow case, such as Graphify
-  symbol-known impact analysis.
+- `optional_manual` when a tool helps a narrow source-linked case.
 - `probation` when the tool is plausible but has insufficient local evidence.
 - `discard` when it adds setup cost, stale context, noisy retrieval, human
   babysitting, or hallucination risk without measurable improvement.
@@ -291,16 +287,11 @@ and worker-handoff packets. Issue #724 converts that evidence into cleanup:
 - Remove the graph-assisted probe script and graph-assisted context-pack option
   from active workflow. They added an extra routing surface without beating the
   repo-native baseline.
-- Mark Graphify as inactive for active agent workflow. It built a local graph
-  quickly, but broad/context queries repeatedly missed relevant files or
-  returned noisy neighborhoods; exact-symbol wins did not justify a standard
-  dependency.
-- Mark CodeGraph as inactive for active agent workflow. It found some useful
-  snippets in the trial, but it underreported related tests and produced a
-  false no-coverage claim; agents should use `rg`, source reads, and tests.
-- Mark Headroom as inactive for active agent workflow. No real
-  Entroping/Codex proxy evidence proved token savings, so it must not be used
-  to justify compressed or hidden context.
+- Remove retired generated context tooling from active workflow. The trial
+  showed that broad/context queries missed relevant files or returned noisy
+  neighborhoods, source snippets underreported related tests, and no real
+  Entroping/Codex proxy evidence proved token savings. Agents should use `rg`,
+  source reads, tests, and measured factory metrics instead.
 - Keep Understand Anything on `probation`. A fake-home install, non-frozen
   package install, core build, and external core tests worked in an ignored
   clone, but the skills require a CLI restart and were not callable in the
@@ -323,9 +314,8 @@ harness without writing ledger events itself or changing queue semantics when
 the flag is absent.
 
 For normal onboarding, ordinary contributors must not be required to install
-Graphify, CodeGraph, Headroom, Obsidian plugins, LLM wiki tooling, or
-Understand Anything before they can build, test, review, or contribute to
-Entroping.
+external graph, compression, Obsidian plugin, LLM wiki, or comprehension tools
+before they can build, test, review, or contribute to Entroping.
 
 ## Obsidian Role
 
@@ -336,80 +326,6 @@ Do not depend on Obsidian workspace state for project truth. The durable notes a
 Archive means lower default-reading priority, not deletion. Raw source exports,
 ADRs, issues, and historical notes stay available; registry summaries compress
 the path to them so agents do not have to read the entire vault.
-
-## Graphify Role
-
-Graphify is inactive for active agent workflow. Generated output should stay
-out of Git unless a result is promoted into curated Markdown as historical
-evidence.
-
-Recommended workflow:
-
-```bash
-uv tool install graphifyy
-graphify update <repo-root> --no-cluster
-```
-
-Output belongs under `graphify-out/`, which is ignored by Git.
-
-The 2026-06-12 issue #602 pilot ran `graphify update . --no-cluster` against
-the active repo for issue #601's report artifact audit-chain task. Graphify did
-not beat `rg`, `scripts/context_pack.sh`, and
-`docs/meta/DECISION_REGISTRY.yaml` for initial task discovery: the broad natural
-language query found useful schema nodes but missed the core Python
-implementation until the query already knew exact names.
-
-Graphify was sometimes useful for symbol-known impact analysis. Once seeded with
-`write_report_artifact_manifest`, `graphify explain` and `graphify affected`
-showed the CLI caller, core helper graph, and direct tests more compactly than a
-plain text search. That narrow result did not justify keeping it as an active
-or standard maintainer dependency. Do not use it to decide product truth,
-replace the decision registry, or generate implementation context.
-
-The issue #712 full trial reinforced this boundary. `graphify update .
---no-cluster` completed quickly and wrote ignored output, but broad queries for
-the current context-tool work returned stale/irrelevant graph neighborhoods.
-Graphify is therefore not an active first-pass discovery dependency.
-
-## CodeGraph Role
-
-CodeGraph is inactive for active agent workflow. The repository keeps generated
-output hygiene guards because local experiments may leave `.codegraph/` or
-`codegraph-out/`, but agents should not route normal work through CodeGraph.
-
-Recommended local workflow:
-
-```bash
-CODEGRAPH_TELEMETRY=0 npx -y @colbymchenry/codegraph init <repo-root>
-CODEGRAPH_TELEMETRY=0 npx -y @colbymchenry/codegraph query <symbol> --path <repo-root> --json
-CODEGRAPH_TELEMETRY=0 npx -y @colbymchenry/codegraph explore <terms> --path <repo-root> --max-files 8
-```
-
-Output belongs under `.codegraph/` and `codegraph-out/`, which are ignored by
-Git. The issue #712 trial found useful `scripts/factory_metrics.py` source
-snippets, but it also underreported related tests and claimed scorecard
-functions had no covering tests. Use `rg`, source reads, and focused tests
-instead.
-
-## Headroom Role
-
-Headroom is inactive for active agent workflow. Do not claim token savings from
-Headroom unless a future issue records real local proxy/eval evidence for the
-current agent lane and re-promotes a replacement workflow through the
-scorecard.
-
-Recommended local probes:
-
-```bash
-uvx --from headroom-ai headroom loc <repo-root>
-uvx --from headroom-ai headroom sg run -p '<pattern>' -l python scripts tests
-uvx --from headroom-ai headroom agent-savings --check-perf --hours 24
-```
-
-Output belongs under `headroom-out/`, which is ignored by Git. Issue #712 found
-that Headroom's smoke fixture can prove savings mechanics, but the live
-Entroping check had no usable proxy evidence and therefore did not prove token
-savings.
 
 ## Understand Anything Role
 
@@ -426,9 +342,8 @@ command was available in the current Codex session, this tool remains
 probationary for Entroping.
 
 For normal onboarding, ordinary contributors must not be required to install
-Graphify, CodeGraph-style tools, Headroom, Obsidian plugins, MCP indexes, or
-any generated graph stack before they can build, test, review, or contribute to
-Entroping.
+external graph, compression, Obsidian plugin, MCP index, or generated graph
+stacks before they can build, test, review, or contribute to Entroping.
 
 ## Cross-Project Context
 
@@ -461,10 +376,8 @@ Current local agent tooling status:
   `docs/meta/AGENT_ROLE_REGISTRY.yaml`.
 - Factory metrics ledger: available through `scripts/factory_metrics.py`, with
   ignored events under `.entroping/factory-metrics/`.
-- Graphify: inactive for active workflow; do not route agents through it.
-- CodeGraph: inactive for active workflow; use `rg`, source reads, and tests.
-- Headroom: inactive for active workflow; no local evidence has proved token
-  savings.
+- Retired generated context tooling: removed from active workflow; use `rg`,
+  source reads, tests, and measured factory metrics instead.
 - Understand Anything: installable/testable in an ignored clone, but not active
   in this Codex session without a restart and generated graph.
 - Spec Kit `specify`: available.

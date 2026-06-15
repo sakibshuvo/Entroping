@@ -32,7 +32,7 @@ scripts/regression.sh --security
 - Keep `entroping run` deterministic and LLM-free.
 - Use Hurl as the API execution boundary.
 - Add regression tests for defects when reproduction is deterministic.
-- Do not commit `.entroping/`, reports, local env files, Obsidian workspace state, Graphify output, caches, or secrets.
+- Do not commit `.entroping/`, reports, local env files, Obsidian workspace state, generated local context output, caches, or secrets.
 
 ## Pull Requests
 

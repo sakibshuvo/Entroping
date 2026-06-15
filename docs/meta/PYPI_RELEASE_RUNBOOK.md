@@ -90,7 +90,7 @@ Do not publish if:
 - `scripts/audit_quality.sh` is below the 100 percent coverage gate.
 - The release checklist or README claims features that are not implemented.
 - Any local env files, `.entroping/`, reports, package-index credentials, or
-  generated Obsidian/Graphify state appear in `git status --short`.
+  generated Obsidian or local context state appear in `git status --short`.
 
 ## Versioning And Prerelease Naming
 

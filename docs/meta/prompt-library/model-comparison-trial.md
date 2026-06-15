@@ -65,7 +65,7 @@ scripts/context_pack.sh --mode implementation
 Context/tool measurement:
 Use `scripts/factory_metrics.py report` and any issue-specific scorecard
 evidence already recorded under `.entroping/factory-metrics/`. Do not run or
-require Graphify, CodeGraph, or Headroom for this trial; they are inactive for
+require external generated-context tooling for this trial; it is not part of
 active Entroping agent workflow. Obsidian graph views and generated summaries
 are routing evidence only. They do not replace source reads, tests, PR review,
 or CI.

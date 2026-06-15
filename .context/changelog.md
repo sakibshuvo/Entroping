@@ -2,6 +2,11 @@
 
 ## 2026-06-15
 
+- Added issue #728's retired context-tool surface cleanup: active docs,
+  prompts, hygiene/public-claim scripts, Hurl discovery ignores, and scorecard
+  fixtures no longer name the discarded graph/compression tools or their
+  generated output directories. Historical context notes now use generic
+  retired-tool wording so fresh agents stay on the repo-native baseline.
 - Added issue #726's repo-native context budget baseline: the canonical
   context-management docs, agent control plane, issue-worker prompt, and
   `scripts/context_pack.sh --help` now state that agents should start from
@@ -59,21 +64,22 @@
   unknown metric counts so missing token, cost, or duration evidence remains
   explicit for Codex/OpenCode/DeepSeek/Spark/local model comparisons.
 - Ran issue #712's full context-tool trial across curated Markdown/Obsidian,
-  Graphify, LLM wiki pattern, Understand Anything, CodeGraph, Headroom, and
-  the repo-native agent context probe. The scorecard now records setup status,
-  setup duration, setup command, and setup failure reason; generated-output
-  hygiene covers `.codegraph/` and `.understand-anything/`; and
-  `scripts/agent_context_probe.py` preserves CodeGraph source-heading paths for
-  line-numbered snippets. The measured decision is active curated Markdown plus
-  active agent context probe, optional-manual Graphify/CodeGraph/LLM wiki
-  pattern, and probationary Headroom/Understand Anything until real local
-  evidence proves savings or live graph value.
+  retired generated context tools, the LLM wiki pattern, Understand Anything,
+  and the repo-native agent context probe. The scorecard now records setup
+  status, setup duration, setup command, and setup failure reason;
+  generated-output hygiene covers ignored local generated outputs and
+  `.understand-anything/`; and `scripts/agent_context_probe.py` preserves
+  source-heading paths for retired symbol-context outputs. The measured
+  decision is active curated Markdown plus active agent context probe,
+  optional-manual retired graph-context/LLM-wiki patterns, and probationary
+  retired compression/Understand Anything until real local evidence proves
+  savings or live graph value.
 - Added issue #710's context-tool proof/discard scorecard:
   `scripts/factory_metrics.py context-scorecard validate/report` now validates
   local value-free scorecards with schema
   `entroping.context-tool-scorecard.v1` and renders reports with schema
-  `entroping.context-tool-scorecard-report.v1`, comparing Graphify, Obsidian
-  graph views, Understand Anything, CodeGraph, and Headroom against the
+  `entroping.context-tool-scorecard-report.v1`, comparing optional graph,
+  wiki, comprehension, symbol-context, and compression tools against the
   repo-native `rg`/context-pack/decision-registry/curated-Markdown baseline
   without storing raw prompts, provider transcripts, secrets, raw traffic, or
   product runtime evidence.
@@ -129,8 +135,8 @@
   `.entroping/factory-metrics/finished-issues/issue-<number>/` archive before
   deleting the worktree, while dry-run reports the plan without writing.
 - Fixed issue #684's graph-assisted context probe gap so
-  `scripts/agent_context_probe.py` reads every list-valued field in Graphify or
-  CodeGraph JSON artifacts instead of only the first, preserving edge evidence
+  `scripts/agent_context_probe.py` reads every list-valued field in retired graph tooling or
+  retired symbol-context tooling JSON artifacts instead of only the first, preserving edge evidence
   such as source/test relationships for agent retrieval.
 - Fixed issue #682's AI worker queue selected-file symlink gap so
   `scripts/ai_jobs.py submit` rejects symlinked input files and files reached
@@ -194,7 +200,7 @@
   prompts, provider transcripts, secrets, raw traffic, product runtime evidence,
   or involving `entroping run`.
 - Added issue #650's optional graph-assisted agent context probe:
-  `scripts/agent_context_probe.py` reads existing local Graphify/CodeGraph
+  `scripts/agent_context_probe.py` reads existing local retired graph-context tools
   outputs, emits advisory text/JSON manifests with candidate file/test
   evidence, redacts obvious secret-like values, writes only under ignored
   `agent-context-out/`, and `scripts/context_pack.sh --with-local-graphs`
@@ -209,8 +215,8 @@
 - Added issue #646's protected-block report evidence guard so JUnit and HTML
   reports expose selected, executed, not-scheduled, and fail-fast summary counts
   when protected safety preflight blocks a mixed selected run before Hurl.
-- Added issue #640's context-tool output hygiene boundary: generated Graphify,
-  LLM wiki, Understand Anything, CodeGraph, and Headroom artifacts now have
+- Added issue #640's context-tool output hygiene boundary: generated retired graph tooling,
+  LLM wiki, Understand Anything, retired symbol-context tooling, and retired compression tooling artifacts now have
   explicit ignored local output paths, repo hygiene rejects tracked generated
   context output, and docs preserve the promotion-only rule.
 - Added issue #639's AI worker queue review summary: completed queue
@@ -223,20 +229,20 @@
   stale `list` subcommand, with a docs guard preventing future unsupported
   queue command examples.
 - Documented issue #638's context-factory rollout order: Obsidian discipline
-  comes before generated wiki/Graphify layers, Understand Anything stays a
-  human comprehension aid, CodeGraph remains scoped to `src/` and `tests/`,
-  Headroom waits until retrieval is stable, and cheap/Chinese/local model
-  workers stay behind Codex-owned validation.
+  comes before generated wiki or graph layers, Understand Anything stays a
+  human comprehension aid, symbol-context tooling remains scoped to `src/` and
+  `tests/`, compression tooling waits until retrieval is stable, and
+  cheap/Chinese/local model workers stay behind Codex-owned validation.
 - Codified issue #636's context-engineering software-factory boundary:
   source files, tests, GitHub evidence, ADRs, the decision registry, and
   QAnstitution/Hurl evidence remain authoritative while Obsidian/LLM wiki,
-  Graphify, Understand Anything, CodeGraph, Headroom, and bounded workers stay
+  optional context tooling, Understand Anything, and bounded workers stay
   memory, comprehension, context, economic, or review aids.
 - Completed issue #602's graph context retrieval pilot against the active repo:
-  Graphify stayed local and wrote only ignored `graphify-out/` output, `rg`
+  graph-context tooling stayed local and wrote only ignored local output; `rg`
   plus context packs and the decision registry remained the best initial
-  discovery path, and symbol-known `graphify explain`/`affected` queries proved
-  useful only as optional maintainer impact analysis.
+  discovery path, and symbol-known impact queries proved useful only as
+  optional maintainer impact analysis.
 - Added issue #601's local tamper-evident report audit chain:
   `entroping report artifact-manifest` now appends value-free
   `.entroping/report-audit-chain.jsonl` events with previous-hash linkage,
@@ -1048,7 +1054,7 @@
 - Implemented #108's launch demo asset kit with README links, real checkout smoke terminal frames, a text/SVG HTML report preview, a dependency-map example from redacted traffic, and a concrete growth-plan publish order.
 - Fixed #166's launch-doc portability gap by replacing maintainer-local temp paths with an `ENTROPING_DEMO_TMP_BASE` override and adding a guardrail test.
 - Implemented #168's configurable source archive path for `scripts/context_pack.sh --mode source`, replacing the hardcoded maintainer-local path with `ENTROPING_SOURCE_ROOT` plus a sibling-folder default.
-- Fixed #170's agent workflow docs so Obsidian, Graphify, and prompt examples use portable `<repo-root>` and `<source-archive>` placeholders instead of maintainer-local paths.
+- Fixed #170's agent workflow docs so Obsidian, retired graph tooling, and prompt examples use portable `<repo-root>` and `<source-archive>` placeholders instead of maintainer-local paths.
 - Refreshed #172's README current-status wording so the public overview says active alpha implementation instead of initial scaffold.
 - Ran issue #96's formal post-alpha security review and fixed 14 validated candidates across Brain prompt redaction, Hurl subprocess env isolation, symlinked path components, traffic redaction/body limits, OpenAPI generation/audit safety, policy gate compilation, Markdown escaping, Architect generated-file writes, and live demo workdir handling.
 - Wrote the consolidated Codex Security scan artifacts under `/tmp/codex-security-scans/Entroping/eb08827323c6_20260530T160200Z`, including discovery, coverage, reconciliation, validation, attack-path, Markdown, and HTML reports.
@@ -1091,7 +1097,7 @@
 - Raised the optional proxy dependency floor to `mitmproxy>=12.2.3`, refreshed vulnerable transitive packages, and verified the all-extras dependency audit is clean.
 - Added project-local `AGENTS.md` so future Codex threads can rehydrate Entroping-specific architecture, runtime, AI, traffic, documentation, and verification rules quickly.
 - Refreshed `.context/plan.md` from historical documentation synthesis into the active deterministic-core implementation plan.
-- Added `docs/meta/CONTEXT_MANAGEMENT.md` to explain how Codex, Obsidian, `.context`, and optional Graphify output fit together.
+- Added `docs/meta/CONTEXT_MANAGEMENT.md` to explain how Codex, Obsidian, `.context`, and optional retired graph tooling output fit together.
 - Added `docs/meta/AUTONOMOUS_DEVELOPMENT.md` for the Codex-first development loop, Spec Kit pilot rules, and future OpenCode plus local Qwen/oMLX worker strategy.
 - Added `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`, `.github/pull_request_template.md`, and `scripts/feature_gate.sh` to make the feature workflow executable across TDD, regression, architecture, security, multi-agent review, documentation, and commit-readiness gates.
 - Added GitHub issue forms, `docs/meta/ISSUE_TRACKING.md`, `docs/meta/TEST_STRATEGY.md`, `docs/meta/PROJECT_PROGRESS.md`, and `scripts/regression.sh` to make bug tracking, regression coverage, test-pyramid expectations, and progress tracking systematic.
@@ -1189,7 +1195,7 @@
   `finish_issue.sh` now search a larger validated Project item window before
   deciding an issue is missing from the board, preserving the existing add/retry
   recovery path while avoiding duplicate-add attempts on larger project boards.
-- Closed issue #724's context-tool cleanup: Graphify, CodeGraph, and Headroom
+- Closed issue #724's context-tool cleanup: retired generated context tools
   are inactive for active agent workflow, graph-assisted context-pack/probe
   routing is removed, and prompt-library handoffs now direct workers back to
   `rg`, `scripts/context_pack.sh`, the decision registry, source files, tests,

@@ -184,7 +184,7 @@ Public trust signals: `scripts/community_profile_audit.sh` verifies local commun
 
 ## Security and Quality Rules
 
-Do not log or commit secrets. Keep `.entroping/`, reports, local env files, and generated Graphify output out of Git. Use Hurl as the execution boundary; do not replace API execution with Python HTTP clients. Keep `entroping run` deterministic and LLM-free. Treat generated tests as code that must be reviewed. Audit optional extras before release: `uv run --all-extras --with pip-audit pip-audit --progress-spinner off`.
+Do not log or commit secrets. Keep `.entroping/`, reports, local env files, and generated local context output out of Git. Use Hurl as the execution boundary; do not replace API execution with Python HTTP clients. Keep `entroping run` deterministic and LLM-free. Treat generated tests as code that must be reviewed. Audit optional extras before release: `uv run --all-extras --with pip-audit pip-audit --progress-spinner off`.
 
 ## License
 

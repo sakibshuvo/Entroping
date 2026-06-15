@@ -41,13 +41,9 @@ def test_public_claims_audit_rejects_unsupported_production_claim(tmp_path: Path
 
 def test_public_claims_audit_skips_generated_context_tool_outputs(tmp_path: Path) -> None:
     generated_paths = [
-        "graphify-out/README.md",
         "llm-wiki-out/README.md",
         "understand-anything-out/repo/README.md",
         ".understand-anything/knowledge.md",
-        "codegraph-out/report.md",
-        ".codegraph/report.md",
-        "headroom-out/report.md",
         "agent-context-out/probe.md",
     ]
     for path in generated_paths:

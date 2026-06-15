@@ -24,7 +24,6 @@ _IGNORED_DIRECTORY_NAMES = frozenset(
         "__pycache__",
         "build",
         "dist",
-        "graphify-out",
         "node_modules",
         "reports",
         "venv",

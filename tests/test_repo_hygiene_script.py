@@ -22,9 +22,6 @@ def test_repo_hygiene_help_documents_forbidden_tracked_paths() -> None:
     assert "llm-wiki-out/" in result.stdout
     assert ".understand-anything/" in result.stdout
     assert "understand-anything-out/" in result.stdout
-    assert ".codegraph/" in result.stdout
-    assert "codegraph-out/" in result.stdout
-    assert "headroom-out/" in result.stdout
     assert "agent-context-out/" in result.stdout
     assert ".entroping/factory-metrics/" in result.stdout
 
@@ -45,13 +42,9 @@ def test_gitignore_excludes_coverage_artifacts() -> None:
 
 def test_gitignore_excludes_generated_context_tool_outputs() -> None:
     generated_paths = {
-        "graphify-out/index.json",
         "llm-wiki-out/index.md",
         ".understand-anything/knowledge-graph.json",
         "understand-anything-out/session.json",
-        ".codegraph/codegraph.db",
-        "codegraph-out/src-tests.json",
-        "headroom-out/context-pack.json",
         "agent-context-out/probe.json",
         ".entroping/factory-metrics/events.jsonl",
         ".obsidian/workspace.json",

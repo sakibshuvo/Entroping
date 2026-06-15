@@ -159,7 +159,7 @@ def test_deepseek_worker_dry_run_writes_prompt_and_metadata_without_api_key(
     assert "scripts/deepseek_worker.py" in prompt
     assert "scripts/agent_context_probe.py" not in prompt
     assert "--with-local-graphs" not in prompt
-    assert "Graphify, CodeGraph, and Headroom are not active workflow" in prompt
+    assert "Retired generated context tooling is not an active workflow" in prompt
     assert "entroping run remains deterministic" in prompt
     assert str(target_file.resolve()) in prompt
     assert "## Bounded File Contents" in prompt

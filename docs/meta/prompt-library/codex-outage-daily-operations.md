@@ -99,7 +99,7 @@ Stop the current worker and report status when any of these happen:
 - stale main,
 - missing close keyword,
 - dirty worktree that includes generated state, provider transcripts, reports,
-  `.entroping/` artifacts, Graphify output, CodeGraph output, Headroom output,
+  `.entroping/` artifacts, generated local context output,
   local env files, or secrets,
 - Tier A work expanding into Tier B/Tier C scope,
 - any change touching Hurl runner behavior, `entroping run`, redaction, proxy,
