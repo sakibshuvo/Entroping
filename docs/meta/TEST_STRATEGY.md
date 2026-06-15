@@ -93,7 +93,10 @@ scripts/feature_gate.sh
 
 The feature gate starts with `scripts/repo_hygiene.sh`, which fails if local machine
 state, runtime state, generated reports, graph output, virtualenvs, or tool caches
-are tracked by Git. It also runs `scripts/doc_governance_check.sh` and
+are tracked by Git. Repo hygiene also runs `scripts/ai_artifact_hygiene.py`, which
+rejects committed AI worker artifacts, prompt or provider dumps, raw stdout/stderr
+captures, cookies, raw traffic, and secret-shaped context in tracked docs/context
+surfaces. The feature gate also runs `scripts/doc_governance_check.sh` and
 `scripts/shell_quality.sh` before the Python lint, type, and test gate.
 `scripts/shell_quality.sh` always runs `bash -n` over tracked shell scripts and
 runs ShellCheck when `shellcheck` is available; if ShellCheck is not installed,

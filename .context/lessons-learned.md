@@ -2,6 +2,11 @@
 
 ## 2026-06-15
 
+- AI worker artifacts need a committed-path guard in addition to ignored
+  directories. Keep raw prompts, provider responses, stdout/stderr captures,
+  cookies, raw traffic, and token-shaped values in ignored `.entroping/`
+  artifacts only; promote validated findings into issues, PR comments, or
+  concise docs instead of copying transcripts into Git.
 - Product runtime provider boundaries need executable SDK-prefix coverage.
   Direct DeepSeek-style SDK imports belong in maintainer-only ignored worker
   tooling, not in `src/entroping`; product model calls still route through

@@ -6,7 +6,9 @@ show_help() {
 Usage: scripts/repo_hygiene.sh
 
 Fails when local machine state, runtime state, caches, reports, or generated
-local output are tracked by Git.
+local output are tracked by Git. It also runs scripts/ai_artifact_hygiene.py
+against committed paths to reject prompt transcripts, provider responses, raw
+stdout/stderr captures, cookies, raw traffic, and secret-shaped context.
 
 Forbidden tracked paths include:
   .DS_Store
@@ -43,6 +45,7 @@ if ! repo_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
   echo "repo_hygiene.sh must be run inside a Git repository." >&2
   exit 2
 fi
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 is_forbidden_path() {
   local path="$1"
@@ -83,6 +86,16 @@ if ((${#forbidden[@]})); then
   echo >&2
   echo "Remove them from the index after confirming local copies should remain:" >&2
   echo "  git rm --cached <path> ..." >&2
+  exit 1
+fi
+
+if [[ -s "$script_dir/ai_artifact_hygiene.py" ]]; then
+  if ! ai_artifact_hygiene_output="$(python3 "$script_dir/ai_artifact_hygiene.py" --root "$repo_root" 2>&1)"; then
+    printf '%s\n' "$ai_artifact_hygiene_output" >&2
+    exit 1
+  fi
+else
+  echo "scripts/ai_artifact_hygiene.py is missing." >&2
   exit 1
 fi
 

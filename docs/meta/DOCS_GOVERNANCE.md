@@ -188,6 +188,10 @@ PR template -> PR body check in CI -> doc governance check -> feature gate -> re
 - `scripts/docs_freshness_check.py` rejects stale paths, broken local Markdown
   links, merge markers, unsupported readiness/security claims, deprecated
   command literals, and placeholder markers in current tracked Markdown.
+- `scripts/ai_artifact_hygiene.py` rejects tracked generated AI/context
+  artifact paths plus prompt dumps, provider responses, raw stdout/stderr
+  captures, cookies, raw traffic, and secret-shaped content in docs/context
+  surfaces.
 - `scripts/docs_inventory.py --strict` reports tracked Markdown tiers and
   rejects default-agent context drift or duplicate active titles.
 - `scripts/source_preservation_check.py` validates the decision registry,

@@ -8,7 +8,9 @@ Usage: scripts/doc_governance_check.sh [--root <path>]
 Validates the documentation control plane so humans and agents cannot silently
 remove roadmap, progress, PR, or agent-governance guardrails.
 It also runs Markdown freshness, documentation inventory, public claims, and
-source-preservation checks when those scripts are present.
+source-preservation checks when those scripts are present. AI artifact hygiene
+rejects committed prompt transcripts, provider responses, raw stdout/stderr
+captures, cookies, raw traffic, and secret-shaped context.
 
 Required anchors include:
   README.md links ROADMAP.md
@@ -17,6 +19,7 @@ Required anchors include:
   docs/meta/DECISION_REGISTRY.yaml preserves durable decision pointers
   .github/pull_request_template.md requires a Documentation Impact Declaration
   scripts/docs_freshness_check.py rejects stale or corrupt Markdown context
+  scripts/ai_artifact_hygiene.py rejects committed AI artifact leaks
   scripts/docs_inventory.py reports Markdown tiers and enforces the default
     agent context budget
   scripts/feature_gate.sh runs this check
@@ -99,6 +102,7 @@ require_marker ".github/pull_request_template.md" "## Documentation Impact Decla
 require_marker ".github/pull_request_template.md" "Roadmap/progress updated:"
 require_marker "scripts/feature_gate.sh" "scripts/doc_governance_check.sh"
 require_marker "scripts/docs_freshness_check.py" "Markdown freshness OK"
+require_marker "scripts/ai_artifact_hygiene.py" "AI artifact hygiene OK"
 require_marker "scripts/docs_inventory.py" "Documentation Inventory"
 require_marker "scripts/public_claims_audit.py" "Public claims audit OK"
 require_marker "docs/meta/FEATURE_DELIVERY_CHECKLIST.md" "scripts/doc_governance_check.sh"
@@ -115,6 +119,17 @@ if [[ -s "$repo_root/scripts/docs_freshness_check.py" ]]; then
   fi
 else
   failures+=("scripts/docs_freshness_check.py: missing Markdown freshness check")
+fi
+
+if [[ -s "$repo_root/scripts/ai_artifact_hygiene.py" ]]; then
+  if ! artifact_hygiene_output="$(python3 "$repo_root/scripts/ai_artifact_hygiene.py" --root "$repo_root" 2>&1)"; then
+    failures+=("scripts/ai_artifact_hygiene.py: failed AI artifact hygiene check")
+    while IFS= read -r line; do
+      failures+=("AI artifact hygiene check: $line")
+    done <<< "$artifact_hygiene_output"
+  fi
+else
+  failures+=("scripts/ai_artifact_hygiene.py: missing AI artifact hygiene check")
 fi
 
 if [[ -s "$repo_root/scripts/docs_inventory.py" ]]; then

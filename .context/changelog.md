@@ -2,6 +2,11 @@
 
 ## 2026-06-15
 
+- Added issue #735's AI artifact hygiene scanner:
+  `scripts/ai_artifact_hygiene.py` now audits tracked paths for generated
+  worker/context artifacts, prompt or provider dumps, raw stdout/stderr
+  captures, cookies, raw traffic, and secret-shaped docs/context content;
+  `scripts/repo_hygiene.sh` and `scripts/doc_governance_check.sh` run it.
 - Added issue #734's direct-provider runtime import guard hardening:
   the executable architecture guard now rejects direct DeepSeek-style provider
   SDK imports in `src/entroping` while preserving maintainer-only worker scripts
