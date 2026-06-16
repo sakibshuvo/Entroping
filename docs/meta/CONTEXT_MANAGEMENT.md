@@ -11,7 +11,11 @@ tags:
 
 # Context Management
 
-Entroping uses layered context so Codex, Obsidian, and future graph tooling can rehydrate the project quickly without depending on one long chat thread.
+Entroping uses layered, repo-native context so Codex and other workers can
+rehydrate the project quickly without depending on one long chat thread.
+Optional graph, wiki, comprehension, or compression tooling is not part of
+normal rehydration; it must earn promotion through measured scorecard evidence
+before it shapes work.
 
 ## Repo-Native Context Budget Baseline
 
@@ -197,7 +201,7 @@ and failure mode before another tool starts compressing or reshaping the same
 evidence.
 
 1. Phase 1 - Obsidian vault discipline. Keep curated Markdown, source links,
-   ADR pointers, and lessons accurate before adding generated graphs or model
+   ADR pointers, and lessons accurate before adding generated or model-authored
    summaries. Obsidian preserves human memory; it does not track work.
 2. Phase 2 - curated Markdown and LLM-wiki style source maps. The useful part
    of the LLM wiki idea is disciplined, source-linked Markdown that agents can
@@ -434,7 +438,8 @@ Current local agent tooling status:
 - Retired generated context tooling: removed from active workflow; use `rg`,
   source reads, tests, and measured factory metrics instead.
 - Understand Anything: installable/testable in an ignored clone, but not active
-  in this Codex session without a restart and generated graph.
+  in this Codex session without a restart; generated graph output remains
+  outside active workflow.
 - Spec Kit `specify`: available.
 - oMLX: not installed in this shell yet.
 

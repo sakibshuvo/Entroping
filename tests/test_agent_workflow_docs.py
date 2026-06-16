@@ -979,6 +979,40 @@ def test_context_management_records_retired_context_tool_boundary() -> None:
     )
 
 
+def test_context_management_does_not_frame_graph_tools_as_rehydration_path() -> None:
+    doc = (REPO_ROOT / "docs" / "meta" / "CONTEXT_MANAGEMENT.md").read_text(
+        encoding="utf-8"
+    )
+    normalized = " ".join(doc.split())
+
+    stale_phrases = [
+        "future graph tooling can rehydrate the project",
+        "before adding generated graphs or model summaries",
+        "without a restart and generated graph",
+    ]
+    for phrase in stale_phrases:
+        assert phrase not in normalized
+
+    required_terms = [
+        "Entroping uses layered, repo-native context",
+        (
+            "Optional graph, wiki, comprehension, or compression tooling is not "
+            "part of normal rehydration"
+        ),
+        "must earn promotion through measured scorecard evidence",
+        (
+            "Keep curated Markdown, source links, ADR pointers, and lessons "
+            "accurate before adding generated or model-authored summaries"
+        ),
+        (
+            "not active in this Codex session without a restart; generated graph "
+            "output remains outside active workflow"
+        ),
+    ]
+    for term in required_terms:
+        assert term in normalized
+
+
 def test_context_engineering_factory_boundary_is_canonical() -> None:
     control_plane = (
         REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md"
