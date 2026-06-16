@@ -69,11 +69,11 @@ archive is mounted or attached to the cloud task.
 | Prompt | Use |
 | --- | --- |
 | [Codex session handoff](codex-session-handoff.md) | Start a fresh Codex thread in the proper project folder. |
-| [Issue worker](issue-worker.md) | Give a coding agent one GitHub issue and an isolated worktree, including the Autonomous Tier A OpenCode/DeepSeek Worker Prompt. |
+| [Issue worker](issue-worker.md) | Give a coding agent one GitHub issue and an isolated worktree, including the Self-Contained OpenCode/DeepSeek Work Packet and Autonomous Tier A OpenCode/DeepSeek Worker Prompt. |
 | [Architecture boundary brief](architecture-boundary-brief.md) | Attach ownership, allowed files, forbidden files, invariants, tests, provider/runtime constraints, and stop conditions to worker issue packets. |
 | [Spark-safe worker](spark-safe-worker.md) | Use low-risk Codex Spark capacity for docs/tests/project hygiene. |
 | [Multi-agent marathon](multi-agent-marathon.md) | Run several bounded sessions while one parent thread owns integration. |
-| [OpenCode Desktop handoff](opencode-desktop-handoff.md) | Start OpenCode Desktop/OpenCode Go implementation or PR verification sessions with explicit provider lane, billing, model, role, merge authority, and `scripts/opencode_readiness.py` preflight evidence. |
+| [OpenCode Desktop handoff](opencode-desktop-handoff.md) | Start OpenCode Desktop/OpenCode Go implementation or PR verification sessions with the self-contained worker packet, explicit provider lane, billing, model, role, merge authority, and `scripts/opencode_readiness.py` preflight evidence. |
 | [OpenCode Codex review request](opencode-codex-review-request.md) | Let OpenCode request a read-only Codex CLI review of an OpenCode-produced local diff or PR before merge. |
 | [Model-comparison trial](model-comparison-trial.md) | Compare Codex, OpenCode native DeepSeek, direct DeepSeek API, OpenCode Go Kimi/Qwen, and local/offline models through evidence. |
 | [Model-output acceptance gate](model-output-acceptance-gate.md) | Decide what to accept, review, convert to issues, or reject from cheap-model reviews, patches, PRs, and drafts. |
@@ -98,8 +98,10 @@ archive is mounted or attached to the cloud task.
 ## When To Use Which
 
 - New Codex thread: start with `codex-session-handoff.md`.
-- One implementation slice: use `issue-worker.md`; use its autonomous variant
-  only for Tier A docs/tests/guard/script work.
+- One implementation slice: use `issue-worker.md`; for OpenCode/DeepSeek
+  write work, fill its Self-Contained OpenCode/DeepSeek Work Packet before
+  the worker edits files. Use its autonomous variant only for Tier A
+  docs/tests/guard/script work.
 - Worker packet with architecture risk: attach `architecture-boundary-brief.md`
   before implementation so the agent has explicit ownership, invariant, test,
   provider/runtime, and stop-condition boundaries.
@@ -108,8 +110,11 @@ archive is mounted or attached to the cloud task.
   `scripts/ai_jobs.py submit --autonomy-tier tier-a` so the worker defaults to
   cheap routing and a context-pack manifest first.
 - OpenCode Desktop/OpenCode Go write sessions: use
-  `opencode-desktop-handoff.md` so provider host, billing path, concrete model
-  id, role, autonomy tier, allowed files, merge authority, and
+  `opencode-desktop-handoff.md` with the Self-Contained OpenCode/DeepSeek Work
+  Packet so provider host, billing path, concrete model id, role, autonomy
+  tier, allowed files, forbidden files, Verification lane, Exact tests/gates,
+  Stop conditions, PR body requirements, CI/merge/finish expectations,
+  Ask Codex only when rules, merge authority, and
   `uv run python scripts/opencode_readiness.py --mode implementation --require-clean --format json`
   evidence are explicit before work starts.
 - OpenCode requesting Codex CLI review: use

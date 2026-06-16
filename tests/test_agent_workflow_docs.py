@@ -219,6 +219,53 @@ def test_agent_workflow_docs_document_verification_lanes() -> None:
         assert term in combined
 
 
+def test_prompt_library_documents_self_contained_worker_packets() -> None:
+    issue_worker = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "issue-worker.md"
+    ).read_text(encoding="utf-8")
+    opencode_handoff = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-desktop-handoff.md"
+    ).read_text(encoding="utf-8")
+    readme = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "README.md"
+    ).read_text(encoding="utf-8")
+    combined = " ".join(f"{issue_worker}\n{opencode_handoff}\n{readme}".split())
+
+    required_terms = [
+        "Self-Contained OpenCode/DeepSeek Work Packet",
+        "Issue scope",
+        "Allowed files",
+        "Forbidden files",
+        "Verification lane",
+        "Exact tests/gates",
+        "Stop conditions",
+        "PR body requirements",
+        "CI/merge/finish expectations",
+        "Ask Codex only when",
+        "Do not ask Codex for routine Tier A implementation details",
+        "scripts/start_issue.sh",
+        "scripts/finish_issue.sh",
+        "scripts/pr_body_check.py",
+        "Closes #<issue-number>",
+        "Agent Autonomy Declaration",
+        "OpenCode Provider Lane Evidence",
+        "docs/meta/FEATURE_DELIVERY_CHECKLIST.md",
+        "security-runtime",
+        "release-ci-architecture",
+        "Tier B or Tier C",
+        "secrets",
+        "raw traffic",
+        "provider transcripts",
+    ]
+
+    for term in required_terms:
+        assert term in combined
+
+
 def test_opencode_desktop_handoff_documents_tooling_setup_checklist() -> None:
     doc = (
         REPO_ROOT
