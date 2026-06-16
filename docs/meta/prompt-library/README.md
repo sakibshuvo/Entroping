@@ -9,6 +9,7 @@ tags:
   - opencode
   - deepseek
   - gemini
+  - claude
 ---
 
 # Prompt Library
@@ -80,6 +81,7 @@ archive is mounted or attached to the cloud task.
 | [OpenCode-only week monitoring](opencode-week-monitoring.md) | Watch OpenCode/DeepSeek PRs, CI, ready issues, cleanup candidates, and factory metrics without mutating repo state. |
 | [Thread steering](thread-steering.md) | Interrupt or redirect a running Codex thread without losing its current work. |
 | [Gemini review](gemini-review.md) | Ask Gemini or NotebookLM for a brutal product/engineering review. |
+| [Claude code review](claude-code-review.md) | Ask Claude Code or work-Claude for an occasional source-pinned code/security review. |
 | [DeepSeek/OpenCode review](deepseek-opencode-review.md) | Ask DeepSeek/OpenCode for bounded repo review, bug bash, or patch proposals. |
 | [Engineering health review](engineering-health-review.md) | Audit architectural drift, anti-patterns, code smells, docs health, quality, testability, debugging ergonomics, security, maintainability, and regression risk. |
 | [PR review and merge gate](pr-review-merge-gate.md) | Decide if an open PR is safe to merge. |
@@ -133,6 +135,9 @@ archive is mounted or attached to the cloud task.
 - Another thread already started: paste `thread-steering.md` before adding new
   context.
 - External product sanity check: use `gemini-review.md`.
+- Occasional deep Claude code/security review: use `claude-code-review.md`,
+  then triage the output through `backlog-triage.md` before opening issues or
+  accepting fixes.
 - Holistic engineering-health audit: use `engineering-health-review.md`.
 - After unattended work: use `after-sleep-status.md`.
 - Before merge: use `pr-review-merge-gate.md`.
