@@ -143,6 +143,49 @@ def test_prompt_library_includes_engineering_health_review_prompt() -> None:
     assert "| [Engineering health review](engineering-health-review.md) |" in readme
 
 
+def test_prompt_library_includes_claude_code_review_prompt() -> None:
+    prompt = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "claude-code-review.md"
+    ).read_text(encoding="utf-8")
+    readme = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "README.md"
+    ).read_text(encoding="utf-8")
+    combined = " ".join(prompt.split())
+
+    required_terms = [
+        "Claude Code Review Prompt",
+        "Review first",
+        "Do not edit files",
+        "source-pinned",
+        "file/line evidence",
+        "verified",
+        "stale",
+        "opinion",
+        "unsafe",
+        "P0/P1/P2/P3",
+        "GitHub issue candidates",
+        "QAnstitution branding",
+        "deterministic Hurl execution",
+        "`entroping run` LLM-free",
+        "hexagonal architecture",
+        "docs governance",
+        "100 percent meaningful coverage",
+        "external Claude output is advisory",
+        "not merge authority",
+        "not source of truth",
+        "scripts/context_pack.sh --mode review --manifest",
+    ]
+
+    for term in required_terms:
+        assert term in combined
+
+    assert "| [Claude code review](claude-code-review.md) |" in readme
+
+
 def test_opencode_desktop_handoff_documents_tooling_setup_checklist() -> None:
     doc = (
         REPO_ROOT
