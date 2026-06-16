@@ -407,6 +407,59 @@ def test_prompt_library_includes_opencode_desktop_one_shot_prompt() -> None:
     )
 
 
+def test_prompt_library_includes_prompt_selection_matrix() -> None:
+    readme = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "README.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(readme.split())
+
+    required_terms = [
+        "## Prompt Selection Matrix",
+        "| Prompt | Use When | Runner |",
+        "`codex-session-handoff.md`",
+        "`issue-worker.md`",
+        "`opencode-desktop-one-shot.md`",
+        "`opencode-desktop-handoff.md`",
+        "`opencode-codex-review-request.md`",
+        "`deepseek-opencode-review.md`",
+        "`model-output-acceptance-gate.md`",
+        "`model-comparison-trial.md`",
+        "`codex-outage-daily-operations.md`",
+        "`opencode-week-monitoring.md`",
+        "`multi-agent-marathon.md`",
+        "`spark-safe-worker.md`",
+        "`architecture-boundary-brief.md`",
+        "`engineering-health-review.md`",
+        "`claude-code-review.md`",
+        "`gemini-review.md`",
+        "`security-review.md`",
+        "`pr-review-merge-gate.md`",
+        "`ci-failure-debug.md`",
+        "`bug-bash.md`",
+        "`backlog-triage.md`",
+        "`after-sleep-status.md`",
+        "`thread-steering.md`",
+        "`roadmap-progress-refresh.md`",
+        "`launch-readiness-review.md`",
+        "`stable-core-audit.md`",
+        "`context-reconciliation.md`",
+        "## Quick Selection Rules",
+        "I want OpenCode Desktop + DeepSeek to just work",
+        "`opencode-desktop-one-shot.md`",
+        "A cheap model produced a large patch or review; should I trust it?",
+        "`model-output-acceptance-gate.md`",
+        "Codex limit is low; keep moving safely",
+        "`codex-outage-daily-operations.md`",
+        "Before merge, is this PR safe?",
+        "`pr-review-merge-gate.md`",
+        "Find code quality, design, security, and documentation problems",
+        "`engineering-health-review.md`",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+
 def test_prompt_library_includes_model_comparison_trial_prompt() -> None:
     prompt = (
         REPO_ROOT
