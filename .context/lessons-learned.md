@@ -2,6 +2,10 @@
 
 ## 2026-06-16
 
+- Broad quality reviews need a reusable review-only prompt. Keep the prompt
+  grounded in repo evidence, file/line references, severity, and verified vs
+  stale/opinion/unsafe classification so agents surface engineering risks
+  without turning every observation into an unscoped rewrite.
 - Architecture rules need a named gate, not just a pytest file. Keep the AST
   import-boundary tests as the source of truth, but expose them through a
   dedicated script and wire that script into the normal feature gate so agents

@@ -93,6 +93,56 @@ def test_prompt_library_includes_architecture_boundary_brief_template() -> None:
     assert "| [Architecture boundary brief](architecture-boundary-brief.md) |" in readme
 
 
+def test_prompt_library_includes_engineering_health_review_prompt() -> None:
+    prompt = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "engineering-health-review.md"
+    ).read_text(encoding="utf-8")
+    readme = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "README.md"
+    ).read_text(encoding="utf-8")
+    combined = " ".join(prompt.split())
+
+    required_terms = [
+        "type: prompt",
+        "status: active",
+        "Review first",
+        "Do not edit files",
+        "architectural drift",
+        "anti-patterns",
+        "code smells",
+        "documentation health",
+        "code quality",
+        "testability",
+        "debugging ergonomics",
+        "security",
+        "maintainability",
+        "regression risk",
+        "hexagonal architecture",
+        "deterministic Hurl execution",
+        "QAnstitution branding",
+        "`entroping run` provider-free",
+        "provider/runtime boundaries",
+        "repo evidence",
+        "file/line references",
+        "severity",
+        "verified",
+        "stale",
+        "opinion",
+        "unsafe",
+        "GitHub Issues",
+        "not source of truth",
+    ]
+
+    for term in required_terms:
+        assert term in combined
+
+    assert "| [Engineering health review](engineering-health-review.md) |" in readme
+
+
 def test_opencode_desktop_handoff_documents_tooling_setup_checklist() -> None:
     doc = (
         REPO_ROOT

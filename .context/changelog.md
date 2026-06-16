@@ -2,6 +2,11 @@
 
 ## 2026-06-16
 
+- Added issue #781's engineering-health review prompt:
+  `docs/meta/prompt-library/engineering-health-review.md` now gives agents a
+  reusable review-only audit for architectural drift, anti-patterns, code
+  smells, documentation health, quality, testability, debugging ergonomics,
+  security, maintainability, and regression risk.
 - Added issue #772's architecture-integrity gate:
   `scripts/architecture_integrity.sh` now runs the focused AST architecture
   boundary tests as a named provider-free, no-Hurl, source-only gate, and
