@@ -20,7 +20,7 @@ Repo:
 cd /Users/sakibshuvo/projects/Entroping
 
 Codex Cloud: if this macOS path does not exist, use the repository root provided
-by the cloud task.
+by the cloud task. 
 
 Do not implement. Review and return findings.
 
