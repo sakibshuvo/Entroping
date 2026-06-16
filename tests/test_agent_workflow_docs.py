@@ -143,6 +143,129 @@ def test_prompt_library_includes_engineering_health_review_prompt() -> None:
     assert "| [Engineering health review](engineering-health-review.md) |" in readme
 
 
+def test_prompt_library_includes_claude_code_review_prompt() -> None:
+    prompt = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "claude-code-review.md"
+    ).read_text(encoding="utf-8")
+    readme = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "README.md"
+    ).read_text(encoding="utf-8")
+    combined = " ".join(prompt.split())
+
+    required_terms = [
+        "Claude Code Review Prompt",
+        "Review first",
+        "Do not edit files",
+        "source-pinned",
+        "file/line evidence",
+        "verified",
+        "stale",
+        "opinion",
+        "unsafe",
+        "P0/P1/P2/P3",
+        "GitHub issue candidates",
+        "QAnstitution branding",
+        "deterministic Hurl execution",
+        "`entroping run` LLM-free",
+        "hexagonal architecture",
+        "docs governance",
+        "100 percent meaningful coverage",
+        "external Claude output is advisory",
+        "not merge authority",
+        "not source of truth",
+        "scripts/context_pack.sh --mode review --manifest",
+    ]
+
+    for term in required_terms:
+        assert term in combined
+
+    assert "| [Claude code review](claude-code-review.md) |" in readme
+
+
+def test_agent_workflow_docs_document_verification_lanes() -> None:
+    pr_template = (REPO_ROOT / ".github" / "pull_request_template.md").read_text(
+        encoding="utf-8"
+    )
+    checklist = (
+        REPO_ROOT / "docs" / "meta" / "FEATURE_DELIVERY_CHECKLIST.md"
+    ).read_text(encoding="utf-8")
+    issue_worker = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "issue-worker.md"
+    ).read_text(encoding="utf-8")
+    combined = " ".join(f"{pr_template}\n{checklist}\n{issue_worker}".split())
+
+    required_terms = [
+        "Verification lane",
+        "tiny-docs",
+        "docs-guardrail",
+        "tests-only",
+        "normal-code",
+        "security-runtime",
+        "release-ci-architecture",
+        "proportional verification",
+        "scripts/pr_body_check.py",
+        "scripts/doc_governance_check.sh",
+        "uv run pytest tests/",
+        "scripts/feature_gate.sh",
+        "scripts/regression.sh --security",
+        "scripts/audit_quality.sh",
+    ]
+
+    for term in required_terms:
+        assert term in combined
+
+
+def test_prompt_library_documents_self_contained_worker_packets() -> None:
+    issue_worker = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "issue-worker.md"
+    ).read_text(encoding="utf-8")
+    opencode_handoff = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-desktop-handoff.md"
+    ).read_text(encoding="utf-8")
+    readme = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "README.md"
+    ).read_text(encoding="utf-8")
+    combined = " ".join(f"{issue_worker}\n{opencode_handoff}\n{readme}".split())
+
+    required_terms = [
+        "Self-Contained OpenCode/DeepSeek Work Packet",
+        "Issue scope",
+        "Allowed files",
+        "Forbidden files",
+        "Verification lane",
+        "Exact tests/gates",
+        "Stop conditions",
+        "PR body requirements",
+        "CI/merge/finish expectations",
+        "Ask Codex only when",
+        "Do not ask Codex for routine Tier A implementation details",
+        "scripts/start_issue.sh",
+        "scripts/finish_issue.sh",
+        "scripts/pr_body_check.py",
+        "Closes #<issue-number>",
+        "Agent Autonomy Declaration",
+        "OpenCode Provider Lane Evidence",
+        "docs/meta/FEATURE_DELIVERY_CHECKLIST.md",
+        "security-runtime",
+        "release-ci-architecture",
+        "Tier B or Tier C",
+        "secrets",
+        "raw traffic",
+        "provider transcripts",
+    ]
+
+    for term in required_terms:
+        assert term in combined
+
+
 def test_opencode_desktop_handoff_documents_tooling_setup_checklist() -> None:
     doc = (
         REPO_ROOT
@@ -203,6 +326,85 @@ def test_opencode_desktop_handoff_documents_tooling_setup_checklist() -> None:
 
     for term in required_terms:
         assert term in normalized
+
+
+def test_prompt_library_includes_opencode_desktop_one_shot_prompt() -> None:
+    prompt = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-desktop-one-shot.md"
+    ).read_text(encoding="utf-8")
+    readme = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "README.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(prompt.split())
+
+    required_terms = [
+        "OpenCode Desktop One-Shot Prompt",
+        "type: prompt",
+        "status: active",
+        "Do everything through OpenCode Desktop tools",
+        "Do not ask me to run terminal commands unless OpenCode cannot run them",
+        "opencode/native-deepseek",
+        "OpenCode Desktop",
+        "paid DeepSeek API key inside OpenCode",
+        "deepseek/deepseek-v4-pro",
+        "Pick the highest-value Tier A issue",
+        "Self-Contained OpenCode/DeepSeek Work Packet",
+        "Issue scope",
+        "Allowed files",
+        "Forbidden files",
+        "Verification lane",
+        "Exact tests/gates",
+        "Stop conditions",
+        "PR body requirements",
+        "CI/merge/finish expectations",
+        "Ask Codex only when",
+        "scripts/start_issue.sh <issue-number>",
+        "/Users/sakibshuvo/projects/Entroping-issue-<issue-number>",
+        (
+            "uv run python scripts/opencode_readiness.py --mode implementation "
+            "--require-clean --format json"
+        ),
+        "scripts/context_pack.sh --mode implementation --manifest",
+        (
+            "scripts/pr_body_check.py --body-file <body.md> "
+            "--require-opencode-evidence --issue <issue-number>"
+        ),
+        "gh pr checks <pr-number> --repo sakibshuvo/Entroping --watch",
+        "scripts/finish_issue.sh <issue-number>",
+        "Do not ask Codex for routine Tier A implementation details",
+        "security-runtime",
+        "release-ci-architecture",
+        "entroping run",
+        "Hurl runner",
+        "protected-run safety",
+        "redaction",
+        "proxy/traffic capture",
+        "provider/LiteLLM boundaries",
+        "release publishing",
+        "dependencies",
+        "secrets",
+        "raw traffic",
+        "audit evidence",
+        "security fixes",
+        "architecture boundary changes",
+        "Closes #<issue-number>",
+        "Verification lane:",
+        "Documentation Impact Declaration",
+        "Agent Autonomy Declaration",
+        "OpenCode Provider Lane Evidence",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+    assert (
+        "| [OpenCode Desktop one-shot](opencode-desktop-one-shot.md) |"
+        in readme
+    )
 
 
 def test_prompt_library_includes_model_comparison_trial_prompt() -> None:
@@ -977,6 +1179,40 @@ def test_context_management_records_retired_context_tool_boundary() -> None:
         "Agents should use `rg`, source reads, tests, and measured factory metrics"
         in normalized
     )
+
+
+def test_context_management_does_not_frame_graph_tools_as_rehydration_path() -> None:
+    doc = (REPO_ROOT / "docs" / "meta" / "CONTEXT_MANAGEMENT.md").read_text(
+        encoding="utf-8"
+    )
+    normalized = " ".join(doc.split())
+
+    stale_phrases = [
+        "future graph tooling can rehydrate the project",
+        "before adding generated graphs or model summaries",
+        "without a restart and generated graph",
+    ]
+    for phrase in stale_phrases:
+        assert phrase not in normalized
+
+    required_terms = [
+        "Entroping uses layered, repo-native context",
+        (
+            "Optional graph, wiki, comprehension, or compression tooling is not "
+            "part of normal rehydration"
+        ),
+        "must earn promotion through measured scorecard evidence",
+        (
+            "Keep curated Markdown, source links, ADR pointers, and lessons "
+            "accurate before adding generated or model-authored summaries"
+        ),
+        (
+            "not active in this Codex session without a restart; generated graph "
+            "output remains outside active workflow"
+        ),
+    ]
+    for term in required_terms:
+        assert term in normalized
 
 
 def test_context_engineering_factory_boundary_is_canonical() -> None:

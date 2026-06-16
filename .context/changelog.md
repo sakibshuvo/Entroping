@@ -2,6 +2,15 @@
 
 ## 2026-06-16
 
+- Added issue #787's architecture/quality guardrail PR preflight:
+  `scripts/pr_body_check.py --changed-file` now requires
+  `scripts/audit_quality.sh` evidence when architecture-integrity,
+  delivery-gate, or quality-audit guardrail files change.
+- Fixed issue #785's context-management graph-tool framing:
+  `docs/meta/CONTEXT_MANAGEMENT.md` now opens with repo-native context
+  rehydration and keeps graph/wiki/compression tooling behind measured
+  promotion evidence instead of presenting future graph tooling as a normal
+  agent path.
 - Added issue #783's model-output acceptance gate prompt:
   `docs/meta/prompt-library/model-output-acceptance-gate.md` now gives Codex,
   OpenCode, DeepSeek, Kimi/Qwen, and local-model reviewers a reusable intake

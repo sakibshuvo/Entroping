@@ -14,6 +14,12 @@ tags:
 Use this with OpenCode, DeepSeek Flash, or DeepSeek Pro. Keep the worker bounded:
 review artifacts are useful, but Codex validates and applies changes.
 
+For implementation work, do not use this review prompt as the worker's only
+scope. Fill the Self-Contained OpenCode/DeepSeek Work Packet in
+`issue-worker.md` first so the worker has explicit issue scope, allowed files,
+forbidden files, verification lane, tests/gates, stop conditions, PR evidence,
+and Codex-escalation rules.
+
 ## Review Prompt
 
 ```text

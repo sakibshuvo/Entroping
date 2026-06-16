@@ -22,6 +22,8 @@ Coverage gaps:
 
 ## Verification
 
+Verification lane: <tiny-docs | docs-guardrail | tests-only | normal-code | security-runtime | release-ci-architecture>
+
 - [ ] `scripts/feature_gate.sh`
 - [ ] `scripts/regression.sh`
 - [ ] `scripts/feature_gate.sh --security` for dependency, subprocess, LLM, proxy, report, or filesystem-sensitive work.
@@ -29,6 +31,7 @@ Coverage gaps:
 - [ ] `git diff --cached --check`
 - [ ] CI passed.
 - [ ] Sensitive-surface changes include `scripts/feature_gate.sh --security` or `scripts/regression.sh --security` evidence.
+- [ ] Architecture/quality guardrail changes include `scripts/audit_quality.sh` evidence.
 
 Commands run:
 

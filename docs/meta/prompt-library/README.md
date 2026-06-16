@@ -9,6 +9,7 @@ tags:
   - opencode
   - deepseek
   - gemini
+  - claude
 ---
 
 # Prompt Library
@@ -68,11 +69,12 @@ archive is mounted or attached to the cloud task.
 | Prompt | Use |
 | --- | --- |
 | [Codex session handoff](codex-session-handoff.md) | Start a fresh Codex thread in the proper project folder. |
-| [Issue worker](issue-worker.md) | Give a coding agent one GitHub issue and an isolated worktree, including the Autonomous Tier A OpenCode/DeepSeek Worker Prompt. |
+| [Issue worker](issue-worker.md) | Give a coding agent one GitHub issue and an isolated worktree, including the Self-Contained OpenCode/DeepSeek Work Packet and Autonomous Tier A OpenCode/DeepSeek Worker Prompt. |
 | [Architecture boundary brief](architecture-boundary-brief.md) | Attach ownership, allowed files, forbidden files, invariants, tests, provider/runtime constraints, and stop conditions to worker issue packets. |
 | [Spark-safe worker](spark-safe-worker.md) | Use low-risk Codex Spark capacity for docs/tests/project hygiene. |
 | [Multi-agent marathon](multi-agent-marathon.md) | Run several bounded sessions while one parent thread owns integration. |
-| [OpenCode Desktop handoff](opencode-desktop-handoff.md) | Start OpenCode Desktop/OpenCode Go implementation or PR verification sessions with explicit provider lane, billing, model, role, merge authority, and `scripts/opencode_readiness.py` preflight evidence. |
+| [OpenCode Desktop handoff](opencode-desktop-handoff.md) | Start OpenCode Desktop/OpenCode Go implementation or PR verification sessions with the self-contained worker packet, explicit provider lane, billing, model, role, merge authority, and `scripts/opencode_readiness.py` preflight evidence. |
+| [OpenCode Desktop one-shot](opencode-desktop-one-shot.md) | Paste one bootstrap prompt into OpenCode Desktop with paid DeepSeek V4 Pro so it can pick one Tier A issue, create the work packet, run the issue worktree conveyor, open the PR, wait for CI, merge if allowed, and finish cleanup. |
 | [OpenCode Codex review request](opencode-codex-review-request.md) | Let OpenCode request a read-only Codex CLI review of an OpenCode-produced local diff or PR before merge. |
 | [Model-comparison trial](model-comparison-trial.md) | Compare Codex, OpenCode native DeepSeek, direct DeepSeek API, OpenCode Go Kimi/Qwen, and local/offline models through evidence. |
 | [Model-output acceptance gate](model-output-acceptance-gate.md) | Decide what to accept, review, convert to issues, or reject from cheap-model reviews, patches, PRs, and drafts. |
@@ -80,6 +82,7 @@ archive is mounted or attached to the cloud task.
 | [OpenCode-only week monitoring](opencode-week-monitoring.md) | Watch OpenCode/DeepSeek PRs, CI, ready issues, cleanup candidates, and factory metrics without mutating repo state. |
 | [Thread steering](thread-steering.md) | Interrupt or redirect a running Codex thread without losing its current work. |
 | [Gemini review](gemini-review.md) | Ask Gemini or NotebookLM for a brutal product/engineering review. |
+| [Claude code review](claude-code-review.md) | Ask Claude Code or work-Claude for an occasional source-pinned code/security review. |
 | [DeepSeek/OpenCode review](deepseek-opencode-review.md) | Ask DeepSeek/OpenCode for bounded repo review, bug bash, or patch proposals. |
 | [Engineering health review](engineering-health-review.md) | Audit architectural drift, anti-patterns, code smells, docs health, quality, testability, debugging ergonomics, security, maintainability, and regression risk. |
 | [PR review and merge gate](pr-review-merge-gate.md) | Decide if an open PR is safe to merge. |
@@ -96,8 +99,10 @@ archive is mounted or attached to the cloud task.
 ## When To Use Which
 
 - New Codex thread: start with `codex-session-handoff.md`.
-- One implementation slice: use `issue-worker.md`; use its autonomous variant
-  only for Tier A docs/tests/guard/script work.
+- One implementation slice: use `issue-worker.md`; for OpenCode/DeepSeek
+  write work, fill its Self-Contained OpenCode/DeepSeek Work Packet before
+  the worker edits files. Use its autonomous variant only for Tier A
+  docs/tests/guard/script work.
 - Worker packet with architecture risk: attach `architecture-boundary-brief.md`
   before implementation so the agent has explicit ownership, invariant, test,
   provider/runtime, and stop-condition boundaries.
@@ -106,10 +111,16 @@ archive is mounted or attached to the cloud task.
   `scripts/ai_jobs.py submit --autonomy-tier tier-a` so the worker defaults to
   cheap routing and a context-pack manifest first.
 - OpenCode Desktop/OpenCode Go write sessions: use
-  `opencode-desktop-handoff.md` so provider host, billing path, concrete model
-  id, role, autonomy tier, allowed files, merge authority, and
+  `opencode-desktop-handoff.md` with the Self-Contained OpenCode/DeepSeek Work
+  Packet so provider host, billing path, concrete model id, role, autonomy
+  tier, allowed files, forbidden files, Verification lane, Exact tests/gates,
+  Stop conditions, PR body requirements, CI/merge/finish expectations,
+  Ask Codex only when rules, merge authority, and
   `uv run python scripts/opencode_readiness.py --mode implementation --require-clean --format json`
   evidence are explicit before work starts.
+- Desktop-only DeepSeek V4 Pro run: use `opencode-desktop-one-shot.md` when
+  you want OpenCode Desktop to run the whole Tier A conveyor through its own
+  tools without asking you to open a separate terminal.
 - OpenCode requesting Codex CLI review: use
   `opencode-codex-review-request.md` for a read-only local-diff review with
   `codex review` or a PR evidence review with `codex exec`.
@@ -133,6 +144,9 @@ archive is mounted or attached to the cloud task.
 - Another thread already started: paste `thread-steering.md` before adding new
   context.
 - External product sanity check: use `gemini-review.md`.
+- Occasional deep Claude code/security review: use `claude-code-review.md`,
+  then triage the output through `backlog-triage.md` before opening issues or
+  accepting fixes.
 - Holistic engineering-health audit: use `engineering-health-review.md`.
 - After unattended work: use `after-sleep-status.md`.
 - Before merge: use `pr-review-merge-gate.md`.
