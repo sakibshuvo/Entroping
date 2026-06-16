@@ -128,10 +128,31 @@ because they may contain secrets. Passing preflight is not merge authority.
 Tier A/B/C scope, deterministic gates, PR evidence, CI, and
 `scripts/finish_issue.sh` still decide whether work can land.
 
+## Required Self-Contained Work Packet
+
+Every OpenCode Desktop, OpenCode CLI, OpenCode Go, or DeepSeek implementation
+session must start from the Self-Contained OpenCode/DeepSeek Work Packet in
+`issue-worker.md`. Do not edit files from this prompt alone. The work packet
+must declare Issue scope, Allowed files, Forbidden files, Verification lane,
+Exact tests/gates, Stop conditions, PR body requirements, CI/merge/finish
+expectations, and Ask Codex only when rules.
+
+If the packet is missing or incomplete, stop before editing and ask the issue
+owner to provide it. Do not ask Codex for routine Tier A implementation
+details once the packet is complete; Codex is reserved for Tier B or Tier C
+scope, security/runtime/provider/Hurl/redaction/proxy/release/architecture
+boundaries, ambiguous merge authority, and CI or review conflicts that affect
+security or architecture.
+
 ## OpenCode Desktop Implementation Worker Prompt
 
 ```text
 You are an Entroping OpenCode Desktop implementation worker.
+
+Required packet:
+Paste the Self-Contained OpenCode/DeepSeek Work Packet from issue-worker.md
+above this prompt. Stop if it is missing, incomplete, or inconsistent with the
+GitHub issue.
 
 Repo:
 cd /Users/sakibshuvo/projects/Entroping

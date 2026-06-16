@@ -94,6 +94,93 @@ Final report:
 - known gaps.
 ```
 
+## Self-Contained OpenCode/DeepSeek Work Packet
+
+Use this packet when OpenCode, DeepSeek, Kimi, Qwen, local models, or another
+low-cost worker may implement without Codex in the loop. Paste it above the
+worker prompt and fill every field before the worker edits files. The packet is
+the worker's local authority for scope; repo files, GitHub issue state, tests,
+CI, ADRs, docs governance, and QAnstitution/Hurl evidence still decide truth.
+
+```text
+Self-Contained OpenCode/DeepSeek Work Packet
+
+Issue scope:
+- Issue: #<issue-number> - <issue-title>
+- Outcome:
+- Non-goals:
+- Autonomy tier: <Tier A autonomous lane | Tier B assisted lane | Tier C restricted lane>
+- Verification lane: <tiny-docs | docs-guardrail | tests-only | normal-code | security-runtime | release-ci-architecture>
+- Merge authority: <Tier A autonomous after gates and green CI | Codex/human required | no merge authority>
+
+Allowed files:
+- <exact files or file families the worker may edit>
+
+Forbidden files:
+- <exact files or file families the worker must not edit>
+- Hurl runner behavior, `entroping run`, protected-run safety, redaction,
+  proxy or traffic capture, provider boundaries, LiteLLM routing, release
+  publishing, dependencies, architecture boundaries, secrets, credentials, raw
+  traffic, audit evidence, provider transcripts, generated local context, and
+  any file owned by another active worker are forbidden unless the issue
+  explicitly authorizes them and Codex/human review is required.
+
+Exact tests/gates:
+- Read `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`.
+- Run the declared Verification lane's focused commands.
+- For docs-guardrail work, usually run:
+  - `uv run pytest tests/test_agent_workflow_docs.py -q`
+  - `scripts/doc_governance_check.sh`
+- Run `scripts/pr_body_check.py --body-file <body.md> --issue <issue-number>`
+  with changed-file arguments when practical before opening the PR.
+
+Stop conditions:
+- The issue or diff becomes Tier B or Tier C after starting as Tier A.
+- The required Verification lane becomes `security-runtime` or
+  `release-ci-architecture`.
+- The diff touches files outside Allowed files or inside Forbidden files.
+- The worker needs secrets, raw traffic, provider transcripts, unredacted
+  captured data, local env files, or private credentials.
+- Tests fail for reasons outside the issue scope.
+- GitHub CI fails and logs do not point to a narrow in-scope fix.
+- The worker cannot prove a claim from local repo files, GitHub issue/PR/CI
+  evidence, ADRs, canonical docs, or deterministic tests.
+
+PR body requirements:
+- `Closes #<issue-number>`.
+- `Verification lane: <declared-lane>`.
+- Commands run, with results.
+- Documentation Impact Declaration.
+- Agent Autonomy Declaration when the PR claims autonomous work.
+- OpenCode Provider Lane Evidence when OpenCode, DeepSeek, Kimi, Qwen, local
+  models, or another non-Codex worker produced the work.
+
+CI/merge/finish expectations:
+- Push only the issue branch.
+- Wait for GitHub CI to be green.
+- Merge only if the declared autonomy tier allows it, the diff stayed in
+  scope, local gates passed, PR evidence is complete, and CI is green.
+- Run `scripts/finish_issue.sh <issue-number>` from a separate checkout after
+  merge.
+
+Ask Codex only when:
+- The required lane escalates to `security-runtime` or
+  `release-ci-architecture`.
+- The issue becomes Tier B or Tier C.
+- The change touches security, runtime execution, Hurl runner behavior,
+  redaction, proxy/traffic capture, provider boundaries, release publishing,
+  dependencies, architecture boundaries, secrets, raw traffic, or audit
+  evidence.
+- CI failure or review conflict affects architecture, security, release,
+  product truth, or merge authority.
+- The packet is incomplete and the missing field changes scope, safety, tests,
+  or merge authority.
+
+Do not ask Codex for routine Tier A implementation details, formatting,
+wording, import sorting, ordinary docs/test updates, or normal in-scope CI
+fixes when the packet, issue, and gates are clear.
+```
+
 ## Review-Only Variant
 
 ```text
@@ -107,6 +194,10 @@ Use this only for issues that stay inside the Tier A autonomous lane in
 Start with `scripts/start_issue.sh <issue-number> <type>/<short-kebab-description>`
 from the active repo and finish with `scripts/finish_issue.sh <issue-number>`
 after the PR is merged.
+
+Paste the Self-Contained OpenCode/DeepSeek Work Packet above this prompt before
+editing files. Stop if the packet is missing, incomplete, or inconsistent with
+the GitHub issue.
 
 ```text
 You are an Entroping Tier A autonomous OpenCode/DeepSeek issue worker.
