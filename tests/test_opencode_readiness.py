@@ -77,6 +77,8 @@ def test_opencode_readiness_json_preflight_passes_with_fake_opencode(
         str(fake_opencode),
         "--expected-repo-prefix",
         str(REPO_ROOT.parent),
+        "--mode",
+        "verification",
         "--format",
         "json",
     )
@@ -97,6 +99,40 @@ def test_opencode_readiness_json_preflight_passes_with_fake_opencode(
     assert checks["local_artifact_ignore_rules"]["status"] == "pass"
     assert checks["tracked_local_artifacts"]["status"] == "pass"
     assert "DEEPSEEK_API_KEY" not in result.stdout
+
+
+def test_opencode_readiness_implementation_mode_rejects_main_branch(
+    tmp_path: Path,
+) -> None:
+    fake_opencode = write_fake_opencode(tmp_path / "bin")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(
+        ["git", "init", "-b", "main"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    result = run_readiness(
+        "--repo-root",
+        str(repo),
+        "--expected-repo-prefix",
+        str(tmp_path),
+        "--opencode-bin",
+        str(fake_opencode),
+        "--format",
+        "json",
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    checks = checks_by_name(payload)
+
+    assert payload["overall_status"] == "fail"
+    assert checks["git_branch"]["status"] == "fail"
+    assert "scripts/start_issue.sh" in checks["git_branch"]["message"]
 
 
 def test_opencode_readiness_fails_for_stale_documents_repo_path(
@@ -142,6 +178,8 @@ def test_opencode_readiness_does_not_emit_local_config_secret_values(
     result = run_readiness(
         "--opencode-bin",
         str(fake_opencode),
+        "--mode",
+        "verification",
         "--format",
         "json",
         env={
