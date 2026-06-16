@@ -26,8 +26,8 @@ The pack is written to stdout. Redirect it to a temp file when needed:
   scripts/context_pack.sh --mode implementation > /tmp/entroping-context.md
 
 Print only a JSON manifest with file inventory, byte counts, estimated tokens,
-and budget status when an agent needs retrieval planning without loading the
-full context body:
+budget status, and next-action guidance when an agent needs retrieval planning
+without loading the full context body:
 
   scripts/context_pack.sh --mode implementation --manifest
 
@@ -436,6 +436,7 @@ mode, repo, branch, source_root, budget_raw, pack_file, *raw_files = sys.argv[1:
 budget_bytes = int(budget_raw)
 context_bytes = os.path.getsize(pack_file)
 estimated_tokens = max(1, (context_bytes + 3) // 4)
+budget_status = "pass" if context_bytes <= budget_bytes else "fail"
 
 files = []
 for index in range(0, len(raw_files), 2):
@@ -450,6 +451,31 @@ for index in range(0, len(raw_files), 2):
         }
     )
 
+if budget_status == "pass":
+    recommended_next_action = {
+        "action": "targeted_file_reads",
+        "full_pack_allowed": True,
+        "reason": "Manifest is within the mode budget; read only files relevant to the issue before loading the full pack.",
+        "steps": [
+            "Start from the named issue or review question.",
+            "Use files[].path and files[].reason to choose the smallest useful read set.",
+            "Use rg and the decision registry before opening broad historical docs.",
+            "Load the full context pack only when targeted reads are insufficient.",
+        ],
+    }
+else:
+    recommended_next_action = {
+        "action": "reduce_scope",
+        "full_pack_allowed": False,
+        "reason": "Manifest exceeds the mode budget; do not load the full context pack.",
+        "steps": [
+            "Switch to a narrower mode or a smaller issue question.",
+            "Read only files[].path entries that match the issue scope.",
+            "Use rg for exact symbol or phrase lookup before broad file reads.",
+            "Record the budget failure in factory metrics or the worker handoff.",
+        ],
+    }
+
 manifest = {
     "schema": "entroping.context-pack-manifest.v1",
     "mode": mode,
@@ -462,7 +488,8 @@ manifest = {
     "context_bytes": context_bytes,
     "estimated_tokens": estimated_tokens,
     "budget_bytes": budget_bytes,
-    "budget_status": "pass" if context_bytes <= budget_bytes else "fail",
+    "budget_status": budget_status,
+    "recommended_next_action": recommended_next_action,
 }
 
 print(json.dumps(manifest, indent=2, sort_keys=True))

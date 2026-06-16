@@ -1,5 +1,13 @@
 # Entroping Changelog
 
+## 2026-06-16
+
+- Added issue #770's context-pack manifest next-action guidance:
+  `scripts/context_pack.sh --manifest` now emits value-free
+  `recommended_next_action` instructions so agents choose targeted file reads
+  when a pack is in budget and reduce scope instead of loading the full pack
+  when the pack exceeds budget.
+
 ## 2026-06-15
 
 - Added issue #768's OpenCode-to-Codex review request prompt:
