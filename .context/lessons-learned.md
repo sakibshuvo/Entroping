@@ -2,6 +2,10 @@
 
 ## 2026-06-16
 
+- Architecture rules need a named gate, not just a pytest file. Keep the AST
+  import-boundary tests as the source of truth, but expose them through a
+  dedicated script and wire that script into the normal feature gate so agents
+  and CI fail fast before broader lint/type/test output.
 - Context-pack manifests should say what to do next, not only report size.
   Keep manifest guidance value-free: recommend targeted file reads when the
   pack is within budget, recommend reducing scope when it is not, and never

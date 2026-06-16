@@ -96,11 +96,14 @@ state, runtime state, generated reports, graph output, virtualenvs, or tool cach
 are tracked by Git. Repo hygiene also runs `scripts/ai_artifact_hygiene.py`, which
 rejects committed AI worker artifacts, prompt or provider dumps, raw stdout/stderr
 captures, cookies, raw traffic, and secret-shaped context in tracked docs/context
-surfaces. The feature gate also runs `scripts/doc_governance_check.sh` and
-`scripts/shell_quality.sh` before the Python lint, type, and test gate.
-`scripts/shell_quality.sh` always runs `bash -n` over tracked shell scripts and
-runs ShellCheck when `shellcheck` is available; if ShellCheck is not installed,
-the skip is printed explicitly.
+surfaces. The feature gate also runs `scripts/doc_governance_check.sh`,
+`scripts/shell_quality.sh`, and `scripts/architecture_integrity.sh` before the
+Python lint, type, and test gate. `scripts/shell_quality.sh` always runs
+`bash -n` over tracked shell scripts and runs ShellCheck when `shellcheck` is
+available; if ShellCheck is not installed, the skip is printed explicitly.
+`scripts/architecture_integrity.sh` runs the focused AST import-boundary tests
+that enforce hexagonal dependencies, provider boundaries, and deterministic
+run-core isolation without calling providers, Hurl, the network, or secrets.
 
 Regression suite:
 
