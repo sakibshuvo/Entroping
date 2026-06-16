@@ -64,13 +64,30 @@ Use this checklist for every non-trivial Entroping feature. It is the executable
 
 ## 5. Local Verification
 
-- [ ] Run the documentation governance gate before final review:
+- [ ] Choose the proportional verification lane before final review and list it
+  in the PR body as `Verification lane: <lane>`.
+
+| Lane | Use for | Minimum local evidence |
+| --- | --- | --- |
+| `tiny-docs` | Small non-guardrail Markdown changes | `scripts/doc_governance_check.sh` |
+| `docs-guardrail` | Prompt library, agent workflow, docs governance, or context-control docs | focused `uv run pytest tests/... -q` plus `scripts/doc_governance_check.sh` |
+| `tests-only` | Non-sensitive tests or fixtures only | focused `uv run pytest tests/... -q` |
+| `normal-code` | Non-sensitive product or script code | `scripts/feature_gate.sh` or `scripts/regression.sh` |
+| `security-runtime` | Subprocess, paths, YAML, reports, traffic, proxy, redaction, provider, secrets, or runtime safety | `scripts/feature_gate.sh --security` or `scripts/regression.sh --security` |
+| `release-ci-architecture` | CI, release, architecture, quality, or delivery guardrails | `scripts/regression.sh --security` plus `scripts/audit_quality.sh` |
+
+This is proportional verification: use the smallest lane that matches the
+changed files, then escalate when the diff touches a stricter surface.
+`scripts/pr_body_check.py` enforces the lane and command evidence on PRs.
+
+- [ ] Run the documentation governance gate before final review when the lane
+  requires it:
 
 ```bash
 scripts/doc_governance_check.sh
 ```
 
-- [ ] Run the standard gate:
+- [ ] Run the standard gate when the lane requires it:
 
 ```bash
 scripts/feature_gate.sh
@@ -79,23 +96,26 @@ scripts/feature_gate.sh
 This includes repository hygiene, docs governance, shell quality, and the named
 architecture-integrity gate before the broad Python lint/type/test suite.
 
-- [ ] Run the regression suite:
+- [ ] Run the regression suite when the lane requires it:
 
 ```bash
 scripts/regression.sh
 ```
 
-- [ ] For dependency, subprocess, LLM, proxy, report, or filesystem-sensitive work, run:
+- [ ] For dependency, subprocess, LLM, proxy, report, or filesystem-sensitive work,
+  use the `security-runtime` lane and run:
 
 ```bash
 scripts/feature_gate.sh --security
 scripts/regression.sh --security
 ```
 
-- [ ] For docs-only changes, still run at least:
+- [ ] For docs-only changes, use `tiny-docs` or `docs-guardrail`. Run the
+  lane's focused gates locally and let PR CI run the full regression matrix:
 
 ```bash
-scripts/check.sh
+scripts/doc_governance_check.sh
+uv run pytest tests/test_agent_workflow_docs.py -q
 ```
 
 - [ ] For validation marathons, release hardening, or maintenance-risk reviews, run:
@@ -159,7 +179,7 @@ scripts/factory_metrics.py readiness --issue <issue> --format json
 No local file evidence -> no architecture claim.
 No failing or targeted test -> no feature implementation start unless explicitly documented.
 No issue or explicit task source -> no feature branch.
-No regression suite -> no commit.
+No declared verification lane and matching command evidence -> no PR.
 No security pass for sensitive boundaries -> no merge.
 No Documentation Impact Declaration -> no PR.
 No context update -> no durable memory.

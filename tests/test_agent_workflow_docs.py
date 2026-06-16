@@ -186,6 +186,39 @@ def test_prompt_library_includes_claude_code_review_prompt() -> None:
     assert "| [Claude code review](claude-code-review.md) |" in readme
 
 
+def test_agent_workflow_docs_document_verification_lanes() -> None:
+    pr_template = (REPO_ROOT / ".github" / "pull_request_template.md").read_text(
+        encoding="utf-8"
+    )
+    checklist = (
+        REPO_ROOT / "docs" / "meta" / "FEATURE_DELIVERY_CHECKLIST.md"
+    ).read_text(encoding="utf-8")
+    issue_worker = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "issue-worker.md"
+    ).read_text(encoding="utf-8")
+    combined = " ".join(f"{pr_template}\n{checklist}\n{issue_worker}".split())
+
+    required_terms = [
+        "Verification lane",
+        "tiny-docs",
+        "docs-guardrail",
+        "tests-only",
+        "normal-code",
+        "security-runtime",
+        "release-ci-architecture",
+        "proportional verification",
+        "scripts/pr_body_check.py",
+        "scripts/doc_governance_check.sh",
+        "uv run pytest tests/",
+        "scripts/feature_gate.sh",
+        "scripts/regression.sh --security",
+        "scripts/audit_quality.sh",
+    ]
+
+    for term in required_terms:
+        assert term in combined
+
+
 def test_opencode_desktop_handoff_documents_tooling_setup_checklist() -> None:
     doc = (
         REPO_ROOT
