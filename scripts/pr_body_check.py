@@ -13,6 +13,17 @@ from pathlib import Path
 
 SECTION_TITLE = "## Documentation Impact Declaration"
 AGENT_AUTONOMY_SECTION_TITLE = "## Agent Autonomy Declaration"
+VERIFICATION_LANE_LABEL = "Verification lane"
+
+VERIFICATION_LANES = (
+    "tiny-docs",
+    "docs-guardrail",
+    "tests-only",
+    "normal-code",
+    "security-runtime",
+    "release-ci-architecture",
+)
+VERIFICATION_LANE_RANK = {lane: index for index, lane in enumerate(VERIFICATION_LANES)}
 
 OPENCODE_EVIDENCE_LABELS = (
     "Provider lane",
@@ -43,6 +54,23 @@ QUALITY_AUDIT_RE = re.compile(
     r"(?im)"
     r"^\s*-\s*\[[xX]\]\s*`?scripts/audit_quality\.sh`?(?:\s|$)"
     r"|^\s*scripts/audit_quality\.sh\s*$",
+)
+DOC_GOVERNANCE_RE = re.compile(
+    r"(?im)"
+    r"^\s*-\s*\[[xX]\]\s*`?scripts/doc_governance_check\.sh`?(?:\s|$)"
+    r"|^\s*scripts/doc_governance_check\.sh\s*$",
+)
+FOCUSED_PYTEST_RE = re.compile(
+    r"(?im)"
+    r"^\s*-\s*\[[xX]\]\s*`?uv run pytest\s+tests/[^\n`]+`?\s*$"
+    r"|^\s*uv run pytest\s+tests/[^\n`]+\s*$",
+)
+STANDARD_GATE_RE = re.compile(
+    r"(?im)"
+    r"^\s*-\s*\[[xX]\]\s*`?scripts/"
+    r"(?:feature_gate\.sh(?: --security)?|regression\.sh(?: --security)?)"
+    r"`?(?:\s|$)"
+    r"|^\s*scripts/(?:feature_gate\.sh(?: --security)?|regression\.sh(?: --security)?)\s*$",
 )
 SENSITIVE_SURFACE_PATTERNS = (
     (
@@ -153,6 +181,16 @@ QUALITY_GUARDRAIL_PATTERNS = (
         ),
     ),
 )
+DOCS_GUARDRAIL_PATTERNS = (
+    "AGENTS.md",
+    "docs/meta/AGENT_CONTROL_PLANE.md",
+    "docs/meta/CONTEXT_MANAGEMENT.md",
+    "docs/meta/DOCS_GOVERNANCE.md",
+    "docs/meta/FEATURE_DELIVERY_CHECKLIST.md",
+    "docs/meta/AGENT_ROLE_REGISTRY.yaml",
+    "docs/meta/prompt-library/*",
+    "tests/test_agent_workflow_docs.py",
+)
 
 
 def _extract_section(body: str, title: str) -> str | None:
@@ -258,6 +296,132 @@ def _has_quality_audit_evidence(body: str) -> bool:
     return QUALITY_AUDIT_RE.search(body) is not None
 
 
+def _has_doc_governance_evidence(body: str) -> bool:
+    return DOC_GOVERNANCE_RE.search(body) is not None
+
+
+def _has_focused_pytest_evidence(body: str) -> bool:
+    return FOCUSED_PYTEST_RE.search(body) is not None
+
+
+def _has_standard_gate_evidence(body: str) -> bool:
+    return STANDARD_GATE_RE.search(body) is not None
+
+
+def _docs_guardrail_reason(path: str) -> str | None:
+    normalized = _normalize_changed_file(path)
+    if not normalized:
+        return None
+    if any(fnmatch.fnmatchcase(normalized, pattern) for pattern in DOCS_GUARDRAIL_PATTERNS):
+        return "docs-guardrail"
+    return None
+
+
+def _lane_for_changed_file(path: str) -> str:
+    normalized = _normalize_changed_file(path)
+    if quality_guardrail_reason(normalized) is not None:
+        return "release-ci-architecture"
+    if sensitive_surface_reason(normalized) is not None:
+        return "security-runtime"
+    if _docs_guardrail_reason(normalized) is not None:
+        return "docs-guardrail"
+    if normalized.startswith("tests/"):
+        return "tests-only"
+    if normalized.endswith(".md") or normalized.startswith(("docs/", ".context/")):
+        return "tiny-docs"
+    return "normal-code"
+
+
+def _required_verification_lane(changed_files: list[str]) -> str:
+    required = "tiny-docs"
+    for path in changed_files:
+        lane = _lane_for_changed_file(path)
+        if VERIFICATION_LANE_RANK[lane] > VERIFICATION_LANE_RANK[required]:
+            required = lane
+    return required
+
+
+def _validate_lane_command_evidence(body: str, lane: str) -> list[str]:
+    failures: list[str] = []
+
+    if lane == "tiny-docs":
+        if not _has_doc_governance_evidence(body):
+            failures.append(
+                "Verification lane tiny-docs requires `scripts/doc_governance_check.sh` "
+                "in Commands run.",
+            )
+    elif lane == "docs-guardrail":
+        if not _has_doc_governance_evidence(body):
+            failures.append(
+                "Verification lane docs-guardrail requires "
+                "`scripts/doc_governance_check.sh` in Commands run.",
+            )
+        if not _has_focused_pytest_evidence(body):
+            failures.append(
+                "Verification lane docs-guardrail requires a focused "
+                "`uv run pytest tests/... -q` command in Commands run.",
+            )
+    elif lane == "tests-only":
+        if not _has_focused_pytest_evidence(body):
+            failures.append(
+                "Verification lane tests-only requires a focused "
+                "`uv run pytest tests/... -q` command in Commands run.",
+            )
+    elif lane == "normal-code":
+        if not _has_standard_gate_evidence(body):
+            failures.append(
+                "Verification lane normal-code requires `scripts/feature_gate.sh` "
+                "or `scripts/regression.sh` in Commands run.",
+            )
+    elif lane == "security-runtime":
+        if not _has_security_gate_evidence(body):
+            failures.append(
+                "Verification lane security-runtime requires "
+                "`scripts/feature_gate.sh --security` or "
+                "`scripts/regression.sh --security` in Commands run.",
+            )
+    elif lane == "release-ci-architecture":
+        if not _has_security_gate_evidence(body):
+            failures.append(
+                "Verification lane release-ci-architecture requires "
+                "`scripts/feature_gate.sh --security` or "
+                "`scripts/regression.sh --security` in Commands run.",
+            )
+        if not _has_quality_audit_evidence(body):
+            failures.append(
+                "Verification lane release-ci-architecture requires "
+                "`scripts/audit_quality.sh` in Commands run.",
+            )
+
+    return failures
+
+
+def _validate_verification_lane(body: str, *, changed_files: list[str]) -> list[str]:
+    if not changed_files:
+        return []
+
+    value = _field_value(body, VERIFICATION_LANE_LABEL)
+    if not _has_concrete_value(value):
+        allowed = ", ".join(VERIFICATION_LANES)
+        return [f"PR body must include Verification lane: one of {allowed}."]
+    assert value is not None
+
+    lane = value.strip()
+    if lane not in VERIFICATION_LANE_RANK:
+        allowed = ", ".join(VERIFICATION_LANES)
+        return [f"Verification lane must be one of: {allowed}."]
+
+    failures: list[str] = []
+    required = _required_verification_lane(changed_files)
+    if VERIFICATION_LANE_RANK[lane] < VERIFICATION_LANE_RANK[required]:
+        failures.append(
+            f"Verification lane {lane} is too weak for the changed files; "
+            f"use {required} or a stronger lane.",
+        )
+    failures.extend(_validate_lane_command_evidence(body, lane))
+    return failures
+
+
 def _validate_opencode_evidence(body: str, *, issue: str | None) -> list[str]:
     failures: list[str] = []
 
@@ -320,6 +484,8 @@ def validate_body(
         if ":" in item and not item.split(":", maxsplit=1)[1].strip():
             failures.append(f"Checked documentation declaration needs detail: {item}")
 
+    failures.extend(_validate_verification_lane(body, changed_files=changed_files or []))
+
     if require_opencode_evidence:
         failures.extend(_validate_opencode_evidence(body, issue=issue))
 
@@ -349,7 +515,10 @@ def validate_body(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Validate PR body documentation-impact declarations.",
+        description=(
+            "Validate PR body documentation-impact declarations and "
+            "Verification lane evidence."
+        ),
     )
     parser.add_argument(
         "--body-file",
@@ -378,7 +547,8 @@ def main(argv: list[str] | None = None) -> int:
         help=(
             "Repo-relative changed file path. Repeat to require security-gate "
             "evidence when sensitive surfaces are touched and quality-audit "
-            "evidence when guardrail surfaces are touched."
+            "evidence when guardrail surfaces are touched. Changed files also "
+            "require a proportional Verification lane."
         ),
     )
     parser.add_argument(

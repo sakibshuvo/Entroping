@@ -19,6 +19,26 @@ def run_pr_body_check(*args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def _body_with_lane(
+    *,
+    lane: str,
+    commands: str,
+    docs_line: str = "- [x] No docs update needed. Reason: checker fixture.\n",
+) -> str:
+    return (
+        "## Summary\n"
+        "Verification lane fixture.\n\n"
+        "## Verification\n\n"
+        f"- Verification lane: {lane}\n\n"
+        "Commands run:\n\n"
+        "```text\n"
+        f"{commands}"
+        "```\n\n"
+        "## Documentation Impact Declaration\n\n"
+        f"{docs_line}"
+    )
+
+
 def test_doc_governance_help_documents_control_plane() -> None:
     result = subprocess.run(
         [str(DOC_GOVERNANCE_SCRIPT), "--help"],
@@ -115,6 +135,7 @@ def test_pr_body_check_help_documents_local_body_file_mode() -> None:
     assert result.returncode == 0
     assert "--body-file" in result.stdout
     assert "--changed-file" in result.stdout
+    assert "Verification lane" in result.stdout
 
 
 def test_pr_body_check_accepts_local_body_file(tmp_path: Path) -> None:
@@ -151,7 +172,7 @@ def test_pr_body_check_accepts_normal_pr_body_without_opencode_evidence(
     assert "PR documentation impact declaration OK" in result.stdout
 
 
-def test_pr_body_check_allows_non_sensitive_changed_files_without_security_gate(
+def test_pr_body_check_rejects_changed_files_without_verification_lane(
     tmp_path: Path,
 ) -> None:
     body_path = tmp_path / "pr-body.md"
@@ -159,7 +180,133 @@ def test_pr_body_check_allows_non_sensitive_changed_files_without_security_gate(
         "## Summary\n"
         "Docs-only cleanup.\n\n"
         "## Documentation Impact Declaration\n\n"
-        "- [x] No docs update needed. Reason: docs-only validation fixture.\n",
+        "- [x] No docs update needed. Reason: fixture.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--changed-file",
+        "docs/meta/PROJECT_PROGRESS.md",
+    )
+
+    assert result.returncode == 1
+    assert "Verification lane" in result.stderr
+
+
+def test_pr_body_check_accepts_tiny_docs_lane_with_docs_governance(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        _body_with_lane(
+            lane="tiny-docs",
+            commands="scripts/doc_governance_check.sh\n",
+            docs_line="- [x] Roadmap/progress updated: docs/meta/PROJECT_PROGRESS.md\n",
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--changed-file",
+        "docs/meta/PROJECT_PROGRESS.md",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "PR documentation impact declaration OK" in result.stdout
+
+
+def test_pr_body_check_rejects_tiny_docs_lane_for_prompt_guardrails(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        _body_with_lane(
+            lane="tiny-docs",
+            commands="scripts/doc_governance_check.sh\n",
+            docs_line="- [x] ADR/spec/context updated: prompt-library.\n",
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--changed-file",
+        "docs/meta/prompt-library/issue-worker.md",
+    )
+
+    assert result.returncode == 1
+    assert "docs-guardrail" in result.stderr
+    assert "tiny-docs" in result.stderr
+
+
+def test_pr_body_check_accepts_docs_guardrail_lane_with_focused_doc_test(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        _body_with_lane(
+            lane="docs-guardrail",
+            commands=(
+                "uv run pytest tests/test_agent_workflow_docs.py -q\n"
+                "scripts/doc_governance_check.sh\n"
+            ),
+            docs_line="- [x] ADR/spec/context updated: prompt-library.\n",
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--changed-file",
+        "docs/meta/prompt-library/issue-worker.md",
+        "--changed-file",
+        "tests/test_agent_workflow_docs.py",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "PR documentation impact declaration OK" in result.stdout
+
+
+def test_pr_body_check_rejects_normal_code_lane_without_feature_gate(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        _body_with_lane(
+            lane="normal-code",
+            commands="uv run pytest tests/test_models.py -q\n",
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--changed-file",
+        "src/entroping/models/doctor.py",
+    )
+
+    assert result.returncode == 1
+    assert "normal-code" in result.stderr
+    assert "scripts/feature_gate.sh" in result.stderr
+
+
+def test_pr_body_check_allows_non_sensitive_changed_files_without_security_gate(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        _body_with_lane(
+            lane="tiny-docs",
+            commands="scripts/doc_governance_check.sh\n",
+            docs_line="- [x] No docs update needed. Reason: docs-only validation fixture.\n",
+        ),
         encoding="utf-8",
     )
 
@@ -179,10 +326,11 @@ def test_pr_body_check_rejects_sensitive_changed_files_without_security_gate(
 ) -> None:
     body_path = tmp_path / "pr-body.md"
     body_path.write_text(
-        "## Summary\n"
-        "Runner change.\n\n"
-        "## Documentation Impact Declaration\n\n"
-        "- [x] No docs update needed. Reason: script-only validation fixture.\n",
+        _body_with_lane(
+            lane="security-runtime",
+            commands="uv run pytest tests/test_hurl_runner.py -q\n",
+            docs_line="- [x] No docs update needed. Reason: script-only validation fixture.\n",
+        ),
         encoding="utf-8",
     )
 
@@ -204,17 +352,11 @@ def test_pr_body_check_accepts_sensitive_changed_files_with_security_gate(
 ) -> None:
     body_path = tmp_path / "pr-body.md"
     body_path.write_text(
-        "## Summary\n"
-        "Worker preflight change.\n\n"
-        "## Verification\n\n"
-        "- [x] `scripts/feature_gate.sh --security` for dependency, subprocess, "
-        "LLM, proxy, report, or filesystem-sensitive work.\n\n"
-        "Commands run:\n\n"
-        "```text\n"
-        "scripts/regression.sh --security\n"
-        "```\n\n"
-        "## Documentation Impact Declaration\n\n"
-        "- [x] No docs update needed. Reason: script-only validation fixture.\n",
+        _body_with_lane(
+            lane="security-runtime",
+            commands="scripts/regression.sh --security\n",
+            docs_line="- [x] No docs update needed. Reason: script-only validation fixture.\n",
+        ),
         encoding="utf-8",
     )
 
@@ -237,6 +379,7 @@ def test_pr_body_check_accepts_sensitive_changed_files_with_checked_bare_securit
         "## Summary\n"
         "Worker preflight change.\n\n"
         "## Verification\n\n"
+        "- Verification lane: security-runtime\n"
         "- [x] scripts/regression.sh --security\n\n"
         "## Documentation Impact Declaration\n\n"
         "- [x] No docs update needed. Reason: script-only validation fixture.\n",
@@ -262,6 +405,7 @@ def test_pr_body_check_accepts_sensitive_changed_files_with_bare_security_gate_l
         "## Summary\n"
         "Worker preflight change.\n\n"
         "## Verification\n\n"
+        "- Verification lane: security-runtime\n"
         "scripts/regression.sh --security\n\n"
         "## Documentation Impact Declaration\n\n"
         "- [x] No docs update needed. Reason: script-only validation fixture.\n",
@@ -284,12 +428,10 @@ def test_pr_body_check_rejects_guardrail_changes_without_quality_audit(
 ) -> None:
     body_path = tmp_path / "pr-body.md"
     body_path.write_text(
-        "## Summary\n"
-        "Quality gate change.\n\n"
-        "## Verification\n\n"
-        "scripts/regression.sh --security\n\n"
-        "## Documentation Impact Declaration\n\n"
-        "- [x] No docs update needed. Reason: checker-only validation fixture.\n",
+        _body_with_lane(
+            lane="release-ci-architecture",
+            commands="scripts/regression.sh --security\n",
+        ),
         encoding="utf-8",
     )
 
@@ -312,13 +454,13 @@ def test_pr_body_check_accepts_guardrail_changes_with_quality_audit(
 ) -> None:
     body_path = tmp_path / "pr-body.md"
     body_path.write_text(
-        "## Summary\n"
-        "Quality gate change.\n\n"
-        "## Verification\n\n"
-        "scripts/regression.sh --security\n"
-        "scripts/audit_quality.sh\n\n"
-        "## Documentation Impact Declaration\n\n"
-        "- [x] No docs update needed. Reason: checker-only validation fixture.\n",
+        _body_with_lane(
+            lane="release-ci-architecture",
+            commands=(
+                "scripts/regression.sh --security\n"
+                "scripts/audit_quality.sh\n"
+            ),
+        ),
         encoding="utf-8",
     )
 

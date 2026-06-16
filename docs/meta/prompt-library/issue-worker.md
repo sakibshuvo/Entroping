@@ -69,9 +69,16 @@ workflow lane.
 Workflow:
 1. Reproduce or write a failing test first when practical.
 2. Make the smallest implementation change.
-3. Run focused tests for touched behavior.
-4. Run scripts/feature_gate.sh.
-5. Run scripts/feature_gate.sh --security if the change touches subprocesses, paths, YAML, reports, traffic, proxy, redaction, dependencies, provider calls, secrets, or release publishing.
+3. Choose the proportional Verification lane from
+   `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`: `tiny-docs`,
+   `docs-guardrail`, `tests-only`, `normal-code`, `security-runtime`, or
+   `release-ci-architecture`.
+4. Run the lane's focused local gates. Examples:
+   `scripts/doc_governance_check.sh`, focused
+   `uv run pytest tests/... -q`, `scripts/feature_gate.sh`,
+   `scripts/regression.sh --security`, or `scripts/audit_quality.sh`.
+5. Run `scripts/pr_body_check.py --body-file <body.md>` with changed-file
+   arguments before opening the PR when practical.
 6. Update docs/context only when the behavior, workflow, or durable lesson changed.
 7. Review git diff as if approving for production.
 8. Commit with a Conventional Commit message.
@@ -187,13 +194,19 @@ Workflow:
 1. Confirm the issue and planned diff are Tier A. If not, stop.
 2. Reproduce or write a failing guard test first when practical.
 3. Make the smallest change.
-4. Run focused tests for touched behavior.
-5. Run `scripts/regression.sh --security`.
+4. Choose and declare the proportional Verification lane from
+   `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`. Tier A usually stays in
+   `tiny-docs`, `docs-guardrail`, or `tests-only`; stop if the required lane is
+   `security-runtime` or `release-ci-architecture`.
+5. Run the lane's focused local gates, such as
+   `scripts/doc_governance_check.sh` plus focused
+   `uv run pytest tests/... -q` for `docs-guardrail`.
 6. Review git diff as if approving for production.
 7. Commit with a Conventional Commit message.
 8. Push the branch and open a PR with:
    - Agent Autonomy Declaration checked as Tier A autonomous lane,
    - Documentation Impact Declaration checked,
+   - Verification lane declared,
    - `Closes #<issue-number>`,
    - commands run.
 9. Wait until CI is green.

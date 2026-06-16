@@ -69,10 +69,23 @@ These instructions extend the global Codex rules for this repository. If a rule 
 
 ## Verification
 
-- For normal work, run `scripts/feature_gate.sh`.
-- For regression proof, run `scripts/regression.sh`.
-- For security-sensitive or dependency work, run `scripts/feature_gate.sh --security`.
-- For docs-only changes, run `scripts/doc_governance_check.sh` plus `scripts/check.sh` when no source, dependency, subprocess, or runtime boundary changed.
+- Choose the proportional verification lane from `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`
+  before final review, and declare it in the PR body as `Verification lane: <lane>`.
+- For `tiny-docs`, run `scripts/doc_governance_check.sh`.
+- For `docs-guardrail`, run focused docs/workflow tests such as
+  `uv run pytest tests/test_agent_workflow_docs.py -q` plus
+  `scripts/doc_governance_check.sh`.
+- For `tests-only`, run the focused pytest slice for the touched tests.
+- For `normal-code`, run `scripts/feature_gate.sh` or `scripts/regression.sh`.
+- For security-sensitive, dependency, subprocess, path, YAML, report, traffic,
+  proxy, redaction, provider, secret, or runtime safety work, use
+  `security-runtime` and run `scripts/feature_gate.sh --security` or
+  `scripts/regression.sh --security`.
+- For release, CI, architecture, quality, or delivery guardrail work, use
+  `release-ci-architecture` and run `scripts/regression.sh --security` plus
+  `scripts/audit_quality.sh`.
+- PR CI runs the broader regression matrix; local gates should match the lane
+  without using maximum-assurance checks for every tiny prompt/doc edit.
 - `scripts/feature_gate.sh` runs `scripts/repo_hygiene.sh`; do not bypass it when local state or generated files are involved.
 - Optional local hooks can be installed with `scripts/install_hooks.sh`, but hooks are convenience only and do not replace CI or the feature gate.
 - Review `git diff` before staging or committing.

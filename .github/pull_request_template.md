@@ -22,6 +22,8 @@ Coverage gaps:
 
 ## Verification
 
+Verification lane: <tiny-docs | docs-guardrail | tests-only | normal-code | security-runtime | release-ci-architecture>
+
 - [ ] `scripts/feature_gate.sh`
 - [ ] `scripts/regression.sh`
 - [ ] `scripts/feature_gate.sh --security` for dependency, subprocess, LLM, proxy, report, or filesystem-sensitive work.
