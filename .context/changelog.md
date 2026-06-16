@@ -2,6 +2,10 @@
 
 ## 2026-06-16
 
+- Added issue #772's architecture-integrity gate:
+  `scripts/architecture_integrity.sh` now runs the focused AST architecture
+  boundary tests as a named provider-free, no-Hurl, source-only gate, and
+  `scripts/feature_gate.sh` runs it before the broad Python check suite.
 - Added issue #770's context-pack manifest next-action guidance:
   `scripts/context_pack.sh --manifest` now emits value-free
   `recommended_next_action` instructions so agents choose targeted file reads

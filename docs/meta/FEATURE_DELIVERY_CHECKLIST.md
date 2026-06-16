@@ -76,6 +76,9 @@ scripts/doc_governance_check.sh
 scripts/feature_gate.sh
 ```
 
+This includes repository hygiene, docs governance, shell quality, and the named
+architecture-integrity gate before the broad Python lint/type/test suite.
+
 - [ ] Run the regression suite:
 
 ```bash
