@@ -80,6 +80,7 @@ archive is mounted or attached to the cloud task.
 | [Thread steering](thread-steering.md) | Interrupt or redirect a running Codex thread without losing its current work. |
 | [Gemini review](gemini-review.md) | Ask Gemini or NotebookLM for a brutal product/engineering review. |
 | [DeepSeek/OpenCode review](deepseek-opencode-review.md) | Ask DeepSeek/OpenCode for bounded repo review, bug bash, or patch proposals. |
+| [Engineering health review](engineering-health-review.md) | Audit architectural drift, anti-patterns, code smells, docs health, quality, testability, debugging ergonomics, security, maintainability, and regression risk. |
 | [PR review and merge gate](pr-review-merge-gate.md) | Decide if an open PR is safe to merge. |
 | [Bug bash](bug-bash.md) | Run a brutal read-first bug-finding session and log verified issues. |
 | [Backlog triage](backlog-triage.md) | Convert reviews, feedback, and ideas into clean GitHub issues. |
@@ -127,6 +128,7 @@ archive is mounted or attached to the cloud task.
 - Another thread already started: paste `thread-steering.md` before adding new
   context.
 - External product sanity check: use `gemini-review.md`.
+- Holistic engineering-health audit: use `engineering-health-review.md`.
 - After unattended work: use `after-sleep-status.md`.
 - Before merge: use `pr-review-merge-gate.md`.
 - CI blocked: use `ci-failure-debug.md`.
