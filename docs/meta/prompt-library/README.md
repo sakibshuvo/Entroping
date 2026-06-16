@@ -75,6 +75,7 @@ archive is mounted or attached to the cloud task.
 | [OpenCode Desktop handoff](opencode-desktop-handoff.md) | Start OpenCode Desktop/OpenCode Go implementation or PR verification sessions with explicit provider lane, billing, model, role, merge authority, and `scripts/opencode_readiness.py` preflight evidence. |
 | [OpenCode Codex review request](opencode-codex-review-request.md) | Let OpenCode request a read-only Codex CLI review of an OpenCode-produced local diff or PR before merge. |
 | [Model-comparison trial](model-comparison-trial.md) | Compare Codex, OpenCode native DeepSeek, direct DeepSeek API, OpenCode Go Kimi/Qwen, and local/offline models through evidence. |
+| [Model-output acceptance gate](model-output-acceptance-gate.md) | Decide what to accept, review, convert to issues, or reject from cheap-model reviews, patches, PRs, and drafts. |
 | [Codex-outage daily operations](codex-outage-daily-operations.md) | Run daily OpenCode/DeepSeek operations safely when Codex capacity is low or unavailable. |
 | [OpenCode-only week monitoring](opencode-week-monitoring.md) | Watch OpenCode/DeepSeek PRs, CI, ready issues, cleanup candidates, and factory metrics without mutating repo state. |
 | [Thread steering](thread-steering.md) | Interrupt or redirect a running Codex thread without losing its current work. |
@@ -116,6 +117,10 @@ archive is mounted or attached to the cloud task.
   files changed/read, tests/gates, CI, cost/token/context evidence, accepted,
   rejected, and stale findings, and reviewer overrides are recorded before
   drawing conclusions.
+- Cheap-model output intake: use `model-output-acceptance-gate.md` after a
+  large OpenCode, DeepSeek, Kimi, Qwen, or local-model output so useful parts
+  can be accepted while stale, unsafe, or out-of-scope parts are rejected or
+  converted into GitHub issues.
 - Codex low-capacity or outage period: use
   `codex-outage-daily-operations.md` to inspect PRs/issues, select only ready
   scoped issues, enforce stop conditions, watch CI, run finish cleanup, and

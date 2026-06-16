@@ -2,6 +2,11 @@
 
 ## 2026-06-16
 
+- Cheap-model volume needs an intake gate, not a lower bar. Let OpenCode,
+  DeepSeek, Kimi/Qwen, and local models generate reviews, drafts, and PRs
+  aggressively, then classify each output item as accepted, needing Codex/human
+  review, converted to a GitHub issue, or rejected as stale/opinion/unsafe
+  based on repo evidence, autonomy tier, gates, CI, and forbidden-scope checks.
 - Broad quality reviews need a reusable review-only prompt. Keep the prompt
   grounded in repo evidence, file/line references, severity, and verified vs
   stale/opinion/unsafe classification so agents surface engineering risks
