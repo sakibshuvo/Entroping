@@ -328,6 +328,85 @@ def test_opencode_desktop_handoff_documents_tooling_setup_checklist() -> None:
         assert term in normalized
 
 
+def test_prompt_library_includes_opencode_desktop_one_shot_prompt() -> None:
+    prompt = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-desktop-one-shot.md"
+    ).read_text(encoding="utf-8")
+    readme = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "README.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(prompt.split())
+
+    required_terms = [
+        "OpenCode Desktop One-Shot Prompt",
+        "type: prompt",
+        "status: active",
+        "Do everything through OpenCode Desktop tools",
+        "Do not ask me to run terminal commands unless OpenCode cannot run them",
+        "opencode/native-deepseek",
+        "OpenCode Desktop",
+        "paid DeepSeek API key inside OpenCode",
+        "deepseek/deepseek-v4-pro",
+        "Pick the highest-value Tier A issue",
+        "Self-Contained OpenCode/DeepSeek Work Packet",
+        "Issue scope",
+        "Allowed files",
+        "Forbidden files",
+        "Verification lane",
+        "Exact tests/gates",
+        "Stop conditions",
+        "PR body requirements",
+        "CI/merge/finish expectations",
+        "Ask Codex only when",
+        "scripts/start_issue.sh <issue-number>",
+        "/Users/sakibshuvo/projects/Entroping-issue-<issue-number>",
+        (
+            "uv run python scripts/opencode_readiness.py --mode implementation "
+            "--require-clean --format json"
+        ),
+        "scripts/context_pack.sh --mode implementation --manifest",
+        (
+            "scripts/pr_body_check.py --body-file <body.md> "
+            "--require-opencode-evidence --issue <issue-number>"
+        ),
+        "gh pr checks <pr-number> --repo sakibshuvo/Entroping --watch",
+        "scripts/finish_issue.sh <issue-number>",
+        "Do not ask Codex for routine Tier A implementation details",
+        "security-runtime",
+        "release-ci-architecture",
+        "entroping run",
+        "Hurl runner",
+        "protected-run safety",
+        "redaction",
+        "proxy/traffic capture",
+        "provider/LiteLLM boundaries",
+        "release publishing",
+        "dependencies",
+        "secrets",
+        "raw traffic",
+        "audit evidence",
+        "security fixes",
+        "architecture boundary changes",
+        "Closes #<issue-number>",
+        "Verification lane:",
+        "Documentation Impact Declaration",
+        "Agent Autonomy Declaration",
+        "OpenCode Provider Lane Evidence",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+    assert (
+        "| [OpenCode Desktop one-shot](opencode-desktop-one-shot.md) |"
+        in readme
+    )
+
+
 def test_prompt_library_includes_model_comparison_trial_prompt() -> None:
     prompt = (
         REPO_ROOT

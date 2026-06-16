@@ -74,6 +74,7 @@ archive is mounted or attached to the cloud task.
 | [Spark-safe worker](spark-safe-worker.md) | Use low-risk Codex Spark capacity for docs/tests/project hygiene. |
 | [Multi-agent marathon](multi-agent-marathon.md) | Run several bounded sessions while one parent thread owns integration. |
 | [OpenCode Desktop handoff](opencode-desktop-handoff.md) | Start OpenCode Desktop/OpenCode Go implementation or PR verification sessions with the self-contained worker packet, explicit provider lane, billing, model, role, merge authority, and `scripts/opencode_readiness.py` preflight evidence. |
+| [OpenCode Desktop one-shot](opencode-desktop-one-shot.md) | Paste one bootstrap prompt into OpenCode Desktop with paid DeepSeek V4 Pro so it can pick one Tier A issue, create the work packet, run the issue worktree conveyor, open the PR, wait for CI, merge if allowed, and finish cleanup. |
 | [OpenCode Codex review request](opencode-codex-review-request.md) | Let OpenCode request a read-only Codex CLI review of an OpenCode-produced local diff or PR before merge. |
 | [Model-comparison trial](model-comparison-trial.md) | Compare Codex, OpenCode native DeepSeek, direct DeepSeek API, OpenCode Go Kimi/Qwen, and local/offline models through evidence. |
 | [Model-output acceptance gate](model-output-acceptance-gate.md) | Decide what to accept, review, convert to issues, or reject from cheap-model reviews, patches, PRs, and drafts. |
@@ -117,6 +118,9 @@ archive is mounted or attached to the cloud task.
   Ask Codex only when rules, merge authority, and
   `uv run python scripts/opencode_readiness.py --mode implementation --require-clean --format json`
   evidence are explicit before work starts.
+- Desktop-only DeepSeek V4 Pro run: use `opencode-desktop-one-shot.md` when
+  you want OpenCode Desktop to run the whole Tier A conveyor through its own
+  tools without asking you to open a separate terminal.
 - OpenCode requesting Codex CLI review: use
   `opencode-codex-review-request.md` for a read-only local-diff review with
   `codex review` or a PR evidence review with `codex exec`.
