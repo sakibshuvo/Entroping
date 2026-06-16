@@ -39,6 +39,11 @@ SECURITY_GATE_RE = re.compile(
     r"`?(?:\s|$)"
     r"|^\s*scripts/(?:feature_gate\.sh --security|regression\.sh --security)\s*$",
 )
+QUALITY_AUDIT_RE = re.compile(
+    r"(?im)"
+    r"^\s*-\s*\[[xX]\]\s*`?scripts/audit_quality\.sh`?(?:\s|$)"
+    r"|^\s*scripts/audit_quality\.sh\s*$",
+)
 SENSITIVE_SURFACE_PATTERNS = (
     (
         "hurl-runner",
@@ -114,6 +119,40 @@ SENSITIVE_SURFACE_PATTERNS = (
         ),
     ),
 )
+QUALITY_GUARDRAIL_PATTERNS = (
+    (
+        "architecture-integrity",
+        (
+            "scripts/architecture_integrity.sh",
+            "tests/test_architecture_boundaries.py",
+            "tests/test_architecture_integrity_script.py",
+            "tests/support/architecture_guard.py",
+        ),
+    ),
+    (
+        "delivery-gate",
+        (
+            "scripts/check.sh",
+            "scripts/doc_governance_check.sh",
+            "scripts/feature_gate.sh",
+            "scripts/pr_body_check.py",
+            "scripts/regression.sh",
+            "scripts/repo_hygiene.sh",
+            "tests/test_doc_governance_script.py",
+        ),
+    ),
+    (
+        "quality-audit",
+        (
+            ".github/workflows/ci.yml",
+            "scripts/audit_quality.sh",
+            "scripts/quality_trend_summary.py",
+            "scripts/test_taxonomy.py",
+            "tests/test_quality_trend_summary.py",
+            "tests/test_test_taxonomy.py",
+        ),
+    ),
+)
 
 
 def _extract_section(body: str, title: str) -> str | None:
@@ -182,6 +221,17 @@ def sensitive_surface_reason(path: str) -> str | None:
     return None
 
 
+def quality_guardrail_reason(path: str) -> str | None:
+    normalized = _normalize_changed_file(path)
+    if not normalized:
+        return None
+
+    for reason, patterns in QUALITY_GUARDRAIL_PATTERNS:
+        if any(fnmatch.fnmatchcase(normalized, pattern) for pattern in patterns):
+            return reason
+    return None
+
+
 def _sensitive_changed_files(changed_files: list[str]) -> list[tuple[str, str]]:
     sensitive: list[tuple[str, str]] = []
     for path in changed_files:
@@ -191,8 +241,21 @@ def _sensitive_changed_files(changed_files: list[str]) -> list[tuple[str, str]]:
     return sensitive
 
 
+def _quality_guardrail_changed_files(changed_files: list[str]) -> list[tuple[str, str]]:
+    guardrail_files: list[tuple[str, str]] = []
+    for path in changed_files:
+        reason = quality_guardrail_reason(path)
+        if reason is not None:
+            guardrail_files.append((_normalize_changed_file(path), reason))
+    return guardrail_files
+
+
 def _has_security_gate_evidence(body: str) -> bool:
     return SECURITY_GATE_RE.search(body) is not None
+
+
+def _has_quality_audit_evidence(body: str) -> bool:
+    return QUALITY_AUDIT_RE.search(body) is not None
 
 
 def _validate_opencode_evidence(body: str, *, issue: str | None) -> list[str]:
@@ -270,6 +333,17 @@ def validate_body(
             f"Sensitive files: {details}.",
         )
 
+    quality_guardrail_changed = _quality_guardrail_changed_files(changed_files or [])
+    if quality_guardrail_changed and not _has_quality_audit_evidence(body):
+        details = ", ".join(
+            f"{path} ({reason})" for path, reason in quality_guardrail_changed
+        )
+        failures.append(
+            "Quality/architecture guardrail changes require documented quality audit "
+            "evidence: list `scripts/audit_quality.sh` in Commands run. "
+            f"Guardrail files: {details}.",
+        )
+
     return failures
 
 
@@ -303,7 +377,8 @@ def main(argv: list[str] | None = None) -> int:
         default=[],
         help=(
             "Repo-relative changed file path. Repeat to require security-gate "
-            "evidence when sensitive surfaces are touched."
+            "evidence when sensitive surfaces are touched and quality-audit "
+            "evidence when guardrail surfaces are touched."
         ),
     )
     parser.add_argument(

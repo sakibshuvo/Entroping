@@ -279,6 +279,60 @@ def test_pr_body_check_accepts_sensitive_changed_files_with_bare_security_gate_l
     assert "PR documentation impact declaration OK" in result.stdout
 
 
+def test_pr_body_check_rejects_guardrail_changes_without_quality_audit(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Quality gate change.\n\n"
+        "## Verification\n\n"
+        "scripts/regression.sh --security\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: checker-only validation fixture.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--changed-file",
+        "scripts/audit_quality.sh",
+    )
+
+    assert result.returncode == 1
+    assert "Quality/architecture guardrail changes require documented quality audit" in (
+        result.stderr
+    )
+    assert "scripts/audit_quality.sh" in result.stderr
+
+
+def test_pr_body_check_accepts_guardrail_changes_with_quality_audit(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Quality gate change.\n\n"
+        "## Verification\n\n"
+        "scripts/regression.sh --security\n"
+        "scripts/audit_quality.sh\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: checker-only validation fixture.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--changed-file",
+        "scripts/audit_quality.sh",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "PR documentation impact declaration OK" in result.stdout
+
+
 def test_pr_body_check_rejects_opencode_evidence_missing_provider_lane(
     tmp_path: Path,
 ) -> None:

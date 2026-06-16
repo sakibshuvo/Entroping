@@ -2,6 +2,10 @@
 
 ## 2026-06-16
 
+- Guardrails need guardrails. When PRs touch architecture-integrity,
+  delivery-gate, or quality-audit files, require explicit local
+  `scripts/audit_quality.sh` evidence in the PR body so worker-generated
+  changes cannot weaken the project quality surface with only narrow tests.
 - Context-tool boundary docs should not sound like product plans. Keep graph,
   wiki, comprehension, and compression tooling described as inactive until
   measured promotion evidence exists, while the active rehydration path remains
