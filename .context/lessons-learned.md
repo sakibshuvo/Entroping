@@ -2,6 +2,11 @@
 
 ## 2026-06-16
 
+- Context-tool boundary docs should not sound like product plans. Keep graph,
+  wiki, comprehension, and compression tooling described as inactive until
+  measured promotion evidence exists, while the active rehydration path remains
+  repo-native context packs, `rg`, decision registry reads, GitHub evidence,
+  source files, tests, and CI.
 - Cheap-model volume needs an intake gate, not a lower bar. Let OpenCode,
   DeepSeek, Kimi/Qwen, and local models generate reviews, drafts, and PRs
   aggressively, then classify each output item as accepted, needing Codex/human
