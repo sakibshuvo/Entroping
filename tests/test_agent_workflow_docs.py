@@ -267,6 +267,77 @@ def test_prompt_library_includes_model_comparison_trial_prompt() -> None:
     assert "| [Model-comparison trial](model-comparison-trial.md) |" in readme
 
 
+def test_prompt_library_includes_model_output_acceptance_gate_prompt() -> None:
+    prompt = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "model-output-acceptance-gate.md"
+    ).read_text(encoding="utf-8")
+    readme = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "README.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(prompt.split())
+
+    required_terms = [
+        "type: prompt",
+        "status: active",
+        "cheap models may generate aggressively",
+        "deterministic gates accept selectively",
+        "No model output is source of truth",
+        "provider lane",
+        "provider host",
+        "billing path",
+        "model id",
+        "autonomy tier",
+        "merge authority",
+        "Tier A autonomous lane",
+        "Tier B assisted lane",
+        "Tier C restricted lane",
+        "opencode/native-deepseek",
+        "deepseek-api/direct",
+        "opencode-go/kimi-k2.7-code",
+        "opencode-go/qwen3.7-max",
+        "scripts/context_pack.sh --mode implementation --manifest",
+        "scripts/start_issue.sh",
+        (
+            "scripts/pr_body_check.py --body-file <body.md> "
+            "--require-opencode-evidence --issue <issue>"
+        ),
+        "scripts/regression.sh --security",
+        "GitHub CI is green",
+        "scripts/finish_issue.sh",
+        "accepted",
+        "needs Codex or human review",
+        "convert to GitHub issue",
+        "reject as stale, opinion, or unsafe",
+        "architecture boundary",
+        "entroping run",
+        "Hurl runner",
+        "redaction",
+        "proxy",
+        "provider runtime",
+        "dependencies",
+        "release publishing",
+        "secrets",
+        "raw traffic",
+        "audit evidence",
+        "QAnstitution branding",
+        "deterministic Hurl execution",
+        "factory metrics",
+        "do not infer missing token or cost values",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+    assert (
+        "| [Model-output acceptance gate](model-output-acceptance-gate.md) |"
+        in readme
+    )
+
+
 def test_prompt_library_includes_codex_outage_daily_operations_prompt() -> None:
     prompt = (
         REPO_ROOT

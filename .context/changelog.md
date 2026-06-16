@@ -2,6 +2,12 @@
 
 ## 2026-06-16
 
+- Added issue #783's model-output acceptance gate prompt:
+  `docs/meta/prompt-library/model-output-acceptance-gate.md` now gives Codex,
+  OpenCode, DeepSeek, Kimi/Qwen, and local-model reviewers a reusable intake
+  gate for accepting grounded output, escalating Tier B/Tier C work, converting
+  out-of-scope value into GitHub issues, and rejecting stale/opinion/unsafe
+  output without treating cheap-model volume as source truth.
 - Added issue #781's engineering-health review prompt:
   `docs/meta/prompt-library/engineering-health-review.md` now gives agents a
   reusable review-only audit for architectural drift, anti-patterns, code
