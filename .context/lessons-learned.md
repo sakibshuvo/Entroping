@@ -1,5 +1,13 @@
 # Entroping Lessons Learned
 
+## 2026-06-16
+
+- Context-pack manifests should say what to do next, not only report size.
+  Keep manifest guidance value-free: recommend targeted file reads when the
+  pack is within budget, recommend reducing scope when it is not, and never
+  store prompt text, source content, provider output, or generated context
+  artifacts in the manifest.
+
 ## 2026-06-15
 
 - OpenCode independence needs executable setup evidence. Run

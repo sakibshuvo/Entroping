@@ -64,6 +64,20 @@ def test_context_pack_manifest_reports_budgeted_file_inventory_without_pack_body
     assert manifest["budget_bytes"] >= manifest["context_bytes"]
     assert manifest["budget_status"] == "pass"
     assert manifest["generated_at"].endswith("Z")
+    assert manifest["recommended_next_action"] == {
+        "action": "targeted_file_reads",
+        "full_pack_allowed": True,
+        "reason": (
+            "Manifest is within the mode budget; read only files relevant to "
+            "the issue before loading the full pack."
+        ),
+        "steps": [
+            "Start from the named issue or review question.",
+            "Use files[].path and files[].reason to choose the smallest useful read set.",
+            "Use rg and the decision registry before opening broad historical docs.",
+            "Load the full context pack only when targeted reads are insufficient.",
+        ],
+    }
 
     by_path = {entry["path"]: entry for entry in manifest["files"]}
     assert "AGENTS.md" in by_path
@@ -114,6 +128,17 @@ def test_context_pack_strict_budget_rejects_over_budget_override() -> None:
     manifest = json.loads(result.stdout)
     assert manifest["budget_bytes"] == 1
     assert manifest["budget_status"] == "fail"
+    assert manifest["recommended_next_action"] == {
+        "action": "reduce_scope",
+        "full_pack_allowed": False,
+        "reason": "Manifest exceeds the mode budget; do not load the full context pack.",
+        "steps": [
+            "Switch to a narrower mode or a smaller issue question.",
+            "Read only files[].path entries that match the issue scope.",
+            "Use rg for exact symbol or phrase lookup before broad file reads.",
+            "Record the budget failure in factory metrics or the worker handoff.",
+        ],
+    }
 
 
 def test_context_pack_implementation_mode_includes_required_sources() -> None:
