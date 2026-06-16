@@ -186,7 +186,9 @@ PR template -> PR body check in CI -> doc governance check -> feature gate -> re
 - `scripts/pr_body_check.py` validates the declaration on pull requests and,
   when CI or a local preflight passes changed files with `--changed-file`,
   requires security-gate evidence for sensitive runner, redaction, provider,
-  proxy, report-evidence, worker, or secret-adjacent surfaces.
+  proxy, report-evidence, worker, or secret-adjacent surfaces. It also requires
+  `scripts/audit_quality.sh` evidence when architecture, delivery, or
+  quality-audit guardrail files change.
 - `scripts/doc_governance_check.sh` validates the documentation control plane.
 - `scripts/docs_freshness_check.py` rejects stale paths, broken local Markdown
   links, merge markers, unsupported readiness/security claims, deprecated
