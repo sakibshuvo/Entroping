@@ -287,12 +287,13 @@ def run_freeze_mock(
                 artifact="WireMock mapping",
                 root=root,
             )
+        selected_records = _mock_service_records(session.records, service=mock_service)
         manifest = write_traffic_artifact_approval_manifest(
             project_root=root,
             manifest_name=f"freeze-{freeze_name}-mock-{mock_service}",
             workflow="freeze-wiremock",
             source_session_name=session.name,
-            source_records=tuple(record.exchange for record in session.records),
+            source_records=tuple(record.exchange for record in selected_records),
             artifacts=tuple(
                 TrafficArtifactManifestArtifact(kind="wiremock", path=output_path)
                 for output_path in output_paths
