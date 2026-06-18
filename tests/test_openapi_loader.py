@@ -24,6 +24,71 @@ paths: {}
     assert document["paths"] == {}
 
 
+def test_load_openapi_document_accepts_root_bounded_project_spec(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    spec_dir = project / "specs"
+    spec_dir.mkdir(parents=True)
+    spec = spec_dir / "openapi.yaml"
+    spec.write_text("openapi: '3.1.0'\npaths: {}\n", encoding="utf-8")
+
+    document = load_openapi_document(spec, root=project)
+
+    assert document["openapi"] == "3.1.0"
+    assert document["paths"] == {}
+
+
+def test_load_openapi_document_accepts_root_relative_project_spec(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    spec_dir = project / "specs"
+    spec_dir.mkdir(parents=True)
+    (spec_dir / "openapi.yaml").write_text(
+        "openapi: '3.1.0'\npaths: {}\n",
+        encoding="utf-8",
+    )
+
+    document = load_openapi_document("specs/openapi.yaml", root=project)
+
+    assert document["openapi"] == "3.1.0"
+    assert document["paths"] == {}
+
+
+def test_load_openapi_document_rejects_root_escape(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    outside = tmp_path / "outside.yaml"
+    outside.write_text("openapi: '3.1.0'\npaths: {}\n", encoding="utf-8")
+
+    with pytest.raises(OpenApiLoadError, match="must be inside project root"):
+        load_openapi_document(project / ".." / "outside.yaml", root=project)
+
+
+def test_load_openapi_document_rejects_absolute_root_escape(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    outside = tmp_path / "outside.yaml"
+    outside.write_text("openapi: '3.1.0'\npaths: {}\n", encoding="utf-8")
+
+    with pytest.raises(OpenApiLoadError, match="must be inside project root"):
+        load_openapi_document(outside, root=project)
+
+
+def test_load_openapi_document_rejects_root_bounded_symlink_components(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir()
+    (outside_dir / "openapi.yaml").write_text(
+        "openapi: '3.1.0'\npaths: {}\n",
+        encoding="utf-8",
+    )
+    (project / "linked-specs").symlink_to(outside_dir, target_is_directory=True)
+
+    with pytest.raises(OpenApiLoadError, match="symlinked OpenAPI spec path component"):
+        load_openapi_document(project / "linked-specs" / "openapi.yaml", root=project)
+
+
 def test_load_openapi_document_rejects_remote_urls() -> None:
     with pytest.raises(OpenApiLoadError, match="Remote OpenAPI specs are not supported"):
         load_openapi_document("https://example.test/openapi.yaml")

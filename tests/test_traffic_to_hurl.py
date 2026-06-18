@@ -234,6 +234,29 @@ def test_compile_traffic_session_skips_unstable_or_invalid_golden_json(response_
     assert "$.items" not in generated.content
 
 
+def test_compile_traffic_session_skips_unsafe_content_type_assertion() -> None:
+    exchange = _exchange(response_body="ok", content_type="text/plain")
+    assert exchange.response is not None
+    unsafe_response = exchange.response.model_copy(
+        update={"headers": {"Content-Type": "text/{{bad}}"}}
+    )
+    session = TrafficSessionCandidate(
+        name="unsafe_content_type",
+        target_origin=None,
+        records=(
+            TrafficSessionRecord(
+                exchange=exchange.model_copy(update={"response": unsafe_response}),
+                role="observed",
+            ),
+        ),
+    )
+
+    generated = compile_traffic_session_to_hurl(session, golden=True)
+
+    assert 'header "Content-Type"' not in generated.content
+    assert "{{bad}}" not in generated.content
+
+
 def test_compile_traffic_session_allows_missing_content_type_without_asserts() -> None:
     exchange = _exchange(response_body='{"status":"accepted"}', content_type=None)
     session = TrafficSessionCandidate(
@@ -270,6 +293,27 @@ def test_compile_traffic_session_rejects_unredacted_records() -> None:
 
     with pytest.raises(TrafficHurlCompilationError, match="requires redacted traffic"):
         compile_traffic_session_to_hurl(unsafe_session, golden=False)
+
+
+def test_compile_traffic_session_rejects_redacted_records_with_secret_like_content() -> None:
+    token = "sk-proj-" + ("a" * 24)
+    exchange = _exchange(
+        url=f"https://api.example.test/password-reset/{token}",
+        request_body=f'{{"note":"{token}"}}',
+    )
+    session = TrafficSessionCandidate(
+        name="unsafe_redacted",
+        target_origin=None,
+        records=(TrafficSessionRecord(exchange=exchange, role="observed"),),
+    )
+
+    with pytest.raises(
+        TrafficHurlCompilationError,
+        match="unredacted secret-like traffic content",
+    ) as exc:
+        compile_traffic_session_to_hurl(session, golden=False)
+
+    assert token not in str(exc.value)
 
 
 def test_compile_traffic_session_rejects_records_without_response() -> None:
@@ -321,3 +365,104 @@ def test_compile_traffic_session_rejects_unsafe_filename_and_line_values() -> No
     )
     with pytest.raises(TrafficHurlCompilationError, match="header 'X-Trace' contains control"):
         compile_traffic_session_to_hurl(unsafe_session, golden=False)
+
+
+@pytest.mark.parametrize(
+    ("header_name", "message"),
+    [
+        ("Bad\nName", "header name contains control"),
+        ("Bad:Name", "header name must be an HTTP token"),
+        ("Bad Name", "header name must be an HTTP token"),
+        ("{{Bad}}", "header name contains Hurl template"),
+    ],
+)
+def test_compile_traffic_session_rejects_unsafe_header_names(
+    header_name: str,
+    message: str,
+) -> None:
+    safe = build_traffic_session_candidate([_exchange()], name="safe", target_url=None)
+    unsafe_request = TrafficRequest.model_construct(
+        method="GET",
+        url="https://api.example.test/checkout",
+        headers={header_name: "safe"},
+        body=None,
+    )
+    unsafe_exchange = safe.records[0].exchange.model_copy(update={"request": unsafe_request})
+    unsafe_session = TrafficSessionCandidate(
+        name="unsafe_header_name",
+        target_origin=None,
+        records=(TrafficSessionRecord(exchange=unsafe_exchange, role="observed"),),
+    )
+
+    with pytest.raises(TrafficHurlCompilationError, match=message):
+        compile_traffic_session_to_hurl(unsafe_session, golden=False)
+
+
+def test_compile_traffic_session_preserves_valid_constructed_header_names() -> None:
+    safe = build_traffic_session_candidate([_exchange()], name="safe", target_url=None)
+    request = TrafficRequest.model_construct(
+        method="GET",
+        url="https://api.example.test/checkout",
+        headers={"X-Trace-Id": "safe"},
+        body=None,
+    )
+    exchange = safe.records[0].exchange.model_copy(update={"request": request})
+    session = TrafficSessionCandidate(
+        name="valid_header_name",
+        target_origin=None,
+        records=(TrafficSessionRecord(exchange=exchange, role="observed"),),
+    )
+
+    generated = compile_traffic_session_to_hurl(session, golden=False)
+
+    assert "X-Trace-Id: safe" in generated.content
+
+
+@pytest.mark.parametrize(
+    ("method", "message"),
+    [
+        ("GET\nPOST", "request method contains control"),
+        ("GET POST", "request method must be an HTTP token"),
+        ("GET{{template}}", "request method contains Hurl template"),
+    ],
+)
+def test_compile_traffic_session_rejects_unsafe_request_methods(
+    method: str,
+    message: str,
+) -> None:
+    safe = build_traffic_session_candidate([_exchange()], name="safe", target_url=None)
+    unsafe_request = TrafficRequest.model_construct(
+        method=method,
+        url="https://api.example.test/checkout",
+        headers={},
+        body=None,
+    )
+    unsafe_exchange = safe.records[0].exchange.model_copy(update={"request": unsafe_request})
+    unsafe_session = TrafficSessionCandidate(
+        name="unsafe_method",
+        target_origin=None,
+        records=(TrafficSessionRecord(exchange=unsafe_exchange, role="observed"),),
+    )
+
+    with pytest.raises(TrafficHurlCompilationError, match=message):
+        compile_traffic_session_to_hurl(unsafe_session, golden=False)
+
+
+def test_compile_traffic_session_normalizes_valid_constructed_request_method() -> None:
+    safe = build_traffic_session_candidate([_exchange()], name="safe", target_url=None)
+    constructed_request = TrafficRequest.model_construct(
+        method="get",
+        url="https://api.example.test/checkout",
+        headers={},
+        body=None,
+    )
+    exchange = safe.records[0].exchange.model_copy(update={"request": constructed_request})
+    session = TrafficSessionCandidate(
+        name="valid_method",
+        target_origin=None,
+        records=(TrafficSessionRecord(exchange=exchange, role="observed"),),
+    )
+
+    generated = compile_traffic_session_to_hurl(session, golden=False)
+
+    assert "GET https://api.example.test/checkout" in generated.content

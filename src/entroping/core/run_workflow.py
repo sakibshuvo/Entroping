@@ -480,6 +480,8 @@ def execute_run_workflow(
                 failed=0,
             )
         raise
+    finally:
+        event_log.close()
 
 
 def _blocked_suite_result(

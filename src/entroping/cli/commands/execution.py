@@ -26,6 +26,7 @@ from entroping.core.rerun_failures import (
     RerunFailuresError,
     select_latest_failed_hurl_tests,
 )
+from entroping.core.run_event_log import RunEventLogError
 from entroping.core.run_option_validation import (
     RunOptionValidationError,
     normalize_run_report_formats,
@@ -562,6 +563,7 @@ def run(
         HurlBinaryNotFoundError,
         QanstitutionLoadError,
         ReportWriterError,
+        RunEventLogError,
         RunWorkflowError,
         ValueError,
     ) as exc:

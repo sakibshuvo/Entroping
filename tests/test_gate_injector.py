@@ -146,6 +146,29 @@ def test_inject_gate_assertions_keeps_public_api_without_known_failures() -> Non
     assert [gate.rule_id for gate in gates] == ["latency"]
 
 
+def test_inject_gate_assertions_preserves_content_when_no_gates_are_supplied() -> None:
+    content = "GET {{base_url}}/health\n"
+
+    injected, gates = inject_gate_assertions(
+        content,
+        HurlTest(
+            path=Path("tests/health.hurl"),
+            metadata=HurlMetadata(),
+            exchanges=(
+                HurlExchange(
+                    method="GET",
+                    url="{{base_url}}/health",
+                    path="/health",
+                ),
+            ),
+        ),
+        [],
+    )
+
+    assert injected == content
+    assert gates == ()
+
+
 def test_write_injected_execution_copy_inserts_after_response_headers(tmp_path: Path) -> None:
     source = _write_hurl(
         tmp_path / "tests" / "health.hurl",
@@ -176,6 +199,105 @@ def test_write_injected_execution_copy_inserts_after_response_headers(tmp_path: 
         "duration < 2000\n"
         "[Captures]"
     ) in execution.execution_path.read_text(encoding="utf-8")
+
+
+@pytest.mark.security
+def test_write_injected_execution_copy_rejects_exchange_without_response_before_later_exchange(
+    tmp_path: Path,
+) -> None:
+    source = _write_hurl(
+        tmp_path / "tests" / "missing_response.hurl",
+        """
+        GET {{base_url}}/health
+
+        POST {{base_url}}/checkout
+        HTTP 201
+        """,
+    )
+
+    with pytest.raises(
+        GateInjectionError,
+        match="Missing Hurl response section for exchange 1",
+    ):
+        write_injected_execution_copy(
+            discover_hurl_tests([source])[0],
+            [_gate("latency", "true", "duration < 2000")],
+            execution_root=tmp_path / "execution",
+        )
+
+
+@pytest.mark.security
+def test_write_injected_execution_copy_rejects_request_like_body_text_before_response(
+    tmp_path: Path,
+) -> None:
+    source = _write_hurl(
+        tmp_path / "tests" / "ambiguous_body.hurl",
+        """
+        POST {{base_url}}/echo
+        Content-Type: text/plain
+        GET /not-an-exchange
+        HTTP 201
+        """,
+    )
+
+    with pytest.raises(
+        GateInjectionError,
+        match="Missing Hurl response section for exchange 1",
+    ):
+        write_injected_execution_copy(
+            discover_hurl_tests([source])[0],
+            [_gate("latency", "true", "duration < 2000")],
+            execution_root=tmp_path / "execution",
+        )
+
+
+@pytest.mark.security
+def test_write_injected_execution_copy_rejects_response_like_body_text_before_response(
+    tmp_path: Path,
+) -> None:
+    source = _write_hurl(
+        tmp_path / "tests" / "ambiguous_status_body.hurl",
+        """
+        POST {{base_url}}/echo
+        Content-Type: text/plain
+        HTTP 418
+        HTTP 201
+        """,
+    )
+
+    with pytest.raises(
+        GateInjectionError,
+        match="Ambiguous Hurl response sections for exchange 1",
+    ):
+        write_injected_execution_copy(
+            discover_hurl_tests([source])[0],
+            [_gate("latency", "true", "duration < 2000")],
+            execution_root=tmp_path / "execution",
+        )
+
+
+def test_write_injected_execution_copy_ignores_request_and_response_markers_in_comments(
+    tmp_path: Path,
+) -> None:
+    source = _write_hurl(
+        tmp_path / "tests" / "commented_markers.hurl",
+        """
+        # GET /not-an-exchange
+        GET {{base_url}}/health
+        HTTP 200
+        # HTTP 599 is documentation, not a response section
+        """,
+    )
+
+    execution = write_injected_execution_copy(
+        discover_hurl_tests([source])[0],
+        [_gate("latency", "true", "duration < 2000")],
+        execution_root=tmp_path / "execution",
+    )
+
+    assert "# entroping-gate: latency enforcement=block" in execution.execution_path.read_text(
+        encoding="utf-8"
+    )
 
 
 def test_write_injected_copy_preserves_content_when_no_gates_match(tmp_path: Path) -> None:
@@ -484,7 +606,46 @@ def test_inject_gate_assertions_rejects_gate_injection_without_response_sections
         ),
     )
 
+    with pytest.raises(GateInjectionError, match="Missing Hurl response section for exchange 1"):
+        inject_gate_assertions(
+            content,
+            hurl_test,
+            [_gate("global_latency", "true", "duration < 2000")],
+        )
+
+
+def test_inject_gate_assertions_rejects_gate_injection_without_any_exchanges() -> None:
     with pytest.raises(GateInjectionError, match="No Hurl response sections found"):
+        inject_gate_assertions(
+            "# only comments\n",
+            HurlTest(path=Path("tests/empty.hurl"), metadata=HurlMetadata(), exchanges=()),
+            [_gate("global_latency", "true", "duration < 2000")],
+        )
+
+
+@pytest.mark.security
+def test_inject_gate_assertions_rejects_mismatched_exchange_count() -> None:
+    content = "\n".join(
+        [
+            "GET {{base_url}}/health",
+            "HTTP 200",
+            "",
+            "POST {{base_url}}/checkout",
+            "HTTP 201",
+        ],
+    )
+    hurl_test = HurlTest(
+        path=Path("tests/mismatch.hurl"),
+        metadata=HurlMetadata(),
+        exchanges=(
+            HurlExchange(method="GET", url="{{base_url}}/health", path="/health"),
+        ),
+    )
+
+    with pytest.raises(
+        GateInjectionError,
+        match="Parsed 1 Hurl exchange\\(s\\) but found 2 request section marker\\(s\\)",
+    ):
         inject_gate_assertions(
             content,
             hurl_test,

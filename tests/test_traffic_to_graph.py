@@ -205,3 +205,29 @@ def test_compile_traffic_dependency_graph_rejects_empty_or_unredacted_sessions()
         compile_traffic_dependency_graph(empty)
     with pytest.raises(TrafficGraphCompilationError, match="requires redacted traffic"):
         compile_traffic_dependency_graph(unsafe_session)
+
+
+def test_compile_traffic_dependency_graph_rejects_secret_like_content() -> None:
+    token = "sk-proj-" + ("a" * 24)
+    unsafe = build_traffic_session_candidate([], name="unsafe", target_url=None)
+    unsafe_session = unsafe.__class__(
+        name=unsafe.name,
+        target_origin=unsafe.target_origin,
+        records=(
+            TrafficSessionRecord(
+                exchange=_exchange(
+                    method="GET",
+                    url=f"https://api.example.test/password-reset/{token}",
+                ),
+                role="observed",
+            ),
+        ),
+    )
+
+    with pytest.raises(
+        TrafficGraphCompilationError,
+        match="unredacted secret-like traffic content",
+    ) as exc:
+        compile_traffic_dependency_graph(unsafe_session)
+
+    assert token not in str(exc.value)

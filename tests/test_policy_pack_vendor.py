@@ -156,6 +156,55 @@ def test_self_test_policy_pack_reports_pass_evidence_without_writing(
     assert not (tmp_path / "policy-packs").exists()
 
 
+def test_self_test_policy_pack_preserves_local_dot_manifest_source(tmp_path: Path) -> None:
+    source_pack = tmp_path / "acme-strict-api"
+    write_policy_pack(source_pack)
+    manifest = load_manifest(source_pack)
+    manifest["source"] = "."
+    write_manifest(source_pack, manifest)
+
+    result = vendor_module.self_test_policy_pack(pack_path=source_pack)
+
+    assert result.status == "pass"
+    assert [(check.id, check.status) for check in result.checks] == [
+        ("source-boundary", "pass"),
+        ("manifest-entrypoint-gates", "pass"),
+        ("consumer-example", "pass"),
+        ("local-only", "pass"),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("manifest_source", "expected"),
+    [
+        ("//example.com/acme-strict-api", "local relative path"),
+        ("https://example.com/acme-strict-api", "local relative path"),
+        ("git@github.com:acme/strict-api.git", "local relative path"),
+        ("/var/lib/acme-strict-api", "local relative path"),
+        ("../acme-strict-api", "must not contain traversal"),
+        ("examples/acme\nstrict-api", "control characters"),
+        ("", "non-empty string"),
+    ],
+)
+def test_self_test_policy_pack_rejects_unsafe_manifest_source(
+    tmp_path: Path,
+    manifest_source: str,
+    expected: str,
+) -> None:
+    source_pack = tmp_path / "acme-strict-api"
+    write_policy_pack(source_pack)
+    manifest = load_manifest(source_pack)
+    manifest["source"] = manifest_source
+    write_manifest(source_pack, manifest)
+
+    result = vendor_module.self_test_policy_pack(pack_path=source_pack)
+
+    assert result.status == "fail"
+    assert result.checks[-1].id == "manifest-entrypoint-gates"
+    assert result.checks[-1].status == "fail"
+    assert expected in result.checks[-1].message
+
+
 def test_self_test_policy_pack_reports_missing_manifest_failure(tmp_path: Path) -> None:
     source_pack = tmp_path / "broken-pack"
     source_pack.mkdir()
@@ -578,6 +627,13 @@ def test_vendor_policy_pack_rejects_missing_required_pack_file(tmp_path: Path) -
     ("field", "value", "expected"),
     [
         ("name", "", "non-empty string"),
+        ("source", "//example.com/acme-strict-api", "local relative path"),
+        ("source", "https://example.com/acme-strict-api", "local relative path"),
+        ("source", "git@github.com:acme/strict-api.git", "local relative path"),
+        ("source", "/var/lib/acme-strict-api", "local relative path"),
+        ("source", "../acme-strict-api", "must not contain traversal"),
+        ("source", "examples/acme\nstrict-api", "control characters"),
+        ("source", "", "non-empty string"),
         ("runtime_contract", "other-contract", "runtime_contract"),
         ("gate_prefixes", "acme-security", "list of strings"),
         ("gate_prefixes", [""], "item 0"),
@@ -916,6 +972,51 @@ def test_vendor_policy_pack_rolls_back_temporary_write_failure(
             pack_path=source_pack,
         )
 
+    assert not (project_root / "policy-packs" / "acme-strict-api").exists()
+
+
+def test_vendor_policy_pack_removes_temporary_file_when_write_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_root = tmp_path / "consumer"
+    source_pack = tmp_path / "acme-strict-api"
+    project_root.mkdir()
+    write_project_config(project_root)
+    write_policy_pack(source_pack)
+    temporary_file = project_root / ".qanstitution.yaml.tmp"
+    temporary_file.write_text("partial\n", encoding="utf-8")
+
+    class FailingTemporaryFile:
+        name = str(temporary_file)
+
+        def __enter__(self) -> "FailingTemporaryFile":
+            return self
+
+        def __exit__(self, *exc_info: object) -> None:
+            return None
+
+        def write(self, content: str) -> int:
+            _ = content
+            raise OSError("disk full")
+
+    def fail_named_temporary_file(*args: object, **kwargs: object) -> FailingTemporaryFile:
+        _ = args, kwargs
+        return FailingTemporaryFile()
+
+    monkeypatch.setattr(
+        "entroping.core.policy_pack_vendor.tempfile.NamedTemporaryFile",
+        fail_named_temporary_file,
+    )
+
+    with pytest.raises(PolicyPackVendorError, match="temporary QAnstitution"):
+        vendor_policy_pack(
+            project_root=project_root,
+            config_path=project_root / "qanstitution.yaml",
+            pack_path=source_pack,
+        )
+
+    assert not temporary_file.exists()
     assert not (project_root / "policy-packs" / "acme-strict-api").exists()
 
 

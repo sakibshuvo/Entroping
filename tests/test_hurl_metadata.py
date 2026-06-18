@@ -127,6 +127,11 @@ def test_parse_hurl_metadata_rejects_empty_tags_value() -> None:
         parse_hurl_metadata("# entroping: tags=")
 
 
+def test_parse_hurl_metadata_rejects_control_characters_in_tags() -> None:
+    with pytest.raises(HurlMetadataSyntaxError, match="tag value must not contain"):
+        parse_hurl_metadata("# entroping: tags=smoke,bad\x1fprod")
+
+
 def test_parse_hurl_metadata_rejects_duplicate_tags_key() -> None:
     with pytest.raises(HurlMetadataSyntaxError, match="line 2: duplicate metadata key 'tags'"):
         parse_hurl_metadata(

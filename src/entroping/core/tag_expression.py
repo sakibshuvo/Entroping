@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Final, Literal, cast
 
 _TAG_TOKEN_RE: Final = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:/-]*$")
+_MAX_TAG_EXPRESSION_TOKENS: Final = 256
 
 _TokenKind = Literal["tag", "and", "or", "not", "lparen", "rparen"]
 
@@ -72,7 +73,12 @@ def compile_tag_expression(expression: str) -> CompiledTagExpression:
         msg = "Tag expression must not contain control characters"
         raise TagExpressionSyntaxError(msg)
 
-    parser = _Parser(_tokenize(source))
+    tokens = _tokenize(source)
+    if len(tokens) > _MAX_TAG_EXPRESSION_TOKENS:
+        msg = "Tag expression is too complex"
+        raise TagExpressionSyntaxError(msg)
+
+    parser = _Parser(tokens)
     root = parser.parse()
     return CompiledTagExpression(source=source, _root=root)
 

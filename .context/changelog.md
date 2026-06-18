@@ -1,5 +1,85 @@
 # Entroping Changelog
 
+## 2026-06-18
+
+- Fixed issue #874's failure-bundle metadata redaction boundary:
+  `hurl-metadata.json` now preserves discovered metadata keys while redacting
+  secret-like metadata values before local bug-handoff bundles are written.
+- Fixed issue #838's policy-pack manifest provenance boundary:
+  `manifest.source` now validates as local provenance evidence, preserving `.`
+  while rejecting remote, absolute, traversal, control-character, and empty
+  values through vendor and self-test paths.
+- Fixed issue #839's QAnstitution policy compilation boundary:
+  unknown future condition objects now fail closed with `GateCompilationError`
+  through public matching and compilation paths instead of silently dropping
+  matching gates.
+- Fixed issue #841's OpenAPI security-alternative handling:
+  auth-negative generation now treats an empty OpenAPI security requirement as
+  a public alternative and skips missing/invalid-auth Hurl files for those
+  operations while preserving security-only negative generation.
+- Fixed issue #843's traffic-to-Hurl header name boundary:
+  freeze-generated Hurl now validates header names during compilation,
+  rejecting control characters, invalid field-name tokens, and Hurl template
+  delimiters even when traffic model validation was bypassed.
+- Fixed issue #842's traffic-to-Hurl request method boundary:
+  freeze-generated Hurl now validates and normalizes request methods during
+  compilation, rejecting control characters, whitespace, and Hurl template
+  delimiters even when traffic model validation was bypassed.
+- Fixed issue #844's traffic URL fragment redaction gap:
+  redacted Eye traffic now strips URL fragments before persistence so
+  fragment-borne OAuth or token-like values cannot survive in traffic state,
+  reports, or generated artifacts.
+- Fixed issue #876's traffic URL path redaction gap:
+  redacted Eye traffic now replaces secret-like URL path segments with an
+  encoded redaction marker while preserving ordinary route shape and existing
+  userinfo, query, and fragment protections.
+- Fixed issue #877's redacted traffic validation gap:
+  traffic persistence, session building, and direct Hurl, WireMock, and graph
+  compilers now fail closed when records marked redacted still contain obvious
+  secret-like content, reporting only value-free unsafe locations.
+- Fixed issue #836's GitHub annotation artifact error handling:
+  unreadable JUnit XML or drift JSON report paths now raise controlled
+  `GitHubAnnotationError` messages instead of leaking raw filesystem
+  exceptions, while missing report artifacts still produce no annotations.
+- Added issue #775's architecture-gate OpenCode readiness check:
+  `scripts/opencode_readiness.py` now requires
+  `scripts/architecture_integrity.sh` and verifies its value-free help surface
+  before independent OpenCode implementation sessions, without running Hurl,
+  calling providers, touching the network, or reading secrets.
+- Fixed issue #798's OpenCode PR evidence spoofing gap:
+  `scripts/pr_body_check.py` now validates gate evidence from structured
+  `Commands run` blocks or checked items instead of arbitrary PR prose,
+  ignores examples, blockquotes, unchecked items, and not-run sections, and
+  enforces canonical OpenCode provider lane, autonomy tier, and merge
+  authority values across the prompt-library worker guidance.
+- Fixed issue #829's concurrent latest event-log evidence gap:
+  `entroping run` now acquires an exclusive latest event-log writer lock per
+  project root and fails concurrent runs before Hurl execution, preventing two
+  runs from interleaving or losing `.entroping/latest-run-events.jsonl`
+  evidence.
+- Fixed issue #830's primary OpenAPI spec path boundary:
+  `architect build --new` and `architect audit` now load local
+  `sources.spec` through a project-root-bounded OpenAPI loader that rejects
+  parent/root escapes and symlinked path components before reading, while
+  preserving the separate dependency-spec contract.
+
+## 2026-06-17
+
+- Fixed issue #808's low-severity security review sweep:
+  run-delta failure signatures now include policy rule IDs, Hurl tag metadata
+  rejects control characters, append writes recheck symlink targets immediately
+  before opening, tag expressions fail closed on excessive nesting, and failed
+  temp-file writes remove partial Hurl variable, safe-write, and policy-pack
+  vendoring artifacts.
+- Added issue #821's secure agent CLI toolchain profile:
+  `scripts/agent_toolchain.py` now reports local CLI availability with schema
+  `entroping.agent-toolchain.v1`, classifying tools as `safe_default`,
+  `guarded_local_only`, or `manual_explicit` through PATH lookup only. The
+  OpenCode readiness preflight consumes that report without executing
+  scanners, reading provider config, inspecting local secret stores, or making
+  network calls, and the agent docs now forbid automatic use of high-risk tools
+  such as `act`, `trufflehog`, `semgrep`, `trivy`, `syft`, and `grype`.
+
 ## 2026-06-16
 
 - Added issue #787's architecture/quality guardrail PR preflight:

@@ -456,7 +456,7 @@ gates: []
     monkeypatch.setattr(
         architect_cli,
         "load_openapi_document",
-        lambda path: {"openapi": "3.1.0", "paths": {}},
+        lambda path, root=None: {"openapi": "3.1.0", "paths": {}},
     )
 
     result = CliRunner().invoke(app, ["architect", "build", "--new", "--changed-from", "HEAD"])
@@ -690,6 +690,33 @@ gates: []
 
     assert result.exit_code == 1
     assert "--changed-from requires a local OpenAPI sources.spec path" in result.output
+
+
+def test_architect_build_new_rejects_sources_spec_root_escape(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    monkeypatch.chdir(project)
+    (tmp_path / "outside.yaml").write_text(
+        "openapi: '3.1.0'\npaths: {}\n",
+        encoding="utf-8",
+    )
+    Path("qanstitution.yaml").write_text(
+        """
+project: checkout-api
+sources:
+  spec: ../outside.yaml
+gates: []
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["architect", "build", "--new"])
+
+    assert result.exit_code == 1
+    assert "OpenAPI spec must be inside project root" in result.output
 
 
 def test_architect_build_prompt_writes_validated_architect_hurl(

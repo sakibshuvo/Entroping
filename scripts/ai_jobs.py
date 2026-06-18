@@ -21,7 +21,7 @@ STALE_RUNNING_GRACE_SECONDS = 60.0
 SCHEMA_VERSION = "entroping.ai-job.v1"
 CONTEXT_MANIFEST_COMMAND = "scripts/context_pack.sh --mode implementation --manifest"
 TIER_A_MERGE_AUTHORITY = (
-    "Tier A only after local gates, GitHub CI, PR declaration, and finish cleanup"
+    "Tier A autonomous after gates and green CI"
 )
 QUEUE_STATES = ("queued", "running", "completed", "failed")
 SUCCESSFUL_WORKER_STATUSES = {"completed", "dry-run", "inconclusive", "patch-proposed"}

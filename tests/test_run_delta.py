@@ -125,6 +125,29 @@ def test_run_delta_treats_missing_current_failure_as_resolved() -> None:
     assert "missing" in markdown
 
 
+def test_run_delta_treats_failed_policy_rule_change_as_changed_failure() -> None:
+    base = _report(
+        _test("tests/policy.hurl", status="failed", exit_code=1, rule_ids=("old_gate",)),
+    )
+    current = _report(
+        _test(
+            "tests/policy.hurl",
+            status="failed",
+            exit_code=1,
+            rule_ids=("new_gate", "old_gate"),
+        ),
+    )
+
+    report = build_run_delta_report(base=base, current=current)
+
+    assert not report.passed
+    assert [item.path for item in report.changed_failures] == ["tests/policy.hurl"]
+    assert report.changed_failures[0].base_rule_ids == ("old_gate",)
+    assert report.changed_failures[0].current_rule_ids == ("new_gate", "old_gate")
+    assert report.unchanged_failures == ()
+    assert report.policy_gate_deltas[0].added_rule_ids == ("new_gate",)
+
+
 def test_run_delta_rejects_duplicate_or_unsafe_test_paths() -> None:
     duplicate = _report(_test("tests/health.hurl"), _test("tests/health.hurl"))
     safe = _report(_test("tests/health.hurl"))

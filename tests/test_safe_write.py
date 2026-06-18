@@ -64,28 +64,63 @@ def test_safe_append_text_rejects_symlinked_parent_directory(tmp_path: Path) -> 
     assert not (outside / "latest-run-events.jsonl").exists()
 
 
+def test_safe_append_text_rechecks_symlink_target_before_open(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = tmp_path / ".entroping" / "latest-run-events.jsonl"
+    output.parent.mkdir()
+    output.write_text("old\n", encoding="utf-8")
+    victim = tmp_path / "victim.txt"
+    victim.write_text("victim\n", encoding="utf-8")
+
+    def swap_after_prepare(
+        path: Path,
+        *,
+        artifact: str,
+        root: Path | None,
+    ) -> Path:
+        _ = path, artifact, root
+        output.unlink()
+        output.symlink_to(victim)
+        return output
+
+    monkeypatch.setattr(safe_write, "_prepare_destination", swap_after_prepare)
+
+    with pytest.raises(SafeWriteError, match="symlinked run event log"):
+        safe_append_text(output, "new\n", artifact="run event log", root=tmp_path)
+
+    assert victim.read_text(encoding="utf-8") == "victim\n"
+
+
 def test_safe_append_text_wraps_append_failures(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     output = tmp_path / ".entroping" / "latest-run-events.jsonl"
     safe_write_text(output, "old\n", artifact="run event log", root=tmp_path)
+    original_open = Path.open
 
-    class AppendFailPath:
-        def open(self, mode: str) -> object:
-            assert mode == "ab"
+    def fail_open(
+        self: Path,
+        mode: str = "r",
+        buffering: int = -1,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
+    ) -> object:
+        if self == output.resolve() and mode == "ab":
             raise OSError("append failed")
+        return original_open(
+            self,
+            mode=mode,
+            buffering=buffering,
+            encoding=encoding,
+            errors=errors,
+            newline=newline,
+        )
 
-    def fake_prepare_destination(
-        path: Path,
-        *,
-        artifact: str,
-        root: Path | None,
-    ) -> AppendFailPath:
-        _ = path, artifact, root
-        return AppendFailPath()
-
-    monkeypatch.setattr(safe_write, "_prepare_destination", fake_prepare_destination)
+    monkeypatch.setattr(Path, "open", fail_open)
 
     with pytest.raises(SafeWriteError, match="append failed"):
         safe_append_text(output, "new\n", artifact="run event log", root=tmp_path)
@@ -206,6 +241,44 @@ def test_safe_write_wraps_temporary_file_creation_failures(
     with pytest.raises(SafeWriteError, match="temp failed"):
         safe_write_text(output, "{}\n", artifact="run report", root=tmp_path)
 
+    assert not output.exists()
+
+
+def test_failed_temporary_file_write_removes_temporary_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = tmp_path / "reports" / "run-latest.json"
+    output.parent.mkdir()
+    temporary_file = output.parent / ".run-latest.json.tmp"
+    temporary_file.write_bytes(b"partial")
+
+    class FailingTemporaryFile:
+        name = str(temporary_file)
+
+        def __enter__(self) -> "FailingTemporaryFile":
+            return self
+
+        def __exit__(self, *exc_info: object) -> None:
+            return None
+
+        def write(self, content: bytes) -> int:
+            _ = content
+            raise OSError("write failed")
+
+    def fail_named_temporary_file(*args: object, **kwargs: object) -> FailingTemporaryFile:
+        _ = args, kwargs
+        return FailingTemporaryFile()
+
+    monkeypatch.setattr(
+        "entroping.core.safe_write.tempfile.NamedTemporaryFile",
+        fail_named_temporary_file,
+    )
+
+    with pytest.raises(SafeWriteError, match="write failed"):
+        safe_write_text(output, "{}\n", artifact="run report", root=tmp_path)
+
+    assert not temporary_file.exists()
     assert not output.exists()
 
 

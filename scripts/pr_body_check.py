@@ -13,6 +13,7 @@ from pathlib import Path
 
 SECTION_TITLE = "## Documentation Impact Declaration"
 AGENT_AUTONOMY_SECTION_TITLE = "## Agent Autonomy Declaration"
+OPENCODE_EVIDENCE_SECTION_TITLE = "## OpenCode Provider Lane Evidence"
 VERIFICATION_LANE_LABEL = "Verification lane"
 
 VERIFICATION_LANES = (
@@ -42,36 +43,42 @@ PROVIDER_LANES = (
     "opencode-go/other",
     "local/offline",
 )
+AUTONOMY_TIERS = (
+    "Tier A autonomous lane",
+    "Tier B assisted lane",
+    "Tier C restricted lane",
+)
+MERGE_AUTHORITIES = (
+    "Tier A autonomous after gates and green CI",
+    "Codex/human required",
+    "no merge authority",
+)
 AMBIGUOUS_PROVIDER_RE = re.compile(r"\b(?:OpenCode|DeepSeek|Kimi)\b", re.IGNORECASE)
 SECURITY_GATE_RE = re.compile(
-    r"(?im)"
-    r"^\s*-\s*\[[xX]\]\s*`?"
+    r"(?im)^\s*`?"
     r"scripts/(?:feature_gate\.sh --security|regression\.sh --security)"
-    r"`?(?:\s|$)"
-    r"|^\s*scripts/(?:feature_gate\.sh --security|regression\.sh --security)\s*$",
+    r"`?(?:\s|$)",
 )
 QUALITY_AUDIT_RE = re.compile(
-    r"(?im)"
-    r"^\s*-\s*\[[xX]\]\s*`?scripts/audit_quality\.sh`?(?:\s|$)"
-    r"|^\s*scripts/audit_quality\.sh\s*$",
+    r"(?im)^\s*`?scripts/audit_quality\.sh`?(?:\s|$)",
 )
 DOC_GOVERNANCE_RE = re.compile(
-    r"(?im)"
-    r"^\s*-\s*\[[xX]\]\s*`?scripts/doc_governance_check\.sh`?(?:\s|$)"
-    r"|^\s*scripts/doc_governance_check\.sh\s*$",
+    r"(?im)^\s*`?scripts/doc_governance_check\.sh`?(?:\s|$)",
 )
 FOCUSED_PYTEST_RE = re.compile(
-    r"(?im)"
-    r"^\s*-\s*\[[xX]\]\s*`?uv run pytest\s+tests/[^\n`]+`?\s*$"
-    r"|^\s*uv run pytest\s+tests/[^\n`]+\s*$",
+    r"(?im)^\s*`?uv run pytest\s+tests/[^\n`]+`?(?:\s|$)",
 )
 STANDARD_GATE_RE = re.compile(
-    r"(?im)"
-    r"^\s*-\s*\[[xX]\]\s*`?scripts/"
+    r"(?im)^\s*`?scripts/"
     r"(?:feature_gate\.sh(?: --security)?|regression\.sh(?: --security)?)"
-    r"`?(?:\s|$)"
-    r"|^\s*scripts/(?:feature_gate\.sh(?: --security)?|regression\.sh(?: --security)?)\s*$",
+    r"`?(?:\s|$)",
 )
+CHECKED_ITEM_RE = re.compile(r"^\s*-\s*\[[xX]\]\s+(.+?)\s*$")
+COMMANDS_RUN_RE = re.compile(
+    r"^\s*(?:-\s*)?(?:\[[xX]\]\s*)?Commands run\s*:\s*(.*?)\s*$",
+    re.IGNORECASE,
+)
+FENCE_RE = re.compile(r"^\s*(?:```|~~~)")
 SENSITIVE_SURFACE_PATTERNS = (
     (
         "hurl-runner",
@@ -193,6 +200,116 @@ DOCS_GUARDRAIL_PATTERNS = (
 )
 
 
+def _is_not_run_marker(line: str) -> bool:
+    normalized = line.strip().lower()
+    if not normalized:
+        return False
+    normalized = re.sub(r"^#+\s*", "", normalized)
+    normalized = re.sub(r"^-\s*(?:\[[ xX]\]\s*)?", "", normalized)
+    normalized = normalized.rstrip(":").strip()
+    return normalized in (
+        "commands not run",
+        "commands not executed",
+        "commands skipped",
+        "not run",
+        "not executed",
+        "skipped",
+        "skipped commands",
+    )
+
+
+def _iter_visible_lines(markdown: str) -> list[str]:
+    lines: list[str] = []
+    in_fence = False
+    skip_not_run_section = False
+
+    for raw_line in markdown.splitlines():
+        stripped = raw_line.strip()
+
+        if FENCE_RE.match(raw_line):
+            in_fence = not in_fence
+            continue
+        if in_fence or raw_line.lstrip().startswith(">"):
+            continue
+
+        if stripped.startswith("## "):
+            skip_not_run_section = _is_not_run_marker(stripped)
+            continue
+        if _is_not_run_marker(stripped):
+            skip_not_run_section = True
+            continue
+        if skip_not_run_section:
+            continue
+
+        lines.append(raw_line)
+
+    return lines
+
+
+def _structured_evidence_text(body: str) -> str:
+    lines: list[str] = []
+    in_fence = False
+    capture_fence = False
+    commands_run_active = False
+    skip_not_run_section = False
+
+    for raw_line in body.splitlines():
+        stripped = raw_line.strip()
+
+        if stripped.startswith("## "):
+            skip_not_run_section = _is_not_run_marker(stripped)
+            commands_run_active = False
+            continue
+        if _is_not_run_marker(stripped):
+            skip_not_run_section = True
+            commands_run_active = False
+            continue
+        if skip_not_run_section:
+            continue
+
+        if raw_line.lstrip().startswith(">"):
+            continue
+
+        if FENCE_RE.match(raw_line):
+            if in_fence:
+                in_fence = False
+                capture_fence = False
+                commands_run_active = False
+            else:
+                in_fence = True
+                capture_fence = commands_run_active
+            continue
+
+        if in_fence:
+            if capture_fence and stripped:
+                lines.append(stripped)
+            continue
+
+        command_match = COMMANDS_RUN_RE.match(raw_line)
+        if command_match is not None:
+            inline = command_match.group(1).strip()
+            commands_run_active = True
+            if inline:
+                lines.append(inline)
+            continue
+
+        if commands_run_active:
+            if not stripped:
+                continue
+            checked_match = CHECKED_ITEM_RE.match(raw_line)
+            if checked_match is not None:
+                lines.append(checked_match.group(1).strip())
+            else:
+                lines.append(stripped)
+            continue
+
+        checked_match = CHECKED_ITEM_RE.match(raw_line)
+        if checked_match is not None:
+            lines.append(checked_match.group(1).strip())
+
+    return "\n".join(lines)
+
+
 def _extract_section(body: str, title: str) -> str | None:
     marker_index = body.find(title)
     if marker_index == -1:
@@ -206,17 +323,24 @@ def _extract_section(body: str, title: str) -> str | None:
 
 
 def _checked_items(section: str) -> list[str]:
-    return re.findall(r"(?im)^-\s*\[[xX]\]\s+(.+)$", section)
+    checked_items: list[str] = []
+    for line in _iter_visible_lines(section):
+        match = CHECKED_ITEM_RE.match(line)
+        if match is not None:
+            checked_items.append(match.group(1))
+    return checked_items
 
 
 def _field_value(body: str, label: str) -> str | None:
     pattern = re.compile(
-        rf"(?im)^\s*(?:-\s*)?(?:\[[ xX]\]\s*)?{re.escape(label)}\s*:\s*(.*?)\s*$",
+        rf"^\s*(?:-\s*)?(?:\[[xX]\]\s*)?{re.escape(label)}\s*:\s*(.*?)\s*$",
+        re.IGNORECASE,
     )
-    match = pattern.search(body)
-    if match is None:
-        return None
-    return match.group(1).strip()
+    for line in _iter_visible_lines(body):
+        match = pattern.match(line)
+        if match is not None:
+            return match.group(1).strip()
+    return None
 
 
 def _has_concrete_value(value: str | None) -> bool:
@@ -229,19 +353,26 @@ def _has_concrete_value(value: str | None) -> bool:
 
 
 def _known_provider_lane(body: str) -> str | None:
+    provider_lane = _field_value(body, "Provider lane")
+    if provider_lane in PROVIDER_LANES:
+        return provider_lane
     for lane in PROVIDER_LANES:
-        if re.search(rf"(?<!\w){re.escape(lane)}(?!\w)", body):
+        if re.search(rf"(?<!\w){re.escape(lane)}(?!\w)", "\n".join(_iter_visible_lines(body))):
             return lane
     return None
 
 
 def _has_closing_keyword(body: str, issue: str | None) -> bool:
+    visible_body = "\n".join(_iter_visible_lines(body))
     if issue:
         normalized_issue = issue.removeprefix("#").strip()
         if not normalized_issue:
             return False
-        return re.search(rf"(?im)\bCloses\s+#{re.escape(normalized_issue)}\b", body) is not None
-    return re.search(r"(?im)\bCloses\s+#\d+\b", body) is not None
+        return re.search(
+            rf"(?im)\bCloses\s+#{re.escape(normalized_issue)}\b",
+            visible_body,
+        ) is not None
+    return re.search(r"(?im)\bCloses\s+#\d+\b", visible_body) is not None
 
 
 def _normalize_changed_file(path: str) -> str:
@@ -289,23 +420,23 @@ def _quality_guardrail_changed_files(changed_files: list[str]) -> list[tuple[str
 
 
 def _has_security_gate_evidence(body: str) -> bool:
-    return SECURITY_GATE_RE.search(body) is not None
+    return SECURITY_GATE_RE.search(_structured_evidence_text(body)) is not None
 
 
 def _has_quality_audit_evidence(body: str) -> bool:
-    return QUALITY_AUDIT_RE.search(body) is not None
+    return QUALITY_AUDIT_RE.search(_structured_evidence_text(body)) is not None
 
 
 def _has_doc_governance_evidence(body: str) -> bool:
-    return DOC_GOVERNANCE_RE.search(body) is not None
+    return DOC_GOVERNANCE_RE.search(_structured_evidence_text(body)) is not None
 
 
 def _has_focused_pytest_evidence(body: str) -> bool:
-    return FOCUSED_PYTEST_RE.search(body) is not None
+    return FOCUSED_PYTEST_RE.search(_structured_evidence_text(body)) is not None
 
 
 def _has_standard_gate_evidence(body: str) -> bool:
-    return STANDARD_GATE_RE.search(body) is not None
+    return STANDARD_GATE_RE.search(_structured_evidence_text(body)) is not None
 
 
 def _docs_guardrail_reason(path: str) -> str | None:
@@ -443,7 +574,14 @@ def _validate_opencode_evidence(body: str, *, issue: str | None) -> list[str]:
             if ":" in item and not item.split(":", maxsplit=1)[1].strip():
                 failures.append(f"Checked agent autonomy declaration needs detail: {item}")
 
-    known_lane = _known_provider_lane(body)
+    opencode_section = _extract_section(body, OPENCODE_EVIDENCE_SECTION_TITLE)
+    if opencode_section is None:
+        failures.append(
+            f"OpenCode evidence PR body must include {OPENCODE_EVIDENCE_SECTION_TITLE}."
+        )
+        opencode_section = ""
+
+    known_lane = _known_provider_lane(opencode_section)
     if known_lane is None and AMBIGUOUS_PROVIDER_RE.search(body):
         failures.append(
             "OpenCode/DeepSeek evidence must use a concrete provider lane, "
@@ -451,13 +589,23 @@ def _validate_opencode_evidence(body: str, *, issue: str | None) -> list[str]:
         )
 
     for label in OPENCODE_EVIDENCE_LABELS:
-        value = _field_value(body, label)
+        value = _field_value(opencode_section, label)
         if not _has_concrete_value(value):
             failures.append(f"OpenCode evidence must include {label.lower()}.")
             continue
         if label == "Provider lane" and value is not None and value not in PROVIDER_LANES:
             allowed = ", ".join(PROVIDER_LANES)
             failures.append(f"OpenCode evidence provider lane must be one of: {allowed}.")
+        if label == "Autonomy tier" and value is not None and value not in AUTONOMY_TIERS:
+            allowed = ", ".join(AUTONOMY_TIERS)
+            failures.append(f"OpenCode evidence autonomy tier must be one of: {allowed}.")
+        if (
+            label == "Merge authority"
+            and value is not None
+            and value not in MERGE_AUTHORITIES
+        ):
+            allowed = ", ".join(MERGE_AUTHORITIES)
+            failures.append(f"OpenCode evidence merge authority must be one of: {allowed}.")
 
     return failures
 

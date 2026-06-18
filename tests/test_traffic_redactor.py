@@ -318,6 +318,55 @@ def test_redactor_removes_url_userinfo_credentials() -> None:
     assert redacted.redaction_confidence == "high"
 
 
+def test_redactor_strips_url_fragments_before_persistence() -> None:
+    exchange = _raw_exchange().model_copy(
+        update={
+            "request": _raw_exchange().request.model_copy(
+                update={
+                    "url": (
+                        "https://api.example.test/oauth/callback?"
+                        "state=visible-state#access_token=fragment-secret"
+                    ),
+                },
+            ),
+        },
+    )
+
+    redacted = redact_traffic_exchange(exchange)
+
+    assert redacted.request.url == "https://api.example.test/oauth/callback?state=visible-state"
+    assert "#" not in redacted.request.url
+    assert "fragment-secret" not in redacted.model_dump_json()
+    assert redacted.redaction_confidence == "high"
+
+
+def test_redactor_redacts_secret_like_url_path_segments() -> None:
+    token = "sk-proj-" + ("a" * 24)
+    exchange = _raw_exchange().model_copy(
+        update={
+            "request": _raw_exchange().request.model_copy(
+                update={
+                    "url": (
+                        f"https://user:pass@api.example.test/password-reset/{token}/orders"
+                        "?token=query-secret#access_token=fragment-secret"
+                    ),
+                },
+            ),
+        },
+    )
+
+    redacted = redact_traffic_exchange(exchange)
+
+    assert redacted.request.url == (
+        "https://api.example.test/password-reset/%5BREDACTED%5D/orders"
+        "?token=%5BREDACTED%5D"
+    )
+    assert token not in redacted.model_dump_json()
+    assert "user:pass" not in redacted.model_dump_json()
+    assert "fragment-secret" not in redacted.model_dump_json()
+    assert redacted.redaction_confidence == "high"
+
+
 def test_redactor_bounds_text_body_summaries() -> None:
     exchange = _raw_exchange().model_copy(
         update={
@@ -343,6 +392,79 @@ def test_redactor_bounds_text_body_summaries() -> None:
     assert "secret-value" not in redacted.model_dump_json()
     assert request_body.redaction_confidence == "low"
     assert redacted.redaction_confidence == "low"
+
+
+def test_redactor_redacts_plaintext_before_truncating_boundary_crossing_values() -> None:
+    jwt = (
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+        "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkFsaWNlIn0."
+        "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+    )
+    exchange = _raw_exchange().model_copy(
+        update={
+            "request": _raw_exchange().request.model_copy(
+                update={
+                    "headers": {"Content-Type": "text/plain"},
+                    "body": TrafficBody(
+                        content_type="text/plain",
+                        size_bytes=len(jwt),
+                        text=f"note={jwt}",
+                    ),
+                }
+            )
+        }
+    )
+
+    redacted = redact_traffic_exchange(exchange, max_body_chars=20)
+
+    request_body = redacted.request.body
+    assert request_body is not None
+    assert request_body.text == "note=[REDACTED]"
+    assert request_body.truncated is True
+    assert "eyJhbGci" not in redacted.model_dump_json()
+
+
+@pytest.mark.parametrize(
+    ("sensitive_value", "leaked_fragment"),
+    [
+        (
+            (
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+                "eyJzdWIiOiIxMjM0NTY3ODkwIn0."
+                "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+            ),
+            "eyJhbGci",
+        ),
+        ("f" * 64, "ffffffff"),
+        ("QWxhZGRpbjpPcGVuU2VzYW1lMTIzNDU2Nzg5MA==", "QWxhZGRp"),
+        ("4111 1111 1111 1111", "4111"),
+        ("123-45-6789", "123-45"),
+        ("alice@example.test", "alice@example"),
+    ],
+)
+def test_redactor_redacts_sensitive_shapes_in_non_sensitive_json_fields(
+    sensitive_value: str,
+    leaked_fragment: str,
+) -> None:
+    exchange = _raw_exchange().model_copy(
+        update={
+            "request": _raw_exchange().request.model_copy(
+                update={
+                    "body": TrafficBody(
+                        content_type="application/json",
+                        size_bytes=len(sensitive_value),
+                        text=f'{{"note":"{sensitive_value}","safe":"ok"}}',
+                    ),
+                }
+            )
+        }
+    )
+
+    redacted = redact_traffic_exchange(exchange)
+
+    assert leaked_fragment not in redacted.model_dump_json()
+    assert redacted.request.body is not None
+    assert redacted.request.body.text == '{"note":"[REDACTED]","safe":"ok"}'
 
 
 def test_traffic_models_reject_control_characters_in_boundaries() -> None:

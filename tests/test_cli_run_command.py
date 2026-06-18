@@ -24,6 +24,7 @@ from cli_test_support import (
 )
 
 from entroping.core.rerun_failures import RerunFailuresError
+from entroping.core.run_event_log import RunEventLogError
 
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
@@ -954,6 +955,21 @@ def test_run_dry_run_reports_plan_errors_without_run_state(
     assert "plan failed" in result.output
     assert not (Path(".entroping") / "latest-run.json").exists()
     assert not (Path(".entroping") / "latest-run-events.jsonl").exists()
+
+
+def test_run_reports_concurrent_event_log_lock_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_execute_run_workflow(**kwargs: object) -> object:
+        _ = kwargs
+        raise RunEventLogError("Another entroping run is already active in this project root")
+
+    monkeypatch.setattr(execution_cli, "execute_run_workflow", fail_execute_run_workflow)
+
+    result = CliRunner().invoke(app, ["run"])
+
+    assert result.exit_code == 1
+    assert "Another entroping run is already active" in result.output
 
 
 def test_run_tag_expression_no_matches_reports_counts_without_hurl_execution(

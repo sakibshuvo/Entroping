@@ -35,6 +35,25 @@ def _ok_operation(operation_id: str = "getHealth") -> dict[str, object]:
     }
 
 
+def _deep_required_object_schema(depth: int) -> dict[str, object]:
+    schema: dict[str, object] = {"type": "string"}
+    for index in range(depth):
+        field = f"child_{index}"
+        schema = {
+            "type": "object",
+            "required": [field],
+            "properties": {field: schema},
+        }
+    return schema
+
+
+def _deep_json_value(depth: int) -> dict[str, object]:
+    value: dict[str, object] = {"leaf": "ok"}
+    for index in range(depth):
+        value = {f"child_{index}": value}
+    return value
+
+
 def test_compile_openapi_generates_deterministic_hurl_files() -> None:
     document: dict[str, object] = {
         "openapi": "3.1.0",
@@ -234,6 +253,74 @@ def test_compile_openapi_generates_security_negative_tests_for_supported_schemes
     assert "?access_key=invalid-api-key" in joined
     assert "Cookie: session_id=invalid-session" in joined
     assert "HTTP 401" in joined
+
+
+def test_compile_openapi_skips_auth_negatives_for_public_security_alternative() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {
+            "securitySchemes": {
+                "bearerAuth": {"type": "http", "scheme": "bearer"},
+            },
+        },
+        "paths": {
+            "/catalog": {
+                "get": {
+                    "operationId": "getCatalog",
+                    "security": [{}, {"bearerAuth": []}],
+                    "responses": {
+                        "200": {"description": "ok"},
+                        "401": {"description": "unauthorized"},
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset({"catalog"}))
+
+    assert result.security_findings == ()
+    assert [item.relative_path for item in result.files] == [
+        "tests/generated/get_catalog.hurl",
+    ]
+    assert "missing_auth" not in "\n".join(item.content for item in result.files)
+    assert "invalid_auth" not in "\n".join(item.content for item in result.files)
+
+
+@pytest.mark.parametrize(
+    ("scheme_name", "expected_error"),
+    [
+        ("bearerAuth\n# entroping: safety=destructive", "control characters"),
+        ("{{bearerAuth}}", "Hurl template delimiters"),
+    ],
+)
+def test_compile_openapi_rejects_unsafe_security_scheme_names(
+    scheme_name: str,
+    expected_error: str,
+) -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {
+            "securitySchemes": {
+                scheme_name: {"type": "http", "scheme": "bearer"},
+            },
+        },
+        "paths": {
+            "/secret": {
+                "get": {
+                    "operationId": "getSecret",
+                    "security": [{scheme_name: []}],
+                    "responses": {
+                        "200": {"description": "ok"},
+                        "401": {"description": "unauthorized"},
+                    },
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match=expected_error):
+        compile_openapi_to_hurl_with_report(document, tags=frozenset())
 
 
 def test_compile_openapi_generates_bounded_negative_path_corpus_with_safety_metadata() -> None:
@@ -1665,6 +1752,111 @@ def test_compile_openapi_rejects_schema_required_and_property_shape_errors() -> 
     for operation, expected_error in cases:
         with pytest.raises(OpenApiCompilationError, match=expected_error):
             _compile_single_operation(operation, path="/bad", method="post")
+
+
+def test_compile_openapi_rejects_excessively_deep_schema_rendering() -> None:
+    operation: dict[str, object] = {
+        "operationId": "createDeepSchema",
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "schema": _deep_required_object_schema(80),
+                },
+            },
+        },
+        "responses": {"201": {"description": "created"}},
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="schema depth exceeds"):
+        _compile_single_operation(operation, path="/deep", method="post")
+
+
+def test_compile_openapi_rejects_unbounded_schema_string_generation() -> None:
+    operation: dict[str, object] = {
+        "operationId": "createHugeString",
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {"name": {"type": "string", "minLength": 1_000_000}},
+                    },
+                },
+            },
+        },
+        "responses": {"201": {"description": "created"}},
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="string length exceeds"):
+        _compile_single_operation(operation, path="/huge-string", method="post")
+
+
+def test_compile_openapi_rejects_unbounded_boundary_string_generation() -> None:
+    operation: dict[str, object] = {
+        "operationId": "createHugeBoundaryString",
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {"name": {"type": "string", "maxLength": 1_000_000}},
+                    },
+                },
+            },
+        },
+        "responses": {
+            "201": {"description": "created"},
+            "422": {"description": "validation failed"},
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="string length exceeds"):
+        _compile_single_operation(operation, path="/huge-boundary", method="post")
+
+
+def test_compile_openapi_rejects_excessively_deep_schema_examples() -> None:
+    operation: dict[str, object] = {
+        "operationId": "createDeepExample",
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["payload"],
+                        "properties": {"payload": {"example": _deep_json_value(80)}},
+                    },
+                },
+            },
+        },
+        "responses": {"201": {"description": "created"}},
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="JSON depth exceeds"):
+        _compile_single_operation(operation, path="/deep-example", method="post")
+
+
+def test_compile_openapi_budget_helpers_reject_node_exhaustion() -> None:
+    schema_budget = openapi_compiler._TraversalBudget(  # noqa: SLF001
+        nodes=openapi_compiler._MAX_OPENAPI_SCHEMA_NODES,  # noqa: SLF001
+    )
+    with pytest.raises(OpenApiCompilationError, match="schema traversal exceeds"):
+        openapi_compiler._check_openapi_schema_budget(  # noqa: SLF001
+            depth=0,
+            budget=schema_budget,
+            context="OpenAPI schema",
+        )
+
+    json_budget = openapi_compiler._TraversalBudget(  # noqa: SLF001
+        nodes=openapi_compiler._MAX_OPENAPI_JSON_NODES,  # noqa: SLF001
+    )
+    with pytest.raises(OpenApiCompilationError, match="JSON traversal exceeds"):
+        openapi_compiler._check_openapi_json_budget(  # noqa: SLF001
+            depth=0,
+            budget=json_budget,
+            context="OpenAPI schema example",
+        )
 
 
 def test_compile_openapi_rejects_invalid_schema_examples_defaults_and_keys() -> None:

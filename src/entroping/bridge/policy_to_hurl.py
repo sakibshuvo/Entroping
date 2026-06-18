@@ -42,7 +42,7 @@ def compile_matching_gates(
     compiled: list[HurlGateAssertion] = []
     for gate in gates:
         condition = _parse_gate_condition(gate)
-        if _matches_condition(condition, hurl_test, exchange=exchange):
+        if _matches_gate_condition(gate, condition, hurl_test, exchange=exchange):
             compiled.append(compile_gate_assertion(gate))
     return tuple(compiled)
 
@@ -79,7 +79,8 @@ def gate_matches_test(
 ) -> bool:
     """Return whether a gate applies to a discovered Hurl test."""
 
-    return _matches_condition(_parse_gate_condition(gate), hurl_test, exchange=exchange)
+    condition = _parse_gate_condition(gate)
+    return _matches_gate_condition(gate, condition, hurl_test, exchange=exchange)
 
 
 def _parse_gate_condition(gate: GateRule) -> Condition:
@@ -87,6 +88,20 @@ def _parse_gate_condition(gate: GateRule) -> Condition:
         return parse_condition(gate.condition)
     except ConditionSyntaxError as exc:
         msg = f"Gate {gate.id!r} has invalid condition {gate.condition!r}: {exc}"
+        raise GateCompilationError(msg) from exc
+
+
+def _matches_gate_condition(
+    gate: GateRule,
+    condition: Condition,
+    hurl_test: HurlTest,
+    *,
+    exchange: HurlExchange | None,
+) -> bool:
+    try:
+        return _matches_condition(condition, hurl_test, exchange=exchange)
+    except GateCompilationError as exc:
+        msg = f"Gate {gate.id!r} has unsupported condition {gate.condition!r}: {exc}"
         raise GateCompilationError(msg) from exc
 
 
@@ -123,7 +138,8 @@ def _matches_condition(
     if isinstance(condition, MetaEqualsCondition):
         return hurl_test.metadata.meta.get(condition.key) == condition.value
 
-    return False
+    msg = f"Unsupported QAnstitution condition object: {type(condition).__name__}"
+    raise GateCompilationError(msg)
 
 
 def _candidate_exchanges(

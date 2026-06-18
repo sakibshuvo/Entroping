@@ -6,10 +6,11 @@ from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from entroping.bridge.traffic_sessions import TrafficSessionCandidate, TrafficSessionRecord
+from entroping.models.secrets import REDACTED
 from entroping.models.traffic import TrafficBody, TrafficResponse
+from entroping.models.traffic_redaction import redacted_traffic_violation_summary
 
 _SAFE_STEM_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
-_REDACTED = "[REDACTED]"
 _SENSITIVE_HEADER_NAMES = frozenset(
     {
         "authorization",
@@ -95,6 +96,9 @@ def _mapping_content(record: TrafficSessionRecord) -> str:
     if not exchange.redacted:
         msg = "traffic-to-WireMock compilation requires redacted traffic"
         raise TrafficWireMockCompilationError(msg)
+    violation_summary = redacted_traffic_violation_summary(exchange)
+    if violation_summary is not None:
+        raise TrafficWireMockCompilationError(violation_summary)
     if exchange.response is None:
         msg = "traffic-to-WireMock compilation requires response records"
         raise TrafficWireMockCompilationError(msg)
@@ -129,7 +133,7 @@ def _safe_response_headers(headers: dict[str, str]) -> dict[str, str]:
         normalized = name.lower()
         if normalized in _SENSITIVE_HEADER_NAMES or normalized in _HOP_BY_HOP_RESPONSE_HEADERS:
             continue
-        if value == _REDACTED:
+        if value == REDACTED:
             continue
         rendered[name] = value
     return rendered

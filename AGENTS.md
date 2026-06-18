@@ -60,12 +60,39 @@ These instructions extend the global Codex rules for this repository. If a rule 
 - Follow `docs/meta/AGENT_CONTROL_PLANE.md` for cross-agent coordination across Codex, Claude Code, OpenCode, Gemini, NotebookLM, and local Qwen.
 - Use `docs/meta/FEATURE_DELIVERY_CHECKLIST.md` for every non-trivial feature, defect fix, or architecture change.
 - Use `scripts/context_pack.sh --mode implementation` to create deterministic context for a new coding session instead of relying on chat memory.
+- Use `uv run python scripts/agent_toolchain.py --mode implementation --format json`
+  to inspect local CLI availability and safe-use policy before claiming a tool
+  is available. The preflight uses the `entroping.agent-toolchain.v1` schema,
+  performs PATH lookup only, and must not run scanners, read provider config,
+  inspect local secret stores, or make network calls.
 - Codex owns factory design and final integration for Tier B/Tier C work.
 - OpenCode/DeepSeek may independently implement and merge only Tier A autonomous lanes documented in `docs/meta/AGENT_CONTROL_PLANE.md` after issue-scoped worktrees, deterministic gates, GitHub CI, and finish cleanup prove scope.
 - Tier B and Tier C remain human/Codex-reviewed.
 - Use OpenCode or local Qwen only as bounded workers, reviewers, or documented Tier A autonomous workers until their outputs have been validated against local files, tests, and CI.
 - Do not let any unattended agent push to `main` outside a documented Tier A autonomous lane, and never accept generated code without deterministic verification.
 - Spec Kit may be piloted for one feature at a time on a clean branch; do not let generated templates replace existing curated docs without review.
+
+## Local CLI Toolchain Rules
+
+- `safe_default` tools may be used during normal agent work for targeted local
+  discovery, structured inspection, diff review, and measurement. Prefer these
+  before loading broad context: `fd`, `sg`/ast-grep, `delta`, `difft`, `jq`,
+  `yq`, `tokei`, `scc`, `dust`, `git-sizer`, `hyperfine`, `watchexec`,
+  `jless`, `fx`, and `jc`.
+- `guarded_local_only` tools must run through a repo gate or explicit focused
+  command and must not scan home directories, provider config, raw traffic,
+  `.entroping` artifacts, local secret stores, or unrelated checkouts. This
+  includes `actionlint`, `zizmor`, `gitleaks`, `detect-secrets`,
+  `osv-scanner`, `pip-audit`, `lychee`, `markdownlint-cli2`, `shfmt`,
+  `shellcheck`, `hadolint`, and Graphviz `dot`.
+- `manual_explicit` tools must not run automatically. Use `act`,
+  `trufflehog`, `semgrep`, `trivy`, `syft`, and `grype` only with explicit
+  human/Codex approval, narrow repo scope, and a documented reason because they
+  can execute workflow code, contact services, download databases, or traverse
+  broad sensitive surfaces.
+- Cheap workers may report that a manual or guarded tool looks useful, but they
+  must not run it unless the issue packet or parent integrator explicitly
+  authorizes that exact command and scope.
 
 ## Verification
 

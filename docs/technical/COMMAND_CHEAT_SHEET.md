@@ -249,7 +249,9 @@ missing variable names without printing values.
 Every `entroping run` writes `.entroping/latest-run-events.jsonl`, a sanitized
 JSONL progress log with schema `entroping.run-events.v1`. It records run start,
 selected tests, redacted result events, artifact writes, no-match or error
-events, and completion status for CI wrappers and coding agents.
+events, and completion status for CI wrappers and coding agents. Concurrent
+runs in the same project root fail fast before Hurl execution instead of
+interleaving latest-run event evidence.
 
 Examples:
 

@@ -233,7 +233,7 @@ def test_agent_role_registry_defines_tier_a_cheap_worker_routing_defaults() -> N
     )
     assert "request only the needed files/snippets" in tier_a["context_rule"]
     assert tier_a["merge_authority"] == (
-        "Tier A only after local gates, GitHub CI, PR declaration, and finish cleanup"
+        "Tier A autonomous after gates and green CI"
     )
 
     assert routing["tier_b"]["merge_authority"] == "Codex/human required"

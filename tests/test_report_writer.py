@@ -535,6 +535,79 @@ def test_junit_failure_text_includes_retry_evidence_for_final_failures(
     assert "attempt 1 timeout exit=124 duration_ms=20" in (failure.text or "")
 
 
+def test_junit_failure_text_replaces_xml_illegal_control_characters(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "tests" / "control-output.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "control-output.hurl"
+    suite = HurlSuiteResult(
+        results=(
+            HurlFileResult(
+                path=execution,
+                command=("/bin/hurl", str(execution)),
+                status="failed",
+                exit_code=1,
+                stdout="HTTP 500\x01\n",
+                stderr="assert\x0b failed\n",
+                stdout_truncated=False,
+                stderr_truncated=False,
+                duration_ms=50,
+            ),
+        ),
+    )
+    report = build_run_report(
+        project="checkout-api",
+        environment="ci",
+        execution_copies=[_execution_copy(source, execution)],
+        suite=suite,
+        project_root=tmp_path,
+    )
+    output = tmp_path / "reports" / "junit.xml"
+
+    write_junit_report(report, output)
+
+    xml_text = output.read_text(encoding="utf-8")
+    assert "\x01" not in xml_text
+    assert "\x0b" not in xml_text
+    failure = ElementTree.parse(output).getroot().find("testcase/failure")
+    assert failure is not None
+    assert "HTTP 500\ufffd" in (failure.text or "")
+    assert "assert\ufffd failed" in (failure.text or "")
+
+
+def test_junit_report_replaces_xml_illegal_control_characters_in_attributes(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "tests" / "metadata-control.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "metadata-control.hurl"
+    report = build_run_report(
+        project="checkout-api",
+        environment="ci",
+        execution_copies=[
+            _execution_copy(
+                source,
+                execution,
+                operation_id="checkout\x01Create",
+            )
+        ],
+        suite=_suite_result(execution, "assert failed\n"),
+        project_root=tmp_path,
+    )
+    output = tmp_path / "reports" / "junit.xml"
+
+    write_junit_report(report, output)
+
+    xml_text = output.read_text(encoding="utf-8")
+    assert "\x01" not in xml_text
+    properties = ElementTree.parse(output).getroot().find("testcase/properties")
+    assert properties is not None
+    values = {
+        property_node.attrib["name"]: property_node.attrib["value"]
+        for property_node in properties.findall("property")
+    }
+    assert values["entroping.operation_id"] == "checkout\ufffdCreate"
+
+
 def test_load_run_report_round_trips_retry_evidence_and_ignores_malformed_entries(
     tmp_path: Path,
 ) -> None:
@@ -1671,6 +1744,36 @@ def test_render_bug_report_without_failures_returns_guidance() -> None:
     assert render_bug_report(run_report) == (
         "No failing Entroping run is available for bug report generation.\n"
     )
+
+
+@pytest.mark.parametrize(
+    ("captured_output", "expected_fence"),
+    [
+        ("before\n```text\ninjected\n```\nafter\n", "````"),
+        ("before\n````\ninjected\n````\nafter\n", "`````"),
+    ],
+)
+def test_render_bug_report_uses_fence_longer_than_captured_output(
+    tmp_path: Path,
+    captured_output: str,
+    expected_fence: str,
+) -> None:
+    source = tmp_path / "tests" / "fence.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "fence.hurl"
+    report = build_run_report(
+        project="checkout-api",
+        environment="local",
+        execution_copies=[_execution_copy(source, execution)],
+        suite=_suite_result(execution, captured_output),
+        project_root=tmp_path,
+    )
+
+    bug = render_bug_report(report)
+
+    output_section = bug.split("## Output\n\n", maxsplit=1)[1]
+    assert output_section.startswith(f"{expected_fence}text\n")
+    assert output_section.endswith(f"\n{expected_fence}\n")
+    assert captured_output.strip() in output_section
 
 
 def test_write_bug_report_writes_failure_markdown(tmp_path: Path) -> None:

@@ -1,7 +1,7 @@
 """Domain models for ``qanstitution.yaml``."""
 
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from ipaddress import ip_address
@@ -26,6 +26,8 @@ _QANSTITUTION_VERSION_MIGRATION_NOTE = (
     "Update to a supported QAnstitution version and follow the migration guidance in "
     "docs/technical/QANSTITUTION_REFERENCE.md#qanstitution-schema-compatibility."
 )
+_MAX_GATE_GROUP_EXPANSION_DEPTH = 64
+_MAX_EXPANDED_GATE_ENTRIES = 10_000
 
 
 @dataclass(frozen=True, slots=True)
@@ -430,8 +432,9 @@ def expand_qanstitution_gate_entries(
     raw_gates_value = document.get("gates", [])
     raw_gates = _sequence_from_authoring_list(raw_gates_value, field_name="gates")
     expanded: list[ExpandedGateEntry] = []
+    memoized_groups: dict[str, tuple[ExpandedGateEntry, ...]] = {}
 
-    def expand_group(group_name: str, stack: tuple[str, ...]) -> None:
+    def expand_group(group_name: str, stack: tuple[str, ...]) -> tuple[ExpandedGateEntry, ...]:
         validated_name = _validate_gate_group_name(group_name)
         if validated_name not in gate_groups:
             msg = f"Unknown gate group {validated_name!r}"
@@ -440,21 +443,46 @@ def expand_qanstitution_gate_entries(
             cycle = " -> ".join((*stack, validated_name))
             msg = f"Gate group cycle detected: {cycle}"
             raise ValueError(msg)
+        if len(stack) >= _MAX_GATE_GROUP_EXPANSION_DEPTH:
+            msg = (
+                "gate group expansion depth exceeds "
+                f"{_MAX_GATE_GROUP_EXPANSION_DEPTH}: {' -> '.join((*stack, validated_name))}"
+            )
+            raise ValueError(msg)
+        if validated_name in memoized_groups:
+            return memoized_groups[validated_name]
 
         group = gate_groups[validated_name]
         next_stack = (*stack, validated_name)
+        group_entries: list[ExpandedGateEntry] = []
         for nested_group in group.groups:
-            expand_group(nested_group, next_stack)
-        expanded.extend(ExpandedGateEntry(rule=gate, group=validated_name) for gate in group.gates)
+            _extend_with_budget(group_entries, expand_group(nested_group, next_stack))
+        _extend_with_budget(
+            group_entries,
+            (ExpandedGateEntry(rule=gate, group=validated_name) for gate in group.gates),
+        )
+        memoized_groups[validated_name] = tuple(group_entries)
+        return memoized_groups[validated_name]
 
     for raw_gate in raw_gates:
         if _is_gate_group_reference(raw_gate):
             reference = GateGroupReference.model_validate(raw_gate)
-            expand_group(reference.group, stack=())
+            _extend_with_budget(expanded, expand_group(reference.group, stack=()))
             continue
-        expanded.append(ExpandedGateEntry(rule=GateRule.model_validate(raw_gate)))
+        _extend_with_budget(expanded, (ExpandedGateEntry(rule=GateRule.model_validate(raw_gate)),))
 
     return tuple(expanded)
+
+
+def _extend_with_budget(
+    target: list[ExpandedGateEntry],
+    entries: Iterable[ExpandedGateEntry],
+) -> None:
+    for entry in entries:
+        target.append(entry)
+        if len(target) > _MAX_EXPANDED_GATE_ENTRIES:
+            msg = f"gate group expansion exceeds {_MAX_EXPANDED_GATE_ENTRIES} gate entries"
+            raise ValueError(msg)
 
 
 def _parse_gate_groups(raw_gate_groups: object) -> dict[str, GateGroup]:

@@ -80,6 +80,9 @@ def annotations_from_junit_report(path: Path) -> tuple[GitHubAnnotation, ...]:
     except ElementTree.ParseError as exc:
         msg = f"Could not parse JUnit report {path}: {exc}"
         raise GitHubAnnotationError(msg) from exc
+    except OSError as exc:
+        msg = f"Could not read JUnit report {path}: {exc}"
+        raise GitHubAnnotationError(msg) from exc
     annotations: list[GitHubAnnotation] = []
     for testcase in root.findall(".//testcase"):
         for element_name, title in (
@@ -206,6 +209,9 @@ def _load_json_object(path: Path, *, artifact: str) -> dict[str, object]:
         data = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         msg = f"Could not parse {artifact} {path}: {exc}"
+        raise GitHubAnnotationError(msg) from exc
+    except OSError as exc:
+        msg = f"Could not read {artifact} {path}: {exc}"
         raise GitHubAnnotationError(msg) from exc
     if not isinstance(data, dict):
         msg = f"{artifact.capitalize()} {path} must be a JSON object"

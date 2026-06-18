@@ -130,6 +130,18 @@ def test_store_refuses_unredacted_exchange(tmp_path: Path) -> None:
         store.record_exchange(_exchange())
 
 
+def test_store_refuses_redacted_exchange_with_secret_like_content(tmp_path: Path) -> None:
+    store = TrafficStore.open_project(tmp_path)
+    token = "sk-proj-" + ("a" * 24)
+    unsafe = _exchange(secret=token).model_copy(update={"redacted": True})
+
+    with pytest.raises(TrafficStoreError, match="unredacted secret-like traffic content") as exc:
+        store.record_exchange(unsafe)
+
+    assert token not in str(exc.value)
+    assert store.list_exchanges() == ()
+
+
 def test_store_persists_redacted_exchange_without_plaintext_secrets(tmp_path: Path) -> None:
     store = TrafficStore.open_project(tmp_path)
     redacted = redact_traffic_exchange(_exchange(secret="live-secret"))

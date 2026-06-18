@@ -112,10 +112,22 @@ uv run python scripts/opencode_readiness.py --mode verification --format json
 
 The preflight checks the active repo path, branch/worktree state, OpenCode
 binary version, required workflow files, prompt-library guardrails, required
-command help surfaces, ignored local OpenCode/Codex/artifact paths, and tracked
-local-state leaks. It does not read provider keys, MCP credentials, local
-OpenCode config values, provider transcripts, raw prompts, or `.entroping/`
-artifacts.
+command help surfaces, agent CLI toolchain policy, ignored local
+OpenCode/Codex/artifact paths, and tracked local-state leaks. It does not read
+provider keys, MCP credentials, local OpenCode config values, provider
+transcripts, raw prompts, or `.entroping/` artifacts.
+For a direct toolchain check, run:
+
+```bash
+uv run python scripts/agent_toolchain.py --mode implementation --format json
+```
+
+The toolchain report uses schema `entroping.agent-toolchain.v1` and performs
+PATH lookup only. `safe_default` tools can support normal targeted discovery,
+inspection, diff review, and measurement; `guarded_local_only` tools require a
+repo gate or explicit focused command; `manual_explicit` tools such as `act`,
+`trufflehog`, `semgrep`, `trivy`, `syft`, and `grype` must not run
+automatically.
 For another checkout layout, pass `--stale-repo-path` and
 `--expected-repo-prefix`, or set `ENTROPING_STALE_REPO_PATHS` and
 `ENTROPING_EXPECTED_REPO_PREFIX`, instead of editing the prompt-library paths.
@@ -173,7 +185,7 @@ Autonomy tier:
 <Tier A autonomous lane | Tier B assisted lane | Tier C restricted lane>
 
 Merge authority:
-<none | Tier A only after local gates, GitHub CI, PR declaration, and finish cleanup | Codex/human required>
+<Tier A autonomous after gates and green CI | Codex/human required | no merge authority>
 
 Allowed files:
 - <exact files or file families>

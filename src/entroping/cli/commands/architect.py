@@ -145,6 +145,7 @@ def architect_build(
         if law.sources is None or law.sources.spec is None or not law.sources.spec.strip():
             msg = "sources.spec is required for architect build --new"
             raise ValueError(msg)
+        spec_root = _configured_spec_root()
         spec_reference = _configured_spec_reference(law.sources.spec)
         baseline_spec_reference: Path | None = None
         if changed_from is not None:
@@ -152,7 +153,10 @@ def architect_build(
                 msg = "--changed-from requires a local OpenAPI sources.spec path"
                 raise ValueError(msg)
             baseline_spec_reference = spec_reference
-        document = load_openapi_document(spec_reference)
+        document = load_openapi_document(
+            spec_reference,
+            root=spec_root if isinstance(spec_reference, Path) else None,
+        )
         operation_ids: frozenset[str] | None = None
         if changed_from is not None and baseline_spec_reference is not None:
             base_document = load_openapi_document_at_ref(
@@ -298,6 +302,7 @@ def architect_audit(
         if law.sources is None or law.sources.spec is None or not law.sources.spec.strip():
             msg = "sources.spec is required for architect audit"
             raise ValueError(msg)
+        spec_root = _configured_spec_root()
         spec_reference = _configured_spec_reference(law.sources.spec)
         if changed_from is not None and not isinstance(spec_reference, Path):
             msg = "--changed-from requires a local OpenAPI sources.spec path"
@@ -305,7 +310,10 @@ def architect_audit(
         baseline_spec_reference: Path | None = None
         if changed_from is not None and isinstance(spec_reference, Path):
             baseline_spec_reference = spec_reference
-        document = load_openapi_document(spec_reference)
+        document = load_openapi_document(
+            spec_reference,
+            root=spec_root if isinstance(spec_reference, Path) else None,
+        )
         openapi_diff = None
         if changed_from is not None and baseline_spec_reference is not None:
             base_document = load_openapi_document_at_ref(
@@ -547,6 +555,10 @@ def _load_traffic_openapi_audit(
         raise ValueError(msg) from exc
 
 
+def _configured_spec_root() -> Path:
+    return Path("qanstitution.yaml").resolve().parent
+
+
 def _configured_spec_reference(spec: str) -> str | Path:
     parsed = urlparse(spec)
     if parsed.scheme:
@@ -555,7 +567,7 @@ def _configured_spec_reference(spec: str) -> str | Path:
     spec_path = Path(spec)
     if spec_path.is_absolute():
         return spec_path
-    return Path("qanstitution.yaml").resolve().parent / spec_path
+    return _configured_spec_root() / spec_path
 
 
 def _write_generated_hurl_file(generated: GeneratedHurlFile) -> Path:

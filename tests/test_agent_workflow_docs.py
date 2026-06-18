@@ -20,7 +20,44 @@ def test_agent_control_plane_documents_cross_agent_guardrails() -> None:
     assert "local Qwen" in doc
     assert "scripts/context_pack.sh --mode implementation" in doc
     assert "scripts/opencode_readiness.py --mode implementation" in doc
+    assert "scripts/agent_toolchain.py --mode implementation --format json" in doc
+    assert "safe_default" in doc
+    assert "guarded_local_only" in doc
+    assert "manual_explicit" in doc
     assert "No helper agent is a source of truth" in doc
+
+
+def test_agent_toolchain_policy_is_linked_from_readiness_and_agent_rules() -> None:
+    agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    control_plane = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
+        encoding="utf-8"
+    )
+    readiness = (REPO_ROOT / "scripts" / "opencode_readiness.py").read_text(
+        encoding="utf-8"
+    )
+    combined = " ".join(f"{agents}\n{control_plane}\n{readiness}".split())
+
+    required_terms = [
+        "scripts/agent_toolchain.py",
+        "entroping.agent-toolchain.v1",
+        "PATH lookup only",
+        "safe_default",
+        "guarded_local_only",
+        "manual_explicit",
+        "Do not run automatically",
+        "not scan home directories",
+        "provider config",
+        "local secret stores",
+        "act",
+        "trufflehog",
+        "semgrep",
+        "trivy",
+        "syft",
+        "grype",
+    ]
+
+    for term in required_terms:
+        assert term in combined
 
 
 def test_prompt_library_includes_architecture_boundary_brief_template() -> None:
@@ -405,6 +442,59 @@ def test_prompt_library_includes_opencode_desktop_one_shot_prompt() -> None:
         "| [OpenCode Desktop one-shot](opencode-desktop-one-shot.md) |"
         in readme
     )
+
+
+def test_prompt_library_includes_prompt_selection_matrix() -> None:
+    readme = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "README.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(readme.split())
+
+    required_terms = [
+        "## Prompt Selection Matrix",
+        "| Prompt | Use When | Runner |",
+        "`codex-session-handoff.md`",
+        "`issue-worker.md`",
+        "`opencode-desktop-one-shot.md`",
+        "`opencode-desktop-handoff.md`",
+        "`opencode-codex-review-request.md`",
+        "`deepseek-opencode-review.md`",
+        "`model-output-acceptance-gate.md`",
+        "`model-comparison-trial.md`",
+        "`codex-outage-daily-operations.md`",
+        "`opencode-week-monitoring.md`",
+        "`multi-agent-marathon.md`",
+        "`spark-safe-worker.md`",
+        "`architecture-boundary-brief.md`",
+        "`engineering-health-review.md`",
+        "`claude-code-review.md`",
+        "`gemini-review.md`",
+        "`security-review.md`",
+        "`pr-review-merge-gate.md`",
+        "`ci-failure-debug.md`",
+        "`bug-bash.md`",
+        "`backlog-triage.md`",
+        "`after-sleep-status.md`",
+        "`thread-steering.md`",
+        "`roadmap-progress-refresh.md`",
+        "`launch-readiness-review.md`",
+        "`stable-core-audit.md`",
+        "`context-reconciliation.md`",
+        "## Quick Selection Rules",
+        "I want OpenCode Desktop + DeepSeek to just work",
+        "`opencode-desktop-one-shot.md`",
+        "A cheap model produced a large patch or review; should I trust it?",
+        "`model-output-acceptance-gate.md`",
+        "Codex limit is low; keep moving safely",
+        "`codex-outage-daily-operations.md`",
+        "Before merge, is this PR safe?",
+        "`pr-review-merge-gate.md`",
+        "Find code quality, design, security, and documentation problems",
+        "`engineering-health-review.md`",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
 
 
 def test_prompt_library_includes_model_comparison_trial_prompt() -> None:

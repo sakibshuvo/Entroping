@@ -175,11 +175,22 @@ def _discover_hurl_files(roots: Sequence[Path]) -> list[Path]:
         for path in root.rglob("*.hurl"):
             if not path.is_file() or path.is_symlink():
                 continue
-            if _is_ignored_path(path, root):
+            resolved_path = path.resolve()
+            if not _is_within_root(resolved_path, root):
                 continue
-            candidates.append(path.resolve())
+            if _is_ignored_path(path, root) or _is_ignored_path(resolved_path, root):
+                continue
+            candidates.append(resolved_path)
 
     return sorted(set(candidates), key=lambda path: str(path))
+
+
+def _is_within_root(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
 
 
 def _is_ignored_path(path: Path, root: Path) -> bool:

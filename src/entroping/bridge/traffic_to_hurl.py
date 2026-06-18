@@ -13,8 +13,11 @@ from dataclasses import dataclass
 from entroping.bridge.traffic_sessions import TrafficSessionCandidate, TrafficSessionRecord
 from entroping.models.secrets import REDACTED, is_sensitive_key
 from entroping.models.traffic import TrafficBody, TrafficResponse
+from entroping.models.traffic_redaction import redacted_traffic_violation_summary
 
 _SAFE_FILE_STEM_RE = re.compile(r"[^A-Za-z0-9_.-]+")
+_HTTP_METHOD_TOKEN_RE = re.compile(r"^[A-Z]+(?:-[A-Z]+)*$")
+_HTTP_HEADER_NAME_RE = re.compile(r"^[A-Za-z0-9!#$%&'*+.^_`|~-]+$")
 _JSONPATH_FIELD_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _HURL_REQUEST_LINE_RE = re.compile(
     r"^(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|CONNECT|TRACE)\s+\S+(?:\s+.*)?$",
@@ -114,14 +117,18 @@ def _render_record(record: TrafficSessionRecord, *, golden: bool) -> list[str]:
     if not exchange.redacted:
         msg = "traffic-to-Hurl compilation requires redacted traffic"
         raise TrafficHurlCompilationError(msg)
+    violation_summary = redacted_traffic_violation_summary(exchange)
+    if violation_summary is not None:
+        raise TrafficHurlCompilationError(violation_summary)
     if exchange.response is None:
         msg = "traffic-to-Hurl compilation requires response records"
         raise TrafficHurlCompilationError(msg)
 
+    method = _safe_request_method(exchange.request.method)
     lines = [
         f"# entroping: role={record.role}",
         f"# entroping: captured_at={exchange.captured_at.isoformat()}",
-        f"{exchange.request.method} {_safe_hurl_line_value(exchange.request.url, 'request URL')}",
+        f"{method} {_safe_hurl_line_value(exchange.request.url, 'request URL')}",
     ]
     lines.extend(_render_request_headers(exchange.request.headers))
     request_body = _request_body_text(exchange.request.body)
@@ -139,10 +146,11 @@ def _render_record(record: TrafficSessionRecord, *, golden: bool) -> list[str]:
 def _render_request_headers(headers: dict[str, str]) -> list[str]:
     rendered: list[str] = []
     for name, value in headers.items():
-        if name.lower() in _HOP_BY_HOP_REQUEST_HEADERS:
+        safe_name = _safe_header_name(name)
+        if safe_name.lower() in _HOP_BY_HOP_REQUEST_HEADERS:
             continue
         rendered.append(
-            f"{name}: {_safe_hurl_line_value(value, f'header {name!r}')}"
+            f"{safe_name}: {_safe_hurl_line_value(value, f'header {safe_name!r}')}"
         )
     return rendered
 
@@ -191,7 +199,8 @@ def _golden_assertions(response: TrafficResponse) -> list[str]:
     content_type = _header_value(response.headers, "content-type")
     if content_type is not None and _is_textual_content_type(content_type):
         media_type = _media_type(content_type)
-        assertions.append(f'header "Content-Type" contains "{media_type}"')
+        if _safe_assertion_text(media_type):
+            assertions.append(f'header "Content-Type" contains "{media_type}"')
 
     body = response.body
     if (
@@ -277,6 +286,33 @@ def _safe_file_stem(name: str) -> str:
     return stem
 
 
+def _safe_request_method(value: str) -> str:
+    if _contains_control(value):
+        msg = "request method contains control characters"
+        raise TrafficHurlCompilationError(msg)
+    if _has_hurl_template_delimiter(value):
+        msg = "request method contains Hurl template delimiters"
+        raise TrafficHurlCompilationError(msg)
+    method = value.strip().upper()
+    if _HTTP_METHOD_TOKEN_RE.fullmatch(method) is None:
+        msg = "request method must be an HTTP token"
+        raise TrafficHurlCompilationError(msg)
+    return method
+
+
+def _safe_header_name(value: str) -> str:
+    if _contains_control(value):
+        msg = "header name contains control characters"
+        raise TrafficHurlCompilationError(msg)
+    if _has_hurl_template_delimiter(value):
+        msg = "header name contains Hurl template delimiters"
+        raise TrafficHurlCompilationError(msg)
+    if _HTTP_HEADER_NAME_RE.fullmatch(value) is None:
+        msg = "header name must be an HTTP token"
+        raise TrafficHurlCompilationError(msg)
+    return value
+
+
 def _safe_hurl_line_value(value: str, context: str) -> str:
     if _contains_control(value):
         msg = f"{context} contains control characters"
@@ -285,6 +321,10 @@ def _safe_hurl_line_value(value: str, context: str) -> str:
         msg = f"{context} contains Hurl template delimiters"
         raise TrafficHurlCompilationError(msg)
     return value
+
+
+def _safe_assertion_text(value: str) -> bool:
+    return not (_contains_control(value) or _has_hurl_template_delimiter(value))
 
 
 def _contains_control(value: str) -> bool:
