@@ -2,6 +2,10 @@
 
 ## 2026-06-18
 
+- Fixed issue #843's traffic-to-Hurl header name boundary:
+  freeze-generated Hurl now validates header names during compilation,
+  rejecting control characters, invalid field-name tokens, and Hurl template
+  delimiters even when traffic model validation was bypassed.
 - Fixed issue #842's traffic-to-Hurl request method boundary:
   freeze-generated Hurl now validates and normalizes request methods during
   compilation, rejecting control characters, whitespace, and Hurl template

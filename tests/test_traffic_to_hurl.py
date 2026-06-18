@@ -324,6 +324,57 @@ def test_compile_traffic_session_rejects_unsafe_filename_and_line_values() -> No
 
 
 @pytest.mark.parametrize(
+    ("header_name", "message"),
+    [
+        ("Bad\nName", "header name contains control"),
+        ("Bad:Name", "header name must be an HTTP token"),
+        ("Bad Name", "header name must be an HTTP token"),
+        ("{{Bad}}", "header name contains Hurl template"),
+    ],
+)
+def test_compile_traffic_session_rejects_unsafe_header_names(
+    header_name: str,
+    message: str,
+) -> None:
+    safe = build_traffic_session_candidate([_exchange()], name="safe", target_url=None)
+    unsafe_request = TrafficRequest.model_construct(
+        method="GET",
+        url="https://api.example.test/checkout",
+        headers={header_name: "safe"},
+        body=None,
+    )
+    unsafe_exchange = safe.records[0].exchange.model_copy(update={"request": unsafe_request})
+    unsafe_session = TrafficSessionCandidate(
+        name="unsafe_header_name",
+        target_origin=None,
+        records=(TrafficSessionRecord(exchange=unsafe_exchange, role="observed"),),
+    )
+
+    with pytest.raises(TrafficHurlCompilationError, match=message):
+        compile_traffic_session_to_hurl(unsafe_session, golden=False)
+
+
+def test_compile_traffic_session_preserves_valid_constructed_header_names() -> None:
+    safe = build_traffic_session_candidate([_exchange()], name="safe", target_url=None)
+    request = TrafficRequest.model_construct(
+        method="GET",
+        url="https://api.example.test/checkout",
+        headers={"X-Trace-Id": "safe"},
+        body=None,
+    )
+    exchange = safe.records[0].exchange.model_copy(update={"request": request})
+    session = TrafficSessionCandidate(
+        name="valid_header_name",
+        target_origin=None,
+        records=(TrafficSessionRecord(exchange=exchange, role="observed"),),
+    )
+
+    generated = compile_traffic_session_to_hurl(session, golden=False)
+
+    assert "X-Trace-Id: safe" in generated.content
+
+
+@pytest.mark.parametrize(
     ("method", "message"),
     [
         ("GET\nPOST", "request method contains control"),
