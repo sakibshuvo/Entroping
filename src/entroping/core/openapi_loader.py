@@ -6,12 +6,18 @@ from urllib.parse import urlparse
 
 import yaml
 
+from entroping.core.path_safety import first_symlink_path_component
+
 
 class OpenApiLoadError(ValueError):
     """Raised when a local OpenAPI document cannot be loaded safely."""
 
 
-def load_openapi_document(path: str | Path) -> Mapping[str, object]:
+def load_openapi_document(
+    path: str | Path,
+    *,
+    root: Path | None = None,
+) -> Mapping[str, object]:
     """Load a local OpenAPI YAML or JSON file as a string-keyed mapping."""
 
     raw_path = str(path).strip()
@@ -24,11 +30,36 @@ def load_openapi_document(path: str | Path) -> Mapping[str, object]:
         raise OpenApiLoadError(msg)
 
     candidate = Path(raw_path).expanduser()
-    if candidate.is_symlink():
+    root_path = root.expanduser().resolve() if root is not None else None
+    if root_path is not None and not candidate.is_absolute():
+        candidate = root_path / candidate
+
+    if root_path is not None:
+        try:
+            candidate.relative_to(root_path)
+        except ValueError as exc:
+            msg = f"OpenAPI spec must be inside project root: {candidate}"
+            raise OpenApiLoadError(msg) from exc
+        else:
+            symlink_component = first_symlink_path_component(candidate, root=root_path)
+            if symlink_component is not None:
+                msg = (
+                    "Refusing to load symlinked OpenAPI spec path component: "
+                    f"{symlink_component}"
+                )
+                raise OpenApiLoadError(msg)
+    elif candidate.is_symlink():
         msg = f"Refusing to load symlinked OpenAPI spec: {candidate}"
         raise OpenApiLoadError(msg)
 
     resolved = candidate.resolve()
+    if root_path is not None:
+        try:
+            resolved.relative_to(root_path)
+        except ValueError as exc:
+            msg = f"OpenAPI spec must be inside project root: {candidate}"
+            raise OpenApiLoadError(msg) from exc
+
     if not resolved.is_file():
         msg = f"OpenAPI spec file not found: {resolved}"
         raise OpenApiLoadError(msg)

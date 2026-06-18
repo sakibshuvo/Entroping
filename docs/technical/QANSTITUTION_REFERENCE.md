@@ -275,6 +275,12 @@ sources:
 | `graph` | GraphQL schema input |
 | `types` | TypeSpec or future schema input |
 
+Primary-service `sources.spec` must reference a local file inside the project
+root. Architect rejects remote primary specs, parent/root escapes, and symlinked
+path components before reading the file. Dependency specs have a separate
+contract and may point at sibling services or HTTP(S) inputs when a command
+supports them.
+
 ## 6. Dependencies
 
 Dependencies describe provider services that this service consumes. They are not governance imports; they are source context for Architect generation, mock validation, and cross-service compatibility checks.
