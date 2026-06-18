@@ -2,6 +2,9 @@
 
 ## 2026-06-18
 
+- Fixed issue #874's failure-bundle metadata redaction boundary:
+  `hurl-metadata.json` now preserves discovered metadata keys while redacting
+  secret-like metadata values before local bug-handoff bundles are written.
 - Fixed issue #838's policy-pack manifest provenance boundary:
   `manifest.source` now validates as local provenance evidence, preserving `.`
   while rejecting remote, absolute, traversal, control-character, and empty
