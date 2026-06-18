@@ -1499,3 +1499,7 @@
   writes now require a project root and pass it to the safe writer, so
   `entroping report badges` rejects absolute outside-project output directories
   without creating partial Shields endpoint files.
+- Closed issue #845's run-delta comparison-context gap: run-delta reports now
+  reject project or environment mismatches before indexing test paths, so
+  `entroping report delta` cannot produce misleading regression evidence across
+  unrelated projects or environments.
