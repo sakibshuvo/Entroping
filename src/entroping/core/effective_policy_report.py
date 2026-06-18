@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 from entroping.bridge.effective_policy import (
     EffectivePolicyReport,
@@ -30,24 +30,33 @@ class EffectivePolicyReportResult:
 def run_effective_policy_report(
     *,
     project_root: Path,
-    output: EffectivePolicyOutput,
+    output: str,
 ) -> EffectivePolicyReportResult:
     """Load local QAnstitution evidence and write a report artifact."""
 
     root = project_root.expanduser().resolve()
+    normalized_output = _normalize_output(output)
     try:
         evidence = load_qanstitution_evidence(root / "qanstitution.yaml")
         report = compile_effective_policy_report(evidence, root=root)
     except QanstitutionLoadError as exc:
         raise EffectivePolicyReportError(str(exc)) from exc
 
-    content = _render_report(report, output)
-    output_path = root / "reports" / f"effective-policy.{output}"
+    content = _render_report(report, normalized_output)
+    output_path = root / "reports" / f"effective-policy.{normalized_output}"
     try:
         safe_write_text(output_path, content, artifact="effective policy report", root=root)
     except SafeWriteError as exc:
         raise EffectivePolicyReportError(str(exc)) from exc
     return EffectivePolicyReportResult(output_path=output_path, report=report)
+
+
+def _normalize_output(output: str) -> EffectivePolicyOutput:
+    normalized = output.strip().lower()
+    if normalized not in {"md", "json"}:
+        msg = f"Unsupported effective policy output: {output}"
+        raise EffectivePolicyReportError(msg)
+    return cast(EffectivePolicyOutput, normalized)
 
 
 def _render_report(report: EffectivePolicyReport, output: EffectivePolicyOutput) -> str:

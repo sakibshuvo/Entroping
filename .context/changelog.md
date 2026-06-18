@@ -1503,3 +1503,6 @@
   reject project or environment mismatches before indexing test paths, so
   `entroping report delta` cannot produce misleading regression evidence across
   unrelated projects or environments.
+- Closed issue #840's effective-policy output-format gap: the core report
+  workflow now rejects unsupported output formats before loading QAnstitution or
+  writing artifacts, preserving the existing Markdown and JSON report behavior.

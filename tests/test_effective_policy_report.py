@@ -170,6 +170,18 @@ def test_run_effective_policy_report_writes_json_and_markdown(tmp_path: Path) ->
     assert payload["gates"][0]["source_path"] == "rules/security.yaml"
 
 
+def test_run_effective_policy_report_rejects_unsupported_output_before_loading(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(EffectivePolicyReportError, match="Unsupported effective policy output"):
+        run_effective_policy_report(
+            project_root=tmp_path,
+            output="html",
+        )
+
+    assert not (tmp_path / "reports").exists()
+
+
 def test_run_effective_policy_report_wraps_load_errors(tmp_path: Path) -> None:
     _write_yaml(tmp_path / "qanstitution.yaml", "project: [")
 
