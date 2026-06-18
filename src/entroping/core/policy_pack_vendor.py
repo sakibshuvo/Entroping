@@ -375,6 +375,7 @@ def _validate_policy_pack(pack_path: Path) -> _ValidatedPolicyPack:
     for field in _REQUIRED_STRING_FIELDS:
         _string_field(manifest, field)
     pack_id = _string_field(manifest, "id")
+    _manifest_source_reference(_string_field(manifest, "source"))
     runtime_contract = _string_field(manifest, "runtime_contract")
     if runtime_contract != "qanstitution-import":
         msg = "runtime_contract must be 'qanstitution-import'"
@@ -490,6 +491,21 @@ def _string_list_field(document: Mapping[str, object], field: str) -> tuple[str,
             raise PolicyPackVendorError(msg)
         result.append(item.strip())
     return tuple(sorted(result))
+
+
+def _manifest_source_reference(value: str) -> str:
+    if any(ord(char) < 32 or ord(char) == 127 for char in value):
+        msg = "manifest source must not contain control characters"
+        raise PolicyPackVendorError(msg)
+    parsed = urlparse(value)
+    path = Path(value)
+    if parsed.scheme or parsed.netloc or value.startswith("git@") or path.is_absolute():
+        msg = f"manifest source must be a local relative path: {value}"
+        raise PolicyPackVendorError(msg)
+    if ".." in path.parts:
+        msg = f"manifest source must not contain traversal: {value}"
+        raise PolicyPackVendorError(msg)
+    return path.as_posix()
 
 
 def _pack_relative_path(value: str, *, field: str) -> str:
