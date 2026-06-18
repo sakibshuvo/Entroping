@@ -29,6 +29,10 @@
   redacted Eye traffic now strips URL fragments before persistence so
   fragment-borne OAuth or token-like values cannot survive in traffic state,
   reports, or generated artifacts.
+- Fixed issue #876's traffic URL path redaction gap:
+  redacted Eye traffic now replaces secret-like URL path segments with an
+  encoded redaction marker while preserving ordinary route shape and existing
+  userinfo, query, and fragment protections.
 - Fixed issue #836's GitHub annotation artifact error handling:
   unreadable JUnit XML or drift JSON report paths now raise controlled
   `GitHubAnnotationError` messages instead of leaking raw filesystem
