@@ -2,6 +2,10 @@
 
 ## 2026-06-18
 
+- Fixed issue #866's review-summary malformed tests boundary:
+  review-summary generation now rejects run reports whose `tests` payload is
+  not a list, preserving valid empty lists while preventing malformed evidence
+  from being rendered as a passing or underreported review artifact.
 - Fixed issue #868's drift report schema boundary:
   GitHub annotation and SARIF generation now reject drift evidence unless it
   declares the supported drift-report schema version, preserving valid drift
