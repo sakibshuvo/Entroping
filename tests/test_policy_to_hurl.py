@@ -132,7 +132,21 @@ def test_compile_gate_assertion_rejects_invalid_rule_ids(gate_id: str) -> None:
         compile_gate_assertion(gate)
 
 
-@pytest.mark.parametrize("assertion", ["", "  ", "status == 200\nheader exists", "status\r== 200"])
+@pytest.mark.parametrize(
+    "assertion",
+    [
+        "",
+        "  ",
+        "\nstatus == 200",
+        "status == 200\nheader exists",
+        "status\r== 200",
+        "status\x00== 200",
+        "status\x1f== 200",
+        "status\x7f== 200",
+        "status\u2028== 200",
+        "status\u2029== 200",
+    ],
+)
 def test_compile_gate_assertion_rejects_empty_or_multiline_assertions(assertion: str) -> None:
     gate = GateRule.model_construct(
         id="must_check_status",
@@ -147,7 +161,10 @@ def test_compile_gate_assertion_rejects_empty_or_multiline_assertions(assertion:
         compile_gate_assertion(gate)
 
 
-@pytest.mark.parametrize("assertion", ["# no-op", "[Options]", "[Asserts]"])
+@pytest.mark.parametrize(
+    "assertion",
+    ["# no-op", "\u00a0# no-op", "[", "[Options", "[Options]", "[Asserts]"],
+)
 def test_compile_gate_assertion_rejects_non_executable_lines(assertion: str) -> None:
     gate = GateRule.model_construct(
         id="must_check_status",

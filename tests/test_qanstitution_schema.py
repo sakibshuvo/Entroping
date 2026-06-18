@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from entroping.models.conditions import CONDITION_JSON_SCHEMA_PATTERN
 from entroping.models.qanstitution import (
+    GATE_ASSERTION_JSON_SCHEMA_PATTERN,
     SUPPORTED_QANSTITUTION_VERSIONS,
     GateGroupReference,
     GateRule,
@@ -53,6 +54,7 @@ def test_qanstitution_schema_contract_covers_current_runtime_shape() -> None:
     gate_properties = _object(gate_rule["properties"])
     gate_group_properties = _object(gate_group["properties"])
     condition_schema = _object(gate_properties["condition"])
+    gate_schema = _object(gate_properties["gate"])
     version_schema = _object(properties["version"])
     agents_schema = _object(properties["agents"])
     agent_names = _object(agents_schema["propertyNames"])
@@ -79,6 +81,9 @@ def test_qanstitution_schema_contract_covers_current_runtime_shape() -> None:
     assert "anyOf" in _object(gates_schema["items"])
     assert "protected_environments" in settings_properties
     assert condition_schema["pattern"] == CONDITION_JSON_SCHEMA_PATTERN
+    assert gate_schema["minLength"] == 1
+    assert gate_schema["pattern"] == GATE_ASSERTION_JSON_SCHEMA_PATTERN
+    assert "Single executable Hurl assertion line" in str(gate_schema["description"])
     assert version_schema["enum"] == [*SUPPORTED_QANSTITUTION_VERSIONS, None]
     assert "schema compatibility marker" in str(version_schema["description"])
     assert "local loopback" in str(
@@ -172,6 +177,52 @@ def test_gate_rule_normalizes_surrounding_gate_id_whitespace() -> None:
     )
 
     assert gate.id == "global_latency"
+
+
+@pytest.mark.parametrize(
+    ("assertion", "message"),
+    [
+        ("", "gate assertion must not be blank"),
+        ("  ", "gate assertion must not be blank"),
+        ("status == 200\nheader exists", "gate assertion must not contain control characters"),
+        ("status\r== 200", "gate assertion must not contain control characters"),
+        ("status\x00== 200", "gate assertion must not contain control characters"),
+        ("status\u2028== 200", "gate assertion must not contain control characters"),
+        ("status\u2029== 200", "gate assertion must not contain control characters"),
+        ("# no-op", "gate assertion must be executable Hurl"),
+        ("\u00a0# no-op", "gate assertion must be executable Hurl"),
+        ("[", "gate assertion must be executable Hurl"),
+        ("[Options", "gate assertion must be executable Hurl"),
+        ("[Options]", "gate assertion must be executable Hurl"),
+        ("[Asserts]", "gate assertion must be executable Hurl"),
+    ],
+)
+def test_gate_rule_rejects_invalid_gate_assertions(
+    assertion: str,
+    message: str,
+) -> None:
+    with pytest.raises(ValidationError, match=message):
+        GateRule.model_validate(
+            {
+                "id": "must_check_status",
+                "condition": "true",
+                "gate": assertion,
+                "enforcement": "block",
+            }
+        )
+
+
+def test_gate_rule_normalizes_surrounding_gate_assertion_whitespace() -> None:
+    gate = GateRule.model_validate(
+        {
+            "id": "must_check_status",
+            "condition": "true",
+            "gate": "  duration < 2000  ",
+            "enforcement": "block",
+        }
+    )
+
+    assert gate.gate == "duration < 2000"
 
 
 def test_qanstitution_settings_normalize_and_validate_protected_environments() -> None:

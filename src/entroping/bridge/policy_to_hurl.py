@@ -16,6 +16,8 @@ from entroping.models.conditions import (
 from entroping.models.hurl import HurlExchange, HurlTest
 from entroping.models.qanstitution import Enforcement, GateRule
 
+_GATE_ASSERTION_LINE_SEPARATOR_CODEPOINTS = frozenset({0x2028, 0x2029})
+
 
 class GateCompilationError(ValueError):
     """Raised when a QAnstitution gate cannot be compiled safely."""
@@ -58,11 +60,19 @@ def compile_gate_assertion(gate: GateRule) -> HurlGateAssertion:
         msg = f"Gate {gate.id!r} has an invalid rule id for Hurl injection"
         raise GateCompilationError(msg)
 
-    assertion = gate.gate.strip()
-    if not assertion or "\n" in assertion or "\r" in assertion:
+    if any(
+        ord(character) < 32
+        or ord(character) == 127
+        or ord(character) in _GATE_ASSERTION_LINE_SEPARATOR_CODEPOINTS
+        for character in gate.gate
+    ):
         msg = f"Gate {gate.id!r} has an invalid Hurl assertion"
         raise GateCompilationError(msg)
-    if assertion.startswith("#") or (assertion.startswith("[") and assertion.endswith("]")):
+    assertion = gate.gate.strip()
+    if not assertion:
+        msg = f"Gate {gate.id!r} has an invalid Hurl assertion"
+        raise GateCompilationError(msg)
+    if assertion.startswith("#") or assertion.startswith("["):
         msg = f"Gate {gate.id!r} does not contain an executable Hurl assertion"
         raise GateCompilationError(msg)
 

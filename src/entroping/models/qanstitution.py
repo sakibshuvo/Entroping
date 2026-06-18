@@ -28,6 +28,10 @@ _QANSTITUTION_VERSION_MIGRATION_NOTE = (
 )
 _MAX_GATE_GROUP_EXPANSION_DEPTH = 64
 _MAX_EXPANDED_GATE_ENTRIES = 10_000
+_GATE_ASSERTION_LINE_SEPARATOR_CODEPOINTS = frozenset({0x2028, 0x2029})
+GATE_ASSERTION_JSON_SCHEMA_PATTERN = (
+    r"^(?!\s*$)(?!\s*#)(?!\s*\[)[^\u0000-\u001F\u007F\u2028\u2029]+$"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -202,7 +206,16 @@ class GateRule(BaseModel):
             "pattern": CONDITION_JSON_SCHEMA_PATTERN,
         }
     )
-    gate: str
+    gate: str = Field(
+        json_schema_extra={
+            "description": (
+                "Single executable Hurl assertion line. Must not be blank, "
+                "comment-only, a section header, or contain control characters."
+            ),
+            "minLength": 1,
+            "pattern": GATE_ASSERTION_JSON_SCHEMA_PATTERN,
+        }
+    )
     enforcement: Enforcement
     description: str | None = None
     final: bool = False
@@ -213,6 +226,13 @@ class GateRule(BaseModel):
         """Reject gate IDs that cannot safely identify executable policy."""
 
         return _validate_gate_id(value)
+
+    @field_validator("gate")
+    @classmethod
+    def validate_gate_assertion(cls, value: str) -> str:
+        """Reject gate assertions that cannot safely compile into Hurl."""
+
+        return _validate_gate_assertion(value)
 
     @field_validator("condition")
     @classmethod
@@ -543,6 +563,25 @@ def _validate_gate_id(value: str) -> str:
         msg = "gate id must not be blank"
         raise ValueError(msg)
     return gate_id
+
+
+def _validate_gate_assertion(value: str) -> str:
+    if any(
+        ord(character) < 32
+        or ord(character) == 127
+        or ord(character) in _GATE_ASSERTION_LINE_SEPARATOR_CODEPOINTS
+        for character in value
+    ):
+        msg = "gate assertion must not contain control characters"
+        raise ValueError(msg)
+    assertion = value.strip()
+    if not assertion:
+        msg = "gate assertion must not be blank"
+        raise ValueError(msg)
+    if assertion.startswith("#") or assertion.startswith("["):
+        msg = "gate assertion must be executable Hurl"
+        raise ValueError(msg)
+    return assertion
 
 
 def _looks_like_secret(value: str) -> bool:
