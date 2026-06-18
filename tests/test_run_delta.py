@@ -158,3 +158,61 @@ def test_run_delta_rejects_duplicate_or_unsafe_test_paths() -> None:
     unsafe = _report(_test("tests/bad\npath.hurl"))
     with pytest.raises(RunDeltaError, match="unsafe test path"):
         build_run_delta_report(base=safe, current=unsafe)
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "tests/bad\x00path.hurl",
+        "tests/bad\rpath.hurl",
+        "tests/bad\tpath.hurl",
+        "tests/bad\x7fpath.hurl",
+    ],
+)
+def test_run_delta_rejects_control_character_test_paths(path: str) -> None:
+    safe = _report(_test("tests/health.hurl"))
+    unsafe = _report(_test(path, status="failed", exit_code=1))
+
+    with pytest.raises(RunDeltaError, match="current report contains unsafe test path"):
+        build_run_delta_report(base=safe, current=unsafe)
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/private/tmp/outside.hurl",
+        "../outside.hurl",
+        "tests/../outside.hurl",
+        "tests/../../outside.hurl",
+        "C:\\tmp\\outside.hurl",
+        "\\\\server\\share\\outside.hurl",
+    ],
+)
+@pytest.mark.parametrize("side", ["base", "current"])
+def test_run_delta_rejects_absolute_or_traversal_test_paths(path: str, side: str) -> None:
+    safe = _report(_test("tests/health.hurl"))
+    unsafe = _report(_test(path, status="failed", exit_code=1))
+
+    with pytest.raises(RunDeltaError, match=f"{side} report contains unsafe test path"):
+        if side == "base":
+            build_run_delta_report(base=unsafe, current=safe)
+        else:
+            build_run_delta_report(base=safe, current=unsafe)
+
+
+def test_run_delta_preserves_valid_project_relative_hurl_paths() -> None:
+    path = "tests/generated/checkout_flow.hurl"
+    base = _report(_test(path, duration_ms=10))
+    current = _report(_test(path, duration_ms=25))
+
+    report = build_run_delta_report(base=base, current=current)
+
+    assert report.latency_deltas[0].path == path
+    assert run_delta_report_to_dict(report)["latency_deltas"] == [
+        {
+            "path": path,
+            "base_duration_ms": 10,
+            "current_duration_ms": 25,
+            "delta_ms": 15,
+        }
+    ]

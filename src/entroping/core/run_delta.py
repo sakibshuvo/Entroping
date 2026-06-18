@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from html import escape
+from pathlib import PurePosixPath, PureWindowsPath
 from typing import cast
 
 from entroping.models.report import RunReport, RunTestReport
@@ -211,7 +212,7 @@ def _index_tests(tests: tuple[RunTestReport, ...], *, side: str) -> dict[str, Ru
     indexed: dict[str, RunTestReport] = {}
     for test in tests:
         path = test.path.strip()
-        if not path or _has_control_character(path):
+        if _is_unsafe_test_path(path):
             msg = f"{side} report contains unsafe test path"
             raise RunDeltaError(msg)
         if path in indexed:
@@ -375,3 +376,17 @@ def _markdown_cell(value: str) -> str:
 
 def _has_control_character(value: str) -> bool:
     return any(ord(character) < 32 or ord(character) == 127 for character in value)
+
+
+def _is_unsafe_test_path(value: str) -> bool:
+    if not value or _has_control_character(value):
+        return True
+    posix_path = PurePosixPath(value)
+    windows_path = PureWindowsPath(value)
+    return (
+        posix_path.is_absolute()
+        or windows_path.is_absolute()
+        or bool(windows_path.drive)
+        or ".." in posix_path.parts
+        or ".." in windows_path.parts
+    )
