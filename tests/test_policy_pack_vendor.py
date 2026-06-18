@@ -235,6 +235,23 @@ def test_self_test_policy_pack_reports_bad_gate_id_failure(tmp_path: Path) -> No
     assert "manifest gate ids" in result.checks[-1].message
 
 
+def test_self_test_policy_pack_rejects_manifest_gate_file_source_mismatch(
+    tmp_path: Path,
+) -> None:
+    source_pack = tmp_path / "acme-strict-api"
+    write_policy_pack(source_pack)
+    manifest = load_manifest(source_pack)
+    first_manifest_gate(manifest)["file"] = "README.md"
+    write_manifest(source_pack, manifest)
+
+    result = vendor_module.self_test_policy_pack(pack_path=source_pack)
+
+    assert result.status == "fail"
+    assert result.checks[-1].id == "manifest-entrypoint-gates"
+    assert result.checks[-1].status == "fail"
+    assert "manifest gate file must match loaded gate source" in result.checks[-1].message
+
+
 def test_self_test_policy_pack_reports_consumer_final_gate_violation(
     tmp_path: Path,
 ) -> None:
@@ -672,6 +689,7 @@ def test_vendor_policy_pack_rejects_invalid_manifest_fields(
         ("final_flag_mismatch", "manifest final flags"),
         ("final_gates_mismatch", "manifest final_gates"),
         ("missing_gate_file", "manifest gate file not found"),
+        ("gate_file_unrelated_existing", "manifest gate file must match loaded gate source"),
         ("prefix_mismatch", "declared gate prefix"),
         ("gate_file_url", "local relative path"),
         ("gate_file_escape", "inside the policy-pack directory"),
@@ -701,6 +719,8 @@ def test_vendor_policy_pack_rejects_manifest_gate_drift(
         manifest["final_gates"] = []
     elif mutator == "missing_gate_file":
         first_manifest_gate(manifest)["file"] = "policies/missing.yaml"
+    elif mutator == "gate_file_unrelated_existing":
+        first_manifest_gate(manifest)["file"] = "README.md"
     elif mutator == "prefix_mismatch":
         manifest["gate_prefixes"] = ["other-prefix"]
     elif mutator == "gate_file_url":

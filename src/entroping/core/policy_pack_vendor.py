@@ -389,6 +389,7 @@ def _validate_policy_pack(pack_path: Path) -> _ValidatedPolicyPack:
     evidence = _load_pack_entrypoint(pack_path / entrypoint)
     gate_ids = tuple(sorted(gate.rule.id for gate in evidence.gates))
     final_gate_ids = tuple(sorted(gate.rule.id for gate in evidence.gates if gate.rule.final))
+    gate_sources = {gate.rule.id: gate.source_path.resolve() for gate in evidence.gates}
 
     if tuple(gate.id for gate in manifest_gates) != gate_ids:
         msg = "manifest gate ids must match loaded gate ids"
@@ -401,8 +402,15 @@ def _validate_policy_pack(pack_path: Path) -> _ValidatedPolicyPack:
         raise PolicyPackVendorError(msg)
     for gate in manifest_gates:
         gate_file = _pack_relative_path(gate.file, field=f"gate {gate.id} file")
-        if not (pack_path / gate_file).is_file():
+        gate_path = (pack_path / gate_file).resolve()
+        if not gate_path.is_file():
             msg = f"manifest gate file not found for {gate.id}: {gate.file}"
+            raise PolicyPackVendorError(msg)
+        if gate_sources[gate.id] != gate_path:
+            msg = (
+                "manifest gate file must match loaded gate source for "
+                f"{gate.id}: {gate.file}"
+            )
             raise PolicyPackVendorError(msg)
     for gate_id in gate_ids:
         if not any(gate_id.startswith(f"{prefix}.") for prefix in gate_prefixes):
