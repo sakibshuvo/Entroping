@@ -2,16 +2,30 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import stat
 import subprocess
 import sys
 from pathlib import Path
+from types import ModuleType
 from typing import Any, cast
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "opencode_readiness.py"
+
+
+def load_readiness_module() -> ModuleType:
+    spec = importlib.util.spec_from_file_location("opencode_readiness_under_test", SCRIPT)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def write_fake_opencode(path: Path) -> Path:
@@ -96,6 +110,10 @@ def test_opencode_readiness_json_preflight_passes_with_fake_opencode(
     assert checks["required_workflow_files"]["status"] == "pass"
     assert checks["prompt_library_guardrails"]["status"] == "pass"
     assert checks["command_help_surfaces"]["status"] == "pass"
+    assert (
+        "scripts/architecture_integrity.sh --help"
+        in checks["command_help_surfaces"]["details"]["commands"]
+    )
     assert checks["agent_toolchain_policy"]["status"] in {"pass", "warn"}
     assert (
         checks["agent_toolchain_policy"]["details"]["schema_version"]
@@ -106,6 +124,66 @@ def test_opencode_readiness_json_preflight_passes_with_fake_opencode(
     assert checks["local_artifact_ignore_rules"]["status"] == "pass"
     assert checks["tracked_local_artifacts"]["status"] == "pass"
     assert "DEEPSEEK_API_KEY" not in result.stdout
+
+
+def test_opencode_readiness_requires_architecture_integrity_gate_script(
+    tmp_path: Path,
+) -> None:
+    module = load_readiness_module()
+    required_without_architecture_gate = (
+        "AGENTS.md",
+        "docs/meta/AGENT_CONTROL_PLANE.md",
+        "docs/meta/DOCS_GOVERNANCE.md",
+        "docs/meta/FEATURE_DELIVERY_CHECKLIST.md",
+        "docs/meta/prompt-library/opencode-desktop-handoff.md",
+        "docs/meta/prompt-library/codex-outage-daily-operations.md",
+        "docs/meta/prompt-library/issue-worker.md",
+        "scripts/start_issue.sh",
+        "scripts/finish_issue.sh",
+        "scripts/context_pack.sh",
+        "scripts/agent_toolchain.py",
+        "scripts/opencode_worker.py",
+        "scripts/deepseek_worker.py",
+        "scripts/ai_jobs.py",
+        "scripts/pr_body_check.py",
+        "scripts/factory_metrics.py",
+    )
+    for relative_path in required_without_architecture_gate:
+        path = tmp_path / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("placeholder\n", encoding="utf-8")
+
+    result = module._check_required_files(tmp_path)
+
+    assert result.status == "fail"
+    assert "scripts/architecture_integrity.sh" in result.details["missing"]
+
+
+def test_opencode_readiness_reports_unrunnable_architecture_gate_script(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_readiness_module()
+    script = tmp_path / "scripts" / "architecture_integrity.sh"
+    script.parent.mkdir(parents=True)
+    script.write_text(
+        "#!/usr/bin/env bash\n"
+        "printf 'architecture integrity provider-free access the network read secrets\\n'\n",
+        encoding="utf-8",
+    )
+    script.chmod(stat.S_IRUSR | stat.S_IWUSR)
+    monkeypatch.setattr(
+        module,
+        "COMMAND_HELP_CHECKS",
+        ((("scripts/architecture_integrity.sh", "--help"), ("architecture integrity",)),),
+    )
+
+    result = module._check_command_help_surfaces(tmp_path)
+
+    assert result.status == "fail"
+    failure = result.details["failures"]["scripts/architecture_integrity.sh --help"]
+    assert failure["returncode"] is None
+    assert "could not execute command" in str(failure["error"])
 
 
 def test_opencode_readiness_implementation_mode_rejects_main_branch(

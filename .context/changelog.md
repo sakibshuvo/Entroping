@@ -2,6 +2,11 @@
 
 ## 2026-06-18
 
+- Added issue #775's architecture-gate OpenCode readiness check:
+  `scripts/opencode_readiness.py` now requires
+  `scripts/architecture_integrity.sh` and verifies its value-free help surface
+  before independent OpenCode implementation sessions, without running Hurl,
+  calling providers, touching the network, or reading secrets.
 - Fixed issue #798's OpenCode PR evidence spoofing gap:
   `scripts/pr_body_check.py` now validates gate evidence from structured
   `Commands run` blocks or checked items instead of arbitrary PR prose,
