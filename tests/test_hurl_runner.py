@@ -447,6 +447,41 @@ def test_run_hurl_file_passes_variables_as_argument_array_and_redacts_values(
     assert "base_url=[REDACTED]" in result.stdout
 
 
+def test_variables_file_is_removed_when_write_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    variables_file = tmp_path / "entroping-hurl-vars.env"
+    variables_file.write_text("partial\n", encoding="utf-8")
+
+    class FailingVariablesFile:
+        name = str(variables_file)
+
+        def __enter__(self) -> "FailingVariablesFile":
+            return self
+
+        def __exit__(self, *exc_info: object) -> None:
+            return None
+
+        def write(self, content: str) -> int:
+            _ = content
+            raise OSError("disk full")
+
+    def fail_named_temporary_file(*args: object, **kwargs: object) -> FailingVariablesFile:
+        _ = args, kwargs
+        return FailingVariablesFile()
+
+    monkeypatch.setattr(
+        "entroping.core.hurl_runner.tempfile.NamedTemporaryFile",
+        fail_named_temporary_file,
+    )
+
+    with pytest.raises(OSError, match="disk full"):
+        hurl_runner._write_variables_file({"base_url": "http://localhost:8080"})
+
+    assert not variables_file.exists()
+
+
 def test_run_hurl_file_returns_failed_result_for_non_zero_exit(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

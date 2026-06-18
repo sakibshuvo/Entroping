@@ -919,6 +919,51 @@ def test_vendor_policy_pack_rolls_back_temporary_write_failure(
     assert not (project_root / "policy-packs" / "acme-strict-api").exists()
 
 
+def test_vendor_policy_pack_removes_temporary_file_when_write_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_root = tmp_path / "consumer"
+    source_pack = tmp_path / "acme-strict-api"
+    project_root.mkdir()
+    write_project_config(project_root)
+    write_policy_pack(source_pack)
+    temporary_file = project_root / ".qanstitution.yaml.tmp"
+    temporary_file.write_text("partial\n", encoding="utf-8")
+
+    class FailingTemporaryFile:
+        name = str(temporary_file)
+
+        def __enter__(self) -> "FailingTemporaryFile":
+            return self
+
+        def __exit__(self, *exc_info: object) -> None:
+            return None
+
+        def write(self, content: str) -> int:
+            _ = content
+            raise OSError("disk full")
+
+    def fail_named_temporary_file(*args: object, **kwargs: object) -> FailingTemporaryFile:
+        _ = args, kwargs
+        return FailingTemporaryFile()
+
+    monkeypatch.setattr(
+        "entroping.core.policy_pack_vendor.tempfile.NamedTemporaryFile",
+        fail_named_temporary_file,
+    )
+
+    with pytest.raises(PolicyPackVendorError, match="temporary QAnstitution"):
+        vendor_policy_pack(
+            project_root=project_root,
+            config_path=project_root / "qanstitution.yaml",
+            pack_path=source_pack,
+        )
+
+    assert not temporary_file.exists()
+    assert not (project_root / "policy-packs" / "acme-strict-api").exists()
+
+
 def test_vendor_policy_pack_wraps_direct_yaml_read_os_error(tmp_path: Path) -> None:
     with pytest.raises(PolicyPackVendorError, match="could not read policy-pack file"):
         vendor_module._read_yaml_mapping(tmp_path)

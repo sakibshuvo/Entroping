@@ -2,6 +2,12 @@
 
 ## 2026-06-17
 
+- Fixed issue #808's low-severity security review sweep:
+  run-delta failure signatures now include policy rule IDs, Hurl tag metadata
+  rejects control characters, append writes recheck symlink targets immediately
+  before opening, tag expressions fail closed on excessive nesting, and failed
+  temp-file writes remove partial Hurl variable, safe-write, and policy-pack
+  vendoring artifacts.
 - Added issue #821's secure agent CLI toolchain profile:
   `scripts/agent_toolchain.py` now reports local CLI availability with schema
   `entroping.agent-toolchain.v1`, classifying tools as `safe_default`,

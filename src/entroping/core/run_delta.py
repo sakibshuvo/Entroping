@@ -237,8 +237,8 @@ def _failure_delta(
     )
 
 
-def _failure_signature(test: RunTestReport) -> tuple[str, int]:
-    return (test.status, test.exit_code)
+def _failure_signature(test: RunTestReport) -> tuple[str, int, tuple[str, ...]]:
+    return (test.status, test.exit_code, tuple(sorted(test.rule_ids)))
 
 
 def _build_policy_delta(

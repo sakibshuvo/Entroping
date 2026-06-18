@@ -21,6 +21,13 @@ def test_tag_expression_treats_tags_as_case_sensitive_and_operators_as_case_inse
     assert not expression.matches(frozenset({"smoke"}))
 
 
+def test_tag_expression_rejects_excessive_nesting_before_recursion_limit() -> None:
+    expression = ("(" * 300) + "smoke" + (")" * 300)
+
+    with pytest.raises(TagExpressionSyntaxError, match="too complex"):
+        compile_tag_expression(expression)
+
+
 @pytest.mark.parametrize(
     ("expression", "message"),
     [
