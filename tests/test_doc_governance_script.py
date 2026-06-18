@@ -397,7 +397,7 @@ def test_pr_body_check_accepts_sensitive_changed_files_with_checked_bare_securit
     assert "PR documentation impact declaration OK" in result.stdout
 
 
-def test_pr_body_check_accepts_sensitive_changed_files_with_bare_security_gate_line(
+def test_pr_body_check_accepts_sensitive_changed_files_with_commands_run_security_gate(
     tmp_path: Path,
 ) -> None:
     body_path = tmp_path / "pr-body.md"
@@ -406,6 +406,7 @@ def test_pr_body_check_accepts_sensitive_changed_files_with_bare_security_gate_l
         "Worker preflight change.\n\n"
         "## Verification\n\n"
         "- Verification lane: security-runtime\n"
+        "Commands run:\n"
         "scripts/regression.sh --security\n\n"
         "## Documentation Impact Declaration\n\n"
         "- [x] No docs update needed. Reason: script-only validation fixture.\n",
@@ -421,6 +422,201 @@ def test_pr_body_check_accepts_sensitive_changed_files_with_bare_security_gate_l
 
     assert result.returncode == 0, result.stderr
     assert "PR documentation impact declaration OK" in result.stdout
+
+
+def test_pr_body_check_accepts_commands_run_after_non_marker_not_run_text(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Worker preflight change.\n\n"
+        "## Verification\n\n"
+        "- Verification lane: security-runtime\n"
+        "- Note: the old check was not running before this fix.\n\n"
+        "Commands run:\n"
+        "scripts/regression.sh --security\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: script-only validation fixture.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--changed-file",
+        "scripts/deepseek_worker.py",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "PR documentation impact declaration OK" in result.stdout
+
+
+def test_pr_body_check_accepts_checked_command_inside_commands_run_section(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Worker preflight change.\n\n"
+        "## Verification\n\n"
+        "- Verification lane: security-runtime\n"
+        "Commands run:\n"
+        "- [x] scripts/regression.sh --security\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: script-only validation fixture.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--changed-file",
+        "scripts/deepseek_worker.py",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "PR documentation impact declaration OK" in result.stdout
+
+
+def test_pr_body_check_rejects_security_gate_only_in_example_code_block(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Worker preflight change.\n\n"
+        "## Verification\n\n"
+        "- Verification lane: security-runtime\n\n"
+        "Example command:\n\n"
+        "```text\n"
+        "scripts/regression.sh --security\n"
+        "```\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: script-only validation fixture.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--changed-file",
+        "scripts/deepseek_worker.py",
+    )
+
+    assert result.returncode == 1
+    assert "security-runtime" in result.stderr
+    assert "security gate evidence" in result.stderr
+
+
+def test_pr_body_check_rejects_security_gate_only_in_blockquote(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Worker preflight change.\n\n"
+        "## Verification\n\n"
+        "- Verification lane: security-runtime\n\n"
+        "> - [x] scripts/regression.sh --security\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: script-only validation fixture.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--changed-file",
+        "scripts/deepseek_worker.py",
+    )
+
+    assert result.returncode == 1
+    assert "security-runtime" in result.stderr
+    assert "security gate evidence" in result.stderr
+
+
+def test_pr_body_check_rejects_security_gate_only_in_unchecked_item(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Worker preflight change.\n\n"
+        "## Verification\n\n"
+        "- Verification lane: security-runtime\n"
+        "- [ ] scripts/regression.sh --security\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: script-only validation fixture.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--changed-file",
+        "scripts/deepseek_worker.py",
+    )
+
+    assert result.returncode == 1
+    assert "security-runtime" in result.stderr
+    assert "security gate evidence" in result.stderr
+
+
+def test_pr_body_check_rejects_security_gate_only_in_not_run_section(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Worker preflight change.\n\n"
+        "## Verification\n\n"
+        "- Verification lane: security-runtime\n\n"
+        "Commands not run:\n"
+        "scripts/regression.sh --security\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: script-only validation fixture.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--changed-file",
+        "scripts/deepseek_worker.py",
+    )
+
+    assert result.returncode == 1
+    assert "security-runtime" in result.stderr
+    assert "security gate evidence" in result.stderr
+
+
+def test_pr_body_check_rejects_checked_security_gate_under_not_run_item(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Worker preflight change.\n\n"
+        "## Verification\n\n"
+        "- Verification lane: security-runtime\n\n"
+        "- Commands not run:\n"
+        "- [x] scripts/regression.sh --security\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: script-only validation fixture.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--changed-file",
+        "scripts/deepseek_worker.py",
+    )
+
+    assert result.returncode == 1
+    assert "security-runtime" in result.stderr
+    assert "security gate evidence" in result.stderr
 
 
 def test_pr_body_check_rejects_guardrail_changes_without_quality_audit(
@@ -485,14 +681,13 @@ def test_pr_body_check_rejects_opencode_evidence_missing_provider_lane(
         "Closes #706\n\n"
         "## Agent Autonomy Declaration\n\n"
         "- [x] Tier A autonomous lane: low-risk docs/tests/guard/script work only.\n"
-        "- [x] Merge authority: Tier A only after local gates and GitHub CI.\n\n"
+        "- [x] Merge authority: Tier A autonomous after gates and green CI.\n\n"
         "## OpenCode Provider Lane Evidence\n\n"
         "- Provider host: OpenCode native provider\n"
         "- Billing path: paid DeepSeek inside OpenCode\n"
         "- Model id: deepseek/deepseek-v4-pro\n"
         "- Autonomy tier: Tier A autonomous lane\n"
-        "- Merge authority: Tier A only after local gates, GitHub CI, "
-        "PR declaration, and finish cleanup\n"
+        "- Merge authority: Tier A autonomous after gates and green CI\n"
         "- Commands run: uv run pytest tests/test_doc_governance_script.py -q\n\n"
         "## Documentation Impact Declaration\n\n"
         "- [x] No docs update needed. Reason: checker-only validation.\n",
@@ -521,15 +716,14 @@ def test_pr_body_check_rejects_opencode_evidence_empty_provider_lane(
         "Closes #706\n\n"
         "## Agent Autonomy Declaration\n\n"
         "- [x] Tier A autonomous lane: low-risk docs/tests/guard/script work only.\n"
-        "- [x] Merge authority: Tier A only after local gates and GitHub CI.\n\n"
+        "- [x] Merge authority: Tier A autonomous after gates and green CI.\n\n"
         "## OpenCode Provider Lane Evidence\n\n"
         "- Provider lane: \n"
         "- Provider host: OpenCode native provider\n"
         "- Billing path: paid DeepSeek inside OpenCode\n"
         "- Model id: deepseek/deepseek-v4-pro\n"
         "- Autonomy tier: Tier A autonomous lane\n"
-        "- Merge authority: Tier A only after local gates, GitHub CI, "
-        "PR declaration, and finish cleanup\n"
+        "- Merge authority: Tier A autonomous after gates and green CI\n"
         "- Commands run: uv run pytest tests/test_doc_governance_script.py -q\n\n"
         "## Documentation Impact Declaration\n\n"
         "- [x] No docs update needed. Reason: checker-only validation.\n",
@@ -558,15 +752,14 @@ def test_pr_body_check_rejects_opencode_evidence_extended_provider_lane(
         "Closes #706\n\n"
         "## Agent Autonomy Declaration\n\n"
         "- [x] Tier A autonomous lane: low-risk docs/tests/guard/script work only.\n"
-        "- [x] Merge authority: Tier A only after local gates and GitHub CI.\n\n"
+        "- [x] Merge authority: Tier A autonomous after gates and green CI.\n\n"
         "## OpenCode Provider Lane Evidence\n\n"
         "- Provider lane: opencode/native-deepseek-pro\n"
         "- Provider host: OpenCode native provider\n"
         "- Billing path: paid DeepSeek inside OpenCode\n"
         "- Model id: deepseek/deepseek-v4-pro\n"
         "- Autonomy tier: Tier A autonomous lane\n"
-        "- Merge authority: Tier A only after local gates, GitHub CI, "
-        "PR declaration, and finish cleanup\n"
+        "- Merge authority: Tier A autonomous after gates and green CI\n"
         "- Commands run: uv run pytest tests/test_doc_governance_script.py -q\n\n"
         "## Documentation Impact Declaration\n\n"
         "- [x] No docs update needed. Reason: checker-only validation.\n",
@@ -583,6 +776,114 @@ def test_pr_body_check_rejects_opencode_evidence_extended_provider_lane(
 
     assert result.returncode == 1
     assert "provider lane must be one of" in result.stderr
+
+
+def test_pr_body_check_rejects_unchecked_opencode_evidence_fields(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Tier A OpenCode worker guard update.\n\n"
+        "Closes #706\n\n"
+        "## Agent Autonomy Declaration\n\n"
+        "- [x] Tier A autonomous lane: low-risk docs/tests/guard/script work only.\n"
+        "- [x] Merge authority: Tier A autonomous after gates and green CI.\n\n"
+        "## OpenCode Provider Lane Evidence\n\n"
+        "- [ ] Provider lane: opencode/native-deepseek\n"
+        "- [x] Provider host: OpenCode native provider\n"
+        "- [x] Billing path: paid DeepSeek inside OpenCode\n"
+        "- [x] Model id: deepseek/deepseek-v4-pro\n"
+        "- [x] Autonomy tier: Tier A autonomous lane\n"
+        "- [x] Merge authority: Tier A autonomous after gates and green CI\n"
+        "- [x] Commands run: uv run pytest tests/test_doc_governance_script.py -q\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: checker-only validation.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--require-opencode-evidence",
+        "--issue",
+        "706",
+    )
+
+    assert result.returncode == 1
+    assert "provider lane" in result.stderr
+
+
+def test_pr_body_check_rejects_invalid_opencode_autonomy_tier(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Tier A OpenCode worker guard update.\n\n"
+        "Closes #706\n\n"
+        "## Agent Autonomy Declaration\n\n"
+        "- [x] Tier A autonomous lane: low-risk docs/tests/guard/script work only.\n"
+        "- [x] Merge authority: Tier A autonomous after gates and green CI.\n\n"
+        "## OpenCode Provider Lane Evidence\n\n"
+        "- Provider lane: opencode/native-deepseek\n"
+        "- Provider host: OpenCode native provider\n"
+        "- Billing path: paid DeepSeek inside OpenCode\n"
+        "- Model id: deepseek/deepseek-v4-pro\n"
+        "- Autonomy tier: Tier A but basically safe\n"
+        "- Merge authority: Tier A autonomous after gates and green CI\n"
+        "- Commands run: uv run pytest tests/test_doc_governance_script.py -q\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: checker-only validation.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--require-opencode-evidence",
+        "--issue",
+        "706",
+    )
+
+    assert result.returncode == 1
+    assert "autonomy tier must be one of" in result.stderr
+
+
+def test_pr_body_check_rejects_invalid_opencode_merge_authority(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Tier A OpenCode worker guard update.\n\n"
+        "Closes #706\n\n"
+        "## Agent Autonomy Declaration\n\n"
+        "- [x] Tier A autonomous lane: low-risk docs/tests/guard/script work only.\n"
+        "- [x] Merge authority: Tier A autonomous after gates and green CI.\n\n"
+        "## OpenCode Provider Lane Evidence\n\n"
+        "- Provider lane: opencode/native-deepseek\n"
+        "- Provider host: OpenCode native provider\n"
+        "- Billing path: paid DeepSeek inside OpenCode\n"
+        "- Model id: deepseek/deepseek-v4-pro\n"
+        "- Autonomy tier: Tier A autonomous lane\n"
+        "- Merge authority: merge whenever it looks green\n"
+        "- Commands run: uv run pytest tests/test_doc_governance_script.py -q\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: checker-only validation.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--require-opencode-evidence",
+        "--issue",
+        "706",
+    )
+
+    assert result.returncode == 1
+    assert "merge authority must be one of" in result.stderr
 
 
 def test_pr_body_check_requires_issue_for_opencode_evidence(tmp_path: Path) -> None:
@@ -622,8 +923,7 @@ def test_pr_body_check_rejects_checked_empty_autonomy_detail(
         "- Billing path: paid DeepSeek inside OpenCode\n"
         "- Model id: deepseek/deepseek-v4-pro\n"
         "- Autonomy tier: Tier A autonomous lane\n"
-        "- Merge authority: Tier A only after local gates, GitHub CI, "
-        "PR declaration, and finish cleanup\n"
+        "- Merge authority: Tier A autonomous after gates and green CI\n"
         "- Commands run: uv run pytest tests/test_doc_governance_script.py -q\n\n"
         "## Documentation Impact Declaration\n\n"
         "- [x] No docs update needed. Reason: checker-only validation.\n",
@@ -676,15 +976,14 @@ def test_pr_body_check_rejects_opencode_evidence_missing_closing_keyword(
         "Tier A OpenCode worker guard update.\n\n"
         "## Agent Autonomy Declaration\n\n"
         "- [x] Tier A autonomous lane: low-risk docs/tests/guard/script work only.\n"
-        "- [x] Merge authority: Tier A only after local gates and GitHub CI.\n\n"
+        "- [x] Merge authority: Tier A autonomous after gates and green CI.\n\n"
         "## OpenCode Provider Lane Evidence\n\n"
         "- Provider lane: opencode/native-deepseek\n"
         "- Provider host: OpenCode native provider\n"
         "- Billing path: paid DeepSeek inside OpenCode\n"
         "- Model id: deepseek/deepseek-v4-pro\n"
         "- Autonomy tier: Tier A autonomous lane\n"
-        "- Merge authority: Tier A only after local gates, GitHub CI, "
-        "PR declaration, and finish cleanup\n"
+        "- Merge authority: Tier A autonomous after gates and green CI\n"
         "- Commands run: uv run pytest tests/test_doc_governance_script.py -q\n\n"
         "## Documentation Impact Declaration\n\n"
         "- [x] No docs update needed. Reason: checker-only validation.\n",
@@ -713,15 +1012,14 @@ def test_pr_body_check_accepts_tier_a_opencode_provider_lane_evidence(
         "Closes #706\n\n"
         "## Agent Autonomy Declaration\n\n"
         "- [x] Tier A autonomous lane: low-risk docs/tests/guard/script work only.\n"
-        "- [x] Merge authority: Tier A only after local gates and GitHub CI.\n\n"
+        "- [x] Merge authority: Tier A autonomous after gates and green CI.\n\n"
         "## OpenCode Provider Lane Evidence\n\n"
         "- Provider lane: opencode/native-deepseek\n"
         "- Provider host: OpenCode native provider\n"
         "- Billing path: paid DeepSeek inside OpenCode\n"
         "- Model id: deepseek/deepseek-v4-pro\n"
         "- Autonomy tier: Tier A autonomous lane\n"
-        "- Merge authority: Tier A only after local gates, GitHub CI, "
-        "PR declaration, and finish cleanup\n"
+        "- Merge authority: Tier A autonomous after gates and green CI\n"
         "- Commands run: uv run pytest tests/test_doc_governance_script.py -q\n\n"
         "## Documentation Impact Declaration\n\n"
         "- [x] No docs update needed. Reason: checker-only validation.\n",

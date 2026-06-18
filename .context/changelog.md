@@ -2,6 +2,12 @@
 
 ## 2026-06-18
 
+- Fixed issue #798's OpenCode PR evidence spoofing gap:
+  `scripts/pr_body_check.py` now validates gate evidence from structured
+  `Commands run` blocks or checked items instead of arbitrary PR prose,
+  ignores examples, blockquotes, unchecked items, and not-run sections, and
+  enforces canonical OpenCode provider lane, autonomy tier, and merge
+  authority values across the prompt-library worker guidance.
 - Fixed issue #829's concurrent latest event-log evidence gap:
   `entroping run` now acquires an exclusive latest event-log writer lock per
   project root and fails concurrent runs before Hurl execution, preventing two

@@ -25,7 +25,7 @@ worker_routing_defaults:
     context_rule: >
       Start from the context-pack manifest, then request only the needed
       files/snippets before loading full file content.
-    merge_authority: Tier A only after local gates, GitHub CI, PR declaration, and finish cleanup
+    merge_authority: Tier A autonomous after gates and green CI
     stop_condition: >
       Stop and escalate if the issue crosses into Tier B or Tier C scope,
       security-sensitive work, runtime behavior, provider boundaries, release

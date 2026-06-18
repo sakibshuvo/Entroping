@@ -238,7 +238,7 @@ def test_ai_jobs_submit_tier_a_defaults_to_cheap_opencode_context_contract(
         "scripts/context_pack.sh --mode implementation --manifest"
     )
     assert job["merge_authority"] == (
-        "Tier A only after local gates, GitHub CI, PR declaration, and finish cleanup"
+        "Tier A autonomous after gates and green CI"
     )
     worker_instruction = str(job["worker_instruction"])
     assert "scripts/context_pack.sh --mode implementation --manifest" in worker_instruction

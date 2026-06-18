@@ -185,7 +185,7 @@ Autonomy tier:
 <Tier A autonomous lane | Tier B assisted lane | Tier C restricted lane>
 
 Merge authority:
-<none | Tier A only after local gates, GitHub CI, PR declaration, and finish cleanup | Codex/human required>
+<Tier A autonomous after gates and green CI | Codex/human required | no merge authority>
 
 Allowed files:
 - <exact files or file families>
