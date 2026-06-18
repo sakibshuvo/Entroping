@@ -37,6 +37,10 @@
   traffic persistence, session building, and direct Hurl, WireMock, and graph
   compilers now fail closed when records marked redacted still contain obvious
   secret-like content, reporting only value-free unsafe locations.
+- Fixed issue #855's root QAnstitution symlink boundary:
+  root policy loading now rejects symlinked selected policy paths before
+  resolution and applies stricter raw-path symlink checks to absolute imports
+  that resolve back inside the policy root.
 - Fixed issue #836's GitHub annotation artifact error handling:
   unreadable JUnit XML or drift JSON report paths now raise controlled
   `GitHubAnnotationError` messages instead of leaking raw filesystem
