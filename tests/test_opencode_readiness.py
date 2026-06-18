@@ -96,6 +96,13 @@ def test_opencode_readiness_json_preflight_passes_with_fake_opencode(
     assert checks["required_workflow_files"]["status"] == "pass"
     assert checks["prompt_library_guardrails"]["status"] == "pass"
     assert checks["command_help_surfaces"]["status"] == "pass"
+    assert checks["agent_toolchain_policy"]["status"] in {"pass", "warn"}
+    assert (
+        checks["agent_toolchain_policy"]["details"]["schema_version"]
+        == "entroping.agent-toolchain.v1"
+    )
+    assert checks["agent_toolchain_policy"]["details"]["scanner_execution"] is False
+    assert checks["agent_toolchain_policy"]["details"]["network_execution"] is False
     assert checks["local_artifact_ignore_rules"]["status"] == "pass"
     assert checks["tracked_local_artifacts"]["status"] == "pass"
     assert "DEEPSEEK_API_KEY" not in result.stdout
