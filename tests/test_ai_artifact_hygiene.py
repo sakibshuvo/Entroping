@@ -145,6 +145,23 @@ def test_ai_artifact_hygiene_scans_new_root_level_docs(tmp_path: Path) -> None:
     assert "CONTRIBUTING.md:2: raw prompt/stdout/stderr marker" in result.stderr
 
 
+def test_ai_artifact_hygiene_scans_nested_text_bearing_files(tmp_path: Path) -> None:
+    _init_repo(tmp_path)
+    source = tmp_path / "src" / "worker.py"
+    source.parent.mkdir()
+    provider_token = "".join(("sk-proj-", "abcdefghijklmnopqrstuvwxyz123456"))
+    source.write_text(
+        f"# {provider_token}\n",
+        encoding="utf-8",
+    )
+    _track(tmp_path, "src/worker.py")
+
+    result = run_ai_artifact_hygiene("--root", str(tmp_path))
+
+    assert result.returncode == 1
+    assert "src/worker.py:1: secret-like content (provider token)" in result.stderr
+
+
 def test_ai_artifact_hygiene_allow_marker_does_not_hide_leaks(tmp_path: Path) -> None:
     _init_repo(tmp_path)
     readme = tmp_path / "README.md"
