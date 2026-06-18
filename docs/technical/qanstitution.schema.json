@@ -197,6 +197,9 @@
           "type": "boolean"
         },
         "gate": {
+          "description": "Single executable Hurl assertion line. Must not be blank, comment-only, a section header, or contain control characters.",
+          "minLength": 1,
+          "pattern": "^(?!\\s*$)(?!\\s*#)(?!\\s*\\[)[^\\u0000-\\u001F\\u007F\\u2028\\u2029]+$",
           "title": "Gate",
           "type": "string"
         },

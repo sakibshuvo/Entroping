@@ -722,6 +722,48 @@ def test_load_qanstitution_rejects_invalid_gate_ids(
 
 
 @pytest.mark.parametrize(
+    ("assertion", "message"),
+    [
+        ("", "gate assertion must not be blank"),
+        ("  ", "gate assertion must not be blank"),
+        ("status == 200\nheader exists", "gate assertion must not contain control characters"),
+        ("status\r== 200", "gate assertion must not contain control characters"),
+        ("status\x00== 200", "gate assertion must not contain control characters"),
+        ("status\u2028== 200", "gate assertion must not contain control characters"),
+        ("status\u2029== 200", "gate assertion must not contain control characters"),
+        ("# no-op", "gate assertion must be executable Hurl"),
+        ("\u00a0# no-op", "gate assertion must be executable Hurl"),
+        ("[", "gate assertion must be executable Hurl"),
+        ("[Options", "gate assertion must be executable Hurl"),
+        ("[Options]", "gate assertion must be executable Hurl"),
+        ("[Asserts]", "gate assertion must be executable Hurl"),
+    ],
+)
+def test_load_qanstitution_rejects_invalid_gate_assertions(
+    tmp_path: Path,
+    assertion: str,
+    message: str,
+) -> None:
+    write_document(
+        tmp_path / "qanstitution.yaml",
+        {
+            "project": "checkout-api",
+            "gates": [
+                {
+                    "id": "must_check_status",
+                    "condition": "true",
+                    "gate": assertion,
+                    "enforcement": "block",
+                }
+            ],
+        },
+    )
+
+    with pytest.raises(QanstitutionLoadError, match=message):
+        load_qanstitution(tmp_path / "qanstitution.yaml")
+
+
+@pytest.mark.parametrize(
     ("document", "message"),
     [
         ({"project": "checkout-api", "imports": {"rules": "security.yaml"}}, "Input should be"),
