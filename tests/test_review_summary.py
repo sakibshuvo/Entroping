@@ -374,7 +374,15 @@ def test_review_summary_rejects_malformed_run_json(tmp_path: Path) -> None:
             traceability_report=None,
         )
 
-    run_json.write_text(json.dumps({"summary": []}), encoding="utf-8")
+    run_json.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "summary": [],
+            }
+        ),
+        encoding="utf-8",
+    )
     with pytest.raises(ReviewSummaryError, match="must contain a summary object"):
         build_review_summary(
             run_json_path=run_json,
@@ -386,6 +394,7 @@ def test_review_summary_rejects_malformed_run_json(tmp_path: Path) -> None:
     run_json.write_text(
         json.dumps(
             {
+                "schema_version": "entroping.run-report.v1",
                 "summary": {
                     "total": "1",
                     "passed": 0,
@@ -403,6 +412,46 @@ def test_review_summary_rejects_malformed_run_json(tmp_path: Path) -> None:
             drift_path=reports_dir / "drift.json",
             traceability_report=None,
         )
+
+
+@pytest.mark.parametrize(
+    ("payload", "forbidden_error_fragment"),
+    [
+        (
+            {"summary": {"total": 0, "passed": 0, "failed": 0, "exit_code": 0}},
+            None,
+        ),
+        (
+            {
+                "schema_version": "entroping.run-report.v999",
+                "summary": {"total": 0, "passed": 0, "failed": 0, "exit_code": 0},
+            },
+            "entroping.run-report.v999",
+        ),
+    ],
+)
+def test_review_summary_rejects_unversioned_or_unsupported_run_json(
+    tmp_path: Path,
+    payload: dict[str, object],
+    forbidden_error_fragment: str | None,
+) -> None:
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    run_json = reports_dir / "run-latest.json"
+    run_json.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(
+        ReviewSummaryError,
+        match="must use schema_version entroping\\.run-report\\.v1",
+    ) as exc_info:
+        build_review_summary(
+            run_json_path=run_json,
+            junit_path=reports_dir / "junit.xml",
+            drift_path=reports_dir / "drift.json",
+            traceability_report=None,
+        )
+    if forbidden_error_fragment is not None:
+        assert forbidden_error_fragment not in str(exc_info.value)
 
 
 def test_review_summary_handles_junit_fallback_paths_and_parse_errors(
@@ -530,6 +579,7 @@ def test_review_summary_uses_run_fallback_fields_and_pass_status(tmp_path: Path)
     (reports_dir / "run-latest.json").write_text(
         json.dumps(
             {
+                "schema_version": "entroping.run-report.v1",
                 "summary": {"total": 1, "passed": 1, "failed": 0, "exit_code": 0},
                 "project": 42,
                 "environment": [],

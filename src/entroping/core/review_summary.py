@@ -18,6 +18,7 @@ from entroping.bridge.story_traceability import (
 )
 from entroping.core.hurl_discovery import discover_hurl_tests
 from entroping.core.hurl_runner import redact_hurl_output
+from entroping.core.report_serialization import RUN_REPORT_SCHEMA_VERSION
 from entroping.core.safe_write import SafeWriteError, safe_write_text
 
 ReviewStatus = Literal["pass", "attention", "fail"]
@@ -220,6 +221,7 @@ def _load_run_summary(path: Path, artifacts: list[ArtifactStatus]) -> RunSummary
         return None
 
     data = _load_json_object(path, artifact="run report")
+    _require_run_report_schema(data, path=path)
     raw_summary = data.get("summary")
     if not isinstance(raw_summary, dict):
         msg = f"Run report {path} must contain a summary object"
@@ -424,6 +426,12 @@ def _load_json_object(path: Path, *, artifact: str) -> dict[str, object]:
         msg = f"{artifact.capitalize()} {path} must be a JSON object"
         raise ReviewSummaryError(msg)
     return data
+
+
+def _require_run_report_schema(data: dict[str, object], *, path: Path) -> None:
+    if data.get("schema_version") != RUN_REPORT_SCHEMA_VERSION:
+        msg = f"Run report {path} must use schema_version {RUN_REPORT_SCHEMA_VERSION}"
+        raise ReviewSummaryError(msg)
 
 
 def _artifact_state(path: Path) -> ArtifactState:
