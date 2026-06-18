@@ -65,7 +65,11 @@ def run_sarif_report(
         include_traceability=include_traceability,
     )
     report = build_sarif_report(annotations, project_root=project_root)
-    written = write_sarif_report(report, _rooted_path(output_path, project_root))
+    written = write_sarif_report(
+        report,
+        _rooted_path(output_path, project_root),
+        root=project_root,
+    )
     return SarifReportResult(output_path=written, report=report)
 
 
@@ -119,7 +123,12 @@ def sarif_report_to_dict(report: SarifReport) -> SarifReportPayload:
     )
 
 
-def write_sarif_report(report: SarifReport, path: Path) -> Path:
+def write_sarif_report(
+    report: SarifReport,
+    path: Path,
+    *,
+    root: Path | None = None,
+) -> Path:
     """Write a SARIF report through the standard safe artifact writer."""
 
     try:
@@ -127,6 +136,7 @@ def write_sarif_report(report: SarifReport, path: Path) -> Path:
             path,
             json.dumps(sarif_report_to_dict(report), indent=2, sort_keys=True) + "\n",
             artifact="SARIF report",
+            root=root,
         )
     except SafeWriteError as exc:
         raise SarifReportError(str(exc)) from exc
