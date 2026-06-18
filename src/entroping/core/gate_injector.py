@@ -151,6 +151,9 @@ def _inject_gate_assertions(
 ) -> tuple[str, tuple[HurlGateAssertion, ...], tuple[AppliedKnownFailure, ...]]:
     """Return Hurl content with matching active known-failure gates omitted."""
 
+    if not gates:
+        return content, (), ()
+
     lines = content.splitlines()
     response_blocks = _find_response_blocks(lines, hurl_test.exchanges)
     if not response_blocks and gates:
@@ -277,10 +280,11 @@ def _find_response_blocks(
     lines: Sequence[str],
     exchanges: Sequence[HurlExchange],
 ) -> tuple[_ResponseBlock, ...]:
-    blocks: list[_ResponseBlock] = []
     current_exchange_index = -1
     request_starts: list[int] = []
-    pending_response_starts: list[tuple[int, HurlExchange]] = []
+    response_starts_by_exchange: dict[int, list[int]] = {
+        exchange_index: [] for exchange_index in range(len(exchanges))
+    }
 
     for index, line in enumerate(lines):
         stripped = line.strip()
@@ -290,9 +294,28 @@ def _find_response_blocks(
             continue
 
         if _HTTP_LINE_RE.fullmatch(stripped) and 0 <= current_exchange_index < len(exchanges):
-            pending_response_starts.append((index, exchanges[current_exchange_index]))
+            response_starts_by_exchange[current_exchange_index].append(index)
 
-    for start, exchange in pending_response_starts:
+    if len(request_starts) != len(exchanges):
+        msg = (
+            f"Parsed {len(exchanges)} Hurl exchange(s) but found "
+            f"{len(request_starts)} request section marker(s); "
+            "refusing gate injection because the Hurl structure is ambiguous"
+        )
+        raise GateInjectionError(msg)
+
+    blocks: list[_ResponseBlock] = []
+    for exchange_index, exchange in enumerate(exchanges):
+        response_starts = response_starts_by_exchange[exchange_index]
+        exchange_label = f"exchange {exchange_index + 1} ({exchange.method} {exchange.url})"
+        if not response_starts:
+            msg = f"Missing Hurl response section for {exchange_label}"
+            raise GateInjectionError(msg)
+        if len(response_starts) > 1:
+            msg = f"Ambiguous Hurl response sections for {exchange_label}"
+            raise GateInjectionError(msg)
+
+        start = response_starts[0]
         end = _next_request_start_after(request_starts, start) or len(lines)
         insert_at, has_asserts = _find_insert_position(lines, start=start, end=end)
         blocks.append(
