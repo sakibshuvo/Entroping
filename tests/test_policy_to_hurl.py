@@ -174,7 +174,7 @@ def test_compile_matching_gates_rejects_unsupported_contains_fields(
         compile_matching_gates([_gate("header_gate", "true", "status < 500")], _checkout_test())
 
 
-def test_gate_matches_test_returns_false_for_unknown_future_condition(
+def test_gate_matches_test_fails_closed_for_unknown_future_condition(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def future_condition(_expression: str) -> Condition:
@@ -182,4 +182,17 @@ def test_gate_matches_test_returns_false_for_unknown_future_condition(
 
     monkeypatch.setattr(policy_to_hurl, "parse_condition", future_condition)
 
-    assert not gate_matches_test(_gate("future_gate", "true", "status < 500"), _checkout_test())
+    with pytest.raises(GateCompilationError, match="future_gate"):
+        gate_matches_test(_gate("future_gate", "true", "status < 500"), _checkout_test())
+
+
+def test_compile_matching_gates_fails_closed_for_unknown_future_condition(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def future_condition(_expression: str) -> Condition:
+        return cast(Condition, object())
+
+    monkeypatch.setattr(policy_to_hurl, "parse_condition", future_condition)
+
+    with pytest.raises(GateCompilationError, match="future_gate"):
+        compile_matching_gates([_gate("future_gate", "true", "status < 500")], _checkout_test())

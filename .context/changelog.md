@@ -2,6 +2,10 @@
 
 ## 2026-06-18
 
+- Fixed issue #839's QAnstitution policy compilation boundary:
+  unknown future condition objects now fail closed with `GateCompilationError`
+  through public matching and compilation paths instead of silently dropping
+  matching gates.
 - Fixed issue #841's OpenAPI security-alternative handling:
   auth-negative generation now treats an empty OpenAPI security requirement as
   a public alternative and skips missing/invalid-auth Hurl files for those
