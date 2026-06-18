@@ -2,6 +2,10 @@
 
 ## 2026-06-18
 
+- Fixed issue #838's policy-pack manifest provenance boundary:
+  `manifest.source` now validates as local provenance evidence, preserving `.`
+  while rejecting remote, absolute, traversal, control-character, and empty
+  values through vendor and self-test paths.
 - Fixed issue #839's QAnstitution policy compilation boundary:
   unknown future condition objects now fail closed with `GateCompilationError`
   through public matching and compilation paths instead of silently dropping
