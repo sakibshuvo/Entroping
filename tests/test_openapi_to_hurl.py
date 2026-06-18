@@ -965,6 +965,174 @@ def test_compile_openapi_renders_parameters_and_schema_examples() -> None:
     assert "HTTP 202" in content
 
 
+def test_compile_openapi_resolves_reusable_parameter_refs() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {
+            "parameters": {
+                "OrderId": {
+                    "name": "order_id",
+                    "in": "path",
+                    "required": True,
+                    "example": "ord-123",
+                    "schema": {"type": "string"},
+                },
+                "Tenant": {
+                    "name": "X-Tenant",
+                    "in": "header",
+                    "schema": {"type": "string", "default": "north"},
+                },
+                "Include": {
+                    "name": "include",
+                    "in": "query",
+                    "schema": {"type": "string", "enum": ["events"]},
+                },
+            },
+        },
+        "paths": {
+            "/orders/{order_id}": {
+                "parameters": [{"$ref": "#/components/parameters/OrderId"}],
+                "get": {
+                    "operationId": "getOrder",
+                    "parameters": [
+                        {"$ref": "#/components/parameters/Tenant"},
+                        {"$ref": "#/components/parameters/Include"},
+                    ],
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+
+    content = compile_openapi_to_hurl(document, tags=frozenset({"orders"}))[0].content
+
+    assert "GET {{base_url}}/orders/ord-123?include=events" in content
+    assert "X-Tenant: north" in content
+
+
+@pytest.mark.parametrize(
+    ("parameter", "expected_error"),
+    [
+        ({"$ref": "common.yaml#/components/parameters/Tenant"}, "only local parameter refs"),
+        ({"$ref": "#/components/schemas/Tenant"}, "unsupported parameter ref"),
+        ({"$ref": 1}, "parameter ref must be a string"),
+        ({"$ref": "#/components/parameters/Missing"}, "unknown parameter ref"),
+        ({"$ref": "#/components/parameters/Tenant", "name": "tenant"}, "sibling fields"),
+        ({"$ref": "#/components/parameters/"}, "malformed parameter ref"),
+    ],
+)
+def test_compile_openapi_rejects_unsupported_parameter_refs(
+    parameter: dict[str, object],
+    expected_error: str,
+) -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {
+            "parameters": {
+                "Tenant": {
+                    "name": "X-Tenant",
+                    "in": "header",
+                    "schema": {"type": "string", "default": "north"},
+                },
+            },
+        },
+        "paths": {
+            "/orders": {
+                "get": {
+                    "operationId": "listOrders",
+                    "parameters": [parameter],
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match=expected_error):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
+def test_compile_openapi_rejects_non_mapping_parameter_ref_targets() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {"parameters": {"Tenant": "not-a-parameter"}},
+        "paths": {
+            "/orders": {
+                "get": {
+                    "operationId": "listOrders",
+                    "parameters": [{"$ref": "#/components/parameters/Tenant"}],
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="parameter ref target"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
+def test_compile_openapi_rejects_malformed_parameter_components() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {"parameters": ["not-a-map"]},
+        "paths": {"/orders": {"get": _ok_operation("listOrders")}},
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="OpenAPI components parameters"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
+def test_compile_openapi_rejects_cyclic_parameter_refs() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {
+            "parameters": {
+                "Tenant": {"$ref": "#/components/parameters/Loop"},
+                "Loop": {"$ref": "#/components/parameters/Tenant"},
+            },
+        },
+        "paths": {
+            "/orders": {
+                "get": {
+                    "operationId": "listOrders",
+                    "parameters": [{"$ref": "#/components/parameters/Tenant"}],
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="cyclic parameter ref"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
+def test_compile_openapi_rejects_deep_parameter_ref_chains() -> None:
+    parameter_components: dict[str, object] = {
+        f"Param{index}": {"$ref": f"#/components/parameters/Param{index + 1}"}
+        for index in range(70)
+    }
+    parameter_components["Param70"] = {
+        "name": "X-Tenant",
+        "in": "header",
+        "schema": {"type": "string", "default": "north"},
+    }
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {"parameters": parameter_components},
+        "paths": {
+            "/orders": {
+                "get": {
+                    "operationId": "listOrders",
+                    "parameters": [{"$ref": "#/components/parameters/Param0"}],
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="parameter ref depth"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
 def test_compile_openapi_rejects_missing_paths_mapping() -> None:
     with pytest.raises(
         OpenApiCompilationError,

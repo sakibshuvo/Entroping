@@ -287,31 +287,39 @@ gates: []
     Path("openapi.yaml").write_text(
         """
 openapi: "3.1.0"
+components:
+  parameters:
+    OrderId:
+      name: order_id
+      in: path
+      required: true
+      schema:
+        type: string
+    Include:
+      name: include
+      in: query
+      schema:
+        type: string
+        enum:
+          - events
+    Labels:
+      name: labels
+      in: query
+      schema:
+        type: array
+        items:
+          type: string
+        default:
+          - rush
+          - vip
 paths:
   /orders/{order_id}:
     get:
       operationId: getOrder
       parameters:
-        - name: order_id
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: include
-          in: query
-          schema:
-            type: string
-            enum:
-              - events
-        - name: labels
-          in: query
-          schema:
-            type: array
-            items:
-              type: string
-            default:
-              - rush
-              - vip
+        - $ref: "#/components/parameters/OrderId"
+        - $ref: "#/components/parameters/Include"
+        - $ref: "#/components/parameters/Labels"
       responses:
         "200":
           description: ok
