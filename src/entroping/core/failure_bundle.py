@@ -82,13 +82,13 @@ def create_failure_bundle(
         msg = f"Could not load latest run report {latest_path}: {exc}"
         raise FailureBundleError(msg) from exc
 
-    if report.summary.failed == 0:
+    sanitized_report = _sanitize_run_report(report)
+    failed_tests = _failed_test_metadata(sanitized_report, root=root)
+    if not failed_tests:
         msg = "Latest Entroping run has no failures to bundle."
         raise FailureBundleError(msg)
 
     bundle_dir = _prepare_bundle_dir(root, output_dir or _DEFAULT_OUTPUT_DIR)
-    sanitized_report = _sanitize_run_report(report)
-    failed_tests = _failed_test_metadata(sanitized_report, root=root)
     artifacts: list[FailureBundleArtifact] = []
 
     artifacts.append(
@@ -208,7 +208,7 @@ def _sanitize_run_report(report: RunReport) -> RunReport:
 def _failed_test_metadata(report: RunReport, *, root: Path) -> list[dict[str, object]]:
     metadata: list[dict[str, object]] = []
     for test in report.tests:
-        if test.status != "failed" and test.exit_code == 0:
+        if test.status == "passed" and test.exit_code == 0:
             continue
         metadata.append(_hurl_metadata_for_failed_test(test, root=root))
     return metadata

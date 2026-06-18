@@ -295,6 +295,141 @@ def test_create_failure_bundle_omits_passing_tests_and_allows_missing_hurl_sourc
     ]
 
 
+def test_create_failure_bundle_includes_non_passed_zero_exit_metadata(
+    tmp_path: Path,
+) -> None:
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    for name in ("passing", "blocked", "timeout", "error"):
+        (tests_dir / f"{name}.hurl").write_text(
+            "\n".join(
+                [
+                    f"# entroping: story_id={name.upper()}-001",
+                    "# entroping: owner=sk-proj-" + ("a" * 24),
+                    "",
+                    f"GET {{{{base_url}}}}/{name}",
+                    "HTTP 200",
+                ]
+            ),
+            encoding="utf-8",
+        )
+    report = RunReport(
+        project="checkout-api",
+        environment="local",
+        generated_at="2026-06-04T00:00:00+00:00",
+        summary=RunReportSummary(total=4, passed=1, failed=3, exit_code=1),
+        tests=(
+            RunTestReport(
+                path="tests/passing.hurl",
+                execution_path=".entroping/run-1/passing.hurl",
+                status="passed",
+                exit_code=0,
+                duration_ms=10,
+                rule_ids=(),
+                stdout="",
+                stderr="",
+            ),
+            RunTestReport(
+                path="tests/blocked.hurl",
+                execution_path=".entroping/run-1/blocked.hurl",
+                status="blocked",
+                exit_code=0,
+                duration_ms=11,
+                rule_ids=("protected_environment",),
+                stdout="Authorization: Bearer failure-secret\n",
+                stderr="",
+            ),
+            RunTestReport(
+                path="tests/timeout.hurl",
+                execution_path=".entroping/run-1/timeout.hurl",
+                status="timeout",
+                exit_code=0,
+                duration_ms=12,
+                rule_ids=("runtime_timeout",),
+                stdout="",
+                stderr="token=failure-secret\n",
+            ),
+            RunTestReport(
+                path="tests/error.hurl",
+                execution_path=".entroping/run-1/error.hurl",
+                status="error",
+                exit_code=0,
+                duration_ms=13,
+                rule_ids=("report_error",),
+                stdout="",
+                stderr="",
+            ),
+        ),
+    )
+    _write_latest(tmp_path, report)
+
+    result = create_failure_bundle(project_root=tmp_path)
+
+    manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    failed_tests = manifest["failed_tests"]
+    assert [test["path"] for test in failed_tests] == [
+        "tests/blocked.hurl",
+        "tests/timeout.hurl",
+        "tests/error.hurl",
+    ]
+    assert [test["status"] for test in failed_tests] == ["blocked", "timeout", "error"]
+    assert [test["rule_ids"] for test in failed_tests] == [
+        ["protected_environment"],
+        ["runtime_timeout"],
+        ["report_error"],
+    ]
+    assert all(test["metadata"]["owner"] == "[REDACTED]" for test in failed_tests)
+    bundle_text = "\n".join(
+        path.read_text(encoding="utf-8") for path in result.output_dir.iterdir()
+    )
+    assert "failure-secret" not in bundle_text
+    assert "sk-proj-" not in bundle_text
+
+
+def test_create_failure_bundle_allows_non_passed_tests_when_summary_failed_is_zero(
+    tmp_path: Path,
+) -> None:
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "blocked.hurl").write_text(
+        "GET {{base_url}}/blocked\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    report = RunReport(
+        project="checkout-api",
+        environment="local",
+        generated_at="2026-06-04T00:00:00+00:00",
+        summary=RunReportSummary(total=1, passed=0, failed=0, exit_code=1),
+        tests=(
+            RunTestReport(
+                path="tests/blocked.hurl",
+                execution_path=".entroping/run-1/blocked.hurl",
+                status="blocked",
+                exit_code=0,
+                duration_ms=11,
+                rule_ids=("protected_environment",),
+                stdout="",
+                stderr="",
+            ),
+        ),
+    )
+    _write_latest(tmp_path, report)
+
+    result = create_failure_bundle(project_root=tmp_path)
+
+    manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    assert manifest["failed_tests"] == [
+        {
+            "path": "tests/blocked.hurl",
+            "status": "blocked",
+            "rule_ids": ["protected_environment"],
+            "tags": [],
+            "metadata": {},
+            "exchanges": [{"method": "GET", "path": "/blocked"}],
+        }
+    ]
+
+
 def test_create_failure_bundle_rejects_unsafe_report_artifact_symlink(tmp_path: Path) -> None:
     _write_latest(tmp_path, _run_report())
     (tmp_path / "tests").mkdir()
