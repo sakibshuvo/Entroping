@@ -4,6 +4,7 @@ from typing import cast
 
 import pytest
 
+from entroping.bridge import openapi_diff as openapi_diff_bridge
 from entroping.bridge.openapi_diff import (
     audit_openapi_breaking_changes,
     breaking_diff_report_to_dict,
@@ -19,6 +20,13 @@ def _operation(operation_id: str, *, status: str = "200") -> dict[str, object]:
 
 def _object_schema(*, required: list[str], properties: dict[str, object]) -> dict[str, object]:
     return {"type": "object", "required": required, "properties": properties}
+
+
+def _deep_json_value(depth: int) -> dict[str, object]:
+    value: dict[str, object] = {"leaf": "ok"}
+    for index in range(depth):
+        value = {f"child_{index}": value}
+    return value
 
 
 def test_detect_openapi_operation_changes_classifies_added_modified_renamed_and_removed() -> None:
@@ -765,6 +773,38 @@ def test_audit_openapi_breaking_changes_allows_request_body_refs() -> None:
     report = audit_openapi_breaking_changes(base, current)
 
     assert report.findings[0].code == "OPENAPI_OPERATION_MODIFIED"
+
+
+def test_audit_openapi_breaking_changes_rejects_excessively_deep_operation_payloads() -> None:
+    base = {"openapi": "3.1.0", "paths": {"/health": {"get": _operation("getHealth")}}}
+    current: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "x-entroping-deep": _deep_json_value(80),
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="JSON depth exceeds"):
+        audit_openapi_breaking_changes(base, current)
+
+
+def test_audit_openapi_breaking_changes_budget_helper_rejects_node_exhaustion() -> None:
+    budget = openapi_diff_bridge._JsonTraversalBudget(  # noqa: SLF001
+        nodes=openapi_diff_bridge._MAX_OPENAPI_JSON_NODES,  # noqa: SLF001
+    )
+
+    with pytest.raises(OpenApiCompilationError, match="JSON traversal exceeds"):
+        openapi_diff_bridge._check_openapi_json_budget(  # noqa: SLF001
+            depth=0,
+            budget=budget,
+            context="GET /health operation",
+        )
 
 
 def test_audit_openapi_breaking_changes_rejects_malformed_schema_shapes() -> None:

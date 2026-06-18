@@ -389,6 +389,64 @@ def test_qanstitution_model_rejects_invalid_gate_group_references(
         Qanstitution.model_validate(policy)
 
 
+def test_qanstitution_model_rejects_explosive_gate_group_expansion() -> None:
+    gate_groups: dict[str, object] = {
+        "leaf": {
+            "gates": [
+                {
+                    "id": "leaf_gate",
+                    "condition": "true",
+                    "gate": "duration < 500",
+                    "enforcement": "block",
+                }
+            ],
+        }
+    }
+    previous = "leaf"
+    for index in range(15):
+        group_name = f"diamond_{index}"
+        gate_groups[group_name] = {"groups": [previous, previous]}
+        previous = group_name
+
+    with pytest.raises(ValidationError, match="gate group expansion exceeds"):
+        Qanstitution.model_validate(
+            {
+                "project": "checkout-api",
+                "gate_groups": gate_groups,
+                "gates": [{"group": previous}],
+            }
+        )
+
+
+def test_qanstitution_model_rejects_excessive_gate_group_depth() -> None:
+    gate_groups: dict[str, object] = {
+        "leaf": {
+            "gates": [
+                {
+                    "id": "leaf_gate",
+                    "condition": "true",
+                    "gate": "duration < 500",
+                    "enforcement": "block",
+                }
+            ],
+        }
+    }
+    previous = "leaf"
+    for index in range(70):
+        group_name = f"nested_{index}"
+        gate_groups[group_name] = {"groups": [previous]}
+        previous = group_name
+
+    with pytest.raises(ValidationError, match="gate group expansion depth exceeds"):
+        Qanstitution.model_validate(
+            {
+                "project": "checkout-api",
+                "gate_groups": gate_groups,
+                "gates": [{"group": previous}],
+            }
+        )
+
+
 def test_expand_qanstitution_gate_entries_accepts_typed_gate_group_reference() -> None:
     expanded = expand_qanstitution_gate_entries(
         {
