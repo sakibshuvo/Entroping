@@ -255,6 +255,38 @@ def test_compile_openapi_generates_security_negative_tests_for_supported_schemes
     assert "HTTP 401" in joined
 
 
+def test_compile_openapi_skips_auth_negatives_for_public_security_alternative() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {
+            "securitySchemes": {
+                "bearerAuth": {"type": "http", "scheme": "bearer"},
+            },
+        },
+        "paths": {
+            "/catalog": {
+                "get": {
+                    "operationId": "getCatalog",
+                    "security": [{}, {"bearerAuth": []}],
+                    "responses": {
+                        "200": {"description": "ok"},
+                        "401": {"description": "unauthorized"},
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset({"catalog"}))
+
+    assert result.security_findings == ()
+    assert [item.relative_path for item in result.files] == [
+        "tests/generated/get_catalog.hurl",
+    ]
+    assert "missing_auth" not in "\n".join(item.content for item in result.files)
+    assert "invalid_auth" not in "\n".join(item.content for item in result.files)
+
+
 @pytest.mark.parametrize(
     ("scheme_name", "expected_error"),
     [
