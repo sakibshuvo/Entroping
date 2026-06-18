@@ -1388,6 +1388,146 @@ def test_compile_openapi_renders_parameter_overrides_fallbacks_and_scalars() -> 
     assert "[Asserts]" not in content
 
 
+def test_compile_openapi_renders_form_exploded_array_query_defaults() -> None:
+    operation: dict[str, object] = {
+        "operationId": "searchOrders",
+        "parameters": [
+            {
+                "name": "tag",
+                "in": "query",
+                "schema": {"type": "array", "items": {"type": "string"}, "default": ["a", "b"]},
+            },
+        ],
+        "responses": {"200": {"description": "ok"}},
+    }
+
+    content = _compile_single_operation(operation, path="/orders/search")
+
+    assert "GET {{base_url}}/orders/search?tag=a&tag=b" in content
+
+
+def test_compile_openapi_renders_form_non_exploded_array_query_examples() -> None:
+    operation: dict[str, object] = {
+        "operationId": "searchOrders",
+        "parameters": [
+            {
+                "name": "color",
+                "in": "query",
+                "style": "form",
+                "explode": False,
+                "example": ["red blue", "green"],
+                "schema": {"type": "array", "items": {"type": "string"}},
+            },
+        ],
+        "responses": {"200": {"description": "ok"}},
+    }
+
+    content = _compile_single_operation(operation, path="/orders/search")
+
+    assert "GET {{base_url}}/orders/search?color=red%20blue,green" in content
+
+
+@pytest.mark.parametrize(
+    ("parameter", "expected_error"),
+    [
+        (
+            {
+                "name": "tag",
+                "in": "query",
+                "style": "pipeDelimited",
+                "schema": {"type": "array", "items": {"type": "string"}, "default": ["a", "b"]},
+            },
+            "array query parameter style",
+        ),
+        (
+            {
+                "name": "X-Tags",
+                "in": "header",
+                "schema": {"type": "array", "items": {"type": "string"}, "default": ["a", "b"]},
+            },
+            "array parameter examples/defaults are only supported for query parameters",
+        ),
+        (
+            {
+                "name": "tag",
+                "in": "query",
+                "schema": {"type": "array", "items": {"type": "string"}, "default": []},
+            },
+            "array query parameter example/default must contain at least one item",
+        ),
+        (
+            {
+                "name": "tag",
+                "in": "query",
+                "schema": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "default": "not-a-list",
+                },
+            },
+            "array query parameter example/default must be a list",
+        ),
+        (
+            {
+                "name": "tag",
+                "in": "query",
+                "style": 1,
+                "schema": {"type": "array", "items": {"type": "string"}, "default": ["a"]},
+            },
+            "parameter style must be a string",
+        ),
+        (
+            {
+                "name": "tag",
+                "in": "query",
+                "explode": "true",
+                "schema": {"type": "array", "items": {"type": "string"}, "default": ["a"]},
+            },
+            "parameter explode must be a boolean",
+        ),
+    ],
+)
+def test_compile_openapi_rejects_unsupported_array_query_parameters(
+    parameter: dict[str, object],
+    expected_error: str,
+) -> None:
+    operation: dict[str, object] = {
+        "operationId": "searchOrders",
+        "parameters": [parameter],
+        "responses": {"200": {"description": "ok"}},
+    }
+
+    with pytest.raises(OpenApiCompilationError, match=expected_error):
+        _compile_single_operation(operation, path="/orders/search")
+
+
+def test_compile_openapi_defensively_rejects_array_values_outside_query_rendering() -> None:
+    path_parameter = openapi_compiler._OpenApiParameter(  # noqa: SLF001
+        name="order_id",
+        location="path",
+        variable_name="order_id",
+        example_value=("ord_1", "ord_2"),
+        style="simple",
+        explode=False,
+    )
+    header_parameter = openapi_compiler._OpenApiParameter(  # noqa: SLF001
+        name="X-Tags",
+        location="header",
+        variable_name="X_Tags",
+        example_value=("a", "b"),
+        style="simple",
+        explode=False,
+    )
+
+    with pytest.raises(OpenApiCompilationError, match="array parameter values"):
+        openapi_compiler._render_request_target(  # noqa: SLF001
+            "/orders/{order_id}",
+            (path_parameter,),
+        )
+    with pytest.raises(OpenApiCompilationError, match="array parameter values"):
+        openapi_compiler._render_parameter_headers((header_parameter,))  # noqa: SLF001
+
+
 def test_compile_openapi_rejects_malformed_path_templates_and_unsafe_path_variables() -> None:
     malformed: dict[str, object] = {
         "openapi": "3.1.0",

@@ -303,6 +303,15 @@ paths:
             type: string
             enum:
               - events
+        - name: labels
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+            default:
+              - rush
+              - vip
       responses:
         "200":
           description: ok
@@ -314,7 +323,7 @@ paths:
 
     assert result.exit_code == 0
     content = Path("tests/generated/get_order.hurl").read_text(encoding="utf-8")
-    assert "GET {{base_url}}/orders/{{order_id}}?include=events" in content
+    assert "GET {{base_url}}/orders/{{order_id}}?include=events&labels=rush&labels=vip" in content
 
 
 def test_architect_build_new_changed_from_generates_only_changed_operations(
