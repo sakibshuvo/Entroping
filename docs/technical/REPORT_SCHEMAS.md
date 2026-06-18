@@ -51,6 +51,11 @@ paths and effective assertions, not traffic values, prompts, credentials, or
 provider data.
 New writers include optional per-gate `group` provenance when a gate was
 expanded from a local `gate_groups` reference.
+The v1 schema also accepts additive source provenance: new writers emit
+`sources[]` entries with source paths, SHA-256 content digests, and import
+chains, plus per-gate import chains. Older v1 artifacts without these additive
+fields remain readable; consumers that need byte-level audit evidence should
+prefer the new fields when present.
 
 The capture summary report is written by:
 

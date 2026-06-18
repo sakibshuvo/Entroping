@@ -2,6 +2,10 @@
 
 ## 2026-06-18
 
+- Added issue #862's effective-policy provenance evidence:
+  QAnstitution loading now records value-free source SHA-256 digests and import
+  chains, and effective-policy JSON/Markdown reports emit additive source and
+  per-gate import-chain provenance while preserving legacy v1 report loading.
 - Fixed issue #867's review-summary run-only failure gap:
   review-summary generation now emits value-free Run JSON findings for failed
   test rows or failed summary counts that are not already represented by

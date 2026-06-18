@@ -268,9 +268,10 @@ Missing groups and cycles fail validation before execution.
 
 The filesystem loader uses the same expansion semantics while retaining group
 provenance in `QanstitutionEvidence`. Effective-policy reports include the
-source file and source group for every expanded gate. Imported documents expand
-their groups before merge, so duplicate IDs and `final: true` protections keep
-the same behavior as directly-authored imported gates.
+source file, source group, import chain, and value-free source digest evidence
+for every expanded gate. Imported documents expand their groups before merge,
+so duplicate IDs and `final: true` protections keep the same behavior as
+directly-authored imported gates.
 
 Reusable QAnstitution policy packs use the same import boundary and are
 documented in [POLICY_PACK_LAYOUT.md](POLICY_PACK_LAYOUT.md). The pack layout is

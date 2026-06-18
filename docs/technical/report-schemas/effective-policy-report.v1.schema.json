@@ -27,6 +27,12 @@
         "type": "string"
       }
     },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
     "gates": {
       "type": "array",
       "items": {
@@ -35,6 +41,30 @@
     }
   },
   "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "import_chain"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "import_chain": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "gate": {
       "type": "object",
       "additionalProperties": false,
@@ -53,6 +83,12 @@
         },
         "source_path": {
           "type": "string"
+        },
+        "import_chain": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "condition": {
           "type": "string"

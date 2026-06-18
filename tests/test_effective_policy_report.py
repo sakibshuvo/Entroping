@@ -1,5 +1,6 @@
 """Tests for effective QAnstitution policy evidence reports."""
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -21,6 +22,10 @@ from entroping.core.safe_write import SafeWriteError
 def _write_yaml(path: Path, body: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(body.lstrip(), encoding="utf-8")
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _write_imported_policy(root: Path) -> None:
@@ -67,9 +72,27 @@ def test_compile_effective_policy_report_renders_gate_provenance(tmp_path: Path)
     assert report.project == "checkout-api"
     assert report.config_path == "qanstitution.yaml"
     assert report.imports == ("rules/security.yaml",)
+    assert [
+        (source.path, source.sha256, source.import_chain) for source in report.sources
+    ] == [
+        (
+            "qanstitution.yaml",
+            _sha256(tmp_path / "qanstitution.yaml"),
+            ("qanstitution.yaml",),
+        ),
+        (
+            "rules/security.yaml",
+            _sha256(tmp_path / "rules" / "security.yaml"),
+            ("qanstitution.yaml", "rules/security.yaml"),
+        ),
+    ]
     assert [(gate.id, gate.source_path, gate.final) for gate in report.gates] == [
         ("security_header", "rules/security.yaml", True),
         ("smoke_latency", "qanstitution.yaml", False),
+    ]
+    assert [gate.import_chain for gate in report.gates] == [
+        ("qanstitution.yaml", "rules/security.yaml"),
+        ("qanstitution.yaml",),
     ]
     assert report.gates[1].description == "Local smoke latency override"
 
@@ -101,7 +124,8 @@ gates:
         ("no_server_errors", "qanstitution.yaml", "api_baseline")
     ]
     assert (
-        "| ID | Source | Group | Enforcement | Final | Condition | Assertion | Description |"
+        "| ID | Source | Import Chain | Group | Enforcement | Final | Condition | "
+        "Assertion | Description |"
         in markdown
     )
     assert "api_baseline" in markdown
@@ -114,7 +138,7 @@ def test_render_effective_policy_markdown_escapes_table_cells(tmp_path: Path) ->
 project: checkout-api
 gates:
   - id: table_gate
-    description: "contains | pipe"
+    description: "contains | pipe and `tick`"
     condition: "true"
     gate: header "X-Request-Id" exists
     enforcement: warn
@@ -127,7 +151,7 @@ gates:
     )
 
     assert "# Entroping Effective Policy" in markdown
-    assert "contains \\| pipe" in markdown
+    assert "contains \\| pipe and \\`tick\\`" in markdown
     assert "header \"X-Request-Id\" exists" in markdown
     assert "qanstitution.yaml" in markdown
 
@@ -167,7 +191,27 @@ def test_run_effective_policy_report_writes_json_and_markdown(tmp_path: Path) ->
     assert "smoke_latency" in markdown_result.output_path.read_text(encoding="utf-8")
     payload = json.loads(json_result.output_path.read_text(encoding="utf-8"))
     assert payload["schema_version"] == "entroping.effective-policy-report.v1"
+    assert payload["sources"] == [
+        {
+            "path": "qanstitution.yaml",
+            "sha256": _sha256(tmp_path / "qanstitution.yaml"),
+            "import_chain": ["qanstitution.yaml"],
+        },
+        {
+            "path": "rules/security.yaml",
+            "sha256": _sha256(tmp_path / "rules" / "security.yaml"),
+            "import_chain": ["qanstitution.yaml", "rules/security.yaml"],
+        },
+    ]
     assert payload["gates"][0]["source_path"] == "rules/security.yaml"
+    assert payload["gates"][0]["import_chain"] == [
+        "qanstitution.yaml",
+        "rules/security.yaml",
+    ]
+    assert "## Sources" in markdown_result.output_path.read_text(encoding="utf-8")
+    assert _sha256(tmp_path / "rules" / "security.yaml") in (
+        markdown_result.output_path.read_text(encoding="utf-8")
+    )
 
 
 def test_run_effective_policy_report_rejects_unsupported_output_before_loading(
