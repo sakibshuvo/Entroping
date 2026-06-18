@@ -124,6 +124,7 @@ def test_qanstitution_schema_contract_covers_current_runtime_shape() -> None:
     assert law.settings.protected_environments == ["prod", "production", "protected"]
     assert condition_pattern.fullmatch("tags contains 'smoke'") is not None
     assert condition_pattern.fullmatch("tags has 'smoke'") is None
+    assert condition_pattern.fullmatch(" tags contains 'smoke'") is None
     with pytest.raises(ValidationError, match="Unsupported QAnstitution condition syntax"):
         Qanstitution.model_validate(
             {

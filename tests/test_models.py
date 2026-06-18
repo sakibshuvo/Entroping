@@ -162,6 +162,17 @@ def test_gate_rule_rejects_unsupported_condition() -> None:
         )
 
 
+@pytest.mark.parametrize("condition", [" true", "true ", " tags contains 'smoke' "])
+def test_gate_rule_rejects_condition_surrounding_whitespace(condition: str) -> None:
+    with pytest.raises(ValidationError, match="leading or trailing whitespace"):
+        GateRule(
+            id="bad_condition_whitespace",
+            condition=condition,
+            gate="duration < 2000",
+            enforcement="block",
+        )
+
+
 def test_parse_condition_returns_typed_condition() -> None:
     assert isinstance(parse_condition("true"), TrueCondition)
     assert parse_condition("tags contains 'smoke'") == ContainsCondition(
