@@ -616,6 +616,7 @@ def test_load_run_report_round_trips_retry_evidence_and_ignores_malformed_entrie
     latest.write_text(
         json.dumps(
             {
+                "schema_version": "entroping.run-report.v1",
                 "project": "checkout-api",
                 "environment": "local",
                 "generated_at": "2026-06-03T00:00:00+00:00",
@@ -694,6 +695,59 @@ def test_load_run_report_round_trips_retry_evidence_and_ignores_malformed_entrie
     assert not report.tests[1].retry.unstable
 
 
+@pytest.mark.parametrize(
+    ("payload", "forbidden_error_fragment"),
+    [
+        (
+            {
+                "project": "checkout-api",
+                "environment": "local",
+                "generated_at": "2026-05-31T00:00:00+00:00",
+                "summary": {"total": 0, "passed": 0, "failed": 0, "exit_code": 0},
+                "tests": [],
+            },
+            None,
+        ),
+        (
+            {
+                "schema_version": "entroping.run-report.v999",
+                "project": "checkout-api",
+                "environment": "local",
+                "generated_at": "2026-05-31T00:00:00+00:00",
+                "summary": {"total": 0, "passed": 0, "failed": 0, "exit_code": 0},
+                "tests": [],
+            },
+            "entroping.run-report.v999",
+        ),
+    ],
+)
+def test_load_run_report_rejects_unversioned_or_unsupported_schema(
+    tmp_path: Path,
+    payload: dict[str, object],
+    forbidden_error_fragment: str | None,
+) -> None:
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+        ValueError,
+        match="must use schema_version entroping\\.run-report\\.v1",
+    ) as exc_info:
+        load_run_report(latest)
+    if forbidden_error_fragment is not None:
+        assert forbidden_error_fragment not in str(exc_info.value)
+
+
+def test_load_run_report_rejects_non_object_payload(tmp_path: Path) -> None:
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text("[]\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="must be a JSON object"):
+        load_run_report(latest)
+
+
 def test_load_run_report_round_trips_safety_and_ignores_malformed_entries(
     tmp_path: Path,
 ) -> None:
@@ -716,6 +770,7 @@ def test_load_run_report_round_trips_safety_and_ignores_malformed_entries(
     latest.write_text(
         json.dumps(
             {
+                "schema_version": "entroping.run-report.v1",
                 "project": "checkout-api",
                 "environment": "prod",
                 "generated_at": "2026-06-12T00:00:00+00:00",
@@ -1172,6 +1227,7 @@ def test_load_run_report_round_trips_response_fingerprint(tmp_path: Path) -> Non
     latest.write_text(
         json.dumps(
             {
+                "schema_version": "entroping.run-report.v1",
                 "project": "checkout-api",
                 "environment": "local",
                 "generated_at": "2026-05-31T00:00:00+00:00",
@@ -1216,6 +1272,7 @@ def test_load_run_report_ignores_malformed_optional_response_fields(tmp_path: Pa
     latest.write_text(
         json.dumps(
             {
+                "schema_version": "entroping.run-report.v1",
                 "project": "checkout-api",
                 "environment": "local",
                 "generated_at": "2026-05-31T00:00:00+00:00",
@@ -1275,6 +1332,7 @@ def test_load_run_report_round_trips_valid_known_failures_and_ignores_malformed_
     latest.write_text(
         json.dumps(
             {
+                "schema_version": "entroping.run-report.v1",
                 "project": "checkout-api",
                 "environment": "local",
                 "generated_at": "2026-05-31T00:00:00+00:00",
@@ -1370,6 +1428,7 @@ def test_load_run_report_round_trips_auth_evidence_and_ignores_malformed_entries
     latest.write_text(
         json.dumps(
             {
+                "schema_version": "entroping.run-report.v1",
                 "project": "checkout-api",
                 "environment": "local",
                 "generated_at": "2026-06-12T00:00:00+00:00",
@@ -1496,6 +1555,7 @@ def test_load_run_report_trims_valid_operation_ids_and_ignores_malformed_values(
     latest.write_text(
         json.dumps(
             {
+                "schema_version": "entroping.run-report.v1",
                 "project": "checkout-api",
                 "environment": "local",
                 "generated_at": "2026-05-31T00:00:00+00:00",

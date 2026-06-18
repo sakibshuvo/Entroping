@@ -61,6 +61,31 @@ def test_create_failure_bundle_rejects_malformed_latest_run(tmp_path: Path) -> N
         create_failure_bundle(project_root=tmp_path)
 
 
+def test_create_failure_bundle_rejects_unsupported_latest_run_schema(
+    tmp_path: Path,
+) -> None:
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v999",
+                "project": "checkout-api",
+                "environment": "default",
+                "generated_at": "2026-05-30T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 0, "failed": 1, "exit_code": 1},
+                "tests": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(FailureBundleError, match="Could not load latest run report") as exc_info:
+        create_failure_bundle(project_root=tmp_path)
+    assert "must use schema_version entroping.run-report.v1" in str(exc_info.value)
+    assert "entroping.run-report.v999" not in str(exc_info.value)
+
+
 def test_create_failure_bundle_requires_failed_run(tmp_path: Path) -> None:
     _write_latest(tmp_path, _run_report(failed=0))
 

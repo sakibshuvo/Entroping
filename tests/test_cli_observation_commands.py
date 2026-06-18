@@ -665,6 +665,7 @@ def test_studio_read_only_status_with_latest_run_and_no_mutation(
     (state_dir / "latest-run.json").write_text(
         json.dumps(
             {
+                "schema_version": "entroping.run-report.v1",
                 "project": "entroping-project",
                 "environment": "local",
                 "generated_at": "2026-05-30T00:00:00+00:00",
