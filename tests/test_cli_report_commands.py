@@ -147,6 +147,36 @@ def test_report_bug_returns_actionable_message_without_failures(
     assert "no failures to report" in result.output
 
 
+def test_report_bug_rejects_unsupported_latest_run_schema(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    latest_state = Path(".entroping") / "latest-run.json"
+    latest_state.parent.mkdir()
+    latest_state.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v999",
+                "project": "checkout-api",
+                "environment": "default",
+                "generated_at": "2026-05-30T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 0, "failed": 1, "exit_code": 1},
+                "tests": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["report", "bug"])
+
+    assert result.exit_code == 1
+    normalized_output = " ".join(result.output.split())
+    assert "Could not load latest run report" in normalized_output
+    assert "must use schema_version entroping.run-report.v1" in normalized_output
+    assert "entroping.run-report.v999" not in result.output
+
+
 def test_report_failure_bundle_writes_sanitized_bundle(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

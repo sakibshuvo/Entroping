@@ -103,7 +103,12 @@ def report_bug() -> None:
         console.print("[yellow]No latest run found. Run entroping run before report bug.[/yellow]")
         raise typer.Exit(1)
 
-    report = load_run_report(latest_state)
+    try:
+        report = load_run_report(latest_state)
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        print_cli_error(RuntimeError(f"Could not load latest run report: {exc}"))
+        raise typer.Exit(1) from exc
+
     if report.summary.failed == 0:
         console.print("[yellow]Latest Entroping run has no failures to report.[/yellow]")
         raise typer.Exit(1)

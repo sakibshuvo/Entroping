@@ -32,6 +32,7 @@ def load_run_report(path: Path) -> RunReport:
     """Load a previously written JSON run report."""
 
     data = json.loads(path.read_text(encoding="utf-8"))
+    _require_run_report_schema(data, path=path)
     summary_data = data["summary"]
     tests = tuple(
         RunTestReport(
@@ -81,6 +82,15 @@ def load_run_report(path: Path) -> RunReport:
         ),
         tests=tests,
     )
+
+
+def _require_run_report_schema(data: object, *, path: Path) -> None:
+    if not isinstance(data, Mapping):
+        msg = f"Run report {path} must be a JSON object"
+        raise ValueError(msg)
+    if data.get("schema_version") != RUN_REPORT_SCHEMA_VERSION:
+        msg = f"Run report {path} must use schema_version {RUN_REPORT_SCHEMA_VERSION}"
+        raise ValueError(msg)
 
 
 def run_report_to_dict(report: RunReport) -> dict[str, object]:

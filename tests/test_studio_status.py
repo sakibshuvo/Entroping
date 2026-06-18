@@ -141,6 +141,7 @@ gates:
     (state_dir / "latest-run.json").write_text(
         json.dumps(
             {
+                "schema_version": "entroping.run-report.v1",
                 "project": "checkout-api",
                 "environment": "local",
                 "generated_at": "2026-05-30T00:00:00+00:00",

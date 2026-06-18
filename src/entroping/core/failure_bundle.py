@@ -78,7 +78,7 @@ def create_failure_bundle(
 
     try:
         report = load_run_report(latest_path)
-    except (KeyError, OSError, TypeError, json.JSONDecodeError) as exc:
+    except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
         msg = f"Could not load latest run report {latest_path}: {exc}"
         raise FailureBundleError(msg) from exc
 
