@@ -131,6 +131,39 @@ def test_create_failure_bundle_writes_manifest_and_sanitized_artifacts(tmp_path:
     assert "token=[REDACTED]" in (result.output_dir / "junit.xml").read_text(encoding="utf-8")
 
 
+def test_create_failure_bundle_redacts_secret_like_hurl_metadata_values(
+    tmp_path: Path,
+) -> None:
+    _write_latest(tmp_path, _run_report(path="tests/secret-metadata.hurl"))
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    token = "sk-proj-" + ("a" * 24)
+    (tests_dir / "secret-metadata.hurl").write_text(
+        "\n".join(
+            [
+                "# entroping: tags=smoke",
+                f"# entroping: owner={token}",
+                "# entroping: story_id=CHK-001",
+                "",
+                "GET {{base_url}}/health",
+                "HTTP 200",
+            ],
+        ),
+        encoding="utf-8",
+    )
+
+    result = create_failure_bundle(project_root=tmp_path)
+
+    metadata_path = result.output_dir / "hurl-metadata.json"
+    raw_metadata = metadata_path.read_text(encoding="utf-8")
+    payload = json.loads(raw_metadata)
+    assert token not in raw_metadata
+    assert payload["tests"][0]["metadata"] == {
+        "owner": "[REDACTED]",
+        "story_id": "CHK-001",
+    }
+
+
 def test_create_failure_bundle_writes_fence_safe_bug_report(tmp_path: Path) -> None:
     report = RunReport(
         project="checkout-api",

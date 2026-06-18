@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Final
@@ -222,7 +223,7 @@ def _hurl_metadata_for_failed_test(test: RunTestReport, *, root: Path) -> dict[s
         "rule_ids": list(test.rule_ids),
         "tags": sorted(discovered.tags) if discovered is not None else [],
         "metadata": (
-            dict(sorted(discovered.metadata.meta.items()))
+            _redacted_hurl_metadata(discovered.metadata.meta)
             if discovered is not None
             else {}
         ),
@@ -242,6 +243,13 @@ def _discover_single_hurl_test(path: Path) -> HurlTest | None:
         return None
     discovered = discover_hurl_tests([path])
     return discovered[0] if discovered else None
+
+
+def _redacted_hurl_metadata(metadata: Mapping[str, str]) -> dict[str, str]:
+    return {
+        key: redact_hurl_output(value)
+        for key, value in sorted(metadata.items())
+    }
 
 
 def _resolve_failed_test_path(root: Path, raw_path: str) -> Path:
