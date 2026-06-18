@@ -688,6 +688,40 @@ def test_load_qanstitution_rejects_adversarial_condition_strings(
 
 
 @pytest.mark.parametrize(
+    ("gate_id", "message"),
+    [
+        (" ", "gate id must not be blank"),
+        ("\nvalid", "gate id must not contain control characters"),
+        ("multi\nline", "gate id must not contain control characters"),
+        ("valid\t", "gate id must not contain control characters"),
+        ("bad\x00id", "gate id must not contain control characters"),
+    ],
+)
+def test_load_qanstitution_rejects_invalid_gate_ids(
+    tmp_path: Path,
+    gate_id: str,
+    message: str,
+) -> None:
+    write_document(
+        tmp_path / "qanstitution.yaml",
+        {
+            "project": "checkout-api",
+            "gates": [
+                {
+                    "id": gate_id,
+                    "condition": "true",
+                    "gate": "duration < 2000",
+                    "enforcement": "block",
+                }
+            ],
+        },
+    )
+
+    with pytest.raises(QanstitutionLoadError, match=message):
+        load_qanstitution(tmp_path / "qanstitution.yaml")
+
+
+@pytest.mark.parametrize(
     ("document", "message"),
     [
         ({"project": "checkout-api", "imports": {"rules": "security.yaml"}}, "Input should be"),
