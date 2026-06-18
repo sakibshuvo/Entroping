@@ -17,6 +17,7 @@ from entroping.bridge.story_traceability import (
     StoryTraceabilityReport,
     compile_story_traceability,
 )
+from entroping.core.drift_report import DRIFT_REPORT_SCHEMA_VERSION
 from entroping.core.hurl_discovery import discover_hurl_tests
 from entroping.core.hurl_runner import redact_hurl_output
 
@@ -112,6 +113,7 @@ def annotations_from_drift_report(path: Path) -> tuple[GitHubAnnotation, ...]:
         return ()
 
     data = _load_json_object(path, artifact="drift report")
+    _validate_drift_report_schema(data, path)
     raw_findings = data.get("findings", [])
     if not isinstance(raw_findings, list):
         msg = f"Drift report {path} must contain a findings list"
@@ -182,11 +184,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-annotations", type=int, default=50)
     args = parser.parse_args(argv)
 
-    annotations = collect_github_annotations(
-        junit_path=args.junit,
-        drift_path=args.drift,
-        include_traceability=args.traceability,
-    )
+    try:
+        annotations = collect_github_annotations(
+            junit_path=args.junit,
+            drift_path=args.drift,
+            include_traceability=args.traceability,
+        )
+    except GitHubAnnotationError as exc:
+        print(f"error: {_annotation_message(str(exc))}", file=sys.stderr)
+        return 1
     max_annotations = max(0, args.max_annotations)
     for annotation in annotations[:max_annotations]:
         print(render_github_annotation(annotation))
@@ -217,6 +223,22 @@ def _load_json_object(path: Path, *, artifact: str) -> dict[str, object]:
         msg = f"{artifact.capitalize()} {path} must be a JSON object"
         raise GitHubAnnotationError(msg)
     return data
+
+
+def _validate_drift_report_schema(data: dict[str, object], path: Path) -> None:
+    schema_version = data.get("schema_version")
+    if not isinstance(schema_version, str) or not schema_version.strip():
+        msg = (
+            f"drift report schema_version in {path} must declare schema_version "
+            f"{DRIFT_REPORT_SCHEMA_VERSION}"
+        )
+        raise GitHubAnnotationError(msg)
+    if schema_version != DRIFT_REPORT_SCHEMA_VERSION:
+        msg = (
+            f"Unsupported drift report schema_version in {path}; expected "
+            f"{DRIFT_REPORT_SCHEMA_VERSION}"
+        )
+        raise GitHubAnnotationError(msg)
 
 
 def _junit_test_path(testcase: _XmlElement, message: str) -> str | None:

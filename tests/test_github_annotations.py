@@ -217,7 +217,15 @@ def test_annotations_from_drift_report_handles_missing_and_malformed_reports(
         annotations_from_drift_report(array_report)
 
     invalid_findings = tmp_path / "invalid-findings.json"
-    invalid_findings.write_text(json.dumps({"findings": {}}), encoding="utf-8")
+    invalid_findings.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.drift-report.v1",
+                "findings": {},
+            }
+        ),
+        encoding="utf-8",
+    )
     with pytest.raises(GitHubAnnotationError, match="must contain a findings list"):
         annotations_from_drift_report(invalid_findings)
 
@@ -225,6 +233,33 @@ def test_annotations_from_drift_report_handles_missing_and_malformed_reports(
     unreadable.mkdir()
     with pytest.raises(GitHubAnnotationError, match="Could not read drift report"):
         annotations_from_drift_report(unreadable)
+
+
+@pytest.mark.parametrize(
+    ("payload", "message"),
+    [
+        (
+            {"findings": []},
+            "must declare schema_version entroping.drift-report.v1",
+        ),
+        (
+            {"schema_version": "entroping.run-report.v1", "findings": []},
+            "Unsupported drift report schema_version",
+        ),
+    ],
+)
+def test_annotations_from_drift_report_rejects_unsupported_schema_versions(
+    tmp_path: Path,
+    payload: dict[str, object],
+    message: str,
+) -> None:
+    drift = tmp_path / "drift.json"
+    drift.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(GitHubAnnotationError, match=message) as exc_info:
+        annotations_from_drift_report(drift)
+
+    assert "entroping.run-report.v1" not in str(exc_info.value)
 
 
 def test_annotations_from_drift_report_handles_partial_findings(tmp_path: Path) -> None:
@@ -374,3 +409,30 @@ def test_github_annotations_main_truncates_output(
     assert "second" not in output
     assert "Entroping annotations truncated" in output
     assert "1 annotation(s) omitted" in output
+
+
+def test_github_annotations_main_returns_controlled_drift_schema_errors(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    drift = tmp_path / "drift.json"
+    drift.write_text(
+        json.dumps({"schema_version": "entroping.run-report.v1", "findings": []}),
+        encoding="utf-8",
+    )
+
+    exit_code = github_annotations_main(
+        [
+            "--junit",
+            str(tmp_path / "missing-junit.xml"),
+            "--drift",
+            str(drift),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert captured.out == ""
+    assert "Unsupported drift report schema_version" in captured.err
+    assert "entroping.run-report.v1" not in captured.err
+    assert "Traceback" not in captured.err
