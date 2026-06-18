@@ -2,6 +2,12 @@
 
 ## 2026-06-18
 
+- Fixed issue #878's OpenAPI vendor JSON media gap:
+  OpenAPI-to-Hurl generation now treats exact `application/json` and
+  `application/*+json` request/response content as JSON for supported schema
+  rendering, prefers exact `application/json` when both are present, preserves
+  selected vendor JSON `Content-Type` values, and keeps unsupported non-JSON
+  media types ignored instead of guessing.
 - Fixed issue #879's reusable OpenAPI parameter gap:
   OpenAPI-to-Hurl generation now resolves local
   `#/components/parameters/...` references from path and operation parameter
