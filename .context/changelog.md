@@ -1437,3 +1437,7 @@
 - Closed issue #882's traffic-vs-OpenAPI ambiguity gap: ambiguous route-template
   matches now emit separate `ambiguous_routes` evidence and leave candidate
   operations spec-only until unambiguous traffic observes them.
+- Closed issue #865's review-summary schema gap: run JSON inputs must now carry
+  the `entroping.run-report.v1` schema version before review-summary trusts
+  runtime evidence, with value-free rejection for missing or unsupported
+  versions.
