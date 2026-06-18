@@ -31,7 +31,7 @@ Issue:
 - Worker role: <Product Manager | Architect | Dev Agent | QA Agent | Code Review Agent | Security Agent | Monitoring Agent>
   Declare the role from `docs/meta/AGENT_ROLE_REGISTRY.yaml`.
 - Autonomy tier: <Tier A autonomous lane | Tier B assisted lane | Tier C restricted lane>
-- Merge authority: <none | Tier A only after green local gates and GitHub CI | Codex/human required>
+- Merge authority: <Tier A autonomous after gates and green CI | Codex/human required | no merge authority>
   Merge authority must match the tier rules in `docs/meta/AGENT_CONTROL_PLANE.md`.
 - Write authority: one issue-scoped worktree only.
 - Source of truth: local files, tests, ADRs, and GitHub evidence, not model summaries.

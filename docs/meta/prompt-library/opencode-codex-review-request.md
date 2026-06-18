@@ -42,13 +42,13 @@ Issue:
 #<issue-number> - <issue-title>
 
 Worker evidence:
-- Provider lane: <opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other | direct/deepseek-api | local/offline>
+- Provider lane: <deepseek-api/direct | opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other | local/offline>
 - Provider host: <OpenCode native | OpenCode Go | direct API | local runner>
 - Billing path: <paid DeepSeek | OpenCode Go | local | other>
 - Model id: <exact model id>
 - Role: <Dev Agent | QA Agent | Code Review Agent | Security Agent | Architect | Monitoring Agent>
-- Autonomy tier: <Tier A | Tier B | Tier C>
-- Claimed merge authority: <none | Tier A only | Codex/human required>
+- Autonomy tier: <Tier A autonomous lane | Tier B assisted lane | Tier C restricted lane>
+- Claimed merge authority: <Tier A autonomous after gates and green CI | Codex/human required | no merge authority>
 - Commands already run: <focused tests and gates>
 
 Source-of-truth rules:
@@ -115,10 +115,10 @@ Expected issue:
 #<issue-number>
 
 Expected provider lane:
-<opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other | direct/deepseek-api | local/offline>
+<deepseek-api/direct | opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other | local/offline>
 
 Expected autonomy tier:
-<Tier A | Tier B | Tier C>
+<Tier A autonomous lane | Tier B assisted lane | Tier C restricted lane>
 
 Attempt these read-only review commands. If the read-only sandbox blocks a
 command because a tool wants to write cache or local metadata, report the

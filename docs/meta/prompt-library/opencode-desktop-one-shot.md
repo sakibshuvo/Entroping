@@ -111,8 +111,7 @@ In the issue worktree:
     - Billing path: paid DeepSeek API key inside OpenCode
     - Model id: deepseek/deepseek-v4-pro
     - Autonomy tier: Tier A autonomous lane
-    - Merge authority: Tier A only after local gates, GitHub CI, PR declaration,
-      and finish cleanup
+    - Merge authority: Tier A autonomous after gates and green CI
 
 Before autonomous merge:
 - Run:

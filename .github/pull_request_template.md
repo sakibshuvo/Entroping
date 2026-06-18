@@ -61,12 +61,12 @@ Complete this section for OpenCode/DeepSeek-produced or autonomous-lane PRs.
 Before merge, strict validation can run with
 `scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue>`.
 
-- Provider lane:
+- Provider lane: <deepseek-api/direct | opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other | local/offline>
 - Provider host:
 - Billing path:
 - Model id:
-- Autonomy tier:
-- Merge authority:
+- Autonomy tier: <Tier A autonomous lane | Tier B assisted lane | Tier C restricted lane>
+- Merge authority: <Tier A autonomous after gates and green CI | Codex/human required | no merge authority>
 - Commands run:
 
 ## Documentation Impact Declaration
