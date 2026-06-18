@@ -197,6 +197,180 @@ def test_review_summary_includes_timeout_run_evidence(tmp_path: Path) -> None:
     assert "live-secret" not in markdown
 
 
+def test_review_summary_includes_run_only_failure_evidence(tmp_path: Path) -> None:
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    (reports_dir / "run-latest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "checkout-api",
+                "environment": "ci",
+                "generated_at": "2026-06-03T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 0, "failed": 1, "exit_code": 1},
+                "tests": [
+                    {
+                        "path": "tests/failing.hurl",
+                        "execution_path": ".entroping/run/failing.hurl",
+                        "status": "failed",
+                        "exit_code": 1,
+                        "duration_ms": 35,
+                        "rule_ids": [],
+                        "stdout": "token=live-secret",
+                        "stderr": "password=live-secret",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    summary = build_review_summary(
+        run_json_path=reports_dir / "run-latest.json",
+        junit_path=reports_dir / "junit.xml",
+        drift_path=reports_dir / "drift.json",
+        traceability_report=None,
+    )
+
+    markdown = render_review_summary_markdown(summary)
+    assert summary.status == "fail"
+    assert [
+        (finding.source, finding.severity, finding.path, finding.message)
+        for finding in summary.findings
+    ] == [
+        (
+            "Run JSON",
+            "error",
+            "tests/failing.hurl",
+            "failed with final status failed exit=1",
+        )
+    ]
+    assert "| Run JSON | error | tests/failing.hurl | failed with final status" in markdown
+    assert "live-secret" not in markdown
+
+
+def test_review_summary_includes_summary_failure_evidence_without_test_rows(
+    tmp_path: Path,
+) -> None:
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    (reports_dir / "run-latest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "checkout-api",
+                "environment": "ci",
+                "generated_at": "2026-06-03T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 0, "failed": 1, "exit_code": 1},
+                "tests": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    summary = build_review_summary(
+        run_json_path=reports_dir / "run-latest.json",
+        junit_path=reports_dir / "junit.xml",
+        drift_path=reports_dir / "drift.json",
+        traceability_report=None,
+    )
+
+    assert summary.status == "fail"
+    assert [
+        (finding.source, finding.severity, finding.path, finding.message)
+        for finding in summary.findings
+    ] == [
+        (
+            "Run JSON",
+            "error",
+            None,
+            "run summary reports 1 failed test; exit=1",
+        )
+    ]
+
+
+def test_review_summary_includes_nonzero_exit_failure_evidence(
+    tmp_path: Path,
+) -> None:
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    run_json = reports_dir / "run-latest.json"
+    run_json.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "checkout-api",
+                "environment": "ci",
+                "generated_at": "2026-06-03T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 1, "failed": 0, "exit_code": 2},
+                "tests": [
+                    {
+                        "path": "tests/nonzero.hurl",
+                        "status": "unknown",
+                        "exit_code": 2,
+                        "stdout": "token=live-secret",
+                        "stderr": "password=live-secret",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    summary = build_review_summary(
+        run_json_path=run_json,
+        junit_path=reports_dir / "junit.xml",
+        drift_path=reports_dir / "drift.json",
+        traceability_report=None,
+    )
+
+    markdown = render_review_summary_markdown(summary)
+    assert [
+        (finding.source, finding.severity, finding.path, finding.message)
+        for finding in summary.findings
+    ] == [
+        (
+            "Run JSON",
+            "error",
+            "tests/nonzero.hurl",
+            "failed with final status unknown exit=2",
+        )
+    ]
+    assert "live-secret" not in markdown
+
+    run_json.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "checkout-api",
+                "environment": "ci",
+                "generated_at": "2026-06-03T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 1, "failed": 0, "exit_code": 2},
+                "tests": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    summary_without_test_rows = build_review_summary(
+        run_json_path=run_json,
+        junit_path=reports_dir / "junit.xml",
+        drift_path=reports_dir / "drift.json",
+        traceability_report=None,
+    )
+
+    assert [
+        (finding.source, finding.severity, finding.path, finding.message)
+        for finding in summary_without_test_rows.findings
+    ] == [
+        (
+            "Run JSON",
+            "error",
+            None,
+            "run summary reports non-zero exit=2",
+        )
+    ]
+
+
 def test_review_summary_suppresses_outside_input_paths(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

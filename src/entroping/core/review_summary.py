@@ -298,6 +298,7 @@ def _findings_from_run_json(path: Path, *, root: Path | None) -> tuple[ReviewFin
         exit_code = raw_test.get("exit_code")
         exit_code_text = str(exit_code) if isinstance(exit_code, int) else "unknown"
         path_value = _finding_path(raw_test.get("path"))
+        run_error_recorded = False
         if status == "timeout":
             timeout_ms = raw_test.get("timeout_ms")
             timeout_text = (
@@ -316,6 +317,19 @@ def _findings_from_run_json(path: Path, *, root: Path | None) -> tuple[ReviewFin
                     ),
                 )
             )
+            run_error_recorded = True
+        if not run_error_recorded and _is_run_failure(status, exit_code):
+            findings.append(
+                ReviewFinding(
+                    source="Run JSON",
+                    severity="error",
+                    path=_display_path(path_value, root=root),
+                    message=_redacted_one_line(
+                        f"failed with final status {status} exit={exit_code_text}"
+                    ),
+                )
+            )
+            run_error_recorded = True
         retry = raw_test.get("retry")
         if not isinstance(retry, dict):
             continue
@@ -344,6 +358,8 @@ def _findings_from_run_json(path: Path, *, root: Path | None) -> tuple[ReviewFin
                 message=_redacted_one_line(message),
             )
         )
+    if not any(finding.severity == "error" for finding in findings):
+        findings.extend(_summary_failure_finding(data, path=path))
     return tuple(findings)
 
 
@@ -421,6 +437,37 @@ def _summary_status(
     if all(artifact.state != "present" for artifact in artifacts):
         return "attention"
     return "pass"
+
+
+def _is_run_failure(status: str, exit_code: object) -> bool:
+    if status in {"failed", "error", "blocked"}:
+        return True
+    return isinstance(exit_code, int) and exit_code != 0
+
+
+def _summary_failure_finding(
+    data: dict[str, object],
+    *,
+    path: Path,
+) -> tuple[ReviewFinding, ...]:
+    raw_summary = cast(dict[str, object], data.get("summary"))
+    failed = _int_field(raw_summary.get("failed"), field="summary.failed", path=path)
+    exit_code = _int_field(raw_summary.get("exit_code"), field="summary.exit_code", path=path)
+    if failed == 0 and exit_code == 0:
+        return ()
+    if failed > 0:
+        test_word = "test" if failed == 1 else "tests"
+        message = f"run summary reports {failed} failed {test_word}; exit={exit_code}"
+    else:
+        message = f"run summary reports non-zero exit={exit_code}"
+    return (
+        ReviewFinding(
+            source="Run JSON",
+            severity="error",
+            path=None,
+            message=_redacted_one_line(message),
+        ),
+    )
 
 
 def _load_json_object(path: Path, *, artifact: str) -> dict[str, object]:
