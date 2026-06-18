@@ -510,6 +510,67 @@ def test_execute_run_workflow_counts_unrun_selected_tests_when_protected_block_s
     assert (tmp_path / "reports" / "run-latest.html").is_file()
 
 
+def test_execute_run_workflow_blocks_read_only_metadata_on_mutating_protected_test(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_project(tmp_path)
+    (tmp_path / "envs").mkdir()
+    (tmp_path / "envs" / "production.env").write_text(
+        "base_url=http://localhost:18080\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "tests" / "health.hurl").write_text(
+        "# entroping: tags=smoke\n"
+        "# entroping: safety=read-only\n\n"
+        "DELETE http://localhost:18080/orders/123\nHTTP 204\n",
+        encoding="utf-8",
+    )
+    subprocess_called = False
+
+    def fake_run_hurl_files(
+        paths: list[Path],
+        options: HurlRunOptions,
+        *,
+        max_workers: int = 1,
+        fail_fast: bool = False,
+    ) -> HurlSuiteResult:
+        nonlocal subprocess_called
+        _ = (paths, options, max_workers, fail_fast)
+        subprocess_called = True
+        raise AssertionError("read-only contradiction must block before Hurl")
+
+    monkeypatch.setattr("entroping.core.run_workflow.run_hurl_files", fake_run_hurl_files)
+
+    result = execute_run_workflow(
+        project_root=tmp_path,
+        environment="production",
+        tag_filters=("smoke",),
+        report_formats=("json", "junit", "html"),
+        parallel=False,
+        drift_check=False,
+    )
+
+    assert result.exit_code == 1
+    assert subprocess_called is False
+    latest = json.loads(result.latest_state_path.read_text(encoding="utf-8"))
+    assert latest["tests"][0]["status"] == "blocked"
+    assert latest["tests"][0]["safety"] == {
+        "protected_environment": True,
+        "safety": "read-only",
+        "safety_source": "test metadata",
+        "methods": ["DELETE"],
+        "blocked_reason": (
+            "read-only safety metadata conflicts with mutating method DELETE "
+            "in protected environments"
+        ),
+    }
+    assert "localhost:18080" not in json.dumps(latest)
+    assert (tmp_path / "reports" / "run-latest.json").is_file()
+    assert (tmp_path / "reports" / "junit.xml").is_file()
+    assert (tmp_path / "reports" / "run-latest.html").is_file()
+
+
 def test_execute_run_workflow_allows_idempotent_mutation_in_protected_environment(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
