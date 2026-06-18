@@ -287,7 +287,8 @@ def _findings_from_run_json(path: Path, *, root: Path | None) -> tuple[ReviewFin
     data = _load_json_object(path, artifact="run report")
     raw_tests = data.get("tests", [])
     if not isinstance(raw_tests, list):
-        return ()
+        msg = f"Run report {path} must contain a tests list"
+        raise ReviewSummaryError(msg)
 
     findings: list[ReviewFinding] = []
     for raw_test in raw_tests:
