@@ -84,6 +84,7 @@ def test_traffic_openapi_audit_reports_documented_undocumented_and_spec_only_rou
     assert payload["summary"] == {
         "documented_routes": 2,
         "undocumented_routes": 1,
+        "ambiguous_routes": 0,
         "spec_only_routes": 1,
     }
     assert payload["undocumented_routes"] == [
@@ -95,6 +96,63 @@ def test_traffic_openapi_audit_reports_documented_undocumented_and_spec_only_rou
         }
     ]
     assert "DELETE /internal-debug" in render_traffic_openapi_markdown(report)
+
+
+def test_traffic_openapi_audit_reports_ambiguous_template_matches() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/orders/{order_id}": {
+                "get": {
+                    "operationId": "getOrder",
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+            "/orders/{slug}": {
+                "get": {
+                    "operationId": "getOrderBySlug",
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+    graph = TrafficDependencyGraph(
+        source_label="client",
+        routes=(_route(method="GET", path_template="/orders/{id}", call_count=3),),
+    )
+
+    report = audit_traffic_routes_against_openapi(document, graph)
+
+    assert report.passed
+    assert report.documented == ()
+    assert report.undocumented == ()
+    assert [(row.method, row.path_template, row.operation_ids) for row in report.ambiguous] == [
+        ("GET", "/orders/{id}", ("getOrder", "getOrderBySlug")),
+    ]
+    assert [(row.method, row.path_template, row.operation_id) for row in report.spec_only] == [
+        ("GET", "/orders/{order_id}", "getOrder"),
+        ("GET", "/orders/{slug}", "getOrderBySlug"),
+    ]
+
+    payload = traffic_openapi_report_to_dict(report)
+    assert payload["summary"] == {
+        "documented_routes": 0,
+        "undocumented_routes": 0,
+        "ambiguous_routes": 1,
+        "spec_only_routes": 2,
+    }
+    assert payload["ambiguous_routes"] == [
+        {
+            "method": "GET",
+            "path_template": "/orders/{id}",
+            "call_count": 3,
+            "failure_count": 0,
+            "operation_ids": ["getOrder", "getOrderBySlug"],
+        }
+    ]
+    markdown = render_traffic_openapi_markdown(report)
+    assert "### Ambiguous Observed Routes" in markdown
+    assert "getOrder, getOrderBySlug" in markdown
 
 
 def test_traffic_openapi_audit_strips_query_fragments_and_does_not_report_values() -> None:

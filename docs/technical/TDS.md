@@ -838,8 +838,10 @@ look happy-path covered. When `.entroping/state.db` contains redacted Eye
 traffic, the same audit also compares captured route summaries against OpenAPI
 path templates and reports documented, undocumented, and spec-only routes
 without raw query strings, headers, cookies, bodies, host userinfo, or captured
-values. JSON output carries schema marker `entroping.openapi-audit.v1`; the
-nested traffic route section uses `entroping.traffic-openapi-audit.v1`.
+values. Ambiguous route-template matches are reported separately and do not
+credit all candidate operations as observed. JSON output carries schema marker
+`entroping.openapi-audit.v1`; the nested traffic route section uses
+`entroping.traffic-openapi-audit.v1`.
 `architect audit --focus logic --changed-from <ref>` also compares the
 configured local OpenAPI spec against the same file at a Git base ref and
 attaches `entroping.openapi-breaking-diff.v1` findings for removed or added
