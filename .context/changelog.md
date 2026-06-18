@@ -1409,3 +1409,6 @@
 - Closed issue #883's OpenAPI audit coverage gap: generated negative-path Hurl
   evidence is reported in `negative_tests` and no longer counts as positive
   operation coverage.
+- Closed issue #882's traffic-vs-OpenAPI ambiguity gap: ambiguous route-template
+  matches now emit separate `ambiguous_routes` evidence and leave candidate
+  operations spec-only until unambiguous traffic observes them.
