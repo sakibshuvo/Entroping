@@ -97,7 +97,7 @@ def _redact_url(url: str) -> str:
         ],
         doseq=True,
     )
-    return urlunsplit((parsed.scheme, netloc, parsed.path, query, parsed.fragment))
+    return urlunsplit((parsed.scheme, netloc, parsed.path, query, ""))
 
 
 def _redact_body(

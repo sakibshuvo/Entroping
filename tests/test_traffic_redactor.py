@@ -318,6 +318,28 @@ def test_redactor_removes_url_userinfo_credentials() -> None:
     assert redacted.redaction_confidence == "high"
 
 
+def test_redactor_strips_url_fragments_before_persistence() -> None:
+    exchange = _raw_exchange().model_copy(
+        update={
+            "request": _raw_exchange().request.model_copy(
+                update={
+                    "url": (
+                        "https://api.example.test/oauth/callback?"
+                        "state=visible-state#access_token=fragment-secret"
+                    ),
+                },
+            ),
+        },
+    )
+
+    redacted = redact_traffic_exchange(exchange)
+
+    assert redacted.request.url == "https://api.example.test/oauth/callback?state=visible-state"
+    assert "#" not in redacted.request.url
+    assert "fragment-secret" not in redacted.model_dump_json()
+    assert redacted.redaction_confidence == "high"
+
+
 def test_redactor_bounds_text_body_summaries() -> None:
     exchange = _raw_exchange().model_copy(
         update={
