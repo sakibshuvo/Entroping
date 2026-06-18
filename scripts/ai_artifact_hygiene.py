@@ -48,15 +48,29 @@ AI_DUMP_FILENAMES = {
     "transcript.md",
     "proposal.diff",
 }
-CONTENT_SCAN_ROOTS = {".context", ".github", "docs"}
+FULL_CONTENT_SCAN_ROOTS = {".context", ".github", "docs"}
 CONTENT_SCAN_SUFFIXES = {
+    ".bash",
+    ".cfg",
+    ".conf",
+    ".config",
+    ".env",
+    ".envrc",
+    ".ini",
+    ".js",
     ".json",
     ".jsonl",
     ".md",
     ".markdown",
+    ".py",
+    ".pyi",
+    ".sh",
     ".txt",
+    ".toml",
+    ".ts",
     ".yaml",
     ".yml",
+    ".zsh",
 }
 FIXTURE_ROOTS = {"tests"}
 FIXTURE_MARKERS = {"fixtures", "fixture"}
@@ -136,6 +150,7 @@ def _tracked_files(root: Path) -> tuple[Path, ...]:
         ["git", "-C", str(root), "ls-files", "-z"],
         check=False,
         capture_output=True,
+        timeout=30,
     )
     if result.returncode == 0:
         return tuple(
@@ -186,7 +201,8 @@ def _audit_path(*, root: Path, path: Path) -> list[Finding]:
 
 def _audit_content(*, root: Path, path: Path) -> list[Finding]:
     relative = _relative_path(path, root)
-    if not _should_scan_content(relative):
+    scan_mode = _content_scan_mode(relative)
+    if scan_mode is None:
         return []
 
     try:
@@ -201,7 +217,7 @@ def _audit_content(*, root: Path, path: Path) -> list[Finding]:
         return []
 
     findings: list[Finding] = []
-    if _looks_like_provider_response_dump(text):
+    if scan_mode == "full" and _looks_like_provider_response_dump(text):
         findings.append(
             Finding(
                 path=path,
@@ -213,7 +229,7 @@ def _audit_content(*, root: Path, path: Path) -> list[Finding]:
     for line_number, line in enumerate(text.splitlines(), start=1):
         if _line_is_allowed(line):
             continue
-        if RAW_STREAM_MARKER_RE.search(line):
+        if scan_mode == "full" and RAW_STREAM_MARKER_RE.search(line):
             findings.append(
                 Finding(
                     path=path,
@@ -221,7 +237,7 @@ def _audit_content(*, root: Path, path: Path) -> list[Finding]:
                     message="raw prompt/stdout/stderr marker",
                 )
             )
-        if RAW_BODY_MARKER_RE.search(line):
+        if scan_mode == "full" and RAW_BODY_MARKER_RE.search(line):
             findings.append(
                 Finding(
                     path=path,
@@ -229,7 +245,7 @@ def _audit_content(*, root: Path, path: Path) -> list[Finding]:
                     message="raw request/response body marker",
                 )
             )
-        if _is_cookie_header_leak(line):
+        if scan_mode == "full" and _is_cookie_header_leak(line):
             findings.append(
                 Finding(path=path, line_number=line_number, message="cookie header")
             )
@@ -291,14 +307,16 @@ def _json_has_provider_response_shape(value: Any) -> bool:
     return False
 
 
-def _should_scan_content(relative: Path) -> bool:
+def _content_scan_mode(relative: Path) -> str | None:
     if _is_fixture_path(relative):
-        return False
+        return None
     if relative.suffix.lower() not in CONTENT_SCAN_SUFFIXES:
-        return False
+        return None
     if len(relative.parts) == 1:
-        return True
-    return bool(relative.parts and relative.parts[0] in CONTENT_SCAN_ROOTS)
+        return "full"
+    if relative.parts[0] in FULL_CONTENT_SCAN_ROOTS:
+        return "full"
+    return "secret-only"
 
 
 def _is_fixture_path(relative: Path) -> bool:

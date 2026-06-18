@@ -6,8 +6,14 @@ import importlib.util
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "ai_worker_file_safety.py"
+
+
+def _fixture_token(*parts: str) -> str:
+    return "".join(parts)
 
 
 def _load_file_safety_module() -> Any:
@@ -33,6 +39,8 @@ def test_sensitive_selected_path_reason_rejects_credential_variants() -> None:
         "secret.envrc",
         "secret.config",
         "config/my-secret.config.yaml",
+        "config/prod-api-key.toml",
+        "config/dev_client_secret.yaml",
         "service-account.json",
     )
 
@@ -91,6 +99,33 @@ def test_secret_like_content_reason_rejects_secret_shapes() -> None:
         assert module.secret_like_content_reason(content) == label
 
 
+@pytest.mark.parametrize(
+    "content",
+    [
+        _fixture_token("sk-", "abcdefghijklmnopqrstuvwxyz123456"),
+        _fixture_token("sk-proj-", "abcdefghijklmnopqrstuvwxyz123456"),
+        _fixture_token("ghp_", "abcdefghijklmnopqrstuvwxyz123456"),
+        _fixture_token("github_pat_", "abcdefghijklmnopqrstuvwxyz123456"),
+        _fixture_token("glpat-", "abcdefghijklmnopqrstuvwxyz"),
+        _fixture_token("hf_", "abcdefghijklmnopqrstuv"),
+        _fixture_token("xoxb-", "1234567890-", "abcdefghijklmnopqrstuvwxyz"),
+        _fixture_token("AIza", "abcdefghijklmnopqrstuvwxyz1234"),
+        _fixture_token("ya29.", "abcdefghijklmnopqrstuvwxyz123456"),
+        _fixture_token("AKIA", "ABCDEFGHIJKLMNOP"),
+    ],
+)
+def test_secret_like_content_reason_rejects_bare_provider_tokens(content: str) -> None:
+    module = _load_file_safety_module()
+
+    assert module.secret_like_content_reason(content) == "provider token"
+
+
+def test_secret_like_content_reason_rejects_lowercase_private_key_blocks() -> None:
+    module = _load_file_safety_module()
+
+    assert module.secret_like_content_reason("-----begin private key-----") == "private key block"
+
+
 def test_secret_like_content_reason_allows_non_secret_security_text() -> None:
     module = _load_file_safety_module()
 
@@ -102,7 +137,10 @@ def test_secret_like_content_reason_allows_non_secret_security_text() -> None:
             '{"api_key": "read from ENTROPING_API_KEY at runtime"}',
             '{"access_token": "<redacted>"}',
             '{"client_secret": "placeholder"}',
+            "token={{api_token}}",
+            "token=[REDACTED]",
             "The redaction test checks placeholder values only.",
+            'api_key = os.environ.get(env_name, "").strip()',
         ]
     )
 

@@ -63,7 +63,7 @@ SENSITIVE_CONFIG_STEMS = frozenset(
 SECRET_LIKE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     (
         "private key block",
-        re.compile(r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----"),
+        re.compile(r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----", re.IGNORECASE),
     ),
     (
         "credential assignment",
@@ -71,12 +71,30 @@ SECRET_LIKE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
             r"(?i)(?:^|[^A-Z0-9_-])['\"]?"
             r"(?:[A-Z0-9_-]*API[_-]?KEY|[A-Z0-9_-]*TOKEN|"
             r"[A-Z0-9_-]*SECRET|PASSWORD|PRIVATE[_-]?KEY|PRIVATEKEY)"
-            r"['\"]?\s*[:=]\s*['\"]?[^\s'\"]{16,}"
+            r"['\"]?\s*[:=]\s*['\"]?[^\s'\"(),]{16,}"
         ),
     ),
     (
         "bearer token",
         re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/\-=]{16,}"),
+    ),
+    (
+        "provider token",
+        re.compile(
+            r"(?<![A-Za-z0-9_-])"
+            r"(?:"
+            r"sk-(?:proj-)?[A-Za-z0-9_-]{20,}|"
+            r"ghp_[A-Za-z0-9_]{20,}|"
+            r"github_pat_[A-Za-z0-9_]{20,}|"
+            r"glpat-[A-Za-z0-9_-]{12,}|"
+            r"hf_[A-Za-z0-9_-]{12,}|"
+            r"xox[abprs]-[A-Za-z0-9-]{10,}|"
+            r"AIza[A-Za-z0-9_-]{16,}|"
+            r"ya29\.[A-Za-z0-9._-]{20,}|"
+            r"A[KS]IA[A-Z0-9]{16}"
+            r")"
+            r"(?![A-Za-z0-9_-])"
+        ),
     ),
 )
 
@@ -125,8 +143,11 @@ def _has_sensitive_config_stem(name: str) -> bool:
         if any(token in SENSITIVE_CONFIG_STEMS for token in tokens):
             return True
         if tokens:
-            if "-".join(tokens) in SENSITIVE_CONFIG_STEMS:
-                return True
-            if "_".join(tokens) in SENSITIVE_CONFIG_STEMS:
-                return True
+            for start in range(len(tokens)):
+                for end in range(start + 2, len(tokens) + 1):
+                    window = tokens[start:end]
+                    if "-".join(window) in SENSITIVE_CONFIG_STEMS:
+                        return True
+                    if "_".join(window) in SENSITIVE_CONFIG_STEMS:
+                        return True
     return False
