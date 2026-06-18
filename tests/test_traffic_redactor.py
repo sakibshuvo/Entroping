@@ -340,6 +340,33 @@ def test_redactor_strips_url_fragments_before_persistence() -> None:
     assert redacted.redaction_confidence == "high"
 
 
+def test_redactor_redacts_secret_like_url_path_segments() -> None:
+    token = "sk-proj-" + ("a" * 24)
+    exchange = _raw_exchange().model_copy(
+        update={
+            "request": _raw_exchange().request.model_copy(
+                update={
+                    "url": (
+                        f"https://user:pass@api.example.test/password-reset/{token}/orders"
+                        "?token=query-secret#access_token=fragment-secret"
+                    ),
+                },
+            ),
+        },
+    )
+
+    redacted = redact_traffic_exchange(exchange)
+
+    assert redacted.request.url == (
+        "https://api.example.test/password-reset/%5BREDACTED%5D/orders"
+        "?token=%5BREDACTED%5D"
+    )
+    assert token not in redacted.model_dump_json()
+    assert "user:pass" not in redacted.model_dump_json()
+    assert "fragment-secret" not in redacted.model_dump_json()
+    assert redacted.redaction_confidence == "high"
+
+
 def test_redactor_bounds_text_body_summaries() -> None:
     exchange = _raw_exchange().model_copy(
         update={

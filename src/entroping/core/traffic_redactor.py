@@ -2,7 +2,7 @@
 
 import json
 import re
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit, urlunsplit
 
 from entroping.models.secrets import (
     REDACTED,
@@ -22,6 +22,7 @@ from entroping.models.traffic import (
 DEFAULT_MAX_BODY_CHARS = 4096
 _MULTIPART_BODY_SUMMARY_TEMPLATE = "[REDACTED {content_type} body]"
 _OPAQUE_HEX_VALUE_RE = re.compile(r"(?<![A-Fa-f0-9])[A-Fa-f0-9]{48,}(?![A-Fa-f0-9])")
+_REDACTED_PATH_SEGMENT = quote(REDACTED, safe="")
 
 
 def redact_traffic_exchange(
@@ -97,7 +98,20 @@ def _redact_url(url: str) -> str:
         ],
         doseq=True,
     )
-    return urlunsplit((parsed.scheme, netloc, parsed.path, query, ""))
+    return urlunsplit((parsed.scheme, netloc, _redact_path(parsed.path), query, ""))
+
+
+def _redact_path(path: str) -> str:
+    return "/".join(_redact_path_segment(segment) for segment in path.split("/"))
+
+
+def _redact_path_segment(segment: str) -> str:
+    if not segment:
+        return segment
+    decoded = unquote(segment)
+    if _redact_text(decoded) != decoded:
+        return _REDACTED_PATH_SEGMENT
+    return segment
 
 
 def _redact_body(
