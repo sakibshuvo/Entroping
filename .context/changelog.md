@@ -1444,3 +1444,7 @@
 - Closed issue #873's artifact-manifest evidence gap: invalid default report
   artifacts now remain visible with checksum and size evidence while schema/type
   hints are emitted only when known report content validates enough for the hint.
+- Closed issue #871's shared run-report loader schema gap: run JSON now fails
+  closed unless `load_run_report()` sees `entroping.run-report.v1`, and report
+  bug/failure-bundle adapters surface controlled value-free errors for
+  unsupported report versions.
