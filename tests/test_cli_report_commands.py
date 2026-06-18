@@ -86,6 +86,7 @@ def test_report_help_tiers_core_ci_review_commands_before_advanced_evidence() ->
     for command in (
         "policy",
         "gate-coverage",
+        "test-quality",
         "traceability",
         "artifact-manifest",
         "evidence-bundle",

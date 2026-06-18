@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sakibshuvo.github.io/Entroping/schemas/test-quality-report.v1.schema.json",
+  "title": "Entroping Generated-Test Quality Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project",
+    "summary",
+    "findings",
+    "tests"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.test-quality-report.v1"
+    },
+    "project": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_tests",
+        "generated_tests",
+        "manual_tests",
+        "score",
+        "status",
+        "findings"
+      ],
+      "properties": {
+        "total_tests": {"type": "integer", "minimum": 0},
+        "generated_tests": {"type": "integer", "minimum": 0},
+        "manual_tests": {"type": "integer", "minimum": 0},
+        "score": {"type": "integer", "minimum": 0, "maximum": 100},
+        "status": {"enum": ["pass", "warn", "fail", "missing"]},
+        "findings": {"type": "integer", "minimum": 0}
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/finding"}
+    },
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "source",
+          "operation_id",
+          "tags",
+          "score",
+          "findings"
+        ],
+        "properties": {
+          "path": {"type": "string"},
+          "source": {"type": "string"},
+          "operation_id": {"type": ["string", "null"]},
+          "negative_category": {"type": ["string", "null"]},
+          "security": {"type": ["string", "null"]},
+          "tags": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "score": {"type": "integer", "minimum": 0, "maximum": 100},
+          "findings": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/finding"}
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "category",
+        "severity",
+        "path",
+        "message",
+        "evidence",
+        "deduction"
+      ],
+      "properties": {
+        "category": {
+          "enum": [
+            "assertion-strength",
+            "brittle-selector",
+            "missing-negative-path",
+            "weak-auth-coverage",
+            "shallow-schema-check",
+            "overfitted-example",
+            "policy-alignment",
+            "missing-generated-tests"
+          ]
+        },
+        "severity": {"enum": ["high", "medium", "low"]},
+        "path": {"type": ["string", "null"]},
+        "message": {"type": "string"},
+        "evidence": {"type": "string"},
+        "deduction": {"type": "integer", "minimum": 0, "maximum": 100}
+      }
+    }
+  }
+}

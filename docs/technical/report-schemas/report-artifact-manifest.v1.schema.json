@@ -39,6 +39,8 @@
               "junit",
               "run_html",
               "drift_json",
+              "test_quality_json",
+              "test_quality_md",
               "agent_bundle",
               "sarif",
               "review_summary"
@@ -68,6 +70,8 @@
               "junit",
               "run_html",
               "drift_json",
+              "test_quality_json",
+              "test_quality_md",
               "agent_bundle",
               "sarif",
               "review_summary"
@@ -169,6 +173,8 @@
                           "junit",
                           "run_html",
                           "drift_json",
+                          "test_quality_json",
+                          "test_quality_md",
                           "agent_bundle",
                           "sarif",
                           "review_summary"

@@ -32,7 +32,7 @@ def test_report_artifact_manifest_writes_default_manifest(
     payload = json.loads(Path("reports/artifact-manifest.json").read_text(encoding="utf-8"))
     assert payload["schema_version"] == "entroping.report-artifact-manifest.v1"
     assert payload["summary"]["total_present"] == 1
-    assert payload["summary"]["total_missing"] == 7
+    assert payload["summary"]["total_missing"] == 9
     assert payload["audit"]["verification"]["status"] == "verified"
 
 

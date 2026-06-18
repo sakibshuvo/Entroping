@@ -2,6 +2,12 @@
 
 ## 2026-06-18
 
+- Added issue #895's generated-test quality score:
+  `entroping report test-quality --output md|json` writes static generated-Hurl
+  quality evidence for assertion strength, brittle selectors, negative/auth
+  metadata gaps, shallow schema checks, overfitted examples, and traceability
+  gaps without Hurl execution, provider calls, uploads, raw Hurl value
+  rendering, or replacing QAnstitution/Hurl pass-fail authority.
 - Added issue #893's local evidence viewer:
   Studio now indexes canonical sanitized report artifacts through stable
   evidence IDs, shows controlled schema/count summaries plus invalid and unsafe

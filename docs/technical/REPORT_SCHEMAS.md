@@ -28,6 +28,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Effective policy diff | `entroping.effective-policy-diff.v1` | `entroping report policy-diff --output json` stdout | [effective-policy-diff.v1.schema.json](report-schemas/effective-policy-diff.v1.schema.json) |
 | Gate coverage report | `entroping.gate-coverage-report.v1` | `reports/gate-coverage.json` | [gate-coverage-report.v1.schema.json](report-schemas/gate-coverage-report.v1.schema.json) |
 | Gate injection report | `entroping.gate-injection-report.v1` | `reports/gate-injection.json` | [gate-injection-report.v1.schema.json](report-schemas/gate-injection-report.v1.schema.json) |
+| Generated-test quality report | `entroping.test-quality-report.v1` | `reports/test-quality.json` | [test-quality-report.v1.schema.json](report-schemas/test-quality-report.v1.schema.json) |
 | Report artifact manifest | `entroping.report-artifact-manifest.v1` | `reports/artifact-manifest.json` | [report-artifact-manifest.v1.schema.json](report-schemas/report-artifact-manifest.v1.schema.json) |
 | Evidence bundle | `entroping.evidence-bundle.v1` | `reports/evidence-bundle.json` | [evidence-bundle.v1.schema.json](report-schemas/evidence-bundle.v1.schema.json) |
 | Runtime evidence card | `entroping.runtime-card.v1` | `reports/runtime-card.json` from `entroping report runtime-card --output json` | [runtime-card.v1.schema.json](report-schemas/runtime-card.v1.schema.json) |
@@ -131,8 +132,8 @@ entroping report artifact-manifest
 
 It records project-relative paths, schema versions when available, byte sizes,
 and SHA-256 checksums for standard local report artifacts: JSON run report,
-JUnit XML, HTML report, drift JSON, agent review bundle JSON, SARIF, and
-review-summary Markdown.
+run-plan JSON, JUnit XML, HTML report, drift JSON, generated-test quality JSON,
+agent review bundle JSON, SARIF, and review-summary Markdown.
 Missing expected artifacts are listed in `missing_artifacts` rather than
 failing the command. The `audit` block embeds the latest local
 `entroping.report-audit-event.v1` event from

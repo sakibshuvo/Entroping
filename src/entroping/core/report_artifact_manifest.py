@@ -27,6 +27,8 @@ ReportArtifactKind = Literal[
     "agent_bundle",
     "sarif",
     "review_summary",
+    "test_quality_json",
+    "test_quality_md",
 ]
 ReportArtifactAuditVerificationStatus = Literal["verified", "broken"]
 
@@ -81,6 +83,16 @@ _DEFAULT_REPORT_ARTIFACTS: Final = (
         kind="review_summary",
         path=Path("reports") / "review-summary.md",
         schema_hint="entroping.review-summary.md",
+    ),
+    _ReportArtifactDefinition(
+        kind="test_quality_json",
+        path=Path("reports") / "test-quality.json",
+        schema_hint=None,
+    ),
+    _ReportArtifactDefinition(
+        kind="test_quality_md",
+        path=Path("reports") / "test-quality.md",
+        schema_hint="entroping.test-quality.md",
     ),
 )
 
@@ -338,6 +350,7 @@ def _validated_schema_hint(
         "junit": _looks_like_junit_xml,
         "run_html": _looks_like_run_report_html,
         "review_summary": _looks_like_review_summary_markdown,
+        "test_quality_md": _looks_like_test_quality_markdown,
     }
     validator = validators.get(definition.kind)
     return definition.schema_hint if validator is not None and validator(content) else None
@@ -360,6 +373,12 @@ def _looks_like_review_summary_markdown(content: bytes) -> bool:
     text = content.decode("utf-8-sig", errors="replace")
     lines = text.splitlines()
     return bool(lines) and lines[0].strip() == "# Entroping Review Summary"
+
+
+def _looks_like_test_quality_markdown(content: bytes) -> bool:
+    text = content.decode("utf-8-sig", errors="replace")
+    lines = text.splitlines()
+    return bool(lines) and lines[0].strip() == "# Entroping Generated-Test Quality Score"
 
 
 def _xml_local_name(tag: str) -> str:

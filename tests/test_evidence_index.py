@@ -75,6 +75,18 @@ def test_evidence_index_discovers_stable_report_artifact_ids_without_raw_values(
             "summary": {"status": "attention", "manifests": 2, "findings": 1},
         },
     )
+    _write_json(
+        reports_dir / "test-quality.json",
+        {
+            "schema_version": "entroping.test-quality-report.v1",
+            "summary": {
+                "status": "warn",
+                "score": 72,
+                "generated_tests": 3,
+                "findings": 4,
+            },
+        },
+    )
     (reports_dir / "review-summary.md").write_text(
         "# Entroping Review Summary\n\n- Status: `pass`\n",
         encoding="utf-8",
@@ -93,6 +105,7 @@ def test_evidence_index_discovers_stable_report_artifact_ids_without_raw_values(
     assert by_id["evidence-bundle-json"].summary == "ready"
     assert by_id["runtime-card-json"].summary == "pass"
     assert by_id["agent-bundle-json"].summary == "attention, 2 manifests, 1 findings"
+    assert by_id["test-quality-json"].summary == "warn, score 72, 3 generated, 4 findings"
     assert by_id["review-summary-md"].state == "present"
     assert by_id["review-summary-md"].schema_version == "entroping.review-summary.md"
     assert sensitive_marker not in repr(artifacts)
@@ -252,6 +265,13 @@ def test_evidence_index_uses_controlled_fallback_summaries_for_partial_metadata(
             "summary": {"status": "unexpected-provider-string"},
         },
     )
+    _write_json(
+        reports_dir / "test-quality.json",
+        {
+            "schema_version": "entroping.test-quality-report.v1",
+            "summary": {"status": "unknown"},
+        },
+    )
 
     artifacts = build_local_evidence_index(project_root=tmp_path)
     by_id = {artifact.id: artifact for artifact in artifacts}
@@ -262,6 +282,7 @@ def test_evidence_index_uses_controlled_fallback_summaries_for_partial_metadata(
     assert by_id["capture-summary-json"].summary == "capture summary available"
     assert by_id["artifact-manifest-json"].summary == "audit broken"
     assert by_id["agent-bundle-json"].summary == "unknown"
+    assert by_id["test-quality-json"].summary == "unknown"
 
 
 def test_evidence_index_uses_fallback_summaries_for_negative_counts(tmp_path: Path) -> None:

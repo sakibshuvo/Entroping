@@ -30,6 +30,7 @@ Sha256Digest = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
 
 _DEFAULT_OUTPUT_PATH: Final = Path("reports") / "evidence-bundle.json"
 _DEFAULT_PURPOSE: Final = "design-partner-upload-readiness"
+_SECRET_SCAN_DIGEST_FIELDS: Final = frozenset({"latest_event_hash", "sha256"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,7 +163,7 @@ def run_evidence_bundle_report(
     destination = _resolve_output_path(output_path or _DEFAULT_OUTPUT_PATH, root=root)
     bundle = _build_bundle(root=root, purpose=purpose)
     content = json.dumps(bundle.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
-    if contains_secret_like_value(content):
+    if _bundle_contains_secret_like_metadata(bundle.model_dump(mode="json")):
         msg = "evidence bundle metadata contains secret-like content"
         raise EvidenceBundleError(msg)
     try:
@@ -381,3 +382,22 @@ def _diagnostic(
 
 def _safe_metadata_text(value: str) -> str:
     return redact_secret_like_values(value).replace("\r", " ").replace("\n", " ")
+
+
+def _bundle_contains_secret_like_metadata(
+    value: object,
+    *,
+    parent_key: str | None = None,
+) -> bool:
+    if isinstance(value, str):
+        if parent_key in _SECRET_SCAN_DIGEST_FIELDS:
+            return False
+        return contains_secret_like_value(value)
+    if isinstance(value, dict):
+        return any(
+            _bundle_contains_secret_like_metadata(item, parent_key=str(key))
+            for key, item in value.items()
+        )
+    if isinstance(value, (list, tuple)):
+        return any(_bundle_contains_secret_like_metadata(item) for item in value)
+    return False

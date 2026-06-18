@@ -470,6 +470,22 @@ groups, and active known-failure skips, then lists gate ID, source policy path,
 condition, assertion, enforcement, and target file without running Hurl or
 mutating source `.hurl` files.
 
+Score generated Hurl tests before asking agents to repair them:
+
+```bash
+entroping report test-quality --output md
+entroping report test-quality --output json
+```
+
+The generated-test quality report writes `reports/test-quality.md` or
+`reports/test-quality.json`. It statically reviews committed generated Hurl for
+assertion strength, positional selectors, missing negative-path metadata,
+missing auth/security metadata, shallow schema checks, overfitted examples, and
+operation traceability gaps. It does not execute Hurl, inject QAnstitution
+gates, call providers, upload artifacts, or print raw Hurl values. Use the
+score to guide human or AI repair proposals; do not treat it as a replacement
+for `entroping run` or QAnstitution enforcement.
+
 Write checksum evidence for the local report artifacts:
 
 ```bash
@@ -977,7 +993,8 @@ Studio opens tabbed views for:
 - Failure details from the sanitized latest run report.
 - Applied-gate drilldowns from latest-run report rule IDs and QAnstitution gate definitions.
 - A read-only evidence viewer for report artifacts, with stable evidence IDs
-  such as `run-json`, `capture-summary-json`, and `runtime-card-json`.
+  such as `run-json`, `capture-summary-json`, `test-quality-json`, and
+  `runtime-card-json`.
 - A read-only traffic session browser over redacted SQLModel-backed state.
 - Inferred target/dependency grouping, route counts, latency summaries, and safe redaction categories and counts.
 

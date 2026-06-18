@@ -54,6 +54,8 @@ def test_write_report_artifact_manifest_records_default_artifacts_with_checksums
         "reports/drift.json": '{"schema_version":"entroping.drift-report.v1"}\n',
         "reports/entroping.sarif": '{"version":"2.1.0","runs":[]}\n',
         "reports/review-summary.md": "# Entroping Review Summary\n\n- Status: `pass`\n",
+        "reports/test-quality.json": '{"schema_version":"entroping.test-quality-report.v1"}\n',
+        "reports/test-quality.md": "# Entroping Generated-Test Quality Score\n",
     }
     for path, content in artifacts.items():
         _write_text(tmp_path / path, content)
@@ -62,8 +64,8 @@ def test_write_report_artifact_manifest_records_default_artifacts_with_checksums
 
     assert result.output_path == tmp_path / "reports" / "artifact-manifest.json"
     assert result.manifest.schema_version == REPORT_ARTIFACT_MANIFEST_SCHEMA_VERSION
-    assert result.manifest.summary.total_expected == 8
-    assert result.manifest.summary.total_present == 8
+    assert result.manifest.summary.total_expected == 10
+    assert result.manifest.summary.total_present == 10
     assert result.manifest.summary.total_missing == 0
     assert result.manifest.missing_artifacts == ()
     assert [artifact.path for artifact in result.manifest.artifacts] == sorted(artifacts)
@@ -79,6 +81,8 @@ def test_write_report_artifact_manifest_records_default_artifacts_with_checksums
         ("run_html", "reports/run-latest.html", "entroping.run-report.html"),
         ("run_json", "reports/run-latest.json", "entroping.run-report.v1"),
         ("run_plan", "reports/run-plan.json", "entroping.run-plan.v1"),
+        ("test_quality_json", "reports/test-quality.json", "entroping.test-quality-report.v1"),
+        ("test_quality_md", "reports/test-quality.md", "entroping.test-quality.md"),
     ]
     for entry in result.manifest.artifacts:
         content = artifacts[entry.path]
@@ -88,8 +92,8 @@ def test_write_report_artifact_manifest_records_default_artifacts_with_checksums
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
     assert payload["artifacts"][0]["path"] == "reports/agent-bundle.json"
     assert payload["summary"] == {
-        "total_expected": 8,
-        "total_present": 8,
+        "total_expected": 10,
+        "total_present": 10,
         "total_missing": 0,
     }
     assert payload["audit"]["chain_path"] == ".entroping/report-audit-chain.jsonl"
@@ -264,9 +268,9 @@ def test_write_report_artifact_manifest_records_missing_defaults(tmp_path: Path)
 
     result = write_report_artifact_manifest(project_root=tmp_path)
 
-    assert result.manifest.summary.total_expected == 8
+    assert result.manifest.summary.total_expected == 10
     assert result.manifest.summary.total_present == 1
-    assert result.manifest.summary.total_missing == 7
+    assert result.manifest.summary.total_missing == 9
     assert [artifact.path for artifact in result.manifest.artifacts] == [
         "reports/run-latest.json"
     ]
@@ -278,6 +282,8 @@ def test_write_report_artifact_manifest_records_missing_defaults(tmp_path: Path)
         "reports/review-summary.md",
         "reports/run-latest.html",
         "reports/run-plan.json",
+        "reports/test-quality.json",
+        "reports/test-quality.md",
     ]
 
 

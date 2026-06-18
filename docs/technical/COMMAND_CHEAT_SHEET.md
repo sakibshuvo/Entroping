@@ -36,6 +36,7 @@ entroping report policy [--output <md|json>]
 entroping report policy-diff [--base <path>] [--current <path>] [--output <md|json>] [--fail-on-change]
 entroping report gate-coverage [--output <md|json>]
 entroping report gate-injection --target <path> [--output <md|json>]
+entroping report test-quality [--output <md|json>]
 entroping report artifact-manifest [--output <path>]
 entroping report evidence-bundle [--output <path>]
 entroping report runtime-card [--output <md|json>]
@@ -273,7 +274,7 @@ entroping run --env staging --drift-check --report drift
 
 `entroping studio` includes a read-only evidence viewer for sanitized local
 report artifacts. It uses stable evidence IDs such as `run-json`,
-`capture-summary-json`, and `runtime-card-json`, shows controlled
+`capture-summary-json`, `test-quality-json`, and `runtime-card-json`, shows controlled
 schema/count metadata, and does not render raw report contents, upload
 artifacts, or edit tests, QAnstitution, reports, traffic state, or runtime
 state.
@@ -360,6 +361,8 @@ Advanced evidence commands:
 | `entroping report gate-coverage --output md` | Write a policy gate coverage matrix to `reports/gate-coverage.md` |
 | `entroping report gate-coverage --output json` | Write machine-readable gate coverage evidence to `reports/gate-coverage.json` |
 | `entroping report gate-injection --target <path>` | Explain selected-file gate injection without running Hurl or mutating sources |
+| `entroping report test-quality --output md` | Write a static generated-Hurl quality score to `reports/test-quality.md` |
+| `entroping report test-quality --output json` | Write machine-readable generated-Hurl quality evidence to `reports/test-quality.json` |
 | `entroping report artifact-manifest` | Write checksum evidence for local report artifacts to `reports/artifact-manifest.json` |
 | `entroping report evidence-bundle` | Write a sanitized local design-partner upload-readiness bundle to `reports/evidence-bundle.json` |
 | `entroping report agent-bundle --output md` | Write a local multi-agent review bundle to `reports/agent-bundle.md` |
@@ -382,6 +385,7 @@ entroping report policy-diff --base reports/base-effective-policy.json --current
 entroping report policy-diff --base reports/base-effective-policy.json --current reports/effective-policy.json --fail-on-change
 entroping report gate-coverage --output md
 entroping report gate-injection --target tests/health.hurl --output md
+entroping report test-quality --output md
 entroping report artifact-manifest
 entroping report evidence-bundle
 entroping report runtime-card

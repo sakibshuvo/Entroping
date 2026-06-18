@@ -95,6 +95,11 @@ from entroping.core.runtime_card import (
 )
 from entroping.core.sarif_report import SarifReportError, run_sarif_report
 from entroping.core.story_documents import discover_story_documents
+from entroping.core.test_quality_report import (
+    TestQualityOutput,
+    TestQualityReportError,
+    run_test_quality_report,
+)
 from entroping.models.hurl import HurlMetadataSyntaxError
 
 app = typer.Typer(help="Generate human handoff artifacts.")
@@ -445,6 +450,38 @@ def report_gate_injection(
         f"{noun}.[/green]"
     )
     console.print(f"Wrote gate injection report: {display_cli_path(result.output_path)}")
+
+
+@app.command("test-quality", rich_help_panel=ADVANCED_REPORT_PANEL)
+def report_test_quality(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a static quality score for generated Hurl tests."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported test-quality output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_test_quality_report(
+            project_root=Path.cwd(),
+            output=cast(TestQualityOutput, normalized_output),
+        )
+    except TestQualityReportError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(
+        "Wrote generated-test quality report: "
+        f"{display_cli_path(result.output_path)} "
+        f"({result.report.summary.status}, score {result.report.summary.score}, "
+        f"{result.report.summary.generated_tests} generated)"
+    )
+    raise typer.Exit(0)
 
 
 @app.command("artifact-manifest", rich_help_panel=ADVANCED_REPORT_PANEL)
