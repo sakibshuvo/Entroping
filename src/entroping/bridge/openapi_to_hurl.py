@@ -23,6 +23,8 @@ _MAX_OPENAPI_SCHEMA_NODES = 10_000
 _MAX_OPENAPI_JSON_DEPTH = 64
 _MAX_OPENAPI_JSON_NODES = 10_000
 _MAX_OPENAPI_GENERATED_STRING_LENGTH = 4096
+_MAX_PARAMETER_REF_DEPTH = 64
+_PARAMETER_REF_PREFIX = "#/components/parameters/"
 _SENSITIVE_VARIABLE_PARTS = (
     "access_token",
     "api_key",
@@ -145,6 +147,7 @@ def compile_openapi_to_hurl_with_report(
 
     paths = _mapping_field(document, "paths", "OpenAPI document must contain a paths mapping")
     security_schemes = _security_schemes(document)
+    parameter_components = _parameter_components(document)
     document_security = _security_requirements(
         document.get("security"),
         context="OpenAPI document security",
@@ -188,6 +191,7 @@ def compile_openapi_to_hurl_with_report(
                         operation=operation,
                         operation_id=operation_id,
                         tags=tags,
+                        parameter_components=parameter_components,
                     ),
                 )
             )
@@ -199,6 +203,7 @@ def compile_openapi_to_hurl_with_report(
                 operation_id=operation_id,
                 tags=tags,
                 security_schemes=security_schemes,
+                parameter_components=parameter_components,
                 document_security=document_security,
             )
             for item in security_result.files:
@@ -216,6 +221,7 @@ def compile_openapi_to_hurl_with_report(
                 operation=operation,
                 operation_id=operation_id,
                 tags=tags,
+                parameter_components=parameter_components,
             ):
                 if item.relative_path in used_paths:
                     msg = f"OpenAPI operations compile to duplicate Hurl path: {item.relative_path}"
@@ -243,9 +249,15 @@ def _render_operation(
     operation: Mapping[str, object],
     operation_id: str,
     tags: frozenset[str],
+    parameter_components: Mapping[str, object],
 ) -> str:
     status, response_schema = _select_response(operation)
-    parameters = _operation_parameters(path_item=path_item, operation=operation, path=path)
+    parameters = _operation_parameters(
+        path_item=path_item,
+        operation=operation,
+        path=path,
+        parameter_components=parameter_components,
+    )
     lines = [
         f"# entroping: tags={_render_tags(tags)}",
         "# entroping: source=openapi",
@@ -281,6 +293,7 @@ def _security_negative_files(
     operation_id: str,
     tags: frozenset[str],
     security_schemes: Mapping[str, object],
+    parameter_components: Mapping[str, object],
     document_security: tuple[tuple[str, ...], ...] | None,
 ) -> OpenApiHurlCompilationResult:
     requirements = _operation_security_requirements(
@@ -345,6 +358,7 @@ def _security_negative_files(
                     scheme_name="*",
                     auth_lines=(),
                     query_parameter=None,
+                    parameter_components=parameter_components,
                 ),
             )
         )
@@ -366,6 +380,7 @@ def _security_negative_files(
                 scheme_name=scheme.name,
                 auth_lines=scheme.auth_lines,
                 query_parameter=scheme.query_parameter,
+                parameter_components=parameter_components,
             ),
         )
         for scheme in supported
@@ -389,8 +404,14 @@ def _render_security_negative_operation(
     scheme_name: str,
     auth_lines: tuple[str, ...],
     query_parameter: tuple[str, str] | None,
+    parameter_components: Mapping[str, object],
 ) -> str:
-    parameters = _operation_parameters(path_item=path_item, operation=operation, path=path)
+    parameters = _operation_parameters(
+        path_item=path_item,
+        operation=operation,
+        path=path,
+        parameter_components=parameter_components,
+    )
     target = _render_request_target(path, parameters)
     if query_parameter is not None:
         separator = "&" if "?" in target else "?"
@@ -433,13 +454,19 @@ def _schema_negative_files(
     operation: Mapping[str, object],
     operation_id: str,
     tags: frozenset[str],
+    parameter_components: Mapping[str, object],
 ) -> tuple[GeneratedHurlFile, ...]:
     status = _validation_failure_status(operation)
     request_schema = _json_request_schema(operation)
     if status is None or request_schema is None:
         return ()
 
-    parameters = _operation_parameters(path_item=path_item, operation=operation, path=path)
+    parameters = _operation_parameters(
+        path_item=path_item,
+        operation=operation,
+        path=path,
+        parameter_components=parameter_components,
+    )
     cases = _schema_negative_cases(
         schema=request_schema,
         path=path,
@@ -707,11 +734,17 @@ def _operation_parameters(
     path_item: Mapping[str, object],
     operation: Mapping[str, object],
     path: str,
+    parameter_components: Mapping[str, object],
 ) -> tuple[_OpenApiParameter, ...]:
-    path_parameters = _parameters_from_container(path_item, context=f"OpenAPI path {path!r}")
+    path_parameters = _parameters_from_container(
+        path_item,
+        context=f"OpenAPI path {path!r}",
+        parameter_components=parameter_components,
+    )
     operation_parameters = _parameters_from_container(
         operation,
         context=f"OpenAPI operation for {path!r}",
+        parameter_components=parameter_components,
     )
     parameters = _merge_parameters(path_parameters, operation_parameters)
     _validate_path_template(path)
@@ -723,6 +756,7 @@ def _parameters_from_container(
     container: Mapping[str, object],
     *,
     context: str,
+    parameter_components: Mapping[str, object],
 ) -> tuple[_OpenApiParameter, ...]:
     raw_parameters = container.get("parameters")
     if raw_parameters is None:
@@ -734,8 +768,59 @@ def _parameters_from_container(
     parsed: list[_OpenApiParameter] = []
     for index, raw_parameter in enumerate(raw_parameters):
         parameter = _ensure_mapping(raw_parameter, f"{context} parameter {index}")
-        parsed.append(_parse_parameter(parameter, context=f"{context} parameter {index}"))
+        parameter_context = f"{context} parameter {index}"
+        resolved = _resolve_parameter_ref(
+            parameter,
+            parameter_components=parameter_components,
+            context=parameter_context,
+        )
+        parsed.append(_parse_parameter(resolved, context=parameter_context))
     return tuple(parsed)
+
+
+def _resolve_parameter_ref(
+    parameter: Mapping[str, object],
+    *,
+    parameter_components: Mapping[str, object],
+    context: str,
+    seen_refs: tuple[str, ...] = (),
+) -> Mapping[str, object]:
+    if "$ref" not in parameter:
+        return parameter
+    if len(parameter) != 1:
+        msg = f"{context} parameter ref must not define sibling fields"
+        raise OpenApiCompilationError(msg)
+    raw_ref = parameter["$ref"]
+    if not isinstance(raw_ref, str):
+        msg = f"{context} parameter ref must be a string"
+        raise OpenApiCompilationError(msg)
+    if not raw_ref.startswith("#/"):
+        msg = f"{context} only local parameter refs are supported"
+        raise OpenApiCompilationError(msg)
+    if not raw_ref.startswith(_PARAMETER_REF_PREFIX):
+        msg = f"{context} unsupported parameter ref {raw_ref!r}"
+        raise OpenApiCompilationError(msg)
+    if len(seen_refs) >= _MAX_PARAMETER_REF_DEPTH:
+        msg = f"{context} parameter ref depth exceeds {_MAX_PARAMETER_REF_DEPTH}"
+        raise OpenApiCompilationError(msg)
+    component_name = raw_ref.removeprefix(_PARAMETER_REF_PREFIX)
+    if not component_name or "/" in component_name or "~" in component_name:
+        msg = f"{context} malformed parameter ref {raw_ref!r}"
+        raise OpenApiCompilationError(msg)
+    if raw_ref in seen_refs:
+        msg = f"{context} cyclic parameter ref {raw_ref!r}"
+        raise OpenApiCompilationError(msg)
+    target = parameter_components.get(component_name)
+    if target is None:
+        msg = f"{context} unknown parameter ref {raw_ref!r}"
+        raise OpenApiCompilationError(msg)
+    target_mapping = _ensure_mapping(target, f"{context} parameter ref target {raw_ref!r}")
+    return _resolve_parameter_ref(
+        target_mapping,
+        parameter_components=parameter_components,
+        context=f"{context} ref {raw_ref!r}",
+        seen_refs=(*seen_refs, raw_ref),
+    )
 
 
 def _parse_parameter(
@@ -1083,6 +1168,17 @@ def _security_schemes(document: Mapping[str, object]) -> Mapping[str, object]:
     for scheme_name in normalized:
         _validate_security_scheme_name(scheme_name, context="OpenAPI securitySchemes")
     return normalized
+
+
+def _parameter_components(document: Mapping[str, object]) -> Mapping[str, object]:
+    components = document.get("components")
+    if components is None:
+        return {}
+    components_mapping = _ensure_mapping(components, "OpenAPI components")
+    parameters = components_mapping.get("parameters")
+    if parameters is None:
+        return {}
+    return _ensure_mapping(parameters, "OpenAPI components parameters")
 
 
 def _security_requirements(

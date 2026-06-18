@@ -464,6 +464,10 @@ OpenAPI query-array parameter examples/defaults support deterministic
 non-exploded arrays join encoded item values with commas. Unsupported array
 parameter locations or styles fail closed with explicit guidance instead of
 falling back to ambiguous scalar rendering.
+OpenAPI operation and path parameters may also reference local reusable
+definitions under `#/components/parameters/...`; external, malformed, missing,
+non-parameter, or cyclic parameter references fail closed before Hurl is
+generated.
 
 When an OpenAPI operation has a JSON request body and an explicit validation
 failure response (`400` or `422`), the same deterministic path emits a bounded
