@@ -3,10 +3,10 @@
 import json
 import re
 from dataclasses import dataclass
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlsplit
 
 from entroping.bridge.traffic_sessions import TrafficSessionCandidate, TrafficSessionRecord
-from entroping.models.secrets import REDACTED
+from entroping.models.secrets import REDACTED, is_sensitive_key
 from entroping.models.traffic import TrafficBody, TrafficResponse
 from entroping.models.traffic_redaction import redacted_traffic_violation_summary
 
@@ -105,13 +105,56 @@ def _mapping_content(record: TrafficSessionRecord) -> str:
 
     parsed = urlsplit(exchange.request.url)
     payload: dict[str, object] = {
-        "request": {
-            "method": exchange.request.method,
-            "urlPath": parsed.path or "/",
-        },
+        "request": _request_mapping(
+            method=exchange.request.method,
+            path=parsed.path,
+            query=parsed.query,
+        ),
         "response": _response_mapping(exchange.response),
     }
     return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+
+
+def _request_mapping(*, method: str, path: str, query: str) -> dict[str, object]:
+    safe_path = path or "/"
+    pairs = tuple(parse_qsl(query, keep_blank_values=True))
+    if pairs and _requires_exact_url_match(pairs):
+        return {"method": method, "url": f"{safe_path}?{query}"}
+
+    payload: dict[str, object] = {"method": method, "urlPath": safe_path}
+    query_parameters = _query_parameter_matchers(pairs)
+    if query_parameters:
+        payload["queryParameters"] = query_parameters
+    return payload
+
+
+def _query_parameter_matchers(
+    pairs: tuple[tuple[str, str], ...],
+) -> dict[str, dict[str, str]]:
+    matchers: dict[str, dict[str, str]] = {}
+    for key, value in pairs:
+        if _requires_value_free_query_match(key, value):
+            matchers[key] = {"matches": ".+"}
+            continue
+        if key not in matchers:
+            matchers[key] = {"equalTo": value}
+    return matchers
+
+
+def _requires_exact_url_match(pairs: tuple[tuple[str, str], ...]) -> bool:
+    if any(_requires_value_free_query_match(key, value) for key, value in pairs):
+        return False
+
+    seen: set[str] = set()
+    for key, _value in pairs:
+        if key in seen:
+            return True
+        seen.add(key)
+    return False
+
+
+def _requires_value_free_query_match(key: str, value: str) -> bool:
+    return is_sensitive_key(key) or value == REDACTED
 
 
 def _response_mapping(response: TrafficResponse) -> dict[str, object]:
