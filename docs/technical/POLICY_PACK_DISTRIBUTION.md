@@ -174,8 +174,9 @@ Do not advertise a policy pack until the maintainer can show:
   compatibility, evidence command, gate list, and final-gate declarations;
 - the manifest has attribution through at least one maintainer or publisher;
 - the entrypoint loads through local imports only;
-- a consumer example imports the pack and adds at least one local override or
-  local project gate;
+- a consumer example imports the pack through a local, non-traversal
+  `./policy-packs/...` reference and adds at least one local override or local
+  project gate;
 - final gates are documented in the README;
 - no secrets, traffic state, customer data, credentials, or local machine paths
   are committed;

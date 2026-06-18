@@ -1,6 +1,8 @@
 """Local policy-pack vendoring workflow."""
 
 import os
+import re
+import shlex
 import shutil
 import tempfile
 from collections.abc import Mapping
@@ -84,6 +86,22 @@ _REQUIRED_FILES = (
     "README.md",
     "examples/consumer-qanstitution.yaml",
 )
+_PACK_VERSION_RE = re.compile(
+    r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+    r"(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$"
+)
+_VERSION_RANGE_PART_RE = re.compile(
+    r"^(?:>=|<=|>|<|==|!=|~=)"
+    r"(0|[1-9]\d*)(?:\.(0|[1-9]\d*)){0,2}"
+    r"(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$"
+)
+_LOCAL_EVIDENCE_COMMAND_PREFIXES = (
+    ("uv", "run", "python", "scripts/policy_pack_smoke.py"),
+    ("python", "scripts/policy_pack_smoke.py"),
+    ("scripts/policy_pack_smoke.py",),
+    ("entroping", "config", "test-policy-pack"),
+)
+_SHELL_CONTROL_CHARS = frozenset("|;&<>`$")
 
 
 def vendor_policy_pack(
@@ -319,9 +337,7 @@ def _validate_consumer_example_imports(document: Mapping[str, object]) -> None:
         if not isinstance(import_ref, str) or not import_ref.strip():
             msg = f"consumer example import {index} must be a non-empty string"
             raise PolicyPackVendorError(msg)
-        if "://" in import_ref or import_ref.startswith("git@"):
-            msg = "consumer example imports must be local paths"
-            raise PolicyPackVendorError(msg)
+        _validate_consumer_import_ref(import_ref)
 
 
 def _resolve_config(path: Path, *, root: Path) -> Path:
@@ -372,16 +388,19 @@ def _validate_policy_pack(pack_path: Path) -> _ValidatedPolicyPack:
             raise PolicyPackVendorError(msg)
 
     manifest = _read_yaml_mapping(pack_path / "entroping-policy-pack.yaml")
-    for field in _REQUIRED_STRING_FIELDS:
-        _string_field(manifest, field)
-    pack_id = _string_field(manifest, "id")
-    _manifest_source_reference(_string_field(manifest, "source"))
-    runtime_contract = _string_field(manifest, "runtime_contract")
+    required_values = {field: _string_field(manifest, field) for field in _REQUIRED_STRING_FIELDS}
+    pack_id = required_values["id"]
+    _validate_pack_version(required_values["version"])
+    _manifest_source_reference(required_values["source"])
+    _validate_entroping_range(required_values["entroping"])
+    _validate_evidence_command(required_values["evidence_command"])
+    _validate_manifest_attribution(manifest)
+    runtime_contract = required_values["runtime_contract"]
     if runtime_contract != "qanstitution-import":
         msg = "runtime_contract must be 'qanstitution-import'"
         raise PolicyPackVendorError(msg)
 
-    entrypoint = _pack_relative_path(_string_field(manifest, "entrypoint"), field="entrypoint")
+    entrypoint = _pack_relative_path(required_values["entrypoint"], field="entrypoint")
     gate_prefixes = _string_list_field(manifest, "gate_prefixes")
     documented_final_gates = tuple(sorted(_string_list_field(manifest, "final_gates")))
     manifest_gates = _manifest_gates(manifest)
@@ -516,6 +535,77 @@ def _manifest_source_reference(value: str) -> str:
     return path.as_posix()
 
 
+def _validate_pack_version(value: str) -> None:
+    if _PACK_VERSION_RE.fullmatch(value) is None:
+        msg = "manifest field 'version' must use Semantic Versioning"
+        raise PolicyPackVendorError(msg)
+
+
+def _validate_entroping_range(value: str) -> None:
+    parts = [part.strip() for part in value.split(",")]
+    if (
+        not parts
+        or any(not part for part in parts)
+        or any(_VERSION_RANGE_PART_RE.fullmatch(part) is None for part in parts)
+    ):
+        msg = "manifest field 'entroping' must be a comma-separated version range"
+        raise PolicyPackVendorError(msg)
+
+
+def _validate_evidence_command(value: str) -> None:
+    if any(ord(char) < 32 or ord(char) == 127 for char in value):
+        msg = "manifest field 'evidence_command' must not contain control characters"
+        raise PolicyPackVendorError(msg)
+    if any(char in _SHELL_CONTROL_CHARS for char in value):
+        msg = "manifest field 'evidence_command' must be a local validation command"
+        raise PolicyPackVendorError(msg)
+    try:
+        tokens = shlex.split(value)
+    except ValueError as exc:
+        msg = "manifest field 'evidence_command' must be shell-parseable"
+        raise PolicyPackVendorError(msg) from exc
+    has_allowed_prefix = any(
+        _tokens_start_with(tokens, prefix) for prefix in _LOCAL_EVIDENCE_COMMAND_PREFIXES
+    )
+    has_unsafe_reference = any(
+        _is_remote_reference(token) or _is_unsafe_local_reference(token) for token in tokens
+    )
+    if not tokens or has_unsafe_reference or not has_allowed_prefix:
+        msg = "manifest field 'evidence_command' must be a local validation command"
+        raise PolicyPackVendorError(msg)
+
+
+def _tokens_start_with(tokens: list[str], prefix: tuple[str, ...]) -> bool:
+    return len(tokens) >= len(prefix) and tuple(tokens[: len(prefix)]) == prefix
+
+
+def _validate_manifest_attribution(manifest: Mapping[str, object]) -> None:
+    maintainers = manifest.get("maintainers")
+    publisher = manifest.get("publisher")
+    has_maintainers = False
+    has_publisher = False
+
+    if maintainers is not None:
+        if not isinstance(maintainers, list):
+            msg = "manifest field 'maintainers' must be a list of strings when present"
+            raise PolicyPackVendorError(msg)
+        for index, item in enumerate(maintainers):
+            if not isinstance(item, str) or not item.strip():
+                msg = f"manifest field 'maintainers' item {index} must be a non-empty string"
+                raise PolicyPackVendorError(msg)
+        has_maintainers = bool(maintainers)
+
+    if publisher is not None:
+        if not isinstance(publisher, str) or not publisher.strip():
+            msg = "manifest field 'publisher' must be a non-empty string when present"
+            raise PolicyPackVendorError(msg)
+        has_publisher = True
+
+    if not has_maintainers and not has_publisher:
+        msg = "manifest attribution must include at least one maintainer or publisher"
+        raise PolicyPackVendorError(msg)
+
+
 def _pack_relative_path(value: str, *, field: str) -> str:
     if any(ord(char) < 32 or ord(char) == 127 for char in value):
         msg = f"manifest {field} must not contain control characters"
@@ -529,6 +619,39 @@ def _pack_relative_path(value: str, *, field: str) -> str:
         msg = f"manifest {field} must stay inside the policy-pack directory: {value}"
         raise PolicyPackVendorError(msg)
     return path.as_posix()
+
+
+def _is_remote_reference(value: str) -> bool:
+    parsed = urlparse(value)
+    return bool(parsed.scheme or parsed.netloc or value.startswith("git@"))
+
+
+def _is_unsafe_local_reference(value: str) -> bool:
+    if "\\" in value:
+        return True
+    candidate = value.split("=", maxsplit=1)[1] if "=" in value else value
+    path = Path(candidate)
+    return path.is_absolute() or ".." in path.parts
+
+
+def _validate_consumer_import_ref(value: str) -> None:
+    if any(ord(char) < 32 or ord(char) == 127 for char in value):
+        msg = "consumer example imports must not contain control characters"
+        raise PolicyPackVendorError(msg)
+    parsed = urlparse(value)
+    path = Path(value)
+    if (
+        parsed.scheme
+        or parsed.netloc
+        or value.startswith("git@")
+        or "\\" in value
+        or path.is_absolute()
+    ):
+        msg = "consumer example imports must be local paths"
+        raise PolicyPackVendorError(msg)
+    if ".." in path.parts:
+        msg = "consumer example imports must not contain traversal"
+        raise PolicyPackVendorError(msg)
 
 
 def _load_pack_entrypoint(path: Path) -> QanstitutionEvidence:

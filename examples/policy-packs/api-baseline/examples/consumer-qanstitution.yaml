@@ -1,7 +1,7 @@
 project: "checkout-api"
 version: "4.1"
 imports:
-  - "../qanstitution.yaml"
+  - "./policy-packs/api-baseline/qanstitution.yaml"
 gates:
   - id: "checkout.local_latency"
     description: "Checkout smoke tests should stay fast locally"
