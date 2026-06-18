@@ -500,6 +500,23 @@ prompts, provider outputs, credentials, environment values, or upload anything.
 If the bundle status is `not_ready`, fix the missing or inconsistent local
 evidence before sharing it with a design partner or hosted workflow.
 
+Write a concise PR/runtime evidence card:
+
+```bash
+entroping report runtime-card
+entroping report runtime-card --output json
+```
+
+The runtime card writes `reports/runtime-card.md` or
+`reports/runtime-card.json`. It requires `reports/run-latest.json` and
+summarizes drift, redaction confidence from `reports/capture-summary.json`,
+release evidence, and agent provenance from existing sanitized artifacts when
+they are present. Missing required run evidence writes a failed card, and
+missing redaction evidence marks the card for reviewer attention. Malformed
+present artifacts fail before output is written. It does not execute Hurl, call
+providers, upload artifacts, or render raw Hurl output, raw traffic, prompts,
+provider responses, credentials, or environment values.
+
 Freeze the session into tests:
 
 ```bash
@@ -752,6 +769,7 @@ entroping report policy-diff --base reports/base-effective-policy.json --current
 entroping report gate-coverage --output json
 entroping report gate-injection --target tests/health.hurl --output json
 entroping report artifact-manifest
+entroping report runtime-card --output json
 entroping architect audit --focus logic --output json > reports/openapi-audit.json
 entroping report traceability --output json > reports/traceability.json
 entroping report badges
@@ -830,11 +848,15 @@ posted by any CI system, write a Markdown summary from the local artifacts:
 
 ```bash
 entroping report review-summary --traceability
+entroping report runtime-card
 ```
 
 This writes `reports/review-summary.md` from the JSON run report, JUnit XML,
 drift JSON, and optional local traceability metadata. Entroping does not call
 GitHub, GitLab, Buildkite, Jira, Linear, or model providers to post it.
+The runtime card writes `reports/runtime-card.md` from the same local evidence
+family plus optional sanitized release and agent evidence so reviewers can see
+the PR runtime proof at a glance.
 
 After writing reports that you plan to upload, write a manifest for reviewers:
 

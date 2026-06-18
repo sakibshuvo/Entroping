@@ -184,6 +184,16 @@ LOCKED_CLI_CONTRACTS = (
         ("--output",),
     ),
     CliContract(
+        "entroping report evidence-bundle [--output <path>]",
+        ("report", "evidence-bundle", "--help"),
+        ("--output",),
+    ),
+    CliContract(
+        "entroping report runtime-card [--output <md|json>]",
+        ("report", "runtime-card", "--help"),
+        ("--output",),
+    ),
+    CliContract(
         (
             "entroping report agent-bundle [--output <md|json>] "
             "[--role <builder|auditor|breaker>] [--scope <path>]"
@@ -261,6 +271,9 @@ REPORT_ARTIFACTS = (
     "reports/effective-policy.json",
     "stdout Effective Policy Diff Markdown/JSON",
     "reports/badges/*.json",
+    "reports/evidence-bundle.json",
+    "reports/runtime-card.md",
+    "reports/runtime-card.json",
     "reports/agent-bundle.md",
     "reports/agent-bundle.json",
     "reports/review-summary.md",
