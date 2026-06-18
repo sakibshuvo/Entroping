@@ -247,6 +247,7 @@ def report_badges(
             openapi_json_path=openapi_json,
             traceability_json_path=traceability_json,
             output_dir=output,
+            project_root=Path.cwd(),
         )
     except BadgeReportError as exc:
         print_cli_error(exc)
