@@ -1475,3 +1475,6 @@
 - Closed issue #869's review-summary path leak: outside-root finding paths now
   render as `[outside project]`, valid relative paths stay readable, and raw
   outside path text is replaced in finding messages before Markdown output.
+- Closed issue #872's traceability badge evidence gap: non-missing traceability
+  findings now count as unresolved evidence in the story-link badge denominator,
+  so duplicate document/story findings cannot produce a brightgreen 100% badge.
