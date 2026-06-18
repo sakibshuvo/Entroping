@@ -16,6 +16,7 @@ from entroping.models.traffic import TrafficBody, TrafficResponse
 
 _SAFE_FILE_STEM_RE = re.compile(r"[^A-Za-z0-9_.-]+")
 _HTTP_METHOD_TOKEN_RE = re.compile(r"^[A-Z]+(?:-[A-Z]+)*$")
+_HTTP_HEADER_NAME_RE = re.compile(r"^[A-Za-z0-9!#$%&'*+.^_`|~-]+$")
 _JSONPATH_FIELD_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _HURL_REQUEST_LINE_RE = re.compile(
     r"^(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|CONNECT|TRACE)\s+\S+(?:\s+.*)?$",
@@ -141,10 +142,11 @@ def _render_record(record: TrafficSessionRecord, *, golden: bool) -> list[str]:
 def _render_request_headers(headers: dict[str, str]) -> list[str]:
     rendered: list[str] = []
     for name, value in headers.items():
-        if name.lower() in _HOP_BY_HOP_REQUEST_HEADERS:
+        safe_name = _safe_header_name(name)
+        if safe_name.lower() in _HOP_BY_HOP_REQUEST_HEADERS:
             continue
         rendered.append(
-            f"{name}: {_safe_hurl_line_value(value, f'header {name!r}')}"
+            f"{safe_name}: {_safe_hurl_line_value(value, f'header {safe_name!r}')}"
         )
     return rendered
 
@@ -291,6 +293,19 @@ def _safe_request_method(value: str) -> str:
         msg = "request method must be an HTTP token"
         raise TrafficHurlCompilationError(msg)
     return method
+
+
+def _safe_header_name(value: str) -> str:
+    if _contains_control(value):
+        msg = "header name contains control characters"
+        raise TrafficHurlCompilationError(msg)
+    if _has_hurl_template_delimiter(value):
+        msg = "header name contains Hurl template delimiters"
+        raise TrafficHurlCompilationError(msg)
+    if _HTTP_HEADER_NAME_RE.fullmatch(value) is None:
+        msg = "header name must be an HTTP token"
+        raise TrafficHurlCompilationError(msg)
+    return value
 
 
 def _safe_hurl_line_value(value: str, context: str) -> str:
