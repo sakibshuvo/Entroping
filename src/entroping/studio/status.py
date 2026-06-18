@@ -18,18 +18,12 @@ from entroping.bridge.traffic_to_graph import (
     compile_traffic_dependency_graph,
 )
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
+from entroping.core.evidence_index import LocalEvidenceArtifact, build_local_evidence_index
 from entroping.core.report_writer import load_run_report
 from entroping.core.traffic_store import TrafficStoreError, list_project_exchanges_readonly
 from entroping.models.qanstitution import GateRule
 from entroping.models.traffic import TrafficExchange
 
-_KNOWN_REPORT_PATHS = (
-    Path("reports") / "run-latest.json",
-    Path("reports") / "junit.xml",
-    Path("reports") / "run-latest.html",
-    Path("reports") / "drift.json",
-    Path("reports") / "bug.md",
-)
 _TRAFFIC_BROWSER_LIMIT = 1_000
 
 
@@ -105,6 +99,7 @@ class StudioStatus:
     latest_run_status: str
     report_paths: tuple[str, ...]
     traffic_state_available: bool
+    evidence_artifacts: tuple[LocalEvidenceArtifact, ...] = ()
     applied_gates: tuple[StudioAppliedGateStatus, ...] = ()
     traffic_state_status: str = "missing"
     traffic_record_count: int = 0
@@ -138,14 +133,16 @@ def collect_studio_status(*, project_root: Path, environment: str | None) -> Stu
         traffic_routes,
         traffic_redactions,
     ) = _load_traffic_browser_status(root)
+    evidence_artifacts = build_local_evidence_index(project_root=root)
     return StudioStatus(
         environment=environment or "default",
         project=project,
         qanstitution_status=qanstitution_status,
         latest_run=latest_run,
         latest_run_status=latest_run_status,
-        report_paths=_existing_report_paths(root),
+        report_paths=_existing_report_paths(evidence_artifacts),
         traffic_state_available=traffic_state_available,
+        evidence_artifacts=evidence_artifacts,
         applied_gates=_applied_gate_statuses(latest_run, gates_by_id),
         traffic_state_status=traffic_state_status,
         traffic_record_count=traffic_record_count,
@@ -166,6 +163,7 @@ def render_studio_status(status: StudioStatus) -> str:
         _latest_run_line(status),
         f"Applied gates: {len(status.applied_gates)}",
         f"Reports: {_reports_line(status.report_paths)}",
+        _evidence_artifacts_line(status.evidence_artifacts),
         _traffic_state_line(status),
         f"Traffic routes: {len(status.traffic_routes)}",
         f"Traffic redaction categories: {len(status.traffic_redactions)}",
@@ -215,11 +213,11 @@ def _load_latest_run_status(root: Path) -> tuple[LatestRunStatus | None, str]:
     )
 
 
-def _existing_report_paths(root: Path) -> tuple[str, ...]:
+def _existing_report_paths(artifacts: tuple[LocalEvidenceArtifact, ...]) -> tuple[str, ...]:
     paths = [
-        str(path)
-        for path in _KNOWN_REPORT_PATHS
-        if (root / path).is_file()
+        artifact.path
+        for artifact in artifacts
+        if artifact.state in {"present", "invalid"}
     ]
     return tuple(sorted(paths))
 
@@ -388,3 +386,11 @@ def _reports_line(report_paths: tuple[str, ...]) -> str:
     if not report_paths:
         return "none"
     return ", ".join(report_paths)
+
+
+def _evidence_artifacts_line(artifacts: tuple[LocalEvidenceArtifact, ...]) -> str:
+    if not artifacts:
+        return "Evidence artifacts: none"
+    present = sum(1 for artifact in artifacts if artifact.state == "present")
+    attention = sum(1 for artifact in artifacts if artifact.state in {"invalid", "unsafe"})
+    return f"Evidence artifacts: {present} present, {attention} attention"

@@ -976,7 +976,8 @@ Studio opens tabbed views for:
 - Latest run summary and suite rows when `.entroping/latest-run.json` exists.
 - Failure details from the sanitized latest run report.
 - Applied-gate drilldowns from latest-run report rule IDs and QAnstitution gate definitions.
-- Existing report artifact paths.
+- A read-only evidence viewer for report artifacts, with stable evidence IDs
+  such as `run-json`, `capture-summary-json`, and `runtime-card-json`.
 - A read-only traffic session browser over redacted SQLModel-backed state.
 - Inferred target/dependency grouping, route counts, latency summaries, and safe redaction categories and counts.
 
@@ -984,6 +985,15 @@ Studio is intentionally read-only in the alpha. It does not update tests,
 config, reports, or `.entroping` state. It also does not start `watch`, control
 live capture, or render raw URLs with query values, headers, bodies, cookies,
 tokens, or secrets.
+
+The evidence viewer shows presence, invalid, and unsafe states for existing
+sanitized local artifacts. Oversized, unreadable, malformed, or
+schema-mismatched JSON artifacts are marked invalid without rendering contents.
+It does not render raw report contents, does not upload artifacts, and does not
+edit tests, QAnstitution, reports, traffic state, or runtime state. The stable
+evidence IDs are intended to line up with CLI output, PR runtime cards, and
+future editor or workbench surfaces without changing the locked CLI command
+contract.
 
 The applied-gate drilldowns explain which QAnstitution gates were applied to
 which tests by reading latest-run report rule IDs and QAnstitution gate

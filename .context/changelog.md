@@ -2,6 +2,12 @@
 
 ## 2026-06-18
 
+- Added issue #893's local evidence viewer:
+  Studio now indexes canonical sanitized report artifacts through stable
+  evidence IDs, shows controlled schema/count summaries plus invalid and unsafe
+  path states, and keeps the surface read-only without raw artifact rendering,
+  uploads, Hurl execution, provider calls, or edits to tests, QAnstitution,
+  reports, traffic state, or runtime state.
 - Added issue #892's PR runtime evidence card:
   `entroping report runtime-card` now writes `reports/runtime-card.md` or
   `reports/runtime-card.json` from existing sanitized local report artifacts,

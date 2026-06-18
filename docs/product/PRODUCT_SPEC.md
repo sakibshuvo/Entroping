@@ -232,7 +232,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | EXE-012 | Generate traceability reports | `entroping report traceability --output md|json` maps local Hurl metadata and `docs/stories/*.md` story files to stories, owners, docs, tests, tags, local story paths, and gap findings |
 | EXE-013 | Generate SARIF reports | `entroping report sarif` writes SARIF 2.1.0 from local JUnit, drift, and optional traceability findings without uploading results |
 | EXE-014 | Promote reviewed drift baselines | `entroping report promote-drift-baseline` validates a reviewed candidate before atomically writing `.entroping/drift-baseline.json` |
-| EXE-015 | Provide read-only TUI workflow | `entroping studio --env local` opens optional Textual/Rich local inspection over sanitized reports and redacted state |
+| EXE-015 | Provide read-only TUI workflow | `entroping studio --env local` opens optional Textual/Rich local inspection over sanitized reports and redacted state, including a read-only evidence viewer with stable evidence IDs for local report artifacts |
 | EXE-016 | Preserve execution reproducibility | All blocking CI behavior must be explainable from committed Hurl files, env data, effective QAnstitution, and Hurl output |
 | EXE-017 | Run named committed suites | `entroping run --suite smoke` loads `suites/smoke.yaml`, validates schema `entroping.suite.v1`, resolves root-bounded local path globs, and applies suite-defined env, tags, reports, parallel, fail-fast, and drift settings without changing default `run` behavior |
 | EXE-018 | Report timeout evidence | JSON, JUnit, HTML, and review-summary artifacts show effective per-test `timeout_ms` and distinguish subprocess timeouts from Hurl assertion failures |

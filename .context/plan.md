@@ -16,19 +16,19 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #892 PR Runtime Evidence Card
+## Current Issue Slice: #893 Local Evidence Viewer
 
-- Add a separate `entroping report runtime-card` artifact instead of expanding
-  `review-summary`, because the card needs a schema-versioned JSON contract for
-  later Jira, Linear, Slack, and hosted views while still defaulting to
-  GitHub-friendly Markdown.
-- Build the card only from existing local sanitized artifacts: run JSON, drift
-  JSON, capture summary, artifact manifest, evidence bundle, and agent bundle.
-- Missing run evidence should produce a written `fail` card; malformed present
-  artifacts should fail closed with controlled errors rather than being
-  summarized as trusted proof.
-- The card must remain value-free: no raw Hurl output, raw traffic, secrets,
-  prompts, provider responses, or environment values.
+- Extend the existing optional `entroping studio` read-only surface instead of
+  adding a new CLI command, preserving the locked CLI contract.
+- Add a reusable local evidence index for canonical sanitized report artifacts
+  with stable evidence IDs, presence/invalid/unsafe state, controlled schema
+  metadata, and counts-only summaries.
+- Keep the viewer strictly local and read-only: no Hurl execution, provider
+  calls, uploads, edits to tests or QAnstitution, report mutation, traffic-state
+  mutation, or raw report-content rendering.
+- Document the evidence IDs as the bridge for future CLI, PR-card, editor, and
+  workbench surfaces without promoting Studio beyond a secondary report-backed
+  view.
 - Verification lane: `security-runtime`.
 
 ## Current Baseline
