@@ -979,6 +979,11 @@ subsequent JSONL event line through the same root and symlink safety checks so
 large runs do not repeatedly rewrite accumulated evidence. A crash during
 append may leave one incomplete trailing line; run-event readers recover the
 complete JSONL prefix and reject malformed completed lines.
+Because latest-run state, latest reports, and latest event logs are singleton
+project artifacts, concurrent `entroping run` invocations in one project root
+fail fast before Hurl execution when another run already owns the latest
+event-log writer lock. This preserves complete latest evidence instead of
+interleaving two runs into one audit stream.
 `--changed-from <ref>` uses `git diff --name-status` to select existing changed
 `.hurl` files from a base ref. Deleted files are skipped, rename targets are
 used, and paths outside the project root are rejected before discovery. This is

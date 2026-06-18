@@ -6,9 +6,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from entroping.core.hurl_runner import redact_hurl_output
+from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.safe_write import SafeWriteError, safe_append_text, safe_write_text
 
 RUN_EVENT_LOG_SCHEMA_VERSION = "entroping.run-events.v1"
+RUN_EVENT_LOG_LOCK_NAME = "latest-run-events.lock"
 
 
 class RunEventLogError(RuntimeError):
@@ -46,15 +48,31 @@ class RunEventLog:
 
     project_root: Path
     path: Path
+    lock_path: Path
     _initialized: bool = False
 
     @classmethod
     def open_project(cls, project_root: Path) -> "RunEventLog":
         root = project_root.expanduser().resolve()
+        state_dir = root / ".entroping"
+        _reject_lock_symlink_components(state_dir / RUN_EVENT_LOG_LOCK_NAME, root=root)
+        state_dir.mkdir(parents=True, exist_ok=True)
+        lock_path = state_dir / RUN_EVENT_LOG_LOCK_NAME
+        _acquire_latest_writer_lock(lock_path, root=root)
         return cls(
             project_root=root,
             path=root / ".entroping" / "latest-run-events.jsonl",
+            lock_path=lock_path,
         )
+
+    def close(self) -> None:
+        """Release the latest event-log writer lock."""
+
+        try:
+            self.lock_path.rmdir()
+        except OSError as exc:
+            msg = f"Could not release run event log lock {self.lock_path}: {exc}"
+            raise RunEventLogError(msg) from exc
 
     def record_started(
         self,
@@ -216,3 +234,31 @@ class RunEventLog:
             return resolved.relative_to(self.project_root).as_posix()
         except ValueError:
             return resolved.as_posix()
+
+
+def _acquire_latest_writer_lock(lock_path: Path, *, root: Path) -> None:
+    _reject_lock_symlink_components(lock_path, root=root)
+    try:
+        lock_path.mkdir()
+    except FileExistsError as exc:
+        msg = (
+            "Another entroping run is already active in this project root; "
+            f"latest run event evidence is locked at {lock_path}. If no run is "
+            "active, remove that stale directory and rerun."
+        )
+        raise RunEventLogError(msg) from exc
+    except OSError as exc:
+        msg = f"Could not acquire run event log lock {lock_path}: {exc}"
+        raise RunEventLogError(msg) from exc
+    _reject_lock_symlink_components(lock_path, root=root)
+
+
+def _reject_lock_symlink_components(lock_path: Path, *, root: Path) -> None:
+    symlink_component = first_symlink_path_component(lock_path, root=root)
+    if symlink_component is None:
+        return
+    msg = (
+        "Refusing to acquire run event log lock through symlinked path component: "
+        f"{symlink_component}"
+    )
+    raise RunEventLogError(msg)

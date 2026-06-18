@@ -145,6 +145,78 @@ def test_event_log_initial_write_resets_stale_latest_events(tmp_path: Path) -> N
     assert "stale" not in log.path.read_text(encoding="utf-8")
 
 
+def test_event_log_rejects_concurrent_latest_writers(tmp_path: Path) -> None:
+    log = RunEventLog.open_project(tmp_path)
+
+    with pytest.raises(
+        RunEventLogError,
+        match="Another entroping run is already active.*remove that stale directory",
+    ):
+        RunEventLog.open_project(tmp_path)
+
+    log.close()
+
+
+def test_event_log_close_releases_latest_writer_lock(tmp_path: Path) -> None:
+    first = RunEventLog.open_project(tmp_path)
+    first.close()
+    second = RunEventLog.open_project(tmp_path)
+
+    second.record_artifact(artifact_type="json-report", path=tmp_path / "reports" / "one.json")
+
+    events = _read_jsonl(second.path)
+    assert [event["event"] for event in events] == ["artifact_written"]
+    second.close()
+
+
+def test_event_log_rejects_lock_through_symlinked_state_dir(tmp_path: Path) -> None:
+    outside = tmp_path / "outside-state"
+    outside.mkdir()
+    (tmp_path / ".entroping").symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(RunEventLogError, match="symlinked path component"):
+        RunEventLog.open_project(tmp_path)
+
+
+def test_event_log_wraps_lock_acquire_os_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_mkdir = Path.mkdir
+
+    def fail_lock_mkdir(
+        self: Path,
+        mode: int = 0o777,
+        parents: bool = False,
+        exist_ok: bool = False,
+    ) -> None:
+        if self.name == "latest-run-events.lock":
+            raise OSError("disk failed")
+        original_mkdir(self, mode=mode, parents=parents, exist_ok=exist_ok)
+
+    monkeypatch.setattr(Path, "mkdir", fail_lock_mkdir)
+
+    with pytest.raises(RunEventLogError, match="Could not acquire run event log lock"):
+        RunEventLog.open_project(tmp_path)
+
+
+def test_event_log_wraps_lock_release_os_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    log = RunEventLog.open_project(tmp_path)
+
+    def fail_rmdir(self: Path) -> None:
+        if self.name == "latest-run-events.lock":
+            raise OSError("busy")
+        raise AssertionError(f"unexpected rmdir for {self}")
+
+    monkeypatch.setattr(Path, "rmdir", fail_rmdir)
+
+    with pytest.raises(RunEventLogError, match="Could not release run event log lock"):
+        log.close()
+
+
 def test_event_log_wraps_safe_append_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

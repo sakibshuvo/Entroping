@@ -2,6 +2,11 @@
 
 ## 2026-06-18
 
+- Fixed issue #829's concurrent latest event-log evidence gap:
+  `entroping run` now acquires an exclusive latest event-log writer lock per
+  project root and fails concurrent runs before Hurl execution, preventing two
+  runs from interleaving or losing `.entroping/latest-run-events.jsonl`
+  evidence.
 - Fixed issue #830's primary OpenAPI spec path boundary:
   `architect build --new` and `architect audit` now load local
   `sources.spec` through a project-root-bounded OpenAPI loader that rejects
