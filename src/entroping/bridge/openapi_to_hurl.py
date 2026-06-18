@@ -40,6 +40,9 @@ _SENSITIVE_VARIABLE_PARTS = (
     "token",
 )
 
+_ScalarParameterValue = str | int | float | bool
+_ParameterExampleValue = _ScalarParameterValue | tuple[_ScalarParameterValue, ...]
+
 
 class _MissingValue:
     """Sentinel for absent OpenAPI examples/defaults."""
@@ -86,7 +89,9 @@ class _OpenApiParameter:
     name: str
     location: str
     variable_name: str
-    example_value: str | int | float | bool | None
+    example_value: _ParameterExampleValue | None
+    style: str
+    explode: bool
 
 
 @dataclass(frozen=True)
@@ -746,12 +751,22 @@ def _parse_parameter(
 
     schema = parameter.get("schema")
     schema_mapping = _ensure_mapping(schema, f"{context} schema") if schema is not None else {}
-    value = _parameter_example_value(parameter, schema_mapping, context=context)
+    style = _parameter_style(parameter.get("style"), location=location, context=context)
+    explode = _parameter_explode(parameter.get("explode"), style=style, context=context)
+    value = _parameter_example_value(
+        parameter,
+        schema_mapping,
+        location=location,
+        style=style,
+        context=context,
+    )
     return _OpenApiParameter(
         name=name,
         location=location,
         variable_name=_variable_name(name),
         example_value=value,
+        style=style,
+        explode=explode,
     )
 
 
@@ -780,13 +795,22 @@ def _parameter_example_value(
     parameter: Mapping[str, object],
     schema: Mapping[str, object],
     *,
+    location: str,
+    style: str,
     context: str,
-) -> str | int | float | bool | None:
+) -> _ParameterExampleValue | None:
     value = parameter.get("example", _MISSING)
     if value is _MISSING:
         value = _schema_preferred_value(schema, context=f"{context} schema")
     if value is _MISSING or value is None:
         return None
+    if schema.get("type") == "array":
+        return _ensure_array_parameter_value(
+            value,
+            location=location,
+            style=style,
+            context=context,
+        )
     return _ensure_scalar_parameter_value(value, context=context)
 
 
@@ -794,7 +818,7 @@ def _ensure_scalar_parameter_value(
     value: object,
     *,
     context: str,
-) -> str | int | float | bool:
+) -> _ScalarParameterValue:
     if not isinstance(value, str | int | float | bool):
         msg = f"{context} parameter example/default must be a scalar"
         raise OpenApiCompilationError(msg)
@@ -806,6 +830,58 @@ def _ensure_scalar_parameter_value(
         raise OpenApiCompilationError(msg)
     if isinstance(value, float) and not math.isfinite(value):
         msg = f"{context} parameter example/default must be finite"
+        raise OpenApiCompilationError(msg)
+    return value
+
+
+def _ensure_array_parameter_value(
+    value: object,
+    *,
+    location: str,
+    style: str,
+    context: str,
+) -> tuple[_ScalarParameterValue, ...]:
+    if location != "query":
+        msg = (
+            f"{context} array parameter examples/defaults are only supported for "
+            "query parameters"
+        )
+        raise OpenApiCompilationError(msg)
+    if style != "form":
+        msg = (
+            f"{context} array query parameter style {style!r} is not supported; "
+            "supported style is 'form'"
+        )
+        raise OpenApiCompilationError(msg)
+    if not isinstance(value, Sequence) or isinstance(value, str | bytes):
+        msg = f"{context} array query parameter example/default must be a list"
+        raise OpenApiCompilationError(msg)
+    if not value:
+        msg = f"{context} array query parameter example/default must contain at least one item"
+        raise OpenApiCompilationError(msg)
+    return tuple(
+        _ensure_scalar_parameter_value(
+            item,
+            context=f"{context} array item {index}",
+        )
+        for index, item in enumerate(value)
+    )
+
+
+def _parameter_style(value: object, *, location: str, context: str) -> str:
+    if value is None:
+        return "form" if location in {"query", "cookie"} else "simple"
+    if not isinstance(value, str) or _has_control(value):
+        msg = f"{context} parameter style must be a string without control characters"
+        raise OpenApiCompilationError(msg)
+    return value
+
+
+def _parameter_explode(value: object, *, style: str, context: str) -> bool:
+    if value is None:
+        return style == "form"
+    if not isinstance(value, bool):
+        msg = f"{context} parameter explode must be a boolean"
         raise OpenApiCompilationError(msg)
     return value
 
@@ -881,7 +957,7 @@ def _render_request_target(
     path: str,
     parameters: tuple[_OpenApiParameter, ...],
     *,
-    path_overrides: Mapping[str, str | int | float | bool] | None = None,
+    path_overrides: Mapping[str, _ScalarParameterValue] | None = None,
 ) -> str:
     path_parameters = {
         parameter.name: parameter for parameter in parameters if parameter.location == "path"
@@ -897,17 +973,31 @@ def _render_request_target(
             return f"{{{{{_variable_name(raw_name)}}}}}"
         if parameter.example_value is None:
             return f"{{{{{parameter.variable_name}}}}}"
+        if isinstance(parameter.example_value, tuple):
+            msg = "array parameter values can only be rendered as query parameters"
+            raise OpenApiCompilationError(msg)
         return _url_component(parameter.example_value)
 
     rendered_path = _PATH_PARAMETER_RE.sub(replace_path_parameter, path)
     query_parts = [
-        f"{_url_component(parameter.name)}={_parameter_value_token(parameter, url_component=True)}"
+        part
         for parameter in parameters
         if parameter.location == "query"
+        for part in _render_query_parameter(parameter)
     ]
     if not query_parts:
         return rendered_path
     return f"{rendered_path}?{'&'.join(query_parts)}"
+
+
+def _render_query_parameter(parameter: _OpenApiParameter) -> tuple[str, ...]:
+    name = _url_component(parameter.name)
+    value = parameter.example_value
+    if isinstance(value, tuple):
+        if parameter.explode:
+            return tuple(f"{name}={_url_component(item)}" for item in value)
+        return (f"{name}={','.join(_url_component(item) for item in value)}",)
+    return (f"{name}={_parameter_value_token(parameter, url_component=True)}",)
 
 
 def _render_parameter_headers(parameters: tuple[_OpenApiParameter, ...]) -> list[str]:
@@ -929,16 +1019,19 @@ def _render_parameter_headers(parameters: tuple[_OpenApiParameter, ...]) -> list
 def _parameter_value_token(parameter: _OpenApiParameter, *, url_component: bool) -> str:
     if parameter.example_value is None:
         return f"{{{{{parameter.variable_name}}}}}"
+    if isinstance(parameter.example_value, tuple):
+        msg = "array parameter values can only be rendered as query parameters"
+        raise OpenApiCompilationError(msg)
     if url_component:
         return _url_component(parameter.example_value)
     return _scalar_to_text(parameter.example_value)
 
 
-def _url_component(value: str | int | float | bool) -> str:
+def _url_component(value: _ScalarParameterValue) -> str:
     return quote(_scalar_to_text(value), safe="-._~")
 
 
-def _scalar_to_text(value: str | int | float | bool) -> str:
+def _scalar_to_text(value: _ScalarParameterValue) -> str:
     if isinstance(value, bool):
         return "true" if value else "false"
     return str(value)

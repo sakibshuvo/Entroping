@@ -459,6 +459,11 @@ The deterministic `architect build --new` OpenAPI path also validates every
 compiled Hurl file through the same parser-backed Hurl validation boundary
 before writing any generated file. If one compiled file fails validation, no
 partial generated files are left behind.
+OpenAPI query-array parameter examples/defaults support deterministic
+`style: form` rendering: exploded arrays repeat the query key, and
+non-exploded arrays join encoded item values with commas. Unsupported array
+parameter locations or styles fail closed with explicit guidance instead of
+falling back to ambiguous scalar rendering.
 
 When an OpenAPI operation has a JSON request body and an explicit validation
 failure response (`400` or `422`), the same deterministic path emits a bounded
