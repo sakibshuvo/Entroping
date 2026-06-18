@@ -15,6 +15,10 @@ _HTTP_METHODS = frozenset({"get", "post", "put", "patch", "delete", "head", "opt
 _JSONPATH_FIELD_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _PATH_PARAMETER_RE = re.compile(r"\{([^{}]+)\}")
 _HTTP_TOKEN_RE = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
+_VENDOR_JSON_MEDIA_RE = re.compile(
+    r"^application/[!#$%&'*+\-.^_`|~0-9A-Za-z]+\+json$",
+    re.IGNORECASE,
+)
 _PARAMETER_LOCATIONS = frozenset({"path", "query", "header", "cookie"})
 _READ_ONLY_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 _VALIDATION_FAILURE_STATUSES = ("400", "422")
@@ -103,6 +107,14 @@ class _SecurityScheme:
     name: str
     auth_lines: tuple[str, ...]
     query_parameter: tuple[str, str] | None = None
+
+
+@dataclass(frozen=True)
+class _JsonContentSchema:
+    """Selected JSON media type and schema from an OpenAPI content map."""
+
+    media_type: str
+    schema: Mapping[str, object]
 
 
 @dataclass(frozen=True)
@@ -251,7 +263,7 @@ def _render_operation(
     tags: frozenset[str],
     parameter_components: Mapping[str, object],
 ) -> str:
-    status, response_schema = _select_response(operation)
+    status, response_content = _select_response(operation)
     parameters = _operation_parameters(
         path_item=path_item,
         operation=operation,
@@ -268,15 +280,19 @@ def _render_operation(
     ]
     lines.extend(_render_parameter_headers(parameters))
 
-    request_schema = _json_request_schema(operation)
-    if request_schema is not None:
-        lines.append("Content-Type: application/json")
+    request_content = _json_request_schema(operation)
+    if request_content is not None:
+        lines.append(f"Content-Type: {request_content.media_type}")
         lines.extend(
-            json.dumps(_example_for_schema(request_schema), indent=2, allow_nan=False).splitlines()
+            json.dumps(
+                _example_for_schema(request_content.schema),
+                indent=2,
+                allow_nan=False,
+            ).splitlines()
         )
 
     lines.append(f"HTTP {status}")
-    assertions = _response_assertions(response_schema)
+    assertions = _response_assertions(response_content.schema if response_content else None)
     if assertions:
         lines.append("[Asserts]")
         lines.extend(assertions)
@@ -435,11 +451,15 @@ def _render_security_negative_operation(
     lines.extend(_render_parameter_headers(parameters))
     lines.extend(auth_lines)
 
-    request_schema = _json_request_schema(operation)
-    if request_schema is not None:
-        lines.append("Content-Type: application/json")
+    request_content = _json_request_schema(operation)
+    if request_content is not None:
+        lines.append(f"Content-Type: {request_content.media_type}")
         lines.extend(
-            json.dumps(_example_for_schema(request_schema), indent=2, allow_nan=False).splitlines()
+            json.dumps(
+                _example_for_schema(request_content.schema),
+                indent=2,
+                allow_nan=False,
+            ).splitlines()
         )
 
     lines.extend((f"HTTP {status}", ""))
@@ -457,8 +477,8 @@ def _schema_negative_files(
     parameter_components: Mapping[str, object],
 ) -> tuple[GeneratedHurlFile, ...]:
     status = _validation_failure_status(operation)
-    request_schema = _json_request_schema(operation)
-    if status is None or request_schema is None:
+    request_content = _json_request_schema(operation)
+    if status is None or request_content is None:
         return ()
 
     parameters = _operation_parameters(
@@ -468,7 +488,7 @@ def _schema_negative_files(
         parameter_components=parameter_components,
     )
     cases = _schema_negative_cases(
-        schema=request_schema,
+        schema=request_content.schema,
         path=path,
         parameters=parameters,
     )
@@ -483,6 +503,7 @@ def _schema_negative_files(
                 tags=frozenset({*tags, "negative", case.category}),
                 status=status,
                 case=case,
+                content_type=request_content.media_type,
             ),
         )
         for case in cases
@@ -572,6 +593,7 @@ def _render_schema_negative_operation(
     tags: frozenset[str],
     status: str,
     case: _NegativePathCase,
+    content_type: str,
 ) -> str:
     lines = [
         f"# entroping: tags={_render_tags(tags)}",
@@ -584,7 +606,7 @@ def _render_schema_negative_operation(
         f"# entroping: path={path}",
         "",
         f"{method} {{{{base_url}}}}{case.target}",
-        "Content-Type: application/json",
+        f"Content-Type: {content_type}",
     ]
     if isinstance(case.body, str):
         lines.append(case.body)
@@ -1132,7 +1154,7 @@ def _variable_name(name: str) -> str:
     return normalized
 
 
-def _select_response(operation: Mapping[str, object]) -> tuple[str, Mapping[str, object] | None]:
+def _select_response(operation: Mapping[str, object]) -> tuple[str, _JsonContentSchema | None]:
     responses = _mapping_field(operation, "responses", "OpenAPI operation must contain responses")
     statuses = [status for status in responses if isinstance(status, str)]
     preferred = sorted(status for status in statuses if status.isdigit() and status.startswith("2"))
@@ -1149,7 +1171,7 @@ def _select_response(operation: Mapping[str, object]) -> tuple[str, Mapping[str,
     return status, _json_content_schema(response)
 
 
-def _json_request_schema(operation: Mapping[str, object]) -> Mapping[str, object] | None:
+def _json_request_schema(operation: Mapping[str, object]) -> _JsonContentSchema | None:
     request_body = operation.get("requestBody")
     if request_body is None:
         return None
@@ -1371,19 +1393,45 @@ def _security_finding(
     )
 
 
-def _json_content_schema(container: Mapping[str, object]) -> Mapping[str, object] | None:
+def _json_content_schema(container: Mapping[str, object]) -> _JsonContentSchema | None:
     content = container.get("content")
     if content is None:
         return None
     content_mapping = _ensure_mapping(content, "OpenAPI content")
-    media = content_mapping.get("application/json")
-    if media is None:
+    media_type = _select_json_media_type(content_mapping)
+    if media_type is None:
         return None
-    media_mapping = _ensure_mapping(media, "OpenAPI application/json content")
+    media = content_mapping[media_type]
+    media_mapping = _ensure_mapping(media, f"OpenAPI {media_type} content")
     schema = media_mapping.get("schema")
     if schema is None:
         return None
-    return _ensure_mapping(schema, "OpenAPI JSON schema")
+    return _JsonContentSchema(
+        media_type=media_type,
+        schema=_ensure_mapping(schema, "OpenAPI JSON schema"),
+    )
+
+
+def _select_json_media_type(content: Mapping[str, object]) -> str | None:
+    if "application/json" in content:
+        return "application/json"
+    exact_json_media_types = [
+        media_type
+        for media_type in content
+        if isinstance(media_type, str) and media_type.lower() == "application/json"
+    ]
+    if exact_json_media_types:
+        return sorted(exact_json_media_types, key=lambda value: (value.lower(), value))[0]
+    vendor_media_types = [
+        media_type
+        for media_type in content
+        if isinstance(media_type, str) and _VENDOR_JSON_MEDIA_RE.fullmatch(media_type) is not None
+    ]
+    if not vendor_media_types:
+        return None
+    # Deterministic fallback when exact JSON is absent; do not infer semantic
+    # priority between vendor JSON types beyond stable media-type ordering.
+    return sorted(vendor_media_types, key=lambda value: (value.lower(), value))[0]
 
 
 def _response_assertions(schema: Mapping[str, object] | None) -> list[str]:
