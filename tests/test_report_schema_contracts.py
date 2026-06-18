@@ -1200,6 +1200,7 @@ def test_openapi_audit_v1_schema_contract_is_versioned_and_stable() -> None:
                 "path": "/health",
                 "status": "covered",
                 "tests": ["tests/generated/get_health.hurl"],
+                "negative_tests": [],
             },
             {
                 "operation_id": "createCheckout",
@@ -1207,6 +1208,7 @@ def test_openapi_audit_v1_schema_contract_is_versioned_and_stable() -> None:
                 "path": "/checkout",
                 "status": "uncovered",
                 "tests": [],
+                "negative_tests": [],
             },
         ],
         "findings": [

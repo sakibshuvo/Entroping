@@ -832,7 +832,9 @@ entroping architect audit [--focus <logic|auditor>] [--output <json|md>] [--chan
 `architect audit --focus logic` is a deterministic bridge report. It compares
 OpenAPI operations with committed Hurl metadata and request lines, emits
 covered, uncovered, and ambiguous operation rows, and lists stale
-`operation_id` references. When `.entroping/state.db` contains redacted Eye
+`operation_id` references. Generated negative-path Hurl evidence is reported
+separately from positive/non-negative coverage so it does not make an operation
+look happy-path covered. When `.entroping/state.db` contains redacted Eye
 traffic, the same audit also compares captured route summaries against OpenAPI
 path templates and reports documented, undocumented, and spec-only routes
 without raw query strings, headers, cookies, bodies, host userinfo, or captured

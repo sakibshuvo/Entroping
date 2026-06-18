@@ -50,6 +50,7 @@ class OpenApiOperationCoverage:
     path: str
     status: str
     test_paths: tuple[str, ...]
+    negative_test_paths: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -175,19 +176,21 @@ def render_audit_markdown(report: OpenApiAuditReport) -> str:
         [
             "## Operation Coverage Matrix",
             "",
-            "| Operation | Method | Path | Status | Tests |",
-            "| --- | --- | --- | --- | --- |",
+            "| Operation | Method | Path | Status | Tests | Negative Tests |",
+            "| --- | --- | --- | --- | --- | --- |",
         ]
     )
     for row in report.operation_matrix:
         tests = ", ".join(row.test_paths) if row.test_paths else "-"
+        negative_tests = ", ".join(row.negative_test_paths) if row.negative_test_paths else "-"
         lines.append(
             "| "
             f"{_markdown_table_cell(row.operation_id)} | "
             f"{_markdown_table_cell(row.method)} | "
             f"{_markdown_table_cell(row.path)} | "
             f"{_markdown_table_cell(row.status)} | "
-            f"{_markdown_table_cell(tests)} |"
+            f"{_markdown_table_cell(tests)} | "
+            f"{_markdown_table_cell(negative_tests)} |"
         )
     if report.stale_references:
         lines.extend(
@@ -234,6 +237,7 @@ def audit_report_to_dict(report: OpenApiAuditReport) -> dict[str, object]:
                 "path": row.path,
                 "status": row.status,
                 "tests": list(row.test_paths),
+                "negative_tests": list(row.negative_test_paths),
             }
             for row in report.operation_matrix
         ],
@@ -307,7 +311,7 @@ def _operation_coverage_row(
     *,
     project_root: Path | None,
 ) -> OpenApiOperationCoverage:
-    matching_paths = tuple(
+    positive_paths = tuple(
         sorted(
             {
                 _hurl_test_path(hurl_test, project_root=project_root)
@@ -316,9 +320,18 @@ def _operation_coverage_row(
             }
         )
     )
-    if not matching_paths:
+    negative_paths = tuple(
+        sorted(
+            {
+                _hurl_test_path(hurl_test, project_root=project_root)
+                for hurl_test in hurl_tests
+                if _hurl_test_is_negative_evidence(hurl_test, operation)
+            }
+        )
+    )
+    if not positive_paths:
         status = "uncovered"
-    elif len(matching_paths) == 1:
+    elif len(positive_paths) == 1:
         status = "covered"
     else:
         status = "ambiguous"
@@ -327,7 +340,8 @@ def _operation_coverage_row(
         method=operation.method,
         path=operation.path,
         status=status,
-        test_paths=matching_paths,
+        test_paths=positive_paths,
+        negative_test_paths=negative_paths,
     )
 
 
@@ -378,6 +392,16 @@ def _hurl_test_paths_by_operation_id(
 
 
 def _hurl_test_covers_operation(hurl_test: HurlTest, expected: _ExpectedOperation) -> bool:
+    return _hurl_test_matches_operation(hurl_test, expected) and not _is_negative_hurl_test(
+        hurl_test
+    )
+
+
+def _hurl_test_is_negative_evidence(hurl_test: HurlTest, expected: _ExpectedOperation) -> bool:
+    return _hurl_test_matches_operation(hurl_test, expected) and _is_negative_hurl_test(hurl_test)
+
+
+def _hurl_test_matches_operation(hurl_test: HurlTest, expected: _ExpectedOperation) -> bool:
     if hurl_test.metadata.meta.get("source") != "openapi":
         return False
     if not hurl_test.exchanges:
@@ -386,6 +410,14 @@ def _hurl_test_covers_operation(hurl_test: HurlTest, expected: _ExpectedOperatio
     if operation_id != expected.operation_id:
         return False
     return any(_exchange_covers_operation(exchange, expected) for exchange in hurl_test.exchanges)
+
+
+def _is_negative_hurl_test(hurl_test: HurlTest) -> bool:
+    return (
+        "negative" in hurl_test.tags
+        or "negative_category" in hurl_test.metadata.meta
+        or hurl_test.metadata.meta.get("generation") == "negative-path-fuzzing"
+    )
 
 
 def _hurl_test_path(hurl_test: HurlTest, *, project_root: Path | None) -> str:
