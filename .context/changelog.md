@@ -2,6 +2,10 @@
 
 ## 2026-06-18
 
+- Fixed issue #844's traffic URL fragment redaction gap:
+  redacted Eye traffic now strips URL fragments before persistence so
+  fragment-borne OAuth or token-like values cannot survive in traffic state,
+  reports, or generated artifacts.
 - Fixed issue #836's GitHub annotation artifact error handling:
   unreadable JUnit XML or drift JSON report paths now raise controlled
   `GitHubAnnotationError` messages instead of leaking raw filesystem
