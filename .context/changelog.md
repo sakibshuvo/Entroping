@@ -2,6 +2,10 @@
 
 ## 2026-06-18
 
+- Fixed issue #841's OpenAPI security-alternative handling:
+  auth-negative generation now treats an empty OpenAPI security requirement as
+  a public alternative and skips missing/invalid-auth Hurl files for those
+  operations while preserving security-only negative generation.
 - Fixed issue #843's traffic-to-Hurl header name boundary:
   freeze-generated Hurl now validates header names during compilation,
   rejecting control characters, invalid field-name tokens, and Hurl template

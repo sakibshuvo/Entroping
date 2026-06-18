@@ -285,6 +285,8 @@ def _security_negative_files(
     )
     if not requirements:
         return OpenApiHurlCompilationResult(files=(), security_findings=())
+    if any(not requirement for requirement in requirements):
+        return OpenApiHurlCompilationResult(files=(), security_findings=())
 
     supported: list[_SecurityScheme] = []
     findings: list[OpenApiSecurityCoverageFinding] = []
