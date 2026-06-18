@@ -5,7 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from entroping.bridge.story_traceability import compile_story_traceability
+from entroping.bridge.story_traceability import (
+    StoryTraceabilityFinding,
+    StoryTraceabilityReport,
+    compile_story_traceability,
+)
 from entroping.core.github_annotations import (
     GitHubAnnotation,
     GitHubAnnotationError,
@@ -151,6 +155,46 @@ def test_annotations_from_junit_report_uses_fallback_paths(tmp_path: Path) -> No
     )
 
 
+@pytest.mark.security
+@pytest.mark.regression
+def test_annotations_from_junit_report_drops_unsafe_file_references(
+    tmp_path: Path,
+) -> None:
+    junit = tmp_path / "junit.xml"
+    junit.write_text(
+        """<?xml version="1.0" encoding="utf-8"?>
+<testsuite name="Entroping unsafe paths" tests="5" failures="5" errors="0">
+  <testcase classname="tests" name="safe.hurl" time="0.001">
+    <failure message="safe" type="entroping.hurl">path: tests/safe.hurl</failure>
+  </testcase>
+  <testcase classname="tests" name="scheme.hurl" time="0.001">
+    <failure message="scheme" type="entroping.hurl">path: https://evil.example/finding.hurl</failure>
+  </testcase>
+  <testcase classname="tests" name="traversal.hurl" time="0.001">
+    <failure message="traversal" type="entroping.hurl">path: ../outside.hurl</failure>
+  </testcase>
+  <testcase classname="tests" name="absolute.hurl" time="0.001">
+    <failure message="absolute" type="entroping.hurl">path: /tmp/outside.hurl</failure>
+  </testcase>
+  <testcase classname="C:\\outside" name="drive.hurl" time="0.001">
+    <failure message="drive" type="entroping.hurl" />
+  </testcase>
+</testsuite>
+""",
+        encoding="utf-8",
+    )
+
+    annotations = annotations_from_junit_report(junit)
+
+    assert [annotation.file for annotation in annotations] == [
+        "tests/safe.hurl",
+        None,
+        None,
+        None,
+        None,
+    ]
+
+
 def test_annotations_from_drift_report_maps_severities(tmp_path: Path) -> None:
     drift = tmp_path / "reports" / "drift.json"
     drift.parent.mkdir()
@@ -199,6 +243,64 @@ def test_annotations_from_drift_report_maps_severities(tmp_path: Path) -> None:
             line=1,
         ),
     )
+
+
+@pytest.mark.security
+@pytest.mark.regression
+def test_annotations_from_drift_report_drops_unsafe_file_references(
+    tmp_path: Path,
+) -> None:
+    drift = tmp_path / "drift.json"
+    drift.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.drift-report.v1",
+                "findings": [
+                    {
+                        "kind": "safe",
+                        "severity": "error",
+                        "path": "tests/safe.hurl",
+                        "message": "Safe path.",
+                    },
+                    {
+                        "kind": "scheme",
+                        "severity": "error",
+                        "path": "file:///tmp/outside.hurl",
+                        "message": "Unsafe scheme.",
+                    },
+                    {
+                        "kind": "traversal",
+                        "severity": "warning",
+                        "path": "tests/../outside.hurl",
+                        "message": "Unsafe traversal.",
+                    },
+                    {
+                        "kind": "absolute",
+                        "severity": "warning",
+                        "path": "/tmp/outside.hurl",
+                        "message": "Unsafe absolute path.",
+                    },
+                    {
+                        "kind": "drive",
+                        "severity": "warning",
+                        "path": "C:/outside/finding.hurl",
+                        "message": "Unsafe drive.",
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    annotations = annotations_from_drift_report(drift)
+
+    assert [annotation.file for annotation in annotations] == [
+        "tests/safe.hurl",
+        None,
+        None,
+        None,
+        None,
+    ]
 
 
 def test_annotations_from_drift_report_handles_missing_and_malformed_reports(
@@ -370,6 +472,57 @@ def test_annotations_from_traceability_report_maps_findings() -> None:
             line=1,
         ),
     )
+
+
+@pytest.mark.security
+@pytest.mark.regression
+def test_annotations_from_traceability_report_drops_unsafe_file_references(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    monkeypatch.chdir(project_root)
+    report = StoryTraceabilityReport(
+        stories=(),
+        findings=(
+            StoryTraceabilityFinding(
+                kind="missing_story_id",
+                message="safe missing story metadata.",
+                test_path=Path("tests/safe.hurl"),
+            ),
+            StoryTraceabilityFinding(
+                kind="missing_story_id",
+                message="safe absolute project path.",
+                test_path=project_root / "tests" / "absolute.hurl",
+            ),
+            StoryTraceabilityFinding(
+                kind="missing_story_id",
+                message="unsafe traversal.",
+                test_path=Path("../outside.hurl"),
+            ),
+            StoryTraceabilityFinding(
+                kind="missing_story_id",
+                message="unsafe absolute outside path.",
+                test_path=tmp_path / "outside.hurl",
+            ),
+            StoryTraceabilityFinding(
+                kind="missing_story",
+                message="unsafe drive.",
+                test_path=Path("C:/outside/finding.hurl"),
+            ),
+        ),
+    )
+
+    annotations = annotations_from_traceability_report(report)
+
+    assert [annotation.file for annotation in annotations] == [
+        "tests/safe.hurl",
+        "tests/absolute.hurl",
+        None,
+        None,
+        None,
+    ]
 
 
 def test_github_annotations_main_truncates_output(

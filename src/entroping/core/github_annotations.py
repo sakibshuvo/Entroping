@@ -7,7 +7,7 @@ import json
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Literal, Protocol, cast
 
 from defusedxml import ElementTree
@@ -149,7 +149,7 @@ def annotations_from_traceability_report(
                 level=_traceability_level(finding.kind),
                 title=f"Entroping traceability: {finding.kind}",
                 message=_annotation_message(finding.message),
-                file=str(finding.test_path) if finding.test_path is not None else None,
+                file=_safe_traceability_file(finding.test_path),
                 line=1,
             )
         )
@@ -161,8 +161,10 @@ def render_github_annotation(annotation: GitHubAnnotation) -> str:
 
     properties = []
     if annotation.file is not None:
-        properties.append(f"file={_escape_property(annotation.file)}")
-        properties.append(f"line={annotation.line}")
+        safe_file = _safe_file(annotation.file)
+        if safe_file is not None:
+            properties.append(f"file={_escape_property(safe_file)}")
+            properties.append(f"line={annotation.line}")
     properties.append(f"title={_escape_property(annotation.title)}")
     return (
         f"::{annotation.level} {','.join(properties)}::"
@@ -264,8 +266,34 @@ def _finding_file(value: object) -> str | None:
     return _safe_file(stripped)
 
 
-def _safe_file(value: str) -> str:
-    return " ".join(value.replace("\\", "/").split())
+def _safe_file(value: str) -> str | None:
+    normalized = " ".join(value.replace("\\", "/").split())
+    if not normalized or "://" in normalized:
+        return None
+
+    candidate = PurePosixPath(normalized)
+    if candidate.is_absolute() or candidate.name in {"", "."}:
+        return None
+    if candidate.parts and candidate.parts[0].endswith(":"):
+        return None
+    if any(part in {"", ".", ".."} for part in candidate.parts):
+        return None
+    return candidate.as_posix()
+
+
+def _safe_traceability_file(path: Path | None) -> str | None:
+    if path is None:
+        return None
+    if not path.is_absolute():
+        return _safe_file(str(path))
+
+    try:
+        relative_path = path.expanduser().resolve(strict=False).relative_to(
+            Path.cwd().resolve(strict=False)
+        )
+    except ValueError:
+        return None
+    return _safe_file(relative_path.as_posix())
 
 
 def _string_field(value: object, *, fallback: str) -> str:

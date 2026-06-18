@@ -1484,3 +1484,9 @@
 - Closed issue #861's gate-group collision gap: QAnstitution loading now fails
   when distinct raw `gate_groups` names normalize to the same value, preserving
   both conflicting names in the controlled validation error.
+- Closed issue #848's GitHub annotation file-reference gap: annotation
+  rendering now omits unsafe `file=` properties from JUnit, drift, and
+  traceability findings when report paths contain URI schemes, absolute
+  outside-root paths, parent traversal, Windows drive prefixes, or empty/dot
+  references, while preserving safe relative Hurl paths and traceability paths
+  discovered under the current project root.

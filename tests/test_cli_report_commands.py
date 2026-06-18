@@ -1403,6 +1403,52 @@ def test_report_github_annotations_truncates_annotations(
     assert "1 annotation(s) omitted" in result.output
 
 
+@pytest.mark.security
+@pytest.mark.regression
+def test_report_github_annotations_drops_unsafe_file_properties(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports_dir = Path("reports")
+    reports_dir.mkdir()
+    (reports_dir / "junit.xml").write_text(
+        """<?xml version="1.0" encoding="utf-8"?>
+<testsuite name="Entroping unsafe paths" tests="1" failures="1" errors="0">
+  <testcase classname="tests" name="unsafe.hurl" time="0.001">
+    <failure message="failed" type="entroping.hurl">path: ../outside.hurl
+status: failed</failure>
+  </testcase>
+</testsuite>
+""",
+        encoding="utf-8",
+    )
+    (reports_dir / "drift.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.drift-report.v1",
+                "findings": [
+                    {
+                        "kind": "unsafe_annotation_path",
+                        "severity": "error",
+                        "path": "https://evil.example/finding.hurl",
+                        "message": "Unsafe annotation path.",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["report", "github-annotations"])
+
+    assert result.exit_code == 0
+    assert "::error title=Entroping Hurl failure::" in result.output
+    assert "::error title=Entroping drift%3A unsafe_annotation_path::" in result.output
+    assert "file=../outside.hurl" not in result.output
+    assert "file=https%3A//evil.example/finding.hurl" not in result.output
+
+
 def test_report_review_summary_writes_provider_neutral_markdown(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
