@@ -20,6 +20,7 @@ from cli_test_support import (
 
 from entroping.core.evidence_bundle import EvidenceBundleError
 from entroping.core.report_artifact_manifest import write_report_artifact_manifest
+from entroping.core.runtime_card import RuntimeCardError
 
 
 def _write_effective_policy_report(
@@ -71,7 +72,14 @@ def test_report_help_tiers_core_ci_review_commands_before_advanced_evidence() ->
         "Advanced Evidence",
         maxsplit=1,
     )[0]
-    for command in ("bug", "delta", "github-annotations", "sarif", "review-summary"):
+    for command in (
+        "bug",
+        "delta",
+        "github-annotations",
+        "runtime-card",
+        "sarif",
+        "review-summary",
+    ):
         assert command in core_panel
 
     advanced_panel = result.output.split("Advanced Evidence", maxsplit=1)[1]
@@ -130,6 +138,96 @@ def test_report_evidence_bundle_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "evidence bundle path is unsafe" in result.output
+
+
+def test_report_runtime_card_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("reports") / "run-latest.json",
+        """
+{
+  "schema_version": "entroping.run-report.v1",
+  "project": "checkout-api",
+  "environment": "ci",
+  "generated_at": "2026-06-18T00:00:00+00:00",
+  "summary": {"total": 1, "passed": 1, "failed": 0, "exit_code": 0},
+  "tests": []
+}
+""",
+    )
+    _write_text(
+        Path("reports") / "capture-summary.json",
+        """
+{
+  "schema_version": "entroping.capture-summary.v1",
+  "summary": {
+    "total_records": 1,
+    "total_sessions": 1,
+    "redacted_records": 1,
+    "unredacted_records": 0
+  },
+  "redaction_categories": []
+}
+""",
+    )
+
+    result = CliRunner().invoke(app, ["report", "runtime-card"])
+
+    assert result.exit_code == 0
+    assert "Wrote runtime evidence card: reports/runtime-card.md" in result.output
+    card = Path("reports/runtime-card.md").read_text(encoding="utf-8")
+    assert "# Entroping Runtime Evidence Card" in card
+    assert "- Status: `pass`" in card
+
+
+def test_report_runtime_card_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("reports") / "run-latest.json",
+        """
+{
+  "schema_version": "entroping.run-report.v1",
+  "project": "checkout-api",
+  "environment": "ci",
+  "generated_at": "2026-06-18T00:00:00+00:00",
+  "summary": {"total": 1, "passed": 0, "failed": 1, "exit_code": 1},
+  "tests": []
+}
+""",
+    )
+
+    result = CliRunner().invoke(app, ["report", "runtime-card", "--output", "json"])
+
+    assert result.exit_code == 1
+    assert "Wrote runtime evidence card: reports/runtime-card.json" in result.output
+    payload = json.loads(Path("reports/runtime-card.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.runtime-card.v1"
+    assert payload["summary"]["status"] == "fail"
+
+
+def test_report_runtime_card_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["report", "runtime-card", "--output", "html"])
+
+    assert result.exit_code == 2
+    assert "Unsupported runtime card output" in result.output
+
+
+def test_report_runtime_card_wraps_core_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail_runtime_card(*args: object, **kwargs: object) -> object:
+        raise RuntimeCardError("runtime card source evidence is unsafe")
+
+    monkeypatch.setattr(report_cli, "run_runtime_card_report", fail_runtime_card)
+
+    result = CliRunner().invoke(app, ["report", "runtime-card"])
+
+    assert result.exit_code == 1
+    assert "runtime card source evidence is unsafe" in result.output
 
 
 def test_report_bug_generates_markdown_from_latest_failing_run(

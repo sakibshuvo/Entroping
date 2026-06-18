@@ -88,6 +88,11 @@ from entroping.core.run_delta import (
     render_run_delta_markdown,
     run_delta_report_to_dict,
 )
+from entroping.core.runtime_card import (
+    RuntimeCardError,
+    RuntimeCardOutput,
+    run_runtime_card_report,
+)
 from entroping.core.sarif_report import SarifReportError, run_sarif_report
 from entroping.core.story_documents import discover_story_documents
 from entroping.models.hurl import HurlMetadataSyntaxError
@@ -496,6 +501,33 @@ def report_evidence_bundle(
         f"{result.bundle.summary.required_invalid} invalid)"
     )
     raise typer.Exit(0 if result.bundle.summary.status == "ready" else 1)
+
+
+@app.command("runtime-card", rich_help_panel=CORE_REPORT_PANEL)
+def report_runtime_card(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a concise PR/runtime evidence card from sanitized local reports."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported runtime card output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_runtime_card_report(
+            project_root=Path.cwd(),
+            output=cast(RuntimeCardOutput, normalized_output),
+        )
+    except RuntimeCardError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote runtime evidence card: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0 if result.card.summary.status == "pass" else 1)
 
 
 @app.command("agent-bundle", rich_help_panel=ADVANCED_REPORT_PANEL)
