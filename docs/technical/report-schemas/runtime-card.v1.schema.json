@@ -1,0 +1,320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/sakibshuvo/Entroping/docs/technical/report-schemas/runtime-card.v1.schema.json",
+  "title": "Entroping Runtime Card v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "summary",
+    "run",
+    "drift",
+    "redaction",
+    "release",
+    "agent_provenance",
+    "artifacts",
+    "findings"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.runtime-card.v1"
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "run": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/run"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "drift": {
+      "$ref": "#/$defs/drift"
+    },
+    "redaction": {
+      "$ref": "#/$defs/redaction"
+    },
+    "release": {
+      "$ref": "#/$defs/release"
+    },
+    "agent_provenance": {
+      "$ref": "#/$defs/agent_provenance"
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/artifact"
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "findings",
+        "evidence_links"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "pass",
+            "attention",
+            "fail"
+          ]
+        },
+        "findings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "evidence_links": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project",
+        "environment",
+        "total",
+        "passed",
+        "failed",
+        "exit_code",
+        "failed_tests",
+        "failed_gate_ids"
+      ],
+      "properties": {
+        "project": {
+          "type": "string"
+        },
+        "environment": {
+          "type": "string"
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "passed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "exit_code": {
+          "type": "integer"
+        },
+        "failed_tests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed_gate_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "drift": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "findings",
+        "drifted",
+        "missing_baseline"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "none",
+            "drift",
+            "missing_baseline",
+            "unknown"
+          ]
+        },
+        "findings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "drifted": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "missing_baseline": {
+          "type": "boolean"
+        }
+      }
+    },
+    "redaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "total_records",
+        "redacted_records",
+        "unredacted_records",
+        "low_confidence_categories"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "verified",
+            "attention",
+            "missing"
+          ]
+        },
+        "total_records": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "redacted_records": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unredacted_records": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "low_confidence_categories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_manifest_audit_status",
+        "evidence_bundle_status",
+        "evidence_links"
+      ],
+      "properties": {
+        "artifact_manifest_audit_status": {
+          "type": "string"
+        },
+        "evidence_bundle_status": {
+          "type": "string"
+        },
+        "evidence_links": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "agent_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "configured_roles",
+        "manifests",
+        "findings"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "pass",
+            "attention",
+            "fail",
+            "missing"
+          ]
+        },
+        "configured_roles": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "manifests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "findings": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "path",
+        "state",
+        "schema_version"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "present",
+            "missing"
+          ]
+        },
+        "schema_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "severity",
+        "code",
+        "path",
+        "message"
+      ],
+      "properties": {
+        "severity": {
+          "enum": [
+            "error",
+            "warning",
+            "notice"
+          ]
+        },
+        "code": {
+          "type": "string"
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

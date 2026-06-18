@@ -38,6 +38,7 @@ entroping report gate-coverage [--output <md|json>]
 entroping report gate-injection --target <path> [--output <md|json>]
 entroping report artifact-manifest [--output <path>]
 entroping report evidence-bundle [--output <path>]
+entroping report runtime-card [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
@@ -333,6 +334,7 @@ Core CI/review commands:
 | `entroping report delta --base <path> --current <path>` | Compare two JSON run reports and emit deterministic Markdown or JSON delta output |
 | `entroping report github-annotations` | Emit GitHub Actions workflow-command annotations from local reports |
 | `entroping report sarif` | Write SARIF 2.1.0 code-scanning evidence to `reports/entroping.sarif` |
+| `entroping report runtime-card` | Write a concise PR/runtime evidence card to `reports/runtime-card.md` |
 | `entroping report review-summary --output md` | Write a provider-neutral Markdown review summary to `reports/review-summary.md` |
 
 Advanced evidence commands:
@@ -375,6 +377,7 @@ entroping report gate-coverage --output md
 entroping report gate-injection --target tests/health.hurl --output md
 entroping report artifact-manifest
 entroping report evidence-bundle
+entroping report runtime-card
 entroping report agent-bundle --scope tests/generated
 entroping report traceability --output md
 entroping report traceability --output json > reports/traceability.json

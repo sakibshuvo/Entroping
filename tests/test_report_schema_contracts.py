@@ -83,6 +83,18 @@ from entroping.core.run_workflow import (
     RunPlanVariableGap,
     run_execution_plan_to_dict,
 )
+from entroping.core.runtime_card import (
+    RUNTIME_CARD_SCHEMA_VERSION,
+    RuntimeCardAgentProvenance,
+    RuntimeCardArtifact,
+    RuntimeCardDriftEvidence,
+    RuntimeCardFinding,
+    RuntimeCardRedactionEvidence,
+    RuntimeCardReleaseEvidence,
+    RuntimeCardReport,
+    RuntimeCardRunEvidence,
+    RuntimeCardSummary,
+)
 from entroping.core.traffic_artifact_manifest import TRAFFIC_ARTIFACT_APPROVAL_SCHEMA_VERSION
 from entroping.models.drift import (
     DriftBaseline,
@@ -1233,6 +1245,76 @@ def test_evidence_bundle_v1_schema_contract_is_versioned_and_stable() -> None:
     ]
 
 
+def test_runtime_card_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "runtime-card.v1.schema.json").read_text())
+    card = RuntimeCardReport(
+        summary=RuntimeCardSummary(status="fail", findings=1, evidence_links=2),
+        run=RuntimeCardRunEvidence(
+            project="checkout-api",
+            environment="ci",
+            total=2,
+            passed=1,
+            failed=1,
+            exit_code=1,
+            failed_tests=1,
+            failed_gate_ids=("global_latency",),
+        ),
+        drift=RuntimeCardDriftEvidence(
+            status="drift",
+            findings=1,
+            drifted=1,
+            missing_baseline=False,
+        ),
+        redaction=RuntimeCardRedactionEvidence(
+            status="attention",
+            total_records=3,
+            redacted_records=2,
+            unredacted_records=1,
+            low_confidence_categories=("low-confidence-body",),
+        ),
+        release=RuntimeCardReleaseEvidence(
+            artifact_manifest_audit_status="verified",
+            evidence_bundle_status="ready",
+            evidence_links=("reports/evidence-bundle.json", "reports/run-latest.json"),
+        ),
+        agent_provenance=RuntimeCardAgentProvenance(
+            status="attention",
+            configured_roles=2,
+            manifests=2,
+            findings=1,
+        ),
+        artifacts=(
+            RuntimeCardArtifact(
+                name="Run JSON",
+                path="reports/run-latest.json",
+                state="present",
+                schema_version="entroping.run-report.v1",
+            ),
+        ),
+        findings=(
+            RuntimeCardFinding(
+                severity="warning",
+                code="drift_attention",
+                path="reports/drift.json",
+                message="Drift evidence requires reviewer attention.",
+            ),
+        ),
+    )
+
+    payload = card.model_dump(mode="json")
+
+    assert RUNTIME_CARD_SCHEMA_VERSION == "entroping.runtime-card.v1"
+    assert payload["schema_version"] == "entroping.runtime-card.v1"
+    assert payload["summary"] == {"status": "fail", "findings": 1, "evidence_links": 2}
+    assert payload["run"]["failed_gate_ids"] == ["global_latency"]
+    assert schema["properties"]["schema_version"]["const"] == RUNTIME_CARD_SCHEMA_VERSION
+    assert schema["$defs"]["summary"]["properties"]["status"]["enum"] == [
+        "pass",
+        "attention",
+        "fail",
+    ]
+
+
 def test_effective_policy_diff_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "effective-policy-diff.v1.schema.json").read_text())
     base = EffectivePolicyReport(
@@ -1435,6 +1517,7 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
             SCHEMA_DIR / "report-artifact-manifest.v1.schema.json"
         ),
         "entroping.evidence-bundle.v1": SCHEMA_DIR / "evidence-bundle.v1.schema.json",
+        "entroping.runtime-card.v1": SCHEMA_DIR / "runtime-card.v1.schema.json",
         "entroping.agent-review-bundle.v1": (SCHEMA_DIR / "agent-review-bundle.v1.schema.json"),
         "entroping.traffic-artifact-approval.v1": (
             SCHEMA_DIR / "traffic-artifact-approval.v1.schema.json"

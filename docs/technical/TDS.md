@@ -753,6 +753,8 @@ Reports are written under `reports/`.
 | Effective Policy | `report policy --output md|json` | Resolved QAnstitution gate provenance |
 | Effective Policy Diff | `report policy-diff --base <path> --current <path> --output md|json [--fail-on-change]` | Import/gate differences between two effective-policy JSON artifacts; opt-in CI failure on changed diff |
 | Artifact Manifest | `report artifact-manifest` | Checksum manifest for local report artifacts |
+| Evidence Bundle | `report evidence-bundle` | Sanitized local upload-readiness evidence |
+| Runtime Evidence Card | `report runtime-card` | Concise PR/runtime proof card from local reports |
 | Agent Review Bundle | `report agent-bundle` | Local Builder/Breaker/Auditor evidence from sanitized manifests |
 | Traceability Markdown/JSON | `report traceability --output md|json` | Local story/test coverage review |
 | GitHub Annotations | `report github-annotations` | Pull request workflow-command annotations |
@@ -916,6 +918,8 @@ entroping report policy-diff [--base <path>] [--current <path>] [--output <md|js
 entroping report gate-coverage [--output <md|json>]
 entroping report gate-injection --target <path> [--output <md|json>]
 entroping report artifact-manifest [--output <path>]
+entroping report evidence-bundle [--output <path>]
+entroping report runtime-card [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
@@ -1161,6 +1165,18 @@ stdout/stderr, provider prompts, provider outputs, credentials, environment
 values, or uploading anything to a hosted service. A `not_ready` bundle is
 reviewable evidence of missing or inconsistent local proof, not a cloud upload.
 
+`entroping report runtime-card` writes a concise PR/runtime evidence card at
+`reports/runtime-card.md` by default, or `reports/runtime-card.json` with
+`--output json`. It reads existing local sanitized report artifacts only:
+`reports/run-latest.json` is required, while drift,
+`reports/capture-summary.json`, artifact manifest, evidence bundle, and agent
+bundle artifacts are summarized when present. Missing required run evidence
+writes a failed card, and missing redaction evidence marks the card for
+reviewer attention. Present malformed artifacts fail closed before output is
+written. The card does not execute Hurl, call providers, upload results, or
+render raw Hurl output, raw traffic, prompts, provider responses, credentials,
+or environment values.
+
 `entroping report sarif` writes SARIF 2.1.0 to `reports/entroping.sarif` by
 default. It converts the same local JUnit, drift, and optional traceability
 findings used by GitHub annotation output into stable SARIF rule IDs, severity,
@@ -1200,6 +1216,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report gate-injection --output json` | `reports/gate-injection.json` | Machine-readable gate-injection explanation using `entroping.gate-injection-report.v1`. |
 | `entroping report artifact-manifest` | `reports/artifact-manifest.json` and `.entroping/report-audit-chain.jsonl` | Machine-readable checksum manifest using `entroping.report-artifact-manifest.v1` plus a local tamper-evident audit chain using `entroping.report-audit-event.v1`; the chain is local state and not committed. |
 | `entroping report evidence-bundle` | `reports/evidence-bundle.json` | Sanitized design-partner upload-readiness evidence using `entroping.evidence-bundle.v1`; references local artifacts by path, schema, size, and checksum without embedding contents or uploading. |
+| `entroping report runtime-card --output md` | `reports/runtime-card.md` | Reviewer-facing PR/runtime evidence card from sanitized local reports. |
+| `entroping report runtime-card --output json` | `reports/runtime-card.json` | Machine-readable PR/runtime evidence card using `entroping.runtime-card.v1`. |
 | `entroping report agent-bundle --output md` | `reports/agent-bundle.md` | Human-readable local multi-agent review bundle from sanitized manifests. |
 | `entroping report agent-bundle --output json` | `reports/agent-bundle.json` | Machine-readable local multi-agent review bundle using `entroping.agent-review-bundle.v1`. |
 | `entroping report traceability --output md|json` | `stdout Markdown/JSON` | Local story/test coverage report. |

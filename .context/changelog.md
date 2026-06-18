@@ -2,6 +2,12 @@
 
 ## 2026-06-18
 
+- Added issue #892's PR runtime evidence card:
+  `entroping report runtime-card` now writes `reports/runtime-card.md` or
+  `reports/runtime-card.json` from existing sanitized local report artifacts,
+  requires run JSON evidence, marks missing redaction evidence for reviewer
+  attention, summarizes optional drift/release/agent evidence when present, and
+  rejects malformed present artifacts before writing.
 - Added issue #891's sanitized evidence bundle verifier:
   `entroping report evidence-bundle` now writes
   `entroping.evidence-bundle.v1` readiness evidence for run,

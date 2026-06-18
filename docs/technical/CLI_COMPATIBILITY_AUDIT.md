@@ -51,6 +51,8 @@ entroping report policy-diff [--base <path>] [--current <path>] [--output <md|js
 entroping report gate-coverage [--output <md|json>]
 entroping report gate-injection --target <path> [--output <md|json>]
 entroping report artifact-manifest [--output <path>]
+entroping report evidence-bundle [--output <path>]
+entroping report runtime-card [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
@@ -63,7 +65,7 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 
 | Area | Decision |
 | --- | --- |
-| Command naming | Keep the nested noun/verb shape: `config vendor-policy-pack`, `config test-policy-pack`, `architect build`, `architect refactor`, `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report capture-summary`, `report policy`, `report policy-diff`, `report gate-coverage`, `report gate-injection`, `report artifact-manifest`, `report agent-bundle`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary`. |
+| Command naming | Keep the nested noun/verb shape: `config vendor-policy-pack`, `config test-policy-pack`, `architect build`, `architect refactor`, `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report capture-summary`, `report policy`, `report policy-diff`, `report gate-coverage`, `report gate-injection`, `report artifact-manifest`, `report evidence-bundle`, `report runtime-card`, `report agent-bundle`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary`. |
 | Aliases | No alias is compatibility-supported. Deprecated brainstorm names such as `gen`, `fix`, `scan`, `chaos`, `verify`, top-level `build`, `auth`, and `report --type` remain unavailable. |
 | Global flags | Only Typer completion helpers and `--version` are current global flags. `--verbose` is not a product flag. `freeze --dry-run` and `run --dry-run` are command-scoped and do not create a global dry-run mode. |
 | Init CI starter | `init --github-actions` is an explicit opt-in setup helper that writes the reviewed starter to `.github/workflows/entroping.yml`, refuses to overwrite an existing workflow, and does not add secrets, provider credentials, hosted-service coupling, or package-index readiness claims. |
@@ -82,7 +84,7 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 | Freeze preview | `freeze --dry-run` previews selected redacted records, proposed output paths, golden status, and redaction categories. It writes no generated tests, mocks, approval manifests, or source artifacts and must not render raw traffic values. |
 | Studio | `studio` is read-only until mutation workflows are designed and accepted separately. |
 | Capture summary | `report capture-summary --output md|json` reads existing redacted traffic state through the read-only store path and writes counts by derived session, method, host, dependency target, status family, and redaction category without rendering raw traffic values. |
-| Report formats | `run --report` is repeatable and owns run artifact creation. `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report capture-summary`, `report policy`, `report policy-diff`, `report gate-coverage`, `report gate-injection`, `report artifact-manifest`, `report agent-bundle`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, and `report review-summary` are handoff/reporting commands, not test execution commands. |
+| Report formats | `run --report` is repeatable and owns run artifact creation. `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report capture-summary`, `report policy`, `report policy-diff`, `report gate-coverage`, `report gate-injection`, `report artifact-manifest`, `report evidence-bundle`, `report runtime-card`, `report agent-bundle`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, and `report review-summary` are handoff/reporting commands, not test execution commands. |
 
 ## Post-Alpha UX Decision Queue
 
@@ -100,9 +102,9 @@ locked alpha command surface.
 
 | Exit code | Meaning | Examples |
 | --- | --- | --- |
-| `0` | Successful command, successful run, or non-CI no-match run that is informational. | `--help`, `--version`, passing `run`, passing `report delta` with no added/changed failures, passing `report badges`, passing `report failure-bundle`, passing `report redaction`, passing `report capture-summary`, passing `report policy`, passing `report policy-diff` without `--fail-on-change`, passing `report policy-diff --fail-on-change` with an unchanged diff, passing `report gate-coverage`, passing `report gate-injection`, passing `report artifact-manifest`, passing `report agent-bundle` with no error findings, passing `report traceability`, passing `report github-annotations`, passing `report sarif`, passing `report promote-drift-baseline`, passing `report review-summary`. |
-| `1` | Runtime, configuration, report, Hurl, drift, or quality failure. | Invalid QAnstitution, missing Hurl, failing Hurl suite, drift finding with `--drift-check`, `report delta` with added or changed failures, changed effective-policy diff with `report policy-diff --fail-on-change`, malformed evidence for `report policy-diff`, missing source report for `report badges`, no failure available for `report bug` or `report failure-bundle`, missing traffic state for `report redaction` or `report capture-summary`, failed `report agent-bundle` findings. |
-| `2` | CLI usage or unsupported-mode error. | Unknown commands, unsupported `architect build --strategy`, unsupported `report delta --output`, unsupported `report policy-diff --output`, unsupported `report redaction --output`, unsupported `report capture-summary --output`, unsupported `report agent-bundle --output`, unsupported `report agent-bundle --role`, unsupported `report traceability --output`, unsupported `report review-summary --output`, unsupported `run --report`. |
+| `0` | Successful command, successful run, or non-CI no-match run that is informational. | `--help`, `--version`, passing `run`, passing `report delta` with no added/changed failures, passing `report badges`, passing `report failure-bundle`, passing `report redaction`, passing `report capture-summary`, passing `report policy`, passing `report policy-diff` without `--fail-on-change`, passing `report policy-diff --fail-on-change` with an unchanged diff, passing `report gate-coverage`, passing `report gate-injection`, passing `report artifact-manifest`, ready `report evidence-bundle`, passing `report runtime-card`, passing `report agent-bundle` with no error findings, passing `report traceability`, passing `report github-annotations`, passing `report sarif`, passing `report promote-drift-baseline`, passing `report review-summary`. |
+| `1` | Runtime, configuration, report, Hurl, drift, or quality failure. | Invalid QAnstitution, missing Hurl, failing Hurl suite, drift finding with `--drift-check`, `report delta` with added or changed failures, changed effective-policy diff with `report policy-diff --fail-on-change`, malformed evidence for `report policy-diff`, missing source report for `report badges`, no failure available for `report bug` or `report failure-bundle`, missing traffic state for `report redaction` or `report capture-summary`, not-ready `report evidence-bundle`, failed or attention `report runtime-card`, failed `report agent-bundle` findings. |
+| `2` | CLI usage or unsupported-mode error. | Unknown commands, unsupported `architect build --strategy`, unsupported `report delta --output`, unsupported `report policy-diff --output`, unsupported `report redaction --output`, unsupported `report capture-summary --output`, unsupported `report runtime-card --output`, unsupported `report agent-bundle --output`, unsupported `report agent-bundle --role`, unsupported `report traceability --output`, unsupported `report review-summary --output`, unsupported `run --report`. |
 
 This contract is intentionally small. More granular exit codes can be introduced
 only through a compatibility issue and migration note.
@@ -137,6 +139,9 @@ only through a compatibility issue and migration note.
 | `entroping report gate-injection --output md` | `reports/gate-injection.md` |
 | `entroping report gate-injection --output json` | `reports/gate-injection.json` |
 | `entroping report artifact-manifest` | `reports/artifact-manifest.json` |
+| `entroping report evidence-bundle` | `reports/evidence-bundle.json` |
+| `entroping report runtime-card --output md` | `reports/runtime-card.md` |
+| `entroping report runtime-card --output json` | `reports/runtime-card.json` |
 | `entroping report agent-bundle --output md` | `reports/agent-bundle.md` |
 | `entroping report agent-bundle --output json` | `reports/agent-bundle.json` |
 | `entroping architect audit --output json` | `stdout Architect OpenAPI audit JSON` |
