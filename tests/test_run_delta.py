@@ -14,11 +14,15 @@ from entroping.core.run_delta import (
 from entroping.models.report import RunReport, RunReportSummary, RunTestReport
 
 
-def _report(*tests: RunTestReport) -> RunReport:
+def _report(
+    *tests: RunTestReport,
+    project: str = "checkout-api",
+    environment: str = "default",
+) -> RunReport:
     failed = sum(1 for test in tests if not test.passed)
     return RunReport(
-        project="checkout-api",
-        environment="default",
+        project=project,
+        environment=environment,
         generated_at="2026-06-04T00:00:00+00:00",
         summary=RunReportSummary(
             total=len(tests),
@@ -146,6 +150,25 @@ def test_run_delta_treats_failed_policy_rule_change_as_changed_failure() -> None
     assert report.changed_failures[0].current_rule_ids == ("new_gate", "old_gate")
     assert report.unchanged_failures == ()
     assert report.policy_gate_deltas[0].added_rule_ids == ("new_gate",)
+
+
+def test_run_delta_rejects_project_mismatch_before_indexing_tests() -> None:
+    base = _report(_test("tests/health.hurl"), project="checkout-api")
+    current = _report(
+        _test("/private/tmp/outside.hurl", status="failed", exit_code=1),
+        project="billing-api",
+    )
+
+    with pytest.raises(RunDeltaError, match="project mismatch"):
+        build_run_delta_report(base=base, current=current)
+
+
+def test_run_delta_rejects_environment_mismatch() -> None:
+    base = _report(_test("tests/health.hurl"), environment="ci")
+    current = _report(_test("tests/health.hurl"), environment="production")
+
+    with pytest.raises(RunDeltaError, match="environment mismatch"):
+        build_run_delta_report(base=base, current=current)
 
 
 def test_run_delta_rejects_duplicate_or_unsafe_test_paths() -> None:

@@ -569,6 +569,74 @@ def test_report_delta_rejects_unsafe_test_paths_without_echoing_value(
     assert unsafe_path not in result.output
 
 
+def test_report_delta_rejects_project_mismatch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports_dir = Path("reports")
+    base_path = reports_dir / "base.json"
+    current_path = reports_dir / "current.json"
+    write_json_report(
+        RunReport(
+            project="checkout-api",
+            environment="ci",
+            generated_at="2026-06-04T00:00:00+00:00",
+            summary=RunReportSummary(total=1, passed=1, failed=0, exit_code=0),
+            tests=(
+                RunTestReport(
+                    path="tests/health.hurl",
+                    execution_path=".entroping/run/health.hurl",
+                    status="passed",
+                    exit_code=0,
+                    duration_ms=10,
+                    rule_ids=(),
+                    stdout="",
+                    stderr="",
+                ),
+            ),
+        ),
+        base_path,
+    )
+    write_json_report(
+        RunReport(
+            project="billing-api",
+            environment="ci",
+            generated_at="2026-06-04T00:01:00+00:00",
+            summary=RunReportSummary(total=1, passed=0, failed=1, exit_code=1),
+            tests=(
+                RunTestReport(
+                    path="tests/health.hurl",
+                    execution_path=".entroping/run/health.hurl",
+                    status="failed",
+                    exit_code=1,
+                    duration_ms=20,
+                    rule_ids=("global_latency",),
+                    stdout="",
+                    stderr="",
+                ),
+            ),
+        ),
+        current_path,
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "report",
+            "delta",
+            "--base",
+            str(base_path),
+            "--current",
+            str(current_path),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Could not compare run reports" in result.output
+    assert "project mismatch" in result.output
+
+
 def test_report_badges_writes_shields_endpoint_json(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
