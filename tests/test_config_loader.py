@@ -307,6 +307,67 @@ def test_load_qanstitution_rejects_missing_root_file(tmp_path: Path) -> None:
         load_qanstitution(tmp_path / "missing.yaml")
 
 
+def test_load_qanstitution_rejects_symlinked_root_file(tmp_path: Path) -> None:
+    target_body = """
+project: outside-content-marker
+gates:
+  - id: external_gate
+    condition: "true"
+    gate: duration < 2000
+    enforcement: block
+"""
+    write_yaml(tmp_path / "outside" / "real-qanstitution.yaml", target_body)
+    (tmp_path / "project").mkdir()
+    (tmp_path / "project" / "qanstitution.yaml").symlink_to(
+        tmp_path / "outside" / "real-qanstitution.yaml"
+    )
+
+    with pytest.raises(QanstitutionLoadError, match="Root QAnstitution file.*symlink") as exc_info:
+        load_qanstitution_evidence(tmp_path / "project" / "qanstitution.yaml")
+
+    assert "outside-content-marker" not in str(exc_info.value)
+
+
+def test_load_qanstitution_rejects_symlinked_root_parent_directory(
+    tmp_path: Path,
+) -> None:
+    target_body = """
+project: outside-parent-marker
+gates:
+  - id: external_parent_gate
+    condition: "true"
+    gate: duration < 2000
+    enforcement: block
+"""
+    write_yaml(tmp_path / "outside" / "qanstitution.yaml", target_body)
+    (tmp_path / "project").symlink_to(tmp_path / "outside", target_is_directory=True)
+
+    with pytest.raises(QanstitutionLoadError, match="Root QAnstitution file.*symlink") as exc_info:
+        load_qanstitution_evidence(tmp_path / "project" / "qanstitution.yaml")
+
+    assert "outside-parent-marker" not in str(exc_info.value)
+
+
+def test_load_qanstitution_rejects_symlinked_root_ancestor_directory(
+    tmp_path: Path,
+) -> None:
+    target_body = """
+project: outside-ancestor-marker
+gates:
+  - id: external_ancestor_gate
+    condition: "true"
+    gate: duration < 2000
+    enforcement: block
+"""
+    write_yaml(tmp_path / "outside" / "nested" / "qanstitution.yaml", target_body)
+    (tmp_path / "project").symlink_to(tmp_path / "outside", target_is_directory=True)
+
+    with pytest.raises(QanstitutionLoadError, match="Root QAnstitution file.*symlink") as exc_info:
+        load_qanstitution_evidence(tmp_path / "project" / "nested" / "qanstitution.yaml")
+
+    assert "outside-ancestor-marker" not in str(exc_info.value)
+
+
 def test_load_qanstitution_accepts_legacy_missing_version_marker(tmp_path: Path) -> None:
     write_yaml(
         tmp_path / "qanstitution.yaml",
@@ -646,6 +707,38 @@ def test_load_qanstitution_rejects_existing_absolute_import_outside_root(
 
     with pytest.raises(QanstitutionLoadError, match="outside the QAnstitution root"):
         load_qanstitution(tmp_path / "project" / "qanstitution.yaml")
+
+
+def test_load_qanstitution_rejects_absolute_import_symlink_resolving_inside_root(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    write_document(project / "rules" / "security.yaml", {"project": "inside"})
+    outside_link = tmp_path / "outside-security.yaml"
+    outside_link.symlink_to(project / "rules" / "security.yaml")
+    write_document(
+        project / "qanstitution.yaml",
+        {"project": "checkout-api", "imports": [str(outside_link)]},
+    )
+
+    with pytest.raises(QanstitutionLoadError, match="must not use symlinks"):
+        load_qanstitution(project / "qanstitution.yaml")
+
+
+def test_load_qanstitution_rejects_absolute_import_symlinked_ancestor(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    write_document(project / "rules" / "security.yaml", {"project": "inside"})
+    outside_project = tmp_path / "outside-project"
+    outside_project.symlink_to(project, target_is_directory=True)
+    write_document(
+        project / "qanstitution.yaml",
+        {"project": "checkout-api", "imports": [str(outside_project / "rules" / "security.yaml")]},
+    )
+
+    with pytest.raises(QanstitutionLoadError, match="must not use symlinks"):
+        load_qanstitution(project / "qanstitution.yaml")
 
 
 @pytest.mark.parametrize(
