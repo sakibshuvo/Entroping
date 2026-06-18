@@ -236,6 +236,12 @@ def _merge_gate_evidence(
                 f"{source_kind} gate from {incoming_source}"
             )
             raise QanstitutionLoadError(msg)
+        if not overriding_local:
+            msg = (
+                f"Duplicate imported gate id {gate_evidence.rule.id!r} from "
+                f"{gate_evidence.source_path}; already defined in {previous.source_path}"
+            )
+            raise QanstitutionLoadError(msg)
         merged[existing_index] = gate_evidence
 
     return merged
