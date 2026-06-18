@@ -930,10 +930,18 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 
 `studio` is an interactive read-only Textual TUI. It requires the optional
 Studio extra and renders tabs for local QAnstitution status, latest-run summary,
-suite rows, failure details, applied-gate drilldowns, report artifacts, and a
-read-only traffic session browser. Applied-gate drilldowns read latest-run report rule IDs
-and QAnstitution gate definitions; Studio does not run Hurl and does not edit tests or config
-to build this view. The traffic browser reads
+suite rows, failure details, applied-gate drilldowns, a read-only evidence
+viewer for report artifacts, and a read-only traffic session browser. The
+evidence viewer indexes canonical sanitized report paths with stable evidence
+IDs such as `run-json`, `capture-summary-json`, `artifact-manifest-json`,
+`evidence-bundle-json`, `runtime-card-json`, `agent-bundle-json`, and
+`review-summary-md`. It shows presence, invalid, and unsafe states, controlled
+schema metadata, and counts-only summaries; oversized, unreadable, malformed, or
+schema-mismatched JSON artifacts are marked invalid without rendering contents.
+It does not render raw report contents, does not upload artifacts, and does not
+edit tests, QAnstitution, reports, traffic state, or runtime state. Applied-gate drilldowns read
+latest-run report rule IDs and QAnstitution gate definitions; Studio does not run Hurl
+and does not edit tests or config to build this view. The traffic browser reads
 redacted SQLModel-backed state from `.entroping/state.db` through a read-only
 query path, infers target/dependency grouping from filtered captured traffic,
 and displays route summaries plus safe redaction categories and counts. It does

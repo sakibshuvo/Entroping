@@ -271,6 +271,13 @@ entroping run --env ci --ci --parallel --report junit
 entroping run --env staging --drift-check --report drift
 ```
 
+`entroping studio` includes a read-only evidence viewer for sanitized local
+report artifacts. It uses stable evidence IDs such as `run-json`,
+`capture-summary-json`, and `runtime-card-json`, shows controlled
+schema/count metadata, and does not render raw report contents, upload
+artifacts, or edit tests, QAnstitution, reports, traffic state, or runtime
+state.
+
 `--suite <name>` reads `suites/<name>.yaml` with schema version
 `entroping.suite.v1`. Suite manifests can define `env`, `tags`, `paths`,
 `reports`, `parallel`, `fail_fast`, `drift_check`, `protected`, and `safety`.
