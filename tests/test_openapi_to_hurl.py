@@ -147,6 +147,258 @@ def test_compile_openapi_generates_deterministic_hurl_files() -> None:
     assert 'jsonpath "$.status" == "accepted"' in checkout
 
 
+def test_compile_openapi_treats_vendor_json_media_types_as_json() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/events": {
+                "post": {
+                    "operationId": "createEvent",
+                    "requestBody": {
+                        "content": {
+                            "application/vnd.entroping.event+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["event_type"],
+                                    "properties": {
+                                        "event_type": {
+                                            "type": "string",
+                                            "default": "checkout.created",
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "responses": {
+                        "201": {
+                            "description": "created",
+                            "content": {
+                                "application/problem+json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "required": ["status"],
+                                        "properties": {
+                                            "status": {
+                                                "type": "string",
+                                                "enum": ["accepted"],
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    generated = compile_openapi_to_hurl(document, tags=frozenset())
+
+    content = generated[0].content
+    assert "Content-Type: application/vnd.entroping.event+json" in content
+    assert '"event_type": "checkout.created"' in content
+    assert "HTTP 201" in content
+    assert 'jsonpath "$.status" exists' in content
+    assert 'jsonpath "$.status" == "accepted"' in content
+
+
+def test_compile_openapi_prefers_exact_application_json_over_vendor_json() -> None:
+    operation: dict[str, object] = {
+        "operationId": "createPriority",
+        "requestBody": {
+            "content": {
+                "application/vnd.entroping.priority+json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["source"],
+                        "properties": {"source": {"type": "string", "default": "vendor"}},
+                    },
+                },
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["source"],
+                        "properties": {"source": {"type": "string", "default": "exact"}},
+                    },
+                },
+            },
+        },
+        "responses": {
+            "200": {
+                "description": "ok",
+                "content": {
+                    "application/vnd.entroping.response+json": {
+                        "schema": {
+                            "type": "object",
+                            "required": ["mode"],
+                            "properties": {"mode": {"type": "string", "enum": ["vendor"]}},
+                        },
+                    },
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "required": ["mode"],
+                            "properties": {"mode": {"type": "string", "enum": ["exact"]}},
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    content = _compile_single_operation(operation, path="/priority", method="post")
+
+    assert "Content-Type: application/json" in content
+    assert "Content-Type: application/vnd.entroping.priority+json" not in content
+    assert '"source": "exact"' in content
+    assert '"source": "vendor"' not in content
+    assert 'jsonpath "$.mode" == "exact"' in content
+    assert 'jsonpath "$.mode" == "vendor"' not in content
+
+
+def test_compile_openapi_matches_json_media_types_case_insensitively() -> None:
+    operation: dict[str, object] = {
+        "operationId": "createCaseInsensitive",
+        "requestBody": {
+            "content": {
+                "Application/Vnd.Entroping.Case+JSON": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["source"],
+                        "properties": {
+                            "source": {"type": "string", "default": "upper"},
+                        },
+                    },
+                },
+            },
+        },
+        "responses": {
+            "200": {
+                "description": "ok",
+                "content": {
+                    "Application/JSON": {
+                        "schema": {
+                            "type": "object",
+                            "required": ["mode"],
+                            "properties": {"mode": {"type": "string", "enum": ["exact"]}},
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    content = _compile_single_operation(operation, path="/case", method="post")
+
+    assert "Content-Type: Application/Vnd.Entroping.Case+JSON" in content
+    assert '"source": "upper"' in content
+    assert 'jsonpath "$.mode" == "exact"' in content
+
+
+def test_compile_openapi_selects_vendor_json_media_type_deterministically() -> None:
+    operation: dict[str, object] = {
+        "operationId": "createMultiVendor",
+        "requestBody": {
+            "content": {
+                "application/vnd.zed+json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["source"],
+                        "properties": {"source": {"type": "string", "default": "zed"}},
+                    },
+                },
+                "application/problem+json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["source"],
+                        "properties": {"source": {"type": "string", "default": "problem"}},
+                    },
+                },
+            },
+        },
+        "responses": {"200": {"description": "ok"}},
+    }
+
+    content = _compile_single_operation(operation, path="/multi-vendor", method="post")
+
+    assert "Content-Type: application/problem+json" in content
+    assert "Content-Type: application/vnd.zed+json" not in content
+    assert '"source": "problem"' in content
+    assert '"source": "zed"' not in content
+
+
+def test_compile_openapi_uses_vendor_json_for_schema_negative_generation() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/patches": {
+                "patch": {
+                    "operationId": "patchResource",
+                    "requestBody": {
+                        "content": {
+                            "application/merge-patch+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["name"],
+                                    "properties": {
+                                        "name": {"type": "string", "minLength": 3},
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "responses": {
+                        "200": {"description": "ok"},
+                        "422": {"description": "validation failed"},
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset({"patch"}))
+
+    assert [item.relative_path for item in result.files] == [
+        "tests/generated/patch_resource.hurl",
+        "tests/generated/negative/patch_resource_malformed_json.hurl",
+        "tests/generated/negative/patch_resource_schema_violations.hurl",
+        "tests/generated/negative/patch_resource_boundary_values.hurl",
+        "tests/generated/negative/patch_resource_sqli_like_strings.hurl",
+    ]
+    assert all(
+        "Content-Type: application/merge-patch+json" in item.content for item in result.files
+    )
+
+
+def test_compile_openapi_does_not_guess_unsupported_non_json_media_types() -> None:
+    operation: dict[str, object] = {
+        "operationId": "createXml",
+        "requestBody": {
+            "content": {
+                "application/xml": {"schema": {"type": "object", "required": ["id"]}},
+                "text/json": {"schema": {"type": "object", "required": ["id"]}},
+            },
+        },
+        "responses": {
+            "200": {
+                "description": "ok",
+                "content": {
+                    "application/xml": {"schema": {"type": "object", "required": ["id"]}},
+                    "text/json": {"schema": {"type": "object", "required": ["id"]}},
+                },
+            },
+        },
+    }
+
+    content = _compile_single_operation(operation, path="/xml", method="post")
+
+    assert "Content-Type:" not in content
+    assert '"id":' not in content
+    assert "[Asserts]" not in content
+
+
 def test_compile_openapi_can_filter_to_selected_operation_ids() -> None:
     document: dict[str, object] = {
         "openapi": "3.1.0",

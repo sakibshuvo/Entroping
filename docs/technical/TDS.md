@@ -468,6 +468,11 @@ OpenAPI operation and path parameters may also reference local reusable
 definitions under `#/components/parameters/...`; external, malformed, missing,
 non-parameter, or cyclic parameter references fail closed before Hurl is
 generated.
+OpenAPI request and response bodies are treated as JSON only when the content
+map contains exact `application/json` or, if exact JSON is absent, an
+`application/*+json` media type such as `application/problem+json` or
+`application/merge-patch+json`. Exact `application/json` remains preferred when
+both are present; unsupported non-JSON media types are not guessed.
 
 When an OpenAPI operation has a JSON request body and an explicit validation
 failure response (`400` or `422`), the same deterministic path emits a bounded
