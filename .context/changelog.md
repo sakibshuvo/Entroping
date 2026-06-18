@@ -1441,3 +1441,6 @@
   the `entroping.run-report.v1` schema version before review-summary trusts
   runtime evidence, with value-free rejection for missing or unsupported
   versions.
+- Closed issue #873's artifact-manifest evidence gap: invalid default report
+  artifacts now remain visible with checksum and size evidence while schema/type
+  hints are emitted only when known report content validates enough for the hint.
