@@ -2082,6 +2082,7 @@ paths:
     assert traffic_routes["summary"] == {
         "documented_routes": 2,
         "undocumented_routes": 1,
+        "ambiguous_routes": 0,
         "spec_only_routes": 0,
     }
     assert traffic_routes["documented_routes"][1]["operation_ids"] == ["getOrder"]

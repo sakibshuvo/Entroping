@@ -252,10 +252,12 @@ When redacted Eye traffic state is available, the same payload includes an
 optional `traffic_routes` object with schema version
 `entroping.traffic-openapi-audit.v1`. It compares captured route summaries to
 OpenAPI operations and reports documented observed routes, undocumented
-observed routes, and spec-only operations. It records only method,
-path-template, count, failure-count, and operation identifiers; it must not
-include raw query strings, headers, cookies, bodies, host userinfo, credentials,
-or captured values.
+observed routes, ambiguous observed routes with candidate operation IDs, and
+spec-only operations. Ambiguous observed routes do not mark candidate
+operations as observed. The payload records only method, path-template, count,
+failure-count, and operation identifiers; it must not include raw query
+strings, headers, cookies, bodies, host userinfo, credentials, or captured
+values.
 
 When `architect audit --focus logic --changed-from <ref> --output json` is used,
 the same payload includes an optional `openapi_diff` object with schema version

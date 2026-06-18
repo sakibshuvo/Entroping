@@ -27,6 +27,17 @@ class TrafficDocumentedRoute:
 
 
 @dataclass(frozen=True, slots=True)
+class TrafficAmbiguousRoute:
+    """Observed route that matches multiple OpenAPI operations."""
+
+    method: str
+    path_template: str
+    call_count: int
+    failure_count: int
+    operation_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class TrafficUndocumentedRoute:
     """Observed route that is absent from the OpenAPI contract."""
 
@@ -52,6 +63,7 @@ class TrafficOpenApiAuditReport:
     documented: tuple[TrafficDocumentedRoute, ...]
     undocumented: tuple[TrafficUndocumentedRoute, ...]
     spec_only: tuple[TrafficSpecOnlyRoute, ...]
+    ambiguous: tuple[TrafficAmbiguousRoute, ...] = ()
 
     @property
     def passed(self) -> bool:
@@ -84,6 +96,7 @@ def audit_traffic_routes_against_openapi(
     spec_operations = _spec_operations(document)
     observed_routes = tuple(_observed_route(route) for route in graph.routes)
     documented: list[TrafficDocumentedRoute] = []
+    ambiguous: list[TrafficAmbiguousRoute] = []
     undocumented: list[TrafficUndocumentedRoute] = []
     observed_operation_ids: set[str] = set()
 
@@ -104,6 +117,17 @@ def audit_traffic_routes_against_openapi(
             )
             continue
         operation_ids = tuple(operation.operation_id for operation in matches)
+        if len(matches) > 1:
+            ambiguous.append(
+                TrafficAmbiguousRoute(
+                    method=route.method,
+                    path_template=route.path_template,
+                    call_count=route.call_count,
+                    failure_count=route.failure_count,
+                    operation_ids=operation_ids,
+                )
+            )
+            continue
         observed_operation_ids.update(operation_ids)
         documented.append(
             TrafficDocumentedRoute(
@@ -128,6 +152,7 @@ def audit_traffic_routes_against_openapi(
         documented=tuple(documented),
         undocumented=tuple(undocumented),
         spec_only=spec_only,
+        ambiguous=tuple(ambiguous),
     )
 
 
@@ -140,6 +165,7 @@ def traffic_openapi_report_to_dict(report: TrafficOpenApiAuditReport) -> dict[st
         "summary": {
             "documented_routes": len(report.documented),
             "undocumented_routes": len(report.undocumented),
+            "ambiguous_routes": len(report.ambiguous),
             "spec_only_routes": len(report.spec_only),
         },
         "documented_routes": [
@@ -151,6 +177,16 @@ def traffic_openapi_report_to_dict(report: TrafficOpenApiAuditReport) -> dict[st
                 "operation_ids": list(route.operation_ids),
             }
             for route in report.documented
+        ],
+        "ambiguous_routes": [
+            {
+                "method": route.method,
+                "path_template": route.path_template,
+                "call_count": route.call_count,
+                "failure_count": route.failure_count,
+                "operation_ids": list(route.operation_ids),
+            }
+            for route in report.ambiguous
         ],
         "undocumented_routes": [
             {
@@ -180,6 +216,7 @@ def render_traffic_openapi_markdown(report: TrafficOpenApiAuditReport) -> str:
         "",
         (
             f"Documented {len(report.documented)} observed routes; "
+            f"ambiguous {len(report.ambiguous)} observed routes; "
             f"undocumented {len(report.undocumented)} observed routes; "
             f"spec-only {len(report.spec_only)} operations."
         ),
@@ -202,6 +239,25 @@ def render_traffic_openapi_markdown(report: TrafficOpenApiAuditReport) -> str:
                 f"{_markdown_cell(', '.join(documented_route.operation_ids))} | "
                 f"{documented_route.call_count} | "
                 f"{documented_route.failure_count} |"
+            )
+    if report.ambiguous:
+        lines.extend(
+            [
+                "",
+                "### Ambiguous Observed Routes",
+                "",
+                "| Method | Path | Candidate Operations | Calls | Failures |",
+                "| --- | --- | --- | ---: | ---: |",
+            ]
+        )
+        for ambiguous_route in report.ambiguous:
+            lines.append(
+                "| "
+                f"{_markdown_cell(ambiguous_route.method)} | "
+                f"{_markdown_cell(ambiguous_route.path_template)} | "
+                f"{_markdown_cell(', '.join(ambiguous_route.operation_ids))} | "
+                f"{ambiguous_route.call_count} | "
+                f"{ambiguous_route.failure_count} |"
             )
     if report.undocumented:
         lines.extend(
