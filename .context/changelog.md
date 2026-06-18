@@ -47,6 +47,9 @@
 - Fixed issue #857's imported gate merge boundary:
   duplicate non-final gate IDs across imported QAnstitution files now fail
   closed with both source paths instead of silently depending on import order.
+- Fixed issue #858's QAnstitution gate ID validation gap:
+  gate IDs now reject blank and control-character values during policy loading,
+  normalize surrounding whitespace, and keep compiler-side defense for bypassed models.
 - Fixed issue #836's GitHub annotation artifact error handling:
   unreadable JUnit XML or drift JSON report paths now raise controlled
   `GitHubAnnotationError` messages instead of leaking raw filesystem
