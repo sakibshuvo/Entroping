@@ -1459,3 +1459,6 @@
 - Closed issue #870's run-delta path-safety gap: report test paths are now
   rejected before delta rendering when they are absolute, Windows drive/UNC
   paths, parent traversals, empty, or contain control characters.
+- Closed issue #869's review-summary path leak: outside-root finding paths now
+  render as `[outside project]`, valid relative paths stay readable, and raw
+  outside path text is replaced in finding messages before Markdown output.

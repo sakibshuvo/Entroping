@@ -24,6 +24,7 @@ from entroping.core.safe_write import SafeWriteError, safe_write_text
 ReviewStatus = Literal["pass", "attention", "fail"]
 FindingSeverity = Literal["error", "warning", "notice"]
 ArtifactState = Literal["present", "missing", "disabled"]
+_OUTSIDE_PROJECT_PATH = "[outside project]"
 
 
 class _XmlElement(Protocol):
@@ -265,11 +266,14 @@ def _findings_from_junit(
                     element.text or element.get("message") or testcase.get("name") or title
                 )
                 message = _redacted_one_line(raw_message)
+                test_path = _junit_test_path(testcase, message)
+                display_path = _display_path(test_path, root=root)
+                message = _replace_path_text(message, path=test_path, display_path=display_path)
                 findings.append(
                     ReviewFinding(
                         source="JUnit",
                         severity="error",
-                        path=_display_path(_junit_test_path(testcase, message), root=root),
+                        path=display_path,
                         message=message,
                     )
                 )
@@ -363,12 +367,18 @@ def _findings_from_drift(
         if not isinstance(raw_finding, dict):
             continue
         kind = _string_field(raw_finding.get("kind"), fallback="unknown")
-        message = _redacted_one_line(_string_field(raw_finding.get("message"), fallback=kind))
+        finding_path = _finding_path(raw_finding.get("path"))
+        display_path = _display_path(finding_path, root=root)
+        message = _replace_path_text(
+            _redacted_one_line(_string_field(raw_finding.get("message"), fallback=kind)),
+            path=finding_path,
+            display_path=display_path,
+        )
         findings.append(
             ReviewFinding(
                 source="Drift",
                 severity=_drift_severity(raw_finding.get("severity")),
-                path=_display_path(_finding_path(raw_finding.get("path")), root=root),
+                path=display_path,
                 message=message,
             )
         )
@@ -383,11 +393,7 @@ def _findings_from_traceability(
     findings: list[ReviewFinding] = []
     for finding in report.findings:
         path = _display_path(finding.test_path, root=root)
-        message = finding.message
-        if finding.test_path is not None and path is not None:
-            raw_path = str(finding.test_path)
-            message = message.replace(raw_path, path)
-            message = message.replace(finding.test_path.as_posix(), path)
+        message = _replace_path_text(finding.message, path=finding.test_path, display_path=path)
         findings.append(
             ReviewFinding(
                 source="Traceability",
@@ -466,11 +472,18 @@ def _display_path(path: Path | None, *, root: Path | None) -> str | None:
         return None
     normalized = Path(" ".join(str(path).replace("\\", "/").split()))
     if root is not None:
+        candidate = normalized if normalized.is_absolute() else root / normalized
         try:
-            return normalized.resolve().relative_to(root).as_posix()
+            return candidate.resolve(strict=False).relative_to(root).as_posix()
         except (OSError, ValueError):
-            pass
+            return _OUTSIDE_PROJECT_PATH
     return normalized.as_posix()
+
+
+def _replace_path_text(value: str, *, path: Path | None, display_path: str | None) -> str:
+    if path is None or display_path is None:
+        return value
+    return value.replace(str(path), display_path).replace(path.as_posix(), display_path)
 
 
 def _redacted_one_line(value: str) -> str:
