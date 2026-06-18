@@ -2,6 +2,10 @@
 
 ## 2026-06-18
 
+- Fixed issue #867's review-summary run-only failure gap:
+  review-summary generation now emits value-free Run JSON findings for failed
+  test rows or failed summary counts that are not already represented by
+  timeout error evidence.
 - Fixed issue #866's review-summary malformed tests boundary:
   review-summary generation now rejects run reports whose `tests` payload is
   not a list, preserving valid empty lists while preventing malformed evidence
