@@ -1448,3 +1448,7 @@
   closed unless `load_run_report()` sees `entroping.run-report.v1`, and report
   bug/failure-bundle adapters surface controlled value-free errors for
   unsupported report versions.
+- Closed issue #910's run-report structural validation gap: versioned run JSON
+  now fails closed with value-free required-field and type errors before
+  downstream report evidence is built from malformed summaries, test lists, or
+  rule IDs.
