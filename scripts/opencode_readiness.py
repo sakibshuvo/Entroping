@@ -33,6 +33,7 @@ REQUIRED_WORKFLOW_FILES = (
     "scripts/start_issue.sh",
     "scripts/finish_issue.sh",
     "scripts/context_pack.sh",
+    "scripts/architecture_integrity.sh",
     "scripts/agent_toolchain.py",
     "scripts/opencode_worker.py",
     "scripts/deepseek_worker.py",
@@ -93,6 +94,17 @@ COMMAND_HELP_CHECKS: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (
         ("scripts/context_pack.sh", "--help"),
         ("--manifest", "--strict-budget", "--record-factory-metrics"),
+    ),
+    (
+        ("scripts/architecture_integrity.sh", "--help"),
+        (
+            "architecture integrity",
+            "provider-free",
+            "does not call model providers",
+            "execute Hurl",
+            "access the network",
+            "read secrets",
+        ),
     ),
     (
         (sys.executable, "scripts/opencode_worker.py", "--help"),
@@ -526,7 +538,7 @@ def _check_command_help_surfaces(repo_root: Path) -> CheckResult:
             }
             continue
         output = f"{result.stdout}\n{result.stderr}"
-        missing_terms = [term for term in terms if term not in output]
+        missing_terms = [term for term in terms if not _contains_term(output, term)]
         if missing_terms:
             missing[command_name] = missing_terms
 
@@ -833,6 +845,13 @@ def _run(
             stdout="",
             stderr="",
             error=f"missing executable: {exc.filename}",
+        )
+    except OSError as exc:
+        return CommandResult(
+            returncode=None,
+            stdout="",
+            stderr="",
+            error=f"could not execute command: {exc}",
         )
     except subprocess.TimeoutExpired as exc:
         stdout = _decode_output(exc.stdout, limit=output_limit)
