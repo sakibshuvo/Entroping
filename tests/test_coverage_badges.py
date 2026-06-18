@@ -261,6 +261,7 @@ def test_write_coverage_badges_fails_before_writing_when_source_report_is_missin
             openapi_json_path=openapi_path,
             traceability_json_path=traceability_path,
             output_dir=tmp_path / "reports" / "badges",
+            project_root=tmp_path,
         )
 
     assert not (tmp_path / "reports" / "badges").exists()
@@ -299,6 +300,7 @@ def test_write_coverage_badges_rejects_unreadable_or_malformed_source_json(
             openapi_json_path=openapi_path,
             traceability_json_path=traceability_path,
             output_dir=reports_dir / "badges",
+            project_root=tmp_path,
         )
 
     array_run = reports_dir / "array-run.json"
@@ -310,6 +312,7 @@ def test_write_coverage_badges_rejects_unreadable_or_malformed_source_json(
             openapi_json_path=openapi_path,
             traceability_json_path=traceability_path,
             output_dir=reports_dir / "badges",
+            project_root=tmp_path,
         )
 
     directory_run = reports_dir / "directory-run.json"
@@ -321,6 +324,7 @@ def test_write_coverage_badges_rejects_unreadable_or_malformed_source_json(
             openapi_json_path=openapi_path,
             traceability_json_path=traceability_path,
             output_dir=reports_dir / "badges",
+            project_root=tmp_path,
         )
 
 
@@ -361,6 +365,7 @@ def test_write_coverage_badges_writes_deterministic_json_files(tmp_path: Path) -
         openapi_json_path=reports_dir / "openapi-audit.json",
         traceability_json_path=reports_dir / "traceability.json",
         output_dir=reports_dir / "badges",
+        project_root=tmp_path,
     )
 
     assert [path.name for path in result.artifacts] == [
@@ -374,6 +379,54 @@ def test_write_coverage_badges_writes_deterministic_json_files(tmp_path: Path) -
         "message": "1/1 (100%)",
         "schemaVersion": 1,
     }
+
+
+@pytest.mark.security
+@pytest.mark.regression
+def test_write_coverage_badges_rejects_outside_project_output(tmp_path: Path) -> None:
+    project_root = tmp_path / "project"
+    reports_dir = project_root / "reports"
+    reports_dir.mkdir(parents=True)
+    (reports_dir / "run-latest.json").write_text(
+        json.dumps({"schema_version": "entroping.run-report.v1", "tests": []}),
+        encoding="utf-8",
+    )
+    (reports_dir / "effective-policy.json").write_text(
+        json.dumps({"schema_version": "entroping.effective-policy-report.v1", "gates": []}),
+        encoding="utf-8",
+    )
+    (reports_dir / "openapi-audit.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.openapi-audit.v1",
+                "summary": {"total_operations": 0, "covered_operations": 0},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (reports_dir / "traceability.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.traceability-report.v1",
+                "stories": [],
+                "findings": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    output_dir = tmp_path / "outside-badges"
+
+    with pytest.raises(BadgeReportError, match="coverage badge path must stay under"):
+        write_coverage_badges(
+            run_json_path=reports_dir / "run-latest.json",
+            policy_json_path=reports_dir / "effective-policy.json",
+            openapi_json_path=reports_dir / "openapi-audit.json",
+            traceability_json_path=reports_dir / "traceability.json",
+            output_dir=output_dir,
+            project_root=project_root,
+        )
+
+    assert not output_dir.exists()
 
 
 def test_write_coverage_badges_wraps_safe_write_errors(tmp_path: Path) -> None:
@@ -414,4 +467,5 @@ def test_write_coverage_badges_wraps_safe_write_errors(tmp_path: Path) -> None:
             openapi_json_path=reports_dir / "openapi-audit.json",
             traceability_json_path=reports_dir / "traceability.json",
             output_dir=reports_dir / "run-latest.json",
+            project_root=tmp_path,
         )

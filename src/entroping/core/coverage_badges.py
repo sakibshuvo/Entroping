@@ -102,6 +102,7 @@ def write_coverage_badges(
     openapi_json_path: Path,
     traceability_json_path: Path,
     output_dir: Path,
+    project_root: Path,
 ) -> CoverageBadgeWriteResult:
     """Read local source reports and write deterministic shields endpoint JSON files."""
 
@@ -128,6 +129,7 @@ def write_coverage_badges(
                     destination,
                     json.dumps(badge.payload, indent=2, sort_keys=True) + "\n",
                     artifact="coverage badge",
+                    root=project_root,
                 )
             )
         except SafeWriteError as exc:

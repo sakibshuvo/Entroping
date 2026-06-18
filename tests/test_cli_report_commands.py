@@ -640,6 +640,55 @@ def test_report_badges_reports_missing_source_without_writes(
     assert not (tmp_path / "reports" / "badges").exists()
 
 
+@pytest.mark.security
+@pytest.mark.regression
+def test_report_badges_rejects_outside_project_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_root = tmp_path / "project"
+    reports_dir = project_root / "reports"
+    reports_dir.mkdir(parents=True)
+    monkeypatch.chdir(project_root)
+    (reports_dir / "run-latest.json").write_text(
+        json.dumps({"schema_version": "entroping.run-report.v1", "tests": []}),
+        encoding="utf-8",
+    )
+    (reports_dir / "effective-policy.json").write_text(
+        json.dumps({"schema_version": "entroping.effective-policy-report.v1", "gates": []}),
+        encoding="utf-8",
+    )
+    (reports_dir / "openapi-audit.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.openapi-audit.v1",
+                "summary": {"total_operations": 0, "covered_operations": 0},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (reports_dir / "traceability.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.traceability-report.v1",
+                "stories": [],
+                "findings": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    output_dir = tmp_path / "outside-badges"
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "badges", "--output", str(output_dir)],
+    )
+
+    assert result.exit_code == 1
+    assert "coverage badge path must stay under" in result.output
+    assert not output_dir.exists()
+
+
 def test_report_redaction_writes_markdown_without_raw_secret(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
