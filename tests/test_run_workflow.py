@@ -176,6 +176,7 @@ def test_execute_run_workflow_writes_reports_and_cleans_execution_state(
     assert captured_options[0].timeout_ms == 2500
     assert captured_options[0].variables == {"base_url": "http://localhost:18080"}
     assert captured_workers == [3]
+    assert not (tmp_path / ".entroping" / "latest-run-events.lock").exists()
     latest = json.loads(result.latest_state_path.read_text(encoding="utf-8"))
     assert latest["tests"][0]["path"] == "tests/health.hurl"
 
