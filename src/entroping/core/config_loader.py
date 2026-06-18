@@ -1,5 +1,6 @@
 """Filesystem-backed QAnstitution loading and local import merging."""
 
+import hashlib
 from collections.abc import Mapping
 from pathlib import Path, PureWindowsPath
 from urllib.parse import urlparse
@@ -13,7 +14,11 @@ from entroping.models.qanstitution import (
     Qanstitution,
     expand_qanstitution_gate_entries,
 )
-from entroping.models.qanstitution_evidence import EffectiveGateEvidence, QanstitutionEvidence
+from entroping.models.qanstitution_evidence import (
+    EffectiveGateEvidence,
+    QanstitutionEvidence,
+    QanstitutionSourceEvidence,
+)
 
 # Scan local policy-path components without rejecting platform aliases such as macOS /var.
 _LOCAL_SYMLINK_SCAN_PARENT_DEPTH = 8
@@ -47,13 +52,20 @@ def _load_effective_with_evidence(
         msg = f"QAnstitution import cycle detected: {cycle}"
         raise QanstitutionLoadError(msg)
 
-    raw_document = _read_yaml_mapping(resolved)
+    raw_document, source_sha256 = _read_yaml_mapping(resolved)
     law = _validate_document(raw_document, resolved)
     _reject_duplicate_gate_ids(law.gates, resolved)
 
     merged_gates: list[EffectiveGateEvidence] = []
     import_paths: list[Path] = []
     next_stack = (*stack, resolved)
+    sources = [
+        QanstitutionSourceEvidence(
+            path=resolved,
+            sha256=source_sha256,
+            import_chain=next_stack,
+        )
+    ]
     for import_ref in law.imports:
         imported_path = _resolve_import(import_ref, resolved.parent, root_dir)
         imported = _load_effective_with_evidence(
@@ -64,6 +76,8 @@ def _load_effective_with_evidence(
         _append_unique_path(import_paths, imported.root_path)
         for nested_import in imported.import_paths:
             _append_unique_path(import_paths, nested_import)
+        for source in imported.sources:
+            _append_unique_source(sources, source)
         merged_gates = _merge_gate_evidence(
             merged_gates,
             list(imported.gates),
@@ -71,7 +85,12 @@ def _load_effective_with_evidence(
         )
 
     local_gates = [
-        EffectiveGateEvidence(rule=gate.rule, source_path=resolved, group=gate.group)
+        EffectiveGateEvidence(
+            rule=gate.rule,
+            source_path=resolved,
+            group=gate.group,
+            import_chain=next_stack,
+        )
         for gate in expand_qanstitution_gate_entries(raw_document)
     ]
     merged_gates = _merge_gate_evidence(
@@ -89,6 +108,7 @@ def _load_effective_with_evidence(
         root_path=resolved,
         import_paths=tuple(import_paths),
         gates=tuple(merged_gates),
+        sources=tuple(sources),
     )
 
 
@@ -128,12 +148,17 @@ def _local_symlink_scan_root(path: Path) -> Path:
     return parents[root_index]
 
 
-def _read_yaml_mapping(path: Path) -> dict[str, object]:
+def _read_yaml_mapping(path: Path) -> tuple[dict[str, object], str]:
     try:
-        with path.open(encoding="utf-8") as handle:
-            loaded: object = yaml.safe_load(handle)
+        content = path.read_bytes()
+        text = content.decode("utf-8")
+        loaded: object = yaml.safe_load(text)
+        source_sha256 = hashlib.sha256(content).hexdigest()
     except yaml.YAMLError as exc:
         msg = f"Invalid YAML in {path}: {exc}"
+        raise QanstitutionLoadError(msg) from exc
+    except UnicodeDecodeError as exc:
+        msg = f"Invalid UTF-8 in QAnstitution file {path}: {exc}"
         raise QanstitutionLoadError(msg) from exc
     except OSError as exc:
         msg = f"Could not read QAnstitution file {path}: {exc}"
@@ -151,7 +176,7 @@ def _read_yaml_mapping(path: Path) -> dict[str, object]:
             msg = f"QAnstitution keys must be strings in {path}"
             raise QanstitutionLoadError(msg)
         document[key] = value
-    return document
+    return document, source_sha256
 
 
 def _validate_document(document: Mapping[str, object], path: Path) -> Qanstitution:
@@ -250,3 +275,11 @@ def _merge_gate_evidence(
 def _append_unique_path(paths: list[Path], path: Path) -> None:
     if path not in paths:
         paths.append(path)
+
+
+def _append_unique_source(
+    sources: list[QanstitutionSourceEvidence],
+    source: QanstitutionSourceEvidence,
+) -> None:
+    if all(existing.path != source.path for existing in sources):
+        sources.append(source)

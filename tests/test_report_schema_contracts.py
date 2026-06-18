@@ -9,7 +9,11 @@ from entroping.bridge.capture_summary import (
     capture_summary_report_to_dict,
     compile_capture_summary,
 )
-from entroping.bridge.effective_policy import EffectivePolicyGateReport, EffectivePolicyReport
+from entroping.bridge.effective_policy import (
+    EffectivePolicyGateReport,
+    EffectivePolicyReport,
+    EffectivePolicySourceReport,
+)
 from entroping.bridge.effective_policy_diff import (
     EFFECTIVE_POLICY_DIFF_SCHEMA_VERSION,
     build_effective_policy_diff_report,
@@ -694,14 +698,28 @@ def test_traceability_report_v1_schema_contract_is_versioned_and_stable() -> Non
 
 
 def test_effective_policy_report_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "effective-policy-report.v1.schema.json").read_text())
     report = EffectivePolicyReport(
         project="checkout-api",
         config_path="qanstitution.yaml",
         imports=("rules/security.yaml",),
+        sources=(
+            EffectivePolicySourceReport(
+                path="qanstitution.yaml",
+                sha256="0" * 64,
+                import_chain=("qanstitution.yaml",),
+            ),
+            EffectivePolicySourceReport(
+                path="rules/security.yaml",
+                sha256="1" * 64,
+                import_chain=("qanstitution.yaml", "rules/security.yaml"),
+            ),
+        ),
         gates=(
             EffectivePolicyGateReport(
                 id="request_id_header",
                 source_path="rules/security.yaml",
+                import_chain=("qanstitution.yaml", "rules/security.yaml"),
                 condition="true",
                 gate='header "X-Request-Id" exists',
                 enforcement="block",
@@ -718,10 +736,23 @@ def test_effective_policy_report_v1_schema_contract_is_versioned_and_stable() ->
         "project": "checkout-api",
         "config_path": "qanstitution.yaml",
         "imports": ["rules/security.yaml"],
+        "sources": [
+            {
+                "path": "qanstitution.yaml",
+                "sha256": "0" * 64,
+                "import_chain": ["qanstitution.yaml"],
+            },
+            {
+                "path": "rules/security.yaml",
+                "sha256": "1" * 64,
+                "import_chain": ["qanstitution.yaml", "rules/security.yaml"],
+            },
+        ],
         "gates": [
             {
                 "id": "request_id_header",
                 "source_path": "rules/security.yaml",
+                "import_chain": ["qanstitution.yaml", "rules/security.yaml"],
                 "condition": "true",
                 "gate": 'header "X-Request-Id" exists',
                 "enforcement": "block",
@@ -731,6 +762,42 @@ def test_effective_policy_report_v1_schema_contract_is_versioned_and_stable() ->
             }
         ],
     }
+    assert schema["properties"]["sources"]["items"]["$ref"] == "#/$defs/source"
+    assert schema["$defs"]["source"]["required"] == [
+        "path",
+        "sha256",
+        "import_chain",
+    ]
+    assert schema["$defs"]["source"]["properties"]["sha256"]["pattern"] == (
+        "^[0-9a-f]{64}$"
+    )
+    assert "sources" not in schema["required"]
+    assert "import_chain" not in schema["$defs"]["gate"]["required"]
+
+
+def test_effective_policy_report_v1_accepts_legacy_payload_without_additive_provenance() -> None:
+    report = EffectivePolicyReport.model_validate(
+        {
+            "schema_version": "entroping.effective-policy-report.v1",
+            "project": "checkout-api",
+            "config_path": "qanstitution.yaml",
+            "imports": ["rules/security.yaml"],
+            "gates": [
+                {
+                    "id": "request_id_header",
+                    "source_path": "rules/security.yaml",
+                    "condition": "true",
+                    "gate": 'header "X-Request-Id" exists',
+                    "enforcement": "block",
+                    "final": True,
+                    "description": "Require request IDs",
+                }
+            ],
+        }
+    )
+
+    assert report.sources == ()
+    assert report.gates[0].import_chain == ()
 
 
 def test_gate_injection_report_v1_schema_contract_is_versioned_and_stable() -> None:

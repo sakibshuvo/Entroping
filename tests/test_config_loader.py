@@ -1,5 +1,6 @@
 """QAnstitution loading and import tests."""
 
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,10 @@ def write_yaml(path: Path, body: str) -> None:
 def write_document(path: Path, document: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def test_load_qanstitution_merges_local_imports_before_local_gates(tmp_path: Path) -> None:
@@ -165,6 +170,91 @@ imports:
         "base_latency",
         "security_header",
     ]
+
+
+def test_load_qanstitution_evidence_tracks_source_digests_and_import_chains(
+    tmp_path: Path,
+) -> None:
+    write_yaml(
+        tmp_path / "rules" / "base.yaml",
+        """
+project: base
+gates:
+  - id: base_latency
+    condition: "true"
+    gate: duration < 2000
+    enforcement: warn
+""",
+    )
+    write_yaml(
+        tmp_path / "rules" / "security.yaml",
+        """
+project: imported-security
+imports:
+  - ./base.yaml
+gates:
+  - id: security_header
+    condition: "true"
+    gate: header "X-Request-Id" exists
+    enforcement: block
+""",
+    )
+    write_yaml(
+        tmp_path / "qanstitution.yaml",
+        """
+project: checkout-api
+imports:
+  - ./rules/security.yaml
+gates:
+  - id: local_latency
+    condition: "true"
+    gate: duration < 500
+    enforcement: block
+""",
+    )
+
+    evidence = load_qanstitution_evidence(tmp_path / "qanstitution.yaml")
+
+    assert [
+        (
+            source.path.relative_to(tmp_path).as_posix(),
+            source.sha256,
+            tuple(path.relative_to(tmp_path).as_posix() for path in source.import_chain),
+        )
+        for source in evidence.sources
+    ] == [
+        ("qanstitution.yaml", _sha256(tmp_path / "qanstitution.yaml"), ("qanstitution.yaml",)),
+        (
+            "rules/security.yaml",
+            _sha256(tmp_path / "rules" / "security.yaml"),
+            ("qanstitution.yaml", "rules/security.yaml"),
+        ),
+        (
+            "rules/base.yaml",
+            _sha256(tmp_path / "rules" / "base.yaml"),
+            ("qanstitution.yaml", "rules/security.yaml", "rules/base.yaml"),
+        ),
+    ]
+    assert {
+        gate.rule.id: tuple(
+            path.relative_to(tmp_path).as_posix() for path in gate.import_chain
+        )
+        for gate in evidence.gates
+    } == {
+        "base_latency": ("qanstitution.yaml", "rules/security.yaml", "rules/base.yaml"),
+        "security_header": ("qanstitution.yaml", "rules/security.yaml"),
+        "local_latency": ("qanstitution.yaml",),
+    }
+
+
+def test_load_qanstitution_rejects_invalid_utf8_before_policy_validation(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "qanstitution.yaml"
+    path.write_bytes(b"\xff\xfe")
+
+    with pytest.raises(QanstitutionLoadError, match="Invalid UTF-8"):
+        load_qanstitution_evidence(path)
 
 
 def test_load_qanstitution_rejects_duplicate_non_final_gate_ids_across_imports(
