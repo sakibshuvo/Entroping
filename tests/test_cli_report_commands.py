@@ -18,6 +18,9 @@ from cli_test_support import (
     write_json_report,
 )
 
+from entroping.core.evidence_bundle import EvidenceBundleError
+from entroping.core.report_artifact_manifest import write_report_artifact_manifest
+
 
 def _write_effective_policy_report(
     path: Path,
@@ -39,6 +42,23 @@ def _write_effective_policy_report(
     )
 
 
+def _write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content.lstrip(), encoding="utf-8")
+
+
+def _write_ready_evidence_bundle_inputs(root: Path) -> None:
+    _write_text(
+        root / "reports" / "run-latest.json",
+        '{"schema_version":"entroping.run-report.v1","project":"checkout-api"}\n',
+    )
+    _write_text(
+        root / "reports" / "effective-policy.json",
+        '{"schema_version":"entroping.effective-policy-report.v1","project":"checkout-api"}\n',
+    )
+    write_report_artifact_manifest(project_root=root)
+
+
 def test_report_help_tiers_core_ci_review_commands_before_advanced_evidence() -> None:
     result = CliRunner().invoke(app, ["report", "--help"])
 
@@ -55,8 +75,61 @@ def test_report_help_tiers_core_ci_review_commands_before_advanced_evidence() ->
         assert command in core_panel
 
     advanced_panel = result.output.split("Advanced Evidence", maxsplit=1)[1]
-    for command in ("policy", "gate-coverage", "traceability", "agent-bundle"):
+    for command in (
+        "policy",
+        "gate-coverage",
+        "traceability",
+        "artifact-manifest",
+        "evidence-bundle",
+        "agent-bundle",
+    ):
         assert command in advanced_panel
+
+
+def test_report_evidence_bundle_writes_ready_bundle(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_ready_evidence_bundle_inputs(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "evidence-bundle"])
+
+    assert result.exit_code == 0
+    assert "Wrote evidence bundle: reports/evidence-bundle.json" in result.output
+    payload = json.loads(Path("reports/evidence-bundle.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.evidence-bundle.v1"
+    assert payload["summary"]["status"] == "ready"
+
+
+def test_report_evidence_bundle_exits_nonzero_when_not_ready(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "evidence-bundle"])
+
+    assert result.exit_code == 1
+    assert "not_ready" in result.output
+    assert Path("reports/evidence-bundle.json").exists()
+
+
+def test_report_evidence_bundle_wraps_core_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    def fail_evidence_bundle(*args: object, **kwargs: object) -> object:
+        raise EvidenceBundleError("evidence bundle path is unsafe")
+
+    monkeypatch.setattr(report_cli, "run_evidence_bundle_report", fail_evidence_bundle)
+
+    result = CliRunner().invoke(app, ["report", "evidence-bundle"])
+
+    assert result.exit_code == 1
+    assert "evidence bundle path is unsafe" in result.output
 
 
 def test_report_bug_generates_markdown_from_latest_failing_run(

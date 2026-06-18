@@ -1,0 +1,252 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/sakibshuvo/Entroping/docs/technical/report-schemas/evidence-bundle.v1.schema.json",
+  "title": "Entroping Evidence Bundle v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "purpose",
+    "project",
+    "summary",
+    "artifacts",
+    "missing_artifacts",
+    "diagnostics",
+    "manifest_audit"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.evidence-bundle.v1"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "purpose": {
+      "type": "string"
+    },
+    "project": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/artifact"
+      }
+    },
+    "missing_artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/missing_artifact"
+      }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/diagnostic"
+      }
+    },
+    "manifest_audit": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/manifest_audit"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "required_total",
+        "required_present",
+        "required_missing",
+        "required_invalid",
+        "artifacts_total",
+        "diagnostics_total"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "ready",
+            "not_ready"
+          ]
+        },
+        "required_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "required_present": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "required_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "required_invalid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "artifacts_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "diagnostics_total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "path",
+        "required",
+        "schema_version",
+        "size_bytes",
+        "sha256"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "artifact_manifest",
+            "effective_policy",
+            "run_json"
+          ]
+        },
+        "path": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "schema_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "missing_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "path",
+        "required"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "artifact_manifest",
+            "effective_policy",
+            "run_json"
+          ]
+        },
+        "path": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "severity",
+        "code",
+        "path",
+        "message"
+      ],
+      "properties": {
+        "severity": {
+          "enum": [
+            "error",
+            "warning"
+          ]
+        },
+        "code": {
+          "type": "string"
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "manifest_audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "status",
+        "chain_path",
+        "checked_events",
+        "latest_event_hash",
+        "diagnostics"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "chain_path": {
+          "type": "string"
+        },
+        "checked_events": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "latest_event_hash": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

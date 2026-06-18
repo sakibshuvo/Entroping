@@ -45,6 +45,10 @@ from entroping.core.effective_policy_report import (
     EffectivePolicyReportError,
     run_effective_policy_report,
 )
+from entroping.core.evidence_bundle import (
+    EvidenceBundleError,
+    run_evidence_bundle_report,
+)
 from entroping.core.failure_bundle import FailureBundleError, create_failure_bundle
 from entroping.core.gate_coverage_report import (
     GateCoverageOutput,
@@ -463,6 +467,35 @@ def report_artifact_manifest(
         f"{result.manifest.summary.total_missing} missing, "
         f"audit {result.manifest.audit.verification.status})"
     )
+
+
+@app.command("evidence-bundle", rich_help_panel=ADVANCED_REPORT_PANEL)
+def report_evidence_bundle(
+    output: Annotated[
+        Path,
+        typer.Option("--output", help="Evidence bundle output path."),
+    ] = Path("reports") / "evidence-bundle.json",
+) -> None:
+    """Write a sanitized design-partner upload-readiness evidence bundle."""
+
+    try:
+        result = run_evidence_bundle_report(
+            project_root=Path.cwd(),
+            output_path=output,
+        )
+    except EvidenceBundleError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(
+        "Wrote evidence bundle: "
+        f"{display_cli_path(result.output_path)} "
+        f"({result.bundle.summary.status}, "
+        f"{result.bundle.summary.required_present}/"
+        f"{result.bundle.summary.required_total} required present, "
+        f"{result.bundle.summary.required_invalid} invalid)"
+    )
+    raise typer.Exit(0 if result.bundle.summary.status == "ready" else 1)
 
 
 @app.command("agent-bundle", rich_help_panel=ADVANCED_REPORT_PANEL)
