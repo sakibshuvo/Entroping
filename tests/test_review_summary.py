@@ -348,7 +348,7 @@ def test_review_summary_ignores_malformed_retry_entries_and_reports_stable_retri
                 "environment": "ci",
                 "generated_at": "2026-06-03T00:00:00+00:00",
                 "summary": {"total": 1, "passed": 1, "failed": 0, "exit_code": 0},
-                "tests": {},
+                "tests": [],
             }
         ),
         encoding="utf-8",
@@ -359,7 +359,29 @@ def test_review_summary_ignores_malformed_retry_entries_and_reports_stable_retri
         drift_path=reports_dir / "drift.json",
         traceability_report=None,
     )
+    assert summary_without_tests.status == "pass"
     assert summary_without_tests.findings == ()
+
+    run_json.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "checkout-api",
+                "environment": "ci",
+                "generated_at": "2026-06-03T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 1, "failed": 0, "exit_code": 0},
+                "tests": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ReviewSummaryError, match="must contain a tests list"):
+        build_review_summary(
+            run_json_path=run_json,
+            junit_path=reports_dir / "junit.xml",
+            drift_path=reports_dir / "drift.json",
+            traceability_report=None,
+        )
 
 
 def test_review_summary_includes_drift_and_traceability_findings(

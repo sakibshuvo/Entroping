@@ -1468,6 +1468,33 @@ def test_report_review_summary_wraps_report_errors(
     assert "Could not parse drift report" in result.output
 
 
+def test_report_review_summary_rejects_malformed_tests_payload(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports_dir = Path("reports")
+    reports_dir.mkdir()
+    (reports_dir / "run-latest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "checkout-api",
+                "environment": "ci",
+                "summary": {"total": 1, "passed": 1, "failed": 0, "exit_code": 0},
+                "tests": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["report", "review-summary"])
+
+    assert result.exit_code == 1
+    assert "must contain a tests list" in result.output
+    assert not (reports_dir / "review-summary.md").exists()
+
+
 def test_report_agent_bundle_writes_selected_role_json(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
