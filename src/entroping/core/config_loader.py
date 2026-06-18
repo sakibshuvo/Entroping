@@ -15,6 +15,9 @@ from entroping.models.qanstitution import (
 )
 from entroping.models.qanstitution_evidence import EffectiveGateEvidence, QanstitutionEvidence
 
+# Scan local policy-path components without rejecting platform aliases such as macOS /var.
+_LOCAL_SYMLINK_SCAN_PARENT_DEPTH = 8
+
 
 class QanstitutionLoadError(ValueError):
     """Raised when a QAnstitution file cannot be loaded into an effective policy."""
@@ -29,7 +32,7 @@ def load_qanstitution(path: str | Path = "qanstitution.yaml") -> Qanstitution:
 def load_qanstitution_evidence(path: str | Path = "qanstitution.yaml") -> QanstitutionEvidence:
     """Load a QAnstitution file and retain provenance for the effective gates."""
 
-    resolved = _resolve_existing_file(Path(path))
+    resolved = _resolve_root_file(Path(path))
     return _load_effective_with_evidence(resolved, stack=(), root_dir=resolved.parent)
 
 
@@ -97,6 +100,34 @@ def _resolve_existing_file(path: Path) -> Path:
     return resolved
 
 
+def _resolve_root_file(path: Path) -> Path:
+    candidate = path.expanduser()
+    absolute_candidate = _absolute_path(candidate)
+    symlink_component = _first_symlink_path_component_from_local_boundary(
+        absolute_candidate
+    )
+    if symlink_component is not None:
+        msg = f"Root QAnstitution file must not use symlinks: {symlink_component}"
+        raise QanstitutionLoadError(msg)
+    return _resolve_existing_file(absolute_candidate)
+
+
+def _absolute_path(path: Path) -> Path:
+    candidate = path.expanduser()
+    return candidate if candidate.is_absolute() else Path.cwd() / candidate
+
+
+def _first_symlink_path_component_from_local_boundary(path: Path) -> Path | None:
+    absolute = _absolute_path(path)
+    return first_symlink_path_component(absolute, root=_local_symlink_scan_root(absolute))
+
+
+def _local_symlink_scan_root(path: Path) -> Path:
+    parents = path.parents
+    root_index = min(_LOCAL_SYMLINK_SCAN_PARENT_DEPTH, max(len(parents) - 2, 0))
+    return parents[root_index]
+
+
 def _read_yaml_mapping(path: Path) -> dict[str, object]:
     try:
         with path.open(encoding="utf-8") as handle:
@@ -151,6 +182,10 @@ def _resolve_import(import_ref: str, base_dir: Path, root_dir: Path) -> Path:
     symlink_component = None
     if raw_candidate.is_relative_to(root_dir):
         symlink_component = first_symlink_path_component(raw_candidate, root=root_dir)
+    else:
+        symlink_component = _first_symlink_path_component_from_local_boundary(
+            raw_candidate
+        )
     if symlink_component is not None:
         msg = f"Import {import_ref!r} must not use symlinks: {symlink_component}"
         raise QanstitutionLoadError(msg)
