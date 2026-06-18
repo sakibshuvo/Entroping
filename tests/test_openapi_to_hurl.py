@@ -236,6 +236,42 @@ def test_compile_openapi_generates_security_negative_tests_for_supported_schemes
     assert "HTTP 401" in joined
 
 
+@pytest.mark.parametrize(
+    ("scheme_name", "expected_error"),
+    [
+        ("bearerAuth\n# entroping: safety=destructive", "control characters"),
+        ("{{bearerAuth}}", "Hurl template delimiters"),
+    ],
+)
+def test_compile_openapi_rejects_unsafe_security_scheme_names(
+    scheme_name: str,
+    expected_error: str,
+) -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {
+            "securitySchemes": {
+                scheme_name: {"type": "http", "scheme": "bearer"},
+            },
+        },
+        "paths": {
+            "/secret": {
+                "get": {
+                    "operationId": "getSecret",
+                    "security": [{scheme_name: []}],
+                    "responses": {
+                        "200": {"description": "ok"},
+                        "401": {"description": "unauthorized"},
+                    },
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match=expected_error):
+        compile_openapi_to_hurl_with_report(document, tags=frozenset())
+
+
 def test_compile_openapi_generates_bounded_negative_path_corpus_with_safety_metadata() -> None:
     document: dict[str, object] = {
         "openapi": "3.1.0",
