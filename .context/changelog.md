@@ -1506,3 +1506,6 @@
 - Closed issue #840's effective-policy output-format gap: the core report
   workflow now rejects unsupported output formats before loading QAnstitution or
   writing artifacts, preserving the existing Markdown and JSON report behavior.
+- Closed issue #860's QAnstitution condition whitespace drift: runtime condition
+  parsing now rejects leading or trailing whitespace to match the anchored JSON
+  schema, while preserving all supported condition syntax.

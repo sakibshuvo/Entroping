@@ -88,7 +88,11 @@ def parse_condition(expression: str) -> Condition:
         msg = "QAnstitution condition must not contain control characters"
         raise ConditionSyntaxError(msg)
 
-    normalized = expression.strip()
+    if expression != expression.strip():
+        msg = "QAnstitution condition must not contain leading or trailing whitespace"
+        raise ConditionSyntaxError(msg)
+
+    normalized = expression
     if normalized == "true":
         return TrueCondition()
 
