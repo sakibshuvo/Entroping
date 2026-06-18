@@ -142,7 +142,7 @@ The v4.1 command namespace is intentionally small and stable:
 | Intelligence | `architect build`, `architect refactor`, `architect audit` |
 | Observation | `watch`, `freeze`, `map` |
 | Execution | `run`, `studio` |
-| Reporting | `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report capture-summary`, `report policy`, `report policy-diff`, `report gate-coverage`, `report gate-injection`, `report artifact-manifest`, `report evidence-bundle`, `report runtime-card`, `report agent-bundle`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary` |
+| Reporting | `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report capture-summary`, `report policy`, `report policy-diff`, `report gate-coverage`, `report gate-injection`, `report test-quality`, `report artifact-manifest`, `report evidence-bundle`, `report runtime-card`, `report agent-bundle`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary` |
 
 Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `verify`, `explain`, and `chaos` must not be treated as primary v4.1 commands. They can exist only as explicit backwards-compatible aliases or future roadmap items.
 
@@ -245,6 +245,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | EXE-023 | Manifest report artifacts | `entroping report artifact-manifest` writes local checksum evidence for standard report artifacts plus a tamper-evident `.entroping/report-audit-chain.jsonl` event with previous-hash linkage, verification status, and broken-chain diagnostics, without embedding artifact contents, secrets, raw traffic, provider prompts, provider outputs, env values, uploads, or signing/attestation claims |
 | EXE-024 | Verify sanitized evidence bundles | `entroping report evidence-bundle` writes `reports/evidence-bundle.json` with required local run, effective-policy, and artifact-manifest readiness diagnostics, checksum references, supported schema evidence, and artifact-manifest audit status without embedding artifact contents, raw traffic, source Hurl contents, stdout/stderr, prompts, provider outputs, credentials, env values, or uploading anything |
 | EXE-025 | Summarize PR runtime evidence | `entroping report runtime-card` writes `reports/runtime-card.md` or `reports/runtime-card.json` from existing sanitized local report artifacts, requiring run JSON evidence and summarizing drift, redaction, release anchors, and agent provenance when present without executing Hurl, calling providers, uploading artifacts, or rendering raw Hurl output, raw traffic, prompts, provider responses, credentials, or env values |
+| EXE-026 | Score generated-test quality | `entroping report test-quality --output md|json` writes static generated-Hurl quality evidence for assertion strength, brittle selectors, negative-path metadata, auth/security metadata, shallow schema checks, overfitted examples, and traceability gaps without executing Hurl, calling providers, uploading artifacts, rendering raw Hurl values, or replacing QAnstitution/Hurl pass-fail authority |
 
 ## 10. Supported Test Types
 

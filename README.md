@@ -60,7 +60,7 @@ This is an OWASP API Security Top 10-inspired starter pack. It is not official O
 - OpenAPI-to-Hurl generation, including supported auth-negative coverage.
 - QAnstitution gate injection into temporary execution copies, never source tests.
 - Redacted traffic capture, freeze, optional dependency mapping, and approval manifests.
-- JSON, JUnit, HTML, drift, delta, badge, SARIF, bug, retry, and traceability evidence.
+- JSON, JUnit, HTML, drift, delta, badge, SARIF, bug, retry, generated-test quality, and traceability evidence.
 - Sanitized Builder, Breaker, and Auditor evidence bundles for human review.
 
 ## Current Alpha

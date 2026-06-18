@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 import entroping.core.evidence_bundle as evidence_bundle
+import entroping.core.report_artifact_manifest as report_artifact_manifest
 from entroping.core.evidence_bundle import (
     EVIDENCE_BUNDLE_SCHEMA_VERSION,
     EvidenceBundleError,
@@ -126,6 +127,26 @@ def test_run_evidence_bundle_report_detects_schema_and_checksum_mismatches(
         ("schema_mismatch", "reports/run-latest.json"),
         ("checksum_mismatch", "reports/run-latest.json"),
     ]
+
+
+def test_run_evidence_bundle_report_allows_digest_shaped_audit_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    digest_with_luhn_digit_run = (
+        "bc52ae1be5e2f4d1716762f476eab11b90d6ab62746d7b34945091693438190b"
+    )
+    monkeypatch.setattr(
+        report_artifact_manifest,
+        "_hash_audit_event_payload",
+        lambda _payload: digest_with_luhn_digit_run,
+    )
+    _write_required_artifacts(tmp_path)
+
+    result = run_evidence_bundle_report(project_root=tmp_path)
+
+    assert result.bundle.manifest_audit is not None
+    assert result.bundle.manifest_audit.latest_event_hash == digest_with_luhn_digit_run
 
 
 def test_run_evidence_bundle_report_reports_invalid_artifact_manifest(

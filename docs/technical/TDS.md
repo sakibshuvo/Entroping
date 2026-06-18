@@ -752,6 +752,7 @@ Reports are written under `reports/`.
 | Capture Summary | `report capture-summary --output md|json` | Counts-only captured-traffic session summary |
 | Effective Policy | `report policy --output md|json` | Resolved QAnstitution gate provenance |
 | Effective Policy Diff | `report policy-diff --base <path> --current <path> --output md|json [--fail-on-change]` | Import/gate differences between two effective-policy JSON artifacts; opt-in CI failure on changed diff |
+| Generated-Test Quality | `report test-quality --output md|json` | Static quality score for generated Hurl tests |
 | Artifact Manifest | `report artifact-manifest` | Checksum manifest for local report artifacts |
 | Evidence Bundle | `report evidence-bundle` | Sanitized local upload-readiness evidence |
 | Runtime Evidence Card | `report runtime-card` | Concise PR/runtime proof card from local reports |
@@ -917,6 +918,7 @@ entroping report policy [--output <md|json>]
 entroping report policy-diff [--base <path>] [--current <path>] [--output <md|json>] [--fail-on-change]
 entroping report gate-coverage [--output <md|json>]
 entroping report gate-injection --target <path> [--output <md|json>]
+entroping report test-quality [--output <md|json>]
 entroping report artifact-manifest [--output <path>]
 entroping report evidence-bundle [--output <path>]
 entroping report runtime-card [--output <md|json>]
@@ -938,9 +940,8 @@ IDs such as `run-json`, `capture-summary-json`, `artifact-manifest-json`,
 `review-summary-md`. It shows presence, invalid, and unsafe states, controlled
 schema metadata, and counts-only summaries; oversized, unreadable, malformed, or
 schema-mismatched JSON artifacts are marked invalid without rendering contents.
-It does not render raw report contents, does not upload artifacts, and does not
-edit tests, QAnstitution, reports, traffic state, or runtime state. Applied-gate drilldowns read
-latest-run report rule IDs and QAnstitution gate definitions; Studio does not run Hurl
+It does not render raw report contents, does not upload artifacts, and does not edit tests, QAnstitution, reports, traffic state, or runtime state.
+Applied-gate drilldowns read latest-run report rule IDs and QAnstitution gate definitions; Studio does not run Hurl
 and does not edit tests or config to build this view. The traffic browser reads
 redacted SQLModel-backed state from `.entroping/state.db` through a read-only
 query path, infers target/dependency grouping from filtered captured traffic,
@@ -1101,10 +1102,21 @@ policy coverage evidence only: it does not execute Hurl, inject temporary
 assertions, evaluate pass/fail, call providers, or render full URLs, query
 strings, headers, bodies, variables, or captured traffic values.
 
+`entroping report test-quality --output md|json` discovers committed generated
+Hurl tests under `tests/generated/` or tests carrying generated metadata, then
+writes `reports/test-quality.md` or `reports/test-quality.json` with schema
+`entroping.test-quality-report.v1`. The score is static review evidence over
+generated test structure: assertion strength, positional selectors, negative
+coverage metadata, auth/security metadata, schema-check depth, overfitted
+examples, and traceability metadata. It does not execute Hurl, inject gates,
+call model providers, upload artifacts, render raw Hurl values, or replace
+QAnstitution/Hurl pass-fail authority. A weak score should guide repair
+proposals and review, not silently approve or reject runtime behavior.
+
 `entroping report artifact-manifest` writes `reports/artifact-manifest.json`
 by default with project-relative report paths, schema versions when available,
 artifact sizes, and SHA-256 checksums for standard JSON, JUnit, HTML, drift,
-agent-bundle JSON, SARIF, and review-summary artifacts. Missing expected
+test-quality JSON/Markdown, agent-bundle JSON, SARIF, and review-summary artifacts. Missing expected
 artifacts are listed instead of failing the command. Each successful write also
 appends a value-free event to `.entroping/report-audit-chain.jsonl` with the
 previous event hash, artifact checksums, command metadata, schema versions, and
@@ -1222,6 +1234,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report gate-coverage --output json` | `reports/gate-coverage.json` | Machine-readable policy gate coverage matrix using `entroping.gate-coverage-report.v1`. |
 | `entroping report gate-injection --output md` | `reports/gate-injection.md` | Human-readable gate-injection explanation for selected Hurl files. |
 | `entroping report gate-injection --output json` | `reports/gate-injection.json` | Machine-readable gate-injection explanation using `entroping.gate-injection-report.v1`. |
+| `entroping report test-quality --output md` | `reports/test-quality.md` | Human-readable generated-Hurl quality score. |
+| `entroping report test-quality --output json` | `reports/test-quality.json` | Machine-readable generated-Hurl quality score using `entroping.test-quality-report.v1`. |
 | `entroping report artifact-manifest` | `reports/artifact-manifest.json` and `.entroping/report-audit-chain.jsonl` | Machine-readable checksum manifest using `entroping.report-artifact-manifest.v1` plus a local tamper-evident audit chain using `entroping.report-audit-event.v1`; the chain is local state and not committed. |
 | `entroping report evidence-bundle` | `reports/evidence-bundle.json` | Sanitized design-partner upload-readiness evidence using `entroping.evidence-bundle.v1`; references local artifacts by path, schema, size, and checksum without embedding contents or uploading. |
 | `entroping report runtime-card --output md` | `reports/runtime-card.md` | Reviewer-facing PR/runtime evidence card from sanitized local reports. |

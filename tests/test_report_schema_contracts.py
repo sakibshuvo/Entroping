@@ -43,6 +43,21 @@ from entroping.bridge.story_traceability import (
     compile_story_traceability,
     story_traceability_report_to_dict,
 )
+from entroping.bridge.test_quality import (
+    TEST_QUALITY_REPORT_SCHEMA_VERSION,
+)
+from entroping.bridge.test_quality import (
+    TestQualityFinding as QualityFindingModel,
+)
+from entroping.bridge.test_quality import (
+    TestQualityReport as QualityReportModel,
+)
+from entroping.bridge.test_quality import (
+    TestQualitySummary as QualitySummaryModel,
+)
+from entroping.bridge.test_quality import (
+    TestQualityTestReport as QualityTestReportModel,
+)
 from entroping.core.agent_bundle import AGENT_REVIEW_BUNDLE_SCHEMA_VERSION
 from entroping.core.agent_manifest import AGENT_RUN_MANIFEST_SCHEMA_VERSION
 from entroping.core.drift_report import (
@@ -1013,6 +1028,97 @@ def test_gate_coverage_report_v1_schema_contract_is_versioned_and_stable() -> No
     }
 
 
+def test_test_quality_report_v1_schema_contract_is_versioned_and_stable() -> None:
+    report = QualityReportModel(
+        project="checkout-api",
+        summary=QualitySummaryModel(
+            total_tests=2,
+            generated_tests=1,
+            manual_tests=1,
+            score=72,
+            status="warn",
+            findings=2,
+        ),
+        findings=(
+            QualityFindingModel(
+                category="missing-negative-path",
+                severity="medium",
+                path=None,
+                message="Generated-test corpus has no negative-path metadata.",
+                evidence="corpus metadata",
+                deduction=10,
+            ),
+        ),
+        tests=(
+            QualityTestReportModel(
+                path="tests/generated/checkout.hurl",
+                source="openapi",
+                operation_id="createCheckout",
+                tags=("generated", "smoke"),
+                score=72,
+                findings=(
+                    QualityFindingModel(
+                        category="assertion-strength",
+                        severity="medium",
+                        path="tests/generated/checkout.hurl",
+                        message="Generated test has fewer than two response assertions.",
+                        evidence="assertion count",
+                        deduction=15,
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    payload = report.model_dump(mode="json")
+
+    assert payload == {
+        "schema_version": TEST_QUALITY_REPORT_SCHEMA_VERSION,
+        "project": "checkout-api",
+        "summary": {
+            "total_tests": 2,
+            "generated_tests": 1,
+            "manual_tests": 1,
+            "score": 72,
+            "status": "warn",
+            "findings": 2,
+        },
+        "findings": [
+            {
+                "category": "missing-negative-path",
+                "severity": "medium",
+                "path": None,
+                "message": "Generated-test corpus has no negative-path metadata.",
+                "evidence": "corpus metadata",
+                "deduction": 10,
+            }
+        ],
+        "tests": [
+            {
+                "path": "tests/generated/checkout.hurl",
+                "source": "openapi",
+                "operation_id": "createCheckout",
+                "negative_category": None,
+                "security": None,
+                "tags": ["generated", "smoke"],
+                "score": 72,
+                "findings": [
+                    {
+                        "category": "assertion-strength",
+                        "severity": "medium",
+                        "path": "tests/generated/checkout.hurl",
+                        "message": "Generated test has fewer than two response assertions.",
+                        "evidence": "assertion count",
+                        "deduction": 15,
+                    }
+                ],
+            }
+        ],
+    }
+    schema = json.loads((SCHEMA_DIR / "test-quality-report.v1.schema.json").read_text())
+    assert schema["properties"]["schema_version"]["const"] == TEST_QUALITY_REPORT_SCHEMA_VERSION
+
+
 def test_report_artifact_manifest_v1_schema_contract_is_versioned_and_stable() -> None:
     manifest = ReportArtifactManifest(
         summary=ReportArtifactManifestSummary(
@@ -1513,6 +1619,7 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         "entroping.capture-summary.v1": SCHEMA_DIR / "capture-summary.v1.schema.json",
         "entroping.gate-injection-report.v1": (SCHEMA_DIR / "gate-injection-report.v1.schema.json"),
         "entroping.gate-coverage-report.v1": (SCHEMA_DIR / "gate-coverage-report.v1.schema.json"),
+        "entroping.test-quality-report.v1": (SCHEMA_DIR / "test-quality-report.v1.schema.json"),
         "entroping.report-artifact-manifest.v1": (
             SCHEMA_DIR / "report-artifact-manifest.v1.schema.json"
         ),

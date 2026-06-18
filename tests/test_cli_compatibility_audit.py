@@ -179,6 +179,11 @@ LOCKED_CLI_CONTRACTS = (
         ("--target", "--output"),
     ),
     CliContract(
+        "entroping report test-quality [--output <md|json>]",
+        ("report", "test-quality", "--help"),
+        ("--output",),
+    ),
+    CliContract(
         "entroping report artifact-manifest [--output <path>]",
         ("report", "artifact-manifest", "--help"),
         ("--output",),
@@ -269,6 +274,8 @@ REPORT_ARTIFACTS = (
     "reports/redaction-review.html",
     "reports/effective-policy.md",
     "reports/effective-policy.json",
+    "reports/test-quality.md",
+    "reports/test-quality.json",
     "stdout Effective Policy Diff Markdown/JSON",
     "reports/badges/*.json",
     "reports/evidence-bundle.json",

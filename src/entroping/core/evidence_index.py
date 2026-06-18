@@ -12,6 +12,7 @@ from entroping.bridge.capture_summary import CAPTURE_SUMMARY_SCHEMA_VERSION
 from entroping.bridge.effective_policy import EFFECTIVE_POLICY_SCHEMA_VERSION
 from entroping.bridge.gate_coverage import GATE_COVERAGE_REPORT_SCHEMA_VERSION
 from entroping.bridge.gate_injection_explain import GATE_INJECTION_REPORT_SCHEMA_VERSION
+from entroping.bridge.test_quality import TEST_QUALITY_REPORT_SCHEMA_VERSION
 from entroping.core.agent_bundle import AGENT_REVIEW_BUNDLE_SCHEMA_VERSION
 from entroping.core.drift_report import DRIFT_REPORT_SCHEMA_VERSION
 from entroping.core.evidence_bundle import EVIDENCE_BUNDLE_SCHEMA_VERSION
@@ -166,6 +167,21 @@ def _artifact_definitions() -> tuple[_EvidenceArtifactDefinition, ...]:
             path=Path("reports") / "gate-injection.md",
             kind="markdown",
             schema_version="entroping.gate-injection.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="test-quality-json",
+            label="Generated-Test Quality JSON",
+            path=Path("reports") / "test-quality.json",
+            kind="json",
+            schema_version=TEST_QUALITY_REPORT_SCHEMA_VERSION,
+            summary_builder=_test_quality_summary,
+        ),
+        _EvidenceArtifactDefinition(
+            id="test-quality-md",
+            label="Generated-Test Quality Markdown",
+            path=Path("reports") / "test-quality.md",
+            kind="markdown",
+            schema_version="entroping.test-quality.md",
         ),
         _EvidenceArtifactDefinition(
             id="artifact-manifest-json",
@@ -371,6 +387,21 @@ def _agent_bundle_summary(document: dict[str, object]) -> str:
     if manifests is None or findings is None:
         return status
     return f"{status}, {manifests} manifests, {findings} findings"
+
+
+def _test_quality_summary(document: dict[str, object]) -> str:
+    summary = _object_field(document, "summary")
+    status = _allowed_status(
+        summary.get("status"),
+        allowed=("pass", "warn", "fail", "missing"),
+        fallback="unknown",
+    )
+    score = _int_field(summary, "score")
+    generated_tests = _int_field(summary, "generated_tests")
+    findings = _int_field(summary, "findings")
+    if score is None or generated_tests is None or findings is None:
+        return status
+    return f"{status}, score {score}, {generated_tests} generated, {findings} findings"
 
 
 def _object_field(document: dict[str, object], field: str) -> dict[str, object]:
