@@ -33,6 +33,10 @@
   redacted Eye traffic now replaces secret-like URL path segments with an
   encoded redaction marker while preserving ordinary route shape and existing
   userinfo, query, and fragment protections.
+- Fixed issue #877's redacted traffic validation gap:
+  traffic persistence, session building, and direct Hurl, WireMock, and graph
+  compilers now fail closed when records marked redacted still contain obvious
+  secret-like content, reporting only value-free unsafe locations.
 - Fixed issue #836's GitHub annotation artifact error handling:
   unreadable JUnit XML or drift JSON report paths now raise controlled
   `GitHubAnnotationError` messages instead of leaking raw filesystem
