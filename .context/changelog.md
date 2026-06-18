@@ -2,6 +2,11 @@
 
 ## 2026-06-18
 
+- Fixed issue #875's bug-report Markdown injection gap:
+  Markdown bug reports now render project, environment, test, status, exit-code,
+  and rule-id summary fields as adaptive inline-code literals with control
+  escapes, and fenced output replaces non-printable controls with explicit
+  markers before writing local bug handoff evidence.
 - Fixed issue #878's OpenAPI vendor JSON media gap:
   OpenAPI-to-Hurl generation now treats exact `application/json` and
   `application/*+json` request/response content as JSON for supported schema
