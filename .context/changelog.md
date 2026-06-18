@@ -2,6 +2,10 @@
 
 ## 2026-06-18
 
+- Fixed issue #836's GitHub annotation artifact error handling:
+  unreadable JUnit XML or drift JSON report paths now raise controlled
+  `GitHubAnnotationError` messages instead of leaking raw filesystem
+  exceptions, while missing report artifacts still produce no annotations.
 - Added issue #775's architecture-gate OpenCode readiness check:
   `scripts/opencode_readiness.py` now requires
   `scripts/architecture_integrity.sh` and verifies its value-free help surface
