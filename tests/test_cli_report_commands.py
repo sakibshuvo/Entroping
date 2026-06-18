@@ -1734,6 +1734,27 @@ def test_report_sarif_accepts_custom_output_and_traceability(
     ]
 
 
+@pytest.mark.security
+@pytest.mark.regression
+def test_report_sarif_rejects_outside_project_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    monkeypatch.chdir(project_root)
+    output = tmp_path / "outside.sarif"
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "sarif", "--output", str(output)],
+    )
+
+    assert result.exit_code == 1
+    assert "SARIF report path must stay under" in result.output
+    assert not output.exists()
+
+
 def test_report_sarif_wraps_report_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

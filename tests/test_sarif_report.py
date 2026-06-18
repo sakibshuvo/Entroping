@@ -233,6 +233,25 @@ def test_run_sarif_report_accepts_absolute_inputs_and_output(tmp_path: Path) -> 
     assert result.report.runs[0].results[0].rule_id == "entroping.hurl.failure"
 
 
+@pytest.mark.security
+@pytest.mark.regression
+def test_run_sarif_report_rejects_outside_project_output(tmp_path: Path) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    output = tmp_path / "outside.sarif"
+
+    with pytest.raises(SarifReportError, match="SARIF report path must stay under"):
+        run_sarif_report(
+            project_root=project_root,
+            output_path=output,
+            junit_path=project_root / "reports" / "missing-junit.xml",
+            drift_path=project_root / "reports" / "missing-drift.json",
+            include_traceability=False,
+        )
+
+    assert not output.exists()
+
+
 @pytest.mark.parametrize(
     "payload",
     [

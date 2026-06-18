@@ -1490,3 +1490,8 @@
   outside-root paths, parent traversal, Windows drive prefixes, or empty/dot
   references, while preserving safe relative Hurl paths and traceability paths
   discovered under the current project root.
+- Closed issue #847's SARIF output root-boundary gap: `entroping report sarif`
+  now writes through the existing safe artifact writer with the project root
+  bound, rejecting absolute outside-project output paths without creating a
+  partial SARIF artifact while preserving default and in-project custom
+  outputs.
