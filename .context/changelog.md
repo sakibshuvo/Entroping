@@ -1478,3 +1478,6 @@
 - Closed issue #872's traceability badge evidence gap: non-missing traceability
   findings now count as unresolved evidence in the story-link badge denominator,
   so duplicate document/story findings cannot produce a brightgreen 100% badge.
+- Closed issue #863's policy-pack source-binding gap: manifest gate files now
+  must match the loaded QAnstitution source file for each declared gate, so
+  unrelated existing files cannot satisfy policy-pack self-test or vendoring.
