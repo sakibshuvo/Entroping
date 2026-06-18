@@ -1,7 +1,7 @@
 """Filesystem-backed QAnstitution loading and local import merging."""
 
 from collections.abc import Mapping
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from urllib.parse import urlparse
 
 import yaml
@@ -167,6 +167,11 @@ def _resolve_import(import_ref: str, base_dir: Path, root_dir: Path) -> Path:
         msg = "QAnstitution import path must not contain control characters"
         raise QanstitutionLoadError(msg)
 
+    import_path = Path(import_ref).expanduser()
+    if import_path.is_absolute() or PureWindowsPath(import_ref).is_absolute():
+        msg = f"QAnstitution import path must be relative: {import_ref}"
+        raise QanstitutionLoadError(msg)
+
     parsed = urlparse(import_ref)
     if parsed.scheme in {"http", "https"}:
         msg = (
@@ -178,14 +183,8 @@ def _resolve_import(import_ref: str, base_dir: Path, root_dir: Path) -> Path:
         msg = f"Unsupported QAnstitution import scheme {parsed.scheme!r}: {import_ref}"
         raise QanstitutionLoadError(msg)
 
-    raw_candidate = (base_dir / import_ref).expanduser()
-    symlink_component = None
-    if raw_candidate.is_relative_to(root_dir):
-        symlink_component = first_symlink_path_component(raw_candidate, root=root_dir)
-    else:
-        symlink_component = _first_symlink_path_component_from_local_boundary(
-            raw_candidate
-        )
+    raw_candidate = (base_dir / import_path).expanduser()
+    symlink_component = first_symlink_path_component(raw_candidate, root=root_dir)
     if symlink_component is not None:
         msg = f"Import {import_ref!r} must not use symlinks: {symlink_component}"
         raise QanstitutionLoadError(msg)

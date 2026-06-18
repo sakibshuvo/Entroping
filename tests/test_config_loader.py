@@ -678,6 +678,9 @@ def test_load_qanstitution_rejects_adversarial_authoring_shapes(
     ("import_ref", "message"),
     [
         ("file:///etc/passwd", "Unsupported QAnstitution import scheme"),
+        ("C:\\Windows\\policy.yaml", "must be relative"),
+        ("\\\\server\\share\\policy.yaml", "must be relative"),
+        ("~/policy.yaml", "must be relative"),
         ("rules/bad\x00policy.yaml", "must not contain control characters"),
     ],
 )
@@ -705,7 +708,20 @@ def test_load_qanstitution_rejects_existing_absolute_import_outside_root(
         {"project": "checkout-api", "imports": [str(outside)]},
     )
 
-    with pytest.raises(QanstitutionLoadError, match="outside the QAnstitution root"):
+    with pytest.raises(QanstitutionLoadError, match="must be relative"):
+        load_qanstitution(tmp_path / "project" / "qanstitution.yaml")
+
+
+def test_load_qanstitution_rejects_absolute_import_inside_root(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    imported = project / "rules" / "security.yaml"
+    write_document(imported, {"project": "inside"})
+    write_document(
+        project / "qanstitution.yaml",
+        {"project": "checkout-api", "imports": [str(imported)]},
+    )
+
+    with pytest.raises(QanstitutionLoadError, match="must be relative"):
         load_qanstitution(tmp_path / "project" / "qanstitution.yaml")
 
 
@@ -721,7 +737,7 @@ def test_load_qanstitution_rejects_absolute_import_symlink_resolving_inside_root
         {"project": "checkout-api", "imports": [str(outside_link)]},
     )
 
-    with pytest.raises(QanstitutionLoadError, match="must not use symlinks"):
+    with pytest.raises(QanstitutionLoadError, match="must be relative"):
         load_qanstitution(project / "qanstitution.yaml")
 
 
@@ -737,7 +753,7 @@ def test_load_qanstitution_rejects_absolute_import_symlinked_ancestor(
         {"project": "checkout-api", "imports": [str(outside_project / "rules" / "security.yaml")]},
     )
 
-    with pytest.raises(QanstitutionLoadError, match="must not use symlinks"):
+    with pytest.raises(QanstitutionLoadError, match="must be relative"):
         load_qanstitution(project / "qanstitution.yaml")
 
 
