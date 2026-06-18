@@ -2,6 +2,10 @@
 
 ## 2026-06-18
 
+- Fixed issue #842's traffic-to-Hurl request method boundary:
+  freeze-generated Hurl now validates and normalizes request methods during
+  compilation, rejecting control characters, whitespace, and Hurl template
+  delimiters even when traffic model validation was bypassed.
 - Fixed issue #844's traffic URL fragment redaction gap:
   redacted Eye traffic now strips URL fragments before persistence so
   fragment-borne OAuth or token-like values cannot survive in traffic state,

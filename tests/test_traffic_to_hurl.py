@@ -321,3 +321,53 @@ def test_compile_traffic_session_rejects_unsafe_filename_and_line_values() -> No
     )
     with pytest.raises(TrafficHurlCompilationError, match="header 'X-Trace' contains control"):
         compile_traffic_session_to_hurl(unsafe_session, golden=False)
+
+
+@pytest.mark.parametrize(
+    ("method", "message"),
+    [
+        ("GET\nPOST", "request method contains control"),
+        ("GET POST", "request method must be an HTTP token"),
+        ("GET{{template}}", "request method contains Hurl template"),
+    ],
+)
+def test_compile_traffic_session_rejects_unsafe_request_methods(
+    method: str,
+    message: str,
+) -> None:
+    safe = build_traffic_session_candidate([_exchange()], name="safe", target_url=None)
+    unsafe_request = TrafficRequest.model_construct(
+        method=method,
+        url="https://api.example.test/checkout",
+        headers={},
+        body=None,
+    )
+    unsafe_exchange = safe.records[0].exchange.model_copy(update={"request": unsafe_request})
+    unsafe_session = TrafficSessionCandidate(
+        name="unsafe_method",
+        target_origin=None,
+        records=(TrafficSessionRecord(exchange=unsafe_exchange, role="observed"),),
+    )
+
+    with pytest.raises(TrafficHurlCompilationError, match=message):
+        compile_traffic_session_to_hurl(unsafe_session, golden=False)
+
+
+def test_compile_traffic_session_normalizes_valid_constructed_request_method() -> None:
+    safe = build_traffic_session_candidate([_exchange()], name="safe", target_url=None)
+    constructed_request = TrafficRequest.model_construct(
+        method="get",
+        url="https://api.example.test/checkout",
+        headers={},
+        body=None,
+    )
+    exchange = safe.records[0].exchange.model_copy(update={"request": constructed_request})
+    session = TrafficSessionCandidate(
+        name="valid_method",
+        target_origin=None,
+        records=(TrafficSessionRecord(exchange=exchange, role="observed"),),
+    )
+
+    generated = compile_traffic_session_to_hurl(session, golden=False)
+
+    assert "GET https://api.example.test/checkout" in generated.content
