@@ -295,15 +295,16 @@ def render_bug_report(report: RunReport) -> str:
         return "No failing Entroping run is available for bug report generation.\n"
 
     primary = failing[0]
+    rule_ids = ", ".join(primary.rule_ids) if primary.rule_ids else "none"
     sections = [
         "# Entroping Failure Report",
         "",
-        f"- Project: {report.project}",
-        f"- Environment: {report.environment}",
-        f"- Test: {primary.path}",
-        f"- Status: {primary.status}",
-        f"- Exit code: {primary.exit_code}",
-        f"- Rule IDs: {', '.join(primary.rule_ids) if primary.rule_ids else 'none'}",
+        f"- Project: {_markdown_literal(report.project)}",
+        f"- Environment: {_markdown_literal(report.environment)}",
+        f"- Test: {_markdown_literal(primary.path)}",
+        f"- Status: {_markdown_literal(primary.status)}",
+        f"- Exit code: {_markdown_literal(primary.exit_code)}",
+        f"- Rule IDs: {_markdown_literal(rule_ids)}",
         "",
         "## Reproduce",
         "",
@@ -317,6 +318,34 @@ def render_bug_report(report: RunReport) -> str:
         "",
     ]
     return "\n".join(sections)
+
+
+def _markdown_literal(value: object) -> str:
+    text = _markdown_inline_text(str(value))
+    if text.startswith(" ") and text.endswith(" "):
+        text = f" {text} "
+    ticks = "`" * (_longest_backtick_run(text) + 1)
+    return f"{ticks}{text}{ticks}"
+
+
+def _markdown_inline_text(text: str) -> str:
+    pieces: list[str] = []
+    for character in text:
+        if character == "\n":
+            pieces.append(r"\n")
+        elif character == "\r":
+            pieces.append(r"\r")
+        elif character == "\t":
+            pieces.append(r"\t")
+        elif _is_printable_markdown_character(character):
+            pieces.append(character)
+        else:
+            pieces.append(_markdown_inline_control_escape(character))
+    return "".join(pieces)
+
+
+def _markdown_inline_control_escape(character: str) -> str:
+    return f"\\u{ord(character):04x}"
 
 
 def _html_test_row(test: RunTestReport) -> str:
@@ -447,12 +476,35 @@ def _is_xml_character(character: str) -> bool:
 
 
 def _markdown_code_block(content: str, *, language: str = "") -> str:
+    content = _markdown_block_text(content)
     fence = _markdown_fence_for(content)
     info = language if language else ""
     return f"{fence}{info}\n{content}\n{fence}"
 
 
+def _markdown_block_text(text: str) -> str:
+    return "".join(
+        character
+        if _is_printable_markdown_character(character)
+        else _markdown_block_control_marker(character)
+        for character in text
+    )
+
+
+def _markdown_block_control_marker(character: str) -> str:
+    return f"<U+{ord(character):04X}>"
+
+
+def _is_printable_markdown_character(character: str) -> bool:
+    codepoint = ord(character)
+    return character in {"\n", "\r", "\t"} or (0x20 <= codepoint <= 0x10FFFF and codepoint != 0x7F)
+
+
 def _markdown_fence_for(content: str) -> str:
+    return "`" * max(3, _longest_backtick_run(content) + 1)
+
+
+def _longest_backtick_run(content: str) -> int:
     longest_run = 0
     current_run = 0
     for character in content:
@@ -461,7 +513,7 @@ def _markdown_fence_for(content: str) -> str:
             longest_run = max(longest_run, current_run)
         else:
             current_run = 0
-    return "`" * max(3, longest_run + 1)
+    return longest_run
 
 
 def _known_failure_summary(known_failure: KnownFailureEvidence) -> str:

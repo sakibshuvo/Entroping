@@ -1776,6 +1776,79 @@ def test_render_bug_report_uses_fence_longer_than_captured_output(
     assert captured_output.strip() in output_section
 
 
+def test_render_bug_report_quotes_structural_markdown_fields() -> None:
+    report = RunReport(
+        project=" checkout-api\n## forged project [link](https://evil.test) ",
+        environment="local\r\t\x00\n## forged environment <script>alert(1)</script>",
+        generated_at="2026-06-01T00:00:00+00:00",
+        summary=RunReportSummary(total=1, passed=0, failed=1, exit_code=1),
+        tests=(
+            RunTestReport(
+                path="tests/checkout`danger`.hurl\n## forged test",
+                execution_path=".entroping/run-1/checkout.hurl",
+                status="failed\n## forged status",
+                exit_code=1,
+                duration_ms=50,
+                rule_ids=("[global_latency](https://evil.test)\n## forged rule",),
+                stdout="",
+                stderr="assert failed\n",
+            ),
+        ),
+    )
+
+    bug = render_bug_report(report)
+
+    summary_section = bug.split("## Output\n\n", maxsplit=1)[0]
+    assert (
+        "- Project: `  checkout-api\\n## forged project [link](https://evil.test)  `"
+        in summary_section
+    )
+    assert (
+        "- Environment: `local\\r\\t\\u0000\\n## forged environment <script>alert(1)</script>`"
+        in summary_section
+    )
+    assert "- Test: ``tests/checkout`danger`.hurl\\n## forged test``" in summary_section
+    assert "- Status: `failed\\n## forged status`" in summary_section
+    assert (
+        "- Rule IDs: `[global_latency](https://evil.test)\\n## forged rule`"
+        in summary_section
+    )
+    assert "\n## forged project" not in summary_section
+    assert "\n## forged environment" not in summary_section
+    assert "\n## forged test" not in summary_section
+    assert "\n## forged status" not in summary_section
+    assert "\n## forged rule" not in summary_section
+
+
+def test_render_bug_report_replaces_nonprintable_output_controls() -> None:
+    report = RunReport(
+        project="checkout-api",
+        environment="local",
+        generated_at="2026-06-01T00:00:00+00:00",
+        summary=RunReportSummary(total=1, passed=0, failed=1, exit_code=1),
+        tests=(
+            RunTestReport(
+                path="tests/control.hurl",
+                execution_path=".entroping/run-1/control.hurl",
+                status="failed",
+                exit_code=1,
+                duration_ms=50,
+                rule_ids=("global_latency",),
+                stdout="before\x00after",
+                stderr="red\x1b[31m\n",
+            ),
+        ),
+    )
+
+    bug = render_bug_report(report)
+
+    output_section = bug.split("## Output\n\n", maxsplit=1)[1]
+    assert "\x00" not in output_section
+    assert "\x1b" not in output_section
+    assert "before<U+0000>after" in output_section
+    assert "red<U+001B>[31m" in output_section
+
+
 def test_write_bug_report_writes_failure_markdown(tmp_path: Path) -> None:
     source = tmp_path / "tests" / "health.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
