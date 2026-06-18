@@ -84,8 +84,37 @@ def test_build_coverage_badges_from_existing_reports() -> None:
     }
     assert badges[1].payload["message"] == "3/4 (75%)"
     assert badges[1].payload["color"] == "green"
-    assert badges[2].payload["message"] == "2/3 (67%)"
+    assert badges[2].payload["message"] == "2/4 (50%)"
     assert badges[2].payload["color"] == "yellow"
+
+
+def test_traceability_badge_counts_non_missing_findings_as_uncovered_evidence() -> None:
+    badges = build_coverage_badges(
+        run_report={"schema_version": "entroping.run-report.v1", "tests": []},
+        policy_report={
+            "schema_version": "entroping.effective-policy-report.v1",
+            "gates": [],
+        },
+        openapi_report={
+            "schema_version": "entroping.openapi-audit.v1",
+            "summary": {"total_operations": 0, "covered_operations": 0},
+        },
+        traceability_report={
+            "schema_version": "entroping.traceability-report.v1",
+            "stories": [{"story_id": "CHK-001", "test_paths": ["tests/checkout.hurl"]}],
+            "findings": [
+                {
+                    "kind": "duplicate_doc_url",
+                    "doc_url": "https://docs.example/checkout",
+                    "story_ids": ["CHK-001", "CHK-002"],
+                },
+            ],
+        },
+    )
+
+    traceability_badge = badges[2].payload
+    assert traceability_badge["message"] == "1/2 (50%)"
+    assert traceability_badge["color"] == "yellow"
 
 
 def test_build_coverage_badges_rejects_malformed_source_reports() -> None:
