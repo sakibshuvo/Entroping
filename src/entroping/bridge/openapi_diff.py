@@ -14,6 +14,8 @@ from typing import Literal
 from entroping.bridge.openapi_to_hurl import OpenApiCompilationError
 
 _HTTP_METHODS = frozenset({"get", "post", "put", "patch", "delete", "head", "options", "trace"})
+_MAX_OPENAPI_JSON_DEPTH = 64
+_MAX_OPENAPI_JSON_NODES = 10_000
 OpenApiOperationChangeType = Literal["added", "modified", "renamed", "removed"]
 OpenApiBreakingDiffSeverity = Literal["info", "warning", "error"]
 OPENAPI_BREAKING_DIFF_SCHEMA_VERSION = "entroping.openapi-breaking-diff.v1"
@@ -130,6 +132,13 @@ class _ResponseSchema:
 class _RequestBodyShape:
     required: bool
     required_fields: frozenset[str]
+
+
+@dataclass(slots=True)
+class _JsonTraversalBudget:
+    """Mutable traversal budget for untrusted OpenAPI operation payloads."""
+
+    nodes: int = 0
 
 
 def detect_openapi_operation_changes(
@@ -976,11 +985,20 @@ def _operation_fingerprint(
     normalized_operation = {
         key: value for key, value in operation.items() if key != "operationId"
     }
+    budget = _JsonTraversalBudget()
     payload = {
         "method": method,
         "path": path,
-        "path_context": _ensure_json_value(path_context, context=f"{method} {path} path item"),
-        "operation": _ensure_json_value(normalized_operation, context=f"{method} {path} operation"),
+        "path_context": _ensure_json_value(
+            path_context,
+            context=f"{method} {path} path item",
+            budget=budget,
+        ),
+        "operation": _ensure_json_value(
+            normalized_operation,
+            context=f"{method} {path} operation",
+            budget=budget,
+        ),
     }
     return json.dumps(payload, allow_nan=False, separators=(",", ":"), sort_keys=True)
 
@@ -1025,7 +1043,15 @@ def _ensure_string_keys(value: Mapping[object, object], *, context: str) -> Mapp
     return normalized
 
 
-def _ensure_json_value(value: object, *, context: str) -> object:
+def _ensure_json_value(
+    value: object,
+    *,
+    context: str,
+    depth: int = 0,
+    budget: _JsonTraversalBudget | None = None,
+) -> object:
+    budget = budget or _JsonTraversalBudget()
+    _check_openapi_json_budget(depth=depth, budget=budget, context=context)
     if value is None or isinstance(value, str | bool | int):
         if isinstance(value, str) and _has_control(value):
             msg = f"{context} contains control characters"
@@ -1037,15 +1063,38 @@ def _ensure_json_value(value: object, *, context: str) -> object:
             raise OpenApiCompilationError(msg)
         return value
     if isinstance(value, Sequence) and not isinstance(value, str | bytes):
-        return [_ensure_json_value(item, context=context) for item in value]
+        return [
+            _ensure_json_value(item, context=context, depth=depth + 1, budget=budget)
+            for item in value
+        ]
     if isinstance(value, Mapping):
         normalized = _ensure_string_keys(value, context=context)
         return {
-            key: _ensure_json_value(item, context=f"{context}.{key}")
+            key: _ensure_json_value(
+                item,
+                context=f"{context}.{key}",
+                depth=depth + 1,
+                budget=budget,
+            )
             for key, item in normalized.items()
         }
     msg = f"{context} must be JSON-compatible"
     raise OpenApiCompilationError(msg)
+
+
+def _check_openapi_json_budget(
+    *,
+    depth: int,
+    budget: _JsonTraversalBudget,
+    context: str,
+) -> None:
+    if depth > _MAX_OPENAPI_JSON_DEPTH:
+        msg = f"{context} JSON depth exceeds {_MAX_OPENAPI_JSON_DEPTH}"
+        raise OpenApiCompilationError(msg)
+    budget.nodes += 1
+    if budget.nodes > _MAX_OPENAPI_JSON_NODES:
+        msg = f"{context} JSON traversal exceeds {_MAX_OPENAPI_JSON_NODES} nodes"
+        raise OpenApiCompilationError(msg)
 
 
 def _has_control(value: str) -> bool:

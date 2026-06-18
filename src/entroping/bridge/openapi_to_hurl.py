@@ -18,6 +18,11 @@ _HTTP_TOKEN_RE = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
 _PARAMETER_LOCATIONS = frozenset({"path", "query", "header", "cookie"})
 _READ_ONLY_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 _VALIDATION_FAILURE_STATUSES = ("400", "422")
+_MAX_OPENAPI_SCHEMA_DEPTH = 64
+_MAX_OPENAPI_SCHEMA_NODES = 10_000
+_MAX_OPENAPI_JSON_DEPTH = 64
+_MAX_OPENAPI_JSON_NODES = 10_000
+_MAX_OPENAPI_GENERATED_STRING_LENGTH = 4096
 _SENSITIVE_VARIABLE_PARTS = (
     "access_token",
     "api_key",
@@ -101,6 +106,13 @@ class _NegativePathCase:
     severity: str
     target: str
     body: object | str
+
+
+@dataclass(slots=True)
+class _TraversalBudget:
+    """Mutable traversal budget for untrusted OpenAPI structures."""
+
+    nodes: int = 0
 
 
 def compile_openapi_to_hurl(
@@ -605,10 +617,16 @@ def _boundary_violation_value(schema: Mapping[str, object]) -> object:
     if schema_type == "string":
         min_length = schema.get("minLength")
         if isinstance(min_length, int) and not isinstance(min_length, bool) and min_length > 0:
-            return "x" * (min_length - 1)
+            return _generated_string(
+                min_length - 1,
+                context="OpenAPI string boundary violation",
+            )
         max_length = schema.get("maxLength")
         if isinstance(max_length, int) and not isinstance(max_length, bool) and max_length >= 0:
-            return "x" * (max_length + 1)
+            return _generated_string(
+                max_length + 1,
+                context="OpenAPI string boundary violation",
+            )
     if schema_type in {"integer", "number"}:
         minimum = schema.get("minimum")
         if isinstance(minimum, int | float) and not isinstance(minimum, bool):
@@ -1210,8 +1228,20 @@ def _first_enum_value(schema: Mapping[str, object]) -> str | int | float | bool 
     return None
 
 
-def _example_for_schema(schema: Mapping[str, object]) -> object:
-    preferred = _schema_preferred_value(schema, context="OpenAPI schema")
+def _example_for_schema(
+    schema: Mapping[str, object],
+    *,
+    depth: int = 0,
+    budget: _TraversalBudget | None = None,
+) -> object:
+    budget = budget or _TraversalBudget()
+    _check_openapi_schema_budget(depth=depth, budget=budget, context="OpenAPI schema")
+    preferred = _schema_preferred_value(
+        schema,
+        context="OpenAPI schema",
+        depth=depth,
+        budget=budget,
+    )
     if preferred is not _MISSING:
         return preferred
 
@@ -1224,7 +1254,9 @@ def _example_for_schema(schema: Mapping[str, object]) -> object:
                 field_name,
                 context="OpenAPI object required",
             ): _example_for_schema(
-                _ensure_mapping(properties.get(field_name, {}), f"schema for {field_name!r}")
+                _ensure_mapping(properties.get(field_name, {}), f"schema for {field_name!r}"),
+                depth=depth + 1,
+                budget=budget,
             )
             for field_name in required
         }
@@ -1243,7 +1275,7 @@ def _example_for_schema(schema: Mapping[str, object]) -> object:
     if schema_type == "string":
         min_length = schema.get("minLength")
         if isinstance(min_length, int) and not isinstance(min_length, bool) and min_length > 0:
-            return "x" * min_length
+            return _generated_string(min_length, context="OpenAPI string schema example")
         max_length = schema.get("maxLength")
         if (
             isinstance(max_length, int)
@@ -1251,24 +1283,51 @@ def _example_for_schema(schema: Mapping[str, object]) -> object:
             and max_length >= 0
             and max_length < len("string")
         ):
-            return "x" * max_length
+            return _generated_string(max_length, context="OpenAPI string schema example")
     return "string"
 
 
-def _schema_preferred_value(schema: Mapping[str, object], *, context: str) -> object:
+def _schema_preferred_value(
+    schema: Mapping[str, object],
+    *,
+    context: str,
+    depth: int = 0,
+    budget: _TraversalBudget | None = None,
+) -> object:
+    budget = budget or _TraversalBudget()
     if "example" in schema:
-        return _ensure_json_value(schema["example"], context=f"{context} example")
+        return _ensure_json_value(
+            schema["example"],
+            context=f"{context} example",
+            depth=depth,
+            budget=budget,
+        )
 
     examples_value = schema.get("examples", _MISSING)
     if examples_value is not _MISSING:
-        extracted = _first_example_value(examples_value, context=f"{context} examples")
+        extracted = _first_example_value(
+            examples_value,
+            context=f"{context} examples",
+            depth=depth,
+            budget=budget,
+        )
         if extracted is not _MISSING:
             return extracted
 
     if "default" in schema:
-        return _ensure_json_value(schema["default"], context=f"{context} default")
+        return _ensure_json_value(
+            schema["default"],
+            context=f"{context} default",
+            depth=depth,
+            budget=budget,
+        )
     if "const" in schema:
-        return _ensure_json_value(schema["const"], context=f"{context} const")
+        return _ensure_json_value(
+            schema["const"],
+            context=f"{context} const",
+            depth=depth,
+            budget=budget,
+        )
 
     enum_value = _first_enum_value(schema)
     if enum_value is not None:
@@ -1276,23 +1335,42 @@ def _schema_preferred_value(schema: Mapping[str, object], *, context: str) -> ob
     return _MISSING
 
 
-def _first_example_value(value: object, *, context: str) -> object:
+def _first_example_value(
+    value: object,
+    *,
+    context: str,
+    depth: int,
+    budget: _TraversalBudget,
+) -> object:
     if isinstance(value, Sequence) and not isinstance(value, str | bytes):
         for item in value:
-            return _ensure_json_value(item, context=context)
+            return _ensure_json_value(item, context=context, depth=depth, budget=budget)
         return _MISSING
     if isinstance(value, Mapping):
         normalized = _ensure_mapping(value, context)
         for item in normalized.values():
             example = _ensure_mapping(item, f"{context} item")
             if "value" in example:
-                return _ensure_json_value(example["value"], context=context)
+                return _ensure_json_value(
+                    example["value"],
+                    context=context,
+                    depth=depth,
+                    budget=budget,
+                )
         return _MISSING
     msg = f"{context} must be a list or mapping"
     raise OpenApiCompilationError(msg)
 
 
-def _ensure_json_value(value: object, *, context: str) -> object:
+def _ensure_json_value(
+    value: object,
+    *,
+    context: str,
+    depth: int = 0,
+    budget: _TraversalBudget | None = None,
+) -> object:
+    budget = budget or _TraversalBudget()
+    _check_openapi_json_budget(depth=depth, budget=budget, context=context)
     if value is None:
         return value
     if isinstance(value, str):
@@ -1309,18 +1387,60 @@ def _ensure_json_value(value: object, *, context: str) -> object:
     if isinstance(value, int | float | bool):
         return value
     if isinstance(value, Sequence) and not isinstance(value, str | bytes):
-        return [_ensure_json_value(item, context=context) for item in value]
+        return [
+            _ensure_json_value(item, context=context, depth=depth + 1, budget=budget)
+            for item in value
+        ]
     if isinstance(value, Mapping):
         normalized = _ensure_mapping(value, context)
         return {
             _validate_json_object_key(key, context=context): _ensure_json_value(
                 item,
                 context=f"{context}.{key}",
+                depth=depth + 1,
+                budget=budget,
             )
             for key, item in normalized.items()
         }
     msg = f"{context} must be JSON-compatible"
     raise OpenApiCompilationError(msg)
+
+
+def _generated_string(length: int, *, context: str) -> str:
+    if length > _MAX_OPENAPI_GENERATED_STRING_LENGTH:
+        msg = f"{context} string length exceeds {_MAX_OPENAPI_GENERATED_STRING_LENGTH}"
+        raise OpenApiCompilationError(msg)
+    return "x" * length
+
+
+def _check_openapi_schema_budget(
+    *,
+    depth: int,
+    budget: _TraversalBudget,
+    context: str,
+) -> None:
+    if depth > _MAX_OPENAPI_SCHEMA_DEPTH:
+        msg = f"{context} schema depth exceeds {_MAX_OPENAPI_SCHEMA_DEPTH}"
+        raise OpenApiCompilationError(msg)
+    budget.nodes += 1
+    if budget.nodes > _MAX_OPENAPI_SCHEMA_NODES:
+        msg = f"{context} schema traversal exceeds {_MAX_OPENAPI_SCHEMA_NODES} nodes"
+        raise OpenApiCompilationError(msg)
+
+
+def _check_openapi_json_budget(
+    *,
+    depth: int,
+    budget: _TraversalBudget,
+    context: str,
+) -> None:
+    if depth > _MAX_OPENAPI_JSON_DEPTH:
+        msg = f"{context} JSON depth exceeds {_MAX_OPENAPI_JSON_DEPTH}"
+        raise OpenApiCompilationError(msg)
+    budget.nodes += 1
+    if budget.nodes > _MAX_OPENAPI_JSON_NODES:
+        msg = f"{context} JSON traversal exceeds {_MAX_OPENAPI_JSON_NODES} nodes"
+        raise OpenApiCompilationError(msg)
 
 
 def _operation_id(operation: Mapping[str, object], *, method: str, path: str) -> str:
