@@ -290,6 +290,33 @@ gates:
         load_qanstitution(tmp_path / "qanstitution.yaml")
 
 
+def test_load_qanstitution_rejects_normalized_gate_group_name_collision(
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / "qanstitution.yaml"
+    write_yaml(
+        config_path,
+        """
+project: checkout-api
+gate_groups:
+  " api ":
+    gates: []
+  api:
+    gates: []
+gates:
+  - group: api
+""",
+    )
+
+    with pytest.raises(
+        QanstitutionLoadError,
+        match="duplicate gate group name after normalization: ' api ' and 'api'",
+    ) as exc_info:
+        load_qanstitution(config_path)
+
+    assert str(config_path) in str(exc_info.value)
+
+
 def test_load_qanstitution_gate_group_imports_preserve_final_semantics(
     tmp_path: Path,
 ) -> None:

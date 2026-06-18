@@ -518,11 +518,20 @@ def _parse_gate_groups(raw_gate_groups: object) -> dict[str, GateGroup]:
         raise ValueError(msg)
 
     gate_groups: dict[str, GateGroup] = {}
+    raw_names_by_normalized_name: dict[str, str] = {}
     for raw_name, raw_group in raw_gate_groups.items():
         if not isinstance(raw_name, str):
             msg = "gate group names must be strings"
             raise ValueError(msg)
         name = _validate_gate_group_name(raw_name)
+        previous_raw_name = raw_names_by_normalized_name.get(name)
+        if previous_raw_name is not None:
+            msg = (
+                "duplicate gate group name after normalization: "
+                f"{previous_raw_name!r} and {raw_name!r}"
+            )
+            raise ValueError(msg)
+        raw_names_by_normalized_name[name] = raw_name
         gate_groups[name] = GateGroup.model_validate(raw_group)
     return gate_groups
 
