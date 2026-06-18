@@ -1456,3 +1456,6 @@
   such as blocked, timeout, and error now stay in sanitized Hurl metadata, and
   bundle creation uses manifest-ready evidence instead of trusting
   `summary.failed` alone.
+- Closed issue #870's run-delta path-safety gap: report test paths are now
+  rejected before delta rendering when they are absolute, Windows drive/UNC
+  paths, parent traversals, empty, or contain control characters.
