@@ -2,6 +2,11 @@
 
 ## 2026-06-18
 
+- Fixed issue #880's OpenAPI array-query parameter gap:
+  OpenAPI-to-Hurl generation now supports deterministic `style: form`
+  query-array defaults/examples for exploded and non-exploded encodings, while
+  unsupported array parameter forms fail with explicit guidance instead of the
+  generic scalar-only error.
 - Fixed issue #881's WireMock query matching gap:
   `freeze --mock` now emits deterministic WireMock query parameter matchers
   from redacted traffic, preserving exact non-sensitive query values while
