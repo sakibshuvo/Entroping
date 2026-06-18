@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from entroping.bridge.traffic_sessions import TrafficSessionCandidate, TrafficSessionRecord
 from entroping.models.secrets import REDACTED, is_sensitive_key
 from entroping.models.traffic import TrafficBody, TrafficResponse
+from entroping.models.traffic_redaction import redacted_traffic_violation_summary
 
 _SAFE_FILE_STEM_RE = re.compile(r"[^A-Za-z0-9_.-]+")
 _HTTP_METHOD_TOKEN_RE = re.compile(r"^[A-Z]+(?:-[A-Z]+)*$")
@@ -116,6 +117,9 @@ def _render_record(record: TrafficSessionRecord, *, golden: bool) -> list[str]:
     if not exchange.redacted:
         msg = "traffic-to-Hurl compilation requires redacted traffic"
         raise TrafficHurlCompilationError(msg)
+    violation_summary = redacted_traffic_violation_summary(exchange)
+    if violation_summary is not None:
+        raise TrafficHurlCompilationError(violation_summary)
     if exchange.response is None:
         msg = "traffic-to-Hurl compilation requires response records"
         raise TrafficHurlCompilationError(msg)
@@ -195,7 +199,8 @@ def _golden_assertions(response: TrafficResponse) -> list[str]:
     content_type = _header_value(response.headers, "content-type")
     if content_type is not None and _is_textual_content_type(content_type):
         media_type = _media_type(content_type)
-        assertions.append(f'header "Content-Type" contains "{media_type}"')
+        if _safe_assertion_text(media_type):
+            assertions.append(f'header "Content-Type" contains "{media_type}"')
 
     body = response.body
     if (
@@ -316,6 +321,10 @@ def _safe_hurl_line_value(value: str, context: str) -> str:
         msg = f"{context} contains Hurl template delimiters"
         raise TrafficHurlCompilationError(msg)
     return value
+
+
+def _safe_assertion_text(value: str) -> bool:
+    return not (_contains_control(value) or _has_hurl_template_delimiter(value))
 
 
 def _contains_control(value: str) -> bool:

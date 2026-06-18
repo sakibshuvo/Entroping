@@ -147,6 +147,24 @@ def test_compile_traffic_session_to_wiremock_rejects_empty_or_unredacted_session
         compile_traffic_session_to_wiremock(unsafe_session, service="payments")
 
 
+def test_compile_traffic_session_to_wiremock_rejects_secret_like_content() -> None:
+    token = "sk-proj-" + ("a" * 24)
+    unsafe_exchange = _exchange(response_body=f'{{"token":"{token}"}}')
+    unsafe_session = build_traffic_session_candidate([], name="unsafe", target_url=None).__class__(
+        name="unsafe",
+        target_origin=None,
+        records=(TrafficSessionRecord(exchange=unsafe_exchange, role="observed"),),
+    )
+
+    with pytest.raises(
+        TrafficWireMockCompilationError,
+        match="unredacted secret-like traffic content",
+    ) as exc:
+        compile_traffic_session_to_wiremock(unsafe_session, service="payments")
+
+    assert token not in str(exc.value)
+
+
 def test_compile_traffic_session_to_wiremock_rejects_records_without_response() -> None:
     safe = build_traffic_session_candidate([_exchange()], name="safe", target_url=None)
     safe_record = safe.records[0]

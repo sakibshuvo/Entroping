@@ -150,6 +150,27 @@ def test_session_requires_redacted_traffic() -> None:
         )
 
 
+def test_session_rejects_redacted_exchange_with_secret_like_content() -> None:
+    token = "sk-proj-" + ("a" * 24)
+
+    with pytest.raises(
+        TrafficSessionError,
+        match="unredacted secret-like traffic content",
+    ) as exc:
+        build_traffic_session_candidate(
+            [
+                _exchange(
+                    url="https://api.example.test/checkout",
+                    body_text=f'{{"note":"{token}"}}',
+                )
+            ],
+            name="unsafe",
+            target_url="https://api.example.test",
+        )
+
+    assert token not in str(exc.value)
+
+
 @pytest.mark.parametrize(
     ("name", "message"),
     [

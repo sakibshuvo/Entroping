@@ -10,6 +10,7 @@ from sqlmodel import Field, Index, Session, SQLModel, col, create_engine, select
 
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.models.traffic import TrafficExchange
+from entroping.models.traffic_redaction import redacted_traffic_violation_summary
 
 TRAFFIC_STORE_SCHEMA_VERSION = 1
 _SCHEMA_VERSION_KEY = "schema_version"
@@ -76,6 +77,10 @@ class TrafficStore:
 
         if not exchange.redacted:
             msg = "refusing to persist unredacted traffic"
+            raise TrafficStoreError(msg)
+        violation_summary = redacted_traffic_violation_summary(exchange)
+        if violation_summary is not None:
+            msg = f"refusing to persist {violation_summary}"
             raise TrafficStoreError(msg)
 
         row = TrafficEventRow(

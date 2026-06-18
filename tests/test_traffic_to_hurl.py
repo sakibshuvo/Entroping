@@ -234,6 +234,29 @@ def test_compile_traffic_session_skips_unstable_or_invalid_golden_json(response_
     assert "$.items" not in generated.content
 
 
+def test_compile_traffic_session_skips_unsafe_content_type_assertion() -> None:
+    exchange = _exchange(response_body="ok", content_type="text/plain")
+    assert exchange.response is not None
+    unsafe_response = exchange.response.model_copy(
+        update={"headers": {"Content-Type": "text/{{bad}}"}}
+    )
+    session = TrafficSessionCandidate(
+        name="unsafe_content_type",
+        target_origin=None,
+        records=(
+            TrafficSessionRecord(
+                exchange=exchange.model_copy(update={"response": unsafe_response}),
+                role="observed",
+            ),
+        ),
+    )
+
+    generated = compile_traffic_session_to_hurl(session, golden=True)
+
+    assert 'header "Content-Type"' not in generated.content
+    assert "{{bad}}" not in generated.content
+
+
 def test_compile_traffic_session_allows_missing_content_type_without_asserts() -> None:
     exchange = _exchange(response_body='{"status":"accepted"}', content_type=None)
     session = TrafficSessionCandidate(
@@ -270,6 +293,27 @@ def test_compile_traffic_session_rejects_unredacted_records() -> None:
 
     with pytest.raises(TrafficHurlCompilationError, match="requires redacted traffic"):
         compile_traffic_session_to_hurl(unsafe_session, golden=False)
+
+
+def test_compile_traffic_session_rejects_redacted_records_with_secret_like_content() -> None:
+    token = "sk-proj-" + ("a" * 24)
+    exchange = _exchange(
+        url=f"https://api.example.test/password-reset/{token}",
+        request_body=f'{{"note":"{token}"}}',
+    )
+    session = TrafficSessionCandidate(
+        name="unsafe_redacted",
+        target_origin=None,
+        records=(TrafficSessionRecord(exchange=exchange, role="observed"),),
+    )
+
+    with pytest.raises(
+        TrafficHurlCompilationError,
+        match="unredacted secret-like traffic content",
+    ) as exc:
+        compile_traffic_session_to_hurl(session, golden=False)
+
+    assert token not in str(exc.value)
 
 
 def test_compile_traffic_session_rejects_records_without_response() -> None:

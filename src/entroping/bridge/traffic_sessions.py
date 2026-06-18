@@ -7,6 +7,7 @@ from typing import Literal
 from urllib.parse import urlsplit
 
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
+from entroping.models.traffic_redaction import redacted_traffic_violation_summary
 
 TrafficRecordRole = Literal["target", "dependency", "observed"]
 
@@ -76,6 +77,9 @@ def build_traffic_session_candidate(
         if not exchange.redacted:
             msg = "requires redacted traffic"
             raise TrafficSessionError(msg)
+        violation_summary = redacted_traffic_violation_summary(exchange)
+        if violation_summary is not None:
+            raise TrafficSessionError(violation_summary)
         if _is_static_asset(exchange):
             continue
 
