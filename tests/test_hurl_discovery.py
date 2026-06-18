@@ -48,6 +48,23 @@ def test_discover_hurl_tests_recurses_and_ignores_generated_state(tmp_path: Path
     assert discovered[1].metadata.story_id == "CHK-001"
 
 
+def test_discover_hurl_tests_ignores_dot_directories_not_explicitly_named(
+    tmp_path: Path,
+) -> None:
+    visible = _write_hurl(
+        tmp_path / "tests" / "visible.hurl",
+        "# entroping: tags=visible\nGET /visible\nHTTP 200\n",
+    )
+    _write_hurl(
+        tmp_path / "tests" / ".custom-state" / "hidden.hurl",
+        "# entroping: tags=hidden\nGET /hidden\nHTTP 200\n",
+    )
+
+    discovered = discover_hurl_tests([tmp_path / "tests"])
+
+    assert [test.path for test in discovered] == [visible.resolve()]
+
+
 def test_discover_hurl_tests_filters_by_any_requested_tag(tmp_path: Path) -> None:
     checkout = _write_hurl(
         tmp_path / "tests" / "checkout.hurl",
@@ -277,6 +294,105 @@ def test_discover_hurl_tests_skips_symlinked_hurl_files(tmp_path: Path) -> None:
     discovered = discover_hurl_tests([tmp_path / "tests"])
 
     assert discovered == []
+
+
+def test_discover_hurl_tests_skips_hurl_files_under_symlinked_directories(
+    tmp_path: Path,
+) -> None:
+    local = _write_hurl(
+        tmp_path / "tests" / "local.hurl",
+        "# entroping: tags=local\nGET /local\nHTTP 200\n",
+    )
+    outside = _write_hurl(
+        tmp_path / "outside" / "external.hurl",
+        "# entroping: tags=outside\nGET /outside\nHTTP 200\n",
+    )
+    linked_directory = tmp_path / "tests" / "linked"
+    linked_directory.symlink_to(outside.parent, target_is_directory=True)
+
+    selection = discover_hurl_test_selection([tmp_path / "tests"])
+
+    assert [test.path for test in selection.tests] == [local.resolve()]
+    assert selection.discovered_count == 1
+
+
+def test_discover_hurl_tests_rejects_resolved_candidates_outside_discovery_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    outside = _write_hurl(
+        tmp_path / "outside" / "external.hurl",
+        "# entroping: tags=outside\nGET /outside\nHTTP 200\n",
+    )
+    root = tmp_path / "tests"
+    root.mkdir()
+    linked_directory = root / "linked"
+    linked_directory.symlink_to(outside.parent, target_is_directory=True)
+    escaped_candidate = linked_directory / outside.name
+
+    def fake_rglob(path: Path, pattern: str) -> tuple[Path, ...]:
+        assert path == root.resolve()
+        assert pattern == "*.hurl"
+        return (escaped_candidate,)
+
+    monkeypatch.setattr(Path, "rglob", fake_rglob)
+
+    selection = discover_hurl_test_selection([root])
+
+    assert selection.tests == ()
+    assert selection.discovered_count == 0
+
+
+def test_discover_hurl_tests_rejects_symlink_alias_to_hidden_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hidden = _write_hurl(
+        tmp_path / "tests" / ".hidden-target" / "hidden.hurl",
+        "# entroping: tags=hidden\nGET /hidden\nHTTP 200\n",
+    )
+    root = tmp_path / "tests"
+    linked_directory = root / "visible-alias"
+    linked_directory.symlink_to(hidden.parent, target_is_directory=True)
+    hidden_alias = linked_directory / hidden.name
+
+    def fake_rglob(path: Path, pattern: str) -> tuple[Path, ...]:
+        assert path == root.resolve()
+        assert pattern == "*.hurl"
+        return (hidden_alias,)
+
+    monkeypatch.setattr(Path, "rglob", fake_rglob)
+
+    selection = discover_hurl_test_selection([root])
+
+    assert selection.tests == ()
+    assert selection.discovered_count == 0
+
+
+def test_discover_hurl_tests_allows_symlink_alias_to_visible_directory_inside_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = _write_hurl(
+        tmp_path / "tests" / "versioned" / "visible.hurl",
+        "# entroping: tags=visible\nGET /visible\nHTTP 200\n",
+    )
+    root = tmp_path / "tests"
+    linked_directory = root / "current"
+    linked_directory.symlink_to(target.parent, target_is_directory=True)
+    visible_alias = linked_directory / target.name
+
+    def fake_rglob(path: Path, pattern: str) -> tuple[Path, ...]:
+        assert path == root.resolve()
+        assert pattern == "*.hurl"
+        return (visible_alias,)
+
+    monkeypatch.setattr(Path, "rglob", fake_rglob)
+
+    selection = discover_hurl_test_selection([root])
+
+    assert [test.path for test in selection.tests] == [target.resolve()]
+    assert selection.discovered_count == 1
 
 
 def test_normalize_tag_filters_rejects_empty_filter_input() -> None:
