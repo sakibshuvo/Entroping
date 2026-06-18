@@ -197,6 +197,96 @@ def test_review_summary_includes_timeout_run_evidence(tmp_path: Path) -> None:
     assert "live-secret" not in markdown
 
 
+def test_review_summary_suppresses_outside_input_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports_dir = Path("reports")
+    reports_dir.mkdir()
+    outside_path = tmp_path.parent / "customer-secret" / "outside.hurl"
+    outside_text = outside_path.as_posix()
+    (reports_dir / "run-latest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "checkout-api",
+                "environment": "ci",
+                "generated_at": "2026-06-03T00:00:00+00:00",
+                "summary": {"total": 2, "passed": 1, "failed": 1, "exit_code": 1},
+                "tests": [
+                    {
+                        "path": outside_text,
+                        "execution_path": ".entroping/run/outside.hurl",
+                        "status": "timeout",
+                        "exit_code": 124,
+                        "duration_ms": 251,
+                        "timeout_ms": 250,
+                        "rule_ids": [],
+                        "stdout": "",
+                        "stderr": "",
+                        "retry": {"retry_count": 0, "unstable": False, "attempts": []},
+                    },
+                    {
+                        "path": "tests/valid.hurl",
+                        "execution_path": ".entroping/run/valid.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 50,
+                        "rule_ids": [],
+                        "stdout": "",
+                        "stderr": "",
+                        "retry": {"retry_count": 1, "unstable": True, "attempts": []},
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (reports_dir / "junit.xml").write_text(
+        f"""<?xml version="1.0" encoding="utf-8"?>
+<testsuite name="Entroping checkout-api" tests="1" failures="1" errors="0">
+  <testcase classname="tests" name="outside.hurl" time="0.010">
+    <failure message="failed" type="entroping.hurl">path: {outside_text}
+assert failed</failure>
+  </testcase>
+</testsuite>
+""",
+        encoding="utf-8",
+    )
+    (reports_dir / "drift.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.drift-report.v1",
+                "findings": [
+                    {
+                        "kind": "response_status_changed",
+                        "severity": "error",
+                        "path": outside_text,
+                        "message": "Response status changed.",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_review_summary(
+        project_root=tmp_path,
+        run_json_path=Path("reports") / "run-latest.json",
+        junit_path=Path("reports") / "junit.xml",
+        drift_path=Path("reports") / "drift.json",
+        include_traceability=False,
+    )
+
+    markdown = result.output_path.read_text(encoding="utf-8")
+    assert outside_text not in markdown
+    assert "| Run JSON | error | [outside project] |" in markdown
+    assert "| JUnit | error | [outside project] |" in markdown
+    assert "| Drift | error | [outside project] |" in markdown
+    assert "| Run JSON | warning | tests/valid.hurl |" in markdown
+
+
 def test_review_summary_ignores_malformed_retry_entries_and_reports_stable_retries(
     tmp_path: Path,
 ) -> None:
