@@ -2,6 +2,11 @@
 
 ## 2026-06-18
 
+- Fixed issue #868's drift report schema boundary:
+  GitHub annotation and SARIF generation now reject drift evidence unless it
+  declares the supported drift-report schema version, preserving valid drift
+  conversion while returning controlled, value-free errors for unsupported
+  drift-like JSON.
 - Fixed issue #875's bug-report Markdown injection gap:
   Markdown bug reports now render project, environment, test, status, exit-code,
   and rule-id summary fields as adaptive inline-code literals with control

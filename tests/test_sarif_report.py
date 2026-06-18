@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 import entroping.core.sarif_report as sarif_report
-from entroping.core.github_annotations import GitHubAnnotation
+from entroping.core.github_annotations import GitHubAnnotation, GitHubAnnotationError
 from entroping.core.safe_write import SafeWriteError
 from entroping.core.sarif_report import (
     SarifReportError,
@@ -231,6 +231,35 @@ def test_run_sarif_report_accepts_absolute_inputs_and_output(tmp_path: Path) -> 
     assert result.output_path == output
     assert output.is_file()
     assert result.report.runs[0].results[0].rule_id == "entroping.hurl.failure"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"findings": []},
+        {"schema_version": "entroping.run-report.v1", "findings": []},
+    ],
+)
+def test_run_sarif_report_rejects_unsupported_drift_schema_versions(
+    tmp_path: Path,
+    payload: dict[str, object],
+) -> None:
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    drift = reports_dir / "drift.json"
+    drift.write_text(json.dumps(payload), encoding="utf-8")
+    output = reports_dir / "entroping.sarif"
+
+    with pytest.raises(GitHubAnnotationError, match="drift report schema_version"):
+        run_sarif_report(
+            project_root=tmp_path,
+            output_path=output,
+            junit_path=reports_dir / "missing-junit.xml",
+            drift_path=drift,
+            include_traceability=False,
+        )
+
+    assert not output.exists()
 
 
 def test_write_sarif_report_writes_machine_readable_json(tmp_path: Path) -> None:
