@@ -198,17 +198,21 @@ def _story_traceability_coverage(
         for story in _mapping_items(traceability_report, key="stories", label="traceability report")
         for test_path in _string_sequence(story, key="test_paths", label="traceability story")
     }
+    findings = _mapping_items(
+        traceability_report,
+        key="findings",
+        label="traceability report",
+    )
     missing_paths = {
         test_path
-        for finding in _mapping_items(
-            traceability_report,
-            key="findings",
-            label="traceability report",
-        )
+        for finding in findings
         if finding.get("kind") == "missing_story_id"
         for test_path in (_required_string(finding, key="test_path", label="traceability finding"),)
     }
-    return (len(linked_paths), len(linked_paths | missing_paths))
+    non_missing_findings = sum(
+        1 for finding in findings if finding.get("kind") != "missing_story_id"
+    )
+    return (len(linked_paths), len(linked_paths | missing_paths) + non_missing_findings)
 
 
 def _coverage_color(percentage: int) -> str:
