@@ -2,6 +2,11 @@
 
 ## 2026-06-18
 
+- Fixed issue #879's reusable OpenAPI parameter gap:
+  OpenAPI-to-Hurl generation now resolves local
+  `#/components/parameters/...` references from path and operation parameter
+  lists, while unsupported, malformed, missing, non-mapping, and cyclic refs
+  fail closed with explicit compiler errors.
 - Fixed issue #880's OpenAPI array-query parameter gap:
   OpenAPI-to-Hurl generation now supports deterministic `style: form`
   query-array defaults/examples for exploded and non-exploded encodings, while
