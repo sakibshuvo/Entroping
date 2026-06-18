@@ -611,6 +611,19 @@ def test_run_freeze_mock_applies_capture_filters_before_wiremock_generation(
     assert result.output_paths == (tmp_path / "mocks" / "payments" / "refund_flow-001.json",)
 
 
+def test_run_freeze_mock_manifest_tracks_selected_service_records(tmp_path: Path) -> None:
+    _record_exchange(tmp_path)
+    _record_dependency_exchange(tmp_path)
+
+    result = run_freeze_mock(project_root=tmp_path, name="refund_flow", service="payments")
+
+    assert result.record_count == 1
+    manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    assert manifest["source"]["record_count"] == 1
+    assert manifest["redaction"]["total_records"] == 1
+    assert len(manifest["source"]["record_fingerprints"]) == 1
+
+
 @pytest.mark.parametrize("service", ["", "bad\nservice", "../payments", ".hidden", "bad service!"])
 def test_run_freeze_mock_rejects_unsafe_service_names(tmp_path: Path, service: str) -> None:
     with pytest.raises(FreezeError, match="mock service"):
