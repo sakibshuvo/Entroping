@@ -15,6 +15,7 @@ from entroping.models.secrets import REDACTED, is_sensitive_key
 from entroping.models.traffic import TrafficBody, TrafficResponse
 
 _SAFE_FILE_STEM_RE = re.compile(r"[^A-Za-z0-9_.-]+")
+_HTTP_METHOD_TOKEN_RE = re.compile(r"^[A-Z]+(?:-[A-Z]+)*$")
 _JSONPATH_FIELD_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _HURL_REQUEST_LINE_RE = re.compile(
     r"^(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|CONNECT|TRACE)\s+\S+(?:\s+.*)?$",
@@ -118,10 +119,11 @@ def _render_record(record: TrafficSessionRecord, *, golden: bool) -> list[str]:
         msg = "traffic-to-Hurl compilation requires response records"
         raise TrafficHurlCompilationError(msg)
 
+    method = _safe_request_method(exchange.request.method)
     lines = [
         f"# entroping: role={record.role}",
         f"# entroping: captured_at={exchange.captured_at.isoformat()}",
-        f"{exchange.request.method} {_safe_hurl_line_value(exchange.request.url, 'request URL')}",
+        f"{method} {_safe_hurl_line_value(exchange.request.url, 'request URL')}",
     ]
     lines.extend(_render_request_headers(exchange.request.headers))
     request_body = _request_body_text(exchange.request.body)
@@ -275,6 +277,20 @@ def _safe_file_stem(name: str) -> str:
         msg = "traffic session name does not produce a safe Hurl filename"
         raise TrafficHurlCompilationError(msg)
     return stem
+
+
+def _safe_request_method(value: str) -> str:
+    if _contains_control(value):
+        msg = "request method contains control characters"
+        raise TrafficHurlCompilationError(msg)
+    if _has_hurl_template_delimiter(value):
+        msg = "request method contains Hurl template delimiters"
+        raise TrafficHurlCompilationError(msg)
+    method = value.strip().upper()
+    if _HTTP_METHOD_TOKEN_RE.fullmatch(method) is None:
+        msg = "request method must be an HTTP token"
+        raise TrafficHurlCompilationError(msg)
+    return method
 
 
 def _safe_hurl_line_value(value: str, context: str) -> str:
