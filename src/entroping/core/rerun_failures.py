@@ -81,11 +81,7 @@ def _resolve_failed_hurl_path(
     root: Path,
     report_path: Path,
 ) -> Path:
-    raw_path = test.path
-    if not isinstance(raw_path, str):
-        msg = f"Failed Hurl path in {_display_path(report_path, root=root)} must be a string"
-        raise RerunFailuresError(msg)
-    path_text = raw_path.strip()
+    path_text = test.path.strip()
     if not path_text or _has_control_character(path_text):
         msg = f"Failed Hurl path in {_display_path(report_path, root=root)} is invalid"
         raise RerunFailuresError(msg)
@@ -118,11 +114,7 @@ def _resolve_failed_hurl_path(
 
 
 def _report_environment(report: RunReport) -> str | None:
-    raw_environment: object = report.environment
-    if not isinstance(raw_environment, str):
-        msg = "Latest run report environment must be a string"
-        raise RerunFailuresError(msg)
-    environment = raw_environment.strip()
+    environment = report.environment.strip()
     if environment in {"", "default"}:
         return None
     if _has_control_character(environment):

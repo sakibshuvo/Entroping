@@ -748,6 +748,303 @@ def test_load_run_report_rejects_non_object_payload(tmp_path: Path) -> None:
         load_run_report(latest)
 
 
+def test_load_run_report_rejects_non_string_schema_version(tmp_path: Path) -> None:
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "project": "private-runtime-value",
+                "environment": "local",
+                "generated_at": "2026-05-31T00:00:00+00:00",
+                "summary": {"total": 0, "passed": 0, "failed": 0, "exit_code": 0},
+                "tests": [],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="field schema_version must be a string") as exc_info:
+        load_run_report(latest)
+    assert "private-runtime-value" not in str(exc_info.value)
+
+
+def test_load_run_report_ignores_bool_optional_integer_fields(tmp_path: Path) -> None:
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "checkout-api",
+                "environment": "local",
+                "generated_at": "2026-05-31T00:00:00+00:00",
+                "summary": {
+                    "total": 1,
+                    "passed": 1,
+                    "failed": 0,
+                    "exit_code": 0,
+                    "selected": True,
+                    "executed": False,
+                    "not_scheduled": True,
+                },
+                "tests": [
+                    {
+                        "path": "tests/health.hurl",
+                        "execution_path": ".entroping/run/health.hurl",
+                        "status": "passed",
+                        "exit_code": 0,
+                        "duration_ms": 1,
+                        "timeout_ms": True,
+                        "rule_ids": [],
+                        "stdout": "",
+                        "stderr": "",
+                    }
+                ],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = load_run_report(latest)
+
+    assert report.summary.selected is None
+    assert report.summary.executed is None
+    assert report.summary.not_scheduled == 0
+    assert report.tests[0].timeout_ms == 0
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected_error"),
+    [
+        (
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "private-runtime-value",
+                "environment": "local",
+                "generated_at": "2026-05-31T00:00:00+00:00",
+                "tests": [],
+            },
+            "required field summary",
+        ),
+        (
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "private-runtime-value",
+                "environment": "local",
+                "generated_at": "2026-05-31T00:00:00+00:00",
+                "summary": {"passed": 0, "failed": 0, "exit_code": 0},
+                "tests": [],
+            },
+            "required field summary.total",
+        ),
+        (
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "private-runtime-value",
+                "environment": "local",
+                "generated_at": "2026-05-31T00:00:00+00:00",
+                "summary": "private-summary-value",
+                "tests": [],
+            },
+            "field summary must be a JSON object",
+        ),
+        (
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "private-runtime-value",
+                "environment": "local",
+                "generated_at": "2026-05-31T00:00:00+00:00",
+                "summary": {"total": 0, "passed": 0, "failed": 0, "exit_code": 0},
+                "tests": {"private": "test-value"},
+            },
+            "field tests must be a JSON array",
+        ),
+        (
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "private-runtime-value",
+                "environment": "local",
+                "generated_at": "2026-05-31T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 0, "failed": 1, "exit_code": 1},
+                "tests": ["private-test-value"],
+            },
+            "field tests[0] must be a JSON object",
+        ),
+        (
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "private-runtime-value",
+                "environment": "local",
+                "generated_at": "2026-05-31T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 0, "failed": 1, "exit_code": 1},
+                "tests": [{"path": "private-test-value"}],
+            },
+            "required field tests[0].execution_path",
+        ),
+        (
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": 123,
+                "environment": "local",
+                "generated_at": "2026-05-31T00:00:00+00:00",
+                "summary": {"total": 0, "passed": 0, "failed": 0, "exit_code": 0},
+                "tests": [],
+            },
+            "field project must be a string",
+        ),
+        (
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "private-runtime-value",
+                "environment": "local",
+                "generated_at": "2026-05-31T00:00:00+00:00",
+                "summary": {
+                    "total": "private-total-value",
+                    "passed": 0,
+                    "failed": 0,
+                    "exit_code": 0,
+                },
+                "tests": [],
+            },
+            "field summary.total must be an integer",
+        ),
+        (
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "private-runtime-value",
+                "environment": "local",
+                "generated_at": "2026-05-31T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 0, "failed": 1, "exit_code": 1},
+                "tests": [
+                    {
+                        "path": "tests/private-test.hurl",
+                        "execution_path": ".entroping/run/private-test.hurl",
+                        "status": "failed",
+                        "exit_code": "private-exit-value",
+                        "duration_ms": 1,
+                        "rule_ids": [],
+                        "stdout": "",
+                        "stderr": "",
+                    }
+                ],
+            },
+            "field tests[0].exit_code must be an integer",
+        ),
+        (
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "private-runtime-value",
+                "environment": "local",
+                "generated_at": "2026-05-31T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 0, "failed": 1, "exit_code": 1},
+                "tests": [
+                    {
+                        "path": "tests/private-test.hurl",
+                        "execution_path": ".entroping/run/private-test.hurl",
+                        "status": 500,
+                        "exit_code": 1,
+                        "duration_ms": 1,
+                        "rule_ids": [],
+                        "stdout": "",
+                        "stderr": "",
+                    }
+                ],
+            },
+            "field tests[0].status must be a string",
+        ),
+        (
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "private-runtime-value",
+                "environment": "local",
+                "generated_at": "2026-05-31T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 0, "failed": 1, "exit_code": 1},
+                "tests": [
+                    {
+                        "path": "tests/private-test.hurl",
+                        "execution_path": ".entroping/run/private-test.hurl",
+                        "status": "failed",
+                        "exit_code": 1,
+                        "duration_ms": 1,
+                        "rule_ids": None,
+                        "stdout": "",
+                        "stderr": "",
+                    }
+                ],
+            },
+            "field tests[0].rule_ids must be a JSON array",
+        ),
+        (
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "private-runtime-value",
+                "environment": "local",
+                "generated_at": "2026-05-31T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 0, "failed": 1, "exit_code": 1},
+                "tests": [
+                    {
+                        "path": "tests/private-test.hurl",
+                        "execution_path": ".entroping/run/private-test.hurl",
+                        "status": "failed",
+                        "exit_code": 1,
+                        "duration_ms": 1,
+                        "rule_ids": ["private-rule-value", 7],
+                        "stdout": "",
+                        "stderr": "",
+                    }
+                ],
+            },
+            "field tests[0].rule_ids[1] must be a string",
+        ),
+        (
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "private-runtime-value",
+                "environment": "local",
+                "generated_at": "2026-05-31T00:00:00+00:00",
+                "summary": {"total": 1, "passed": 0, "failed": 1, "exit_code": 1},
+                "tests": [
+                    {
+                        "path": "tests/private-test.hurl",
+                        "execution_path": ".entroping/run/private-test.hurl",
+                        "status": "failed",
+                        "exit_code": 1,
+                        "duration_ms": 1,
+                        "rule_ids": ["private-rule-value", ""],
+                        "stdout": "",
+                        "stderr": "",
+                    }
+                ],
+            },
+            "field tests[0].rule_ids[1] must be a non-empty string without control characters",
+        ),
+    ],
+)
+def test_load_run_report_rejects_versioned_payload_with_invalid_required_fields(
+    tmp_path: Path,
+    payload: dict[str, object],
+    expected_error: str,
+) -> None:
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as exc_info:
+        load_run_report(latest)
+    assert expected_error in str(exc_info.value)
+    assert "private-runtime-value" not in str(exc_info.value)
+    assert "private-summary-value" not in str(exc_info.value)
+    assert "test-value" not in str(exc_info.value)
+    assert "private-test-value" not in str(exc_info.value)
+    assert "private-total-value" not in str(exc_info.value)
+    assert "private-exit-value" not in str(exc_info.value)
+    assert "private-rule-value" not in str(exc_info.value)
+
+
 def test_load_run_report_round_trips_safety_and_ignores_malformed_entries(
     tmp_path: Path,
 ) -> None:

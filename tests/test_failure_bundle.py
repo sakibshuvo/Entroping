@@ -86,6 +86,31 @@ def test_create_failure_bundle_rejects_unsupported_latest_run_schema(
     assert "entroping.run-report.v999" not in str(exc_info.value)
 
 
+def test_create_failure_bundle_rejects_versioned_latest_run_missing_required_field(
+    tmp_path: Path,
+) -> None:
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "private-runtime-value",
+                "environment": "default",
+                "generated_at": "2026-05-30T00:00:00+00:00",
+                "summary": {"passed": 0, "failed": 1, "exit_code": 1},
+                "tests": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(FailureBundleError, match="Could not load latest run report") as exc_info:
+        create_failure_bundle(project_root=tmp_path)
+    assert "required field summary.total" in str(exc_info.value)
+    assert "private-runtime-value" not in str(exc_info.value)
+
+
 def test_create_failure_bundle_requires_failed_run(tmp_path: Path) -> None:
     _write_latest(tmp_path, _run_report(failed=0))
 

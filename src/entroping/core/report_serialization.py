@@ -4,7 +4,7 @@ import json
 import re
 from collections.abc import Mapping
 from pathlib import Path
-from typing import cast
+from typing import Final, TypeGuard, cast
 
 from entroping.core.report_fingerprint import (
     _has_control_character,
@@ -24,6 +24,28 @@ from entroping.models.report import (
 )
 
 RUN_REPORT_SCHEMA_VERSION = "entroping.run-report.v1"
+_REQUIRED_RUN_REPORT_STRING_FIELDS: Final[tuple[str, ...]] = (
+    "project",
+    "environment",
+    "generated_at",
+)
+_REQUIRED_RUN_REPORT_SUMMARY_INT_FIELDS: Final[tuple[str, ...]] = (
+    "total",
+    "passed",
+    "failed",
+    "exit_code",
+)
+_REQUIRED_RUN_REPORT_TEST_STRING_FIELDS: Final[tuple[str, ...]] = (
+    "path",
+    "execution_path",
+    "status",
+    "stdout",
+    "stderr",
+)
+_REQUIRED_RUN_REPORT_TEST_INT_FIELDS: Final[tuple[str, ...]] = (
+    "exit_code",
+    "duration_ms",
+)
 _AUTH_FLOW_RE = re.compile(r"^[A-Za-z0-9_.:-]+$")
 _AUTH_VARIABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -88,9 +110,105 @@ def _require_run_report_schema(data: object, *, path: Path) -> None:
     if not isinstance(data, Mapping):
         msg = f"Run report {path} must be a JSON object"
         raise ValueError(msg)
-    if data.get("schema_version") != RUN_REPORT_SCHEMA_VERSION:
+    if "schema_version" not in data:
         msg = f"Run report {path} must use schema_version {RUN_REPORT_SCHEMA_VERSION}"
         raise ValueError(msg)
+    schema_version = data["schema_version"]
+    if not isinstance(schema_version, str):
+        msg = f"Run report {path} field schema_version must be a string"
+        raise ValueError(msg)
+    if schema_version != RUN_REPORT_SCHEMA_VERSION:
+        msg = f"Run report {path} must use schema_version {RUN_REPORT_SCHEMA_VERSION}"
+        raise ValueError(msg)
+    for field in _REQUIRED_RUN_REPORT_STRING_FIELDS:
+        _require_json_string(data, field, path=path)
+
+    summary = _require_json_field(data, "summary", path=path)
+    if not isinstance(summary, Mapping):
+        msg = f"Run report {path} field summary must be a JSON object"
+        raise ValueError(msg)
+    for field in _REQUIRED_RUN_REPORT_SUMMARY_INT_FIELDS:
+        _require_json_int(summary, f"summary.{field}", path=path, key=field)
+
+    tests = _require_json_array(data, "tests", path=path)
+    for index, item in enumerate(tests):
+        if not isinstance(item, Mapping):
+            msg = f"Run report {path} field tests[{index}] must be a JSON object"
+            raise ValueError(msg)
+        for field in _REQUIRED_RUN_REPORT_TEST_STRING_FIELDS:
+            _require_json_string(item, f"tests[{index}].{field}", path=path, key=field)
+        for field in _REQUIRED_RUN_REPORT_TEST_INT_FIELDS:
+            _require_json_int(item, f"tests[{index}].{field}", path=path, key=field)
+        rule_ids = _require_json_array(item, f"tests[{index}].rule_ids", path=path, key="rule_ids")
+        for rule_index, rule_id in enumerate(rule_ids):
+            if not isinstance(rule_id, str):
+                msg = (
+                    f"Run report {path} field tests[{index}].rule_ids[{rule_index}] "
+                    "must be a string"
+                )
+                raise ValueError(msg)
+            if not rule_id.strip() or _has_control_character(rule_id):
+                msg = (
+                    f"Run report {path} field tests[{index}].rule_ids[{rule_index}] "
+                    "must be a non-empty string without control characters"
+                )
+                raise ValueError(msg)
+
+
+def _require_json_string(
+    data: Mapping[object, object],
+    display_name: str,
+    *,
+    path: Path,
+    key: str | None = None,
+) -> str:
+    value = _require_json_field(data, display_name, path=path, key=key)
+    if not isinstance(value, str):
+        msg = f"Run report {path} field {display_name} must be a string"
+        raise ValueError(msg)
+    return value
+
+
+def _require_json_int(
+    data: Mapping[object, object],
+    display_name: str,
+    *,
+    path: Path,
+    key: str | None = None,
+) -> int:
+    value = _require_json_field(data, display_name, path=path, key=key)
+    if not _is_json_int(value):
+        msg = f"Run report {path} field {display_name} must be an integer"
+        raise ValueError(msg)
+    return value
+
+
+def _require_json_array(
+    data: Mapping[object, object],
+    display_name: str,
+    *,
+    path: Path,
+    key: str | None = None,
+) -> list[object]:
+    value = _require_json_field(data, display_name, path=path, key=key)
+    if not isinstance(value, list):
+        msg = f"Run report {path} field {display_name} must be a JSON array"
+        raise ValueError(msg)
+    return value
+
+
+def _require_json_field(
+    data: Mapping[object, object],
+    display_name: str,
+    *,
+    path: Path,
+    key: str | None = None,
+) -> object:
+    lookup_key = display_name if key is None else key
+    if lookup_key not in data:
+        msg = f"Run report {path} must include required field {display_name}"
+        raise ValueError(msg)
+    return data[lookup_key]
 
 
 def run_report_to_dict(report: RunReport) -> dict[str, object]:
@@ -348,11 +466,15 @@ def _serialized_auth_variables(raw_variables: object) -> tuple[str, ...]:
 
 
 def _serialized_timeout_ms(value: object) -> int:
-    return value if isinstance(value, int) and value >= 0 else 0
+    return value if _is_json_int(value) and value >= 0 else 0
 
 
 def _serialized_non_negative_int(value: object, *, default: int | None = None) -> int | None:
-    return value if isinstance(value, int) and value >= 0 else default
+    return value if _is_json_int(value) and value >= 0 else default
+
+
+def _is_json_int(value: object) -> TypeGuard[int]:
+    return type(value) is int
 
 
 def _serialized_operation_id(value: object) -> str | None:
