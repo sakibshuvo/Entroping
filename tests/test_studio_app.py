@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 import entroping.studio.app as studio_app
+from entroping.core.evidence_index import LocalEvidenceArtifact
 from entroping.studio.app import TextualTypes, build_studio_view_model, run_studio_app
 from entroping.studio.status import (
     LatestRunStatus,
@@ -67,6 +68,24 @@ def test_build_studio_view_model_exposes_summary_suite_failures_reports_and_traf
         ),
         latest_run_status="ok",
         report_paths=("reports/run-latest.json", "reports/drift.json"),
+        evidence_artifacts=(
+            LocalEvidenceArtifact(
+                id="drift-json",
+                label="Drift JSON",
+                path="reports/drift.json",
+                state="present",
+                schema_version="entroping.drift-report.v1",
+                summary="0 findings, 0 drifted",
+            ),
+            LocalEvidenceArtifact(
+                id="run-json",
+                label="Run JSON",
+                path="reports/run-latest.json",
+                state="present",
+                schema_version="entroping.run-report.v1",
+                summary="2 total, 1 passed, 1 failed",
+            ),
+        ),
         traffic_state_available=True,
         applied_gates=(
             StudioAppliedGateStatus(
@@ -156,7 +175,22 @@ def test_build_studio_view_model_exposes_summary_suite_failures_reports_and_traf
             "unknown",
         ),
     )
-    assert model.report_rows == (("reports/drift.json",), ("reports/run-latest.json",))
+    assert model.report_rows == (
+        (
+            "drift-json",
+            "present",
+            "reports/drift.json",
+            "entroping.drift-report.v1",
+            "0 findings, 0 drifted",
+        ),
+        (
+            "run-json",
+            "present",
+            "reports/run-latest.json",
+            "entroping.run-report.v1",
+            "2 total, 1 passed, 1 failed",
+        ),
+    )
     assert model.traffic_rows == (
         ("summary", "traffic records", "-", "-", "3", "-", "-", "3/3 redacted"),
         (
@@ -210,8 +244,66 @@ def test_build_studio_view_model_handles_absent_latest_run_reports_and_traffic()
     assert model.suite_rows == (("No latest run found", "", "", "", ""),)
     assert model.failure_rows == (("No failed tests", "", ""),)
     assert model.gate_rows == (("No applied gates found", "", "", "", "", ""),)
-    assert model.report_rows == (("No report artifacts found",),)
+    assert model.report_rows == (("No evidence artifacts found", "", "", "", ""),)
     assert model.traffic_rows == (("state", "missing", "", "", "", "", "", ""),)
+
+
+def test_build_studio_view_model_exposes_unsafe_evidence_artifact_rows() -> None:
+    status = StudioStatus(
+        environment="default",
+        project="not configured",
+        qanstitution_status="missing",
+        latest_run=None,
+        latest_run_status="none",
+        report_paths=(),
+        traffic_state_available=False,
+        evidence_artifacts=(
+            LocalEvidenceArtifact(
+                id="run-json",
+                label="Run JSON",
+                path="reports/run-latest.json",
+                state="unsafe",
+                schema_version=None,
+                summary="symlinked path component",
+            ),
+        ),
+    )
+
+    model = build_studio_view_model(status)
+
+    assert model.report_rows == (
+        (
+            "run-json",
+            "unsafe",
+            "reports/run-latest.json",
+            "-",
+            "symlinked path component",
+        ),
+    )
+
+
+def test_build_studio_view_model_preserves_legacy_report_paths_without_evidence_index() -> None:
+    status = StudioStatus(
+        environment="default",
+        project="not configured",
+        qanstitution_status="missing",
+        latest_run=None,
+        latest_run_status="none",
+        report_paths=("reports/run-latest.json",),
+        traffic_state_available=False,
+    )
+
+    model = build_studio_view_model(status)
+
+    assert model.report_rows == (
+        (
+            "legacy-report",
+            "present",
+            "reports/run-latest.json",
+            "-",
+            "report path present",
+        ),
+    )
 
 
 def test_build_studio_view_model_handles_traffic_state_errors() -> None:

@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
+from entroping.core.evidence_index import LocalEvidenceArtifact
 from entroping.core.hurl_runner import redact_hurl_output
 from entroping.studio.status import (
     LatestRunTestStatus,
@@ -52,7 +53,7 @@ def build_studio_view_model(status: StudioStatus) -> StudioViewModel:
         suite_rows=_suite_rows(status.latest_run.tests if status.latest_run else ()),
         failure_rows=_failure_rows(status.latest_run.tests if status.latest_run else ()),
         gate_rows=_gate_rows(status.applied_gates),
-        report_rows=_report_rows(status.report_paths),
+        report_rows=_report_rows(status.evidence_artifacts, status.report_paths),
         traffic_rows=_traffic_rows(status),
     )
 
@@ -119,10 +120,30 @@ def _failure_rows(tests: Sequence[LatestRunTestStatus]) -> TableRows:
     )
 
 
-def _report_rows(report_paths: tuple[str, ...]) -> TableRows:
-    if not report_paths:
-        return (("No report artifacts found",),)
-    return tuple((path,) for path in sorted(report_paths))
+def _report_rows(
+    evidence_artifacts: tuple[LocalEvidenceArtifact, ...],
+    report_paths: tuple[str, ...],
+) -> TableRows:
+    visible_artifacts = tuple(
+        artifact for artifact in evidence_artifacts if artifact.state != "missing"
+    )
+    if visible_artifacts:
+        return tuple(
+            (
+                _safe_cell(artifact.id),
+                artifact.state,
+                _safe_cell(artifact.path),
+                _safe_cell(artifact.schema_version or "-"),
+                _safe_cell(artifact.summary),
+            )
+            for artifact in visible_artifacts
+        )
+    if report_paths:
+        return tuple(
+            ("legacy-report", "present", _safe_cell(path), "-", "report path present")
+            for path in sorted(report_paths)
+        )
+    return (("No evidence artifacts found", "", "", "", ""),)
 
 
 def _gate_rows(applied_gates: Sequence[StudioAppliedGateStatus]) -> TableRows:
@@ -203,6 +224,10 @@ def _stderr_preview(stderr: str) -> str:
     return ""
 
 
+def _safe_cell(value: str) -> str:
+    return redact_hurl_output(value)[:160]
+
+
 def _latency_display(latency_average_ms: int | None) -> str:
     return "n/a" if latency_average_ms is None else f"{latency_average_ms} ms"
 
@@ -263,7 +288,12 @@ def _create_textual_app(model: StudioViewModel) -> _RunnableApp:  # pragma: no c
                         )
                     )
                 with tab_pane("Reports", id="reports"):
-                    yield static(_render_table(("Artifact",), model.report_rows))
+                    yield static(
+                        _render_table(
+                            ("ID", "State", "Path", "Schema", "Summary"),
+                            model.report_rows,
+                        )
+                    )
                 with tab_pane("Traffic", id="traffic"):
                     yield static(
                         _render_table(

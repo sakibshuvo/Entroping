@@ -195,6 +195,65 @@ gates:
     assert "Traffic state: available" in rendered
 
 
+def test_collect_studio_status_exposes_read_only_evidence_artifacts(tmp_path: Path) -> None:
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    (reports_dir / "run-latest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "summary": {"total": 1, "passed": 1, "failed": 0, "exit_code": 0},
+                "tests": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (reports_dir / "capture-summary.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.capture-summary.v1",
+                "summary": {
+                    "total_records": 2,
+                    "redacted_records": 2,
+                    "unredacted_records": 0,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    (reports_dir / "evidence-bundle.json").write_text("not json\n", encoding="utf-8")
+
+    status = collect_studio_status(project_root=tmp_path, environment="local")
+    by_id = {artifact.id: artifact for artifact in status.evidence_artifacts}
+    rendered = render_studio_status(status)
+
+    assert status.report_paths == (
+        "reports/capture-summary.json",
+        "reports/evidence-bundle.json",
+        "reports/run-latest.json",
+    )
+    assert by_id["run-json"].summary == "1 total, 1 passed, 0 failed"
+    assert by_id["capture-summary-json"].summary == "2/2 records redacted, 0 unredacted"
+    assert by_id["evidence-bundle-json"].state == "invalid"
+    assert "Evidence artifacts: 2 present, 1 attention" in rendered
+
+
+def test_render_studio_status_handles_missing_evidence_index() -> None:
+    status = studio_status.StudioStatus(
+        environment="default",
+        project="not configured",
+        qanstitution_status="missing",
+        latest_run=None,
+        latest_run_status="none",
+        report_paths=(),
+        traffic_state_available=False,
+    )
+
+    rendered = render_studio_status(status)
+
+    assert "Evidence artifacts: none" in rendered
+
+
 def test_collect_studio_status_reads_redacted_traffic_routes_without_raw_values(
     tmp_path: Path,
 ) -> None:
