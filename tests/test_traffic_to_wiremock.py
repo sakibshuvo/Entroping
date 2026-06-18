@@ -83,13 +83,72 @@ def test_compile_traffic_session_to_wiremock_selects_service_and_omits_request_s
     generated = mappings[0]
     assert generated.relative_path == "mocks/payments/refund_flow-001.json"
     payload = json.loads(generated.content)
-    assert payload["request"] == {"method": "POST", "urlPath": "/charge"}
+    assert payload["request"] == {
+        "method": "POST",
+        "queryParameters": {"token": {"matches": ".+"}},
+        "urlPath": "/charge",
+    }
     assert payload["response"]["status"] == 201
     assert payload["response"]["headers"] == {"Content-Type": "application/json"}
     assert payload["response"]["jsonBody"] == {"approved": True, "token": "[REDACTED]"}
     assert "Authorization" not in generated.content
     assert "secret" not in generated.content
     assert "token=%5BREDACTED%5D" not in generated.content
+    assert '"equalTo": "[REDACTED]"' not in generated.content
+
+
+def test_compile_traffic_session_to_wiremock_adds_query_parameter_matchers() -> None:
+    session = build_traffic_session_candidate(
+        [
+            _exchange(
+                method="GET",
+                url=(
+                    "https://payments.example.test/charge"
+                    "?tenant=north&mode=live&token=%5BREDACTED%5D"
+                ),
+                status_code=200,
+            )
+        ],
+        name="query_flow",
+        target_url=None,
+    )
+
+    mappings = compile_traffic_session_to_wiremock(session, service="payments")
+
+    payload = json.loads(mappings[0].content)
+    assert payload["request"] == {
+        "method": "GET",
+        "queryParameters": {
+            "mode": {"equalTo": "live"},
+            "tenant": {"equalTo": "north"},
+            "token": {"matches": ".+"},
+        },
+        "urlPath": "/charge",
+    }
+    assert "token=%5BREDACTED%5D" not in mappings[0].content
+    assert '"equalTo": "[REDACTED]"' not in mappings[0].content
+
+
+def test_compile_traffic_session_to_wiremock_uses_exact_url_for_repeated_safe_query_keys() -> None:
+    session = build_traffic_session_candidate(
+        [
+            _exchange(
+                method="GET",
+                url="https://payments.example.test/search?tag=fraud&tag=refund",
+                status_code=200,
+            )
+        ],
+        name="repeated_query_flow",
+        target_url=None,
+    )
+
+    mappings = compile_traffic_session_to_wiremock(session, service="payments")
+
+    payload = json.loads(mappings[0].content)
+    assert payload["request"] == {
+        "method": "GET",
+        "url": "/search?tag=fraud&tag=refund",
+    }
 
 
 def test_compile_traffic_session_to_wiremock_matches_exact_host_and_escapes_json() -> None:

@@ -392,10 +392,15 @@ def test_freeze_mock_writes_wiremock_mapping_without_raw_secret(
     content = output.read_text(encoding="utf-8")
     manifest_content = manifest.read_text(encoding="utf-8")
     payload = json.loads(content)
-    assert payload["request"] == {"method": "POST", "urlPath": "/charge"}
+    assert payload["request"] == {
+        "method": "POST",
+        "queryParameters": {"token": {"matches": ".+"}},
+        "urlPath": "/charge",
+    }
     assert payload["response"]["status"] == 201
     assert payload["response"]["headers"] == {"Content-Type": "application/json"}
     assert payload["response"]["jsonBody"]["token"] == "[REDACTED]"
+    assert '"equalTo": "[REDACTED]"' not in content
     assert "wire-secret" not in manifest_content
     assert "wire-secret" not in content
 

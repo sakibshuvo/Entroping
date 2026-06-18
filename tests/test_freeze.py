@@ -48,7 +48,7 @@ def _record_dependency_exchange(project_root: Path) -> None:
         duration_ms=40,
         request=TrafficRequest(
             method="POST",
-            url="https://payments.example.test/charge",
+            url="https://payments.example.test/charge?tenant=north&mode=live",
             headers={"Content-Type": "application/json"},
             body=None,
         ),
@@ -580,7 +580,15 @@ def test_run_freeze_mock_reports_missing_state_and_writes_mappings(tmp_path: Pat
 
     assert result.record_count == 1
     assert result.output_paths == (tmp_path / "mocks" / "payments" / "refund_flow-001.json",)
-    assert '"request"' in result.output_paths[0].read_text(encoding="utf-8")
+    mapping = json.loads(result.output_paths[0].read_text(encoding="utf-8"))
+    assert mapping["request"] == {
+        "method": "POST",
+        "queryParameters": {
+            "mode": {"equalTo": "live"},
+            "tenant": {"equalTo": "north"},
+        },
+        "urlPath": "/charge",
+    }
     assert (
         result.manifest_path
         == tmp_path / "reports" / "approvals" / "freeze-refund_flow-mock-payments.json"

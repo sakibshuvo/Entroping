@@ -661,6 +661,9 @@ Mock generation selects records by safe service selector, matching either an
 exact host such as `payments.example.test` or the first host label such as
 `payments`. Entroping generates mappings for standard mock servers such as
 WireMock; it does not become the mock server itself.
+WireMock request mappings preserve redacted query matching: non-sensitive
+captured query values are matched exactly, while sensitive or already-redacted
+query values require parameter presence without serializing the captured value.
 
 `freeze` and `freeze --mock` write review manifests under `reports/approvals/`.
 The manifest uses schema `entroping.traffic-artifact-approval.v1` and records
