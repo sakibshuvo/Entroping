@@ -29,6 +29,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Gate coverage report | `entroping.gate-coverage-report.v1` | `reports/gate-coverage.json` | [gate-coverage-report.v1.schema.json](report-schemas/gate-coverage-report.v1.schema.json) |
 | Gate injection report | `entroping.gate-injection-report.v1` | `reports/gate-injection.json` | [gate-injection-report.v1.schema.json](report-schemas/gate-injection-report.v1.schema.json) |
 | Report artifact manifest | `entroping.report-artifact-manifest.v1` | `reports/artifact-manifest.json` | [report-artifact-manifest.v1.schema.json](report-schemas/report-artifact-manifest.v1.schema.json) |
+| Evidence bundle | `entroping.evidence-bundle.v1` | `reports/evidence-bundle.json` | [evidence-bundle.v1.schema.json](report-schemas/evidence-bundle.v1.schema.json) |
 | Failure bundle manifest | `entroping.failure-bundle.v1` | `reports/failure-bundle/manifest.json` | Inline contract |
 | Coverage badges | Shields endpoint schema v1 | `reports/badges/*.json` | External Shields endpoint format |
 | Agent run manifest | `entroping.agent-run-manifest.v1` | `.entroping/agent-runs/*.json` | [agent-run-manifest.v1.schema.json](report-schemas/agent-run-manifest.v1.schema.json) |
@@ -140,6 +141,24 @@ diagnostics. The manifest is integrity evidence for CI upload and release
 review; it is not a signing, notarization, or attestation system and it never
 stores artifact contents, raw traffic, provider responses, prompts,
 credentials, or environment values.
+
+The evidence bundle is written by:
+
+```bash
+entroping report evidence-bundle
+```
+
+It writes `reports/evidence-bundle.json` with schema
+`entroping.evidence-bundle.v1`. The bundle verifies design-partner upload
+readiness from existing local report evidence: `reports/run-latest.json`,
+`reports/effective-policy.json`, and `reports/artifact-manifest.json`. It
+records only project-relative artifact references, schema versions, byte sizes,
+SHA-256 checksums, missing-artifact diagnostics, checksum mismatches against
+the artifact manifest, and artifact-manifest audit-chain status. It does not
+embed artifact contents, raw traffic, source Hurl contents, stdout/stderr,
+prompts, provider outputs, credentials, environment values, or upload anything
+to a hosted service. A `not_ready` bundle is still reviewable evidence; it
+means required local evidence is missing or inconsistent.
 
 The drift baseline candidate and active drift baseline share
 `entroping.drift-baseline.v1`. Candidates are written by `run --report drift`;

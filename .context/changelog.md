@@ -2,6 +2,12 @@
 
 ## 2026-06-18
 
+- Added issue #891's sanitized evidence bundle verifier:
+  `entroping report evidence-bundle` now writes
+  `entroping.evidence-bundle.v1` readiness evidence for run,
+  effective-policy, and artifact-manifest reports; validates schema-version,
+  checksum, and audit status; emits value-free diagnostics; and rejects unsafe
+  paths or secret-shaped metadata before writing upload-ready evidence.
 - Added issue #862's effective-policy provenance evidence:
   QAnstitution loading now records value-free source SHA-256 digests and import
   chains, and effective-policy JSON/Markdown reports emit additive source and

@@ -50,6 +50,15 @@ from entroping.core.drift_report import (
     drift_baseline_to_dict,
     drift_report_to_dict,
 )
+from entroping.core.evidence_bundle import (
+    EVIDENCE_BUNDLE_SCHEMA_VERSION,
+    EvidenceBundleArtifact,
+    EvidenceBundleDiagnostic,
+    EvidenceBundleManifestAudit,
+    EvidenceBundleMissingArtifact,
+    EvidenceBundleReport,
+    EvidenceBundleSummary,
+)
 from entroping.core.report_artifact_manifest import (
     REPORT_ARTIFACT_MANIFEST_SCHEMA_VERSION,
     ReportArtifactAuditCommand,
@@ -1113,6 +1122,117 @@ def test_report_artifact_manifest_v1_schema_contract_is_versioned_and_stable() -
     }
 
 
+def test_evidence_bundle_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "evidence-bundle.v1.schema.json").read_text())
+    bundle = EvidenceBundleReport(
+        generated_at="2026-06-18T00:00:00+00:00",
+        purpose="design-partner-upload-readiness",
+        project="checkout-api",
+        summary=EvidenceBundleSummary(
+            status="not_ready",
+            required_total=3,
+            required_present=2,
+            required_missing=1,
+            required_invalid=1,
+            artifacts_total=2,
+            diagnostics_total=2,
+        ),
+        artifacts=(
+            EvidenceBundleArtifact(
+                kind="run_json",
+                path="reports/run-latest.json",
+                required=True,
+                schema_version="entroping.run-report.v1",
+                size_bytes=17,
+                sha256="0" * 64,
+            ),
+        ),
+        missing_artifacts=(
+            EvidenceBundleMissingArtifact(
+                kind="effective_policy",
+                path="reports/effective-policy.json",
+                required=True,
+            ),
+        ),
+        diagnostics=(
+            EvidenceBundleDiagnostic(
+                severity="error",
+                code="missing_required_artifact",
+                path="reports/effective-policy.json",
+                message="Required evidence artifact is missing.",
+            ),
+        ),
+        manifest_audit=EvidenceBundleManifestAudit(
+            path="reports/artifact-manifest.json",
+            status="verified",
+            chain_path=".entroping/report-audit-chain.jsonl",
+            checked_events=1,
+            latest_event_hash="1" * 64,
+            diagnostics=(),
+        ),
+    )
+
+    payload = bundle.model_dump(mode="json")
+
+    assert EVIDENCE_BUNDLE_SCHEMA_VERSION == "entroping.evidence-bundle.v1"
+    assert payload == {
+        "schema_version": "entroping.evidence-bundle.v1",
+        "generated_at": "2026-06-18T00:00:00+00:00",
+        "purpose": "design-partner-upload-readiness",
+        "project": "checkout-api",
+        "summary": {
+            "status": "not_ready",
+            "required_total": 3,
+            "required_present": 2,
+            "required_missing": 1,
+            "required_invalid": 1,
+            "artifacts_total": 2,
+            "diagnostics_total": 2,
+        },
+        "artifacts": [
+            {
+                "kind": "run_json",
+                "path": "reports/run-latest.json",
+                "required": True,
+                "schema_version": "entroping.run-report.v1",
+                "size_bytes": 17,
+                "sha256": "0" * 64,
+            }
+        ],
+        "missing_artifacts": [
+            {
+                "kind": "effective_policy",
+                "path": "reports/effective-policy.json",
+                "required": True,
+            }
+        ],
+        "diagnostics": [
+            {
+                "severity": "error",
+                "code": "missing_required_artifact",
+                "path": "reports/effective-policy.json",
+                "message": "Required evidence artifact is missing.",
+            }
+        ],
+        "manifest_audit": {
+            "path": "reports/artifact-manifest.json",
+            "status": "verified",
+            "chain_path": ".entroping/report-audit-chain.jsonl",
+            "checked_events": 1,
+            "latest_event_hash": "1" * 64,
+            "diagnostics": [],
+        },
+    }
+    assert schema["properties"]["schema_version"]["const"] == EVIDENCE_BUNDLE_SCHEMA_VERSION
+    assert schema["$defs"]["artifact"]["properties"]["sha256"]["pattern"] == (
+        "^[0-9a-f]{64}$"
+    )
+    assert schema["$defs"]["summary"]["properties"]["status"]["enum"] == [
+        "ready",
+        "not_ready",
+    ]
+
+
 def test_effective_policy_diff_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "effective-policy-diff.v1.schema.json").read_text())
     base = EffectivePolicyReport(
@@ -1314,6 +1434,7 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         "entroping.report-artifact-manifest.v1": (
             SCHEMA_DIR / "report-artifact-manifest.v1.schema.json"
         ),
+        "entroping.evidence-bundle.v1": SCHEMA_DIR / "evidence-bundle.v1.schema.json",
         "entroping.agent-review-bundle.v1": (SCHEMA_DIR / "agent-review-bundle.v1.schema.json"),
         "entroping.traffic-artifact-approval.v1": (
             SCHEMA_DIR / "traffic-artifact-approval.v1.schema.json"

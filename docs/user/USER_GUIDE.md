@@ -485,6 +485,21 @@ manifest so a later run can flag broken previous-hash linkage. Use it as CI
 upload or release-review integrity evidence, not as a signature, notarization,
 or attestation system.
 
+Write a sanitized design-partner upload-readiness bundle:
+
+```bash
+entroping report evidence-bundle
+```
+
+The evidence bundle writes `reports/evidence-bundle.json`. It checks for the
+local run report, effective-policy report, and artifact manifest, then records
+project-relative paths, schema versions, byte sizes, SHA-256 checksums,
+missing/invalid diagnostics, and artifact-manifest audit status. It does not
+embed report contents, raw traffic, source Hurl contents, stdout/stderr,
+prompts, provider outputs, credentials, environment values, or upload anything.
+If the bundle status is `not_ready`, fix the missing or inconsistent local
+evidence before sharing it with a design partner or hosted workflow.
+
 Freeze the session into tests:
 
 ```bash

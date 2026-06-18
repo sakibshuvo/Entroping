@@ -1150,6 +1150,17 @@ not include raw traffic databases, local env files, source Hurl contents, or
 upload anything to external services. The manifest records included artifact
 paths, source paths, schema versions, sizes, and SHA-256 hashes.
 
+`entroping report evidence-bundle` writes a sanitized local upload-readiness
+bundle at `reports/evidence-bundle.json` by default. It verifies that the local
+run report, effective-policy report, and artifact manifest exist, use supported
+schemas, and match manifest checksums where the artifact manifest covers them.
+The bundle records project-relative paths, schema versions, byte sizes,
+SHA-256 hashes, missing/invalid diagnostics, and artifact-manifest audit-chain
+status without embedding artifact contents, raw traffic, source Hurl contents,
+stdout/stderr, provider prompts, provider outputs, credentials, environment
+values, or uploading anything to a hosted service. A `not_ready` bundle is
+reviewable evidence of missing or inconsistent local proof, not a cloud upload.
+
 `entroping report sarif` writes SARIF 2.1.0 to `reports/entroping.sarif` by
 default. It converts the same local JUnit, drift, and optional traceability
 findings used by GitHub annotation output into stable SARIF rule IDs, severity,
@@ -1188,6 +1199,7 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report gate-injection --output md` | `reports/gate-injection.md` | Human-readable gate-injection explanation for selected Hurl files. |
 | `entroping report gate-injection --output json` | `reports/gate-injection.json` | Machine-readable gate-injection explanation using `entroping.gate-injection-report.v1`. |
 | `entroping report artifact-manifest` | `reports/artifact-manifest.json` and `.entroping/report-audit-chain.jsonl` | Machine-readable checksum manifest using `entroping.report-artifact-manifest.v1` plus a local tamper-evident audit chain using `entroping.report-audit-event.v1`; the chain is local state and not committed. |
+| `entroping report evidence-bundle` | `reports/evidence-bundle.json` | Sanitized design-partner upload-readiness evidence using `entroping.evidence-bundle.v1`; references local artifacts by path, schema, size, and checksum without embedding contents or uploading. |
 | `entroping report agent-bundle --output md` | `reports/agent-bundle.md` | Human-readable local multi-agent review bundle from sanitized manifests. |
 | `entroping report agent-bundle --output json` | `reports/agent-bundle.json` | Machine-readable local multi-agent review bundle using `entroping.agent-review-bundle.v1`. |
 | `entroping report traceability --output md|json` | `stdout Markdown/JSON` | Local story/test coverage report. |
