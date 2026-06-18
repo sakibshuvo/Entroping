@@ -33,6 +33,7 @@ REQUIRED_WORKFLOW_FILES = (
     "scripts/start_issue.sh",
     "scripts/finish_issue.sh",
     "scripts/context_pack.sh",
+    "scripts/agent_toolchain.py",
     "scripts/opencode_worker.py",
     "scripts/deepseek_worker.py",
     "scripts/ai_jobs.py",
@@ -69,6 +70,22 @@ PROMPT_GUARDRAIL_TERMS = {
         "One write agent per issue-scoped worktree",
         "scripts/context_pack.sh --mode implementation --record-factory-metrics",
         "scripts/factory_metrics.py readiness --issue <issue> --format json",
+        "scripts/agent_toolchain.py --mode implementation --format json",
+        "entroping.agent-toolchain.v1",
+        "PATH lookup only",
+        "safe_default",
+        "guarded_local_only",
+        "manual_explicit",
+        "Do not run automatically",
+        "not scan home directories",
+        "provider config",
+        "local secret stores",
+        "act",
+        "trufflehog",
+        "semgrep",
+        "trivy",
+        "syft",
+        "grype",
     ),
 }
 
@@ -92,6 +109,16 @@ COMMAND_HELP_CHECKS: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (
         (sys.executable, "scripts/pr_body_check.py", "--help"),
         ("--require-opencode-evidence", "--changed-file", "--issue"),
+    ),
+    (
+        (sys.executable, "scripts/agent_toolchain.py", "--help"),
+        (
+            "--mode",
+            "implementation",
+            "security",
+            "--require-recommended",
+            "--format",
+        ),
     ),
 )
 
@@ -249,6 +276,7 @@ def _run_checks(
         _check_required_files(repo_root),
         _check_prompt_guardrails(repo_root),
         _check_command_help_surfaces(repo_root),
+        _check_agent_toolchain_policy(repo_root, mode=mode),
         _check_opencode_binary(repo_root, opencode_bin),
         _check_local_opencode_config(),
         _check_local_artifact_ignore_rules(repo_root),
@@ -515,6 +543,117 @@ def _check_command_help_surfaces(repo_root: Path) -> CheckResult:
         status="pass",
         message=f"{len(COMMAND_HELP_CHECKS)} workflow command help surfaces verified",
         details={"commands": [" ".join(command) for command, _terms in COMMAND_HELP_CHECKS]},
+    )
+
+
+def _check_agent_toolchain_policy(repo_root: Path, *, mode: str) -> CheckResult:
+    toolchain_mode = {
+        "implementation": "implementation",
+        "verification": "review",
+        "monitoring": "maintenance",
+    }[mode]
+    result = _run(
+        [
+            sys.executable,
+            "scripts/agent_toolchain.py",
+            "--mode",
+            toolchain_mode,
+            "--format",
+            "json",
+        ],
+        cwd=repo_root,
+        timeout=15,
+        output_limit=30000,
+    )
+    if result.returncode != 0:
+        return CheckResult(
+            name="agent_toolchain_policy",
+            status="fail",
+            message="agent toolchain policy preflight failed",
+            details={
+                "returncode": result.returncode,
+                "stderr": result.stderr,
+                "error": result.error,
+            },
+        )
+
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        return CheckResult(
+            name="agent_toolchain_policy",
+            status="fail",
+            message="agent toolchain preflight did not emit valid JSON",
+            details={"error": str(exc)},
+        )
+
+    if payload.get("schema_version") != "entroping.agent-toolchain.v1":
+        return CheckResult(
+            name="agent_toolchain_policy",
+            status="fail",
+            message="agent toolchain preflight schema is not recognized",
+            details={"schema_version": payload.get("schema_version")},
+        )
+
+    if payload.get("probe_mode") != "path_lookup_only":
+        return CheckResult(
+            name="agent_toolchain_policy",
+            status="fail",
+            message="agent toolchain preflight must remain PATH lookup only",
+            details={"probe_mode": payload.get("probe_mode")},
+        )
+
+    unsafe_flags = {
+        key: payload.get(key)
+        for key in (
+            "scanner_execution",
+            "network_execution",
+            "local_config_read",
+            "provider_config_read",
+        )
+        if payload.get(key) is not False
+    }
+    if unsafe_flags:
+        return CheckResult(
+            name="agent_toolchain_policy",
+            status="fail",
+            message="agent toolchain preflight reported unsafe probing behavior",
+            details={"unsafe_flags": unsafe_flags},
+        )
+
+    missing_recommended = payload.get("missing_recommended", [])
+    if not isinstance(missing_recommended, list):
+        return CheckResult(
+            name="agent_toolchain_policy",
+            status="fail",
+            message="agent toolchain preflight missing_recommended shape is invalid",
+            details={"missing_recommended": missing_recommended},
+        )
+
+    status = "warn" if missing_recommended else "pass"
+    message = (
+        "agent toolchain policy verified; all recommended tools are available"
+        if status == "pass"
+        else "agent toolchain policy verified with missing recommended tools"
+    )
+    return CheckResult(
+        name="agent_toolchain_policy",
+        status=status,
+        message=message,
+        details={
+            "schema_version": payload["schema_version"],
+            "toolchain_mode": toolchain_mode,
+            "tool_count": payload.get("tool_count"),
+            "available_count": payload.get("available_count"),
+            "policy_counts": payload.get("policy_counts"),
+            "available_policy_counts": payload.get("available_policy_counts"),
+            "missing_recommended": missing_recommended,
+            "probe_mode": payload["probe_mode"],
+            "scanner_execution": payload["scanner_execution"],
+            "network_execution": payload["network_execution"],
+            "local_config_read": payload["local_config_read"],
+            "provider_config_read": payload["provider_config_read"],
+        },
     )
 
 

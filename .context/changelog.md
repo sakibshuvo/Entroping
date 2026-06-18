@@ -1,5 +1,16 @@
 # Entroping Changelog
 
+## 2026-06-17
+
+- Added issue #821's secure agent CLI toolchain profile:
+  `scripts/agent_toolchain.py` now reports local CLI availability with schema
+  `entroping.agent-toolchain.v1`, classifying tools as `safe_default`,
+  `guarded_local_only`, or `manual_explicit` through PATH lookup only. The
+  OpenCode readiness preflight consumes that report without executing
+  scanners, reading provider config, inspecting local secret stores, or making
+  network calls, and the agent docs now forbid automatic use of high-risk tools
+  such as `act`, `trufflehog`, `semgrep`, `trivy`, `syft`, and `grype`.
+
 ## 2026-06-16
 
 - Added issue #787's architecture/quality guardrail PR preflight:

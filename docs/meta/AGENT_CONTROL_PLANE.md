@@ -124,6 +124,27 @@ expected active parent with `--stale-repo-path`, `--expected-repo-prefix`,
 `ENTROPING_STALE_REPO_PATHS`, or `ENTROPING_EXPECTED_REPO_PREFIX` rather than
 rewriting the canonical prompt defaults.
 
+Run `uv run python scripts/agent_toolchain.py --mode implementation --format json`
+when a worker needs to know which local CLIs are available. The toolchain
+preflight emits schema `entroping.agent-toolchain.v1`, performs PATH lookup
+only, and does not execute scanners, read provider config, inspect local secret
+stores, or make network calls. OpenCode readiness runs this preflight and
+surfaces missing recommended tools as setup evidence; missing tools do not
+grant permission to bypass tests, docs governance, security gates, or CI.
+
+Agent CLI usage is classified by policy:
+
+| Policy | Agent rule |
+| --- | --- |
+| `safe_default` | May be used during normal agent work for targeted local discovery, structured inspection, diff review, and measurement. Prefer these over broad context loads when they answer the issue question. |
+| `guarded_local_only` | Use through a repo gate or an explicit focused command. Keep scope to the repo/worktree and do not scan home directories, provider config, raw traffic, `.entroping` artifacts, or local secret stores. |
+| `manual_explicit` | Do not run automatically. Use only with explicit human/Codex approval, narrow scope, and a documented reason because the tool can execute workflow code, contact services, download databases, or traverse broad sensitive surfaces. |
+
+Current manual-explicit tools are `act`, `trufflehog`, `semgrep`, `trivy`,
+`syft`, and `grype`. Cheap workers may recommend one of these tools, but they
+must not run it unless the issue packet or parent integrator authorizes the
+exact command and scope.
+
 Use `scripts/deepseek_worker.py` when OpenCode is the wrong dependency for a
 paid DeepSeek Flash or Pro task. It calls DeepSeek's OpenAI-compatible chat
 completion endpoint with an env-provided `DEEPSEEK_API_KEY`, includes selected

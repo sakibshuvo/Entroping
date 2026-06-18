@@ -20,7 +20,44 @@ def test_agent_control_plane_documents_cross_agent_guardrails() -> None:
     assert "local Qwen" in doc
     assert "scripts/context_pack.sh --mode implementation" in doc
     assert "scripts/opencode_readiness.py --mode implementation" in doc
+    assert "scripts/agent_toolchain.py --mode implementation --format json" in doc
+    assert "safe_default" in doc
+    assert "guarded_local_only" in doc
+    assert "manual_explicit" in doc
     assert "No helper agent is a source of truth" in doc
+
+
+def test_agent_toolchain_policy_is_linked_from_readiness_and_agent_rules() -> None:
+    agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    control_plane = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
+        encoding="utf-8"
+    )
+    readiness = (REPO_ROOT / "scripts" / "opencode_readiness.py").read_text(
+        encoding="utf-8"
+    )
+    combined = " ".join(f"{agents}\n{control_plane}\n{readiness}".split())
+
+    required_terms = [
+        "scripts/agent_toolchain.py",
+        "entroping.agent-toolchain.v1",
+        "PATH lookup only",
+        "safe_default",
+        "guarded_local_only",
+        "manual_explicit",
+        "Do not run automatically",
+        "not scan home directories",
+        "provider config",
+        "local secret stores",
+        "act",
+        "trufflehog",
+        "semgrep",
+        "trivy",
+        "syft",
+        "grype",
+    ]
+
+    for term in required_terms:
+        assert term in combined
 
 
 def test_prompt_library_includes_architecture_boundary_brief_template() -> None:
