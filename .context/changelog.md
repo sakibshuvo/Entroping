@@ -1406,3 +1406,6 @@
   manifests now fingerprint only the redacted traffic records selected for the
   generated WireMock mappings while preserving all-record behavior when the
   mock service selects the full session.
+- Closed issue #883's OpenAPI audit coverage gap: generated negative-path Hurl
+  evidence is reported in `negative_tests` and no longer counts as positive
+  operation coverage.
