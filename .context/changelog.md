@@ -1,5 +1,13 @@
 # Entroping Changelog
 
+## 2026-06-18
+
+- Fixed issue #830's primary OpenAPI spec path boundary:
+  `architect build --new` and `architect audit` now load local
+  `sources.spec` through a project-root-bounded OpenAPI loader that rejects
+  parent/root escapes and symlinked path components before reading, while
+  preserving the separate dependency-spec contract.
+
 ## 2026-06-17
 
 - Fixed issue #808's low-severity security review sweep:
