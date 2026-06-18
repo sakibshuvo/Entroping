@@ -167,6 +167,50 @@ imports:
     ]
 
 
+def test_load_qanstitution_rejects_duplicate_non_final_gate_ids_across_imports(
+    tmp_path: Path,
+) -> None:
+    write_yaml(
+        tmp_path / "rules" / "a.yaml",
+        """
+project: imported-a
+gates:
+  - id: shared_policy
+    condition: "true"
+    gate: status < 500
+    enforcement: warn
+""",
+    )
+    write_yaml(
+        tmp_path / "rules" / "b.yaml",
+        """
+project: imported-b
+gates:
+  - id: shared_policy
+    condition: "true"
+    gate: duration < 2000
+    enforcement: warn
+""",
+    )
+    write_yaml(
+        tmp_path / "qanstitution.yaml",
+        """
+project: checkout-api
+imports:
+  - ./rules/a.yaml
+  - ./rules/b.yaml
+""",
+    )
+
+    with pytest.raises(QanstitutionLoadError, match="Duplicate imported gate id") as exc_info:
+        load_qanstitution(tmp_path / "qanstitution.yaml")
+
+    message = str(exc_info.value)
+    assert "shared_policy" in message
+    assert "a.yaml" in message
+    assert "b.yaml" in message
+
+
 def test_load_qanstitution_expands_gate_groups_with_provenance(tmp_path: Path) -> None:
     write_yaml(
         tmp_path / "qanstitution.yaml",
