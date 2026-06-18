@@ -30,6 +30,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Gate injection report | `entroping.gate-injection-report.v1` | `reports/gate-injection.json` | [gate-injection-report.v1.schema.json](report-schemas/gate-injection-report.v1.schema.json) |
 | Report artifact manifest | `entroping.report-artifact-manifest.v1` | `reports/artifact-manifest.json` | [report-artifact-manifest.v1.schema.json](report-schemas/report-artifact-manifest.v1.schema.json) |
 | Evidence bundle | `entroping.evidence-bundle.v1` | `reports/evidence-bundle.json` | [evidence-bundle.v1.schema.json](report-schemas/evidence-bundle.v1.schema.json) |
+| Runtime evidence card | `entroping.runtime-card.v1` | `reports/runtime-card.json` from `entroping report runtime-card --output json` | [runtime-card.v1.schema.json](report-schemas/runtime-card.v1.schema.json) |
 | Failure bundle manifest | `entroping.failure-bundle.v1` | `reports/failure-bundle/manifest.json` | Inline contract |
 | Coverage badges | Shields endpoint schema v1 | `reports/badges/*.json` | External Shields endpoint format |
 | Agent run manifest | `entroping.agent-run-manifest.v1` | `.entroping/agent-runs/*.json` | [agent-run-manifest.v1.schema.json](report-schemas/agent-run-manifest.v1.schema.json) |
@@ -159,6 +160,25 @@ embed artifact contents, raw traffic, source Hurl contents, stdout/stderr,
 prompts, provider outputs, credentials, environment values, or upload anything
 to a hosted service. A `not_ready` bundle is still reviewable evidence; it
 means required local evidence is missing or inconsistent.
+
+The runtime evidence card is written by:
+
+```bash
+entroping report runtime-card
+entroping report runtime-card --output json
+```
+
+It writes a concise reviewer-facing card from existing local sanitized evidence:
+`reports/run-latest.json` is the required deterministic runtime source, while
+drift, `reports/capture-summary.json`, artifact manifest, evidence bundle, and
+agent bundle artifacts are summarized when present. Missing required run
+evidence writes a failed card, and missing redaction evidence marks the card for
+reviewer attention. Present malformed artifacts fail closed before output is
+written.
+The card records only summary counts, schema evidence, project-relative local
+artifact links, failed gate IDs, and value-free findings. It does not execute
+Hurl, call providers, upload results, render raw Hurl output, raw traffic,
+prompts, provider responses, credentials, or environment values.
 
 The drift baseline candidate and active drift baseline share
 `entroping.drift-baseline.v1`. Candidates are written by `run --report drift`;
