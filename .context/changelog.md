@@ -1452,3 +1452,7 @@
   now fails closed with value-free required-field and type errors before
   downstream report evidence is built from malformed summaries, test lists, or
   rule IDs.
+- Closed issue #911's failure-bundle evidence gap: non-passed zero-exit tests
+  such as blocked, timeout, and error now stay in sanitized Hurl metadata, and
+  bundle creation uses manifest-ready evidence instead of trusting
+  `summary.failed` alone.
