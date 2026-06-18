@@ -77,6 +77,11 @@ def test_annotations_from_junit_report_handles_missing_and_malformed_reports(
     with pytest.raises(GitHubAnnotationError, match="Could not parse JUnit report"):
         annotations_from_junit_report(malformed)
 
+    unreadable = tmp_path / "unreadable-junit.xml"
+    unreadable.mkdir()
+    with pytest.raises(GitHubAnnotationError, match="Could not read JUnit report"):
+        annotations_from_junit_report(unreadable)
+
 
 @pytest.mark.security
 @pytest.mark.regression
@@ -215,6 +220,11 @@ def test_annotations_from_drift_report_handles_missing_and_malformed_reports(
     invalid_findings.write_text(json.dumps({"findings": {}}), encoding="utf-8")
     with pytest.raises(GitHubAnnotationError, match="must contain a findings list"):
         annotations_from_drift_report(invalid_findings)
+
+    unreadable = tmp_path / "unreadable-drift.json"
+    unreadable.mkdir()
+    with pytest.raises(GitHubAnnotationError, match="Could not read drift report"):
+        annotations_from_drift_report(unreadable)
 
 
 def test_annotations_from_drift_report_handles_partial_findings(tmp_path: Path) -> None:
