@@ -1,5 +1,6 @@
 """Human and CI report rendering helpers."""
 
+from collections.abc import Mapping
 from html import escape
 from io import BytesIO
 from pathlib import Path
@@ -18,7 +19,7 @@ from entroping.models.report import (
 def render_junit_report(report: RunReport) -> bytes:
     """Render a CI-consumable JUnit XML report."""
 
-    testsuite = ElementTree.Element(
+    testsuite = _xml_element(
         "testsuite",
         {
             "name": f"Entroping {report.project}",
@@ -31,14 +32,14 @@ def render_junit_report(report: RunReport) -> bytes:
     if _has_summary_scheduling_evidence(report):
         properties = ElementTree.SubElement(testsuite, "properties")
         for name, value in _summary_scheduling_properties(report):
-            ElementTree.SubElement(
+            _xml_sub_element(
                 properties,
                 "property",
                 {"name": name, "value": value},
             )
 
     for test in report.tests:
-        testcase = ElementTree.SubElement(
+        testcase = _xml_sub_element(
             testsuite,
             "testcase",
             {
@@ -48,7 +49,7 @@ def render_junit_report(report: RunReport) -> bytes:
             },
         )
         if not test.passed:
-            failure = ElementTree.SubElement(
+            failure = _xml_sub_element(
                 testcase,
                 "failure",
                 {
@@ -56,11 +57,11 @@ def render_junit_report(report: RunReport) -> bytes:
                     "type": _failure_type(test),
                 },
             )
-            failure.text = _failure_text(test)
+            failure.text = _xml_text(_failure_text(test))
         if _has_test_properties(test):
             properties = ElementTree.SubElement(testcase, "properties")
             if test.timeout_ms > 0:
-                ElementTree.SubElement(
+                _xml_sub_element(
                     properties,
                     "property",
                     {
@@ -69,7 +70,7 @@ def render_junit_report(report: RunReport) -> bytes:
                     },
                 )
             if test.operation_id is not None:
-                ElementTree.SubElement(
+                _xml_sub_element(
                     properties,
                     "property",
                     {
@@ -78,7 +79,7 @@ def render_junit_report(report: RunReport) -> bytes:
                     },
                 )
             if test.source is not None:
-                ElementTree.SubElement(
+                _xml_sub_element(
                     properties,
                     "property",
                     {
@@ -87,7 +88,7 @@ def render_junit_report(report: RunReport) -> bytes:
                     },
                 )
             if test.negative_category is not None:
-                ElementTree.SubElement(
+                _xml_sub_element(
                     properties,
                     "property",
                     {
@@ -96,7 +97,7 @@ def render_junit_report(report: RunReport) -> bytes:
                     },
                 )
             if test.severity is not None:
-                ElementTree.SubElement(
+                _xml_sub_element(
                     properties,
                     "property",
                     {
@@ -106,7 +107,7 @@ def render_junit_report(report: RunReport) -> bytes:
                 )
             if test.auth is not None:
                 if test.auth.flow is not None:
-                    ElementTree.SubElement(
+                    _xml_sub_element(
                         properties,
                         "property",
                         {
@@ -115,7 +116,7 @@ def render_junit_report(report: RunReport) -> bytes:
                         },
                     )
                 if test.auth.requires:
-                    ElementTree.SubElement(
+                    _xml_sub_element(
                         properties,
                         "property",
                         {
@@ -124,7 +125,7 @@ def render_junit_report(report: RunReport) -> bytes:
                         },
                     )
                 if test.auth.produces:
-                    ElementTree.SubElement(
+                    _xml_sub_element(
                         properties,
                         "property",
                         {
@@ -133,7 +134,7 @@ def render_junit_report(report: RunReport) -> bytes:
                         },
                     )
             for known_failure in test.known_failures:
-                ElementTree.SubElement(
+                _xml_sub_element(
                     properties,
                     "property",
                     {
@@ -142,7 +143,7 @@ def render_junit_report(report: RunReport) -> bytes:
                     },
                 )
             if test.safety is not None:
-                ElementTree.SubElement(
+                _xml_sub_element(
                     properties,
                     "property",
                     {
@@ -151,7 +152,7 @@ def render_junit_report(report: RunReport) -> bytes:
                     },
                 )
                 if test.safety.safety is not None:
-                    ElementTree.SubElement(
+                    _xml_sub_element(
                         properties,
                         "property",
                         {
@@ -160,7 +161,7 @@ def render_junit_report(report: RunReport) -> bytes:
                         },
                     )
                 if test.safety.methods:
-                    ElementTree.SubElement(
+                    _xml_sub_element(
                         properties,
                         "property",
                         {
@@ -169,7 +170,7 @@ def render_junit_report(report: RunReport) -> bytes:
                         },
                     )
                 if test.safety.blocked_reason is not None:
-                    ElementTree.SubElement(
+                    _xml_sub_element(
                         properties,
                         "property",
                         {
@@ -178,7 +179,7 @@ def render_junit_report(report: RunReport) -> bytes:
                         },
                     )
             if test.retry.retry_count > 0 or test.retry.unstable:
-                ElementTree.SubElement(
+                _xml_sub_element(
                     properties,
                     "property",
                     {
@@ -186,7 +187,7 @@ def render_junit_report(report: RunReport) -> bytes:
                         "value": str(test.retry.retry_count),
                     },
                 )
-                ElementTree.SubElement(
+                _xml_sub_element(
                     properties,
                     "property",
                     {
@@ -195,7 +196,7 @@ def render_junit_report(report: RunReport) -> bytes:
                     },
                 )
                 for attempt in test.retry.attempts:
-                    ElementTree.SubElement(
+                    _xml_sub_element(
                         properties,
                         "property",
                         {
@@ -312,9 +313,7 @@ def render_bug_report(report: RunReport) -> str:
         "",
         "## Output",
         "",
-        "```text",
-        _failure_text(primary).strip(),
-        "```",
+        _markdown_code_block(_failure_text(primary).strip(), language="text"),
         "",
     ]
     return "\n".join(sections)
@@ -415,6 +414,54 @@ def _failure_text(test: RunTestReport) -> str:
     if test.stderr:
         parts.extend(("", "stderr:", test.stderr))
     return "\n".join(parts)
+
+
+def _xml_element(tag: str, attributes: Mapping[str, object]) -> ElementTree.Element:
+    return ElementTree.Element(tag, _xml_attributes(attributes))
+
+
+def _xml_sub_element(
+    parent: ElementTree.Element,
+    tag: str,
+    attributes: Mapping[str, object],
+) -> ElementTree.Element:
+    return ElementTree.SubElement(parent, tag, _xml_attributes(attributes))
+
+
+def _xml_attributes(attributes: Mapping[str, object]) -> dict[str, str]:
+    return {name: _xml_text(str(value)) for name, value in attributes.items()}
+
+
+def _xml_text(text: str) -> str:
+    return "".join(character if _is_xml_character(character) else "\ufffd" for character in text)
+
+
+def _is_xml_character(character: str) -> bool:
+    codepoint = ord(character)
+    return (
+        codepoint in {0x09, 0x0A, 0x0D}
+        or 0x20 <= codepoint <= 0xD7FF
+        or 0xE000 <= codepoint <= 0xFFFD
+        or 0x10000 <= codepoint <= 0x10FFFF
+    )
+
+
+def _markdown_code_block(content: str, *, language: str = "") -> str:
+    fence = _markdown_fence_for(content)
+    info = language if language else ""
+    return f"{fence}{info}\n{content}\n{fence}"
+
+
+def _markdown_fence_for(content: str) -> str:
+    longest_run = 0
+    current_run = 0
+    for character in content:
+        if character == "`":
+            current_run += 1
+            longest_run = max(longest_run, current_run)
+        else:
+            current_run = 0
+    return "`" * max(3, longest_run + 1)
 
 
 def _known_failure_summary(known_failure: KnownFailureEvidence) -> str:
