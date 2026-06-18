@@ -56,7 +56,7 @@ def test_evaluate_run_safety_reports_tag_and_suite_safety_sources() -> None:
         protected_environments=("production",),
     )
     suite_result = evaluate_run_safety(
-        [_hurl_test(path="tests/suite.hurl")],
+        [_hurl_test(path="tests/suite.hurl", methods=("GET",))],
         environment="staging",
         protected_run=True,
         suite_safety="read_only",
@@ -140,6 +140,38 @@ def test_evaluate_run_safety_reports_single_mutating_and_destructive_blockers() 
     )
     assert destructive.blocks[0].evidence.blocked_reason == (
         "destructive tests are blocked in protected environments"
+    )
+
+
+def test_evaluate_run_safety_blocks_read_only_metadata_on_mutating_methods() -> None:
+    single = evaluate_run_safety(
+        [_hurl_test(methods=("DELETE",), meta={"safety": "read-only"})],
+        environment="prod",
+        protected_run=False,
+        suite_safety=None,
+        protected_environments=("prod",),
+    )
+    multiple = evaluate_run_safety(
+        [_hurl_test(methods=("post", "DELETE"), meta={"safety": "read-only"})],
+        environment="prod",
+        protected_run=False,
+        suite_safety=None,
+        protected_environments=("prod",),
+    )
+
+    evidence = single.blocks[0].evidence
+    assert evidence.safety == "read-only"
+    assert evidence.safety_source == "test metadata"
+    assert evidence.methods == ("DELETE",)
+    assert evidence.blocked_reason == (
+        "read-only safety metadata conflicts with mutating method DELETE "
+        "in protected environments"
+    )
+    multiple_evidence = multiple.blocks[0].evidence
+    assert multiple_evidence.methods == ("DELETE", "POST")
+    assert multiple_evidence.blocked_reason == (
+        "read-only safety metadata conflicts with mutating methods DELETE, POST "
+        "in protected environments"
     )
 
 

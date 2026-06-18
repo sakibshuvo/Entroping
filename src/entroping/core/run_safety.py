@@ -145,7 +145,18 @@ def _blocked_reason(
 ) -> str | None:
     if not protected_environment or not mutating_methods:
         return None
-    if safety in ALLOWED_PROTECTED_SAFETY:
+    if safety == "read-only":
+        if len(mutating_methods) == 1:
+            return (
+                "read-only safety metadata conflicts with mutating method "
+                f"{mutating_methods[0]} in protected environments"
+            )
+        return (
+            "read-only safety metadata conflicts with mutating methods "
+            + ", ".join(mutating_methods)
+            + " in protected environments"
+        )
+    if safety in {"idempotent", "teardown-backed"}:
         return None
     if safety == "destructive":
         return "destructive tests are blocked in protected environments"
