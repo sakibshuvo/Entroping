@@ -608,11 +608,23 @@ def _prepare_generated_hurl_file(generated: GeneratedHurlFile) -> PreparedGenera
         raise ValueError(msg)
     if output_path.exists():
         existing = output_path.read_text(encoding="utf-8")
-        if "# entroping: source=openapi" not in existing:
+        if not _has_openapi_generated_header(existing):
             msg = f"Refusing to overwrite non-OpenAPI Hurl file: {display_cli_path(output_path)}"
             raise ValueError(msg)
 
     return PreparedGeneratedHurlFile(generated=generated, output_path=output_path)
+
+
+def _has_openapi_generated_header(content: str) -> bool:
+    for line in content.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            return False
+        if not stripped.startswith("# entroping: "):
+            return False
+        if stripped == "# entroping: source=openapi":
+            return True
+    return False
 
 
 def _write_prepared_generated_hurl_file(prepared: PreparedGeneratedHurlFile) -> Path:

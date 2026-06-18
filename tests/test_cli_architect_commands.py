@@ -2839,3 +2839,80 @@ def test_write_generated_hurl_file_rejects_existing_non_openapi_target(
                 content="# entroping: source=openapi\nGET /health\nHTTP 200\n",
             )
         )
+
+
+def test_write_generated_hurl_file_rejects_spoofed_openapi_marker_below_header(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    target = tmp_path / "tests" / "generated" / "health.hurl"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "# manual coverage\n"
+        "# entroping: source=openapi\n"
+        "GET /manual-health\n"
+        "HTTP 200\n",
+        encoding="utf-8",
+    )
+    original = target.read_text(encoding="utf-8")
+
+    with pytest.raises(ValueError, match="non-OpenAPI Hurl file"):
+        architect_cli._write_generated_hurl_file(
+            GeneratedHurlFile(
+                relative_path="tests/generated/health.hurl",
+                content="# entroping: source=openapi\nGET /health\nHTTP 200\n",
+            )
+        )
+
+    assert target.read_text(encoding="utf-8") == original
+
+
+def test_write_generated_hurl_file_overwrites_existing_openapi_header_target(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    target = tmp_path / "tests" / "generated" / "health.hurl"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "# entroping: tags=generated,smoke\n"
+        "# entroping: source=openapi\n"
+        "GET /old-health\n"
+        "HTTP 200\n",
+        encoding="utf-8",
+    )
+
+    architect_cli._write_generated_hurl_file(
+        GeneratedHurlFile(
+            relative_path="tests/generated/health.hurl",
+            content=(
+                "# entroping: tags=generated,smoke\n"
+                "# entroping: source=openapi\n"
+                "GET /new-health\n"
+                "HTTP 200\n"
+            ),
+        )
+    )
+
+    assert target.read_text(encoding="utf-8") == (
+        "# entroping: tags=generated,smoke\n"
+        "# entroping: source=openapi\n"
+        "GET /new-health\n"
+        "HTTP 200\n"
+    )
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        ("# entroping: tags=generated\n\n# entroping: source=openapi\n", False),
+        ("# entroping: tags=generated\n", False),
+        ("# entroping: tags=generated\n# entroping: source=openapi\n", True),
+    ],
+)
+def test_openapi_generated_header_detection_requires_contiguous_source_header(
+    content: str,
+    expected: bool,
+) -> None:
+    assert architect_cli._has_openapi_generated_header(content) is expected
