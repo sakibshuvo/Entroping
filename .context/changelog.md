@@ -2,6 +2,10 @@
 
 ## 2026-06-18
 
+- Fixed issue #881's WireMock query matching gap:
+  `freeze --mock` now emits deterministic WireMock query parameter matchers
+  from redacted traffic, preserving exact non-sensitive query values while
+  matching sensitive or redacted query values without serializing their value.
 - Fixed issue #874's failure-bundle metadata redaction boundary:
   `hurl-metadata.json` now preserves discovered metadata keys while redacting
   secret-like metadata values before local bug-handoff bundles are written.
