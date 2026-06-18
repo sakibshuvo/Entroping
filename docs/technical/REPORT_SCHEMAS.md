@@ -240,9 +240,12 @@ entroping architect audit --focus logic --output json
 ```
 
 Its v1 payload includes an `operation_matrix` array with covered, uncovered,
-and ambiguous OpenAPI operation rows, and a `stale_references` array for
-committed Hurl `operation_id` metadata that no longer exists in the configured
-spec. Paths are project-relative when the CLI discovers tests from the current
+and ambiguous OpenAPI operation rows. Each row keeps positive/non-negative Hurl
+coverage paths in `tests` and matching generated negative-path evidence in
+`negative_tests`, so negative coverage does not satisfy positive operation
+coverage. The payload also includes a `stale_references` array for committed
+Hurl `operation_id` metadata that no longer exists in the configured spec.
+Paths are project-relative when the CLI discovers tests from the current
 project.
 
 When redacted Eye traffic state is available, the same payload includes an

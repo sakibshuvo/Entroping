@@ -139,6 +139,7 @@ def test_audit_openapi_coverage_reports_operation_matrix_and_stale_references() 
         "path": "/orders/{order_id}",
         "status": "ambiguous",
         "tests": ["tests/generated/get_order.hurl", "tests/manual/get_order_smoke.hurl"],
+        "negative_tests": [],
     }
     assert stale_references == [
         {
@@ -252,6 +253,99 @@ def test_audit_openapi_coverage_does_not_count_spoofed_operation_metadata() -> N
 
     assert report.missing_operations == 1
     assert [finding.operation_id for finding in report.findings] == ["createCheckout"]
+
+
+def test_audit_openapi_coverage_does_not_count_negative_tests_as_positive() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/checkout": {
+                "post": {
+                    "operationId": "createCheckout",
+                    "responses": {
+                        "201": {"description": "created"},
+                        "400": {"description": "bad request"},
+                    },
+                },
+            },
+        },
+    }
+    negative = HurlTest(
+        path=Path("tests/generated/negative/create_checkout_malformed_json.hurl"),
+        metadata=HurlMetadata(
+            tags=frozenset({"generated", "negative", "malformed-json"}),
+            meta={
+                "source": "openapi",
+                "generation": "negative-path-fuzzing",
+                "operation_id": "createCheckout",
+                "negative_category": "malformed-json",
+                "severity": "medium",
+            },
+        ),
+        exchanges=(HurlExchange(method="POST", url="{{base_url}}/checkout", path="/checkout"),),
+    )
+
+    report = audit_openapi_coverage(document, [negative])
+
+    assert report.covered_operations == 0
+    assert report.missing_operations == 1
+    assert [finding.operation_id for finding in report.findings] == ["createCheckout"]
+    assert report.operation_matrix[0].status == "uncovered"
+    assert report.operation_matrix[0].test_paths == ()
+    assert report.operation_matrix[0].negative_test_paths == (
+        "tests/generated/negative/create_checkout_malformed_json.hurl",
+    )
+    payload = audit_report_to_dict(report)
+    matrix = payload["operation_matrix"]
+    assert isinstance(matrix, list)
+    first_row = matrix[0]
+    assert isinstance(first_row, dict)
+    assert first_row["tests"] == []
+    assert first_row["negative_tests"] == [
+        "tests/generated/negative/create_checkout_malformed_json.hurl",
+    ]
+    markdown = render_audit_markdown(report)
+    assert "| createCheckout | POST | /checkout | uncovered | - |" in markdown
+    assert "tests/generated/negative/create_checkout_malformed_json.hurl" in markdown
+
+
+def test_audit_openapi_coverage_does_not_count_auth_negative_tests_as_positive() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/secure": {
+                "get": {
+                    "operationId": "getSecure",
+                    "responses": {
+                        "200": {"description": "ok"},
+                        "401": {"description": "unauthorized"},
+                    },
+                },
+            },
+        },
+    }
+    auth_negative = HurlTest(
+        path=Path("tests/generated/security/get_secure_invalid_auth.hurl"),
+        metadata=HurlMetadata(
+            tags=frozenset({"generated", "security"}),
+            meta={
+                "source": "openapi",
+                "operation_id": "getSecure",
+                "negative_category": "invalid-auth",
+                "severity": "high",
+            },
+        ),
+        exchanges=(HurlExchange(method="GET", url="{{base_url}}/secure", path="/secure"),),
+    )
+
+    report = audit_openapi_coverage(document, [auth_negative])
+
+    assert report.covered_operations == 0
+    assert report.missing_operations == 1
+    assert report.operation_matrix[0].test_paths == ()
+    assert report.operation_matrix[0].negative_test_paths == (
+        "tests/generated/security/get_secure_invalid_auth.hurl",
+    )
 
 
 def test_audit_openapi_coverage_enumerates_default_response_operations() -> None:

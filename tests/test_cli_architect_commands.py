@@ -1968,6 +1968,7 @@ paths:
             "path": "/health",
             "status": "covered",
             "tests": ["tests/generated/get_health.hurl"],
+            "negative_tests": [],
         },
         {
             "operation_id": "createCheckout",
@@ -1975,6 +1976,7 @@ paths:
             "path": "/checkout",
             "status": "uncovered",
             "tests": [],
+            "negative_tests": [],
         },
     ]
     assert payload["stale_references"] == [
