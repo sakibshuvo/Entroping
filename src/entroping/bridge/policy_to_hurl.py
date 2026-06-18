@@ -50,8 +50,11 @@ def compile_matching_gates(
 def compile_gate_assertion(gate: GateRule) -> HurlGateAssertion:
     """Compile one QAnstitution gate into a Hurl assertion line."""
 
+    if any(ord(character) < 32 or ord(character) == 127 for character in gate.id):
+        msg = f"Gate {gate.id!r} has an invalid rule id for Hurl injection"
+        raise GateCompilationError(msg)
     rule_id = gate.id.strip()
-    if not rule_id or "\n" in rule_id or "\r" in rule_id:
+    if not rule_id:
         msg = f"Gate {gate.id!r} has an invalid rule id for Hurl injection"
         raise GateCompilationError(msg)
 

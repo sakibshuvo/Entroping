@@ -12,6 +12,7 @@ from entroping.models.conditions import CONDITION_JSON_SCHEMA_PATTERN
 from entroping.models.qanstitution import (
     SUPPORTED_QANSTITUTION_VERSIONS,
     GateGroupReference,
+    GateRule,
     Qanstitution,
     expand_qanstitution_gate_entries,
 )
@@ -134,6 +135,43 @@ def test_qanstitution_schema_contract_covers_current_runtime_shape() -> None:
         )
     with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
         Qanstitution.model_validate({**valid_policy, "redaction": {"headers": []}})
+
+
+@pytest.mark.parametrize(
+    ("gate_id", "message"),
+    [
+        ("", "gate id must not be blank"),
+        ("  ", "gate id must not be blank"),
+        ("\nvalid", "gate id must not contain control characters"),
+        ("bad\nid", "gate id must not contain control characters"),
+        ("bad\rid", "gate id must not contain control characters"),
+        ("valid\t", "gate id must not contain control characters"),
+        ("bad\x00id", "gate id must not contain control characters"),
+    ],
+)
+def test_gate_rule_rejects_invalid_gate_ids(gate_id: str, message: str) -> None:
+    with pytest.raises(ValidationError, match=message):
+        GateRule.model_validate(
+            {
+                "id": gate_id,
+                "condition": "true",
+                "gate": "duration < 2000",
+                "enforcement": "block",
+            }
+        )
+
+
+def test_gate_rule_normalizes_surrounding_gate_id_whitespace() -> None:
+    gate = GateRule.model_validate(
+        {
+            "id": "  global_latency  ",
+            "condition": "true",
+            "gate": "duration < 2000",
+            "enforcement": "block",
+        }
+    )
+
+    assert gate.id == "global_latency"
 
 
 def test_qanstitution_settings_normalize_and_validate_protected_environments() -> None:

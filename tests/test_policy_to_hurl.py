@@ -114,7 +114,10 @@ def test_compile_matching_gates_surfaces_invalid_conditions_with_rule_id() -> No
         compile_matching_gates([broken_gate], _checkout_test())
 
 
-@pytest.mark.parametrize("gate_id", ["", "  ", "bad\nid", "bad\rid"])
+@pytest.mark.parametrize(
+    "gate_id",
+    ["", "  ", "\nvalid", "bad\nid", "bad\rid", "bad\x00id", "bad\x1fid", "bad\x7fid"],
+)
 def test_compile_gate_assertion_rejects_invalid_rule_ids(gate_id: str) -> None:
     gate = GateRule.model_construct(
         id=gate_id,

@@ -207,6 +207,13 @@ class GateRule(BaseModel):
     description: str | None = None
     final: bool = False
 
+    @field_validator("id")
+    @classmethod
+    def validate_gate_id(cls, value: str) -> str:
+        """Reject gate IDs that cannot safely identify executable policy."""
+
+        return _validate_gate_id(value)
+
     @field_validator("condition")
     @classmethod
     def validate_condition(cls, value: str) -> str:
@@ -525,6 +532,17 @@ def _validate_gate_group_name(value: str) -> str:
         msg = "gate group name must not contain control characters"
         raise ValueError(msg)
     return group_name
+
+
+def _validate_gate_id(value: str) -> str:
+    if any(ord(character) < 32 or ord(character) == 127 for character in value):
+        msg = "gate id must not contain control characters"
+        raise ValueError(msg)
+    gate_id = value.strip()
+    if not gate_id:
+        msg = "gate id must not be blank"
+        raise ValueError(msg)
+    return gate_id
 
 
 def _looks_like_secret(value: str) -> bool:
