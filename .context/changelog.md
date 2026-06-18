@@ -1495,3 +1495,7 @@
   bound, rejecting absolute outside-project output paths without creating a
   partial SARIF artifact while preserving default and in-project custom
   outputs.
+- Closed issue #846's coverage-badge output root-boundary gap: badge artifact
+  writes now require a project root and pass it to the safe writer, so
+  `entroping report badges` rejects absolute outside-project output directories
+  without creating partial Shields endpoint files.
