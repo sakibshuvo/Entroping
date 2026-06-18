@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
 from entroping.bridge.traffic_sessions import TrafficSessionCandidate
+from entroping.models.traffic_redaction import redacted_traffic_violation_summary
 
 _UUIDISH_RE = re.compile(
     r"(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
@@ -67,6 +68,9 @@ def compile_traffic_dependency_graph(
         if not exchange.redacted:
             msg = "traffic graph compilation requires redacted traffic"
             raise TrafficGraphCompilationError(msg)
+        violation_summary = redacted_traffic_violation_summary(exchange)
+        if violation_summary is not None:
+            raise TrafficGraphCompilationError(violation_summary)
 
         parsed = urlsplit(exchange.request.url)
         destination_host = parsed.netloc.lower()
