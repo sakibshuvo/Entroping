@@ -966,7 +966,10 @@ def _security_schemes(document: Mapping[str, object]) -> Mapping[str, object]:
     security_schemes = components_mapping.get("securitySchemes")
     if security_schemes is None:
         return {}
-    return _ensure_mapping(security_schemes, "OpenAPI securitySchemes")
+    normalized = _ensure_mapping(security_schemes, "OpenAPI securitySchemes")
+    for scheme_name in normalized:
+        _validate_security_scheme_name(scheme_name, context="OpenAPI securitySchemes")
+    return normalized
 
 
 def _security_requirements(
@@ -982,7 +985,15 @@ def _security_requirements(
     requirements: list[tuple[str, ...]] = []
     for index, raw_requirement in enumerate(raw_security):
         requirement = _ensure_mapping(raw_requirement, f"{context} requirement {index}")
-        requirements.append(tuple(requirement))
+        requirements.append(
+            tuple(
+                _validate_security_scheme_name(
+                    scheme_name,
+                    context=f"{context} requirement {index}",
+                )
+                for scheme_name in requirement
+            )
+        )
     return tuple(requirements)
 
 
@@ -1366,6 +1377,16 @@ def _validate_json_object_key(value: str, *, context: str) -> str:
         raise OpenApiCompilationError(msg)
     if _has_hurl_template_delimiter(value):
         msg = f"{context} JSON object key contains Hurl template delimiters: {value!r}"
+        raise OpenApiCompilationError(msg)
+    return value
+
+
+def _validate_security_scheme_name(value: str, *, context: str) -> str:
+    if _has_control(value):
+        msg = f"{context} security scheme name contains control characters: {value!r}"
+        raise OpenApiCompilationError(msg)
+    if _has_hurl_template_delimiter(value):
+        msg = f"{context} security scheme name contains Hurl template delimiters: {value!r}"
         raise OpenApiCompilationError(msg)
     return value
 
