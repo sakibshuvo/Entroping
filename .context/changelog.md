@@ -1402,3 +1402,7 @@
   routing is removed, and prompt-library handoffs now direct workers back to
   `rg`, `scripts/context_pack.sh`, the decision registry, source files, tests,
   GitHub issues, and CI.
+- Closed issue #885's WireMock freeze approval-manifest scope gap: mock freeze
+  manifests now fingerprint only the redacted traffic records selected for the
+  generated WireMock mappings while preserving all-record behavior when the
+  mock service selects the full session.
