@@ -48,10 +48,12 @@ def test_write_report_artifact_manifest_records_default_artifacts_with_checksums
         "reports/run-latest.json": '{"schema_version":"entroping.run-report.v1"}\n',
         "reports/run-plan.json": '{"schema_version":"entroping.run-plan.v1"}\n',
         "reports/junit.xml": "<testsuite tests=\"1\"></testsuite>\n",
-        "reports/run-latest.html": "<!doctype html><title>Entroping</title>\n",
+        "reports/run-latest.html": (
+            "<!doctype html><html><body><h1>Entroping Run Report</h1></body></html>\n"
+        ),
         "reports/drift.json": '{"schema_version":"entroping.drift-report.v1"}\n',
         "reports/entroping.sarif": '{"version":"2.1.0","runs":[]}\n',
-        "reports/review-summary.md": "# Review\n",
+        "reports/review-summary.md": "# Entroping Review Summary\n\n- Status: `pass`\n",
     }
     for path, content in artifacts.items():
         _write_text(tmp_path / path, content)
@@ -97,6 +99,59 @@ def test_write_report_artifact_manifest_records_default_artifacts_with_checksums
         "latest_event_hash": payload["audit"]["event"]["event_hash"],
         "diagnostics": [],
     }
+
+
+def test_write_report_artifact_manifest_keeps_invalid_known_artifacts_without_hints(
+    tmp_path: Path,
+) -> None:
+    artifacts = {
+        "reports/junit.xml": "not xml\n",
+        "reports/run-latest.html": "not html\n",
+        "reports/review-summary.md": "# Not an Entroping review summary\n",
+    }
+    for path, content in artifacts.items():
+        _write_text(tmp_path / path, content)
+
+    result = write_report_artifact_manifest(project_root=tmp_path)
+
+    by_path = {artifact.path: artifact for artifact in result.manifest.artifacts}
+    assert set(by_path) == set(artifacts)
+    assert [
+        (by_path[path].kind, path, by_path[path].schema_version)
+        for path in sorted(artifacts)
+    ] == [
+        ("junit", "reports/junit.xml", None),
+        ("review_summary", "reports/review-summary.md", None),
+        ("run_html", "reports/run-latest.html", None),
+    ]
+    for path, content in artifacts.items():
+        assert by_path[path].size_bytes == len(content.lstrip().encode("utf-8"))
+        assert by_path[path].sha256 == _sha256(content)
+
+
+def test_write_report_artifact_manifest_accepts_bom_prefixed_known_text_artifacts(
+    tmp_path: Path,
+) -> None:
+    artifacts = {
+        "reports/run-latest.html": (
+            "\ufeff<!doctype html><html><body>"
+            "<h1>Entroping Run Report</h1></body></html>\n"
+        ),
+        "reports/review-summary.md": "\ufeff# Entroping Review Summary\n\n- Status: `pass`\n",
+    }
+    for path, content in artifacts.items():
+        _write_text(tmp_path / path, content)
+
+    result = write_report_artifact_manifest(project_root=tmp_path)
+
+    by_path = {artifact.path: artifact for artifact in result.manifest.artifacts}
+    assert [
+        (by_path[path].kind, path, by_path[path].schema_version)
+        for path in sorted(artifacts)
+    ] == [
+        ("review_summary", "reports/review-summary.md", "entroping.review-summary.md"),
+        ("run_html", "reports/run-latest.html", "entroping.run-report.html"),
+    ]
 
 
 def test_write_report_artifact_manifest_appends_tamper_evident_audit_events(
@@ -424,13 +479,29 @@ def test_write_report_artifact_manifest_allows_unknown_schema_versions(
     assert by_path["reports/entroping.sarif"].schema_version is None
 
 
-def test_write_report_artifact_manifest_wraps_malformed_json_artifacts(
+def test_write_report_artifact_manifest_keeps_malformed_json_artifacts_without_hints(
     tmp_path: Path,
 ) -> None:
-    _write_text(tmp_path / "reports" / "run-latest.json", "{not json}\n")
+    artifacts = {
+        "reports/run-latest.json": "{not json}\n",
+        "reports/entroping.sarif": "{not sarif}\n",
+    }
+    for path, content in artifacts.items():
+        _write_text(tmp_path / path, content)
 
-    with pytest.raises(ReportArtifactManifestError, match="Could not read schema version"):
-        write_report_artifact_manifest(project_root=tmp_path)
+    result = write_report_artifact_manifest(project_root=tmp_path)
+
+    by_path = {artifact.path: artifact for artifact in result.manifest.artifacts}
+    assert [
+        (by_path[path].kind, path, by_path[path].schema_version)
+        for path in sorted(artifacts)
+    ] == [
+        ("sarif", "reports/entroping.sarif", None),
+        ("run_json", "reports/run-latest.json", None),
+    ]
+    for path, content in artifacts.items():
+        assert by_path[path].size_bytes == len(content.lstrip().encode("utf-8"))
+        assert by_path[path].sha256 == _sha256(content)
 
 
 def test_write_report_artifact_manifest_wraps_read_errors(

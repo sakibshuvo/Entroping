@@ -7,6 +7,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final, Literal
 
+from defusedxml import ElementTree
+from defusedxml.common import DefusedXmlException
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from entroping.core.path_safety import first_symlink_path_component
@@ -324,12 +326,48 @@ def _schema_version(
     if definition.kind == "sarif":
         return _sarif_schema_version(content, artifact_path=artifact_path)
     if definition.schema_hint is not None:
-        return definition.schema_hint
+        return _validated_schema_hint(definition, content)
     return _json_schema_version(content, artifact_path=artifact_path)
 
 
+def _validated_schema_hint(
+    definition: _ReportArtifactDefinition,
+    content: bytes,
+) -> str | None:
+    validators = {
+        "junit": _looks_like_junit_xml,
+        "run_html": _looks_like_run_report_html,
+        "review_summary": _looks_like_review_summary_markdown,
+    }
+    validator = validators.get(definition.kind)
+    return definition.schema_hint if validator is not None and validator(content) else None
+
+
+def _looks_like_junit_xml(content: bytes) -> bool:
+    try:
+        root = ElementTree.fromstring(content)
+    except (DefusedXmlException, ElementTree.ParseError):
+        return False
+    return _xml_local_name(root.tag) in {"testsuite", "testsuites"}
+
+
+def _looks_like_run_report_html(content: bytes) -> bool:
+    text = content.decode("utf-8-sig", errors="replace").casefold()
+    return text.lstrip().startswith("<!doctype html") and "entroping run report" in text[:4096]
+
+
+def _looks_like_review_summary_markdown(content: bytes) -> bool:
+    text = content.decode("utf-8-sig", errors="replace")
+    lines = text.splitlines()
+    return bool(lines) and lines[0].strip() == "# Entroping Review Summary"
+
+
+def _xml_local_name(tag: str) -> str:
+    return tag.rsplit("}", maxsplit=1)[-1]
+
+
 def _json_schema_version(content: bytes, *, artifact_path: str) -> str | None:
-    document = _load_json_document(content, artifact_path=artifact_path)
+    document = _load_json_document_or_none(content, artifact_path=artifact_path)
     if not isinstance(document, dict):
         return None
     schema_version = document.get("schema_version")
@@ -337,11 +375,18 @@ def _json_schema_version(content: bytes, *, artifact_path: str) -> str | None:
 
 
 def _sarif_schema_version(content: bytes, *, artifact_path: str) -> str | None:
-    document = _load_json_document(content, artifact_path=artifact_path)
+    document = _load_json_document_or_none(content, artifact_path=artifact_path)
     if not isinstance(document, dict):
         return None
     version = document.get("version")
     return _safe_metadata_text(f"SARIF {version}") if isinstance(version, str) else None
+
+
+def _load_json_document_or_none(content: bytes, *, artifact_path: str) -> object | None:
+    try:
+        return _load_json_document(content, artifact_path=artifact_path)
+    except ReportArtifactManifestError:
+        return None
 
 
 def _load_json_document(content: bytes, *, artifact_path: str) -> object:
