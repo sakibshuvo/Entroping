@@ -54,6 +54,10 @@
   gate assertions now reject blank, control-character, Unicode line-separator,
   comment-only, and section-header values during policy loading while preserving
   compiler-side defense and editor-schema guidance for bypassed models.
+- Fixed issue #884's generated OpenAPI Hurl ownership check:
+  `architect build --new` now only trusts `source=openapi` in the opening
+  Entroping metadata header, so manual files cannot spoof the marker later in
+  comments or request content to bypass overwrite protection.
 - Fixed issue #836's GitHub annotation artifact error handling:
   unreadable JUnit XML or drift JSON report paths now raise controlled
   `GitHubAnnotationError` messages instead of leaking raw filesystem
