@@ -50,6 +50,10 @@
 - Fixed issue #858's QAnstitution gate ID validation gap:
   gate IDs now reject blank and control-character values during policy loading,
   normalize surrounding whitespace, and keep compiler-side defense for bypassed models.
+- Fixed issue #859's QAnstitution gate assertion validation gap:
+  gate assertions now reject blank, control-character, Unicode line-separator,
+  comment-only, and section-header values during policy loading while preserving
+  compiler-side defense and editor-schema guidance for bypassed models.
 - Fixed issue #836's GitHub annotation artifact error handling:
   unreadable JUnit XML or drift JSON report paths now raise controlled
   `GitHubAnnotationError` messages instead of leaking raw filesystem
