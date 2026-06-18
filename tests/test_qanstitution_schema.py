@@ -435,6 +435,16 @@ def test_qanstitution_model_rejects_non_mapping_config() -> None:
         (
             {
                 "project": "checkout-api",
+                "gate_groups": {
+                    " api ": {"gates": []},
+                    "api": {"gates": []},
+                },
+            },
+            "duplicate gate group name after normalization: ' api ' and 'api'",
+        ),
+        (
+            {
+                "project": "checkout-api",
                 "gates": None,
             },
             "gates must be a list",

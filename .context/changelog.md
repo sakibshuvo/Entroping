@@ -1481,3 +1481,6 @@
 - Closed issue #863's policy-pack source-binding gap: manifest gate files now
   must match the loaded QAnstitution source file for each declared gate, so
   unrelated existing files cannot satisfy policy-pack self-test or vendoring.
+- Closed issue #861's gate-group collision gap: QAnstitution loading now fails
+  when distinct raw `gate_groups` names normalize to the same value, preserving
+  both conflicting names in the controlled validation error.
