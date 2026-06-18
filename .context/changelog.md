@@ -41,6 +41,9 @@
   root policy loading now rejects symlinked selected policy paths before
   resolution and applies stricter raw-path symlink checks to absolute imports
   that resolve back inside the policy root.
+- Fixed issue #856's absolute QAnstitution import boundary:
+  policy imports now fail closed unless they are local relative references,
+  including POSIX absolute, Windows absolute, UNC, and tilde-expanded paths.
 - Fixed issue #836's GitHub annotation artifact error handling:
   unreadable JUnit XML or drift JSON report paths now raise controlled
   `GitHubAnnotationError` messages instead of leaking raw filesystem
