@@ -75,6 +75,7 @@ class RunDeltaReport:
 def build_run_delta_report(*, base: RunReport, current: RunReport) -> RunDeltaReport:
     """Compare two deterministic run reports without inspecting raw output bodies."""
 
+    _validate_same_run_context(base=base, current=current)
     base_tests = _index_tests(base.tests, side="base")
     current_tests = _index_tests(current.tests, side="current")
     paths = tuple(sorted(set(base_tests) | set(current_tests)))
@@ -136,6 +137,15 @@ def build_run_delta_report(*, base: RunReport, current: RunReport) -> RunDeltaRe
         latency_deltas=tuple(latency_deltas),
         policy_gate_deltas=tuple(policy_gate_deltas),
     )
+
+
+def _validate_same_run_context(*, base: RunReport, current: RunReport) -> None:
+    if base.project != current.project:
+        msg = "project mismatch: base and current run reports describe different projects"
+        raise RunDeltaError(msg)
+    if base.environment != current.environment:
+        msg = "environment mismatch: base and current run reports describe different environments"
+        raise RunDeltaError(msg)
 
 
 def run_delta_report_to_dict(report: RunDeltaReport) -> dict[str, object]:
