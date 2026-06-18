@@ -48,6 +48,33 @@ def test_safety_helpers_detect_and_redact_real_secret_shapes() -> None:
     assert "api_key=[REDACTED]" in redacted
 
 
+def test_safety_helpers_detect_and_redact_sensitive_data_shapes() -> None:
+    jwt = (
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+        "eyJzdWIiOiIxMjM0NTY3ODkwIn0."
+        "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+    )
+    text = "\n".join(
+        [
+            f"opaque={jwt}",
+            "blob=QWxhZGRpbjpPcGVuU2VzYW1lMTIzNDU2Nzg5MA==",
+            "card=4111 1111 1111 1111",
+            "ssn=123-45-6789",
+            "email=alice@example.test",
+        ],
+    )
+
+    assert contains_secret_like_value(text) is True
+    redacted = redact_secret_like_values(text)
+
+    assert "eyJhbGci" not in redacted
+    assert "QWxhZGRp" not in redacted
+    assert "4111" not in redacted
+    assert "123-45" not in redacted
+    assert "alice@example" not in redacted
+    assert redacted.count("[REDACTED]") == 5
+
+
 def test_has_disallowed_control_allows_markdown_whitespace_only() -> None:
     assert has_disallowed_control("line one\nline two\tok\r") is False
     assert has_disallowed_control("bad\x00value") is True

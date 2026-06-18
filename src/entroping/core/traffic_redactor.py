@@ -1,6 +1,7 @@
 """Redaction pipeline for Eye traffic before local persistence."""
 
 import json
+import re
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from entroping.models.secrets import (
@@ -20,6 +21,7 @@ from entroping.models.traffic import (
 
 DEFAULT_MAX_BODY_CHARS = 4096
 _MULTIPART_BODY_SUMMARY_TEMPLATE = "[REDACTED {content_type} body]"
+_OPAQUE_HEX_VALUE_RE = re.compile(r"(?<![A-Fa-f0-9])[A-Fa-f0-9]{48,}(?![A-Fa-f0-9])")
 
 
 def redact_traffic_exchange(
@@ -121,7 +123,7 @@ def _redact_body(
     redacted_text = (
         _redact_json_body(body.text)
         if _is_json_content_type(content_type)
-        else _redact_plain_text_body(body.text, max_body_chars=max_body_chars)
+        else _redact_plain_text_body(body.text)
     )
     redaction_confidence: RedactionConfidence = "low"
     if _is_json_content_type(content_type):
@@ -188,13 +190,12 @@ def _redact_json_value(value: object, *, key: str | None = None) -> object:
     return value
 
 
-def _redact_plain_text_body(text: str, *, max_body_chars: int) -> str:
-    truncated_source = text[:max_body_chars]
-    return _redact_text(truncated_source).rstrip()
+def _redact_plain_text_body(text: str) -> str:
+    return _redact_text(text).rstrip()
 
 
 def _redact_text(text: str) -> str:
-    return redact_secret_like_values(text)
+    return _OPAQUE_HEX_VALUE_RE.sub(REDACTED, redact_secret_like_values(text))
 
 
 def _is_json_content_type(content_type: str) -> bool:

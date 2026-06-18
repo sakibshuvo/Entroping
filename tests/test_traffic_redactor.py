@@ -345,6 +345,79 @@ def test_redactor_bounds_text_body_summaries() -> None:
     assert redacted.redaction_confidence == "low"
 
 
+def test_redactor_redacts_plaintext_before_truncating_boundary_crossing_values() -> None:
+    jwt = (
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+        "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkFsaWNlIn0."
+        "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+    )
+    exchange = _raw_exchange().model_copy(
+        update={
+            "request": _raw_exchange().request.model_copy(
+                update={
+                    "headers": {"Content-Type": "text/plain"},
+                    "body": TrafficBody(
+                        content_type="text/plain",
+                        size_bytes=len(jwt),
+                        text=f"note={jwt}",
+                    ),
+                }
+            )
+        }
+    )
+
+    redacted = redact_traffic_exchange(exchange, max_body_chars=20)
+
+    request_body = redacted.request.body
+    assert request_body is not None
+    assert request_body.text == "note=[REDACTED]"
+    assert request_body.truncated is True
+    assert "eyJhbGci" not in redacted.model_dump_json()
+
+
+@pytest.mark.parametrize(
+    ("sensitive_value", "leaked_fragment"),
+    [
+        (
+            (
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+                "eyJzdWIiOiIxMjM0NTY3ODkwIn0."
+                "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+            ),
+            "eyJhbGci",
+        ),
+        ("f" * 64, "ffffffff"),
+        ("QWxhZGRpbjpPcGVuU2VzYW1lMTIzNDU2Nzg5MA==", "QWxhZGRp"),
+        ("4111 1111 1111 1111", "4111"),
+        ("123-45-6789", "123-45"),
+        ("alice@example.test", "alice@example"),
+    ],
+)
+def test_redactor_redacts_sensitive_shapes_in_non_sensitive_json_fields(
+    sensitive_value: str,
+    leaked_fragment: str,
+) -> None:
+    exchange = _raw_exchange().model_copy(
+        update={
+            "request": _raw_exchange().request.model_copy(
+                update={
+                    "body": TrafficBody(
+                        content_type="application/json",
+                        size_bytes=len(sensitive_value),
+                        text=f'{{"note":"{sensitive_value}","safe":"ok"}}',
+                    ),
+                }
+            )
+        }
+    )
+
+    redacted = redact_traffic_exchange(exchange)
+
+    assert leaked_fragment not in redacted.model_dump_json()
+    assert redacted.request.body is not None
+    assert redacted.request.body.text == '{"note":"[REDACTED]","safe":"ok"}'
+
+
 def test_traffic_models_reject_control_characters_in_boundaries() -> None:
     with pytest.raises(ValueError, match="must not contain control characters"):
         TrafficRequest(method="GET", url="https://example.test/\nnext", headers={}, body=None)

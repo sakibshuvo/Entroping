@@ -44,6 +44,13 @@ def test_shared_secret_helpers_preserve_harmless_token_shape_placeholders() -> N
     assert redact_secret_like_values(text) == text
 
 
+def test_shared_secret_helpers_preserve_non_luhn_digit_groups() -> None:
+    text = "reference=1111 1111 1111 1111"
+
+    assert contains_secret_like_value(text) is False
+    assert redact_secret_like_values(text) == text
+
+
 def test_shared_secret_helpers_preserve_templates_and_redacted_values() -> None:
     text = "Authorization: Bearer {{api_token}}\ntoken=[REDACTED]"
 
