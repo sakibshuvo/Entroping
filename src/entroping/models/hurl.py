@@ -170,6 +170,12 @@ def _parse_tags(raw_value: str, *, line_number: int, source: Path | None) -> fro
         tag = raw_tag.strip()
         if tag == "":
             _raise_metadata_error(line_number, "empty tag value", source=source)
+        if _has_control_character(tag):
+            _raise_metadata_error(
+                line_number,
+                "tag value must not contain control characters",
+                source=source,
+            )
         tags.add(tag)
 
     return frozenset(tags)

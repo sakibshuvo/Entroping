@@ -631,6 +631,7 @@ def _imports_list(document: Mapping[str, object], *, path: Path) -> list[str]:
 
 
 def _write_temporary_file(path: Path, content: str) -> Path:
+    temporary_path: Path | None = None
     try:
         with tempfile.NamedTemporaryFile(
             "w",
@@ -646,6 +647,8 @@ def _write_temporary_file(path: Path, content: str) -> Path:
             os.fsync(handle.fileno())
             return temporary_path
     except OSError as exc:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
         msg = f"Could not write temporary QAnstitution file for {path}: {exc}"
         raise PolicyPackVendorError(msg) from exc
 

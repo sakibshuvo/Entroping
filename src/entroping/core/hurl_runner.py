@@ -619,16 +619,23 @@ def _write_variables_file(variables: Mapping[str, str]) -> Path | None:
     if not variables:
         return None
 
-    with tempfile.NamedTemporaryFile(
-        mode="w",
-        encoding="utf-8",
-        prefix="entroping-hurl-vars-",
-        suffix=".env",
-        delete=False,
-    ) as handle:
-        for key in sorted(variables):
-            handle.write(f"{key}={variables[key]}\n")
-        return Path(handle.name)
+    variables_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            prefix="entroping-hurl-vars-",
+            suffix=".env",
+            delete=False,
+        ) as handle:
+            variables_path = Path(handle.name)
+            for key in sorted(variables):
+                handle.write(f"{key}={variables[key]}\n")
+            return variables_path
+    except OSError:
+        if variables_path is not None:
+            variables_path.unlink(missing_ok=True)
+        raise
 
 
 def _validate_variables(variables: Mapping[str, str]) -> None:

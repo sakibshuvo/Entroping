@@ -47,6 +47,7 @@ def safe_append_text(
     root_path = root.expanduser().resolve() if root is not None else None
     destination = _prepare_destination(path, artifact=artifact, root=root_path)
     try:
+        _reject_symlink_path_components(destination, artifact=artifact, root=root_path)
         with destination.open("ab") as handle:
             handle.write(content.encode("utf-8"))
             handle.flush()
@@ -133,6 +134,7 @@ def _reject_symlink_path_components(
 
 
 def _write_temporary_file(path: Path, content: bytes) -> Path:
+    temporary_path: Path | None = None
     try:
         with tempfile.NamedTemporaryFile(
             mode="xb",
@@ -147,5 +149,7 @@ def _write_temporary_file(path: Path, content: bytes) -> Path:
             os.fsync(handle.fileno())
             return temporary_path
     except OSError as exc:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
         msg = f"Could not write temporary artifact next to {path}: {exc}"
         raise SafeWriteError(msg) from exc
