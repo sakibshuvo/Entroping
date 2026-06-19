@@ -91,7 +91,10 @@ Output:
 - autonomy tier:
 - files changed:
 - files read:
+- context-pack mode:
+- context-pack manifest:
 - tests/gates:
+- commands run:
 - CI status:
 - cost/token/context evidence:
 - accepted findings:
@@ -122,6 +125,63 @@ Useful fields for comparison:
 
 Do not fill missing token, cost, or duration values with guesses. Unknowns must
 stay unknown so `scripts/factory_metrics.py report` can show evidence gaps.
+
+## Concrete OpenCode/DeepSeek Evidence Example
+
+Use this concrete example format for OpenCode/DeepSeek evidence. Replace the
+sample values with measured local evidence when it exists; leave unavailable
+provider token or cost fields as `unknown` instead of guessing:
+
+- issue: `774`
+- provider lane: `opencode/native-deepseek`
+- provider host: `OpenCode Desktop`
+- billing path: `paid DeepSeek inside OpenCode`
+- model id: `deepseek/deepseek-v4-pro`
+- role: `code_review_agent`
+- autonomy tier: `Tier A autonomous lane`
+- files changed:
+  - docs/meta/prompt-library/opencode-desktop-handoff.md
+  - tests/test_agent_workflow_docs.py
+- files read:
+  - docs/meta/prompt-library/issue-worker.md
+  - docs/meta/prompt-library/model-output-acceptance-gate.md
+  - docs/meta/AGENT_CONTROL_PLANE.md
+- context-pack mode: `implementation`
+- context-pack manifest: `generated`
+- context-pack estimated tokens: `<manifest-estimated-tokens>` from
+  `scripts/context_pack.sh --mode implementation --manifest`
+- context-pack bytes: `<manifest-context-bytes>` from
+  `scripts/context_pack.sh --mode implementation --manifest`
+- commands run:
+  - git pull --ff-only
+  - scripts/context_pack.sh --mode implementation --manifest
+  - scripts/factory_metrics.py report --format json
+  - scripts/factory_metrics.py report --format md --output .entroping/factory-metrics/factory-report.md
+  - scripts/factory_metrics.py readiness --issue 774 --format json
+- cost/token/context evidence:
+  - provider_input_tokens: `unknown`
+  - provider_output_tokens: `unknown`
+  - cost_usd: `unknown`
+  - duration_seconds: `unknown`
+  - context_bytes: `<manifest-context-bytes>`
+- accepted findings:
+  - `P3 merge-authority wording clarified`
+- rejected findings:
+  - `No runtime or provider-boundary change requested`
+- stale findings:
+  - `none`
+- reviewer overrides:
+  - `kept issue-required scripts/regression.sh --security gate`
+- final decision: `accepted after local tests, Codex review, and CI`
+- review effort:
+  - codex_review_rounds: `1`
+  - reviewer_corrections: `2`
+  - status: `accepted`
+
+Unknown token/cost values are allowed, but they must be marked `unknown`; do not
+infer, estimate, or backfill provider token or cost values when they are not
+present in repo-native metrics, context-pack output, provider metadata, or
+review artifacts.
 
 ## Scoring
 
