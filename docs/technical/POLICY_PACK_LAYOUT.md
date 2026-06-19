@@ -96,16 +96,16 @@ Required manifest fields for the current layout:
 | `entrypoint` | Relative path to the importable QAnstitution file |
 | `runtime_contract` | Current value: `qanstitution-import` |
 | `entroping` | Compatible Entroping version range |
-| `evidence_command` | Local command maintainers run to reproduce pack validation |
+| `evidence_command` | Portable local command maintainers run to reproduce pack validation |
 | `gate_prefixes` | Gate ID prefixes reserved by the pack |
 | `final_gates` | Gate IDs that consumers cannot override |
 | `gates` | Manifest-declared gate IDs, source files, and final flags |
 
 `entroping config test-policy-pack --pack <path> [--output <text|json>]` is the
 first-class local command for pack authors and consumers. It validates safe
-source boundaries, manifest/entrypoint/gate/final-gate consistency, and the
-consumer example without copying files, editing `qanstitution.yaml`, fetching a
-registry, or requiring provider keys.
+source boundaries, manifest metadata, entrypoint/gate/final-gate consistency,
+and the consumer example without copying files, editing `qanstitution.yaml`,
+fetching a registry, or requiring provider keys.
 
 `scripts/policy_pack_smoke.py --strict` remains release-owner smoke evidence for
 local policy-pack manifests, including arbitrary pack directories supplied with
@@ -139,6 +139,12 @@ imports:
 Local imports remain root-bounded. A pack import must resolve under the root
 `qanstitution.yaml` directory, just like any other local QAnstitution import.
 This keeps a malicious or accidental pack path from reading arbitrary files.
+Copyable consumer examples must use local, non-traversal import references such
+as `./policy-packs/<pack>/qanstitution.yaml`; absolute paths, `..`, netloc-only
+references, Git-style refs, and HTTP(S) URLs are rejected by local validation.
+Manifest evidence commands are limited to local Entroping policy-pack validation
+entrypoints and must not include remote references, shell control operators,
+absolute paths, traversal references, or local machine-specific paths.
 
 HTTP(S) policy-pack imports remain future work. The technical docs describe
 remote imports as part of the architecture contract, but current local

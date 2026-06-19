@@ -16,20 +16,17 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #895 Generated-Test Quality Score
+## Current Issue Slice: #864 Policy-Pack Self-Test Hardening
 
-- Add `entroping report test-quality --output md|json` as a report artifact,
-  not a runtime gate, so Entroping can statically review AI/compiler-generated
-  Hurl before agents propose repairs.
-- Score generated Hurl from committed local files only, covering assertion
-  strength, brittle selectors, missing negative-path metadata, weak auth/security
-  metadata, shallow schema checks, overfitted examples, and traceability gaps.
-- Keep the report value-safe: no Hurl execution, provider calls, uploads, raw
-  Hurl values, raw traffic, prompts, provider output, credentials, env values,
-  or replacement of QAnstitution/Hurl pass-fail authority.
-- Include `reports/test-quality.json` in the local evidence index and both
-  `reports/test-quality.json` and `reports/test-quality.md` in the artifact
-  manifest so Studio, PR cards, and evidence bundles can discover them.
+- Harden `config test-policy-pack` and vendoring validation for manifest
+  metadata that was previously treated as non-empty string evidence.
+- Reject invalid pack versions, invalid supported-Entroping ranges, suspicious
+  evidence commands, and missing or malformed attribution while preserving
+  local-first policy-pack behavior.
+- Reject unsafe consumer-example imports, including absolute paths, traversal,
+  netloc-only references, remote refs, and control-character paths.
+- Keep remote registries, package fetching, signing, and premium catalog
+  behavior out of scope.
 - Verification lane: `security-runtime`.
 
 ## Current Baseline

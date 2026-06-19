@@ -5,6 +5,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -96,7 +97,7 @@ def write_external_policy_pack(pack_path: Path) -> None:
             {
                 "project": "custom-consumer",
                 "version": "4.1",
-                "imports": ["../policies/main.yaml"],
+                "imports": ["./policy-packs/acme-strict-api/policies/main.yaml"],
                 "gates": [
                     {
                         "id": "custom.local_latency",
@@ -241,6 +242,34 @@ def test_policy_pack_smoke_strict_rejects_missing_attribution(tmp_path: Path) ->
         "manifest attribution must include at least one maintainer or publisher"
         in result.stderr
     )
+
+
+@pytest.mark.parametrize(
+    ("import_ref", "expected"),
+    [
+        ("/etc/qanstitution.yaml", "consumer example imports must be local paths"),
+        ("../qanstitution.yaml", "consumer example imports must not contain traversal"),
+        ("//example.com/qanstitution.yaml", "consumer example imports must be local paths"),
+        ("git@github.com:acme/policy.git", "consumer example imports must be local paths"),
+    ],
+)
+def test_policy_pack_smoke_strict_rejects_unsafe_consumer_imports(
+    tmp_path: Path,
+    import_ref: str,
+    expected: str,
+) -> None:
+    pack_path = tmp_path / "api-baseline"
+    shutil.copytree(EXAMPLE_PACK, pack_path)
+    consumer_path = pack_path / "examples" / "consumer-qanstitution.yaml"
+    consumer = yaml.safe_load(consumer_path.read_text(encoding="utf-8"))
+    consumer["imports"] = [import_ref]
+    consumer_path.write_text(yaml.safe_dump(consumer, sort_keys=False), encoding="utf-8")
+
+    result = run_policy_pack_smoke("--pack", str(pack_path), "--strict")
+
+    assert result.returncode == 1
+    assert "policy-pack smoke failed" in result.stderr
+    assert expected in result.stderr
 
 
 def test_policy_pack_smoke_markdown_is_release_owner_readable() -> None:

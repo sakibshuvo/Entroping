@@ -11,6 +11,7 @@ import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Literal, TypedDict
+from urllib.parse import urlparse
 
 import yaml
 
@@ -506,8 +507,7 @@ def _validate_consumer_imports(
         if not isinstance(import_ref, str) or not import_ref.strip():
             failures.append(f"consumer example import {index} must be a non-empty string")
             continue
-        if "://" in import_ref or import_ref.startswith("git@"):
-            failures.append("consumer example imports must be local paths")
+        _validate_consumer_import_ref(import_ref, failures)
 
 
 def _consumer_local_gate_ids(
@@ -529,6 +529,25 @@ def _consumer_local_gate_ids(
             continue
         gate_ids.append(gate_id.strip())
     return sorted(gate_ids)
+
+
+def _validate_consumer_import_ref(import_ref: str, failures: list[str]) -> None:
+    if any(ord(character) < 32 or ord(character) == 127 for character in import_ref):
+        failures.append("consumer example imports must not contain control characters")
+        return
+    parsed = urlparse(import_ref)
+    path = Path(import_ref)
+    if (
+        parsed.scheme
+        or parsed.netloc
+        or import_ref.startswith("git@")
+        or "\\" in import_ref
+        or path.is_absolute()
+    ):
+        failures.append("consumer example imports must be local paths")
+        return
+    if ".." in path.parts:
+        failures.append("consumer example imports must not contain traversal")
 
 
 def _vendor_directory_name(pack_path: Path) -> str:

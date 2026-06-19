@@ -58,7 +58,12 @@ gates:
         encoding="utf-8",
     )
     (pack_path / "examples" / "consumer-qanstitution.yaml").write_text(
-        "project: consumer\nimports:\n  - ../qanstitution.yaml\ngates: []\n",
+        (
+            "project: consumer\n"
+            "imports:\n"
+            "  - ./policy-packs/source-pack/qanstitution.yaml\n"
+            "gates: []\n"
+        ),
         encoding="utf-8",
     )
 
@@ -231,7 +236,12 @@ gates:
         encoding="utf-8",
     )
     (pack_path / "examples" / "consumer-qanstitution.yaml").write_text(
-        "project: consumer\nimports:\n  - ../qanstitution.yaml\ngates: []\n",
+        (
+            "project: consumer\n"
+            "imports:\n"
+            "  - ./policy-packs/acme/qanstitution.yaml\n"
+            "gates: []\n"
+        ),
         encoding="utf-8",
     )
 

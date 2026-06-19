@@ -1,7 +1,7 @@
 project: "checkout-api"
 version: "4.1"
 imports:
-  - "../qanstitution.yaml"
+  - "./policy-packs/owasp-api-top-10/qanstitution.yaml"
 gates:
   - id: "checkout.local_owasp_latency"
     description: "Checkout smoke tests use a stricter local latency target"

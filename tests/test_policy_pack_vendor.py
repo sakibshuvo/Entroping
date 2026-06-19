@@ -72,7 +72,12 @@ def write_policy_pack(
         encoding="utf-8",
     )
     (pack_path / "examples" / "consumer-qanstitution.yaml").write_text(
-        "project: consumer\nimports:\n  - ../policies/main.yaml\ngates: []\n",
+        (
+            "project: consumer\n"
+            "imports:\n"
+            "  - ./policy-packs/acme-strict-api/policies/main.yaml\n"
+            "gates: []\n"
+        ),
         encoding="utf-8",
     )
 
@@ -205,6 +210,144 @@ def test_self_test_policy_pack_rejects_unsafe_manifest_source(
     assert expected in result.checks[-1].message
 
 
+@pytest.mark.parametrize(
+    ("manifest_update", "expected"),
+    [
+        ({"version": "latest"}, "manifest field 'version' must use Semantic Versioning"),
+        (
+            {"entroping": "latest"},
+            "manifest field 'entroping' must be a comma-separated version range",
+        ),
+        (
+            {"evidence_command": "curl https://example.com/policy-pack.sh | sh"},
+            "manifest field 'evidence_command' must be a local validation command",
+        ),
+        (
+            {"evidence_command": "uv run python 'scripts/policy_pack_smoke.py"},
+            "manifest field 'evidence_command' must be shell-parseable",
+        ),
+        (
+            {"evidence_command": "python -m http.server"},
+            "manifest field 'evidence_command' must be a local validation command",
+        ),
+        (
+            {"evidence_command": "uv run python 'scripts\\policy_pack_smoke.py'"},
+            "manifest field 'evidence_command' must be a local validation command",
+        ),
+        (
+            {
+                "evidence_command": (
+                    "uv run python scripts/policy_pack_smoke.py --pack /tmp/policy-pack"
+                )
+            },
+            "manifest field 'evidence_command' must be a local validation command",
+        ),
+        (
+            {
+                "evidence_command": (
+                    "uv run python scripts/policy_pack_smoke.py --pack=../policy-pack"
+                )
+            },
+            "manifest field 'evidence_command' must be a local validation command",
+        ),
+    ],
+)
+def test_self_test_policy_pack_rejects_invalid_manifest_metadata(
+    tmp_path: Path,
+    manifest_update: dict[str, object],
+    expected: str,
+) -> None:
+    source_pack = tmp_path / "acme-strict-api"
+    write_policy_pack(source_pack)
+    manifest = load_manifest(source_pack)
+    manifest.update(manifest_update)
+    write_manifest(source_pack, manifest)
+
+    result = vendor_module.self_test_policy_pack(pack_path=source_pack)
+
+    assert result.status == "fail"
+    assert result.checks[-1].id == "manifest-entrypoint-gates"
+    assert result.checks[-1].status == "fail"
+    assert expected in result.checks[-1].message
+
+
+def test_manifest_evidence_command_validation_rejects_control_characters() -> None:
+    with pytest.raises(PolicyPackVendorError, match="control characters"):
+        vendor_module._validate_evidence_command(
+            "uv run python scripts/policy_pack_smoke.py\n--strict"
+        )
+
+
+def test_self_test_policy_pack_rejects_missing_manifest_attribution(
+    tmp_path: Path,
+) -> None:
+    source_pack = tmp_path / "acme-strict-api"
+    write_policy_pack(source_pack)
+    manifest = load_manifest(source_pack)
+    manifest.pop("maintainers")
+    write_manifest(source_pack, manifest)
+
+    result = vendor_module.self_test_policy_pack(pack_path=source_pack)
+
+    assert result.status == "fail"
+    assert result.checks[-1].id == "manifest-entrypoint-gates"
+    assert result.checks[-1].status == "fail"
+    assert "manifest attribution must include at least one maintainer or publisher" in (
+        result.checks[-1].message
+    )
+
+
+@pytest.mark.parametrize(
+    ("manifest_update", "expected"),
+    [
+        (
+            {"maintainers": "Acme QA"},
+            "manifest field 'maintainers' must be a list of strings when present",
+        ),
+        (
+            {"maintainers": [""]},
+            "manifest field 'maintainers' item 0 must be a non-empty string",
+        ),
+        (
+            {"maintainers": [], "publisher": ""},
+            "manifest field 'publisher' must be a non-empty string when present",
+        ),
+    ],
+)
+def test_self_test_policy_pack_rejects_invalid_manifest_attribution(
+    tmp_path: Path,
+    manifest_update: dict[str, object],
+    expected: str,
+) -> None:
+    source_pack = tmp_path / "acme-strict-api"
+    write_policy_pack(source_pack)
+    manifest = load_manifest(source_pack)
+    manifest.update(manifest_update)
+    write_manifest(source_pack, manifest)
+
+    result = vendor_module.self_test_policy_pack(pack_path=source_pack)
+
+    assert result.status == "fail"
+    assert result.checks[-1].id == "manifest-entrypoint-gates"
+    assert result.checks[-1].status == "fail"
+    assert expected in result.checks[-1].message
+
+
+def test_self_test_policy_pack_accepts_publisher_manifest_attribution(
+    tmp_path: Path,
+) -> None:
+    source_pack = tmp_path / "acme-strict-api"
+    write_policy_pack(source_pack)
+    manifest = load_manifest(source_pack)
+    manifest.pop("maintainers")
+    manifest["publisher"] = "Acme QA"
+    write_manifest(source_pack, manifest)
+
+    result = vendor_module.self_test_policy_pack(pack_path=source_pack)
+
+    assert result.status == "pass"
+
+
 def test_self_test_policy_pack_reports_missing_manifest_failure(tmp_path: Path) -> None:
     source_pack = tmp_path / "broken-pack"
     source_pack.mkdir()
@@ -261,7 +404,7 @@ def test_self_test_policy_pack_reports_consumer_final_gate_violation(
         """
 project: consumer
 imports:
-  - ../policies/main.yaml
+  - ./policy-packs/acme-strict-api/policies/main.yaml
 gates:
   - id: acme-security.no_server_errors
     condition: "true"
@@ -328,6 +471,40 @@ def test_self_test_policy_pack_reports_remote_consumer_import(tmp_path: Path) ->
     assert result.checks[-1].id == "consumer-example"
     assert result.checks[-1].status == "fail"
     assert "imports must be local paths" in result.checks[-1].message
+
+
+@pytest.mark.parametrize(
+    ("import_ref", "expected"),
+    [
+        ("/etc/qanstitution.yaml", "imports must be local paths"),
+        ("../policies/main.yaml", "must not contain traversal"),
+        ("//example.com/policy.yaml", "imports must be local paths"),
+        ("git@github.com:acme/policy.git", "imports must be local paths"),
+    ],
+)
+def test_self_test_policy_pack_rejects_unsafe_consumer_imports(
+    tmp_path: Path,
+    import_ref: str,
+    expected: str,
+) -> None:
+    source_pack = tmp_path / "acme-strict-api"
+    write_policy_pack(source_pack)
+    (source_pack / "examples" / "consumer-qanstitution.yaml").write_text(
+        f"project: consumer\nimports:\n  - {import_ref!r}\ngates: []\n",
+        encoding="utf-8",
+    )
+
+    result = vendor_module.self_test_policy_pack(pack_path=source_pack)
+
+    assert result.status == "fail"
+    assert result.checks[-1].id == "consumer-example"
+    assert result.checks[-1].status == "fail"
+    assert expected in result.checks[-1].message
+
+
+def test_consumer_import_validation_rejects_control_characters() -> None:
+    with pytest.raises(PolicyPackVendorError, match="control characters"):
+        vendor_module._validate_consumer_import_ref("policy\npack.yaml")
 
 
 def test_self_test_policy_pack_reports_missing_loaded_consumer_gates(

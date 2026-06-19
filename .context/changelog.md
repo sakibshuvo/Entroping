@@ -2,6 +2,11 @@
 
 ## 2026-06-18
 
+- Fixed issue #864's policy-pack self-test metadata boundary:
+  policy-pack validation now rejects invalid Semantic Version metadata,
+  malformed supported-Entroping ranges, suspicious evidence commands, missing
+  attribution, and unsafe consumer-example imports while preserving local-only
+  pack validation and vendoring.
 - Added issue #895's generated-test quality score:
   `entroping report test-quality --output md|json` writes static generated-Hurl
   quality evidence for assertion strength, brittle selectors, negative/auth
