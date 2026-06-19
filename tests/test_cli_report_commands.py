@@ -19,6 +19,7 @@ from cli_test_support import (
 )
 
 from entroping.core.evidence_bundle import EvidenceBundleError
+from entroping.core.pilot_metrics import PilotMetricsError
 from entroping.core.report_artifact_manifest import write_report_artifact_manifest
 from entroping.core.runtime_card import RuntimeCardError
 
@@ -90,6 +91,7 @@ def test_report_help_tiers_core_ci_review_commands_before_advanced_evidence() ->
         "traceability",
         "artifact-manifest",
         "evidence-bundle",
+        "pilot-metrics",
         "agent-bundle",
     ):
         assert command in advanced_panel
@@ -249,6 +251,69 @@ def test_report_runtime_card_wraps_core_errors(monkeypatch: pytest.MonkeyPatch) 
 
     assert result.exit_code == 1
     assert "runtime card source evidence is unsafe" in result.output
+
+
+def test_report_pilot_metrics_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("reports") / "run-latest.json",
+        """
+{
+  "schema_version": "entroping.run-report.v1",
+  "project": "checkout-api",
+  "environment": "ci",
+  "generated_at": "2026-06-19T00:00:00+00:00",
+  "summary": {"total": 1, "passed": 1, "failed": 0, "exit_code": 0},
+  "tests": []
+}
+""",
+    )
+
+    result = CliRunner().invoke(app, ["report", "pilot-metrics"])
+
+    assert result.exit_code == 0
+    assert "Wrote pilot metrics report: reports/pilot-metrics.md" in result.output
+    markdown = Path("reports/pilot-metrics.md").read_text(encoding="utf-8")
+    assert "# Entroping Pilot Metrics" in markdown
+    assert "manual_input_required" in markdown
+
+
+def test_report_pilot_metrics_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "pilot-metrics", "--output", "json"])
+
+    assert result.exit_code == 0
+    assert "Wrote pilot metrics report: reports/pilot-metrics.json" in result.output
+    payload = json.loads(Path("reports/pilot-metrics.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.pilot-metrics.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_pilot_metrics_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["report", "pilot-metrics", "--output", "html"])
+
+    assert result.exit_code == 2
+    assert "Unsupported pilot metrics output" in result.output
+    assert not Path("reports/pilot-metrics.html").exists()
+
+
+def test_report_pilot_metrics_wraps_core_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail_pilot_metrics(*args: object, **kwargs: object) -> object:
+        raise PilotMetricsError("pilot metrics path is unsafe")
+
+    monkeypatch.setattr(report_cli, "run_pilot_metrics_report", fail_pilot_metrics)
+
+    result = CliRunner().invoke(app, ["report", "pilot-metrics"])
+
+    assert result.exit_code == 1
+    assert "pilot metrics path is unsafe" in result.output
 
 
 def test_report_bug_generates_markdown_from_latest_failing_run(

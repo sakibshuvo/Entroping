@@ -16,21 +16,18 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #937 Evidence-Bundle Remediation Hints
+## Current Issue Slice: #939 Local Pilot Metrics Report
 
-- Add deterministic local remediation hints to evidence-bundle diagnostics
-  while preserving the existing JSON default and
-  `entroping.evidence-bundle.v1` schema contract.
-- Cover missing evidence, malformed/unsupported schema, checksum mismatch,
-  artifact-manifest audit, and unsafe artifact path states with hints such as
-  `entroping run --ci --report json`,
-  `entroping report policy --output json`, and
-  `entroping report artifact-manifest`.
-- Render the same hints in Markdown as reviewer next-actions without executing
-  commands automatically.
-- Do not embed raw report contents, raw traffic, source Hurl contents,
-  stdout/stderr, prompts, provider outputs, credentials, environment values, or
-  uploaded artifacts.
+- Add `entroping report pilot-metrics --output md|json` for local
+  design-partner pilot metric inference from existing sanitized artifacts.
+- Infer only metrics Entroping can prove locally: evidence-bundle ready rate
+  from `reports/evidence-bundle.json` and waived-gate count from
+  run-report known-failure evidence.
+- Mark setup time, useful failures, false positives, and human steering as
+  `manual_input_required`; mark missing, malformed, or unsafe local artifacts
+  as `unknown` source-backed states.
+- Do not execute Hurl, call providers, upload artifacts, parse raw traffic,
+  read private notes, or render raw report contents.
 - Verification lane: `security-runtime`.
 
 ## Current Baseline

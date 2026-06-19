@@ -32,6 +32,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Report artifact manifest | `entroping.report-artifact-manifest.v1` | `reports/artifact-manifest.json` | [report-artifact-manifest.v1.schema.json](report-schemas/report-artifact-manifest.v1.schema.json) |
 | Evidence bundle | `entroping.evidence-bundle.v1` | `reports/evidence-bundle.json` | [evidence-bundle.v1.schema.json](report-schemas/evidence-bundle.v1.schema.json) |
 | Runtime evidence card | `entroping.runtime-card.v1` | `reports/runtime-card.json` from `entroping report runtime-card --output json` | [runtime-card.v1.schema.json](report-schemas/runtime-card.v1.schema.json) |
+| Pilot metrics | `entroping.pilot-metrics.v1` | `reports/pilot-metrics.json` from `entroping report pilot-metrics --output json` | [pilot-metrics.v1.schema.json](report-schemas/pilot-metrics.v1.schema.json) |
 | Failure bundle manifest | `entroping.failure-bundle.v1` | `reports/failure-bundle/manifest.json` | Inline contract |
 | Coverage badges | Shields endpoint schema v1 | `reports/badges/*.json` | External Shields endpoint format |
 | Agent run manifest | `entroping.agent-run-manifest.v1` | `.entroping/agent-runs/*.json` | [agent-run-manifest.v1.schema.json](report-schemas/agent-run-manifest.v1.schema.json) |
@@ -191,6 +192,23 @@ The card records only summary counts, schema evidence, project-relative local
 artifact links, failed gate IDs, and value-free findings. It does not execute
 Hurl, call providers, upload results, render raw Hurl output, raw traffic,
 prompts, provider responses, credentials, or environment values.
+
+The pilot metrics report is written by:
+
+```bash
+entroping report pilot-metrics
+entroping report pilot-metrics --output json
+```
+
+It writes `reports/pilot-metrics.md` by default or
+`reports/pilot-metrics.json` with schema `entroping.pilot-metrics.v1` when
+`--output json` is selected. The report reads existing sanitized local
+artifacts only: run report, runtime card, evidence bundle, artifact manifest,
+and agent bundle. It records which metrics are locally `known`, which are
+`unknown` because supporting artifacts are absent or invalid, and which are
+`manual_input_required` because they depend on design-partner feedback. The
+command does not execute Hurl, call providers, parse raw traffic, read private
+notes, upload artifacts, or render raw report contents.
 
 The drift baseline candidate and active drift baseline share
 `entroping.drift-baseline.v1`. Candidates are written by `run --report drift`;
