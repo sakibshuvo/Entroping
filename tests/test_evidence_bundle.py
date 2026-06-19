@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -83,6 +84,29 @@ def test_run_evidence_bundle_report_writes_value_free_ready_bundle(tmp_path: Pat
     assert "checkout-api" in payload
 
 
+def test_run_evidence_bundle_report_writes_value_free_ready_markdown(
+    tmp_path: Path,
+) -> None:
+    _write_required_artifacts(tmp_path)
+
+    result = run_evidence_bundle_report(
+        project_root=tmp_path,
+        output_path=Path("reports") / "evidence-bundle.md",
+    )
+
+    assert result.output_path == tmp_path / "reports" / "evidence-bundle.md"
+    assert result.bundle.summary.status == "ready"
+    markdown = result.output_path.read_text(encoding="utf-8")
+    assert "# Evidence Bundle" in markdown
+    assert "- Status: `ready`" in markdown
+    assert "- Required artifacts: `3/3` present, `0` missing, `0` invalid" in markdown
+    assert "- Artifact manifest audit: `verified`" in markdown
+    assert "| run_json | reports/run-latest.json | present |" in markdown
+    assert "No diagnostics were found." in markdown
+    assert "No missing required artifacts were found." in markdown
+    assert "sk-proj-this-secret-must-not-enter-the-bundle" not in markdown
+
+
 def test_run_evidence_bundle_report_records_missing_required_artifacts(
     tmp_path: Path,
 ) -> None:
@@ -91,6 +115,7 @@ def test_run_evidence_bundle_report_records_missing_required_artifacts(
     assert result.bundle.summary.status == "not_ready"
     assert result.bundle.summary.required_present == 0
     assert result.bundle.summary.required_missing == 3
+    assert result.bundle.summary.required_invalid == 0
     assert [item.path for item in result.bundle.missing_artifacts] == [
         "reports/artifact-manifest.json",
         "reports/effective-policy.json",
@@ -99,6 +124,31 @@ def test_run_evidence_bundle_report_records_missing_required_artifacts(
     assert {diagnostic.code for diagnostic in result.bundle.diagnostics} == {
         "missing_required_artifact"
     }
+
+
+def test_run_evidence_bundle_report_writes_not_ready_markdown_with_next_commands(
+    tmp_path: Path,
+) -> None:
+    result = run_evidence_bundle_report(
+        project_root=tmp_path,
+        output_path=Path("reports") / "evidence-bundle.md",
+    )
+
+    assert result.bundle.summary.status == "not_ready"
+    markdown = result.output_path.read_text(encoding="utf-8")
+    assert "- Status: `not_ready`" in markdown
+    assert "- Required artifacts: `0/3` present, `3` missing, `0` invalid" in markdown
+    assert "| artifact_manifest | reports/artifact-manifest.json | missing |" in markdown
+    assert "| effective_policy | reports/effective-policy.json | missing |" in markdown
+    assert "| run_json | reports/run-latest.json | missing |" in markdown
+    assert "## Next Local Commands" in markdown
+    assert "- `entroping report artifact-manifest`" in markdown
+    assert "- `entroping report policy --output json`" in markdown
+    assert "- `entroping run --report json`" in markdown
+    assert (
+        "- `entroping report evidence-bundle --output reports/evidence-bundle.md`"
+        in markdown
+    )
 
 
 def test_run_evidence_bundle_report_detects_schema_and_checksum_mismatches(
@@ -127,6 +177,45 @@ def test_run_evidence_bundle_report_detects_schema_and_checksum_mismatches(
         ("schema_mismatch", "reports/run-latest.json"),
         ("checksum_mismatch", "reports/run-latest.json"),
     ]
+
+
+def test_run_evidence_bundle_report_writes_checksum_and_audit_diagnostics_markdown(
+    tmp_path: Path,
+) -> None:
+    _write_required_artifacts(tmp_path)
+    chain_path = tmp_path / ".entroping" / "report-audit-chain.jsonl"
+    chain_path.write_text(
+        chain_path.read_text(encoding="utf-8").replace(
+            "entroping.run-report.v1",
+            "entroping.run-report.v9",
+        ),
+        encoding="utf-8",
+    )
+    write_report_artifact_manifest(project_root=tmp_path)
+    _write_text(
+        tmp_path / "reports" / "run-latest.json",
+        """
+{
+  "schema_version": "entroping.run-report.v9",
+  "project": "checkout-api"
+}
+""",
+    )
+
+    result = run_evidence_bundle_report(
+        project_root=tmp_path,
+        output_path=Path("reports") / "evidence-bundle.md",
+    )
+
+    assert result.bundle.summary.status == "not_ready"
+    markdown = result.output_path.read_text(encoding="utf-8")
+    assert "- Artifact manifest audit: `broken`" in markdown
+    assert "| error | artifact_manifest_audit_broken | reports/artifact-manifest.json |" in (
+        markdown
+    )
+    assert "| error | schema_mismatch | reports/run-latest.json |" in markdown
+    assert "| error | checksum_mismatch | reports/run-latest.json |" in markdown
+    assert "sk-proj-this-secret-must-not-enter-the-bundle" not in markdown
 
 
 def test_run_evidence_bundle_report_allows_digest_shaped_audit_hash(
@@ -193,6 +282,7 @@ def test_run_evidence_bundle_report_reports_broken_artifact_manifest_audit(
     assert result.bundle.summary.status == "not_ready"
     assert result.bundle.manifest_audit is not None
     assert result.bundle.manifest_audit.status == "broken"
+    assert result.bundle.summary.required_invalid == 0
     assert ("artifact_manifest_audit_broken", "reports/artifact-manifest.json") in {
         (diagnostic.code, diagnostic.path) for diagnostic in result.bundle.diagnostics
     }
@@ -262,6 +352,27 @@ def test_run_evidence_bundle_report_rejects_artifact_directory(tmp_path: Path) -
     (tmp_path / "reports" / "run-latest.json").mkdir(parents=True)
 
     with pytest.raises(EvidenceBundleError, match="is not a file"):
+        run_evidence_bundle_report(project_root=tmp_path)
+
+
+def test_run_evidence_bundle_report_rejects_oversized_artifact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_required_artifacts(tmp_path)
+    original_stat = Path.stat
+
+    def fake_stat(path: Path, *, follow_symlinks: bool = True) -> os.stat_result:
+        result = original_stat(path, follow_symlinks=follow_symlinks)
+        if path.name != "run-latest.json":
+            return result
+        values = list(result)
+        values[6] = evidence_bundle._MAX_EVIDENCE_ARTIFACT_BYTES + 1
+        return type(result)(values)
+
+    monkeypatch.setattr(Path, "stat", fake_stat)
+
+    with pytest.raises(EvidenceBundleError, match="exceeds"):
         run_evidence_bundle_report(project_root=tmp_path)
 
 

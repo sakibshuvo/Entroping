@@ -16,18 +16,17 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #935 Runtime-Card Pilot Readiness
+## Current Issue Slice: #936 Evidence-Bundle Markdown Reviewer Summary
 
-- Add a value-free `pilot_readiness` section to runtime-card JSON and Markdown
-  output using `reports/evidence-bundle.json` metadata.
-- Summarize evidence-bundle readiness, missing artifacts, invalid artifacts,
-  checksum mismatches, diagnostics, and artifact-manifest audit status without
-  rendering artifact contents.
-- Treat malformed or unsafe evidence-bundle artifacts as explicit
-  `invalid`/`unsafe` pilot-readiness status while other malformed present
-  artifacts still fail closed.
-- Preserve deterministic, local-only report behavior; `entroping run` remains
-  LLM-free and provider-free.
+- Add a reviewer-facing Markdown output path to
+  `entroping report evidence-bundle` while preserving the existing JSON default
+  and `entroping.evidence-bundle.v1` schema contract.
+- Render only value-free readiness metadata: status, required artifact counts,
+  local artifact references, checksum/audit diagnostics, and next local
+  commands for missing evidence.
+- Do not embed raw report contents, raw traffic, source Hurl contents,
+  stdout/stderr, prompts, provider outputs, credentials, environment values, or
+  uploaded artifacts.
 - Verification lane: `security-runtime`.
 
 ## Current Baseline
