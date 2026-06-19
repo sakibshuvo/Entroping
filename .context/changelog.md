@@ -2,6 +2,13 @@
 
 ## 2026-06-19
 
+- Added issue #954's design-partner feedback writer:
+  `entroping report design-partner-feedback` now writes a schema-valid
+  sanitized local template to `reports/design-partner-feedback.json`, deriving
+  value-free evidence statuses from existing report artifacts and leaving
+  manual feedback fields as `null` or `manual input required` without Hurl
+  execution, provider calls, raw traffic reads, uploads, or validated-demand
+  claims.
 - Added issue #938's Studio evidence-bundle pilot readiness panel:
   `entroping studio` now derives a read-only value-free readiness table from
   `reports/evidence-bundle.json`, covering ready, not_ready, invalid, missing,

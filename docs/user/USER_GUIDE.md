@@ -534,9 +534,9 @@ Target workflow:
 3. Run Entroping locally or in CI after AI-generated code or Hurl changes land.
 4. Attach only sanitized evidence to the review or pilot discussion:
    `reports/run-latest.json`, `reports/effective-policy.json`,
-   `reports/artifact-manifest.json`, `reports/evidence-bundle.json`, and
-   `reports/evidence-bundle.md`, `reports/runtime-card.md`, or
-   `reports/pilot-metrics.md` when present.
+   `reports/artifact-manifest.json`, `reports/evidence-bundle.json`,
+   `reports/design-partner-feedback.json`, and `reports/evidence-bundle.md`,
+   `reports/runtime-card.md`, or `reports/pilot-metrics.md` when present.
 5. Convert every product gap, confusing error, false positive, missing report,
    or adoption blocker into a narrow GitHub issue before expanding scope.
 
@@ -552,6 +552,7 @@ entroping report evidence-bundle
 entroping report evidence-bundle --output reports/evidence-bundle.md
 entroping report runtime-card
 entroping report pilot-metrics
+entroping report design-partner-feedback
 ```
 
 Design-partner evidence-bundle acceptance checks:
@@ -625,12 +626,21 @@ Design-partner feedback artifact:
 Store sanitized pilot feedback, when collected, as
 `reports/design-partner-feedback.json` with schema
 `entroping.design-partner-feedback.v1`. This artifact is product-learning
-evidence, not proof of validated demand, and no CLI writer exists yet. Keep the
-shape close to the feedback template: pilot repo/service, AI-assisted change
-type, Entroping commands run, evidence-bundle status, runtime-card status,
-blocked regression or useful failure, false positive or noisy gate, missing
-evidence, setup friction, security/privacy concern, follow-up GitHub issue, and
-yes/no/unclear pay-signal answers with short reasons.
+evidence, not proof of validated demand. Start the local template with:
+
+```bash
+entroping report design-partner-feedback
+```
+
+The command writes a schema-valid sanitized template, derives value-free
+evidence-bundle, runtime-card, and pilot-metrics statuses from existing local
+report artifacts, and leaves command-history and manual feedback fields as
+`null` or `manual input required`. Keep the shape close to the feedback
+template: pilot repo/service, AI-assisted change type, Entroping commands run,
+evidence-bundle status, runtime-card status, blocked regression or useful
+failure, false positive or noisy gate, missing evidence, setup friction,
+security/privacy concern, follow-up GitHub issue, and yes/no/unclear
+pay-signal answers with short reasons.
 
 Do not include customer secrets, raw traffic, credentials, environment values,
 prompts, provider outputs, source Hurl contents, or private conversation dumps.

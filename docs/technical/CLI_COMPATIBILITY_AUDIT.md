@@ -53,6 +53,7 @@ entroping report gate-injection --target <path> [--output <md|json>]
 entroping report test-quality [--output <md|json>]
 entroping report artifact-manifest [--output <path>]
 entroping report evidence-bundle [--output <path>]
+entroping report design-partner-feedback [--output <path>]
 entroping report runtime-card [--output <md|json>]
 entroping report pilot-metrics [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
@@ -67,7 +68,7 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 
 | Area | Decision |
 | --- | --- |
-| Command naming | Keep the nested noun/verb shape: `config vendor-policy-pack`, `config test-policy-pack`, `architect build`, `architect refactor`, `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report capture-summary`, `report policy`, `report policy-diff`, `report gate-coverage`, `report gate-injection`, `report test-quality`, `report artifact-manifest`, `report evidence-bundle`, `report runtime-card`, `report pilot-metrics`, `report agent-bundle`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary`. |
+| Command naming | Keep the nested noun/verb shape: `config vendor-policy-pack`, `config test-policy-pack`, `architect build`, `architect refactor`, `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report capture-summary`, `report policy`, `report policy-diff`, `report gate-coverage`, `report gate-injection`, `report test-quality`, `report artifact-manifest`, `report evidence-bundle`, `report design-partner-feedback`, `report runtime-card`, `report pilot-metrics`, `report agent-bundle`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary`. |
 | Aliases | No alias is compatibility-supported. Deprecated brainstorm names such as `gen`, `fix`, `scan`, `chaos`, `verify`, top-level `build`, `auth`, and `report --type` remain unavailable. |
 | Global flags | Only Typer completion helpers and `--version` are current global flags. `--verbose` is not a product flag. `freeze --dry-run` and `run --dry-run` are command-scoped and do not create a global dry-run mode. |
 | Init CI starter | `init --github-actions` is an explicit opt-in setup helper that writes the reviewed starter to `.github/workflows/entroping.yml`, refuses to overwrite an existing workflow, and does not add secrets, provider credentials, hosted-service coupling, or package-index readiness claims. |
@@ -86,7 +87,7 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 | Freeze preview | `freeze --dry-run` previews selected redacted records, proposed output paths, golden status, and redaction categories. It writes no generated tests, mocks, approval manifests, or source artifacts and must not render raw traffic values. |
 | Studio | `studio` is read-only until mutation workflows are designed and accepted separately. |
 | Capture summary | `report capture-summary --output md|json` reads existing redacted traffic state through the read-only store path and writes counts by derived session, method, host, dependency target, status family, and redaction category without rendering raw traffic values. |
-| Report formats | `run --report` is repeatable and owns run artifact creation. `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report capture-summary`, `report policy`, `report policy-diff`, `report gate-coverage`, `report gate-injection`, `report test-quality`, `report artifact-manifest`, `report evidence-bundle`, `report runtime-card`, `report pilot-metrics`, `report agent-bundle`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, and `report review-summary` are handoff/reporting commands, not test execution commands. |
+| Report formats | `run --report` is repeatable and owns run artifact creation. `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report capture-summary`, `report policy`, `report policy-diff`, `report gate-coverage`, `report gate-injection`, `report test-quality`, `report artifact-manifest`, `report evidence-bundle`, `report design-partner-feedback`, `report runtime-card`, `report pilot-metrics`, `report agent-bundle`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, and `report review-summary` are handoff/reporting commands, not test execution commands. |
 
 ## Post-Alpha UX Decision Queue
 
@@ -144,6 +145,7 @@ only through a compatibility issue and migration note.
 | `entroping report test-quality --output json` | `reports/test-quality.json` |
 | `entroping report artifact-manifest` | `reports/artifact-manifest.json` |
 | `entroping report evidence-bundle` | `reports/evidence-bundle.json` |
+| `entroping report design-partner-feedback` | `reports/design-partner-feedback.json` |
 | `entroping report runtime-card --output md` | `reports/runtime-card.md` |
 | `entroping report runtime-card --output json` | `reports/runtime-card.json` |
 | `entroping report pilot-metrics --output md` | `reports/pilot-metrics.md` |

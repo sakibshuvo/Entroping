@@ -274,7 +274,7 @@ def test_design_partner_feedback_artifact_is_safe_product_learning_evidence() ->
         "entroping.design-partner-feedback.v1",
         "product-learning evidence",
         "not proof of validated demand",
-        "no CLI writer exists yet",
+        "entroping report design-partner-feedback",
         (
             "customer secrets, raw traffic, credentials, environment values, "
             "prompts, provider outputs, source Hurl contents, or private "

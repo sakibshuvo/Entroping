@@ -18,6 +18,7 @@ from cli_test_support import (
     write_json_report,
 )
 
+from entroping.core.design_partner_feedback import DesignPartnerFeedbackError
 from entroping.core.evidence_bundle import EvidenceBundleError
 from entroping.core.pilot_metrics import PilotMetricsError
 from entroping.core.report_artifact_manifest import write_report_artifact_manifest
@@ -176,6 +177,47 @@ def test_report_evidence_bundle_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "evidence bundle path is unsafe" in result.output
+
+
+def test_report_design_partner_feedback_writes_sanitized_template(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "design-partner-feedback"])
+
+    assert result.exit_code == 0
+    assert (
+        "Wrote design-partner feedback artifact: "
+        "reports/design-partner-feedback.json"
+    ) in result.output
+    payload = json.loads(
+        Path("reports/design-partner-feedback.json").read_text(encoding="utf-8")
+    )
+    assert payload["schema_version"] == "entroping.design-partner-feedback.v1"
+    assert payload["evidence"]["evidence_bundle_status"] == "missing"
+    assert payload["evidence"]["runtime_card_status"] == "missing"
+    assert payload["feedback"]["setup_friction"] is None
+    assert "provider_output" not in json.dumps(payload)
+
+
+def test_report_design_partner_feedback_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_design_partner_feedback(*args: object, **kwargs: object) -> object:
+        raise DesignPartnerFeedbackError("design-partner feedback path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_design_partner_feedback_report",
+        fail_design_partner_feedback,
+    )
+
+    result = CliRunner().invoke(app, ["report", "design-partner-feedback"])
+
+    assert result.exit_code == 1
+    assert "design-partner feedback path is unsafe" in result.output
 
 
 def test_report_runtime_card_writes_markdown(
