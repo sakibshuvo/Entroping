@@ -16,17 +16,19 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #974 Redaction Review Unsafe-Record Guard
+## Current Issue Slice: #976 Artifact Manifest Incomplete-Evidence Guard
 
-- Add an optional `--fail-on-unsafe` guard to `entroping report redaction` so
-  CI can fail after writing counts-only captured-traffic redaction evidence when
-  sanitized local evidence reports unredacted or low-confidence records.
+- Add an optional `--fail-on-incomplete` guard to
+  `entroping report artifact-manifest` so CI can fail after writing checksum and
+  audit-chain evidence when expected artifacts are missing or audit verification
+  is not `verified`.
 - Keep the default command exit behavior unchanged: valid weak or missing
-  redaction-review evidence still writes a report and exits `0` unless the user
-  opts into the guard.
+  artifact evidence still writes a manifest and exits `0` unless the user opts
+  into the guard.
 - Preserve report schema compatibility and the core boundary: the
-  unsafe-record guard does not execute Hurl, call providers, upload artifacts,
-  render raw traffic values, or replace QAnstitution/Hurl pass-fail authority.
+  incomplete-evidence guard does not execute Hurl, call providers, upload
+  artifacts, render artifact contents or raw traffic values, or replace
+  QAnstitution/Hurl pass-fail authority.
 - Verification lane: `security-runtime` because the PR guard classifies
   report-evidence CLI tests as a sensitive surface.
 
@@ -53,6 +55,9 @@ project, and a Codex workspace with fast context rehydration.
 - `entroping report redaction --fail-on-unsafe` can turn unredacted and
   low-confidence captured-traffic redaction evidence into an explicit CI guard
   while preserving the report schema and default evidence-only behavior.
+- `entroping report artifact-manifest --fail-on-incomplete` can turn
+  missing-artifact and audit-chain verification evidence into an explicit CI
+  guard while preserving the report schema and default evidence-only behavior.
 - Pydantic QAnstitution models and typed condition parsing are in place.
 - Runtime `ignore_failures` exceptions are deterministic: active entries skip
   only matching Entroping-injected QAnstitution gates in temporary execution

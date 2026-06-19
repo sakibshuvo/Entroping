@@ -37,7 +37,7 @@ entroping report policy-diff [--base <path>] [--current <path>] [--output <md|js
 entroping report gate-coverage [--output <md|json>] [--fail-under <0-100>]
 entroping report gate-injection --target <path> [--output <md|json>]
 entroping report test-quality [--output <md|json>] [--fail-under <0-100>]
-entroping report artifact-manifest [--output <path>]
+entroping report artifact-manifest [--output <path>] [--fail-on-incomplete]
 entroping report evidence-bundle [--output <path>]
 entroping report design-partner-feedback [--output <path>]
 entroping report runtime-card [--output <md|json>]
@@ -379,6 +379,8 @@ Maintainer and baseline tools:
 | `entroping report test-quality --output json` | Write machine-readable generated-Hurl quality evidence to `reports/test-quality.json` |
 | `entroping report test-quality --fail-under <0-100>` | Write the report, then exit `1` when the generated-test quality score is below the reviewed threshold |
 | `entroping report artifact-manifest` | Write checksum evidence for local report artifacts to `reports/artifact-manifest.json` |
+| `entroping report artifact-manifest --output <path>` | Write checksum evidence for local report artifacts to a custom manifest path |
+| `entroping report artifact-manifest --fail-on-incomplete` | Write the manifest, then exit `1` when expected artifacts are missing or audit verification is broken |
 | `entroping report promote-drift-baseline` | Promote a reviewed drift baseline candidate into `.entroping/drift-baseline.json` |
 
 Experimental design-partner evidence commands:
@@ -412,6 +414,7 @@ entroping report gate-injection --target tests/health.hurl --output md
 entroping report test-quality --output md
 entroping report test-quality --output json --fail-under 80
 entroping report artifact-manifest
+entroping report artifact-manifest --fail-on-incomplete
 entroping report evidence-bundle
 entroping report design-partner-feedback
 entroping report runtime-card

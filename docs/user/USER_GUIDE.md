@@ -505,14 +505,18 @@ Write checksum evidence for the local report artifacts:
 
 ```bash
 entroping report artifact-manifest
+entroping report artifact-manifest --fail-on-incomplete
 ```
 
 The artifact manifest writes `reports/artifact-manifest.json`. It lists
 standard local report artifacts, schema versions when available, byte sizes,
 and SHA-256 checksums; missing expected artifacts are recorded without failing
-the command. Present artifacts are rejected before full reads, checksums, or
-schema sniffing if they exceed the local report-artifact size cap. It also
-records a value-free local audit event in
+the command unless `--fail-on-incomplete` is set. Add
+`--fail-on-incomplete` in CI when release evidence must prove all expected
+artifacts are present and audit-chain verification is `verified`; the manifest
+is still written before the command exits nonzero. Present artifacts are
+rejected before full reads, checksums, or schema sniffing if they exceed the
+local report-artifact size cap. It also records a value-free local audit event in
 `.entroping/report-audit-chain.jsonl` and shows audit verification status in the
 manifest so a later run can flag broken previous-hash linkage. Use it as CI
 upload or release-review integrity evidence, not as a signature, notarization,

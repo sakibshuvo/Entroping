@@ -594,6 +594,16 @@ def report_artifact_manifest(
         Path,
         typer.Option("--output", help="Artifact manifest output path."),
     ] = Path("reports") / "artifact-manifest.json",
+    fail_on_incomplete: Annotated[
+        bool,
+        typer.Option(
+            "--fail-on-incomplete",
+            help=(
+                "Write the manifest, then exit 1 when artifacts are missing or "
+                "audit verification is broken."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Write checksum evidence for local report artifacts."""
 
@@ -613,6 +623,15 @@ def report_artifact_manifest(
         f"{result.manifest.summary.total_missing} missing, "
         f"audit {result.manifest.audit.verification.status})"
     )
+    missing_count = result.manifest.summary.total_missing
+    audit_status = result.manifest.audit.verification.status
+    if fail_on_incomplete and (missing_count > 0 or audit_status != "verified"):
+        console.print(
+            "[yellow]Artifact manifest incomplete: "
+            f"missing={missing_count}, audit={audit_status}.[/yellow]"
+        )
+        raise typer.Exit(1)
+    raise typer.Exit(0)
 
 
 @app.command("evidence-bundle", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
