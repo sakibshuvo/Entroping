@@ -16,17 +16,17 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #864 Policy-Pack Self-Test Hardening
+## Current Issue Slice: #894 Design-Partner Pilot Kit
 
-- Harden `config test-policy-pack` and vendoring validation for manifest
-  metadata that was previously treated as non-empty string evidence.
-- Reject invalid pack versions, invalid supported-Entroping ranges, suspicious
-  evidence commands, and missing or malformed attribution while preserving
-  local-first policy-pack behavior.
-- Reject unsafe consumer-example imports, including absolute paths, traversal,
-  netloc-only references, remote refs, and control-character paths.
-- Keep remote registries, package fetching, signing, and premium catalog
-  behavior out of scope.
+- Document the target pilot workflow for teams evaluating Entroping on
+  AI-generated backend/API changes.
+- Keep the pilot local-first: sanitized reports, evidence bundles, and runtime
+  cards are shared deliberately; no hosted aggregation or enterprise readiness
+  is claimed.
+- Define setup steps, evidence-bundle acceptance checks, pilot metrics,
+  interview prompts, and a feedback template in existing canonical docs.
+- Link follow-up product work to GitHub issues instead of turning roadmap
+  strategy into implementation truth.
 - Verification lane: `security-runtime`.
 
 ## Current Baseline
