@@ -104,6 +104,11 @@ from entroping.core.runtime_card import (
 )
 from entroping.core.sarif_report import SarifReportError, run_sarif_report
 from entroping.core.story_documents import discover_story_documents
+from entroping.core.test_pyramid_report import (
+    TestPyramidOutput,
+    TestPyramidReportError,
+    run_test_pyramid_report,
+)
 from entroping.core.test_quality_report import (
     TestQualityOutput,
     TestQualityReportError,
@@ -585,6 +590,39 @@ def report_test_quality(
             f"{fail_under}.[/yellow]"
         )
         raise typer.Exit(1)
+    raise typer.Exit(0)
+
+
+@app.command("test-pyramid", rich_help_panel=MAINTAINER_REPORT_PANEL)
+def report_test_pyramid(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local test-pyramid evidence summary."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported test-pyramid output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_test_pyramid_report(
+            project_root=Path.cwd(),
+            output=cast(TestPyramidOutput, normalized_output),
+        )
+    except TestPyramidReportError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(
+        "Wrote test pyramid report: "
+        f"{display_cli_path(result.output_path)} "
+        f"({result.report.summary.runtime_governance_status}, "
+        f"{result.report.summary.present_layers}/"
+        f"{result.report.summary.total_layers} layers present)"
+    )
     raise typer.Exit(0)
 
 

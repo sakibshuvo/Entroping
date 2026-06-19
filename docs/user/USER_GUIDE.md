@@ -501,6 +501,22 @@ for `entroping run` or QAnstitution enforcement. Add `--fail-under <0-100>` in
 CI when a team has agreed on a minimum generated-test quality floor; the report
 is still written before the command exits nonzero.
 
+Summarize local test/evidence layers from existing reports:
+
+```bash
+entroping report test-pyramid --output md
+entroping report test-pyramid --output json
+```
+
+The test-pyramid report writes `reports/test-pyramid.md` or
+`reports/test-pyramid.json`. It classifies existing local artifacts into code
+coverage, runtime API proof, policy governance, drift/contract,
+static/security, and generated-test quality layers, then highlights missing
+runtime-governance proof when run JSON, JUnit XML, or gate-coverage JSON is
+missing, invalid, or unsafe. It does not run pytest or Hurl, parse source Hurl,
+call providers, upload artifacts, or print raw report contents, raw traffic,
+stdout/stderr, environment values, or source coverage file names.
+
 Write checksum evidence for the local report artifacts:
 
 ```bash

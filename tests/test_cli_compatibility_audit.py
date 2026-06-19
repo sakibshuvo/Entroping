@@ -184,6 +184,11 @@ LOCKED_CLI_CONTRACTS = (
         ("--output",),
     ),
     CliContract(
+        "entroping report test-pyramid [--output <md|json>]",
+        ("report", "test-pyramid", "--help"),
+        ("--output",),
+    ),
+    CliContract(
         "entroping report artifact-manifest [--output <path>] [--fail-on-incomplete]",
         ("report", "artifact-manifest", "--help"),
         ("--output", "--fail-on-incomplete"),
@@ -286,6 +291,8 @@ REPORT_ARTIFACTS = (
     "reports/effective-policy.json",
     "reports/test-quality.md",
     "reports/test-quality.json",
+    "reports/test-pyramid.md",
+    "reports/test-pyramid.json",
     "stdout Effective Policy Diff Markdown/JSON",
     "reports/badges/*.json",
     "reports/evidence-bundle.json",

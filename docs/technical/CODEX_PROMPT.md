@@ -49,6 +49,7 @@ entroping report policy-diff [--base <path>] [--current <path>] [--output <md|js
 entroping report gate-coverage [--output <md|json>]
 entroping report gate-injection --target <path> [--output <md|json>]
 entroping report test-quality [--output <md|json>]
+entroping report test-pyramid [--output <md|json>]
 entroping report artifact-manifest [--output <path>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
