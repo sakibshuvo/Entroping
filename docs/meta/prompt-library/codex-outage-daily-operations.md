@@ -65,7 +65,10 @@ Then:
 2. Write a failing guard/test first when practical.
 3. Make the smallest scoped change.
 4. Run focused tests/gates for touched behavior.
-5. Run the issue's required full gate.
+5. Run the issue's required full gate. scripts/feature_gate.sh already
+   includes scripts/architecture_integrity.sh; workers may also run
+   scripts/architecture_integrity.sh directly as a fast preflight when
+   reviewing possible architecture drift.
 6. Open a PR with Closes #<issue>, Agent Autonomy Declaration,
    Documentation Impact Declaration, commands run, and provider-lane evidence
    when OpenCode/DeepSeek produced the work.
@@ -102,6 +105,8 @@ Stop the current worker and report status when any of these happen:
   `.entroping/` artifacts, generated local context output,
   local env files, or secrets,
 - Tier A work expanding into Tier B/Tier C scope,
+- any change that weakens hexagonal architecture, QAnstitution branding, or
+  treats model summaries as source of truth,
 - any change touching Hurl runner behavior, `entroping run`, redaction, proxy,
   provider runtime boundary, dependencies, release publishing, raw traffic, or
   audit evidence.
