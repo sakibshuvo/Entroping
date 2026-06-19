@@ -599,6 +599,73 @@ def test_prompt_library_includes_model_comparison_trial_prompt() -> None:
     assert "| [Model-comparison trial](model-comparison-trial.md) |" in readme
 
 
+def test_model_comparison_trial_documents_deepseek_cost_example() -> None:
+    prompt = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "model-comparison-trial.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(prompt.split())
+
+    required_terms = [
+        "## Concrete OpenCode/DeepSeek Evidence Example",
+        "issue: `774`",
+        "provider lane: `opencode/native-deepseek`",
+        "provider host: `OpenCode Desktop`",
+        "billing path: `paid DeepSeek inside OpenCode`",
+        "model id: `deepseek/deepseek-v4-pro`",
+        "role: `code_review_agent`",
+        "autonomy tier: `Tier A autonomous lane`",
+        "context-pack mode:",
+        "context-pack manifest:",
+        "commands run:",
+        "accepted findings:",
+        "rejected findings:",
+        "stale findings:",
+        "reviewer overrides:",
+        "final decision:",
+        "files changed:",
+        "files read:",
+        "- docs/meta/prompt-library/opencode-desktop-handoff.md",
+        "- tests/test_agent_workflow_docs.py",
+        "context-pack mode: `implementation`",
+        "context-pack manifest: `generated`",
+        "context-pack estimated tokens: `<manifest-estimated-tokens>` from "
+        "`scripts/context_pack.sh --mode implementation --manifest`",
+        "context-pack bytes: `<manifest-context-bytes>` from `scripts/context_pack.sh "
+        "--mode implementation --manifest`",
+        "commands run:",
+        "git pull --ff-only",
+        "scripts/context_pack.sh --mode implementation --manifest",
+        "scripts/factory_metrics.py report --format json",
+        "scripts/factory_metrics.py report --format md --output "
+        ".entroping/factory-metrics/factory-report.md",
+        "scripts/factory_metrics.py readiness --issue 774 --format json",
+        "cost/token/context evidence:",
+        "provider_input_tokens: `unknown`",
+        "provider_output_tokens: `unknown`",
+        "cost_usd: `unknown`",
+        "duration_seconds: `unknown`",
+        "context_bytes: `<manifest-context-bytes>`",
+        "`P3 merge-authority wording clarified`",
+        "`No runtime or provider-boundary change requested`",
+        "`none`",
+        "`kept issue-required scripts/regression.sh --security gate`",
+        "final decision: `accepted after local tests, Codex review, and CI`",
+        "review effort:",
+        "codex_review_rounds: `1`",
+        "reviewer_corrections: `2`",
+        "status: `accepted`",
+        "Unknown token/cost values are allowed, but they must be marked `unknown`",
+        "do not infer, estimate, or backfill provider token or cost values",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+
 def test_prompt_library_includes_model_output_acceptance_gate_prompt() -> None:
     prompt = (
         REPO_ROOT
