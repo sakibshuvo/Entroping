@@ -2,6 +2,12 @@
 
 ## 2026-06-18
 
+- Added issue #894's design-partner pilot kit:
+  `docs/user/USER_GUIDE.md` now defines the local-first pilot workflow,
+  evidence-bundle acceptance checks, setup steps, metrics, interview prompts,
+  and feedback template for AI-generated backend/API changes without claiming
+  hosted aggregation, policy registries, premium model workflows, enterprise
+  compliance, or validated demand before evidence exists.
 - Fixed issue #864's policy-pack self-test metadata boundary:
   policy-pack validation now rejects invalid Semantic Version metadata,
   malformed supported-Entroping ranges, suspicious evidence commands, missing

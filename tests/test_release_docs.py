@@ -225,6 +225,37 @@ def test_doc_governance_blocks_strategy_doc_sprawl() -> None:
     assert "Do not expose maintainer memory as first-level public navigation" in governance
 
 
+def test_design_partner_pilot_kit_has_measurable_local_first_contract() -> None:
+    user_guide = (REPO_ROOT / "docs" / "user" / "USER_GUIDE.md").read_text(
+        encoding="utf-8"
+    )
+    roadmap = (REPO_ROOT / "ROADMAP.md").read_text(encoding="utf-8")
+    normalized_user_guide = " ".join(user_guide.split())
+
+    required_user_guide_phrases = [
+        "## Design-Partner Pilot Kit",
+        "AI-generated backend/API changes",
+        "entroping report evidence-bundle",
+        "evidence-bundle acceptance checks",
+        "Pilot metrics",
+        "Interview prompts",
+        "Feedback template",
+        (
+            "No hosted aggregation, policy registry, premium model workflow, "
+            "or enterprise compliance claim is proven"
+        ),
+        (
+            "raw traffic, source Hurl contents, prompts, provider outputs, "
+            "credentials, environment values"
+        ),
+    ]
+    for phrase in required_user_guide_phrases:
+        assert phrase in user_guide or phrase in normalized_user_guide
+
+    assert "Design-partner pilot kit" in roadmap
+    assert "docs/user/USER_GUIDE.md#design-partner-pilot-kit" in roadmap
+
+
 def test_readme_surfaces_public_docs_before_project_context() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 

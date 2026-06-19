@@ -516,6 +516,100 @@ prompts, provider outputs, credentials, environment values, or upload anything.
 If the bundle status is `not_ready`, fix the missing or inconsistent local
 evidence before sharing it with a design partner or hosted workflow.
 
+## Design-Partner Pilot Kit
+
+Use this pilot kit when a design partner wants to evaluate Entroping on
+AI-generated backend/API changes. The pilot is a local-first evidence loop, not
+a hosted product launch or a claim that demand has already been validated.
+
+Target workflow:
+
+1. Pick one service, one repo, and one recurring AI-assisted API change path.
+2. Keep the team's existing CI, issue tracker, and review process in place.
+3. Run Entroping locally or in CI after AI-generated code or Hurl changes land.
+4. Attach only sanitized evidence to the review or pilot discussion:
+   `reports/run-latest.json`, `reports/effective-policy.json`,
+   `reports/artifact-manifest.json`, `reports/evidence-bundle.json`, and
+   `reports/runtime-card.md` when present.
+5. Convert every product gap, confusing error, false positive, missing report,
+   or adoption blocker into a narrow GitHub issue before expanding scope.
+
+Setup steps:
+
+```bash
+entroping init
+entroping doctor --ci
+entroping run --ci --report json --report junit
+entroping report policy --output json
+entroping report artifact-manifest
+entroping report evidence-bundle
+entroping report runtime-card
+```
+
+Design-partner evidence-bundle acceptance checks:
+
+- `reports/evidence-bundle.json` uses schema
+  `entroping.evidence-bundle.v1` and purpose
+  `design-partner-upload-readiness`.
+- Bundle status is `ready`, or every `not_ready` diagnostic has a linked local
+  fix or follow-up issue.
+- Required local evidence is present: latest run report, effective policy
+  report, and artifact manifest.
+- Artifact paths are project-relative and checksums match the artifact
+  manifest.
+- Artifact-manifest audit status is reviewed before sharing.
+- Shared evidence does not include raw traffic, source Hurl contents, prompts,
+  provider outputs, credentials, environment values, stdout/stderr, cookies, or
+  report artifact contents.
+
+Pilot metrics:
+
+- Time from checkout to first `entroping run --ci` result.
+- Time from failed AI-generated change to a reviewer-understandable runtime
+  card.
+- Percent of AI-assisted API PRs with attached run and evidence-bundle
+  evidence.
+- Evidence-bundle `ready` rate and most common `not_ready` diagnostics.
+- Number of escaped API regressions, blocked regressions, false positives, and
+  manually waived gates.
+- Human steering required: commands retried, docs consulted, and maintainer
+  help needed.
+- Whether the engineering lead would pay for cross-repo evidence aggregation,
+  premium policy packs, or managed policy workflows after seeing the local
+  evidence loop.
+
+Interview prompts:
+
+- Which AI-generated API change did Entroping make safer to review?
+- Which report or card changed a review, release, or rollback decision?
+- Which QAnstitution rule felt like team policy instead of tool noise?
+- What evidence was missing before a lead would trust hosted aggregation?
+- Which `not_ready` diagnostic or setup step caused the most friction?
+- What should stay local forever for security, privacy, or developer trust?
+
+Feedback template:
+
+```text
+Pilot repo/service:
+AI-assisted change type:
+Entroping commands run:
+Evidence bundle status:
+Runtime card status:
+Blocked regression or useful failure:
+False positive or noisy gate:
+Missing evidence:
+Setup friction:
+Security/privacy concern:
+Follow-up GitHub issue:
+Would pay for hosted aggregation? yes/no/unclear, with reason:
+Would pay for premium policy packs? yes/no/unclear, with reason:
+```
+
+No hosted aggregation, policy registry, premium model workflow, or enterprise
+compliance claim is proven until repeated design-partner evidence shows the
+local evidence loop is useful, safe to share, and worth coordinating across
+repositories.
+
 Write a concise PR/runtime evidence card:
 
 ```bash

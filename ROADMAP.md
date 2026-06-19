@@ -166,8 +166,10 @@ Goal: make the first serious team workflow feel obvious from editor to PR.
   source, report, and CI setup without changing the locked CLI contract.
 - PR runtime evidence card that summarizes pass/fail, failed gates, drift,
   redaction confidence, AI-agent provenance, and release-evidence anchors.
-- Design-partner pilot kit with setup steps, evidence-bundle acceptance checks,
-  usage metrics, and feedback templates for AI-generated backend/API changes.
+- Design-partner pilot kit in
+  [USER_GUIDE.md](docs/user/USER_GUIDE.md#design-partner-pilot-kit) with setup
+  steps, evidence-bundle acceptance checks, usage metrics, and feedback
+  templates for AI-generated backend/API changes.
 
 ### v0.6 Cross-Surface Continuity
 
