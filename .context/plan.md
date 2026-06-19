@@ -16,16 +16,16 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #947 Runtime-Card Release Evidence Required
+## Current Issue Slice: #948 Report Artifact Manifest Read Bound
 
-- Treat `entroping report runtime-card` as a PR/release evidence card: a green
-  `pass` requires local release anchors, not only a passing run and capture
-  summary.
-- Mark missing `reports/artifact-manifest.json` and
-  `reports/evidence-bundle.json` as value-free warning findings, producing
-  `attention` status and nonzero CLI exit.
-- Preserve missing `reports/run-latest.json` as a hard `fail` and preserve
-  malformed or unsafe present evidence fail-closed behavior.
+- Enforce a named local report-artifact size cap before
+  `entroping report artifact-manifest` fully reads an artifact, calculates its
+  checksum, or sniffs JSON/XML/text schema hints.
+- Produce a value-free error for oversized artifacts using only the artifact
+  path and configured size limit.
+- Preserve checksum and schema behavior for artifacts under the cap, including
+  malformed JSON/XML/text artifacts that should remain manifest entries without
+  schema hints.
 - Do not execute Hurl, call providers, upload artifacts, parse raw traffic, or
   render raw artifact contents.
 - Verification lane: `security-runtime`.

@@ -1118,11 +1118,14 @@ proposals and review, not silently approve or reject runtime behavior.
 `entroping report artifact-manifest` writes `reports/artifact-manifest.json`
 by default with project-relative report paths, schema versions when available,
 artifact sizes, and SHA-256 checksums for standard JSON, JUnit, HTML, drift,
-test-quality JSON/Markdown, agent-bundle JSON, SARIF, and review-summary artifacts. Missing expected
-artifacts are listed instead of failing the command. Each successful write also
-appends a value-free event to `.entroping/report-audit-chain.jsonl` with the
-previous event hash, artifact checksums, command metadata, schema versions, and
-manifest summary counts. The manifest exposes audit verification status and
+test-quality JSON/Markdown, agent-bundle JSON, SARIF, and review-summary
+artifacts. Missing expected artifacts are listed instead of failing the
+command. Present artifacts are size-checked before full reads, checksums, or
+schema sniffing; oversized artifacts fail with value-free path and size-limit
+metadata instead of loading artifact contents into memory. Each successful write
+also appends a value-free event to `.entroping/report-audit-chain.jsonl` with
+the previous event hash, artifact checksums, command metadata, schema versions,
+and manifest summary counts. The manifest exposes audit verification status and
 broken-chain diagnostics, while the chain and report omit artifact contents,
 raw traffic, provider prompts or outputs, env values, and secret-like metadata.
 This is local integrity evidence for CI upload and release review; it is not a
