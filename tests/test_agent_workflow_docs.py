@@ -869,6 +869,9 @@ def test_prompt_library_includes_codex_outage_daily_operations_prompt() -> None:
         "opencode-go/kimi-k2.7-code",
         "opencode-go/qwen3.7-max",
         "focused tests/gates",
+        "scripts/feature_gate.sh already includes scripts/architecture_integrity.sh",
+        "scripts/architecture_integrity.sh directly as a fast preflight",
+        "reviewing possible architecture drift",
         "gh pr checks",
         "scripts/finish_issue.sh",
         "after-sleep status",
@@ -885,10 +888,39 @@ def test_prompt_library_includes_codex_outage_daily_operations_prompt() -> None:
         "merge conflict",
         "stale main",
         "missing close keyword",
+        "Emergency Stop Conditions",
+        "Tier A work expanding into Tier B/Tier C scope",
+        "Hurl runner behavior",
+        "`entroping run`",
+        "provider runtime boundary",
     ]
 
     for term in required_terms:
         assert term in normalized
+
+    work_steps = prompt.split("Then:", maxsplit=1)[1].split(
+        "## Reference Prompts", maxsplit=1
+    )[0]
+    normalized_work_steps = " ".join(work_steps.split())
+    architecture_gate_terms = [
+        "scripts/feature_gate.sh already includes scripts/architecture_integrity.sh",
+        "scripts/architecture_integrity.sh directly as a fast preflight",
+        "reviewing possible architecture drift",
+    ]
+    for term in architecture_gate_terms:
+        assert term in normalized_work_steps
+
+    stop_section = prompt.split("## Emergency Stop Conditions", maxsplit=1)[1].split(
+        "## After-Sleep Status", maxsplit=1
+    )[0]
+    normalized_stop_section = " ".join(stop_section.split())
+    required_stop_terms = [
+        "weakens hexagonal architecture",
+        "QAnstitution branding",
+        "model summaries as source of truth",
+    ]
+    for term in required_stop_terms:
+        assert term in normalized_stop_section
 
     assert (
         "| [Codex-outage daily operations](codex-outage-daily-operations.md) |"
