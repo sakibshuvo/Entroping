@@ -53,6 +53,29 @@ policy packs, services, and team workflows without weakening the free tool.
    indexes, provenance, and external user feedback prove the distribution path.
 4. Keep multi-agent development issue-scoped and evidence-backed through
    `AGENTS.md`, `docs/meta/AGENT_CONTROL_PLANE.md`, context packs, and CI.
+5. Keep launch-hardening work ahead of broad v0.6/v0.7 expansion when external
+   review points to verified adoption, runtime-confidence, or evidence-quality
+   gaps.
+
+## Launch Hardening Queue
+
+External review triage added a small consolidation queue before Entroping expands
+into broader integrations and QA-brain surfaces:
+
+- [#957](https://github.com/sakibshuvo/Entroping/issues/957) keeps the report
+  command surface launch-ready without breaking the locked v4.1 CLI contract.
+- [#958](https://github.com/sakibshuvo/Entroping/issues/958) deepens real Hurl
+  subprocess integration coverage for high-risk failure boundaries.
+- [#959](https://github.com/sakibshuvo/Entroping/issues/959) defines the local
+  structured diagnostics boundary before vendor observability adapters.
+- [#960](https://github.com/sakibshuvo/Entroping/issues/960) adds bounded
+  performance-smoke regression evidence for stable-core confidence.
+- [#961](https://github.com/sakibshuvo/Entroping/issues/961) uses the existing
+  docs governance and inventory tooling to keep roadmap and docs surfaces
+  discoverable without creating a parallel backlog.
+
+Package-index distribution remains tracked by the existing stable-core issues
+for TestPyPI, PyPI, Homebrew, compatibility, and downstream feedback.
 
 ## Completed: v0.1.1-alpha Public Cleanup
 
