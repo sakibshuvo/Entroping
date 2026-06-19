@@ -24,7 +24,7 @@ This is the daily dashboard. GitHub Issues track individual tasks; this note kee
 ## Current Target
 
 **Goal:** finish the v0.4 integration path without reopening completed onboarding/product-depth work; stable-core readiness stays tied to external evidence.
-Current local queue: software-factory hardening issues #732-#738, #746, #766, #768, #770, and #772 are complete after context, security, quality, cheap-worker routing, docs-prune inventory, four-gate readiness, OpenCode readiness, Codex-review request, context-pack next-action, and architecture-integrity gate slices. Keep new work issue-scoped and prefer OpenCode/DeepSeek implementation with Codex review while Codex capacity is constrained.
+Current local queue: #954 is complete; next use review-derived launch hardening issues #957-#961 for report-surface, real-Hurl, diagnostics, performance, and docs/roadmap curation. Keep new work issue-scoped and Codex-validated.
 Current public board: [Entroping Public Roadmap](https://github.com/users/sakibshuvo/projects/1)
 Current deterministic loop (`entroping run` remains deterministic, Hurl-backed, QAnstitution-governed, and provider-free):
 
@@ -34,13 +34,13 @@ init -> doctor -> load QAnstitution -> discover Hurl tests -> inject gates -> ru
 
 ## Next Three Issues
 
-With #517-#523 and #548 closed, keep local work limited to review-proven defects, product gaps, or the measured software-factory hardening queue.
+Keep local work limited to review-proven defects, product gaps, or stable-core proof that cannot be fabricated locally.
 
 | Order | Issue | Why next |
 | --- | --- | --- |
-| 1 | New issue intake | Pick the next ready GitHub issue or create a narrow issue from verified defects; do not fabricate stable-core proof. |
-| 2 | Stable-core blocked queue | Wait for package-index, downstream, compatibility, and external CI proof before #303-#310 move. |
-| 3 | External proof collection | Collect TestPyPI/PyPI, downstream, compatibility, or non-GitHub CI evidence when available. |
+| 1 | #957 | Classify the report command surface before promising more launch-facing workflows. |
+| 2 | #958 | Tighten real-Hurl confidence for high-risk runtime failure boundaries. |
+| 3 | #959-#961 | Sequence diagnostics, performance-smoke, and docs/roadmap curation after the higher-confidence CLI/runtime slices. |
 
 ## External Stable-Core Blockers
 Stable-core readiness remains blocked by evidence that cannot be manufactured entirely inside this repo.
