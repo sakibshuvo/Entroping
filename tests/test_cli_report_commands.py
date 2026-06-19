@@ -24,10 +24,16 @@ from entroping.bridge.capture_summary import (
     capture_summary_report_to_dict,
     render_capture_summary_markdown,
 )
+from entroping.bridge.redaction_review import (
+    RedactionReviewReport,
+    render_redaction_review_html,
+    render_redaction_review_markdown,
+)
 from entroping.core.capture_summary_report import CaptureSummaryResult
 from entroping.core.design_partner_feedback import DesignPartnerFeedbackError
 from entroping.core.evidence_bundle import EvidenceBundleError
 from entroping.core.pilot_metrics import PilotMetricsError
+from entroping.core.redaction_review_report import RedactionReviewResult
 from entroping.core.report_artifact_manifest import write_report_artifact_manifest
 from entroping.core.runtime_card import RuntimeCardError
 
@@ -98,6 +104,21 @@ def _capture_summary_with_unredacted_records(record_count: int = 1) -> CaptureSu
         dependency_targets=(),
         status_families=(),
         redaction_categories=(),
+    )
+
+
+def _redaction_review_with_unsafe_records(
+    *,
+    unredacted_records: int,
+    low_confidence_records: int,
+) -> RedactionReviewReport:
+    return RedactionReviewReport(
+        total_records=max(unredacted_records, low_confidence_records, 1),
+        redacted_records=0 if unredacted_records else 1,
+        unredacted_records=unredacted_records,
+        low_confidence_records=low_confidence_records,
+        request_count=max(unredacted_records, low_confidence_records, 1),
+        response_count=0,
     )
 
 
@@ -1254,6 +1275,100 @@ def test_report_redaction_writes_html_without_raw_secret(
     assert "[REDACTED]" not in content
 
 
+def test_report_redaction_fail_on_unsafe_passes_for_redacted_records(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _record_freeze_exchange(tmp_path, secret="redaction-safe-secret")
+
+    result = CliRunner().invoke(app, ["report", "redaction", "--fail-on-unsafe"])
+
+    assert result.exit_code == 0
+    content = Path("reports/redaction-review.md").read_text(encoding="utf-8")
+    assert "- Unredacted records: 0" in content
+    assert "- Low-confidence records: 0" in content
+    assert "redaction-safe-secret" not in content
+
+
+def test_report_redaction_without_fail_on_unsafe_preserves_default_success(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    def write_unsafe_redaction_review(
+        *,
+        project_root: Path,
+        output: str,
+    ) -> RedactionReviewResult:
+        report = _redaction_review_with_unsafe_records(
+            unredacted_records=1,
+            low_confidence_records=1,
+        )
+        output_path = project_root / "reports" / f"redaction-review.{output}"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(render_redaction_review_markdown(report), encoding="utf-8")
+        return RedactionReviewResult(output_path=output_path, report=report)
+
+    monkeypatch.setattr(report_cli, "run_redaction_review", write_unsafe_redaction_review)
+
+    result = CliRunner().invoke(app, ["report", "redaction"])
+
+    assert result.exit_code == 0
+    assert Path("reports/redaction-review.md").exists()
+    assert "unsafe records" not in result.output
+
+
+@pytest.mark.parametrize(
+    ("output", "unredacted_records", "low_confidence_records"),
+    [
+        ("md", 1, 0),
+        ("html", 0, 2),
+    ],
+)
+def test_report_redaction_fail_on_unsafe_fails_after_writing_report(
+    output: str,
+    unredacted_records: int,
+    low_confidence_records: int,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    def write_unsafe_redaction_review(
+        *,
+        project_root: Path,
+        output: str,
+    ) -> RedactionReviewResult:
+        report = _redaction_review_with_unsafe_records(
+            unredacted_records=unredacted_records,
+            low_confidence_records=low_confidence_records,
+        )
+        output_path = project_root / "reports" / f"redaction-review.{output}"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        if output == "html":
+            output_path.write_text(render_redaction_review_html(report), encoding="utf-8")
+        else:
+            output_path.write_text(render_redaction_review_markdown(report), encoding="utf-8")
+        return RedactionReviewResult(output_path=output_path, report=report)
+
+    monkeypatch.setattr(report_cli, "run_redaction_review", write_unsafe_redaction_review)
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "redaction", "--output", output, "--fail-on-unsafe"],
+    )
+
+    assert result.exit_code == 1
+    assert (
+        "Redaction review found unsafe records: "
+        f"unredacted={unredacted_records}, "
+        f"low_confidence={low_confidence_records}."
+    ) in result.output
+    assert Path("reports", f"redaction-review.{output}").exists()
+
+
 def test_report_redaction_reports_missing_traffic_state(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1285,6 +1400,16 @@ def test_report_redaction_reports_empty_traffic_state(
 
 def test_report_redaction_rejects_unsupported_output() -> None:
     result = CliRunner().invoke(app, ["report", "redaction", "--output", "json"])
+
+    assert result.exit_code == 2
+    assert "Unsupported redaction output" in result.output
+
+
+def test_report_redaction_fail_on_unsafe_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(
+        app,
+        ["report", "redaction", "--output", "json", "--fail-on-unsafe"],
+    )
 
     assert result.exit_code == 2
     assert "Unsupported redaction output" in result.output

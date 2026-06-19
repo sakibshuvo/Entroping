@@ -16,19 +16,17 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #972 Capture Summary Unredacted-Record Guard
+## Current Issue Slice: #974 Redaction Review Unsafe-Record Guard
 
-- Add an optional `--fail-on-unredacted` guard to
-  `entroping report capture-summary` so CI can fail after writing counts-only
-  captured-traffic evidence when sanitized local evidence reports unredacted
-  records.
+- Add an optional `--fail-on-unsafe` guard to `entroping report redaction` so
+  CI can fail after writing counts-only captured-traffic redaction evidence when
+  sanitized local evidence reports unredacted or low-confidence records.
 - Keep the default command exit behavior unchanged: valid weak or missing
-  capture-summary evidence still writes a report and exits `0` unless the user
+  redaction-review evidence still writes a report and exits `0` unless the user
   opts into the guard.
 - Preserve report schema compatibility and the core boundary: the
-  unredacted-record guard does not execute Hurl, call providers, upload
-  artifacts, render raw traffic values, or replace QAnstitution/Hurl pass-fail
-  authority.
+  unsafe-record guard does not execute Hurl, call providers, upload artifacts,
+  render raw traffic values, or replace QAnstitution/Hurl pass-fail authority.
 - Verification lane: `security-runtime` because the PR guard classifies
   report-evidence CLI tests as a sensitive surface.
 
@@ -52,6 +50,9 @@ project, and a Codex workspace with fast context rehydration.
 - `entroping report capture-summary --fail-on-unredacted` can turn sanitized
   captured-traffic redaction evidence into an explicit CI guard while preserving
   the report schema and default evidence-only behavior.
+- `entroping report redaction --fail-on-unsafe` can turn unredacted and
+  low-confidence captured-traffic redaction evidence into an explicit CI guard
+  while preserving the report schema and default evidence-only behavior.
 - Pydantic QAnstitution models and typed condition parsing are in place.
 - Runtime `ignore_failures` exceptions are deterministic: active entries skip
   only matching Entroping-injected QAnstitution gates in temporary execution

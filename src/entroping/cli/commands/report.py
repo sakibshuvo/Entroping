@@ -311,6 +311,16 @@ def report_redaction(
         str,
         typer.Option("--output", help="Output format: md or html."),
     ] = "md",
+    fail_on_unsafe: Annotated[
+        bool,
+        typer.Option(
+            "--fail-on-unsafe",
+            help=(
+                "Write the report, then exit 1 when unredacted or low-confidence "
+                "records exist."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Generate a safe counts-only redaction review report from captured traffic."""
 
@@ -335,6 +345,16 @@ def report_redaction(
         f"{noun}.[/green]"
     )
     console.print(f"Wrote redaction review: {display_cli_path(result.output_path)}")
+    unsafe_unredacted = result.report.unredacted_records
+    unsafe_low_confidence = result.report.low_confidence_records
+    if fail_on_unsafe and (unsafe_unredacted > 0 or unsafe_low_confidence > 0):
+        console.print(
+            "[yellow]Redaction review found unsafe records: "
+            f"unredacted={unsafe_unredacted}, "
+            f"low_confidence={unsafe_low_confidence}.[/yellow]"
+        )
+        raise typer.Exit(1)
+    raise typer.Exit(0)
 
 
 @app.command("capture-summary", rich_help_panel=STABLE_REPORT_PANEL)

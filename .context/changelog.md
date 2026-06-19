@@ -2,6 +2,12 @@
 
 ## 2026-06-19
 
+- Added issue #974's redaction-review unsafe-record CI guard:
+  `entroping report redaction --fail-on-unsafe` now writes the requested
+  counts-only redaction review, then exits nonzero when sanitized local evidence
+  reports unredacted or low-confidence records so CI can fail without changing
+  schemas, reading raw traffic values, executing Hurl, calling providers, or
+  uploading artifacts.
 - Added issue #972's capture-summary unredacted-record CI guard:
   `entroping report capture-summary --fail-on-unredacted` now writes the
   requested counts-only capture summary, then exits nonzero when sanitized

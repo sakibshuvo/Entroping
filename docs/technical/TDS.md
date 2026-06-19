@@ -752,7 +752,7 @@ report generation, and artifact schemas remain the compatibility contract.
 | Bug Markdown | `report bug` | Issue tracker handoff |
 | Run Delta | `report delta` | Run-to-run regression delta for PR review |
 | Coverage Badges | `report badges` | Local Shields endpoint JSON from existing reports |
-| Redaction Review | `report redaction --output md|html` | Captured-traffic redaction coverage review |
+| Redaction Review | `report redaction --output md|html [--fail-on-unsafe]` | Captured-traffic redaction coverage review; opt-in CI failure on unsafe counts |
 | Capture Summary | `report capture-summary --output md|json [--fail-on-unredacted]` | Counts-only captured-traffic session summary |
 | Effective Policy | `report policy --output md|json` | Resolved QAnstitution gate provenance |
 | Effective Policy Diff | `report policy-diff --base <path> --current <path> --output md|json [--fail-on-change]` | Import/gate differences between two effective-policy JSON artifacts; opt-in CI failure on changed diff |
@@ -918,7 +918,7 @@ entroping report bug
 entroping report failure-bundle [--output <directory>]
 entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
 entroping report badges [--output <directory>] [--run-json <path>] [--policy-json <path>] [--openapi-json <path>] [--traceability-json <path>]
-entroping report redaction [--output <md|html>]
+entroping report redaction [--output <md|html>] [--fail-on-unsafe]
 entroping report capture-summary [--output <md|json>] [--fail-on-unredacted]
 entroping report policy [--output <md|json>]
 entroping report policy-diff [--base <path>] [--current <path>] [--output <md|json>] [--fail-on-change]
@@ -1285,6 +1285,7 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report badges` | `reports/badges/*.json` | Local Shields endpoint JSON for policy, OpenAPI, and traceability coverage. |
 | `entroping report redaction --output md` | `reports/redaction-review.md` | Counts-only captured-traffic redaction review. |
 | `entroping report redaction --output html` | `reports/redaction-review.html` | Browser-readable captured-traffic redaction review. |
+| `entroping report redaction --fail-on-unsafe` | `reports/redaction-review.md` or `reports/redaction-review.html` | Optional CI guard over unredacted and low-confidence record evidence in the redaction review. |
 | `entroping report capture-summary --output md` | `reports/capture-summary.md` | Counts-only captured-traffic session summary for freeze review. |
 | `entroping report capture-summary --output json` | `reports/capture-summary.json` | Machine-readable capture summary using `entroping.capture-summary.v1`. |
 | `entroping report capture-summary --fail-on-unredacted` | `reports/capture-summary.md` or `reports/capture-summary.json` | Optional CI guard over unredacted-record evidence in the capture summary. |
