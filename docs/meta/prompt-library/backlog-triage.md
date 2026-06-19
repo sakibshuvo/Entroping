@@ -56,10 +56,50 @@ For verified issues, propose:
 - priority label,
 - area label,
 - milestone if obvious,
-- acceptance criteria,
+- acceptance criteria as deterministic pass/fail bullets,
 - verification commands,
 - source evidence,
 - current repo evidence.
 
 Ask before creating issues if there are more than five. If creating issues, keep each one narrow and actionable.
+
+## OpenCode/DeepSeek Status-Ready Issue Guard
+
+For `status:ready` OpenCode/DeepSeek items, include a constrained handoff
+packet with this exact field list:
+
+- provider lane,
+- model id (when known; use `unknown` if not known),
+- autonomy tier,
+- allowed files,
+- forbidden scope, including the minimum Tier A exclusions below,
+- required focused tests,
+- required full gate,
+- merge authority,
+- stop conditions.
+
+Guidance:
+
+- Prefer `gh issue create` and use GitHub Issues for actionable backlog.
+- Avoid Markdown backlog sprawl; do not create or mutate Markdown issue
+  trackers as a backlog system.
+- Tier A cannot include `Hurl runner`, `entroping run`, redaction/proxy,
+  provider runtime, dependencies, release publishing, secrets, raw traffic,
+  audit evidence, or architecture boundary changes.
+- The packet's `forbidden scope` must include at least those Tier A exclusions;
+  add narrower exclusions for the specific issue when needed.
+
+Use this packet shape for `status:ready` OpenCode/DeepSeek issues:
+
+```yaml
+provider lane: <lane>
+model id: <id or unknown>
+autonomy tier: <Tier A autonomous lane | Tier B assisted lane | Tier C restricted lane>
+allowed files: <exact files>
+forbidden scope: <exact exclusions, including the minimum Tier A exclusions>
+required focused tests: <focused commands>
+required full gate: <lane gate>
+merge authority: <who can merge>
+stop conditions: <conditions>
+```
 ```
