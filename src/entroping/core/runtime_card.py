@@ -714,7 +714,17 @@ def _release_evidence(
     findings: list[RuntimeCardFinding],
 ) -> RuntimeCardReleaseEvidence:
     audit_status = "missing"
-    if manifest_doc is not None:
+    if manifest_doc is None:
+        findings.append(
+            _finding(
+                "warning",
+                "missing_artifact_manifest",
+                _ARTIFACT_MANIFEST.path.as_posix(),
+                "Artifact manifest evidence is required before a PR can claim "
+                "release-ready runtime proof.",
+            )
+        )
+    else:
         audit = manifest_doc.get("audit")
         if isinstance(audit, dict):
             verification = audit.get("verification")
@@ -733,7 +743,17 @@ def _release_evidence(
             )
 
     evidence_status = pilot_readiness.status
-    if evidence_doc is not None and evidence_status != "ready":
+    if evidence_doc is None and evidence_status == "missing":
+        findings.append(
+            _finding(
+                "warning",
+                "missing_evidence_bundle",
+                _EVIDENCE_BUNDLE.path.as_posix(),
+                "Evidence bundle is required before a PR can claim "
+                "release-ready runtime proof.",
+            )
+        )
+    elif evidence_doc is not None and evidence_status != "ready":
         findings.append(
             _finding(
                 "warning",

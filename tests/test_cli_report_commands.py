@@ -211,6 +211,46 @@ def test_report_runtime_card_writes_markdown(
 }
 """,
     )
+    _write_text(
+        Path("reports") / "artifact-manifest.json",
+        """
+{
+  "schema_version": "entroping.report-artifact-manifest.v1",
+  "audit": {"verification": {"status": "verified"}}
+}
+""",
+    )
+    _write_text(
+        Path("reports") / "evidence-bundle.json",
+        """
+{
+  "schema_version": "entroping.evidence-bundle.v1",
+  "generated_at": "2026-06-18T00:00:00+00:00",
+  "purpose": "design-partner-upload-readiness",
+  "project": "checkout-api",
+  "summary": {
+    "status": "ready",
+    "required_total": 2,
+    "required_present": 2,
+    "required_missing": 0,
+    "required_invalid": 0,
+    "artifacts_total": 2,
+    "diagnostics_total": 0
+  },
+  "artifacts": [],
+  "missing_artifacts": [],
+  "diagnostics": [],
+  "manifest_audit": {
+    "path": "reports/artifact-manifest.json",
+    "status": "verified",
+    "chain_path": ".entroping/report-audit-chain.jsonl",
+    "checked_events": 1,
+    "latest_event_hash": "0",
+    "diagnostics": []
+  }
+}
+""",
+    )
 
     result = CliRunner().invoke(app, ["report", "runtime-card"])
 
@@ -219,6 +259,51 @@ def test_report_runtime_card_writes_markdown(
     card = Path("reports/runtime-card.md").read_text(encoding="utf-8")
     assert "# Entroping Runtime Evidence Card" in card
     assert "- Status: `pass`" in card
+
+
+def test_report_runtime_card_exits_nonzero_without_release_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("reports") / "run-latest.json",
+        """
+{
+  "schema_version": "entroping.run-report.v1",
+  "project": "checkout-api",
+  "environment": "ci",
+  "generated_at": "2026-06-18T00:00:00+00:00",
+  "summary": {"total": 1, "passed": 1, "failed": 0, "exit_code": 0},
+  "tests": []
+}
+""",
+    )
+    _write_text(
+        Path("reports") / "capture-summary.json",
+        """
+{
+  "schema_version": "entroping.capture-summary.v1",
+  "summary": {
+    "total_records": 1,
+    "total_sessions": 1,
+    "redacted_records": 1,
+    "unredacted_records": 0
+  },
+  "redaction_categories": []
+}
+""",
+    )
+
+    result = CliRunner().invoke(app, ["report", "runtime-card", "--output", "json"])
+
+    assert result.exit_code == 1
+    payload = json.loads(Path("reports/runtime-card.json").read_text(encoding="utf-8"))
+    assert payload["summary"]["status"] == "attention"
+    assert {
+        ("missing_artifact_manifest", "reports/artifact-manifest.json"),
+        ("missing_evidence_bundle", "reports/evidence-bundle.json"),
+    } <= {(finding["code"], finding["path"]) for finding in payload["findings"]}
 
 
 def test_report_runtime_card_writes_json(
