@@ -365,6 +365,46 @@ def test_opencode_desktop_handoff_documents_tooling_setup_checklist() -> None:
         assert term in normalized
 
 
+def test_opencode_desktop_handoff_deepseek_v4_pro_issue_launch_checklist() -> None:
+    doc_path = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "opencode-desktop-handoff.md"
+    )
+    doc = doc_path.read_text(encoding="utf-8")
+    section_match = re.search(
+        r"## DeepSeek V4 Pro Issue-Launch Checklist(.*?)## OpenCode Desktop PR Verification Prompt",
+        doc,
+        re.S,
+    )
+    assert section_match is not None
+
+    section = " ".join(section_match.group(1).split())
+    required_terms = [
+        "`scripts/start_issue.sh <issue-number> <type>/<short-kebab-description>`",
+        "`uv run python scripts/opencode_readiness.py --mode implementation "
+        "--require-clean --format json`",
+        "`scripts/context_pack.sh --mode implementation --manifest`",
+        "Follow the manifest `recommended_next_action` before loading broader context",
+        "OpenCode Provider Lane Evidence in packet/PR body includes:",
+        "- Lane",
+        "- Provider host",
+        "- Billing path",
+        "- Model id",
+        "- Role",
+        "- Autonomy tier",
+        "- Merge authority",
+        "`scripts/regression.sh --security`",
+        "Do not route normal work through retired generated-context tooling",
+        "Before merge, require Codex/human validation for Tier B/Tier C",
+        "Tier A may merge only under documented autonomous-lane rules",
+        "green CI",
+        "declared authority",
+        "`scripts/finish_issue.sh <issue-number>` cleanup after merge",
+    ]
+
+    for term in required_terms:
+        assert term in section
+
+
 def test_prompt_library_includes_opencode_desktop_one_shot_prompt() -> None:
     prompt = (
         REPO_ROOT

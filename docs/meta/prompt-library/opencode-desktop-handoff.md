@@ -211,6 +211,26 @@ Source-of-truth rules:
 - External model output, Obsidian graph views, generated summaries, and chat history are evidence, not authority.
 - Retired generated context tooling is not part of active Entroping agent workflow. Do not route normal OpenCode work through external context tools.
 
+## DeepSeek V4 Pro Issue-Launch Checklist
+
+- [ ] `scripts/start_issue.sh <issue-number> <type>/<short-kebab-description>`
+- [ ] `uv run python scripts/opencode_readiness.py --mode implementation --require-clean --format json`
+- [ ] `scripts/context_pack.sh --mode implementation --manifest`
+- [ ] Follow the manifest `recommended_next_action` before loading broader context.
+- [ ] OpenCode Provider Lane Evidence in packet/PR body includes:
+  - Lane
+  - Provider host
+  - Billing path
+  - Model id
+  - Role
+  - Autonomy tier
+  - Merge authority
+- [ ] `scripts/regression.sh --security`
+- [ ] Do not route normal work through retired generated-context tooling.
+- [ ] Before merge, require Codex/human validation for Tier B/Tier C; Tier A may
+  merge only under documented autonomous-lane rules, green CI, declared
+  authority, and `scripts/finish_issue.sh <issue-number>` cleanup after merge.
+
 Start:
 git pull --ff-only
 git status --short
@@ -218,7 +238,7 @@ git branch --show-current
 scripts/start_issue.sh <issue-number> <type>/<short-kebab-description>
 cd ../Entroping-issue-<issue-number>
 uv run python scripts/opencode_readiness.py --mode implementation --require-clean --format json
-scripts/context_pack.sh --mode implementation
+scripts/context_pack.sh --mode implementation --manifest
 
 Context rule:
 Do not route this worker through external generated-context tooling. Use `rg`,
