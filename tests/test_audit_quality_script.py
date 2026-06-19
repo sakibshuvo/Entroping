@@ -29,6 +29,7 @@ def test_audit_quality_help_documents_quality_gates() -> None:
         result.stdout
     )
     assert "vulture" in result.stdout
+    assert "bounded performance smoke evidence under reports/" in result.stdout
     assert "--dry-run" in result.stdout
 
 
@@ -41,6 +42,7 @@ def test_audit_quality_dry_run_shows_repeatable_steps() -> None:
     assert "Would run Radon complexity gate" in result.stdout
     assert "Would run Vulture dead-code discovery" in result.stdout
     assert "Would write quality trend summary" in result.stdout
+    assert "Would run bounded performance smoke" in result.stdout
     assert "coverage fail-under: 100" in result.stdout
     assert "max complexity rank: D" in result.stdout
 

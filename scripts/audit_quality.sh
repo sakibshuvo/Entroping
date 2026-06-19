@@ -17,6 +17,7 @@ Checks:
   - radon cyclomatic complexity and maintainability-index audit
   - vulture dead-code discovery with a curated confidence threshold
   - quality trend summary under reports/
+  - bounded performance smoke evidence under reports/
 
 Environment thresholds:
   ENTROPING_COVERAGE_FAIL_UNDER  Minimum total coverage. Default: 100.
@@ -77,6 +78,7 @@ if ((dry_run)); then
   log "Would run Radon complexity gate"
   log "Would run Vulture dead-code discovery"
   log "Would write quality trend summary"
+  log "Would run bounded performance smoke"
   exit 0
 fi
 
@@ -220,5 +222,8 @@ uv run python scripts/quality_trend_summary.py "${quality_trend_args[@]}"
 if ((vulture_status != 0)); then
   exit "$vulture_status"
 fi
+
+log "Running bounded performance smoke"
+uv run python scripts/performance_smoke.py --output reports/performance-smoke.json
 
 log "Quality audit finished."

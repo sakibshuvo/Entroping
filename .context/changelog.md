@@ -2,6 +2,11 @@
 
 ## 2026-06-19
 
+- Added issue #960's bounded performance smoke regression gate:
+  `scripts/audit_quality.sh` now runs `scripts/performance_smoke.py` and writes
+  `reports/performance-smoke.json`, so pull-request CI enforces deterministic
+  large-suite, report, and traffic-store smoke evidence without network calls,
+  provider calls, raw traffic, or a benchmark-style threshold suite.
 - Added issue #957's report command help classification:
   `entroping report --help` now separates existing report commands into
   launch-critical, stable-public, maintainer/baseline, and experimental

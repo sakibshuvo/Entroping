@@ -52,11 +52,11 @@ plus static test definitions by category:
 - `security`: secrets, redaction, path handling, subprocess, and policy-risk tests.
 
 `scripts/audit_quality.sh` writes `reports/test-taxonomy.json` before the
-coverage, Radon, and Vulture gates, then uploads the report with the rest of the
-ignored quality artifacts in CI. The taxonomy is file-level and deterministic;
-pytest markers improve classification when present, but the script also uses
-stable file-name rules so it can summarize the existing suite without mass
-marker churn.
+coverage, Radon, Vulture, quality-trend, and bounded performance smoke gates,
+then uploads the report with the rest of the ignored quality artifacts in CI.
+The taxonomy is file-level and deterministic; pytest markers improve
+classification when present, but the script also uses stable file-name rules so
+it can summarize the existing suite without mass marker churn.
 
 ## Required Commands
 
@@ -151,15 +151,15 @@ Performance smoke:
 uv run python scripts/performance_smoke.py
 ```
 
-The performance smoke is a local release-owner gate and a scheduled/manual CI
-evidence job, not a pull-request CI requirement. It uses a fake Hurl binary to
-avoid network calls while exercising many Hurl files, bounded parallel runner
-behavior, gate injection, JSON/JUnit/HTML report generation, and a larger
-SQLModel-backed traffic store with retention. It writes reviewable evidence to
+The performance smoke is a bounded audit-quality gate and scheduled/manual CI
+evidence job. It uses a fake Hurl binary to avoid network calls while
+exercising many Hurl files, bounded parallel runner behavior, gate injection,
+JSON/JUnit/HTML report generation, and a larger SQLModel-backed traffic store
+with retention. It writes reviewable evidence to
 `reports/performance-smoke.json`, which stays ignored like other generated
-reports. The scheduled workflow uploads that JSON evidence for trend review,
-but it does not satisfy package-index proof, downstream feedback, or the
-stable-core compatibility decision by itself.
+reports. The scheduled workflow uploads the same JSON evidence for trend
+review, but it does not satisfy package-index proof, downstream feedback, or
+the stable-core compatibility decision by itself.
 
 AI-regression proof:
 
@@ -223,6 +223,10 @@ security regression job:
 scripts/audit_quality.sh
 ```
 
+The quality-audit job also runs `uv run python scripts/performance_smoke.py`
+through `scripts/audit_quality.sh`, so bounded large-suite, report, and traffic
+store smoke evidence is PR-enforced without adding a flaky benchmark suite.
+
 The `install-smoke` job proves the supported install path across operating
 systems:
 
@@ -257,15 +261,15 @@ uvx --with 'mkdocs-material==9.*' mkdocs build --strict
 Broken public-docs links, invalid navigation entries, and MkDocs warnings fail
 before the GitHub Pages deployment workflow can publish from `main`.
 
-The `performance-smoke` workflow runs on a weekly schedule and by manual
-dispatch only:
+The separate `performance-smoke` workflow runs on a weekly schedule and by
+manual dispatch only:
 
 ```bash
 uv run python scripts/performance_smoke.py
 ```
 
-It uploads `reports/performance-smoke.json` as workflow evidence without adding
-performance timing noise to every pull request.
+It uploads `reports/performance-smoke.json` as additional workflow evidence for
+trend review; the PR-enforced smoke is the bounded audit-quality invocation.
 
 The documentation governance gate also runs:
 

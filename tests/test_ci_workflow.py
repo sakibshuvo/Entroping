@@ -121,10 +121,14 @@ def test_docs_explain_ci_enforced_and_local_only_gates() -> None:
 
     assert "CI enforces `scripts/regression.sh --security`" in readme
     assert "CI enforces `scripts/audit_quality.sh`" in readme
+    assert "CI quality-audit runs `uv run python scripts/performance_smoke.py`" in readme
     assert "Local-only before release:" in readme
     assert "GitHub Actions Enforcement" in test_strategy
     assert "`scripts/regression.sh --security`" in test_strategy
     assert "`scripts/audit_quality.sh`" in test_strategy
+    assert "quality-audit job also runs `uv run python scripts/performance_smoke.py`" in (
+        test_strategy
+    )
     assert "optional-extras-smoke" in test_strategy
     assert "scheduled/manual CI" in test_strategy
     assert "performance-smoke" in test_strategy

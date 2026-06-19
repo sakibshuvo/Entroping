@@ -127,13 +127,12 @@ scripts/feature_gate.sh --security
 scripts/regression.sh --security
 ```
 
-CI enforces `scripts/regression.sh --security` for pull requests and pushes to `main`. CI enforces `scripts/audit_quality.sh` as a separate quality-audit job, runs cross-platform install smokes, optional-extras smoke, and the live demo.
+CI enforces `scripts/regression.sh --security` for pull requests and pushes to `main`. CI enforces `scripts/audit_quality.sh` as a separate quality-audit job, runs cross-platform install smokes, optional-extras smoke, and the live demo. CI quality-audit runs `uv run python scripts/performance_smoke.py` through that audit script and uploads its JSON evidence with the other ignored reports.
 
 Local-only before release:
 
 ```bash
 scripts/package_check.sh
-uv run python scripts/performance_smoke.py
 scripts/release_check.sh --dry-run --require-live-demo
 scripts/release_check.sh --require-live-demo
 ```
