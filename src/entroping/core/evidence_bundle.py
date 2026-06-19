@@ -4,6 +4,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from html import escape
 from pathlib import Path
 from typing import Annotated, Final, Literal
 
@@ -30,7 +31,15 @@ Sha256Digest = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
 
 _DEFAULT_OUTPUT_PATH: Final = Path("reports") / "evidence-bundle.json"
 _DEFAULT_PURPOSE: Final = "design-partner-upload-readiness"
+_MAX_EVIDENCE_ARTIFACT_BYTES: Final = 100 * 1024 * 1024
 _SECRET_SCAN_DIGEST_FIELDS: Final = frozenset({"latest_event_hash", "sha256"})
+_ARTIFACT_INVALID_DIAGNOSTIC_CODES: Final = frozenset(
+    {
+        "artifact_manifest_invalid",
+        "checksum_mismatch",
+        "schema_mismatch",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,7 +171,7 @@ def run_evidence_bundle_report(
     root = project_root.expanduser().resolve()
     destination = _resolve_output_path(output_path or _DEFAULT_OUTPUT_PATH, root=root)
     bundle = _build_bundle(root=root, purpose=purpose)
-    content = json.dumps(bundle.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
+    content = _render_bundle_content(bundle, output_path=destination)
     if _bundle_contains_secret_like_metadata(bundle.model_dump(mode="json")):
         msg = "evidence bundle metadata contains secret-like content"
         raise EvidenceBundleError(msg)
@@ -171,6 +180,117 @@ def run_evidence_bundle_report(
     except SafeWriteError as exc:
         raise EvidenceBundleError(str(exc)) from exc
     return EvidenceBundleResult(output_path=destination, bundle=bundle)
+
+
+def _render_bundle_content(bundle: EvidenceBundleReport, *, output_path: Path) -> str:
+    if output_path.suffix.lower() in {".md", ".markdown"}:
+        return render_evidence_bundle_markdown(bundle)
+    return json.dumps(bundle.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
+
+
+def render_evidence_bundle_markdown(bundle: EvidenceBundleReport) -> str:
+    """Render a value-free Markdown summary from sanitized evidence metadata."""
+
+    manifest_status = (
+        bundle.manifest_audit.status if bundle.manifest_audit is not None else "missing"
+    )
+    lines = [
+        "# Evidence Bundle",
+        "",
+        f"- Status: `{bundle.summary.status}`",
+        f"- Purpose: `{_inline_code(bundle.purpose)}`",
+        f"- Project: `{_inline_code(bundle.project or 'unknown')}`",
+        "- Required artifacts: "
+        f"`{bundle.summary.required_present}/{bundle.summary.required_total}` present, "
+        f"`{bundle.summary.required_missing}` missing, "
+        f"`{bundle.summary.required_invalid}` invalid",
+        f"- Diagnostics: `{bundle.summary.diagnostics_total}`",
+        f"- Artifact manifest audit: `{_inline_code(manifest_status)}`",
+        "",
+        "## Required Artifacts",
+        "",
+        "| Kind | Path | State | Schema | Size bytes | SHA-256 |",
+        "| --- | --- | --- | --- | ---: | --- |",
+    ]
+    for row in _artifact_rows(bundle):
+        lines.append(
+            f"| {_markdown_cell(row[0])} | "
+            f"{_markdown_cell(row[1])} | "
+            f"{_markdown_cell(row[2])} | "
+            f"{_markdown_cell(row[3])} | "
+            f"{_markdown_cell(row[4])} | "
+            f"{_markdown_cell(row[5])} |"
+        )
+
+    lines.extend(["", "## Diagnostics", ""])
+    if not bundle.diagnostics:
+        lines.append("No diagnostics were found.")
+    else:
+        lines.extend(
+            [
+                "| Severity | Code | Path | Message |",
+                "| --- | --- | --- | --- |",
+            ]
+        )
+        for diagnostic in bundle.diagnostics:
+            lines.append(
+                f"| {_markdown_cell(diagnostic.severity)} | "
+                f"{_markdown_cell(diagnostic.code)} | "
+                f"{_markdown_cell(diagnostic.path or 'n/a')} | "
+                f"{_markdown_cell(diagnostic.message)} |"
+            )
+
+    lines.extend(["", "## Next Local Commands", ""])
+    commands = _next_missing_evidence_commands(bundle)
+    if not commands:
+        lines.append("No missing required artifacts were found.")
+    else:
+        for command in commands:
+            lines.append(f"- `{_inline_code(command)}`")
+    return "\n".join(lines) + "\n"
+
+
+def _artifact_rows(bundle: EvidenceBundleReport) -> list[tuple[str, str, str, str, str, str]]:
+    rows = [
+        (
+            artifact.kind,
+            artifact.path,
+            "present",
+            artifact.schema_version or "unknown",
+            str(artifact.size_bytes),
+            artifact.sha256,
+        )
+        for artifact in bundle.artifacts
+    ]
+    rows.extend(
+        (
+            artifact.kind,
+            artifact.path,
+            "missing",
+            "n/a",
+            "0",
+            "n/a",
+        )
+        for artifact in bundle.missing_artifacts
+    )
+    return sorted(rows, key=lambda row: row[1])
+
+
+def _next_missing_evidence_commands(bundle: EvidenceBundleReport) -> tuple[str, ...]:
+    if not bundle.missing_artifacts:
+        return ()
+    commands_by_kind = {
+        "artifact_manifest": "entroping report artifact-manifest",
+        "effective_policy": "entroping report policy --output json",
+        "run_json": "entroping run --report json",
+    }
+    commands = [
+        commands_by_kind[artifact.kind]
+        for artifact in bundle.missing_artifacts
+        if artifact.kind in commands_by_kind
+    ]
+    commands.append("entroping report evidence-bundle --output reports/evidence-bundle.md")
+    return tuple(dict.fromkeys(commands))
 
 
 def _build_bundle(*, root: Path, purpose: str) -> EvidenceBundleReport:
@@ -238,9 +358,14 @@ def _build_bundle(*, root: Path, purpose: str) -> EvidenceBundleReport:
             raw_project = document.get("project")
             project = _safe_metadata_text(raw_project) if isinstance(raw_project, str) else None
 
-    required_invalid = sum(1 for item in diagnostics if item.severity == "error")
+    required_invalid = sum(
+        1
+        for item in diagnostics
+        if item.severity == "error" and item.code in _ARTIFACT_INVALID_DIAGNOSTIC_CODES
+    )
+    has_error_diagnostics = any(item.severity == "error" for item in diagnostics)
     status: EvidenceBundleStatus = (
-        "ready" if not missing and required_invalid == 0 else "not_ready"
+        "ready" if not missing and not has_error_diagnostics else "not_ready"
     )
     return EvidenceBundleReport(
         generated_at=datetime.now(UTC).isoformat(),
@@ -312,8 +437,8 @@ def _manifest_audit(manifest: ReportArtifactManifest) -> EvidenceBundleManifestA
     verification = manifest.audit.verification
     return EvidenceBundleManifestAudit(
         path="reports/artifact-manifest.json",
-        status=verification.status,
-        chain_path=manifest.audit.chain_path,
+        status=_safe_metadata_text(verification.status),
+        chain_path=_safe_metadata_text(manifest.audit.chain_path),
         checked_events=verification.checked_events,
         latest_event_hash=verification.latest_event_hash,
         diagnostics=tuple(_safe_metadata_text(item) for item in verification.diagnostics),
@@ -360,7 +485,15 @@ def _reject_symlink_path(path: Path, *, root: Path, artifact: str) -> None:
 
 def _read_artifact_bytes(path: Path, *, artifact_path: str) -> bytes:
     try:
+        if path.stat().st_size > _MAX_EVIDENCE_ARTIFACT_BYTES:
+            msg = (
+                f"evidence artifact {artifact_path} exceeds "
+                f"{_MAX_EVIDENCE_ARTIFACT_BYTES} bytes"
+            )
+            raise EvidenceBundleError(msg)
         return path.read_bytes()
+    except EvidenceBundleError:
+        raise
     except OSError as exc:
         msg = f"Could not read evidence artifact {artifact_path}: {exc}"
         raise EvidenceBundleError(msg) from exc
@@ -382,6 +515,18 @@ def _diagnostic(
 
 def _safe_metadata_text(value: str) -> str:
     return redact_secret_like_values(value).replace("\r", " ").replace("\n", " ")
+
+
+def _inline_code(value: str) -> str:
+    return _markdown_text(value).replace("`", "'")
+
+
+def _markdown_cell(value: str) -> str:
+    return _markdown_text(value).replace("\n", "<br>")
+
+
+def _markdown_text(value: str) -> str:
+    return escape(value, quote=False).replace("|", "\\|")
 
 
 def _bundle_contains_secret_like_metadata(

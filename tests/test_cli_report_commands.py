@@ -111,6 +111,26 @@ def test_report_evidence_bundle_writes_ready_bundle(
     assert payload["summary"]["status"] == "ready"
 
 
+def test_report_evidence_bundle_writes_markdown_when_output_path_is_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_ready_evidence_bundle_inputs(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "evidence-bundle", "--output", "reports/evidence-bundle.md"],
+    )
+
+    assert result.exit_code == 0
+    assert "Wrote evidence bundle: reports/evidence-bundle.md" in result.output
+    markdown = Path("reports/evidence-bundle.md").read_text(encoding="utf-8")
+    assert "# Evidence Bundle" in markdown
+    assert "- Status: `ready`" in markdown
+    assert "reports/run-latest.json" in markdown
+
+
 def test_report_evidence_bundle_exits_nonzero_when_not_ready(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

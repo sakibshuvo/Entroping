@@ -148,19 +148,23 @@ The evidence bundle is written by:
 
 ```bash
 entroping report evidence-bundle
+entroping report evidence-bundle --output reports/evidence-bundle.md
 ```
 
 It writes `reports/evidence-bundle.json` with schema
-`entroping.evidence-bundle.v1`. The bundle verifies design-partner upload
-readiness from existing local report evidence: `reports/run-latest.json`,
+`entroping.evidence-bundle.v1` by default. A `.md` or `.markdown` output path
+writes a reviewer-facing Markdown summary from the same data model without
+creating a second schema. The bundle verifies design-partner upload readiness
+from existing local report evidence: `reports/run-latest.json`,
 `reports/effective-policy.json`, and `reports/artifact-manifest.json`. It
 records only project-relative artifact references, schema versions, byte sizes,
 SHA-256 checksums, missing-artifact diagnostics, checksum mismatches against
-the artifact manifest, and artifact-manifest audit-chain status. It does not
-embed artifact contents, raw traffic, source Hurl contents, stdout/stderr,
-prompts, provider outputs, credentials, environment values, or upload anything
-to a hosted service. A `not_ready` bundle is still reviewable evidence; it
-means required local evidence is missing or inconsistent.
+the artifact manifest, artifact-manifest audit-chain status, and local next
+commands for missing evidence. It does not embed artifact contents, raw
+traffic, source Hurl contents, stdout/stderr, prompts, provider outputs,
+credentials, environment values, or upload anything to a hosted service. A
+`not_ready` bundle is still reviewable evidence; it means required local
+evidence is missing or inconsistent.
 
 The runtime evidence card is written by:
 

@@ -505,16 +505,18 @@ Write a sanitized design-partner upload-readiness bundle:
 
 ```bash
 entroping report evidence-bundle
+entroping report evidence-bundle --output reports/evidence-bundle.md
 ```
 
-The evidence bundle writes `reports/evidence-bundle.json`. It checks for the
-local run report, effective-policy report, and artifact manifest, then records
-project-relative paths, schema versions, byte sizes, SHA-256 checksums,
-missing/invalid diagnostics, and artifact-manifest audit status. It does not
-embed report contents, raw traffic, source Hurl contents, stdout/stderr,
-prompts, provider outputs, credentials, environment values, or upload anything.
-If the bundle status is `not_ready`, fix the missing or inconsistent local
-evidence before sharing it with a design partner or hosted workflow.
+The evidence bundle writes `reports/evidence-bundle.json` by default. When the
+output path ends in `.md` or `.markdown`, it writes a reviewer-facing Markdown
+summary from the same sanitized data model. The Markdown summary includes
+status, required-artifact readiness, checksum and artifact-manifest audit
+diagnostics, and next local commands for missing evidence; it does not embed
+report contents, raw traffic, source Hurl contents, stdout/stderr, prompts,
+provider outputs, credentials, environment values, or upload anything. If the
+bundle status is `not_ready`, fix the missing or inconsistent local evidence
+before sharing it with a design partner or hosted workflow.
 
 ## Design-Partner Pilot Kit
 
@@ -530,7 +532,7 @@ Target workflow:
 4. Attach only sanitized evidence to the review or pilot discussion:
    `reports/run-latest.json`, `reports/effective-policy.json`,
    `reports/artifact-manifest.json`, `reports/evidence-bundle.json`, and
-   `reports/runtime-card.md` when present.
+   `reports/evidence-bundle.md` or `reports/runtime-card.md` when present.
 5. Convert every product gap, confusing error, false positive, missing report,
    or adoption blocker into a narrow GitHub issue before expanding scope.
 
@@ -543,6 +545,7 @@ entroping run --ci --report json --report junit
 entroping report policy --output json
 entroping report artifact-manifest
 entroping report evidence-bundle
+entroping report evidence-bundle --output reports/evidence-bundle.md
 entroping report runtime-card
 ```
 

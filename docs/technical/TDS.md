@@ -1175,12 +1175,14 @@ upload anything to external services. The manifest records included artifact
 paths, source paths, schema versions, sizes, and SHA-256 hashes.
 
 `entroping report evidence-bundle` writes a sanitized local upload-readiness
-bundle at `reports/evidence-bundle.json` by default. It verifies that the local
-run report, effective-policy report, and artifact manifest exist, use supported
-schemas, and match manifest checksums where the artifact manifest covers them.
-The bundle records project-relative paths, schema versions, byte sizes,
-SHA-256 hashes, missing/invalid diagnostics, and artifact-manifest audit-chain
-status without embedding artifact contents, raw traffic, source Hurl contents,
+bundle at `reports/evidence-bundle.json` by default. A `.md` or `.markdown`
+output path writes a reviewer-facing Markdown summary from the same sanitized
+data model. It verifies that the local run report, effective-policy report, and
+artifact manifest exist, use supported schemas, and match manifest checksums
+where the artifact manifest covers them. The bundle records project-relative
+paths, schema versions, byte sizes, SHA-256 hashes, missing/invalid diagnostics,
+artifact-manifest audit-chain status, and local next commands for missing
+evidence without embedding artifact contents, raw traffic, source Hurl contents,
 stdout/stderr, provider prompts, provider outputs, credentials, environment
 values, or uploading anything to a hosted service. A `not_ready` bundle is
 reviewable evidence of missing or inconsistent local proof, not a cloud upload.
@@ -1237,7 +1239,7 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report test-quality --output md` | `reports/test-quality.md` | Human-readable generated-Hurl quality score. |
 | `entroping report test-quality --output json` | `reports/test-quality.json` | Machine-readable generated-Hurl quality score using `entroping.test-quality-report.v1`. |
 | `entroping report artifact-manifest` | `reports/artifact-manifest.json` and `.entroping/report-audit-chain.jsonl` | Machine-readable checksum manifest using `entroping.report-artifact-manifest.v1` plus a local tamper-evident audit chain using `entroping.report-audit-event.v1`; the chain is local state and not committed. |
-| `entroping report evidence-bundle` | `reports/evidence-bundle.json` | Sanitized design-partner upload-readiness evidence using `entroping.evidence-bundle.v1`; references local artifacts by path, schema, size, and checksum without embedding contents or uploading. |
+| `entroping report evidence-bundle` | `reports/evidence-bundle.json`, or Markdown when `--output` ends in `.md` or `.markdown` | Sanitized design-partner upload-readiness evidence using `entroping.evidence-bundle.v1`; references local artifacts by path, schema, size, checksum, readiness, diagnostics, and missing-evidence next commands without embedding contents or uploading. |
 | `entroping report runtime-card --output md` | `reports/runtime-card.md` | Reviewer-facing PR/runtime evidence card from sanitized local reports, including design-partner pilot readiness when evidence-bundle metadata is present. |
 | `entroping report runtime-card --output json` | `reports/runtime-card.json` | Machine-readable PR/runtime evidence card using `entroping.runtime-card.v1`, including additive `pilot_readiness` evidence. |
 | `entroping report agent-bundle --output md` | `reports/agent-bundle.md` | Human-readable local multi-agent review bundle from sanitized manifests. |

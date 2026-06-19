@@ -2,6 +2,12 @@
 
 ## 2026-06-18
 
+- Added issue #936's evidence-bundle Markdown reviewer summary:
+  `entroping report evidence-bundle --output reports/evidence-bundle.md` now
+  writes a value-free reviewer summary from the existing evidence-bundle data
+  model, including status, required-artifact readiness, checksum/audit
+  diagnostics, and missing-evidence next commands without embedding raw report
+  contents.
 - Added issue #935's runtime-card pilot readiness:
   runtime-card JSON and Markdown now include value-free evidence-bundle
   readiness status, missing/invalid artifact counts, checksum mismatch counts,
