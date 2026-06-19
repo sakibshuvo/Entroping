@@ -16,19 +16,17 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #959 Headless Structured Diagnostics Boundary
+## Current Issue Slice: #957 Report Command Help Classification
 
-- Define a local, vendor-neutral `entroping.diagnostics.v1` event contract for
-  headless agents, reports, doctor, and future observability adapters.
-- Keep diagnostics separate from `entroping.run-events.v1`: run events remain
-  per-run execution evidence, while diagnostics are reusable value-free
-  component events.
-- Prove diagnostics reject value-bearing field names, redact secret-like text,
-  reject malformed completed JSONL events, and preserve one incomplete trailing
-  JSONL line for crash-safe reads.
-- Do not add vendor-specific observability SDKs, call providers, read raw
-  traffic, store prompts/provider output, weaken run determinism, or change the
-  locked CLI surface.
+- Classify the existing `entroping report` command surface into
+  launch-critical, stable-public, maintainer/baseline, and experimental
+  design-partner evidence lanes.
+- Preserve the locked v4.1 command names, flags, deterministic report
+  generation, and artifact schemas; this issue changes help discovery only.
+- Prove `entroping report --help` prioritizes first-hour handoff commands while
+  keeping stable, maintainer, and experimental commands visible.
+- Update canonical command documentation without creating new docs or removing
+  any report command.
 - Verification lane: `release-ci-architecture`.
 
 ## Current Baseline
@@ -37,6 +35,9 @@ project, and a Codex workspace with fast context rehydration.
 - Root `README.md` and `docs/meta/VAULT_INDEX.md` are the main public and vault entry points.
 - Python package and CLI implementation exist under `src/entroping/`.
 - CLI command surface is locked to v4.1.
+- `entroping report --help` classifies existing commands by launch-critical,
+  stable-public, maintainer/baseline, and experimental design-partner evidence
+  lanes while preserving command compatibility.
 - Pydantic QAnstitution models and typed condition parsing are in place.
 - Runtime `ignore_failures` exceptions are deterministic: active entries skip
   only matching Entroping-injected QAnstitution gates in temporary execution

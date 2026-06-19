@@ -77,40 +77,75 @@ def _write_ready_evidence_bundle_inputs(root: Path) -> None:
     write_report_artifact_manifest(project_root=root)
 
 
-def test_report_help_tiers_core_ci_review_commands_before_advanced_evidence() -> None:
+def test_report_help_classifies_launch_stable_experimental_and_maintainer_commands() -> None:
     result = CliRunner().invoke(app, ["report", "--help"])
 
     assert result.exit_code == 0
-    assert "Core CI And Review" in result.output
-    assert "Advanced Evidence" in result.output
-    assert result.output.index("Core CI And Review") < result.output.index("Advanced Evidence")
+    panels = (
+        "Launch-Critical Reports",
+        "Stable Public Reports",
+        "Maintainer And Baseline Tools",
+        "Experimental Design-Partner Evidence",
+    )
+    for panel in panels:
+        assert panel in result.output
+    assert result.output.index("Launch-Critical Reports") < result.output.index(
+        "Stable Public Reports"
+    )
 
-    core_panel = result.output.split("Core CI And Review", maxsplit=1)[1].split(
-        "Advanced Evidence",
+    launch_panel = result.output.split("Launch-Critical Reports", maxsplit=1)[1].split(
+        "Stable Public Reports",
         maxsplit=1,
     )[0]
     for command in (
         "bug",
-        "delta",
-        "github-annotations",
+        "failure-bundle",
         "runtime-card",
-        "sarif",
         "review-summary",
     ):
-        assert command in core_panel
+        assert command in launch_panel
 
-    advanced_panel = result.output.split("Advanced Evidence", maxsplit=1)[1]
+    stable_panel = result.output.split("Stable Public Reports", maxsplit=1)[1].split(
+        "Maintainer And Baseline Tools",
+        maxsplit=1,
+    )[0]
     for command in (
+        "delta",
         "policy",
+        "policy-diff",
         "gate-coverage",
-        "test-quality",
         "traceability",
+        "github-annotations",
+        "sarif",
+    ):
+        assert command in stable_panel
+
+    maintainer_panel = result.output.split("Maintainer And Baseline Tools", maxsplit=1)[
+        1
+    ].split(
+        "Experimental Design-Partner Evidence",
+        maxsplit=1,
+    )[0]
+    for command in (
+        "badges",
+        "gate-injection",
+        "test-quality",
         "artifact-manifest",
+        "promote-drift-baseline",
+    ):
+        assert command in maintainer_panel
+
+    experimental_panel = result.output.split(
+        "Experimental Design-Partner Evidence",
+        maxsplit=1,
+    )[1]
+    for command in (
         "evidence-bundle",
+        "design-partner-feedback",
         "pilot-metrics",
         "agent-bundle",
     ):
-        assert command in advanced_panel
+        assert command in experimental_panel
 
 
 def test_report_evidence_bundle_writes_ready_bundle(

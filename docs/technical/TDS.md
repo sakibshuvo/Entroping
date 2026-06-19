@@ -736,6 +736,10 @@ value-free traffic artifact approval schema used by `freeze`.
 ## 13. Reporting Design
 
 Reports are written under `reports/`.
+`entroping report --help` classifies report commands as launch-critical,
+stable-public, maintainer/baseline, or experimental design-partner evidence.
+This is a help-discovery boundary only: command names, flags, deterministic
+report generation, and artifact schemas remain the compatibility contract.
 
 | Report | Command | Purpose |
 | --- | --- | --- |
