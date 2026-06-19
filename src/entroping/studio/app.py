@@ -11,6 +11,7 @@ from entroping.studio.status import (
     LatestRunTestStatus,
     StudioAppliedGateStatus,
     StudioDependencyError,
+    StudioEvidenceBundleReadiness,
     StudioStatus,
     StudioTrafficRedactionStatus,
     StudioTrafficRouteStatus,
@@ -42,6 +43,7 @@ class StudioViewModel:
     failure_rows: TableRows
     gate_rows: TableRows
     report_rows: TableRows
+    evidence_bundle_rows: TableRows
     traffic_rows: TableRows
 
 
@@ -54,6 +56,7 @@ def build_studio_view_model(status: StudioStatus) -> StudioViewModel:
         failure_rows=_failure_rows(status.latest_run.tests if status.latest_run else ()),
         gate_rows=_gate_rows(status.applied_gates),
         report_rows=_report_rows(status.evidence_artifacts, status.report_paths),
+        evidence_bundle_rows=_evidence_bundle_rows(status.evidence_bundle_readiness),
         traffic_rows=_traffic_rows(status),
     )
 
@@ -146,6 +149,38 @@ def _report_rows(
     return (("No evidence artifacts found", "", "", "", ""),)
 
 
+def _evidence_bundle_rows(
+    readiness: StudioEvidenceBundleReadiness | None,
+) -> TableRows:
+    if readiness is None:
+        return (("No evidence bundle found", ""),)
+    return (
+        ("Artifact state", readiness.artifact_state),
+        ("Schema", _safe_cell(readiness.schema_version or "-")),
+        ("Status", _safe_cell(readiness.status)),
+        (
+            "Required artifacts",
+            (
+                f"{readiness.required_present}/{readiness.required_total} present, "
+                f"{readiness.required_missing} missing, "
+                f"{readiness.required_invalid} invalid"
+            ),
+        ),
+        (
+            "Diagnostics",
+            (
+                f"{readiness.diagnostics_total} total, "
+                f"{readiness.missing_diagnostics} missing, "
+                f"{readiness.invalid_diagnostics} invalid, "
+                f"{readiness.unsafe_diagnostics} unsafe, "
+                f"{readiness.checksum_mismatches} "
+                f"{_plural('checksum mismatch', readiness.checksum_mismatches)}"
+            ),
+        ),
+        ("Audit chain", _safe_cell(readiness.audit_chain_status)),
+    )
+
+
 def _gate_rows(applied_gates: Sequence[StudioAppliedGateStatus]) -> TableRows:
     if not applied_gates:
         return (("No applied gates found", "", "", "", "", ""),)
@@ -232,6 +267,10 @@ def _latency_display(latency_average_ms: int | None) -> str:
     return "n/a" if latency_average_ms is None else f"{latency_average_ms} ms"
 
 
+def _plural(label: str, count: int) -> str:
+    return label if count == 1 else f"{label}es"
+
+
 def _load_textual_types() -> TextualTypes:  # pragma: no cover - optional dependency boundary
     importlib.import_module("textual.app")
     importlib.import_module("textual.widgets")
@@ -292,6 +331,13 @@ def _create_textual_app(model: StudioViewModel) -> _RunnableApp:  # pragma: no c
                         _render_table(
                             ("ID", "State", "Path", "Schema", "Summary"),
                             model.report_rows,
+                        )
+                    )
+                with tab_pane("Pilot Readiness", id="pilot-readiness"):
+                    yield static(
+                        _render_table(
+                            ("Field", "Value"),
+                            model.evidence_bundle_rows,
                         )
                     )
                 with tab_pane("Traffic", id="traffic"):

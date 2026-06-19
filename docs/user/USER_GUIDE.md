@@ -1133,6 +1133,10 @@ Studio opens tabbed views for:
 - A read-only evidence viewer for report artifacts, with stable evidence IDs
   such as `run-json`, `capture-summary-json`, `test-quality-json`, and
   `runtime-card-json`.
+- A read-only pilot readiness panel for `reports/evidence-bundle.json` that
+  shows the schema, bundle status, required artifact counts,
+  missing/invalid/unsafe diagnostic counts, checksum mismatch count, and
+  artifact-manifest audit-chain status.
 - A read-only traffic session browser over redacted SQLModel-backed state.
 - Inferred target/dependency grouping, route counts, latency summaries, and safe redaction categories and counts.
 
@@ -1149,6 +1153,13 @@ edit tests, QAnstitution, reports, traffic state, or runtime state. The stable
 evidence IDs are intended to line up with CLI output, PR runtime cards, and
 future editor or workbench surfaces without changing the locked CLI command
 contract.
+
+The pilot readiness panel is a value-free detail view over
+`evidence-bundle-json`. It validates the bundle contract, summarizes ready,
+not_ready, invalid, missing, and unsafe states, and displays only counts and
+status labels. It does not open the artifact for raw inspection, does not render
+referenced report contents, does not execute remediation hints, and does not
+upload evidence.
 
 The applied-gate drilldowns explain which QAnstitution gates were applied to
 which tests by reading latest-run report rule IDs and QAnstitution gate

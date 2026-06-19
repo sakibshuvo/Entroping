@@ -2,6 +2,11 @@
 
 ## 2026-06-19
 
+- Added issue #938's Studio evidence-bundle pilot readiness panel:
+  `entroping studio` now derives a read-only value-free readiness table from
+  `reports/evidence-bundle.json`, covering ready, not_ready, invalid, missing,
+  and unsafe states without rendering raw report contents, executing remedies,
+  uploading artifacts, or mutating local state.
 - Added issue #940's schema-only design-partner feedback artifact:
   `docs/technical/report-schemas/design-partner-feedback.v1.schema.json`
   defines sanitized product-learning evidence for

@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from pydantic import ValidationError
+
 from entroping.bridge.redaction_review import RedactionReviewReport, compile_redaction_review
 from entroping.bridge.traffic_sessions import (
     TrafficRecordRole,
@@ -18,13 +20,31 @@ from entroping.bridge.traffic_to_graph import (
     compile_traffic_dependency_graph,
 )
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
-from entroping.core.evidence_index import LocalEvidenceArtifact, build_local_evidence_index
+from entroping.core.evidence_bundle import EvidenceBundleDiagnostic, EvidenceBundleReport
+from entroping.core.evidence_index import (
+    EvidenceArtifactState,
+    LocalEvidenceArtifact,
+    build_local_evidence_index,
+)
+from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.report_writer import load_run_report
 from entroping.core.traffic_store import TrafficStoreError, list_project_exchanges_readonly
 from entroping.models.qanstitution import GateRule
 from entroping.models.traffic import TrafficExchange
 
 _TRAFFIC_BROWSER_LIMIT = 1_000
+_EVIDENCE_BUNDLE_ARTIFACT_ID = "evidence-bundle-json"
+_MAX_STUDIO_EVIDENCE_BUNDLE_BYTES = 10 * 1024 * 1024
+_MISSING_DIAGNOSTIC_CODES = frozenset({"missing_required_artifact"})
+_INVALID_DIAGNOSTIC_CODES = frozenset(
+    {
+        "artifact_contract_invalid",
+        "artifact_manifest_invalid",
+        "schema_mismatch",
+    }
+)
+_UNSAFE_DIAGNOSTIC_CODES = frozenset({"unsafe_artifact_path"})
+_CHECKSUM_DIAGNOSTIC_CODES = frozenset({"checksum_mismatch"})
 
 
 class StudioDependencyError(RuntimeError):
@@ -89,6 +109,25 @@ class StudioTrafficRedactionStatus:
 
 
 @dataclass(frozen=True)
+class StudioEvidenceBundleReadiness:
+    """Value-free design-partner evidence-bundle readiness for Studio."""
+
+    artifact_state: EvidenceArtifactState
+    schema_version: str | None
+    status: str
+    required_present: int
+    required_total: int
+    required_missing: int
+    required_invalid: int
+    diagnostics_total: int
+    missing_diagnostics: int
+    invalid_diagnostics: int
+    unsafe_diagnostics: int
+    checksum_mismatches: int
+    audit_chain_status: str
+
+
+@dataclass(frozen=True)
 class StudioStatus:
     """Read-only local state snapshot for Studio."""
 
@@ -101,6 +140,7 @@ class StudioStatus:
     traffic_state_available: bool
     evidence_artifacts: tuple[LocalEvidenceArtifact, ...] = ()
     applied_gates: tuple[StudioAppliedGateStatus, ...] = ()
+    evidence_bundle_readiness: StudioEvidenceBundleReadiness | None = None
     traffic_state_status: str = "missing"
     traffic_record_count: int = 0
     traffic_redacted_count: int = 0
@@ -134,6 +174,10 @@ def collect_studio_status(*, project_root: Path, environment: str | None) -> Stu
         traffic_redactions,
     ) = _load_traffic_browser_status(root)
     evidence_artifacts = build_local_evidence_index(project_root=root)
+    evidence_bundle_readiness = _load_evidence_bundle_readiness(
+        root,
+        evidence_artifacts,
+    )
     return StudioStatus(
         environment=environment or "default",
         project=project,
@@ -144,6 +188,7 @@ def collect_studio_status(*, project_root: Path, environment: str | None) -> Stu
         traffic_state_available=traffic_state_available,
         evidence_artifacts=evidence_artifacts,
         applied_gates=_applied_gate_statuses(latest_run, gates_by_id),
+        evidence_bundle_readiness=evidence_bundle_readiness,
         traffic_state_status=traffic_state_status,
         traffic_record_count=traffic_record_count,
         traffic_redacted_count=traffic_redacted_count,
@@ -164,6 +209,7 @@ def render_studio_status(status: StudioStatus) -> str:
         f"Applied gates: {len(status.applied_gates)}",
         f"Reports: {_reports_line(status.report_paths)}",
         _evidence_artifacts_line(status.evidence_artifacts),
+        _evidence_bundle_readiness_line(status.evidence_bundle_readiness),
         _traffic_state_line(status),
         f"Traffic routes: {len(status.traffic_routes)}",
         f"Traffic redaction categories: {len(status.traffic_redactions)}",
@@ -364,6 +410,117 @@ def _applied_gate_statuses(
     return tuple(rows)
 
 
+def _load_evidence_bundle_readiness(
+    root: Path,
+    artifacts: tuple[LocalEvidenceArtifact, ...],
+) -> StudioEvidenceBundleReadiness | None:
+    artifact = next(
+        (item for item in artifacts if item.id == _EVIDENCE_BUNDLE_ARTIFACT_ID),
+        None,
+    )
+    if artifact is None:
+        return None
+    if artifact.state != "present":
+        return _artifact_state_readiness(artifact)
+
+    path = root / artifact.path
+    content, state = _read_evidence_bundle_bytes(path, root=root)
+    if content is None:
+        return _artifact_state_readiness(
+            LocalEvidenceArtifact(
+                id=artifact.id,
+                label=artifact.label,
+                path=artifact.path,
+                state=state,
+                schema_version=None,
+                summary=state,
+            )
+        )
+    try:
+        bundle = EvidenceBundleReport.model_validate_json(content)
+    except (ValidationError, ValueError):
+        return _artifact_state_readiness(
+            LocalEvidenceArtifact(
+                id=artifact.id,
+                label=artifact.label,
+                path=artifact.path,
+                state="invalid",
+                schema_version=None,
+                summary="invalid evidence-bundle contract",
+            )
+        )
+
+    diagnostics = bundle.diagnostics
+    manifest_audit = bundle.manifest_audit
+    return StudioEvidenceBundleReadiness(
+        artifact_state="present",
+        schema_version=bundle.schema_version,
+        status=bundle.summary.status,
+        required_present=bundle.summary.required_present,
+        required_total=bundle.summary.required_total,
+        required_missing=bundle.summary.required_missing,
+        required_invalid=bundle.summary.required_invalid,
+        diagnostics_total=bundle.summary.diagnostics_total,
+        missing_diagnostics=_count_diagnostics(diagnostics, _MISSING_DIAGNOSTIC_CODES),
+        invalid_diagnostics=_count_diagnostics(diagnostics, _INVALID_DIAGNOSTIC_CODES),
+        unsafe_diagnostics=_count_diagnostics(diagnostics, _UNSAFE_DIAGNOSTIC_CODES),
+        checksum_mismatches=_count_diagnostics(diagnostics, _CHECKSUM_DIAGNOSTIC_CODES),
+        audit_chain_status=manifest_audit.status if manifest_audit is not None else "missing",
+    )
+
+
+def _read_evidence_bundle_bytes(
+    path: Path,
+    *,
+    root: Path,
+) -> tuple[bytes | None, EvidenceArtifactState]:
+    try:
+        symlink_path = first_symlink_path_component(path, root=root)
+    except ValueError:
+        return None, "unsafe"
+    if symlink_path is not None:
+        return None, "unsafe"
+    if not path.exists():
+        return None, "missing"
+    if not path.is_file():
+        return None, "unsafe"
+    try:
+        with path.open("rb") as handle:
+            content = handle.read(_MAX_STUDIO_EVIDENCE_BUNDLE_BYTES + 1)
+    except OSError:
+        return None, "invalid"
+    if len(content) > _MAX_STUDIO_EVIDENCE_BUNDLE_BYTES:
+        return None, "invalid"
+    return content, "present"
+
+
+def _artifact_state_readiness(
+    artifact: LocalEvidenceArtifact,
+) -> StudioEvidenceBundleReadiness:
+    return StudioEvidenceBundleReadiness(
+        artifact_state=artifact.state,
+        schema_version=artifact.schema_version,
+        status=artifact.state,
+        required_present=0,
+        required_total=0,
+        required_missing=0,
+        required_invalid=0,
+        diagnostics_total=1 if artifact.state in {"invalid", "missing", "unsafe"} else 0,
+        missing_diagnostics=1 if artifact.state == "missing" else 0,
+        invalid_diagnostics=1 if artifact.state == "invalid" else 0,
+        unsafe_diagnostics=1 if artifact.state == "unsafe" else 0,
+        checksum_mismatches=0,
+        audit_chain_status="not_available",
+    )
+
+
+def _count_diagnostics(
+    diagnostics: tuple[EvidenceBundleDiagnostic, ...],
+    codes: frozenset[str],
+) -> int:
+    return sum(1 for diagnostic in diagnostics if diagnostic.code in codes)
+
+
 def _latest_run_line(status: StudioStatus) -> str:
     if status.latest_run is None:
         return f"Latest run: {status.latest_run_status}"
@@ -394,3 +551,19 @@ def _evidence_artifacts_line(artifacts: tuple[LocalEvidenceArtifact, ...]) -> st
     present = sum(1 for artifact in artifacts if artifact.state == "present")
     attention = sum(1 for artifact in artifacts if artifact.state in {"invalid", "unsafe"})
     return f"Evidence artifacts: {present} present, {attention} attention"
+
+
+def _evidence_bundle_readiness_line(
+    readiness: StudioEvidenceBundleReadiness | None,
+) -> str:
+    if readiness is None:
+        return "Evidence bundle: unavailable"
+    if readiness.artifact_state != "present":
+        return f"Evidence bundle: {readiness.status}"
+    return (
+        f"Evidence bundle: {readiness.status} "
+        f"({readiness.required_present}/{readiness.required_total} required, "
+        f"{readiness.required_missing} missing, "
+        f"{readiness.required_invalid} invalid; "
+        f"audit {readiness.audit_chain_status})"
+    )

@@ -3,11 +3,14 @@
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 import entroping.studio.status as studio_status
 from entroping.core.config_loader import QanstitutionLoadError
+from entroping.core.evidence_bundle import EVIDENCE_BUNDLE_SCHEMA_VERSION
+from entroping.core.evidence_index import LocalEvidenceArtifact
 from entroping.core.traffic_redactor import redact_traffic_exchange
 from entroping.core.traffic_store import TrafficStore, TrafficStoreError
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
@@ -19,6 +22,113 @@ from entroping.studio.status import (
 )
 
 BASE_TIME = datetime(2026, 5, 31, 12, 0, tzinfo=UTC)
+_HASH = "a" * 64
+
+
+def _present_bundle_artifact(path: str = "reports/evidence-bundle.json") -> LocalEvidenceArtifact:
+    return LocalEvidenceArtifact(
+        id="evidence-bundle-json",
+        label="Evidence Bundle",
+        path=path,
+        state="present",
+        schema_version=EVIDENCE_BUNDLE_SCHEMA_VERSION,
+        summary="ready",
+    )
+
+
+def _diagnostic(
+    code: str,
+    *,
+    path: str | None,
+    severity: str = "error",
+) -> dict[str, object]:
+    return {
+        "severity": severity,
+        "code": code,
+        "path": path,
+        "message": "value-free diagnostic",
+        "remediation_hint": "local remediation command",
+    }
+
+
+def _write_evidence_bundle(
+    root: Path,
+    *,
+    status: str,
+    required_present: int,
+    required_missing: int,
+    required_invalid: int,
+    diagnostics: list[dict[str, object]] | None = None,
+    manifest_status: str | None = "verified",
+) -> None:
+    reports_dir = root / "reports"
+    reports_dir.mkdir(exist_ok=True)
+    artifacts = [
+        {
+            "kind": "artifact_manifest",
+            "path": "reports/artifact-manifest.json",
+            "required": True,
+            "schema_version": "entroping.report-artifact-manifest.v1",
+            "size_bytes": 100,
+            "sha256": _HASH,
+        },
+        {
+            "kind": "effective_policy",
+            "path": "reports/effective-policy.json",
+            "required": True,
+            "schema_version": "entroping.effective-policy-report.v1",
+            "size_bytes": 100,
+            "sha256": _HASH,
+        },
+        {
+            "kind": "run_json",
+            "path": "reports/run-latest.json",
+            "required": True,
+            "schema_version": "entroping.run-report.v1",
+            "size_bytes": 100,
+            "sha256": _HASH,
+        },
+    ][:required_present]
+    bundle = {
+        "schema_version": EVIDENCE_BUNDLE_SCHEMA_VERSION,
+        "generated_at": "2026-06-19T00:00:00+00:00",
+        "purpose": "design-partner-upload-readiness",
+        "project": "checkout-api",
+        "summary": {
+            "status": status,
+            "required_total": 3,
+            "required_present": required_present,
+            "required_missing": required_missing,
+            "required_invalid": required_invalid,
+            "artifacts_total": len(artifacts),
+            "diagnostics_total": len(diagnostics or []),
+        },
+        "artifacts": artifacts,
+        "missing_artifacts": [
+            {
+                "kind": "run_json",
+                "path": "reports/run-latest.json",
+                "required": True,
+            }
+        ][:required_missing],
+        "diagnostics": diagnostics or [],
+        "manifest_audit": (
+            {
+                "path": "reports/artifact-manifest.json",
+                "status": manifest_status,
+                "chain_path": "reports/audit-chain.jsonl",
+                "checked_events": 2,
+                "latest_event_hash": _HASH,
+                "diagnostics": (),
+            }
+            if manifest_status is not None
+            else None
+        ),
+    }
+    (reports_dir / "evidence-bundle.json").write_text(
+        json.dumps(bundle),
+        encoding="utf-8",
+    )
 
 
 def _traffic_exchange(
@@ -236,6 +346,208 @@ def test_collect_studio_status_exposes_read_only_evidence_artifacts(tmp_path: Pa
     assert by_id["capture-summary-json"].summary == "2/2 records redacted, 0 unredacted"
     assert by_id["evidence-bundle-json"].state == "invalid"
     assert "Evidence artifacts: 2 present, 1 attention" in rendered
+
+
+def test_collect_studio_status_exposes_ready_evidence_bundle_readiness(
+    tmp_path: Path,
+) -> None:
+    _write_evidence_bundle(
+        tmp_path,
+        status="ready",
+        required_present=3,
+        required_missing=0,
+        required_invalid=0,
+    )
+
+    status = collect_studio_status(project_root=tmp_path, environment="local")
+    readiness = status.evidence_bundle_readiness
+    rendered = render_studio_status(status)
+
+    assert readiness is not None
+    assert readiness.artifact_state == "present"
+    assert readiness.schema_version == EVIDENCE_BUNDLE_SCHEMA_VERSION
+    assert readiness.status == "ready"
+    assert readiness.required_present == 3
+    assert readiness.required_total == 3
+    assert readiness.required_missing == 0
+    assert readiness.required_invalid == 0
+    assert readiness.missing_diagnostics == 0
+    assert readiness.invalid_diagnostics == 0
+    assert readiness.unsafe_diagnostics == 0
+    assert readiness.checksum_mismatches == 0
+    assert readiness.audit_chain_status == "verified"
+    assert "Evidence bundle: ready (3/3 required, 0 missing, 0 invalid; audit verified)" in rendered
+
+
+def test_collect_studio_status_exposes_not_ready_evidence_bundle_diagnostics(
+    tmp_path: Path,
+) -> None:
+    _write_evidence_bundle(
+        tmp_path,
+        status="not_ready",
+        required_present=2,
+        required_missing=1,
+        required_invalid=1,
+        diagnostics=[
+            _diagnostic("missing_required_artifact", path="reports/run-latest.json"),
+            _diagnostic("artifact_contract_invalid", path="reports/run-latest.json"),
+            _diagnostic("checksum_mismatch", path="reports/run-latest.json"),
+            _diagnostic(
+                "artifact_manifest_audit_broken",
+                path="reports/artifact-manifest.json",
+            ),
+        ],
+        manifest_status="broken",
+    )
+
+    status = collect_studio_status(project_root=tmp_path, environment="local")
+    readiness = status.evidence_bundle_readiness
+    rendered = render_studio_status(status)
+
+    assert readiness is not None
+    assert readiness.artifact_state == "present"
+    assert readiness.status == "not_ready"
+    assert readiness.required_present == 2
+    assert readiness.required_total == 3
+    assert readiness.required_missing == 1
+    assert readiness.required_invalid == 1
+    assert readiness.diagnostics_total == 4
+    assert readiness.missing_diagnostics == 1
+    assert readiness.invalid_diagnostics == 1
+    assert readiness.unsafe_diagnostics == 0
+    assert readiness.checksum_mismatches == 1
+    assert readiness.audit_chain_status == "broken"
+    assert (
+        "Evidence bundle: not_ready (2/3 required, 1 missing, 1 invalid; audit broken)"
+        in rendered
+    )
+
+
+def test_collect_studio_status_exposes_invalid_missing_and_unsafe_bundle_states(
+    tmp_path: Path,
+) -> None:
+    missing = collect_studio_status(project_root=tmp_path, environment="local")
+    assert missing.evidence_bundle_readiness is not None
+    assert missing.evidence_bundle_readiness.artifact_state == "missing"
+    assert missing.evidence_bundle_readiness.status == "missing"
+    assert missing.evidence_bundle_readiness.missing_diagnostics == 1
+
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir(exist_ok=True)
+    (reports_dir / "evidence-bundle.json").write_text("not json\n", encoding="utf-8")
+    invalid = collect_studio_status(project_root=tmp_path, environment="local")
+    assert invalid.evidence_bundle_readiness is not None
+    assert invalid.evidence_bundle_readiness.artifact_state == "invalid"
+    assert invalid.evidence_bundle_readiness.status == "invalid"
+    assert invalid.evidence_bundle_readiness.invalid_diagnostics == 1
+    assert "Evidence bundle: invalid" in render_studio_status(invalid)
+
+    (reports_dir / "evidence-bundle.json").unlink()
+    (reports_dir / "evidence-bundle.json").mkdir()
+    unsafe = collect_studio_status(project_root=tmp_path, environment="local")
+    assert unsafe.evidence_bundle_readiness is not None
+    assert unsafe.evidence_bundle_readiness.artifact_state == "unsafe"
+    assert unsafe.evidence_bundle_readiness.status == "unsafe"
+    assert unsafe.evidence_bundle_readiness.unsafe_diagnostics == 1
+    assert "Evidence bundle: unsafe" in render_studio_status(unsafe)
+
+
+def test_studio_evidence_bundle_readiness_handles_absent_artifact_definition(
+    tmp_path: Path,
+) -> None:
+    assert studio_status._load_evidence_bundle_readiness(tmp_path, ()) is None
+
+
+def test_studio_evidence_bundle_readiness_rechecks_missing_after_index(
+    tmp_path: Path,
+) -> None:
+    readiness = studio_status._load_evidence_bundle_readiness(
+        tmp_path,
+        (_present_bundle_artifact(),),
+    )
+
+    assert readiness is not None
+    assert readiness.artifact_state == "missing"
+    assert readiness.status == "missing"
+
+
+def test_studio_evidence_bundle_readiness_rejects_invalid_bundle_contract(
+    tmp_path: Path,
+) -> None:
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    (reports_dir / "evidence-bundle.json").write_text(
+        json.dumps({"schema_version": EVIDENCE_BUNDLE_SCHEMA_VERSION}),
+        encoding="utf-8",
+    )
+
+    status = collect_studio_status(project_root=tmp_path, environment="local")
+    readiness = status.evidence_bundle_readiness
+
+    assert readiness is not None
+    assert readiness.artifact_state == "invalid"
+    assert readiness.invalid_diagnostics == 1
+
+
+def test_read_studio_evidence_bundle_bytes_defends_path_races_and_read_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bundle_path = tmp_path / "reports" / "evidence-bundle.json"
+    bundle_path.parent.mkdir()
+
+    def raise_outside(path: Path, *, root: Path) -> Path | None:
+        _ = path, root
+        raise ValueError("outside")
+
+    monkeypatch.setattr(studio_status, "first_symlink_path_component", raise_outside)
+    assert studio_status._read_evidence_bundle_bytes(bundle_path, root=tmp_path) == (
+        None,
+        "unsafe",
+    )
+
+    monkeypatch.setattr(
+        studio_status,
+        "first_symlink_path_component",
+        lambda path, *, root: path,
+    )
+    assert studio_status._read_evidence_bundle_bytes(bundle_path, root=tmp_path) == (
+        None,
+        "unsafe",
+    )
+
+    monkeypatch.setattr(
+        studio_status,
+        "first_symlink_path_component",
+        lambda path, *, root: None,
+    )
+    bundle_path.mkdir()
+    assert studio_status._read_evidence_bundle_bytes(bundle_path, root=tmp_path) == (
+        None,
+        "unsafe",
+    )
+
+    bundle_path.rmdir()
+    bundle_path.write_text("{}\n", encoding="utf-8")
+    original_open = Path.open
+
+    def fail_open(path: Path, *args: Any, **kwargs: Any) -> Any:
+        if path == bundle_path:
+            raise OSError("denied")
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", fail_open)
+    assert studio_status._read_evidence_bundle_bytes(bundle_path, root=tmp_path) == (
+        None,
+        "invalid",
+    )
+
+    monkeypatch.setattr(Path, "open", original_open)
+    monkeypatch.setattr(studio_status, "_MAX_STUDIO_EVIDENCE_BUNDLE_BYTES", 2)
+    assert studio_status._read_evidence_bundle_bytes(bundle_path, root=tmp_path) == (
+        None,
+        "invalid",
+    )
 
 
 def test_render_studio_status_handles_missing_evidence_index() -> None:
