@@ -30,7 +30,7 @@ entroping report bug
 entroping report failure-bundle [--output <directory>]
 entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
 entroping report badges [--output <directory>] [--run-json <path>] [--policy-json <path>] [--openapi-json <path>] [--traceability-json <path>]
-entroping report redaction [--output <md|html>]
+entroping report redaction [--output <md|html>] [--fail-on-unsafe]
 entroping report capture-summary [--output <md|json>] [--fail-on-unredacted]
 entroping report policy [--output <md|json>]
 entroping report policy-diff [--base <path>] [--current <path>] [--output <md|json>] [--fail-on-change]
@@ -354,6 +354,7 @@ Stable public report commands:
 | `entroping report delta --base <path> --current <path>` | Compare two JSON run reports and emit deterministic Markdown or JSON delta output |
 | `entroping report redaction --output md` | Write a counts-only captured-traffic redaction review to `reports/redaction-review.md` |
 | `entroping report redaction --output html` | Write a browser-readable redaction review to `reports/redaction-review.html` |
+| `entroping report redaction --fail-on-unsafe` | Write the report, then exit `1` when redaction evidence contains unredacted or low-confidence records |
 | `entroping report capture-summary --output md` | Write a safe captured-traffic session summary to `reports/capture-summary.md` |
 | `entroping report capture-summary --output json` | Write machine-readable capture summary evidence to `reports/capture-summary.json` |
 | `entroping report capture-summary --fail-on-unredacted` | Write the report, then exit `1` when capture evidence contains unredacted records |
@@ -399,6 +400,7 @@ entroping report failure-bundle
 entroping report delta --base reports/run-base.json --current reports/run-latest.json
 entroping report badges
 entroping report redaction --output md
+entroping report redaction --fail-on-unsafe
 entroping report capture-summary --output md
 entroping report capture-summary --output json --fail-on-unredacted
 entroping report policy --output md

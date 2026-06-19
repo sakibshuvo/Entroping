@@ -385,11 +385,15 @@ Review what redaction categories fired before freezing or mapping:
 
 ```bash
 entroping report redaction --output md
+entroping report redaction --fail-on-unsafe
 ```
 
 The redaction review writes `reports/redaction-review.md` by default and can
 write `reports/redaction-review.html` with `--output html`. It contains counts
 and categories only, not raw header, query, or body values.
+Add `--fail-on-unsafe` in CI when redaction evidence must prove there are no
+unredacted or low-confidence records; the report is still written before the
+command exits nonzero.
 
 Summarize what the Eye captured before choosing a freeze target:
 
