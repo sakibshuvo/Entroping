@@ -295,9 +295,16 @@ dependency baselines: `destination_host`, `method`, and `path_template`.
 They must not persist raw URLs, query values, headers, bodies, cookies, tokens,
 call counts, or latency values as dependency drift truth.
 Report schema contract tests freeze representative v1 JSON payloads for run,
-drift, effective-policy, and traceability reports. A machine-readable report shape change should
-update the serializer, JSON Schema file, compatibility note, and contract test in
-the same pull request.
+drift, effective-policy, structured diagnostics, and traceability reports. A
+machine-readable report or local-evidence shape change should update the
+serializer, JSON Schema file, compatibility note, and contract test in the same
+pull request.
+Structured diagnostics tests must prove the `entroping.diagnostics.v1`
+value-free boundary: safe component names, statuses, counts, durations, and
+relative artifact paths are allowed, while value-bearing fields such as raw
+traffic, prompts, provider output, environment values, full source Hurl
+contents, headers, bodies, cookies, and token-like values fail closed or are
+redacted before JSONL serialization.
 
 The quality-audit job uploads the generated `reports/` directory as workflow
 artifacts for review. Packaging checks and release/live-demo release decisions

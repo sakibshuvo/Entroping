@@ -456,3 +456,31 @@ decisions:
     related_issues: ["#648", "#652"]
     supersedes: []
     superseded_by: null
+
+  - id: ENT-DEC-0020
+    title: Structured diagnostics are local-first and value-free
+    status: accepted
+    date: "2026-06-19"
+    summary: >
+      Headless diagnostics use the local `entroping.diagnostics.v1` JSONL
+      contract before any OpenTelemetry, Datadog, Splunk, or hosted exporter.
+      Diagnostics are separate from per-run execution events and may contain
+      only value-free component names, operations, severities, codes,
+      summaries, counts, durations, statuses, classifications, and relative
+      artifact paths. Secrets, raw traffic, prompts, provider output,
+      environment values, headers, bodies, cookies, and full source Hurl
+      contents are forbidden.
+    tags: [observability, diagnostics, reports, security, local-first]
+    source_links:
+      - path: docs/technical/TDS.md
+        role: technical-contract
+      - path: docs/technical/REPORT_SCHEMAS.md
+        role: schema-index
+      - path: docs/technical/report-schemas/diagnostics.v1.schema.json
+        role: json-schema
+    related_docs:
+      - docs/meta/TEST_STRATEGY.md
+      - docs/meta/PROJECT_PROGRESS.md
+    related_issues: ["#959"]
+    supersedes: []
+    superseded_by: null

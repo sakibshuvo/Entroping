@@ -1257,6 +1257,7 @@ redacted before serialization, and absolute project-root paths are relativized.
 | --- | --- | --- |
 | `entroping run` | `.entroping/latest-run.json` | Runtime state for follow-up report commands; uses `entroping.run-report.v1`; not committed. |
 | `entroping run` | `.entroping/latest-run-events.jsonl` | Sanitized execution progress events using `entroping.run-events.v1`; not committed. |
+| Headless/report/doctor diagnostics | `.entroping/latest-diagnostics.jsonl` | Vendor-neutral value-free component diagnostics using `entroping.diagnostics.v1`; local state, not committed, and separate from per-run execution events. |
 | Prompt-backed `entroping architect ...` | `.entroping/agent-runs/*.json` | Value-free AI run evidence using `entroping.agent-run-manifest.v1`, including source-evidence hashes; not committed and not read by `run`. |
 | `entroping freeze` / `freeze --mock` / `map --export png` | `reports/approvals/*.json` | Value-free approval evidence for generated traffic artifacts using `entroping.traffic-artifact-approval.v1`. |
 | `entroping run --report json` | `reports/run-latest.json` | Machine-readable run report using `entroping.run-report.v1`. |
@@ -1358,17 +1359,29 @@ Do not swallow exceptions silently. Convert expected failures into typed domain 
 
 ## 17. Observability
 
-Runtime logs should include:
+Entroping uses a local-first diagnostics boundary before any vendor-specific
+observability adapter. `entroping.run-events.v1` remains the per-run execution
+progress log for deterministic Hurl runs. `entroping.diagnostics.v1` is the
+broader headless component-event contract for agents, reports, doctor checks,
+and future observability adapters.
 
-- Command and mode.
-- Effective environment name.
-- Test count, tag filters, and report types.
-- Gate IDs applied.
-- Agent role/model metadata, latency, token usage, and estimated cost where available.
-- Auth-chain flow IDs and Hurl variable names, never token or cookie values.
-- Hurl execution duration and exit status.
+Structured diagnostics may include only value-free fields:
 
-Logs must not include request secrets, API keys, or sensitive captured bodies.
+- Component, operation, severity, code, and short summary.
+- Counts, durations, statuses, classifications, and relative artifact paths.
+- Gate IDs, auth-chain flow IDs, Hurl variable names, and agent role/model
+  metadata when they are names or classifications rather than values.
+- Latency, token usage, and estimated cost where available.
+
+Diagnostics must not include request secrets, API keys, cookies, raw traffic,
+prompts, provider output, environment values, response bodies, request bodies,
+headers, or full source Hurl contents. Value-bearing attribute names such as
+`api_token`, `request_body`, `response_body`, `prompt`, `provider_output`,
+`source_hurl`, and `env_value` fail closed before serialization. Secret-shaped
+text is redacted through the shared credential redaction primitive, and completed
+JSONL records must validate against `entroping.diagnostics.v1`. Datadog,
+Splunk, OpenTelemetry, or other vendor adapters stay downstream of this local
+contract and must not become prerequisites for deterministic local operation.
 
 ## 18. Testing Strategy
 

@@ -2,6 +2,12 @@
 
 ## 2026-06-19
 
+- Added issue #959's headless structured diagnostics boundary:
+  `entroping.diagnostics.v1` now defines local value-free component events for
+  headless agents, reports, doctor, and future observability adapters, with
+  JSONL writing/reading under `.entroping/latest-diagnostics.jsonl`, schema
+  contracts, secret-like text redaction, forbidden value-bearing attribute
+  names, and crash-prefix recovery without vendor SDKs or raw values.
 - Added issue #958's real-Hurl failure-boundary integration coverage:
   `tests/test_cli_real_hurl_e2e.py` now exercises installed-CLI runs through
   the real Hurl subprocess path for a passing run, a failing assertion with

@@ -118,6 +118,11 @@ from entroping.core.runtime_card import (
     RuntimeCardRunEvidence,
     RuntimeCardSummary,
 )
+from entroping.core.structured_diagnostics import (
+    STRUCTURED_DIAGNOSTICS_SCHEMA_VERSION,
+    StructuredDiagnosticAttribute,
+    StructuredDiagnosticEvent,
+)
 from entroping.core.traffic_artifact_manifest import TRAFFIC_ARTIFACT_APPROVAL_SCHEMA_VERSION
 from entroping.models.drift import (
     DriftBaseline,
@@ -1366,6 +1371,55 @@ def test_evidence_bundle_v1_schema_contract_is_versioned_and_stable() -> None:
         ]
     }
     assert "remediation_hint" not in schema["$defs"]["diagnostic"]["required"]
+
+
+def test_structured_diagnostics_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "diagnostics.v1.schema.json").read_text())
+    event = StructuredDiagnosticEvent(
+        timestamp="2026-06-19T00:00:00+00:00",
+        component="run",
+        operation="hurl.timeout",
+        severity="warning",
+        code="hurl_timeout",
+        summary="Hurl subprocess timed out.",
+        attributes=(
+            StructuredDiagnosticAttribute(name="duration_ms", value=125),
+            StructuredDiagnosticAttribute(name="artifact_path", value="reports/run-latest.json"),
+        ),
+    )
+
+    payload = event.model_dump(mode="json")
+
+    assert payload == {
+        "schema_version": "entroping.diagnostics.v1",
+        "timestamp": "2026-06-19T00:00:00+00:00",
+        "component": "run",
+        "operation": "hurl.timeout",
+        "severity": "warning",
+        "code": "hurl_timeout",
+        "summary": "Hurl subprocess timed out.",
+        "attributes": [
+            {"name": "duration_ms", "value": 125},
+            {"name": "artifact_path", "value": "reports/run-latest.json"},
+        ],
+    }
+    assert STRUCTURED_DIAGNOSTICS_SCHEMA_VERSION == "entroping.diagnostics.v1"
+    assert schema["properties"]["schema_version"]["const"] == (
+        STRUCTURED_DIAGNOSTICS_SCHEMA_VERSION
+    )
+    assert schema["properties"]["severity"]["enum"] == [
+        "debug",
+        "info",
+        "warning",
+        "error",
+    ]
+    assert schema["$defs"]["attribute"]["properties"]["value"]["type"] == [
+        "string",
+        "integer",
+        "number",
+        "boolean",
+        "null",
+    ]
 
 
 def test_runtime_card_v1_schema_contract_is_versioned_and_stable() -> None:
