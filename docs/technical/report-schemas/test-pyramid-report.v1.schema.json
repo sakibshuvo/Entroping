@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sakibshuvo.github.io/Entroping/schemas/test-pyramid-report.v1.schema.json",
+  "title": "Entroping Test Pyramid Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project",
+    "summary",
+    "layers",
+    "findings"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.test-pyramid-report.v1"
+    },
+    "project": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_layers",
+        "present_layers",
+        "attention_layers",
+        "findings",
+        "runtime_governance_status"
+      ],
+      "properties": {
+        "total_layers": {"type": "integer", "minimum": 0},
+        "present_layers": {"type": "integer", "minimum": 0},
+        "attention_layers": {"type": "integer", "minimum": 0},
+        "findings": {"type": "integer", "minimum": 0},
+        "runtime_governance_status": {"enum": ["complete", "incomplete"]}
+      }
+    },
+    "layers": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/layer"}
+    },
+    "findings": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/finding"}
+    }
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "path",
+        "state",
+        "schema_version",
+        "summary"
+      ],
+      "properties": {
+        "id": {"type": "string"},
+        "label": {"type": "string"},
+        "path": {"type": "string"},
+        "state": {"enum": ["present", "missing", "invalid", "unsafe"]},
+        "schema_version": {"type": ["string", "null"]},
+        "summary": {"type": "string"}
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "severity",
+        "layer_id",
+        "artifact_id",
+        "state",
+        "message"
+      ],
+      "properties": {
+        "severity": {"const": "high"},
+        "layer_id": {"type": "string"},
+        "artifact_id": {"type": "string"},
+        "state": {"enum": ["present", "missing", "invalid", "unsafe"]},
+        "message": {"type": "string"}
+      }
+    },
+    "layer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "status",
+        "summary",
+        "artifacts"
+      ],
+      "properties": {
+        "id": {"type": "string"},
+        "label": {"type": "string"},
+        "status": {"enum": ["present", "missing", "incomplete", "invalid", "unsafe"]},
+        "summary": {"type": "string"},
+        "artifacts": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/artifact"}
+        }
+      }
+    }
+  }
+}

@@ -43,6 +43,24 @@ from entroping.bridge.story_traceability import (
     compile_story_traceability,
     story_traceability_report_to_dict,
 )
+from entroping.bridge.test_pyramid import (
+    TEST_PYRAMID_REPORT_SCHEMA_VERSION,
+)
+from entroping.bridge.test_pyramid import (
+    TestPyramidArtifactEvidence as PyramidArtifactEvidenceModel,
+)
+from entroping.bridge.test_pyramid import (
+    TestPyramidFinding as PyramidFindingModel,
+)
+from entroping.bridge.test_pyramid import (
+    TestPyramidLayer as PyramidLayerModel,
+)
+from entroping.bridge.test_pyramid import (
+    TestPyramidReport as PyramidReportModel,
+)
+from entroping.bridge.test_pyramid import (
+    TestPyramidSummary as PyramidSummaryModel,
+)
 from entroping.bridge.test_quality import (
     TEST_QUALITY_REPORT_SCHEMA_VERSION,
 )
@@ -1132,6 +1150,137 @@ def test_test_quality_report_v1_schema_contract_is_versioned_and_stable() -> Non
     assert schema["properties"]["schema_version"]["const"] == TEST_QUALITY_REPORT_SCHEMA_VERSION
 
 
+def test_test_pyramid_report_v1_schema_contract_is_versioned_and_stable() -> None:
+    report = PyramidReportModel(
+        project="checkout-api",
+        summary=PyramidSummaryModel(
+            total_layers=2,
+            present_layers=1,
+            attention_layers=1,
+            findings=1,
+            runtime_governance_status="incomplete",
+        ),
+        layers=(
+            PyramidLayerModel(
+                id="runtime-api-proof",
+                label="Runtime API Proof",
+                status="incomplete",
+                summary="some required evidence missing",
+                artifacts=(
+                    PyramidArtifactEvidenceModel(
+                        id="run-json",
+                        label="Run JSON",
+                        path="reports/run-latest.json",
+                        state="present",
+                        schema_version="entroping.run-report.v1",
+                        summary="Run JSON present",
+                    ),
+                    PyramidArtifactEvidenceModel(
+                        id="junit-xml",
+                        label="JUnit XML",
+                        path="reports/junit.xml",
+                        state="missing",
+                        schema_version="junit.xml",
+                        summary="missing",
+                    ),
+                ),
+            ),
+            PyramidLayerModel(
+                id="policy-governance",
+                label="Policy Governance",
+                status="present",
+                summary="all required evidence present",
+                artifacts=(
+                    PyramidArtifactEvidenceModel(
+                        id="gate-coverage-json",
+                        label="Gate Coverage JSON",
+                        path="reports/gate-coverage.json",
+                        state="present",
+                        schema_version="entroping.gate-coverage-report.v1",
+                        summary="Gate Coverage JSON present",
+                    ),
+                ),
+            ),
+        ),
+        findings=(
+            PyramidFindingModel(
+                severity="high",
+                layer_id="runtime-api-proof",
+                artifact_id="junit-xml",
+                state="missing",
+                message="Runtime governance proof is missing for JUnit XML evidence.",
+            ),
+        ),
+    )
+
+    payload = report.model_dump(mode="json")
+
+    assert payload == {
+        "schema_version": TEST_PYRAMID_REPORT_SCHEMA_VERSION,
+        "project": "checkout-api",
+        "summary": {
+            "total_layers": 2,
+            "present_layers": 1,
+            "attention_layers": 1,
+            "findings": 1,
+            "runtime_governance_status": "incomplete",
+        },
+        "layers": [
+            {
+                "id": "runtime-api-proof",
+                "label": "Runtime API Proof",
+                "status": "incomplete",
+                "summary": "some required evidence missing",
+                "artifacts": [
+                    {
+                        "id": "run-json",
+                        "label": "Run JSON",
+                        "path": "reports/run-latest.json",
+                        "state": "present",
+                        "schema_version": "entroping.run-report.v1",
+                        "summary": "Run JSON present",
+                    },
+                    {
+                        "id": "junit-xml",
+                        "label": "JUnit XML",
+                        "path": "reports/junit.xml",
+                        "state": "missing",
+                        "schema_version": "junit.xml",
+                        "summary": "missing",
+                    },
+                ],
+            },
+            {
+                "id": "policy-governance",
+                "label": "Policy Governance",
+                "status": "present",
+                "summary": "all required evidence present",
+                "artifacts": [
+                    {
+                        "id": "gate-coverage-json",
+                        "label": "Gate Coverage JSON",
+                        "path": "reports/gate-coverage.json",
+                        "state": "present",
+                        "schema_version": "entroping.gate-coverage-report.v1",
+                        "summary": "Gate Coverage JSON present",
+                    },
+                ],
+            },
+        ],
+        "findings": [
+            {
+                "severity": "high",
+                "layer_id": "runtime-api-proof",
+                "artifact_id": "junit-xml",
+                "state": "missing",
+                "message": "Runtime governance proof is missing for JUnit XML evidence.",
+            }
+        ],
+    }
+    schema = json.loads((SCHEMA_DIR / "test-pyramid-report.v1.schema.json").read_text())
+    assert schema["properties"]["schema_version"]["const"] == TEST_PYRAMID_REPORT_SCHEMA_VERSION
+
+
 def test_report_artifact_manifest_v1_schema_contract_is_versioned_and_stable() -> None:
     manifest = ReportArtifactManifest(
         summary=ReportArtifactManifestSummary(
@@ -1938,6 +2087,7 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         "entroping.gate-injection-report.v1": (SCHEMA_DIR / "gate-injection-report.v1.schema.json"),
         "entroping.gate-coverage-report.v1": (SCHEMA_DIR / "gate-coverage-report.v1.schema.json"),
         "entroping.test-quality-report.v1": (SCHEMA_DIR / "test-quality-report.v1.schema.json"),
+        "entroping.test-pyramid-report.v1": (SCHEMA_DIR / "test-pyramid-report.v1.schema.json"),
         "entroping.report-artifact-manifest.v1": (
             SCHEMA_DIR / "report-artifact-manifest.v1.schema.json"
         ),

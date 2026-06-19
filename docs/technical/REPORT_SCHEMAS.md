@@ -30,6 +30,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Gate coverage report | `entroping.gate-coverage-report.v1` | `reports/gate-coverage.json` | [gate-coverage-report.v1.schema.json](report-schemas/gate-coverage-report.v1.schema.json) |
 | Gate injection report | `entroping.gate-injection-report.v1` | `reports/gate-injection.json` | [gate-injection-report.v1.schema.json](report-schemas/gate-injection-report.v1.schema.json) |
 | Generated-test quality report | `entroping.test-quality-report.v1` | `reports/test-quality.json` | [test-quality-report.v1.schema.json](report-schemas/test-quality-report.v1.schema.json) |
+| Test pyramid report | `entroping.test-pyramid-report.v1` | `reports/test-pyramid.json` | [test-pyramid-report.v1.schema.json](report-schemas/test-pyramid-report.v1.schema.json) |
 | Report artifact manifest | `entroping.report-artifact-manifest.v1` | `reports/artifact-manifest.json` | [report-artifact-manifest.v1.schema.json](report-schemas/report-artifact-manifest.v1.schema.json) |
 | Evidence bundle | `entroping.evidence-bundle.v1` | `reports/evidence-bundle.json` | [evidence-bundle.v1.schema.json](report-schemas/evidence-bundle.v1.schema.json) |
 | Runtime evidence card | `entroping.runtime-card.v1` | `reports/runtime-card.json` from `entroping report runtime-card --output json` | [runtime-card.v1.schema.json](report-schemas/runtime-card.v1.schema.json) |
@@ -126,6 +127,21 @@ files without running Hurl or mutating source files. The report includes gate
 ID, source policy path, condition, assertion, enforcement, final/group
 provenance, target file, and known-failure skips. It does not include raw
 traffic, environment variable values, provider data, or captured bodies.
+
+The test-pyramid report is written by:
+
+```bash
+entroping report test-pyramid --output json
+```
+
+Its v1 payload classifies existing local report artifacts into code coverage,
+runtime API proof, policy governance, drift/contract, static/security, and
+generated-test quality layers. Missing, invalid, or unsafe run JSON, JUnit XML,
+and gate-coverage JSON artifacts appear as high-severity runtime-governance
+findings. The report does not execute tests, run Hurl, call providers, upload
+artifacts, parse source Hurl, include raw artifact contents, or expose raw
+traffic, prompts, stdout/stderr, environment values, or source coverage file
+names.
 
 The report artifact manifest is written by:
 

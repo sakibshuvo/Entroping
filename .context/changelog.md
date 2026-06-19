@@ -2,6 +2,13 @@
 
 ## 2026-06-19
 
+- Added issue #978's local test-pyramid evidence report:
+  `entroping report test-pyramid --output md|json` now classifies existing
+  local report artifacts by code coverage, runtime API proof, policy
+  governance, drift/contract, static/security, and generated-test quality
+  layers, then highlights missing runtime-governance proof without running
+  tests or Hurl, calling providers, uploading artifacts, parsing source Hurl,
+  or rendering raw artifact values.
 - Added issue #976's artifact-manifest incomplete-evidence CI guard:
   `entroping report artifact-manifest --fail-on-incomplete` now writes the
   requested checksum/audit manifest, then exits nonzero when expected artifacts
