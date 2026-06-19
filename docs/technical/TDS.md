@@ -570,10 +570,10 @@ Current implementation:
   strings or fragments.
 - Out-of-scope and malformed flow URLs are ignored before persistence, and the
   recorder reports only counts for recorded, out-of-scope, and malformed flows.
-- Request and response body summaries decode textual media types, summarize
-  multipart bodies with a redacted media-type placeholder before persistence,
-  keep binary bodies as size-only records, and reuse the global traffic body
-  limit.
+- Request and response body summaries decode textual media types before
+  redaction applies the persistence body limit, summarize multipart bodies with
+  a redacted media-type placeholder before persistence, keep binary bodies as
+  size-only records, and reuse the global traffic body limit.
 - `freeze` and `map` are intentionally not coupled to capture startup.
 
 ### Captured Data

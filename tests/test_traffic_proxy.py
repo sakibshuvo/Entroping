@@ -137,6 +137,46 @@ def test_capture_addon_redacts_before_persisting_flow(tmp_path: Path) -> None:
     assert "response-token" not in store.db_path.read_text(encoding="utf-8", errors="ignore")
 
 
+def test_capture_addon_redacts_body_before_truncating_boundary_crossing_secret(
+    tmp_path: Path,
+) -> None:
+    secret = "Aa1Bb2Cc3Dd4Ee5Ff6Gg7Hh8Ii9Jj0Kk1Ll2Mm3Nn4"
+    store = TrafficStore.open_project(tmp_path)
+    addon = TrafficCaptureAddon(
+        store=store,
+        target_url="https://api.example.test",
+        max_body_chars=16,
+    )
+    flow = _Flow(
+        request=_Request(
+            method="POST",
+            pretty_url="https://api.example.test/checkout",
+            headers=_Headers({"Content-Type": "text/plain"}),
+            content=f"note={secret}&safe=ok".encode(),
+            timestamp_start=1_780_000_000.0,
+        ),
+        response=_Response(
+            status_code=200,
+            headers=_Headers({}),
+            content=b"",
+            timestamp_end=1_780_000_000.5,
+        ),
+    )
+
+    event_id = addon.response(flow)
+    loaded = store.list_exchanges()
+    db_text = store.db_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert event_id == 1
+    assert len(loaded) == 1
+    request_body = loaded[0].request.body
+    assert request_body is not None
+    assert request_body.truncated is True
+    assert "[REDACTED]" in (request_body.text or "")
+    assert secret not in db_text
+    assert "Aa1Bb2Cc" not in db_text
+
+
 def test_capture_addon_records_all_hosts_when_target_scope_is_absent(tmp_path: Path) -> None:
     store = TrafficStore.open_project(tmp_path)
     addon = TrafficCaptureAddon(store=store, scope_hosts=("other.example.test",))
@@ -220,7 +260,7 @@ def test_capture_addon_rejects_malformed_flow_objects(tmp_path: Path) -> None:
         addon.response(bad_response_flow)
 
 
-def test_body_from_caps_text_before_redaction_processing() -> None:
+def test_body_from_decodes_text_before_redaction_processing() -> None:
     content = b'{"token":"' + (b"a" * 128) + b'"}'
     message = _Request(
         method="POST",
@@ -235,7 +275,7 @@ def test_body_from_caps_text_before_redaction_processing() -> None:
     assert body == TrafficBody(
         content_type="application/json",
         size_bytes=len(content),
-        text='{"token":"aaaaaa',
+        text=content.decode("utf-8"),
         truncated=True,
     )
 

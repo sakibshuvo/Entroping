@@ -351,15 +351,15 @@ def _decode_text_body(
         return None, False
     media_type = content_type.split(";", maxsplit=1)[0].lower().strip()
     if media_type.startswith("text/") or media_type in _TEXTUAL_CONTENT_TYPES:
-        return _decode_bounded_text(content, max_body_chars=max_body_chars)
+        return _decode_text_for_redaction(content, max_body_chars=max_body_chars)
     if media_type.endswith("+json") or media_type.endswith("+xml"):
-        return _decode_bounded_text(content, max_body_chars=max_body_chars)
+        return _decode_text_for_redaction(content, max_body_chars=max_body_chars)
     return None, False
 
 
-def _decode_bounded_text(content: bytes, *, max_body_chars: int) -> tuple[str, bool]:
-    snippet = content[:max_body_chars]
-    return snippet.decode("utf-8", errors="replace"), len(content) > len(snippet)
+def _decode_text_for_redaction(content: bytes, *, max_body_chars: int) -> tuple[str, bool]:
+    text = content.decode("utf-8", errors="replace")
+    return text, len(text) > max_body_chars
 
 
 def _bytes_attribute(source: object, name: str) -> bytes:

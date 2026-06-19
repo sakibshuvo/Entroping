@@ -841,7 +841,8 @@ Implemented boundaries:
 - Env loading, report writing, drift reads/writes, traffic state, and generated
   Hurl writes reject symlinked path components before resolving or writing.
 - Traffic redaction strips URL userinfo, handles JSON subtypes structurally, and
-  caps textual body extraction before decode/redaction work.
+  decodes textual proxy bodies before the redaction pipeline applies the
+  persistence body limit.
 - OpenAPI compilation rejects secret-like fallback variables and Hurl template
   delimiters in JSON object keys.
 - OpenAPI audit coverage requires matching method/path evidence, not only
