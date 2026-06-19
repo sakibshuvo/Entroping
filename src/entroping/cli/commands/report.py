@@ -469,6 +469,18 @@ def report_test_quality(
         str,
         typer.Option("--output", help="Output format: md or json."),
     ] = "md",
+    fail_under: Annotated[
+        int | None,
+        typer.Option(
+            "--fail-under",
+            min=0,
+            max=100,
+            help=(
+                "Exit 1 when the generated-test quality score is below this "
+                "0-100 threshold."
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Write a static quality score for generated Hurl tests."""
 
@@ -492,6 +504,13 @@ def report_test_quality(
         f"({result.report.summary.status}, score {result.report.summary.score}, "
         f"{result.report.summary.generated_tests} generated)"
     )
+    if fail_under is not None and result.report.summary.score < fail_under:
+        console.print(
+            "[yellow]Generated-test quality score "
+            f"{result.report.summary.score} is below required threshold "
+            f"{fail_under}.[/yellow]"
+        )
+        raise typer.Exit(1)
     raise typer.Exit(0)
 
 

@@ -2,6 +2,12 @@
 
 ## 2026-06-19
 
+- Added issue #968's generated-test quality threshold gate:
+  `entroping report test-quality --fail-under <0-100>` now writes the requested
+  static generated-Hurl quality report, then exits nonzero when the score is
+  below the reviewed threshold so CI can guard weak generated-test corpora
+  without changing report schemas, executing Hurl, calling providers, uploading
+  artifacts, or replacing QAnstitution/Hurl pass-fail authority.
 - Added issue #960's bounded performance smoke regression gate:
   `scripts/audit_quality.sh` now runs `scripts/performance_smoke.py` and writes
   `reports/performance-smoke.json`, so pull-request CI enforces deterministic
