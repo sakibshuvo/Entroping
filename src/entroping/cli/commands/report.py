@@ -343,6 +343,16 @@ def report_capture_summary(
         str,
         typer.Option("--output", help="Output format: md or json."),
     ] = "md",
+    fail_on_unredacted: Annotated[
+        bool,
+        typer.Option(
+            "--fail-on-unredacted",
+            help=(
+                "Write the report, then exit 1 when the capture summary contains "
+                "unredacted records."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Generate a safe counts-only summary from captured traffic."""
 
@@ -367,6 +377,14 @@ def report_capture_summary(
         f"{noun} across {result.report.summary.total_sessions} sessions.[/green]"
     )
     console.print(f"Wrote capture summary: {display_cli_path(result.output_path)}")
+    unredacted_records = result.report.summary.unredacted_records
+    if fail_on_unredacted and unredacted_records > 0:
+        record_noun = "record" if unredacted_records == 1 else "records"
+        console.print(
+            "[yellow]Capture summary found "
+            f"{unredacted_records} unredacted traffic {record_noun}.[/yellow]"
+        )
+        raise typer.Exit(1)
 
 
 @app.command("policy", rich_help_panel=STABLE_REPORT_PANEL)

@@ -396,6 +396,7 @@ Summarize what the Eye captured before choosing a freeze target:
 ```bash
 entroping report capture-summary --output md
 entroping report capture-summary --output json
+entroping report capture-summary --output json --fail-on-unredacted
 ```
 
 The capture summary reads existing redacted traffic state through a read-only
@@ -404,6 +405,9 @@ It groups records into derived sessions and reports counts by method, host,
 dependency target, status family, and redaction category without rendering raw
 URLs, query values, headers, cookies, request bodies, response bodies, or
 tokens.
+Add `--fail-on-unredacted` in CI when captured-traffic evidence must prove every
+stored record was redacted; the report is still written before the command
+exits nonzero.
 
 Vendor a reviewed local policy pack when you want reusable gates without
 hand-editing the import path:
