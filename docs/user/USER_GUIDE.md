@@ -554,8 +554,10 @@ Design-partner evidence-bundle acceptance checks:
 - `reports/evidence-bundle.json` uses schema
   `entroping.evidence-bundle.v1` and purpose
   `design-partner-upload-readiness`.
-- Bundle status is `ready`, or every `not_ready` diagnostic has a linked local
-  fix or follow-up issue.
+- Bundle status is `ready`, or every `not_ready` diagnostic has a local
+  remediation hint that was followed or linked to a follow-up issue. Hints are
+  local next-action commands only; Entroping does not execute them
+  automatically or send evidence to hosted support.
 - Required local evidence is present: latest run report, effective policy
   report, and artifact manifest.
 - Artifact paths are project-relative and checksums match the artifact

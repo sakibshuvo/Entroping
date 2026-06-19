@@ -16,14 +16,18 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #936 Evidence-Bundle Markdown Reviewer Summary
+## Current Issue Slice: #937 Evidence-Bundle Remediation Hints
 
-- Add a reviewer-facing Markdown output path to
-  `entroping report evidence-bundle` while preserving the existing JSON default
-  and `entroping.evidence-bundle.v1` schema contract.
-- Render only value-free readiness metadata: status, required artifact counts,
-  local artifact references, checksum/audit diagnostics, and next local
-  commands for missing evidence.
+- Add deterministic local remediation hints to evidence-bundle diagnostics
+  while preserving the existing JSON default and
+  `entroping.evidence-bundle.v1` schema contract.
+- Cover missing evidence, malformed/unsupported schema, checksum mismatch,
+  artifact-manifest audit, and unsafe artifact path states with hints such as
+  `entroping run --ci --report json`,
+  `entroping report policy --output json`, and
+  `entroping report artifact-manifest`.
+- Render the same hints in Markdown as reviewer next-actions without executing
+  commands automatically.
 - Do not embed raw report contents, raw traffic, source Hurl contents,
   stdout/stderr, prompts, provider outputs, credentials, environment values, or
   uploaded artifacts.

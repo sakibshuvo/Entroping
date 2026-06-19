@@ -33,6 +33,10 @@ _DEFAULT_OUTPUT_PATH: Final = Path("reports") / "evidence-bundle.json"
 _DEFAULT_PURPOSE: Final = "design-partner-upload-readiness"
 _MAX_EVIDENCE_ARTIFACT_BYTES: Final = 100 * 1024 * 1024
 _SECRET_SCAN_DIGEST_FIELDS: Final = frozenset({"latest_event_hash", "sha256"})
+_ARTIFACT_MANIFEST_REMEDIATION_COMMAND: Final = "entroping report artifact-manifest"
+_EVIDENCE_BUNDLE_RECHECK_COMMAND: Final = (
+    "entroping report evidence-bundle --output reports/evidence-bundle.md"
+)
 _ARTIFACT_INVALID_DIAGNOSTIC_CODES: Final = frozenset(
     {
         "artifact_manifest_invalid",
@@ -40,6 +44,11 @@ _ARTIFACT_INVALID_DIAGNOSTIC_CODES: Final = frozenset(
         "schema_mismatch",
     }
 )
+_REMEDIATION_COMMANDS_BY_KIND: Final[dict[EvidenceBundleArtifactKind, str]] = {
+    "artifact_manifest": _ARTIFACT_MANIFEST_REMEDIATION_COMMAND,
+    "effective_policy": "entroping report policy --output json",
+    "run_json": "entroping run --ci --report json",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,6 +110,7 @@ class EvidenceBundleDiagnostic(BaseModel):
     code: str
     path: str | None = None
     message: str
+    remediation_hint: str | None = None
 
 
 class EvidenceBundleSummary(BaseModel):
@@ -171,10 +181,10 @@ def run_evidence_bundle_report(
     root = project_root.expanduser().resolve()
     destination = _resolve_output_path(output_path or _DEFAULT_OUTPUT_PATH, root=root)
     bundle = _build_bundle(root=root, purpose=purpose)
-    content = _render_bundle_content(bundle, output_path=destination)
     if _bundle_contains_secret_like_metadata(bundle.model_dump(mode="json")):
         msg = "evidence bundle metadata contains secret-like content"
         raise EvidenceBundleError(msg)
+    content = _render_bundle_content(bundle, output_path=destination, root=root)
     try:
         safe_write_text(destination, content, artifact="evidence bundle", root=root)
     except SafeWriteError as exc:
@@ -182,13 +192,25 @@ def run_evidence_bundle_report(
     return EvidenceBundleResult(output_path=destination, bundle=bundle)
 
 
-def _render_bundle_content(bundle: EvidenceBundleReport, *, output_path: Path) -> str:
+def _render_bundle_content(
+    bundle: EvidenceBundleReport,
+    *,
+    output_path: Path,
+    root: Path,
+) -> str:
     if output_path.suffix.lower() in {".md", ".markdown"}:
-        return render_evidence_bundle_markdown(bundle)
+        return render_evidence_bundle_markdown(
+            bundle,
+            recheck_command=_evidence_bundle_recheck_command(output_path, root=root),
+        )
     return json.dumps(bundle.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
 
 
-def render_evidence_bundle_markdown(bundle: EvidenceBundleReport) -> str:
+def render_evidence_bundle_markdown(
+    bundle: EvidenceBundleReport,
+    *,
+    recheck_command: str = _EVIDENCE_BUNDLE_RECHECK_COMMAND,
+) -> str:
     """Render a value-free Markdown summary from sanitized evidence metadata."""
 
     manifest_status = (
@@ -228,8 +250,8 @@ def render_evidence_bundle_markdown(bundle: EvidenceBundleReport) -> str:
     else:
         lines.extend(
             [
-                "| Severity | Code | Path | Message |",
-                "| --- | --- | --- | --- |",
+                "| Severity | Code | Path | Message | Remediation |",
+                "| --- | --- | --- | --- | --- |",
             ]
         )
         for diagnostic in bundle.diagnostics:
@@ -237,11 +259,12 @@ def render_evidence_bundle_markdown(bundle: EvidenceBundleReport) -> str:
                 f"| {_markdown_cell(diagnostic.severity)} | "
                 f"{_markdown_cell(diagnostic.code)} | "
                 f"{_markdown_cell(diagnostic.path or 'n/a')} | "
-                f"{_markdown_cell(diagnostic.message)} |"
+                f"{_markdown_cell(diagnostic.message)} | "
+                f"{_markdown_cell(diagnostic.remediation_hint or 'n/a')} |"
             )
 
     lines.extend(["", "## Next Local Commands", ""])
-    commands = _next_missing_evidence_commands(bundle)
+    commands = _next_local_commands(bundle, recheck_command=recheck_command)
     if not commands:
         lines.append("No missing required artifacts were found.")
     else:
@@ -276,20 +299,18 @@ def _artifact_rows(bundle: EvidenceBundleReport) -> list[tuple[str, str, str, st
     return sorted(rows, key=lambda row: row[1])
 
 
-def _next_missing_evidence_commands(bundle: EvidenceBundleReport) -> tuple[str, ...]:
-    if not bundle.missing_artifacts:
-        return ()
-    commands_by_kind = {
-        "artifact_manifest": "entroping report artifact-manifest",
-        "effective_policy": "entroping report policy --output json",
-        "run_json": "entroping run --report json",
-    }
+def _next_local_commands(
+    bundle: EvidenceBundleReport,
+    *,
+    recheck_command: str,
+) -> tuple[str, ...]:
     commands = [
-        commands_by_kind[artifact.kind]
-        for artifact in bundle.missing_artifacts
-        if artifact.kind in commands_by_kind
+        diagnostic.remediation_hint
+        for diagnostic in bundle.diagnostics
+        if diagnostic.remediation_hint
     ]
-    commands.append("entroping report evidence-bundle --output reports/evidence-bundle.md")
+    if commands:
+        commands.append(recheck_command)
     return tuple(dict.fromkeys(commands))
 
 
@@ -306,7 +327,12 @@ def _build_bundle(*, root: Path, purpose: str) -> EvidenceBundleReport:
     project: str | None = None
     for definition in sorted(_ARTIFACTS, key=lambda item: item.path.as_posix()):
         display_path = definition.path.as_posix()
-        resolved = _resolve_artifact_path(definition.path, root=root)
+        remediation_hint = _remediation_for_artifact_kind(definition.kind)
+        resolved = _resolve_artifact_path(
+            definition.path,
+            root=root,
+            remediation_hint=remediation_hint,
+        )
         if not resolved.exists():
             missing.append(
                 EvidenceBundleMissingArtifact(
@@ -321,10 +347,15 @@ def _build_bundle(*, root: Path, purpose: str) -> EvidenceBundleReport:
                     "missing_required_artifact",
                     display_path,
                     "Required evidence artifact is missing.",
+                    remediation_hint=remediation_hint,
                 )
             )
             continue
-        content = _read_artifact_bytes(resolved, artifact_path=display_path)
+        content = _read_artifact_bytes(
+            resolved,
+            artifact_path=display_path,
+            remediation_hint=remediation_hint,
+        )
         schema_version, document = _artifact_schema_version(content)
         artifact = EvidenceBundleArtifact(
             kind=definition.kind,
@@ -342,6 +373,7 @@ def _build_bundle(*, root: Path, purpose: str) -> EvidenceBundleReport:
                     "schema_mismatch",
                     display_path,
                     "Evidence artifact schema version is unsupported.",
+                    remediation_hint=remediation_hint,
                 )
             )
         expected_sha = manifest_checksums.get(display_path)
@@ -352,6 +384,7 @@ def _build_bundle(*, root: Path, purpose: str) -> EvidenceBundleReport:
                     "checksum_mismatch",
                     display_path,
                     "Evidence artifact checksum does not match artifact manifest.",
+                    remediation_hint=_ARTIFACT_MANIFEST_REMEDIATION_COMMAND,
                 )
             )
         if definition.kind == "run_json" and isinstance(document, dict):
@@ -392,10 +425,19 @@ def _load_artifact_manifest(
     root: Path,
     diagnostics: list[EvidenceBundleDiagnostic],
 ) -> ReportArtifactManifest | None:
-    path = root / "reports" / "artifact-manifest.json"
+    manifest_path = Path("reports") / "artifact-manifest.json"
+    path = _resolve_artifact_path(
+        manifest_path,
+        root=root,
+        remediation_hint=_ARTIFACT_MANIFEST_REMEDIATION_COMMAND,
+    )
     if not path.exists():
         return None
-    content = _read_artifact_bytes(path, artifact_path="reports/artifact-manifest.json")
+    content = _read_artifact_bytes(
+        path,
+        artifact_path=manifest_path.as_posix(),
+        remediation_hint=_ARTIFACT_MANIFEST_REMEDIATION_COMMAND,
+    )
     try:
         manifest = ReportArtifactManifest.model_validate_json(content)
     except ValidationError:
@@ -405,6 +447,7 @@ def _load_artifact_manifest(
                 "artifact_manifest_invalid",
                 "reports/artifact-manifest.json",
                 "Artifact manifest failed schema validation.",
+                remediation_hint=_ARTIFACT_MANIFEST_REMEDIATION_COMMAND,
             )
         )
         return None
@@ -415,6 +458,7 @@ def _load_artifact_manifest(
                 "artifact_manifest_audit_broken",
                 "reports/artifact-manifest.json",
                 "Artifact manifest audit chain is not verified.",
+                remediation_hint=_ARTIFACT_MANIFEST_REMEDIATION_COMMAND,
             )
         )
     return manifest
@@ -445,13 +489,23 @@ def _manifest_audit(manifest: ReportArtifactManifest) -> EvidenceBundleManifestA
     )
 
 
-def _resolve_artifact_path(raw_path: Path, *, root: Path) -> Path:
+def _resolve_artifact_path(
+    raw_path: Path,
+    *,
+    root: Path,
+    remediation_hint: str,
+) -> Path:
     candidate = root / raw_path
-    _reject_symlink_path(candidate, root=root, artifact="evidence artifact")
+    try:
+        _reject_symlink_path(candidate, root=root, artifact="evidence artifact")
+    except EvidenceBundleError as exc:
+        raise EvidenceBundleError(
+            _with_remediation_hint(str(exc), remediation_hint)
+        ) from exc
     resolved = candidate.resolve(strict=False)
     if resolved.exists() and not resolved.is_file():
         msg = f"evidence artifact path is not a file: {raw_path.as_posix()}"
-        raise EvidenceBundleError(msg)
+        raise EvidenceBundleError(_with_remediation_hint(msg, remediation_hint))
     return resolved
 
 
@@ -464,7 +518,7 @@ def _resolve_output_path(raw_path: Path, *, root: Path) -> Path:
     try:
         relative_parts = resolved.relative_to(root).parts
     except ValueError as exc:
-        msg = f"evidence bundle output path must stay inside the project: {raw_path}"
+        msg = "evidence bundle output path must stay inside the project"
         raise EvidenceBundleError(msg) from exc
     if relative_parts and relative_parts[0] in {".entroping", "envs"}:
         msg = "evidence bundle output must not be written into .entroping or envs"
@@ -476,27 +530,35 @@ def _reject_symlink_path(path: Path, *, root: Path, artifact: str) -> None:
     try:
         symlink_path = first_symlink_path_component(path, root=root)
     except ValueError as exc:
-        msg = f"{artifact} path must stay inside the project: {path}"
+        msg = f"{artifact} path must stay inside the project"
         raise EvidenceBundleError(msg) from exc
     if symlink_path is not None:
-        msg = f"{artifact} path uses symlinked component: {symlink_path}"
+        msg = (
+            f"{artifact} path uses symlinked component: "
+            f"{_project_relative_display_path(symlink_path, root=root)}"
+        )
         raise EvidenceBundleError(msg)
 
 
-def _read_artifact_bytes(path: Path, *, artifact_path: str) -> bytes:
+def _read_artifact_bytes(
+    path: Path,
+    *,
+    artifact_path: str,
+    remediation_hint: str,
+) -> bytes:
     try:
         if path.stat().st_size > _MAX_EVIDENCE_ARTIFACT_BYTES:
             msg = (
                 f"evidence artifact {artifact_path} exceeds "
                 f"{_MAX_EVIDENCE_ARTIFACT_BYTES} bytes"
             )
-            raise EvidenceBundleError(msg)
+            raise EvidenceBundleError(_with_remediation_hint(msg, remediation_hint))
         return path.read_bytes()
     except EvidenceBundleError:
         raise
     except OSError as exc:
         msg = f"Could not read evidence artifact {artifact_path}: {exc}"
-        raise EvidenceBundleError(msg) from exc
+        raise EvidenceBundleError(_with_remediation_hint(msg, remediation_hint)) from exc
 
 
 def _diagnostic(
@@ -504,13 +566,37 @@ def _diagnostic(
     code: str,
     path: str | None,
     message: str,
+    *,
+    remediation_hint: str | None = None,
 ) -> EvidenceBundleDiagnostic:
     return EvidenceBundleDiagnostic(
         severity=severity,
         code=code,
         path=path,
         message=message,
+        remediation_hint=(
+            _safe_metadata_text(remediation_hint)
+            if remediation_hint is not None
+            else None
+        ),
     )
+
+
+def _remediation_for_artifact_kind(kind: EvidenceBundleArtifactKind) -> str:
+    return _REMEDIATION_COMMANDS_BY_KIND[kind]
+
+
+def _with_remediation_hint(message: str, remediation_hint: str) -> str:
+    return f"{message} Remediation: {_safe_metadata_text(remediation_hint)}."
+
+
+def _evidence_bundle_recheck_command(output_path: Path, *, root: Path) -> str:
+    display_path = _project_relative_display_path(output_path, root=root)
+    return f"entroping report evidence-bundle --output {display_path}"
+
+
+def _project_relative_display_path(path: Path, *, root: Path) -> str:
+    return path.relative_to(root).as_posix()
 
 
 def _safe_metadata_text(value: str) -> str:
@@ -526,7 +612,7 @@ def _markdown_cell(value: str) -> str:
 
 
 def _markdown_text(value: str) -> str:
-    return escape(value, quote=False).replace("|", "\\|")
+    return escape(value.replace("\r", " "), quote=False).replace("|", "\\|")
 
 
 def _bundle_contains_secret_like_metadata(

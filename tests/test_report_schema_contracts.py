@@ -1279,6 +1279,7 @@ def test_evidence_bundle_v1_schema_contract_is_versioned_and_stable() -> None:
                 code="missing_required_artifact",
                 path="reports/effective-policy.json",
                 message="Required evidence artifact is missing.",
+                remediation_hint="entroping report policy --output json",
             ),
         ),
         manifest_audit=EvidenceBundleManifestAudit(
@@ -1331,6 +1332,7 @@ def test_evidence_bundle_v1_schema_contract_is_versioned_and_stable() -> None:
                 "code": "missing_required_artifact",
                 "path": "reports/effective-policy.json",
                 "message": "Required evidence artifact is missing.",
+                "remediation_hint": "entroping report policy --output json",
             }
         ],
         "manifest_audit": {
@@ -1350,6 +1352,13 @@ def test_evidence_bundle_v1_schema_contract_is_versioned_and_stable() -> None:
         "ready",
         "not_ready",
     ]
+    assert schema["$defs"]["diagnostic"]["properties"]["remediation_hint"] == {
+        "type": [
+            "string",
+            "null",
+        ]
+    }
+    assert "remediation_hint" not in schema["$defs"]["diagnostic"]["required"]
 
 
 def test_runtime_card_v1_schema_contract_is_versioned_and_stable() -> None:
