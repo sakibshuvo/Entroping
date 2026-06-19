@@ -30,6 +30,7 @@ def _write_effective_policy_report(
     imports: tuple[str, ...] = (),
     gates: tuple[dict[str, object], ...] = (),
 ) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(
             {
@@ -50,14 +51,28 @@ def _write_text(path: Path, content: str) -> None:
 
 
 def _write_ready_evidence_bundle_inputs(root: Path) -> None:
-    _write_text(
+    write_json_report(
+        RunReport(
+            project="checkout-api",
+            environment="ci",
+            generated_at="2026-06-18T00:00:00+00:00",
+            summary=RunReportSummary(total=1, passed=1, failed=0, exit_code=0),
+            tests=(
+                RunTestReport(
+                    path="tests/health.hurl",
+                    execution_path=".entroping/run/health.hurl",
+                    status="passed",
+                    exit_code=0,
+                    duration_ms=10,
+                    rule_ids=(),
+                    stdout="",
+                    stderr="",
+                ),
+            ),
+        ),
         root / "reports" / "run-latest.json",
-        '{"schema_version":"entroping.run-report.v1","project":"checkout-api"}\n',
     )
-    _write_text(
-        root / "reports" / "effective-policy.json",
-        '{"schema_version":"entroping.effective-policy-report.v1","project":"checkout-api"}\n',
-    )
+    _write_effective_policy_report(root / "reports" / "effective-policy.json")
     write_report_artifact_manifest(project_root=root)
 
 

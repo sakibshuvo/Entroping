@@ -16,18 +16,19 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #939 Local Pilot Metrics Report
+## Current Issue Slice: #946 Evidence-Bundle Artifact Contract Validation
 
-- Add `entroping report pilot-metrics --output md|json` for local
-  design-partner pilot metric inference from existing sanitized artifacts.
-- Infer only metrics Entroping can prove locally: evidence-bundle ready rate
-  from `reports/evidence-bundle.json` and waived-gate count from
-  run-report known-failure evidence.
-- Mark setup time, useful failures, false positives, and human steering as
-  `manual_input_required`; mark missing, malformed, or unsafe local artifacts
-  as `unknown` source-backed states.
-- Do not execute Hurl, call providers, upload artifacts, parse raw traffic,
-  read private notes, or render raw report contents.
+- Require `entroping report evidence-bundle` to validate required JSON
+  artifacts against their full v1 contracts, not just matching
+  `schema_version` strings.
+- Mark schema-version-only or structurally incomplete run and effective-policy
+  artifacts `not_ready` with value-free `artifact_contract_invalid`
+  diagnostics and deterministic local remediation hints.
+- Preserve existing missing-artifact, schema-mismatch, checksum-mismatch,
+  artifact-manifest validation, audit-chain, path-safety, and secret-rendering
+  behavior.
+- Do not execute Hurl, call providers, upload artifacts, parse raw traffic, or
+  render raw artifact contents.
 - Verification lane: `security-runtime`.
 
 ## Current Baseline

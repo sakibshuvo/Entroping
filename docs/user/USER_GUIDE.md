@@ -515,8 +515,9 @@ status, required-artifact readiness, checksum and artifact-manifest audit
 diagnostics, and next local commands for missing evidence; it does not embed
 report contents, raw traffic, source Hurl contents, stdout/stderr, prompts,
 provider outputs, credentials, environment values, or upload anything. If the
-bundle status is `not_ready`, fix the missing or inconsistent local evidence
-before sharing it with a design partner or hosted workflow.
+bundle status is `not_ready`, fix the missing, malformed, invalid, or
+inconsistent local evidence before sharing it with a design partner or hosted
+workflow.
 
 ## Design-Partner Pilot Kit
 
@@ -562,6 +563,8 @@ Design-partner evidence-bundle acceptance checks:
   automatically or send evidence to hosted support.
 - Required local evidence is present: latest run report, effective policy
   report, and artifact manifest.
+- Required JSON artifacts pass their full v1 contracts; matching
+  `schema_version` strings alone are not enough.
 - Artifact paths are project-relative and checksums match the artifact
   manifest.
 - Artifact-manifest audit status is reviewed before sharing.

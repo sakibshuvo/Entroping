@@ -2,6 +2,11 @@
 
 ## 2026-06-19
 
+- Fixed issue #946's evidence-bundle contract validation:
+  `entroping report evidence-bundle` now marks required run and
+  effective-policy JSON artifacts `not_ready` when they only declare a matching
+  `schema_version` but fail their full v1 report contracts, preserving
+  value-free diagnostics and local remediation hints.
 - Added issue #939's local pilot metrics report:
   `entroping report pilot-metrics --output md|json` now summarizes
   design-partner pilot metrics from existing sanitized local artifacts, infers
