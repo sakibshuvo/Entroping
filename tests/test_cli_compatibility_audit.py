@@ -184,9 +184,9 @@ LOCKED_CLI_CONTRACTS = (
         ("--output",),
     ),
     CliContract(
-        "entroping report artifact-manifest [--output <path>]",
+        "entroping report artifact-manifest [--output <path>] [--fail-on-incomplete]",
         ("report", "artifact-manifest", "--help"),
-        ("--output",),
+        ("--output", "--fail-on-incomplete"),
     ),
     CliContract(
         "entroping report evidence-bundle [--output <path>]",

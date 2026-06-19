@@ -757,7 +757,7 @@ report generation, and artifact schemas remain the compatibility contract.
 | Effective Policy | `report policy --output md|json` | Resolved QAnstitution gate provenance |
 | Effective Policy Diff | `report policy-diff --base <path> --current <path> --output md|json [--fail-on-change]` | Import/gate differences between two effective-policy JSON artifacts; opt-in CI failure on changed diff |
 | Generated-Test Quality | `report test-quality --output md|json` | Static quality score for generated Hurl tests |
-| Artifact Manifest | `report artifact-manifest` | Checksum manifest for local report artifacts |
+| Artifact Manifest | `report artifact-manifest [--output <path>] [--fail-on-incomplete]` | Checksum manifest for local report artifacts; opt-in CI failure on incomplete evidence |
 | Evidence Bundle | `report evidence-bundle` | Sanitized local upload-readiness evidence |
 | Design-Partner Feedback | `report design-partner-feedback` | Sanitized local feedback template artifact |
 | Runtime Evidence Card | `report runtime-card` | Concise PR/runtime proof card from local reports |
@@ -925,7 +925,7 @@ entroping report policy-diff [--base <path>] [--current <path>] [--output <md|js
 entroping report gate-coverage [--output <md|json>] [--fail-under <0-100>]
 entroping report gate-injection --target <path> [--output <md|json>]
 entroping report test-quality [--output <md|json>] [--fail-under <0-100>]
-entroping report artifact-manifest [--output <path>]
+entroping report artifact-manifest [--output <path>] [--fail-on-incomplete]
 entroping report evidence-bundle [--output <path>]
 entroping report design-partner-feedback [--output <path>]
 entroping report runtime-card [--output <md|json>]
@@ -1136,17 +1136,20 @@ proposals and review; only an explicit threshold turns it into a CI guardrail.
 by default with project-relative report paths, schema versions when available,
 artifact sizes, and SHA-256 checksums for standard JSON, JUnit, HTML, drift,
 test-quality JSON/Markdown, agent-bundle JSON, SARIF, and review-summary
-artifacts. Missing expected artifacts are listed instead of failing the
-command. Present artifacts are size-checked before full reads, checksums, or
-schema sniffing; oversized artifacts fail with value-free path and size-limit
-metadata instead of loading artifact contents into memory. Each successful write
-also appends a value-free event to `.entroping/report-audit-chain.jsonl` with
-the previous event hash, artifact checksums, command metadata, schema versions,
-and manifest summary counts. The manifest exposes audit verification status and
-broken-chain diagnostics, while the chain and report omit artifact contents,
-raw traffic, provider prompts or outputs, env values, and secret-like metadata.
-This is local integrity evidence for CI upload and release review; it is not a
-signing, notarization, or attestation system.
+artifacts. Missing expected artifacts are listed instead of failing the command
+unless `--fail-on-incomplete` is set. With that guard, Entroping still writes
+the manifest first, then exits `1` when expected artifacts are missing or audit
+verification is not `verified`. Present artifacts are size-checked before full
+reads, checksums, or schema sniffing; oversized artifacts fail with value-free
+path and size-limit metadata instead of loading artifact contents into memory.
+Each successful write also appends a value-free event to
+`.entroping/report-audit-chain.jsonl` with the previous event hash, artifact
+checksums, command metadata, schema versions, and manifest summary counts. The
+manifest exposes audit verification status and broken-chain diagnostics, while
+the chain and report omit artifact contents, raw traffic, provider prompts or
+outputs, env values, and secret-like metadata. This is local integrity evidence
+for CI upload and release review; it is not a signing, notarization, or
+attestation system.
 
 `entroping report badges` writes local Shields endpoint JSON files under
 `reports/badges/` by default. It reads existing local reports only:
@@ -1300,7 +1303,7 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report test-quality --output md` | `reports/test-quality.md` | Human-readable generated-Hurl quality score. |
 | `entroping report test-quality --output json` | `reports/test-quality.json` | Machine-readable generated-Hurl quality score using `entroping.test-quality-report.v1`. |
 | `entroping report test-quality --fail-under <0-100>` | `reports/test-quality.md` or `reports/test-quality.json` | Optional threshold gate over static generated-Hurl quality evidence. |
-| `entroping report artifact-manifest` | `reports/artifact-manifest.json` and `.entroping/report-audit-chain.jsonl` | Machine-readable checksum manifest using `entroping.report-artifact-manifest.v1` plus a local tamper-evident audit chain using `entroping.report-audit-event.v1`; the chain is local state and not committed. |
+| `entroping report artifact-manifest [--fail-on-incomplete]` | `reports/artifact-manifest.json` and `.entroping/report-audit-chain.jsonl` | Machine-readable checksum manifest using `entroping.report-artifact-manifest.v1` plus a local tamper-evident audit chain using `entroping.report-audit-event.v1`; the optional guard exits nonzero after writing when expected artifacts are missing or audit verification is broken, and the chain is local state and not committed. |
 | `entroping report evidence-bundle` | `reports/evidence-bundle.json`, or Markdown when `--output` ends in `.md` or `.markdown` | Sanitized design-partner upload-readiness evidence using `entroping.evidence-bundle.v1`; references local artifacts by path, schema, size, checksum, readiness, diagnostics, and local remediation hints without embedding contents, executing fixes, or uploading. |
 | `entroping report design-partner-feedback` | `reports/design-partner-feedback.json` | Schema-valid sanitized product-learning template using `entroping.design-partner-feedback.v1`; records value-free evidence statuses and leaves manual feedback fields for concise sanitized summaries. |
 | `entroping report runtime-card --output md` | `reports/runtime-card.md` | Reviewer-facing PR/runtime evidence card from sanitized local reports, including design-partner pilot readiness when evidence-bundle metadata is present. |

@@ -2,6 +2,12 @@
 
 ## 2026-06-19
 
+- Added issue #976's artifact-manifest incomplete-evidence CI guard:
+  `entroping report artifact-manifest --fail-on-incomplete` now writes the
+  requested checksum/audit manifest, then exits nonzero when expected artifacts
+  are missing or audit-chain verification is not `verified` so CI can fail
+  without changing schemas, reading artifact contents or raw traffic values,
+  executing Hurl, calling providers, or uploading artifacts.
 - Added issue #974's redaction-review unsafe-record CI guard:
   `entroping report redaction --fail-on-unsafe` now writes the requested
   counts-only redaction review, then exits nonzero when sanitized local evidence

@@ -90,6 +90,25 @@ def _write_ready_evidence_bundle_inputs(root: Path) -> None:
     write_report_artifact_manifest(project_root=root)
 
 
+def _write_complete_artifact_manifest_inputs(root: Path) -> None:
+    artifacts = {
+        "reports/agent-bundle.json": '{"schema_version":"entroping.agent-review-bundle.v1"}\n',
+        "reports/run-latest.json": '{"schema_version":"entroping.run-report.v1"}\n',
+        "reports/run-plan.json": '{"schema_version":"entroping.run-plan.v1"}\n',
+        "reports/junit.xml": "<testsuite tests=\"1\"></testsuite>\n",
+        "reports/run-latest.html": (
+            "<!doctype html><html><body><h1>Entroping Run Report</h1></body></html>\n"
+        ),
+        "reports/drift.json": '{"schema_version":"entroping.drift-report.v1"}\n',
+        "reports/entroping.sarif": '{"version":"2.1.0","runs":[]}\n',
+        "reports/review-summary.md": "# Entroping Review Summary\n\n- Status: `pass`\n",
+        "reports/test-quality.json": '{"schema_version":"entroping.test-quality-report.v1"}\n',
+        "reports/test-quality.md": "# Entroping Generated-Test Quality Score\n",
+    }
+    for path, content in artifacts.items():
+        _write_text(root / path, content)
+
+
 def _capture_summary_with_unredacted_records(record_count: int = 1) -> CaptureSummaryReport:
     return CaptureSummaryReport(
         summary=CaptureSummaryTotals(
@@ -1413,6 +1432,120 @@ def test_report_redaction_fail_on_unsafe_rejects_unsupported_output() -> None:
 
     assert result.exit_code == 2
     assert "Unsupported redaction output" in result.output
+
+
+def test_report_artifact_manifest_preserves_default_success_with_missing_artifacts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("reports") / "run-latest.json",
+        '{"schema_version":"password=manifest-secret"}\n',
+    )
+
+    result = CliRunner().invoke(app, ["report", "artifact-manifest"])
+
+    assert result.exit_code == 0
+    assert "9 missing" in result.output
+    assert "manifest-secret" not in result.output
+    payload = json.loads(Path("reports/artifact-manifest.json").read_text(encoding="utf-8"))
+    assert payload["summary"]["total_missing"] == 9
+    assert "manifest-secret" not in json.dumps(payload)
+
+
+def test_report_artifact_manifest_fail_on_incomplete_passes_when_complete(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_complete_artifact_manifest_inputs(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "artifact-manifest", "--fail-on-incomplete"],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(Path("reports/artifact-manifest.json").read_text(encoding="utf-8"))
+    assert payload["summary"]["total_missing"] == 0
+    assert payload["audit"]["verification"]["status"] == "verified"
+
+
+def test_report_artifact_manifest_fail_on_incomplete_fails_after_writing_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("reports") / "run-latest.json",
+        '{"schema_version":"password=manifest-secret"}\n',
+    )
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "artifact-manifest", "--fail-on-incomplete"],
+    )
+
+    assert result.exit_code == 1
+    assert "Artifact manifest incomplete: missing=9, audit=verified." in result.output
+    assert "manifest-secret" not in result.output
+    payload = json.loads(Path("reports/artifact-manifest.json").read_text(encoding="utf-8"))
+    assert payload["summary"]["total_missing"] == 9
+    assert "manifest-secret" not in json.dumps(payload)
+
+
+def test_report_artifact_manifest_fail_on_incomplete_writes_custom_output_before_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    output_path = Path("reports") / "custom-artifact-manifest.json"
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "report",
+            "artifact-manifest",
+            "--output",
+            str(output_path),
+            "--fail-on-incomplete",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert output_path.exists()
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["summary"]["total_missing"] == 10
+
+
+def test_report_artifact_manifest_fail_on_incomplete_fails_on_broken_audit_chain(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_complete_artifact_manifest_inputs(tmp_path)
+    first = CliRunner().invoke(app, ["report", "artifact-manifest"])
+    assert first.exit_code == 0
+    chain_path = Path(".entroping") / "report-audit-chain.jsonl"
+    chain_path.write_text(
+        chain_path.read_text(encoding="utf-8").replace(
+            "entroping.run-report.v1",
+            "entroping.run-report.v9",
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "artifact-manifest", "--fail-on-incomplete"],
+    )
+
+    assert result.exit_code == 1
+    assert "Artifact manifest incomplete: missing=0, audit=broken." in result.output
+    payload = json.loads(Path("reports/artifact-manifest.json").read_text(encoding="utf-8"))
+    assert payload["summary"]["total_missing"] == 0
+    assert payload["audit"]["verification"]["status"] == "broken"
 
 
 def test_report_capture_summary_writes_json_without_raw_secret(
