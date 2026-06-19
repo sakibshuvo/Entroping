@@ -14,6 +14,7 @@ from entroping.studio.status import (
     LatestRunTestStatus,
     StudioAppliedGateStatus,
     StudioDependencyError,
+    StudioEvidenceBundleReadiness,
     StudioStatus,
     StudioTrafficRedactionStatus,
     StudioTrafficRouteStatus,
@@ -279,6 +280,44 @@ def test_build_studio_view_model_exposes_unsafe_evidence_artifact_rows() -> None
             "-",
             "symlinked path component",
         ),
+    )
+
+
+def test_build_studio_view_model_exposes_evidence_bundle_readiness_rows() -> None:
+    status = StudioStatus(
+        environment="local",
+        project="checkout-api",
+        qanstitution_status="ok",
+        latest_run=None,
+        latest_run_status="none",
+        report_paths=("reports/evidence-bundle.json",),
+        traffic_state_available=False,
+        evidence_bundle_readiness=StudioEvidenceBundleReadiness(
+            artifact_state="present",
+            schema_version="entroping.evidence-bundle.v1",
+            status="not_ready",
+            required_present=2,
+            required_total=3,
+            required_missing=1,
+            required_invalid=1,
+            diagnostics_total=4,
+            missing_diagnostics=1,
+            invalid_diagnostics=1,
+            unsafe_diagnostics=0,
+            checksum_mismatches=1,
+            audit_chain_status="broken",
+        ),
+    )
+
+    model = build_studio_view_model(status)
+
+    assert model.evidence_bundle_rows == (
+        ("Artifact state", "present"),
+        ("Schema", "entroping.evidence-bundle.v1"),
+        ("Status", "not_ready"),
+        ("Required artifacts", "2/3 present, 1 missing, 1 invalid"),
+        ("Diagnostics", "4 total, 1 missing, 1 invalid, 0 unsafe, 1 checksum mismatch"),
+        ("Audit chain", "broken"),
     )
 
 

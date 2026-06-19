@@ -22,7 +22,12 @@ def test_studio_evidence_viewer_documents_stable_ids_and_safety_boundary() -> No
     assert "stable evidence IDs" in combined
     assert "`run-json`" in tds
     assert "`capture-summary-json`" in tds
+    assert "`evidence-bundle-json`" in tds
     assert "`runtime-card-json`" in tds
+    assert "read-only pilot readiness panel" in combined
+    assert "required artifact counts" in combined
+    assert "checksum mismatch count" in combined
+    assert "artifact-manifest audit-chain status" in combined
     assert "does not render raw report contents" in combined
     assert "does not edit tests, QAnstitution, reports, traffic state, or runtime state" in combined
     assert "does not upload artifacts" in combined

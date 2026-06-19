@@ -942,6 +942,11 @@ IDs such as `run-json`, `capture-summary-json`, `artifact-manifest-json`,
 `review-summary-md`. It shows presence, invalid, and unsafe states, controlled
 schema metadata, and counts-only summaries; oversized, unreadable, malformed, or
 schema-mismatched JSON artifacts are marked invalid without rendering contents.
+Studio also derives a read-only pilot readiness panel from
+`reports/evidence-bundle.json`, showing schema, bundle status, required artifact
+counts, missing/invalid/unsafe diagnostic counts, checksum mismatch count, and
+artifact-manifest audit-chain status without opening raw report artifacts,
+executing remediation hints, or uploading evidence.
 It does not render raw report contents, does not upload artifacts, and does not edit tests, QAnstitution, reports, traffic state, or runtime state.
 Applied-gate drilldowns read latest-run report rule IDs and QAnstitution gate definitions; Studio does not run Hurl
 and does not edit tests or config to build this view. The traffic browser reads
