@@ -223,6 +223,57 @@ def test_prompt_library_includes_claude_code_review_prompt() -> None:
     assert "| [Claude code review](claude-code-review.md) |" in readme
 
 
+def test_backlog_triage_prompt_requires_status_ready_open_code_fields() -> None:
+    prompt = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "backlog-triage.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(prompt.split())
+
+    required_terms = [
+        "status:ready",
+        "OpenCode",
+        "DeepSeek",
+        "provider lane",
+        "model id",
+        "autonomy tier",
+        "allowed files",
+        "forbidden scope, including the minimum Tier A exclusions below",
+        "required focused tests",
+        "required full gate",
+        "merge authority",
+        "stop conditions",
+        "acceptance criteria as deterministic pass/fail bullets",
+        "OpenCode/DeepSeek Status-Ready Issue Guard",
+        "GitHub Issues",
+        "Avoid Markdown backlog sprawl",
+        "do not create or mutate Markdown issue trackers as a backlog system",
+        "Tier A autonomous lane",
+        "Tier B assisted lane",
+        "Tier C restricted lane",
+        "Hurl runner",
+        "`entroping run`",
+        "redaction",
+        "proxy",
+        "provider runtime",
+        "dependencies",
+        "release publishing",
+        "secrets",
+        "raw traffic",
+        "audit evidence",
+        "architecture boundary changes",
+        "must include at least those Tier A exclusions",
+        "add narrower exclusions for the specific issue when needed",
+        "forbidden scope: <exact exclusions, including the minimum Tier A exclusions>",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+
 def test_agent_workflow_docs_document_verification_lanes() -> None:
     pr_template = (REPO_ROOT / ".github" / "pull_request_template.md").read_text(
         encoding="utf-8"
