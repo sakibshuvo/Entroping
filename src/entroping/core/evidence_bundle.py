@@ -10,11 +10,13 @@ from typing import Annotated, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
 
+from entroping.bridge.effective_policy import EffectivePolicyReport
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.report_artifact_manifest import (
     REPORT_ARTIFACT_MANIFEST_SCHEMA_VERSION,
     ReportArtifactManifest,
 )
+from entroping.core.report_serialization import load_run_report
 from entroping.core.safe_write import SafeWriteError, safe_write_text
 from entroping.models.secrets import contains_secret_like_value, redact_secret_like_values
 
@@ -39,6 +41,7 @@ _EVIDENCE_BUNDLE_RECHECK_COMMAND: Final = (
 )
 _ARTIFACT_INVALID_DIAGNOSTIC_CODES: Final = frozenset(
     {
+        "artifact_contract_invalid",
         "artifact_manifest_invalid",
         "checksum_mismatch",
         "schema_mismatch",
@@ -376,6 +379,20 @@ def _build_bundle(*, root: Path, purpose: str) -> EvidenceBundleReport:
                     remediation_hint=remediation_hint,
                 )
             )
+        elif definition.kind != "artifact_manifest" and not _artifact_contract_is_valid(
+            definition,
+            resolved,
+            content,
+        ):
+            diagnostics.append(
+                _diagnostic(
+                    "error",
+                    "artifact_contract_invalid",
+                    display_path,
+                    "Evidence artifact failed schema validation.",
+                    remediation_hint=remediation_hint,
+                )
+            )
         expected_sha = manifest_checksums.get(display_path)
         if expected_sha is not None and expected_sha != artifact.sha256:
             diagnostics.append(
@@ -391,10 +408,17 @@ def _build_bundle(*, root: Path, purpose: str) -> EvidenceBundleReport:
             raw_project = document.get("project")
             project = _safe_metadata_text(raw_project) if isinstance(raw_project, str) else None
 
-    required_invalid = sum(
-        1
-        for item in diagnostics
-        if item.severity == "error" and item.code in _ARTIFACT_INVALID_DIAGNOSTIC_CODES
+    required_artifact_paths = {
+        definition.path.as_posix() for definition in _ARTIFACTS if definition.required
+    }
+    required_invalid = len(
+        {
+            item.path
+            for item in diagnostics
+            if item.severity == "error"
+            and item.code in _ARTIFACT_INVALID_DIAGNOSTIC_CODES
+            and item.path in required_artifact_paths
+        }
     )
     has_error_diagnostics = any(item.severity == "error" for item in diagnostics)
     status: EvidenceBundleStatus = (
@@ -462,6 +486,21 @@ def _load_artifact_manifest(
             )
         )
     return manifest
+
+
+def _artifact_contract_is_valid(
+    definition: _EvidenceArtifactDefinition,
+    path: Path,
+    content: bytes,
+) -> bool:
+    try:
+        if definition.kind == "run_json":
+            load_run_report(path)
+        elif definition.kind == "effective_policy":
+            EffectivePolicyReport.model_validate_json(content)
+    except (ValueError, ValidationError):
+        return False
+    return True
 
 
 def _artifact_schema_version(content: bytes) -> tuple[str | None, object | None]:

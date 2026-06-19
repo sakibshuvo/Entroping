@@ -157,17 +157,19 @@ It writes `reports/evidence-bundle.json` with schema
 writes a reviewer-facing Markdown summary from the same data model without
 creating a second schema. The bundle verifies design-partner upload readiness
 from existing local report evidence: `reports/run-latest.json`,
-`reports/effective-policy.json`, and `reports/artifact-manifest.json`. It
-records only project-relative artifact references, schema versions, byte sizes,
-SHA-256 checksums, missing-artifact diagnostics, malformed/unsupported schema
-diagnostics, checksum mismatches against the artifact manifest,
-artifact-manifest audit-chain status, and deterministic local remediation
-hints. Markdown output renders those hints as local next commands for reviewers.
-Hints are not executed automatically. The report does not embed artifact
-contents, raw traffic, source Hurl contents, stdout/stderr, prompts, provider
-outputs, credentials, environment values, or upload anything to a hosted
-service. A `not_ready` bundle is still reviewable evidence; it means required
-local evidence is missing or inconsistent.
+`reports/effective-policy.json`, and `reports/artifact-manifest.json`. Required
+JSON artifacts must validate against their full v1 contracts; a matching
+`schema_version` string alone is not enough to count an artifact as valid. The
+bundle records only project-relative artifact references, schema versions, byte
+sizes, SHA-256 checksums, missing-artifact diagnostics,
+malformed/unsupported-schema or invalid-contract diagnostics, checksum
+mismatches against the artifact manifest, artifact-manifest audit-chain status,
+and deterministic local remediation hints. Markdown output renders those hints
+as local next commands for reviewers. Hints are not executed automatically. The
+report does not embed artifact contents, raw traffic, source Hurl contents,
+stdout/stderr, prompts, provider outputs, credentials, environment values, or
+upload anything to a hosted service. A `not_ready` bundle is still reviewable
+evidence; it means required local evidence is missing or inconsistent.
 
 The runtime evidence card is written by:
 

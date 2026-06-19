@@ -27,27 +27,59 @@ def _sha256(content: str) -> str:
     return hashlib.sha256(content.lstrip().encode("utf-8")).hexdigest()
 
 
-def _write_required_artifacts(root: Path) -> None:
-    _write_text(
-        root / "reports" / "run-latest.json",
-        """
+_VALID_RUN_REPORT = """
 {
   "schema_version": "entroping.run-report.v1",
   "project": "checkout-api",
-  "stdout": "Authorization: Bearer sk-proj-this-secret-must-not-enter-the-bundle"
+  "environment": "ci",
+  "generated_at": "2026-06-18T00:00:00+00:00",
+  "summary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "exit_code": 0
+  },
+  "tests": [
+    {
+      "path": "tests/health.hurl",
+      "execution_path": "/tmp/entroping/tests/health.hurl",
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 12,
+      "rule_ids": [],
+      "stdout": "raw-output-secret-marker",
+      "stderr": ""
+    }
+  ]
 }
-""",
-    )
-    _write_text(
-        root / "reports" / "effective-policy.json",
-        """
+"""
+
+_VALID_EFFECTIVE_POLICY_REPORT = """
 {
   "schema_version": "entroping.effective-policy-report.v1",
   "project": "checkout-api",
+  "config_path": "qanstitution.yaml",
+  "imports": [],
+  "sources": [],
   "gates": []
 }
-""",
-    )
+"""
+
+
+def _write_run_report(root: Path, content: str = _VALID_RUN_REPORT) -> None:
+    _write_text(root / "reports" / "run-latest.json", content)
+
+
+def _write_effective_policy_report(
+    root: Path,
+    content: str = _VALID_EFFECTIVE_POLICY_REPORT,
+) -> None:
+    _write_text(root / "reports" / "effective-policy.json", content)
+
+
+def _write_required_artifacts(root: Path) -> None:
+    _write_run_report(root)
+    _write_effective_policy_report(root)
     write_report_artifact_manifest(project_root=root)
 
 
@@ -70,17 +102,9 @@ def test_run_evidence_bundle_report_writes_value_free_ready_bundle(tmp_path: Pat
         "reports/effective-policy.json",
         "reports/run-latest.json",
     }
-    assert by_path["reports/run-latest.json"].sha256 == _sha256(
-        """
-{
-  "schema_version": "entroping.run-report.v1",
-  "project": "checkout-api",
-  "stdout": "Authorization: Bearer sk-proj-this-secret-must-not-enter-the-bundle"
-}
-"""
-    )
+    assert by_path["reports/run-latest.json"].sha256 == _sha256(_VALID_RUN_REPORT)
     payload = result.output_path.read_text(encoding="utf-8")
-    assert "sk-proj-this-secret-must-not-enter-the-bundle" not in payload
+    assert "raw-output-secret-marker" not in payload
     assert "checkout-api" in payload
 
 
@@ -104,7 +128,7 @@ def test_run_evidence_bundle_report_writes_value_free_ready_markdown(
     assert "| run_json | reports/run-latest.json | present |" in markdown
     assert "No diagnostics were found." in markdown
     assert "No missing required artifacts were found." in markdown
-    assert "sk-proj-this-secret-must-not-enter-the-bundle" not in markdown
+    assert "raw-output-secret-marker" not in markdown
 
 
 def test_run_evidence_bundle_report_records_missing_required_artifacts(
@@ -205,7 +229,7 @@ def test_run_evidence_bundle_report_detects_schema_and_checksum_mismatches(
     result = run_evidence_bundle_report(project_root=tmp_path)
 
     assert result.bundle.summary.status == "not_ready"
-    assert result.bundle.summary.required_invalid == 2
+    assert result.bundle.summary.required_invalid == 1
     assert [
         (diagnostic.code, diagnostic.path, diagnostic.remediation_hint)
         for diagnostic in result.bundle.diagnostics
@@ -262,7 +286,7 @@ def test_run_evidence_bundle_report_writes_checksum_and_audit_diagnostics_markdo
     assert "| error | checksum_mismatch | reports/run-latest.json |" in markdown
     assert "- `entroping report artifact-manifest`" in markdown
     assert "- `entroping run --ci --report json`" in markdown
-    assert "sk-proj-this-secret-must-not-enter-the-bundle" not in markdown
+    assert "raw-output-secret-marker" not in markdown
 
 
 def test_run_evidence_bundle_report_allows_digest_shaped_audit_hash(
@@ -315,6 +339,48 @@ def test_run_evidence_bundle_report_reports_invalid_artifact_manifest(
         for diagnostic in result.bundle.diagnostics
     }
     assert result.bundle.manifest_audit is None
+
+
+@pytest.mark.parametrize(
+    ("path", "content", "remediation_hint"),
+    [
+        (
+            "reports/run-latest.json",
+            '{"schema_version":"entroping.run-report.v1"}\n',
+            "entroping run --ci --report json",
+        ),
+        (
+            "reports/effective-policy.json",
+            '{"schema_version":"entroping.effective-policy-report.v1"}\n',
+            "entroping report policy --output json",
+        ),
+    ],
+)
+def test_run_evidence_bundle_report_rejects_schema_version_only_artifacts(
+    tmp_path: Path,
+    path: str,
+    content: str,
+    remediation_hint: str,
+) -> None:
+    _write_run_report(tmp_path)
+    _write_effective_policy_report(tmp_path)
+    _write_text(tmp_path / path, content)
+    write_report_artifact_manifest(project_root=tmp_path)
+
+    result = run_evidence_bundle_report(project_root=tmp_path)
+
+    assert result.bundle.summary.status == "not_ready"
+    assert result.bundle.summary.required_invalid == 1
+    assert (
+        "artifact_contract_invalid",
+        path,
+        remediation_hint,
+    ) in {
+        (diagnostic.code, diagnostic.path, diagnostic.remediation_hint)
+        for diagnostic in result.bundle.diagnostics
+    }
+    payload = result.output_path.read_text(encoding="utf-8")
+    assert content.strip() not in payload
 
 
 def test_run_evidence_bundle_report_reports_broken_artifact_manifest_audit(

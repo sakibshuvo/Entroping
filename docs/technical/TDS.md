@@ -1180,14 +1180,16 @@ paths, source paths, schema versions, sizes, and SHA-256 hashes.
 bundle at `reports/evidence-bundle.json` by default. A `.md` or `.markdown`
 output path writes a reviewer-facing Markdown summary from the same sanitized
 data model. It verifies that the local run report, effective-policy report, and
-artifact manifest exist, use supported schemas, and match manifest checksums
-where the artifact manifest covers them. The bundle records project-relative
-paths, schema versions, byte sizes, SHA-256 hashes, missing/invalid diagnostics,
-artifact-manifest audit-chain status, and deterministic local remediation hints
-for missing, malformed, checksum, and unsafe evidence states. Markdown output
-renders those hints as next local commands without executing them. The bundle
-does not embed artifact contents, raw traffic, source Hurl contents,
-stdout/stderr, provider prompts, provider outputs, credentials, environment
+artifact manifest exist, use supported schemas, pass their full v1 artifact
+contracts, and match manifest checksums where the artifact manifest covers
+them. A matching `schema_version` string alone is not enough to mark an
+artifact valid. The bundle records project-relative paths, schema versions,
+byte sizes, SHA-256 hashes, missing/invalid diagnostics, artifact-manifest
+audit-chain status, and deterministic local remediation hints for missing,
+malformed, checksum, and unsafe evidence states. Markdown output renders those
+hints as next local commands without executing them. The bundle does not embed
+artifact contents, raw traffic, source Hurl contents, stdout/stderr, provider
+prompts, provider outputs, credentials, environment
 values, or upload anything to a hosted service. A `not_ready` bundle is
 reviewable evidence of missing or inconsistent local proof, not a cloud upload.
 
