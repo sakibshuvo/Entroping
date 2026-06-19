@@ -922,9 +922,9 @@ entroping report redaction [--output <md|html>]
 entroping report capture-summary [--output <md|json>]
 entroping report policy [--output <md|json>]
 entroping report policy-diff [--base <path>] [--current <path>] [--output <md|json>] [--fail-on-change]
-entroping report gate-coverage [--output <md|json>]
+entroping report gate-coverage [--output <md|json>] [--fail-under <0-100>]
 entroping report gate-injection --target <path> [--output <md|json>]
-entroping report test-quality [--output <md|json>]
+entroping report test-quality [--output <md|json>] [--fail-under <0-100>]
 entroping report artifact-manifest [--output <path>]
 entroping report evidence-bundle [--output <path>]
 entroping report design-partner-feedback [--output <path>]
@@ -1110,10 +1110,14 @@ report writing.
 `entroping report gate-coverage --output md|json` resolves the effective
 QAnstitution, discovers committed local Hurl tests under `tests/`, and writes
 `reports/gate-coverage.md` or `reports/gate-coverage.json` showing each gate's
-matching test files, tags, operation IDs, methods, and redacted paths. It is
-policy coverage evidence only: it does not execute Hurl, inject temporary
-assertions, evaluate pass/fail, call providers, or render full URLs, query
-strings, headers, bodies, variables, or captured traffic values.
+matching test files, tags, operation IDs, methods, and redacted paths.
+`--fail-under <0-100>` is an optional CI gate that still writes the requested
+report, then exits `1` when matched-gate coverage is below the reviewed
+threshold. Coverage is computed from the report summary as
+`matched_gates / total_gates * 100`; zero total gates count as `0`. It is policy
+coverage evidence only: it does not execute Hurl, inject temporary assertions,
+evaluate pass/fail, call providers, or render full URLs, query strings, headers,
+bodies, variables, or captured traffic values.
 
 `entroping report test-quality --output md|json` discovers committed generated
 Hurl tests under `tests/generated/` or tests carrying generated metadata, then
@@ -1285,6 +1289,7 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report policy-diff --output md|json` | `stdout Effective Policy Diff Markdown/JSON` | Import and gate differences between two effective-policy JSON artifacts using `entroping.effective-policy-diff.v1`; `--fail-on-change` exits `1` when the status is changed. |
 | `entroping report gate-coverage --output md` | `reports/gate-coverage.md` | Human-readable policy gate coverage matrix for committed Hurl tests. |
 | `entroping report gate-coverage --output json` | `reports/gate-coverage.json` | Machine-readable policy gate coverage matrix using `entroping.gate-coverage-report.v1`. |
+| `entroping report gate-coverage --fail-under <0-100>` | `reports/gate-coverage.md` or `reports/gate-coverage.json` | Optional threshold gate over matched policy-gate coverage evidence. |
 | `entroping report gate-injection --output md` | `reports/gate-injection.md` | Human-readable gate-injection explanation for selected Hurl files. |
 | `entroping report gate-injection --output json` | `reports/gate-injection.json` | Machine-readable gate-injection explanation using `entroping.gate-injection-report.v1`. |
 | `entroping report test-quality --output md` | `reports/test-quality.md` | Human-readable generated-Hurl quality score. |

@@ -16,13 +16,13 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #968 Generated-Test Quality Threshold Gate
+## Current Issue Slice: #970 Policy Gate Coverage Threshold
 
 - Add an optional `--fail-under <0-100>` guard to
-  `entroping report test-quality` so CI can fail after writing static
-  generated-Hurl quality evidence when the reviewed score floor is not met.
+  `entroping report gate-coverage` so CI can fail after writing policy coverage
+  evidence when matched-gate coverage is below the reviewed floor.
 - Keep the default command exit behavior unchanged: valid weak or missing
-  generated-test evidence still writes a report and exits `0` unless the user
+  gate-coverage evidence still writes a report and exits `0` unless the user
   opts into a threshold.
 - Preserve report schema compatibility and the core boundary: the threshold
   gate does not execute Hurl, call providers, upload artifacts, render raw Hurl
@@ -43,6 +43,9 @@ project, and a Codex workspace with fast context rehydration.
   `reports/performance-smoke.json` as PR-enforced bounded performance evidence.
 - `entroping report test-quality --fail-under <0-100>` can turn static
   generated-test quality evidence into an explicit CI threshold while preserving
+  the report schema and default evidence-only behavior.
+- `entroping report gate-coverage --fail-under <0-100>` can turn matched
+  policy-gate coverage evidence into an explicit CI threshold while preserving
   the report schema and default evidence-only behavior.
 - Pydantic QAnstitution models and typed condition parsing are in place.
 - Runtime `ignore_failures` exceptions are deterministic: active entries skip

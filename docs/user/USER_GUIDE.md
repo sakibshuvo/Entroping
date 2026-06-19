@@ -448,6 +448,7 @@ Map each effective gate to committed Hurl coverage:
 ```bash
 entroping report gate-coverage --output md
 entroping report gate-coverage --output json
+entroping report gate-coverage --output json --fail-under 80
 ```
 
 The gate coverage report writes `reports/gate-coverage.md` or
@@ -456,6 +457,9 @@ Hurl files, tags, operation IDs, request methods, and redacted request paths,
 and it lists gates with no matching tests. It is not a run result: it does not
 execute Hurl, inject assertions, evaluate pass/fail, call model providers, or
 print full URLs, query strings, headers, bodies, variables, or traffic values.
+Add `--fail-under <0-100>` in CI when a team has agreed on a minimum
+matched-gate coverage floor; the report is still written before the command
+exits nonzero.
 
 Explain which gates would be injected into a selected Hurl file:
 
