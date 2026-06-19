@@ -79,11 +79,12 @@ Installed CLI plus real-Hurl E2E proof:
 uv run pytest tests/test_cli_real_hurl_e2e.py -q
 ```
 
-This integration test skips cleanly when Hurl is unavailable. When Hurl is
-installed, it starts a localhost-only demo API, drives `entroping init` and
-`entroping run --ci --report json --report junit` through the installed console
-script, and verifies JSON/JUnit reports, QAnstitution gate injection evidence,
-and source `.hurl` immutability.
+This integration test file skips cleanly when Hurl is unavailable. When Hurl is
+installed, it starts a localhost-only demo API and drives `entroping init` plus
+`entroping run` through the installed console script. It verifies JSON/JUnit
+reports, QAnstitution gate injection evidence, failing assertion redaction,
+timeout status mapping, run-event/report consistency, temporary execution
+cleanup, and source `.hurl` immutability.
 
 Fast feature gate:
 

@@ -2,6 +2,11 @@
 
 ## 2026-06-19
 
+- Added issue #958's real-Hurl failure-boundary integration coverage:
+  `tests/test_cli_real_hurl_e2e.py` now exercises installed-CLI runs through
+  the real Hurl subprocess path for a passing run, a failing assertion with
+  variable-value redaction in JSON/events, and a bounded timeout with source
+  `.hurl` immutability and temporary execution cleanup.
 - Added issue #954's design-partner feedback writer:
   `entroping report design-partner-feedback` now writes a schema-valid
   sanitized local template to `reports/design-partner-feedback.json`, deriving
