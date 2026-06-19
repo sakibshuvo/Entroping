@@ -2,6 +2,10 @@
 
 ## 2026-06-19
 
+- Fixed issue #948's report artifact manifest read boundary:
+  `entroping report artifact-manifest` now rejects oversized report artifacts
+  before full reads, checksum calculation, or JSON/XML/text schema sniffing,
+  preserving existing checksum and schema behavior for artifacts under the cap.
 - Fixed issue #947's runtime-card release evidence contract:
   `entroping report runtime-card` now marks missing artifact-manifest and
   evidence-bundle release anchors as reviewer attention, exits nonzero for

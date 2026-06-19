@@ -495,7 +495,9 @@ entroping report artifact-manifest
 The artifact manifest writes `reports/artifact-manifest.json`. It lists
 standard local report artifacts, schema versions when available, byte sizes,
 and SHA-256 checksums; missing expected artifacts are recorded without failing
-the command. It also records a value-free local audit event in
+the command. Present artifacts are rejected before full reads, checksums, or
+schema sniffing if they exceed the local report-artifact size cap. It also
+records a value-free local audit event in
 `.entroping/report-audit-chain.jsonl` and shows audit verification status in the
 manifest so a later run can flag broken previous-hash linkage. Use it as CI
 upload or release-review integrity evidence, not as a signature, notarization,

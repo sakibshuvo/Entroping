@@ -34,6 +34,7 @@ ReportArtifactAuditVerificationStatus = Literal["verified", "broken"]
 
 _DEFAULT_OUTPUT_PATH: Final = Path("reports") / "artifact-manifest.json"
 _DEFAULT_AUDIT_CHAIN_PATH: Final = Path(".entroping") / "report-audit-chain.jsonl"
+_MAX_REPORT_ARTIFACT_BYTES: Final = 100 * 1024 * 1024
 
 
 @dataclass(frozen=True, slots=True)
@@ -323,10 +324,18 @@ def _reject_symlink_path(path: Path, *, root: Path, artifact: str) -> None:
 
 def _read_artifact_bytes(path: Path, *, artifact_path: str) -> bytes:
     try:
-        return path.read_bytes()
+        with path.open("rb") as artifact_file:
+            content = artifact_file.read(_MAX_REPORT_ARTIFACT_BYTES + 1)
     except OSError as exc:
-        msg = f"Could not read report artifact {artifact_path}: {exc}"
+        msg = f"Could not read report artifact {artifact_path}"
         raise ReportArtifactManifestError(msg) from exc
+    if len(content) > _MAX_REPORT_ARTIFACT_BYTES:
+        msg = (
+            f"report artifact {artifact_path} exceeds "
+            f"{_MAX_REPORT_ARTIFACT_BYTES} bytes"
+        )
+        raise ReportArtifactManifestError(msg)
+    return content
 
 
 def _schema_version(
@@ -412,7 +421,7 @@ def _load_json_document(content: bytes, *, artifact_path: str) -> object:
     try:
         return json.loads(content.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        msg = f"Could not read schema version from report artifact {artifact_path}: {exc}"
+        msg = f"Could not read schema version from report artifact {artifact_path}"
         raise ReportArtifactManifestError(msg) from exc
 
 

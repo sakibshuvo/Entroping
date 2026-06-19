@@ -302,6 +302,12 @@ def test_write_report_artifact_manifest_rejects_unsafe_paths(tmp_path: Path) -> 
             output_path=tmp_path.parent / "artifact-manifest.json",
         )
 
+    with pytest.raises(ReportArtifactManifestError, match="output path must stay inside"):
+        write_report_artifact_manifest(
+            project_root=tmp_path,
+            output_path=Path("..") / "artifact-manifest.json",
+        )
+
     with pytest.raises(ReportArtifactManifestError, match="must not be written into .entroping"):
         write_report_artifact_manifest(
             project_root=tmp_path,
@@ -510,6 +516,56 @@ def test_write_report_artifact_manifest_keeps_malformed_json_artifacts_without_h
         assert by_path[path].sha256 == _sha256(content)
 
 
+def test_schema_sniff_errors_do_not_include_raw_decode_details() -> None:
+    with pytest.raises(
+        ReportArtifactManifestError,
+        match="Could not read schema version from report artifact reports/run-latest.json",
+    ) as exc_info:
+        artifact_manifest._load_json_document(
+            b"\xff",
+            artifact_path="reports/run-latest.json",
+        )
+
+    assert "0xff" not in str(exc_info.value)
+    assert "invalid start byte" not in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    ("artifact_path", "content"),
+    (
+        ("reports/run-latest.json", '{"schema_version":"entroping.run-report.v1"}\n'),
+        ("reports/junit.xml", "<testsuite tests=\"1\"></testsuite>\n"),
+        ("reports/review-summary.md", "# Entroping Review Summary\n"),
+    ),
+)
+def test_write_report_artifact_manifest_rejects_oversized_artifacts_before_full_reads(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    artifact_path: str,
+    content: str,
+) -> None:
+    _write_text(tmp_path / artifact_path, content)
+    encoded = content.lstrip().encode("utf-8")
+    max_bytes = len(encoded) - 1
+    target_name = Path(artifact_path).name
+    original_read_bytes = Path.read_bytes
+
+    def fail_if_oversized_read(path: Path) -> bytes:
+        if path.name == target_name:
+            msg = "oversized report artifact was read"
+            raise AssertionError(msg)
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(artifact_manifest, "_MAX_REPORT_ARTIFACT_BYTES", max_bytes)
+    monkeypatch.setattr(Path, "read_bytes", fail_if_oversized_read)
+
+    with pytest.raises(
+        ReportArtifactManifestError,
+        match=f"report artifact {artifact_path} exceeds {max_bytes} bytes",
+    ):
+        write_report_artifact_manifest(project_root=tmp_path)
+
+
 def test_write_report_artifact_manifest_wraps_read_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -518,14 +574,28 @@ def test_write_report_artifact_manifest_wraps_read_errors(
         tmp_path / "reports" / "run-latest.json",
         '{"schema_version":"entroping.run-report.v1"}\n',
     )
-    original_read_bytes = Path.read_bytes
+    original_open = Path.open
 
-    def fail_read_bytes(path: Path) -> bytes:
+    def fail_open(
+        path: Path,
+        mode: str = "r",
+        buffering: int = -1,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
+    ) -> object:
         if path.name == "run-latest.json":
             raise OSError("read failed")
-        return original_read_bytes(path)
+        return original_open(
+            path,
+            mode=mode,
+            buffering=buffering,
+            encoding=encoding,
+            errors=errors,
+            newline=newline,
+        )
 
-    monkeypatch.setattr(Path, "read_bytes", fail_read_bytes)
+    monkeypatch.setattr(Path, "open", fail_open)
 
     with pytest.raises(ReportArtifactManifestError, match="Could not read report artifact"):
         write_report_artifact_manifest(project_root=tmp_path)
