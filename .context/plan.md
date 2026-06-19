@@ -16,19 +16,20 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #948 Report Artifact Manifest Read Bound
+## Current Issue Slice: #940 Design-Partner Feedback Evidence Artifact
 
-- Enforce a named local report-artifact size cap before
-  `entroping report artifact-manifest` fully reads an artifact, calculates its
-  checksum, or sniffs JSON/XML/text schema hints.
-- Produce a value-free error for oversized artifacts using only the artifact
-  path and configured size limit.
-- Preserve checksum and schema behavior for artifacts under the cap, including
-  malformed JSON/XML/text artifacts that should remain manifest entries without
-  schema hints.
-- Do not execute Hurl, call providers, upload artifacts, parse raw traffic, or
-  render raw artifact contents.
-- Verification lane: `security-runtime`.
+- Define a schema-only local feedback artifact at
+  `reports/design-partner-feedback.json` using
+  `entroping.design-partner-feedback.v1`.
+- Preserve the issue #894 feedback template fields needed for product learning:
+  pilot context, local Entroping evidence status, concise feedback categories,
+  monetization signal answers, and follow-up issue linkage.
+- Keep the artifact sanitized: no customer secrets, raw traffic, credentials,
+  environment values, prompts, provider outputs, source Hurl contents, or
+  private conversation dumps.
+- Do not add a CLI writer in this slice; the v4.1 command surface stays locked
+  and follow-up implementation should be tracked separately.
+- Verification lane: `docs-guardrail`.
 
 ## Current Baseline
 

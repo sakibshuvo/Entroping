@@ -131,6 +131,9 @@ Entroping manages the QA lifecycle as Git-native assets:
 - Markdown user stories under `docs/stories/*.md` link to tests through Entroping-readable Hurl comments such as `# entroping: story_id=CHK-001`; the shipped bridge compiles this local metadata into traceability reports and gap summaries without calling external business-system APIs.
 - Known failures require issue IDs, reasons, and expiry dates.
 - Reports provide machine-readable and human-readable evidence.
+- Schema-only local product-learning artifacts, such as
+  `reports/design-partner-feedback.json`, may preserve sanitized pilot feedback
+  without adding CLI commands or claiming validated demand.
 
 ## 8. Locked Command Surface
 

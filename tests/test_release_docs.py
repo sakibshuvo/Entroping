@@ -256,6 +256,46 @@ def test_design_partner_pilot_kit_has_measurable_local_first_contract() -> None:
     assert "docs/user/USER_GUIDE.md#design-partner-pilot-kit" in roadmap
 
 
+def test_design_partner_feedback_artifact_is_safe_product_learning_evidence() -> None:
+    user_guide = (REPO_ROOT / "docs" / "user" / "USER_GUIDE.md").read_text(
+        encoding="utf-8"
+    )
+    product_spec = (REPO_ROOT / "docs" / "product" / "PRODUCT_SPEC.md").read_text(
+        encoding="utf-8"
+    )
+    report_schemas = (
+        REPO_ROOT / "docs" / "technical" / "REPORT_SCHEMAS.md"
+    ).read_text(encoding="utf-8")
+    normalized_user_guide = " ".join(user_guide.split())
+
+    required_phrases = [
+        "Design-partner feedback artifact",
+        "reports/design-partner-feedback.json",
+        "entroping.design-partner-feedback.v1",
+        "product-learning evidence",
+        "not proof of validated demand",
+        "no CLI writer exists yet",
+        (
+            "customer secrets, raw traffic, credentials, environment values, "
+            "prompts, provider outputs, source Hurl contents, or private "
+            "conversation dumps"
+        ),
+    ]
+    for phrase in required_phrases:
+        assert phrase in user_guide or phrase in normalized_user_guide
+
+    assert "entroping.design-partner-feedback.v1" in report_schemas
+    assert "reports/design-partner-feedback.json" in product_spec
+    forbidden_overclaims = [
+        "proves validated demand",
+        "validated demand is proven",
+        "enterprise readiness is proven",
+    ]
+    feedback_section = user_guide.split("Design-partner feedback artifact", maxsplit=1)[1]
+    for claim in forbidden_overclaims:
+        assert claim not in feedback_section
+
+
 def test_readme_surfaces_public_docs_before_project_context() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 

@@ -620,6 +620,24 @@ Would pay for hosted aggregation? yes/no/unclear, with reason:
 Would pay for premium policy packs? yes/no/unclear, with reason:
 ```
 
+Design-partner feedback artifact:
+
+Store sanitized pilot feedback, when collected, as
+`reports/design-partner-feedback.json` with schema
+`entroping.design-partner-feedback.v1`. This artifact is product-learning
+evidence, not proof of validated demand, and no CLI writer exists yet. Keep the
+shape close to the feedback template: pilot repo/service, AI-assisted change
+type, Entroping commands run, evidence-bundle status, runtime-card status,
+blocked regression or useful failure, false positive or noisy gate, missing
+evidence, setup friction, security/privacy concern, follow-up GitHub issue, and
+yes/no/unclear pay-signal answers with short reasons.
+
+Do not include customer secrets, raw traffic, credentials, environment values,
+prompts, provider outputs, source Hurl contents, or private conversation dumps.
+Free-text fields should be concise sanitized summaries, not copied chat, email,
+support, or meeting transcripts. Use `null` for a required feedback category
+when there is nothing to report.
+
 No hosted aggregation, policy registry, premium model workflow, or enterprise
 compliance claim is proven until repeated design-partner evidence shows the
 local evidence loop is useful, safe to share, and worth coordinating across

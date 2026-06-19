@@ -1791,6 +1791,85 @@ def test_openapi_audit_v1_schema_contract_is_versioned_and_stable() -> None:
     }
 
 
+def test_design_partner_feedback_v1_schema_contract_is_safe_and_stable() -> None:
+    schema = json.loads(
+        (SCHEMA_DIR / "design-partner-feedback.v1.schema.json").read_text()
+    )
+    required = set(schema["required"])
+
+    assert schema["properties"]["schema_version"]["const"] == (
+        "entroping.design-partner-feedback.v1"
+    )
+    assert schema["properties"]["recorded_at"]["format"] == "date-time"
+    assert schema["additionalProperties"] is False
+    assert {
+        "schema_version",
+        "recorded_at",
+        "pilot",
+        "evidence",
+        "feedback",
+        "monetization_signals",
+        "follow_up",
+    } <= required
+    assert schema["properties"]["pilot"]["required"] == [
+        "repo_or_service",
+        "ai_assisted_change_type",
+    ]
+    assert schema["properties"]["pilot"]["additionalProperties"] is False
+    assert schema["properties"]["evidence"]["required"] == [
+        "entroping_commands_run",
+        "evidence_bundle_status",
+        "runtime_card_status",
+    ]
+    assert schema["properties"]["evidence"]["additionalProperties"] is False
+    assert schema["properties"]["evidence"]["properties"]["pilot_metrics_status"][
+        "enum"
+    ] == [
+        "complete",
+        "partial",
+        "insufficient",
+        "missing",
+        "invalid",
+        "unsafe",
+        "not_collected",
+    ]
+    assert schema["properties"]["feedback"]["required"] == [
+        "blocked_regression_or_useful_failure",
+        "false_positive_or_noisy_gate",
+        "missing_evidence",
+        "setup_friction",
+        "security_privacy_concern",
+    ]
+    assert schema["properties"]["feedback"]["additionalProperties"] is False
+    assert schema["$defs"]["nullable_sanitized_summary"]["type"] == ["string", "null"]
+    for field in schema["properties"]["feedback"]["required"]:
+        assert schema["properties"]["feedback"]["properties"][field] == {
+            "$ref": "#/$defs/nullable_sanitized_summary"
+        }
+    assert schema["properties"]["monetization_signals"]["required"] == [
+        "hosted_aggregation",
+        "premium_policy_packs",
+    ]
+    assert schema["properties"]["monetization_signals"]["additionalProperties"] is False
+    assert schema["properties"]["follow_up"]["additionalProperties"] is False
+    signal = schema["$defs"]["pay_signal"]
+    assert signal["required"] == ["answer", "reason"]
+    assert signal["properties"]["answer"]["enum"] == ["yes", "no", "unclear"]
+
+    serialized_schema = json.dumps(schema)
+    forbidden_fields = [
+        "customer_secret",
+        "raw_traffic",
+        "credential",
+        "provider_output",
+        "source_hurl",
+        "conversation_dump",
+        "prompt_transcript",
+    ]
+    for field in forbidden_fields:
+        assert field not in serialized_schema
+
+
 def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
     versions = {
         "entroping.run-report.v1": SCHEMA_DIR / "run-report.v1.schema.json",
@@ -1811,6 +1890,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         "entroping.evidence-bundle.v1": SCHEMA_DIR / "evidence-bundle.v1.schema.json",
         "entroping.runtime-card.v1": SCHEMA_DIR / "runtime-card.v1.schema.json",
         "entroping.pilot-metrics.v1": SCHEMA_DIR / "pilot-metrics.v1.schema.json",
+        "entroping.design-partner-feedback.v1": (
+            SCHEMA_DIR / "design-partner-feedback.v1.schema.json"
+        ),
         "entroping.agent-review-bundle.v1": (SCHEMA_DIR / "agent-review-bundle.v1.schema.json"),
         "entroping.traffic-artifact-approval.v1": (
             SCHEMA_DIR / "traffic-artifact-approval.v1.schema.json"
