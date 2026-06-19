@@ -2,6 +2,12 @@
 
 ## 2026-06-19
 
+- Added issue #972's capture-summary unredacted-record CI guard:
+  `entroping report capture-summary --fail-on-unredacted` now writes the
+  requested counts-only capture summary, then exits nonzero when sanitized
+  local evidence reports unredacted records so CI can fail without changing
+  schemas, reading raw traffic values, executing Hurl, calling providers, or
+  uploading artifacts.
 - Added issue #970's policy gate coverage threshold:
   `entroping report gate-coverage --fail-under <0-100>` now writes the requested
   policy gate coverage report, then exits nonzero when matched-gate coverage is

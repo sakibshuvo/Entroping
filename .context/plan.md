@@ -16,17 +16,19 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #970 Policy Gate Coverage Threshold
+## Current Issue Slice: #972 Capture Summary Unredacted-Record Guard
 
-- Add an optional `--fail-under <0-100>` guard to
-  `entroping report gate-coverage` so CI can fail after writing policy coverage
-  evidence when matched-gate coverage is below the reviewed floor.
+- Add an optional `--fail-on-unredacted` guard to
+  `entroping report capture-summary` so CI can fail after writing counts-only
+  captured-traffic evidence when sanitized local evidence reports unredacted
+  records.
 - Keep the default command exit behavior unchanged: valid weak or missing
-  gate-coverage evidence still writes a report and exits `0` unless the user
-  opts into a threshold.
-- Preserve report schema compatibility and the core boundary: the threshold
-  gate does not execute Hurl, call providers, upload artifacts, render raw Hurl
-  values, or replace QAnstitution/Hurl pass-fail authority.
+  capture-summary evidence still writes a report and exits `0` unless the user
+  opts into the guard.
+- Preserve report schema compatibility and the core boundary: the
+  unredacted-record guard does not execute Hurl, call providers, upload
+  artifacts, render raw traffic values, or replace QAnstitution/Hurl pass-fail
+  authority.
 - Verification lane: `security-runtime` because the PR guard classifies
   report-evidence CLI tests as a sensitive surface.
 
@@ -46,6 +48,9 @@ project, and a Codex workspace with fast context rehydration.
   the report schema and default evidence-only behavior.
 - `entroping report gate-coverage --fail-under <0-100>` can turn matched
   policy-gate coverage evidence into an explicit CI threshold while preserving
+  the report schema and default evidence-only behavior.
+- `entroping report capture-summary --fail-on-unredacted` can turn sanitized
+  captured-traffic redaction evidence into an explicit CI guard while preserving
   the report schema and default evidence-only behavior.
 - Pydantic QAnstitution models and typed condition parsing are in place.
 - Runtime `ignore_failures` exceptions are deterministic: active entries skip

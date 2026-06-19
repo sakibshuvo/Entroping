@@ -18,6 +18,13 @@ from cli_test_support import (
     write_json_report,
 )
 
+from entroping.bridge.capture_summary import (
+    CaptureSummaryReport,
+    CaptureSummaryTotals,
+    capture_summary_report_to_dict,
+    render_capture_summary_markdown,
+)
+from entroping.core.capture_summary_report import CaptureSummaryResult
 from entroping.core.design_partner_feedback import DesignPartnerFeedbackError
 from entroping.core.evidence_bundle import EvidenceBundleError
 from entroping.core.pilot_metrics import PilotMetricsError
@@ -75,6 +82,23 @@ def _write_ready_evidence_bundle_inputs(root: Path) -> None:
     )
     _write_effective_policy_report(root / "reports" / "effective-policy.json")
     write_report_artifact_manifest(project_root=root)
+
+
+def _capture_summary_with_unredacted_records(record_count: int = 1) -> CaptureSummaryReport:
+    return CaptureSummaryReport(
+        summary=CaptureSummaryTotals(
+            total_records=record_count,
+            total_sessions=1,
+            redacted_records=0,
+            unredacted_records=record_count,
+        ),
+        sessions=(),
+        methods=(),
+        hosts=(),
+        dependency_targets=(),
+        status_families=(),
+        redaction_categories=(),
+    )
 
 
 def test_report_help_classifies_launch_stable_experimental_and_maintainer_commands() -> None:
@@ -1289,6 +1313,83 @@ def test_report_capture_summary_writes_json_without_raw_secret(
     assert "capture-cli-secret" not in result.output
     assert "capture-dependency-secret" not in json.dumps(payload)
     assert "[REDACTED]" not in json.dumps(payload)
+
+
+def test_report_capture_summary_fail_on_unredacted_passes_for_redacted_records(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _record_freeze_exchange(tmp_path, secret="capture-cli-secret")
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "capture-summary", "--output", "json", "--fail-on-unredacted"],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(Path("reports/capture-summary.json").read_text(encoding="utf-8"))
+    assert payload["summary"]["unredacted_records"] == 0
+    assert "capture-cli-secret" not in json.dumps(payload)
+
+
+def test_report_capture_summary_fail_on_unredacted_passes_for_default_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _record_freeze_exchange(tmp_path, secret="capture-cli-secret")
+
+    result = CliRunner().invoke(app, ["report", "capture-summary", "--fail-on-unredacted"])
+
+    assert result.exit_code == 0
+    markdown = Path("reports/capture-summary.md").read_text(encoding="utf-8")
+    assert "| Unredacted records | 0 |" in markdown
+    assert "capture-cli-secret" not in markdown
+
+
+@pytest.mark.parametrize(
+    ("output", "unredacted_records", "record_word"),
+    [
+        ("md", 1, "record"),
+        ("json", 2, "records"),
+    ],
+)
+def test_report_capture_summary_fail_on_unredacted_fails_after_writing_report(
+    output: str,
+    unredacted_records: int,
+    record_word: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    def write_unredacted_summary(*, project_root: Path, output: str) -> CaptureSummaryResult:
+        report = _capture_summary_with_unredacted_records(unredacted_records)
+        output_path = project_root / "reports" / f"capture-summary.{output}"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        if output == "json":
+            output_path.write_text(
+                json.dumps(capture_summary_report_to_dict(report), indent=2) + "\n",
+                encoding="utf-8",
+            )
+        else:
+            output_path.write_text(render_capture_summary_markdown(report), encoding="utf-8")
+        return CaptureSummaryResult(output_path=output_path, report=report)
+
+    monkeypatch.setattr(report_cli, "run_capture_summary_report", write_unredacted_summary)
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "capture-summary", "--output", output, "--fail-on-unredacted"],
+    )
+
+    assert result.exit_code == 1
+    assert (
+        f"Capture summary found {unredacted_records} unredacted traffic {record_word}."
+        in result.output
+    )
+    assert Path("reports", f"capture-summary.{output}").exists()
 
 
 def test_report_capture_summary_writes_empty_markdown(

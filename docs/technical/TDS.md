@@ -753,7 +753,7 @@ report generation, and artifact schemas remain the compatibility contract.
 | Run Delta | `report delta` | Run-to-run regression delta for PR review |
 | Coverage Badges | `report badges` | Local Shields endpoint JSON from existing reports |
 | Redaction Review | `report redaction --output md|html` | Captured-traffic redaction coverage review |
-| Capture Summary | `report capture-summary --output md|json` | Counts-only captured-traffic session summary |
+| Capture Summary | `report capture-summary --output md|json [--fail-on-unredacted]` | Counts-only captured-traffic session summary |
 | Effective Policy | `report policy --output md|json` | Resolved QAnstitution gate provenance |
 | Effective Policy Diff | `report policy-diff --base <path> --current <path> --output md|json [--fail-on-change]` | Import/gate differences between two effective-policy JSON artifacts; opt-in CI failure on changed diff |
 | Generated-Test Quality | `report test-quality --output md|json` | Static quality score for generated Hurl tests |
@@ -919,7 +919,7 @@ entroping report failure-bundle [--output <directory>]
 entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
 entroping report badges [--output <directory>] [--run-json <path>] [--policy-json <path>] [--openapi-json <path>] [--traceability-json <path>]
 entroping report redaction [--output <md|html>]
-entroping report capture-summary [--output <md|json>]
+entroping report capture-summary [--output <md|json>] [--fail-on-unredacted]
 entroping report policy [--output <md|json>]
 entroping report policy-diff [--base <path>] [--current <path>] [--output <md|json>] [--fail-on-change]
 entroping report gate-coverage [--output <md|json>] [--fail-under <0-100>]
@@ -1230,7 +1230,10 @@ aggregation readiness, or premium policy-pack readiness.
 `--output json`. It reads existing local sanitized report artifacts only:
 `reports/run-latest.json` is required, while drift,
 `reports/capture-summary.json`, artifact manifest, evidence bundle, and agent
-bundle artifacts are summarized when present. A `pass` card is a PR or release
+bundle artifacts are summarized when present. `entroping report capture-summary
+--fail-on-unredacted` is an optional CI guard that still writes the requested
+counts-only capture summary, then exits `1` when sanitized local evidence
+contains unredacted records. A `pass` card is a PR or release
 review signal, so missing `reports/artifact-manifest.json` or
 `reports/evidence-bundle.json` adds warning findings, marks the card
 `attention`, and makes the CLI exit nonzero. Missing required run evidence
@@ -1284,6 +1287,7 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report redaction --output html` | `reports/redaction-review.html` | Browser-readable captured-traffic redaction review. |
 | `entroping report capture-summary --output md` | `reports/capture-summary.md` | Counts-only captured-traffic session summary for freeze review. |
 | `entroping report capture-summary --output json` | `reports/capture-summary.json` | Machine-readable capture summary using `entroping.capture-summary.v1`. |
+| `entroping report capture-summary --fail-on-unredacted` | `reports/capture-summary.md` or `reports/capture-summary.json` | Optional CI guard over unredacted-record evidence in the capture summary. |
 | `entroping report policy --output md` | `reports/effective-policy.md` | Human-readable resolved QAnstitution gate provenance. |
 | `entroping report policy --output json` | `reports/effective-policy.json` | Machine-readable effective policy evidence using `entroping.effective-policy-report.v1`. |
 | `entroping report policy-diff --output md|json` | `stdout Effective Policy Diff Markdown/JSON` | Import and gate differences between two effective-policy JSON artifacts using `entroping.effective-policy-diff.v1`; `--fail-on-change` exits `1` when the status is changed. |
