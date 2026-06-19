@@ -788,6 +788,58 @@ def test_prompt_library_includes_model_output_acceptance_gate_prompt() -> None:
     )
 
 
+def test_prompt_library_includes_after_sleep_status_prompt() -> None:
+    prompt = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "after-sleep-status.md"
+    ).read_text(encoding="utf-8")
+    readme = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "README.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(prompt.split()).lower()
+
+    required_terms = [
+        "type: prompt",
+        "status: active",
+        "use this when returning after an unattended or multi-session run.",
+        "current repo commit",
+        "provider lane",
+        "provider host",
+        "billing path",
+        "model id",
+        "autonomy tier",
+        "recently merged prs and closed issues",
+        "failed or stuck actions runs",
+        "docs/progress drift",
+        "unsafe or duplicate agent work",
+        "issues ready next only when no stop condition applies",
+        "open prs",
+        "ci status",
+        "issue worktrees",
+        "dirty files",
+        "commands run",
+        "safe next action",
+        "ci pending",
+        "ci failed",
+        "merged but finish cleanup pending",
+        "blocked by tier b/tier c scope",
+        "skipped gates",
+        "skipped gates and why",
+        "skipped gates and rationale",
+        "status is clear only when every check item has a concrete answer",
+        "any pending or failed ci has a stated reason",
+        "safe next action is a concrete command or an explicit stop",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+    assert "| [After-sleep status](after-sleep-status.md) |" in readme
+
+
 def test_prompt_library_includes_codex_outage_daily_operations_prompt() -> None:
     prompt = (
         REPO_ROOT
