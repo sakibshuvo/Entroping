@@ -2,6 +2,12 @@
 
 ## 2026-06-19
 
+- Added issue #970's policy gate coverage threshold:
+  `entroping report gate-coverage --fail-under <0-100>` now writes the requested
+  policy gate coverage report, then exits nonzero when matched-gate coverage is
+  below the reviewed threshold so CI can guard policy coverage gaps without
+  changing report schemas, executing Hurl, calling providers, uploading
+  artifacts, or replacing QAnstitution/Hurl pass-fail authority.
 - Added issue #968's generated-test quality threshold gate:
   `entroping report test-quality --fail-under <0-100>` now writes the requested
   static generated-Hurl quality report, then exits nonzero when the score is

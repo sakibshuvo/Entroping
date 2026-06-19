@@ -34,7 +34,7 @@ entroping report redaction [--output <md|html>]
 entroping report capture-summary [--output <md|json>]
 entroping report policy [--output <md|json>]
 entroping report policy-diff [--base <path>] [--current <path>] [--output <md|json>] [--fail-on-change]
-entroping report gate-coverage [--output <md|json>]
+entroping report gate-coverage [--output <md|json>] [--fail-under <0-100>]
 entroping report gate-injection --target <path> [--output <md|json>]
 entroping report test-quality [--output <md|json>] [--fail-under <0-100>]
 entroping report artifact-manifest [--output <path>]
@@ -361,6 +361,7 @@ Stable public report commands:
 | `entroping report policy-diff --base <path> --current <path>` | Compare two effective-policy JSON artifacts and emit Markdown or JSON to stdout; add `--fail-on-change` to make effective-policy drift fail CI |
 | `entroping report gate-coverage --output md` | Write a policy gate coverage matrix to `reports/gate-coverage.md` |
 | `entroping report gate-coverage --output json` | Write machine-readable gate coverage evidence to `reports/gate-coverage.json` |
+| `entroping report gate-coverage --fail-under <0-100>` | Write the report, then exit `1` when matched-gate coverage is below the reviewed threshold |
 | `entroping report traceability --output md` | Generate a local Markdown story/test traceability report |
 | `entroping report traceability --output json` | Emit machine-readable traceability JSON for badges or downstream tools |
 | `entroping report github-annotations` | Emit GitHub Actions workflow-command annotations from local reports |
@@ -402,6 +403,7 @@ entroping report policy --output md
 entroping report policy-diff --base reports/base-effective-policy.json --current reports/effective-policy.json
 entroping report policy-diff --base reports/base-effective-policy.json --current reports/effective-policy.json --fail-on-change
 entroping report gate-coverage --output md
+entroping report gate-coverage --output json --fail-under 80
 entroping report gate-injection --target tests/health.hurl --output md
 entroping report test-quality --output md
 entroping report test-quality --output json --fail-under 80

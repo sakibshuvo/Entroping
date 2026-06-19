@@ -403,6 +403,18 @@ def report_gate_coverage(
         str,
         typer.Option("--output", help="Output format: md or json."),
     ] = "md",
+    fail_under: Annotated[
+        int | None,
+        typer.Option(
+            "--fail-under",
+            min=0,
+            max=100,
+            help=(
+                "Exit 1 when matched policy-gate coverage is below this "
+                "0-100 threshold."
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Map effective QAnstitution gates to matching committed Hurl tests."""
 
@@ -424,6 +436,18 @@ def report_gate_coverage(
         f"{noun}.[/green]"
     )
     console.print(f"Wrote gate coverage report: {display_cli_path(result.output_path)}")
+    coverage_percent = _gate_coverage_percent(
+        matched_gates=result.report.summary.matched_gates,
+        total_gates=result.report.summary.total_gates,
+    )
+    if fail_under is not None and coverage_percent < fail_under:
+        console.print(
+            "[yellow]Policy gate coverage "
+            f"{_format_percent(coverage_percent)} is below required threshold "
+            f"{fail_under}.[/yellow]"
+        )
+        raise typer.Exit(1)
+    raise typer.Exit(0)
 
 
 @app.command("gate-injection", rich_help_panel=MAINTAINER_REPORT_PANEL)
@@ -461,6 +485,18 @@ def report_gate_injection(
         f"{noun}.[/green]"
     )
     console.print(f"Wrote gate injection report: {display_cli_path(result.output_path)}")
+
+
+def _gate_coverage_percent(*, matched_gates: int, total_gates: int) -> float:
+    if total_gates <= 0:
+        return 0.0
+    return (matched_gates / total_gates) * 100
+
+
+def _format_percent(value: float) -> str:
+    if value.is_integer():
+        return f"{int(value)}%"
+    return f"{value:.1f}%"
 
 
 @app.command("test-quality", rich_help_panel=MAINTAINER_REPORT_PANEL)
