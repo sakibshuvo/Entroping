@@ -1198,7 +1198,10 @@ reviewable evidence of missing or inconsistent local proof, not a cloud upload.
 `--output json`. It reads existing local sanitized report artifacts only:
 `reports/run-latest.json` is required, while drift,
 `reports/capture-summary.json`, artifact manifest, evidence bundle, and agent
-bundle artifacts are summarized when present. Missing required run evidence
+bundle artifacts are summarized when present. A `pass` card is a PR or release
+review signal, so missing `reports/artifact-manifest.json` or
+`reports/evidence-bundle.json` adds warning findings, marks the card
+`attention`, and makes the CLI exit nonzero. Missing required run evidence
 writes a failed card, and missing redaction evidence marks the card for
 reviewer attention. Present malformed artifacts fail closed before output is
 written. The card does not execute Hurl, call providers, upload results, or

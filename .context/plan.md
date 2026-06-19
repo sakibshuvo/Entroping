@@ -16,17 +16,16 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #946 Evidence-Bundle Artifact Contract Validation
+## Current Issue Slice: #947 Runtime-Card Release Evidence Required
 
-- Require `entroping report evidence-bundle` to validate required JSON
-  artifacts against their full v1 contracts, not just matching
-  `schema_version` strings.
-- Mark schema-version-only or structurally incomplete run and effective-policy
-  artifacts `not_ready` with value-free `artifact_contract_invalid`
-  diagnostics and deterministic local remediation hints.
-- Preserve existing missing-artifact, schema-mismatch, checksum-mismatch,
-  artifact-manifest validation, audit-chain, path-safety, and secret-rendering
-  behavior.
+- Treat `entroping report runtime-card` as a PR/release evidence card: a green
+  `pass` requires local release anchors, not only a passing run and capture
+  summary.
+- Mark missing `reports/artifact-manifest.json` and
+  `reports/evidence-bundle.json` as value-free warning findings, producing
+  `attention` status and nonzero CLI exit.
+- Preserve missing `reports/run-latest.json` as a hard `fail` and preserve
+  malformed or unsafe present evidence fail-closed behavior.
 - Do not execute Hurl, call providers, upload artifacts, parse raw traffic, or
   render raw artifact contents.
 - Verification lane: `security-runtime`.

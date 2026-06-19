@@ -146,6 +146,16 @@ def _write_verified_capture_summary(root: Path) -> None:
     )
 
 
+def _write_verified_artifact_manifest(root: Path) -> None:
+    _write_json(
+        root / "reports" / "artifact-manifest.json",
+        {
+            "schema_version": "entroping.report-artifact-manifest.v1",
+            "audit": {"verification": {"status": "verified"}},
+        },
+    )
+
+
 def test_run_runtime_card_report_summarizes_existing_evidence(tmp_path: Path) -> None:
     _write_runtime_card_inputs(tmp_path)
 
@@ -191,20 +201,26 @@ def test_run_runtime_card_report_writes_markdown_without_evidence_links(
     assert "missing_required_artifact" in markdown
 
 
-def test_run_runtime_card_report_passes_with_minimal_successful_run(tmp_path: Path) -> None:
+def test_run_runtime_card_report_marks_missing_release_evidence_attention(
+    tmp_path: Path,
+) -> None:
     _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
     _write_verified_capture_summary(tmp_path)
 
     result = run_runtime_card_report(project_root=tmp_path, output="json")
 
-    assert result.card.summary.status == "pass"
-    assert result.card.summary.findings == 0
+    assert result.card.summary.status == "attention"
+    assert result.card.summary.findings == 2
     assert result.card.release.evidence_links == (
         "reports/run-latest.json",
         "reports/capture-summary.json",
     )
     assert result.card.drift.status == "unknown"
     assert result.card.redaction.status == "verified"
+    assert {
+        ("missing_artifact_manifest", "reports/artifact-manifest.json"),
+        ("missing_evidence_bundle", "reports/evidence-bundle.json"),
+    } <= {(finding.code, finding.path) for finding in result.card.findings}
 
 
 def test_runtime_card_marks_missing_redaction_attention(tmp_path: Path) -> None:
@@ -512,12 +528,17 @@ def test_runtime_card_summarizes_optional_attention_and_verified_paths(
 def test_runtime_card_summarizes_clean_optional_evidence(tmp_path: Path) -> None:
     _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
     _write_verified_capture_summary(tmp_path)
+    _write_verified_artifact_manifest(tmp_path)
     _write_json(
         tmp_path / "reports" / "drift.json",
         {
             "schema_version": "entroping.drift-report.v1",
             "summary": {"findings": 0, "drifted": 0, "missing_baseline": False},
         },
+    )
+    _write_json(
+        tmp_path / "reports" / "evidence-bundle.json",
+        _evidence_bundle_payload(status="ready"),
     )
 
     result = run_runtime_card_report(project_root=tmp_path, output="md")
@@ -716,6 +737,7 @@ def _evidence_bundle_payload(
 def test_runtime_card_includes_ready_pilot_readiness(tmp_path: Path) -> None:
     _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
     _write_verified_capture_summary(tmp_path)
+    _write_verified_artifact_manifest(tmp_path)
     _write_json(
         tmp_path / "reports" / "evidence-bundle.json",
         _evidence_bundle_payload(status="ready"),
@@ -739,13 +761,17 @@ def test_runtime_card_includes_ready_pilot_readiness(tmp_path: Path) -> None:
 def test_runtime_card_marks_missing_pilot_readiness(tmp_path: Path) -> None:
     _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
     _write_verified_capture_summary(tmp_path)
+    _write_verified_artifact_manifest(tmp_path)
 
     card = build_runtime_card(project_root=tmp_path)
 
-    assert card.summary.status == "pass"
+    assert card.summary.status == "attention"
     assert card.pilot_readiness.status == "missing"
     assert card.pilot_readiness.path == "reports/evidence-bundle.json"
     assert card.release.evidence_bundle_status == "missing"
+    assert ("missing_evidence_bundle", "reports/evidence-bundle.json") in {
+        (finding.code, finding.path) for finding in card.findings
+    }
 
 
 def test_runtime_card_marks_malformed_evidence_bundle_invalid(tmp_path: Path) -> None:
@@ -868,6 +894,7 @@ def test_runtime_card_accepts_pilot_readiness_without_manifest_audit(
 ) -> None:
     _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
     _write_verified_capture_summary(tmp_path)
+    _write_verified_artifact_manifest(tmp_path)
     payload = _evidence_bundle_payload(status="ready")
     payload["manifest_audit"] = None
     _write_json(tmp_path / "reports" / "evidence-bundle.json", payload)

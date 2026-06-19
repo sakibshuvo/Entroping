@@ -2,6 +2,11 @@
 
 ## 2026-06-19
 
+- Fixed issue #947's runtime-card release evidence contract:
+  `entroping report runtime-card` now marks missing artifact-manifest and
+  evidence-bundle release anchors as reviewer attention, exits nonzero for
+  incomplete PR/release cards, and preserves missing run evidence as a hard
+  failure.
 - Fixed issue #945's proxy body redaction boundary:
   `entroping watch` now decodes textual request/response bodies before the
   redaction pipeline applies size limits for persistence, preventing
