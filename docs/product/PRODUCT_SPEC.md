@@ -131,9 +131,9 @@ Entroping manages the QA lifecycle as Git-native assets:
 - Markdown user stories under `docs/stories/*.md` link to tests through Entroping-readable Hurl comments such as `# entroping: story_id=CHK-001`; the shipped bridge compiles this local metadata into traceability reports and gap summaries without calling external business-system APIs.
 - Known failures require issue IDs, reasons, and expiry dates.
 - Reports provide machine-readable and human-readable evidence.
-- Schema-only local product-learning artifacts, such as
+- Local product-learning artifacts, such as
   `reports/design-partner-feedback.json`, may preserve sanitized pilot feedback
-  without adding CLI commands or claiming validated demand.
+  through explicit local report commands without claiming validated demand.
 
 ## 8. Locked Command Surface
 
@@ -145,7 +145,7 @@ The v4.1 command namespace is intentionally small and stable:
 | Intelligence | `architect build`, `architect refactor`, `architect audit` |
 | Observation | `watch`, `freeze`, `map` |
 | Execution | `run`, `studio` |
-| Reporting | `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report capture-summary`, `report policy`, `report policy-diff`, `report gate-coverage`, `report gate-injection`, `report test-quality`, `report artifact-manifest`, `report evidence-bundle`, `report runtime-card`, `report agent-bundle`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary` |
+| Reporting | `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report capture-summary`, `report policy`, `report policy-diff`, `report gate-coverage`, `report gate-injection`, `report test-quality`, `report artifact-manifest`, `report evidence-bundle`, `report design-partner-feedback`, `report runtime-card`, `report agent-bundle`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, `report review-summary` |
 
 Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `verify`, `explain`, and `chaos` must not be treated as primary v4.1 commands. They can exist only as explicit backwards-compatible aliases or future roadmap items.
 
@@ -249,6 +249,7 @@ Deprecated or historical commands such as `gen`, `fix`, `ui`, `build`, `scan`, `
 | EXE-024 | Verify sanitized evidence bundles | `entroping report evidence-bundle` writes `reports/evidence-bundle.json` with required local run, effective-policy, and artifact-manifest readiness diagnostics, checksum references, full v1 artifact-contract validation, supported schema evidence, and artifact-manifest audit status without embedding artifact contents, raw traffic, source Hurl contents, stdout/stderr, prompts, provider outputs, credentials, env values, or uploading anything |
 | EXE-025 | Summarize PR runtime evidence | `entroping report runtime-card` writes `reports/runtime-card.md` or `reports/runtime-card.json` from existing sanitized local report artifacts, requiring run JSON evidence and marking missing artifact-manifest or evidence-bundle release anchors as reviewer attention before a card can pass, while summarizing drift, redaction, release anchors, and agent provenance when present without executing Hurl, calling providers, uploading artifacts, or rendering raw Hurl output, raw traffic, prompts, provider responses, credentials, or env values |
 | EXE-026 | Score generated-test quality | `entroping report test-quality --output md|json` writes static generated-Hurl quality evidence for assertion strength, brittle selectors, negative-path metadata, auth/security metadata, shallow schema checks, overfitted examples, and traceability gaps without executing Hurl, calling providers, uploading artifacts, rendering raw Hurl values, or replacing QAnstitution/Hurl pass-fail authority |
+| EXE-027 | Write design-partner feedback templates | `entroping report design-partner-feedback` writes `reports/design-partner-feedback.json` as a schema-valid sanitized local template with value-free evidence statuses from existing report artifacts and manual command-history or feedback fields set to `null` or `manual input required`, without executing Hurl, calling providers, reading raw traffic, uploading artifacts, or claiming validated demand |
 
 ## 10. Supported Test Types
 

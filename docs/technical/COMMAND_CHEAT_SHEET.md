@@ -39,6 +39,7 @@ entroping report gate-injection --target <path> [--output <md|json>]
 entroping report test-quality [--output <md|json>]
 entroping report artifact-manifest [--output <path>]
 entroping report evidence-bundle [--output <path>]
+entroping report design-partner-feedback [--output <path>]
 entroping report runtime-card [--output <md|json>]
 entroping report pilot-metrics [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
@@ -366,6 +367,7 @@ Advanced evidence commands:
 | `entroping report test-quality --output json` | Write machine-readable generated-Hurl quality evidence to `reports/test-quality.json` |
 | `entroping report artifact-manifest` | Write checksum evidence for local report artifacts to `reports/artifact-manifest.json` |
 | `entroping report evidence-bundle` | Write a sanitized local design-partner upload-readiness bundle to `reports/evidence-bundle.json` |
+| `entroping report design-partner-feedback` | Write a sanitized local design-partner feedback template to `reports/design-partner-feedback.json` |
 | `entroping report pilot-metrics --output md` | Write local design-partner pilot metric inference to `reports/pilot-metrics.md` |
 | `entroping report pilot-metrics --output json` | Write machine-readable pilot metric inference to `reports/pilot-metrics.json` |
 | `entroping report agent-bundle --output md` | Write a local multi-agent review bundle to `reports/agent-bundle.md` |
@@ -391,6 +393,7 @@ entroping report gate-injection --target tests/health.hurl --output md
 entroping report test-quality --output md
 entroping report artifact-manifest
 entroping report evidence-bundle
+entroping report design-partner-feedback
 entroping report runtime-card
 entroping report pilot-metrics
 entroping report agent-bundle --scope tests/generated

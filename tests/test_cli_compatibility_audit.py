@@ -194,6 +194,11 @@ LOCKED_CLI_CONTRACTS = (
         ("--output",),
     ),
     CliContract(
+        "entroping report design-partner-feedback [--output <path>]",
+        ("report", "design-partner-feedback", "--help"),
+        ("--output",),
+    ),
+    CliContract(
         "entroping report runtime-card [--output <md|json>]",
         ("report", "runtime-card", "--help"),
         ("--output",),
@@ -284,6 +289,7 @@ REPORT_ARTIFACTS = (
     "stdout Effective Policy Diff Markdown/JSON",
     "reports/badges/*.json",
     "reports/evidence-bundle.json",
+    "reports/design-partner-feedback.json",
     "reports/runtime-card.md",
     "reports/runtime-card.json",
     "reports/pilot-metrics.md",

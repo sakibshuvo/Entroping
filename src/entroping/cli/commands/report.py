@@ -31,6 +31,10 @@ from entroping.core.capture_summary_report import (
     run_capture_summary_report,
 )
 from entroping.core.coverage_badges import BadgeReportError, write_coverage_badges
+from entroping.core.design_partner_feedback import (
+    DesignPartnerFeedbackError,
+    run_design_partner_feedback_report,
+)
 from entroping.core.drift_report import (
     DriftReportError,
     promote_reviewed_drift_baseline_candidate,
@@ -543,6 +547,33 @@ def report_evidence_bundle(
         f"{result.bundle.summary.required_invalid} invalid)"
     )
     raise typer.Exit(0 if result.bundle.summary.status == "ready" else 1)
+
+
+@app.command("design-partner-feedback", rich_help_panel=ADVANCED_REPORT_PANEL)
+def report_design_partner_feedback(
+    output: Annotated[
+        Path,
+        typer.Option("--output", help="Design-partner feedback artifact output path."),
+    ] = Path("reports") / "design-partner-feedback.json",
+) -> None:
+    """Write a sanitized local design-partner feedback template artifact."""
+
+    try:
+        result = run_design_partner_feedback_report(
+            project_root=Path.cwd(),
+            output_path=output,
+        )
+    except DesignPartnerFeedbackError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(
+        "Wrote design-partner feedback artifact: "
+        f"{display_cli_path(result.output_path)} "
+        f"(evidence bundle {result.feedback.evidence.evidence_bundle_status}, "
+        f"runtime card {result.feedback.evidence.runtime_card_status})"
+    )
+    raise typer.Exit(0)
 
 
 @app.command("runtime-card", rich_help_panel=CORE_REPORT_PANEL)

@@ -16,17 +16,23 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #938 Studio Evidence-Bundle Pilot Readiness Panel
+## Current Issue Slice: #954 Design-Partner Feedback Artifact Writer
 
-- Add a read-only Studio panel/detail view for
-  `reports/evidence-bundle.json` readiness.
-- Show value-free schema, status, required artifact counts,
-  missing/invalid/unsafe diagnostic counts, checksum mismatch count, and
-  artifact-manifest audit-chain status.
-- Cover ready, not_ready, invalid, missing, and unsafe bundle states in focused
-  Studio status/view-model tests.
-- Do not add edits, uploads, background execution, provider calls, raw artifact
-  rendering, write actions, or CLI command-surface changes.
+- Add an explicit local workflow for creating
+  `reports/design-partner-feedback.json` using
+  `entroping.design-partner-feedback.v1`.
+- Generate a schema-valid sanitized template with value-free local evidence
+  statuses from existing evidence-bundle, runtime-card, and pilot-metrics
+  artifacts.
+- Leave manual feedback categories as `null` or `manual input required`; do not
+  collect secrets, raw traffic, credentials, environment values, prompts,
+  provider outputs, source Hurl contents, private conversation dumps, or
+  transcripts.
+- Update the locked command-surface docs intentionally for
+  `entroping report design-partner-feedback [--output <path>]`.
+- Do not execute Hurl, call providers, upload artifacts, read raw traffic, or
+  claim validated demand, enterprise readiness, hosted aggregation readiness, or
+  premium policy-pack readiness.
 - Verification lane: `security-runtime`.
 
 ## Current Baseline

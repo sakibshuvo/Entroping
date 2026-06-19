@@ -755,6 +755,7 @@ Reports are written under `reports/`.
 | Generated-Test Quality | `report test-quality --output md|json` | Static quality score for generated Hurl tests |
 | Artifact Manifest | `report artifact-manifest` | Checksum manifest for local report artifacts |
 | Evidence Bundle | `report evidence-bundle` | Sanitized local upload-readiness evidence |
+| Design-Partner Feedback | `report design-partner-feedback` | Sanitized local feedback template artifact |
 | Runtime Evidence Card | `report runtime-card` | Concise PR/runtime proof card from local reports |
 | Pilot Metrics | `report pilot-metrics` | Local pilot metric inference from sanitized evidence |
 | Agent Review Bundle | `report agent-bundle` | Local Builder/Breaker/Auditor evidence from sanitized manifests |
@@ -922,6 +923,7 @@ entroping report gate-injection --target <path> [--output <md|json>]
 entroping report test-quality [--output <md|json>]
 entroping report artifact-manifest [--output <path>]
 entroping report evidence-bundle [--output <path>]
+entroping report design-partner-feedback [--output <path>]
 entroping report runtime-card [--output <md|json>]
 entroping report pilot-metrics [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
@@ -1201,6 +1203,18 @@ prompts, provider outputs, credentials, environment
 values, or upload anything to a hosted service. A `not_ready` bundle is
 reviewable evidence of missing or inconsistent local proof, not a cloud upload.
 
+`entroping report design-partner-feedback` writes
+`reports/design-partner-feedback.json` by default. It creates a schema-valid
+sanitized local template using `entroping.design-partner-feedback.v1`, derives
+value-free evidence statuses from existing `reports/evidence-bundle.json`,
+`reports/runtime-card.json`, and `reports/pilot-metrics.json` when those
+artifacts pass their local contracts, and leaves manual feedback categories as
+`null` or `manual input required`; the command-history field also starts as
+`manual input required` until a user replaces it with sanitized command
+summaries. The command does not execute Hurl, call providers, read raw traffic,
+upload artifacts, or claim validated demand, enterprise readiness, hosted
+aggregation readiness, or premium policy-pack readiness.
+
 `entroping report runtime-card` writes a concise PR/runtime evidence card at
 `reports/runtime-card.md` by default, or `reports/runtime-card.json` with
 `--output json`. It reads existing local sanitized report artifacts only:
@@ -1270,6 +1284,7 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report test-quality --output json` | `reports/test-quality.json` | Machine-readable generated-Hurl quality score using `entroping.test-quality-report.v1`. |
 | `entroping report artifact-manifest` | `reports/artifact-manifest.json` and `.entroping/report-audit-chain.jsonl` | Machine-readable checksum manifest using `entroping.report-artifact-manifest.v1` plus a local tamper-evident audit chain using `entroping.report-audit-event.v1`; the chain is local state and not committed. |
 | `entroping report evidence-bundle` | `reports/evidence-bundle.json`, or Markdown when `--output` ends in `.md` or `.markdown` | Sanitized design-partner upload-readiness evidence using `entroping.evidence-bundle.v1`; references local artifacts by path, schema, size, checksum, readiness, diagnostics, and local remediation hints without embedding contents, executing fixes, or uploading. |
+| `entroping report design-partner-feedback` | `reports/design-partner-feedback.json` | Schema-valid sanitized product-learning template using `entroping.design-partner-feedback.v1`; records value-free evidence statuses and leaves manual feedback fields for concise sanitized summaries. |
 | `entroping report runtime-card --output md` | `reports/runtime-card.md` | Reviewer-facing PR/runtime evidence card from sanitized local reports, including design-partner pilot readiness when evidence-bundle metadata is present. |
 | `entroping report runtime-card --output json` | `reports/runtime-card.json` | Machine-readable PR/runtime evidence card using `entroping.runtime-card.v1`, including additive `pilot_readiness` evidence. |
 | `entroping report pilot-metrics --output md` | `reports/pilot-metrics.md` | Human-readable local pilot metric inference from sanitized artifacts, with `unknown` and `manual_input_required` states for metrics Entroping cannot infer locally. |
