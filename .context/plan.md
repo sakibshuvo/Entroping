@@ -16,17 +16,18 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #894 Design-Partner Pilot Kit
+## Current Issue Slice: #935 Runtime-Card Pilot Readiness
 
-- Document the target pilot workflow for teams evaluating Entroping on
-  AI-generated backend/API changes.
-- Keep the pilot local-first: sanitized reports, evidence bundles, and runtime
-  cards are shared deliberately; no hosted aggregation or enterprise readiness
-  is claimed.
-- Define setup steps, evidence-bundle acceptance checks, pilot metrics,
-  interview prompts, and a feedback template in existing canonical docs.
-- Link follow-up product work to GitHub issues instead of turning roadmap
-  strategy into implementation truth.
+- Add a value-free `pilot_readiness` section to runtime-card JSON and Markdown
+  output using `reports/evidence-bundle.json` metadata.
+- Summarize evidence-bundle readiness, missing artifacts, invalid artifacts,
+  checksum mismatches, diagnostics, and artifact-manifest audit status without
+  rendering artifact contents.
+- Treat malformed or unsafe evidence-bundle artifacts as explicit
+  `invalid`/`unsafe` pilot-readiness status while other malformed present
+  artifacts still fail closed.
+- Preserve deterministic, local-only report behavior; `entroping run` remains
+  LLM-free and provider-free.
 - Verification lane: `security-runtime`.
 
 ## Current Baseline

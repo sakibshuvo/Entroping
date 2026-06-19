@@ -1,6 +1,7 @@
 """Tests for PR runtime evidence card generation."""
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -107,10 +108,7 @@ def _write_runtime_card_inputs(root: Path, *, project: str = "checkout-api") -> 
     )
     _write_json(
         root / "reports" / "evidence-bundle.json",
-        {
-            "schema_version": "entroping.evidence-bundle.v1",
-            "summary": {"status": "ready"},
-        },
+        _evidence_bundle_payload(status="ready"),
     )
     _write_json(
         root / "reports" / "agent-bundle.json",
@@ -377,7 +375,27 @@ def test_run_runtime_card_report_wraps_artifact_boundary_errors(
                 "schema_version": "entroping.run-report.v1",
                 "project": "checkout-api",
                 "environment": "ci",
+                "summary": {"total": True, "passed": 1, "failed": 0, "exit_code": 0},
+                "tests": [],
+            },
+            "summary.total must be a non-negative integer",
+        ),
+        (
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "checkout-api",
+                "environment": "ci",
                 "summary": {"total": 1, "passed": 1, "failed": 0, "exit_code": "0"},
+                "tests": [],
+            },
+            "summary.exit_code must be an integer",
+        ),
+        (
+            {
+                "schema_version": "entroping.run-report.v1",
+                "project": "checkout-api",
+                "environment": "ci",
+                "summary": {"total": 1, "passed": 1, "failed": 0, "exit_code": False},
                 "tests": [],
             },
             "summary.exit_code must be an integer",
@@ -443,10 +461,21 @@ def test_runtime_card_summarizes_optional_attention_and_verified_paths(
     )
     _write_json(
         tmp_path / "reports" / "evidence-bundle.json",
-        {
-            "schema_version": "entroping.evidence-bundle.v1",
-            "summary": {"status": "not_ready"},
-        },
+        _evidence_bundle_payload(
+            status="not_ready",
+            required_present=2,
+            required_missing=1,
+            required_invalid=1,
+            diagnostics=[
+                {
+                    "severity": "error",
+                    "code": "checksum_mismatch",
+                    "path": "reports/run-latest.json",
+                    "message": "Evidence artifact checksum does not match artifact manifest.",
+                }
+            ],
+            manifest_audit_status="broken",
+        ),
     )
     _write_json(
         tmp_path / "reports" / "agent-bundle.json",
@@ -471,6 +500,11 @@ def test_runtime_card_summarizes_optional_attention_and_verified_paths(
     assert card.redaction.status == "verified"
     assert card.release.artifact_manifest_audit_status == "verified"
     assert card.release.evidence_bundle_status == "not_ready"
+    assert card.pilot_readiness.status == "not_ready"
+    assert card.pilot_readiness.missing_artifacts == 1
+    assert card.pilot_readiness.invalid_artifacts == 1
+    assert card.pilot_readiness.checksum_mismatches == 1
+    assert card.pilot_readiness.manifest_audit_status == "broken"
     assert card.agent_provenance.status == "pass"
     assert "evidence_bundle_attention" in {finding.code for finding in card.findings}
 
@@ -625,13 +659,234 @@ def test_runtime_card_agent_unknown_status_requires_attention(tmp_path: Path) ->
 
 
 def test_runtime_card_markdown_redacts_and_escapes_unsafe_fields(tmp_path: Path) -> None:
-    _write_runtime_card_inputs(tmp_path, project="checkout|api` token=live-secret")
+    _write_runtime_card_inputs(
+        tmp_path,
+        project="checkout|api` token=live-secret\x1b[31m",
+    )
 
     result = run_runtime_card_report(project_root=tmp_path, output="md")
     markdown = render_runtime_card_markdown(result.card)
 
     assert result.output_path == tmp_path / "reports" / "runtime-card.md"
     assert "live-secret" not in markdown
+    assert "\x1b" not in markdown
     assert "token=[REDACTED]" in markdown
     assert "checkout\\|api'" in markdown
     assert "| Run JSON | present | reports/run-latest.json |" in markdown
+
+
+def _evidence_bundle_payload(
+    *,
+    status: str,
+    required_present: int = 3,
+    required_missing: int = 0,
+    required_invalid: int = 0,
+    diagnostics: list[dict[str, object]] | None = None,
+    manifest_audit_status: str = "verified",
+) -> dict[str, object]:
+    diagnostics = diagnostics or []
+    return {
+        "schema_version": "entroping.evidence-bundle.v1",
+        "generated_at": "2026-06-18T00:00:00+00:00",
+        "purpose": "design-partner-upload-readiness",
+        "project": "checkout-api",
+        "summary": {
+            "status": status,
+            "required_total": 3,
+            "required_present": required_present,
+            "required_missing": required_missing,
+            "required_invalid": required_invalid,
+            "artifacts_total": required_present,
+            "diagnostics_total": len(diagnostics),
+        },
+        "artifacts": [],
+        "missing_artifacts": [],
+        "diagnostics": diagnostics,
+        "manifest_audit": {
+            "path": "reports/artifact-manifest.json",
+            "status": manifest_audit_status,
+            "chain_path": ".entroping/report-audit-chain.jsonl",
+            "checked_events": 1,
+            "latest_event_hash": "0" * 64,
+            "diagnostics": [],
+        },
+    }
+
+
+def test_runtime_card_includes_ready_pilot_readiness(tmp_path: Path) -> None:
+    _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
+    _write_verified_capture_summary(tmp_path)
+    _write_json(
+        tmp_path / "reports" / "evidence-bundle.json",
+        _evidence_bundle_payload(status="ready"),
+    )
+
+    result = run_runtime_card_report(project_root=tmp_path, output="md")
+
+    assert result.card.summary.status == "pass"
+    assert result.card.pilot_readiness.status == "ready"
+    assert result.card.pilot_readiness.path == "reports/evidence-bundle.json"
+    assert result.card.pilot_readiness.missing_artifacts == 0
+    assert result.card.pilot_readiness.invalid_artifacts == 0
+    assert result.card.pilot_readiness.checksum_mismatches == 0
+    assert result.card.pilot_readiness.manifest_audit_status == "verified"
+    markdown = result.output_path.read_text(encoding="utf-8")
+    assert "## Pilot Readiness" in markdown
+    assert "- Status: `ready`" in markdown
+    assert "- Missing artifacts: `0`" in markdown
+
+
+def test_runtime_card_marks_missing_pilot_readiness(tmp_path: Path) -> None:
+    _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
+    _write_verified_capture_summary(tmp_path)
+
+    card = build_runtime_card(project_root=tmp_path)
+
+    assert card.summary.status == "pass"
+    assert card.pilot_readiness.status == "missing"
+    assert card.pilot_readiness.path == "reports/evidence-bundle.json"
+    assert card.release.evidence_bundle_status == "missing"
+
+
+def test_runtime_card_marks_malformed_evidence_bundle_invalid(tmp_path: Path) -> None:
+    _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
+    _write_verified_capture_summary(tmp_path)
+    (tmp_path / "reports" / "evidence-bundle.json").write_text("{", encoding="utf-8")
+
+    result = run_runtime_card_report(project_root=tmp_path, output="json")
+
+    assert result.card.summary.status == "fail"
+    assert result.card.pilot_readiness.status == "invalid"
+    assert result.card.release.evidence_bundle_status == "invalid"
+    assert "pilot_readiness_invalid" in {finding.code for finding in result.card.findings}
+
+
+def test_runtime_card_marks_non_utf8_evidence_bundle_invalid(tmp_path: Path) -> None:
+    _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
+    _write_verified_capture_summary(tmp_path)
+    (tmp_path / "reports" / "evidence-bundle.json").write_bytes(b"\xff")
+
+    result = run_runtime_card_report(project_root=tmp_path, output="json")
+
+    assert result.card.summary.status == "fail"
+    assert result.card.pilot_readiness.status == "invalid"
+    assert result.card.release.evidence_bundle_status == "invalid"
+    assert "pilot_readiness_invalid" in {finding.code for finding in result.card.findings}
+
+
+def test_runtime_card_marks_oversized_evidence_bundle_invalid(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
+    _write_verified_capture_summary(tmp_path)
+    _write_json(
+        tmp_path / "reports" / "evidence-bundle.json",
+        _evidence_bundle_payload(status="ready"),
+    )
+    original_stat = Path.stat
+
+    def fake_stat(path: Path, *, follow_symlinks: bool = True) -> os.stat_result:
+        result = original_stat(path, follow_symlinks=follow_symlinks)
+        if path.name != "evidence-bundle.json":
+            return result
+        values = list(result)
+        values[6] = runtime_card._MAX_RUNTIME_CARD_ARTIFACT_BYTES + 1
+        return type(result)(values)
+
+    monkeypatch.setattr(Path, "stat", fake_stat)
+
+    result = run_runtime_card_report(project_root=tmp_path, output="json")
+
+    assert result.card.summary.status == "fail"
+    assert result.card.pilot_readiness.status == "invalid"
+    assert result.card.release.evidence_bundle_status == "invalid"
+    assert "pilot_readiness_invalid" in {finding.code for finding in result.card.findings}
+
+
+def test_runtime_card_marks_unsupported_evidence_bundle_schema_invalid(
+    tmp_path: Path,
+) -> None:
+    _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
+    _write_verified_capture_summary(tmp_path)
+    _write_json(
+        tmp_path / "reports" / "evidence-bundle.json",
+        {"schema_version": "entroping.evidence-bundle.v999"},
+    )
+
+    result = run_runtime_card_report(project_root=tmp_path, output="json")
+
+    assert result.card.summary.status == "fail"
+    assert result.card.pilot_readiness.status == "invalid"
+    assert result.card.pilot_readiness.diagnostics == 1
+    assert result.card.release.evidence_bundle_status == "invalid"
+    assert "pilot_readiness_invalid" in {finding.code for finding in result.card.findings}
+
+
+def test_runtime_card_marks_malformed_evidence_bundle_readiness_invalid(
+    tmp_path: Path,
+) -> None:
+    _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
+    _write_verified_capture_summary(tmp_path)
+    _write_json(
+        tmp_path / "reports" / "evidence-bundle.json",
+        {
+            **_evidence_bundle_payload(status="ready"),
+            "summary": {"status": "unknown"},
+        },
+    )
+
+    result = run_runtime_card_report(project_root=tmp_path, output="json")
+
+    assert result.card.summary.status == "fail"
+    assert result.card.pilot_readiness.status == "invalid"
+    assert result.card.release.evidence_bundle_status == "invalid"
+    assert "pilot_readiness_invalid" in {finding.code for finding in result.card.findings}
+
+
+def test_runtime_card_rejects_boolean_evidence_bundle_readiness_count(
+    tmp_path: Path,
+) -> None:
+    _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
+    _write_verified_capture_summary(tmp_path)
+    payload = _evidence_bundle_payload(status="ready")
+    summary = payload["summary"]
+    assert isinstance(summary, dict)
+    summary["required_missing"] = True
+    _write_json(tmp_path / "reports" / "evidence-bundle.json", payload)
+
+    result = run_runtime_card_report(project_root=tmp_path, output="json")
+
+    assert result.card.summary.status == "fail"
+    assert result.card.pilot_readiness.status == "invalid"
+    assert result.card.release.evidence_bundle_status == "invalid"
+    assert "pilot_readiness_invalid" in {finding.code for finding in result.card.findings}
+
+
+def test_runtime_card_accepts_pilot_readiness_without_manifest_audit(
+    tmp_path: Path,
+) -> None:
+    _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
+    _write_verified_capture_summary(tmp_path)
+    payload = _evidence_bundle_payload(status="ready")
+    payload["manifest_audit"] = None
+    _write_json(tmp_path / "reports" / "evidence-bundle.json", payload)
+
+    result = run_runtime_card_report(project_root=tmp_path, output="json")
+
+    assert result.card.summary.status == "pass"
+    assert result.card.pilot_readiness.status == "ready"
+    assert result.card.pilot_readiness.manifest_audit_status == "missing"
+
+
+def test_runtime_card_marks_unsafe_evidence_bundle_path(tmp_path: Path) -> None:
+    _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
+    _write_verified_capture_summary(tmp_path)
+    (tmp_path / "reports" / "evidence-bundle.json").mkdir()
+
+    result = run_runtime_card_report(project_root=tmp_path, output="json")
+
+    assert result.card.summary.status == "fail"
+    assert result.card.pilot_readiness.status == "unsafe"
+    assert result.card.release.evidence_bundle_status == "unsafe"
+    assert "pilot_readiness_unsafe" in {finding.code for finding in result.card.findings}

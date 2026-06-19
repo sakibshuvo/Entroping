@@ -2,6 +2,12 @@
 
 ## 2026-06-18
 
+- Added issue #935's runtime-card pilot readiness:
+  runtime-card JSON and Markdown now include value-free evidence-bundle
+  readiness status, missing/invalid artifact counts, checksum mismatch counts,
+  diagnostic counts, and artifact-manifest audit status for design-partner
+  pilots while malformed or unsafe evidence-bundle artifacts are summarized as
+  `invalid` or `unsafe` without rendering raw contents.
 - Added issue #894's design-partner pilot kit:
   `docs/user/USER_GUIDE.md` now defines the local-first pilot workflow,
   evidence-bundle acceptance checks, setup steps, metrics, interview prompts,

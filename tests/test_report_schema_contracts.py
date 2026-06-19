@@ -104,6 +104,7 @@ from entroping.core.runtime_card import (
     RuntimeCardArtifact,
     RuntimeCardDriftEvidence,
     RuntimeCardFinding,
+    RuntimeCardPilotReadiness,
     RuntimeCardRedactionEvidence,
     RuntimeCardReleaseEvidence,
     RuntimeCardReport,
@@ -1383,6 +1384,15 @@ def test_runtime_card_v1_schema_contract_is_versioned_and_stable() -> None:
             evidence_bundle_status="ready",
             evidence_links=("reports/evidence-bundle.json", "reports/run-latest.json"),
         ),
+        pilot_readiness=RuntimeCardPilotReadiness(
+            status="ready",
+            path="reports/evidence-bundle.json",
+            missing_artifacts=0,
+            invalid_artifacts=0,
+            checksum_mismatches=0,
+            diagnostics=0,
+            manifest_audit_status="verified",
+        ),
         agent_provenance=RuntimeCardAgentProvenance(
             status="attention",
             configured_roles=2,
@@ -1413,11 +1423,29 @@ def test_runtime_card_v1_schema_contract_is_versioned_and_stable() -> None:
     assert payload["schema_version"] == "entroping.runtime-card.v1"
     assert payload["summary"] == {"status": "fail", "findings": 1, "evidence_links": 2}
     assert payload["run"]["failed_gate_ids"] == ["global_latency"]
+    assert payload["pilot_readiness"] == {
+        "status": "ready",
+        "path": "reports/evidence-bundle.json",
+        "missing_artifacts": 0,
+        "invalid_artifacts": 0,
+        "checksum_mismatches": 0,
+        "diagnostics": 0,
+        "manifest_audit_status": "verified",
+    }
     assert schema["properties"]["schema_version"]["const"] == RUNTIME_CARD_SCHEMA_VERSION
+    assert schema["properties"]["pilot_readiness"]["$ref"] == "#/$defs/pilot_readiness"
+    assert "pilot_readiness" not in schema["required"]
     assert schema["$defs"]["summary"]["properties"]["status"]["enum"] == [
         "pass",
         "attention",
         "fail",
+    ]
+    assert schema["$defs"]["pilot_readiness"]["properties"]["status"]["enum"] == [
+        "ready",
+        "not_ready",
+        "missing",
+        "invalid",
+        "unsafe",
     ]
 
 

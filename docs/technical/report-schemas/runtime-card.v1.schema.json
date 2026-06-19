@@ -41,6 +41,9 @@
     "release": {
       "$ref": "#/$defs/release"
     },
+    "pilot_readiness": {
+      "$ref": "#/$defs/pilot_readiness"
+    },
     "agent_provenance": {
       "$ref": "#/$defs/agent_provenance"
     },
@@ -220,6 +223,52 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "pilot_readiness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "path",
+        "missing_artifacts",
+        "invalid_artifacts",
+        "checksum_mismatches",
+        "diagnostics",
+        "manifest_audit_status"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "ready",
+            "not_ready",
+            "missing",
+            "invalid",
+            "unsafe"
+          ]
+        },
+        "path": {
+          "type": "string"
+        },
+        "missing_artifacts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "invalid_artifacts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "checksum_mismatches": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "diagnostics": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "manifest_audit_status": {
+          "type": "string"
         }
       }
     },

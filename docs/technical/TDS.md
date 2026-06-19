@@ -1238,8 +1238,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report test-quality --output json` | `reports/test-quality.json` | Machine-readable generated-Hurl quality score using `entroping.test-quality-report.v1`. |
 | `entroping report artifact-manifest` | `reports/artifact-manifest.json` and `.entroping/report-audit-chain.jsonl` | Machine-readable checksum manifest using `entroping.report-artifact-manifest.v1` plus a local tamper-evident audit chain using `entroping.report-audit-event.v1`; the chain is local state and not committed. |
 | `entroping report evidence-bundle` | `reports/evidence-bundle.json` | Sanitized design-partner upload-readiness evidence using `entroping.evidence-bundle.v1`; references local artifacts by path, schema, size, and checksum without embedding contents or uploading. |
-| `entroping report runtime-card --output md` | `reports/runtime-card.md` | Reviewer-facing PR/runtime evidence card from sanitized local reports. |
-| `entroping report runtime-card --output json` | `reports/runtime-card.json` | Machine-readable PR/runtime evidence card using `entroping.runtime-card.v1`. |
+| `entroping report runtime-card --output md` | `reports/runtime-card.md` | Reviewer-facing PR/runtime evidence card from sanitized local reports, including design-partner pilot readiness when evidence-bundle metadata is present. |
+| `entroping report runtime-card --output json` | `reports/runtime-card.json` | Machine-readable PR/runtime evidence card using `entroping.runtime-card.v1`, including additive `pilot_readiness` evidence. |
 | `entroping report agent-bundle --output md` | `reports/agent-bundle.md` | Human-readable local multi-agent review bundle from sanitized manifests. |
 | `entroping report agent-bundle --output json` | `reports/agent-bundle.json` | Machine-readable local multi-agent review bundle using `entroping.agent-review-bundle.v1`. |
 | `entroping report traceability --output md|json` | `stdout Markdown/JSON` | Local story/test coverage report. |

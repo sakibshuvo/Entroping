@@ -21,6 +21,8 @@ from entroping.core.safe_write import SafeWriteError, safe_write_text
 from entroping.models.secrets import contains_secret_like_value, redact_secret_like_values
 
 RUNTIME_CARD_SCHEMA_VERSION: Final = "entroping.runtime-card.v1"
+_MAX_RUNTIME_CARD_ARTIFACT_BYTES: Final = 100 * 1024 * 1024
+_ASCII_CONTROL_CHAR_TRANSLATION: Final = {code: " " for code in range(32)}
 
 RuntimeCardOutput = Literal["md", "json"]
 RuntimeCardStatus = Literal["pass", "attention", "fail"]
@@ -29,6 +31,7 @@ RuntimeCardArtifactState = Literal["present", "missing"]
 RuntimeCardDriftStatus = Literal["none", "drift", "missing_baseline", "unknown"]
 RuntimeCardRedactionStatus = Literal["verified", "attention", "missing"]
 RuntimeCardAgentStatus = Literal["pass", "attention", "fail", "missing"]
+RuntimeCardPilotReadinessStatus = Literal["ready", "not_ready", "missing", "invalid", "unsafe"]
 
 _DEFAULT_JSON_OUTPUT: Final = Path("reports") / "runtime-card.json"
 _DEFAULT_MARKDOWN_OUTPUT: Final = Path("reports") / "runtime-card.md"
@@ -146,6 +149,20 @@ class RuntimeCardReleaseEvidence(BaseModel):
     evidence_links: tuple[str, ...] = ()
 
 
+class RuntimeCardPilotReadiness(BaseModel):
+    """Design-partner pilot readiness from sanitized evidence-bundle metadata."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: RuntimeCardPilotReadinessStatus
+    path: str
+    missing_artifacts: int = Field(ge=0)
+    invalid_artifacts: int = Field(ge=0)
+    checksum_mismatches: int = Field(ge=0)
+    diagnostics: int = Field(ge=0)
+    manifest_audit_status: str
+
+
 class RuntimeCardAgentProvenance(BaseModel):
     """Value-free AI-agent provenance evidence."""
 
@@ -189,6 +206,7 @@ class RuntimeCardReport(BaseModel):
     drift: RuntimeCardDriftEvidence
     redaction: RuntimeCardRedactionEvidence
     release: RuntimeCardReleaseEvidence
+    pilot_readiness: RuntimeCardPilotReadiness
     agent_provenance: RuntimeCardAgentProvenance
     artifacts: tuple[RuntimeCardArtifact, ...]
     findings: tuple[RuntimeCardFinding, ...]
@@ -244,7 +262,11 @@ def build_runtime_card(*, project_root: Path) -> RuntimeCardReport:
     drift_doc = _load_artifact(_DRIFT_ARTIFACT, root=root, artifacts=artifacts)
     capture_doc = _load_artifact(_CAPTURE_ARTIFACT, root=root, artifacts=artifacts)
     manifest_doc = _load_artifact(_ARTIFACT_MANIFEST, root=root, artifacts=artifacts)
-    evidence_doc = _load_artifact(_EVIDENCE_BUNDLE, root=root, artifacts=artifacts)
+    evidence_doc, pilot_readiness = _load_evidence_bundle_artifact(
+        root=root,
+        artifacts=artifacts,
+        findings=findings,
+    )
     agent_doc = _load_artifact(_AGENT_BUNDLE, root=root, artifacts=artifacts)
 
     run = _run_evidence(run_doc)
@@ -267,6 +289,7 @@ def build_runtime_card(*, project_root: Path) -> RuntimeCardReport:
         manifest_doc,
         evidence_doc,
         agent_doc,
+        pilot_readiness=pilot_readiness,
         findings=findings,
     )
     agent = _agent_provenance(agent_doc, findings=findings)
@@ -282,6 +305,7 @@ def build_runtime_card(*, project_root: Path) -> RuntimeCardReport:
         drift=drift,
         redaction=redaction,
         release=release,
+        pilot_readiness=pilot_readiness,
         agent_provenance=agent,
         artifacts=tuple(artifacts),
         findings=tuple(findings),
@@ -316,9 +340,21 @@ def render_runtime_card_markdown(card: RuntimeCardReport) -> str:
             f"- Redaction: `{card.redaction.status}` "
             f"({card.redaction.redacted_records}/{card.redaction.total_records} records redacted)",
             f"- Evidence bundle: `{card.release.evidence_bundle_status}`",
+            f"- Pilot readiness: `{card.pilot_readiness.status}`",
             f"- Artifact manifest audit: `{card.release.artifact_manifest_audit_status}`",
             f"- Agent provenance: `{card.agent_provenance.status}` "
             f"({card.agent_provenance.manifests} manifests)",
+            "",
+            "## Pilot Readiness",
+            "",
+            f"- Status: `{card.pilot_readiness.status}`",
+            f"- Evidence bundle: `{_inline_code(card.pilot_readiness.path)}`",
+            f"- Missing artifacts: `{card.pilot_readiness.missing_artifacts}`",
+            f"- Invalid artifacts: `{card.pilot_readiness.invalid_artifacts}`",
+            f"- Checksum mismatches: `{card.pilot_readiness.checksum_mismatches}`",
+            f"- Diagnostics: `{card.pilot_readiness.diagnostics}`",
+            "- Artifact manifest audit: "
+            f"`{_inline_code(card.pilot_readiness.manifest_audit_status)}`",
             "",
             "## Evidence Links",
             "",
@@ -397,6 +433,151 @@ def _load_artifact(
         )
     )
     return document
+
+
+def _load_evidence_bundle_artifact(
+    *,
+    root: Path,
+    artifacts: list[RuntimeCardArtifact],
+    findings: list[RuntimeCardFinding],
+) -> tuple[dict[str, object] | None, RuntimeCardPilotReadiness]:
+    display_path = _EVIDENCE_BUNDLE.path.as_posix()
+    try:
+        path = _resolve_artifact_path(_EVIDENCE_BUNDLE.path, root=root)
+    except RuntimeCardError:
+        findings.append(
+            _finding(
+                "error",
+                "pilot_readiness_unsafe",
+                display_path,
+                "Evidence bundle path is unsafe or not a file.",
+            )
+        )
+        return None, _pilot_readiness(status="unsafe")
+    if not path.exists():
+        artifacts.append(
+            RuntimeCardArtifact(
+                name=_EVIDENCE_BUNDLE.name,
+                path=display_path,
+                state="missing",
+                schema_version=None,
+            )
+        )
+        return None, _pilot_readiness(status="missing")
+    try:
+        document = _load_json_object(path, artifact="evidence bundle")
+    except RuntimeCardError:
+        artifacts.append(
+            RuntimeCardArtifact(
+                name=_EVIDENCE_BUNDLE.name,
+                path=display_path,
+                state="present",
+                schema_version=None,
+            )
+        )
+        findings.append(
+            _finding(
+                "error",
+                "pilot_readiness_invalid",
+                display_path,
+                "Evidence bundle is malformed or not a JSON object.",
+            )
+        )
+        return None, _pilot_readiness(status="invalid", diagnostics=1)
+
+    schema_version = document.get("schema_version")
+    normalized_schema = schema_version if isinstance(schema_version, str) else None
+    artifacts.append(
+        RuntimeCardArtifact(
+            name=_EVIDENCE_BUNDLE.name,
+            path=display_path,
+            state="present",
+            schema_version=normalized_schema,
+        )
+    )
+    if normalized_schema != _EVIDENCE_BUNDLE.schema_version:
+        findings.append(
+            _finding(
+                "error",
+                "pilot_readiness_invalid",
+                display_path,
+                "Evidence bundle schema version is unsupported.",
+            )
+        )
+        return None, _pilot_readiness(status="invalid", diagnostics=1)
+    try:
+        return document, _pilot_readiness_from_document(document)
+    except RuntimeCardError:
+        findings.append(
+            _finding(
+                "error",
+                "pilot_readiness_invalid",
+                display_path,
+                "Evidence bundle readiness metadata is malformed.",
+            )
+        )
+        return None, _pilot_readiness(status="invalid", diagnostics=1)
+
+
+def _pilot_readiness_from_document(document: dict[str, object]) -> RuntimeCardPilotReadiness:
+    summary = _object_field(document, "summary", artifact="evidence bundle")
+    diagnostics = _list_field(document, "diagnostics", artifact="evidence bundle")
+    status_value = summary.get("status")
+    if status_value not in {"ready", "not_ready"}:
+        msg = "Evidence bundle summary status must be ready or not_ready"
+        raise RuntimeCardError(msg)
+    status: RuntimeCardPilotReadinessStatus = (
+        "ready" if status_value == "ready" else "not_ready"
+    )
+    checksum_mismatches = sum(
+        1
+        for diagnostic in diagnostics
+        if isinstance(diagnostic, dict) and diagnostic.get("code") == "checksum_mismatch"
+    )
+    return _pilot_readiness(
+        status=status,
+        missing_artifacts=_non_negative_int(
+            summary.get("required_missing"),
+            field="summary.required_missing",
+        ),
+        invalid_artifacts=_non_negative_int(
+            summary.get("required_invalid"),
+            field="summary.required_invalid",
+        ),
+        checksum_mismatches=checksum_mismatches,
+        diagnostics=_non_negative_int(
+            summary.get("diagnostics_total"),
+            field="summary.diagnostics_total",
+        ),
+        manifest_audit_status=_evidence_bundle_manifest_audit_status(document),
+    )
+
+
+def _pilot_readiness(
+    *,
+    status: RuntimeCardPilotReadinessStatus,
+    missing_artifacts: int = 0,
+    invalid_artifacts: int = 0,
+    checksum_mismatches: int = 0,
+    diagnostics: int = 0,
+    manifest_audit_status: str = "missing",
+) -> RuntimeCardPilotReadiness:
+    return RuntimeCardPilotReadiness(
+        status=status,
+        path=_EVIDENCE_BUNDLE.path.as_posix(),
+        missing_artifacts=missing_artifacts,
+        invalid_artifacts=invalid_artifacts,
+        checksum_mismatches=checksum_mismatches,
+        diagnostics=diagnostics,
+        manifest_audit_status=_safe_text(manifest_audit_status),
+    )
+
+
+def _evidence_bundle_manifest_audit_status(document: dict[str, object]) -> str:
+    audit = document.get("manifest_audit")
+    if not isinstance(audit, dict):
+        return "missing"
+    return _safe_text(_string_value(audit.get("status"), fallback="unknown"))
 
 
 def _run_evidence(document: dict[str, object] | None) -> RuntimeCardRunEvidence | None:
@@ -529,6 +710,7 @@ def _release_evidence(
     evidence_doc: dict[str, object] | None,
     agent_doc: dict[str, object] | None,
     *,
+    pilot_readiness: RuntimeCardPilotReadiness,
     findings: list[RuntimeCardFinding],
 ) -> RuntimeCardReleaseEvidence:
     audit_status = "missing"
@@ -550,22 +732,16 @@ def _release_evidence(
                 )
             )
 
-    evidence_status = "missing"
-    if evidence_doc is not None:
-        summary = evidence_doc.get("summary")
-        if isinstance(summary, dict):
-            evidence_status = _safe_text(
-                _string_value(summary.get("status"), fallback="unknown")
+    evidence_status = pilot_readiness.status
+    if evidence_doc is not None and evidence_status != "ready":
+        findings.append(
+            _finding(
+                "warning",
+                "evidence_bundle_attention",
+                _EVIDENCE_BUNDLE.path.as_posix(),
+                "Evidence bundle is not ready.",
             )
-        if evidence_status != "ready":
-            findings.append(
-                _finding(
-                    "warning",
-                    "evidence_bundle_attention",
-                    _EVIDENCE_BUNDLE.path.as_posix(),
-                    "Evidence bundle is not ready.",
-                )
-            )
+        )
 
     links = tuple(
         artifact.path.as_posix()
@@ -673,12 +849,25 @@ def _low_confidence_categories(document: dict[str, object]) -> tuple[str, ...]:
 
 def _load_json_object(path: Path, *, artifact: str) -> dict[str, object]:
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        msg = f"Could not parse {artifact} {path}: {exc}"
+        if path.stat().st_size > _MAX_RUNTIME_CARD_ARTIFACT_BYTES:
+            msg = (
+                f"{artifact.capitalize()} {path} exceeds "
+                f"{_MAX_RUNTIME_CARD_ARTIFACT_BYTES} bytes"
+            )
+            raise RuntimeCardError(msg)
+        raw_json = path.read_text(encoding="utf-8")
+    except RuntimeCardError:
+        raise
+    except UnicodeDecodeError as exc:
+        msg = f"Could not decode {artifact} {path} as UTF-8: {exc}"
         raise RuntimeCardError(msg) from exc
     except OSError as exc:
         msg = f"Could not read {artifact} {path}: {exc}"
+        raise RuntimeCardError(msg) from exc
+    try:
+        data = json.loads(raw_json)
+    except json.JSONDecodeError as exc:
+        msg = f"Could not parse {artifact} {path}: {exc}"
         raise RuntimeCardError(msg) from exc
     if not isinstance(data, dict):
         msg = f"{artifact.capitalize()} {path} must be a JSON object"
@@ -730,14 +919,14 @@ def _list_field(
 
 
 def _non_negative_int(value: object, *, field: str) -> int:
-    if not isinstance(value, int) or value < 0:
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
         msg = f"Runtime card source field {field} must be a non-negative integer"
         raise RuntimeCardError(msg)
     return value
 
 
 def _int_value(value: object, *, field: str) -> int:
-    if not isinstance(value, int):
+    if not isinstance(value, int) or isinstance(value, bool):
         msg = f"Runtime card source field {field} must be an integer"
         raise RuntimeCardError(msg)
     return value
@@ -774,7 +963,8 @@ def _finding(
 
 
 def _safe_text(value: str) -> str:
-    return redact_secret_like_values(value).replace("\r", " ").replace("\n", " ")
+    sanitized = redact_secret_like_values(value).translate(_ASCII_CONTROL_CHAR_TRANSLATION)
+    return " ".join(sanitized.split())
 
 
 def _contains_unredacted_secret_like_value(value: str) -> bool:
