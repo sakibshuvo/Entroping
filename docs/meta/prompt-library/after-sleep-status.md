@@ -36,27 +36,49 @@ gh run list --repo sakibshuvo/Entroping --limit 20
 python scripts/backlog_health.py
 
 Check:
-1. local dirty files,
-2. untracked files,
+1. Provider evidence:
+   - provider lane,
+   - provider host,
+   - billing path,
+   - model id,
+   - autonomy tier,
+2. local dirty/untracked files,
 3. issue worktrees,
-4. open PRs and CI state,
-5. recently merged PRs,
-6. closed issues,
+4. current repo commit,
+5. open PRs and CI status:
+   - CI pending,
+   - CI failed,
+   - merged but finish cleanup pending,
+   - blocked by Tier B/Tier C scope,
+6. recently merged PRs and closed issues,
 7. failed or stuck Actions runs,
 8. docs/progress drift,
 9. whether any agent left unsafe or duplicate work,
-10. next highest-value issue.
+10. commands run,
+11. dirty files to clean and which issue worktrees to preserve,
+12. skipped gates and why,
+13. next safe action.
 
 Return:
-- current repo status,
+- current repo status and current repo commit,
+- provider lane, provider host, billing path, model id, and autonomy tier,
 - what changed since the last checkpoint,
-- open PRs and CI status,
-- dirty/uncommitted files,
+- open PRs and CI status (classified with the categories above),
+- recently merged PRs and closed issues,
+- failed or stuck Actions runs,
+- docs/progress drift,
+- unsafe or duplicate agent work,
+- dirty and untracked files,
 - worktrees to clean or preserve,
-- issues completed,
-- issues ready next,
-- blockers,
-- recommended next command.
+- commands run,
+- issues completed and blockers,
+- issues ready next only when no stop condition applies,
+- skipped gates and rationale,
+- safe next action with a concrete command.
+
+Status is clear only when every Check item has a concrete answer, any pending or
+failed CI has a stated reason, skipped gates have a stated rationale, and the
+safe next action is a concrete command or an explicit stop.
 
 Do not start new implementation until the status is clear.
 ```
