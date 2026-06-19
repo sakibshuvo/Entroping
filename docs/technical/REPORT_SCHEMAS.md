@@ -172,10 +172,15 @@ entroping report runtime-card --output json
 It writes a concise reviewer-facing card from existing local sanitized evidence:
 `reports/run-latest.json` is the required deterministic runtime source, while
 drift, `reports/capture-summary.json`, artifact manifest, evidence bundle, and
-agent bundle artifacts are summarized when present. Missing required run
-evidence writes a failed card, and missing redaction evidence marks the card for
-reviewer attention. Present malformed artifacts fail closed before output is
-written.
+agent bundle artifacts are summarized when present. The card also emits a
+`pilot_readiness` object from `reports/evidence-bundle.json` with the
+design-partner evidence status, missing-artifact count, invalid-artifact count,
+checksum-mismatch count, diagnostic count, and artifact-manifest audit status.
+Missing required run evidence writes a failed card, and missing redaction
+evidence marks the card for reviewer attention. Malformed or unsafe
+evidence-bundle artifacts are summarized as `invalid` or `unsafe` pilot
+readiness without rendering raw contents; other present malformed artifacts fail
+closed before output is written.
 The card records only summary counts, schema evidence, project-relative local
 artifact links, failed gate IDs, and value-free findings. It does not execute
 Hurl, call providers, upload results, render raw Hurl output, raw traffic,

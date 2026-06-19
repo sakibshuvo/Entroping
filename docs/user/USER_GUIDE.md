@@ -620,12 +620,17 @@ entroping report runtime-card --output json
 The runtime card writes `reports/runtime-card.md` or
 `reports/runtime-card.json`. It requires `reports/run-latest.json` and
 summarizes drift, redaction confidence from `reports/capture-summary.json`,
-release evidence, and agent provenance from existing sanitized artifacts when
-they are present. Missing required run evidence writes a failed card, and
-missing redaction evidence marks the card for reviewer attention. Malformed
-present artifacts fail before output is written. It does not execute Hurl, call
-providers, upload artifacts, or render raw Hurl output, raw traffic, prompts,
-provider responses, credentials, or environment values.
+release evidence, design-partner pilot readiness from
+`reports/evidence-bundle.json`, and agent provenance from existing sanitized
+artifacts when they are present. Pilot readiness shows only the evidence-bundle
+status, missing-artifact count, invalid-artifact count, checksum-mismatch
+count, diagnostic count, and artifact-manifest audit status. Missing required
+run evidence writes a failed card, and missing redaction evidence marks the card
+for reviewer attention. Malformed or unsafe evidence-bundle artifacts are shown
+as `invalid` or `unsafe` pilot readiness without rendering raw contents; other
+malformed present artifacts fail before output is written. It does not execute
+Hurl, call providers, upload artifacts, or render raw Hurl output, raw traffic,
+prompts, provider responses, credentials, or environment values.
 
 Freeze the session into tests:
 
