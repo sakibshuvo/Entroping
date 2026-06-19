@@ -124,6 +124,23 @@ def test_run_evidence_bundle_report_records_missing_required_artifacts(
     assert {diagnostic.code for diagnostic in result.bundle.diagnostics} == {
         "missing_required_artifact"
     }
+    assert {
+        (diagnostic.path, diagnostic.remediation_hint)
+        for diagnostic in result.bundle.diagnostics
+    } == {
+        (
+            "reports/artifact-manifest.json",
+            "entroping report artifact-manifest",
+        ),
+        (
+            "reports/effective-policy.json",
+            "entroping report policy --output json",
+        ),
+        (
+            "reports/run-latest.json",
+            "entroping run --ci --report json",
+        ),
+    }
 
 
 def test_run_evidence_bundle_report_writes_not_ready_markdown_with_next_commands(
@@ -142,12 +159,32 @@ def test_run_evidence_bundle_report_writes_not_ready_markdown_with_next_commands
     assert "| effective_policy | reports/effective-policy.json | missing |" in markdown
     assert "| run_json | reports/run-latest.json | missing |" in markdown
     assert "## Next Local Commands" in markdown
+    assert "| Severity | Code | Path | Message | Remediation |" in markdown
     assert "- `entroping report artifact-manifest`" in markdown
     assert "- `entroping report policy --output json`" in markdown
-    assert "- `entroping run --report json`" in markdown
+    assert "- `entroping run --ci --report json`" in markdown
     assert (
         "- `entroping report evidence-bundle --output reports/evidence-bundle.md`"
         in markdown
+    )
+
+
+def test_run_evidence_bundle_report_markdown_recheck_uses_selected_output_path(
+    tmp_path: Path,
+) -> None:
+    result = run_evidence_bundle_report(
+        project_root=tmp_path,
+        output_path=Path("reports") / "custom-evidence.md",
+    )
+
+    assert result.bundle.summary.status == "not_ready"
+    markdown = result.output_path.read_text(encoding="utf-8")
+    assert "- `entroping report evidence-bundle --output reports/custom-evidence.md`" in (
+        markdown
+    )
+    assert (
+        "- `entroping report evidence-bundle --output reports/evidence-bundle.md`"
+        not in markdown
     )
 
 
@@ -170,12 +207,20 @@ def test_run_evidence_bundle_report_detects_schema_and_checksum_mismatches(
     assert result.bundle.summary.status == "not_ready"
     assert result.bundle.summary.required_invalid == 2
     assert [
-        (diagnostic.code, diagnostic.path)
+        (diagnostic.code, diagnostic.path, diagnostic.remediation_hint)
         for diagnostic in result.bundle.diagnostics
         if diagnostic.path == "reports/run-latest.json"
     ] == [
-        ("schema_mismatch", "reports/run-latest.json"),
-        ("checksum_mismatch", "reports/run-latest.json"),
+        (
+            "schema_mismatch",
+            "reports/run-latest.json",
+            "entroping run --ci --report json",
+        ),
+        (
+            "checksum_mismatch",
+            "reports/run-latest.json",
+            "entroping report artifact-manifest",
+        ),
     ]
 
 
@@ -215,6 +260,8 @@ def test_run_evidence_bundle_report_writes_checksum_and_audit_diagnostics_markdo
     )
     assert "| error | schema_mismatch | reports/run-latest.json |" in markdown
     assert "| error | checksum_mismatch | reports/run-latest.json |" in markdown
+    assert "- `entroping report artifact-manifest`" in markdown
+    assert "- `entroping run --ci --report json`" in markdown
     assert "sk-proj-this-secret-must-not-enter-the-bundle" not in markdown
 
 
@@ -260,6 +307,13 @@ def test_run_evidence_bundle_report_reports_invalid_artifact_manifest(
     assert ("artifact_manifest_invalid", "reports/artifact-manifest.json") in {
         (diagnostic.code, diagnostic.path) for diagnostic in result.bundle.diagnostics
     }
+    assert (
+        "artifact_manifest_invalid",
+        "entroping report artifact-manifest",
+    ) in {
+        (diagnostic.code, diagnostic.remediation_hint)
+        for diagnostic in result.bundle.diagnostics
+    }
     assert result.bundle.manifest_audit is None
 
 
@@ -286,6 +340,13 @@ def test_run_evidence_bundle_report_reports_broken_artifact_manifest_audit(
     assert ("artifact_manifest_audit_broken", "reports/artifact-manifest.json") in {
         (diagnostic.code, diagnostic.path) for diagnostic in result.bundle.diagnostics
     }
+    assert (
+        "artifact_manifest_audit_broken",
+        "entroping report artifact-manifest",
+    ) in {
+        (diagnostic.code, diagnostic.remediation_hint)
+        for diagnostic in result.bundle.diagnostics
+    }
 
 
 @pytest.mark.parametrize(
@@ -310,6 +371,13 @@ def test_run_evidence_bundle_report_marks_unreadable_or_unsupported_schema(
     assert by_path["reports/effective-policy.json"].schema_version == expected_schema
     assert ("schema_mismatch", "reports/effective-policy.json") in {
         (diagnostic.code, diagnostic.path) for diagnostic in result.bundle.diagnostics
+    }
+    assert (
+        "schema_mismatch",
+        "entroping report policy --output json",
+    ) in {
+        (diagnostic.code, diagnostic.remediation_hint)
+        for diagnostic in result.bundle.diagnostics
     }
 
 
@@ -344,14 +412,22 @@ def test_run_evidence_bundle_report_rejects_symlinked_artifact_path(tmp_path: Pa
     target.write_text('{"schema_version":"entroping.run-report.v1"}\n', encoding="utf-8")
     (reports / "run-latest.json").symlink_to(target)
 
-    with pytest.raises(EvidenceBundleError, match="uses symlinked component"):
+    with pytest.raises(
+        EvidenceBundleError,
+        match="entroping run --ci --report json",
+    ) as exc_info:
         run_evidence_bundle_report(project_root=tmp_path)
+    assert str(tmp_path) not in str(exc_info.value)
+    assert "reports/run-latest.json" in str(exc_info.value)
 
 
 def test_run_evidence_bundle_report_rejects_artifact_directory(tmp_path: Path) -> None:
     (tmp_path / "reports" / "run-latest.json").mkdir(parents=True)
 
-    with pytest.raises(EvidenceBundleError, match="is not a file"):
+    with pytest.raises(
+        EvidenceBundleError,
+        match="entroping run --ci --report json",
+    ):
         run_evidence_bundle_report(project_root=tmp_path)
 
 
@@ -423,6 +499,26 @@ def test_run_evidence_bundle_report_rejects_secret_like_metadata_after_build(
         )
 
 
+def test_run_evidence_bundle_report_rejects_secret_metadata_before_markdown_render(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_required_artifacts(tmp_path)
+    monkeypatch.setattr(evidence_bundle, "_safe_metadata_text", lambda value: value)
+
+    def fail_render(*_args: object, **_kwargs: object) -> str:
+        raise AssertionError("renderer should not receive secret-like metadata")
+
+    monkeypatch.setattr(evidence_bundle, "render_evidence_bundle_markdown", fail_render)
+
+    with pytest.raises(EvidenceBundleError, match="secret-like content"):
+        run_evidence_bundle_report(
+            project_root=tmp_path,
+            output_path=Path("reports") / "evidence-bundle.md",
+            purpose="token=live-secret",
+        )
+
+
 def test_run_evidence_bundle_report_rejects_secret_shaped_metadata(
     tmp_path: Path,
 ) -> None:
@@ -436,3 +532,38 @@ def test_run_evidence_bundle_report_rejects_secret_shaped_metadata(
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
     assert payload["purpose"] == "token=[REDACTED]"
     assert "live-secret" not in result.output_path.read_text(encoding="utf-8")
+
+
+def test_render_evidence_bundle_markdown_strips_carriage_returns() -> None:
+    bundle = evidence_bundle.EvidenceBundleReport(
+        generated_at="2026-06-18T00:00:00+00:00",
+        purpose="pilot\rpurpose",
+        project="checkout\rapi",
+        summary=evidence_bundle.EvidenceBundleSummary(
+            status="not_ready",
+            required_total=0,
+            required_present=0,
+            required_missing=0,
+            required_invalid=0,
+            artifacts_total=0,
+            diagnostics_total=1,
+        ),
+        artifacts=(),
+        missing_artifacts=(),
+        diagnostics=(
+            evidence_bundle.EvidenceBundleDiagnostic(
+                severity="error",
+                code="schema\rmismatch",
+                path="reports/run-latest.json",
+                message="bad\rschema",
+                remediation_hint="entroping run --ci --report json",
+            ),
+        ),
+        manifest_audit=None,
+    )
+
+    markdown = evidence_bundle.render_evidence_bundle_markdown(bundle)
+
+    assert "\r" not in markdown
+    assert "pilot purpose" in markdown
+    assert "schema mismatch" in markdown

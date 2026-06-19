@@ -201,6 +201,12 @@
         },
         "message": {
           "type": "string"
+        },
+        "remediation_hint": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       }
     },

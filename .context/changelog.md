@@ -2,6 +2,11 @@
 
 ## 2026-06-18
 
+- Added issue #937's evidence-bundle remediation hints:
+  `entroping report evidence-bundle` now attaches deterministic local
+  next-action commands to missing, malformed, checksum, manifest-audit, and
+  unsafe evidence diagnostics, and Markdown renders those hints without
+  executing commands or uploading evidence.
 - Added issue #936's evidence-bundle Markdown reviewer summary:
   `entroping report evidence-bundle --output reports/evidence-bundle.md` now
   writes a value-free reviewer summary from the existing evidence-bundle data
