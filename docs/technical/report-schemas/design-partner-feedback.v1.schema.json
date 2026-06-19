@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sakibshuvo.github.io/Entroping/schemas/design-partner-feedback.v1.schema.json",
+  "title": "Entroping Design-Partner Feedback v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "recorded_at",
+    "pilot",
+    "evidence",
+    "feedback",
+    "monetization_signals",
+    "follow_up"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.design-partner-feedback.v1"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "pilot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repo_or_service",
+        "ai_assisted_change_type"
+      ],
+      "properties": {
+        "repo_or_service": {
+          "$ref": "#/$defs/sanitized_summary"
+        },
+        "ai_assisted_change_type": {
+          "$ref": "#/$defs/sanitized_summary"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entroping_commands_run",
+        "evidence_bundle_status",
+        "runtime_card_status"
+      ],
+      "properties": {
+        "entroping_commands_run": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sanitized_summary"
+          }
+        },
+        "evidence_bundle_status": {
+          "enum": [
+            "ready",
+            "not_ready",
+            "missing",
+            "invalid",
+            "unsafe",
+            "not_collected"
+          ]
+        },
+        "runtime_card_status": {
+          "enum": [
+            "pass",
+            "attention",
+            "fail",
+            "missing",
+            "not_collected"
+          ]
+        },
+        "pilot_metrics_status": {
+          "enum": [
+            "complete",
+            "partial",
+            "insufficient",
+            "missing",
+            "invalid",
+            "unsafe",
+            "not_collected"
+          ]
+        },
+        "evidence_paths": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/project_relative_path"
+          }
+        }
+      }
+    },
+    "feedback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blocked_regression_or_useful_failure",
+        "false_positive_or_noisy_gate",
+        "missing_evidence",
+        "setup_friction",
+        "security_privacy_concern"
+      ],
+      "properties": {
+        "blocked_regression_or_useful_failure": {
+          "$ref": "#/$defs/nullable_sanitized_summary"
+        },
+        "false_positive_or_noisy_gate": {
+          "$ref": "#/$defs/nullable_sanitized_summary"
+        },
+        "missing_evidence": {
+          "$ref": "#/$defs/nullable_sanitized_summary"
+        },
+        "setup_friction": {
+          "$ref": "#/$defs/nullable_sanitized_summary"
+        },
+        "security_privacy_concern": {
+          "$ref": "#/$defs/nullable_sanitized_summary"
+        }
+      }
+    },
+    "monetization_signals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hosted_aggregation",
+        "premium_policy_packs"
+      ],
+      "properties": {
+        "hosted_aggregation": {
+          "$ref": "#/$defs/pay_signal"
+        },
+        "premium_policy_packs": {
+          "$ref": "#/$defs/pay_signal"
+        }
+      }
+    },
+    "follow_up": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "github_issue",
+        "summary"
+      ],
+      "properties": {
+        "github_issue": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 120
+        },
+        "summary": {
+          "$ref": "#/$defs/sanitized_summary"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sanitized_summary": {
+      "type": "string",
+      "maxLength": 1000
+    },
+    "nullable_sanitized_summary": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 1000
+    },
+    "project_relative_path": {
+      "type": "string",
+      "pattern": "^(?!/)(?!.*\\.\\.).+$",
+      "maxLength": 240
+    },
+    "pay_signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "answer",
+        "reason"
+      ],
+      "properties": {
+        "answer": {
+          "enum": [
+            "yes",
+            "no",
+            "unclear"
+          ]
+        },
+        "reason": {
+          "$ref": "#/$defs/sanitized_summary"
+        }
+      }
+    }
+  }
+}

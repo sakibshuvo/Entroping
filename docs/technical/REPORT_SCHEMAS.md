@@ -33,6 +33,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Evidence bundle | `entroping.evidence-bundle.v1` | `reports/evidence-bundle.json` | [evidence-bundle.v1.schema.json](report-schemas/evidence-bundle.v1.schema.json) |
 | Runtime evidence card | `entroping.runtime-card.v1` | `reports/runtime-card.json` from `entroping report runtime-card --output json` | [runtime-card.v1.schema.json](report-schemas/runtime-card.v1.schema.json) |
 | Pilot metrics | `entroping.pilot-metrics.v1` | `reports/pilot-metrics.json` from `entroping report pilot-metrics --output json` | [pilot-metrics.v1.schema.json](report-schemas/pilot-metrics.v1.schema.json) |
+| Design-partner feedback | `entroping.design-partner-feedback.v1` | `reports/design-partner-feedback.json` schema-only local artifact | [design-partner-feedback.v1.schema.json](report-schemas/design-partner-feedback.v1.schema.json) |
 | Failure bundle manifest | `entroping.failure-bundle.v1` | `reports/failure-bundle/manifest.json` | Inline contract |
 | Coverage badges | Shields endpoint schema v1 | `reports/badges/*.json` | External Shields endpoint format |
 | Agent run manifest | `entroping.agent-run-manifest.v1` | `.entroping/agent-runs/*.json` | [agent-run-manifest.v1.schema.json](report-schemas/agent-run-manifest.v1.schema.json) |
@@ -211,6 +212,19 @@ and agent bundle. It records which metrics are locally `known`, which are
 `manual_input_required` because they depend on design-partner feedback. The
 command does not execute Hurl, call providers, parse raw traffic, read private
 notes, upload artifacts, or render raw report contents.
+
+The design-partner feedback artifact is a schema-only local artifact at
+`reports/design-partner-feedback.json` using
+`entroping.design-partner-feedback.v1`; no CLI writer exists yet. It preserves
+structured product-learning evidence from the design-partner feedback template:
+pilot repo/service, AI-assisted change type, Entroping commands run,
+evidence-bundle status, runtime-card status, concise feedback fields, pay-signal
+answers, and a follow-up GitHub issue pointer. It is not proof of validated
+demand, and it must not contain customer secrets, raw traffic, credentials,
+environment values, prompts, provider outputs, source Hurl contents, or private
+conversation dumps. Treat free-text fields as sanitized summaries, not notes or
+transcripts. Required feedback dimensions may be `null` when there is nothing
+to report for that category.
 
 The drift baseline candidate and active drift baseline share
 `entroping.drift-baseline.v1`. Candidates are written by `run --report drift`;

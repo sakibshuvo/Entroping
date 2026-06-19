@@ -2,6 +2,11 @@
 
 ## 2026-06-19
 
+- Added issue #940's schema-only design-partner feedback artifact:
+  `docs/technical/report-schemas/design-partner-feedback.v1.schema.json`
+  defines sanitized product-learning evidence for
+  `reports/design-partner-feedback.json` without adding a CLI writer, storing
+  sensitive fields, or claiming validated demand.
 - Fixed issue #948's report artifact manifest read boundary:
   `entroping report artifact-manifest` now rejects oversized report artifacts
   before full reads, checksum calculation, or JSON/XML/text schema sniffing,
