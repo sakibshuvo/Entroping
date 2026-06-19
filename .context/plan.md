@@ -16,23 +16,17 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #954 Design-Partner Feedback Artifact Writer
+## Current Issue Slice: #958 Real-Hurl Failure-Boundary Integration Coverage
 
-- Add an explicit local workflow for creating
-  `reports/design-partner-feedback.json` using
-  `entroping.design-partner-feedback.v1`.
-- Generate a schema-valid sanitized template with value-free local evidence
-  statuses from existing evidence-bundle, runtime-card, and pilot-metrics
-  artifacts.
-- Leave manual feedback categories as `null` or `manual input required`; do not
-  collect secrets, raw traffic, credentials, environment values, prompts,
-  provider outputs, source Hurl contents, private conversation dumps, or
-  transcripts.
-- Update the locked command-surface docs intentionally for
-  `entroping report design-partner-feedback [--output <path>]`.
-- Do not execute Hurl, call providers, upload artifacts, read raw traffic, or
-  claim validated demand, enterprise readiness, hosted aggregation readiness, or
-  premium policy-pack readiness.
+- Expand installed-CLI integration tests that skip cleanly when Hurl is not
+  installed and execute through the production Hurl subprocess path when it is.
+- Cover high-risk failure boundaries: nonzero Hurl assertion failure, sanitized
+  stdout/stderr evidence, variable-value redaction, timeout status mapping,
+  latest-run/report JSON consistency, run-event evidence consistency, source
+  `.hurl` immutability, and temporary execution cleanup.
+- Do not replace Hurl with Python HTTP clients, call providers from
+  `entroping run`, weaken subprocess/path safety, or change the locked CLI
+  surface.
 - Verification lane: `security-runtime`.
 
 ## Current Baseline
