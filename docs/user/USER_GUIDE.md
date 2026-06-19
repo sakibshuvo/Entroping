@@ -475,6 +475,7 @@ Score generated Hurl tests before asking agents to repair them:
 ```bash
 entroping report test-quality --output md
 entroping report test-quality --output json
+entroping report test-quality --output json --fail-under 80
 ```
 
 The generated-test quality report writes `reports/test-quality.md` or
@@ -484,7 +485,9 @@ missing auth/security metadata, shallow schema checks, overfitted examples, and
 operation traceability gaps. It does not execute Hurl, inject QAnstitution
 gates, call providers, upload artifacts, or print raw Hurl values. Use the
 score to guide human or AI repair proposals; do not treat it as a replacement
-for `entroping run` or QAnstitution enforcement.
+for `entroping run` or QAnstitution enforcement. Add `--fail-under <0-100>` in
+CI when a team has agreed on a minimum generated-test quality floor; the report
+is still written before the command exits nonzero.
 
 Write checksum evidence for the local report artifacts:
 

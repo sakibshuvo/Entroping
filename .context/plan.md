@@ -16,19 +16,19 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #960 Bounded Performance Smoke Regression Gate
+## Current Issue Slice: #968 Generated-Test Quality Threshold Gate
 
-- Wire the existing deterministic performance smoke into the quality-audit lane
-  so pull-request CI enforces bounded large-suite, report, and traffic-store
-  evidence without adding a flaky benchmark suite.
-- Keep the smoke value-free and local: fake Hurl binary, local temporary
-  workspace, ignored JSON evidence under `reports/performance-smoke.json`, no
-  network calls, no providers, and no raw traffic.
-- Prove the audit script documents the new gate, dry-run output lists it, and
-  public testing docs explain the CI-enforced path.
-- Preserve the separate scheduled/manual performance-smoke workflow as
-  additional trend-review evidence.
-- Verification lane: `release-ci-architecture`.
+- Add an optional `--fail-under <0-100>` guard to
+  `entroping report test-quality` so CI can fail after writing static
+  generated-Hurl quality evidence when the reviewed score floor is not met.
+- Keep the default command exit behavior unchanged: valid weak or missing
+  generated-test evidence still writes a report and exits `0` unless the user
+  opts into a threshold.
+- Preserve report schema compatibility and the core boundary: the threshold
+  gate does not execute Hurl, call providers, upload artifacts, render raw Hurl
+  values, or replace QAnstitution/Hurl pass-fail authority.
+- Verification lane: `security-runtime` because the PR guard classifies
+  report-evidence CLI tests as a sensitive surface.
 
 ## Current Baseline
 
@@ -41,6 +41,9 @@ project, and a Codex workspace with fast context rehydration.
   lanes while preserving command compatibility.
 - `scripts/audit_quality.sh` runs `scripts/performance_smoke.py` and writes
   `reports/performance-smoke.json` as PR-enforced bounded performance evidence.
+- `entroping report test-quality --fail-under <0-100>` can turn static
+  generated-test quality evidence into an explicit CI threshold while preserving
+  the report schema and default evidence-only behavior.
 - Pydantic QAnstitution models and typed condition parsing are in place.
 - Runtime `ignore_failures` exceptions are deterministic: active entries skip
   only matching Entroping-injected QAnstitution gates in temporary execution

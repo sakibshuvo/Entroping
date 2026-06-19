@@ -72,6 +72,71 @@ def test_report_test_quality_writes_markdown_report_by_default(
     assert "profile_auth.hurl" in markdown
 
 
+def test_report_test_quality_passes_when_score_meets_fail_under_threshold(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_generated_test(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "test-quality", "--output", "json", "--fail-under", "80"],
+    )
+
+    assert result.exit_code == 0
+    assert Path("reports/test-quality.json").exists()
+    payload = json.loads(Path("reports/test-quality.json").read_text(encoding="utf-8"))
+    assert payload["summary"]["generated_tests"] == 1
+
+
+def test_report_test_quality_fails_after_writing_when_score_is_below_threshold(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "test-quality", "--fail-under", "1"])
+
+    assert result.exit_code == 1
+    assert "below required threshold 1" in result.output
+    markdown = Path("reports/test-quality.md").read_text(encoding="utf-8")
+    assert "Status: missing" in markdown
+
+
+def test_report_test_quality_fails_after_writing_json_when_score_is_below_threshold(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "test-quality", "--output", "json", "--fail-under", "1"],
+    )
+
+    assert result.exit_code == 1
+    assert "below required threshold 1" in result.output
+    payload = json.loads(Path("reports/test-quality.json").read_text(encoding="utf-8"))
+    assert payload["summary"]["status"] == "missing"
+
+
+@pytest.mark.parametrize("threshold", ["-1", "101"])
+def test_report_test_quality_rejects_invalid_fail_under_before_writing(
+    threshold: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_generated_test(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "test-quality", "--fail-under", threshold])
+
+    assert result.exit_code == 2
+    assert "Invalid value" in result.output
+    assert not Path("reports/test-quality.md").exists()
+
+
 def test_report_test_quality_rejects_unsupported_output(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

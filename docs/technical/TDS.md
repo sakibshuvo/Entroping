@@ -1118,13 +1118,15 @@ strings, headers, bodies, variables, or captured traffic values.
 `entroping report test-quality --output md|json` discovers committed generated
 Hurl tests under `tests/generated/` or tests carrying generated metadata, then
 writes `reports/test-quality.md` or `reports/test-quality.json` with schema
-`entroping.test-quality-report.v1`. The score is static review evidence over
+`entroping.test-quality-report.v1`. `--fail-under <0-100>` is an optional CI
+gate that still writes the requested report, then exits `1` when the static
+score is below the reviewed threshold. The score is static review evidence over
 generated test structure: assertion strength, positional selectors, negative
 coverage metadata, auth/security metadata, schema-check depth, overfitted
 examples, and traceability metadata. It does not execute Hurl, inject gates,
 call model providers, upload artifacts, render raw Hurl values, or replace
 QAnstitution/Hurl pass-fail authority. A weak score should guide repair
-proposals and review, not silently approve or reject runtime behavior.
+proposals and review; only an explicit threshold turns it into a CI guardrail.
 
 `entroping report artifact-manifest` writes `reports/artifact-manifest.json`
 by default with project-relative report paths, schema versions when available,
@@ -1287,6 +1289,7 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report gate-injection --output json` | `reports/gate-injection.json` | Machine-readable gate-injection explanation using `entroping.gate-injection-report.v1`. |
 | `entroping report test-quality --output md` | `reports/test-quality.md` | Human-readable generated-Hurl quality score. |
 | `entroping report test-quality --output json` | `reports/test-quality.json` | Machine-readable generated-Hurl quality score using `entroping.test-quality-report.v1`. |
+| `entroping report test-quality --fail-under <0-100>` | `reports/test-quality.md` or `reports/test-quality.json` | Optional threshold gate over static generated-Hurl quality evidence. |
 | `entroping report artifact-manifest` | `reports/artifact-manifest.json` and `.entroping/report-audit-chain.jsonl` | Machine-readable checksum manifest using `entroping.report-artifact-manifest.v1` plus a local tamper-evident audit chain using `entroping.report-audit-event.v1`; the chain is local state and not committed. |
 | `entroping report evidence-bundle` | `reports/evidence-bundle.json`, or Markdown when `--output` ends in `.md` or `.markdown` | Sanitized design-partner upload-readiness evidence using `entroping.evidence-bundle.v1`; references local artifacts by path, schema, size, checksum, readiness, diagnostics, and local remediation hints without embedding contents, executing fixes, or uploading. |
 | `entroping report design-partner-feedback` | `reports/design-partner-feedback.json` | Schema-valid sanitized product-learning template using `entroping.design-partner-feedback.v1`; records value-free evidence statuses and leaves manual feedback fields for concise sanitized summaries. |
