@@ -16,17 +16,18 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #957 Report Command Help Classification
+## Current Issue Slice: #960 Bounded Performance Smoke Regression Gate
 
-- Classify the existing `entroping report` command surface into
-  launch-critical, stable-public, maintainer/baseline, and experimental
-  design-partner evidence lanes.
-- Preserve the locked v4.1 command names, flags, deterministic report
-  generation, and artifact schemas; this issue changes help discovery only.
-- Prove `entroping report --help` prioritizes first-hour handoff commands while
-  keeping stable, maintainer, and experimental commands visible.
-- Update canonical command documentation without creating new docs or removing
-  any report command.
+- Wire the existing deterministic performance smoke into the quality-audit lane
+  so pull-request CI enforces bounded large-suite, report, and traffic-store
+  evidence without adding a flaky benchmark suite.
+- Keep the smoke value-free and local: fake Hurl binary, local temporary
+  workspace, ignored JSON evidence under `reports/performance-smoke.json`, no
+  network calls, no providers, and no raw traffic.
+- Prove the audit script documents the new gate, dry-run output lists it, and
+  public testing docs explain the CI-enforced path.
+- Preserve the separate scheduled/manual performance-smoke workflow as
+  additional trend-review evidence.
 - Verification lane: `release-ci-architecture`.
 
 ## Current Baseline
@@ -38,6 +39,8 @@ project, and a Codex workspace with fast context rehydration.
 - `entroping report --help` classifies existing commands by launch-critical,
   stable-public, maintainer/baseline, and experimental design-partner evidence
   lanes while preserving command compatibility.
+- `scripts/audit_quality.sh` runs `scripts/performance_smoke.py` and writes
+  `reports/performance-smoke.json` as PR-enforced bounded performance evidence.
 - Pydantic QAnstitution models and typed condition parsing are in place.
 - Runtime `ignore_failures` exceptions are deterministic: active entries skip
   only matching Entroping-injected QAnstitution gates in temporary execution
