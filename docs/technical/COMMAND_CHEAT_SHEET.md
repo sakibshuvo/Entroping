@@ -40,6 +40,7 @@ entroping report test-quality [--output <md|json>]
 entroping report artifact-manifest [--output <path>]
 entroping report evidence-bundle [--output <path>]
 entroping report runtime-card [--output <md|json>]
+entroping report pilot-metrics [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
@@ -365,6 +366,8 @@ Advanced evidence commands:
 | `entroping report test-quality --output json` | Write machine-readable generated-Hurl quality evidence to `reports/test-quality.json` |
 | `entroping report artifact-manifest` | Write checksum evidence for local report artifacts to `reports/artifact-manifest.json` |
 | `entroping report evidence-bundle` | Write a sanitized local design-partner upload-readiness bundle to `reports/evidence-bundle.json` |
+| `entroping report pilot-metrics --output md` | Write local design-partner pilot metric inference to `reports/pilot-metrics.md` |
+| `entroping report pilot-metrics --output json` | Write machine-readable pilot metric inference to `reports/pilot-metrics.json` |
 | `entroping report agent-bundle --output md` | Write a local multi-agent review bundle to `reports/agent-bundle.md` |
 | `entroping report agent-bundle --output json` | Write machine-readable Builder/Breaker/Auditor evidence to `reports/agent-bundle.json` |
 | `entroping report traceability --output md` | Generate a local Markdown story/test traceability report |
@@ -389,6 +392,7 @@ entroping report test-quality --output md
 entroping report artifact-manifest
 entroping report evidence-bundle
 entroping report runtime-card
+entroping report pilot-metrics
 entroping report agent-bundle --scope tests/generated
 entroping report traceability --output md
 entroping report traceability --output json > reports/traceability.json

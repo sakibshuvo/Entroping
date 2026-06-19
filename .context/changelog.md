@@ -1,5 +1,16 @@
 # Entroping Changelog
 
+## 2026-06-19
+
+- Added issue #939's local pilot metrics report:
+  `entroping report pilot-metrics --output md|json` now summarizes
+  design-partner pilot metrics from existing sanitized local artifacts, infers
+  evidence-bundle ready rate and waived-gate count when source evidence is
+  present, and marks setup time, useful failures, false positives, and human
+  steering as `manual_input_required` without executing Hurl, calling
+  providers, uploading artifacts, parsing raw traffic, or rendering raw report
+  contents.
+
 ## 2026-06-18
 
 - Added issue #937's evidence-bundle remediation hints:

@@ -67,6 +67,11 @@ from entroping.core.github_annotations import (
     render_github_annotation,
 )
 from entroping.core.hurl_discovery import discover_hurl_tests
+from entroping.core.pilot_metrics import (
+    PilotMetricsError,
+    PilotMetricsOutput,
+    run_pilot_metrics_report,
+)
 from entroping.core.redaction_review_report import (
     RedactionReviewError,
     RedactionReviewOutput,
@@ -565,6 +570,39 @@ def report_runtime_card(
 
     console.print(f"Wrote runtime evidence card: {display_cli_path(result.output_path)}")
     raise typer.Exit(0 if result.card.summary.status == "pass" else 1)
+
+
+@app.command("pilot-metrics", rich_help_panel=ADVANCED_REPORT_PANEL)
+def report_pilot_metrics(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write local pilot metrics inferred from sanitized report artifacts."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported pilot metrics output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_pilot_metrics_report(
+            project_root=Path.cwd(),
+            output=cast(PilotMetricsOutput, normalized_output),
+        )
+    except PilotMetricsError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(
+        "Wrote pilot metrics report: "
+        f"{display_cli_path(result.output_path)} "
+        f"({result.report.summary.status}, "
+        f"{result.report.summary.metrics_known}/"
+        f"{result.report.summary.metrics_total} known)"
+    )
+    raise typer.Exit(0)
 
 
 @app.command("agent-bundle", rich_help_panel=ADVANCED_REPORT_PANEL)

@@ -532,7 +532,8 @@ Target workflow:
 4. Attach only sanitized evidence to the review or pilot discussion:
    `reports/run-latest.json`, `reports/effective-policy.json`,
    `reports/artifact-manifest.json`, `reports/evidence-bundle.json`, and
-   `reports/evidence-bundle.md` or `reports/runtime-card.md` when present.
+   `reports/evidence-bundle.md`, `reports/runtime-card.md`, or
+   `reports/pilot-metrics.md` when present.
 5. Convert every product gap, confusing error, false positive, missing report,
    or adoption blocker into a narrow GitHub issue before expanding scope.
 
@@ -547,6 +548,7 @@ entroping report artifact-manifest
 entroping report evidence-bundle
 entroping report evidence-bundle --output reports/evidence-bundle.md
 entroping report runtime-card
+entroping report pilot-metrics
 ```
 
 Design-partner evidence-bundle acceptance checks:
@@ -569,16 +571,19 @@ Design-partner evidence-bundle acceptance checks:
 
 Pilot metrics:
 
-- Time from checkout to first `entroping run --ci` result.
-- Time from failed AI-generated change to a reviewer-understandable runtime
-  card.
-- Percent of AI-assisted API PRs with attached run and evidence-bundle
-  evidence.
-- Evidence-bundle `ready` rate and most common `not_ready` diagnostics.
-- Number of escaped API regressions, blocked regressions, false positives, and
-  manually waived gates.
-- Human steering required: commands retried, docs consulted, and maintainer
-  help needed.
+- Run `entroping report pilot-metrics` for a local value-free summary before
+  sharing pilot evidence. The report infers only what existing sanitized
+  artifacts prove and marks the rest as `unknown` or
+  `manual_input_required`.
+- Locally inferred today: evidence-bundle `ready` rate from
+  `reports/evidence-bundle.json` and manually waived gate count from
+  run-report known-failure evidence.
+- Manual input still required: setup time, useful failures, false positives,
+  and human steering because those need design-partner or reviewer feedback.
+- Track outside Entroping when needed: time from checkout to first
+  `entroping run --ci` result, time from failed AI-generated change to a
+  reviewer-understandable runtime card, escaped regressions, blocked
+  regressions, commands retried, docs consulted, and maintainer help needed.
 - Whether the engineering lead would pay for cross-repo evidence aggregation,
   premium policy packs, or managed policy workflows after seeing the local
   evidence loop.
@@ -890,6 +895,7 @@ entroping report gate-coverage --output json
 entroping report gate-injection --target tests/health.hurl --output json
 entroping report artifact-manifest
 entroping report runtime-card --output json
+entroping report pilot-metrics --output json
 entroping architect audit --focus logic --output json > reports/openapi-audit.json
 entroping report traceability --output json > reports/traceability.json
 entroping report badges

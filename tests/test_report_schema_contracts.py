@@ -74,6 +74,13 @@ from entroping.core.evidence_bundle import (
     EvidenceBundleReport,
     EvidenceBundleSummary,
 )
+from entroping.core.pilot_metrics import (
+    PILOT_METRICS_SCHEMA_VERSION,
+    PilotEvidenceSource,
+    PilotMetric,
+    PilotMetricsReport,
+    PilotMetricsSummary,
+)
 from entroping.core.report_artifact_manifest import (
     REPORT_ARTIFACT_MANIFEST_SCHEMA_VERSION,
     ReportArtifactAuditCommand,
@@ -1458,6 +1465,147 @@ def test_runtime_card_v1_schema_contract_is_versioned_and_stable() -> None:
     ]
 
 
+def test_pilot_metrics_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "pilot-metrics.v1.schema.json").read_text())
+    report = PilotMetricsReport(
+        generated_at="2026-06-19T00:00:00+00:00",
+        project="checkout-api",
+        summary=PilotMetricsSummary(
+            status="partial",
+            metrics_total=6,
+            metrics_known=2,
+            metrics_unknown=0,
+            metrics_manual_input_required=4,
+            sources_total=5,
+            sources_present=2,
+            sources_missing=3,
+            sources_invalid=0,
+            sources_unsafe=0,
+        ),
+        metrics=(
+            PilotMetric(
+                id="evidence_bundle_ready_rate",
+                label="Evidence bundle ready rate",
+                state="known",
+                value=1.0,
+                unit="ratio",
+                numerator=1,
+                denominator=1,
+                summary="One local evidence bundle is ready.",
+                source_paths=("reports/evidence-bundle.json",),
+            ),
+            PilotMetric(
+                id="setup_time_minutes",
+                label="Setup time",
+                state="manual_input_required",
+                value=None,
+                unit="minutes",
+                numerator=None,
+                denominator=None,
+                summary="Requires design-partner timing input.",
+                source_paths=(),
+            ),
+        ),
+        sources=(
+            PilotEvidenceSource(
+                id="evidence_bundle",
+                label="Evidence bundle",
+                path="reports/evidence-bundle.json",
+                state="present",
+                schema_version="entroping.evidence-bundle.v1",
+                summary="ready",
+            ),
+            PilotEvidenceSource(
+                id="runtime_card",
+                label="Runtime card",
+                path="reports/runtime-card.json",
+                state="missing",
+                schema_version=None,
+                summary="Artifact is missing.",
+            ),
+        ),
+    )
+
+    payload = report.model_dump(mode="json")
+
+    assert PILOT_METRICS_SCHEMA_VERSION == "entroping.pilot-metrics.v1"
+    assert payload == {
+        "schema_version": "entroping.pilot-metrics.v1",
+        "generated_at": "2026-06-19T00:00:00+00:00",
+        "project": "checkout-api",
+        "summary": {
+            "status": "partial",
+            "metrics_total": 6,
+            "metrics_known": 2,
+            "metrics_unknown": 0,
+            "metrics_manual_input_required": 4,
+            "sources_total": 5,
+            "sources_present": 2,
+            "sources_missing": 3,
+            "sources_invalid": 0,
+            "sources_unsafe": 0,
+        },
+        "metrics": [
+            {
+                "id": "evidence_bundle_ready_rate",
+                "label": "Evidence bundle ready rate",
+                "state": "known",
+                "value": 1.0,
+                "unit": "ratio",
+                "numerator": 1,
+                "denominator": 1,
+                "summary": "One local evidence bundle is ready.",
+                "source_paths": ["reports/evidence-bundle.json"],
+            },
+            {
+                "id": "setup_time_minutes",
+                "label": "Setup time",
+                "state": "manual_input_required",
+                "value": None,
+                "unit": "minutes",
+                "numerator": None,
+                "denominator": None,
+                "summary": "Requires design-partner timing input.",
+                "source_paths": [],
+            },
+        ],
+        "sources": [
+            {
+                "id": "evidence_bundle",
+                "label": "Evidence bundle",
+                "path": "reports/evidence-bundle.json",
+                "state": "present",
+                "schema_version": "entroping.evidence-bundle.v1",
+                "summary": "ready",
+            },
+            {
+                "id": "runtime_card",
+                "label": "Runtime card",
+                "path": "reports/runtime-card.json",
+                "state": "missing",
+                "schema_version": None,
+                "summary": "Artifact is missing.",
+            },
+        ],
+    }
+    assert schema["properties"]["schema_version"]["const"] == PILOT_METRICS_SCHEMA_VERSION
+    assert schema["$defs"]["summary"]["properties"]["status"]["enum"] == [
+        "partial",
+        "insufficient",
+    ]
+    assert schema["$defs"]["metric"]["properties"]["state"]["enum"] == [
+        "known",
+        "unknown",
+        "manual_input_required",
+    ]
+    assert schema["$defs"]["source"]["properties"]["state"]["enum"] == [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe",
+    ]
+
+
 def test_effective_policy_diff_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "effective-policy-diff.v1.schema.json").read_text())
     base = EffectivePolicyReport(
@@ -1662,6 +1810,7 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         ),
         "entroping.evidence-bundle.v1": SCHEMA_DIR / "evidence-bundle.v1.schema.json",
         "entroping.runtime-card.v1": SCHEMA_DIR / "runtime-card.v1.schema.json",
+        "entroping.pilot-metrics.v1": SCHEMA_DIR / "pilot-metrics.v1.schema.json",
         "entroping.agent-review-bundle.v1": (SCHEMA_DIR / "agent-review-bundle.v1.schema.json"),
         "entroping.traffic-artifact-approval.v1": (
             SCHEMA_DIR / "traffic-artifact-approval.v1.schema.json"

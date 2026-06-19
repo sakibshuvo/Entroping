@@ -756,6 +756,7 @@ Reports are written under `reports/`.
 | Artifact Manifest | `report artifact-manifest` | Checksum manifest for local report artifacts |
 | Evidence Bundle | `report evidence-bundle` | Sanitized local upload-readiness evidence |
 | Runtime Evidence Card | `report runtime-card` | Concise PR/runtime proof card from local reports |
+| Pilot Metrics | `report pilot-metrics` | Local pilot metric inference from sanitized evidence |
 | Agent Review Bundle | `report agent-bundle` | Local Builder/Breaker/Auditor evidence from sanitized manifests |
 | Traceability Markdown/JSON | `report traceability --output md|json` | Local story/test coverage review |
 | GitHub Annotations | `report github-annotations` | Pull request workflow-command annotations |
@@ -922,6 +923,7 @@ entroping report test-quality [--output <md|json>]
 entroping report artifact-manifest [--output <path>]
 entroping report evidence-bundle [--output <path>]
 entroping report runtime-card [--output <md|json>]
+entroping report pilot-metrics [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
 entroping report github-annotations [--junit <path>] [--drift <path>] [--traceability] [--max-annotations <n>]
@@ -1201,6 +1203,19 @@ written. The card does not execute Hurl, call providers, upload results, or
 render raw Hurl output, raw traffic, prompts, provider responses, credentials,
 or environment values.
 
+`entroping report pilot-metrics` writes a local design-partner pilot metric
+report at `reports/pilot-metrics.md` by default, or
+`reports/pilot-metrics.json` with `--output json`. It reads only existing
+sanitized local artifacts: `reports/run-latest.json`,
+`reports/runtime-card.json`, `reports/evidence-bundle.json`,
+`reports/artifact-manifest.json`, and `reports/agent-bundle.json`. It can infer
+evidence-bundle ready rate from the evidence bundle and waived-gate count from
+run-report known-failure evidence. Setup time, useful failures, false positives,
+and human steering remain explicit `manual_input_required` metrics because they
+need design-partner or reviewer input. Missing, malformed, or unsafe artifacts
+are recorded as `unknown` source-backed metric states instead of causing hosted
+uploads, Hurl execution, provider calls, or raw artifact rendering.
+
 `entroping report sarif` writes SARIF 2.1.0 to `reports/entroping.sarif` by
 default. It converts the same local JUnit, drift, and optional traceability
 findings used by GitHub annotation output into stable SARIF rule IDs, severity,
@@ -1244,6 +1259,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report evidence-bundle` | `reports/evidence-bundle.json`, or Markdown when `--output` ends in `.md` or `.markdown` | Sanitized design-partner upload-readiness evidence using `entroping.evidence-bundle.v1`; references local artifacts by path, schema, size, checksum, readiness, diagnostics, and local remediation hints without embedding contents, executing fixes, or uploading. |
 | `entroping report runtime-card --output md` | `reports/runtime-card.md` | Reviewer-facing PR/runtime evidence card from sanitized local reports, including design-partner pilot readiness when evidence-bundle metadata is present. |
 | `entroping report runtime-card --output json` | `reports/runtime-card.json` | Machine-readable PR/runtime evidence card using `entroping.runtime-card.v1`, including additive `pilot_readiness` evidence. |
+| `entroping report pilot-metrics --output md` | `reports/pilot-metrics.md` | Human-readable local pilot metric inference from sanitized artifacts, with `unknown` and `manual_input_required` states for metrics Entroping cannot infer locally. |
+| `entroping report pilot-metrics --output json` | `reports/pilot-metrics.json` | Machine-readable local pilot metric inference using `entroping.pilot-metrics.v1`. |
 | `entroping report agent-bundle --output md` | `reports/agent-bundle.md` | Human-readable local multi-agent review bundle from sanitized manifests. |
 | `entroping report agent-bundle --output json` | `reports/agent-bundle.json` | Machine-readable local multi-agent review bundle using `entroping.agent-review-bundle.v1`. |
 | `entroping report traceability --output md|json` | `stdout Markdown/JSON` | Local story/test coverage report. |
