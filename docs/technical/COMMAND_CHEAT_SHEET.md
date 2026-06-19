@@ -331,28 +331,27 @@ Variables can come from `envs/<name>.env`, explicit shell
 
 ## Reporting
 
-`entroping report --help` groups first-hour CI/review commands under
-`Core CI And Review` and keeps deeper local evidence commands under
-`Advanced Evidence`. The command names remain stable; the grouping is only a
-discovery aid.
+`entroping report --help` groups commands by launch readiness and audience:
+first-hour handoff commands appear under `Launch-Critical Reports`, durable
+local evidence commands under `Stable Public Reports`, operator/debug commands
+under `Maintainer And Baseline Tools`, and design-partner pilot evidence under
+`Experimental Design-Partner Evidence`. The command names remain stable; the
+grouping is only a discovery aid.
 
-Core CI/review commands:
+Launch-critical report commands:
 
 | Command | Purpose |
 | --- | --- |
 | `entroping report bug` | Generate a Markdown bug report from the latest failure |
-| `entroping report delta --base <path> --current <path>` | Compare two JSON run reports and emit deterministic Markdown or JSON delta output |
-| `entroping report github-annotations` | Emit GitHub Actions workflow-command annotations from local reports |
-| `entroping report sarif` | Write SARIF 2.1.0 code-scanning evidence to `reports/entroping.sarif` |
+| `entroping report failure-bundle` | Write a sanitized issue handoff bundle to `reports/failure-bundle/manifest.json` |
 | `entroping report runtime-card` | Write a concise PR/runtime evidence card to `reports/runtime-card.md` |
 | `entroping report review-summary --output md` | Write a provider-neutral Markdown review summary to `reports/review-summary.md` |
 
-Advanced evidence commands:
+Stable public report commands:
 
 | Command | Purpose |
 | --- | --- |
-| `entroping report failure-bundle` | Write a sanitized issue handoff bundle to `reports/failure-bundle/manifest.json` |
-| `entroping report badges` | Write local Shields endpoint JSON badges to `reports/badges/` |
+| `entroping report delta --base <path> --current <path>` | Compare two JSON run reports and emit deterministic Markdown or JSON delta output |
 | `entroping report redaction --output md` | Write a counts-only captured-traffic redaction review to `reports/redaction-review.md` |
 | `entroping report redaction --output html` | Write a browser-readable redaction review to `reports/redaction-review.html` |
 | `entroping report capture-summary --output md` | Write a safe captured-traffic session summary to `reports/capture-summary.md` |
@@ -362,19 +361,32 @@ Advanced evidence commands:
 | `entroping report policy-diff --base <path> --current <path>` | Compare two effective-policy JSON artifacts and emit Markdown or JSON to stdout; add `--fail-on-change` to make effective-policy drift fail CI |
 | `entroping report gate-coverage --output md` | Write a policy gate coverage matrix to `reports/gate-coverage.md` |
 | `entroping report gate-coverage --output json` | Write machine-readable gate coverage evidence to `reports/gate-coverage.json` |
+| `entroping report traceability --output md` | Generate a local Markdown story/test traceability report |
+| `entroping report traceability --output json` | Emit machine-readable traceability JSON for badges or downstream tools |
+| `entroping report github-annotations` | Emit GitHub Actions workflow-command annotations from local reports |
+| `entroping report sarif` | Write SARIF 2.1.0 code-scanning evidence to `reports/entroping.sarif` |
+
+Maintainer and baseline tools:
+
+| Command | Purpose |
+| --- | --- |
+| `entroping report badges` | Write local Shields endpoint JSON badges to `reports/badges/` |
 | `entroping report gate-injection --target <path>` | Explain selected-file gate injection without running Hurl or mutating sources |
 | `entroping report test-quality --output md` | Write a static generated-Hurl quality score to `reports/test-quality.md` |
 | `entroping report test-quality --output json` | Write machine-readable generated-Hurl quality evidence to `reports/test-quality.json` |
 | `entroping report artifact-manifest` | Write checksum evidence for local report artifacts to `reports/artifact-manifest.json` |
+| `entroping report promote-drift-baseline` | Promote a reviewed drift baseline candidate into `.entroping/drift-baseline.json` |
+
+Experimental design-partner evidence commands:
+
+| Command | Purpose |
+| --- | --- |
 | `entroping report evidence-bundle` | Write a sanitized local design-partner upload-readiness bundle to `reports/evidence-bundle.json` |
 | `entroping report design-partner-feedback` | Write a sanitized local design-partner feedback template to `reports/design-partner-feedback.json` |
 | `entroping report pilot-metrics --output md` | Write local design-partner pilot metric inference to `reports/pilot-metrics.md` |
 | `entroping report pilot-metrics --output json` | Write machine-readable pilot metric inference to `reports/pilot-metrics.json` |
 | `entroping report agent-bundle --output md` | Write a local multi-agent review bundle to `reports/agent-bundle.md` |
 | `entroping report agent-bundle --output json` | Write machine-readable Builder/Breaker/Auditor evidence to `reports/agent-bundle.json` |
-| `entroping report traceability --output md` | Generate a local Markdown story/test traceability report |
-| `entroping report traceability --output json` | Emit machine-readable traceability JSON for badges or downstream tools |
-| `entroping report promote-drift-baseline` | Promote a reviewed drift baseline candidate into `.entroping/drift-baseline.json` |
 
 Example:
 

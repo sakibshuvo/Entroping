@@ -2,6 +2,11 @@
 
 ## 2026-06-19
 
+- Added issue #957's report command help classification:
+  `entroping report --help` now separates existing report commands into
+  launch-critical, stable-public, maintainer/baseline, and experimental
+  design-partner evidence panels without removing commands, changing flags,
+  executing reports differently, or changing artifact schemas.
 - Added issue #959's headless structured diagnostics boundary:
   `entroping.diagnostics.v1` now defines local value-free component events for
   headless agents, reports, doctor, and future observability adapters, with
