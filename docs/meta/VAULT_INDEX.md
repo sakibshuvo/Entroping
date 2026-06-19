@@ -112,7 +112,7 @@ instructions.
 - [[docs/technical/THREAT_MODEL|THREAT_MODEL]] - stable-core security boundaries, residual risks, and remediation issue map.
 - [[docs/technical/CLI_COMPATIBILITY_AUDIT|CLI_COMPATIBILITY_AUDIT]] - locked alpha command, exit-code, and report-artifact compatibility audit.
 - [[docs/technical/PYTHON_COMPATIBILITY|PYTHON_COMPATIBILITY]] - CI-proven Python runtime support policy.
-- [[docs/technical/REPORT_SCHEMAS|REPORT_SCHEMAS]] - run, drift, effective-policy, and traceability report schema versions.
+- [[docs/technical/REPORT_SCHEMAS|REPORT_SCHEMAS]] - run, diagnostics, drift, effective-policy, and traceability schema versions.
 - [[docs/technical/CODEX_PROMPT|CODEX_PROMPT]] - historical implementation-agent prompt; `AGENTS.md` is current.
 - [[examples/checkout-api/README|Checkout API demo fixture]] - minimal example for first-time users.
 - [[examples/support-api/README|Support API demo fixture]] - second fixture with ticket filters, request headers, and mutation audit gates.

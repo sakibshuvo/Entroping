@@ -21,6 +21,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | JSON run report | `entroping.run-report.v1` | `reports/run-latest.json`, `.entroping/latest-run.json` | [run-report.v1.schema.json](report-schemas/run-report.v1.schema.json) |
 | Run execution plan | `entroping.run-plan.v1` | `reports/run-plan.json` from `entroping run --dry-run --report json` | [run-plan.v1.schema.json](report-schemas/run-plan.v1.schema.json) |
 | Run delta report | `entroping.run-delta-report.v1` | `entroping report delta --output json` stdout | [run-delta-report.v1.schema.json](report-schemas/run-delta-report.v1.schema.json) |
+| Structured diagnostics | `entroping.diagnostics.v1` | `.entroping/latest-diagnostics.jsonl` local state for headless/report/doctor diagnostics | [diagnostics.v1.schema.json](report-schemas/diagnostics.v1.schema.json) |
 | Drift baseline | `entroping.drift-baseline.v1` | `reports/drift-baseline.candidate.json`, `.entroping/drift-baseline.json` | Inline contract |
 | Drift report | `entroping.drift-report.v1` | `reports/drift.json` | [drift-report.v1.schema.json](report-schemas/drift-report.v1.schema.json) |
 | Capture summary | `entroping.capture-summary.v1` | `reports/capture-summary.json` from `entroping report capture-summary --output json` | [capture-summary.v1.schema.json](report-schemas/capture-summary.v1.schema.json) |
@@ -387,6 +388,16 @@ entroping report sarif
 It is generated from local JUnit, drift, and optional traceability findings. It
 uses SARIF's `version` and `$schema` fields instead of an Entroping
 `schema_version`.
+
+`entroping.diagnostics.v1` is a local-first component diagnostics contract, not
+a vendor telemetry payload. Events are JSONL objects with component, operation,
+severity, code, summary, and sorted value-free attributes. Allowed attributes
+are names, counts, durations, statuses, classifications, and relative artifact
+paths. Value-bearing names such as raw traffic, prompts, provider output,
+environment values, headers, bodies, cookies, and full source Hurl contents
+fail closed before serialization; secret-shaped text is redacted through the
+shared credential redaction primitive. Datadog, Splunk, OpenTelemetry, or other
+exporters must adapt from this local contract instead of changing it.
 
 ## Compatibility Policy
 
