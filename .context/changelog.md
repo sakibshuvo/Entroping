@@ -2,6 +2,11 @@
 
 ## 2026-06-19
 
+- Fixed issue #945's proxy body redaction boundary:
+  `entroping watch` now decodes textual request/response bodies before the
+  redaction pipeline applies size limits for persistence, preventing
+  boundary-crossing secret fragments from being stored as raw truncated text
+  while preserving bounded redacted storage.
 - Fixed issue #946's evidence-bundle contract validation:
   `entroping report evidence-bundle` now marks required run and
   effective-policy JSON artifacts `not_ready` when they only declare a matching
