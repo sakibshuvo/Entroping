@@ -2,6 +2,10 @@
 
 ## 2026-06-20
 
+- Fixed issue #1008's OpenAPI response `$ref` assertion gap: response
+  assertion generation now resolves bounded local component schema refs before
+  reading `required` and `properties`, and fails closed on unsupported,
+  malformed, unknown, cyclic, or non-mapping response schema refs.
 - Fixed issue #1004's OpenAPI literal-string rendering regression: explicit
   schema example/default/const strings now fail closed when they exceed the
   generated-string cap, and oversized enum string candidates are skipped before
