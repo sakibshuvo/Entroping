@@ -54,6 +54,7 @@ entroping report qa-brain-retrieval-plan [--output <md|json>]
 entroping report qa-brain-prompt-plan [--output <md|json>]
 entroping report qa-brain-fine-tune-readiness [--output <md|json>]
 entroping report qa-brain-model-packaging-plan [--output <md|json>]
+entroping report qa-brain-routing-plan [--output <md|json>]
 entroping report pilot-metrics [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
@@ -429,6 +430,8 @@ Experimental design-partner evidence commands:
 | `entroping report qa-brain-fine-tune-readiness --output json` | Write machine-readable QA Brain fine-tune readiness metadata to `reports/qa-brain-fine-tune-readiness.json` |
 | `entroping report qa-brain-model-packaging-plan --output md` | Write read-only QA Brain model-packaging plan metadata to `reports/qa-brain-model-packaging-plan.md` |
 | `entroping report qa-brain-model-packaging-plan --output json` | Write machine-readable QA Brain model-packaging plan metadata to `reports/qa-brain-model-packaging-plan.json` |
+| `entroping report qa-brain-routing-plan --output md` | Write read-only QA Brain routing-plan metadata to `reports/qa-brain-routing-plan.md` |
+| `entroping report qa-brain-routing-plan --output json` | Write machine-readable QA Brain routing-plan metadata to `reports/qa-brain-routing-plan.json` |
 | `entroping report pilot-metrics --output md` | Write local design-partner pilot metric inference to `reports/pilot-metrics.md` |
 | `entroping report pilot-metrics --output json` | Write machine-readable pilot metric inference to `reports/pilot-metrics.json` |
 | `entroping report agent-bundle --output md` | Write a local multi-agent review bundle to `reports/agent-bundle.md` |
@@ -473,6 +476,7 @@ entroping report qa-brain-retrieval-plan --output json
 entroping report qa-brain-prompt-plan --output json
 entroping report qa-brain-fine-tune-readiness --output json
 entroping report qa-brain-model-packaging-plan --output json
+entroping report qa-brain-routing-plan --output json
 entroping report pilot-metrics
 entroping report agent-bundle --scope tests/generated
 entroping report traceability --output md

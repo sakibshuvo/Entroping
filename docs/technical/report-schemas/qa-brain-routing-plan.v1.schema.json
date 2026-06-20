@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://entroping.dev/schemas/qa-brain-routing-plan.v1.schema.json",
+  "title": "Entroping QA brain routing-plan packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "project",
+    "model_packaging_plan_schema_version",
+    "summary",
+    "routing_plans",
+    "next_actions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.qa-brain-routing-plan.v1"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "project": {
+      "type": "string"
+    },
+    "model_packaging_plan_schema_version": {
+      "const": "entroping.qa-brain-model-packaging-plan.v1"
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "routing_plans": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/routing_plan"
+      }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/next_action"
+      }
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "routes_total",
+        "routes_ready",
+        "routes_missing",
+        "routes_attention",
+        "blockers_total",
+        "next_actions_total"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "ready",
+            "partial",
+            "insufficient"
+          ]
+        },
+        "routes_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "routes_ready": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "routes_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "routes_attention": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blockers_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "next_actions_total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "routing_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "label",
+        "readiness",
+        "packaging_stage",
+        "source_ids",
+        "source_paths",
+        "routing_stage",
+        "litellm_boundary",
+        "endpoint_boundary",
+        "deployment_modes",
+        "allowed_use_cases",
+        "forbidden_authority",
+        "access_control_audit",
+        "blockers",
+        "next_action"
+      ],
+      "properties": {
+        "case_id": {
+          "$ref": "#/$defs/eval_slice_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "readiness": {
+          "$ref": "#/$defs/case_readiness"
+        },
+        "packaging_stage": {
+          "$ref": "#/$defs/packaging_stage"
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "source_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "routing_stage": {
+          "$ref": "#/$defs/routing_stage"
+        },
+        "litellm_boundary": {
+          "type": "string"
+        },
+        "endpoint_boundary": {
+          "type": "string"
+        },
+        "deployment_modes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/deployment_mode"
+          }
+        },
+        "allowed_use_cases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/allowed_use_case"
+          }
+        },
+        "forbidden_authority": {
+          "type": "string"
+        },
+        "access_control_audit": {
+          "type": "string"
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "next_action": {
+          "type": "string"
+        }
+      }
+    },
+    "next_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "priority",
+        "action",
+        "case_ids"
+      ],
+      "properties": {
+        "priority": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "action": {
+          "type": "string"
+        },
+        "case_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/eval_slice_id"
+          }
+        }
+      }
+    },
+    "routing_stage": {
+      "enum": [
+        "routing_design_ready",
+        "needs_packaging_evidence",
+        "needs_boundary_repair"
+      ]
+    },
+    "allowed_use_case": {
+      "enum": [
+        "critique",
+        "generation",
+        "prioritization",
+        "repair_proposals"
+      ]
+    },
+    "packaging_stage": {
+      "enum": [
+        "packaging_ready",
+        "needs_readiness_evidence",
+        "needs_boundary_repair"
+      ]
+    },
+    "deployment_mode": {
+      "enum": [
+        "hosted",
+        "local",
+        "enterprise"
+      ]
+    },
+    "case_readiness": {
+      "enum": [
+        "ready",
+        "missing",
+        "attention"
+      ]
+    },
+    "eval_slice_id": {
+      "enum": [
+        "weak_test_detection",
+        "missing_gate_discovery",
+        "unsafe_generated_hurl",
+        "bogus_evidence",
+        "redaction_mistakes",
+        "api_drift_reasoning",
+        "mutation_fuzz_readiness",
+        "cross_surface_handoff_quality"
+      ]
+    }
+  }
+}

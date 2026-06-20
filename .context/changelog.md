@@ -2,6 +2,20 @@
 
 ## 2026-06-20
 
+- Added issue #1050's QA Brain routing-plan packet: `report
+  qa-brain-routing-plan` now writes local `entroping.qa-brain-routing-plan.v1`
+  JSON or Markdown that turns deterministic QA-brain model-packaging metadata
+  into future LiteLLM/OpenAI-compatible hosted, local, and enterprise routing
+  readiness metadata, including routing stages, LiteLLM boundaries, endpoint
+  boundaries, deployment modes, allowed use cases, forbidden authority,
+  access-control/audit needs, source IDs/paths, blockers, and next actions
+  without executing Hurl, running tests, calling providers, reading provider
+  keys, changing LiteLLM configuration, starting endpoints, selecting
+  providers, invoking models, packaging models, building containers, creating
+  embeddings, using vector stores, retrieving documents, executing prompts,
+  exporting datasets, fine-tuning or training models, uploading artifacts,
+  parsing traffic state, running mutations, or rendering raw report/source
+  contents.
 - Added issue #1048's QA Brain model-packaging plan packet: `report
   qa-brain-model-packaging-plan` now writes local
   `entroping.qa-brain-model-packaging-plan.v1` JSON or Markdown that turns
