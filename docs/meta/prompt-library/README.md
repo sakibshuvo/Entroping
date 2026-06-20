@@ -72,6 +72,7 @@ archive is mounted or attached to the cloud task.
 | [Issue worker](issue-worker.md) | Give a coding agent one GitHub issue and an isolated worktree, including the Self-Contained OpenCode/DeepSeek Work Packet and Autonomous Tier A OpenCode/DeepSeek Worker Prompt. |
 | [Architecture boundary brief](architecture-boundary-brief.md) | Attach ownership, allowed files, forbidden files, invariants, tests, provider/runtime constraints, and stop conditions to worker issue packets. |
 | [Spark-safe worker](spark-safe-worker.md) | Use low-risk Codex Spark capacity for docs/tests/project hygiene. |
+| [Codex persistent marathon](codex-persistent-marathon.md) | Keep one Codex integrator session moving through the full issue-worktree-PR-CI-merge-finish loop instead of stopping after one issue or safe checkpoint. |
 | [Multi-agent marathon](multi-agent-marathon.md) | Run several bounded sessions while one parent thread owns integration. |
 | [OpenCode Desktop handoff](opencode-desktop-handoff.md) | Start OpenCode Desktop/OpenCode Go implementation or PR verification sessions with the self-contained worker packet, explicit provider lane, billing, model, role, merge authority, and `scripts/opencode_readiness.py` preflight evidence. |
 | [OpenCode Desktop one-shot](opencode-desktop-one-shot.md) | Paste one bootstrap prompt into OpenCode Desktop with paid DeepSeek V4 Pro so it can pick one Tier A issue, create the work packet, run the issue worktree conveyor, open the PR, wait for CI, merge if allowed, and finish cleanup. |
@@ -114,6 +115,7 @@ decision registry.
 | `model-comparison-trial.md` | Compare model lanes with evidence, accepted output, correction effort, cost, and context metrics. | Integrator plus bounded workers |
 | `codex-outage-daily-operations.md` | Keep safe Tier A progress moving when Codex capacity is low or unavailable. | OpenCode/DeepSeek operator |
 | `opencode-week-monitoring.md` | Monitor OpenCode/DeepSeek PRs, CI, ready issues, cleanup candidates, and metrics without mutating repo state. | Monitoring agent |
+| `codex-persistent-marathon.md` | Keep one Codex session acting as persistent integrator across repeated issue-worktree-PR-CI-merge-finish loops. | Codex integrator |
 | `multi-agent-marathon.md` | Run several bounded agents while one parent thread owns integration, review, and merge readiness. | Parent integrator |
 | `spark-safe-worker.md` | Spend low-risk Spark capacity on docs, tests, project hygiene, and small guardrail checks. | Spark or Codex Spark |
 | `architecture-boundary-brief.md` | Attach ownership, allowed files, forbidden files, invariants, tests, provider/runtime constraints, and stop conditions to a worker packet. | Architect or integrator |
@@ -140,6 +142,7 @@ decision registry.
 | I need to prepare a bounded OpenCode or DeepSeek implementation packet | `issue-worker.md` plus `architecture-boundary-brief.md` when risk is non-trivial |
 | A cheap model produced a large patch or review; should I trust it? | `model-output-acceptance-gate.md` |
 | Codex limit is low; keep moving safely | `codex-outage-daily-operations.md` |
+| I want a Codex session to keep shipping issues | `codex-persistent-marathon.md` |
 | Before merge, is this PR safe? | `pr-review-merge-gate.md` |
 | Find code quality, design, security, and documentation problems | `engineering-health-review.md` |
 | CI is red | `ci-failure-debug.md` |
@@ -188,6 +191,10 @@ decision registry.
 - OpenCode-only monitoring week: use `opencode-week-monitoring.md` to check
   open PRs, CI rollups, ready issues, merged PR cleanup candidates, and factory
   metrics while staying read-only by default.
+- Single Codex marathon: use `codex-persistent-marathon.md` when one Codex
+  session should keep repeating the issue-worktree-PR-CI-merge-finish conveyor
+  until N issues are merged, a verified blocker appears, CI cannot be fixed
+  safely, the user interrupts, or a tool/runtime limit stops continuation.
 - Large overnight push: use `multi-agent-marathon.md` and keep a parent
   integrator thread open.
 - Another thread already started: paste `thread-steering.md` before adding new

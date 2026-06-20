@@ -588,6 +588,58 @@ def test_prompt_library_includes_prompt_selection_matrix() -> None:
         assert term in normalized
 
 
+def test_prompt_library_includes_persistent_codex_marathon_prompt() -> None:
+    prompt = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "codex-persistent-marathon.md"
+    ).read_text(encoding="utf-8")
+    readme = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "README.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(prompt.split())
+    catalog = " ".join(readme.split())
+
+    required_terms = [
+        "type: prompt",
+        "status: active",
+        "Persistent Codex Marathon Prompt",
+        "You are the Entroping Codex marathon integrator",
+        "Do not stop after the first issue",
+        "Repeat Loop",
+        "git pull --ff-only",
+        "git status --short",
+        "gh issue list",
+        "scripts/start_issue.sh",
+        "run required gates",
+        "open a PR",
+        "wait for CI",
+        "merge only if green",
+        "scripts/finish_issue.sh",
+        "Then continue to the next issue",
+        "Stop only when",
+        "N issues are merged",
+        "verified blocker",
+        "CI fails and cannot be fixed safely",
+        "user interrupts",
+        "tool/runtime limit prevents continuation",
+        "one write agent per issue-scoped worktree",
+        "Tier B/Tier C",
+        "Codex owns integration and merge readiness",
+        "Current-state refresh",
+        "Safe checkpoint output",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+    assert "| [Codex persistent marathon](codex-persistent-marathon.md) |" in readme
+    assert "`codex-persistent-marathon.md`" in catalog
+    assert "I want a Codex session to keep shipping issues" in catalog
+
+
 def test_prompt_library_includes_model_comparison_trial_prompt() -> None:
     prompt = (
         REPO_ROOT
