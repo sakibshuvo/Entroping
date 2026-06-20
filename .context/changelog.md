@@ -2,6 +2,10 @@
 
 ## 2026-06-20
 
+- Added issue #1009's OpenAPI non-object response assertion boundary:
+  explicit array, primitive, and nullable non-object response schemas now
+  generate no response-field assertions by design, while non-object response
+  schemas that declare object-style `required` or `properties` fail closed.
 - Added issue #1017's OpenAPI response JSONPath bracket rendering: response
   assertions now support safe non-identifier JSON field names with Hurl bracket
   notation while still rejecting quote, backslash, template-delimiter, and

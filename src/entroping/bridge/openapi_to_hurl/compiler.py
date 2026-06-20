@@ -1263,6 +1263,11 @@ def _response_assertion_shape(
     if "oneOf" in schema or "anyOf" in schema:
         msg = f"{context} unsupported response schema composition"
         raise OpenApiCompilationError(msg)
+    if _is_explicit_non_object_response_schema(schema):
+        if "required" in schema or "properties" in schema:
+            msg = f"{context} non-object response schema must not define required/properties"
+            raise OpenApiCompilationError(msg)
+        return (), {}
 
     required_context = (
         "OpenAPI schema required"
@@ -1306,6 +1311,16 @@ def _response_assertion_shape(
                 budget=budget,
             )
     return tuple(dict.fromkeys(required)), properties
+
+
+def _is_explicit_non_object_response_schema(schema: Mapping[str, object]) -> bool:
+    raw_type = schema.get("type")
+    if isinstance(raw_type, str):
+        return raw_type != "object"
+    if isinstance(raw_type, Sequence) and not isinstance(raw_type, str | bytes):
+        string_types = {item for item in raw_type if isinstance(item, str)}
+        return bool(string_types) and "object" not in string_types
+    return False
 
 
 def _merge_response_property_schema(
