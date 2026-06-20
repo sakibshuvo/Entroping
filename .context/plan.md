@@ -16,22 +16,27 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1028 Work-Management Notification Packet
+## Current Issue Slice: #1030 Observability Signal Packet
 
-- Add `entroping report notification-packet --output md|json` as an
-  issue-backed additive report command for issue tracker, chat, automation,
-  and coding-agent handoffs.
-- Keep the packet local-first and value-free: prefer sanitized
-  `reports/handoff.json`, fall back to local report metadata, and emit only
-  status/severity labels, counts, local artifact paths, and next-action text.
-- Do not call Jira, Linear, monday.com, Slack, Discord, Workato, Claude, Codex,
-  providers, webhooks, or other vendor APIs; do not mutate tickets or chat; do
-  not execute Hurl, run tests, upload results, read traffic state, or render raw
-  report contents.
+- Add `entroping report observability-packet --output md|json` as an
+  issue-backed additive report command for future OpenTelemetry, Datadog,
+  Splunk, Grafana, and generic observability adapters.
+- Keep the packet local-first and value-free: read only structured diagnostics
+  and runtime-card metadata, then emit source states, schema versions, bounded
+  hashes, diagnostic component/operation/code counts, runtime-card counts,
+  local artifact paths, and next-action text.
+- Treat missing diagnostics/runtime evidence as non-blocking packet state, and
+  mark malformed, oversized, non-file, symlinked, wrong-schema, or secret-like
+  source artifacts invalid or unsafe without leaking contents.
+- Do not execute Hurl, run tests, call providers, upload results, call
+  observability vendor APIs, mutate dashboards or monitors, read traffic state,
+  or render raw URLs, headers, bodies, cookies, prompts, provider outputs,
+  credentials, environment values, source Hurl contents, full report contents,
+  or diagnostic attributes.
 - Update schema, CLI compatibility, report docs, progress, and context evidence
   in the same slice so the new command does not live only in implementation.
 - Verification lane: `security-runtime` because the command reads local report
-  artifacts and emits cross-surface notification evidence.
+  artifacts and emits cross-surface observability evidence.
 
 ## Current Baseline
 

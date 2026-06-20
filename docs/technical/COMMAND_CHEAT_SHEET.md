@@ -44,6 +44,7 @@ entroping report design-partner-feedback [--output <path>]
 entroping report runtime-card [--output <md|json>]
 entroping report handoff [--output <md|json>] [--fail-on-insufficient]
 entroping report notification-packet [--output <md|json>]
+entroping report observability-packet [--output <md|json>]
 entroping report pilot-metrics [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
@@ -399,6 +400,8 @@ Experimental design-partner evidence commands:
 | `entroping report handoff --fail-on-insufficient` | Write the handoff packet, then exit `1` when no source evidence artifacts are present |
 | `entroping report notification-packet --output md` | Write a read-only work-management/chat notification packet to `reports/notification-packet.md` |
 | `entroping report notification-packet --output json` | Write machine-readable notification evidence to `reports/notification-packet.json` |
+| `entroping report observability-packet --output md` | Write a read-only observability signal packet to `reports/observability-packet.md` |
+| `entroping report observability-packet --output json` | Write machine-readable observability evidence to `reports/observability-packet.json` |
 | `entroping report pilot-metrics --output md` | Write local design-partner pilot metric inference to `reports/pilot-metrics.md` |
 | `entroping report pilot-metrics --output json` | Write machine-readable pilot metric inference to `reports/pilot-metrics.json` |
 | `entroping report agent-bundle --output md` | Write a local multi-agent review bundle to `reports/agent-bundle.md` |
@@ -433,6 +436,7 @@ entroping report runtime-card
 entroping report handoff --output json
 entroping report handoff --fail-on-insufficient
 entroping report notification-packet --output json
+entroping report observability-packet --output json
 entroping report pilot-metrics
 entroping report agent-bundle --scope tests/generated
 entroping report traceability --output md
