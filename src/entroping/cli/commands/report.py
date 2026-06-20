@@ -86,6 +86,11 @@ from entroping.core.handoff_packet import (
     run_handoff_report,
 )
 from entroping.core.hurl_discovery import discover_hurl_tests
+from entroping.core.integration_readiness import (
+    IntegrationReadinessError,
+    IntegrationReadinessOutput,
+    run_integration_readiness_report,
+)
 from entroping.core.mutation_readiness import (
     MutationReadinessError,
     MutationReadinessOutput,
@@ -965,6 +970,33 @@ def report_team_access_control_plan(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote team access-control plan: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("integration-readiness", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_integration_readiness(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local integration-readiness packet for team surfaces."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported integration-readiness output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_integration_readiness_report(
+            project_root=Path.cwd(),
+            output=cast(IntegrationReadinessOutput, normalized_output),
+        )
+    except IntegrationReadinessError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote integration readiness: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 

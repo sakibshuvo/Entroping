@@ -772,6 +772,7 @@ report generation, and artifact schemas remain the compatibility contract.
 | Notification Packet | `report notification-packet --output md|json` | Read-only value-free messages for issue tracker, chat, automation, and agent surfaces |
 | Team Evidence Readiness | `report team-evidence-readiness --output md|json` | Read-only value-free readiness packet for future team evidence cloud promotion from existing sanitized report artifacts |
 | Team Access-Control Plan | `report team-access-control-plan --output md|json` | Read-only value-free role, action, boundary, and audit-event plan for future team evidence surfaces |
+| Integration Readiness | `report integration-readiness --output md|json` | Read-only value-free readiness packet for issue tracker, chat, enterprise automation, cross-surface continuity, observability, and API governance surfaces |
 | Evidence Index | `report evidence-index --output md|json` | Stable value-free local evidence artifact index for cross-surface navigation |
 | QA Brain Seed | `report qa-brain-seed --output md|json` | Deterministic value-free seed metadata for future QA Brain retrieval and eval design |
 | QA Brain Eval Plan | `report qa-brain-eval-plan --output md|json` | Deterministic eval-case plan metadata for future QA Brain evaluation before fine-tuning |
@@ -953,6 +954,7 @@ entroping report handoff [--output <md|json>] [--fail-on-insufficient]
 entroping report notification-packet [--output <md|json>]
 entroping report team-evidence-readiness [--output <md|json>]
 entroping report team-access-control-plan [--output <md|json>]
+entroping report integration-readiness [--output <md|json>]
 entroping report observability-packet [--output <md|json>]
 entroping report api-inventory [--output <md|json>]
 entroping report mutation-readiness [--output <md|json>]
@@ -1373,6 +1375,27 @@ headers, bodies, cookies, prompts, provider outputs, credentials, environment
 values, webhook URLs, ticket mutation payloads, source Hurl contents, raw
 report contents, or full report contents.
 
+`entroping report integration-readiness` writes a local read-only integration
+readiness packet at `reports/integration-readiness.md` by default, or
+`reports/integration-readiness.json` with `--output json`. It reads existing
+sanitized team-access-control-plan, notification-packet, handoff,
+observability-packet, API-inventory, and runtime-card artifacts, then emits
+source states, schema versions, bounded hashes, surface families, required
+source IDs, link and event requirements, forbidden actions, blockers, and next
+actions for issue trackers, chat, enterprise automation, cross-surface
+continuity, observability, and API governance. Missing source artifacts are
+non-blocking and become partial or insufficient planning state; malformed,
+oversized, non-file, symlinked, wrong-schema, or secret-like source artifacts
+are marked invalid or unsafe. The command does not execute Hurl, run tests,
+call Jira, Linear, monday.com, Slack, Discord, Workato, Claude, Codex, OpenAI,
+Datadog, Splunk, or other external APIs, upload results, create accounts,
+configure SSO or RBAC, mutate tickets or chat, execute chat commands, read
+provider keys, parse traffic state, sync repos or vaults, write back to any
+external system, or include raw URLs, headers, bodies, cookies, prompts,
+provider outputs, credentials, environment values, webhook URLs, ticket
+mutation payloads, source Hurl contents, raw report contents, or full report
+contents.
+
 `entroping report observability-packet` writes a local read-only observability
 signal packet at `reports/observability-packet.md` by default, or
 `reports/observability-packet.json` with `--output json`. It converts existing
@@ -1617,6 +1640,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report team-evidence-readiness --output json` | `reports/team-evidence-readiness.json` | Machine-readable team evidence readiness packet using `entroping.team-evidence-readiness.v1`. |
 | `entroping report team-access-control-plan --output md` | `reports/team-access-control-plan.md` | Human-readable read-only team access-control and audit plan for future team evidence surfaces. |
 | `entroping report team-access-control-plan --output json` | `reports/team-access-control-plan.json` | Machine-readable team access-control plan packet using `entroping.team-access-control-plan.v1`. |
+| `entroping report integration-readiness --output md` | `reports/integration-readiness.md` | Human-readable read-only integration readiness packet for issue tracker, chat, enterprise automation, cross-surface continuity, observability, and API governance surfaces. |
+| `entroping report integration-readiness --output json` | `reports/integration-readiness.json` | Machine-readable integration readiness packet using `entroping.integration-readiness.v1`. |
 | `entroping report observability-packet --output md` | `reports/observability-packet.md` | Human-readable read-only observability signal packet for OpenTelemetry, Datadog, Splunk, Grafana, and generic surfaces. |
 | `entroping report observability-packet --output json` | `reports/observability-packet.json` | Machine-readable observability packet using `entroping.observability-packet.v1`. |
 | `entroping report api-inventory --output md` | `reports/api-inventory.md` | Human-readable read-only API style inventory for REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, and unknown HTTP signals. |

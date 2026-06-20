@@ -35,6 +35,7 @@ from entroping.core.design_partner_feedback import DesignPartnerFeedbackError
 from entroping.core.evidence_bundle import EvidenceBundleError
 from entroping.core.evidence_index_report import EvidenceIndexError
 from entroping.core.handoff_packet import HandoffError
+from entroping.core.integration_readiness import IntegrationReadinessError
 from entroping.core.mutation_readiness import MutationReadinessError
 from entroping.core.notification_packet import NotificationPacketError
 from entroping.core.observability_packet import ObservabilityPacketError
@@ -225,6 +226,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "design-partner-feedback",
         "handoff",
         "notification-packet",
+        "integration-readiness",
         "team-access-control-plan",
         "team-evidence-readiness",
         "observability-packet",
@@ -898,6 +900,86 @@ def test_report_team_access_control_plan_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "team access-control plan path is unsafe" in result.output
+
+
+def test_report_integration_readiness_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("reports") / "team-access-control-plan.json",
+        """
+{
+  "schema_version": "entroping.team-access-control-plan.v1",
+  "project": "checkout-api",
+  "summary": {
+    "status": "ready",
+    "sources_total": 4,
+    "sources_present": 4,
+    "sources_missing": 0,
+    "sources_invalid": 0,
+    "sources_unsafe": 0,
+    "roles_total": 5,
+    "roles_ready": 5,
+    "roles_attention": 0,
+    "roles_blocked": 0,
+    "audit_events_total": 6,
+    "blockers_total": 0,
+    "next_actions_total": 0
+  }
+}
+""",
+    )
+
+    result = CliRunner().invoke(app, ["report", "integration-readiness"])
+
+    assert result.exit_code == 0
+    assert "Wrote integration readiness: reports/integration-readiness.md" in result.output
+    markdown = Path("reports/integration-readiness.md").read_text(encoding="utf-8")
+    assert "# Entroping Integration Readiness" in markdown
+    assert "| issue_trackers |" in markdown
+
+
+def test_report_integration_readiness_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "integration-readiness", "--output", "json"])
+
+    assert result.exit_code == 0
+    assert "Wrote integration readiness: reports/integration-readiness.json" in result.output
+    payload = json.loads(Path("reports/integration-readiness.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.integration-readiness.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_integration_readiness_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["report", "integration-readiness", "--output", "html"])
+
+    assert result.exit_code == 2
+    assert "Unsupported integration-readiness output" in result.output
+    assert not Path("reports/integration-readiness.html").exists()
+
+
+def test_report_integration_readiness_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_integration_readiness(*args: object, **kwargs: object) -> object:
+        raise IntegrationReadinessError("integration readiness path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_integration_readiness_report",
+        fail_integration_readiness,
+    )
+
+    result = CliRunner().invoke(app, ["report", "integration-readiness"])
+
+    assert result.exit_code == 1
+    assert "integration readiness path is unsafe" in result.output
 
 
 def test_report_observability_packet_writes_markdown(

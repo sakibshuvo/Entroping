@@ -1,0 +1,373 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://entroping.dev/schemas/integration-readiness.v1.schema.json",
+  "title": "Entroping integration readiness packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "project",
+    "summary",
+    "sources",
+    "families",
+    "next_actions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.integration-readiness.v1"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "project": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "families": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/family"
+      }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/next_action"
+      }
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "sources_total",
+        "sources_present",
+        "sources_missing",
+        "sources_invalid",
+        "sources_unsafe",
+        "families_total",
+        "families_ready",
+        "families_attention",
+        "families_blocked",
+        "blockers_total",
+        "next_actions_total"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/readiness_status"
+        },
+        "sources_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_present": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_invalid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_unsafe": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "families_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "families_ready": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "families_attention": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "families_blocked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blockers_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "next_actions_total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "path",
+        "state",
+        "schema_version",
+        "sha256",
+        "summary"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/source_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/source_state"
+        },
+        "schema_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "family": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "status",
+        "surface_ids",
+        "required_source_ids",
+        "present_source_ids",
+        "missing_source_ids",
+        "blockers",
+        "link_requirements",
+        "event_requirements",
+        "forbidden_actions",
+        "next_action"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/family_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/family_status"
+        },
+        "surface_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/surface_id"
+          }
+        },
+        "required_source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "present_source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "missing_source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "link_requirements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "event_requirements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbidden_actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/forbidden_action"
+          }
+        },
+        "next_action": {
+          "type": "string"
+        }
+      }
+    },
+    "next_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "priority",
+        "action",
+        "source_ids",
+        "family_ids"
+      ],
+      "properties": {
+        "priority": {
+          "$ref": "#/$defs/next_action_priority"
+        },
+        "action": {
+          "type": "string"
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "family_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/family_id"
+          }
+        }
+      }
+    },
+    "readiness_status": {
+      "enum": [
+        "ready",
+        "partial",
+        "insufficient"
+      ],
+      "type": "string"
+    },
+    "source_state": {
+      "enum": [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe"
+      ],
+      "type": "string"
+    },
+    "family_status": {
+      "enum": [
+        "ready",
+        "attention",
+        "blocked"
+      ],
+      "type": "string"
+    },
+    "next_action_priority": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "type": "string"
+    },
+    "source_id": {
+      "enum": [
+        "team_access_control_plan",
+        "notification_packet",
+        "handoff",
+        "observability_packet",
+        "api_inventory",
+        "runtime_card"
+      ],
+      "type": "string"
+    },
+    "family_id": {
+      "enum": [
+        "issue_trackers",
+        "chat",
+        "enterprise_automation",
+        "cross_surface_continuity",
+        "observability",
+        "api_governance"
+      ],
+      "type": "string"
+    },
+    "surface_id": {
+      "enum": [
+        "jira",
+        "linear",
+        "monday",
+        "slack",
+        "discord",
+        "workato",
+        "claude",
+        "codex",
+        "cli",
+        "desktop",
+        "cloud",
+        "mobile",
+        "opentelemetry",
+        "datadog",
+        "splunk",
+        "openapi",
+        "graphql",
+        "soap_xml",
+        "grpc",
+        "webhooks",
+        "asyncapi",
+        "websocket"
+      ],
+      "type": "string"
+    },
+    "forbidden_action": {
+      "enum": [
+        "call_external_api",
+        "upload_artifacts",
+        "mutate_issue_tracker",
+        "post_chat_message",
+        "execute_chat_command",
+        "read_provider_keys",
+        "override_hurl_qanstitution_result",
+        "sync_raw_repo_or_vault",
+        "render_raw_artifact_contents"
+      ],
+      "type": "string"
+    }
+  }
+}

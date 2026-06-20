@@ -2,6 +2,19 @@
 
 ## 2026-06-20
 
+- Added issue #1056's integration readiness packet: `report
+  integration-readiness` now writes local `entroping.integration-readiness.v1`
+  JSON or Markdown that turns sanitized team-access-control-plan,
+  notification-packet, handoff, observability-packet, API-inventory, and
+  runtime-card artifacts into source states, surface-family readiness,
+  link/event requirements, forbidden actions, blockers, and next actions for
+  issue tracker, chat, enterprise automation, cross-surface continuity,
+  observability, and API governance surfaces without executing Hurl, running
+  tests, calling vendor/provider APIs, uploading artifacts, creating accounts,
+  configuring SSO/RBAC, mutating tickets/chat, executing chat commands, reading
+  provider keys, syncing repos/vaults, parsing traffic state, or rendering raw
+  report/source contents, prompts, credentials, cookies, environment values,
+  webhook URLs, ticket payloads, or provider outputs.
 - Added issue #1054's team access-control plan packet: `report
   team-access-control-plan` now writes local
   `entroping.team-access-control-plan.v1` JSON or Markdown that turns
