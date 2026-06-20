@@ -33,6 +33,7 @@ from entroping.core.capture_summary_report import CaptureSummaryResult
 from entroping.core.design_partner_feedback import DesignPartnerFeedbackError
 from entroping.core.evidence_bundle import EvidenceBundleError
 from entroping.core.handoff_packet import HandoffError
+from entroping.core.notification_packet import NotificationPacketError
 from entroping.core.pilot_metrics import PilotMetricsError
 from entroping.core.redaction_review_report import RedactionReviewResult
 from entroping.core.report_artifact_manifest import write_report_artifact_manifest
@@ -208,6 +209,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "evidence-bundle",
         "design-partner-feedback",
         "handoff",
+        "notification-packet",
         "pilot-metrics",
         "agent-bundle",
     ):
@@ -632,6 +634,84 @@ def test_report_handoff_wraps_core_errors(monkeypatch: pytest.MonkeyPatch) -> No
 
     assert result.exit_code == 1
     assert "handoff source evidence is unsafe" in result.output
+
+
+def test_report_notification_packet_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("reports") / "handoff.json",
+        """
+{
+  "schema_version": "entroping.handoff.v1",
+  "generated_at": "2026-06-20T00:00:00+00:00",
+  "project": "checkout-api",
+  "git": {"branch": "main", "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+  "summary": {
+    "status": "ready",
+    "artifacts_total": 0,
+    "artifacts_present": 0,
+    "artifacts_missing": 0,
+    "artifacts_invalid": 0,
+    "artifacts_unsafe": 0
+  },
+  "runtime": null,
+  "artifacts": [],
+  "targets": []
+}
+""",
+    )
+
+    result = CliRunner().invoke(app, ["report", "notification-packet"])
+
+    assert result.exit_code == 0
+    assert "Wrote notification packet: reports/notification-packet.md" in result.output
+    markdown = Path("reports/notification-packet.md").read_text(encoding="utf-8")
+    assert "# Entroping Notification Packet" in markdown
+    assert "| jira |" in markdown
+
+
+def test_report_notification_packet_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "notification-packet", "--output", "json"])
+
+    assert result.exit_code == 0
+    assert "Wrote notification packet: reports/notification-packet.json" in result.output
+    payload = json.loads(Path("reports/notification-packet.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.notification-packet.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_notification_packet_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["report", "notification-packet", "--output", "html"])
+
+    assert result.exit_code == 2
+    assert "Unsupported notification-packet output" in result.output
+    assert not Path("reports/notification-packet.html").exists()
+
+
+def test_report_notification_packet_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_notification_packet(*args: object, **kwargs: object) -> object:
+        raise NotificationPacketError("notification packet path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_notification_packet_report",
+        fail_notification_packet,
+    )
+
+    result = CliRunner().invoke(app, ["report", "notification-packet"])
+
+    assert result.exit_code == 1
+    assert "notification packet path is unsafe" in result.output
 
 
 def test_report_bug_generates_markdown_from_latest_failing_run(

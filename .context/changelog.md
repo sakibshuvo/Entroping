@@ -2,6 +2,12 @@
 
 ## 2026-06-20
 
+- Added issue #1028's work-management notification packet: `report
+  notification-packet` now writes local `entroping.notification-packet.v1` JSON
+  or Markdown that converts sanitized handoff/runtime evidence into value-free
+  Jira, Linear, monday.com, Slack, Discord, Workato, and agent messages without
+  calling vendor APIs, mutating tickets or chat, executing Hurl, uploading
+  results, reading traffic state, or rendering raw report contents.
 - Added issue #1026's cross-surface handoff packet: `report handoff` now writes
   local `entroping.handoff.v1` JSON or Markdown that links sanitized runtime,
   evidence-bundle, pilot-metrics, artifact-manifest, and test-pyramid metadata

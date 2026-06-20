@@ -36,6 +36,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Runtime evidence card | `entroping.runtime-card.v1` | `reports/runtime-card.json` from `entroping report runtime-card --output json` | [runtime-card.v1.schema.json](report-schemas/runtime-card.v1.schema.json) |
 | Pilot metrics | `entroping.pilot-metrics.v1` | `reports/pilot-metrics.json` from `entroping report pilot-metrics --output json` | [pilot-metrics.v1.schema.json](report-schemas/pilot-metrics.v1.schema.json) |
 | Cross-surface handoff | `entroping.handoff.v1` | `reports/handoff.json` from `entroping report handoff --output json` | [handoff.v1.schema.json](report-schemas/handoff.v1.schema.json) |
+| Notification packet | `entroping.notification-packet.v1` | `reports/notification-packet.json` from `entroping report notification-packet --output json` | [notification-packet.v1.schema.json](report-schemas/notification-packet.v1.schema.json) |
 | Design-partner feedback | `entroping.design-partner-feedback.v1` | `reports/design-partner-feedback.json` from `entroping report design-partner-feedback` | [design-partner-feedback.v1.schema.json](report-schemas/design-partner-feedback.v1.schema.json) |
 | Failure bundle manifest | `entroping.failure-bundle.v1` | `reports/failure-bundle/manifest.json` | Inline contract |
 | Coverage badges | Shields endpoint schema v1 | `reports/badges/*.json` | External Shields endpoint format |
@@ -259,6 +260,28 @@ and agent bundle. It records which metrics are locally `known`, which are
 `manual_input_required` because they depend on design-partner feedback. The
 command does not execute Hurl, call providers, parse raw traffic, read private
 notes, upload artifacts, or render raw report contents.
+
+The notification packet is written by:
+
+```bash
+entroping report notification-packet
+entroping report notification-packet --output json
+```
+
+It writes `reports/notification-packet.md` by default or
+`reports/notification-packet.json` with schema
+`entroping.notification-packet.v1` when `--output json` is selected. The packet
+turns existing sanitized handoff/runtime evidence into value-free messages for
+Jira, Linear, monday.com, Slack, Discord, Workato, and agent surfaces. It reads
+bounded local artifacts only, prefers `reports/handoff.json` when present, and
+falls back to local report metadata when the handoff packet is missing or
+invalid. Message payloads contain status/severity labels, counts, local artifact
+paths, and next-action text only. The command does not execute Hurl, run tests,
+call providers, upload results, call issue-tracker, chat, automation, Claude, or
+Codex APIs, mutate tickets or chat, read traffic state, or include raw URLs,
+headers, bodies, cookies, prompts, provider outputs, credentials, environment
+values, webhook URLs, ticket mutation payloads, source Hurl contents, or full
+report contents.
 
 The design-partner feedback artifact is written by:
 

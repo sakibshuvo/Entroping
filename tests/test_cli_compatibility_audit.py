@@ -214,6 +214,11 @@ LOCKED_CLI_CONTRACTS = (
         ("--output", "--fail-on-insufficient"),
     ),
     CliContract(
+        "entroping report notification-packet [--output <md|json>]",
+        ("report", "notification-packet", "--help"),
+        ("--output",),
+    ),
+    CliContract(
         "entroping report pilot-metrics [--output <md|json>]",
         ("report", "pilot-metrics", "--help"),
         ("--output",),
@@ -306,6 +311,8 @@ REPORT_ARTIFACTS = (
     "reports/runtime-card.json",
     "reports/handoff.md",
     "reports/handoff.json",
+    "reports/notification-packet.md",
+    "reports/notification-packet.json",
     "reports/pilot-metrics.md",
     "reports/pilot-metrics.json",
     "reports/agent-bundle.md",

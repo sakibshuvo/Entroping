@@ -769,6 +769,7 @@ report generation, and artifact schemas remain the compatibility contract.
 | Design-Partner Feedback | `report design-partner-feedback` | Sanitized local feedback template artifact |
 | Runtime Evidence Card | `report runtime-card` | Concise PR/runtime proof card from local reports |
 | Cross-Surface Handoff | `report handoff --output md|json [--fail-on-insufficient]` | Local value-free handoff packet for CLI, PR, desktop, cloud, mobile, and agent surfaces; opt-in CI failure when no source artifacts are present |
+| Notification Packet | `report notification-packet --output md|json` | Read-only value-free messages for issue tracker, chat, automation, and agent surfaces |
 | Pilot Metrics | `report pilot-metrics` | Local pilot metric inference from sanitized evidence |
 | Agent Review Bundle | `report agent-bundle` | Local Builder/Breaker/Auditor evidence from sanitized manifests |
 | Traceability Markdown/JSON | `report traceability --output md|json` | Local story/test coverage review |
@@ -939,6 +940,7 @@ entroping report evidence-bundle [--output <path>]
 entroping report design-partner-feedback [--output <path>]
 entroping report runtime-card [--output <md|json>]
 entroping report handoff [--output <md|json>] [--fail-on-insufficient]
+entroping report notification-packet [--output <md|json>]
 entroping report pilot-metrics [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
@@ -1301,6 +1303,21 @@ providers, upload results, parse raw traffic, read `.entroping` traffic state,
 or include raw URLs, headers, bodies, cookies, prompts, provider outputs,
 credentials, environment values, or source Hurl contents.
 
+`entroping report notification-packet` writes a local read-only work-management
+and chat notification packet at `reports/notification-packet.md` by default, or
+`reports/notification-packet.json` with `--output json`. It converts sanitized
+handoff/runtime evidence into value-free messages for Jira, Linear, monday.com,
+Slack, Discord, Workato, and coding-agent surfaces. The packet records only
+status/severity labels, counts, local artifact paths, and next-action text.
+Missing source artifacts are non-blocking and become partial or insufficient
+packet state; malformed, oversized, non-file, symlinked, wrong-schema, or
+secret-like source artifacts are marked invalid or unsafe. The command does not
+execute Hurl, run tests, call providers, upload results, call issue-tracker,
+chat, automation, Claude, or Codex APIs, mutate tickets or chat, read traffic
+state, or include raw URLs, headers, bodies, cookies, prompts, provider outputs,
+credentials, environment values, webhook URLs, ticket mutation payloads, source
+Hurl contents, or full report contents.
+
 `entroping report sarif` writes SARIF 2.1.0 to `reports/entroping.sarif` by
 default. It converts the same local JUnit, drift, and optional traceability
 findings used by GitHub annotation output into stable SARIF rule IDs, severity,
@@ -1354,6 +1371,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report runtime-card --output json` | `reports/runtime-card.json` | Machine-readable PR/runtime evidence card using `entroping.runtime-card.v1`, including additive `pilot_readiness` and `test_pyramid` evidence. |
 | `entroping report handoff --output md` | `reports/handoff.md` | Human-readable local cross-surface handoff packet from sanitized evidence artifacts. |
 | `entroping report handoff --output json` | `reports/handoff.json` | Machine-readable local cross-surface handoff packet using `entroping.handoff.v1`. |
+| `entroping report notification-packet --output md` | `reports/notification-packet.md` | Human-readable read-only notification packet for work-management, chat, automation, and agent surfaces. |
+| `entroping report notification-packet --output json` | `reports/notification-packet.json` | Machine-readable notification packet using `entroping.notification-packet.v1`. |
 | `entroping report pilot-metrics --output md` | `reports/pilot-metrics.md` | Human-readable local pilot metric inference from sanitized artifacts, with `unknown` and `manual_input_required` states for metrics Entroping cannot infer locally. |
 | `entroping report pilot-metrics --output json` | `reports/pilot-metrics.json` | Machine-readable local pilot metric inference using `entroping.pilot-metrics.v1`. |
 | `entroping report agent-bundle --output md` | `reports/agent-bundle.md` | Human-readable local multi-agent review bundle from sanitized manifests. |

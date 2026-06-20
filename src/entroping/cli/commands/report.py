@@ -76,6 +76,11 @@ from entroping.core.handoff_packet import (
     run_handoff_report,
 )
 from entroping.core.hurl_discovery import discover_hurl_tests
+from entroping.core.notification_packet import (
+    NotificationOutput,
+    NotificationPacketError,
+    run_notification_packet_report,
+)
 from entroping.core.pilot_metrics import (
     PilotMetricsError,
     PilotMetricsOutput,
@@ -827,6 +832,33 @@ def report_handoff(
     if fail_on_insufficient and result.packet.summary.status == "insufficient":
         console.print("[yellow]Handoff packet has no present evidence artifacts.[/yellow]")
         raise typer.Exit(1)
+    raise typer.Exit(0)
+
+
+@app.command("notification-packet", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_notification_packet(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local notification packet for work-management and chat surfaces."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported notification-packet output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_notification_packet_report(
+            project_root=Path.cwd(),
+            output=cast(NotificationOutput, normalized_output),
+        )
+    except NotificationPacketError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote notification packet: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 
