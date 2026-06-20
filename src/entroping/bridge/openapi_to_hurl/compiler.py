@@ -1055,8 +1055,8 @@ def _response_assertions(schema: Mapping[str, object] | None) -> list[str]:
     for field_name in required:
         jsonpath = _jsonpath_for_field(field_name)
         assertions.append(f'jsonpath "{jsonpath}" exists')
-        property_schema = properties.get(field_name)
-        if property_schema is None:
+        property_schema = properties.get(field_name, _MISSING)
+        if property_schema is _MISSING:
             continue
         enum_value = _first_enum_value(
             _ensure_mapping(property_schema, f"schema for {field_name!r}")

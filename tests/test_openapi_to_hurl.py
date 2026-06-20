@@ -2624,6 +2624,26 @@ def test_compile_openapi_rejects_response_and_json_content_shape_errors() -> Non
             },
             "OpenAPI schema required must be a list of strings",
         ),
+        (
+            {
+                "operationId": "bad",
+                "responses": {
+                    "200": {
+                        "description": "ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["id"],
+                                    "properties": {"id": None},
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            "schema for 'id' must be a mapping",
+        ),
     )
 
     for operation, expected_error in cases:
