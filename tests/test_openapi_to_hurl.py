@@ -2791,6 +2791,62 @@ def test_compile_openapi_renders_operation_id_fallback_and_empty_json_content_sh
     assert "[Asserts]" not in generated[2].content
 
 
+@pytest.mark.parametrize(
+    "schema",
+    [
+        {"type": "array", "items": {"type": "object", "required": ["id"]}},
+        {"type": "string"},
+        {"type": ["null", "string"]},
+    ],
+)
+def test_compile_openapi_skips_non_object_response_schema_assertions(
+    schema: dict[str, object],
+) -> None:
+    operation: dict[str, object] = {
+        "operationId": "getHealth",
+        "responses": {
+            "200": {
+                "description": "ok",
+                "content": {"application/json": {"schema": schema}},
+            },
+        },
+    }
+
+    content = _compile_single_operation(operation)
+
+    assert "[Asserts]" not in content
+    assert "jsonpath" not in content
+
+
+@pytest.mark.parametrize(
+    "schema",
+    [
+        {
+            "type": "array",
+            "required": ["id"],
+            "properties": {"id": {"type": "string"}},
+        },
+        {"type": "string", "required": ["id"]},
+        {"type": ["null", "string"], "properties": {"id": {"type": "string"}}},
+    ],
+)
+def test_compile_openapi_rejects_object_assertion_fields_on_non_object_response_schemas(
+    schema: dict[str, object],
+) -> None:
+    operation: dict[str, object] = {
+        "operationId": "getHealth",
+        "responses": {
+            "200": {
+                "description": "ok",
+                "content": {"application/json": {"schema": schema}},
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="non-object response schema"):
+        _compile_single_operation(operation)
+
+
 def test_compile_openapi_resolves_response_schema_refs_before_assertions() -> None:
     document: dict[str, object] = {
         "openapi": "3.1.0",
