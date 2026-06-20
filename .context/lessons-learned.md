@@ -1,5 +1,13 @@
 # Entroping Lessons Learned
 
+## 2026-06-20
+
+- When an optional runtime dependency caps a vulnerable transitive package,
+  prefer a reviewed resolver override plus runtime import/version guard when
+  the optional smoke proves the feature still imports. Disabling a product
+  surface should be the fallback after the patched dependency set is shown not
+  to resolve or load.
+
 ## 2026-06-16
 
 - Guardrails need guardrails. When PRs touch architecture-integrity,

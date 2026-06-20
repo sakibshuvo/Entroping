@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import Iterable
 from dataclasses import dataclass
+from importlib import metadata as importlib_metadata
 from pathlib import Path
 
 import pytest
@@ -503,6 +504,78 @@ def test_mitmproxy_runtime_rejects_missing_factories_and_reraises_unrelated_impo
         load_mitmproxy_runtime(import_module=unrelated_import)
 
 
+def test_mitmproxy_runtime_rejects_vulnerable_msgpack_version() -> None:
+    class OptionsModule:
+        @staticmethod
+        def Options(**kwargs: object) -> object:
+            return {"options": kwargs}
+
+    class DumpModule:
+        DumpMaster = _Master
+
+    def fake_import(name: str) -> object:
+        if name == "mitmproxy.options":
+            return OptionsModule()
+        if name == "mitmproxy.tools.dump":
+            return DumpModule()
+        raise AssertionError(name)
+
+    def package_version(name: str) -> str:
+        assert name == "msgpack"
+        return "1.1.2"
+
+    with pytest.raises(MitmproxyUnavailableError, match="msgpack>=1.2.1"):
+        load_mitmproxy_runtime(import_module=fake_import, package_version=package_version)
+
+
+def test_mitmproxy_runtime_rejects_missing_msgpack_package() -> None:
+    class OptionsModule:
+        @staticmethod
+        def Options(**kwargs: object) -> object:
+            return {"options": kwargs}
+
+    class DumpModule:
+        DumpMaster = _Master
+
+    def fake_import(name: str) -> object:
+        if name == "mitmproxy.options":
+            return OptionsModule()
+        if name == "mitmproxy.tools.dump":
+            return DumpModule()
+        raise AssertionError(name)
+
+    def package_version(name: str) -> str:
+        assert name == "msgpack"
+        raise importlib_metadata.PackageNotFoundError
+
+    with pytest.raises(MitmproxyUnavailableError, match="missing msgpack"):
+        load_mitmproxy_runtime(import_module=fake_import, package_version=package_version)
+
+
+def test_mitmproxy_runtime_rejects_unparseable_msgpack_version() -> None:
+    class OptionsModule:
+        @staticmethod
+        def Options(**kwargs: object) -> object:
+            return {"options": kwargs}
+
+    class DumpModule:
+        DumpMaster = _Master
+
+    def fake_import(name: str) -> object:
+        if name == "mitmproxy.options":
+            return OptionsModule()
+        if name == "mitmproxy.tools.dump":
+            return DumpModule()
+        raise AssertionError(name)
+
+    def package_version(name: str) -> str:
+        assert name == "msgpack"
+        return "1.2.rc1"
+
+    with pytest.raises(MitmproxyUnavailableError, match="vulnerable msgpack 1.2.rc1"):
+        load_mitmproxy_runtime(import_module=fake_import, package_version=package_version)
+
+
 def test_mitmproxy_runtime_loads_callable_factories() -> None:
     class OptionsModule:
         @staticmethod
@@ -521,7 +594,14 @@ def test_mitmproxy_runtime_loads_callable_factories() -> None:
             return DumpModule()
         raise AssertionError(name)
 
-    runtime = load_mitmproxy_runtime(import_module=fake_import)
+    def package_version(name: str) -> str:
+        assert name == "msgpack"
+        return "1.2.1"
+
+    runtime = load_mitmproxy_runtime(
+        import_module=fake_import,
+        package_version=package_version,
+    )
 
     assert runtime.options_factory(listen_port=8080) == {"options": {"listen_port": 8080}}
     assert runtime.dump_master_factory("options") == {"args": ("options",), "kwargs": {}}
