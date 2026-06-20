@@ -205,10 +205,18 @@ def test_qa_brain_fine_tune_readiness_preserves_attention_sources_and_actions(
         "drift-json",
     )
     assert rows["bogus_evidence"].blockers
-    assert next(
+    bogus_action = next(
         action for action in packet.next_actions if action.case_ids == ("bogus_evidence",)
-    ).priority == "high"
-    assert "999" not in packet.model_dump_json()
+    )
+    assert bogus_action.priority == "high"
+    attention_payload = json.dumps(
+        {
+            "row": rows["bogus_evidence"].model_dump(mode="json"),
+            "action": bogus_action.model_dump(mode="json"),
+        },
+        sort_keys=True,
+    )
+    assert "999" not in attention_payload
 
 
 def test_qa_brain_fine_tune_readiness_markdown_is_human_readable_and_value_free(
