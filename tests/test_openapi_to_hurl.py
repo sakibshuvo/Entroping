@@ -2836,6 +2836,346 @@ def test_compile_openapi_resolves_response_schema_refs_before_assertions() -> No
     assert 'jsonpath "$.mode" exists' in content
 
 
+def test_compile_openapi_generates_nested_required_response_assertions() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {
+            "schemas": {
+                "Envelope": {
+                    "type": "object",
+                    "required": ["data"],
+                    "properties": {
+                        "data": {"$ref": "#/components/schemas/Account"},
+                    },
+                },
+                "Account": {
+                    "type": "object",
+                    "required": ["id", "state", "owner"],
+                    "properties": {
+                        "id": {"type": "string", "enum": ["acct-1"]},
+                        "state": {"allOf": [{"type": "string"}, {"enum": ["active"]}]},
+                        "owner": {
+                            "type": "object",
+                            "required": ["name"],
+                            "properties": {
+                                "name": {"type": "string", "enum": ["Ada"]},
+                            },
+                        },
+                    },
+                },
+            },
+        },
+        "paths": {
+            "/account": {
+                "get": {
+                    "operationId": "getAccount",
+                    "responses": {
+                        "200": {
+                            "description": "ok",
+                            "content": {
+                                "application/json": {
+                                    "schema": {"$ref": "#/components/schemas/Envelope"},
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    content = compile_openapi_to_hurl(document, tags=frozenset())[0].content
+
+    assert 'jsonpath "$.data" exists' in content
+    assert 'jsonpath "$.data.id" exists' in content
+    assert 'jsonpath "$.data.id" == "acct-1"' in content
+    assert 'jsonpath "$.data.state" == "active"' in content
+    assert 'jsonpath "$.data.owner" exists' in content
+    assert 'jsonpath "$.data.owner.name" == "Ada"' in content
+
+
+def test_compile_openapi_merges_nested_assertions_from_overlapping_all_of() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/account": {
+                "get": {
+                    "operationId": "getAccount",
+                    "responses": {
+                        "200": {
+                            "description": "ok",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "allOf": [
+                                            {
+                                                "type": "object",
+                                                "required": ["payload"],
+                                                "properties": {
+                                                    "payload": {
+                                                        "type": "object",
+                                                        "required": ["id"],
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "enum": ["acct-1"],
+                                                            },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                            {
+                                                "type": "object",
+                                                "required": ["payload"],
+                                                "properties": {
+                                                    "payload": {
+                                                        "type": "object",
+                                                        "required": ["state"],
+                                                        "properties": {
+                                                            "state": {
+                                                                "type": "string",
+                                                                "enum": ["active"],
+                                                            },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    content = compile_openapi_to_hurl(document, tags=frozenset())[0].content
+
+    assert 'jsonpath "$.payload" exists' in content
+    assert 'jsonpath "$.payload.id" == "acct-1"' in content
+    assert 'jsonpath "$.payload.state" == "active"' in content
+
+
+def test_compile_openapi_rejects_incompatible_overlapping_all_of_property_shapes() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/status": {
+                "get": {
+                    "operationId": "getStatus",
+                    "responses": {
+                        "200": {
+                            "description": "ok",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "allOf": [
+                                            {
+                                                "type": "object",
+                                                "required": ["status"],
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": ["ok"],
+                                                    },
+                                                },
+                                                    },
+                                            {
+                                                "type": "object",
+                                                "required": ["status"],
+                                                "properties": {
+                                                    "status": {
+                                                        "required": ["code"],
+                                                        "properties": {
+                                                            "code": {"type": "string"},
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="conflicting allOf property schema"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
+def test_compile_openapi_preserves_compatible_overlapping_all_of_property_shapes() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/status": {
+                "get": {
+                    "operationId": "getStatus",
+                    "responses": {
+                        "200": {
+                            "description": "ok",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "allOf": [
+                                            {
+                                                "type": "object",
+                                                "required": ["status", "count"],
+                                                "properties": {
+                                                    "status": {"description": "first"},
+                                                    "count": {"type": "integer"},
+                                                },
+                                            },
+                                            {
+                                                "type": "object",
+                                                "required": ["status", "count"],
+                                                "properties": {
+                                                    "status": {"description": "second"},
+                                                    "count": {"type": "number"},
+                                                },
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    content = compile_openapi_to_hurl(document, tags=frozenset())[0].content
+
+    assert 'jsonpath "$.status" exists' in content
+    assert 'jsonpath "$.count" exists' in content
+
+
+def test_compile_openapi_rejects_nested_unsafe_jsonpath_field_names() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/account": {
+                "get": {
+                    "operationId": "getAccount",
+                    "responses": {
+                        "200": {
+                            "description": "ok",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "required": ["data"],
+                                        "properties": {
+                                            "data": {
+                                                "type": "object",
+                                                "required": ["bad-name"],
+                                                "properties": {
+                                                    "bad-name": {"type": "string"},
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="JSONPath field"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
+def test_compile_openapi_rejects_nested_response_schema_ref_cycles() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {
+            "schemas": {
+                "Node": {
+                    "type": "object",
+                    "required": ["child"],
+                    "properties": {
+                        "child": {"$ref": "#/components/schemas/Node"},
+                    },
+                },
+            },
+        },
+        "paths": {
+            "/node": {
+                "get": {
+                    "operationId": "getNode",
+                    "responses": {
+                        "200": {
+                            "description": "ok",
+                            "content": {
+                                "application/json": {
+                                    "schema": {"$ref": "#/components/schemas/Node"},
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="cyclic response schema ref"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
+def test_compile_openapi_rejects_nested_property_all_of_ref_cycles() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {
+            "schemas": {
+                "Loop": {
+                    "allOf": [
+                        {"$ref": "#/components/schemas/Loop"},
+                    ],
+                },
+            },
+        },
+        "paths": {
+            "/status": {
+                "get": {
+                    "operationId": "getStatus",
+                    "responses": {
+                        "200": {
+                            "description": "ok",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "required": ["status"],
+                                        "properties": {
+                                            "status": {
+                                                "allOf": [
+                                                    {"$ref": "#/components/schemas/Loop"},
+                                                ],
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="cyclic response schema composition"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
 def test_compile_openapi_resolves_escaped_response_schema_ref_names() -> None:
     document: dict[str, object] = {
         "openapi": "3.1.0",
@@ -3108,6 +3448,42 @@ def test_compile_openapi_rejects_ambiguous_response_schema_composition(
             },
             "schema for 'status' conflicting allOf property schema",
         ),
+        (
+            {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                    "status": {
+                        "allOf": [
+                            {"type": "string", "enum": ["ok"]},
+                            {
+                                "type": "object",
+                                "required": ["code"],
+                                "properties": {"code": {"type": "string"}},
+                            },
+                        ],
+                    },
+                },
+            },
+            "schema for 'status' conflicting allOf property schema",
+        ),
+        (
+            {
+                "allOf": [
+                    {
+                        "type": "object",
+                        "required": ["status"],
+                        "properties": {"status": {"type": "string"}},
+                    },
+                    {
+                        "type": "object",
+                        "required": ["status"],
+                        "properties": {"status": {"allOf": "not-a-sequence"}},
+                    },
+                ],
+            },
+            "OpenAPI response schema property 'status' allOf must be an array",
+        ),
     ],
 )
 def test_compile_openapi_rejects_unsafe_all_of_response_schemas(
@@ -3217,6 +3593,11 @@ def test_compile_openapi_rejects_deep_response_schema_ref_chains() -> None:
         ),
         (
             {"$ref": 1},
+            {},
+            "response schema ref must be a string",
+        ),
+        (
+            {"allOf": [{"$ref": 1}]},
             {},
             "response schema ref must be a string",
         ),

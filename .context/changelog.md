@@ -2,6 +2,10 @@
 
 ## 2026-06-20
 
+- Added issue #1010's nested response assertion support: response assertion
+  generation now recurses through required object properties and emits
+  deterministic nested `jsonpath ... exists` and enum equality checks while
+  preserving current JSONPath safety limits.
 - Fixed issue #997's OpenAPI security-negative cookie rendering bug:
   cookie-based API-key auth failures now merge with normal cookie parameters
   into one deterministic `Cookie` header instead of emitting duplicate cookie
