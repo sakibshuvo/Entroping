@@ -8,8 +8,78 @@ import json
 import math
 import re
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
 from urllib.parse import quote
+
+from entroping.bridge.openapi_to_hurl.models import (
+    _MISSING,
+    GeneratedHurlFile,
+    OpenApiCompilationError,
+    OpenApiHurlCompilationResult,
+    OpenApiSecurityCoverageFinding,
+    _JsonContentSchema,
+    _NegativePathCase,
+    _OpenApiParameter,
+    _ParameterExampleValue,
+    _ScalarParameterValue,
+    _SecurityScheme,
+    _TraversalBudget,
+)
+from entroping.bridge.openapi_to_hurl.schema import (
+    _MAX_OPENAPI_GENERATED_STRING_LENGTH,
+    _MAX_OPENAPI_JSON_DEPTH,
+    _MAX_OPENAPI_JSON_NODES,
+    _MAX_OPENAPI_SCHEMA_DEPTH,
+    _MAX_OPENAPI_SCHEMA_NODES,
+    _check_openapi_json_budget,
+    _check_openapi_schema_budget,
+    _ensure_json_value,
+    _example_for_schema,
+    _first_enum_value,
+    _first_example_value,
+    _generated_string,
+    _schema_preferred_value,
+)
+from entroping.bridge.openapi_to_hurl.validation import (
+    _ensure_mapping,
+    _ensure_string_keys,
+    _has_control,
+    _has_hurl_template_delimiter,
+    _mapping_field,
+    _string_sequence,
+    _validate_json_object_key,
+)
+
+__all__ = (
+    "GeneratedHurlFile",
+    "OpenApiCompilationError",
+    "OpenApiHurlCompilationResult",
+    "OpenApiSecurityCoverageFinding",
+    "compile_openapi_to_hurl",
+    "compile_openapi_to_hurl_with_report",
+    "_JsonContentSchema",
+    "_MAX_OPENAPI_GENERATED_STRING_LENGTH",
+    "_MAX_OPENAPI_JSON_DEPTH",
+    "_MAX_OPENAPI_JSON_NODES",
+    "_MAX_OPENAPI_SCHEMA_DEPTH",
+    "_MAX_OPENAPI_SCHEMA_NODES",
+    "_NegativePathCase",
+    "_OpenApiParameter",
+    "_SecurityScheme",
+    "_TraversalBudget",
+    "_check_openapi_json_budget",
+    "_check_openapi_schema_budget",
+    "_ensure_json_value",
+    "_ensure_string_keys",
+    "_example_for_schema",
+    "_first_enum_value",
+    "_first_example_value",
+    "_generated_string",
+    "_render_parameter_headers",
+    "_render_request_target",
+    "_schema_negative_files",
+    "_schema_preferred_value",
+    "_validate_path_template",
+)
 
 _HTTP_METHODS = frozenset({"get", "post", "put", "patch", "delete", "head", "options", "trace"})
 _JSONPATH_FIELD_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -22,11 +92,6 @@ _VENDOR_JSON_MEDIA_RE = re.compile(
 _PARAMETER_LOCATIONS = frozenset({"path", "query", "header", "cookie"})
 _READ_ONLY_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 _VALIDATION_FAILURE_STATUSES = ("400", "422")
-_MAX_OPENAPI_SCHEMA_DEPTH = 64
-_MAX_OPENAPI_SCHEMA_NODES = 10_000
-_MAX_OPENAPI_JSON_DEPTH = 64
-_MAX_OPENAPI_JSON_NODES = 10_000
-_MAX_OPENAPI_GENERATED_STRING_LENGTH = 4096
 _MAX_PARAMETER_REF_DEPTH = 64
 _PARAMETER_REF_PREFIX = "#/components/parameters/"
 _SENSITIVE_VARIABLE_PARTS = (
@@ -45,94 +110,6 @@ _SENSITIVE_VARIABLE_PARTS = (
     "session",
     "token",
 )
-
-_ScalarParameterValue = str | int | float | bool
-_ParameterExampleValue = _ScalarParameterValue | tuple[_ScalarParameterValue, ...]
-
-
-class _MissingValue:
-    """Sentinel for absent OpenAPI examples/defaults."""
-
-
-_MISSING = _MissingValue()
-
-
-class OpenApiCompilationError(ValueError):
-    """Raised when an OpenAPI document cannot be compiled into Hurl content."""
-
-
-@dataclass(frozen=True)
-class GeneratedHurlFile:
-    """Generated Hurl file content plus its deterministic repository path."""
-
-    relative_path: str
-    content: str
-
-
-@dataclass(frozen=True)
-class OpenApiSecurityCoverageFinding:
-    """Security coverage gap found while compiling OpenAPI auth tests."""
-
-    operation_id: str
-    method: str
-    path: str
-    scheme_name: str
-    reason: str
-
-
-@dataclass(frozen=True)
-class OpenApiHurlCompilationResult:
-    """Generated Hurl files plus non-blocking OpenAPI security findings."""
-
-    files: tuple[GeneratedHurlFile, ...]
-    security_findings: tuple[OpenApiSecurityCoverageFinding, ...]
-
-
-@dataclass(frozen=True)
-class _OpenApiParameter:
-    """Normalized OpenAPI parameter data used by the pure compiler."""
-
-    name: str
-    location: str
-    variable_name: str
-    example_value: _ParameterExampleValue | None
-    style: str
-    explode: bool
-
-
-@dataclass(frozen=True)
-class _SecurityScheme:
-    """Supported OpenAPI security scheme rendering metadata."""
-
-    name: str
-    auth_lines: tuple[str, ...]
-    query_parameter: tuple[str, str] | None = None
-
-
-@dataclass(frozen=True)
-class _JsonContentSchema:
-    """Selected JSON media type and schema from an OpenAPI content map."""
-
-    media_type: str
-    schema: Mapping[str, object]
-
-
-@dataclass(frozen=True)
-class _NegativePathCase:
-    """One deterministic negative-path Hurl variant for an OpenAPI operation."""
-
-    category: str
-    severity: str
-    target: str
-    body: object | str
-
-
-@dataclass(slots=True)
-class _TraversalBudget:
-    """Mutable traversal budget for untrusted OpenAPI structures."""
-
-    nodes: int = 0
-
 
 def compile_openapi_to_hurl(
     document: Mapping[str, object],
@@ -1457,231 +1434,6 @@ def _response_assertions(schema: Mapping[str, object] | None) -> list[str]:
     return assertions
 
 
-def _first_enum_value(schema: Mapping[str, object]) -> str | int | float | bool | None:
-    raw_enum = schema.get("enum")
-    if not isinstance(raw_enum, Sequence) or isinstance(raw_enum, str):
-        return None
-    for value in raw_enum:
-        if isinstance(value, str | int | float | bool):
-            return value
-    return None
-
-
-def _example_for_schema(
-    schema: Mapping[str, object],
-    *,
-    depth: int = 0,
-    budget: _TraversalBudget | None = None,
-) -> object:
-    budget = budget or _TraversalBudget()
-    _check_openapi_schema_budget(depth=depth, budget=budget, context="OpenAPI schema")
-    preferred = _schema_preferred_value(
-        schema,
-        context="OpenAPI schema",
-        depth=depth,
-        budget=budget,
-    )
-    if preferred is not _MISSING:
-        return preferred
-
-    schema_type = schema.get("type")
-    if schema_type == "object":
-        properties = _ensure_mapping(schema.get("properties", {}), "OpenAPI object properties")
-        required = _string_sequence(schema.get("required"), "OpenAPI object required")
-        return {
-            _validate_json_object_key(
-                field_name,
-                context="OpenAPI object required",
-            ): _example_for_schema(
-                _ensure_mapping(properties.get(field_name, {}), f"schema for {field_name!r}"),
-                depth=depth + 1,
-                budget=budget,
-            )
-            for field_name in required
-        }
-    if schema_type == "array":
-        return []
-    if schema_type in {"integer", "number"}:
-        minimum = schema.get("minimum")
-        if isinstance(minimum, int | float) and not isinstance(minimum, bool):
-            return int(minimum) if schema_type == "integer" else minimum
-        maximum = schema.get("maximum")
-        if isinstance(maximum, int | float) and not isinstance(maximum, bool):
-            return int(maximum) if schema_type == "integer" else maximum
-        return 0
-    if schema_type == "boolean":
-        return False
-    if schema_type == "string":
-        min_length = schema.get("minLength")
-        if isinstance(min_length, int) and not isinstance(min_length, bool) and min_length > 0:
-            return _generated_string(min_length, context="OpenAPI string schema example")
-        max_length = schema.get("maxLength")
-        if (
-            isinstance(max_length, int)
-            and not isinstance(max_length, bool)
-            and max_length >= 0
-            and max_length < len("string")
-        ):
-            return _generated_string(max_length, context="OpenAPI string schema example")
-    return "string"
-
-
-def _schema_preferred_value(
-    schema: Mapping[str, object],
-    *,
-    context: str,
-    depth: int = 0,
-    budget: _TraversalBudget | None = None,
-) -> object:
-    budget = budget or _TraversalBudget()
-    if "example" in schema:
-        return _ensure_json_value(
-            schema["example"],
-            context=f"{context} example",
-            depth=depth,
-            budget=budget,
-        )
-
-    examples_value = schema.get("examples", _MISSING)
-    if examples_value is not _MISSING:
-        extracted = _first_example_value(
-            examples_value,
-            context=f"{context} examples",
-            depth=depth,
-            budget=budget,
-        )
-        if extracted is not _MISSING:
-            return extracted
-
-    if "default" in schema:
-        return _ensure_json_value(
-            schema["default"],
-            context=f"{context} default",
-            depth=depth,
-            budget=budget,
-        )
-    if "const" in schema:
-        return _ensure_json_value(
-            schema["const"],
-            context=f"{context} const",
-            depth=depth,
-            budget=budget,
-        )
-
-    enum_value = _first_enum_value(schema)
-    if enum_value is not None:
-        return enum_value
-    return _MISSING
-
-
-def _first_example_value(
-    value: object,
-    *,
-    context: str,
-    depth: int,
-    budget: _TraversalBudget,
-) -> object:
-    if isinstance(value, Sequence) and not isinstance(value, str | bytes):
-        for item in value:
-            return _ensure_json_value(item, context=context, depth=depth, budget=budget)
-        return _MISSING
-    if isinstance(value, Mapping):
-        normalized = _ensure_mapping(value, context)
-        for item in normalized.values():
-            example = _ensure_mapping(item, f"{context} item")
-            if "value" in example:
-                return _ensure_json_value(
-                    example["value"],
-                    context=context,
-                    depth=depth,
-                    budget=budget,
-                )
-        return _MISSING
-    msg = f"{context} must be a list or mapping"
-    raise OpenApiCompilationError(msg)
-
-
-def _ensure_json_value(
-    value: object,
-    *,
-    context: str,
-    depth: int = 0,
-    budget: _TraversalBudget | None = None,
-) -> object:
-    budget = budget or _TraversalBudget()
-    _check_openapi_json_budget(depth=depth, budget=budget, context=context)
-    if value is None:
-        return value
-    if isinstance(value, str):
-        if _has_control(value):
-            msg = f"{context} contains control characters"
-            raise OpenApiCompilationError(msg)
-        if _has_hurl_template_delimiter(value):
-            msg = f"{context} contains Hurl template delimiters"
-            raise OpenApiCompilationError(msg)
-        return value
-    if isinstance(value, float) and not math.isfinite(value):
-        msg = f"{context} must be finite"
-        raise OpenApiCompilationError(msg)
-    if isinstance(value, int | float | bool):
-        return value
-    if isinstance(value, Sequence) and not isinstance(value, str | bytes):
-        return [
-            _ensure_json_value(item, context=context, depth=depth + 1, budget=budget)
-            for item in value
-        ]
-    if isinstance(value, Mapping):
-        normalized = _ensure_mapping(value, context)
-        return {
-            _validate_json_object_key(key, context=context): _ensure_json_value(
-                item,
-                context=f"{context}.{key}",
-                depth=depth + 1,
-                budget=budget,
-            )
-            for key, item in normalized.items()
-        }
-    msg = f"{context} must be JSON-compatible"
-    raise OpenApiCompilationError(msg)
-
-
-def _generated_string(length: int, *, context: str) -> str:
-    if length > _MAX_OPENAPI_GENERATED_STRING_LENGTH:
-        msg = f"{context} string length exceeds {_MAX_OPENAPI_GENERATED_STRING_LENGTH}"
-        raise OpenApiCompilationError(msg)
-    return "x" * length
-
-
-def _check_openapi_schema_budget(
-    *,
-    depth: int,
-    budget: _TraversalBudget,
-    context: str,
-) -> None:
-    if depth > _MAX_OPENAPI_SCHEMA_DEPTH:
-        msg = f"{context} schema depth exceeds {_MAX_OPENAPI_SCHEMA_DEPTH}"
-        raise OpenApiCompilationError(msg)
-    budget.nodes += 1
-    if budget.nodes > _MAX_OPENAPI_SCHEMA_NODES:
-        msg = f"{context} schema traversal exceeds {_MAX_OPENAPI_SCHEMA_NODES} nodes"
-        raise OpenApiCompilationError(msg)
-
-
-def _check_openapi_json_budget(
-    *,
-    depth: int,
-    budget: _TraversalBudget,
-    context: str,
-) -> None:
-    if depth > _MAX_OPENAPI_JSON_DEPTH:
-        msg = f"{context} JSON depth exceeds {_MAX_OPENAPI_JSON_DEPTH}"
-        raise OpenApiCompilationError(msg)
-    budget.nodes += 1
-    if budget.nodes > _MAX_OPENAPI_JSON_NODES:
-        msg = f"{context} JSON traversal exceeds {_MAX_OPENAPI_JSON_NODES} nodes"
-        raise OpenApiCompilationError(msg)
-
-
 def _operation_id(operation: Mapping[str, object], *, method: str, path: str) -> str:
     operation_id = operation.get("operationId")
     if isinstance(operation_id, str) and operation_id.strip():
@@ -1722,24 +1474,6 @@ def _jsonpath_for_field(field_name: str) -> str:
     return f"$.{field_name}"
 
 
-def _has_control(value: str) -> bool:
-    return any(ord(char) < 32 or ord(char) == 127 for char in value)
-
-
-def _has_hurl_template_delimiter(value: str) -> bool:
-    return "{{" in value or "}}" in value
-
-
-def _validate_json_object_key(value: str, *, context: str) -> str:
-    if _has_control(value):
-        msg = f"{context} JSON object key contains control characters: {value!r}"
-        raise OpenApiCompilationError(msg)
-    if _has_hurl_template_delimiter(value):
-        msg = f"{context} JSON object key contains Hurl template delimiters: {value!r}"
-        raise OpenApiCompilationError(msg)
-    return value
-
-
 def _validate_security_scheme_name(value: str, *, context: str) -> str:
     if _has_control(value):
         msg = f"{context} security scheme name contains control characters: {value!r}"
@@ -1761,46 +1495,3 @@ def _is_safe_openapi_path(value: str) -> bool:
         and not _has_control(value)
         and not any(char.isspace() for char in value)
     )
-
-
-def _mapping_field(
-    mapping: Mapping[str, object],
-    key: str,
-    error: str,
-) -> Mapping[str, object]:
-    value = mapping.get(key)
-    if not isinstance(value, Mapping):
-        raise OpenApiCompilationError(error)
-    return _ensure_string_keys(value, context=key)
-
-
-def _ensure_mapping(value: object, context: str) -> Mapping[str, object]:
-    if not isinstance(value, Mapping):
-        msg = f"{context} must be a mapping"
-        raise OpenApiCompilationError(msg)
-    return _ensure_string_keys(value, context=context)
-
-
-def _ensure_string_keys(value: Mapping[object, object], *, context: str) -> Mapping[str, object]:
-    normalized: dict[str, object] = {}
-    for key, item in value.items():
-        if not isinstance(key, str):
-            msg = f"{context} keys must be strings"
-            raise OpenApiCompilationError(msg)
-        normalized[key] = item
-    return normalized
-
-
-def _string_sequence(value: object, context: str) -> tuple[str, ...]:
-    if value is None:
-        return ()
-    if not isinstance(value, Sequence) or isinstance(value, str):
-        msg = f"{context} must be a list of strings"
-        raise OpenApiCompilationError(msg)
-    items: list[str] = []
-    for item in value:
-        if not isinstance(item, str) or not item:
-            msg = f"{context} must contain only non-empty strings"
-            raise OpenApiCompilationError(msg)
-        items.append(item)
-    return tuple(items)

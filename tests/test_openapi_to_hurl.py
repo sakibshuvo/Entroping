@@ -1,5 +1,6 @@
 """Unit tests for deterministic OpenAPI-to-Hurl compilation."""
 
+import importlib
 from pathlib import Path
 
 import pytest
@@ -12,6 +13,16 @@ from entroping.bridge.openapi_to_hurl import (
 )
 from entroping.core.run_safety import evaluate_run_safety
 from entroping.models.hurl import HurlTest, parse_hurl_exchanges, parse_hurl_metadata
+
+
+def test_openapi_to_hurl_package_exposes_compatibility_surface() -> None:
+    compiler_module = importlib.import_module("entroping.bridge.openapi_to_hurl.compiler")
+
+    assert openapi_compiler.compile_openapi_to_hurl is compiler_module.compile_openapi_to_hurl
+    assert openapi_compiler.OpenApiCompilationError is compiler_module.OpenApiCompilationError
+    assert openapi_compiler._OpenApiParameter is compiler_module._OpenApiParameter  # noqa: SLF001
+    assert openapi_compiler._TraversalBudget is compiler_module._TraversalBudget  # noqa: SLF001
+    assert openapi_compiler._render_request_target is compiler_module._render_request_target  # noqa: SLF001
 
 
 def _compile_single_operation(

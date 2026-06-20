@@ -2,6 +2,11 @@
 
 ## 2026-06-20
 
+- Refactored issue #980's OpenAPI-to-Hurl compiler into the
+  `bridge.openapi_to_hurl` package: `compiler.py` keeps orchestration and the
+  compatibility surface, while `models.py`, `schema.py`, and `validation.py`
+  own typed compiler data, bounded schema/example traversal, and OpenAPI input
+  guards without changing generated Hurl output or CLI imports.
 - Fixed issue #988's proxy dependency audit blocker: the `proxy` optional extra
   still installs and smokes mitmproxy, while `pyproject.toml` and `uv.lock`
   override mitmproxy's transitive `msgpack` cap to the patched `>=1.2.1` line.
