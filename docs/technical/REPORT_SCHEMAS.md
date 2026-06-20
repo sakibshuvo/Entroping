@@ -41,6 +41,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | API inventory packet | `entroping.api-inventory.v1` | `reports/api-inventory.json` from `entroping report api-inventory --output json` | [api-inventory.v1.schema.json](report-schemas/api-inventory.v1.schema.json) |
 | Mutation readiness packet | `entroping.mutation-readiness.v1` | `reports/mutation-readiness.json` from `entroping report mutation-readiness --output json` | [mutation-readiness.v1.schema.json](report-schemas/mutation-readiness.v1.schema.json) |
 | Evidence index packet | `entroping.evidence-index.v1` | `reports/evidence-index.json` from `entroping report evidence-index --output json` | [evidence-index.v1.schema.json](report-schemas/evidence-index.v1.schema.json) |
+| QA brain seed packet | `entroping.qa-brain-seed.v1` | `reports/qa-brain-seed.json` from `entroping report qa-brain-seed --output json` | [qa-brain-seed.v1.schema.json](report-schemas/qa-brain-seed.v1.schema.json) |
 | Design-partner feedback | `entroping.design-partner-feedback.v1` | `reports/design-partner-feedback.json` from `entroping report design-partner-feedback` | [design-partner-feedback.v1.schema.json](report-schemas/design-partner-feedback.v1.schema.json) |
 | Failure bundle manifest | `entroping.failure-bundle.v1` | `reports/failure-bundle/manifest.json` | Inline contract |
 | Coverage badges | Shields endpoint schema v1 | `reports/badges/*.json` | External Shields endpoint format |
@@ -186,6 +187,27 @@ non-blocking; invalid, unsafe, symlinked, non-file, oversized, malformed, or
 unreadable source artifacts remain represented through evidence-index states
 without embedding raw source contents. The command does not execute Hurl, run
 tests, call providers, upload artifacts, parse traffic state, mutate files, or
+render raw report contents, raw traffic, source Hurl, prompts, credentials,
+cookies, environment values, or provider outputs.
+
+The QA brain seed packet is written by:
+
+```bash
+entroping report qa-brain-seed
+entroping report qa-brain-seed --output json
+```
+
+It writes `reports/qa-brain-seed.md` by default or
+`reports/qa-brain-seed.json` with schema `entroping.qa-brain-seed.v1` when
+`--output json` is selected. The packet prepares deterministic local seed
+metadata for future QA Brain retrieval and eval design by transforming
+value-free local evidence-index rows into seed-source categories, eval-slice
+readiness, and next-action rows. It is not a model, fine-tune, retrieval
+engine, or provider integration. Missing evidence is non-blocking; invalid,
+unsafe, symlinked, non-file, oversized, malformed, or unreadable source
+artifacts remain represented through evidence-index states without embedding
+contents. The command does not execute Hurl, run tests, call providers,
+fine-tune models, upload artifacts, parse traffic state, mutate files, or
 render raw report contents, raw traffic, source Hurl, prompts, credentials,
 cookies, environment values, or provider outputs.
 

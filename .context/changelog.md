@@ -2,6 +2,13 @@
 
 ## 2026-06-20
 
+- Added issue #1038's QA Brain seed packet: `report qa-brain-seed` now writes
+  local `entroping.qa-brain-seed.v1` JSON or Markdown that converts
+  value-free evidence-index rows into seed-source, eval-slice, and next-action
+  metadata for future QA Brain retrieval/eval design without executing Hurl,
+  running tests, calling providers, fine-tuning models, uploading artifacts,
+  parsing traffic state, mutating files, or rendering raw report/source
+  contents.
 - Added issue #1036's evidence-index packet: `report evidence-index` now writes
   local `entroping.evidence-index.v1` JSON or Markdown that exposes stable
   local evidence artifact IDs, paths, states, schema versions, and value-free

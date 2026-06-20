@@ -314,6 +314,20 @@ def test_evidence_index_uses_fallback_summaries_for_negative_counts(tmp_path: Pa
     assert "-1" not in repr(artifacts)
 
 
+def test_evidence_index_includes_recent_value_free_packet_artifacts(
+    tmp_path: Path,
+) -> None:
+    artifacts = build_local_evidence_index(project_root=tmp_path)
+    by_id = {artifact.id: artifact for artifact in artifacts}
+
+    assert by_id["notification-packet-json"].path == "reports/notification-packet.json"
+    assert by_id["notification-packet-json"].state == "missing"
+    assert by_id["observability-packet-json"].path == "reports/observability-packet.json"
+    assert by_id["api-inventory-json"].path == "reports/api-inventory.json"
+    assert by_id["mutation-readiness-json"].path == "reports/mutation-readiness.json"
+    assert by_id["evidence-index-json"].path == "reports/evidence-index.json"
+
+
 @pytest.mark.parametrize(
     ("payload", "expected_state", "expected_summary", "expected_schema"),
     (

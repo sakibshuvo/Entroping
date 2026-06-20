@@ -146,6 +146,14 @@ from entroping.core.pilot_metrics import (
     PilotMetricsReport,
     PilotMetricsSummary,
 )
+from entroping.core.qa_brain_seed import (
+    QA_BRAIN_SEED_SCHEMA_VERSION,
+    QaBrainEvalSlice,
+    QaBrainNextAction,
+    QaBrainSeedPacket,
+    QaBrainSeedSource,
+    QaBrainSeedSummary,
+)
 from entroping.core.report_artifact_manifest import (
     REPORT_ARTIFACT_MANIFEST_SCHEMA_VERSION,
     ReportArtifactAuditCommand,
@@ -2603,6 +2611,148 @@ def test_evidence_index_v1_schema_contract_is_versioned_and_stable() -> None:
     ]
 
 
+def test_qa_brain_seed_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "qa-brain-seed.v1.schema.json").read_text())
+    packet = QaBrainSeedPacket(
+        generated_at="2026-06-20T00:00:00+00:00",
+        project="checkout-api",
+        summary=QaBrainSeedSummary(
+            status="partial",
+            sources_total=2,
+            sources_present=1,
+            sources_missing=0,
+            sources_invalid=1,
+            sources_unsafe=0,
+            eval_slices_total=1,
+            eval_slices_ready=0,
+            next_actions_total=1,
+        ),
+        sources=(
+            QaBrainSeedSource(
+                id="test-quality-json",
+                label="Generated-Test Quality JSON",
+                path="reports/test-quality.json",
+                state="present",
+                schema_version="entroping.test-quality-report.v1",
+                category="generated_test_quality",
+                eval_slices=("weak_test_detection", "unsafe_generated_hurl"),
+                summary="warn, score 80, 2 generated, 1 findings",
+            ),
+            QaBrainSeedSource(
+                id="drift-json",
+                label="Drift JSON",
+                path="reports/drift.json",
+                state="invalid",
+                schema_version=None,
+                category="api_inventory",
+                eval_slices=("api_drift_reasoning", "bogus_evidence"),
+                summary="invalid JSON",
+            ),
+        ),
+        eval_slices=(
+            QaBrainEvalSlice(
+                id="weak_test_detection",
+                label="Weak-test detection",
+                status="attention",
+                source_ids=("test-quality-json",),
+                source_paths=("reports/test-quality.json",),
+                next_action="Review generated-test quality evidence before QA-brain evals.",
+            ),
+        ),
+        next_actions=(
+            QaBrainNextAction(
+                priority="medium",
+                action="Add or repair value-free local evidence for weak-test detection.",
+                source_ids=("test-quality-json",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert QA_BRAIN_SEED_SCHEMA_VERSION == "entroping.qa-brain-seed.v1"
+    assert payload == {
+        "schema_version": "entroping.qa-brain-seed.v1",
+        "generated_at": "2026-06-20T00:00:00+00:00",
+        "project": "checkout-api",
+        "summary": {
+            "status": "partial",
+            "sources_total": 2,
+            "sources_present": 1,
+            "sources_missing": 0,
+            "sources_invalid": 1,
+            "sources_unsafe": 0,
+            "eval_slices_total": 1,
+            "eval_slices_ready": 0,
+            "next_actions_total": 1,
+        },
+        "sources": [
+            {
+                "id": "test-quality-json",
+                "label": "Generated-Test Quality JSON",
+                "path": "reports/test-quality.json",
+                "state": "present",
+                "schema_version": "entroping.test-quality-report.v1",
+                "category": "generated_test_quality",
+                "eval_slices": ["weak_test_detection", "unsafe_generated_hurl"],
+                "summary": "warn, score 80, 2 generated, 1 findings",
+            },
+            {
+                "id": "drift-json",
+                "label": "Drift JSON",
+                "path": "reports/drift.json",
+                "state": "invalid",
+                "schema_version": None,
+                "category": "api_inventory",
+                "eval_slices": ["api_drift_reasoning", "bogus_evidence"],
+                "summary": "invalid JSON",
+            },
+        ],
+        "eval_slices": [
+            {
+                "id": "weak_test_detection",
+                "label": "Weak-test detection",
+                "status": "attention",
+                "source_ids": ["test-quality-json"],
+                "source_paths": ["reports/test-quality.json"],
+                "next_action": "Review generated-test quality evidence before QA-brain evals.",
+            }
+        ],
+        "next_actions": [
+            {
+                "priority": "medium",
+                "action": "Add or repair value-free local evidence for weak-test detection.",
+                "source_ids": ["test-quality-json"],
+            }
+        ],
+    }
+    assert schema["properties"]["schema_version"]["const"] == "entroping.qa-brain-seed.v1"
+    assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["$defs"]["seed_category"]["enum"] == [
+        "runtime_governance",
+        "policy_governance",
+        "generated_test_quality",
+        "test_pyramid",
+        "api_inventory",
+        "mutation_fuzz",
+        "redaction_safety",
+        "cross_surface_handoff",
+        "agent_review",
+        "review_signal",
+        "generic_evidence",
+    ]
+    assert schema["$defs"]["eval_slice_id"]["enum"] == [
+        "weak_test_detection",
+        "missing_gate_discovery",
+        "unsafe_generated_hurl",
+        "bogus_evidence",
+        "redaction_mistakes",
+        "api_drift_reasoning",
+        "mutation_fuzz_readiness",
+        "cross_surface_handoff_quality",
+    ]
+
+
 def test_effective_policy_diff_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "effective-policy-diff.v1.schema.json").read_text())
     base = EffectivePolicyReport(
@@ -2900,6 +3050,7 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
             SCHEMA_DIR / "mutation-readiness.v1.schema.json"
         ),
         "entroping.evidence-index.v1": SCHEMA_DIR / "evidence-index.v1.schema.json",
+        "entroping.qa-brain-seed.v1": SCHEMA_DIR / "qa-brain-seed.v1.schema.json",
         "entroping.design-partner-feedback.v1": (
             SCHEMA_DIR / "design-partner-feedback.v1.schema.json"
         ),
