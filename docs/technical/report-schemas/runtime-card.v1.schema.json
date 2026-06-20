@@ -44,6 +44,9 @@
     "pilot_readiness": {
       "$ref": "#/$defs/pilot_readiness"
     },
+    "test_pyramid": {
+      "$ref": "#/$defs/test_pyramid"
+    },
     "agent_provenance": {
       "$ref": "#/$defs/agent_provenance"
     },
@@ -269,6 +272,46 @@
         },
         "manifest_audit_status": {
           "type": "string"
+        }
+      }
+    },
+    "test_pyramid": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "path",
+        "total_layers",
+        "present_layers",
+        "attention_layers",
+        "findings"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "complete",
+            "incomplete",
+            "missing"
+          ]
+        },
+        "path": {
+          "type": "string"
+        },
+        "total_layers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "present_layers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "attention_layers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "findings": {
+          "type": "integer",
+          "minimum": 0
         }
       }
     },

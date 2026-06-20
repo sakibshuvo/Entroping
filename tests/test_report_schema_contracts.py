@@ -135,6 +135,7 @@ from entroping.core.runtime_card import (
     RuntimeCardReport,
     RuntimeCardRunEvidence,
     RuntimeCardSummary,
+    RuntimeCardTestPyramidEvidence,
 )
 from entroping.core.structured_diagnostics import (
     STRUCTURED_DIAGNOSTICS_SCHEMA_VERSION,
@@ -1612,6 +1613,14 @@ def test_runtime_card_v1_schema_contract_is_versioned_and_stable() -> None:
             diagnostics=0,
             manifest_audit_status="verified",
         ),
+        test_pyramid=RuntimeCardTestPyramidEvidence(
+            status="incomplete",
+            path="reports/test-pyramid.json",
+            total_layers=6,
+            present_layers=4,
+            attention_layers=2,
+            findings=2,
+        ),
         agent_provenance=RuntimeCardAgentProvenance(
             status="attention",
             configured_roles=2,
@@ -1651,9 +1660,19 @@ def test_runtime_card_v1_schema_contract_is_versioned_and_stable() -> None:
         "diagnostics": 0,
         "manifest_audit_status": "verified",
     }
+    assert payload["test_pyramid"] == {
+        "status": "incomplete",
+        "path": "reports/test-pyramid.json",
+        "total_layers": 6,
+        "present_layers": 4,
+        "attention_layers": 2,
+        "findings": 2,
+    }
     assert schema["properties"]["schema_version"]["const"] == RUNTIME_CARD_SCHEMA_VERSION
     assert schema["properties"]["pilot_readiness"]["$ref"] == "#/$defs/pilot_readiness"
+    assert schema["properties"]["test_pyramid"]["$ref"] == "#/$defs/test_pyramid"
     assert "pilot_readiness" not in schema["required"]
+    assert "test_pyramid" not in schema["required"]
     assert schema["$defs"]["summary"]["properties"]["status"]["enum"] == [
         "pass",
         "attention",
@@ -1665,6 +1684,11 @@ def test_runtime_card_v1_schema_contract_is_versioned_and_stable() -> None:
         "missing",
         "invalid",
         "unsafe",
+    ]
+    assert schema["$defs"]["test_pyramid"]["properties"]["status"]["enum"] == [
+        "complete",
+        "incomplete",
+        "missing",
     ]
 
 
