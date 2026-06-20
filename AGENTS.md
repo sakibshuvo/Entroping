@@ -15,7 +15,7 @@ These instructions extend the global Codex rules for this repository. If a rule 
 - Domain code in `src/entroping/models/` and `src/entroping/bridge/` must not import adapters from `cli`, `core`, `brain`, or `studio`.
 - Keep bridge compiler responsibilities separate:
   - `openapi_to_hurl/` for OpenAPI translation, with bounded schema,
-    validation, model, and compiler modules.
+    validation, parameter, model, and compiler modules.
   - `traffic_to_hurl.py` for redacted traffic translation.
   - `traffic_to_wiremock.py` for redacted dependency mock translation.
   - `traffic_to_graph.py` for redacted dependency map translation.
