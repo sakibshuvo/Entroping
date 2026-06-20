@@ -943,6 +943,7 @@ entroping report handoff [--output <md|json>] [--fail-on-insufficient]
 entroping report notification-packet [--output <md|json>]
 entroping report observability-packet [--output <md|json>]
 entroping report api-inventory [--output <md|json>]
+entroping report mutation-readiness [--output <md|json>]
 entroping report pilot-metrics [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
@@ -1351,6 +1352,23 @@ results, parse traffic state, call registries, generate tests, mutate source
 files, or include raw URLs, headers, bodies, cookies, prompts, credentials,
 environment values, or full file contents.
 
+`entroping report mutation-readiness` writes a local read-only
+mutation/fuzz-readiness packet at `reports/mutation-readiness.md` by default,
+or `reports/mutation-readiness.json` with `--output json`. It reads committed
+generated Hurl tests under `tests/generated/` or tests carrying generated
+metadata, plus optional existing `reports/test-quality.json` and
+`reports/test-pyramid.json` artifacts when present and schema-valid. It
+summarizes only counts and local source states for generated corpus presence,
+negative-path evidence, auth/security evidence, assertion strength, seed
+metadata, and safe candidate categories such as status-code, schema, auth,
+latency, request-shape, and response-shape. Missing evidence is non-blocking;
+malformed, oversized, non-file, symlinked, path-escaped, wrong-schema, or
+secret-like source artifacts are marked invalid or unsafe. The command does
+not execute Hurl, run mutation tests, run fuzzers, generate tests, call
+providers, upload results, parse traffic state, mutate source files, or include
+raw URLs, headers, bodies, cookies, prompts, credentials, environment values,
+seed values, full report contents, or source Hurl contents.
+
 `entroping report sarif` writes SARIF 2.1.0 to `reports/entroping.sarif` by
 default. It converts the same local JUnit, drift, and optional traceability
 findings used by GitHub annotation output into stable SARIF rule IDs, severity,
@@ -1410,6 +1428,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report observability-packet --output json` | `reports/observability-packet.json` | Machine-readable observability packet using `entroping.observability-packet.v1`. |
 | `entroping report api-inventory --output md` | `reports/api-inventory.md` | Human-readable read-only API style inventory for REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, and unknown HTTP signals. |
 | `entroping report api-inventory --output json` | `reports/api-inventory.json` | Machine-readable API inventory packet using `entroping.api-inventory.v1`. |
+| `entroping report mutation-readiness --output md` | `reports/mutation-readiness.md` | Human-readable read-only mutation/fuzz readiness summary from generated-Hurl and optional local report evidence. |
+| `entroping report mutation-readiness --output json` | `reports/mutation-readiness.json` | Machine-readable mutation/fuzz readiness packet using `entroping.mutation-readiness.v1`. |
 | `entroping report pilot-metrics --output md` | `reports/pilot-metrics.md` | Human-readable local pilot metric inference from sanitized artifacts, with `unknown` and `manual_input_required` states for metrics Entroping cannot infer locally. |
 | `entroping report pilot-metrics --output json` | `reports/pilot-metrics.json` | Machine-readable local pilot metric inference using `entroping.pilot-metrics.v1`. |
 | `entroping report agent-bundle --output md` | `reports/agent-bundle.md` | Human-readable local multi-agent review bundle from sanitized manifests. |

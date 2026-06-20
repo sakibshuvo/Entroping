@@ -108,6 +108,13 @@ from entroping.core.handoff_packet import (
     HandoffSummary,
     HandoffTarget,
 )
+from entroping.core.mutation_readiness import (
+    MUTATION_READINESS_SCHEMA_VERSION,
+    MutationReadinessCandidate,
+    MutationReadinessPacket,
+    MutationReadinessSource,
+    MutationReadinessSummary,
+)
 from entroping.core.notification_packet import (
     NOTIFICATION_PACKET_SCHEMA_VERSION,
     NotificationMessage,
@@ -2393,6 +2400,121 @@ def test_api_inventory_v1_schema_contract_is_versioned_and_stable() -> None:
     ]
 
 
+def test_mutation_readiness_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "mutation-readiness.v1.schema.json").read_text())
+    packet = MutationReadinessPacket(
+        generated_at="2026-06-20T00:00:00+00:00",
+        project="checkout-api",
+        summary=MutationReadinessSummary(
+            status="ready",
+            sources_total=1,
+            sources_present=1,
+            sources_missing=0,
+            sources_invalid=0,
+            sources_unsafe=0,
+            generated_tests=1,
+            negative_tests=1,
+            security_tests=1,
+            assertions_total=2,
+            seed_metadata_tests=1,
+            candidate_categories_total=1,
+            optional_reports_present=0,
+            optional_reports_invalid=0,
+            optional_reports_unsafe=0,
+        ),
+        sources=(
+            MutationReadinessSource(
+                kind="generated_hurl",
+                path="tests/generated/security/auth.hurl",
+                state="present",
+                schema_version=None,
+                tags=("generated", "security"),
+                candidate_categories=("auth",),
+                assertions=2,
+                seed_metadata=True,
+                summary="1 generated Hurl exchanges.",
+            ),
+        ),
+        candidates=(
+            MutationReadinessCandidate(
+                category="auth",
+                label="Auth/security mutation",
+                tests=1,
+                source_paths=("tests/generated/security/auth.hurl",),
+                next_action="Keep auth/security cases explicit before future mutation execution.",
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert MUTATION_READINESS_SCHEMA_VERSION == "entroping.mutation-readiness.v1"
+    assert payload == {
+        "schema_version": "entroping.mutation-readiness.v1",
+        "generated_at": "2026-06-20T00:00:00+00:00",
+        "project": "checkout-api",
+        "summary": {
+            "status": "ready",
+            "sources_total": 1,
+            "sources_present": 1,
+            "sources_missing": 0,
+            "sources_invalid": 0,
+            "sources_unsafe": 0,
+            "generated_tests": 1,
+            "negative_tests": 1,
+            "security_tests": 1,
+            "assertions_total": 2,
+            "seed_metadata_tests": 1,
+            "candidate_categories_total": 1,
+            "optional_reports_present": 0,
+            "optional_reports_invalid": 0,
+            "optional_reports_unsafe": 0,
+        },
+        "sources": [
+            {
+                "kind": "generated_hurl",
+                "path": "tests/generated/security/auth.hurl",
+                "state": "present",
+                "schema_version": None,
+                "tags": ["generated", "security"],
+                "candidate_categories": ["auth"],
+                "assertions": 2,
+                "seed_metadata": True,
+                "summary": "1 generated Hurl exchanges.",
+            }
+        ],
+        "candidates": [
+            {
+                "category": "auth",
+                "label": "Auth/security mutation",
+                "tests": 1,
+                "source_paths": ["tests/generated/security/auth.hurl"],
+                "next_action": (
+                    "Keep auth/security cases explicit before future mutation execution."
+                ),
+            }
+        ],
+    }
+    assert (
+        schema["properties"]["schema_version"]["const"]
+        == "entroping.mutation-readiness.v1"
+    )
+    assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["$defs"]["summary"]["properties"]["status"]["enum"] == [
+        "ready",
+        "partial",
+        "insufficient",
+    ]
+    assert schema["$defs"]["candidate_category"]["enum"] == [
+        "status_code",
+        "schema",
+        "auth",
+        "latency",
+        "request_shape",
+        "response_shape",
+    ]
+
+
 def test_effective_policy_diff_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "effective-policy-diff.v1.schema.json").read_text())
     base = EffectivePolicyReport(
@@ -2686,6 +2808,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
             SCHEMA_DIR / "observability-packet.v1.schema.json"
         ),
         "entroping.api-inventory.v1": SCHEMA_DIR / "api-inventory.v1.schema.json",
+        "entroping.mutation-readiness.v1": (
+            SCHEMA_DIR / "mutation-readiness.v1.schema.json"
+        ),
         "entroping.design-partner-feedback.v1": (
             SCHEMA_DIR / "design-partner-feedback.v1.schema.json"
         ),

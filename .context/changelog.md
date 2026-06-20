@@ -2,6 +2,14 @@
 
 ## 2026-06-20
 
+- Added issue #1034's mutation/fuzz readiness packet: `report
+  mutation-readiness` now writes local `entroping.mutation-readiness.v1` JSON
+  or Markdown that summarizes generated corpus presence, negative-path
+  evidence, auth/security evidence, assertion strength, seed metadata, and safe
+  future mutation/fuzz candidate categories from generated-Hurl metadata and
+  optional local report artifacts without executing Hurl, mutating tests,
+  generating tests, calling providers, parsing traffic state, uploading
+  artifacts, or rendering raw report/source contents.
 - Added issue #1032's API surface inventory packet: `report api-inventory` now
   writes local `entroping.api-inventory.v1` JSON or Markdown that inventories
   REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, and unknown HTTP signals from

@@ -46,6 +46,7 @@ entroping report handoff [--output <md|json>] [--fail-on-insufficient]
 entroping report notification-packet [--output <md|json>]
 entroping report observability-packet [--output <md|json>]
 entroping report api-inventory [--output <md|json>]
+entroping report mutation-readiness [--output <md|json>]
 entroping report pilot-metrics [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
@@ -405,6 +406,8 @@ Experimental design-partner evidence commands:
 | `entroping report observability-packet --output json` | Write machine-readable observability evidence to `reports/observability-packet.json` |
 | `entroping report api-inventory --output md` | Write a read-only API surface inventory to `reports/api-inventory.md` |
 | `entroping report api-inventory --output json` | Write machine-readable API style evidence to `reports/api-inventory.json` |
+| `entroping report mutation-readiness --output md` | Write a read-only mutation/fuzz readiness summary to `reports/mutation-readiness.md` |
+| `entroping report mutation-readiness --output json` | Write machine-readable mutation/fuzz readiness evidence to `reports/mutation-readiness.json` |
 | `entroping report pilot-metrics --output md` | Write local design-partner pilot metric inference to `reports/pilot-metrics.md` |
 | `entroping report pilot-metrics --output json` | Write machine-readable pilot metric inference to `reports/pilot-metrics.json` |
 | `entroping report agent-bundle --output md` | Write a local multi-agent review bundle to `reports/agent-bundle.md` |
@@ -441,6 +444,7 @@ entroping report handoff --fail-on-insufficient
 entroping report notification-packet --output json
 entroping report observability-packet --output json
 entroping report api-inventory --output json
+entroping report mutation-readiness --output json
 entroping report pilot-metrics
 entroping report agent-bundle --scope tests/generated
 entroping report traceability --output md

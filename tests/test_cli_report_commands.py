@@ -34,6 +34,7 @@ from entroping.core.capture_summary_report import CaptureSummaryResult
 from entroping.core.design_partner_feedback import DesignPartnerFeedbackError
 from entroping.core.evidence_bundle import EvidenceBundleError
 from entroping.core.handoff_packet import HandoffError
+from entroping.core.mutation_readiness import MutationReadinessError
 from entroping.core.notification_packet import NotificationPacketError
 from entroping.core.observability_packet import ObservabilityPacketError
 from entroping.core.pilot_metrics import PilotMetricsError
@@ -214,6 +215,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "notification-packet",
         "observability-packet",
         "api-inventory",
+        "mutation-readiness",
         "pilot-metrics",
         "agent-bundle",
     ):
@@ -843,6 +845,84 @@ def test_report_api_inventory_wraps_core_errors(monkeypatch: pytest.MonkeyPatch)
 
     assert result.exit_code == 1
     assert "API inventory path is unsafe" in result.output
+
+
+def test_report_mutation_readiness_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("tests") / "generated" / "negative" / "schema.hurl",
+        """
+# entroping: tags=generated,negative
+# entroping: source=openapi
+# entroping: negative_category=schema-violations
+# entroping: fuzz_seed=schema-seed
+POST http://127.0.0.1:18080/orders
+HTTP 422
+[Asserts]
+jsonpath "$.code" isString
+""".strip()
+        + "\n",
+    )
+
+    result = CliRunner().invoke(app, ["report", "mutation-readiness"])
+
+    assert result.exit_code == 0
+    assert "Wrote mutation readiness: reports/mutation-readiness.md" in result.output
+    markdown = Path("reports/mutation-readiness.md").read_text(encoding="utf-8")
+    assert "# Entroping Mutation Readiness" in markdown
+    assert "schema" in markdown
+
+
+def test_report_mutation_readiness_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "mutation-readiness", "--output", "json"],
+    )
+
+    assert result.exit_code == 0
+    assert "Wrote mutation readiness: reports/mutation-readiness.json" in result.output
+    payload = json.loads(
+        Path("reports/mutation-readiness.json").read_text(encoding="utf-8")
+    )
+    assert payload["schema_version"] == "entroping.mutation-readiness.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_mutation_readiness_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(
+        app,
+        ["report", "mutation-readiness", "--output", "html"],
+    )
+
+    assert result.exit_code == 2
+    assert "Unsupported mutation-readiness output" in result.output
+    assert not Path("reports/mutation-readiness.html").exists()
+
+
+def test_report_mutation_readiness_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_mutation_readiness(*args: object, **kwargs: object) -> object:
+        raise MutationReadinessError("mutation readiness path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_mutation_readiness_report",
+        fail_mutation_readiness,
+    )
+
+    result = CliRunner().invoke(app, ["report", "mutation-readiness"])
+
+    assert result.exit_code == 1
+    assert "mutation readiness path is unsafe" in result.output
 
 
 def test_report_bug_generates_markdown_from_latest_failing_run(
