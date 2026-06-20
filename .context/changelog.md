@@ -2,6 +2,10 @@
 
 ## 2026-06-20
 
+- Fixed issue #1014's OpenAPI parameter `$ref` JSON Pointer gap: reusable
+  parameter refs now decode escaped component names consistently while still
+  failing closed on raw nested paths, malformed escapes, unknown refs, cycles,
+  and depth exhaustion.
 - Fixed issue #1008's OpenAPI response `$ref` assertion gap: response
   assertion generation now resolves bounded local component schema refs before
   reading `required` and `properties`, and fails closed on unsupported,

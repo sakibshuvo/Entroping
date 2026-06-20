@@ -147,10 +147,7 @@ def _resolve_parameter_ref(
     if len(seen_refs) >= _MAX_PARAMETER_REF_DEPTH:
         msg = f"{context} parameter ref depth exceeds {_MAX_PARAMETER_REF_DEPTH}"
         raise OpenApiCompilationError(msg)
-    component_name = raw_ref.removeprefix(_PARAMETER_REF_PREFIX)
-    if not component_name or "/" in component_name or "~" in component_name:
-        msg = f"{context} malformed parameter ref {raw_ref!r}"
-        raise OpenApiCompilationError(msg)
+    component_name = _parameter_component_name(raw_ref, context=context)
     if raw_ref in seen_refs:
         msg = f"{context} cyclic parameter ref {raw_ref!r}"
         raise OpenApiCompilationError(msg)
@@ -165,6 +162,35 @@ def _resolve_parameter_ref(
         context=f"{context} ref {raw_ref!r}",
         seen_refs=(*seen_refs, raw_ref),
     )
+
+
+def _parameter_component_name(raw_ref: str, *, context: str) -> str:
+    component_name = raw_ref.removeprefix(_PARAMETER_REF_PREFIX)
+    if not component_name or "/" in component_name:
+        msg = f"{context} malformed parameter ref {raw_ref!r}"
+        raise OpenApiCompilationError(msg)
+
+    decoded: list[str] = []
+    index = 0
+    while index < len(component_name):
+        character = component_name[index]
+        if character != "~":
+            decoded.append(character)
+            index += 1
+            continue
+        if index + 1 >= len(component_name):
+            msg = f"{context} malformed parameter ref {raw_ref!r}"
+            raise OpenApiCompilationError(msg)
+        escape = component_name[index + 1]
+        if escape == "0":
+            decoded.append("~")
+        elif escape == "1":
+            decoded.append("/")
+        else:
+            msg = f"{context} malformed parameter ref {raw_ref!r}"
+            raise OpenApiCompilationError(msg)
+        index += 2
+    return "".join(decoded)
 
 
 def _parse_parameter(
