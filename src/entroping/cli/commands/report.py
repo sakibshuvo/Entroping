@@ -81,6 +81,11 @@ from entroping.core.handoff_packet import (
     run_handoff_report,
 )
 from entroping.core.hurl_discovery import discover_hurl_tests
+from entroping.core.mutation_readiness import (
+    MutationReadinessError,
+    MutationReadinessOutput,
+    run_mutation_readiness_report,
+)
 from entroping.core.notification_packet import (
     NotificationOutput,
     NotificationPacketError,
@@ -923,6 +928,33 @@ def report_api_inventory(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote API inventory: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("mutation-readiness", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_mutation_readiness(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local mutation and fuzz readiness packet."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported mutation-readiness output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_mutation_readiness_report(
+            project_root=Path.cwd(),
+            output=cast(MutationReadinessOutput, normalized_output),
+        )
+    except MutationReadinessError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote mutation readiness: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 

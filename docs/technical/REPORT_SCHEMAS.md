@@ -39,6 +39,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Notification packet | `entroping.notification-packet.v1` | `reports/notification-packet.json` from `entroping report notification-packet --output json` | [notification-packet.v1.schema.json](report-schemas/notification-packet.v1.schema.json) |
 | Observability packet | `entroping.observability-packet.v1` | `reports/observability-packet.json` from `entroping report observability-packet --output json` | [observability-packet.v1.schema.json](report-schemas/observability-packet.v1.schema.json) |
 | API inventory packet | `entroping.api-inventory.v1` | `reports/api-inventory.json` from `entroping report api-inventory --output json` | [api-inventory.v1.schema.json](report-schemas/api-inventory.v1.schema.json) |
+| Mutation readiness packet | `entroping.mutation-readiness.v1` | `reports/mutation-readiness.json` from `entroping report mutation-readiness --output json` | [mutation-readiness.v1.schema.json](report-schemas/mutation-readiness.v1.schema.json) |
 | Design-partner feedback | `entroping.design-partner-feedback.v1` | `reports/design-partner-feedback.json` from `entroping report design-partner-feedback` | [design-partner-feedback.v1.schema.json](report-schemas/design-partner-feedback.v1.schema.json) |
 | Failure bundle manifest | `entroping.failure-bundle.v1` | `reports/failure-bundle/manifest.json` | Inline contract |
 | Coverage badges | Shields endpoint schema v1 | `reports/badges/*.json` | External Shields endpoint format |
@@ -146,6 +147,26 @@ findings. The report does not execute tests, run Hurl, call providers, upload
 artifacts, parse source Hurl, include raw artifact contents, or expose raw
 traffic, prompts, stdout/stderr, environment values, or source coverage file
 names.
+
+The mutation-readiness report is written by:
+
+```bash
+entroping report mutation-readiness --output json
+```
+
+Its v1 payload summarizes bounded local evidence for future deterministic
+mutation and seeded fuzz workflows. It reads committed generated Hurl tests
+under `tests/generated/` or tests carrying generated metadata, plus optional
+existing `reports/test-quality.json` and `reports/test-pyramid.json` artifacts
+when present and schema-valid. It reports counts for generated corpus presence,
+negative-path evidence, auth/security evidence, assertion strength, seed
+metadata, and safe candidate categories such as status-code, schema, auth,
+latency, request-shape, and response-shape. Missing evidence is non-blocking;
+malformed, oversized, path-escaped, non-file, symlinked, wrong-schema, or
+secret-like artifacts are marked invalid or unsafe. The report does not execute
+Hurl, mutate tests, generate tests, call providers, parse traffic state, upload
+artifacts, or render raw URLs, headers, bodies, cookies, prompts, credentials,
+environment values, seeds, full report contents, or source Hurl contents.
 
 The report artifact manifest is written by:
 
