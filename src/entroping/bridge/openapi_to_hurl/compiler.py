@@ -1558,16 +1558,33 @@ def _render_tags(tags: frozenset[str]) -> str:
 
 
 def _jsonpath_for_field(field_name: str) -> str:
-    if _JSONPATH_FIELD_RE.fullmatch(field_name) is None:
-        msg = f"OpenAPI JSONPath field is not supported yet: {field_name!r}"
-        raise OpenApiCompilationError(msg)
-    return f"$.{field_name}"
+    return "$" + _jsonpath_field_segment(field_name)
 
 
 def _jsonpath_for_fields(field_names: tuple[str, ...]) -> str:
-    for field_name in field_names:
-        _jsonpath_for_field(field_name)
-    return "$." + ".".join(field_names)
+    if len(field_names) == 1:
+        return _jsonpath_for_field(field_names[0])
+    return "$" + "".join(_jsonpath_field_segment(field_name) for field_name in field_names)
+
+
+def _jsonpath_field_segment(field_name: str) -> str:
+    if _JSONPATH_FIELD_RE.fullmatch(field_name) is not None:
+        return f".{field_name}"
+    if _is_safe_jsonpath_bracket_field(field_name):
+        return f"['{field_name}']"
+    msg = f"OpenAPI JSONPath field is not supported yet: {field_name!r}"
+    raise OpenApiCompilationError(msg)
+
+
+def _is_safe_jsonpath_bracket_field(field_name: str) -> bool:
+    return (
+        bool(field_name)
+        and "'" not in field_name
+        and '"' not in field_name
+        and "\\" not in field_name
+        and not _has_control(field_name)
+        and not _has_hurl_template_delimiter(field_name)
+    )
 
 
 def _validate_security_scheme_name(value: str, *, context: str) -> str:

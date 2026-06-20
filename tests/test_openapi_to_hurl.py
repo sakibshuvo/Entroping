@@ -2894,6 +2894,104 @@ def test_compile_openapi_generates_nested_required_response_assertions() -> None
     assert 'jsonpath "$.data.owner.name" == "Ada"' in content
 
 
+def test_compile_openapi_generates_bracket_jsonpath_response_assertions() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/account": {
+                "get": {
+                    "operationId": "getAccount",
+                    "responses": {
+                        "200": {
+                            "description": "ok",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "required": [
+                                            "123field",
+                                            "a.b",
+                                            "display name",
+                                            "user-name",
+                                            "data-root",
+                                        ],
+                                        "properties": {
+                                            "123field": {
+                                                "type": "string",
+                                                "enum": ["leading"],
+                                            },
+                                            "a.b": {"type": "string"},
+                                            "display name": {"type": "string"},
+                                            "user-name": {
+                                                "type": "string",
+                                                "enum": ["Ada"],
+                                            },
+                                            "data-root": {
+                                                "type": "object",
+                                                "required": ["child.value"],
+                                                "properties": {
+                                                    "child.value": {
+                                                        "type": "string",
+                                                        "enum": ["ok"],
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    content = compile_openapi_to_hurl(document, tags=frozenset())[0].content
+
+    assert 'jsonpath "$[\'123field\']" exists' in content
+    assert 'jsonpath "$[\'123field\']" == "leading"' in content
+    assert 'jsonpath "$[\'a.b\']" exists' in content
+    assert 'jsonpath "$[\'display name\']" exists' in content
+    assert 'jsonpath "$[\'user-name\']" exists' in content
+    assert 'jsonpath "$[\'user-name\']" == "Ada"' in content
+    assert 'jsonpath "$[\'data-root\']" exists' in content
+    assert 'jsonpath "$[\'data-root\'][\'child.value\']" exists' in content
+    assert 'jsonpath "$[\'data-root\'][\'child.value\']" == "ok"' in content
+
+
+def test_compile_openapi_rejects_top_level_response_control_jsonpath_field_names() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "responses": {
+                        "200": {
+                            "description": "ok",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "required": ["bad\nname"],
+                                        "properties": {
+                                            "bad\nname": {"type": "string"},
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="JSONPath field"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
 def test_compile_openapi_merges_nested_assertions_from_overlapping_all_of() -> None:
     document: dict[str, object] = {
         "openapi": "3.1.0",
@@ -3056,7 +3154,19 @@ def test_compile_openapi_preserves_compatible_overlapping_all_of_property_shapes
     assert 'jsonpath "$.count" exists' in content
 
 
-def test_compile_openapi_rejects_nested_unsafe_jsonpath_field_names() -> None:
+@pytest.mark.parametrize(
+    "field_name",
+    [
+        "bad'name",
+        'bad"name',
+        "bad\\name",
+        "bad{{name",
+        "bad\tname",
+    ],
+)
+def test_compile_openapi_rejects_nested_unsafe_jsonpath_field_names(
+    field_name: str,
+) -> None:
     document: dict[str, object] = {
         "openapi": "3.1.0",
         "paths": {
@@ -3074,9 +3184,9 @@ def test_compile_openapi_rejects_nested_unsafe_jsonpath_field_names() -> None:
                                         "properties": {
                                             "data": {
                                                 "type": "object",
-                                                "required": ["bad-name"],
+                                                "required": [field_name],
                                                 "properties": {
-                                                    "bad-name": {"type": "string"},
+                                                    field_name: {"type": "string"},
                                                 },
                                             },
                                         },
