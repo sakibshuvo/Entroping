@@ -16,18 +16,22 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1026 Cross-Surface Handoff Packet
+## Current Issue Slice: #1028 Work-Management Notification Packet
 
-- Add `entroping report handoff --output md|json` as an issue-backed additive
-  report command for cross-surface continuity.
-- Keep the packet local-first and value-free: summarize sanitized runtime-card,
-  evidence-bundle, pilot-metrics, artifact-manifest, and test-pyramid metadata
-  without executing Hurl, calling providers, uploading, or rendering raw report
-  contents.
+- Add `entroping report notification-packet --output md|json` as an
+  issue-backed additive report command for issue tracker, chat, automation,
+  and coding-agent handoffs.
+- Keep the packet local-first and value-free: prefer sanitized
+  `reports/handoff.json`, fall back to local report metadata, and emit only
+  status/severity labels, counts, local artifact paths, and next-action text.
+- Do not call Jira, Linear, monday.com, Slack, Discord, Workato, Claude, Codex,
+  providers, webhooks, or other vendor APIs; do not mutate tickets or chat; do
+  not execute Hurl, run tests, upload results, read traffic state, or render raw
+  report contents.
 - Update schema, CLI compatibility, report docs, progress, and context evidence
   in the same slice so the new command does not live only in implementation.
 - Verification lane: `security-runtime` because the command reads local report
-  artifacts and emits release/handoff evidence.
+  artifacts and emits cross-surface notification evidence.
 
 ## Current Baseline
 

@@ -101,6 +101,14 @@ from entroping.core.handoff_packet import (
     HandoffSummary,
     HandoffTarget,
 )
+from entroping.core.notification_packet import (
+    NOTIFICATION_PACKET_SCHEMA_VERSION,
+    NotificationMessage,
+    NotificationPacket,
+    NotificationRuntimeSummary,
+    NotificationSource,
+    NotificationSummary,
+)
 from entroping.core.pilot_metrics import (
     PILOT_METRICS_SCHEMA_VERSION,
     PilotEvidenceSource,
@@ -1954,6 +1962,123 @@ def test_handoff_v1_schema_contract_is_versioned_and_stable() -> None:
     ]
 
 
+def test_notification_packet_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "notification-packet.v1.schema.json").read_text())
+    packet = NotificationPacket(
+        generated_at="2026-06-20T00:00:00+00:00",
+        project="checkout-api",
+        summary=NotificationSummary(
+            status="ready",
+            severity="blocker",
+            sources_total=1,
+            sources_present=1,
+            sources_missing=0,
+            sources_invalid=0,
+            sources_unsafe=0,
+        ),
+        runtime=NotificationRuntimeSummary(
+            status="attention",
+            findings=2,
+            evidence_links=3,
+            failed_gate_ids=1,
+        ),
+        sources=(
+            NotificationSource(
+                id="handoff",
+                label="Cross-surface handoff",
+                path="reports/handoff.json",
+                state="present",
+                schema_version="entroping.handoff.v1",
+                sha256="a" * 64,
+                summary="ready handoff evidence",
+            ),
+        ),
+        messages=(
+            NotificationMessage(
+                surface="jira",
+                label="Jira",
+                severity="blocker",
+                title="Entroping runtime governance needs attention",
+                body="Runtime status attention; 1 failed gates; 1/1 sources present.",
+                next_action="Attach this packet as read-only issue evidence.",
+                artifact_paths=("reports/notification-packet.json", "reports/handoff.json"),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert NOTIFICATION_PACKET_SCHEMA_VERSION == "entroping.notification-packet.v1"
+    assert payload == {
+        "schema_version": "entroping.notification-packet.v1",
+        "generated_at": "2026-06-20T00:00:00+00:00",
+        "project": "checkout-api",
+        "summary": {
+            "status": "ready",
+            "severity": "blocker",
+            "sources_total": 1,
+            "sources_present": 1,
+            "sources_missing": 0,
+            "sources_invalid": 0,
+            "sources_unsafe": 0,
+        },
+        "runtime": {
+            "status": "attention",
+            "findings": 2,
+            "evidence_links": 3,
+            "failed_gate_ids": 1,
+        },
+        "sources": [
+            {
+                "id": "handoff",
+                "label": "Cross-surface handoff",
+                "path": "reports/handoff.json",
+                "state": "present",
+                "schema_version": "entroping.handoff.v1",
+                "sha256": "a" * 64,
+                "summary": "ready handoff evidence",
+            }
+        ],
+        "messages": [
+            {
+                "surface": "jira",
+                "label": "Jira",
+                "severity": "blocker",
+                "title": "Entroping runtime governance needs attention",
+                "body": "Runtime status attention; 1 failed gates; 1/1 sources present.",
+                "next_action": "Attach this packet as read-only issue evidence.",
+                "artifact_paths": [
+                    "reports/notification-packet.json",
+                    "reports/handoff.json",
+                ],
+            }
+        ],
+    }
+    assert schema["properties"]["schema_version"]["const"] == (
+        "entroping.notification-packet.v1"
+    )
+    assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["$defs"]["summary"]["properties"]["status"]["enum"] == [
+        "ready",
+        "partial",
+        "insufficient",
+    ]
+    assert schema["$defs"]["summary"]["properties"]["severity"]["enum"] == [
+        "info",
+        "attention",
+        "blocker",
+    ]
+    assert schema["$defs"]["message"]["properties"]["surface"]["enum"] == [
+        "jira",
+        "linear",
+        "monday",
+        "slack",
+        "discord",
+        "workato",
+        "agent",
+    ]
+
+
 def test_effective_policy_diff_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "effective-policy-diff.v1.schema.json").read_text())
     base = EffectivePolicyReport(
@@ -2240,6 +2365,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         "entroping.runtime-card.v1": SCHEMA_DIR / "runtime-card.v1.schema.json",
         "entroping.pilot-metrics.v1": SCHEMA_DIR / "pilot-metrics.v1.schema.json",
         "entroping.handoff.v1": SCHEMA_DIR / "handoff.v1.schema.json",
+        "entroping.notification-packet.v1": (
+            SCHEMA_DIR / "notification-packet.v1.schema.json"
+        ),
         "entroping.design-partner-feedback.v1": (
             SCHEMA_DIR / "design-partner-feedback.v1.schema.json"
         ),
