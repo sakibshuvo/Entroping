@@ -560,7 +560,7 @@ The recorder should reduce noise before persistence. Static assets, analytics be
 
 Current implementation:
 
-- `core.traffic_proxy` lazy-loads mitmproxy so default installs can fail with an actionable optional-dependency message.
+- `core.traffic_proxy` lazy-loads mitmproxy so default installs can fail with an actionable optional-dependency message, and rejects vulnerable `msgpack` runtimes before capture starts.
 - `TrafficCaptureAddon.response()` records completed HTTP flows only after converting them into `TrafficExchange` models, redacting them, and persisting through `TrafficStore`.
 - `watch` fails closed unless an explicit capture scope is configured with
   `--target`, `--scope-host`, or `--scope-url-prefix`.

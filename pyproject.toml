@@ -54,9 +54,11 @@ line-length = 100
 target-version = "py312"
 
 [tool.uv]
-# mitmproxy 12.2.3 still caps Tornado at 6.5.5, but the security gate
-# requires the patched Tornado line until upstream relaxes the bound.
+# mitmproxy 12.2.3 still caps these transitive packages below patched
+# security lines, but the security gate requires patched versions until
+# upstream relaxes the bounds.
 override-dependencies = [
+  "msgpack>=1.2.1",
   "tornado>=6.5.6",
 ]
 
