@@ -1758,6 +1758,64 @@ def test_compile_openapi_resolves_reusable_parameter_refs() -> None:
     assert "X-Tenant: north" in content
 
 
+def test_compile_openapi_resolves_escaped_parameter_ref_names() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {
+            "parameters": {
+                "Tenant/Id~V1": {
+                    "name": "X-Tenant",
+                    "in": "header",
+                    "schema": {"type": "string", "default": "north"},
+                },
+            },
+        },
+        "paths": {
+            "/orders": {
+                "get": {
+                    "operationId": "listOrders",
+                    "parameters": [{"$ref": "#/components/parameters/Tenant~1Id~0V1"}],
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+
+    content = compile_openapi_to_hurl(document, tags=frozenset())[0].content
+
+    assert "X-Tenant: north" in content
+
+
+def test_compile_openapi_resolves_transitive_parameter_refs() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {
+            "parameters": {
+                "Outer": {"$ref": "#/components/parameters/Middle"},
+                "Middle": {"$ref": "#/components/parameters/Tenant"},
+                "Tenant": {
+                    "name": "tenant",
+                    "in": "query",
+                    "schema": {"type": "string", "default": "north"},
+                },
+            },
+        },
+        "paths": {
+            "/orders": {
+                "get": {
+                    "operationId": "listOrders",
+                    "parameters": [{"$ref": "#/components/parameters/Outer"}],
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+
+    content = compile_openapi_to_hurl(document, tags=frozenset())[0].content
+
+    assert "GET {{base_url}}/orders?tenant=north" in content
+
+
 @pytest.mark.parametrize(
     ("parameter", "expected_error"),
     [
@@ -1767,6 +1825,9 @@ def test_compile_openapi_resolves_reusable_parameter_refs() -> None:
         ({"$ref": "#/components/parameters/Missing"}, "unknown parameter ref"),
         ({"$ref": "#/components/parameters/Tenant", "name": "tenant"}, "sibling fields"),
         ({"$ref": "#/components/parameters/"}, "malformed parameter ref"),
+        ({"$ref": "#/components/parameters/Tenant/Id"}, "malformed parameter ref"),
+        ({"$ref": "#/components/parameters/Bad~2Name"}, "malformed parameter ref"),
+        ({"$ref": "#/components/parameters/Bad~"}, "malformed parameter ref"),
     ],
 )
 def test_compile_openapi_rejects_unsupported_parameter_refs(
