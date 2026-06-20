@@ -2,6 +2,11 @@
 
 ## 2026-06-20
 
+- Added issue #1026's cross-surface handoff packet: `report handoff` now writes
+  local `entroping.handoff.v1` JSON or Markdown that links sanitized runtime,
+  evidence-bundle, pilot-metrics, artifact-manifest, and test-pyramid metadata
+  for CLI, PR, desktop, cloud, mobile, and agent surfaces without executing
+  Hurl, calling providers, uploading, or rendering raw evidence.
 - Added issue #1024's runtime-card test-pyramid evidence: `report
   runtime-card` now summarizes optional `reports/test-pyramid.json` evidence in
   JSON and Markdown output without changing the locked CLI surface.

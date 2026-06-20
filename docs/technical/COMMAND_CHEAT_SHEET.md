@@ -42,6 +42,7 @@ entroping report artifact-manifest [--output <path>] [--fail-on-incomplete]
 entroping report evidence-bundle [--output <path>]
 entroping report design-partner-feedback [--output <path>]
 entroping report runtime-card [--output <md|json>]
+entroping report handoff [--output <md|json>] [--fail-on-insufficient]
 entroping report pilot-metrics [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
@@ -392,6 +393,9 @@ Experimental design-partner evidence commands:
 | --- | --- |
 | `entroping report evidence-bundle` | Write a sanitized local design-partner upload-readiness bundle to `reports/evidence-bundle.json` |
 | `entroping report design-partner-feedback` | Write a sanitized local design-partner feedback template to `reports/design-partner-feedback.json` |
+| `entroping report handoff --output md` | Write a local cross-surface evidence handoff packet to `reports/handoff.md` |
+| `entroping report handoff --output json` | Write machine-readable cross-surface handoff evidence to `reports/handoff.json` |
+| `entroping report handoff --fail-on-insufficient` | Write the handoff packet, then exit `1` when no source evidence artifacts are present |
 | `entroping report pilot-metrics --output md` | Write local design-partner pilot metric inference to `reports/pilot-metrics.md` |
 | `entroping report pilot-metrics --output json` | Write machine-readable pilot metric inference to `reports/pilot-metrics.json` |
 | `entroping report agent-bundle --output md` | Write a local multi-agent review bundle to `reports/agent-bundle.md` |
@@ -423,6 +427,8 @@ entroping report artifact-manifest --fail-on-incomplete
 entroping report evidence-bundle
 entroping report design-partner-feedback
 entroping report runtime-card
+entroping report handoff --output json
+entroping report handoff --fail-on-insufficient
 entroping report pilot-metrics
 entroping report agent-bundle --scope tests/generated
 entroping report traceability --output md
