@@ -2,6 +2,7 @@
 
 import importlib
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -2681,6 +2682,239 @@ def test_compile_openapi_renders_operation_id_fallback_and_empty_json_content_sh
     assert "[Asserts]" not in generated[0].content
     assert "[Asserts]" not in generated[1].content
     assert "[Asserts]" not in generated[2].content
+
+
+def test_compile_openapi_resolves_response_schema_refs_before_assertions() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {
+            "schemas": {
+                "HealthResponse": {
+                    "type": "object",
+                    "required": ["status", "mode"],
+                    "properties": {
+                        "status": {"$ref": "#/components/schemas/Status"},
+                        "mode": {"type": "string"},
+                    },
+                },
+                "Status": {"type": "string", "enum": ["ok"]},
+            },
+        },
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "responses": {
+                        "200": {
+                            "description": "ok",
+                            "content": {
+                                "application/json": {
+                                    "schema": {"$ref": "#/components/schemas/HealthResponse"},
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    generated = compile_openapi_to_hurl(document, tags=frozenset())
+
+    assert len(generated) == 1
+    content = generated[0].content
+    assert "[Asserts]" in content
+    assert 'jsonpath "$.status" exists' in content
+    assert 'jsonpath "$.status" == "ok"' in content
+    assert 'jsonpath "$.mode" exists' in content
+
+
+def test_compile_openapi_resolves_escaped_response_schema_ref_names() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {
+            "schemas": {
+                "Health/Response~V1": {
+                    "type": "object",
+                    "required": ["status"],
+                    "properties": {"status": {"type": "string", "enum": ["ok"]}},
+                },
+            },
+        },
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "responses": {
+                        "200": {
+                            "description": "ok",
+                            "content": {
+                                "application/json": {
+                                    "schema": {"$ref": "#/components/schemas/Health~1Response~0V1"},
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    content = compile_openapi_to_hurl(document, tags=frozenset())[0].content
+
+    assert 'jsonpath "$.status" == "ok"' in content
+
+
+def test_compile_openapi_resolves_transitive_response_schema_refs() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {
+            "schemas": {
+                "Outer": {"$ref": "#/components/schemas/Middle"},
+                "Middle": {"$ref": "#/components/schemas/Inner"},
+                "Inner": {
+                    "type": "object",
+                    "required": ["status"],
+                    "properties": {"status": {"type": "string", "enum": ["ok"]}},
+                },
+            },
+        },
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "responses": {
+                        "200": {
+                            "description": "ok",
+                            "content": {
+                                "application/json": {
+                                    "schema": {"$ref": "#/components/schemas/Outer"},
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    content = compile_openapi_to_hurl(document, tags=frozenset())[0].content
+
+    assert 'jsonpath "$.status" == "ok"' in content
+
+
+def test_compile_openapi_rejects_deep_response_schema_ref_chains() -> None:
+    max_depth = cast(int, openapi_compiler._MAX_RESPONSE_SCHEMA_REF_DEPTH)  # noqa: SLF001
+    schema_components: dict[str, object] = {
+        f"Schema{index}": {"$ref": f"#/components/schemas/Schema{index + 1}"}
+        for index in range(max_depth + 1)
+    }
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {"schemas": schema_components},
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "responses": {
+                        "200": {
+                            "description": "ok",
+                            "content": {
+                                "application/json": {
+                                    "schema": {"$ref": "#/components/schemas/Schema0"},
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="response schema ref depth"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
+@pytest.mark.parametrize(
+    ("schema", "components", "expected_error"),
+    (
+        (
+            {"$ref": "common.yaml#/components/schemas/HealthResponse"},
+            {"HealthResponse": {"type": "object"}},
+            "only local response schema refs",
+        ),
+        (
+            {"$ref": "#/components/parameters/HealthResponse"},
+            {"HealthResponse": {"type": "object"}},
+            "unsupported response schema ref",
+        ),
+        (
+            {"$ref": "#/components/schemas/Missing"},
+            {"HealthResponse": {"type": "object"}},
+            "unknown response schema ref",
+        ),
+        (
+            {"$ref": "#/components/schemas/HealthResponse", "description": "ok"},
+            {"HealthResponse": {"type": "object"}},
+            "response schema ref must not define sibling fields",
+        ),
+        (
+            {"$ref": "#/components/schemas/HealthResponse"},
+            {"HealthResponse": "not-a-schema"},
+            "response schema ref target",
+        ),
+        (
+            {"$ref": "#/components/schemas/Loop"},
+            {"Loop": {"$ref": "#/components/schemas/Loop"}},
+            "cyclic response schema ref",
+        ),
+        (
+            {"$ref": "#/components/schemas/"},
+            {},
+            "malformed response schema ref",
+        ),
+        (
+            {"$ref": "#/components/schemas/Bad~2Name"},
+            {},
+            "malformed response schema ref",
+        ),
+        (
+            {"$ref": "#/components/schemas/Bad~"},
+            {},
+            "malformed response schema ref",
+        ),
+        (
+            {"$ref": 1},
+            {},
+            "response schema ref must be a string",
+        ),
+    ),
+)
+def test_compile_openapi_rejects_unsupported_response_schema_refs(
+    schema: dict[str, object],
+    components: dict[str, object],
+    expected_error: str,
+) -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {"schemas": components},
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "responses": {
+                        "200": {
+                            "description": "ok",
+                            "content": {"application/json": {"schema": schema}},
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match=expected_error):
+        compile_openapi_to_hurl(document, tags=frozenset())
 
 
 def test_compile_openapi_rejects_response_and_json_content_shape_errors() -> None:

@@ -145,6 +145,9 @@ _VENDOR_JSON_MEDIA_RE = re.compile(
 )
 _READ_ONLY_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 _VALIDATION_FAILURE_STATUSES = ("400", "422")
+_SCHEMA_REF_PREFIX = "#/components/schemas/"
+_MAX_RESPONSE_SCHEMA_REF_DEPTH = 64
+
 
 def compile_openapi_to_hurl(
     document: Mapping[str, object],
@@ -172,6 +175,7 @@ def compile_openapi_to_hurl_with_report(
     paths = _mapping_field(document, "paths", "OpenAPI document must contain a paths mapping")
     security_schemes = _security_schemes(document)
     parameter_components = _parameter_components(document)
+    schema_components = _schema_components(document)
     document_security = _security_requirements(
         document.get("security"),
         context="OpenAPI document security",
@@ -216,6 +220,7 @@ def compile_openapi_to_hurl_with_report(
                         operation_id=operation_id,
                         tags=tags,
                         parameter_components=parameter_components,
+                        schema_components=schema_components,
                     ),
                 )
             )
@@ -274,6 +279,7 @@ def _render_operation(
     operation_id: str,
     tags: frozenset[str],
     parameter_components: Mapping[str, object],
+    schema_components: Mapping[str, object],
 ) -> str:
     status, response_content = _select_response(operation)
     parameters = _operation_parameters(
@@ -304,7 +310,10 @@ def _render_operation(
         )
 
     lines.append(f"HTTP {status}")
-    assertions = _response_assertions(response_content.schema if response_content else None)
+    assertions = _response_assertions(
+        response_content.schema if response_content else None,
+        schema_components=schema_components,
+    )
     if assertions:
         lines.append("[Asserts]")
         lines.extend(assertions)
@@ -812,6 +821,17 @@ def _parameter_components(document: Mapping[str, object]) -> Mapping[str, object
     return _ensure_mapping(parameters, "OpenAPI components parameters")
 
 
+def _schema_components(document: Mapping[str, object]) -> Mapping[str, object]:
+    components = document.get("components")
+    if components is None:
+        return {}
+    components_mapping = _ensure_mapping(components, "OpenAPI components")
+    schemas = components_mapping.get("schemas")
+    if schemas is None:
+        return {}
+    return _ensure_mapping(schemas, "OpenAPI components schemas")
+
+
 def _security_requirements(
     raw_security: object,
     *,
@@ -1043,9 +1063,92 @@ def _select_json_media_type(content: Mapping[str, object]) -> str | None:
     return sorted(vendor_media_types, key=lambda value: (value.lower(), value))[0]
 
 
-def _response_assertions(schema: Mapping[str, object] | None) -> list[str]:
+def _resolve_response_schema_ref(
+    schema: Mapping[str, object],
+    *,
+    schema_components: Mapping[str, object],
+    context: str,
+    seen_refs: tuple[str, ...] = (),
+) -> Mapping[str, object]:
+    if "$ref" not in schema:
+        return schema
+    if len(schema) != 1:
+        msg = f"{context} response schema ref must not define sibling fields"
+        raise OpenApiCompilationError(msg)
+    raw_ref = schema["$ref"]
+    if not isinstance(raw_ref, str):
+        msg = f"{context} response schema ref must be a string"
+        raise OpenApiCompilationError(msg)
+    if not raw_ref.startswith("#/"):
+        msg = f"{context} only local response schema refs are supported"
+        raise OpenApiCompilationError(msg)
+    if not raw_ref.startswith(_SCHEMA_REF_PREFIX):
+        msg = f"{context} unsupported response schema ref {raw_ref!r}"
+        raise OpenApiCompilationError(msg)
+    if len(seen_refs) >= _MAX_RESPONSE_SCHEMA_REF_DEPTH:
+        msg = f"{context} response schema ref depth exceeds {_MAX_RESPONSE_SCHEMA_REF_DEPTH}"
+        raise OpenApiCompilationError(msg)
+    component_name = _schema_component_name(raw_ref, context=context)
+    if raw_ref in seen_refs:
+        msg = f"{context} cyclic response schema ref {raw_ref!r}"
+        raise OpenApiCompilationError(msg)
+    target = schema_components.get(component_name)
+    if target is None:
+        msg = f"{context} unknown response schema ref {raw_ref!r}"
+        raise OpenApiCompilationError(msg)
+    target_mapping = _ensure_mapping(
+        target,
+        f"{context} response schema ref target {raw_ref!r}",
+    )
+    return _resolve_response_schema_ref(
+        target_mapping,
+        schema_components=schema_components,
+        context=f"{context} ref {raw_ref!r}",
+        seen_refs=(*seen_refs, raw_ref),
+    )
+
+
+def _schema_component_name(raw_ref: str, *, context: str) -> str:
+    component_name = raw_ref.removeprefix(_SCHEMA_REF_PREFIX)
+    if not component_name or "/" in component_name:
+        msg = f"{context} malformed response schema ref {raw_ref!r}"
+        raise OpenApiCompilationError(msg)
+
+    decoded: list[str] = []
+    index = 0
+    while index < len(component_name):
+        character = component_name[index]
+        if character != "~":
+            decoded.append(character)
+            index += 1
+            continue
+        if index + 1 >= len(component_name):
+            msg = f"{context} malformed response schema ref {raw_ref!r}"
+            raise OpenApiCompilationError(msg)
+        escape = component_name[index + 1]
+        if escape == "0":
+            decoded.append("~")
+        elif escape == "1":
+            decoded.append("/")
+        else:
+            msg = f"{context} malformed response schema ref {raw_ref!r}"
+            raise OpenApiCompilationError(msg)
+        index += 2
+    return "".join(decoded)
+
+
+def _response_assertions(
+    schema: Mapping[str, object] | None,
+    *,
+    schema_components: Mapping[str, object],
+) -> list[str]:
     if schema is None:
         return []
+    schema = _resolve_response_schema_ref(
+        schema,
+        schema_components=schema_components,
+        context="OpenAPI response schema",
+    )
     required = _string_sequence(schema.get("required"), "OpenAPI schema required")
     if not required:
         return []
@@ -1058,8 +1161,13 @@ def _response_assertions(schema: Mapping[str, object] | None) -> list[str]:
         property_schema = properties.get(field_name, _MISSING)
         if property_schema is _MISSING:
             continue
+        property_schema_mapping = _ensure_mapping(property_schema, f"schema for {field_name!r}")
         enum_value = _first_enum_value(
-            _ensure_mapping(property_schema, f"schema for {field_name!r}")
+            _resolve_response_schema_ref(
+                property_schema_mapping,
+                schema_components=schema_components,
+                context=f"schema for {field_name!r}",
+            )
         )
         if enum_value is not _MISSING:
             assertions.append(f'jsonpath "{jsonpath}" == {json.dumps(enum_value)}')
@@ -1114,7 +1222,6 @@ def _validate_security_scheme_name(value: str, *, context: str) -> str:
         msg = f"{context} security scheme name contains Hurl template delimiters: {value!r}"
         raise OpenApiCompilationError(msg)
     return value
-
 
 
 def _is_safe_openapi_path(value: str) -> bool:
