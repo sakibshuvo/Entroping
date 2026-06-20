@@ -16,35 +16,37 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1046 QA Brain Fine-Tune Readiness Packet
+## Current Issue Slice: #1048 QA Brain Model-Packaging Plan Packet
 
-- Add `entroping report qa-brain-fine-tune-readiness --output md|json` as an
-  issue-backed additive report command for future QA Brain proprietary-model
-  experiment planning.
-- Build from deterministic local QA-brain prompt-plan readiness rather than
+- Add `entroping report qa-brain-model-packaging-plan --output md|json` as an
+  issue-backed additive report command for future hosted, local, and
+  enterprise QA Brain Pro model-packaging planning.
+- Build from deterministic local QA-brain fine-tune readiness rather than
   reading or embedding raw report bodies, executable prompts, traffic, source
-  Hurl, provider output, generated prompt artifacts, datasets, or model
+  Hurl, provider output, generated prompt artifacts, datasets, endpoints, or model
   artifacts.
-- Emit a schema-versioned `entroping.qa-brain-fine-tune-readiness.v1` packet
-  with generated time, project name, prompt-plan schema version, summary
-  counts, one readiness row per QA Brain prompt-plan case, blockers, and
+- Emit a schema-versioned `entroping.qa-brain-model-packaging-plan.v1` packet
+  with generated time, project name, fine-tune readiness schema version, summary
+  counts, one packaging-plan row per QA Brain readiness case, blockers, and
   next-action rows.
 - Cover weak-test detection, missing-gate discovery, unsafe generated Hurl,
   bogus evidence, redaction mistakes, API drift reasoning, mutation/fuzz
   readiness, and cross-surface handoff quality.
-- Include only value-free fine-tune readiness metadata: readiness state, source
-  IDs and paths, readiness stage, evidence coverage, prompt-plan completeness,
-  safety boundary, eval-case coverage, redaction boundary, deterministic
-  acceptance summary, blockers, and next actions.
+- Include only value-free model-packaging plan metadata: readiness state, source
+  IDs and paths, packaging stage, OpenAI-compatible endpoint boundary, LiteLLM
+  routing boundary, hosted/local/enterprise deployment modes, artifact
+  boundary, access-control and audit needs, blockers, and next actions.
 - Do not execute Hurl, run tests, call providers, create embeddings, use vector
-  stores, retrieve documents, export datasets, fine-tune or train models,
-  package models, upload artifacts, parse traffic state, run mutations or
-  fuzzers, execute prompts, mutate files, or render raw report contents, raw
-  traffic, source Hurl, executable prompts, credentials, cookies, environment
-  values, or provider outputs.
+  stores, retrieve documents, export datasets, start endpoints, implement
+  gateways, package models, build containers, fine-tune or train models, upload
+  artifacts, parse traffic state, run mutations or fuzzers, execute prompts,
+  mutate files, or render raw report contents, raw traffic, source Hurl,
+  executable prompts, credentials, cookies, environment values, or provider
+  outputs.
 - Preserve LiteLLM/provider-neutral boundaries: this packet prepares
-  deterministic local readiness metadata only and must not add direct provider
-  SDK calls or make `entroping run` depend on AI.
+  deterministic local packaging metadata only and must not add direct provider
+  SDK calls, LiteLLM configuration changes, endpoints, or make `entroping run`
+  depend on AI.
 - Verification lane: `security-runtime` because the command reads local
   report artifact state and emits machine-readable model-adjacent evidence
   metadata.
