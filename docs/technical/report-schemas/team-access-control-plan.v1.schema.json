@@ -1,0 +1,430 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://entroping.dev/schemas/team-access-control-plan.v1.schema.json",
+  "title": "Entroping team access-control plan packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "project",
+    "summary",
+    "boundary",
+    "sources",
+    "roles",
+    "audit_events",
+    "next_actions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.team-access-control-plan.v1"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "project": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "boundary": {
+      "$ref": "#/$defs/boundary"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/role"
+      }
+    },
+    "audit_events": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/audit_event"
+      }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/next_action"
+      }
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "sources_total",
+        "sources_present",
+        "sources_missing",
+        "sources_invalid",
+        "sources_unsafe",
+        "roles_total",
+        "roles_ready",
+        "roles_attention",
+        "roles_blocked",
+        "audit_events_total",
+        "blockers_total",
+        "next_actions_total"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/plan_status"
+        },
+        "sources_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_present": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_invalid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_unsafe": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "roles_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "roles_ready": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "roles_attention": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "roles_blocked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "audit_events_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blockers_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "next_actions_total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "path",
+        "state",
+        "schema_version",
+        "summary"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/source_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/source_state"
+        },
+        "schema_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "explicit_user_intent_required",
+        "upload_implemented",
+        "access_control_enforced",
+        "write_back_implemented",
+        "pass_fail_override_allowed",
+        "forbidden_data_classes",
+        "boundary_summary"
+      ],
+      "properties": {
+        "explicit_user_intent_required": {
+          "type": "boolean"
+        },
+        "upload_implemented": {
+          "type": "boolean"
+        },
+        "access_control_enforced": {
+          "type": "boolean"
+        },
+        "write_back_implemented": {
+          "type": "boolean"
+        },
+        "pass_fail_override_allowed": {
+          "type": "boolean"
+        },
+        "forbidden_data_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/forbidden_data_class"
+          }
+        },
+        "boundary_summary": {
+          "type": "string"
+        }
+      }
+    },
+    "role": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "status",
+        "allowed_actions",
+        "forbidden_actions",
+        "evidence_scope",
+        "audit_event_ids",
+        "blockers",
+        "next_action"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/role_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/role_status"
+        },
+        "allowed_actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/allowed_action"
+          }
+        },
+        "forbidden_actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/forbidden_action"
+          }
+        },
+        "evidence_scope": {
+          "type": "string"
+        },
+        "audit_event_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/audit_event_id"
+          }
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "next_action": {
+          "type": "string"
+        }
+      }
+    },
+    "audit_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "trigger",
+        "required_fields",
+        "forbidden_fields"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/audit_event_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "trigger": {
+          "type": "string"
+        },
+        "required_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbidden_fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/forbidden_data_class"
+          }
+        }
+      }
+    },
+    "next_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "priority",
+        "action",
+        "source_ids",
+        "role_ids",
+        "audit_event_ids"
+      ],
+      "properties": {
+        "priority": {
+          "$ref": "#/$defs/next_action_priority"
+        },
+        "action": {
+          "type": "string"
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "role_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/role_id"
+          }
+        },
+        "audit_event_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/audit_event_id"
+          }
+        }
+      }
+    },
+    "plan_status": {
+      "enum": [
+        "ready",
+        "partial",
+        "insufficient"
+      ]
+    },
+    "source_state": {
+      "enum": [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe"
+      ]
+    },
+    "source_id": {
+      "enum": [
+        "team_evidence_readiness",
+        "handoff",
+        "notification_packet",
+        "runtime_card"
+      ]
+    },
+    "role_id": {
+      "enum": [
+        "owner",
+        "maintainer",
+        "reviewer",
+        "observer",
+        "external_design_partner"
+      ]
+    },
+    "role_status": {
+      "enum": [
+        "ready",
+        "attention",
+        "blocked"
+      ]
+    },
+    "allowed_action": {
+      "enum": [
+        "view_value_free_evidence",
+        "share_evidence_link",
+        "acknowledge_status",
+        "plan_follow_up_assignment"
+      ]
+    },
+    "forbidden_action": {
+      "enum": [
+        "override_hurl_qanstitution_result",
+        "view_raw_traffic",
+        "view_source_hurl",
+        "view_provider_transcripts",
+        "view_secrets_or_env",
+        "silent_upload",
+        "mutate_tickets_or_chat"
+      ]
+    },
+    "forbidden_data_class": {
+      "enum": [
+        "raw_traffic",
+        "secrets",
+        "source_hurl",
+        "env_values",
+        "prompts",
+        "provider_outputs",
+        "full_report_contents"
+      ]
+    },
+    "audit_event_id": {
+      "enum": [
+        "evidence_viewed",
+        "evidence_link_shared",
+        "status_acknowledged",
+        "follow_up_assignment_planned",
+        "access_policy_reviewed",
+        "upload_intent_recorded"
+      ]
+    },
+    "next_action_priority": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    }
+  }
+}

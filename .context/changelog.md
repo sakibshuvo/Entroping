@@ -2,6 +2,18 @@
 
 ## 2026-06-20
 
+- Added issue #1054's team access-control plan packet: `report
+  team-access-control-plan` now writes local
+  `entroping.team-access-control-plan.v1` JSON or Markdown that turns
+  sanitized team-evidence-readiness, handoff, notification-packet, and
+  runtime-card artifacts into source states, role plans, allowed and forbidden
+  actions, boundary controls, future audit events, and next actions without
+  executing Hurl, running tests, calling providers, uploading artifacts,
+  creating accounts, implementing hosted access control, enforcing RBAC/SSO,
+  calling issue-tracker or chat APIs, parsing traffic state, mutating external
+  systems, or rendering raw report/source contents, prompts, credentials,
+  cookies, environment values, webhook URLs, ticket payloads, or provider
+  outputs.
 - Added issue #1052's team evidence readiness packet: `report
   team-evidence-readiness` now writes local
   `entroping.team-evidence-readiness.v1` JSON or Markdown that aggregates

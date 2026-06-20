@@ -224,6 +224,11 @@ LOCKED_CLI_CONTRACTS = (
         ("--output",),
     ),
     CliContract(
+        "entroping report team-access-control-plan [--output <md|json>]",
+        ("report", "team-access-control-plan", "--help"),
+        ("--output",),
+    ),
+    CliContract(
         "entroping report observability-packet [--output <md|json>]",
         ("report", "observability-packet", "--help"),
         ("--output",),
@@ -313,10 +318,7 @@ LOCKED_CLI_CONTRACTS = (
         ("--output", "--junit", "--drift", "--traceability"),
     ),
     CliContract(
-        (
-            "entroping report promote-drift-baseline "
-            "[--candidate <path>] [--output <path>]"
-        ),
+        ("entroping report promote-drift-baseline [--candidate <path>] [--output <path>]"),
         ("report", "promote-drift-baseline", "--help"),
         ("--candidate", "--output"),
     ),
@@ -375,6 +377,8 @@ REPORT_ARTIFACTS = (
     "reports/notification-packet.json",
     "reports/team-evidence-readiness.md",
     "reports/team-evidence-readiness.json",
+    "reports/team-access-control-plan.md",
+    "reports/team-access-control-plan.json",
     "reports/observability-packet.md",
     "reports/observability-packet.json",
     "reports/api-inventory.md",
@@ -440,9 +444,9 @@ def test_cli_compatibility_audit_doc_covers_current_docs_and_artifacts() -> None
 
 
 def test_post_alpha_cli_ux_decisions_are_documented_before_surface_changes() -> None:
-    audit = (
-        REPO_ROOT / "docs" / "technical" / "CLI_COMPATIBILITY_AUDIT.md"
-    ).read_text(encoding="utf-8")
+    audit = (REPO_ROOT / "docs" / "technical" / "CLI_COMPATIBILITY_AUDIT.md").read_text(
+        encoding="utf-8"
+    )
     qanstitution_reference = (
         REPO_ROOT / "docs" / "technical" / "QANSTITUTION_REFERENCE.md"
     ).read_text(encoding="utf-8")
