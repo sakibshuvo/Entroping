@@ -2,6 +2,10 @@
 
 ## 2026-06-20
 
+- Fixed issue #1006's OpenAPI response-schema validation regression:
+  response assertions now distinguish missing required property schemas from
+  present malformed schemas, so `null` property schemas fail instead of being
+  treated as absent.
 - Fixed issue #1003's OpenAPI null-enum regression: schema enum selection now
   uses a distinct missing-value sentinel so JSON `null` enum values render in
   request examples and response assertions instead of falling through to later
