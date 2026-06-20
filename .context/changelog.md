@@ -2,6 +2,19 @@
 
 ## 2026-06-20
 
+- Added issue #1048's QA Brain model-packaging plan packet: `report
+  qa-brain-model-packaging-plan` now writes local
+  `entroping.qa-brain-model-packaging-plan.v1` JSON or Markdown that turns
+  deterministic QA-brain fine-tune readiness into future hosted, local, and
+  enterprise model-packaging plan metadata, including endpoint boundaries,
+  LiteLLM routing boundaries, deployment modes, artifact boundaries,
+  access-control/audit needs, source IDs/paths, blockers, and next actions
+  without executing Hurl, running tests, calling providers, changing LiteLLM
+  configuration, starting endpoints, packaging models, building containers,
+  creating embeddings, using vector stores, retrieving documents, executing
+  prompts, exporting datasets, fine-tuning or training models, uploading
+  artifacts, parsing traffic state, running mutations, or rendering raw
+  report/source contents.
 - Added issue #1046's QA Brain fine-tune readiness packet: `report
   qa-brain-fine-tune-readiness` now writes local
   `entroping.qa-brain-fine-tune-readiness.v1` JSON or Markdown that turns

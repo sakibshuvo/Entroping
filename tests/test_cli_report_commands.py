@@ -43,6 +43,9 @@ from entroping.core.qa_brain_eval_plan import QaBrainEvalPlanError
 from entroping.core.qa_brain_fine_tune_readiness import (
     QaBrainFineTuneReadinessError,
 )
+from entroping.core.qa_brain_model_packaging_plan import (
+    QaBrainModelPackagingPlanError,
+)
 from entroping.core.qa_brain_prompt_plan import QaBrainPromptPlanError
 from entroping.core.qa_brain_retrieval_plan import QaBrainRetrievalPlanError
 from entroping.core.qa_brain_seed import QaBrainSeedError
@@ -1379,6 +1382,93 @@ def test_report_qa_brain_fine_tune_readiness_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "QA brain fine-tune readiness path is unsafe" in result.output
+
+
+def test_report_qa_brain_model_packaging_plan_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("reports") / "test-quality.json",
+        """
+{
+  "schema_version": "entroping.test-quality-report.v1",
+  "summary": {"status": "warn", "score": 80, "generated_tests": 2, "findings": 1}
+}
+""",
+    )
+
+    result = CliRunner().invoke(app, ["report", "qa-brain-model-packaging-plan"])
+
+    assert result.exit_code == 0
+    assert (
+        "Wrote QA brain model packaging plan: "
+        "reports/qa-brain-model-packaging-plan.md"
+    ) in result.output
+    markdown = Path("reports/qa-brain-model-packaging-plan.md").read_text(
+        encoding="utf-8"
+    )
+    assert "# Entroping QA Brain Model Packaging Plan" in markdown
+    assert "| weak_test_detection | Weak-test detection | ready | packaging_ready |" in (
+        markdown
+    )
+
+
+def test_report_qa_brain_model_packaging_plan_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "qa-brain-model-packaging-plan", "--output", "json"],
+    )
+
+    assert result.exit_code == 0
+    assert (
+        "Wrote QA brain model packaging plan: "
+        "reports/qa-brain-model-packaging-plan.json"
+    ) in result.output
+    payload = json.loads(
+        Path("reports/qa-brain-model-packaging-plan.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert payload["schema_version"] == "entroping.qa-brain-model-packaging-plan.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_qa_brain_model_packaging_plan_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(
+        app,
+        ["report", "qa-brain-model-packaging-plan", "--output", "html"],
+    )
+
+    assert result.exit_code == 2
+    assert "Unsupported qa-brain-model-packaging-plan output" in result.output
+    assert not Path("reports/qa-brain-model-packaging-plan.html").exists()
+
+
+def test_report_qa_brain_model_packaging_plan_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_qa_brain_model_packaging_plan(*args: object, **kwargs: object) -> object:
+        raise QaBrainModelPackagingPlanError(
+            "QA brain model packaging plan path is unsafe"
+        )
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_qa_brain_model_packaging_plan_report",
+        fail_qa_brain_model_packaging_plan,
+    )
+
+    result = CliRunner().invoke(app, ["report", "qa-brain-model-packaging-plan"])
+
+    assert result.exit_code == 1
+    assert "QA brain model packaging plan path is unsafe" in result.output
 
 
 def test_report_bug_generates_markdown_from_latest_failing_run(

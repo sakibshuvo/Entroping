@@ -160,6 +160,13 @@ from entroping.core.qa_brain_fine_tune_readiness import (
     QaBrainFineTuneReadinessRow,
     QaBrainFineTuneReadinessSummary,
 )
+from entroping.core.qa_brain_model_packaging_plan import (
+    QA_BRAIN_MODEL_PACKAGING_PLAN_SCHEMA_VERSION,
+    QaBrainModelPackagingPlanNextAction,
+    QaBrainModelPackagingPlanPacket,
+    QaBrainModelPackagingPlanRow,
+    QaBrainModelPackagingPlanSummary,
+)
 from entroping.core.qa_brain_prompt_plan import (
     QA_BRAIN_PROMPT_PLAN_SCHEMA_VERSION,
     QaBrainPromptPlanNextAction,
@@ -3199,6 +3206,117 @@ def test_qa_brain_fine_tune_readiness_v1_schema_contract_is_versioned_and_stable
     ]
 
 
+def test_qa_brain_model_packaging_plan_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads(
+        (SCHEMA_DIR / "qa-brain-model-packaging-plan.v1.schema.json").read_text()
+    )
+    packet = QaBrainModelPackagingPlanPacket(
+        generated_at="2026-06-20T00:00:00+00:00",
+        project="checkout-api",
+        fine_tune_readiness_schema_version=(
+            "entroping.qa-brain-fine-tune-readiness.v1"
+        ),
+        summary=QaBrainModelPackagingPlanSummary(
+            status="partial",
+            plans_total=1,
+            plans_ready=0,
+            plans_missing=0,
+            plans_attention=1,
+            blockers_total=1,
+            next_actions_total=1,
+        ),
+        packaging_plans=(
+            QaBrainModelPackagingPlanRow(
+                case_id="weak_test_detection",
+                label="Weak-test detection",
+                readiness="attention",
+                source_ids=("test-quality-json",),
+                source_paths=("reports/test-quality.json",),
+                packaging_stage="needs_boundary_repair",
+                endpoint_boundary="OpenAI-compatible endpoint planning only.",
+                litellm_routing_boundary="Route through LiteLLM later.",
+                deployment_modes=("hosted", "local", "enterprise"),
+                artifact_boundary="No model artifacts are produced.",
+                access_control_audit="Access control design is required.",
+                blockers=("Repair readiness evidence before packaging design.",),
+                next_action="Repair readiness evidence before model packaging design.",
+            ),
+        ),
+        next_actions=(
+            QaBrainModelPackagingPlanNextAction(
+                priority="high",
+                action="Repair model packaging readiness evidence.",
+                case_ids=("weak_test_detection",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert (
+        QA_BRAIN_MODEL_PACKAGING_PLAN_SCHEMA_VERSION
+        == "entroping.qa-brain-model-packaging-plan.v1"
+    )
+    assert payload == {
+        "schema_version": "entroping.qa-brain-model-packaging-plan.v1",
+        "generated_at": "2026-06-20T00:00:00+00:00",
+        "project": "checkout-api",
+        "fine_tune_readiness_schema_version": (
+            "entroping.qa-brain-fine-tune-readiness.v1"
+        ),
+        "summary": {
+            "status": "partial",
+            "plans_total": 1,
+            "plans_ready": 0,
+            "plans_missing": 0,
+            "plans_attention": 1,
+            "blockers_total": 1,
+            "next_actions_total": 1,
+        },
+        "packaging_plans": [
+            {
+                "case_id": "weak_test_detection",
+                "label": "Weak-test detection",
+                "readiness": "attention",
+                "source_ids": ["test-quality-json"],
+                "source_paths": ["reports/test-quality.json"],
+                "packaging_stage": "needs_boundary_repair",
+                "endpoint_boundary": "OpenAI-compatible endpoint planning only.",
+                "litellm_routing_boundary": "Route through LiteLLM later.",
+                "deployment_modes": ["hosted", "local", "enterprise"],
+                "artifact_boundary": "No model artifacts are produced.",
+                "access_control_audit": "Access control design is required.",
+                "blockers": ["Repair readiness evidence before packaging design."],
+                "next_action": "Repair readiness evidence before model packaging design.",
+            }
+        ],
+        "next_actions": [
+            {
+                "priority": "high",
+                "action": "Repair model packaging readiness evidence.",
+                "case_ids": ["weak_test_detection"],
+            }
+        ],
+    }
+    assert schema["properties"]["schema_version"]["const"] == (
+        "entroping.qa-brain-model-packaging-plan.v1"
+    )
+    assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["properties"]["fine_tune_readiness_schema_version"]["const"] == (
+        "entroping.qa-brain-fine-tune-readiness.v1"
+    )
+    assert schema["$defs"]["packaging_stage"]["enum"] == [
+        "packaging_ready",
+        "needs_readiness_evidence",
+        "needs_boundary_repair",
+    ]
+    assert schema["$defs"]["case_readiness"]["enum"] == [
+        "ready",
+        "missing",
+        "attention",
+    ]
+
+
 def test_effective_policy_diff_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "effective-policy-diff.v1.schema.json").read_text())
     base = EffectivePolicyReport(
@@ -3508,6 +3626,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         ),
         "entroping.qa-brain-fine-tune-readiness.v1": (
             SCHEMA_DIR / "qa-brain-fine-tune-readiness.v1.schema.json"
+        ),
+        "entroping.qa-brain-model-packaging-plan.v1": (
+            SCHEMA_DIR / "qa-brain-model-packaging-plan.v1.schema.json"
         ),
         "entroping.design-partner-feedback.v1": (
             SCHEMA_DIR / "design-partner-feedback.v1.schema.json"

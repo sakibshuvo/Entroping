@@ -46,6 +46,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | QA brain retrieval-plan packet | `entroping.qa-brain-retrieval-plan.v1` | `reports/qa-brain-retrieval-plan.json` from `entroping report qa-brain-retrieval-plan --output json` | [qa-brain-retrieval-plan.v1.schema.json](report-schemas/qa-brain-retrieval-plan.v1.schema.json) |
 | QA brain prompt-plan packet | `entroping.qa-brain-prompt-plan.v1` | `reports/qa-brain-prompt-plan.json` from `entroping report qa-brain-prompt-plan --output json` | [qa-brain-prompt-plan.v1.schema.json](report-schemas/qa-brain-prompt-plan.v1.schema.json) |
 | QA brain fine-tune readiness packet | `entroping.qa-brain-fine-tune-readiness.v1` | `reports/qa-brain-fine-tune-readiness.json` from `entroping report qa-brain-fine-tune-readiness --output json` | [qa-brain-fine-tune-readiness.v1.schema.json](report-schemas/qa-brain-fine-tune-readiness.v1.schema.json) |
+| QA brain model-packaging plan packet | `entroping.qa-brain-model-packaging-plan.v1` | `reports/qa-brain-model-packaging-plan.json` from `entroping report qa-brain-model-packaging-plan --output json` | [qa-brain-model-packaging-plan.v1.schema.json](report-schemas/qa-brain-model-packaging-plan.v1.schema.json) |
 | Design-partner feedback | `entroping.design-partner-feedback.v1` | `reports/design-partner-feedback.json` from `entroping report design-partner-feedback` | [design-partner-feedback.v1.schema.json](report-schemas/design-partner-feedback.v1.schema.json) |
 | Failure bundle manifest | `entroping.failure-bundle.v1` | `reports/failure-bundle/manifest.json` | Inline contract |
 | Coverage badges | Shields endpoint schema v1 | `reports/badges/*.json` | External Shields endpoint format |
@@ -304,6 +305,33 @@ Hurl, run tests, call providers, create embeddings, fine-tune models, train
 models, upload artifacts, retrieve documents, export datasets, package models,
 parse traffic state, run mutations or fuzzers, execute prompts, or render raw
 report contents, raw traffic, source Hurl, prompts for execution, credentials,
+cookies, environment values, or provider outputs.
+
+The QA brain model-packaging plan packet is written by:
+
+```bash
+entroping report qa-brain-model-packaging-plan
+entroping report qa-brain-model-packaging-plan --output json
+```
+
+It writes `reports/qa-brain-model-packaging-plan.md` by default or
+`reports/qa-brain-model-packaging-plan.json` with schema
+`entroping.qa-brain-model-packaging-plan.v1` when `--output json` is selected.
+The packet turns deterministic QA-brain fine-tune readiness metadata into
+future hosted, local, and enterprise model-packaging plan metadata: readiness
+state, value-free source IDs and paths, packaging stage, OpenAI-compatible
+endpoint boundary, LiteLLM routing boundary, deployment modes, artifact
+boundary, access-control and audit needs, blockers, and next actions. It is
+not a model server, endpoint implementation, gateway, model package, container
+build, executable prompt, embedding job, vector database, retrieval engine,
+dataset export, fine-tune, training run, hosted upload, or provider
+integration. Missing evidence is non-blocking; attention and blocked cases
+remain represented without embedding source contents. The command does not
+execute Hurl, run tests, call providers, change LiteLLM configuration, start
+endpoints, package models, build containers, create embeddings, fine-tune or
+train models, upload artifacts, retrieve documents, export datasets, parse
+traffic state, run mutations or fuzzers, execute prompts, or render raw report
+contents, raw traffic, source Hurl, prompts for execution, credentials,
 cookies, environment values, or provider outputs.
 
 The report artifact manifest is written by:
