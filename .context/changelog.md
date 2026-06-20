@@ -2,6 +2,10 @@
 
 ## 2026-06-20
 
+- Split issue #995's OpenAPI parameter compiler boundary into
+  `bridge.openapi_to_hurl.parameters`, keeping parameter parsing, local `$ref`
+  resolution, path/query/header/cookie rendering, fallback-variable validation,
+  and compatibility exports separate from operation/security orchestration.
 - Refactored issue #980's OpenAPI-to-Hurl compiler into the
   `bridge.openapi_to_hurl` package: `compiler.py` keeps orchestration and the
   compatibility surface, while `models.py`, `schema.py`, and `validation.py`

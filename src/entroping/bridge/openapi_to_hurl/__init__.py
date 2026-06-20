@@ -85,7 +85,10 @@ class _CompilerCompatibilityModule(ModuleType):
 
 
 def __getattr__(name: str) -> object:
-    return getattr(_compiler, name)
+    try:
+        return getattr(_compiler, name)
+    except AttributeError:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from None
 
 
 sys.modules[__name__].__class__ = _CompilerCompatibilityModule
