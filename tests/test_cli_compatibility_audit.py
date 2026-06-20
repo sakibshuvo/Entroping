@@ -234,6 +234,11 @@ LOCKED_CLI_CONTRACTS = (
         ("--output",),
     ),
     CliContract(
+        "entroping report devex-readiness [--output <md|json>]",
+        ("report", "devex-readiness", "--help"),
+        ("--output",),
+    ),
+    CliContract(
         "entroping report observability-packet [--output <md|json>]",
         ("report", "observability-packet", "--help"),
         ("--output",),

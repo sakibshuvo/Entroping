@@ -40,6 +40,11 @@ from entroping.core.design_partner_feedback import (
     DesignPartnerFeedbackError,
     run_design_partner_feedback_report,
 )
+from entroping.core.devex_readiness import (
+    DevexReadinessError,
+    DevexReadinessOutput,
+    run_devex_readiness_report,
+)
 from entroping.core.drift_report import (
     DriftReportError,
     promote_reviewed_drift_baseline_candidate,
@@ -997,6 +1002,33 @@ def report_integration_readiness(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote integration readiness: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("devex-readiness", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_devex_readiness(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local developer-experience readiness packet."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported devex-readiness output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_devex_readiness_report(
+            project_root=Path.cwd(),
+            output=cast(DevexReadinessOutput, normalized_output),
+        )
+    except DevexReadinessError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote developer experience readiness: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 
