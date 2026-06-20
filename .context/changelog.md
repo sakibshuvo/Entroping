@@ -2,6 +2,9 @@
 
 ## 2026-06-20
 
+- Fixed issue #998's OpenAPI numeric-bound regression: schema examples and
+  negative boundary-value generation now ignore non-finite `minimum` and
+  `maximum` values instead of crashing or emitting `NaN`/`Infinity`.
 - Split issue #995's OpenAPI parameter compiler boundary into
   `bridge.openapi_to_hurl.parameters`, keeping parameter parsing, local `$ref`
   resolution, path/query/header/cookie rendering, fallback-variable validation,

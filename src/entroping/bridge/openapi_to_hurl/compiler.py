@@ -62,6 +62,7 @@ from entroping.bridge.openapi_to_hurl.schema import (
     _check_openapi_schema_budget,
     _ensure_json_value,
     _example_for_schema,
+    _finite_numeric_bound,
     _first_enum_value,
     _first_example_value,
     _generated_string,
@@ -695,12 +696,12 @@ def _boundary_violation_value(schema: Mapping[str, object]) -> object:
                 context="OpenAPI string boundary violation",
             )
     if schema_type in {"integer", "number"}:
-        minimum = schema.get("minimum")
-        if isinstance(minimum, int | float) and not isinstance(minimum, bool):
+        minimum = _finite_numeric_bound(schema.get("minimum"))
+        if minimum is not None:
             value = minimum - 1
             return int(value) if schema_type == "integer" else value
-        maximum = schema.get("maximum")
-        if isinstance(maximum, int | float) and not isinstance(maximum, bool):
+        maximum = _finite_numeric_bound(schema.get("maximum"))
+        if maximum is not None:
             value = maximum + 1
             return int(value) if schema_type == "integer" else value
     return _MISSING

@@ -68,11 +68,11 @@ def _example_for_schema(
     if schema_type == "array":
         return []
     if schema_type in {"integer", "number"}:
-        minimum = schema.get("minimum")
-        if isinstance(minimum, int | float) and not isinstance(minimum, bool):
+        minimum = _finite_numeric_bound(schema.get("minimum"))
+        if minimum is not None:
             return int(minimum) if schema_type == "integer" else minimum
-        maximum = schema.get("maximum")
-        if isinstance(maximum, int | float) and not isinstance(maximum, bool):
+        maximum = _finite_numeric_bound(schema.get("maximum"))
+        if maximum is not None:
             return int(maximum) if schema_type == "integer" else maximum
         return 0
     if schema_type == "boolean":
@@ -138,6 +138,14 @@ def _schema_preferred_value(
     if enum_value is not None:
         return enum_value
     return _MISSING
+
+
+def _finite_numeric_bound(value: object) -> int | float | None:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return None
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    return value
 
 
 def _first_example_value(
