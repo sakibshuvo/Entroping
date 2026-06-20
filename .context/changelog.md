@@ -2,6 +2,12 @@
 
 ## 2026-06-20
 
+- Curated issue #961's roadmap/docs inventory boundary:
+  `ROADMAP.md` now keeps release sequence and directional lane indexing, while
+  detailed long-range product and monetization lane reasoning lives in
+  `docs/product/GROWTH_AND_MONETIZATION.md`; the curation pass recorded strict
+  docs-inventory evidence and kept archive/source docs discoverable through
+  the existing vault/index path.
 - Added issue #1009's OpenAPI non-object response assertion boundary:
   explicit array, primitive, and nullable non-object response schemas now
   generate no response-field assertions by design, while non-object response
