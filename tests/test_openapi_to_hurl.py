@@ -1142,6 +1142,63 @@ def test_compile_openapi_falls_back_when_enum_strings_are_all_unsafe() -> None:
     assert 'jsonpath "$.status" ==' not in content
 
 
+def test_compile_openapi_renders_null_enum_values_before_fallbacks() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/modes": {
+                "post": {
+                    "operationId": "createMode",
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["mode"],
+                                    "properties": {
+                                        "mode": {
+                                            "type": "string",
+                                            "enum": [{}, None, "safe-mode"],
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "responses": {
+                        "201": {
+                            "description": "created",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "required": ["status"],
+                                        "properties": {
+                                            "status": {
+                                                "type": "string",
+                                                "enum": [[], None, "accepted"],
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset())
+
+    content = result.files[0].content
+    assert '"mode": null' in content
+    assert '"mode": "safe-mode"' not in content
+    assert 'jsonpath "$.status" == null' in content
+    assert 'jsonpath "$.status" == "accepted"' not in content
+
+
 def test_compile_openapi_idor_variants_preserve_scalar_path_types() -> None:
     missing_example = object()
 
@@ -2430,7 +2487,7 @@ def test_compile_openapi_renders_request_and_response_schema_fallbacks() -> None
     assert '"metadata_only_example": "string"' in content
     assert '"empty_object": {}' in content
     assert 'jsonpath "$.id" == "evt-1"' in content
-    assert 'jsonpath "$.loose" exists' in content
+    assert 'jsonpath "$.loose" == null' in content
     assert 'jsonpath "$.mode" exists' in content
     assert 'jsonpath "$.mode" ==' not in content
     assert 'jsonpath "$.missing" exists' in content

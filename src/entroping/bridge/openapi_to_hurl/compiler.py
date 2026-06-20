@@ -1061,7 +1061,7 @@ def _response_assertions(schema: Mapping[str, object] | None) -> list[str]:
         enum_value = _first_enum_value(
             _ensure_mapping(property_schema, f"schema for {field_name!r}")
         )
-        if enum_value is not None:
+        if enum_value is not _MISSING:
             assertions.append(f'jsonpath "{jsonpath}" == {json.dumps(enum_value)}')
     return assertions
 

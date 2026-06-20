@@ -2,6 +2,10 @@
 
 ## 2026-06-20
 
+- Fixed issue #1003's OpenAPI null-enum regression: schema enum selection now
+  uses a distinct missing-value sentinel so JSON `null` enum values render in
+  request examples and response assertions instead of falling through to later
+  values or `exists`-only assertions.
 - Fixed issue #1001's OpenAPI unsafe-enum regression: schema enum selection
   now skips strings containing control characters or Hurl template delimiters
   before request examples or response assertions can render them into generated
