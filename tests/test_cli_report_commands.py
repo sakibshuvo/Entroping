@@ -40,6 +40,9 @@ from entroping.core.notification_packet import NotificationPacketError
 from entroping.core.observability_packet import ObservabilityPacketError
 from entroping.core.pilot_metrics import PilotMetricsError
 from entroping.core.qa_brain_eval_plan import QaBrainEvalPlanError
+from entroping.core.qa_brain_fine_tune_readiness import (
+    QaBrainFineTuneReadinessError,
+)
 from entroping.core.qa_brain_prompt_plan import QaBrainPromptPlanError
 from entroping.core.qa_brain_retrieval_plan import QaBrainRetrievalPlanError
 from entroping.core.qa_brain_seed import QaBrainSeedError
@@ -1287,6 +1290,95 @@ def test_report_qa_brain_prompt_plan_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "QA brain prompt plan path is unsafe" in result.output
+
+
+def test_report_qa_brain_fine_tune_readiness_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("reports") / "test-quality.json",
+        """
+{
+  "schema_version": "entroping.test-quality-report.v1",
+  "summary": {"status": "warn", "score": 80, "generated_tests": 2, "findings": 1}
+}
+""",
+    )
+
+    result = CliRunner().invoke(app, ["report", "qa-brain-fine-tune-readiness"])
+
+    assert result.exit_code == 0
+    assert (
+        "Wrote QA brain fine-tune readiness: "
+        "reports/qa-brain-fine-tune-readiness.md"
+    ) in result.output
+    markdown = Path("reports/qa-brain-fine-tune-readiness.md").read_text(
+        encoding="utf-8"
+    )
+    assert "# Entroping QA Brain Fine-Tune Readiness" in markdown
+    assert "| weak_test_detection | Weak-test detection | ready | metadata_ready |" in (
+        markdown
+    )
+
+
+def test_report_qa_brain_fine_tune_readiness_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "qa-brain-fine-tune-readiness", "--output", "json"],
+    )
+
+    assert result.exit_code == 0
+    assert (
+        "Wrote QA brain fine-tune readiness: "
+        "reports/qa-brain-fine-tune-readiness.json"
+    ) in result.output
+    payload = json.loads(
+        Path("reports/qa-brain-fine-tune-readiness.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert payload["schema_version"] == (
+        "entroping.qa-brain-fine-tune-readiness.v1"
+    )
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_qa_brain_fine_tune_readiness_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(
+        app,
+        ["report", "qa-brain-fine-tune-readiness", "--output", "html"],
+    )
+
+    assert result.exit_code == 2
+    assert "Unsupported qa-brain-fine-tune-readiness output" in result.output
+    assert not Path("reports/qa-brain-fine-tune-readiness.html").exists()
+
+
+def test_report_qa_brain_fine_tune_readiness_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_qa_brain_fine_tune_readiness(*args: object, **kwargs: object) -> object:
+        raise QaBrainFineTuneReadinessError(
+            "QA brain fine-tune readiness path is unsafe"
+        )
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_qa_brain_fine_tune_readiness_report",
+        fail_qa_brain_fine_tune_readiness,
+    )
+
+    result = CliRunner().invoke(app, ["report", "qa-brain-fine-tune-readiness"])
+
+    assert result.exit_code == 1
+    assert "QA brain fine-tune readiness path is unsafe" in result.output
 
 
 def test_report_bug_generates_markdown_from_latest_failing_run(

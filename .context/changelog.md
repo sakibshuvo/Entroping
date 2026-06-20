@@ -2,6 +2,18 @@
 
 ## 2026-06-20
 
+- Added issue #1046's QA Brain fine-tune readiness packet: `report
+  qa-brain-fine-tune-readiness` now writes local
+  `entroping.qa-brain-fine-tune-readiness.v1` JSON or Markdown that turns
+  deterministic QA-brain prompt-plan readiness into future proprietary-model
+  experiment readiness metadata, including readiness stages, source IDs/paths,
+  evidence coverage, prompt-plan completeness, safety boundaries, eval-case
+  coverage, redaction boundaries, deterministic acceptance summaries, blockers,
+  and next actions without executing Hurl, running tests, calling providers,
+  creating embeddings, using vector stores, retrieving documents, executing
+  prompts, exporting datasets, fine-tuning or training models, packaging
+  models, uploading artifacts, parsing traffic state, running mutations, or
+  rendering raw report/source contents.
 - Added issue #1044's QA Brain prompt-plan packet: `report
   qa-brain-prompt-plan` now writes local
   `entroping.qa-brain-prompt-plan.v1` JSON or Markdown that turns
