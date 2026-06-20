@@ -2,6 +2,10 @@
 
 ## 2026-06-20
 
+- Added issue #1017's OpenAPI response JSONPath bracket rendering: response
+  assertions now support safe non-identifier JSON field names with Hurl bracket
+  notation while still rejecting quote, backslash, template-delimiter, and
+  control-character field names.
 - Added issue #1010's nested response assertion support: response assertion
   generation now recurses through required object properties and emits
   deterministic nested `jsonpath ... exists` and enum equality checks while
