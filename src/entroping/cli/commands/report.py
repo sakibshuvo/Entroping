@@ -111,6 +111,11 @@ from entroping.core.qa_brain_eval_plan import (
     QaBrainEvalPlanOutput,
     run_qa_brain_eval_plan_report,
 )
+from entroping.core.qa_brain_fine_tune_readiness import (
+    QaBrainFineTuneReadinessError,
+    QaBrainFineTuneReadinessOutput,
+    run_qa_brain_fine_tune_readiness_report,
+)
 from entroping.core.qa_brain_prompt_plan import (
     QaBrainPromptPlanError,
     QaBrainPromptPlanOutput,
@@ -1119,6 +1124,37 @@ def report_qa_brain_prompt_plan(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote QA brain prompt plan: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("qa-brain-fine-tune-readiness", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_qa_brain_fine_tune_readiness(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local QA brain fine-tune readiness packet."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(
+            f"[yellow]Unsupported qa-brain-fine-tune-readiness output: {output}[/yellow]"
+        )
+        raise typer.Exit(2)
+
+    try:
+        result = run_qa_brain_fine_tune_readiness_report(
+            project_root=Path.cwd(),
+            output=cast(QaBrainFineTuneReadinessOutput, normalized_output),
+        )
+    except QaBrainFineTuneReadinessError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(
+        f"Wrote QA brain fine-tune readiness: {display_cli_path(result.output_path)}"
+    )
     raise typer.Exit(0)
 
 

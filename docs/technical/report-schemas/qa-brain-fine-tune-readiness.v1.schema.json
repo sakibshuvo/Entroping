@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://entroping.dev/schemas/qa-brain-fine-tune-readiness.v1.schema.json",
+  "title": "Entroping QA brain fine-tune readiness packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "project",
+    "prompt_plan_schema_version",
+    "summary",
+    "readiness_rows",
+    "next_actions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.qa-brain-fine-tune-readiness.v1"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "project": {
+      "type": "string"
+    },
+    "prompt_plan_schema_version": {
+      "const": "entroping.qa-brain-prompt-plan.v1"
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "readiness_rows": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/readiness_row"
+      }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/next_action"
+      }
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "readiness_total",
+        "readiness_ready",
+        "readiness_missing",
+        "readiness_attention",
+        "blockers_total",
+        "next_actions_total"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "ready",
+            "partial",
+            "insufficient"
+          ]
+        },
+        "readiness_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "readiness_ready": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "readiness_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "readiness_attention": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blockers_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "next_actions_total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "readiness_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "label",
+        "readiness",
+        "source_ids",
+        "source_paths",
+        "readiness_stage",
+        "evidence_coverage",
+        "prompt_plan_completeness",
+        "safety_boundary",
+        "eval_case_coverage",
+        "redaction_boundary",
+        "deterministic_acceptance",
+        "blockers",
+        "next_action"
+      ],
+      "properties": {
+        "case_id": {
+          "$ref": "#/$defs/eval_slice_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "readiness": {
+          "$ref": "#/$defs/case_readiness"
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "source_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "readiness_stage": {
+          "$ref": "#/$defs/readiness_stage"
+        },
+        "evidence_coverage": {
+          "type": "string"
+        },
+        "prompt_plan_completeness": {
+          "type": "string"
+        },
+        "safety_boundary": {
+          "type": "string"
+        },
+        "eval_case_coverage": {
+          "type": "string"
+        },
+        "redaction_boundary": {
+          "type": "string"
+        },
+        "deterministic_acceptance": {
+          "type": "string"
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "next_action": {
+          "type": "string"
+        }
+      }
+    },
+    "next_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "priority",
+        "action",
+        "case_ids"
+      ],
+      "properties": {
+        "priority": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "action": {
+          "type": "string"
+        },
+        "case_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/eval_slice_id"
+          }
+        }
+      }
+    },
+    "readiness_stage": {
+      "enum": [
+        "metadata_ready",
+        "needs_evidence",
+        "needs_repair"
+      ]
+    },
+    "case_readiness": {
+      "enum": [
+        "ready",
+        "missing",
+        "attention"
+      ]
+    },
+    "eval_slice_id": {
+      "enum": [
+        "weak_test_detection",
+        "missing_gate_discovery",
+        "unsafe_generated_hurl",
+        "bogus_evidence",
+        "redaction_mistakes",
+        "api_drift_reasoning",
+        "mutation_fuzz_readiness",
+        "cross_surface_handoff_quality"
+      ]
+    }
+  }
+}

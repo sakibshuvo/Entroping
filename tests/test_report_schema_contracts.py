@@ -153,6 +153,13 @@ from entroping.core.qa_brain_eval_plan import (
     QaBrainEvalPlanPacket,
     QaBrainEvalPlanSummary,
 )
+from entroping.core.qa_brain_fine_tune_readiness import (
+    QA_BRAIN_FINE_TUNE_READINESS_SCHEMA_VERSION,
+    QaBrainFineTuneReadinessNextAction,
+    QaBrainFineTuneReadinessPacket,
+    QaBrainFineTuneReadinessRow,
+    QaBrainFineTuneReadinessSummary,
+)
 from entroping.core.qa_brain_prompt_plan import (
     QA_BRAIN_PROMPT_PLAN_SCHEMA_VERSION,
     QaBrainPromptPlanNextAction,
@@ -3083,6 +3090,115 @@ def test_qa_brain_prompt_plan_v1_schema_contract_is_versioned_and_stable() -> No
     ]
 
 
+def test_qa_brain_fine_tune_readiness_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads(
+        (SCHEMA_DIR / "qa-brain-fine-tune-readiness.v1.schema.json").read_text()
+    )
+    packet = QaBrainFineTuneReadinessPacket(
+        generated_at="2026-06-20T00:00:00+00:00",
+        project="checkout-api",
+        prompt_plan_schema_version="entroping.qa-brain-prompt-plan.v1",
+        summary=QaBrainFineTuneReadinessSummary(
+            status="partial",
+            readiness_total=1,
+            readiness_ready=0,
+            readiness_missing=0,
+            readiness_attention=1,
+            blockers_total=1,
+            next_actions_total=1,
+        ),
+        readiness_rows=(
+            QaBrainFineTuneReadinessRow(
+                case_id="weak_test_detection",
+                label="Weak-test detection",
+                readiness="attention",
+                source_ids=("test-quality-json",),
+                source_paths=("reports/test-quality.json",),
+                readiness_stage="needs_repair",
+                evidence_coverage="Repair source evidence before dataset design.",
+                prompt_plan_completeness="Prompt-plan metadata is complete.",
+                safety_boundary="Provider-free metadata only.",
+                eval_case_coverage="Covers weak-test detection.",
+                redaction_boundary="No secrets, headers, cookies, tokens, or bodies.",
+                deterministic_acceptance="Evidence IDs are present.",
+                blockers=("Repair invalid or unsafe prompt-plan evidence.",),
+                next_action="Repair prompt-plan evidence before fine-tune design.",
+            ),
+        ),
+        next_actions=(
+            QaBrainFineTuneReadinessNextAction(
+                priority="high",
+                action="Repair fine-tune readiness evidence before weak-test detection.",
+                case_ids=("weak_test_detection",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert (
+        QA_BRAIN_FINE_TUNE_READINESS_SCHEMA_VERSION
+        == "entroping.qa-brain-fine-tune-readiness.v1"
+    )
+    assert payload == {
+        "schema_version": "entroping.qa-brain-fine-tune-readiness.v1",
+        "generated_at": "2026-06-20T00:00:00+00:00",
+        "project": "checkout-api",
+        "prompt_plan_schema_version": "entroping.qa-brain-prompt-plan.v1",
+        "summary": {
+            "status": "partial",
+            "readiness_total": 1,
+            "readiness_ready": 0,
+            "readiness_missing": 0,
+            "readiness_attention": 1,
+            "blockers_total": 1,
+            "next_actions_total": 1,
+        },
+        "readiness_rows": [
+            {
+                "case_id": "weak_test_detection",
+                "label": "Weak-test detection",
+                "readiness": "attention",
+                "source_ids": ["test-quality-json"],
+                "source_paths": ["reports/test-quality.json"],
+                "readiness_stage": "needs_repair",
+                "evidence_coverage": "Repair source evidence before dataset design.",
+                "prompt_plan_completeness": "Prompt-plan metadata is complete.",
+                "safety_boundary": "Provider-free metadata only.",
+                "eval_case_coverage": "Covers weak-test detection.",
+                "redaction_boundary": "No secrets, headers, cookies, tokens, or bodies.",
+                "deterministic_acceptance": "Evidence IDs are present.",
+                "blockers": ["Repair invalid or unsafe prompt-plan evidence."],
+                "next_action": "Repair prompt-plan evidence before fine-tune design.",
+            }
+        ],
+        "next_actions": [
+            {
+                "priority": "high",
+                "action": "Repair fine-tune readiness evidence before weak-test detection.",
+                "case_ids": ["weak_test_detection"],
+            }
+        ],
+    }
+    assert schema["properties"]["schema_version"]["const"] == (
+        "entroping.qa-brain-fine-tune-readiness.v1"
+    )
+    assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["properties"]["prompt_plan_schema_version"]["const"] == (
+        "entroping.qa-brain-prompt-plan.v1"
+    )
+    assert schema["$defs"]["readiness_stage"]["enum"] == [
+        "metadata_ready",
+        "needs_evidence",
+        "needs_repair",
+    ]
+    assert schema["$defs"]["case_readiness"]["enum"] == [
+        "ready",
+        "missing",
+        "attention",
+    ]
+
+
 def test_effective_policy_diff_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "effective-policy-diff.v1.schema.json").read_text())
     base = EffectivePolicyReport(
@@ -3389,6 +3505,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         ),
         "entroping.qa-brain-prompt-plan.v1": (
             SCHEMA_DIR / "qa-brain-prompt-plan.v1.schema.json"
+        ),
+        "entroping.qa-brain-fine-tune-readiness.v1": (
+            SCHEMA_DIR / "qa-brain-fine-tune-readiness.v1.schema.json"
         ),
         "entroping.design-partner-feedback.v1": (
             SCHEMA_DIR / "design-partner-feedback.v1.schema.json"
