@@ -43,6 +43,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Evidence index packet | `entroping.evidence-index.v1` | `reports/evidence-index.json` from `entroping report evidence-index --output json` | [evidence-index.v1.schema.json](report-schemas/evidence-index.v1.schema.json) |
 | QA brain seed packet | `entroping.qa-brain-seed.v1` | `reports/qa-brain-seed.json` from `entroping report qa-brain-seed --output json` | [qa-brain-seed.v1.schema.json](report-schemas/qa-brain-seed.v1.schema.json) |
 | QA brain eval-plan packet | `entroping.qa-brain-eval-plan.v1` | `reports/qa-brain-eval-plan.json` from `entroping report qa-brain-eval-plan --output json` | [qa-brain-eval-plan.v1.schema.json](report-schemas/qa-brain-eval-plan.v1.schema.json) |
+| QA brain retrieval-plan packet | `entroping.qa-brain-retrieval-plan.v1` | `reports/qa-brain-retrieval-plan.json` from `entroping report qa-brain-retrieval-plan --output json` | [qa-brain-retrieval-plan.v1.schema.json](report-schemas/qa-brain-retrieval-plan.v1.schema.json) |
 | Design-partner feedback | `entroping.design-partner-feedback.v1` | `reports/design-partner-feedback.json` from `entroping report design-partner-feedback` | [design-partner-feedback.v1.schema.json](report-schemas/design-partner-feedback.v1.schema.json) |
 | Failure bundle manifest | `entroping.failure-bundle.v1` | `reports/failure-bundle/manifest.json` | Inline contract |
 | Coverage badges | Shields endpoint schema v1 | `reports/badges/*.json` | External Shields endpoint format |
@@ -231,6 +232,28 @@ source contents. The command does not execute Hurl, run tests, call providers,
 fine-tune models, upload artifacts, retrieve documents, parse traffic state,
 run mutations or fuzzers, or render raw report contents, raw traffic, source
 Hurl, prompts, credentials, cookies, environment values, or provider outputs.
+
+The QA brain retrieval-plan packet is written by:
+
+```bash
+entroping report qa-brain-retrieval-plan
+entroping report qa-brain-retrieval-plan --output json
+```
+
+It writes `reports/qa-brain-retrieval-plan.md` by default or
+`reports/qa-brain-retrieval-plan.json` with schema
+`entroping.qa-brain-retrieval-plan.v1` when `--output json` is selected. The
+packet turns deterministic QA-brain eval-plan readiness into future retrieval
+metadata: readiness, value-free source IDs and paths, retrieval categories,
+allowed fields, forbidden fields, query hints, safety notes, and next actions.
+It is not a model, embedding job, vector database, retrieval engine, fine-tune,
+eval runner, hosted upload, or provider integration. Missing evidence is
+non-blocking; attention cases remain represented without embedding source
+contents. The command does not execute Hurl, run tests, call providers, create
+embeddings, fine-tune models, upload artifacts, retrieve documents, parse
+traffic state, run mutations or fuzzers, or render raw report contents, raw
+traffic, source Hurl, prompts, credentials, cookies, environment values, or
+provider outputs.
 
 The report artifact manifest is written by:
 
