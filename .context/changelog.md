@@ -2,6 +2,9 @@
 
 ## 2026-06-20
 
+- Fixed issue #999's OpenAPI enum regression: schema enum selection now skips
+  non-finite float values before request examples, response assertions, or
+  negative cases can render JSON.
 - Fixed issue #998's OpenAPI numeric-bound regression: schema examples and
   negative boundary-value generation now ignore non-finite `minimum` and
   `maximum` values instead of crashing or emitting `NaN`/`Infinity`.

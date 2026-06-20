@@ -28,6 +28,8 @@ def _first_enum_value(schema: Mapping[str, object]) -> object | None:
     if not isinstance(raw_enum, Sequence) or isinstance(raw_enum, str | bytes):
         return None
     for value in raw_enum:
+        if isinstance(value, float) and not math.isfinite(value):
+            continue
         if isinstance(value, str | int | float | bool):
             return value
     return None

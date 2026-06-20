@@ -896,6 +896,135 @@ def test_compile_openapi_skips_non_finite_numeric_bounds_in_negative_generation(
     assert '"threshold": 0.5' in boundary.content
 
 
+def test_compile_openapi_skips_non_finite_enum_values_before_rendering() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/limits": {
+                "post": {
+                    "operationId": "createLimit",
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["level"],
+                                    "properties": {
+                                        "level": {
+                                            "type": "number",
+                                            "enum": [float("nan"), float("inf"), 2.5],
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "responses": {
+                        "201": {
+                            "description": "created",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "required": ["status"],
+                                        "properties": {
+                                            "status": {
+                                                "type": "number",
+                                                "enum": [
+                                                    float("-inf"),
+                                                    float("nan"),
+                                                    3.5,
+                                                ],
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                        "422": {"description": "invalid"},
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset())
+
+    joined = "\n".join(item.content for item in result.files)
+    assert "NaN" not in joined
+    assert "Infinity" not in joined
+    assert '"level": 2.5' in result.files[0].content
+    assert 'jsonpath "$.status" == 3.5' in result.files[0].content
+
+
+def test_compile_openapi_falls_back_when_enums_have_no_finite_values() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/limits": {
+                "post": {
+                    "operationId": "createLimit",
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["level"],
+                                    "properties": {
+                                        "level": {
+                                            "type": "number",
+                                            "enum": [
+                                                float("nan"),
+                                                float("inf"),
+                                                float("-inf"),
+                                            ],
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "responses": {
+                        "201": {
+                            "description": "created",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "required": ["status"],
+                                        "properties": {
+                                            "status": {
+                                                "type": "number",
+                                                "enum": [
+                                                    float("inf"),
+                                                    float("-inf"),
+                                                    float("nan"),
+                                                ],
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                        "422": {"description": "invalid"},
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset())
+
+    joined = "\n".join(item.content for item in result.files)
+    assert "NaN" not in joined
+    assert "Infinity" not in joined
+    assert '"level": 0' in result.files[0].content
+    assert 'jsonpath "$.status" exists' in result.files[0].content
+    assert 'jsonpath "$.status" ==' not in result.files[0].content
+
+
 def test_compile_openapi_idor_variants_preserve_scalar_path_types() -> None:
     missing_example = object()
 
