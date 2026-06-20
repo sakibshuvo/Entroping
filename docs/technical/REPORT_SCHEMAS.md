@@ -198,11 +198,16 @@ entroping report runtime-card --output json
 
 It writes a concise reviewer-facing card from existing local sanitized evidence:
 `reports/run-latest.json` is the required deterministic runtime source, while
-drift, `reports/capture-summary.json`, artifact manifest, evidence bundle, and
-agent bundle artifacts are summarized when present. The card also emits a
-`pilot_readiness` object from `reports/evidence-bundle.json` with the
-design-partner evidence status, missing-artifact count, invalid-artifact count,
-checksum-mismatch count, diagnostic count, and artifact-manifest audit status.
+drift, `reports/capture-summary.json`, artifact manifest, evidence bundle,
+agent bundle, and test-pyramid artifacts are summarized when present. The card
+also emits a `pilot_readiness` object from `reports/evidence-bundle.json` with
+the design-partner evidence status, missing-artifact count, invalid-artifact
+count, checksum-mismatch count, diagnostic count, and artifact-manifest audit
+status. When `reports/test-pyramid.json` is present, the additive
+`test_pyramid` object summarizes runtime-governance status, layer counts, and
+finding count without embedding artifact contents. Missing test-pyramid evidence
+is non-blocking; incomplete test-pyramid evidence marks the card for reviewer
+attention.
 Missing required run evidence writes a failed card, and missing redaction
 evidence marks the card for reviewer attention. Malformed or unsafe
 evidence-bundle artifacts are summarized as `invalid` or `unsafe` pilot

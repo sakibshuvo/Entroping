@@ -156,8 +156,33 @@ def _write_verified_artifact_manifest(root: Path) -> None:
     )
 
 
+def _write_test_pyramid_report(
+    root: Path,
+    *,
+    runtime_governance_status: str = "complete",
+    findings: int = 0,
+) -> None:
+    _write_json(
+        root / "reports" / "test-pyramid.json",
+        {
+            "schema_version": "entroping.test-pyramid-report.v1",
+            "project": "checkout-api",
+            "summary": {
+                "total_layers": 6,
+                "present_layers": 6 - min(findings, 6),
+                "attention_layers": min(findings, 6),
+                "findings": findings,
+                "runtime_governance_status": runtime_governance_status,
+            },
+            "layers": [],
+            "findings": [],
+        },
+    )
+
+
 def test_run_runtime_card_report_summarizes_existing_evidence(tmp_path: Path) -> None:
     _write_runtime_card_inputs(tmp_path)
+    _write_test_pyramid_report(tmp_path, runtime_governance_status="incomplete", findings=2)
 
     result = run_runtime_card_report(project_root=tmp_path, output="json")
 
@@ -170,9 +195,26 @@ def test_run_runtime_card_report_summarizes_existing_evidence(tmp_path: Path) ->
     assert result.card.drift.status == "drift"
     assert result.card.redaction.status == "attention"
     assert result.card.release.evidence_bundle_status == "ready"
+    assert result.card.test_pyramid.status == "incomplete"
+    assert result.card.test_pyramid.total_layers == 6
+    assert result.card.test_pyramid.present_layers == 4
+    assert result.card.test_pyramid.attention_layers == 2
+    assert result.card.test_pyramid.findings == 2
     assert result.card.agent_provenance.status == "attention"
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
     assert payload["schema_version"] == "entroping.runtime-card.v1"
+    assert payload["test_pyramid"] == {
+        "status": "incomplete",
+        "path": "reports/test-pyramid.json",
+        "total_layers": 6,
+        "present_layers": 4,
+        "attention_layers": 2,
+        "findings": 2,
+    }
+    assert "reports/test-pyramid.json" in payload["release"]["evidence_links"]
+    assert ("test_pyramid_attention", "reports/test-pyramid.json") in {
+        (finding["code"], finding["path"]) for finding in payload["findings"]
+    }
     assert "sk-proj-secret-must-not-render" not in json.dumps(payload)
 
 
@@ -215,6 +257,8 @@ def test_run_runtime_card_report_marks_missing_release_evidence_attention(
         "reports/run-latest.json",
         "reports/capture-summary.json",
     )
+    assert result.card.test_pyramid.status == "missing"
+    assert "missing_test_pyramid" not in {finding.code for finding in result.card.findings}
     assert result.card.drift.status == "unknown"
     assert result.card.redaction.status == "verified"
     assert {
@@ -286,6 +330,55 @@ def test_run_runtime_card_report_rejects_schema_mismatch(tmp_path: Path) -> None
     )
 
     with pytest.raises(RuntimeCardError, match="must use schema_version"):
+        run_runtime_card_report(project_root=tmp_path, output="json")
+
+
+def test_run_runtime_card_report_rejects_wrong_test_pyramid_schema(tmp_path: Path) -> None:
+    _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
+    _write_json(
+        tmp_path / "reports" / "test-pyramid.json",
+        {"schema_version": "entroping.test-pyramid-report.v999"},
+    )
+
+    with pytest.raises(RuntimeCardError, match="Test Pyramid"):
+        run_runtime_card_report(project_root=tmp_path, output="json")
+
+
+def test_run_runtime_card_report_rejects_unknown_test_pyramid_status(
+    tmp_path: Path,
+) -> None:
+    _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
+    _write_test_pyramid_report(tmp_path)
+    payload = json.loads(
+        (tmp_path / "reports" / "test-pyramid.json").read_text(encoding="utf-8")
+    )
+    assert isinstance(payload["summary"], dict)
+    payload["summary"]["runtime_governance_status"] = "maybe"
+    (tmp_path / "reports" / "test-pyramid.json").write_text(
+        json.dumps(payload),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeCardError, match="runtime_governance_status"):
+        run_runtime_card_report(project_root=tmp_path, output="json")
+
+
+def test_run_runtime_card_report_rejects_inconsistent_test_pyramid_counts(
+    tmp_path: Path,
+) -> None:
+    _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
+    _write_test_pyramid_report(tmp_path)
+    payload = json.loads(
+        (tmp_path / "reports" / "test-pyramid.json").read_text(encoding="utf-8")
+    )
+    assert isinstance(payload["summary"], dict)
+    payload["summary"]["present_layers"] = 7
+    (tmp_path / "reports" / "test-pyramid.json").write_text(
+        json.dumps(payload),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeCardError, match="present_layers \\+ attention_layers"):
         run_runtime_card_report(project_root=tmp_path, output="json")
 
 
@@ -684,6 +777,7 @@ def test_runtime_card_markdown_redacts_and_escapes_unsafe_fields(tmp_path: Path)
         tmp_path,
         project="checkout|api` token=live-secret\x1b[31m",
     )
+    _write_test_pyramid_report(tmp_path)
 
     result = run_runtime_card_report(project_root=tmp_path, output="md")
     markdown = render_runtime_card_markdown(result.card)
@@ -694,6 +788,9 @@ def test_runtime_card_markdown_redacts_and_escapes_unsafe_fields(tmp_path: Path)
     assert "token=[REDACTED]" in markdown
     assert "checkout\\|api'" in markdown
     assert "| Run JSON | present | reports/run-latest.json |" in markdown
+    assert "## Test Pyramid" in markdown
+    assert "- Runtime governance: `complete`" in markdown
+    assert "- Layers present: `6/6`" in markdown
 
 
 def _evidence_bundle_payload(

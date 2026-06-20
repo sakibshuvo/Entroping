@@ -1252,11 +1252,14 @@ aggregation readiness, or premium policy-pack readiness.
 `reports/runtime-card.md` by default, or `reports/runtime-card.json` with
 `--output json`. It reads existing local sanitized report artifacts only:
 `reports/run-latest.json` is required, while drift,
-`reports/capture-summary.json`, artifact manifest, evidence bundle, and agent
-bundle artifacts are summarized when present. `entroping report capture-summary
---fail-on-unredacted` is an optional CI guard that still writes the requested
-counts-only capture summary, then exits `1` when sanitized local evidence
-contains unredacted records. A `pass` card is a PR or release
+`reports/capture-summary.json`, artifact manifest, evidence bundle, agent
+bundle, and test-pyramid artifacts are summarized when present. Test-pyramid
+evidence is optional and value-free: a present `reports/test-pyramid.json`
+contributes runtime-governance status, layer counts, and finding count to the
+card; missing test-pyramid evidence does not block card generation.
+`entroping report capture-summary --fail-on-unredacted` is an optional CI guard
+that still writes the requested counts-only capture summary, then exits `1`
+when sanitized local evidence contains unredacted records. A `pass` card is a PR or release
 review signal, so missing `reports/artifact-manifest.json` or
 `reports/evidence-bundle.json` adds warning findings, marks the card
 `attention`, and makes the CLI exit nonzero. Missing required run evidence
@@ -1328,8 +1331,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report artifact-manifest [--fail-on-incomplete]` | `reports/artifact-manifest.json` and `.entroping/report-audit-chain.jsonl` | Machine-readable checksum manifest using `entroping.report-artifact-manifest.v1` plus a local tamper-evident audit chain using `entroping.report-audit-event.v1`; the optional guard exits nonzero after writing when expected artifacts are missing or audit verification is broken, and the chain is local state and not committed. |
 | `entroping report evidence-bundle` | `reports/evidence-bundle.json`, or Markdown when `--output` ends in `.md` or `.markdown` | Sanitized design-partner upload-readiness evidence using `entroping.evidence-bundle.v1`; references local artifacts by path, schema, size, checksum, readiness, diagnostics, and local remediation hints without embedding contents, executing fixes, or uploading. |
 | `entroping report design-partner-feedback` | `reports/design-partner-feedback.json` | Schema-valid sanitized product-learning template using `entroping.design-partner-feedback.v1`; records value-free evidence statuses and leaves manual feedback fields for concise sanitized summaries. |
-| `entroping report runtime-card --output md` | `reports/runtime-card.md` | Reviewer-facing PR/runtime evidence card from sanitized local reports, including design-partner pilot readiness when evidence-bundle metadata is present. |
-| `entroping report runtime-card --output json` | `reports/runtime-card.json` | Machine-readable PR/runtime evidence card using `entroping.runtime-card.v1`, including additive `pilot_readiness` evidence. |
+| `entroping report runtime-card --output md` | `reports/runtime-card.md` | Reviewer-facing PR/runtime evidence card from sanitized local reports, including design-partner pilot readiness and optional test-pyramid evidence. |
+| `entroping report runtime-card --output json` | `reports/runtime-card.json` | Machine-readable PR/runtime evidence card using `entroping.runtime-card.v1`, including additive `pilot_readiness` and `test_pyramid` evidence. |
 | `entroping report pilot-metrics --output md` | `reports/pilot-metrics.md` | Human-readable local pilot metric inference from sanitized artifacts, with `unknown` and `manual_input_required` states for metrics Entroping cannot infer locally. |
 | `entroping report pilot-metrics --output json` | `reports/pilot-metrics.json` | Machine-readable local pilot metric inference using `entroping.pilot-metrics.v1`. |
 | `entroping report agent-bundle --output md` | `reports/agent-bundle.md` | Human-readable local multi-agent review bundle from sanitized manifests. |

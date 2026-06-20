@@ -11,6 +11,7 @@ from typing import Final, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from entroping.bridge.capture_summary import CAPTURE_SUMMARY_SCHEMA_VERSION
+from entroping.bridge.test_pyramid import TEST_PYRAMID_REPORT_SCHEMA_VERSION
 from entroping.core.agent_bundle import AGENT_REVIEW_BUNDLE_SCHEMA_VERSION
 from entroping.core.drift_report import DRIFT_REPORT_SCHEMA_VERSION
 from entroping.core.evidence_bundle import EVIDENCE_BUNDLE_SCHEMA_VERSION
@@ -35,6 +36,7 @@ RuntimeCardDriftStatus = Literal["none", "drift", "missing_baseline", "unknown"]
 RuntimeCardRedactionStatus = Literal["verified", "attention", "missing"]
 RuntimeCardAgentStatus = Literal["pass", "attention", "fail", "missing"]
 RuntimeCardPilotReadinessStatus = Literal["ready", "not_ready", "missing", "invalid", "unsafe"]
+RuntimeCardTestPyramidStatus = Literal["complete", "incomplete", "missing"]
 
 _DEFAULT_JSON_OUTPUT: Final = Path("reports") / "runtime-card.json"
 _DEFAULT_MARKDOWN_OUTPUT: Final = Path("reports") / "runtime-card.md"
@@ -79,6 +81,11 @@ _AGENT_BUNDLE: Final = _ArtifactDefinition(
     path=Path("reports") / "agent-bundle.json",
     schema_version=AGENT_REVIEW_BUNDLE_SCHEMA_VERSION,
 )
+_TEST_PYRAMID_ARTIFACT: Final = _ArtifactDefinition(
+    name="Test Pyramid",
+    path=Path("reports") / "test-pyramid.json",
+    schema_version=TEST_PYRAMID_REPORT_SCHEMA_VERSION,
+)
 _ARTIFACTS: Final = (
     _RUN_ARTIFACT,
     _DRIFT_ARTIFACT,
@@ -86,6 +93,7 @@ _ARTIFACTS: Final = (
     _ARTIFACT_MANIFEST,
     _EVIDENCE_BUNDLE,
     _AGENT_BUNDLE,
+    _TEST_PYRAMID_ARTIFACT,
 )
 
 
@@ -177,6 +185,19 @@ class RuntimeCardAgentProvenance(BaseModel):
     findings: int = Field(ge=0)
 
 
+class RuntimeCardTestPyramidEvidence(BaseModel):
+    """Value-free test-pyramid governance evidence."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: RuntimeCardTestPyramidStatus
+    path: str
+    total_layers: int = Field(ge=0)
+    present_layers: int = Field(ge=0)
+    attention_layers: int = Field(ge=0)
+    findings: int = Field(ge=0)
+
+
 class RuntimeCardFinding(BaseModel):
     """One value-free runtime-card finding."""
 
@@ -210,6 +231,16 @@ class RuntimeCardReport(BaseModel):
     redaction: RuntimeCardRedactionEvidence
     release: RuntimeCardReleaseEvidence
     pilot_readiness: RuntimeCardPilotReadiness
+    test_pyramid: RuntimeCardTestPyramidEvidence = Field(
+        default_factory=lambda: RuntimeCardTestPyramidEvidence(
+            status="missing",
+            path=_TEST_PYRAMID_ARTIFACT.path.as_posix(),
+            total_layers=0,
+            present_layers=0,
+            attention_layers=0,
+            findings=0,
+        )
+    )
     agent_provenance: RuntimeCardAgentProvenance
     artifacts: tuple[RuntimeCardArtifact, ...]
     findings: tuple[RuntimeCardFinding, ...]
@@ -271,6 +302,11 @@ def build_runtime_card(*, project_root: Path) -> RuntimeCardReport:
         findings=findings,
     )
     agent_doc = _load_artifact(_AGENT_BUNDLE, root=root, artifacts=artifacts)
+    test_pyramid_doc = _load_artifact(
+        _TEST_PYRAMID_ARTIFACT,
+        root=root,
+        artifacts=artifacts,
+    )
 
     run = _run_evidence(run_doc)
     if run_doc is None:
@@ -292,10 +328,12 @@ def build_runtime_card(*, project_root: Path) -> RuntimeCardReport:
         manifest_doc,
         evidence_doc,
         agent_doc,
+        test_pyramid_doc,
         pilot_readiness=pilot_readiness,
         findings=findings,
     )
     agent = _agent_provenance(agent_doc, findings=findings)
+    test_pyramid = _test_pyramid_evidence(test_pyramid_doc, findings=findings)
     status = _card_status(run=run, drift=drift, redaction=redaction, findings=findings)
 
     return RuntimeCardReport(
@@ -309,6 +347,7 @@ def build_runtime_card(*, project_root: Path) -> RuntimeCardReport:
         redaction=redaction,
         release=release,
         pilot_readiness=pilot_readiness,
+        test_pyramid=test_pyramid,
         agent_provenance=agent,
         artifacts=tuple(artifacts),
         findings=tuple(findings),
@@ -344,6 +383,7 @@ def render_runtime_card_markdown(card: RuntimeCardReport) -> str:
             f"({card.redaction.redacted_records}/{card.redaction.total_records} records redacted)",
             f"- Evidence bundle: `{card.release.evidence_bundle_status}`",
             f"- Pilot readiness: `{card.pilot_readiness.status}`",
+            f"- Test pyramid: `{card.test_pyramid.status}`",
             f"- Artifact manifest audit: `{card.release.artifact_manifest_audit_status}`",
             f"- Agent provenance: `{card.agent_provenance.status}` "
             f"({card.agent_provenance.manifests} manifests)",
@@ -358,6 +398,15 @@ def render_runtime_card_markdown(card: RuntimeCardReport) -> str:
             f"- Diagnostics: `{card.pilot_readiness.diagnostics}`",
             "- Artifact manifest audit: "
             f"`{_inline_code(card.pilot_readiness.manifest_audit_status)}`",
+            "",
+            "## Test Pyramid",
+            "",
+            f"- Runtime governance: `{card.test_pyramid.status}`",
+            f"- Evidence artifact: `{_inline_code(card.test_pyramid.path)}`",
+            "- Layers present: "
+            f"`{card.test_pyramid.present_layers}/{card.test_pyramid.total_layers}`",
+            f"- Attention layers: `{card.test_pyramid.attention_layers}`",
+            f"- Findings: `{card.test_pyramid.findings}`",
             "",
             "## Evidence Links",
             "",
@@ -712,6 +761,7 @@ def _release_evidence(
     manifest_doc: dict[str, object] | None,
     evidence_doc: dict[str, object] | None,
     agent_doc: dict[str, object] | None,
+    test_pyramid_doc: dict[str, object] | None,
     *,
     pilot_readiness: RuntimeCardPilotReadiness,
     findings: list[RuntimeCardFinding],
@@ -775,6 +825,7 @@ def _release_evidence(
             (_DRIFT_ARTIFACT, drift_doc is not None),
             (_CAPTURE_ARTIFACT, capture_doc is not None),
             (_AGENT_BUNDLE, agent_doc is not None),
+            (_TEST_PYRAMID_ARTIFACT, test_pyramid_doc is not None),
         )
         if present
     )
@@ -783,6 +834,71 @@ def _release_evidence(
         evidence_bundle_status=evidence_status,
         evidence_links=links,
     )
+
+
+def _test_pyramid_evidence(
+    document: dict[str, object] | None,
+    *,
+    findings: list[RuntimeCardFinding],
+) -> RuntimeCardTestPyramidEvidence:
+    if document is None:
+        return RuntimeCardTestPyramidEvidence(
+            status="missing",
+            path=_TEST_PYRAMID_ARTIFACT.path.as_posix(),
+            total_layers=0,
+            present_layers=0,
+            attention_layers=0,
+            findings=0,
+        )
+    summary = _object_field(document, "summary", artifact="test pyramid")
+    raw_status = summary.get("runtime_governance_status")
+    if raw_status not in {"complete", "incomplete"}:
+        msg = "Test pyramid summary runtime_governance_status must be complete or incomplete"
+        raise RuntimeCardError(msg)
+    status: RuntimeCardTestPyramidStatus = (
+        "complete" if raw_status == "complete" else "incomplete"
+    )
+    evidence = RuntimeCardTestPyramidEvidence(
+        status=status,
+        path=_TEST_PYRAMID_ARTIFACT.path.as_posix(),
+        total_layers=_non_negative_int(
+            summary.get("total_layers"),
+            field="summary.total_layers",
+        ),
+        present_layers=_non_negative_int(
+            summary.get("present_layers"),
+            field="summary.present_layers",
+        ),
+        attention_layers=_non_negative_int(
+            summary.get("attention_layers"),
+            field="summary.attention_layers",
+        ),
+        findings=_non_negative_int(summary.get("findings"), field="summary.findings"),
+    )
+    if (
+        evidence.present_layers > evidence.total_layers
+        or evidence.attention_layers > evidence.total_layers
+        or evidence.present_layers + evidence.attention_layers != evidence.total_layers
+    ):
+        msg = (
+            "Test pyramid summary layer counts must satisfy "
+            "present_layers + attention_layers == total_layers"
+        )
+        raise RuntimeCardError(msg)
+    if (
+        evidence.status == "incomplete"
+        or evidence.attention_layers > 0
+        or evidence.findings > 0
+    ):
+        findings.append(
+            _finding(
+                "warning",
+                "test_pyramid_attention",
+                _TEST_PYRAMID_ARTIFACT.path.as_posix(),
+                "Test-pyramid evidence reports incomplete runtime-governance proof.",
+            )
+        )
+    return evidence
 
 
 def _agent_provenance(

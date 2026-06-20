@@ -2,6 +2,9 @@
 
 ## 2026-06-20
 
+- Added issue #1024's runtime-card test-pyramid evidence: `report
+  runtime-card` now summarizes optional `reports/test-pyramid.json` evidence in
+  JSON and Markdown output without changing the locked CLI surface.
 - Curated issue #961's roadmap/docs inventory boundary:
   `ROADMAP.md` now keeps release sequence and directional lane indexing, while
   detailed long-range product and monetization lane reasoning lives in
