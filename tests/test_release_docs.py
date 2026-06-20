@@ -104,12 +104,12 @@ def test_project_progress_stays_a_short_daily_dashboard() -> None:
     assert "after #491 closes" not in progress
     assert "after #501" not in progress
     assert "Current local queue: #517-#523" not in progress
-    assert "Current local queue: #954 is complete" in progress
-    assert "review-derived launch hardening" in progress
-    assert "issues #957-#961" in progress
-    assert "| 1 | #957 |" in progress
-    assert "| 2 | #958 |" in progress
-    assert "| 3 | #959-#961 |" in progress
+    assert "review-derived launch-hardening sweep through #957-#961" in progress
+    assert "stable-core external proof" in progress
+    assert "| 1 | #303-#305 |" in progress
+    assert "| 2 | #306 |" in progress
+    assert "| 3 | #308-#310 |" in progress
+    assert "Roadmap and docs inventory curation" in progress
     assert "Tier A cheap-worker defaults" in progress
     assert "Docs-prune candidate report" in progress
     assert "Four-gate factory readiness" in progress

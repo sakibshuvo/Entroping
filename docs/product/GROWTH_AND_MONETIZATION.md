@@ -135,6 +135,140 @@ Commercial surfaces can sit around the core:
 
 Do not weaken the public core to force monetization. The free tool must be useful enough that developers trust it, star it, and bring it into companies.
 
+## Long-Range Product And Commercial Lanes
+
+These lanes are product and monetization strategy, not a replacement backlog.
+Each lane needs issue-backed slices before implementation, and each paid surface
+must preserve the useful local Apache-2.0 core.
+
+### Frictionless Evidence Loop
+
+Goal: make the first serious team workflow feel obvious from editor to PR.
+
+- VS Code extension for `doctor`, `run`, report discovery, latest-run status,
+  and problem-matchable findings from existing artifacts.
+- Local evidence workbench for reports, applied gates, drift, redaction
+  confidence, traffic summaries, and release anchors. It should stay read-only
+  until the report-backed workflow is proven.
+- One-command onboarding wizard that explains required Hurl, QAnstitution,
+  source, report, and CI setup without changing the locked CLI contract.
+- PR runtime evidence card that summarizes pass/fail, failed gates, drift,
+  redaction confidence, AI-agent provenance, and release-evidence anchors.
+- Design-partner pilot kit in
+  [USER_GUIDE.md](../user/USER_GUIDE.md#design-partner-pilot-kit) with setup
+  steps, evidence-bundle acceptance checks, usage metrics, and feedback
+  templates for AI-generated backend/API changes.
+
+### Cross-Surface Continuity
+
+Goal: make Entroping feel continuous across CLI, desktop, phone, and cloud
+surfaces without weakening local-first trust boundaries.
+
+- Shared evidence identifiers and deep links so CLI runs, desktop/workbench
+  views, hosted evidence pages, PR cards, and mobile views all point to the
+  same sanitized runtime-governance evidence.
+- Phone-friendly read-only views for latest run status, failed gates, drift,
+  release blockers, design-partner evidence, and next recommended action.
+- Desktop-to-cloud and cloud-to-CLI handoff packets that preserve project,
+  branch, issue, evidence bundle, report schema, and verification context
+  without embedding secrets, raw traffic, source Hurl contents, or env values.
+- Resume-anywhere workflow for reviewing evidence, assigning follow-up work,
+  opening the right local command, and handing a bounded packet to Codex,
+  Claude, or another coding agent.
+- Explicit sync policy: repos and vaults remain source-controlled; phone/cloud
+  continuity moves curated evidence and handoff metadata, not conflict-prone
+  mutable worktrees.
+
+### Work Management, Chat, And Enterprise Automation
+
+Goal: put Entroping evidence where teams already coordinate work without making
+Entroping a replacement issue tracker or chat platform.
+
+- Issue-tracker evidence links for Jira, Linear, and monday.com: attach
+  sanitized PR/runtime-governance evidence, failed-gate summaries, release
+  anchors, and follow-up issue links without duplicating the full backlog.
+- Chat notifications for Slack and Discord: post value-free run summaries,
+  failed-gate alerts, design-partner evidence status, and release-blocker
+  digests with links back to local or hosted evidence.
+- Enterprise automation connector plan for Workato and similar platforms:
+  expose explicit triggers and actions around sanitized evidence bundles,
+  release decisions, policy drift, and downstream proof collection.
+- Enterprise AI-agent integration surface for Claude, Codex, and other
+  agentic coding tools: consume and emit review packets, agent-run provenance,
+  and repair proposals while preserving LiteLLM/provider boundaries.
+- Start read-only and notification-first; require issue-backed design, access
+  control, audit evidence, and user intent before any write-back, ticket
+  mutation, or chat-command execution.
+
+### Observability And Test-Pyramid Governance
+
+Goal: connect runtime governance to the telemetry and test evidence teams
+already trust.
+
+- OpenTelemetry-first evidence adapter for API traces, logs, metrics, and route
+  observations, with Datadog and Splunk adapters after the vendor-neutral path
+  is proven.
+- Observability-to-contract analysis that compares sanitized production-like
+  route behavior against OpenAPI, traffic-state, QAnstitution, and Hurl
+  evidence.
+- External test-evidence ingestion for unit, integration, component, contract,
+  and end-to-end suites through standard artifacts such as JUnit, coverage, and
+  SARIF.
+- Test-pyramid report that classifies existing evidence by layer and highlights
+  missing runtime-governance proof without replacing the user's existing test
+  runners.
+- OpenAPI contract coverage score that separates positive, negative, security,
+  drift, story, and operation coverage instead of treating all tests as equal.
+
+### API Architecture Breadth
+
+Goal: broaden Entroping's API governance beyond REST while keeping Hurl-backed
+HTTP proof as the first-class execution path.
+
+- Promote GraphQL-over-HTTP governance from examples into a documented,
+  issue-backed first-class workflow.
+- Promote SOAP/XML-over-HTTP governance from examples into a documented,
+  issue-backed first-class workflow.
+- Add webhook and event-contract governance through signed examples, replayable
+  fixtures, and report evidence before promising broad event-bus coverage.
+- Plan AsyncAPI and message-driven contract support as a bridge/reporting
+  problem first, not as an immediate new runtime.
+- Keep native gRPC streaming and WebSocket state-machine testing proof-gated
+  until simpler HTTP, event, and contract workflows are loved.
+
+### Generated-Test Quality Assurance
+
+Goal: answer "who tests the AI-generated tests?" with deterministic evidence.
+
+- Generated-test quality score for assertion strength, brittle selectors,
+  missing negative paths, weak auth coverage, shallow schema checks, and
+  overfitted examples.
+- Mutation testing for generated API tests, starting with deterministic request,
+  response, schema, auth, latency, and status-code mutations.
+- Seeded fuzz/property-case generation for API boundaries, always producing
+  reviewable tests and reproducible seeds instead of hidden fuzzing.
+- QA report for generated Hurl that separates syntax validity, semantic
+  assertion strength, coverage value, policy alignment, and flake risk.
+- Repair-proposal loop where AI can suggest stronger tests or policies, but
+  parser validation, Hurl execution, and QAnstitution gates decide acceptance.
+
+### Entroping QA Brain Pro
+
+Goal: build a proprietary QA model around Entroping's runtime-governance data
+while preserving LiteLLM as the provider-neutral routing layer.
+
+- Keep LiteLLM as the model access boundary so users can bring OpenAI,
+  Anthropic, Gemini, local OSS models, or Entroping's first-party model.
+- Build an Entroping QA Brain eval suite for weak-test detection, missing gate
+  discovery, unsafe generated Hurl, bogus evidence, redaction mistakes, and API
+  drift reasoning.
+- Start with sanitized evidence bundles, retrieval, prompts, and evals before
+  fine-tuning. Do not train a foundation model from scratch as the first step.
+- Offer Entroping QA Brain Pro as an optional hosted, local, or enterprise
+  OpenAI-compatible model endpoint routed through LiteLLM.
+- Use the model for critique, generation, prioritization, and repair proposals;
+  never make it the authority for `entroping run` pass/fail.
+
 ## Fast Monetization Path
 
 1. Add GitHub Sponsors after the repo has public traction.
