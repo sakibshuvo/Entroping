@@ -773,6 +773,7 @@ report generation, and artifact schemas remain the compatibility contract.
 | Evidence Index | `report evidence-index --output md|json` | Stable value-free local evidence artifact index for cross-surface navigation |
 | QA Brain Seed | `report qa-brain-seed --output md|json` | Deterministic value-free seed metadata for future QA Brain retrieval and eval design |
 | QA Brain Eval Plan | `report qa-brain-eval-plan --output md|json` | Deterministic eval-case plan metadata for future QA Brain evaluation before fine-tuning |
+| QA Brain Retrieval Plan | `report qa-brain-retrieval-plan --output md|json` | Deterministic retrieval-plan metadata for future QA Brain retrieval before embeddings or fine-tuning |
 | Pilot Metrics | `report pilot-metrics` | Local pilot metric inference from sanitized evidence |
 | Agent Review Bundle | `report agent-bundle` | Local Builder/Breaker/Auditor evidence from sanitized manifests |
 | Traceability Markdown/JSON | `report traceability --output md|json` | Local story/test coverage review |
@@ -950,6 +951,7 @@ entroping report mutation-readiness [--output <md|json>]
 entroping report evidence-index [--output <md|json>]
 entroping report qa-brain-seed [--output <md|json>]
 entroping report qa-brain-eval-plan [--output <md|json>]
+entroping report qa-brain-retrieval-plan [--output <md|json>]
 entroping report pilot-metrics [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
@@ -1416,6 +1418,21 @@ fine-tune models, upload artifacts, retrieve documents, parse traffic state,
 run mutations or fuzzers, or render raw report contents, raw traffic, source
 Hurl, prompts, credentials, cookies, environment values, or provider outputs.
 
+`entroping report qa-brain-retrieval-plan` writes a local read-only QA Brain
+retrieval plan at `reports/qa-brain-retrieval-plan.md` by default, or
+`reports/qa-brain-retrieval-plan.json` with `--output json`. It derives future
+retrieval metadata from deterministic QA-brain eval-plan readiness: readiness
+state, value-free source IDs and paths, retrieval categories, allowed fields,
+forbidden fields, query hints, safety notes, and next-action rows. It is not a
+model, embedding job, vector database, retrieval engine, fine-tune, eval
+runner, hosted upload, or provider integration, and it preserves
+LiteLLM/provider-neutral boundaries. Missing evidence is non-blocking;
+attention cases remain represented without embedding source contents. The
+command does not execute Hurl, run tests, call providers, create embeddings,
+fine-tune models, upload artifacts, retrieve documents, parse traffic state,
+run mutations or fuzzers, or render raw report contents, raw traffic, source
+Hurl, prompts, credentials, cookies, environment values, or provider outputs.
+
 `entroping report sarif` writes SARIF 2.1.0 to `reports/entroping.sarif` by
 default. It converts the same local JUnit, drift, and optional traceability
 findings used by GitHub annotation output into stable SARIF rule IDs, severity,
@@ -1483,6 +1500,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report qa-brain-seed --output json` | `reports/qa-brain-seed.json` | Machine-readable QA Brain seed packet using `entroping.qa-brain-seed.v1`. |
 | `entroping report qa-brain-eval-plan --output md` | `reports/qa-brain-eval-plan.md` | Human-readable read-only QA Brain eval-plan metadata derived from seed readiness. |
 | `entroping report qa-brain-eval-plan --output json` | `reports/qa-brain-eval-plan.json` | Machine-readable QA Brain eval-plan packet using `entroping.qa-brain-eval-plan.v1`. |
+| `entroping report qa-brain-retrieval-plan --output md` | `reports/qa-brain-retrieval-plan.md` | Human-readable read-only QA Brain retrieval-plan metadata derived from eval-plan readiness. |
+| `entroping report qa-brain-retrieval-plan --output json` | `reports/qa-brain-retrieval-plan.json` | Machine-readable QA Brain retrieval-plan packet using `entroping.qa-brain-retrieval-plan.v1`. |
 | `entroping report pilot-metrics --output md` | `reports/pilot-metrics.md` | Human-readable local pilot metric inference from sanitized artifacts, with `unknown` and `manual_input_required` states for metrics Entroping cannot infer locally. |
 | `entroping report pilot-metrics --output json` | `reports/pilot-metrics.json` | Machine-readable local pilot metric inference using `entroping.pilot-metrics.v1`. |
 | `entroping report agent-bundle --output md` | `reports/agent-bundle.md` | Human-readable local multi-agent review bundle from sanitized manifests. |

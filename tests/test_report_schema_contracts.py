@@ -153,6 +153,13 @@ from entroping.core.qa_brain_eval_plan import (
     QaBrainEvalPlanPacket,
     QaBrainEvalPlanSummary,
 )
+from entroping.core.qa_brain_retrieval_plan import (
+    QA_BRAIN_RETRIEVAL_PLAN_SCHEMA_VERSION,
+    QaBrainRetrievalPlanNextAction,
+    QaBrainRetrievalPlanPacket,
+    QaBrainRetrievalPlanRow,
+    QaBrainRetrievalPlanSummary,
+)
 from entroping.core.qa_brain_seed import (
     QA_BRAIN_SEED_SCHEMA_VERSION,
     QaBrainEvalSlice,
@@ -2856,6 +2863,111 @@ def test_qa_brain_eval_plan_v1_schema_contract_is_versioned_and_stable() -> None
     ]
 
 
+def test_qa_brain_retrieval_plan_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads(
+        (SCHEMA_DIR / "qa-brain-retrieval-plan.v1.schema.json").read_text()
+    )
+    packet = QaBrainRetrievalPlanPacket(
+        generated_at="2026-06-20T00:00:00+00:00",
+        project="checkout-api",
+        eval_plan_schema_version="entroping.qa-brain-eval-plan.v1",
+        summary=QaBrainRetrievalPlanSummary(
+            status="partial",
+            plans_total=1,
+            plans_ready=0,
+            plans_missing=0,
+            plans_attention=1,
+            next_actions_total=1,
+        ),
+        retrieval_plans=(
+            QaBrainRetrievalPlanRow(
+                case_id="weak_test_detection",
+                label="Weak-test detection",
+                readiness="attention",
+                source_ids=("test-quality-json",),
+                source_paths=("reports/test-quality.json",),
+                retrieval_category="test_quality",
+                retrieval_intent="Find weak generated-test evidence by stable IDs.",
+                allowed_fields=("schema_version", "artifact_id"),
+                forbidden_fields=("request_body", "response_body"),
+                query_hints=("Find weak-test evidence using test-quality-json.",),
+                safety_notes=("Use value-free local metadata only.",),
+                next_action="Repair local evidence before retrieval indexing.",
+            ),
+        ),
+        next_actions=(
+            QaBrainRetrievalPlanNextAction(
+                priority="high",
+                action="Repair retrieval evidence before weak-test detection indexing.",
+                case_ids=("weak_test_detection",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert (
+        QA_BRAIN_RETRIEVAL_PLAN_SCHEMA_VERSION
+        == "entroping.qa-brain-retrieval-plan.v1"
+    )
+    assert payload == {
+        "schema_version": "entroping.qa-brain-retrieval-plan.v1",
+        "generated_at": "2026-06-20T00:00:00+00:00",
+        "project": "checkout-api",
+        "eval_plan_schema_version": "entroping.qa-brain-eval-plan.v1",
+        "summary": {
+            "status": "partial",
+            "plans_total": 1,
+            "plans_ready": 0,
+            "plans_missing": 0,
+            "plans_attention": 1,
+            "next_actions_total": 1,
+        },
+        "retrieval_plans": [
+            {
+                "case_id": "weak_test_detection",
+                "label": "Weak-test detection",
+                "readiness": "attention",
+                "source_ids": ["test-quality-json"],
+                "source_paths": ["reports/test-quality.json"],
+                "retrieval_category": "test_quality",
+                "retrieval_intent": "Find weak generated-test evidence by stable IDs.",
+                "allowed_fields": ["schema_version", "artifact_id"],
+                "forbidden_fields": ["request_body", "response_body"],
+                "query_hints": ["Find weak-test evidence using test-quality-json."],
+                "safety_notes": ["Use value-free local metadata only."],
+                "next_action": "Repair local evidence before retrieval indexing.",
+            }
+        ],
+        "next_actions": [
+            {
+                "priority": "high",
+                "action": "Repair retrieval evidence before weak-test detection indexing.",
+                "case_ids": ["weak_test_detection"],
+            }
+        ],
+    }
+    assert schema["properties"]["schema_version"]["const"] == (
+        "entroping.qa-brain-retrieval-plan.v1"
+    )
+    assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["$defs"]["retrieval_category"]["enum"] == [
+        "test_quality",
+        "policy_governance",
+        "generated_hurl_safety",
+        "evidence_integrity",
+        "redaction_safety",
+        "api_drift",
+        "mutation_fuzz",
+        "cross_surface_handoff",
+    ]
+    assert schema["$defs"]["case_readiness"]["enum"] == [
+        "ready",
+        "missing",
+        "attention",
+    ]
+
+
 def test_effective_policy_diff_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "effective-policy-diff.v1.schema.json").read_text())
     base = EffectivePolicyReport(
@@ -3156,6 +3268,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         "entroping.qa-brain-seed.v1": SCHEMA_DIR / "qa-brain-seed.v1.schema.json",
         "entroping.qa-brain-eval-plan.v1": (
             SCHEMA_DIR / "qa-brain-eval-plan.v1.schema.json"
+        ),
+        "entroping.qa-brain-retrieval-plan.v1": (
+            SCHEMA_DIR / "qa-brain-retrieval-plan.v1.schema.json"
         ),
         "entroping.design-partner-feedback.v1": (
             SCHEMA_DIR / "design-partner-feedback.v1.schema.json"

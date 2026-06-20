@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://entroping.dev/schemas/qa-brain-retrieval-plan.v1.schema.json",
+  "title": "Entroping QA brain retrieval-plan packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "project",
+    "eval_plan_schema_version",
+    "summary",
+    "retrieval_plans",
+    "next_actions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.qa-brain-retrieval-plan.v1"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "project": {
+      "type": "string"
+    },
+    "eval_plan_schema_version": {
+      "const": "entroping.qa-brain-eval-plan.v1"
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "retrieval_plans": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/retrieval_plan"
+      }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/next_action"
+      }
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "plans_total",
+        "plans_ready",
+        "plans_missing",
+        "plans_attention",
+        "next_actions_total"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "ready",
+            "partial",
+            "insufficient"
+          ]
+        },
+        "plans_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "plans_ready": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "plans_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "plans_attention": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "next_actions_total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "retrieval_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "label",
+        "readiness",
+        "source_ids",
+        "source_paths",
+        "retrieval_category",
+        "retrieval_intent",
+        "allowed_fields",
+        "forbidden_fields",
+        "query_hints",
+        "safety_notes",
+        "next_action"
+      ],
+      "properties": {
+        "case_id": {
+          "$ref": "#/$defs/eval_slice_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "readiness": {
+          "$ref": "#/$defs/case_readiness"
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "source_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "retrieval_category": {
+          "$ref": "#/$defs/retrieval_category"
+        },
+        "retrieval_intent": {
+          "type": "string"
+        },
+        "allowed_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbidden_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "query_hints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "safety_notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "next_action": {
+          "type": "string"
+        }
+      }
+    },
+    "next_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "priority",
+        "action",
+        "case_ids"
+      ],
+      "properties": {
+        "priority": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "action": {
+          "type": "string"
+        },
+        "case_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/eval_slice_id"
+          }
+        }
+      }
+    },
+    "retrieval_category": {
+      "enum": [
+        "test_quality",
+        "policy_governance",
+        "generated_hurl_safety",
+        "evidence_integrity",
+        "redaction_safety",
+        "api_drift",
+        "mutation_fuzz",
+        "cross_surface_handoff"
+      ]
+    },
+    "case_readiness": {
+      "enum": [
+        "ready",
+        "missing",
+        "attention"
+      ]
+    },
+    "eval_slice_id": {
+      "enum": [
+        "weak_test_detection",
+        "missing_gate_discovery",
+        "unsafe_generated_hurl",
+        "bogus_evidence",
+        "redaction_mistakes",
+        "api_drift_reasoning",
+        "mutation_fuzz_readiness",
+        "cross_surface_handoff_quality"
+      ]
+    }
+  }
+}

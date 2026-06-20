@@ -2,6 +2,16 @@
 
 ## 2026-06-20
 
+- Added issue #1042's QA Brain retrieval-plan packet: `report
+  qa-brain-retrieval-plan` now writes local
+  `entroping.qa-brain-retrieval-plan.v1` JSON or Markdown that turns
+  deterministic QA-brain eval-plan readiness into future retrieval metadata,
+  including retrieval categories, allowed fields, forbidden fields, query
+  hints, safety notes, source IDs/paths, and next actions without executing
+  Hurl, running tests, calling providers, creating embeddings, using vector
+  stores, retrieving documents, fine-tuning models, uploading artifacts,
+  parsing traffic state, running mutations, or rendering raw report/source
+  contents.
 - Added issue #1040's QA Brain eval-plan packet: `report
   qa-brain-eval-plan` now writes local `entroping.qa-brain-eval-plan.v1` JSON
   or Markdown that turns deterministic QA-brain seed readiness into future
