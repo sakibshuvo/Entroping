@@ -2,6 +2,11 @@
 
 ## 2026-06-20
 
+- Added issue #1013's OpenAPI composed response-schema assertion support:
+  response assertions now merge unambiguous `allOf` required fields and
+  properties, including local `$ref` members, while failing closed on ambiguous
+  `oneOf`/`anyOf`, malformed `allOf`, and conflicting composed property
+  schemas.
 - Fixed issue #1014's OpenAPI parameter `$ref` JSON Pointer gap: reusable
   parameter refs now decode escaped component names consistently while still
   failing closed on raw nested paths, malformed escapes, unknown refs, cycles,
