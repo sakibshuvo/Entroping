@@ -239,6 +239,16 @@ from entroping.core.structured_diagnostics import (
     StructuredDiagnosticAttribute,
     StructuredDiagnosticEvent,
 )
+from entroping.core.team_access_control_plan import (
+    TEAM_ACCESS_CONTROL_PLAN_SCHEMA_VERSION,
+    TeamAccessControlAuditEvent,
+    TeamAccessControlBoundary,
+    TeamAccessControlNextAction,
+    TeamAccessControlPlanPacket,
+    TeamAccessControlPlanSummary,
+    TeamAccessControlRolePlan,
+    TeamAccessControlSource,
+)
 from entroping.core.team_evidence_readiness import (
     TEAM_EVIDENCE_READINESS_SCHEMA_VERSION,
     TeamEvidenceCloudBoundary,
@@ -942,9 +952,7 @@ def test_effective_policy_report_v1_schema_contract_is_versioned_and_stable() ->
         "sha256",
         "import_chain",
     ]
-    assert schema["$defs"]["source"]["properties"]["sha256"]["pattern"] == (
-        "^[0-9a-f]{64}$"
-    )
+    assert schema["$defs"]["source"]["properties"]["sha256"]["pattern"] == ("^[0-9a-f]{64}$")
     assert "sources" not in schema["required"]
     assert "import_chain" not in schema["$defs"]["gate"]["required"]
 
@@ -1613,9 +1621,7 @@ def test_evidence_bundle_v1_schema_contract_is_versioned_and_stable() -> None:
         },
     }
     assert schema["properties"]["schema_version"]["const"] == EVIDENCE_BUNDLE_SCHEMA_VERSION
-    assert schema["$defs"]["artifact"]["properties"]["sha256"]["pattern"] == (
-        "^[0-9a-f]{64}$"
-    )
+    assert schema["$defs"]["artifact"]["properties"]["sha256"]["pattern"] == ("^[0-9a-f]{64}$")
     assert schema["$defs"]["summary"]["properties"]["status"]["enum"] == [
         "ready",
         "not_ready",
@@ -2038,9 +2044,7 @@ def test_handoff_v1_schema_contract_is_versioned_and_stable() -> None:
         "invalid",
         "unsafe",
     ]
-    assert schema["$defs"]["artifact"]["properties"]["sha256"]["pattern"] == (
-        "^[0-9a-f]{64}$"
-    )
+    assert schema["$defs"]["artifact"]["properties"]["sha256"]["pattern"] == ("^[0-9a-f]{64}$")
     assert schema["$defs"]["target"]["properties"]["id"]["enum"] == [
         "cli",
         "pr",
@@ -2143,9 +2147,7 @@ def test_notification_packet_v1_schema_contract_is_versioned_and_stable() -> Non
             }
         ],
     }
-    assert schema["properties"]["schema_version"]["const"] == (
-        "entroping.notification-packet.v1"
-    )
+    assert schema["properties"]["schema_version"]["const"] == ("entroping.notification-packet.v1")
     assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
     assert schema["$defs"]["summary"]["properties"]["status"]["enum"] == [
         "ready",
@@ -2169,9 +2171,7 @@ def test_notification_packet_v1_schema_contract_is_versioned_and_stable() -> Non
 
 
 def test_team_evidence_readiness_v1_schema_contract_is_versioned_and_stable() -> None:
-    schema = json.loads(
-        (SCHEMA_DIR / "team-evidence-readiness.v1.schema.json").read_text()
-    )
+    schema = json.loads((SCHEMA_DIR / "team-evidence-readiness.v1.schema.json").read_text())
     packet = TeamEvidenceReadinessPacket(
         generated_at="2026-06-20T00:00:00+00:00",
         project="checkout-api",
@@ -2238,10 +2238,7 @@ def test_team_evidence_readiness_v1_schema_contract_is_versioned_and_stable() ->
 
     payload = packet.model_dump(mode="json")
 
-    assert (
-        TEAM_EVIDENCE_READINESS_SCHEMA_VERSION
-        == "entroping.team-evidence-readiness.v1"
-    )
+    assert TEAM_EVIDENCE_READINESS_SCHEMA_VERSION == "entroping.team-evidence-readiness.v1"
     assert payload == {
         "schema_version": "entroping.team-evidence-readiness.v1",
         "generated_at": "2026-06-20T00:00:00+00:00",
@@ -2332,6 +2329,154 @@ def test_team_evidence_readiness_v1_schema_contract_is_versioned_and_stable() ->
         "prompts",
         "provider_outputs",
         "full_report_contents",
+    ]
+
+
+def test_team_access_control_plan_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "team-access-control-plan.v1.schema.json").read_text())
+    packet = TeamAccessControlPlanPacket(
+        generated_at="2026-06-20T00:00:00+00:00",
+        project="checkout-api",
+        summary=TeamAccessControlPlanSummary(
+            status="ready",
+            sources_total=1,
+            sources_present=1,
+            sources_missing=0,
+            sources_invalid=0,
+            sources_unsafe=0,
+            roles_total=1,
+            roles_ready=1,
+            roles_attention=0,
+            roles_blocked=0,
+            audit_events_total=1,
+            blockers_total=0,
+            next_actions_total=1,
+        ),
+        boundary=TeamAccessControlBoundary(
+            explicit_user_intent_required=True,
+            upload_implemented=False,
+            access_control_enforced=False,
+            write_back_implemented=False,
+            pass_fail_override_allowed=False,
+            forbidden_data_classes=(
+                "raw_traffic",
+                "secrets",
+                "source_hurl",
+                "env_values",
+                "prompts",
+                "provider_outputs",
+                "full_report_contents",
+            ),
+            boundary_summary="Local access-control plan only.",
+        ),
+        sources=(
+            TeamAccessControlSource(
+                id="team_evidence_readiness",
+                label="Team evidence readiness",
+                path="reports/team-evidence-readiness.json",
+                state="present",
+                schema_version="entroping.team-evidence-readiness.v1",
+                sha256="a" * 64,
+                summary="ready; 1/1 sources present; 1/1 areas ready",
+            ),
+        ),
+        roles=(
+            TeamAccessControlRolePlan(
+                id="owner",
+                label="Owner",
+                status="ready",
+                allowed_actions=("view_value_free_evidence", "acknowledge_status"),
+                forbidden_actions=(
+                    "override_hurl_qanstitution_result",
+                    "view_raw_traffic",
+                    "silent_upload",
+                ),
+                evidence_scope="Can review sanitized evidence references.",
+                audit_event_ids=("evidence_viewed", "status_acknowledged"),
+                blockers=(),
+                next_action="Owner access-control plan is ready for local review.",
+            ),
+        ),
+        audit_events=(
+            TeamAccessControlAuditEvent(
+                id="evidence_viewed",
+                label="Evidence viewed",
+                trigger="A future team surface renders sanitized evidence.",
+                required_fields=("actor_role", "artifact_id", "timestamp"),
+                forbidden_fields=("raw_traffic", "secrets"),
+            ),
+        ),
+        next_actions=(
+            TeamAccessControlNextAction(
+                priority="medium",
+                action="Review team access-control plan before hosted evidence.",
+                source_ids=("team_evidence_readiness",),
+                role_ids=("owner",),
+                audit_event_ids=("evidence_viewed",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert TEAM_ACCESS_CONTROL_PLAN_SCHEMA_VERSION == "entroping.team-access-control-plan.v1"
+    assert payload["schema_version"] == "entroping.team-access-control-plan.v1"
+    assert payload["boundary"]["upload_implemented"] is False
+    assert payload["boundary"]["access_control_enforced"] is False
+    assert payload["roles"][0]["forbidden_actions"] == [
+        "override_hurl_qanstitution_result",
+        "view_raw_traffic",
+        "silent_upload",
+    ]
+    assert schema["properties"]["schema_version"]["const"] == (
+        "entroping.team-access-control-plan.v1"
+    )
+    assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["properties"]["boundary"]["$ref"] == "#/$defs/boundary"
+    assert schema["$defs"]["source_id"]["enum"] == [
+        "team_evidence_readiness",
+        "handoff",
+        "notification_packet",
+        "runtime_card",
+    ]
+    assert schema["$defs"]["role_id"]["enum"] == [
+        "owner",
+        "maintainer",
+        "reviewer",
+        "observer",
+        "external_design_partner",
+    ]
+    assert schema["$defs"]["allowed_action"]["enum"] == [
+        "view_value_free_evidence",
+        "share_evidence_link",
+        "acknowledge_status",
+        "plan_follow_up_assignment",
+    ]
+    assert schema["$defs"]["forbidden_action"]["enum"] == [
+        "override_hurl_qanstitution_result",
+        "view_raw_traffic",
+        "view_source_hurl",
+        "view_provider_transcripts",
+        "view_secrets_or_env",
+        "silent_upload",
+        "mutate_tickets_or_chat",
+    ]
+    assert schema["$defs"]["forbidden_data_class"]["enum"] == [
+        "raw_traffic",
+        "secrets",
+        "source_hurl",
+        "env_values",
+        "prompts",
+        "provider_outputs",
+        "full_report_contents",
+    ]
+    assert schema["$defs"]["audit_event_id"]["enum"] == [
+        "evidence_viewed",
+        "evidence_link_shared",
+        "status_acknowledged",
+        "follow_up_assignment_planned",
+        "access_policy_reviewed",
+        "upload_intent_recorded",
     ]
 
 
@@ -2508,9 +2653,7 @@ def test_observability_packet_v1_schema_contract_is_versioned_and_stable() -> No
             }
         ],
     }
-    assert schema["properties"]["schema_version"]["const"] == (
-        "entroping.observability-packet.v1"
-    )
+    assert schema["properties"]["schema_version"]["const"] == ("entroping.observability-packet.v1")
     assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
     assert schema["$defs"]["summary"]["properties"]["status"]["enum"] == [
         "ready",
@@ -2727,10 +2870,7 @@ def test_mutation_readiness_v1_schema_contract_is_versioned_and_stable() -> None
             }
         ],
     }
-    assert (
-        schema["properties"]["schema_version"]["const"]
-        == "entroping.mutation-readiness.v1"
-    )
+    assert schema["properties"]["schema_version"]["const"] == "entroping.mutation-readiness.v1"
     assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
     assert schema["$defs"]["summary"]["properties"]["status"]["enum"] == [
         "ready",
@@ -3046,9 +3186,7 @@ def test_qa_brain_eval_plan_v1_schema_contract_is_versioned_and_stable() -> None
             }
         ],
     }
-    assert schema["properties"]["schema_version"]["const"] == (
-        "entroping.qa-brain-eval-plan.v1"
-    )
+    assert schema["properties"]["schema_version"]["const"] == ("entroping.qa-brain-eval-plan.v1")
     assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
     assert schema["$defs"]["case_readiness"]["enum"] == [
         "ready",
@@ -3068,9 +3206,7 @@ def test_qa_brain_eval_plan_v1_schema_contract_is_versioned_and_stable() -> None
 
 
 def test_qa_brain_retrieval_plan_v1_schema_contract_is_versioned_and_stable() -> None:
-    schema = json.loads(
-        (SCHEMA_DIR / "qa-brain-retrieval-plan.v1.schema.json").read_text()
-    )
+    schema = json.loads((SCHEMA_DIR / "qa-brain-retrieval-plan.v1.schema.json").read_text())
     packet = QaBrainRetrievalPlanPacket(
         generated_at="2026-06-20T00:00:00+00:00",
         project="checkout-api",
@@ -3110,10 +3246,7 @@ def test_qa_brain_retrieval_plan_v1_schema_contract_is_versioned_and_stable() ->
 
     payload = packet.model_dump(mode="json")
 
-    assert (
-        QA_BRAIN_RETRIEVAL_PLAN_SCHEMA_VERSION
-        == "entroping.qa-brain-retrieval-plan.v1"
-    )
+    assert QA_BRAIN_RETRIEVAL_PLAN_SCHEMA_VERSION == "entroping.qa-brain-retrieval-plan.v1"
     assert payload == {
         "schema_version": "entroping.qa-brain-retrieval-plan.v1",
         "generated_at": "2026-06-20T00:00:00+00:00",
@@ -3173,9 +3306,7 @@ def test_qa_brain_retrieval_plan_v1_schema_contract_is_versioned_and_stable() ->
 
 
 def test_qa_brain_prompt_plan_v1_schema_contract_is_versioned_and_stable() -> None:
-    schema = json.loads(
-        (SCHEMA_DIR / "qa-brain-prompt-plan.v1.schema.json").read_text()
-    )
+    schema = json.loads((SCHEMA_DIR / "qa-brain-prompt-plan.v1.schema.json").read_text())
     packet = QaBrainPromptPlanPacket(
         generated_at="2026-06-20T00:00:00+00:00",
         project="checkout-api",
@@ -3217,9 +3348,7 @@ def test_qa_brain_prompt_plan_v1_schema_contract_is_versioned_and_stable() -> No
 
     payload = packet.model_dump(mode="json")
 
-    assert (
-        QA_BRAIN_PROMPT_PLAN_SCHEMA_VERSION == "entroping.qa-brain-prompt-plan.v1"
-    )
+    assert QA_BRAIN_PROMPT_PLAN_SCHEMA_VERSION == "entroping.qa-brain-prompt-plan.v1"
     assert payload == {
         "schema_version": "entroping.qa-brain-prompt-plan.v1",
         "generated_at": "2026-06-20T00:00:00+00:00",
@@ -3259,9 +3388,7 @@ def test_qa_brain_prompt_plan_v1_schema_contract_is_versioned_and_stable() -> No
             }
         ],
     }
-    assert schema["properties"]["schema_version"]["const"] == (
-        "entroping.qa-brain-prompt-plan.v1"
-    )
+    assert schema["properties"]["schema_version"]["const"] == ("entroping.qa-brain-prompt-plan.v1")
     assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
     assert schema["$defs"]["retrieval_category"]["enum"] == [
         "test_quality",
@@ -3281,9 +3408,7 @@ def test_qa_brain_prompt_plan_v1_schema_contract_is_versioned_and_stable() -> No
 
 
 def test_qa_brain_fine_tune_readiness_v1_schema_contract_is_versioned_and_stable() -> None:
-    schema = json.loads(
-        (SCHEMA_DIR / "qa-brain-fine-tune-readiness.v1.schema.json").read_text()
-    )
+    schema = json.loads((SCHEMA_DIR / "qa-brain-fine-tune-readiness.v1.schema.json").read_text())
     packet = QaBrainFineTuneReadinessPacket(
         generated_at="2026-06-20T00:00:00+00:00",
         project="checkout-api",
@@ -3327,8 +3452,7 @@ def test_qa_brain_fine_tune_readiness_v1_schema_contract_is_versioned_and_stable
     payload = packet.model_dump(mode="json")
 
     assert (
-        QA_BRAIN_FINE_TUNE_READINESS_SCHEMA_VERSION
-        == "entroping.qa-brain-fine-tune-readiness.v1"
+        QA_BRAIN_FINE_TUNE_READINESS_SCHEMA_VERSION == "entroping.qa-brain-fine-tune-readiness.v1"
     )
     assert payload == {
         "schema_version": "entroping.qa-brain-fine-tune-readiness.v1",
@@ -3390,15 +3514,11 @@ def test_qa_brain_fine_tune_readiness_v1_schema_contract_is_versioned_and_stable
 
 
 def test_qa_brain_model_packaging_plan_v1_schema_contract_is_versioned_and_stable() -> None:
-    schema = json.loads(
-        (SCHEMA_DIR / "qa-brain-model-packaging-plan.v1.schema.json").read_text()
-    )
+    schema = json.loads((SCHEMA_DIR / "qa-brain-model-packaging-plan.v1.schema.json").read_text())
     packet = QaBrainModelPackagingPlanPacket(
         generated_at="2026-06-20T00:00:00+00:00",
         project="checkout-api",
-        fine_tune_readiness_schema_version=(
-            "entroping.qa-brain-fine-tune-readiness.v1"
-        ),
+        fine_tune_readiness_schema_version=("entroping.qa-brain-fine-tune-readiness.v1"),
         summary=QaBrainModelPackagingPlanSummary(
             status="partial",
             plans_total=1,
@@ -3437,16 +3557,13 @@ def test_qa_brain_model_packaging_plan_v1_schema_contract_is_versioned_and_stabl
     payload = packet.model_dump(mode="json")
 
     assert (
-        QA_BRAIN_MODEL_PACKAGING_PLAN_SCHEMA_VERSION
-        == "entroping.qa-brain-model-packaging-plan.v1"
+        QA_BRAIN_MODEL_PACKAGING_PLAN_SCHEMA_VERSION == "entroping.qa-brain-model-packaging-plan.v1"
     )
     assert payload == {
         "schema_version": "entroping.qa-brain-model-packaging-plan.v1",
         "generated_at": "2026-06-20T00:00:00+00:00",
         "project": "checkout-api",
-        "fine_tune_readiness_schema_version": (
-            "entroping.qa-brain-fine-tune-readiness.v1"
-        ),
+        "fine_tune_readiness_schema_version": ("entroping.qa-brain-fine-tune-readiness.v1"),
         "summary": {
             "status": "partial",
             "plans_total": 1,
@@ -3501,15 +3618,11 @@ def test_qa_brain_model_packaging_plan_v1_schema_contract_is_versioned_and_stabl
 
 
 def test_qa_brain_routing_plan_v1_schema_contract_is_versioned_and_stable() -> None:
-    schema = json.loads(
-        (SCHEMA_DIR / "qa-brain-routing-plan.v1.schema.json").read_text()
-    )
+    schema = json.loads((SCHEMA_DIR / "qa-brain-routing-plan.v1.schema.json").read_text())
     packet = QaBrainRoutingPlanPacket(
         generated_at="2026-06-20T00:00:00+00:00",
         project="checkout-api",
-        model_packaging_plan_schema_version=(
-            "entroping.qa-brain-model-packaging-plan.v1"
-        ),
+        model_packaging_plan_schema_version=("entroping.qa-brain-model-packaging-plan.v1"),
         summary=QaBrainRoutingPlanSummary(
             status="partial",
             routes_total=1,
@@ -3559,9 +3672,7 @@ def test_qa_brain_routing_plan_v1_schema_contract_is_versioned_and_stable() -> N
         "schema_version": "entroping.qa-brain-routing-plan.v1",
         "generated_at": "2026-06-20T00:00:00+00:00",
         "project": "checkout-api",
-        "model_packaging_plan_schema_version": (
-            "entroping.qa-brain-model-packaging-plan.v1"
-        ),
+        "model_packaging_plan_schema_version": ("entroping.qa-brain-model-packaging-plan.v1"),
         "summary": {
             "status": "partial",
             "routes_total": 1,
@@ -3603,9 +3714,7 @@ def test_qa_brain_routing_plan_v1_schema_contract_is_versioned_and_stable() -> N
             }
         ],
     }
-    assert schema["properties"]["schema_version"]["const"] == (
-        "entroping.qa-brain-routing-plan.v1"
-    )
+    assert schema["properties"]["schema_version"]["const"] == ("entroping.qa-brain-routing-plan.v1")
     assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
     assert schema["properties"]["model_packaging_plan_schema_version"]["const"] == (
         "entroping.qa-brain-model-packaging-plan.v1"
@@ -3809,9 +3918,7 @@ def test_openapi_audit_v1_schema_contract_is_versioned_and_stable() -> None:
 
 
 def test_design_partner_feedback_v1_schema_contract_is_safe_and_stable() -> None:
-    schema = json.loads(
-        (SCHEMA_DIR / "design-partner-feedback.v1.schema.json").read_text()
-    )
+    schema = json.loads((SCHEMA_DIR / "design-partner-feedback.v1.schema.json").read_text())
     required = set(schema["required"])
 
     assert schema["properties"]["schema_version"]["const"] == (
@@ -3839,9 +3946,7 @@ def test_design_partner_feedback_v1_schema_contract_is_safe_and_stable() -> None
         "runtime_card_status",
     ]
     assert schema["properties"]["evidence"]["additionalProperties"] is False
-    assert schema["properties"]["evidence"]["properties"]["pilot_metrics_status"][
-        "enum"
-    ] == [
+    assert schema["properties"]["evidence"]["properties"]["pilot_metrics_status"]["enum"] == [
         "complete",
         "partial",
         "insufficient",
@@ -3909,39 +4014,30 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         "entroping.runtime-card.v1": SCHEMA_DIR / "runtime-card.v1.schema.json",
         "entroping.pilot-metrics.v1": SCHEMA_DIR / "pilot-metrics.v1.schema.json",
         "entroping.handoff.v1": SCHEMA_DIR / "handoff.v1.schema.json",
-        "entroping.notification-packet.v1": (
-            SCHEMA_DIR / "notification-packet.v1.schema.json"
-        ),
+        "entroping.notification-packet.v1": (SCHEMA_DIR / "notification-packet.v1.schema.json"),
         "entroping.team-evidence-readiness.v1": (
             SCHEMA_DIR / "team-evidence-readiness.v1.schema.json"
         ),
-        "entroping.observability-packet.v1": (
-            SCHEMA_DIR / "observability-packet.v1.schema.json"
+        "entroping.team-access-control-plan.v1": (
+            SCHEMA_DIR / "team-access-control-plan.v1.schema.json"
         ),
+        "entroping.observability-packet.v1": (SCHEMA_DIR / "observability-packet.v1.schema.json"),
         "entroping.api-inventory.v1": SCHEMA_DIR / "api-inventory.v1.schema.json",
-        "entroping.mutation-readiness.v1": (
-            SCHEMA_DIR / "mutation-readiness.v1.schema.json"
-        ),
+        "entroping.mutation-readiness.v1": (SCHEMA_DIR / "mutation-readiness.v1.schema.json"),
         "entroping.evidence-index.v1": SCHEMA_DIR / "evidence-index.v1.schema.json",
         "entroping.qa-brain-seed.v1": SCHEMA_DIR / "qa-brain-seed.v1.schema.json",
-        "entroping.qa-brain-eval-plan.v1": (
-            SCHEMA_DIR / "qa-brain-eval-plan.v1.schema.json"
-        ),
+        "entroping.qa-brain-eval-plan.v1": (SCHEMA_DIR / "qa-brain-eval-plan.v1.schema.json"),
         "entroping.qa-brain-retrieval-plan.v1": (
             SCHEMA_DIR / "qa-brain-retrieval-plan.v1.schema.json"
         ),
-        "entroping.qa-brain-prompt-plan.v1": (
-            SCHEMA_DIR / "qa-brain-prompt-plan.v1.schema.json"
-        ),
+        "entroping.qa-brain-prompt-plan.v1": (SCHEMA_DIR / "qa-brain-prompt-plan.v1.schema.json"),
         "entroping.qa-brain-fine-tune-readiness.v1": (
             SCHEMA_DIR / "qa-brain-fine-tune-readiness.v1.schema.json"
         ),
         "entroping.qa-brain-model-packaging-plan.v1": (
             SCHEMA_DIR / "qa-brain-model-packaging-plan.v1.schema.json"
         ),
-        "entroping.qa-brain-routing-plan.v1": (
-            SCHEMA_DIR / "qa-brain-routing-plan.v1.schema.json"
-        ),
+        "entroping.qa-brain-routing-plan.v1": (SCHEMA_DIR / "qa-brain-routing-plan.v1.schema.json"),
         "entroping.design-partner-feedback.v1": (
             SCHEMA_DIR / "design-partner-feedback.v1.schema.json"
         ),

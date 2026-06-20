@@ -16,25 +16,26 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1052 Team Evidence Readiness Packet
+## Current Issue Slice: #1054 Team Access-Control Plan Packet
 
-- Add `entroping report team-evidence-readiness --output md|json` as an
-  issue-backed additive report command for future team evidence cloud promotion.
-- Build from existing sanitized local packet artifacts: evidence bundle,
-  runtime card, pilot metrics, design-partner feedback, cross-surface handoff,
-  and notification packet.
-- Emit a schema-versioned `entroping.team-evidence-readiness.v1` packet with
-  source states, bounded hashes, compact summaries, cloud boundary controls,
-  readiness areas, blockers, and next actions.
+- Add `entroping report team-access-control-plan --output md|json` as an
+  issue-backed additive report command for future team evidence surfaces.
+- Build from existing sanitized local packet artifacts: team evidence readiness,
+  cross-surface handoff, notification packet, and runtime card.
+- Emit a schema-versioned `entroping.team-access-control-plan.v1` packet with
+  source states, bounded hashes, compact summaries, role plans, allowed and
+  forbidden action lists, boundary controls, audit events, blockers, and next
+  actions.
 - Keep the packet value-free: no raw report bodies, raw traffic, source Hurl,
   prompts, provider output, credentials, cookies, environment values, webhook
   URLs, ticket payloads, or full artifact contents.
 - Do not execute Hurl, run tests, call providers, upload artifacts, create
-  accounts, change access control, call issue-tracker/chat APIs, parse traffic
-  state, mutate tickets/chat, or change `entroping run`.
+  accounts, implement hosted access control, enforce RBAC/SSO, call
+  issue-tracker/chat APIs, parse traffic state, mutate tickets/chat, write back
+  to external systems, or change `entroping run`.
 - Preserve deterministic Hurl/QAnstitution authority: this packet is readiness
-  metadata only and does not make cloud, desktop, mobile, or team surfaces the
-  source of pass/fail truth.
+  and planning metadata only and does not make cloud, desktop, mobile, or team
+  surfaces the source of pass/fail truth.
 - Verification lane: `security-runtime` because the command reads local report
   artifact state and emits machine-readable evidence metadata with path and
   secret-safety boundaries.

@@ -169,6 +169,11 @@ from entroping.core.runtime_card import (
 )
 from entroping.core.sarif_report import SarifReportError, run_sarif_report
 from entroping.core.story_documents import discover_story_documents
+from entroping.core.team_access_control_plan import (
+    TeamAccessControlPlanError,
+    TeamAccessControlPlanOutput,
+    run_team_access_control_plan_report,
+)
 from entroping.core.team_evidence_readiness import (
     TeamEvidenceReadinessError,
     TeamEvidenceReadinessOutput,
@@ -390,10 +395,7 @@ def report_redaction(
         bool,
         typer.Option(
             "--fail-on-unsafe",
-            help=(
-                "Write the report, then exit 1 when unredacted or low-confidence "
-                "records exist."
-            ),
+            help=("Write the report, then exit 1 when unredacted or low-confidence records exist."),
         ),
     ] = False,
 ) -> None:
@@ -522,10 +524,7 @@ def report_gate_coverage(
             "--fail-under",
             min=0,
             max=100,
-            help=(
-                "Exit 1 when matched policy-gate coverage is below this "
-                "0-100 threshold."
-            ),
+            help=("Exit 1 when matched policy-gate coverage is below this 0-100 threshold."),
         ),
     ] = None,
 ) -> None:
@@ -544,10 +543,7 @@ def report_gate_coverage(
         raise typer.Exit(1) from exc
 
     noun = "gate" if result.report.summary.total_gates == 1 else "gates"
-    console.print(
-        f"[green]Mapped coverage for {result.report.summary.total_gates} "
-        f"{noun}.[/green]"
-    )
+    console.print(f"[green]Mapped coverage for {result.report.summary.total_gates} {noun}.[/green]")
     console.print(f"Wrote gate coverage report: {display_cli_path(result.output_path)}")
     coverage_percent = _gate_coverage_percent(
         matched_gates=result.report.summary.matched_gates,
@@ -594,8 +590,7 @@ def report_gate_injection(
 
     noun = "target" if result.report.summary.total_targets == 1 else "targets"
     console.print(
-        f"[green]Explained gate injection for {result.report.summary.total_targets} "
-        f"{noun}.[/green]"
+        f"[green]Explained gate injection for {result.report.summary.total_targets} {noun}.[/green]"
     )
     console.print(f"Wrote gate injection report: {display_cli_path(result.output_path)}")
 
@@ -624,10 +619,7 @@ def report_test_quality(
             "--fail-under",
             min=0,
             max=100,
-            help=(
-                "Exit 1 when the generated-test quality score is below this "
-                "0-100 threshold."
-            ),
+            help=("Exit 1 when the generated-test quality score is below this 0-100 threshold."),
         ),
     ] = None,
 ) -> None:
@@ -933,9 +925,7 @@ def report_team_evidence_readiness(
 
     normalized_output = output.strip().lower()
     if normalized_output not in {"md", "json"}:
-        console.print(
-            f"[yellow]Unsupported team-evidence-readiness output: {output}[/yellow]"
-        )
+        console.print(f"[yellow]Unsupported team-evidence-readiness output: {output}[/yellow]")
         raise typer.Exit(2)
 
     try:
@@ -948,6 +938,33 @@ def report_team_evidence_readiness(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote team evidence readiness: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("team-access-control-plan", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_team_access_control_plan(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local team access-control and audit planning packet."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported team-access-control-plan output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_team_access_control_plan_report(
+            project_root=Path.cwd(),
+            output=cast(TeamAccessControlPlanOutput, normalized_output),
+        )
+    except TeamAccessControlPlanError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote team access-control plan: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 
@@ -1124,9 +1141,7 @@ def report_qa_brain_retrieval_plan(
 
     normalized_output = output.strip().lower()
     if normalized_output not in {"md", "json"}:
-        console.print(
-            f"[yellow]Unsupported qa-brain-retrieval-plan output: {output}[/yellow]"
-        )
+        console.print(f"[yellow]Unsupported qa-brain-retrieval-plan output: {output}[/yellow]")
         raise typer.Exit(2)
 
     try:
@@ -1153,9 +1168,7 @@ def report_qa_brain_prompt_plan(
 
     normalized_output = output.strip().lower()
     if normalized_output not in {"md", "json"}:
-        console.print(
-            f"[yellow]Unsupported qa-brain-prompt-plan output: {output}[/yellow]"
-        )
+        console.print(f"[yellow]Unsupported qa-brain-prompt-plan output: {output}[/yellow]")
         raise typer.Exit(2)
 
     try:
@@ -1182,9 +1195,7 @@ def report_qa_brain_fine_tune_readiness(
 
     normalized_output = output.strip().lower()
     if normalized_output not in {"md", "json"}:
-        console.print(
-            f"[yellow]Unsupported qa-brain-fine-tune-readiness output: {output}[/yellow]"
-        )
+        console.print(f"[yellow]Unsupported qa-brain-fine-tune-readiness output: {output}[/yellow]")
         raise typer.Exit(2)
 
     try:
@@ -1196,9 +1207,7 @@ def report_qa_brain_fine_tune_readiness(
         print_cli_error(exc)
         raise typer.Exit(1) from exc
 
-    console.print(
-        f"Wrote QA brain fine-tune readiness: {display_cli_path(result.output_path)}"
-    )
+    console.print(f"Wrote QA brain fine-tune readiness: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 
@@ -1227,9 +1236,7 @@ def report_qa_brain_model_packaging_plan(
         print_cli_error(exc)
         raise typer.Exit(1) from exc
 
-    console.print(
-        f"Wrote QA brain model packaging plan: {display_cli_path(result.output_path)}"
-    )
+    console.print(f"Wrote QA brain model packaging plan: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 
@@ -1244,9 +1251,7 @@ def report_qa_brain_routing_plan(
 
     normalized_output = output.strip().lower()
     if normalized_output not in {"md", "json"}:
-        console.print(
-            f"[yellow]Unsupported qa-brain-routing-plan output: {output}[/yellow]"
-        )
+        console.print(f"[yellow]Unsupported qa-brain-routing-plan output: {output}[/yellow]")
         raise typer.Exit(2)
 
     try:
@@ -1258,9 +1263,7 @@ def report_qa_brain_routing_plan(
         print_cli_error(exc)
         raise typer.Exit(1) from exc
 
-    console.print(
-        f"Wrote QA brain routing plan: {display_cli_path(result.output_path)}"
-    )
+    console.print(f"Wrote QA brain routing plan: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 
@@ -1287,9 +1290,7 @@ def report_agent_bundle(
         raise typer.Exit(2)
     selected_roles = tuple(role or ())
     unsupported_roles = sorted(
-        selected_role
-        for selected_role in selected_roles
-        if selected_role not in AGENT_BUNDLE_ROLES
+        selected_role for selected_role in selected_roles if selected_role not in AGENT_BUNDLE_ROLES
     )
     if unsupported_roles:
         joined = ", ".join(unsupported_roles)

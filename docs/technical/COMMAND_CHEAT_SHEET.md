@@ -45,6 +45,7 @@ entroping report runtime-card [--output <md|json>]
 entroping report handoff [--output <md|json>] [--fail-on-insufficient]
 entroping report notification-packet [--output <md|json>]
 entroping report team-evidence-readiness [--output <md|json>]
+entroping report team-access-control-plan [--output <md|json>]
 entroping report observability-packet [--output <md|json>]
 entroping report api-inventory [--output <md|json>]
 entroping report mutation-readiness [--output <md|json>]
@@ -413,6 +414,8 @@ Experimental design-partner evidence commands:
 | `entroping report notification-packet --output json` | Write machine-readable notification evidence to `reports/notification-packet.json` |
 | `entroping report team-evidence-readiness --output md` | Write read-only team evidence cloud readiness to `reports/team-evidence-readiness.md` |
 | `entroping report team-evidence-readiness --output json` | Write machine-readable team evidence readiness to `reports/team-evidence-readiness.json` |
+| `entroping report team-access-control-plan --output md` | Write a local team access-control and audit plan to `reports/team-access-control-plan.md` |
+| `entroping report team-access-control-plan --output json` | Write machine-readable team access-control plan metadata to `reports/team-access-control-plan.json` |
 | `entroping report observability-packet --output md` | Write a read-only observability signal packet to `reports/observability-packet.md` |
 | `entroping report observability-packet --output json` | Write machine-readable observability evidence to `reports/observability-packet.json` |
 | `entroping report api-inventory --output md` | Write a read-only API surface inventory to `reports/api-inventory.md` |
@@ -470,6 +473,7 @@ entroping report handoff --output json
 entroping report handoff --fail-on-insufficient
 entroping report notification-packet --output json
 entroping report team-evidence-readiness --output json
+entroping report team-access-control-plan --output json
 entroping report observability-packet --output json
 entroping report api-inventory --output json
 entroping report mutation-readiness --output json

@@ -53,6 +53,7 @@ from entroping.core.qa_brain_seed import QaBrainSeedError
 from entroping.core.redaction_review_report import RedactionReviewResult
 from entroping.core.report_artifact_manifest import write_report_artifact_manifest
 from entroping.core.runtime_card import RuntimeCardError
+from entroping.core.team_access_control_plan import TeamAccessControlPlanError
 from entroping.core.team_evidence_readiness import TeamEvidenceReadinessError
 
 
@@ -113,7 +114,7 @@ def _write_complete_artifact_manifest_inputs(root: Path) -> None:
         "reports/agent-bundle.json": '{"schema_version":"entroping.agent-review-bundle.v1"}\n',
         "reports/run-latest.json": '{"schema_version":"entroping.run-report.v1"}\n',
         "reports/run-plan.json": '{"schema_version":"entroping.run-plan.v1"}\n',
-        "reports/junit.xml": "<testsuite tests=\"1\"></testsuite>\n",
+        "reports/junit.xml": '<testsuite tests="1"></testsuite>\n',
         "reports/run-latest.html": (
             "<!doctype html><html><body><h1>Entroping Run Report</h1></body></html>\n"
         ),
@@ -202,9 +203,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
     ):
         assert command in stable_panel
 
-    maintainer_panel = result.output.split("Maintainer And Baseline Tools", maxsplit=1)[
-        1
-    ].split(
+    maintainer_panel = result.output.split("Maintainer And Baseline Tools", maxsplit=1)[1].split(
         "Experimental Design-Partner Evidence",
         maxsplit=1,
     )[0]
@@ -226,6 +225,8 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "design-partner-feedback",
         "handoff",
         "notification-packet",
+        "team-access-control-plan",
+        "team-evidence-readiness",
         "observability-packet",
         "api-inventory",
         "mutation-readiness",
@@ -311,12 +312,9 @@ def test_report_design_partner_feedback_writes_sanitized_template(
 
     assert result.exit_code == 0
     assert (
-        "Wrote design-partner feedback artifact: "
-        "reports/design-partner-feedback.json"
+        "Wrote design-partner feedback artifact: reports/design-partner-feedback.json"
     ) in result.output
-    payload = json.loads(
-        Path("reports/design-partner-feedback.json").read_text(encoding="utf-8")
-    )
+    payload = json.loads(Path("reports/design-partner-feedback.json").read_text(encoding="utf-8"))
     assert payload["schema_version"] == "entroping.design-partner-feedback.v1"
     assert payload["evidence"]["evidence_bundle_status"] == "missing"
     assert payload["evidence"]["runtime_card_status"] == "missing"
@@ -760,9 +758,7 @@ def test_report_team_evidence_readiness_writes_markdown(
     result = CliRunner().invoke(app, ["report", "team-evidence-readiness"])
 
     assert result.exit_code == 0
-    assert (
-        "Wrote team evidence readiness: reports/team-evidence-readiness.md"
-    ) in result.output
+    assert ("Wrote team evidence readiness: reports/team-evidence-readiness.md") in result.output
     markdown = Path("reports/team-evidence-readiness.md").read_text(encoding="utf-8")
     assert "# Entroping Team Evidence Readiness" in markdown
     assert "| evidence_bundle | present | reports/evidence-bundle.json |" in markdown
@@ -780,12 +776,8 @@ def test_report_team_evidence_readiness_writes_json(
     )
 
     assert result.exit_code == 0
-    assert (
-        "Wrote team evidence readiness: reports/team-evidence-readiness.json"
-    ) in result.output
-    payload = json.loads(
-        Path("reports/team-evidence-readiness.json").read_text(encoding="utf-8")
-    )
+    assert ("Wrote team evidence readiness: reports/team-evidence-readiness.json") in result.output
+    payload = json.loads(Path("reports/team-evidence-readiness.json").read_text(encoding="utf-8"))
     assert payload["schema_version"] == "entroping.team-evidence-readiness.v1"
     assert payload["summary"]["status"] == "insufficient"
 
@@ -817,6 +809,95 @@ def test_report_team_evidence_readiness_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "team evidence readiness path is unsafe" in result.output
+
+
+def test_report_team_access_control_plan_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("reports") / "team-evidence-readiness.json",
+        """
+{
+  "schema_version": "entroping.team-evidence-readiness.v1",
+  "project": "checkout-api",
+  "summary": {
+    "status": "ready",
+    "sources_total": 1,
+    "sources_present": 1,
+    "sources_missing": 0,
+    "sources_invalid": 0,
+    "sources_unsafe": 0,
+    "areas_total": 1,
+    "areas_ready": 1,
+    "areas_attention": 0,
+    "areas_blocked": 0,
+    "blockers_total": 0,
+    "next_actions_total": 0
+  }
+}
+""",
+    )
+
+    result = CliRunner().invoke(app, ["report", "team-access-control-plan"])
+
+    assert result.exit_code == 0
+    assert ("Wrote team access-control plan: reports/team-access-control-plan.md") in result.output
+    markdown = Path("reports/team-access-control-plan.md").read_text(encoding="utf-8")
+    assert "# Entroping Team Access-Control Plan" in markdown
+    assert (
+        "| team_evidence_readiness | present | reports/team-evidence-readiness.json |"
+    ) in markdown
+
+
+def test_report_team_access_control_plan_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "team-access-control-plan", "--output", "json"],
+    )
+
+    assert result.exit_code == 0
+    assert (
+        "Wrote team access-control plan: reports/team-access-control-plan.json"
+    ) in result.output
+    payload = json.loads(Path("reports/team-access-control-plan.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.team-access-control-plan.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_team_access_control_plan_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(
+        app,
+        ["report", "team-access-control-plan", "--output", "html"],
+    )
+
+    assert result.exit_code == 2
+    assert "Unsupported team-access-control-plan output" in result.output
+    assert not Path("reports/team-access-control-plan.html").exists()
+
+
+def test_report_team_access_control_plan_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_team_access_control_plan(*args: object, **kwargs: object) -> object:
+        raise TeamAccessControlPlanError("team access-control plan path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_team_access_control_plan_report",
+        fail_team_access_control_plan,
+    )
+
+    result = CliRunner().invoke(app, ["report", "team-access-control-plan"])
+
+    assert result.exit_code == 1
+    assert "team access-control plan path is unsafe" in result.output
 
 
 def test_report_observability_packet_writes_markdown(
@@ -988,9 +1069,7 @@ def test_report_mutation_readiness_writes_json(
 
     assert result.exit_code == 0
     assert "Wrote mutation readiness: reports/mutation-readiness.json" in result.output
-    payload = json.loads(
-        Path("reports/mutation-readiness.json").read_text(encoding="utf-8")
-    )
+    payload = json.loads(Path("reports/mutation-readiness.json").read_text(encoding="utf-8"))
     assert payload["schema_version"] == "entroping.mutation-readiness.v1"
     assert payload["summary"]["status"] == "insufficient"
 
@@ -1189,9 +1268,7 @@ def test_report_qa_brain_eval_plan_writes_json(
 
     assert result.exit_code == 0
     assert "Wrote QA brain eval plan: reports/qa-brain-eval-plan.json" in result.output
-    payload = json.loads(
-        Path("reports/qa-brain-eval-plan.json").read_text(encoding="utf-8")
-    )
+    payload = json.loads(Path("reports/qa-brain-eval-plan.json").read_text(encoding="utf-8"))
     assert payload["schema_version"] == "entroping.qa-brain-eval-plan.v1"
     assert payload["summary"]["status"] == "insufficient"
 
@@ -1243,10 +1320,7 @@ def test_report_qa_brain_retrieval_plan_writes_markdown(
     result = CliRunner().invoke(app, ["report", "qa-brain-retrieval-plan"])
 
     assert result.exit_code == 0
-    assert (
-        "Wrote QA brain retrieval plan: reports/qa-brain-retrieval-plan.md"
-        in result.output
-    )
+    assert "Wrote QA brain retrieval plan: reports/qa-brain-retrieval-plan.md" in result.output
     markdown = Path("reports/qa-brain-retrieval-plan.md").read_text(encoding="utf-8")
     assert "# Entroping QA Brain Retrieval Plan" in markdown
     assert "| weak_test_detection | Weak-test detection | ready |" in markdown
@@ -1264,13 +1338,8 @@ def test_report_qa_brain_retrieval_plan_writes_json(
     )
 
     assert result.exit_code == 0
-    assert (
-        "Wrote QA brain retrieval plan: reports/qa-brain-retrieval-plan.json"
-        in result.output
-    )
-    payload = json.loads(
-        Path("reports/qa-brain-retrieval-plan.json").read_text(encoding="utf-8")
-    )
+    assert "Wrote QA brain retrieval plan: reports/qa-brain-retrieval-plan.json" in result.output
+    payload = json.loads(Path("reports/qa-brain-retrieval-plan.json").read_text(encoding="utf-8"))
     assert payload["schema_version"] == "entroping.qa-brain-retrieval-plan.v1"
     assert payload["summary"]["status"] == "insufficient"
 
@@ -1322,10 +1391,7 @@ def test_report_qa_brain_prompt_plan_writes_markdown(
     result = CliRunner().invoke(app, ["report", "qa-brain-prompt-plan"])
 
     assert result.exit_code == 0
-    assert (
-        "Wrote QA brain prompt plan: reports/qa-brain-prompt-plan.md"
-        in result.output
-    )
+    assert "Wrote QA brain prompt plan: reports/qa-brain-prompt-plan.md" in result.output
     markdown = Path("reports/qa-brain-prompt-plan.md").read_text(encoding="utf-8")
     assert "# Entroping QA Brain Prompt Plan" in markdown
     assert "| weak_test_detection | Weak-test detection | ready |" in markdown
@@ -1343,13 +1409,8 @@ def test_report_qa_brain_prompt_plan_writes_json(
     )
 
     assert result.exit_code == 0
-    assert (
-        "Wrote QA brain prompt plan: reports/qa-brain-prompt-plan.json"
-        in result.output
-    )
-    payload = json.loads(
-        Path("reports/qa-brain-prompt-plan.json").read_text(encoding="utf-8")
-    )
+    assert "Wrote QA brain prompt plan: reports/qa-brain-prompt-plan.json" in result.output
+    payload = json.loads(Path("reports/qa-brain-prompt-plan.json").read_text(encoding="utf-8"))
     assert payload["schema_version"] == "entroping.qa-brain-prompt-plan.v1"
     assert payload["summary"]["status"] == "insufficient"
 
@@ -1402,16 +1463,11 @@ def test_report_qa_brain_fine_tune_readiness_writes_markdown(
 
     assert result.exit_code == 0
     assert (
-        "Wrote QA brain fine-tune readiness: "
-        "reports/qa-brain-fine-tune-readiness.md"
+        "Wrote QA brain fine-tune readiness: reports/qa-brain-fine-tune-readiness.md"
     ) in result.output
-    markdown = Path("reports/qa-brain-fine-tune-readiness.md").read_text(
-        encoding="utf-8"
-    )
+    markdown = Path("reports/qa-brain-fine-tune-readiness.md").read_text(encoding="utf-8")
     assert "# Entroping QA Brain Fine-Tune Readiness" in markdown
-    assert "| weak_test_detection | Weak-test detection | ready | metadata_ready |" in (
-        markdown
-    )
+    assert "| weak_test_detection | Weak-test detection | ready | metadata_ready |" in (markdown)
 
 
 def test_report_qa_brain_fine_tune_readiness_writes_json(
@@ -1427,17 +1483,12 @@ def test_report_qa_brain_fine_tune_readiness_writes_json(
 
     assert result.exit_code == 0
     assert (
-        "Wrote QA brain fine-tune readiness: "
-        "reports/qa-brain-fine-tune-readiness.json"
+        "Wrote QA brain fine-tune readiness: reports/qa-brain-fine-tune-readiness.json"
     ) in result.output
     payload = json.loads(
-        Path("reports/qa-brain-fine-tune-readiness.json").read_text(
-            encoding="utf-8"
-        )
+        Path("reports/qa-brain-fine-tune-readiness.json").read_text(encoding="utf-8")
     )
-    assert payload["schema_version"] == (
-        "entroping.qa-brain-fine-tune-readiness.v1"
-    )
+    assert payload["schema_version"] == ("entroping.qa-brain-fine-tune-readiness.v1")
     assert payload["summary"]["status"] == "insufficient"
 
 
@@ -1456,9 +1507,7 @@ def test_report_qa_brain_fine_tune_readiness_wraps_core_errors(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def fail_qa_brain_fine_tune_readiness(*args: object, **kwargs: object) -> object:
-        raise QaBrainFineTuneReadinessError(
-            "QA brain fine-tune readiness path is unsafe"
-        )
+        raise QaBrainFineTuneReadinessError("QA brain fine-tune readiness path is unsafe")
 
     monkeypatch.setattr(
         report_cli,
@@ -1491,16 +1540,11 @@ def test_report_qa_brain_model_packaging_plan_writes_markdown(
 
     assert result.exit_code == 0
     assert (
-        "Wrote QA brain model packaging plan: "
-        "reports/qa-brain-model-packaging-plan.md"
+        "Wrote QA brain model packaging plan: reports/qa-brain-model-packaging-plan.md"
     ) in result.output
-    markdown = Path("reports/qa-brain-model-packaging-plan.md").read_text(
-        encoding="utf-8"
-    )
+    markdown = Path("reports/qa-brain-model-packaging-plan.md").read_text(encoding="utf-8")
     assert "# Entroping QA Brain Model Packaging Plan" in markdown
-    assert "| weak_test_detection | Weak-test detection | ready | packaging_ready |" in (
-        markdown
-    )
+    assert "| weak_test_detection | Weak-test detection | ready | packaging_ready |" in (markdown)
 
 
 def test_report_qa_brain_model_packaging_plan_writes_json(
@@ -1516,13 +1560,10 @@ def test_report_qa_brain_model_packaging_plan_writes_json(
 
     assert result.exit_code == 0
     assert (
-        "Wrote QA brain model packaging plan: "
-        "reports/qa-brain-model-packaging-plan.json"
+        "Wrote QA brain model packaging plan: reports/qa-brain-model-packaging-plan.json"
     ) in result.output
     payload = json.loads(
-        Path("reports/qa-brain-model-packaging-plan.json").read_text(
-            encoding="utf-8"
-        )
+        Path("reports/qa-brain-model-packaging-plan.json").read_text(encoding="utf-8")
     )
     assert payload["schema_version"] == "entroping.qa-brain-model-packaging-plan.v1"
     assert payload["summary"]["status"] == "insufficient"
@@ -1543,9 +1584,7 @@ def test_report_qa_brain_model_packaging_plan_wraps_core_errors(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def fail_qa_brain_model_packaging_plan(*args: object, **kwargs: object) -> object:
-        raise QaBrainModelPackagingPlanError(
-            "QA brain model packaging plan path is unsafe"
-        )
+        raise QaBrainModelPackagingPlanError("QA brain model packaging plan path is unsafe")
 
     monkeypatch.setattr(
         report_cli,
@@ -1577,9 +1616,7 @@ def test_report_qa_brain_routing_plan_writes_markdown(
     result = CliRunner().invoke(app, ["report", "qa-brain-routing-plan"])
 
     assert result.exit_code == 0
-    assert (
-        "Wrote QA brain routing plan: reports/qa-brain-routing-plan.md"
-    ) in result.output
+    assert ("Wrote QA brain routing plan: reports/qa-brain-routing-plan.md") in result.output
     markdown = Path("reports/qa-brain-routing-plan.md").read_text(encoding="utf-8")
     assert "# Entroping QA Brain Routing Plan" in markdown
     assert (
@@ -1600,12 +1637,8 @@ def test_report_qa_brain_routing_plan_writes_json(
     )
 
     assert result.exit_code == 0
-    assert (
-        "Wrote QA brain routing plan: reports/qa-brain-routing-plan.json"
-    ) in result.output
-    payload = json.loads(
-        Path("reports/qa-brain-routing-plan.json").read_text(encoding="utf-8")
-    )
+    assert ("Wrote QA brain routing plan: reports/qa-brain-routing-plan.json") in result.output
+    payload = json.loads(Path("reports/qa-brain-routing-plan.json").read_text(encoding="utf-8"))
     assert payload["schema_version"] == "entroping.qa-brain-routing-plan.v1"
     assert payload["summary"]["status"] == "insufficient"
 
@@ -3711,9 +3744,7 @@ def test_report_sarif_accepts_custom_output_and_traceability(
         {
             "ruleId": "entroping.traceability.missing_story_id",
             "level": "error",
-            "message": {
-                "text": "tests/missing.hurl has no # entroping: story_id metadata."
-            },
+            "message": {"text": "tests/missing.hurl has no # entroping: story_id metadata."},
             "locations": [
                 {
                     "physicalLocation": {
@@ -3795,9 +3826,7 @@ def test_report_promote_drift_baseline_writes_active_baseline(
     assert result.exit_code == 0
     assert "Promoted drift baseline: .entroping/drift-baseline.json" in result.output
     assert "1 test" in result.output
-    active = json.loads(
-        (Path(".entroping") / "drift-baseline.json").read_text(encoding="utf-8")
-    )
+    active = json.loads((Path(".entroping") / "drift-baseline.json").read_text(encoding="utf-8"))
     assert active == json.loads(candidate.read_text(encoding="utf-8"))
 
 
