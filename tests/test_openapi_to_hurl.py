@@ -837,6 +837,65 @@ def test_compile_openapi_negative_boundaries_use_maximum_constraints() -> None:
     assert '"level": 11' in boundary.content
 
 
+def test_compile_openapi_skips_non_finite_numeric_bounds_in_negative_generation() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/limits": {
+                "post": {
+                    "operationId": "createLimit",
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["count", "score", "threshold"],
+                                    "properties": {
+                                        "count": {
+                                            "type": "integer",
+                                            "minimum": float("-inf"),
+                                            "maximum": 10,
+                                        },
+                                        "score": {
+                                            "type": "number",
+                                            "minimum": float("nan"),
+                                            "maximum": float("inf"),
+                                        },
+                                        "threshold": {
+                                            "type": "number",
+                                            "minimum": 1.5,
+                                            "maximum": float("nan"),
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "responses": {
+                        "201": {"description": "created"},
+                        "422": {"description": "invalid"},
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset())
+
+    joined = "\n".join(item.content for item in result.files)
+    assert "NaN" not in joined
+    assert "Infinity" not in joined
+    boundary = next(
+        item
+        for item in result.files
+        if item.relative_path == "tests/generated/negative/create_limit_boundary_values.hurl"
+    )
+    assert '"count": 11' in boundary.content
+    assert '"score": 0' in boundary.content
+    assert '"threshold": 0.5' in boundary.content
+
+
 def test_compile_openapi_idor_variants_preserve_scalar_path_types() -> None:
     missing_example = object()
 
