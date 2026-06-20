@@ -239,6 +239,15 @@ from entroping.core.structured_diagnostics import (
     StructuredDiagnosticAttribute,
     StructuredDiagnosticEvent,
 )
+from entroping.core.team_evidence_readiness import (
+    TEAM_EVIDENCE_READINESS_SCHEMA_VERSION,
+    TeamEvidenceCloudBoundary,
+    TeamEvidenceNextAction,
+    TeamEvidenceReadinessArea,
+    TeamEvidenceReadinessPacket,
+    TeamEvidenceReadinessSummary,
+    TeamEvidenceSource,
+)
 from entroping.core.traffic_artifact_manifest import TRAFFIC_ARTIFACT_APPROVAL_SCHEMA_VERSION
 from entroping.models.drift import (
     DriftBaseline,
@@ -2159,6 +2168,173 @@ def test_notification_packet_v1_schema_contract_is_versioned_and_stable() -> Non
     ]
 
 
+def test_team_evidence_readiness_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads(
+        (SCHEMA_DIR / "team-evidence-readiness.v1.schema.json").read_text()
+    )
+    packet = TeamEvidenceReadinessPacket(
+        generated_at="2026-06-20T00:00:00+00:00",
+        project="checkout-api",
+        summary=TeamEvidenceReadinessSummary(
+            status="partial",
+            sources_total=1,
+            sources_present=1,
+            sources_missing=0,
+            sources_invalid=0,
+            sources_unsafe=0,
+            areas_total=1,
+            areas_ready=0,
+            areas_attention=1,
+            areas_blocked=0,
+            blockers_total=1,
+            next_actions_total=1,
+        ),
+        cloud_boundary=TeamEvidenceCloudBoundary(
+            explicit_user_intent_required=True,
+            upload_implemented=False,
+            access_control_audit_required=True,
+            forbidden_data_classes=(
+                "raw_traffic",
+                "secrets",
+                "source_hurl",
+                "env_values",
+                "prompts",
+                "provider_outputs",
+                "full_report_contents",
+            ),
+            boundary_summary="Local readiness view only.",
+        ),
+        sources=(
+            TeamEvidenceSource(
+                id="evidence_bundle",
+                label="Evidence bundle",
+                path="reports/evidence-bundle.json",
+                state="present",
+                schema_version="entroping.evidence-bundle.v1",
+                sha256="a" * 64,
+                summary="ready; 3/3 required present",
+            ),
+        ),
+        readiness_areas=(
+            TeamEvidenceReadinessArea(
+                id="upload_boundary",
+                label="Upload boundary",
+                status="attention",
+                source_ids=("evidence_bundle",),
+                boundary="Existing evidence bundle must be reviewed before upload.",
+                blockers=("Manual cloud approval is missing.",),
+                next_action="Review sanitized evidence before team evidence promotion.",
+            ),
+        ),
+        next_actions=(
+            TeamEvidenceNextAction(
+                priority="medium",
+                action="Review sanitized evidence before team evidence promotion.",
+                source_ids=("evidence_bundle",),
+                area_ids=("upload_boundary",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert (
+        TEAM_EVIDENCE_READINESS_SCHEMA_VERSION
+        == "entroping.team-evidence-readiness.v1"
+    )
+    assert payload == {
+        "schema_version": "entroping.team-evidence-readiness.v1",
+        "generated_at": "2026-06-20T00:00:00+00:00",
+        "project": "checkout-api",
+        "summary": {
+            "status": "partial",
+            "sources_total": 1,
+            "sources_present": 1,
+            "sources_missing": 0,
+            "sources_invalid": 0,
+            "sources_unsafe": 0,
+            "areas_total": 1,
+            "areas_ready": 0,
+            "areas_attention": 1,
+            "areas_blocked": 0,
+            "blockers_total": 1,
+            "next_actions_total": 1,
+        },
+        "cloud_boundary": {
+            "explicit_user_intent_required": True,
+            "upload_implemented": False,
+            "access_control_audit_required": True,
+            "forbidden_data_classes": [
+                "raw_traffic",
+                "secrets",
+                "source_hurl",
+                "env_values",
+                "prompts",
+                "provider_outputs",
+                "full_report_contents",
+            ],
+            "boundary_summary": "Local readiness view only.",
+        },
+        "sources": [
+            {
+                "id": "evidence_bundle",
+                "label": "Evidence bundle",
+                "path": "reports/evidence-bundle.json",
+                "state": "present",
+                "schema_version": "entroping.evidence-bundle.v1",
+                "sha256": "a" * 64,
+                "summary": "ready; 3/3 required present",
+            }
+        ],
+        "readiness_areas": [
+            {
+                "id": "upload_boundary",
+                "label": "Upload boundary",
+                "status": "attention",
+                "source_ids": ["evidence_bundle"],
+                "boundary": "Existing evidence bundle must be reviewed before upload.",
+                "blockers": ["Manual cloud approval is missing."],
+                "next_action": "Review sanitized evidence before team evidence promotion.",
+            }
+        ],
+        "next_actions": [
+            {
+                "priority": "medium",
+                "action": "Review sanitized evidence before team evidence promotion.",
+                "source_ids": ["evidence_bundle"],
+                "area_ids": ["upload_boundary"],
+            }
+        ],
+    }
+    assert schema["properties"]["schema_version"]["const"] == (
+        "entroping.team-evidence-readiness.v1"
+    )
+    assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["$defs"]["source_state"]["enum"] == [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe",
+    ]
+    assert schema["$defs"]["area_id"]["enum"] == [
+        "upload_boundary",
+        "runtime_visibility",
+        "design_partner_pilot",
+        "cross_surface_continuity",
+        "notification_linkout",
+        "cloud_boundary_controls",
+    ]
+    assert schema["$defs"]["forbidden_data_class"]["enum"] == [
+        "raw_traffic",
+        "secrets",
+        "source_hurl",
+        "env_values",
+        "prompts",
+        "provider_outputs",
+        "full_report_contents",
+    ]
+
+
 def test_observability_packet_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "observability-packet.v1.schema.json").read_text())
     packet = ObservabilityPacket(
@@ -3735,6 +3911,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         "entroping.handoff.v1": SCHEMA_DIR / "handoff.v1.schema.json",
         "entroping.notification-packet.v1": (
             SCHEMA_DIR / "notification-packet.v1.schema.json"
+        ),
+        "entroping.team-evidence-readiness.v1": (
+            SCHEMA_DIR / "team-evidence-readiness.v1.schema.json"
         ),
         "entroping.observability-packet.v1": (
             SCHEMA_DIR / "observability-packet.v1.schema.json"

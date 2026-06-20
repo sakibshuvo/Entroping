@@ -37,6 +37,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Pilot metrics | `entroping.pilot-metrics.v1` | `reports/pilot-metrics.json` from `entroping report pilot-metrics --output json` | [pilot-metrics.v1.schema.json](report-schemas/pilot-metrics.v1.schema.json) |
 | Cross-surface handoff | `entroping.handoff.v1` | `reports/handoff.json` from `entroping report handoff --output json` | [handoff.v1.schema.json](report-schemas/handoff.v1.schema.json) |
 | Notification packet | `entroping.notification-packet.v1` | `reports/notification-packet.json` from `entroping report notification-packet --output json` | [notification-packet.v1.schema.json](report-schemas/notification-packet.v1.schema.json) |
+| Team evidence readiness packet | `entroping.team-evidence-readiness.v1` | `reports/team-evidence-readiness.json` from `entroping report team-evidence-readiness --output json` | [team-evidence-readiness.v1.schema.json](report-schemas/team-evidence-readiness.v1.schema.json) |
 | Observability packet | `entroping.observability-packet.v1` | `reports/observability-packet.json` from `entroping report observability-packet --output json` | [observability-packet.v1.schema.json](report-schemas/observability-packet.v1.schema.json) |
 | API inventory packet | `entroping.api-inventory.v1` | `reports/api-inventory.json` from `entroping report api-inventory --output json` | [api-inventory.v1.schema.json](report-schemas/api-inventory.v1.schema.json) |
 | Mutation readiness packet | `entroping.mutation-readiness.v1` | `reports/mutation-readiness.json` from `entroping report mutation-readiness --output json` | [mutation-readiness.v1.schema.json](report-schemas/mutation-readiness.v1.schema.json) |
@@ -501,6 +502,31 @@ Codex APIs, mutate tickets or chat, read traffic state, or include raw URLs,
 headers, bodies, cookies, prompts, provider outputs, credentials, environment
 values, webhook URLs, ticket mutation payloads, source Hurl contents, or full
 report contents.
+
+The team evidence readiness packet is written by:
+
+```bash
+entroping report team-evidence-readiness
+entroping report team-evidence-readiness --output json
+```
+
+It writes `reports/team-evidence-readiness.md` by default or
+`reports/team-evidence-readiness.json` with schema
+`entroping.team-evidence-readiness.v1` when `--output json` is selected. The
+packet aggregates value-free states from existing evidence-bundle,
+runtime-card, pilot-metrics, design-partner-feedback, handoff, and
+notification-packet artifacts into team evidence cloud readiness areas, explicit
+cloud-boundary controls, and next-action rows. It reads bounded local artifacts
+only and records source states, schema versions, SHA-256 hashes, local artifact
+paths, compact summaries, and readiness labels. Missing source artifacts are
+non-blocking and become partial or insufficient packet state; malformed,
+oversized, non-file, symlinked, wrong-schema, or secret-like source artifacts
+are marked invalid or unsafe. The command does not execute Hurl, run tests, call
+providers, upload results, create accounts, change access control, call
+issue-tracker or chat APIs, read traffic state, or include raw URLs, headers,
+bodies, cookies, prompts, provider outputs, credentials, environment values,
+webhook URLs, ticket mutation payloads, source Hurl contents, raw report
+contents, or full report contents.
 
 The observability packet is written by:
 

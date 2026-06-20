@@ -2,6 +2,17 @@
 
 ## 2026-06-20
 
+- Added issue #1052's team evidence readiness packet: `report
+  team-evidence-readiness` now writes local
+  `entroping.team-evidence-readiness.v1` JSON or Markdown that aggregates
+  value-free states from evidence-bundle, runtime-card, pilot-metrics,
+  design-partner-feedback, handoff, and notification-packet artifacts into
+  team evidence cloud readiness areas, explicit cloud-boundary controls, and
+  next actions without executing Hurl, running tests, calling providers,
+  uploading artifacts, creating accounts, changing access control, calling
+  issue-tracker or chat APIs, parsing traffic state, mutating tickets/chat, or
+  rendering raw report/source contents, prompts, credentials, cookies,
+  environment values, webhook URLs, ticket payloads, or provider outputs.
 - Added issue #1050's QA Brain routing-plan packet: `report
   qa-brain-routing-plan` now writes local `entroping.qa-brain-routing-plan.v1`
   JSON or Markdown that turns deterministic QA-brain model-packaging metadata

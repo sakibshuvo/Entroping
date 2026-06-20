@@ -44,6 +44,7 @@ entroping report design-partner-feedback [--output <path>]
 entroping report runtime-card [--output <md|json>]
 entroping report handoff [--output <md|json>] [--fail-on-insufficient]
 entroping report notification-packet [--output <md|json>]
+entroping report team-evidence-readiness [--output <md|json>]
 entroping report observability-packet [--output <md|json>]
 entroping report api-inventory [--output <md|json>]
 entroping report mutation-readiness [--output <md|json>]
@@ -410,6 +411,8 @@ Experimental design-partner evidence commands:
 | `entroping report handoff --fail-on-insufficient` | Write the handoff packet, then exit `1` when no source evidence artifacts are present |
 | `entroping report notification-packet --output md` | Write a read-only work-management/chat notification packet to `reports/notification-packet.md` |
 | `entroping report notification-packet --output json` | Write machine-readable notification evidence to `reports/notification-packet.json` |
+| `entroping report team-evidence-readiness --output md` | Write read-only team evidence cloud readiness to `reports/team-evidence-readiness.md` |
+| `entroping report team-evidence-readiness --output json` | Write machine-readable team evidence readiness to `reports/team-evidence-readiness.json` |
 | `entroping report observability-packet --output md` | Write a read-only observability signal packet to `reports/observability-packet.md` |
 | `entroping report observability-packet --output json` | Write machine-readable observability evidence to `reports/observability-packet.json` |
 | `entroping report api-inventory --output md` | Write a read-only API surface inventory to `reports/api-inventory.md` |
@@ -466,6 +469,7 @@ entroping report runtime-card
 entroping report handoff --output json
 entroping report handoff --fail-on-insufficient
 entroping report notification-packet --output json
+entroping report team-evidence-readiness --output json
 entroping report observability-packet --output json
 entroping report api-inventory --output json
 entroping report mutation-readiness --output json

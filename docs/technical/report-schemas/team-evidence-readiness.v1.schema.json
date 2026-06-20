@@ -1,0 +1,330 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://entroping.dev/schemas/team-evidence-readiness.v1.schema.json",
+  "title": "Entroping team evidence readiness packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "project",
+    "summary",
+    "cloud_boundary",
+    "sources",
+    "readiness_areas",
+    "next_actions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.team-evidence-readiness.v1"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "project": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "cloud_boundary": {
+      "$ref": "#/$defs/cloud_boundary"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "readiness_areas": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/readiness_area"
+      }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/next_action"
+      }
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "sources_total",
+        "sources_present",
+        "sources_missing",
+        "sources_invalid",
+        "sources_unsafe",
+        "areas_total",
+        "areas_ready",
+        "areas_attention",
+        "areas_blocked",
+        "blockers_total",
+        "next_actions_total"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/readiness_status"
+        },
+        "sources_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_present": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_invalid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_unsafe": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "areas_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "areas_ready": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "areas_attention": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "areas_blocked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blockers_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "next_actions_total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "path",
+        "state",
+        "schema_version",
+        "sha256",
+        "summary"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/source_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/source_state"
+        },
+        "schema_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "readiness_area": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "status",
+        "source_ids",
+        "boundary",
+        "blockers",
+        "next_action"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/area_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/area_status"
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "boundary": {
+          "type": "string"
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "next_action": {
+          "type": "string"
+        }
+      }
+    },
+    "cloud_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "explicit_user_intent_required",
+        "upload_implemented",
+        "access_control_audit_required",
+        "forbidden_data_classes",
+        "boundary_summary"
+      ],
+      "properties": {
+        "explicit_user_intent_required": {
+          "type": "boolean"
+        },
+        "upload_implemented": {
+          "type": "boolean"
+        },
+        "access_control_audit_required": {
+          "type": "boolean"
+        },
+        "forbidden_data_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/forbidden_data_class"
+          }
+        },
+        "boundary_summary": {
+          "type": "string"
+        }
+      }
+    },
+    "next_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "priority",
+        "action",
+        "source_ids",
+        "area_ids"
+      ],
+      "properties": {
+        "priority": {
+          "$ref": "#/$defs/next_action_priority"
+        },
+        "action": {
+          "type": "string"
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "area_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/area_id"
+          }
+        }
+      }
+    },
+    "readiness_status": {
+      "enum": [
+        "ready",
+        "partial",
+        "insufficient"
+      ]
+    },
+    "source_id": {
+      "enum": [
+        "evidence_bundle",
+        "runtime_card",
+        "pilot_metrics",
+        "design_partner_feedback",
+        "handoff",
+        "notification_packet"
+      ]
+    },
+    "source_state": {
+      "enum": [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe"
+      ]
+    },
+    "area_id": {
+      "enum": [
+        "upload_boundary",
+        "runtime_visibility",
+        "design_partner_pilot",
+        "cross_surface_continuity",
+        "notification_linkout",
+        "cloud_boundary_controls"
+      ]
+    },
+    "area_status": {
+      "enum": [
+        "ready",
+        "attention",
+        "blocked"
+      ]
+    },
+    "next_action_priority": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "forbidden_data_class": {
+      "enum": [
+        "raw_traffic",
+        "secrets",
+        "source_hurl",
+        "env_values",
+        "prompts",
+        "provider_outputs",
+        "full_report_contents"
+      ]
+    }
+  }
+}
