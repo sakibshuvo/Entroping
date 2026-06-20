@@ -51,6 +51,7 @@ entroping report evidence-index [--output <md|json>]
 entroping report qa-brain-seed [--output <md|json>]
 entroping report qa-brain-eval-plan [--output <md|json>]
 entroping report qa-brain-retrieval-plan [--output <md|json>]
+entroping report qa-brain-prompt-plan [--output <md|json>]
 entroping report pilot-metrics [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
@@ -420,6 +421,8 @@ Experimental design-partner evidence commands:
 | `entroping report qa-brain-eval-plan --output json` | Write machine-readable QA Brain eval-plan metadata to `reports/qa-brain-eval-plan.json` |
 | `entroping report qa-brain-retrieval-plan --output md` | Write read-only QA Brain retrieval-plan metadata to `reports/qa-brain-retrieval-plan.md` |
 | `entroping report qa-brain-retrieval-plan --output json` | Write machine-readable QA Brain retrieval-plan metadata to `reports/qa-brain-retrieval-plan.json` |
+| `entroping report qa-brain-prompt-plan --output md` | Write read-only QA Brain prompt-plan metadata to `reports/qa-brain-prompt-plan.md` |
+| `entroping report qa-brain-prompt-plan --output json` | Write machine-readable QA Brain prompt-plan metadata to `reports/qa-brain-prompt-plan.json` |
 | `entroping report pilot-metrics --output md` | Write local design-partner pilot metric inference to `reports/pilot-metrics.md` |
 | `entroping report pilot-metrics --output json` | Write machine-readable pilot metric inference to `reports/pilot-metrics.json` |
 | `entroping report agent-bundle --output md` | Write a local multi-agent review bundle to `reports/agent-bundle.md` |
@@ -461,6 +464,7 @@ entroping report evidence-index --output json
 entroping report qa-brain-seed --output json
 entroping report qa-brain-eval-plan --output json
 entroping report qa-brain-retrieval-plan --output json
+entroping report qa-brain-prompt-plan --output json
 entroping report pilot-metrics
 entroping report agent-bundle --scope tests/generated
 entroping report traceability --output md

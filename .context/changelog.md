@@ -2,6 +2,17 @@
 
 ## 2026-06-20
 
+- Added issue #1044's QA Brain prompt-plan packet: `report
+  qa-brain-prompt-plan` now writes local
+  `entroping.qa-brain-prompt-plan.v1` JSON or Markdown that turns
+  deterministic QA-brain retrieval-plan readiness into future prompt design
+  metadata, including prompt objectives, allowed prompt inputs, forbidden
+  prompt inputs, expected structured output fields, deterministic acceptance
+  signals, negative controls, safety notes, source IDs/paths, and next actions
+  without executing Hurl, running tests, calling providers, creating
+  embeddings, using vector stores, retrieving documents, executing prompts,
+  fine-tuning models, uploading artifacts, parsing traffic state, running
+  mutations, or rendering raw report/source contents.
 - Added issue #1042's QA Brain retrieval-plan packet: `report
   qa-brain-retrieval-plan` now writes local
   `entroping.qa-brain-retrieval-plan.v1` JSON or Markdown that turns

@@ -16,29 +16,30 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1042 QA Brain Retrieval-Plan Packet
+## Current Issue Slice: #1044 QA Brain Prompt-Plan Packet
 
-- Add `entroping report qa-brain-retrieval-plan --output md|json` as an
-  issue-backed additive report command for future QA Brain retrieval planning.
-- Build from deterministic local QA-brain eval-plan readiness rather than
-  reading or embedding raw report bodies, model prompts, traffic, source Hurl,
-  provider output, or generated retrieval artifacts.
-- Emit a schema-versioned `entroping.qa-brain-retrieval-plan.v1` packet with
-  generated time, project name, eval-plan schema version, summary counts, one
-  retrieval-plan row per QA Brain eval case, and next-action rows.
+- Add `entroping report qa-brain-prompt-plan --output md|json` as an
+  issue-backed additive report command for future QA Brain prompt planning.
+- Build from deterministic local QA-brain retrieval-plan readiness rather than
+  reading or embedding raw report bodies, executable prompts, traffic, source
+  Hurl, provider output, or generated prompt artifacts.
+- Emit a schema-versioned `entroping.qa-brain-prompt-plan.v1` packet with
+  generated time, project name, retrieval-plan schema version, summary counts,
+  one prompt-plan row per QA Brain retrieval-plan case, and next-action rows.
 - Cover weak-test detection, missing-gate discovery, unsafe generated Hurl,
   bogus evidence, redaction mistakes, API drift reasoning, mutation/fuzz
   readiness, and cross-surface handoff quality.
-- Include only value-free retrieval metadata: readiness state, source IDs and
-  paths, retrieval category, retrieval intent, allowed fields, forbidden fields,
-  query hints, safety notes, and next actions.
+- Include only value-free prompt design metadata: readiness state, source IDs
+  and paths, retrieval category, prompt objective, allowed prompt inputs,
+  forbidden prompt inputs, expected structured output fields, deterministic
+  acceptance signals, negative controls, safety notes, and next actions.
 - Do not execute Hurl, run tests, call providers, create embeddings, use vector
   stores, retrieve documents, fine-tune models, upload artifacts, parse traffic
-  state, run mutations or fuzzers, mutate files, or render raw report contents,
-  raw traffic, source Hurl, prompts, credentials, cookies, environment values,
-  or provider outputs.
+  state, run mutations or fuzzers, execute prompts, mutate files, or render raw
+  report contents, raw traffic, source Hurl, executable prompts, credentials,
+  cookies, environment values, or provider outputs.
 - Preserve LiteLLM/provider-neutral boundaries: this packet prepares
-  deterministic local retrieval metadata only and must not add direct provider SDK
+  deterministic local prompt metadata only and must not add direct provider SDK
   calls or make `entroping run` depend on AI.
 - Verification lane: `security-runtime` because the command reads local
   report artifact state and emits machine-readable model-adjacent evidence
