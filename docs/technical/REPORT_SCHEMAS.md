@@ -39,6 +39,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Notification packet | `entroping.notification-packet.v1` | `reports/notification-packet.json` from `entroping report notification-packet --output json` | [notification-packet.v1.schema.json](report-schemas/notification-packet.v1.schema.json) |
 | Team evidence readiness packet | `entroping.team-evidence-readiness.v1` | `reports/team-evidence-readiness.json` from `entroping report team-evidence-readiness --output json` | [team-evidence-readiness.v1.schema.json](report-schemas/team-evidence-readiness.v1.schema.json) |
 | Team access-control plan packet | `entroping.team-access-control-plan.v1` | `reports/team-access-control-plan.json` from `entroping report team-access-control-plan --output json` | [team-access-control-plan.v1.schema.json](report-schemas/team-access-control-plan.v1.schema.json) |
+| Integration readiness packet | `entroping.integration-readiness.v1` | `reports/integration-readiness.json` from `entroping report integration-readiness --output json` | [integration-readiness.v1.schema.json](report-schemas/integration-readiness.v1.schema.json) |
 | Observability packet | `entroping.observability-packet.v1` | `reports/observability-packet.json` from `entroping report observability-packet --output json` | [observability-packet.v1.schema.json](report-schemas/observability-packet.v1.schema.json) |
 | API inventory packet | `entroping.api-inventory.v1` | `reports/api-inventory.json` from `entroping report api-inventory --output json` | [api-inventory.v1.schema.json](report-schemas/api-inventory.v1.schema.json) |
 | Mutation readiness packet | `entroping.mutation-readiness.v1` | `reports/mutation-readiness.json` from `entroping report mutation-readiness --output json` | [mutation-readiness.v1.schema.json](report-schemas/mutation-readiness.v1.schema.json) |
@@ -552,6 +553,33 @@ issue-tracker or chat APIs, write back to external systems, read traffic state,
 or include raw URLs, headers, bodies, cookies, prompts, provider outputs,
 credentials, environment values, webhook URLs, ticket mutation payloads, source
 Hurl contents, raw report contents, or full report contents.
+
+The integration readiness packet is written by:
+
+```bash
+entroping report integration-readiness
+entroping report integration-readiness --output json
+```
+
+It writes `reports/integration-readiness.md` by default or
+`reports/integration-readiness.json` with schema
+`entroping.integration-readiness.v1` when `--output json` is selected. The
+packet turns existing sanitized team-access-control-plan, notification-packet,
+handoff, observability-packet, API-inventory, and runtime-card artifacts into
+value-free readiness rows for issue trackers, chat, enterprise automation,
+cross-surface continuity, observability, and API governance surfaces. It records
+source states, schema versions, bounded SHA-256 hashes, local artifact paths,
+surface IDs, link/event requirements, forbidden actions, blockers, and
+next-action rows. Missing source artifacts are non-blocking and become partial
+or insufficient packet state; malformed, oversized, non-file, symlinked,
+wrong-schema, or secret-like source artifacts are marked invalid or unsafe. The
+command does not execute Hurl, run tests, call Jira, Linear, monday.com, Slack,
+Discord, Workato, Claude, Codex, OpenAI, Datadog, Splunk, or other external
+APIs, upload results, create accounts, configure SSO or RBAC, mutate tickets or
+chat, execute chat commands, read provider keys, parse traffic state, sync repos
+or vaults, or include raw URLs, headers, bodies, cookies, prompts, provider
+outputs, credentials, environment values, webhook URLs, ticket mutation payloads,
+source Hurl contents, raw report contents, or full report contents.
 
 The observability packet is written by:
 

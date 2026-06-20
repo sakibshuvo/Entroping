@@ -114,6 +114,14 @@ from entroping.core.handoff_packet import (
     HandoffSummary,
     HandoffTarget,
 )
+from entroping.core.integration_readiness import (
+    INTEGRATION_READINESS_SCHEMA_VERSION,
+    IntegrationReadinessFamily,
+    IntegrationReadinessNextAction,
+    IntegrationReadinessPacket,
+    IntegrationReadinessSource,
+    IntegrationReadinessSummary,
+)
 from entroping.core.mutation_readiness import (
     MUTATION_READINESS_SCHEMA_VERSION,
     MutationReadinessCandidate,
@@ -2480,6 +2488,128 @@ def test_team_access_control_plan_v1_schema_contract_is_versioned_and_stable() -
     ]
 
 
+def test_integration_readiness_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "integration-readiness.v1.schema.json").read_text())
+    packet = IntegrationReadinessPacket(
+        generated_at="2026-06-20T00:00:00+00:00",
+        project="checkout-api",
+        summary=IntegrationReadinessSummary(
+            status="ready",
+            sources_total=1,
+            sources_present=1,
+            sources_missing=0,
+            sources_invalid=0,
+            sources_unsafe=0,
+            families_total=1,
+            families_ready=1,
+            families_attention=0,
+            families_blocked=0,
+            blockers_total=0,
+            next_actions_total=1,
+        ),
+        sources=(
+            IntegrationReadinessSource(
+                id="team_access_control_plan",
+                label="Team access-control plan",
+                path="reports/team-access-control-plan.json",
+                state="present",
+                schema_version="entroping.team-access-control-plan.v1",
+                sha256="a" * 64,
+                summary="ready; 1/1 roles ready; 0 blockers",
+            ),
+        ),
+        families=(
+            IntegrationReadinessFamily(
+                id="issue_trackers",
+                label="Issue trackers",
+                status="ready",
+                surface_ids=("jira", "linear", "monday"),
+                required_source_ids=("team_access_control_plan", "notification_packet"),
+                present_source_ids=("team_access_control_plan",),
+                missing_source_ids=("notification_packet",),
+                blockers=(),
+                link_requirements=("artifact_id", "source_sha256"),
+                event_requirements=("actor_role", "target_surface", "artifact_id"),
+                forbidden_actions=("call_external_api", "override_hurl_qanstitution_result"),
+                next_action="Attach read-only Entroping evidence links.",
+            ),
+        ),
+        next_actions=(
+            IntegrationReadinessNextAction(
+                priority="medium",
+                action="Generate notification evidence before issue tracker links.",
+                source_ids=("notification_packet",),
+                family_ids=("issue_trackers",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert INTEGRATION_READINESS_SCHEMA_VERSION == "entroping.integration-readiness.v1"
+    assert payload["schema_version"] == "entroping.integration-readiness.v1"
+    assert payload["families"][0]["surface_ids"] == ["jira", "linear", "monday"]
+    assert payload["families"][0]["forbidden_actions"] == [
+        "call_external_api",
+        "override_hurl_qanstitution_result",
+    ]
+    assert schema["properties"]["schema_version"]["const"] == (
+        "entroping.integration-readiness.v1"
+    )
+    assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["$defs"]["source_id"]["enum"] == [
+        "team_access_control_plan",
+        "notification_packet",
+        "handoff",
+        "observability_packet",
+        "api_inventory",
+        "runtime_card",
+    ]
+    assert schema["$defs"]["family_id"]["enum"] == [
+        "issue_trackers",
+        "chat",
+        "enterprise_automation",
+        "cross_surface_continuity",
+        "observability",
+        "api_governance",
+    ]
+    assert schema["$defs"]["surface_id"]["enum"] == [
+        "jira",
+        "linear",
+        "monday",
+        "slack",
+        "discord",
+        "workato",
+        "claude",
+        "codex",
+        "cli",
+        "desktop",
+        "cloud",
+        "mobile",
+        "opentelemetry",
+        "datadog",
+        "splunk",
+        "openapi",
+        "graphql",
+        "soap_xml",
+        "grpc",
+        "webhooks",
+        "asyncapi",
+        "websocket",
+    ]
+    assert schema["$defs"]["forbidden_action"]["enum"] == [
+        "call_external_api",
+        "upload_artifacts",
+        "mutate_issue_tracker",
+        "post_chat_message",
+        "execute_chat_command",
+        "read_provider_keys",
+        "override_hurl_qanstitution_result",
+        "sync_raw_repo_or_vault",
+        "render_raw_artifact_contents",
+    ]
+
+
 def test_observability_packet_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "observability-packet.v1.schema.json").read_text())
     packet = ObservabilityPacket(
@@ -4020,6 +4150,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         ),
         "entroping.team-access-control-plan.v1": (
             SCHEMA_DIR / "team-access-control-plan.v1.schema.json"
+        ),
+        "entroping.integration-readiness.v1": (
+            SCHEMA_DIR / "integration-readiness.v1.schema.json"
         ),
         "entroping.observability-packet.v1": (SCHEMA_DIR / "observability-packet.v1.schema.json"),
         "entroping.api-inventory.v1": SCHEMA_DIR / "api-inventory.v1.schema.json",
