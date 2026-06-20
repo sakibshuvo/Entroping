@@ -16,31 +16,28 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1034 Mutation Readiness Packet
+## Current Issue Slice: #1036 Evidence Index Packet
 
-- Add `entroping report mutation-readiness --output md|json` as an
-  issue-backed additive report command for future deterministic mutation and
-  seeded fuzz workflow planning.
-- Keep the packet local-first and value-free: read committed generated Hurl
-  tests under `tests/generated/` or tests carrying generated metadata, plus
-  optional existing `reports/test-quality.json` and `reports/test-pyramid.json`
-  artifacts when present and schema-valid.
-- Summarize only counts and source states for generated corpus presence,
-  negative-path evidence, auth/security evidence, assertion strength,
-  reproducible seed metadata, and safe candidate categories: status-code,
-  schema, auth, latency, request-shape, and response-shape.
-- Treat missing evidence as non-blocking packet state, and mark malformed,
-  oversized, non-file, symlinked, path-escaped, wrong-schema, or secret-like
-  source artifacts invalid or unsafe without leaking contents.
-- Do not execute Hurl, run mutation tests, run fuzzers, generate tests, call
-  providers, upload results, parse traffic state, mutate source files, or render
-  raw URLs, headers, bodies, cookies, prompts, credentials, environment values,
-  seed values, full report contents, or source Hurl contents.
+- Add `entroping report evidence-index --output md|json` as an issue-backed
+  additive report command for stable local evidence artifact navigation across
+  CLI, PR, desktop, cloud, mobile, and agent surfaces.
+- Reuse `entroping.core.evidence_index.build_local_evidence_index` for the
+  canonical artifact inventory instead of duplicating discovery rules.
+- Emit a schema-versioned `entroping.evidence-index.v1` packet with generated
+  time, project name, summary counts by state, and artifact rows containing
+  stable ID, label, project-relative path, state, schema version, and
+  value-free summary.
+- Treat missing evidence as non-blocking packet state, and preserve invalid,
+  unsafe, symlinked, non-file, oversized, malformed, or unreadable source
+  artifact states without leaking raw contents.
+- Do not execute Hurl, run tests, call providers, upload artifacts, parse
+  traffic state, mutate files, or render raw report contents, raw traffic,
+  source Hurl, prompts, credentials, cookies, environment values, or provider
+  outputs.
 - Update schema, CLI compatibility, report docs, progress, and context evidence
-  in the same slice so the new command does not live only in implementation.
+  in the same slice so the new command is part of the durable public surface.
 - Verification lane: `security-runtime` because the command reads local
-  generated-test and report artifacts and emits machine-readable report
-  evidence.
+  report artifact state and emits machine-readable report evidence.
 
 ## Current Baseline
 

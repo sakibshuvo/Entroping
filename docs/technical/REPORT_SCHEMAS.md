@@ -40,6 +40,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Observability packet | `entroping.observability-packet.v1` | `reports/observability-packet.json` from `entroping report observability-packet --output json` | [observability-packet.v1.schema.json](report-schemas/observability-packet.v1.schema.json) |
 | API inventory packet | `entroping.api-inventory.v1` | `reports/api-inventory.json` from `entroping report api-inventory --output json` | [api-inventory.v1.schema.json](report-schemas/api-inventory.v1.schema.json) |
 | Mutation readiness packet | `entroping.mutation-readiness.v1` | `reports/mutation-readiness.json` from `entroping report mutation-readiness --output json` | [mutation-readiness.v1.schema.json](report-schemas/mutation-readiness.v1.schema.json) |
+| Evidence index packet | `entroping.evidence-index.v1` | `reports/evidence-index.json` from `entroping report evidence-index --output json` | [evidence-index.v1.schema.json](report-schemas/evidence-index.v1.schema.json) |
 | Design-partner feedback | `entroping.design-partner-feedback.v1` | `reports/design-partner-feedback.json` from `entroping report design-partner-feedback` | [design-partner-feedback.v1.schema.json](report-schemas/design-partner-feedback.v1.schema.json) |
 | Failure bundle manifest | `entroping.failure-bundle.v1` | `reports/failure-bundle/manifest.json` | Inline contract |
 | Coverage badges | Shields endpoint schema v1 | `reports/badges/*.json` | External Shields endpoint format |
@@ -167,6 +168,26 @@ secret-like artifacts are marked invalid or unsafe. The report does not execute
 Hurl, mutate tests, generate tests, call providers, parse traffic state, upload
 artifacts, or render raw URLs, headers, bodies, cookies, prompts, credentials,
 environment values, seeds, full report contents, or source Hurl contents.
+
+The evidence-index packet is written by:
+
+```bash
+entroping report evidence-index
+entroping report evidence-index --output json
+```
+
+It writes `reports/evidence-index.md` by default or
+`reports/evidence-index.json` with schema `entroping.evidence-index.v1` when
+`--output json` is selected. The packet reuses the local
+`build_local_evidence_index` artifact inventory and emits stable artifact IDs,
+labels, project-relative paths, source states, schema versions, and compact
+value-free summaries for local report artifacts. Missing evidence is
+non-blocking; invalid, unsafe, symlinked, non-file, oversized, malformed, or
+unreadable source artifacts remain represented through evidence-index states
+without embedding raw source contents. The command does not execute Hurl, run
+tests, call providers, upload artifacts, parse traffic state, mutate files, or
+render raw report contents, raw traffic, source Hurl, prompts, credentials,
+cookies, environment values, or provider outputs.
 
 The report artifact manifest is written by:
 

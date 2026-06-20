@@ -33,6 +33,7 @@ from entroping.core.api_inventory import ApiInventoryError
 from entroping.core.capture_summary_report import CaptureSummaryResult
 from entroping.core.design_partner_feedback import DesignPartnerFeedbackError
 from entroping.core.evidence_bundle import EvidenceBundleError
+from entroping.core.evidence_index_report import EvidenceIndexError
 from entroping.core.handoff_packet import HandoffError
 from entroping.core.mutation_readiness import MutationReadinessError
 from entroping.core.notification_packet import NotificationPacketError
@@ -923,6 +924,73 @@ def test_report_mutation_readiness_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "mutation readiness path is unsafe" in result.output
+
+
+def test_report_evidence_index_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("reports") / "run-latest.json",
+        """
+{
+  "schema_version": "entroping.run-report.v1",
+  "summary": {"total": 2, "passed": 1, "failed": 1, "exit_code": 1},
+  "tests": [{"stderr": "raw-output-should-not-render"}]
+}
+""",
+    )
+
+    result = CliRunner().invoke(app, ["report", "evidence-index"])
+
+    assert result.exit_code == 0
+    assert "Wrote evidence index: reports/evidence-index.md" in result.output
+    markdown = Path("reports/evidence-index.md").read_text(encoding="utf-8")
+    assert "# Entroping Evidence Index" in markdown
+    assert "| run-json | Run JSON | present | reports/run-latest.json |" in markdown
+    assert "raw-output-should-not-render" not in markdown
+
+
+def test_report_evidence_index_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "evidence-index", "--output", "json"])
+
+    assert result.exit_code == 0
+    assert "Wrote evidence index: reports/evidence-index.json" in result.output
+    payload = json.loads(Path("reports/evidence-index.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.evidence-index.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_evidence_index_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["report", "evidence-index", "--output", "html"])
+
+    assert result.exit_code == 2
+    assert "Unsupported evidence-index output" in result.output
+    assert not Path("reports/evidence-index.html").exists()
+
+
+def test_report_evidence_index_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_evidence_index(*args: object, **kwargs: object) -> object:
+        raise EvidenceIndexError("evidence index path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_evidence_index_report",
+        fail_evidence_index,
+    )
+
+    result = CliRunner().invoke(app, ["report", "evidence-index"])
+
+    assert result.exit_code == 1
+    assert "evidence index path is unsafe" in result.output
 
 
 def test_report_bug_generates_markdown_from_latest_failing_run(

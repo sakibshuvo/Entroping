@@ -99,6 +99,12 @@ from entroping.core.evidence_bundle import (
     EvidenceBundleReport,
     EvidenceBundleSummary,
 )
+from entroping.core.evidence_index_report import (
+    EVIDENCE_INDEX_SCHEMA_VERSION,
+    EvidenceIndexArtifact,
+    EvidenceIndexPacket,
+    EvidenceIndexSummary,
+)
 from entroping.core.handoff_packet import (
     HANDOFF_SCHEMA_VERSION,
     HandoffArtifact,
@@ -2515,6 +2521,88 @@ def test_mutation_readiness_v1_schema_contract_is_versioned_and_stable() -> None
     ]
 
 
+def test_evidence_index_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "evidence-index.v1.schema.json").read_text())
+    packet = EvidenceIndexPacket(
+        generated_at="2026-06-20T00:00:00+00:00",
+        project="checkout-api",
+        summary=EvidenceIndexSummary(
+            status="partial",
+            artifacts_total=2,
+            artifacts_present=1,
+            artifacts_missing=0,
+            artifacts_invalid=1,
+            artifacts_unsafe=0,
+        ),
+        artifacts=(
+            EvidenceIndexArtifact(
+                id="run-json",
+                label="Run JSON",
+                path="reports/run-latest.json",
+                state="present",
+                schema_version="entroping.run-report.v1",
+                summary="1 total, 1 passed, 0 failed",
+            ),
+            EvidenceIndexArtifact(
+                id="drift-json",
+                label="Drift JSON",
+                path="reports/drift.json",
+                state="invalid",
+                schema_version=None,
+                summary="invalid JSON",
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert EVIDENCE_INDEX_SCHEMA_VERSION == "entroping.evidence-index.v1"
+    assert payload == {
+        "schema_version": "entroping.evidence-index.v1",
+        "generated_at": "2026-06-20T00:00:00+00:00",
+        "project": "checkout-api",
+        "summary": {
+            "status": "partial",
+            "artifacts_total": 2,
+            "artifacts_present": 1,
+            "artifacts_missing": 0,
+            "artifacts_invalid": 1,
+            "artifacts_unsafe": 0,
+        },
+        "artifacts": [
+            {
+                "id": "run-json",
+                "label": "Run JSON",
+                "path": "reports/run-latest.json",
+                "state": "present",
+                "schema_version": "entroping.run-report.v1",
+                "summary": "1 total, 1 passed, 0 failed",
+            },
+            {
+                "id": "drift-json",
+                "label": "Drift JSON",
+                "path": "reports/drift.json",
+                "state": "invalid",
+                "schema_version": None,
+                "summary": "invalid JSON",
+            },
+        ],
+    }
+    assert schema["properties"]["schema_version"]["const"] == "entroping.evidence-index.v1"
+    assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["$defs"]["summary"]["properties"]["status"]["enum"] == [
+        "ready",
+        "partial",
+        "insufficient",
+    ]
+    assert schema["$defs"]["artifact_state"]["enum"] == [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe",
+    ]
+
+
 def test_effective_policy_diff_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "effective-policy-diff.v1.schema.json").read_text())
     base = EffectivePolicyReport(
@@ -2811,6 +2899,7 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         "entroping.mutation-readiness.v1": (
             SCHEMA_DIR / "mutation-readiness.v1.schema.json"
         ),
+        "entroping.evidence-index.v1": SCHEMA_DIR / "evidence-index.v1.schema.json",
         "entroping.design-partner-feedback.v1": (
             SCHEMA_DIR / "design-partner-feedback.v1.schema.json"
         ),
