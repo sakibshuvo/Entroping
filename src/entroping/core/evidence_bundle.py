@@ -11,6 +11,11 @@ from typing import Annotated, Final, Literal
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
 
 from entroping.bridge.effective_policy import EffectivePolicyReport
+from entroping.core.evidence_common import (
+    LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES,
+    contains_unredacted_evidence_secret,
+    safe_evidence_metadata_text,
+)
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.report_artifact_manifest import (
     REPORT_ARTIFACT_MANIFEST_SCHEMA_VERSION,
@@ -18,7 +23,6 @@ from entroping.core.report_artifact_manifest import (
 )
 from entroping.core.report_serialization import load_run_report
 from entroping.core.safe_write import SafeWriteError, safe_write_text
-from entroping.models.secrets import contains_secret_like_value, redact_secret_like_values
 
 EVIDENCE_BUNDLE_SCHEMA_VERSION: Final = "entroping.evidence-bundle.v1"
 
@@ -33,7 +37,7 @@ Sha256Digest = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
 
 _DEFAULT_OUTPUT_PATH: Final = Path("reports") / "evidence-bundle.json"
 _DEFAULT_PURPOSE: Final = "design-partner-upload-readiness"
-_MAX_EVIDENCE_ARTIFACT_BYTES: Final = 100 * 1024 * 1024
+_MAX_EVIDENCE_ARTIFACT_BYTES: Final = LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES
 _SECRET_SCAN_DIGEST_FIELDS: Final = frozenset({"latest_event_hash", "sha256"})
 _ARTIFACT_MANIFEST_REMEDIATION_COMMAND: Final = "entroping report artifact-manifest"
 _EVIDENCE_BUNDLE_RECHECK_COMMAND: Final = (
@@ -639,7 +643,7 @@ def _project_relative_display_path(path: Path, *, root: Path) -> str:
 
 
 def _safe_metadata_text(value: str) -> str:
-    return redact_secret_like_values(value).replace("\r", " ").replace("\n", " ")
+    return safe_evidence_metadata_text(value)
 
 
 def _inline_code(value: str) -> str:
@@ -662,7 +666,7 @@ def _bundle_contains_secret_like_metadata(
     if isinstance(value, str):
         if parent_key in _SECRET_SCAN_DIGEST_FIELDS:
             return False
-        return contains_secret_like_value(value)
+        return contains_unredacted_evidence_secret(value)
     if isinstance(value, dict):
         return any(
             _bundle_contains_secret_like_metadata(item, parent_key=str(key))

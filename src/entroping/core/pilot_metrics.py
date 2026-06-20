@@ -9,9 +9,13 @@ from typing import Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from entroping.core.evidence_common import (
+    LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES,
+    contains_unredacted_evidence_secret,
+    safe_evidence_text,
+)
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.safe_write import SafeWriteError, safe_write_text
-from entroping.models.secrets import contains_secret_like_value, redact_secret_like_values
 
 PILOT_METRICS_SCHEMA_VERSION: Final = "entroping.pilot-metrics.v1"
 
@@ -35,15 +39,10 @@ PilotEvidenceSourceId = Literal[
     "agent_bundle",
 ]
 
-_MAX_PILOT_METRICS_ARTIFACT_BYTES: Final = 100 * 1024 * 1024
+_MAX_PILOT_METRICS_ARTIFACT_BYTES: Final = LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES
 _DEFAULT_OUTPUTS: Final[dict[PilotMetricsOutput, Path]] = {
     "md": Path("reports") / "pilot-metrics.md",
     "json": Path("reports") / "pilot-metrics.json",
-}
-_ASCII_CONTROL_CHAR_TRANSLATION: Final = {
-    codepoint: " "
-    for codepoint in range(32)
-    if codepoint not in {9, 10, 13}
 }
 
 
@@ -717,13 +716,11 @@ def _metric_value(metric: PilotMetric) -> str:
 
 
 def _safe_text(value: str) -> str:
-    sanitized = redact_secret_like_values(value).translate(_ASCII_CONTROL_CHAR_TRANSLATION)
-    return " ".join(sanitized.replace("\r", " ").replace("\n", " ").split())
+    return safe_evidence_text(value)
 
 
 def _contains_unredacted_secret_like_value(value: str) -> bool:
-    normalized = value.replace("[REDACTED]`", "[REDACTED]")
-    return contains_secret_like_value(normalized)
+    return contains_unredacted_evidence_secret(value)
 
 
 def _inline_code(value: str) -> str:
