@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://entroping.dev/schemas/api-inventory.v1.schema.json",
+  "title": "Entroping API inventory packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "project",
+    "summary",
+    "sources",
+    "styles"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.api-inventory.v1"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "project": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "styles": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/style"
+      }
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "sources_total",
+        "sources_present",
+        "sources_missing",
+        "sources_invalid",
+        "sources_unsafe",
+        "styles_total",
+        "hurl_tests_total",
+        "operations_total"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "ready",
+            "partial",
+            "insufficient"
+          ]
+        },
+        "sources_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_present": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_invalid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_unsafe": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "styles_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hurl_tests_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "operations_total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "style",
+        "path",
+        "state",
+        "sha256",
+        "tags",
+        "operations",
+        "summary"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "configured_openapi",
+            "conventional_openapi",
+            "hurl_test",
+            "schema_file"
+          ]
+        },
+        "style": {
+          "$ref": "#/$defs/api_style"
+        },
+        "path": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "present",
+            "missing",
+            "invalid",
+            "unsafe"
+          ]
+        },
+        "sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "operations": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "style": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "style",
+        "label",
+        "sources",
+        "hurl_tests",
+        "operations",
+        "tags",
+        "source_paths",
+        "next_action"
+      ],
+      "properties": {
+        "style": {
+          "$ref": "#/$defs/api_style"
+        },
+        "label": {
+          "type": "string"
+        },
+        "sources": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hurl_tests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "operations": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "source_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "next_action": {
+          "type": "string"
+        }
+      }
+    },
+    "api_style": {
+      "enum": [
+        "rest_openapi",
+        "graphql",
+        "soap_xml",
+        "grpc_proto",
+        "unknown_http"
+      ]
+    }
+  }
+}

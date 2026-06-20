@@ -78,6 +78,13 @@ from entroping.bridge.test_quality import (
 )
 from entroping.core.agent_bundle import AGENT_REVIEW_BUNDLE_SCHEMA_VERSION
 from entroping.core.agent_manifest import AGENT_RUN_MANIFEST_SCHEMA_VERSION
+from entroping.core.api_inventory import (
+    API_INVENTORY_SCHEMA_VERSION,
+    ApiInventoryPacket,
+    ApiInventorySource,
+    ApiInventoryStyleSummary,
+    ApiInventorySummary,
+)
 from entroping.core.drift_report import (
     DRIFT_BASELINE_SCHEMA_VERSION,
     drift_baseline_to_dict,
@@ -2285,6 +2292,107 @@ def test_observability_packet_v1_schema_contract_is_versioned_and_stable() -> No
     ]
 
 
+def test_api_inventory_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "api-inventory.v1.schema.json").read_text())
+    packet = ApiInventoryPacket(
+        generated_at="2026-06-20T00:00:00+00:00",
+        project="checkout-api",
+        summary=ApiInventorySummary(
+            status="ready",
+            sources_total=1,
+            sources_present=1,
+            sources_missing=0,
+            sources_invalid=0,
+            sources_unsafe=0,
+            styles_total=1,
+            hurl_tests_total=0,
+            operations_total=2,
+        ),
+        sources=(
+            ApiInventorySource(
+                kind="configured_openapi",
+                style="rest_openapi",
+                path="openapi.yaml",
+                state="present",
+                sha256="a" * 64,
+                tags=(),
+                operations=2,
+                summary="2 OpenAPI operations.",
+            ),
+        ),
+        styles=(
+            ApiInventoryStyleSummary(
+                style="rest_openapi",
+                label="REST/OpenAPI",
+                sources=1,
+                hurl_tests=0,
+                operations=2,
+                tags=(),
+                source_paths=("openapi.yaml",),
+                next_action="Use Architect OpenAPI generation and audit reports.",
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert API_INVENTORY_SCHEMA_VERSION == "entroping.api-inventory.v1"
+    assert payload == {
+        "schema_version": "entroping.api-inventory.v1",
+        "generated_at": "2026-06-20T00:00:00+00:00",
+        "project": "checkout-api",
+        "summary": {
+            "status": "ready",
+            "sources_total": 1,
+            "sources_present": 1,
+            "sources_missing": 0,
+            "sources_invalid": 0,
+            "sources_unsafe": 0,
+            "styles_total": 1,
+            "hurl_tests_total": 0,
+            "operations_total": 2,
+        },
+        "sources": [
+            {
+                "kind": "configured_openapi",
+                "style": "rest_openapi",
+                "path": "openapi.yaml",
+                "state": "present",
+                "sha256": "a" * 64,
+                "tags": [],
+                "operations": 2,
+                "summary": "2 OpenAPI operations.",
+            }
+        ],
+        "styles": [
+            {
+                "style": "rest_openapi",
+                "label": "REST/OpenAPI",
+                "sources": 1,
+                "hurl_tests": 0,
+                "operations": 2,
+                "tags": [],
+                "source_paths": ["openapi.yaml"],
+                "next_action": "Use Architect OpenAPI generation and audit reports.",
+            }
+        ],
+    }
+    assert schema["properties"]["schema_version"]["const"] == "entroping.api-inventory.v1"
+    assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["$defs"]["summary"]["properties"]["status"]["enum"] == [
+        "ready",
+        "partial",
+        "insufficient",
+    ]
+    assert schema["$defs"]["api_style"]["enum"] == [
+        "rest_openapi",
+        "graphql",
+        "soap_xml",
+        "grpc_proto",
+        "unknown_http",
+    ]
+
+
 def test_effective_policy_diff_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "effective-policy-diff.v1.schema.json").read_text())
     base = EffectivePolicyReport(
@@ -2577,6 +2685,7 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         "entroping.observability-packet.v1": (
             SCHEMA_DIR / "observability-packet.v1.schema.json"
         ),
+        "entroping.api-inventory.v1": SCHEMA_DIR / "api-inventory.v1.schema.json",
         "entroping.design-partner-feedback.v1": (
             SCHEMA_DIR / "design-partner-feedback.v1.schema.json"
         ),

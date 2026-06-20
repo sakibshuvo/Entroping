@@ -2,6 +2,12 @@
 
 ## 2026-06-20
 
+- Added issue #1032's API surface inventory packet: `report api-inventory` now
+  writes local `entroping.api-inventory.v1` JSON or Markdown that inventories
+  REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, and unknown HTTP signals from
+  configured/conventional OpenAPI files, Hurl protocol tags, and schema files
+  without executing Hurl, calling providers, parsing traffic state, generating
+  tests, or rendering raw file contents.
 - Added issue #1030's observability signal packet: `report
   observability-packet` now writes local `entroping.observability-packet.v1`
   JSON or Markdown that converts structured diagnostics/runtime-card metadata

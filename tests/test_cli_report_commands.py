@@ -29,6 +29,7 @@ from entroping.bridge.redaction_review import (
     render_redaction_review_html,
     render_redaction_review_markdown,
 )
+from entroping.core.api_inventory import ApiInventoryError
 from entroping.core.capture_summary_report import CaptureSummaryResult
 from entroping.core.design_partner_feedback import DesignPartnerFeedbackError
 from entroping.core.evidence_bundle import EvidenceBundleError
@@ -212,6 +213,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "handoff",
         "notification-packet",
         "observability-packet",
+        "api-inventory",
         "pilot-metrics",
         "agent-bundle",
     ):
@@ -787,6 +789,60 @@ def test_report_observability_packet_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "observability packet path is unsafe" in result.output
+
+
+def test_report_api_inventory_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("tests") / "graphql.hurl",
+        "# entroping: tags=graphql\nPOST http://127.0.0.1:18082/graphql\n",
+    )
+
+    result = CliRunner().invoke(app, ["report", "api-inventory"])
+
+    assert result.exit_code == 0
+    assert "Wrote API inventory: reports/api-inventory.md" in result.output
+    markdown = Path("reports/api-inventory.md").read_text(encoding="utf-8")
+    assert "# Entroping API Inventory" in markdown
+    assert "| GraphQL |" in markdown
+
+
+def test_report_api_inventory_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "api-inventory", "--output", "json"])
+
+    assert result.exit_code == 0
+    assert "Wrote API inventory: reports/api-inventory.json" in result.output
+    payload = json.loads(Path("reports/api-inventory.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.api-inventory.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_api_inventory_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["report", "api-inventory", "--output", "html"])
+
+    assert result.exit_code == 2
+    assert "Unsupported api-inventory output" in result.output
+    assert not Path("reports/api-inventory.html").exists()
+
+
+def test_report_api_inventory_wraps_core_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail_api_inventory(*args: object, **kwargs: object) -> object:
+        raise ApiInventoryError("API inventory path is unsafe")
+
+    monkeypatch.setattr(report_cli, "run_api_inventory_report", fail_api_inventory)
+
+    result = CliRunner().invoke(app, ["report", "api-inventory"])
+
+    assert result.exit_code == 1
+    assert "API inventory path is unsafe" in result.output
 
 
 def test_report_bug_generates_markdown_from_latest_failing_run(

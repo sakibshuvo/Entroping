@@ -16,27 +16,25 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1030 Observability Signal Packet
+## Current Issue Slice: #1032 API Surface Inventory Packet
 
-- Add `entroping report observability-packet --output md|json` as an
-  issue-backed additive report command for future OpenTelemetry, Datadog,
-  Splunk, Grafana, and generic observability adapters.
-- Keep the packet local-first and value-free: read only structured diagnostics
-  and runtime-card metadata, then emit source states, schema versions, bounded
-  hashes, diagnostic component/operation/code counts, runtime-card counts,
-  local artifact paths, and next-action text.
-- Treat missing diagnostics/runtime evidence as non-blocking packet state, and
-  mark malformed, oversized, non-file, symlinked, wrong-schema, or secret-like
-  source artifacts invalid or unsafe without leaking contents.
-- Do not execute Hurl, run tests, call providers, upload results, call
-  observability vendor APIs, mutate dashboards or monitors, read traffic state,
-  or render raw URLs, headers, bodies, cookies, prompts, provider outputs,
-  credentials, environment values, source Hurl contents, full report contents,
-  or diagnostic attributes.
+- Add `entroping report api-inventory --output md|json` as an issue-backed
+  additive report command for broad API-style support planning.
+- Keep the packet local-first and value-free: detect configured/conventional
+  OpenAPI files, committed Hurl protocol tags, and GraphQL/WSDL/proto schema
+  files, then summarize REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, and
+  unknown HTTP signals.
+- Treat missing sources as non-blocking packet state, and mark malformed,
+  oversized, non-file, symlinked, path-escaped, or secret-like source artifacts
+  invalid or unsafe without leaking contents.
+- Do not execute Hurl, run tests, call providers, upload results, parse traffic
+  state, call registries, generate tests, mutate source files, or render raw
+  URLs, headers, bodies, cookies, prompts, credentials, environment values, or
+  full file contents.
 - Update schema, CLI compatibility, report docs, progress, and context evidence
   in the same slice so the new command does not live only in implementation.
-- Verification lane: `security-runtime` because the command reads local report
-  artifacts and emits cross-surface observability evidence.
+- Verification lane: `security-runtime` because the command reads local
+  API/test artifacts and emits machine-readable report evidence.
 
 ## Current Baseline
 

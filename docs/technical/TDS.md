@@ -942,6 +942,7 @@ entroping report runtime-card [--output <md|json>]
 entroping report handoff [--output <md|json>] [--fail-on-insufficient]
 entroping report notification-packet [--output <md|json>]
 entroping report observability-packet [--output <md|json>]
+entroping report api-inventory [--output <md|json>]
 entroping report pilot-metrics [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
@@ -1336,6 +1337,20 @@ include raw URLs, headers, bodies, cookies, prompts, provider outputs,
 credentials, environment values, raw report contents, source Hurl contents, or
 full diagnostic attributes.
 
+`entroping report api-inventory` writes a local read-only API surface inventory
+at `reports/api-inventory.md` by default, or `reports/api-inventory.json` with
+`--output json`. It detects configured and conventional OpenAPI files,
+committed Hurl tests with protocol tags, and GraphQL/WSDL/proto schema files,
+then summarizes REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, and unknown HTTP
+signals without generating tests. The packet records only source states,
+project-relative local paths, tags, operation/exchange counts, SHA-256 hashes,
+and next-action text. Missing sources are non-blocking; malformed, oversized,
+non-file, symlinked, path-escaped, or secret-like source artifacts are marked
+invalid or unsafe. The command does not execute Hurl, call providers, upload
+results, parse traffic state, call registries, generate tests, mutate source
+files, or include raw URLs, headers, bodies, cookies, prompts, credentials,
+environment values, or full file contents.
+
 `entroping report sarif` writes SARIF 2.1.0 to `reports/entroping.sarif` by
 default. It converts the same local JUnit, drift, and optional traceability
 findings used by GitHub annotation output into stable SARIF rule IDs, severity,
@@ -1393,6 +1408,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report notification-packet --output json` | `reports/notification-packet.json` | Machine-readable notification packet using `entroping.notification-packet.v1`. |
 | `entroping report observability-packet --output md` | `reports/observability-packet.md` | Human-readable read-only observability signal packet for OpenTelemetry, Datadog, Splunk, Grafana, and generic surfaces. |
 | `entroping report observability-packet --output json` | `reports/observability-packet.json` | Machine-readable observability packet using `entroping.observability-packet.v1`. |
+| `entroping report api-inventory --output md` | `reports/api-inventory.md` | Human-readable read-only API style inventory for REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, and unknown HTTP signals. |
+| `entroping report api-inventory --output json` | `reports/api-inventory.json` | Machine-readable API inventory packet using `entroping.api-inventory.v1`. |
 | `entroping report pilot-metrics --output md` | `reports/pilot-metrics.md` | Human-readable local pilot metric inference from sanitized artifacts, with `unknown` and `manual_input_required` states for metrics Entroping cannot infer locally. |
 | `entroping report pilot-metrics --output json` | `reports/pilot-metrics.json` | Machine-readable local pilot metric inference using `entroping.pilot-metrics.v1`. |
 | `entroping report agent-bundle --output md` | `reports/agent-bundle.md` | Human-readable local multi-agent review bundle from sanitized manifests. |
