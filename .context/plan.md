@@ -16,31 +16,29 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1056 Integration Readiness Packet
+## Current Issue Slice: #1058 Developer Experience Readiness Packet
 
-- Add `entroping report integration-readiness --output md|json` as an
-  issue-backed additive report command for future issue tracker, chat,
-  enterprise automation, cross-surface continuity, observability, and API
-  governance surfaces.
-- Build from existing sanitized local packet artifacts: team access-control
-  plan, notification packet, cross-surface handoff, observability packet, API
-  inventory, and runtime card.
-- Emit a schema-versioned `entroping.integration-readiness.v1` packet with
-  source states, bounded hashes, compact summaries, surface-family readiness,
-  link/event requirements, forbidden actions, blockers, and next actions.
+- Add `entroping report devex-readiness --output md|json` as an issue-backed
+  additive report command for future CLI, VS Code/editor, local workbench, PR
+  runtime card, desktop, cloud, and mobile surfaces.
+- Build from existing sanitized local packet artifacts: runtime card,
+  cross-surface handoff, evidence index, integration readiness, notification
+  packet, and team access-control plan.
+- Emit a schema-versioned `entroping.devex-readiness.v1` packet with source
+  states, bounded hashes, compact summaries, surface-family readiness,
+  link/action requirements, forbidden actions, blockers, and next actions.
 - Keep the packet value-free: no raw report bodies, raw traffic, source Hurl,
   prompts, provider output, credentials, cookies, environment values, webhook
-  URLs, ticket/chat mutation payloads, repo/vault sync content, or full artifact
-  contents.
-- Do not execute Hurl, run tests, call Jira, Linear, monday.com, Slack,
-  Discord, Workato, Claude, Codex, OpenAI, Datadog, Splunk, or other external
-  APIs, upload artifacts, create accounts, configure SSO/RBAC, read provider
-  keys, parse traffic state, mutate tickets/chat, execute chat commands, sync
-  repos/vaults, write back to external systems, or change `entroping run`.
+  URLs, ticket/chat mutation payloads, repo/vault/worktree sync content, or
+  full artifact contents.
+- Do not implement a VS Code extension, desktop app, web app, mobile app,
+  hosted sync, deep links, PR comments, ticket/chat writes, call external APIs,
+  execute Hurl, run tests, call providers or models, sync repos/vaults/worktrees,
+  configure SSO/RBAC, parse traffic state, mutate external systems, or change
+  `entroping run`.
 - Preserve deterministic Hurl/QAnstitution authority: this packet is readiness
-  and planning metadata only and does not make cloud, desktop, mobile, chat,
-  issue tracker, observability, or automation surfaces the source of pass/fail
-  truth.
+  and planning metadata only and does not make editor, workbench, PR, cloud,
+  desktop, or mobile surfaces the source of pass/fail truth.
 - Verification lane: `security-runtime` because the command reads local report
   artifact state and emits machine-readable evidence metadata with path and
   secret-safety boundaries.

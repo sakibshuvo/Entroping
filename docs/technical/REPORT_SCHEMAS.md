@@ -40,6 +40,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Team evidence readiness packet | `entroping.team-evidence-readiness.v1` | `reports/team-evidence-readiness.json` from `entroping report team-evidence-readiness --output json` | [team-evidence-readiness.v1.schema.json](report-schemas/team-evidence-readiness.v1.schema.json) |
 | Team access-control plan packet | `entroping.team-access-control-plan.v1` | `reports/team-access-control-plan.json` from `entroping report team-access-control-plan --output json` | [team-access-control-plan.v1.schema.json](report-schemas/team-access-control-plan.v1.schema.json) |
 | Integration readiness packet | `entroping.integration-readiness.v1` | `reports/integration-readiness.json` from `entroping report integration-readiness --output json` | [integration-readiness.v1.schema.json](report-schemas/integration-readiness.v1.schema.json) |
+| Developer experience readiness packet | `entroping.devex-readiness.v1` | `reports/devex-readiness.json` from `entroping report devex-readiness --output json` | [devex-readiness.v1.schema.json](report-schemas/devex-readiness.v1.schema.json) |
 | Observability packet | `entroping.observability-packet.v1` | `reports/observability-packet.json` from `entroping report observability-packet --output json` | [observability-packet.v1.schema.json](report-schemas/observability-packet.v1.schema.json) |
 | API inventory packet | `entroping.api-inventory.v1` | `reports/api-inventory.json` from `entroping report api-inventory --output json` | [api-inventory.v1.schema.json](report-schemas/api-inventory.v1.schema.json) |
 | Mutation readiness packet | `entroping.mutation-readiness.v1` | `reports/mutation-readiness.json` from `entroping report mutation-readiness --output json` | [mutation-readiness.v1.schema.json](report-schemas/mutation-readiness.v1.schema.json) |
@@ -580,6 +581,33 @@ chat, execute chat commands, read provider keys, parse traffic state, sync repos
 or vaults, or include raw URLs, headers, bodies, cookies, prompts, provider
 outputs, credentials, environment values, webhook URLs, ticket mutation payloads,
 source Hurl contents, raw report contents, or full report contents.
+
+The developer experience readiness packet is written by:
+
+```bash
+entroping report devex-readiness
+entroping report devex-readiness --output json
+```
+
+It writes `reports/devex-readiness.md` by default or
+`reports/devex-readiness.json` with schema `entroping.devex-readiness.v1` when
+`--output json` is selected. The packet turns existing sanitized runtime-card,
+handoff, evidence-index, integration-readiness, notification-packet, and
+team-access-control-plan artifacts into value-free readiness rows for CLI,
+VS Code/editor, local workbench, PR runtime card, desktop, cloud, and mobile
+surfaces. It records source states, schema versions, bounded SHA-256 hashes,
+local artifact paths, surface IDs, link/action requirements, forbidden
+actions, blockers, and next-action rows. Missing source artifacts are
+non-blocking and become partial or insufficient packet state; malformed,
+oversized, non-file, symlinked, wrong-schema, or secret-like source artifacts
+are marked invalid or unsafe. The command does not implement a VS Code
+extension, desktop app, web app, mobile app, hosted sync, deep links, PR
+comments, ticket/chat writes, external API calls, Hurl execution, test
+execution, provider/model calls, repo/vault/worktree synchronization, traffic
+parsing, SSO/RBAC, or mutation of any external system, and it does not include
+raw URLs, headers, bodies, cookies, prompts, provider outputs, credentials,
+environment values, webhook URLs, ticket mutation payloads, source Hurl
+contents, raw report contents, or full report contents.
 
 The observability packet is written by:
 

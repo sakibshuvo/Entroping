@@ -2,6 +2,18 @@
 
 ## 2026-06-20
 
+- Added issue #1058's developer experience readiness packet: `report
+  devex-readiness` now writes local `entroping.devex-readiness.v1` JSON or
+  Markdown that turns sanitized runtime-card, handoff, evidence-index,
+  integration-readiness, notification-packet, and team-access-control-plan
+  artifacts into source states, surface-family readiness, link/action
+  requirements, forbidden actions, blockers, and next actions for CLI,
+  VS Code/editor, local workbench, PR runtime card, desktop, cloud, and mobile
+  surfaces without implementing apps/extensions, calling external APIs,
+  executing Hurl, running tests, calling providers/models, syncing
+  repos/vaults/worktrees, parsing traffic state, mutating external systems, or
+  rendering raw report/source contents, prompts, credentials, cookies,
+  environment values, webhook URLs, ticket payloads, or provider outputs.
 - Added issue #1056's integration readiness packet: `report
   integration-readiness` now writes local `entroping.integration-readiness.v1`
   JSON or Markdown that turns sanitized team-access-control-plan,

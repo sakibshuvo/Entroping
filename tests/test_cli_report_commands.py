@@ -32,6 +32,7 @@ from entroping.bridge.redaction_review import (
 from entroping.core.api_inventory import ApiInventoryError
 from entroping.core.capture_summary_report import CaptureSummaryResult
 from entroping.core.design_partner_feedback import DesignPartnerFeedbackError
+from entroping.core.devex_readiness import DevexReadinessError
 from entroping.core.evidence_bundle import EvidenceBundleError
 from entroping.core.evidence_index_report import EvidenceIndexError
 from entroping.core.handoff_packet import HandoffError
@@ -227,6 +228,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "handoff",
         "notification-packet",
         "integration-readiness",
+        "devex-readiness",
         "team-access-control-plan",
         "team-evidence-readiness",
         "observability-packet",
@@ -980,6 +982,75 @@ def test_report_integration_readiness_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "integration readiness path is unsafe" in result.output
+
+
+def test_report_devex_readiness_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("reports") / "runtime-card.json",
+        """
+{
+  "schema_version": "entroping.runtime-card.v1",
+  "project": "checkout-api",
+  "summary": {
+    "status": "pass",
+    "findings": 0
+  }
+}
+""",
+    )
+
+    result = CliRunner().invoke(app, ["report", "devex-readiness"])
+
+    assert result.exit_code == 0
+    assert "Wrote developer experience readiness: reports/devex-readiness.md" in result.output
+    markdown = Path("reports/devex-readiness.md").read_text(encoding="utf-8")
+    assert "# Entroping Developer Experience Readiness" in markdown
+    assert "| cli |" in markdown
+
+
+def test_report_devex_readiness_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "devex-readiness", "--output", "json"])
+
+    assert result.exit_code == 0
+    assert "Wrote developer experience readiness: reports/devex-readiness.json" in result.output
+    payload = json.loads(Path("reports/devex-readiness.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.devex-readiness.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_devex_readiness_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["report", "devex-readiness", "--output", "html"])
+
+    assert result.exit_code == 2
+    assert "Unsupported devex-readiness output" in result.output
+    assert not Path("reports/devex-readiness.html").exists()
+
+
+def test_report_devex_readiness_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_devex_readiness(*args: object, **kwargs: object) -> object:
+        raise DevexReadinessError("developer experience readiness path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_devex_readiness_report",
+        fail_devex_readiness,
+    )
+
+    result = CliRunner().invoke(app, ["report", "devex-readiness"])
+
+    assert result.exit_code == 1
+    assert "developer experience readiness path is unsafe" in result.output
 
 
 def test_report_observability_packet_writes_markdown(

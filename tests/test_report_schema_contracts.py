@@ -85,6 +85,14 @@ from entroping.core.api_inventory import (
     ApiInventoryStyleSummary,
     ApiInventorySummary,
 )
+from entroping.core.devex_readiness import (
+    DEVEX_READINESS_SCHEMA_VERSION,
+    DevexReadinessFamily,
+    DevexReadinessNextAction,
+    DevexReadinessPacket,
+    DevexReadinessSource,
+    DevexReadinessSummary,
+)
 from entroping.core.drift_report import (
     DRIFT_BASELINE_SCHEMA_VERSION,
     drift_baseline_to_dict,
@@ -2488,6 +2496,115 @@ def test_team_access_control_plan_v1_schema_contract_is_versioned_and_stable() -
     ]
 
 
+def test_devex_readiness_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "devex-readiness.v1.schema.json").read_text())
+    packet = DevexReadinessPacket(
+        generated_at="2026-06-20T00:00:00+00:00",
+        project="checkout-api",
+        summary=DevexReadinessSummary(
+            status="ready",
+            sources_total=1,
+            sources_present=1,
+            sources_missing=0,
+            sources_invalid=0,
+            sources_unsafe=0,
+            families_total=1,
+            families_ready=1,
+            families_attention=0,
+            families_blocked=0,
+            blockers_total=0,
+            next_actions_total=1,
+        ),
+        sources=(
+            DevexReadinessSource(
+                id="runtime_card",
+                label="Runtime card",
+                path="reports/runtime-card.json",
+                state="present",
+                schema_version="entroping.runtime-card.v1",
+                sha256="a" * 64,
+                summary="pass; 0 findings",
+            ),
+        ),
+        families=(
+            DevexReadinessFamily(
+                id="editor",
+                label="Editor",
+                status="ready",
+                surface_ids=("vscode", "editor"),
+                required_source_ids=("runtime_card", "evidence_index"),
+                present_source_ids=("runtime_card",),
+                missing_source_ids=("evidence_index",),
+                blockers=(),
+                link_requirements=("artifact_id", "source_sha256"),
+                action_requirements=("actor_role", "explicit_user_action"),
+                forbidden_actions=("execute_hurl", "implement_app_surface"),
+                next_action="Expose value-free run status and problem-matchable evidence.",
+            ),
+        ),
+        next_actions=(
+            DevexReadinessNextAction(
+                priority="medium",
+                action="Generate evidence-index evidence before editor surfaces.",
+                source_ids=("evidence_index",),
+                family_ids=("editor",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert DEVEX_READINESS_SCHEMA_VERSION == "entroping.devex-readiness.v1"
+    assert payload["schema_version"] == "entroping.devex-readiness.v1"
+    assert payload["families"][0]["surface_ids"] == ["vscode", "editor"]
+    assert payload["families"][0]["forbidden_actions"] == [
+        "execute_hurl",
+        "implement_app_surface",
+    ]
+    assert schema["properties"]["schema_version"]["const"] == "entroping.devex-readiness.v1"
+    assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["$defs"]["source_id"]["enum"] == [
+        "runtime_card",
+        "handoff",
+        "evidence_index",
+        "integration_readiness",
+        "notification_packet",
+        "team_access_control_plan",
+    ]
+    assert schema["$defs"]["family_id"]["enum"] == [
+        "cli",
+        "editor",
+        "local_workbench",
+        "pr_runtime_card",
+        "desktop",
+        "cloud",
+        "mobile",
+    ]
+    assert schema["$defs"]["surface_id"]["enum"] == [
+        "cli",
+        "vscode",
+        "editor",
+        "local_workbench",
+        "pr_runtime_card",
+        "desktop",
+        "cloud",
+        "mobile",
+    ]
+    assert schema["$defs"]["forbidden_action"]["enum"] == [
+        "execute_hurl",
+        "run_tests",
+        "call_external_api",
+        "invoke_model_provider",
+        "upload_artifacts",
+        "mutate_external_system",
+        "read_provider_keys",
+        "override_hurl_qanstitution_result",
+        "sync_raw_repo_or_vault",
+        "render_raw_artifact_contents",
+        "implement_app_surface",
+    ]
+
+
 def test_integration_readiness_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "integration-readiness.v1.schema.json").read_text())
     packet = IntegrationReadinessPacket(
@@ -4151,6 +4268,7 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         "entroping.team-access-control-plan.v1": (
             SCHEMA_DIR / "team-access-control-plan.v1.schema.json"
         ),
+        "entroping.devex-readiness.v1": (SCHEMA_DIR / "devex-readiness.v1.schema.json"),
         "entroping.integration-readiness.v1": (
             SCHEMA_DIR / "integration-readiness.v1.schema.json"
         ),
