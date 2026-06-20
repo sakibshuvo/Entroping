@@ -14,15 +14,18 @@ from entroping.bridge.capture_summary import CAPTURE_SUMMARY_SCHEMA_VERSION
 from entroping.core.agent_bundle import AGENT_REVIEW_BUNDLE_SCHEMA_VERSION
 from entroping.core.drift_report import DRIFT_REPORT_SCHEMA_VERSION
 from entroping.core.evidence_bundle import EVIDENCE_BUNDLE_SCHEMA_VERSION
+from entroping.core.evidence_common import (
+    LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES,
+    contains_unredacted_evidence_secret,
+    safe_evidence_text,
+)
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.report_artifact_manifest import REPORT_ARTIFACT_MANIFEST_SCHEMA_VERSION
 from entroping.core.report_serialization import RUN_REPORT_SCHEMA_VERSION
 from entroping.core.safe_write import SafeWriteError, safe_write_text
-from entroping.models.secrets import contains_secret_like_value, redact_secret_like_values
 
 RUNTIME_CARD_SCHEMA_VERSION: Final = "entroping.runtime-card.v1"
-_MAX_RUNTIME_CARD_ARTIFACT_BYTES: Final = 100 * 1024 * 1024
-_ASCII_CONTROL_CHAR_TRANSLATION: Final = {code: " " for code in range(32)}
+_MAX_RUNTIME_CARD_ARTIFACT_BYTES: Final = LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES
 
 RuntimeCardOutput = Literal["md", "json"]
 RuntimeCardStatus = Literal["pass", "attention", "fail"]
@@ -983,14 +986,11 @@ def _finding(
 
 
 def _safe_text(value: str) -> str:
-    sanitized = redact_secret_like_values(value).translate(_ASCII_CONTROL_CHAR_TRANSLATION)
-    return " ".join(sanitized.split())
+    return safe_evidence_text(value)
 
 
 def _contains_unredacted_secret_like_value(value: str) -> bool:
-    # Markdown inline-code fences can trail an already-redacted marker.
-    normalized = value.replace("[REDACTED]`", "[REDACTED]")
-    return contains_secret_like_value(normalized)
+    return contains_unredacted_evidence_secret(value)
 
 
 def _inline_code(value: str) -> str:
