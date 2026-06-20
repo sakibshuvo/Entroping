@@ -4,6 +4,7 @@ import importlib
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from importlib import metadata as importlib_metadata
 from pathlib import Path
 from typing import Literal, Protocol, cast
 from urllib.parse import urlsplit
@@ -48,7 +49,11 @@ class _DumpMasterLike(Protocol):
 _OptionsFactory = Callable[..., object]
 _DumpMasterFactory = Callable[..., object]
 _ImportModule = Callable[[str], object]
+_PackageVersion = Callable[[str], str]
 _HeaderItems = Callable[..., Iterable[tuple[object, object]]]
+_MIN_SAFE_MSGPACK_VERSION = (1, 2, 1)
+_MIN_SAFE_MSGPACK_SPEC = "msgpack>=1.2.1"
+_MSGPACK_ADVISORY_ID = "GHSA-6v7p-g79w-8964"
 
 
 @dataclass(frozen=True, slots=True)
@@ -202,6 +207,7 @@ class TrafficCaptureAddon:
 def load_mitmproxy_runtime(
     *,
     import_module: _ImportModule = importlib.import_module,
+    package_version: _PackageVersion = importlib_metadata.version,
 ) -> MitmproxyRuntime:
     """Load mitmproxy lazily so default installs can show an actionable error."""
 
@@ -224,10 +230,35 @@ def load_mitmproxy_runtime(
         msg = "mitmproxy runtime is missing Options or DumpMaster"
         raise MitmproxyUnavailableError(msg)
 
+    _validate_safe_msgpack_runtime(package_version)
+
     return MitmproxyRuntime(
         options_factory=cast(_OptionsFactory, options_factory),
         dump_master_factory=cast(_DumpMasterFactory, dump_master_factory),
     )
+
+
+def _validate_safe_msgpack_runtime(package_version: _PackageVersion) -> None:
+    try:
+        current_version = package_version("msgpack")
+    except importlib_metadata.PackageNotFoundError as exc:
+        msg = "mitmproxy runtime is missing msgpack; install the reviewed proxy extra."
+        raise MitmproxyUnavailableError(msg) from exc
+
+    if _version_tuple(current_version) < _MIN_SAFE_MSGPACK_VERSION:
+        msg = (
+            "mitmproxy runtime uses vulnerable msgpack "
+            f"{current_version}; {_MSGPACK_ADVISORY_ID} requires {_MIN_SAFE_MSGPACK_SPEC}."
+        )
+        raise MitmproxyUnavailableError(msg)
+
+
+def _version_tuple(version: str) -> tuple[int, int, int]:
+    release = version.split("+", maxsplit=1)[0].split("-", maxsplit=1)[0]
+    parts = release.split(".")
+    if len(parts) < 3 or not all(part.isdigit() for part in parts[:3]):
+        return (0, 0, 0)
+    return (int(parts[0]), int(parts[1]), int(parts[2]))
 
 
 async def run_watch(

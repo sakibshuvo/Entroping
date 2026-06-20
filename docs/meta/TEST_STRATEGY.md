@@ -250,6 +250,9 @@ uv run python scripts/optional_extras_smoke.py
 
 That optional-extras smoke also runs on Python 3.12 and 3.13 so optional
 dependency compatibility is part of the supported-version proof.
+Proxy-stack security overrides in `pyproject.toml` must stay covered by this
+lane and by the all-extras dependency audit so upstream transitive caps cannot
+silently pin vulnerable runtime packages.
 
 The `docs-site` job builds the public documentation with MkDocs strict mode on
 pull requests and pushes to `main`:

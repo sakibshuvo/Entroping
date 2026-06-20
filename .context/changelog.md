@@ -2,6 +2,12 @@
 
 ## 2026-06-20
 
+- Fixed issue #988's proxy dependency audit blocker: the `proxy` optional extra
+  still installs and smokes mitmproxy, while `pyproject.toml` and `uv.lock`
+  override mitmproxy's transitive `msgpack` cap to the patched `>=1.2.1` line.
+  `core.traffic_proxy` also rejects vulnerable installed `msgpack` runtimes
+  before capture starts, so bypassed local environments fail closed instead of
+  recording traffic with a known vulnerable package.
 - Added issue #989's persistent Codex marathon prompt:
   `docs/meta/prompt-library/codex-persistent-marathon.md` now gives a single
   Codex integrator session explicit repeat-loop, CI-wait, merge, finish-cleanup,
