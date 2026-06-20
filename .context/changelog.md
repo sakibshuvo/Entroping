@@ -2,6 +2,10 @@
 
 ## 2026-06-20
 
+- Fixed issue #1001's OpenAPI unsafe-enum regression: schema enum selection
+  now skips strings containing control characters or Hurl template delimiters
+  before request examples or response assertions can render them into generated
+  Hurl.
 - Fixed issue #999's OpenAPI enum regression: schema enum selection now skips
   non-finite float values before request examples, response assertions, or
   negative cases can render JSON.

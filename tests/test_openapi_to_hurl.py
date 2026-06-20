@@ -1025,6 +1025,123 @@ def test_compile_openapi_falls_back_when_enums_have_no_finite_values() -> None:
     assert 'jsonpath "$.status" ==' not in result.files[0].content
 
 
+def test_compile_openapi_skips_unsafe_enum_strings_before_rendering() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/modes": {
+                "post": {
+                    "operationId": "createMode",
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["mode"],
+                                    "properties": {
+                                        "mode": {
+                                            "type": "string",
+                                            "enum": ["{{unsafe_token}}", "safe-mode"],
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "responses": {
+                        "201": {
+                            "description": "created",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "required": ["status"],
+                                        "properties": {
+                                            "status": {
+                                                "type": "string",
+                                                "enum": ["bad\nvalue", "accepted"],
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset())
+
+    content = result.files[0].content
+    assert "{{unsafe_token}}" not in content
+    assert "bad\nvalue" not in content
+    assert "bad\\nvalue" not in content
+    assert '"mode": "safe-mode"' in content
+    assert 'jsonpath "$.status" == "accepted"' in content
+
+
+def test_compile_openapi_falls_back_when_enum_strings_are_all_unsafe() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/modes": {
+                "post": {
+                    "operationId": "createMode",
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["mode"],
+                                    "properties": {
+                                        "mode": {
+                                            "type": "string",
+                                            "enum": ["{{unsafe_token}}", "bad\nvalue"],
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "responses": {
+                        "201": {
+                            "description": "created",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "required": ["status"],
+                                        "properties": {
+                                            "status": {
+                                                "type": "string",
+                                                "enum": ["bad\nvalue", "{{unsafe_token}}"],
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset())
+
+    content = result.files[0].content
+    assert "{{unsafe_token}}" not in content
+    assert "bad\nvalue" not in content
+    assert "bad\\nvalue" not in content
+    assert '"mode": "string"' in content
+    assert 'jsonpath "$.status" exists' in content
+    assert 'jsonpath "$.status" ==' not in content
+
+
 def test_compile_openapi_idor_variants_preserve_scalar_path_types() -> None:
     missing_example = object()
 

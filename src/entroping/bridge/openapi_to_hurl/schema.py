@@ -30,7 +30,11 @@ def _first_enum_value(schema: Mapping[str, object]) -> object | None:
     for value in raw_enum:
         if isinstance(value, float) and not math.isfinite(value):
             continue
-        if isinstance(value, str | int | float | bool):
+        if isinstance(value, str):
+            if _has_control(value) or _has_hurl_template_delimiter(value):
+                continue
+            return value
+        if isinstance(value, int | float | bool):
             return value
     return None
 
