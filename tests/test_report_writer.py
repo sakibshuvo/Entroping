@@ -1,5 +1,6 @@
 """Unit and adapter tests for deterministic run report writers."""
 
+import ast
 import json
 from collections.abc import Mapping
 from pathlib import Path
@@ -1942,6 +1943,59 @@ def test_build_run_report_displays_absolute_paths_outside_project_root(tmp_path:
 
     assert report.tests[0].path == str(outside_source.resolve())
     assert report.tests[0].execution_path == str(outside_execution.resolve())
+
+
+def test_junit_elementtree_nosec_documents_construction_only() -> None:
+    source = Path(report_rendering.__file__).read_text(encoding="utf-8")
+    lines = source.splitlines()
+    import_index, import_line = next(
+        (index, line)
+        for index, line in enumerate(lines)
+        if "from xml.etree import ElementTree" in line
+    )
+    rationale_line = lines[import_index - 1]
+
+    assert import_line == "from xml.etree import ElementTree  # nosec B405"
+    assert "constructs JUnit XML" in rationale_line
+    assert "no external XML parsing" in rationale_line
+    parsed = ast.parse(source)
+    forbidden_parser_calls = {"XML", "XMLParser", "fromstring", "iterparse", "parse"}
+    element_tree_names = {"ElementTree"}
+    direct_parser_names: set[str] = set()
+    for node in ast.walk(parsed):
+        if not isinstance(node, ast.ImportFrom):
+            continue
+        if node.module == "xml.etree":
+            element_tree_names.update(
+                alias.asname or alias.name for alias in node.names if alias.name == "ElementTree"
+            )
+        if node.module == "xml.etree.ElementTree":
+            direct_parser_names.update(
+                alias.asname or alias.name
+                for alias in node.names
+                if alias.name in forbidden_parser_calls
+            )
+
+    def dotted_name(node: ast.AST) -> str | None:
+        if isinstance(node, ast.Name):
+            return node.id
+        if isinstance(node, ast.Attribute):
+            parent = dotted_name(node.value)
+            return f"{parent}.{node.attr}" if parent is not None else None
+        return None
+
+    used_parser_calls: set[str] = set()
+    for node in ast.walk(parsed):
+        if not isinstance(node, ast.Call):
+            continue
+        call_name = dotted_name(node.func)
+        if call_name in direct_parser_names:
+            used_parser_calls.add(call_name)
+            continue
+        owner, _, function_name = (call_name or "").rpartition(".")
+        if owner in element_tree_names and function_name in forbidden_parser_calls:
+            used_parser_calls.add(call_name or function_name)
+    assert used_parser_calls == set()
 
 
 def test_write_junit_report_is_valid_ci_consumable_xml(tmp_path: Path) -> None:

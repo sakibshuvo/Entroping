@@ -5,6 +5,8 @@ from html import escape
 from io import BytesIO
 from pathlib import Path
 from typing import cast
+
+# B405 rationale: constructs JUnit XML from internal models; no external XML parsing.
 from xml.etree import ElementTree  # nosec B405
 
 from entroping.models.report import (
