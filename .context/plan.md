@@ -16,23 +16,18 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #978 Test-Pyramid Evidence Summary
+## Current Issue Slice: #989 Persistent Codex Marathon Prompt
 
-- Add `entroping report test-pyramid --output md|json` so maintainers can see
-  whether local report artifacts cover code coverage, runtime API proof, policy
-  governance, drift/contract, static/security, and generated-test quality
-  layers.
-- Highlight missing, invalid, or unsafe runtime-governance proof for run JSON,
-  JUnit XML, and gate-coverage JSON without treating optional non-runtime
-  evidence as a hard blocker.
-- Write Markdown by default and machine-readable JSON with schema
-  `entroping.test-pyramid-report.v1` when `--output json` is selected.
-- Preserve the report boundary: this command reads existing sanitized local
-  artifacts only and does not execute Hurl or pytest, call providers, upload
-  artifacts, parse source Hurl, render raw artifact contents, or expose raw
-  traffic, prompts, env values, stdout/stderr, or source coverage file names.
-- Verification lane: `security-runtime` because the change touches local report
-  evidence, schema, path-safety, and CLI compatibility surfaces.
+- Add a tracked prompt-library launcher for one Codex integrator session that
+  must keep repeating the issue-worktree-PR-CI-merge-finish conveyor instead of
+  stopping after one issue or a safe checkpoint.
+- Make the prompt require current repo/GitHub refresh, CI waiting, merge-only
+  green behavior, finish cleanup, file/worktree ownership checks, and explicit
+  stop conditions.
+- Route the prompt from the prompt catalog, selection matrix, quick rules, and
+  usage guidance so future Codex sessions can find it without chat memory.
+- Verification lane: `docs-guardrail` because this changes prompt-library
+  workflow guidance and its guard tests.
 
 ## Current Baseline
 

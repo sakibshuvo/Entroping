@@ -1,5 +1,14 @@
 # Entroping Changelog
 
+## 2026-06-20
+
+- Added issue #989's persistent Codex marathon prompt:
+  `docs/meta/prompt-library/codex-persistent-marathon.md` now gives a single
+  Codex integrator session explicit repeat-loop, CI-wait, merge, finish-cleanup,
+  stop-condition, ownership, and safe-checkpoint instructions so future Codex
+  marathons do not stop after one issue or one safe checkpoint unless a verified
+  stop condition applies.
+
 ## 2026-06-19
 
 - Added issue #978's local test-pyramid evidence report:
