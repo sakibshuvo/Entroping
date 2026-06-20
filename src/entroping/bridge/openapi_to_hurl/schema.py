@@ -23,11 +23,13 @@ _MAX_OPENAPI_JSON_NODES = 10_000
 _MAX_OPENAPI_GENERATED_STRING_LENGTH = 4096
 
 
-def _first_enum_value(schema: Mapping[str, object]) -> object | None:
+def _first_enum_value(schema: Mapping[str, object]) -> object:
     raw_enum = schema.get("enum")
     if not isinstance(raw_enum, Sequence) or isinstance(raw_enum, str | bytes):
-        return None
+        return _MISSING
     for value in raw_enum:
+        if value is None:
+            return None
         if isinstance(value, float) and not math.isfinite(value):
             continue
         if isinstance(value, str):
@@ -36,7 +38,7 @@ def _first_enum_value(schema: Mapping[str, object]) -> object | None:
             return value
         if isinstance(value, int | float | bool):
             return value
-    return None
+    return _MISSING
 
 
 def _example_for_schema(
@@ -141,7 +143,7 @@ def _schema_preferred_value(
         )
 
     enum_value = _first_enum_value(schema)
-    if enum_value is not None:
+    if enum_value is not _MISSING:
         return enum_value
     return _MISSING
 
