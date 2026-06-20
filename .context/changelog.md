@@ -2,6 +2,10 @@
 
 ## 2026-06-20
 
+- Fixed issue #1004's OpenAPI literal-string rendering regression: explicit
+  schema example/default/const strings now fail closed when they exceed the
+  generated-string cap, and oversized enum string candidates are skipped before
+  generated Hurl rendering.
 - Fixed issue #1006's OpenAPI response-schema validation regression:
   response assertions now distinguish missing required property schemas from
   present malformed schemas, so `null` property schemas fail instead of being

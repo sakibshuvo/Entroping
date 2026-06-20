@@ -21,6 +21,7 @@ _MAX_OPENAPI_SCHEMA_NODES = 10_000
 _MAX_OPENAPI_JSON_DEPTH = 64
 _MAX_OPENAPI_JSON_NODES = 10_000
 _MAX_OPENAPI_GENERATED_STRING_LENGTH = 4096
+_DEFAULT_STRING_EXAMPLE = "string"
 
 
 def _first_enum_value(schema: Mapping[str, object]) -> object:
@@ -33,7 +34,7 @@ def _first_enum_value(schema: Mapping[str, object]) -> object:
         if isinstance(value, float) and not math.isfinite(value):
             continue
         if isinstance(value, str):
-            if _has_control(value) or _has_hurl_template_delimiter(value):
+            if not _is_safe_schema_literal_string(value):
                 continue
             return value
         if isinstance(value, int | float | bool):
@@ -94,10 +95,10 @@ def _example_for_schema(
             isinstance(max_length, int)
             and not isinstance(max_length, bool)
             and max_length >= 0
-            and max_length < len("string")
+            and max_length < len(_DEFAULT_STRING_EXAMPLE)
         ):
             return _generated_string(max_length, context="OpenAPI string schema example")
-    return "string"
+    return _DEFAULT_STRING_EXAMPLE
 
 
 def _schema_preferred_value(
@@ -195,13 +196,7 @@ def _ensure_json_value(
     if value is None:
         return value
     if isinstance(value, str):
-        if _has_control(value):
-            msg = f"{context} contains control characters"
-            raise OpenApiCompilationError(msg)
-        if _has_hurl_template_delimiter(value):
-            msg = f"{context} contains Hurl template delimiters"
-            raise OpenApiCompilationError(msg)
-        return value
+        return _ensure_schema_literal_string(value, context=context)
     if isinstance(value, float) and not math.isfinite(value):
         msg = f"{context} must be finite"
         raise OpenApiCompilationError(msg)
@@ -232,6 +227,27 @@ def _generated_string(length: int, *, context: str) -> str:
         msg = f"{context} string length exceeds {_MAX_OPENAPI_GENERATED_STRING_LENGTH}"
         raise OpenApiCompilationError(msg)
     return "x" * length
+
+
+def _ensure_schema_literal_string(value: str, *, context: str) -> str:
+    if _has_control(value):
+        msg = f"{context} contains control characters"
+        raise OpenApiCompilationError(msg)
+    if _has_hurl_template_delimiter(value):
+        msg = f"{context} contains Hurl template delimiters"
+        raise OpenApiCompilationError(msg)
+    if len(value) > _MAX_OPENAPI_GENERATED_STRING_LENGTH:
+        msg = f"{context} string length exceeds {_MAX_OPENAPI_GENERATED_STRING_LENGTH}"
+        raise OpenApiCompilationError(msg)
+    return value
+
+
+def _is_safe_schema_literal_string(value: str) -> bool:
+    return (
+        len(value) <= _MAX_OPENAPI_GENERATED_STRING_LENGTH
+        and not _has_control(value)
+        and not _has_hurl_template_delimiter(value)
+    )
 
 
 def _check_openapi_schema_budget(

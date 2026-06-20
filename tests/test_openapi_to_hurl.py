@@ -74,6 +74,10 @@ def _deep_json_value(depth: int) -> dict[str, object]:
     return value
 
 
+def _oversized_openapi_string() -> str:
+    return "x" * (openapi_compiler._MAX_OPENAPI_GENERATED_STRING_LENGTH + 1)  # noqa: SLF001
+
+
 def test_compile_openapi_generates_deterministic_hurl_files() -> None:
     document: dict[str, object] = {
         "openapi": "3.1.0",
@@ -1137,6 +1141,115 @@ def test_compile_openapi_falls_back_when_enum_strings_are_all_unsafe() -> None:
     assert "{{unsafe_token}}" not in content
     assert "bad\nvalue" not in content
     assert "bad\\nvalue" not in content
+    assert '"mode": "string"' in content
+    assert 'jsonpath "$.status" exists' in content
+    assert 'jsonpath "$.status" ==' not in content
+
+
+def test_compile_openapi_skips_oversized_enum_strings_before_rendering() -> None:
+    oversized = _oversized_openapi_string()
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/modes": {
+                "post": {
+                    "operationId": "createMode",
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["mode"],
+                                    "properties": {
+                                        "mode": {
+                                            "type": "string",
+                                            "enum": [oversized, "safe-mode"],
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "responses": {
+                        "201": {
+                            "description": "created",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "required": ["status"],
+                                        "properties": {
+                                            "status": {
+                                                "type": "string",
+                                                "enum": [oversized, "accepted"],
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset())
+
+    content = result.files[0].content
+    assert oversized not in content
+    assert '"mode": "safe-mode"' in content
+    assert 'jsonpath "$.status" == "accepted"' in content
+
+
+def test_compile_openapi_falls_back_when_enum_strings_are_all_oversized() -> None:
+    oversized = _oversized_openapi_string()
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/modes": {
+                "post": {
+                    "operationId": "createMode",
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["mode"],
+                                    "properties": {
+                                        "mode": {"type": "string", "enum": [oversized]},
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "responses": {
+                        "201": {
+                            "description": "created",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "required": ["status"],
+                                        "properties": {
+                                            "status": {"type": "string", "enum": [oversized]},
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset())
+
+    content = result.files[0].content
+    assert oversized not in content
     assert '"mode": "string"' in content
     assert 'jsonpath "$.status" exists' in content
     assert 'jsonpath "$.status" ==' not in content
@@ -2776,6 +2889,43 @@ def test_compile_openapi_rejects_unbounded_boundary_string_generation() -> None:
 
     with pytest.raises(OpenApiCompilationError, match="string length exceeds"):
         _compile_single_operation(operation, path="/huge-boundary", method="post")
+
+
+@pytest.mark.parametrize(
+    ("literal_name", "literal_value"),
+    (
+        ("example", _oversized_openapi_string()),
+        ("default", _oversized_openapi_string()),
+        ("const", _oversized_openapi_string()),
+    ),
+)
+def test_compile_openapi_rejects_oversized_schema_literal_strings(
+    literal_name: str,
+    literal_value: str,
+) -> None:
+    operation: dict[str, object] = {
+        "operationId": "createHugeLiteral",
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                literal_name: literal_value,
+                            },
+                        },
+                    },
+                },
+            },
+        },
+        "responses": {"201": {"description": "created"}},
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="string length exceeds"):
+        _compile_single_operation(operation, path="/huge-literal", method="post")
 
 
 def test_compile_openapi_rejects_excessively_deep_schema_examples() -> None:
