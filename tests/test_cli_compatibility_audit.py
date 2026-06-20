@@ -269,6 +269,11 @@ LOCKED_CLI_CONTRACTS = (
         ("--output",),
     ),
     CliContract(
+        "entroping report qa-brain-routing-plan [--output <md|json>]",
+        ("report", "qa-brain-routing-plan", "--help"),
+        ("--output",),
+    ),
+    CliContract(
         "entroping report pilot-metrics [--output <md|json>]",
         ("report", "pilot-metrics", "--help"),
         ("--output",),
@@ -383,6 +388,8 @@ REPORT_ARTIFACTS = (
     "reports/qa-brain-fine-tune-readiness.json",
     "reports/qa-brain-model-packaging-plan.md",
     "reports/qa-brain-model-packaging-plan.json",
+    "reports/qa-brain-routing-plan.md",
+    "reports/qa-brain-routing-plan.json",
     "reports/pilot-metrics.md",
     "reports/pilot-metrics.json",
     "reports/agent-bundle.md",

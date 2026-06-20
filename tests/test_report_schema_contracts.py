@@ -181,6 +181,13 @@ from entroping.core.qa_brain_retrieval_plan import (
     QaBrainRetrievalPlanRow,
     QaBrainRetrievalPlanSummary,
 )
+from entroping.core.qa_brain_routing_plan import (
+    QA_BRAIN_ROUTING_PLAN_SCHEMA_VERSION,
+    QaBrainRoutingPlanNextAction,
+    QaBrainRoutingPlanPacket,
+    QaBrainRoutingPlanRow,
+    QaBrainRoutingPlanSummary,
+)
 from entroping.core.qa_brain_seed import (
     QA_BRAIN_SEED_SCHEMA_VERSION,
     QaBrainEvalSlice,
@@ -3317,6 +3324,129 @@ def test_qa_brain_model_packaging_plan_v1_schema_contract_is_versioned_and_stabl
     ]
 
 
+def test_qa_brain_routing_plan_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads(
+        (SCHEMA_DIR / "qa-brain-routing-plan.v1.schema.json").read_text()
+    )
+    packet = QaBrainRoutingPlanPacket(
+        generated_at="2026-06-20T00:00:00+00:00",
+        project="checkout-api",
+        model_packaging_plan_schema_version=(
+            "entroping.qa-brain-model-packaging-plan.v1"
+        ),
+        summary=QaBrainRoutingPlanSummary(
+            status="partial",
+            routes_total=1,
+            routes_ready=0,
+            routes_missing=0,
+            routes_attention=1,
+            blockers_total=1,
+            next_actions_total=1,
+        ),
+        routing_plans=(
+            QaBrainRoutingPlanRow(
+                case_id="weak_test_detection",
+                label="Weak-test detection",
+                readiness="attention",
+                packaging_stage="needs_boundary_repair",
+                source_ids=("test-quality-json",),
+                source_paths=("reports/test-quality.json",),
+                routing_stage="needs_boundary_repair",
+                litellm_boundary="Route through LiteLLM later.",
+                endpoint_boundary="OpenAI-compatible endpoint planning only.",
+                deployment_modes=("hosted", "local", "enterprise"),
+                allowed_use_cases=(
+                    "critique",
+                    "generation",
+                    "prioritization",
+                    "repair_proposals",
+                ),
+                forbidden_authority="Hurl/QAnstitution remains authority.",
+                access_control_audit="Access control design is required.",
+                blockers=("Repair packaging boundaries before routing design.",),
+                next_action="Repair routing readiness evidence.",
+            ),
+        ),
+        next_actions=(
+            QaBrainRoutingPlanNextAction(
+                priority="high",
+                action="Repair routing readiness evidence.",
+                case_ids=("weak_test_detection",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert QA_BRAIN_ROUTING_PLAN_SCHEMA_VERSION == "entroping.qa-brain-routing-plan.v1"
+    assert payload == {
+        "schema_version": "entroping.qa-brain-routing-plan.v1",
+        "generated_at": "2026-06-20T00:00:00+00:00",
+        "project": "checkout-api",
+        "model_packaging_plan_schema_version": (
+            "entroping.qa-brain-model-packaging-plan.v1"
+        ),
+        "summary": {
+            "status": "partial",
+            "routes_total": 1,
+            "routes_ready": 0,
+            "routes_missing": 0,
+            "routes_attention": 1,
+            "blockers_total": 1,
+            "next_actions_total": 1,
+        },
+        "routing_plans": [
+            {
+                "case_id": "weak_test_detection",
+                "label": "Weak-test detection",
+                "readiness": "attention",
+                "packaging_stage": "needs_boundary_repair",
+                "source_ids": ["test-quality-json"],
+                "source_paths": ["reports/test-quality.json"],
+                "routing_stage": "needs_boundary_repair",
+                "litellm_boundary": "Route through LiteLLM later.",
+                "endpoint_boundary": "OpenAI-compatible endpoint planning only.",
+                "deployment_modes": ["hosted", "local", "enterprise"],
+                "allowed_use_cases": [
+                    "critique",
+                    "generation",
+                    "prioritization",
+                    "repair_proposals",
+                ],
+                "forbidden_authority": "Hurl/QAnstitution remains authority.",
+                "access_control_audit": "Access control design is required.",
+                "blockers": ["Repair packaging boundaries before routing design."],
+                "next_action": "Repair routing readiness evidence.",
+            }
+        ],
+        "next_actions": [
+            {
+                "priority": "high",
+                "action": "Repair routing readiness evidence.",
+                "case_ids": ["weak_test_detection"],
+            }
+        ],
+    }
+    assert schema["properties"]["schema_version"]["const"] == (
+        "entroping.qa-brain-routing-plan.v1"
+    )
+    assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["properties"]["model_packaging_plan_schema_version"]["const"] == (
+        "entroping.qa-brain-model-packaging-plan.v1"
+    )
+    assert schema["$defs"]["routing_stage"]["enum"] == [
+        "routing_design_ready",
+        "needs_packaging_evidence",
+        "needs_boundary_repair",
+    ]
+    assert schema["$defs"]["allowed_use_case"]["enum"] == [
+        "critique",
+        "generation",
+        "prioritization",
+        "repair_proposals",
+    ]
+
+
 def test_effective_policy_diff_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "effective-policy-diff.v1.schema.json").read_text())
     base = EffectivePolicyReport(
@@ -3629,6 +3759,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         ),
         "entroping.qa-brain-model-packaging-plan.v1": (
             SCHEMA_DIR / "qa-brain-model-packaging-plan.v1.schema.json"
+        ),
+        "entroping.qa-brain-routing-plan.v1": (
+            SCHEMA_DIR / "qa-brain-routing-plan.v1.schema.json"
         ),
         "entroping.design-partner-feedback.v1": (
             SCHEMA_DIR / "design-partner-feedback.v1.schema.json"
