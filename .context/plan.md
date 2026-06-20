@@ -16,28 +16,32 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1036 Evidence Index Packet
+## Current Issue Slice: #1038 QA Brain Seed Packet
 
-- Add `entroping report evidence-index --output md|json` as an issue-backed
-  additive report command for stable local evidence artifact navigation across
-  CLI, PR, desktop, cloud, mobile, and agent surfaces.
-- Reuse `entroping.core.evidence_index.build_local_evidence_index` for the
-  canonical artifact inventory instead of duplicating discovery rules.
-- Emit a schema-versioned `entroping.evidence-index.v1` packet with generated
-  time, project name, summary counts by state, and artifact rows containing
-  stable ID, label, project-relative path, state, schema version, and
-  value-free summary.
+- Add `entroping report qa-brain-seed --output md|json` as an issue-backed
+  additive report command for future QA Brain retrieval and eval design.
+- Build from existing local value-free evidence metadata, especially the
+  canonical evidence index, rather than reading or embedding raw report bodies.
+- Emit a schema-versioned `entroping.qa-brain-seed.v1` packet with generated
+  time, project name, summary counts, seed-source rows, eval-slice rows, and
+  next-action rows.
+- Classify local seed evidence into future eval categories: weak-test
+  detection, missing-gate discovery, unsafe generated Hurl, bogus evidence,
+  redaction mistakes, API drift reasoning, mutation/fuzz readiness, and
+  cross-surface handoff quality.
 - Treat missing evidence as non-blocking packet state, and preserve invalid,
   unsafe, symlinked, non-file, oversized, malformed, or unreadable source
   artifact states without leaking raw contents.
-- Do not execute Hurl, run tests, call providers, upload artifacts, parse
-  traffic state, mutate files, or render raw report contents, raw traffic,
-  source Hurl, prompts, credentials, cookies, environment values, or provider
-  outputs.
-- Update schema, CLI compatibility, report docs, progress, and context evidence
-  in the same slice so the new command is part of the durable public surface.
+- Do not execute Hurl, run tests, call providers, fine-tune models, upload
+  artifacts, parse traffic state, mutate files, or render raw report contents,
+  raw traffic, source Hurl, prompts, credentials, cookies, environment values,
+  or provider outputs.
+- Preserve LiteLLM/provider-neutral boundaries: this packet prepares
+  deterministic local seed metadata only and must not add direct provider SDK
+  calls or make `entroping run` depend on AI.
 - Verification lane: `security-runtime` because the command reads local
-  report artifact state and emits machine-readable report evidence.
+  report artifact state and emits machine-readable model-adjacent evidence
+  metadata.
 
 ## Current Baseline
 

@@ -106,6 +106,11 @@ from entroping.core.pilot_metrics import (
     PilotMetricsOutput,
     run_pilot_metrics_report,
 )
+from entroping.core.qa_brain_seed import (
+    QaBrainSeedError,
+    QaBrainSeedOutput,
+    run_qa_brain_seed_report,
+)
 from entroping.core.redaction_review_report import (
     RedactionReviewError,
     RedactionReviewOutput,
@@ -987,6 +992,33 @@ def report_evidence_index(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote evidence index: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("qa-brain-seed", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_qa_brain_seed(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local QA brain seed packet."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported qa-brain-seed output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_qa_brain_seed_report(
+            project_root=Path.cwd(),
+            output=cast(QaBrainSeedOutput, normalized_output),
+        )
+    except QaBrainSeedError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote QA brain seed: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 

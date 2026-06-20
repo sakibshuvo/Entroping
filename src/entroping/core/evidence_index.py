@@ -12,11 +12,17 @@ from entroping.bridge.capture_summary import CAPTURE_SUMMARY_SCHEMA_VERSION
 from entroping.bridge.effective_policy import EFFECTIVE_POLICY_SCHEMA_VERSION
 from entroping.bridge.gate_coverage import GATE_COVERAGE_REPORT_SCHEMA_VERSION
 from entroping.bridge.gate_injection_explain import GATE_INJECTION_REPORT_SCHEMA_VERSION
+from entroping.bridge.test_pyramid import TEST_PYRAMID_REPORT_SCHEMA_VERSION
 from entroping.bridge.test_quality import TEST_QUALITY_REPORT_SCHEMA_VERSION
 from entroping.core.agent_bundle import AGENT_REVIEW_BUNDLE_SCHEMA_VERSION
+from entroping.core.api_inventory import API_INVENTORY_SCHEMA_VERSION
 from entroping.core.drift_report import DRIFT_REPORT_SCHEMA_VERSION
 from entroping.core.evidence_bundle import EVIDENCE_BUNDLE_SCHEMA_VERSION
 from entroping.core.failure_bundle import FAILURE_BUNDLE_SCHEMA_VERSION
+from entroping.core.handoff_packet import HANDOFF_SCHEMA_VERSION
+from entroping.core.mutation_readiness import MUTATION_READINESS_SCHEMA_VERSION
+from entroping.core.notification_packet import NOTIFICATION_PACKET_SCHEMA_VERSION
+from entroping.core.observability_packet import OBSERVABILITY_PACKET_SCHEMA_VERSION
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.report_artifact_manifest import REPORT_ARTIFACT_MANIFEST_SCHEMA_VERSION
 from entroping.core.report_serialization import RUN_REPORT_SCHEMA_VERSION
@@ -184,6 +190,20 @@ def _artifact_definitions() -> tuple[_EvidenceArtifactDefinition, ...]:
             schema_version="entroping.test-quality.md",
         ),
         _EvidenceArtifactDefinition(
+            id="test-pyramid-json",
+            label="Test Pyramid JSON",
+            path=Path("reports") / "test-pyramid.json",
+            kind="json",
+            schema_version=TEST_PYRAMID_REPORT_SCHEMA_VERSION,
+        ),
+        _EvidenceArtifactDefinition(
+            id="test-pyramid-md",
+            label="Test Pyramid Markdown",
+            path=Path("reports") / "test-pyramid.md",
+            kind="markdown",
+            schema_version="entroping.test-pyramid.md",
+        ),
+        _EvidenceArtifactDefinition(
             id="artifact-manifest-json",
             label="Artifact Manifest",
             path=Path("reports") / "artifact-manifest.json",
@@ -213,6 +233,93 @@ def _artifact_definitions() -> tuple[_EvidenceArtifactDefinition, ...]:
             kind="json",
             schema_version=RUNTIME_CARD_SCHEMA_VERSION,
             summary_builder=_status_summary,
+        ),
+        _EvidenceArtifactDefinition(
+            id="handoff-md",
+            label="Handoff Markdown",
+            path=Path("reports") / "handoff.md",
+            kind="markdown",
+            schema_version="entroping.handoff.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="handoff-json",
+            label="Handoff JSON",
+            path=Path("reports") / "handoff.json",
+            kind="json",
+            schema_version=HANDOFF_SCHEMA_VERSION,
+            summary_builder=_status_summary,
+        ),
+        _EvidenceArtifactDefinition(
+            id="notification-packet-md",
+            label="Notification Packet Markdown",
+            path=Path("reports") / "notification-packet.md",
+            kind="markdown",
+            schema_version="entroping.notification-packet.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="notification-packet-json",
+            label="Notification Packet JSON",
+            path=Path("reports") / "notification-packet.json",
+            kind="json",
+            schema_version=NOTIFICATION_PACKET_SCHEMA_VERSION,
+            summary_builder=_status_summary,
+        ),
+        _EvidenceArtifactDefinition(
+            id="observability-packet-md",
+            label="Observability Packet Markdown",
+            path=Path("reports") / "observability-packet.md",
+            kind="markdown",
+            schema_version="entroping.observability-packet.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="observability-packet-json",
+            label="Observability Packet JSON",
+            path=Path("reports") / "observability-packet.json",
+            kind="json",
+            schema_version=OBSERVABILITY_PACKET_SCHEMA_VERSION,
+            summary_builder=_status_summary,
+        ),
+        _EvidenceArtifactDefinition(
+            id="api-inventory-md",
+            label="API Inventory Markdown",
+            path=Path("reports") / "api-inventory.md",
+            kind="markdown",
+            schema_version="entroping.api-inventory.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="api-inventory-json",
+            label="API Inventory JSON",
+            path=Path("reports") / "api-inventory.json",
+            kind="json",
+            schema_version=API_INVENTORY_SCHEMA_VERSION,
+        ),
+        _EvidenceArtifactDefinition(
+            id="mutation-readiness-md",
+            label="Mutation Readiness Markdown",
+            path=Path("reports") / "mutation-readiness.md",
+            kind="markdown",
+            schema_version="entroping.mutation-readiness.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="mutation-readiness-json",
+            label="Mutation Readiness JSON",
+            path=Path("reports") / "mutation-readiness.json",
+            kind="json",
+            schema_version=MUTATION_READINESS_SCHEMA_VERSION,
+        ),
+        _EvidenceArtifactDefinition(
+            id="evidence-index-md",
+            label="Evidence Index Markdown",
+            path=Path("reports") / "evidence-index.md",
+            kind="markdown",
+            schema_version="entroping.evidence-index.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="evidence-index-json",
+            label="Evidence Index JSON",
+            path=Path("reports") / "evidence-index.json",
+            kind="json",
+            schema_version="entroping.evidence-index.v1",
         ),
         _EvidenceArtifactDefinition(
             id="agent-bundle-md",
