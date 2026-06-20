@@ -2,6 +2,14 @@
 
 ## 2026-06-20
 
+- Added issue #1040's QA Brain eval-plan packet: `report
+  qa-brain-eval-plan` now writes local `entroping.qa-brain-eval-plan.v1` JSON
+  or Markdown that turns deterministic QA-brain seed readiness into future
+  eval-case metadata, including input/output contracts, acceptance signals,
+  negative controls, source IDs/paths, and next actions without executing
+  Hurl, running tests, calling providers, retrieving documents, fine-tuning
+  models, uploading artifacts, parsing traffic state, running mutations, or
+  rendering raw report/source contents.
 - Added issue #1038's QA Brain seed packet: `report qa-brain-seed` now writes
   local `entroping.qa-brain-seed.v1` JSON or Markdown that converts
   value-free evidence-index rows into seed-source, eval-slice, and next-action

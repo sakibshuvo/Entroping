@@ -146,6 +146,13 @@ from entroping.core.pilot_metrics import (
     PilotMetricsReport,
     PilotMetricsSummary,
 )
+from entroping.core.qa_brain_eval_plan import (
+    QA_BRAIN_EVAL_PLAN_SCHEMA_VERSION,
+    QaBrainEvalCase,
+    QaBrainEvalPlanNextAction,
+    QaBrainEvalPlanPacket,
+    QaBrainEvalPlanSummary,
+)
 from entroping.core.qa_brain_seed import (
     QA_BRAIN_SEED_SCHEMA_VERSION,
     QaBrainEvalSlice,
@@ -2753,6 +2760,102 @@ def test_qa_brain_seed_v1_schema_contract_is_versioned_and_stable() -> None:
     ]
 
 
+def test_qa_brain_eval_plan_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "qa-brain-eval-plan.v1.schema.json").read_text())
+    packet = QaBrainEvalPlanPacket(
+        generated_at="2026-06-20T00:00:00+00:00",
+        project="checkout-api",
+        seed_schema_version="entroping.qa-brain-seed.v1",
+        summary=QaBrainEvalPlanSummary(
+            status="partial",
+            cases_total=1,
+            cases_ready=0,
+            cases_missing=0,
+            cases_attention=1,
+            next_actions_total=1,
+        ),
+        cases=(
+            QaBrainEvalCase(
+                id="weak_test_detection",
+                label="Weak-test detection",
+                readiness="attention",
+                source_ids=("test-quality-json",),
+                source_paths=("reports/test-quality.json",),
+                input_contract="Value-free generated-test quality evidence rows.",
+                output_contract="schema-valid QA critique result",
+                acceptance_signal="Detect weak tests without using raw report contents.",
+                negative_controls=("Do not reward generic confidence.",),
+                next_action="Review invalid evidence before eval execution.",
+            ),
+        ),
+        next_actions=(
+            QaBrainEvalPlanNextAction(
+                priority="high",
+                action="Repair evidence before weak-test detection evals.",
+                case_ids=("weak_test_detection",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert QA_BRAIN_EVAL_PLAN_SCHEMA_VERSION == "entroping.qa-brain-eval-plan.v1"
+    assert payload == {
+        "schema_version": "entroping.qa-brain-eval-plan.v1",
+        "generated_at": "2026-06-20T00:00:00+00:00",
+        "project": "checkout-api",
+        "seed_schema_version": "entroping.qa-brain-seed.v1",
+        "summary": {
+            "status": "partial",
+            "cases_total": 1,
+            "cases_ready": 0,
+            "cases_missing": 0,
+            "cases_attention": 1,
+            "next_actions_total": 1,
+        },
+        "cases": [
+            {
+                "id": "weak_test_detection",
+                "label": "Weak-test detection",
+                "readiness": "attention",
+                "source_ids": ["test-quality-json"],
+                "source_paths": ["reports/test-quality.json"],
+                "input_contract": "Value-free generated-test quality evidence rows.",
+                "output_contract": "schema-valid QA critique result",
+                "acceptance_signal": "Detect weak tests without using raw report contents.",
+                "negative_controls": ["Do not reward generic confidence."],
+                "next_action": "Review invalid evidence before eval execution.",
+            }
+        ],
+        "next_actions": [
+            {
+                "priority": "high",
+                "action": "Repair evidence before weak-test detection evals.",
+                "case_ids": ["weak_test_detection"],
+            }
+        ],
+    }
+    assert schema["properties"]["schema_version"]["const"] == (
+        "entroping.qa-brain-eval-plan.v1"
+    )
+    assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["$defs"]["case_readiness"]["enum"] == [
+        "ready",
+        "missing",
+        "attention",
+    ]
+    assert schema["$defs"]["eval_slice_id"]["enum"] == [
+        "weak_test_detection",
+        "missing_gate_discovery",
+        "unsafe_generated_hurl",
+        "bogus_evidence",
+        "redaction_mistakes",
+        "api_drift_reasoning",
+        "mutation_fuzz_readiness",
+        "cross_surface_handoff_quality",
+    ]
+
+
 def test_effective_policy_diff_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "effective-policy-diff.v1.schema.json").read_text())
     base = EffectivePolicyReport(
@@ -3051,6 +3154,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         ),
         "entroping.evidence-index.v1": SCHEMA_DIR / "evidence-index.v1.schema.json",
         "entroping.qa-brain-seed.v1": SCHEMA_DIR / "qa-brain-seed.v1.schema.json",
+        "entroping.qa-brain-eval-plan.v1": (
+            SCHEMA_DIR / "qa-brain-eval-plan.v1.schema.json"
+        ),
         "entroping.design-partner-feedback.v1": (
             SCHEMA_DIR / "design-partner-feedback.v1.schema.json"
         ),

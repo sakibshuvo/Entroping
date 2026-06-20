@@ -49,6 +49,7 @@ entroping report api-inventory [--output <md|json>]
 entroping report mutation-readiness [--output <md|json>]
 entroping report evidence-index [--output <md|json>]
 entroping report qa-brain-seed [--output <md|json>]
+entroping report qa-brain-eval-plan [--output <md|json>]
 entroping report pilot-metrics [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
@@ -414,6 +415,8 @@ Experimental design-partner evidence commands:
 | `entroping report evidence-index --output json` | Write machine-readable evidence artifact index metadata to `reports/evidence-index.json` |
 | `entroping report qa-brain-seed --output md` | Write read-only QA Brain seed metadata to `reports/qa-brain-seed.md` |
 | `entroping report qa-brain-seed --output json` | Write machine-readable QA Brain seed metadata to `reports/qa-brain-seed.json` |
+| `entroping report qa-brain-eval-plan --output md` | Write read-only QA Brain eval-plan metadata to `reports/qa-brain-eval-plan.md` |
+| `entroping report qa-brain-eval-plan --output json` | Write machine-readable QA Brain eval-plan metadata to `reports/qa-brain-eval-plan.json` |
 | `entroping report pilot-metrics --output md` | Write local design-partner pilot metric inference to `reports/pilot-metrics.md` |
 | `entroping report pilot-metrics --output json` | Write machine-readable pilot metric inference to `reports/pilot-metrics.json` |
 | `entroping report agent-bundle --output md` | Write a local multi-agent review bundle to `reports/agent-bundle.md` |
@@ -453,6 +456,7 @@ entroping report api-inventory --output json
 entroping report mutation-readiness --output json
 entroping report evidence-index --output json
 entroping report qa-brain-seed --output json
+entroping report qa-brain-eval-plan --output json
 entroping report pilot-metrics
 entroping report agent-bundle --scope tests/generated
 entroping report traceability --output md
