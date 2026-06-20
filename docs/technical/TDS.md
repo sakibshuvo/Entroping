@@ -770,6 +770,7 @@ report generation, and artifact schemas remain the compatibility contract.
 | Runtime Evidence Card | `report runtime-card` | Concise PR/runtime proof card from local reports |
 | Cross-Surface Handoff | `report handoff --output md|json [--fail-on-insufficient]` | Local value-free handoff packet for CLI, PR, desktop, cloud, mobile, and agent surfaces; opt-in CI failure when no source artifacts are present |
 | Notification Packet | `report notification-packet --output md|json` | Read-only value-free messages for issue tracker, chat, automation, and agent surfaces |
+| Evidence Index | `report evidence-index --output md|json` | Stable value-free local evidence artifact index for cross-surface navigation |
 | Pilot Metrics | `report pilot-metrics` | Local pilot metric inference from sanitized evidence |
 | Agent Review Bundle | `report agent-bundle` | Local Builder/Breaker/Auditor evidence from sanitized manifests |
 | Traceability Markdown/JSON | `report traceability --output md|json` | Local story/test coverage review |
@@ -944,6 +945,7 @@ entroping report notification-packet [--output <md|json>]
 entroping report observability-packet [--output <md|json>]
 entroping report api-inventory [--output <md|json>]
 entroping report mutation-readiness [--output <md|json>]
+entroping report evidence-index [--output <md|json>]
 entroping report pilot-metrics [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
@@ -1369,6 +1371,19 @@ providers, upload results, parse traffic state, mutate source files, or include
 raw URLs, headers, bodies, cookies, prompts, credentials, environment values,
 seed values, full report contents, or source Hurl contents.
 
+`entroping report evidence-index` writes a local read-only evidence artifact
+index at `reports/evidence-index.md` by default, or
+`reports/evidence-index.json` with `--output json`. It reuses the existing
+local evidence inventory and emits stable artifact IDs, labels,
+project-relative paths, source states, schema versions, and compact value-free
+summaries for local report artifacts. Missing evidence is non-blocking;
+invalid, unsafe, symlinked, non-file, oversized, malformed, or unreadable
+source artifacts remain represented through evidence-index states without
+embedding source contents. The command does not execute Hurl, run tests, call
+providers, upload artifacts, parse traffic state, mutate files, or render raw
+report contents, raw traffic, source Hurl, prompts, credentials, cookies,
+environment values, or provider outputs.
+
 `entroping report sarif` writes SARIF 2.1.0 to `reports/entroping.sarif` by
 default. It converts the same local JUnit, drift, and optional traceability
 findings used by GitHub annotation output into stable SARIF rule IDs, severity,
@@ -1430,6 +1445,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report api-inventory --output json` | `reports/api-inventory.json` | Machine-readable API inventory packet using `entroping.api-inventory.v1`. |
 | `entroping report mutation-readiness --output md` | `reports/mutation-readiness.md` | Human-readable read-only mutation/fuzz readiness summary from generated-Hurl and optional local report evidence. |
 | `entroping report mutation-readiness --output json` | `reports/mutation-readiness.json` | Machine-readable mutation/fuzz readiness packet using `entroping.mutation-readiness.v1`. |
+| `entroping report evidence-index --output md` | `reports/evidence-index.md` | Human-readable read-only local evidence artifact index from canonical report inventory states. |
+| `entroping report evidence-index --output json` | `reports/evidence-index.json` | Machine-readable local evidence artifact index using `entroping.evidence-index.v1`. |
 | `entroping report pilot-metrics --output md` | `reports/pilot-metrics.md` | Human-readable local pilot metric inference from sanitized artifacts, with `unknown` and `manual_input_required` states for metrics Entroping cannot infer locally. |
 | `entroping report pilot-metrics --output json` | `reports/pilot-metrics.json` | Machine-readable local pilot metric inference using `entroping.pilot-metrics.v1`. |
 | `entroping report agent-bundle --output md` | `reports/agent-bundle.md` | Human-readable local multi-agent review bundle from sanitized manifests. |

@@ -2,6 +2,12 @@
 
 ## 2026-06-20
 
+- Added issue #1036's evidence-index packet: `report evidence-index` now writes
+  local `entroping.evidence-index.v1` JSON or Markdown that exposes stable
+  local evidence artifact IDs, paths, states, schema versions, and value-free
+  summaries from the canonical evidence index without executing Hurl, running
+  tests, calling providers, uploading artifacts, parsing traffic state, mutating
+  files, or rendering raw report/source contents.
 - Added issue #1034's mutation/fuzz readiness packet: `report
   mutation-readiness` now writes local `entroping.mutation-readiness.v1` JSON
   or Markdown that summarizes generated corpus presence, negative-path

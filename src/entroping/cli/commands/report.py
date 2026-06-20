@@ -58,6 +58,11 @@ from entroping.core.evidence_bundle import (
     EvidenceBundleError,
     run_evidence_bundle_report,
 )
+from entroping.core.evidence_index_report import (
+    EvidenceIndexError,
+    EvidenceIndexOutput,
+    run_evidence_index_report,
+)
 from entroping.core.failure_bundle import FailureBundleError, create_failure_bundle
 from entroping.core.gate_coverage_report import (
     GateCoverageOutput,
@@ -955,6 +960,33 @@ def report_mutation_readiness(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote mutation readiness: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("evidence-index", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_evidence_index(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local evidence artifact index packet."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported evidence-index output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_evidence_index_report(
+            project_root=Path.cwd(),
+            output=cast(EvidenceIndexOutput, normalized_output),
+        )
+    except EvidenceIndexError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote evidence index: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 
