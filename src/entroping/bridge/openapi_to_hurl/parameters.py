@@ -455,18 +455,24 @@ def _render_query_parameter(parameter: _OpenApiParameter) -> tuple[str, ...]:
     return (f"{name}={_parameter_value_token(parameter, url_component=True)}",)
 
 
-def _render_parameter_headers(parameters: tuple[_OpenApiParameter, ...]) -> list[str]:
+def _render_parameter_headers(
+    parameters: tuple[_OpenApiParameter, ...],
+    *,
+    extra_cookie_pairs: tuple[tuple[str, str], ...] = (),
+) -> list[str]:
     headers = [
         f"{parameter.name}: {_parameter_value_token(parameter, url_component=False)}"
         for parameter in parameters
         if parameter.location == "header"
     ]
-    cookie_parameters = [parameter for parameter in parameters if parameter.location == "cookie"]
-    if cookie_parameters:
-        cookie = "; ".join(
-            f"{parameter.name}={_parameter_value_token(parameter, url_component=True)}"
-            for parameter in cookie_parameters
-        )
+    cookie_pairs = [
+        (parameter.name, _parameter_value_token(parameter, url_component=True))
+        for parameter in parameters
+        if parameter.location == "cookie"
+    ]
+    cookie_pairs.extend(extra_cookie_pairs)
+    if cookie_pairs:
+        cookie = "; ".join(f"{name}={value}" for name, value in cookie_pairs)
         headers.append(f"Cookie: {cookie}")
     return headers
 

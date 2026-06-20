@@ -532,6 +532,52 @@ def test_compile_openapi_generates_security_negative_tests_for_supported_schemes
     assert "HTTP 401" in joined
 
 
+def test_compile_openapi_merges_cookie_parameter_and_cookie_auth_negative() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {
+            "securitySchemes": {
+                "sessionAuth": {
+                    "type": "apiKey",
+                    "in": "cookie",
+                    "name": "session_id",
+                },
+            },
+        },
+        "paths": {
+            "/account": {
+                "get": {
+                    "operationId": "getAccount",
+                    "security": [{"sessionAuth": []}],
+                    "parameters": [
+                        {
+                            "name": "locale",
+                            "in": "cookie",
+                            "schema": {"type": "string", "default": "en-US"},
+                        },
+                    ],
+                    "responses": {
+                        "200": {"description": "ok"},
+                        "401": {"description": "unauthorized"},
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset({"security"}))
+
+    invalid_cookie_file = next(
+        item
+        for item in result.files
+        if item.relative_path == "tests/generated/security/get_account_invalid_session_auth.hurl"
+    )
+    cookie_lines = [
+        line for line in invalid_cookie_file.content.splitlines() if line.startswith("Cookie: ")
+    ]
+    assert cookie_lines == ["Cookie: locale=en-US; session_id=invalid-session"]
+
+
 def test_compile_openapi_skips_auth_negatives_for_public_security_alternative() -> None:
     document: dict[str, object] = {
         "openapi": "3.1.0",

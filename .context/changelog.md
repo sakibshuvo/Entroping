@@ -2,6 +2,10 @@
 
 ## 2026-06-20
 
+- Fixed issue #997's OpenAPI security-negative cookie rendering bug:
+  cookie-based API-key auth failures now merge with normal cookie parameters
+  into one deterministic `Cookie` header instead of emitting duplicate cookie
+  headers.
 - Added issue #1013's OpenAPI composed response-schema assertion support:
   response assertions now merge unambiguous `allOf` required fields and
   properties, including local `$ref` members, while failing closed on ambiguous
