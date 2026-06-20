@@ -109,7 +109,12 @@ src/entroping/
     agent.py
     errors.py
   bridge/
-    openapi_to_hurl.py
+    openapi_to_hurl/
+      __init__.py
+      compiler.py
+      models.py
+      schema.py
+      validation.py
     traffic_to_hurl.py
     traffic_to_wiremock.py
     traffic_to_graph.py
@@ -308,7 +313,7 @@ Implementation rule: keep the YAML-facing `GateRule.condition` field as the orig
 
 | Module | Owns | Must not own |
 | --- | --- | --- |
-| `openapi_to_hurl.py` | OpenAPI operation/schema to Hurl models | LLM calls, file writes, merge strategy |
+| `openapi_to_hurl/` | OpenAPI operation/schema to Hurl models through bounded compiler, schema, validation, and data-model modules | LLM calls, file writes, merge strategy |
 | `traffic_to_hurl.py` | Redacted traffic session to Hurl models | mitmproxy capture, SQLite persistence |
 | `traffic_to_wiremock.py` | Redacted dependency traffic to WireMock mappings | Filesystem writes, mock server runtime |
 | `traffic_to_graph.py` | Redacted traffic to dependency graph models | SQLite reads, renderer invocation |
