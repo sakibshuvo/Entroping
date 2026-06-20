@@ -53,6 +53,7 @@ from entroping.core.qa_brain_seed import QaBrainSeedError
 from entroping.core.redaction_review_report import RedactionReviewResult
 from entroping.core.report_artifact_manifest import write_report_artifact_manifest
 from entroping.core.runtime_card import RuntimeCardError
+from entroping.core.team_evidence_readiness import TeamEvidenceReadinessError
 
 
 def _write_effective_policy_report(
@@ -730,6 +731,92 @@ def test_report_notification_packet_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "notification packet path is unsafe" in result.output
+
+
+def test_report_team_evidence_readiness_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("reports") / "evidence-bundle.json",
+        """
+{
+  "schema_version": "entroping.evidence-bundle.v1",
+  "project": "checkout-api",
+  "summary": {
+    "status": "ready",
+    "required_total": 3,
+    "required_present": 3,
+    "required_missing": 0,
+    "required_invalid": 0,
+    "artifacts_total": 3,
+    "diagnostics_total": 0
+  }
+}
+""",
+    )
+
+    result = CliRunner().invoke(app, ["report", "team-evidence-readiness"])
+
+    assert result.exit_code == 0
+    assert (
+        "Wrote team evidence readiness: reports/team-evidence-readiness.md"
+    ) in result.output
+    markdown = Path("reports/team-evidence-readiness.md").read_text(encoding="utf-8")
+    assert "# Entroping Team Evidence Readiness" in markdown
+    assert "| evidence_bundle | present | reports/evidence-bundle.json |" in markdown
+
+
+def test_report_team_evidence_readiness_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "team-evidence-readiness", "--output", "json"],
+    )
+
+    assert result.exit_code == 0
+    assert (
+        "Wrote team evidence readiness: reports/team-evidence-readiness.json"
+    ) in result.output
+    payload = json.loads(
+        Path("reports/team-evidence-readiness.json").read_text(encoding="utf-8")
+    )
+    assert payload["schema_version"] == "entroping.team-evidence-readiness.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_team_evidence_readiness_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(
+        app,
+        ["report", "team-evidence-readiness", "--output", "html"],
+    )
+
+    assert result.exit_code == 2
+    assert "Unsupported team-evidence-readiness output" in result.output
+    assert not Path("reports/team-evidence-readiness.html").exists()
+
+
+def test_report_team_evidence_readiness_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_team_evidence_readiness(*args: object, **kwargs: object) -> object:
+        raise TeamEvidenceReadinessError("team evidence readiness path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_team_evidence_readiness_report",
+        fail_team_evidence_readiness,
+    )
+
+    result = CliRunner().invoke(app, ["report", "team-evidence-readiness"])
+
+    assert result.exit_code == 1
+    assert "team evidence readiness path is unsafe" in result.output
 
 
 def test_report_observability_packet_writes_markdown(

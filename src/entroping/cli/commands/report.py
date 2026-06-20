@@ -169,6 +169,11 @@ from entroping.core.runtime_card import (
 )
 from entroping.core.sarif_report import SarifReportError, run_sarif_report
 from entroping.core.story_documents import discover_story_documents
+from entroping.core.team_evidence_readiness import (
+    TeamEvidenceReadinessError,
+    TeamEvidenceReadinessOutput,
+    run_team_evidence_readiness_report,
+)
 from entroping.core.test_pyramid_report import (
     TestPyramidOutput,
     TestPyramidReportError,
@@ -914,6 +919,35 @@ def report_notification_packet(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote notification packet: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("team-evidence-readiness", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_team_evidence_readiness(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local team evidence cloud readiness packet."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(
+            f"[yellow]Unsupported team-evidence-readiness output: {output}[/yellow]"
+        )
+        raise typer.Exit(2)
+
+    try:
+        result = run_team_evidence_readiness_report(
+            project_root=Path.cwd(),
+            output=cast(TeamEvidenceReadinessOutput, normalized_output),
+        )
+    except TeamEvidenceReadinessError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote team evidence readiness: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 

@@ -770,6 +770,7 @@ report generation, and artifact schemas remain the compatibility contract.
 | Runtime Evidence Card | `report runtime-card` | Concise PR/runtime proof card from local reports |
 | Cross-Surface Handoff | `report handoff --output md|json [--fail-on-insufficient]` | Local value-free handoff packet for CLI, PR, desktop, cloud, mobile, and agent surfaces; opt-in CI failure when no source artifacts are present |
 | Notification Packet | `report notification-packet --output md|json` | Read-only value-free messages for issue tracker, chat, automation, and agent surfaces |
+| Team Evidence Readiness | `report team-evidence-readiness --output md|json` | Read-only value-free readiness packet for future team evidence cloud promotion from existing sanitized report artifacts |
 | Evidence Index | `report evidence-index --output md|json` | Stable value-free local evidence artifact index for cross-surface navigation |
 | QA Brain Seed | `report qa-brain-seed --output md|json` | Deterministic value-free seed metadata for future QA Brain retrieval and eval design |
 | QA Brain Eval Plan | `report qa-brain-eval-plan --output md|json` | Deterministic eval-case plan metadata for future QA Brain evaluation before fine-tuning |
@@ -949,6 +950,7 @@ entroping report design-partner-feedback [--output <path>]
 entroping report runtime-card [--output <md|json>]
 entroping report handoff [--output <md|json>] [--fail-on-insufficient]
 entroping report notification-packet [--output <md|json>]
+entroping report team-evidence-readiness [--output <md|json>]
 entroping report observability-packet [--output <md|json>]
 entroping report api-inventory [--output <md|json>]
 entroping report mutation-readiness [--output <md|json>]
@@ -1337,6 +1339,21 @@ state, or include raw URLs, headers, bodies, cookies, prompts, provider outputs,
 credentials, environment values, webhook URLs, ticket mutation payloads, source
 Hurl contents, or full report contents.
 
+`entroping report team-evidence-readiness` writes a local read-only readiness
+packet at `reports/team-evidence-readiness.md` by default, or
+`reports/team-evidence-readiness.json` with `--output json`. It aggregates
+value-free states from existing evidence-bundle, runtime-card, pilot-metrics,
+design-partner-feedback, handoff, and notification-packet artifacts into team
+evidence cloud readiness areas, explicit boundary controls, and next actions.
+Missing source artifacts are non-blocking and become partial or insufficient
+packet state; malformed, oversized, non-file, symlinked, wrong-schema, or
+secret-like source artifacts are marked invalid or unsafe. The command does not
+execute Hurl, run tests, call providers, upload results, create accounts, change
+access control, call issue-tracker or chat APIs, read traffic state, or include
+raw URLs, headers, bodies, cookies, prompts, provider outputs, credentials,
+environment values, webhook URLs, ticket mutation payloads, source Hurl
+contents, raw report contents, or full report contents.
+
 `entroping report observability-packet` writes a local read-only observability
 signal packet at `reports/observability-packet.md` by default, or
 `reports/observability-packet.json` with `--output json`. It converts existing
@@ -1577,6 +1594,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report handoff --output json` | `reports/handoff.json` | Machine-readable local cross-surface handoff packet using `entroping.handoff.v1`. |
 | `entroping report notification-packet --output md` | `reports/notification-packet.md` | Human-readable read-only notification packet for work-management, chat, automation, and agent surfaces. |
 | `entroping report notification-packet --output json` | `reports/notification-packet.json` | Machine-readable notification packet using `entroping.notification-packet.v1`. |
+| `entroping report team-evidence-readiness --output md` | `reports/team-evidence-readiness.md` | Human-readable read-only team evidence cloud readiness from sanitized local report artifacts. |
+| `entroping report team-evidence-readiness --output json` | `reports/team-evidence-readiness.json` | Machine-readable team evidence readiness packet using `entroping.team-evidence-readiness.v1`. |
 | `entroping report observability-packet --output md` | `reports/observability-packet.md` | Human-readable read-only observability signal packet for OpenTelemetry, Datadog, Splunk, Grafana, and generic surfaces. |
 | `entroping report observability-packet --output json` | `reports/observability-packet.json` | Machine-readable observability packet using `entroping.observability-packet.v1`. |
 | `entroping report api-inventory --output md` | `reports/api-inventory.md` | Human-readable read-only API style inventory for REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, and unknown HTTP signals. |
