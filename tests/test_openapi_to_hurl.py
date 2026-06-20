@@ -2864,6 +2864,231 @@ def test_compile_openapi_resolves_transitive_response_schema_refs() -> None:
     assert 'jsonpath "$.status" == "ok"' in content
 
 
+def test_compile_openapi_merges_all_of_response_schema_assertions() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "components": {
+            "schemas": {
+                "HealthResponse": {
+                    "allOf": [
+                        {
+                            "type": "object",
+                            "required": ["status"],
+                            "properties": {
+                                "status": {"type": "string", "enum": ["ok"]},
+                                "kind": {"type": "string"},
+                            },
+                        },
+                        {"$ref": "#/components/schemas/HealthDetails"},
+                    ],
+                },
+                "HealthDetails": {
+                    "type": "object",
+                    "required": ["mode", "kind"],
+                    "properties": {
+                        "mode": {"allOf": [{"type": "string"}, {"enum": ["live"]}]},
+                        "kind": {"type": "string", "enum": ["health"]},
+                        "status": {
+                            "type": "string",
+                            "description": "same response field with extra metadata",
+                            "enum": ["ok"],
+                        },
+                    },
+                },
+            },
+        },
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "responses": {
+                        "200": {
+                            "description": "ok",
+                            "content": {
+                                "application/json": {
+                                    "schema": {"$ref": "#/components/schemas/HealthResponse"},
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    content = compile_openapi_to_hurl(document, tags=frozenset())[0].content
+
+    assert 'jsonpath "$.status" exists' in content
+    assert 'jsonpath "$.status" == "ok"' in content
+    assert 'jsonpath "$.mode" exists' in content
+    assert 'jsonpath "$.mode" == "live"' in content
+    assert 'jsonpath "$.kind" == "health"' in content
+
+
+def test_compile_openapi_merges_root_and_all_of_response_assertions() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "responses": {
+                        "200": {
+                            "description": "ok",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "required": ["status"],
+                                        "properties": {
+                                            "status": {"type": "string", "enum": ["ok"]},
+                                        },
+                                        "allOf": [
+                                            {
+                                                "type": "object",
+                                                "required": ["mode"],
+                                                "properties": {"mode": {"type": "string"}},
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    content = compile_openapi_to_hurl(document, tags=frozenset())[0].content
+
+    assert 'jsonpath "$.status" == "ok"' in content
+    assert 'jsonpath "$.mode" exists' in content
+
+
+@pytest.mark.parametrize("composition_key", ["oneOf", "anyOf"])
+def test_compile_openapi_rejects_ambiguous_response_schema_composition(
+    composition_key: str,
+) -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "responses": {
+                        "200": {
+                            "description": "ok",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        composition_key: [
+                                            {
+                                                "type": "object",
+                                                "required": ["status"],
+                                                "properties": {
+                                                    "status": {"type": "string"},
+                                                },
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="unsupported response schema composition"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
+@pytest.mark.parametrize(
+    ("schema", "expected_error"),
+    [
+        ({"allOf": "not-a-sequence"}, "OpenAPI response schema allOf must be an array"),
+        ({"allOf": ["not-a-schema"]}, "OpenAPI response schema allOf member 0"),
+        (
+            {
+                "allOf": [
+                    {
+                        "type": "object",
+                        "required": ["status"],
+                        "properties": {"status": {"type": "string", "enum": ["ok"]}},
+                    },
+                    {
+                        "type": "object",
+                        "required": ["status"],
+                        "properties": {"status": {"type": "string", "enum": ["fail"]}},
+                    },
+                ],
+            },
+            "conflicting allOf property schema",
+        ),
+        (
+            {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                    "status": {"oneOf": [{"type": "string", "enum": ["ok"]}]},
+                },
+            },
+            "unsupported response schema composition",
+        ),
+        (
+            {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                    "status": {"allOf": "not-a-sequence"},
+                },
+            },
+            "schema for 'status' allOf must be an array",
+        ),
+        (
+            {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                    "status": {
+                        "allOf": [
+                            {"type": "string", "enum": ["ok"]},
+                            {"type": "string", "enum": ["fail"]},
+                        ],
+                    },
+                },
+            },
+            "schema for 'status' conflicting allOf property schema",
+        ),
+    ],
+)
+def test_compile_openapi_rejects_unsafe_all_of_response_schemas(
+    schema: dict[str, object],
+    expected_error: str,
+) -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/health": {
+                "get": {
+                    "operationId": "getHealth",
+                    "responses": {
+                        "200": {
+                            "description": "ok",
+                            "content": {"application/json": {"schema": schema}},
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match=expected_error):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
 def test_compile_openapi_rejects_deep_response_schema_ref_chains() -> None:
     max_depth = cast(int, openapi_compiler._MAX_RESPONSE_SCHEMA_REF_DEPTH)  # noqa: SLF001
     schema_components: dict[str, object] = {
@@ -2948,6 +3173,11 @@ def test_compile_openapi_rejects_deep_response_schema_ref_chains() -> None:
             {"$ref": 1},
             {},
             "response schema ref must be a string",
+        ),
+        (
+            {"$ref": "#/components/schemas/Loop"},
+            {"Loop": {"allOf": [{"$ref": "#/components/schemas/Loop"}]}},
+            "cyclic response schema composition",
         ),
     ),
 )

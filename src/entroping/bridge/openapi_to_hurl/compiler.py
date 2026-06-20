@@ -1144,16 +1144,14 @@ def _response_assertions(
 ) -> list[str]:
     if schema is None:
         return []
-    schema = _resolve_response_schema_ref(
+    required, properties = _response_assertion_shape(
         schema,
         schema_components=schema_components,
         context="OpenAPI response schema",
     )
-    required = _string_sequence(schema.get("required"), "OpenAPI schema required")
     if not required:
         return []
 
-    properties = _ensure_mapping(schema.get("properties", {}), "OpenAPI schema properties")
     assertions: list[str] = []
     for field_name in required:
         jsonpath = _jsonpath_for_field(field_name)
@@ -1162,16 +1160,187 @@ def _response_assertions(
         if property_schema is _MISSING:
             continue
         property_schema_mapping = _ensure_mapping(property_schema, f"schema for {field_name!r}")
-        enum_value = _first_enum_value(
-            _resolve_response_schema_ref(
-                property_schema_mapping,
-                schema_components=schema_components,
-                context=f"schema for {field_name!r}",
-            )
+        enum_value = _response_property_enum_value(
+            property_schema_mapping,
+            schema_components=schema_components,
+            context=f"schema for {field_name!r}",
         )
         if enum_value is not _MISSING:
             assertions.append(f'jsonpath "{jsonpath}" == {json.dumps(enum_value)}')
     return assertions
+
+
+def _response_assertion_shape(
+    schema: Mapping[str, object],
+    *,
+    schema_components: Mapping[str, object],
+    context: str,
+    depth: int = 0,
+    budget: _TraversalBudget | None = None,
+    composition_refs: tuple[str, ...] = (),
+) -> tuple[tuple[str, ...], dict[str, object]]:
+    budget = budget or _TraversalBudget()
+    _check_openapi_schema_budget(depth=depth, budget=budget, context=context)
+    composition_refs = _response_schema_composition_refs(
+        schema,
+        context=context,
+        seen_refs=composition_refs,
+    )
+    schema = _resolve_response_schema_ref(
+        schema,
+        schema_components=schema_components,
+        context=context,
+    )
+    if "oneOf" in schema or "anyOf" in schema:
+        msg = f"{context} unsupported response schema composition"
+        raise OpenApiCompilationError(msg)
+
+    required_context = (
+        "OpenAPI schema required"
+        if context == "OpenAPI response schema"
+        else f"{context} required"
+    )
+    properties_context = (
+        "OpenAPI schema properties"
+        if context == "OpenAPI response schema"
+        else f"{context} properties"
+    )
+    required = list(_string_sequence(schema.get("required"), required_context))
+    properties = dict(_ensure_mapping(schema.get("properties", {}), properties_context))
+
+    raw_all_of = schema.get("allOf")
+    if raw_all_of is None:
+        return tuple(dict.fromkeys(required)), properties
+    if not isinstance(raw_all_of, Sequence) or isinstance(raw_all_of, str | bytes):
+        msg = f"{context} allOf must be an array"
+        raise OpenApiCompilationError(msg)
+
+    for index, raw_member in enumerate(raw_all_of):
+        member = _ensure_mapping(raw_member, f"{context} allOf member {index}")
+        member_required, member_properties = _response_assertion_shape(
+            member,
+            schema_components=schema_components,
+            context=f"{context} allOf member {index}",
+            depth=depth + 1,
+            budget=budget,
+            composition_refs=composition_refs,
+        )
+        required.extend(member_required)
+        for field_name, property_schema in member_properties.items():
+            properties[field_name] = _merge_response_property_schema(
+                properties.get(field_name, _MISSING),
+                property_schema,
+                field_name=field_name,
+                schema_components=schema_components,
+                context=context,
+                depth=depth + 1,
+                budget=budget,
+            )
+    return tuple(dict.fromkeys(required)), properties
+
+
+def _merge_response_property_schema(
+    existing: object,
+    candidate: object,
+    *,
+    field_name: str,
+    schema_components: Mapping[str, object],
+    context: str,
+    depth: int,
+    budget: _TraversalBudget,
+) -> object:
+    if existing is _MISSING or existing == candidate:
+        return candidate if existing is _MISSING else existing
+
+    existing_schema = _ensure_mapping(existing, f"{context} property {field_name!r}")
+    candidate_schema = _ensure_mapping(candidate, f"{context} property {field_name!r}")
+    existing_enum = _response_property_enum_value(
+        existing_schema,
+        schema_components=schema_components,
+        context=f"{context} property {field_name!r}",
+        depth=depth,
+        budget=budget,
+    )
+    candidate_enum = _response_property_enum_value(
+        candidate_schema,
+        schema_components=schema_components,
+        context=f"{context} property {field_name!r}",
+        depth=depth,
+        budget=budget,
+    )
+    if existing_enum is not _MISSING and candidate_enum is not _MISSING:
+        if existing_enum != candidate_enum:
+            msg = f"{context} conflicting allOf property schema for {field_name!r}"
+            raise OpenApiCompilationError(msg)
+        return existing
+    # Response assertions currently use property schemas only for enum equality.
+    # Preserve the strongest enum signal and do not treat metadata-only or
+    # non-enum constraint differences as conflicts until those constraints are
+    # rendered into assertions.
+    return candidate if existing_enum is _MISSING and candidate_enum is not _MISSING else existing
+
+
+def _response_property_enum_value(
+    schema: Mapping[str, object],
+    *,
+    schema_components: Mapping[str, object],
+    context: str,
+    depth: int = 0,
+    budget: _TraversalBudget | None = None,
+) -> object:
+    budget = budget or _TraversalBudget()
+    _check_openapi_schema_budget(depth=depth, budget=budget, context=context)
+    schema = _resolve_response_schema_ref(
+        schema,
+        schema_components=schema_components,
+        context=context,
+    )
+    if "oneOf" in schema or "anyOf" in schema:
+        msg = f"{context} unsupported response schema composition"
+        raise OpenApiCompilationError(msg)
+
+    enum_value = _first_enum_value(schema)
+    raw_all_of = schema.get("allOf")
+    if raw_all_of is None:
+        return enum_value
+    if not isinstance(raw_all_of, Sequence) or isinstance(raw_all_of, str | bytes):
+        msg = f"{context} allOf must be an array"
+        raise OpenApiCompilationError(msg)
+
+    for index, raw_member in enumerate(raw_all_of):
+        member = _ensure_mapping(raw_member, f"{context} allOf member {index}")
+        member_enum = _response_property_enum_value(
+            member,
+            schema_components=schema_components,
+            context=f"{context} allOf member {index}",
+            depth=depth + 1,
+            budget=budget,
+        )
+        if member_enum is _MISSING:
+            continue
+        if enum_value is _MISSING:
+            enum_value = member_enum
+        elif enum_value != member_enum:
+            msg = f"{context} conflicting allOf property schema"
+            raise OpenApiCompilationError(msg)
+    return enum_value
+
+
+def _response_schema_composition_refs(
+    schema: Mapping[str, object],
+    *,
+    context: str,
+    seen_refs: tuple[str, ...],
+) -> tuple[str, ...]:
+    raw_ref = schema.get("$ref")
+    if raw_ref is None:
+        return seen_refs
+    if not isinstance(raw_ref, str):
+        return seen_refs
+    if raw_ref in seen_refs:
+        msg = f"{context} cyclic response schema composition {raw_ref!r}"
+        raise OpenApiCompilationError(msg)
+    return (*seen_refs, raw_ref)
 
 
 def _operation_id(operation: Mapping[str, object], *, method: str, path: str) -> str:
