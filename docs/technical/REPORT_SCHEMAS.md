@@ -37,6 +37,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Pilot metrics | `entroping.pilot-metrics.v1` | `reports/pilot-metrics.json` from `entroping report pilot-metrics --output json` | [pilot-metrics.v1.schema.json](report-schemas/pilot-metrics.v1.schema.json) |
 | Cross-surface handoff | `entroping.handoff.v1` | `reports/handoff.json` from `entroping report handoff --output json` | [handoff.v1.schema.json](report-schemas/handoff.v1.schema.json) |
 | Notification packet | `entroping.notification-packet.v1` | `reports/notification-packet.json` from `entroping report notification-packet --output json` | [notification-packet.v1.schema.json](report-schemas/notification-packet.v1.schema.json) |
+| Observability packet | `entroping.observability-packet.v1` | `reports/observability-packet.json` from `entroping report observability-packet --output json` | [observability-packet.v1.schema.json](report-schemas/observability-packet.v1.schema.json) |
 | Design-partner feedback | `entroping.design-partner-feedback.v1` | `reports/design-partner-feedback.json` from `entroping report design-partner-feedback` | [design-partner-feedback.v1.schema.json](report-schemas/design-partner-feedback.v1.schema.json) |
 | Failure bundle manifest | `entroping.failure-bundle.v1` | `reports/failure-bundle/manifest.json` | Inline contract |
 | Coverage badges | Shields endpoint schema v1 | `reports/badges/*.json` | External Shields endpoint format |
@@ -282,6 +283,30 @@ Codex APIs, mutate tickets or chat, read traffic state, or include raw URLs,
 headers, bodies, cookies, prompts, provider outputs, credentials, environment
 values, webhook URLs, ticket mutation payloads, source Hurl contents, or full
 report contents.
+
+The observability packet is written by:
+
+```bash
+entroping report observability-packet
+entroping report observability-packet --output json
+```
+
+It writes `reports/observability-packet.md` by default or
+`reports/observability-packet.json` with schema
+`entroping.observability-packet.v1` when `--output json` is selected. The
+packet turns existing local structured diagnostics and runtime-card metadata
+into value-free signal summaries for OpenTelemetry, Datadog, Splunk, Grafana,
+and generic observability consumers. It records source states, schema versions,
+bounded SHA-256 hashes, diagnostic component/operation/code counts,
+runtime-card status counts, local artifact paths, and next-action text only.
+Missing diagnostics or runtime-card evidence is non-blocking and becomes
+partial or insufficient packet state; malformed, oversized, non-file,
+symlinked, wrong-schema, or secret-like source artifacts are marked invalid or
+unsafe. The command does not execute Hurl, run tests, call providers, upload
+results, call observability vendor APIs, mutate dashboards or monitors, read
+traffic state, or include raw URLs, headers, bodies, cookies, prompts, provider
+outputs, credentials, environment values, raw report contents, source Hurl
+contents, or full diagnostic attributes.
 
 The design-partner feedback artifact is written by:
 

@@ -34,6 +34,7 @@ from entroping.core.design_partner_feedback import DesignPartnerFeedbackError
 from entroping.core.evidence_bundle import EvidenceBundleError
 from entroping.core.handoff_packet import HandoffError
 from entroping.core.notification_packet import NotificationPacketError
+from entroping.core.observability_packet import ObservabilityPacketError
 from entroping.core.pilot_metrics import PilotMetricsError
 from entroping.core.redaction_review_report import RedactionReviewResult
 from entroping.core.report_artifact_manifest import write_report_artifact_manifest
@@ -210,6 +211,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "design-partner-feedback",
         "handoff",
         "notification-packet",
+        "observability-packet",
         "pilot-metrics",
         "agent-bundle",
     ):
@@ -712,6 +714,79 @@ def test_report_notification_packet_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "notification packet path is unsafe" in result.output
+
+
+def test_report_observability_packet_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path(".entroping") / "latest-diagnostics.jsonl",
+        json.dumps(
+            {
+                "schema_version": "entroping.diagnostics.v1",
+                "timestamp": "2026-06-20T00:00:00+00:00",
+                "component": "doctor",
+                "operation": "ci",
+                "severity": "info",
+                "code": "doctor.ready",
+                "summary": "Doctor readiness is available.",
+                "attributes": [],
+            },
+            sort_keys=True,
+        )
+        + "\n",
+    )
+
+    result = CliRunner().invoke(app, ["report", "observability-packet"])
+
+    assert result.exit_code == 0
+    assert "Wrote observability packet: reports/observability-packet.md" in result.output
+    markdown = Path("reports/observability-packet.md").read_text(encoding="utf-8")
+    assert "# Entroping Observability Packet" in markdown
+    assert "| opentelemetry |" in markdown
+
+
+def test_report_observability_packet_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "observability-packet", "--output", "json"])
+
+    assert result.exit_code == 0
+    assert "Wrote observability packet: reports/observability-packet.json" in result.output
+    payload = json.loads(Path("reports/observability-packet.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.observability-packet.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_observability_packet_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["report", "observability-packet", "--output", "html"])
+
+    assert result.exit_code == 2
+    assert "Unsupported observability-packet output" in result.output
+    assert not Path("reports/observability-packet.html").exists()
+
+
+def test_report_observability_packet_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_observability_packet(*args: object, **kwargs: object) -> object:
+        raise ObservabilityPacketError("observability packet path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_observability_packet_report",
+        fail_observability_packet,
+    )
+
+    result = CliRunner().invoke(app, ["report", "observability-packet"])
+
+    assert result.exit_code == 1
+    assert "observability packet path is unsafe" in result.output
 
 
 def test_report_bug_generates_markdown_from_latest_failing_run(

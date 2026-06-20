@@ -81,6 +81,11 @@ from entroping.core.notification_packet import (
     NotificationPacketError,
     run_notification_packet_report,
 )
+from entroping.core.observability_packet import (
+    ObservabilityOutput,
+    ObservabilityPacketError,
+    run_observability_packet_report,
+)
 from entroping.core.pilot_metrics import (
     PilotMetricsError,
     PilotMetricsOutput,
@@ -859,6 +864,33 @@ def report_notification_packet(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote notification packet: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("observability-packet", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_observability_packet(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local observability packet for telemetry and dashboard surfaces."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported observability-packet output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_observability_packet_report(
+            project_root=Path.cwd(),
+            output=cast(ObservabilityOutput, normalized_output),
+        )
+    except ObservabilityPacketError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote observability packet: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 

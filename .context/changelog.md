@@ -2,6 +2,13 @@
 
 ## 2026-06-20
 
+- Added issue #1030's observability signal packet: `report
+  observability-packet` now writes local `entroping.observability-packet.v1`
+  JSON or Markdown that converts structured diagnostics/runtime-card metadata
+  into value-free OpenTelemetry, Datadog, Splunk, Grafana, and generic
+  observability messages without calling vendor APIs, mutating dashboards or
+  monitors, executing Hurl, uploading results, reading traffic state, or
+  rendering raw report contents.
 - Added issue #1028's work-management notification packet: `report
   notification-packet` now writes local `entroping.notification-packet.v1` JSON
   or Markdown that converts sanitized handoff/runtime evidence into value-free

@@ -109,6 +109,16 @@ from entroping.core.notification_packet import (
     NotificationSource,
     NotificationSummary,
 )
+from entroping.core.observability_packet import (
+    OBSERVABILITY_PACKET_SCHEMA_VERSION,
+    ObservabilityComponentSummary,
+    ObservabilityEventSummary,
+    ObservabilityMessage,
+    ObservabilityPacket,
+    ObservabilityRuntimeSummary,
+    ObservabilitySource,
+    ObservabilitySummary,
+)
 from entroping.core.pilot_metrics import (
     PILOT_METRICS_SCHEMA_VERSION,
     PilotEvidenceSource,
@@ -2079,6 +2089,202 @@ def test_notification_packet_v1_schema_contract_is_versioned_and_stable() -> Non
     ]
 
 
+def test_observability_packet_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "observability-packet.v1.schema.json").read_text())
+    packet = ObservabilityPacket(
+        generated_at="2026-06-20T00:00:00+00:00",
+        project="checkout-api",
+        summary=ObservabilitySummary(
+            status="ready",
+            severity="blocker",
+            sources_total=2,
+            sources_present=2,
+            sources_missing=0,
+            sources_invalid=0,
+            sources_unsafe=0,
+            events_total=1,
+            debug_events=0,
+            info_events=0,
+            warning_events=0,
+            error_events=1,
+        ),
+        runtime=ObservabilityRuntimeSummary(
+            status="attention",
+            findings=2,
+            evidence_links=3,
+            failed_gate_ids=1,
+        ),
+        sources=(
+            ObservabilitySource(
+                id="diagnostics",
+                label="Structured diagnostics",
+                path=".entroping/latest-diagnostics.jsonl",
+                state="present",
+                schema_version="entroping.diagnostics.v1",
+                sha256="a" * 64,
+                summary="1 diagnostic events.",
+            ),
+            ObservabilitySource(
+                id="runtime_card",
+                label="Runtime card",
+                path="reports/runtime-card.json",
+                state="present",
+                schema_version="entroping.runtime-card.v1",
+                sha256="b" * 64,
+                summary="attention runtime evidence",
+            ),
+        ),
+        events=(
+            ObservabilityEventSummary(
+                component="run",
+                operation="execute",
+                severity="error",
+                code="hurl.timeout",
+                summary="Hurl timeout recorded.",
+            ),
+        ),
+        components=(
+            ObservabilityComponentSummary(
+                component="run",
+                events_total=1,
+                debug_events=0,
+                info_events=0,
+                warning_events=0,
+                error_events=1,
+                operations=("execute",),
+                codes=("hurl.timeout",),
+            ),
+        ),
+        messages=(
+            ObservabilityMessage(
+                surface="opentelemetry",
+                label="OpenTelemetry",
+                severity="blocker",
+                title="Entroping observability signals need attention",
+                body=(
+                    "Runtime status attention; 1 diagnostic events; "
+                    "1 errors; 0 warnings; 2/2 sources present."
+                ),
+                next_action="Use this packet as value-free OTLP adapter input.",
+                artifact_paths=(
+                    "reports/observability-packet.json",
+                    ".entroping/latest-diagnostics.jsonl",
+                    "reports/runtime-card.json",
+                ),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert OBSERVABILITY_PACKET_SCHEMA_VERSION == "entroping.observability-packet.v1"
+    assert payload == {
+        "schema_version": "entroping.observability-packet.v1",
+        "generated_at": "2026-06-20T00:00:00+00:00",
+        "project": "checkout-api",
+        "summary": {
+            "status": "ready",
+            "severity": "blocker",
+            "sources_total": 2,
+            "sources_present": 2,
+            "sources_missing": 0,
+            "sources_invalid": 0,
+            "sources_unsafe": 0,
+            "events_total": 1,
+            "debug_events": 0,
+            "info_events": 0,
+            "warning_events": 0,
+            "error_events": 1,
+        },
+        "runtime": {
+            "status": "attention",
+            "findings": 2,
+            "evidence_links": 3,
+            "failed_gate_ids": 1,
+        },
+        "sources": [
+            {
+                "id": "diagnostics",
+                "label": "Structured diagnostics",
+                "path": ".entroping/latest-diagnostics.jsonl",
+                "state": "present",
+                "schema_version": "entroping.diagnostics.v1",
+                "sha256": "a" * 64,
+                "summary": "1 diagnostic events.",
+            },
+            {
+                "id": "runtime_card",
+                "label": "Runtime card",
+                "path": "reports/runtime-card.json",
+                "state": "present",
+                "schema_version": "entroping.runtime-card.v1",
+                "sha256": "b" * 64,
+                "summary": "attention runtime evidence",
+            },
+        ],
+        "events": [
+            {
+                "component": "run",
+                "operation": "execute",
+                "severity": "error",
+                "code": "hurl.timeout",
+                "summary": "Hurl timeout recorded.",
+            }
+        ],
+        "components": [
+            {
+                "component": "run",
+                "events_total": 1,
+                "debug_events": 0,
+                "info_events": 0,
+                "warning_events": 0,
+                "error_events": 1,
+                "operations": ["execute"],
+                "codes": ["hurl.timeout"],
+            }
+        ],
+        "messages": [
+            {
+                "surface": "opentelemetry",
+                "label": "OpenTelemetry",
+                "severity": "blocker",
+                "title": "Entroping observability signals need attention",
+                "body": (
+                    "Runtime status attention; 1 diagnostic events; "
+                    "1 errors; 0 warnings; 2/2 sources present."
+                ),
+                "next_action": "Use this packet as value-free OTLP adapter input.",
+                "artifact_paths": [
+                    "reports/observability-packet.json",
+                    ".entroping/latest-diagnostics.jsonl",
+                    "reports/runtime-card.json",
+                ],
+            }
+        ],
+    }
+    assert schema["properties"]["schema_version"]["const"] == (
+        "entroping.observability-packet.v1"
+    )
+    assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["$defs"]["summary"]["properties"]["status"]["enum"] == [
+        "ready",
+        "partial",
+        "insufficient",
+    ]
+    assert schema["$defs"]["summary"]["properties"]["severity"]["enum"] == [
+        "info",
+        "attention",
+        "blocker",
+    ]
+    assert schema["$defs"]["message"]["properties"]["surface"]["enum"] == [
+        "opentelemetry",
+        "datadog",
+        "splunk",
+        "grafana",
+        "generic",
+    ]
+
+
 def test_effective_policy_diff_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "effective-policy-diff.v1.schema.json").read_text())
     base = EffectivePolicyReport(
@@ -2367,6 +2573,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         "entroping.handoff.v1": SCHEMA_DIR / "handoff.v1.schema.json",
         "entroping.notification-packet.v1": (
             SCHEMA_DIR / "notification-packet.v1.schema.json"
+        ),
+        "entroping.observability-packet.v1": (
+            SCHEMA_DIR / "observability-packet.v1.schema.json"
         ),
         "entroping.design-partner-feedback.v1": (
             SCHEMA_DIR / "design-partner-feedback.v1.schema.json"

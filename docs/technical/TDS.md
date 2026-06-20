@@ -941,6 +941,7 @@ entroping report design-partner-feedback [--output <path>]
 entroping report runtime-card [--output <md|json>]
 entroping report handoff [--output <md|json>] [--fail-on-insufficient]
 entroping report notification-packet [--output <md|json>]
+entroping report observability-packet [--output <md|json>]
 entroping report pilot-metrics [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
@@ -1318,6 +1319,23 @@ state, or include raw URLs, headers, bodies, cookies, prompts, provider outputs,
 credentials, environment values, webhook URLs, ticket mutation payloads, source
 Hurl contents, or full report contents.
 
+`entroping report observability-packet` writes a local read-only observability
+signal packet at `reports/observability-packet.md` by default, or
+`reports/observability-packet.json` with `--output json`. It converts existing
+structured diagnostics and runtime-card metadata into value-free signal
+summaries for OpenTelemetry, Datadog, Splunk, Grafana, and generic
+observability consumers. The packet records only source states, schema
+versions, bounded SHA-256 hashes, diagnostic component/operation/code counts,
+runtime-card status counts, local artifact paths, and next-action text. Missing
+diagnostics or runtime-card evidence is non-blocking and becomes partial or
+insufficient packet state; malformed, oversized, non-file, symlinked,
+wrong-schema, or secret-like source artifacts are marked invalid or unsafe. The
+command does not execute Hurl, run tests, call providers, upload results, call
+observability vendor APIs, mutate dashboards or monitors, read traffic state, or
+include raw URLs, headers, bodies, cookies, prompts, provider outputs,
+credentials, environment values, raw report contents, source Hurl contents, or
+full diagnostic attributes.
+
 `entroping report sarif` writes SARIF 2.1.0 to `reports/entroping.sarif` by
 default. It converts the same local JUnit, drift, and optional traceability
 findings used by GitHub annotation output into stable SARIF rule IDs, severity,
@@ -1373,6 +1391,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report handoff --output json` | `reports/handoff.json` | Machine-readable local cross-surface handoff packet using `entroping.handoff.v1`. |
 | `entroping report notification-packet --output md` | `reports/notification-packet.md` | Human-readable read-only notification packet for work-management, chat, automation, and agent surfaces. |
 | `entroping report notification-packet --output json` | `reports/notification-packet.json` | Machine-readable notification packet using `entroping.notification-packet.v1`. |
+| `entroping report observability-packet --output md` | `reports/observability-packet.md` | Human-readable read-only observability signal packet for OpenTelemetry, Datadog, Splunk, Grafana, and generic surfaces. |
+| `entroping report observability-packet --output json` | `reports/observability-packet.json` | Machine-readable observability packet using `entroping.observability-packet.v1`. |
 | `entroping report pilot-metrics --output md` | `reports/pilot-metrics.md` | Human-readable local pilot metric inference from sanitized artifacts, with `unknown` and `manual_input_required` states for metrics Entroping cannot infer locally. |
 | `entroping report pilot-metrics --output json` | `reports/pilot-metrics.json` | Machine-readable local pilot metric inference using `entroping.pilot-metrics.v1`. |
 | `entroping report agent-bundle --output md` | `reports/agent-bundle.md` | Human-readable local multi-agent review bundle from sanitized manifests. |
