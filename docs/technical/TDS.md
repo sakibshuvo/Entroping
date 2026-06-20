@@ -768,6 +768,7 @@ report generation, and artifact schemas remain the compatibility contract.
 | Evidence Bundle | `report evidence-bundle` | Sanitized local upload-readiness evidence |
 | Design-Partner Feedback | `report design-partner-feedback` | Sanitized local feedback template artifact |
 | Runtime Evidence Card | `report runtime-card` | Concise PR/runtime proof card from local reports |
+| Cross-Surface Handoff | `report handoff --output md|json [--fail-on-insufficient]` | Local value-free handoff packet for CLI, PR, desktop, cloud, mobile, and agent surfaces; opt-in CI failure when no source artifacts are present |
 | Pilot Metrics | `report pilot-metrics` | Local pilot metric inference from sanitized evidence |
 | Agent Review Bundle | `report agent-bundle` | Local Builder/Breaker/Auditor evidence from sanitized manifests |
 | Traceability Markdown/JSON | `report traceability --output md|json` | Local story/test coverage review |
@@ -937,6 +938,7 @@ entroping report artifact-manifest [--output <path>] [--fail-on-incomplete]
 entroping report evidence-bundle [--output <path>]
 entroping report design-partner-feedback [--output <path>]
 entroping report runtime-card [--output <md|json>]
+entroping report handoff [--output <md|json>] [--fail-on-insufficient]
 entroping report pilot-metrics [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
@@ -1282,6 +1284,23 @@ need design-partner or reviewer input. Missing, malformed, or unsafe artifacts
 are recorded as `unknown` source-backed metric states instead of causing hosted
 uploads, Hurl execution, provider calls, or raw artifact rendering.
 
+`entroping report handoff` writes a local cross-surface evidence handoff packet
+at `reports/handoff.md` by default, or `reports/handoff.json` with
+`--output json`. It summarizes existing sanitized report artifacts for future
+CLI, PR, desktop, cloud, mobile, and coding-agent handoffs: runtime card,
+evidence bundle, pilot metrics, artifact manifest, and test-pyramid evidence.
+The packet records only value-free metadata such as artifact state, schema
+version, bounded SHA-256, runtime-card summary counts, failed-gate count,
+pilot-readiness status, test-pyramid status, best-effort local Git
+branch/commit, generated handoff path, and next-action text. Missing artifacts
+are non-blocking unless `--fail-on-insufficient` is set and no source evidence
+artifacts are present.
+Malformed, unsupported, oversized, non-file, symlinked, or secret-like source
+artifacts are marked invalid or unsafe. The command does not execute Hurl, call
+providers, upload results, parse raw traffic, read `.entroping` traffic state,
+or include raw URLs, headers, bodies, cookies, prompts, provider outputs,
+credentials, environment values, or source Hurl contents.
+
 `entroping report sarif` writes SARIF 2.1.0 to `reports/entroping.sarif` by
 default. It converts the same local JUnit, drift, and optional traceability
 findings used by GitHub annotation output into stable SARIF rule IDs, severity,
@@ -1333,6 +1352,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report design-partner-feedback` | `reports/design-partner-feedback.json` | Schema-valid sanitized product-learning template using `entroping.design-partner-feedback.v1`; records value-free evidence statuses and leaves manual feedback fields for concise sanitized summaries. |
 | `entroping report runtime-card --output md` | `reports/runtime-card.md` | Reviewer-facing PR/runtime evidence card from sanitized local reports, including design-partner pilot readiness and optional test-pyramid evidence. |
 | `entroping report runtime-card --output json` | `reports/runtime-card.json` | Machine-readable PR/runtime evidence card using `entroping.runtime-card.v1`, including additive `pilot_readiness` and `test_pyramid` evidence. |
+| `entroping report handoff --output md` | `reports/handoff.md` | Human-readable local cross-surface handoff packet from sanitized evidence artifacts. |
+| `entroping report handoff --output json` | `reports/handoff.json` | Machine-readable local cross-surface handoff packet using `entroping.handoff.v1`. |
 | `entroping report pilot-metrics --output md` | `reports/pilot-metrics.md` | Human-readable local pilot metric inference from sanitized artifacts, with `unknown` and `manual_input_required` states for metrics Entroping cannot infer locally. |
 | `entroping report pilot-metrics --output json` | `reports/pilot-metrics.json` | Machine-readable local pilot metric inference using `entroping.pilot-metrics.v1`. |
 | `entroping report agent-bundle --output md` | `reports/agent-bundle.md` | Human-readable local multi-agent review bundle from sanitized manifests. |

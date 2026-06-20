@@ -16,18 +16,18 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #989 Persistent Codex Marathon Prompt
+## Current Issue Slice: #1026 Cross-Surface Handoff Packet
 
-- Add a tracked prompt-library launcher for one Codex integrator session that
-  must keep repeating the issue-worktree-PR-CI-merge-finish conveyor instead of
-  stopping after one issue or a safe checkpoint.
-- Make the prompt require current repo/GitHub refresh, CI waiting, merge-only
-  green behavior, finish cleanup, file/worktree ownership checks, and explicit
-  stop conditions.
-- Route the prompt from the prompt catalog, selection matrix, quick rules, and
-  usage guidance so future Codex sessions can find it without chat memory.
-- Verification lane: `docs-guardrail` because this changes prompt-library
-  workflow guidance and its guard tests.
+- Add `entroping report handoff --output md|json` as an issue-backed additive
+  report command for cross-surface continuity.
+- Keep the packet local-first and value-free: summarize sanitized runtime-card,
+  evidence-bundle, pilot-metrics, artifact-manifest, and test-pyramid metadata
+  without executing Hurl, calling providers, uploading, or rendering raw report
+  contents.
+- Update schema, CLI compatibility, report docs, progress, and context evidence
+  in the same slice so the new command does not live only in implementation.
+- Verification lane: `security-runtime` because the command reads local report
+  artifacts and emits release/handoff evidence.
 
 ## Current Baseline
 

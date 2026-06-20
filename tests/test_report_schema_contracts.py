@@ -92,6 +92,15 @@ from entroping.core.evidence_bundle import (
     EvidenceBundleReport,
     EvidenceBundleSummary,
 )
+from entroping.core.handoff_packet import (
+    HANDOFF_SCHEMA_VERSION,
+    HandoffArtifact,
+    HandoffGit,
+    HandoffPacket,
+    HandoffRuntimeSummary,
+    HandoffSummary,
+    HandoffTarget,
+)
 from entroping.core.pilot_metrics import (
     PILOT_METRICS_SCHEMA_VERSION,
     PilotEvidenceSource,
@@ -1833,6 +1842,118 @@ def test_pilot_metrics_v1_schema_contract_is_versioned_and_stable() -> None:
     ]
 
 
+def test_handoff_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "handoff.v1.schema.json").read_text())
+    packet = HandoffPacket(
+        generated_at="2026-06-20T00:00:00+00:00",
+        project="checkout-api",
+        git=HandoffGit(branch="main", commit="1" * 40),
+        summary=HandoffSummary(
+            status="ready",
+            artifacts_total=5,
+            artifacts_present=5,
+            artifacts_missing=0,
+            artifacts_invalid=0,
+            artifacts_unsafe=0,
+        ),
+        runtime=HandoffRuntimeSummary(
+            status="attention",
+            findings=2,
+            evidence_links=3,
+            failed_gate_ids=1,
+            pilot_readiness_status="ready",
+            test_pyramid_status="complete",
+        ),
+        artifacts=(
+            HandoffArtifact(
+                id="runtime_card",
+                label="Runtime card",
+                path="reports/runtime-card.json",
+                state="present",
+                schema_version="entroping.runtime-card.v1",
+                sha256="a" * 64,
+                summary="attention; 2 findings",
+            ),
+        ),
+        targets=(
+            HandoffTarget(
+                id="cli",
+                label="CLI",
+                next_action="Open the local handoff packet.",
+                artifact_paths=("reports/handoff.json",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert HANDOFF_SCHEMA_VERSION == "entroping.handoff.v1"
+    assert payload == {
+        "schema_version": "entroping.handoff.v1",
+        "generated_at": "2026-06-20T00:00:00+00:00",
+        "project": "checkout-api",
+        "git": {"branch": "main", "commit": "1" * 40},
+        "summary": {
+            "status": "ready",
+            "artifacts_total": 5,
+            "artifacts_present": 5,
+            "artifacts_missing": 0,
+            "artifacts_invalid": 0,
+            "artifacts_unsafe": 0,
+        },
+        "runtime": {
+            "status": "attention",
+            "findings": 2,
+            "evidence_links": 3,
+            "failed_gate_ids": 1,
+            "pilot_readiness_status": "ready",
+            "test_pyramid_status": "complete",
+        },
+        "artifacts": [
+            {
+                "id": "runtime_card",
+                "label": "Runtime card",
+                "path": "reports/runtime-card.json",
+                "state": "present",
+                "schema_version": "entroping.runtime-card.v1",
+                "sha256": "a" * 64,
+                "summary": "attention; 2 findings",
+            }
+        ],
+        "targets": [
+            {
+                "id": "cli",
+                "label": "CLI",
+                "next_action": "Open the local handoff packet.",
+                "artifact_paths": ["reports/handoff.json"],
+            }
+        ],
+    }
+    assert schema["properties"]["schema_version"]["const"] == HANDOFF_SCHEMA_VERSION
+    assert schema["$defs"]["summary"]["properties"]["status"]["enum"] == [
+        "ready",
+        "partial",
+        "insufficient",
+    ]
+    assert schema["$defs"]["artifact"]["properties"]["state"]["enum"] == [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe",
+    ]
+    assert schema["$defs"]["artifact"]["properties"]["sha256"]["pattern"] == (
+        "^[0-9a-f]{64}$"
+    )
+    assert schema["$defs"]["target"]["properties"]["id"]["enum"] == [
+        "cli",
+        "pr",
+        "desktop",
+        "cloud",
+        "mobile",
+        "agent",
+    ]
+
+
 def test_effective_policy_diff_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "effective-policy-diff.v1.schema.json").read_text())
     base = EffectivePolicyReport(
@@ -2118,6 +2239,7 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         "entroping.evidence-bundle.v1": SCHEMA_DIR / "evidence-bundle.v1.schema.json",
         "entroping.runtime-card.v1": SCHEMA_DIR / "runtime-card.v1.schema.json",
         "entroping.pilot-metrics.v1": SCHEMA_DIR / "pilot-metrics.v1.schema.json",
+        "entroping.handoff.v1": SCHEMA_DIR / "handoff.v1.schema.json",
         "entroping.design-partner-feedback.v1": (
             SCHEMA_DIR / "design-partner-feedback.v1.schema.json"
         ),

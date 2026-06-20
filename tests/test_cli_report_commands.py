@@ -32,6 +32,7 @@ from entroping.bridge.redaction_review import (
 from entroping.core.capture_summary_report import CaptureSummaryResult
 from entroping.core.design_partner_feedback import DesignPartnerFeedbackError
 from entroping.core.evidence_bundle import EvidenceBundleError
+from entroping.core.handoff_packet import HandoffError
 from entroping.core.pilot_metrics import PilotMetricsError
 from entroping.core.redaction_review_report import RedactionReviewResult
 from entroping.core.report_artifact_manifest import write_report_artifact_manifest
@@ -206,6 +207,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
     for command in (
         "evidence-bundle",
         "design-partner-feedback",
+        "handoff",
         "pilot-metrics",
         "agent-bundle",
     ):
@@ -555,6 +557,81 @@ def test_report_pilot_metrics_wraps_core_errors(monkeypatch: pytest.MonkeyPatch)
 
     assert result.exit_code == 1
     assert "pilot metrics path is unsafe" in result.output
+
+
+def test_report_handoff_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("reports") / "runtime-card.json",
+        """
+{
+  "schema_version": "entroping.runtime-card.v1",
+  "summary": {"status": "pass", "findings": 0, "evidence_links": 1},
+  "run": {"project": "checkout-api", "failed_gate_ids": []},
+  "pilot_readiness": {"status": "ready"},
+  "test_pyramid": {"status": "complete"}
+}
+""",
+    )
+
+    result = CliRunner().invoke(app, ["report", "handoff"])
+
+    assert result.exit_code == 0
+    assert "Wrote evidence handoff packet: reports/handoff.md" in result.output
+    markdown = Path("reports/handoff.md").read_text(encoding="utf-8")
+    assert "# Entroping Evidence Handoff" in markdown
+    assert "| runtime_card | present | reports/runtime-card.json |" in markdown
+
+
+def test_report_handoff_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "handoff", "--output", "json"])
+
+    assert result.exit_code == 0
+    assert "Wrote evidence handoff packet: reports/handoff.json" in result.output
+    payload = json.loads(Path("reports/handoff.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.handoff.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_handoff_fail_on_insufficient_fails_after_writing_report(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "handoff", "--fail-on-insufficient"])
+
+    assert result.exit_code == 1
+    assert "Handoff packet has no present evidence artifacts." in result.output
+    assert Path("reports/handoff.md").exists()
+
+
+def test_report_handoff_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["report", "handoff", "--output", "html"])
+
+    assert result.exit_code == 2
+    assert "Unsupported handoff output" in result.output
+    assert not Path("reports/handoff.html").exists()
+
+
+def test_report_handoff_wraps_core_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail_handoff(*args: object, **kwargs: object) -> object:
+        raise HandoffError("handoff source evidence is unsafe")
+
+    monkeypatch.setattr(report_cli, "run_handoff_report", fail_handoff)
+
+    result = CliRunner().invoke(app, ["report", "handoff"])
+
+    assert result.exit_code == 1
+    assert "handoff source evidence is unsafe" in result.output
 
 
 def test_report_bug_generates_markdown_from_latest_failing_run(

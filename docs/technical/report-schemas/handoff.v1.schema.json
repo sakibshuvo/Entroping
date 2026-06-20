@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://entroping.dev/schemas/handoff.v1.schema.json",
+  "title": "Entroping cross-surface handoff packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "project",
+    "git",
+    "summary",
+    "runtime",
+    "artifacts",
+    "targets"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.handoff.v1"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "project": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "git": {
+      "$ref": "#/$defs/git"
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "runtime": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/runtime"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/artifact"
+      }
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/target"
+      }
+    }
+  },
+  "$defs": {
+    "git": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "branch",
+        "commit"
+      ],
+      "properties": {
+        "branch": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "commit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "artifacts_total",
+        "artifacts_present",
+        "artifacts_missing",
+        "artifacts_invalid",
+        "artifacts_unsafe"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "ready",
+            "partial",
+            "insufficient"
+          ]
+        },
+        "artifacts_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "artifacts_present": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "artifacts_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "artifacts_invalid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "artifacts_unsafe": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "findings",
+        "evidence_links",
+        "failed_gate_ids",
+        "pilot_readiness_status",
+        "test_pyramid_status"
+      ],
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "findings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "evidence_links": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed_gate_ids": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pilot_readiness_status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "test_pyramid_status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "path",
+        "state",
+        "schema_version",
+        "sha256",
+        "summary"
+      ],
+      "properties": {
+        "id": {
+          "enum": [
+            "runtime_card",
+            "evidence_bundle",
+            "pilot_metrics",
+            "artifact_manifest",
+            "test_pyramid"
+          ]
+        },
+        "label": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "present",
+            "missing",
+            "invalid",
+            "unsafe"
+          ]
+        },
+        "schema_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "next_action",
+        "artifact_paths"
+      ],
+      "properties": {
+        "id": {
+          "enum": [
+            "cli",
+            "pr",
+            "desktop",
+            "cloud",
+            "mobile",
+            "agent"
+          ]
+        },
+        "label": {
+          "type": "string"
+        },
+        "next_action": {
+          "type": "string"
+        },
+        "artifact_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

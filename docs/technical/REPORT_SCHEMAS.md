@@ -35,6 +35,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Evidence bundle | `entroping.evidence-bundle.v1` | `reports/evidence-bundle.json` | [evidence-bundle.v1.schema.json](report-schemas/evidence-bundle.v1.schema.json) |
 | Runtime evidence card | `entroping.runtime-card.v1` | `reports/runtime-card.json` from `entroping report runtime-card --output json` | [runtime-card.v1.schema.json](report-schemas/runtime-card.v1.schema.json) |
 | Pilot metrics | `entroping.pilot-metrics.v1` | `reports/pilot-metrics.json` from `entroping report pilot-metrics --output json` | [pilot-metrics.v1.schema.json](report-schemas/pilot-metrics.v1.schema.json) |
+| Cross-surface handoff | `entroping.handoff.v1` | `reports/handoff.json` from `entroping report handoff --output json` | [handoff.v1.schema.json](report-schemas/handoff.v1.schema.json) |
 | Design-partner feedback | `entroping.design-partner-feedback.v1` | `reports/design-partner-feedback.json` from `entroping report design-partner-feedback` | [design-partner-feedback.v1.schema.json](report-schemas/design-partner-feedback.v1.schema.json) |
 | Failure bundle manifest | `entroping.failure-bundle.v1` | `reports/failure-bundle/manifest.json` | Inline contract |
 | Coverage badges | Shields endpoint schema v1 | `reports/badges/*.json` | External Shields endpoint format |
@@ -217,6 +218,30 @@ The card records only summary counts, schema evidence, project-relative local
 artifact links, failed gate IDs, and value-free findings. It does not execute
 Hurl, call providers, upload results, render raw Hurl output, raw traffic,
 prompts, provider responses, credentials, or environment values.
+
+The cross-surface handoff packet is written by:
+
+```bash
+entroping report handoff
+entroping report handoff --output json
+entroping report handoff --fail-on-insufficient
+```
+
+It writes `reports/handoff.md` by default or `reports/handoff.json` with schema
+`entroping.handoff.v1` when `--output json` is selected. The packet ties
+existing local evidence together for CLI, PR, desktop, cloud, mobile, and
+agent surfaces without copying report contents. It records best-effort local
+Git branch/commit metadata, runtime-card summary counts, pilot-readiness and
+test-pyramid statuses, canonical report artifact paths, the actual generated
+handoff packet path, schema versions, SHA-256 hashes for present bounded
+artifacts, and value-free next-action text. Missing source artifacts are
+non-blocking unless `--fail-on-insufficient` is set and no source evidence
+artifacts are present. Present malformed, unsupported, oversized, non-file,
+symlinked, or secret-like artifacts are marked invalid or unsafe rather than
+rendered. The command does not execute Hurl, call providers, upload results,
+parse raw traffic, read traffic state, or include raw URLs, headers, bodies,
+cookies, prompts, provider outputs, credentials, environment values, or source
+Hurl contents.
 
 The pilot metrics report is written by:
 

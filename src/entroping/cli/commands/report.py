@@ -70,6 +70,11 @@ from entroping.core.github_annotations import (
     collect_github_annotations,
     render_github_annotation,
 )
+from entroping.core.handoff_packet import (
+    HandoffError,
+    HandoffOutput,
+    run_handoff_report,
+)
 from entroping.core.hurl_discovery import discover_hurl_tests
 from entroping.core.pilot_metrics import (
     PilotMetricsError,
@@ -785,6 +790,43 @@ def report_pilot_metrics(
         f"{result.report.summary.metrics_known}/"
         f"{result.report.summary.metrics_total} known)"
     )
+    raise typer.Exit(0)
+
+
+@app.command("handoff", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_handoff(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+    fail_on_insufficient: Annotated[
+        bool,
+        typer.Option(
+            "--fail-on-insufficient",
+            help="Exit 1 after writing when no source evidence artifacts are present.",
+        ),
+    ] = False,
+) -> None:
+    """Write a local cross-surface evidence handoff packet."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported handoff output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_handoff_report(
+            project_root=Path.cwd(),
+            output=cast(HandoffOutput, normalized_output),
+        )
+    except HandoffError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote evidence handoff packet: {display_cli_path(result.output_path)}")
+    if fail_on_insufficient and result.packet.summary.status == "insufficient":
+        console.print("[yellow]Handoff packet has no present evidence artifacts.[/yellow]")
+        raise typer.Exit(1)
     raise typer.Exit(0)
 
 
