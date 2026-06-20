@@ -25,6 +25,11 @@ from entroping.core.agent_bundle import (
     AgentBundleOutput,
     run_agent_bundle_report,
 )
+from entroping.core.api_inventory import (
+    ApiInventoryError,
+    ApiInventoryOutput,
+    run_api_inventory_report,
+)
 from entroping.core.capture_summary_report import (
     CaptureSummaryError,
     CaptureSummaryOutput,
@@ -891,6 +896,33 @@ def report_observability_packet(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote observability packet: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("api-inventory", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_api_inventory(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local API surface inventory packet."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported api-inventory output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_api_inventory_report(
+            project_root=Path.cwd(),
+            output=cast(ApiInventoryOutput, normalized_output),
+        )
+    except ApiInventoryError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote API inventory: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 

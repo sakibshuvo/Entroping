@@ -38,6 +38,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Cross-surface handoff | `entroping.handoff.v1` | `reports/handoff.json` from `entroping report handoff --output json` | [handoff.v1.schema.json](report-schemas/handoff.v1.schema.json) |
 | Notification packet | `entroping.notification-packet.v1` | `reports/notification-packet.json` from `entroping report notification-packet --output json` | [notification-packet.v1.schema.json](report-schemas/notification-packet.v1.schema.json) |
 | Observability packet | `entroping.observability-packet.v1` | `reports/observability-packet.json` from `entroping report observability-packet --output json` | [observability-packet.v1.schema.json](report-schemas/observability-packet.v1.schema.json) |
+| API inventory packet | `entroping.api-inventory.v1` | `reports/api-inventory.json` from `entroping report api-inventory --output json` | [api-inventory.v1.schema.json](report-schemas/api-inventory.v1.schema.json) |
 | Design-partner feedback | `entroping.design-partner-feedback.v1` | `reports/design-partner-feedback.json` from `entroping report design-partner-feedback` | [design-partner-feedback.v1.schema.json](report-schemas/design-partner-feedback.v1.schema.json) |
 | Failure bundle manifest | `entroping.failure-bundle.v1` | `reports/failure-bundle/manifest.json` | Inline contract |
 | Coverage badges | Shields endpoint schema v1 | `reports/badges/*.json` | External Shields endpoint format |
@@ -307,6 +308,29 @@ results, call observability vendor APIs, mutate dashboards or monitors, read
 traffic state, or include raw URLs, headers, bodies, cookies, prompts, provider
 outputs, credentials, environment values, raw report contents, source Hurl
 contents, or full diagnostic attributes.
+
+The API inventory packet is written by:
+
+```bash
+entroping report api-inventory
+entroping report api-inventory --output json
+```
+
+It writes `reports/api-inventory.md` by default or
+`reports/api-inventory.json` with schema `entroping.api-inventory.v1` when
+`--output json` is selected. The packet inventories local API-style signals
+before protocol-specific compilers are added: configured and conventional
+OpenAPI files, committed Hurl tests with protocol tags, and GraphQL/WSDL/proto
+schema files. It summarizes counts for REST/OpenAPI, GraphQL, SOAP/XML,
+gRPC/proto, and unknown HTTP surfaces. The report records source states,
+project-relative local paths, tags, operation/exchange counts, SHA-256 hashes,
+and next-action text only. Missing sources are non-blocking; malformed,
+oversized, non-file, symlinked, path-escaped, or secret-like source artifacts
+are marked invalid or unsafe without rendering contents. The command does not
+execute Hurl, call providers, upload results, parse traffic state, call
+registries, generate tests, mutate source files, or include raw URLs, headers,
+bodies, cookies, prompts, credentials, environment values, or full file
+contents.
 
 The design-partner feedback artifact is written by:
 
