@@ -395,6 +395,7 @@ def _security_negative_files(
                     scheme_name="*",
                     auth_lines=(),
                     query_parameter=None,
+                    cookie_parameter=None,
                     parameter_components=parameter_components,
                 ),
             )
@@ -417,6 +418,7 @@ def _security_negative_files(
                 scheme_name=scheme.name,
                 auth_lines=scheme.auth_lines,
                 query_parameter=scheme.query_parameter,
+                cookie_parameter=scheme.cookie_parameter,
                 parameter_components=parameter_components,
             ),
         )
@@ -441,6 +443,7 @@ def _render_security_negative_operation(
     scheme_name: str,
     auth_lines: tuple[str, ...],
     query_parameter: tuple[str, str] | None,
+    cookie_parameter: tuple[str, str] | None,
     parameter_components: Mapping[str, object],
 ) -> str:
     parameters = _operation_parameters(
@@ -469,7 +472,8 @@ def _render_security_negative_operation(
         "",
         f"{method} {{{{base_url}}}}{target}",
     ]
-    lines.extend(_render_parameter_headers(parameters))
+    extra_cookie_pairs = () if cookie_parameter is None else (cookie_parameter,)
+    lines.extend(_render_parameter_headers(parameters, extra_cookie_pairs=extra_cookie_pairs))
     lines.extend(auth_lines)
 
     request_content = _json_request_schema(operation)
@@ -985,7 +989,8 @@ def _supported_api_key_security_scheme(
     if api_key_location == "cookie" and _HTTP_TOKEN_RE.fullmatch(api_key_name) is not None:
         return _SecurityScheme(
             name=scheme_name,
-            auth_lines=(f"Cookie: {api_key_name}=invalid-session",),
+            auth_lines=(),
+            cookie_parameter=(api_key_name, "invalid-session"),
         )
     return _security_finding(
         operation_id=operation_id,

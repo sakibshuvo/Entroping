@@ -64,6 +64,7 @@ class _SecurityScheme:
     name: str
     auth_lines: tuple[str, ...]
     query_parameter: tuple[str, str] | None = None
+    cookie_parameter: tuple[str, str] | None = None
 
 
 @dataclass(frozen=True)
