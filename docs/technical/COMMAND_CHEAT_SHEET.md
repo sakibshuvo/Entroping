@@ -62,6 +62,7 @@ entroping report pilot-outcome [--output <md|json>]
 entroping report pilot-cohort --manifest <path> [--output <md|json>]
 entroping report connector-intent [--output <md|json>]
 entroping report observability-packet [--output <md|json>]
+entroping report otel-mapping [--output <md|json>]
 entroping report api-inventory [--output <md|json>]
 entroping report mutation-readiness [--output <md|json>]
 entroping report evidence-index [--output <md|json>]
@@ -463,6 +464,8 @@ Experimental design-partner evidence commands:
 | `entroping report connector-intent --output json` | Write machine-readable connector intent metadata to `reports/connector-intent.json` |
 | `entroping report observability-packet --output md` | Write a read-only observability signal packet to `reports/observability-packet.md` |
 | `entroping report observability-packet --output json` | Write machine-readable observability evidence to `reports/observability-packet.json` |
+| `entroping report otel-mapping --output md` | Write a local OpenTelemetry evidence mapping packet to `reports/otel-mapping.md` |
+| `entroping report otel-mapping --output json` | Write machine-readable OpenTelemetry mapping metadata to `reports/otel-mapping.json` |
 | `entroping report api-inventory --output md` | Write a read-only API surface inventory to `reports/api-inventory.md` |
 | `entroping report api-inventory --output json` | Write machine-readable API style evidence to `reports/api-inventory.json` |
 | `entroping report mutation-readiness --output md` | Write a read-only mutation/fuzz readiness summary to `reports/mutation-readiness.md` |

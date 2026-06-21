@@ -314,6 +314,11 @@ LOCKED_CLI_CONTRACTS = (
         ("--output",),
     ),
     CliContract(
+        "entroping report otel-mapping [--output <md|json>]",
+        ("report", "otel-mapping", "--help"),
+        ("--output",),
+    ),
+    CliContract(
         "entroping report api-inventory [--output <md|json>]",
         ("report", "api-inventory", "--help"),
         ("--output",),
@@ -487,6 +492,8 @@ REPORT_ARTIFACTS = (
     "reports/pilot-cohort.json",
     "reports/observability-packet.md",
     "reports/observability-packet.json",
+    "reports/otel-mapping.md",
+    "reports/otel-mapping.json",
     "reports/api-inventory.md",
     "reports/api-inventory.json",
     "reports/mutation-readiness.md",

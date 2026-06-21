@@ -574,6 +574,22 @@ def _artifact_definitions() -> tuple[_EvidenceArtifactDefinition, ...]:
             summary_builder=_status_summary,
         ),
         _EvidenceArtifactDefinition(
+            id="otel-mapping-md",
+            label="OpenTelemetry Mapping Markdown",
+            path=Path("reports") / "otel-mapping.md",
+            kind="markdown",
+            schema_version="entroping.otel-mapping.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="otel-mapping-json",
+            label="OpenTelemetry Mapping JSON",
+            path=Path("reports") / "otel-mapping.json",
+            kind="json",
+            schema_version="entroping.otel-mapping.v1",
+            summary_builder=_status_summary,
+            reject_secret_like=True,
+        ),
+        _EvidenceArtifactDefinition(
             id="api-inventory-md",
             label="API Inventory Markdown",
             path=Path("reports") / "api-inventory.md",
@@ -977,7 +993,7 @@ def _object_field(document: dict[str, object], field: str) -> dict[str, object]:
 
 def _int_field(document: dict[str, object], field: str) -> int | None:
     value = document.get(field)
-    return value if isinstance(value, int) and value >= 0 else None
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
 
 
 def _allowed_status(

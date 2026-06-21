@@ -228,6 +228,15 @@ from entroping.core.observability_packet import (
     ObservabilitySource,
     ObservabilitySummary,
 )
+from entroping.core.otel_mapping import (
+    OTEL_MAPPING_SCHEMA_VERSION,
+    OtelAttributeMapping,
+    OtelBoundaryControl,
+    OtelMappingNextAction,
+    OtelMappingPacket,
+    OtelMappingSource,
+    OtelMappingSummary,
+)
 from entroping.core.pilot_cohort import (
     PILOT_COHORT_SCHEMA_VERSION,
     PilotCohortAction,
@@ -3744,6 +3753,145 @@ def test_observability_packet_v1_schema_contract_is_versioned_and_stable() -> No
     ]
 
 
+def test_otel_mapping_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "otel-mapping.v1.schema.json").read_text())
+    packet = OtelMappingPacket(
+        generated_at="2026-06-21T00:00:00+00:00",
+        project="checkout-api",
+        summary=OtelMappingSummary(
+            status="ready",
+            severity="attention",
+            sources_total=4,
+            sources_present=4,
+            sources_missing=0,
+            sources_invalid=0,
+            sources_unsafe=0,
+            mappings_total=1,
+            resource_mappings=1,
+            log_mappings=0,
+            metric_mappings=0,
+            trace_mappings=0,
+            boundary_controls=1,
+        ),
+        sources=(
+            OtelMappingSource(
+                id="observability_packet",
+                label="Observability packet",
+                path="reports/observability-packet.json",
+                state="present",
+                schema_version="entroping.observability-packet.v1",
+                sha256="a" * 64,
+                summary="ready observability, attention severity, 3 events",
+            ),
+        ),
+        mappings=(
+            OtelAttributeMapping(
+                signal="resource",
+                attribute="service.name",
+                requirement="required",
+                value_kind="identifier",
+                source_ids=("observability_packet", "runtime_card"),
+                summary="Future OTLP resources can identify the sanitized project/service name.",
+                forbidden_fields=("raw_urls", "headers"),
+            ),
+        ),
+        boundary_controls=(
+            OtelBoundaryControl(
+                id="no_otlp_export",
+                state="active",
+                summary="This command writes local mapping evidence only; it does not export OTLP.",
+            ),
+        ),
+        next_actions=(
+            OtelMappingNextAction(
+                priority="low",
+                action="Use this packet as the value-free contract for a future OTLP adapter.",
+                source_ids=("observability_packet", "runtime_card"),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert OTEL_MAPPING_SCHEMA_VERSION == "entroping.otel-mapping.v1"
+    assert payload == {
+        "schema_version": "entroping.otel-mapping.v1",
+        "generated_at": "2026-06-21T00:00:00+00:00",
+        "project": "checkout-api",
+        "summary": {
+            "status": "ready",
+            "severity": "attention",
+            "sources_total": 4,
+            "sources_present": 4,
+            "sources_missing": 0,
+            "sources_invalid": 0,
+            "sources_unsafe": 0,
+            "mappings_total": 1,
+            "resource_mappings": 1,
+            "log_mappings": 0,
+            "metric_mappings": 0,
+            "trace_mappings": 0,
+            "boundary_controls": 1,
+        },
+        "sources": [
+            {
+                "id": "observability_packet",
+                "label": "Observability packet",
+                "path": "reports/observability-packet.json",
+                "state": "present",
+                "schema_version": "entroping.observability-packet.v1",
+                "sha256": "a" * 64,
+                "summary": "ready observability, attention severity, 3 events",
+            }
+        ],
+        "mappings": [
+            {
+                "signal": "resource",
+                "attribute": "service.name",
+                "requirement": "required",
+                "value_kind": "identifier",
+                "source_ids": ["observability_packet", "runtime_card"],
+                "summary": (
+                    "Future OTLP resources can identify the sanitized project/service name."
+                ),
+                "forbidden_fields": ["raw_urls", "headers"],
+            }
+        ],
+        "boundary_controls": [
+            {
+                "id": "no_otlp_export",
+                "state": "active",
+                "summary": (
+                    "This command writes local mapping evidence only; it does not export OTLP."
+                ),
+            }
+        ],
+        "next_actions": [
+            {
+                "priority": "low",
+                "action": (
+                    "Use this packet as the value-free contract for a future OTLP adapter."
+                ),
+                "source_ids": ["observability_packet", "runtime_card"],
+            }
+        ],
+    }
+    assert schema["properties"]["schema_version"]["const"] == "entroping.otel-mapping.v1"
+    assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["$defs"]["summary"]["properties"]["status"]["enum"] == [
+        "ready",
+        "partial",
+        "insufficient",
+    ]
+    assert schema["$defs"]["source_id"]["enum"] == [
+        "observability_packet",
+        "runtime_card",
+        "test_pyramid",
+        "external_test_evidence",
+    ]
+    assert schema["$defs"]["signal"]["enum"] == ["resource", "log", "metric", "trace"]
+
+
 def test_api_inventory_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "api-inventory.v1.schema.json").read_text())
     packet = ApiInventoryPacket(
@@ -5879,6 +6027,7 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         ),
         "entroping.integration-readiness.v1": (SCHEMA_DIR / "integration-readiness.v1.schema.json"),
         "entroping.observability-packet.v1": (SCHEMA_DIR / "observability-packet.v1.schema.json"),
+        "entroping.otel-mapping.v1": SCHEMA_DIR / "otel-mapping.v1.schema.json",
         "entroping.api-inventory.v1": SCHEMA_DIR / "api-inventory.v1.schema.json",
         "entroping.mutation-readiness.v1": (SCHEMA_DIR / "mutation-readiness.v1.schema.json"),
         "entroping.evidence-index.v1": SCHEMA_DIR / "evidence-index.v1.schema.json",

@@ -415,6 +415,35 @@ def test_evidence_index_uses_fallback_summaries_for_negative_counts(tmp_path: Pa
     assert "-1" not in repr(artifacts)
 
 
+def test_evidence_index_uses_fallback_summaries_for_boolean_counts(tmp_path: Path) -> None:
+    reports_dir = tmp_path / "reports"
+    _write_json(
+        reports_dir / "run-latest.json",
+        {
+            "schema_version": "entroping.run-report.v1",
+            "summary": {"total": True, "passed": 1, "failed": 0},
+        },
+    )
+    _write_json(
+        reports_dir / "capture-summary.json",
+        {
+            "schema_version": "entroping.capture-summary.v1",
+            "summary": {
+                "total_records": True,
+                "redacted_records": 1,
+                "unredacted_records": 0,
+            },
+        },
+    )
+
+    artifacts = build_local_evidence_index(project_root=tmp_path)
+    by_id = {artifact.id: artifact for artifact in artifacts}
+
+    assert by_id["run-json"].summary == "run summary available"
+    assert by_id["capture-summary-json"].summary == "capture summary available"
+    assert "True" not in repr(artifacts)
+
+
 def test_evidence_index_includes_recent_value_free_packet_artifacts(
     tmp_path: Path,
 ) -> None:
@@ -424,6 +453,8 @@ def test_evidence_index_includes_recent_value_free_packet_artifacts(
     assert by_id["notification-packet-json"].path == "reports/notification-packet.json"
     assert by_id["notification-packet-json"].state == "missing"
     assert by_id["observability-packet-json"].path == "reports/observability-packet.json"
+    assert by_id["otel-mapping-md"].path == "reports/otel-mapping.md"
+    assert by_id["otel-mapping-json"].path == "reports/otel-mapping.json"
     assert by_id["api-inventory-json"].path == "reports/api-inventory.json"
     assert by_id["mutation-readiness-json"].path == "reports/mutation-readiness.json"
     assert by_id["evidence-index-json"].path == "reports/evidence-index.json"
@@ -453,6 +484,23 @@ def test_evidence_index_includes_recent_value_free_packet_artifacts(
     assert by_id["pilot-outcome-json"].path == "reports/pilot-outcome.json"
     assert by_id["pilot-cohort-md"].path == "reports/pilot-cohort.md"
     assert by_id["pilot-cohort-json"].path == "reports/pilot-cohort.json"
+
+
+def test_evidence_index_rejects_secret_like_otel_mapping_json(tmp_path: Path) -> None:
+    _write_json(
+        tmp_path / "reports" / "otel-mapping.json",
+        {
+            "schema_version": "entroping.otel-mapping.v1",
+            "summary": {"status": "ready"},
+            "leaked": "sk-proj-" + ("a" * 24),
+        },
+    )
+
+    artifacts = build_local_evidence_index(project_root=tmp_path)
+    by_id = {artifact.id: artifact for artifact in artifacts}
+
+    assert by_id["otel-mapping-json"].state == "unsafe"
+    assert by_id["otel-mapping-json"].summary == "secret-like content"
 
 
 def test_evidence_index_discovers_external_test_evidence_without_raw_values(

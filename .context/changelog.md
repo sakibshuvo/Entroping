@@ -2,6 +2,16 @@
 
 ## 2026-06-21
 
+- Added issue #1093's OpenTelemetry evidence mapping packet: `report
+  otel-mapping` now writes local Markdown or `entroping.otel-mapping.v1` JSON
+  that maps sanitized observability, runtime-card, test-pyramid, and external
+  test evidence into future OTLP resource, log, metric, and trace attribute
+  rows without exporting OTLP, calling collectors or vendor APIs, mutating
+  dashboards, monitors, tickets, chat, PRs, or hosted state, reading provider
+  keys, parsing traffic state, executing Hurl, running tests, invoking models,
+  changing `entroping run`, or rendering raw traffic, source Hurl, prompts,
+  provider output, credentials, environment values, or full report contents.
+
 - Added issue #1091's pilot cohort rollup: `report pilot-cohort --manifest`
   now writes local Markdown or `entroping.pilot-cohort.v1` JSON that
   aggregates explicit pilot outcome packets into cohort status, readiness
