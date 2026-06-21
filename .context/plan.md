@@ -16,30 +16,23 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1075 Evidence Cloud Export
+## Current Issue Slice: #1077 Evidence Cloud Workspace
 
-- Add `entroping report evidence-cloud-export` with `--output md|json`.
-- Write local `reports/evidence-cloud-export.md` by default and
-  `reports/evidence-cloud-export.json` with schema
-  `entroping.evidence-cloud-export.v1` when JSON is requested.
-- Read only fixed optional sanitized local report artifacts: evidence-portal,
-  evidence-links, evidence-cloud-readiness, team-evidence-readiness,
-  evidence-bundle, artifact-manifest, runtime-card, handoff,
-  integration-readiness, devex-readiness, connector-intent,
-  observability-packet, and evidence-index.
-- Emit source states, schema versions, bounded SHA-256 hashes, local export
-  references, boundary controls, and next-action rows without embedding source
-  contents.
-- Preserve missing evidence as non-blocking, and keep invalid, unsafe,
-  oversized, unreadable, wrong-schema, symlinked, or secret-like packets
-  value-free.
-- Do not call hosted Evidence Cloud APIs, upload artifacts, sync remote state,
-  create accounts, configure SSO/RBAC, mutate tickets or chat, call
-  observability APIs, execute Hurl, run tests, invoke models, parse traffic
-  state, mutate external systems, change `entroping run`, or change
-  deterministic runtime authority.
-- Verification lane: `security-runtime` because this slice reads local evidence
-  artifacts and must preserve path, parser, schema, raw-content, and
+- Add `entroping report evidence-cloud-workspace --manifest <path>` with
+  repeatable explicit manifest inputs and `--output md|json`.
+- Write local `reports/evidence-cloud-workspace.md` by default and
+  `reports/evidence-cloud-workspace.json` with schema
+  `entroping.evidence-cloud-workspace.v1` when JSON is requested.
+- Read only explicit local `entroping.evidence-cloud-export.v1` JSON manifests,
+  then emit manifest/repository state, counts, bounded hashes, boundary-control
+  rollups, local references, and next actions without embedding source details.
+- Preserve missing, invalid, unsafe, oversized, unreadable, wrong-schema,
+  symlinked, forbidden-component, or secret-like manifests as value-free rows.
+- Do not call hosted/model APIs, upload, sync remote state, inspect raw
+  artifacts beyond explicit manifests, execute Hurl/tests, parse traffic, mutate
+  external systems, change `entroping run`, or change deterministic authority.
+- Verification lane: `security-runtime` because this slice reads explicit local
+  manifest files and must preserve path, parser, schema, raw-content, and
   secret-safety boundaries.
 
 ## Current Baseline

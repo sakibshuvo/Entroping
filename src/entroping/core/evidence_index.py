@@ -407,6 +407,21 @@ def _artifact_definitions() -> tuple[_EvidenceArtifactDefinition, ...]:
             summary_builder=_status_summary,
         ),
         _EvidenceArtifactDefinition(
+            id="evidence-cloud-workspace-md",
+            label="Evidence Cloud Workspace Markdown",
+            path=Path("reports") / "evidence-cloud-workspace.md",
+            kind="markdown",
+            schema_version="entroping.evidence-cloud-workspace.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="evidence-cloud-workspace-json",
+            label="Evidence Cloud Workspace JSON",
+            path=Path("reports") / "evidence-cloud-workspace.json",
+            kind="json",
+            schema_version="entroping.evidence-cloud-workspace.v1",
+            summary_builder=_status_summary,
+        ),
+        _EvidenceArtifactDefinition(
             id="evidence-links-md",
             label="Evidence Links Markdown",
             path=Path("reports") / "evidence-links.md",

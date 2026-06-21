@@ -78,6 +78,11 @@ from entroping.core.evidence_cloud_readiness import (
     EvidenceCloudReadinessOutput,
     run_evidence_cloud_readiness_report,
 )
+from entroping.core.evidence_cloud_workspace import (
+    EvidenceCloudWorkspaceError,
+    EvidenceCloudWorkspaceOutput,
+    run_evidence_cloud_workspace_report,
+)
 from entroping.core.evidence_index_report import (
     EvidenceIndexError,
     EvidenceIndexOutput,
@@ -1032,6 +1037,41 @@ def report_evidence_cloud_export(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote Evidence Cloud export: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("evidence-cloud-workspace", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_evidence_cloud_workspace(
+    manifest: Annotated[
+        list[Path],
+        typer.Option(
+            "--manifest",
+            help="Evidence Cloud export JSON manifest path; repeatable.",
+        ),
+    ],
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local Evidence Cloud workspace dashboard packet."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported evidence-cloud-workspace output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_evidence_cloud_workspace_report(
+            project_root=Path.cwd(),
+            manifests=tuple(manifest),
+            output=cast(EvidenceCloudWorkspaceOutput, normalized_output),
+        )
+    except EvidenceCloudWorkspaceError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote Evidence Cloud workspace: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 

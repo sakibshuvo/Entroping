@@ -1,0 +1,357 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://entroping.dev/schemas/evidence-cloud-workspace.v1.schema.json",
+  "title": "Entroping Evidence Cloud workspace packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "project",
+    "summary",
+    "manifests",
+    "repositories",
+    "boundary_controls",
+    "next_actions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.evidence-cloud-workspace.v1"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "project": {
+      "type": "string"
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "manifests": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/manifest"
+      }
+    },
+    "repositories": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/repository"
+      }
+    },
+    "boundary_controls": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/boundary_control"
+      }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/next_action"
+      }
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "manifests_total",
+        "manifests_present",
+        "manifests_missing",
+        "manifests_invalid",
+        "manifests_unsafe",
+        "repositories_total",
+        "repositories_ready",
+        "repositories_partial",
+        "repositories_insufficient",
+        "export_items_total",
+        "export_items_ready",
+        "export_items_blocked",
+        "boundary_controls_total",
+        "next_actions_total"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "ready",
+            "partial",
+            "insufficient"
+          ]
+        },
+        "manifests_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "manifests_present": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "manifests_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "manifests_invalid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "manifests_unsafe": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "repositories_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "repositories_ready": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "repositories_partial": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "repositories_insufficient": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "export_items_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "export_items_ready": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "export_items_blocked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "boundary_controls_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "next_actions_total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "path",
+        "state",
+        "schema_version",
+        "sha256",
+        "project",
+        "export_status",
+        "summary"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/manifest_state"
+        },
+        "schema_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "project": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "export_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/repository_status"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "manifest_id",
+        "project",
+        "status",
+        "sources_present",
+        "sources_total",
+        "export_items_ready",
+        "export_items_total",
+        "export_items_blocked",
+        "boundary_controls_total",
+        "local_reference",
+        "summary"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "manifest_id": {
+          "type": "string"
+        },
+        "project": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/repository_status"
+        },
+        "sources_present": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "export_items_ready": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "export_items_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "export_items_blocked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "boundary_controls_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "local_reference": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "boundary_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "total_manifests",
+        "enforced_manifests",
+        "summary"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/boundary_control_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "total_manifests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "enforced_manifests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "next_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "priority",
+        "action",
+        "manifest_ids",
+        "repository_ids"
+      ],
+      "properties": {
+        "priority": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "action": {
+          "type": "string"
+        },
+        "manifest_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "repository_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "manifest_state": {
+      "enum": [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe"
+      ]
+    },
+    "repository_status": {
+      "enum": [
+        "ready",
+        "partial",
+        "insufficient"
+      ]
+    },
+    "boundary_control_id": {
+      "enum": [
+        "explicit_upload_only",
+        "no_remote_api",
+        "no_raw_traffic",
+        "no_secrets",
+        "no_prompts_or_provider_outputs",
+        "no_source_hurl",
+        "no_env_values",
+        "no_full_report_payloads"
+      ]
+    }
+  }
+}

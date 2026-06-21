@@ -2,6 +2,19 @@
 
 ## 2026-06-21
 
+- Added issue #1077's Evidence Cloud workspace packet: `report
+  evidence-cloud-workspace --manifest <path>` now writes local
+  `entroping.evidence-cloud-workspace.v1` JSON or Markdown that aggregates
+  explicit Evidence Cloud export manifests into value-free manifest states,
+  repository status, source/export-item counts, bounded hashes,
+  boundary-control rollups, local references, and next actions without calling
+  hosted APIs, uploading artifacts, syncing remote state, creating accounts,
+  configuring SSO/RBAC, inspecting raw report artifacts beyond the explicit
+  manifests, executing Hurl, running tests, invoking models, parsing traffic
+  state, changing `entroping run`, or rendering raw report, traffic, prompt,
+  credential, cookie, environment, webhook, ticket, source Hurl, or provider
+  contents.
+
 - Added issue #1075's Evidence Cloud export manifest: `report
   evidence-cloud-export` now writes local
   `entroping.evidence-cloud-export.v1` JSON or Markdown that turns sanitized
