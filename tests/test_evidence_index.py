@@ -449,6 +449,8 @@ def test_evidence_index_includes_recent_value_free_packet_artifacts(
     assert by_id["work-item-import-bundle-csv"].path == (
         "reports/work-item-import-bundle.csv"
     )
+    assert by_id["pilot-outcome-md"].path == "reports/pilot-outcome.md"
+    assert by_id["pilot-outcome-json"].path == "reports/pilot-outcome.json"
 
 
 def test_evidence_index_discovers_external_test_evidence_without_raw_values(

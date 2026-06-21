@@ -527,6 +527,22 @@ def _artifact_definitions() -> tuple[_EvidenceArtifactDefinition, ...]:
             schema_version="entroping.work-item-import-bundle.csv",
         ),
         _EvidenceArtifactDefinition(
+            id="pilot-outcome-md",
+            label="Pilot Outcome Markdown",
+            path=Path("reports") / "pilot-outcome.md",
+            kind="markdown",
+            schema_version="entroping.pilot-outcome.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="pilot-outcome-json",
+            label="Pilot Outcome JSON",
+            path=Path("reports") / "pilot-outcome.json",
+            kind="json",
+            schema_version="entroping.pilot-outcome.v1",
+            summary_builder=_status_summary,
+            reject_secret_like=True,
+        ),
+        _EvidenceArtifactDefinition(
             id="observability-packet-md",
             label="Observability Packet Markdown",
             path=Path("reports") / "observability-packet.md",

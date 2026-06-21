@@ -2,6 +2,15 @@
 
 ## 2026-06-21
 
+- Added issue #1089's pilot outcome packet: `report pilot-outcome` now writes
+  local Markdown or `entroping.pilot-outcome.v1` JSON that summarizes
+  sanitized design-partner feedback, pilot-metrics, runtime-card, Evidence
+  Cloud dashboard, and work-item import state into readiness, manual-input
+  gaps, monetization signal answers, and next actions without CRM/billing,
+  ticket/chat/PR mutation, hosted uploads, vendor APIs, Hurl/test execution,
+  model calls, traffic parsing, `entroping run` changes, source Hurl access,
+  private partner notes, URLs, or raw artifact rendering.
+
 - Added issue #1087's work item import bundle: `report work-item-import-bundle`
   now writes local `entroping.work-item-import-bundle.v1` JSON or
   spreadsheet-safe CSV that turns the work-item draft packet into import rows

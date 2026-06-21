@@ -192,6 +192,9 @@ produce.
 - Add a local work item import bundle that turns the tracker draft packet into
   JSON/CSV import rows before Jira, Linear, monday.com, GitHub Issues, chat,
   automation, or hosted write-back connectors exist.
+- Add a local pilot outcome packet that summarizes sanitized design-partner
+  readiness, manual-input gaps, and monetization signal answers before CRM,
+  billing, ticket, chat, or hosted follow-up workflows exist.
 - Support design partner pilots focused on AI-generated backend/API changes and
   measure whether engineering leads will pay for cross-repo runtime governance
   visibility.

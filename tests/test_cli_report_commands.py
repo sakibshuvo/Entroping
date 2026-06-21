@@ -49,6 +49,7 @@ from entroping.core.mutation_readiness import MutationReadinessError
 from entroping.core.notification_packet import NotificationPacketError
 from entroping.core.observability_packet import ObservabilityPacketError
 from entroping.core.pilot_metrics import PilotMetricsError
+from entroping.core.pilot_outcome import PilotOutcomeError
 from entroping.core.pr_evidence_card import PrEvidenceCardError
 from entroping.core.qa_brain_eval_plan import QaBrainEvalPlanError
 from entroping.core.qa_brain_fine_tune_readiness import (
@@ -256,6 +257,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "api-inventory",
         "mutation-readiness",
         "pilot-metrics",
+        "pilot-outcome",
         "agent-bundle",
     ):
         assert command in experimental_panel
@@ -601,6 +603,56 @@ def test_report_pilot_metrics_wraps_core_errors(monkeypatch: pytest.MonkeyPatch)
 
     assert result.exit_code == 1
     assert "pilot metrics path is unsafe" in result.output
+
+
+def test_report_pilot_outcome_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "pilot-outcome"])
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote pilot outcome packet: reports/pilot-outcome.md" in result.output
+    markdown = Path("reports/pilot-outcome.md").read_text(encoding="utf-8")
+    assert "# Entroping Pilot Outcome" in markdown
+    assert "Generate Design-partner feedback" in markdown
+
+
+def test_report_pilot_outcome_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "pilot-outcome", "--output", "json"])
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote pilot outcome packet: reports/pilot-outcome.json" in result.output
+    payload = json.loads(Path("reports/pilot-outcome.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.pilot-outcome.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_pilot_outcome_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["report", "pilot-outcome", "--output", "html"])
+
+    assert result.exit_code == 2
+    assert "Unsupported pilot-outcome output" in result.output
+    assert not Path("reports/pilot-outcome.html").exists()
+
+
+def test_report_pilot_outcome_wraps_core_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail_pilot_outcome(*args: object, **kwargs: object) -> object:
+        raise PilotOutcomeError("pilot outcome path is unsafe")
+
+    monkeypatch.setattr(report_cli, "run_pilot_outcome_report", fail_pilot_outcome)
+
+    result = CliRunner().invoke(app, ["report", "pilot-outcome"])
+
+    assert result.exit_code == 1
+    assert "pilot outcome path is unsafe" in result.output
 
 
 def test_report_handoff_writes_markdown(
