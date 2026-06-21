@@ -16,26 +16,23 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1064 Test-Pyramid External Evidence Integration
+## Current Issue Slice: #1066 External Test Evidence Index
 
-- Fold optional `reports/external-test-evidence.json` into
-  `entroping report test-pyramid --output md|json` only when the local packet is
-  present.
-- Require schema `entroping.external-test-evidence.v1` before treating the
-  packet as present evidence.
-- Preserve missing-packet behavior: no External Test Evidence layer, no new
-  runtime-governance finding, and the existing six-layer summary remains intact.
-- Add an optional External Test Evidence layer with counts-only status, layer,
-  test, failure, error, and skipped totals for valid packets.
-- Report invalid, unsafe, oversized, unreadable, out-of-root, symlinked, or
-  secret-like packets as value-free invalid/unsafe layer evidence.
-- Keep runtime-governance findings limited to run JSON, JUnit XML, and
-  gate-coverage JSON so deterministic Hurl/QAnstitution proof stays authoritative.
-- Do not parse raw `reports/external-tests/*` artifacts from test-pyramid, run
-  tests or Hurl, call providers, upload artifacts, read raw traffic, mutate
-  external systems, or change `entroping run`.
-- Verification lane: `security-runtime` because this slice reads a local JSON
-  evidence packet and must preserve path, parser, schema, raw-content, and
+- Add `reports/external-test-evidence.json` and
+  `reports/external-test-evidence.md` to the canonical local evidence index.
+- Require JSON schema `entroping.external-test-evidence.v1` before emitting a
+  present JSON summary.
+- Keep the JSON artifact summary counts-only: status, layer count, total tests,
+  failures, errors, and skipped tests.
+- Treat the Markdown artifact as presence-only metadata with schema
+  `entroping.external-test-evidence.md`.
+- Preserve missing evidence as non-blocking, and keep invalid, unsafe,
+  oversized, unreadable, wrong-schema, or secret-like packets value-free.
+- Do not parse raw `reports/external-tests/*` artifacts, run tests or Hurl,
+  call providers, upload artifacts, read raw traffic, mutate external systems,
+  change `entroping run`, or change the locked CLI surface.
+- Verification lane: `security-runtime` because this slice reads local evidence
+  artifacts and must preserve path, parser, schema, raw-content, and
   secret-safety boundaries.
 
 ## Current Baseline

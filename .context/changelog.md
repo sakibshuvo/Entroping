@@ -2,6 +2,15 @@
 
 ## 2026-06-20
 
+- Added issue #1066's external test evidence index entries: `report
+  evidence-index` now lists `reports/external-test-evidence.json` and
+  `reports/external-test-evidence.md` as local artifacts, requires
+  `entroping.external-test-evidence.v1` before summarizing JSON evidence, emits
+  only counts-only status/layer/test/failure/error/skipped totals, keeps
+  missing or invalid artifacts value-free, and still does not parse raw
+  `reports/external-tests/*` artifacts, run tests or Hurl, call providers,
+  upload artifacts, mutate external systems, read raw traffic, change
+  `entroping run`, or render raw external test values.
 - Added issue #1064's test-pyramid external-evidence integration:
   `report test-pyramid` now folds in optional
   `reports/external-test-evidence.json` evidence with schema

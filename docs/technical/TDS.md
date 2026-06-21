@@ -1518,13 +1518,17 @@ index at `reports/evidence-index.md` by default, or
 `reports/evidence-index.json` with `--output json`. It reuses the existing
 local evidence inventory and emits stable artifact IDs, labels,
 project-relative paths, source states, schema versions, and compact value-free
-summaries for local report artifacts. Missing evidence is non-blocking;
-invalid, unsafe, symlinked, non-file, oversized, malformed, or unreadable
-source artifacts remain represented through evidence-index states without
-embedding source contents. The command does not execute Hurl, run tests, call
-providers, upload artifacts, parse traffic state, mutate files, or render raw
-report contents, raw traffic, source Hurl, prompts, credentials, cookies,
-environment values, or provider outputs.
+summaries for local report artifacts. It includes
+`reports/external-test-evidence.json` with schema
+`entroping.external-test-evidence.v1` and
+`reports/external-test-evidence.md`; the JSON summary is limited to status,
+layer, test, failure, error, and skipped totals. Missing evidence is
+non-blocking; invalid, unsafe, symlinked, non-file, oversized, malformed, or
+unreadable source artifacts remain represented through evidence-index states
+without embedding source contents. The command does not execute Hurl, run
+tests, call providers, upload artifacts, parse traffic state, mutate files, or
+render raw report contents, raw traffic, source Hurl, prompts, credentials,
+cookies, environment values, or provider outputs.
 
 `entroping report qa-brain-seed` writes a local read-only QA Brain seed packet
 at `reports/qa-brain-seed.md` by default, or `reports/qa-brain-seed.json` with

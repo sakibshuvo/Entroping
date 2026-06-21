@@ -81,7 +81,9 @@ def _test_pyramid_artifacts(
     root: Path,
 ) -> tuple[TestPyramidArtifactEvidence, ...]:
     selected = {
-        artifact.id: _artifact_from_evidence_index(artifact) for artifact in evidence_artifacts
+        artifact.id: _artifact_from_evidence_index(artifact)
+        for artifact in evidence_artifacts
+        if artifact.id not in {"external-test-evidence-json", "external-test-evidence-md"}
     }
     coverage_artifact = _coverage_artifact(root=root)
     indexed_coverage = selected.get("coverage-json")

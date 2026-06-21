@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import errno
 import json
+import os
+import re
+import stat
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,6 +22,8 @@ from entroping.core.agent_bundle import AGENT_REVIEW_BUNDLE_SCHEMA_VERSION
 from entroping.core.api_inventory import API_INVENTORY_SCHEMA_VERSION
 from entroping.core.drift_report import DRIFT_REPORT_SCHEMA_VERSION
 from entroping.core.evidence_bundle import EVIDENCE_BUNDLE_SCHEMA_VERSION
+from entroping.core.evidence_common import contains_unredacted_evidence_secret
+from entroping.core.external_test_evidence import EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION
 from entroping.core.failure_bundle import FAILURE_BUNDLE_SCHEMA_VERSION
 from entroping.core.handoff_packet import HANDOFF_SCHEMA_VERSION
 from entroping.core.mutation_readiness import MUTATION_READINESS_SCHEMA_VERSION
@@ -33,6 +39,10 @@ EvidenceArtifactState = Literal["present", "missing", "invalid", "unsafe"]
 _ArtifactKind = Literal["json", "markdown", "xml", "html", "sarif"]
 _SummaryBuilder = Callable[[dict[str, object]], str]
 _MAX_JSON_ARTIFACT_BYTES: Final = 10 * 1024 * 1024
+_SHA256_HEX_RE: Final = re.compile(r"\b[0-9a-f]{64}\b")
+_HAS_O_DIRECTORY: Final = hasattr(os, "O_DIRECTORY")
+_HAS_O_NOFOLLOW: Final = hasattr(os, "O_NOFOLLOW")
+_SUPPORTS_DIR_FD_OPEN: Final = os.open in os.supports_dir_fd
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,6 +65,7 @@ class _EvidenceArtifactDefinition:
     kind: _ArtifactKind
     schema_version: str | None
     summary_builder: _SummaryBuilder | None = None
+    reject_secret_like: bool = False
 
 
 def build_local_evidence_index(*, project_root: Path) -> tuple[LocalEvidenceArtifact, ...]:
@@ -202,6 +213,22 @@ def _artifact_definitions() -> tuple[_EvidenceArtifactDefinition, ...]:
             path=Path("reports") / "test-pyramid.md",
             kind="markdown",
             schema_version="entroping.test-pyramid.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="external-test-evidence-json",
+            label="External Test Evidence JSON",
+            path=Path("reports") / "external-test-evidence.json",
+            kind="json",
+            schema_version=EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION,
+            summary_builder=_external_test_evidence_summary,
+            reject_secret_like=True,
+        ),
+        _EvidenceArtifactDefinition(
+            id="external-test-evidence-md",
+            label="External Test Evidence Markdown",
+            path=Path("reports") / "external-test-evidence.md",
+            kind="markdown",
+            schema_version="entroping.external-test-evidence.md",
         ),
         _EvidenceArtifactDefinition(
             id="artifact-manifest-json",
@@ -367,9 +394,9 @@ def _artifact_status(
     if not candidate.is_file():
         return _status(definition, "unsafe", None, "not a file")
     if definition.kind == "json":
-        return _json_status(definition, candidate)
+        return _json_status(definition, candidate, root=root)
     if definition.kind == "sarif":
-        return _sarif_status(definition, candidate)
+        return _sarif_status(definition, candidate, root=root)
     return _status(definition, "present", definition.schema_version, f"{definition.label} present")
 
 
@@ -388,8 +415,20 @@ def _unsafe_summary(path: Path, *, root: Path) -> str | None:
     return None
 
 
-def _json_status(definition: _EvidenceArtifactDefinition, path: Path) -> LocalEvidenceArtifact:
-    document, load_error = _load_json_object(path)
+def _json_status(
+    definition: _EvidenceArtifactDefinition,
+    path: Path,
+    *,
+    root: Path,
+) -> LocalEvidenceArtifact:
+    raw_text, load_error = _read_json_artifact_text(path, root=root)
+    if raw_text is None:
+        return _status(definition, _load_failure_state(load_error), None, load_error)
+    if definition.reject_secret_like and contains_unredacted_evidence_secret(
+        _SHA256_HEX_RE.sub("[SHA256]", raw_text)
+    ):
+        return _status(definition, "unsafe", None, "secret-like content")
+    document, load_error = _parse_json_object(raw_text)
     if document is None:
         return _status(definition, "invalid", None, load_error)
     if document.get("schema_version") != definition.schema_version:
@@ -398,23 +437,147 @@ def _json_status(definition: _EvidenceArtifactDefinition, path: Path) -> LocalEv
     return _status(definition, "present", definition.schema_version, summary)
 
 
-def _sarif_status(definition: _EvidenceArtifactDefinition, path: Path) -> LocalEvidenceArtifact:
-    document, load_error = _load_json_object(path)
+def _sarif_status(
+    definition: _EvidenceArtifactDefinition,
+    path: Path,
+    *,
+    root: Path,
+) -> LocalEvidenceArtifact:
+    document, load_error = _load_json_object(path, root=root)
     if document is None:
-        return _status(definition, "invalid", None, load_error)
+        return _status(definition, _load_failure_state(load_error), None, load_error)
     if document.get("version") != "2.1.0":
         return _status(definition, "invalid", None, "schema mismatch")
     return _status(definition, "present", definition.schema_version, "SARIF 2.1.0")
 
 
-def _load_json_object(path: Path) -> tuple[dict[str, object] | None, str]:
+def _load_json_object(path: Path, *, root: Path) -> tuple[dict[str, object] | None, str]:
+    raw_text, load_error = _read_json_artifact_text(path, root=root)
+    if raw_text is None:
+        return None, load_error
+    return _parse_json_object(raw_text)
+
+
+def _load_failure_state(load_error: str) -> EvidenceArtifactState:
+    if load_error in {"not a file", "path outside project", "symlinked path component"}:
+        return "unsafe"
+    return "invalid"
+
+
+def _read_json_artifact_text(path: Path, *, root: Path) -> tuple[str | None, str]:
+    raw_bytes, load_error = _read_json_artifact_bytes(path, root=root)
+    if raw_bytes is None:
+        return None, load_error
     try:
-        if path.stat().st_size > _MAX_JSON_ARTIFACT_BYTES:
-            return None, "artifact too large"
-        document = json.loads(path.read_text(encoding="utf-8"))
-    except OSError:
-        return None, "unreadable"
-    except (UnicodeDecodeError, json.JSONDecodeError):
+        return raw_bytes.decode("utf-8"), ""
+    except UnicodeDecodeError:
+        return None, "invalid JSON"
+
+
+def _read_json_artifact_bytes(path: Path, *, root: Path) -> tuple[bytes | None, str]:
+    try:
+        relative_path = path.relative_to(root)
+    except ValueError:
+        return None, "path outside project"
+    if _supports_no_follow_tree_open():
+        return _read_json_artifact_bytes_no_follow(root=root, relative_path=relative_path)
+    return _read_json_artifact_bytes_best_effort(path)
+
+
+def _supports_no_follow_tree_open() -> bool:
+    return _HAS_O_DIRECTORY and _HAS_O_NOFOLLOW and _SUPPORTS_DIR_FD_OPEN
+
+
+def _read_json_artifact_bytes_no_follow(
+    *,
+    root: Path,
+    relative_path: Path,
+) -> tuple[bytes | None, str]:
+    if any(part in {"", ".", ".."} for part in relative_path.parts):
+        return None, "path outside project"
+    directory_descriptors: list[int] = []
+    file_descriptor: int | None = None
+    try:
+        root_descriptor = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
+        directory_descriptors.append(root_descriptor)
+        directory_descriptor = root_descriptor
+        for component in relative_path.parts[:-1]:
+            next_descriptor = os.open(
+                component,
+                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                dir_fd=directory_descriptor,
+            )
+            directory_descriptors.append(next_descriptor)
+            directory_descriptor = next_descriptor
+        file_descriptor = os.open(
+            relative_path.name,
+            os.O_RDONLY | os.O_NOFOLLOW,
+            dir_fd=directory_descriptor,
+        )
+        return _read_bounded_bytes_from_descriptor(file_descriptor)
+    except OSError as exc:
+        return None, _os_read_error_summary(exc)
+    finally:
+        if file_descriptor is not None:
+            os.close(file_descriptor)
+        for directory_descriptor in reversed(directory_descriptors):
+            os.close(directory_descriptor)
+
+
+def _read_json_artifact_bytes_best_effort(path: Path) -> tuple[bytes | None, str]:
+    file_descriptor: int | None = None
+    try:
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        file_descriptor = os.open(path, flags)
+        path_stat = path.stat(follow_symlinks=False)
+        descriptor_stat = os.fstat(file_descriptor)
+        if not stat.S_ISREG(path_stat.st_mode) or not stat.S_ISREG(descriptor_stat.st_mode):
+            return None, "not a file"
+        if (path_stat.st_dev, path_stat.st_ino) != (
+            descriptor_stat.st_dev,
+            descriptor_stat.st_ino,
+        ):
+            return None, "unreadable"
+        return _read_bounded_bytes_from_descriptor(file_descriptor)
+    except OSError as exc:
+        return None, _os_read_error_summary(exc)
+    finally:
+        if file_descriptor is not None:
+            os.close(file_descriptor)
+
+
+def _read_bounded_bytes_from_descriptor(file_descriptor: int) -> tuple[bytes | None, str]:
+    descriptor_stat = os.fstat(file_descriptor)
+    if not stat.S_ISREG(descriptor_stat.st_mode):
+        return None, "not a file"
+    if descriptor_stat.st_size > _MAX_JSON_ARTIFACT_BYTES:
+        return None, "artifact too large"
+    chunks: list[bytes] = []
+    bytes_read = 0
+    while bytes_read <= _MAX_JSON_ARTIFACT_BYTES:
+        chunk = os.read(
+            file_descriptor,
+            min(65536, _MAX_JSON_ARTIFACT_BYTES + 1 - bytes_read),
+        )
+        if not chunk:
+            break
+        chunks.append(chunk)
+        bytes_read += len(chunk)
+    if bytes_read > _MAX_JSON_ARTIFACT_BYTES:
+        return None, "artifact too large"
+    return b"".join(chunks), ""
+
+
+def _os_read_error_summary(exc: OSError) -> str:
+    if exc.errno == errno.ELOOP:
+        return "symlinked path component"
+    return "unreadable"
+
+
+def _parse_json_object(raw_text: str) -> tuple[dict[str, object] | None, str]:
+    try:
+        document = json.loads(raw_text)
+    except json.JSONDecodeError:
         return None, "invalid JSON"
     return (document, "") if isinstance(document, dict) else (None, "invalid JSON")
 
@@ -509,6 +672,35 @@ def _test_quality_summary(document: dict[str, object]) -> str:
     if score is None or generated_tests is None or findings is None:
         return status
     return f"{status}, score {score}, {generated_tests} generated, {findings} findings"
+
+
+def _external_test_evidence_summary(document: dict[str, object]) -> str:
+    summary = _object_field(document, "summary")
+    status = _allowed_status(
+        summary.get("status"),
+        allowed=("ready", "partial", "insufficient"),
+        fallback="unknown",
+    )
+    layers_with_evidence = _int_field(summary, "layers_with_evidence")
+    layers_total = _int_field(summary, "layers_total")
+    total_tests = _int_field(summary, "total_tests")
+    total_failures = _int_field(summary, "total_failures")
+    total_errors = _int_field(summary, "total_errors")
+    total_skipped = _int_field(summary, "total_skipped")
+    if (
+        layers_with_evidence is None
+        or layers_total is None
+        or total_tests is None
+        or total_failures is None
+        or total_errors is None
+        or total_skipped is None
+    ):
+        return status
+    return (
+        f"{status}, {layers_with_evidence}/{layers_total} layers, "
+        f"{total_tests} tests, {total_failures} failures, "
+        f"{total_errors} errors, {total_skipped} skipped"
+    )
 
 
 def _object_field(document: dict[str, object], field: str) -> dict[str, object]:
