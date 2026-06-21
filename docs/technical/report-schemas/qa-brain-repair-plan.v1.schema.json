@@ -1,0 +1,299 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://entroping.dev/schemas/qa-brain-repair-plan.v1.schema.json",
+  "title": "Entroping QA brain repair-plan packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "project",
+    "routing_plan_schema_version",
+    "summary",
+    "sources",
+    "repair_plans",
+    "next_actions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.qa-brain-repair-plan.v1"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "project": {
+      "type": "string"
+    },
+    "routing_plan_schema_version": {
+      "const": "entroping.qa-brain-routing-plan.v1"
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "repair_plans": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/repair_plan"
+      }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/next_action"
+      }
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "sources_total",
+        "sources_present",
+        "sources_missing",
+        "sources_invalid",
+        "sources_unsafe",
+        "repair_plans_total",
+        "repair_plans_ready",
+        "repair_plans_missing",
+        "repair_plans_attention",
+        "blockers_total",
+        "next_actions_total"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "ready",
+            "partial",
+            "insufficient"
+          ]
+        },
+        "sources_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_present": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_invalid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_unsafe": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "repair_plans_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "repair_plans_ready": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "repair_plans_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "repair_plans_attention": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blockers_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "next_actions_total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "path",
+        "state",
+        "schema_version",
+        "summary"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/source_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/source_state"
+        },
+        "schema_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "repair_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "label",
+        "readiness",
+        "repair_intent",
+        "source_ids",
+        "source_paths",
+        "acceptance_gate_ids",
+        "blockers",
+        "next_action"
+      ],
+      "properties": {
+        "case_id": {
+          "$ref": "#/$defs/eval_slice_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "readiness": {
+          "$ref": "#/$defs/readiness"
+        },
+        "repair_intent": {
+          "$ref": "#/$defs/repair_intent"
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "source_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "acceptance_gate_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/acceptance_gate_id"
+          }
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "next_action": {
+          "type": "string"
+        }
+      }
+    },
+    "next_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "priority",
+        "action",
+        "case_ids"
+      ],
+      "properties": {
+        "priority": {
+          "$ref": "#/$defs/next_action_priority"
+        },
+        "action": {
+          "type": "string"
+        },
+        "case_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/eval_slice_id"
+          }
+        }
+      }
+    },
+    "source_id": {
+      "enum": [
+        "test-quality-json",
+        "mutation-readiness-json",
+        "evidence-action-plan-json",
+        "qa-brain-routing-plan-json",
+        "evidence-index-json"
+      ]
+    },
+    "source_state": {
+      "enum": [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe"
+      ]
+    },
+    "readiness": {
+      "enum": [
+        "ready",
+        "missing",
+        "attention"
+      ]
+    },
+    "repair_intent": {
+      "enum": [
+        "generate",
+        "repair",
+        "review"
+      ]
+    },
+    "acceptance_gate_id": {
+      "enum": [
+        "parser_validation",
+        "hurl_execution",
+        "qanstitution_governance",
+        "deterministic_evidence",
+        "secret_redaction",
+        "codex_human_review"
+      ]
+    },
+    "next_action_priority": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "eval_slice_id": {
+      "enum": [
+        "weak_test_detection",
+        "missing_gate_discovery",
+        "unsafe_generated_hurl",
+        "bogus_evidence",
+        "redaction_mistakes",
+        "api_drift_reasoning",
+        "mutation_fuzz_readiness",
+        "cross_surface_handoff_quality"
+      ]
+    }
+  }
+}

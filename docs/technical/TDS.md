@@ -798,6 +798,7 @@ report generation, and artifact schemas remain the compatibility contract.
 | QA Brain Fine-Tune Readiness | `report qa-brain-fine-tune-readiness --output md|json` | Deterministic fine-tune readiness metadata for future QA Brain proprietary-model experiments before dataset export, training, or provider calls |
 | QA Brain Model-Packaging Plan | `report qa-brain-model-packaging-plan --output md|json` | Deterministic model-packaging plan metadata for future hosted, local, and enterprise QA Brain Pro surfaces before endpoints, packages, training, or provider calls |
 | QA Brain Routing Plan | `report qa-brain-routing-plan --output md|json` | Deterministic routing-readiness metadata for future LiteLLM/OpenAI-compatible QA Brain Pro surfaces before config changes, endpoints, provider calls, or model invocation |
+| QA Brain Repair Plan | `report qa-brain-repair-plan --output md|json` | Deterministic repair-proposal readiness metadata from value-free local quality, mutation, action-plan, routing-plan, and evidence-index states before generation, mutation, or model calls |
 | Pilot Metrics | `report pilot-metrics` | Local pilot metric inference from sanitized evidence |
 | Agent Review Bundle | `report agent-bundle` | Local Builder/Breaker/Auditor evidence from sanitized manifests |
 | Traceability Markdown/JSON | `report traceability --output md|json` | Local story/test coverage review |
@@ -1000,6 +1001,7 @@ entroping report qa-brain-prompt-plan [--output <md|json>]
 entroping report qa-brain-fine-tune-readiness [--output <md|json>]
 entroping report qa-brain-model-packaging-plan [--output <md|json>]
 entroping report qa-brain-routing-plan [--output <md|json>]
+entroping report qa-brain-repair-plan [--output <md|json>]
 entroping report pilot-metrics [--output <md|json>]
 entroping report agent-bundle [--output <md|json>] [--role <builder|auditor|breaker>] [--scope <path>]
 entroping report traceability [--output <md|json>]
@@ -1905,6 +1907,23 @@ mutations or fuzzers, execute prompts, or render raw report contents, raw
 traffic, source Hurl, prompts for execution, credentials, cookies, environment
 values, or provider outputs.
 
+`entroping report qa-brain-repair-plan` writes a local read-only QA Brain
+repair-plan packet at `reports/qa-brain-repair-plan.md` by default, or
+`reports/qa-brain-repair-plan.json` with `--output json`. It derives future
+repair-proposal readiness metadata from value-free local generated-test quality,
+mutation readiness, evidence action-plan, QA Brain routing-plan, and evidence
+index states. Rows carry source states, repair intent, acceptance-gate IDs from
+the routing-plan packet when present, blockers, and next actions. It is not a
+repair generator, prompt executor, provider adapter, LiteLLM configuration
+writer, Hurl executor, mutation/fuzz runner, source-Hurl or policy writer,
+hosted upload, ticket/chat mutation, retrieval job, embedding job, fine-tune,
+training run, or provider integration. Missing evidence is represented as
+missing/insufficient; invalid, unsafe, oversized, unreadable, symlinked, or
+secret-like evidence is represented as invalid/unsafe or rejected before output.
+The command does not render raw report contents, raw Hurl, traffic, prompts,
+credentials, cookies, environment values, provider output, URLs, headers,
+bodies, examples, or model responses.
+
 `entroping report sarif` writes SARIF 2.1.0 to `reports/entroping.sarif` by
 default. It converts the same local JUnit, drift, and optional traceability
 findings used by GitHub annotation output into stable SARIF rule IDs, severity,
@@ -2020,6 +2039,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report qa-brain-model-packaging-plan --output json` | `reports/qa-brain-model-packaging-plan.json` | Machine-readable QA Brain model-packaging plan packet using `entroping.qa-brain-model-packaging-plan.v1`. |
 | `entroping report qa-brain-routing-plan --output md` | `reports/qa-brain-routing-plan.md` | Human-readable read-only QA Brain routing-plan metadata derived from model-packaging readiness. |
 | `entroping report qa-brain-routing-plan --output json` | `reports/qa-brain-routing-plan.json` | Machine-readable QA Brain routing-plan packet using `entroping.qa-brain-routing-plan.v1`. |
+| `entroping report qa-brain-repair-plan --output md` | `reports/qa-brain-repair-plan.md` | Human-readable read-only QA Brain repair-plan metadata from value-free local quality, mutation, action-plan, routing-plan, and evidence-index states. |
+| `entroping report qa-brain-repair-plan --output json` | `reports/qa-brain-repair-plan.json` | Machine-readable QA Brain repair-plan packet using `entroping.qa-brain-repair-plan.v1`. |
 | `entroping report pilot-metrics --output md` | `reports/pilot-metrics.md` | Human-readable local pilot metric inference from sanitized artifacts, with `unknown` and `manual_input_required` states for metrics Entroping cannot infer locally. |
 | `entroping report pilot-metrics --output json` | `reports/pilot-metrics.json` | Machine-readable local pilot metric inference using `entroping.pilot-metrics.v1`. |
 | `entroping report agent-bundle --output md` | `reports/agent-bundle.md` | Human-readable local multi-agent review bundle from sanitized manifests. |

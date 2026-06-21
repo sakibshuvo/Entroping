@@ -206,6 +206,11 @@ from entroping.core.qa_brain_prompt_plan import (
     QaBrainPromptPlanOutput,
     run_qa_brain_prompt_plan_report,
 )
+from entroping.core.qa_brain_repair_plan import (
+    QaBrainRepairPlanError,
+    QaBrainRepairPlanOutput,
+    run_qa_brain_repair_plan_report,
+)
 from entroping.core.qa_brain_retrieval_plan import (
     QaBrainRetrievalPlanError,
     QaBrainRetrievalPlanOutput,
@@ -1870,6 +1875,33 @@ def report_qa_brain_routing_plan(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote QA brain routing plan: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("qa-brain-repair-plan", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_qa_brain_repair_plan(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local QA brain repair-plan packet."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported qa-brain-repair-plan output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_qa_brain_repair_plan_report(
+            project_root=Path.cwd(),
+            output=cast(QaBrainRepairPlanOutput, normalized_output),
+        )
+    except QaBrainRepairPlanError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote QA brain repair plan: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 

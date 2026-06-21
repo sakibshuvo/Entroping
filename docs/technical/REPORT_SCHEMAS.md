@@ -68,6 +68,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | QA brain fine-tune readiness packet | `entroping.qa-brain-fine-tune-readiness.v1` | `reports/qa-brain-fine-tune-readiness.json` from `entroping report qa-brain-fine-tune-readiness --output json` | [qa-brain-fine-tune-readiness.v1.schema.json](report-schemas/qa-brain-fine-tune-readiness.v1.schema.json) |
 | QA brain model-packaging plan packet | `entroping.qa-brain-model-packaging-plan.v1` | `reports/qa-brain-model-packaging-plan.json` from `entroping report qa-brain-model-packaging-plan --output json` | [qa-brain-model-packaging-plan.v1.schema.json](report-schemas/qa-brain-model-packaging-plan.v1.schema.json) |
 | QA brain routing-plan packet | `entroping.qa-brain-routing-plan.v1` | `reports/qa-brain-routing-plan.json` from `entroping report qa-brain-routing-plan --output json` | [qa-brain-routing-plan.v1.schema.json](report-schemas/qa-brain-routing-plan.v1.schema.json) |
+| QA brain repair-plan packet | `entroping.qa-brain-repair-plan.v1` | `reports/qa-brain-repair-plan.json` from `entroping report qa-brain-repair-plan --output json` | [qa-brain-repair-plan.v1.schema.json](report-schemas/qa-brain-repair-plan.v1.schema.json) |
 | Design-partner feedback | `entroping.design-partner-feedback.v1` | `reports/design-partner-feedback.json` from `entroping report design-partner-feedback` | [design-partner-feedback.v1.schema.json](report-schemas/design-partner-feedback.v1.schema.json) |
 | Failure bundle manifest | `entroping.failure-bundle.v1` | `reports/failure-bundle/manifest.json` | Inline contract |
 | Coverage badges | Shields endpoint schema v1 | `reports/badges/*.json` | External Shields endpoint format |
@@ -422,6 +423,30 @@ artifacts, retrieve documents, export datasets, parse traffic state, run
 mutations or fuzzers, execute prompts, or render raw report contents, raw
 traffic, source Hurl, prompts for execution, credentials, cookies, environment
 values, or provider outputs.
+
+The QA brain repair-plan packet is written by:
+
+```bash
+entroping report qa-brain-repair-plan
+entroping report qa-brain-repair-plan --output json
+```
+
+It writes `reports/qa-brain-repair-plan.md` by default or
+`reports/qa-brain-repair-plan.json` with schema
+`entroping.qa-brain-repair-plan.v1` when `--output json` is selected. The
+packet turns value-free local source states from generated-test quality,
+mutation readiness, evidence action-plan, QA Brain routing-plan, and evidence
+index artifacts into future QA Brain repair-proposal readiness rows. It carries
+source states, repair intent, accepted acceptance-gate IDs from the routing-plan
+packet when present, blockers, and next actions. It is not a repair generator,
+prompt executor, model adapter, LiteLLM configuration writer, Hurl executor,
+mutation/fuzz runner, source-Hurl or policy writer, hosted upload, ticket/chat
+mutation, retrieval job, embedding job, fine-tune, training run, or provider
+integration. Missing evidence is represented as missing/insufficient; invalid,
+unsafe, oversized, unreadable, symlinked, or secret-like evidence is represented
+as invalid/unsafe or rejected before output. The command does not render raw
+report contents, raw Hurl, traffic, prompts, credentials, cookies, environment
+values, provider output, URLs, headers, bodies, examples, or model responses.
 
 The report artifact manifest is written by:
 
