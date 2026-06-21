@@ -1,0 +1,348 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://entroping.dev/schemas/pilot-outcome.v1.schema.json",
+  "title": "Entroping pilot outcome packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "project",
+    "summary",
+    "sources",
+    "pilot_evidence_readiness",
+    "manual_input_gaps",
+    "monetization_signals",
+    "actions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.pilot-outcome.v1"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "project": {
+      "type": "string"
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "pilot_evidence_readiness": {
+      "$ref": "#/$defs/readiness"
+    },
+    "manual_input_gaps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "monetization_signals": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/monetization_signal"
+      }
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/action"
+      }
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "sources_total",
+        "sources_present",
+        "sources_missing",
+        "sources_invalid",
+        "sources_unsafe",
+        "manual_input_gaps",
+        "monetization_yes",
+        "monetization_no",
+        "monetization_unclear",
+        "actions_total",
+        "actions_high",
+        "actions_medium",
+        "actions_low"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "sources_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_present": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_invalid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_unsafe": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "manual_input_gaps": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "monetization_yes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "monetization_no": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "monetization_unclear": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "actions_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "actions_high": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "actions_medium": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "actions_low": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "path",
+        "state",
+        "schema_version",
+        "sha256",
+        "summary",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/source_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/source_state"
+        },
+        "schema_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "readiness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "design_partner_feedback_status",
+        "pilot_metrics_status",
+        "runtime_card_status",
+        "evidence_cloud_status",
+        "work_item_import_status"
+      ],
+      "properties": {
+        "design_partner_feedback_status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pilot_metrics_status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "runtime_card_status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidence_cloud_status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "work_item_import_status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "monetization_signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "answer",
+        "manual_reason_required"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/signal_id"
+        },
+        "answer": {
+          "$ref": "#/$defs/signal_answer"
+        },
+        "manual_reason_required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "priority",
+        "category",
+        "action",
+        "source_ids",
+        "field_paths",
+        "status"
+      ],
+      "properties": {
+        "priority": {
+          "$ref": "#/$defs/priority"
+        },
+        "category": {
+          "$ref": "#/$defs/category"
+        },
+        "action": {
+          "type": "string"
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "field_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "status": {
+      "enum": [
+        "ready",
+        "partial",
+        "insufficient"
+      ]
+    },
+    "source_id": {
+      "enum": [
+        "design-partner-feedback-json",
+        "pilot-metrics-json",
+        "runtime-card-json",
+        "evidence-cloud-dashboard-json",
+        "work-item-import-bundle-json"
+      ]
+    },
+    "source_state": {
+      "enum": [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe"
+      ]
+    },
+    "priority": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "category": {
+      "enum": [
+        "generate",
+        "repair",
+        "collect",
+        "review"
+      ]
+    },
+    "signal_id": {
+      "enum": [
+        "hosted_aggregation",
+        "premium_policy_packs"
+      ]
+    },
+    "signal_answer": {
+      "enum": [
+        "yes",
+        "no",
+        "unclear"
+      ]
+    }
+  }
+}

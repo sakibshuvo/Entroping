@@ -58,6 +58,7 @@ entroping report pr-evidence-card [--output <md|json>]
 entroping report evidence-action-plan [--output <md|json>]
 entroping report work-item-draft [--output <md|json>]
 entroping report work-item-import-bundle [--output <json|csv>]
+entroping report pilot-outcome [--output <md|json>]
 entroping report connector-intent [--output <md|json>]
 entroping report observability-packet [--output <md|json>]
 entroping report api-inventory [--output <md|json>]
@@ -453,6 +454,8 @@ Experimental design-partner evidence commands:
 | `entroping report work-item-draft --output json` | Write machine-readable work item draft JSON |
 | `entroping report work-item-import-bundle --output json` | Write machine-readable tracker import bundle JSON |
 | `entroping report work-item-import-bundle --output csv` | Write spreadsheet-safe tracker import bundle CSV |
+| `entroping report pilot-outcome --output md` | Write local design-partner pilot outcome Markdown to `reports/pilot-outcome.md` |
+| `entroping report pilot-outcome --output json` | Write machine-readable pilot outcome metadata to `reports/pilot-outcome.json` |
 | `entroping report connector-intent --output md` | Write a local connector-intent packet to `reports/connector-intent.md` |
 | `entroping report connector-intent --output json` | Write machine-readable connector intent metadata to `reports/connector-intent.json` |
 | `entroping report observability-packet --output md` | Write a read-only observability signal packet to `reports/observability-packet.md` |
@@ -524,6 +527,7 @@ entroping report pr-evidence-card --output json
 entroping report evidence-action-plan --output json
 entroping report work-item-draft --output json
 entroping report work-item-import-bundle --output csv
+entroping report pilot-outcome --output json
 entroping report connector-intent --output json
 entroping report observability-packet --output json
 entroping report api-inventory --output json

@@ -161,6 +161,11 @@ from entroping.core.pilot_metrics import (
     PilotMetricsOutput,
     run_pilot_metrics_report,
 )
+from entroping.core.pilot_outcome import (
+    PilotOutcomeError,
+    PilotOutcomeOutput,
+    run_pilot_outcome_report,
+)
 from entroping.core.pr_evidence_card import (
     PrEvidenceCardError,
     PrEvidenceCardOutput,
@@ -917,6 +922,33 @@ def report_pilot_metrics(
         f"{result.report.summary.metrics_known}/"
         f"{result.report.summary.metrics_total} known)"
     )
+    raise typer.Exit(0)
+
+
+@app.command("pilot-outcome", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_pilot_outcome(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local design-partner pilot outcome packet."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported pilot-outcome output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_pilot_outcome_report(
+            project_root=Path.cwd(),
+            output=cast(PilotOutcomeOutput, normalized_output),
+        )
+    except PilotOutcomeError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote pilot outcome packet: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 

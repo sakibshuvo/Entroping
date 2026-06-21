@@ -235,6 +235,15 @@ from entroping.core.pilot_metrics import (
     PilotMetricsReport,
     PilotMetricsSummary,
 )
+from entroping.core.pilot_outcome import (
+    PILOT_OUTCOME_SCHEMA_VERSION,
+    PilotOutcomeAction,
+    PilotOutcomeMonetizationSignal,
+    PilotOutcomePacket,
+    PilotOutcomeReadiness,
+    PilotOutcomeSource,
+    PilotOutcomeSummary,
+)
 from entroping.core.pr_evidence_card import (
     PR_EVIDENCE_CARD_SCHEMA_VERSION,
     PrEvidenceCardChecklistItem,
@@ -4579,6 +4588,95 @@ def test_work_item_import_bundle_v1_schema_contract_is_versioned_and_stable() ->
     ]
 
 
+def test_pilot_outcome_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "pilot-outcome.v1.schema.json").read_text())
+    packet = PilotOutcomePacket(
+        generated_at="2026-06-21T00:00:00+00:00",
+        project="checkout-api",
+        summary=PilotOutcomeSummary(
+            status="partial",
+            sources_total=1,
+            sources_present=1,
+            sources_missing=0,
+            sources_invalid=0,
+            sources_unsafe=0,
+            manual_input_gaps=1,
+            monetization_yes=1,
+            monetization_no=0,
+            monetization_unclear=1,
+            actions_total=1,
+            actions_high=0,
+            actions_medium=1,
+            actions_low=0,
+        ),
+        sources=(
+            PilotOutcomeSource(
+                id="design-partner-feedback-json",
+                label="Design-partner feedback",
+                path="reports/design-partner-feedback.json",
+                state="present",
+                schema_version="entroping.design-partner-feedback.v1",
+                sha256="a" * 64,
+                summary="partial",
+                status="partial",
+            ),
+        ),
+        pilot_evidence_readiness=PilotOutcomeReadiness(
+            design_partner_feedback_status="partial",
+            pilot_metrics_status="missing",
+            runtime_card_status="pass",
+            evidence_cloud_status="ready",
+            work_item_import_status="partial",
+        ),
+        manual_input_gaps=("feedback.missing_evidence",),
+        monetization_signals=(
+            PilotOutcomeMonetizationSignal(
+                id="hosted_aggregation",
+                answer="yes",
+                manual_reason_required=True,
+            ),
+            PilotOutcomeMonetizationSignal(
+                id="premium_policy_packs",
+                answer="unclear",
+                manual_reason_required=True,
+            ),
+        ),
+        actions=(
+            PilotOutcomeAction(
+                priority="medium",
+                category="collect",
+                action="Collect sanitized manual design-partner pilot inputs.",
+                field_paths=("feedback.missing_evidence",),
+                status="manual_input_required",
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert PILOT_OUTCOME_SCHEMA_VERSION == "entroping.pilot-outcome.v1"
+    assert payload["schema_version"] == "entroping.pilot-outcome.v1"
+    assert payload["summary"]["manual_input_gaps"] == 1
+    assert schema["properties"]["schema_version"]["const"] == "entroping.pilot-outcome.v1"
+    assert schema["$defs"]["source_id"]["enum"] == [
+        "design-partner-feedback-json",
+        "pilot-metrics-json",
+        "runtime-card-json",
+        "evidence-cloud-dashboard-json",
+        "work-item-import-bundle-json",
+    ]
+    assert schema["$defs"]["category"]["enum"] == [
+        "generate",
+        "repair",
+        "collect",
+        "review",
+    ]
+    assert schema["$defs"]["signal_id"]["enum"] == [
+        "hosted_aggregation",
+        "premium_policy_packs",
+    ]
+
+
 def test_qa_brain_seed_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "qa-brain-seed.v1.schema.json").read_text())
     packet = QaBrainSeedPacket(
@@ -5654,6 +5752,7 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         "entroping.work-item-import-bundle.v1": (
             SCHEMA_DIR / "work-item-import-bundle.v1.schema.json"
         ),
+        "entroping.pilot-outcome.v1": SCHEMA_DIR / "pilot-outcome.v1.schema.json",
         "entroping.connector-intent.v1": (SCHEMA_DIR / "connector-intent.v1.schema.json"),
         "entroping.external-test-evidence.v1": (
             SCHEMA_DIR / "external-test-evidence.v1.schema.json"
