@@ -115,6 +115,15 @@ from entroping.core.evidence_bundle import (
     EvidenceBundleReport,
     EvidenceBundleSummary,
 )
+from entroping.core.evidence_cloud_export import (
+    EVIDENCE_CLOUD_EXPORT_SCHEMA_VERSION,
+    EvidenceCloudExportBoundaryControl,
+    EvidenceCloudExportItem,
+    EvidenceCloudExportNextAction,
+    EvidenceCloudExportPacket,
+    EvidenceCloudExportSource,
+    EvidenceCloudExportSummary,
+)
 from entroping.core.evidence_cloud_readiness import (
     EVIDENCE_CLOUD_READINESS_SCHEMA_VERSION,
     EvidenceCloudBoundary,
@@ -2761,6 +2770,138 @@ def test_evidence_cloud_readiness_v1_schema_contract_is_versioned_and_stable() -
     assert "design_partner_free_form_text" in schema["$defs"]["forbidden_data_class"]["enum"]
 
 
+def test_evidence_cloud_export_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "evidence-cloud-export.v1.schema.json").read_text())
+    packet = EvidenceCloudExportPacket(
+        generated_at="2026-06-21T00:00:00+00:00",
+        project="checkout-api",
+        summary=EvidenceCloudExportSummary(
+            status="partial",
+            sources_total=2,
+            sources_present=1,
+            sources_missing=1,
+            sources_invalid=0,
+            sources_unsafe=0,
+            export_items_total=2,
+            export_items_ready=1,
+            export_items_blocked=1,
+            boundary_controls_total=2,
+            next_actions_total=1,
+        ),
+        sources=(
+            EvidenceCloudExportSource(
+                id="evidence-portal-json",
+                label="Evidence Portal JSON",
+                path="reports/evidence-portal.json",
+                state="present",
+                schema_version="entroping.evidence-portal.v1",
+                sha256="a" * 64,
+                summary="ready",
+            ),
+            EvidenceCloudExportSource(
+                id="evidence-links-json",
+                label="Evidence Links JSON",
+                path="reports/evidence-links.json",
+                state="missing",
+                schema_version=None,
+                sha256=None,
+                summary="missing",
+            ),
+        ),
+        export_items=(
+            EvidenceCloudExportItem(
+                id="evidence-portal-json",
+                label="Evidence Portal JSON",
+                source_id="evidence-portal-json",
+                path="reports/evidence-portal.json",
+                state="ready",
+                local_reference="entroping://evidence-cloud-export/evidence-portal-json",
+                schema_version="entroping.evidence-portal.v1",
+                sha256="a" * 64,
+                summary="ready",
+                required_user_action="Review artifact metadata before explicit upload.",
+            ),
+            EvidenceCloudExportItem(
+                id="evidence-links-json",
+                label="Evidence Links JSON",
+                source_id="evidence-links-json",
+                path="reports/evidence-links.json",
+                state="blocked",
+                local_reference="entroping://evidence-cloud-export/evidence-links-json",
+                schema_version=None,
+                sha256=None,
+                summary="missing",
+                required_user_action="Generate Evidence Links JSON before Evidence Cloud export.",
+            ),
+        ),
+        boundary_controls=(
+            EvidenceCloudExportBoundaryControl(
+                id="explicit_upload_only",
+                label="Explicit upload only",
+                enforced=True,
+                summary="This manifest never uploads artifacts.",
+            ),
+            EvidenceCloudExportBoundaryControl(
+                id="no_remote_api",
+                label="No remote API",
+                enforced=True,
+                summary="The report does not call hosted Evidence Cloud APIs.",
+            ),
+        ),
+        next_actions=(
+            EvidenceCloudExportNextAction(
+                priority="medium",
+                action="Generate Evidence Links JSON before Evidence Cloud export.",
+                source_ids=("evidence-links-json",),
+                export_item_ids=("evidence-links-json",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert EVIDENCE_CLOUD_EXPORT_SCHEMA_VERSION == "entroping.evidence-cloud-export.v1"
+    assert payload["schema_version"] == "entroping.evidence-cloud-export.v1"
+    assert payload["export_items"][0]["local_reference"] == (
+        "entroping://evidence-cloud-export/evidence-portal-json"
+    )
+    assert schema["properties"]["schema_version"]["const"] == (
+        "entroping.evidence-cloud-export.v1"
+    )
+    assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["$defs"]["source_state"]["enum"] == [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe",
+    ]
+    assert schema["$defs"]["source_id"]["enum"] == [
+        "evidence-portal-json",
+        "evidence-links-json",
+        "evidence-cloud-readiness-json",
+        "team-evidence-readiness-json",
+        "evidence-bundle-json",
+        "artifact-manifest-json",
+        "runtime-card-json",
+        "handoff-json",
+        "integration-readiness-json",
+        "devex-readiness-json",
+        "connector-intent-json",
+        "observability-packet-json",
+        "evidence-index-json",
+    ]
+    assert schema["$defs"]["boundary_control_id"]["enum"] == [
+        "explicit_upload_only",
+        "no_remote_api",
+        "no_raw_traffic",
+        "no_secrets",
+        "no_prompts_or_provider_outputs",
+        "no_source_hurl",
+        "no_env_values",
+        "no_full_report_payloads",
+    ]
+
+
 def test_connector_intent_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "connector-intent.v1.schema.json").read_text())
     packet = ConnectorIntentPacket(
@@ -4860,6 +5001,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         "entroping.devex-readiness.v1": (SCHEMA_DIR / "devex-readiness.v1.schema.json"),
         "entroping.evidence-cloud-readiness.v1": (
             SCHEMA_DIR / "evidence-cloud-readiness.v1.schema.json"
+        ),
+        "entroping.evidence-cloud-export.v1": (
+            SCHEMA_DIR / "evidence-cloud-export.v1.schema.json"
         ),
         "entroping.evidence-links.v1": (SCHEMA_DIR / "evidence-links.v1.schema.json"),
         "entroping.evidence-portal.v1": (SCHEMA_DIR / "evidence-portal.v1.schema.json"),

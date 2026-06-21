@@ -68,6 +68,11 @@ from entroping.core.evidence_bundle import (
     EvidenceBundleError,
     run_evidence_bundle_report,
 )
+from entroping.core.evidence_cloud_export import (
+    EvidenceCloudExportError,
+    EvidenceCloudExportOutput,
+    run_evidence_cloud_export_report,
+)
 from entroping.core.evidence_cloud_readiness import (
     EvidenceCloudReadinessError,
     EvidenceCloudReadinessOutput,
@@ -1000,6 +1005,33 @@ def report_evidence_cloud_readiness(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote Evidence Cloud readiness: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("evidence-cloud-export", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_evidence_cloud_export(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local Evidence Cloud export manifest."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported evidence-cloud-export output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_evidence_cloud_export_report(
+            project_root=Path.cwd(),
+            output=cast(EvidenceCloudExportOutput, normalized_output),
+        )
+    except EvidenceCloudExportError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote Evidence Cloud export: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 

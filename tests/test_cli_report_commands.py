@@ -35,6 +35,7 @@ from entroping.core.connector_intent import ConnectorIntentError
 from entroping.core.design_partner_feedback import DesignPartnerFeedbackError
 from entroping.core.devex_readiness import DevexReadinessError
 from entroping.core.evidence_bundle import EvidenceBundleError
+from entroping.core.evidence_cloud_export import EvidenceCloudExportError
 from entroping.core.evidence_cloud_readiness import EvidenceCloudReadinessError
 from entroping.core.evidence_index_report import EvidenceIndexError
 from entroping.core.evidence_links import EvidenceLinksError
@@ -234,6 +235,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "integration-readiness",
         "devex-readiness",
         "evidence-cloud-readiness",
+        "evidence-cloud-export",
         "evidence-links",
         "evidence-portal",
         "connector-intent",
@@ -888,6 +890,68 @@ def test_report_evidence_cloud_readiness_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "evidence cloud readiness path is unsafe" in result.output
+
+
+def test_report_evidence_cloud_export_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "evidence-cloud-export"])
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote Evidence Cloud export: reports/evidence-cloud-export.md" in result.output
+    markdown = Path("reports/evidence-cloud-export.md").read_text(encoding="utf-8")
+    assert "# Entroping Evidence Cloud Export" in markdown
+    assert "| evidence-portal-json | missing | reports/evidence-portal.json |" in markdown
+
+
+def test_report_evidence_cloud_export_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "evidence-cloud-export", "--output", "json"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote Evidence Cloud export: reports/evidence-cloud-export.json" in result.output
+    payload = json.loads(Path("reports/evidence-cloud-export.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.evidence-cloud-export.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_evidence_cloud_export_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(
+        app,
+        ["report", "evidence-cloud-export", "--output", "html"],
+    )
+
+    assert result.exit_code == 2
+    assert "Unsupported evidence-cloud-export output" in result.output
+    assert not Path("reports/evidence-cloud-export.html").exists()
+
+
+def test_report_evidence_cloud_export_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_evidence_cloud_export(*args: object, **kwargs: object) -> object:
+        raise EvidenceCloudExportError("evidence cloud export path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_evidence_cloud_export_report",
+        fail_evidence_cloud_export,
+    )
+
+    result = CliRunner().invoke(app, ["report", "evidence-cloud-export"])
+
+    assert result.exit_code == 1
+    assert "evidence cloud export path is unsafe" in result.output
 
 
 def test_report_evidence_links_writes_markdown(

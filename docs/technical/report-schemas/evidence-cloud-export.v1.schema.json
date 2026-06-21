@@ -1,0 +1,327 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://entroping.dev/schemas/evidence-cloud-export.v1.schema.json",
+  "title": "Entroping Evidence Cloud export manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "project",
+    "summary",
+    "sources",
+    "export_items",
+    "boundary_controls",
+    "next_actions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.evidence-cloud-export.v1"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "project": {
+      "type": "string"
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "export_items": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/export_item"
+      }
+    },
+    "boundary_controls": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/boundary_control"
+      }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/next_action"
+      }
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "sources_total",
+        "sources_present",
+        "sources_missing",
+        "sources_invalid",
+        "sources_unsafe",
+        "export_items_total",
+        "export_items_ready",
+        "export_items_blocked",
+        "boundary_controls_total",
+        "next_actions_total"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "ready",
+            "partial",
+            "insufficient"
+          ]
+        },
+        "sources_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_present": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_invalid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_unsafe": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "export_items_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "export_items_ready": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "export_items_blocked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "boundary_controls_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "next_actions_total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "path",
+        "state",
+        "schema_version",
+        "sha256",
+        "summary"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/source_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/source_state"
+        },
+        "schema_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "export_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "source_id",
+        "path",
+        "state",
+        "local_reference",
+        "schema_version",
+        "sha256",
+        "summary",
+        "required_user_action"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/source_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "source_id": {
+          "$ref": "#/$defs/source_id"
+        },
+        "path": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "ready",
+            "blocked"
+          ]
+        },
+        "local_reference": {
+          "type": "string"
+        },
+        "schema_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "required_user_action": {
+          "type": "string"
+        }
+      }
+    },
+    "boundary_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "enforced",
+        "summary"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/boundary_control_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "enforced": {
+          "type": "boolean"
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "next_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "priority",
+        "action",
+        "source_ids",
+        "export_item_ids"
+      ],
+      "properties": {
+        "priority": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "action": {
+          "type": "string"
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "export_item_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        }
+      }
+    },
+    "source_id": {
+      "enum": [
+        "evidence-portal-json",
+        "evidence-links-json",
+        "evidence-cloud-readiness-json",
+        "team-evidence-readiness-json",
+        "evidence-bundle-json",
+        "artifact-manifest-json",
+        "runtime-card-json",
+        "handoff-json",
+        "integration-readiness-json",
+        "devex-readiness-json",
+        "connector-intent-json",
+        "observability-packet-json",
+        "evidence-index-json"
+      ]
+    },
+    "source_state": {
+      "enum": [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe"
+      ]
+    },
+    "boundary_control_id": {
+      "enum": [
+        "explicit_upload_only",
+        "no_remote_api",
+        "no_raw_traffic",
+        "no_secrets",
+        "no_prompts_or_provider_outputs",
+        "no_source_hurl",
+        "no_env_values",
+        "no_full_report_payloads"
+      ]
+    }
+  }
+}
