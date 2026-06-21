@@ -2,6 +2,18 @@
 
 ## 2026-06-20
 
+- Added issue #1062's external test evidence packet: `report
+  external-test-evidence` now writes local
+  `entroping.external-test-evidence.v1` JSON or Markdown that reads only fixed
+  `reports/external-tests/` JUnit, coverage XML, LCOV, and SARIF artifacts and
+  emits source states, bounded hashes, counts-only JUnit summaries, coverage
+  percentages/counts, SARIF run/result/severity counts, layer readiness,
+  blockers, and next actions without executing tests or Hurl, calling
+  model/vendor providers, uploading artifacts, mutating external systems,
+  parsing raw traffic, changing `entroping run`, or rendering raw test names,
+  stack traces, source snippets, coverage file names, SARIF messages or
+  locations, stdout/stderr, prompts, provider outputs, credentials, cookies,
+  environment values, webhook URLs, or full artifact contents.
 - Added issue #1060's connector intent packet: `report connector-intent` now
   writes local `entroping.connector-intent.v1` JSON or Markdown that turns
   sanitized runtime-card, handoff, notification-packet,

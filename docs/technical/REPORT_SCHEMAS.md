@@ -31,6 +31,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Gate injection report | `entroping.gate-injection-report.v1` | `reports/gate-injection.json` | [gate-injection-report.v1.schema.json](report-schemas/gate-injection-report.v1.schema.json) |
 | Generated-test quality report | `entroping.test-quality-report.v1` | `reports/test-quality.json` | [test-quality-report.v1.schema.json](report-schemas/test-quality-report.v1.schema.json) |
 | Test pyramid report | `entroping.test-pyramid-report.v1` | `reports/test-pyramid.json` | [test-pyramid-report.v1.schema.json](report-schemas/test-pyramid-report.v1.schema.json) |
+| External test evidence packet | `entroping.external-test-evidence.v1` | `reports/external-test-evidence.json` from `entroping report external-test-evidence --output json` | [external-test-evidence.v1.schema.json](report-schemas/external-test-evidence.v1.schema.json) |
 | Report artifact manifest | `entroping.report-artifact-manifest.v1` | `reports/artifact-manifest.json` | [report-artifact-manifest.v1.schema.json](report-schemas/report-artifact-manifest.v1.schema.json) |
 | Evidence bundle | `entroping.evidence-bundle.v1` | `reports/evidence-bundle.json` | [evidence-bundle.v1.schema.json](report-schemas/evidence-bundle.v1.schema.json) |
 | Runtime evidence card | `entroping.runtime-card.v1` | `reports/runtime-card.json` from `entroping report runtime-card --output json` | [runtime-card.v1.schema.json](report-schemas/runtime-card.v1.schema.json) |
@@ -160,6 +161,30 @@ findings. The report does not execute tests, run Hurl, call providers, upload
 artifacts, parse source Hurl, include raw artifact contents, or expose raw
 traffic, prompts, stdout/stderr, environment values, or source coverage file
 names.
+
+The external test evidence packet is written by:
+
+```bash
+entroping report external-test-evidence
+entroping report external-test-evidence --output json
+```
+
+It writes `reports/external-test-evidence.md` by default or
+`reports/external-test-evidence.json` with schema
+`entroping.external-test-evidence.v1` when `--output json` is selected. The
+packet reads only fixed local artifacts under `reports/external-tests/`:
+`unit-junit.xml`, `integration-junit.xml`, `component-junit.xml`,
+`contract-junit.xml`, `e2e-junit.xml`, `coverage.xml`, `lcov.info`, and
+`sarif.json`. It emits counts-only unit, integration, component, contract, and
+end-to-end layer evidence plus coverage and SARIF result counts. Missing
+artifacts are non-blocking; malformed, oversized, non-file, symlinked,
+wrong-format, or secret-like artifacts are marked invalid or unsafe. The command
+does not run tests, execute Hurl, call providers, call vendor APIs, upload
+artifacts, mutate external systems, parse raw traffic state, or change
+`entroping run`; it also does not render raw test names, stack traces, source
+snippets, coverage file names, SARIF messages, raw stdout/stderr, prompts,
+provider output, credentials, cookies, environment values, webhook URLs, or full
+artifact contents.
 
 The mutation-readiness report is written by:
 

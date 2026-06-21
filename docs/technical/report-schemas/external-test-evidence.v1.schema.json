@@ -1,0 +1,448 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://entroping.dev/schemas/external-test-evidence.v1.schema.json",
+  "title": "Entroping external test evidence packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "project",
+    "summary",
+    "sources",
+    "layers",
+    "next_actions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.external-test-evidence.v1"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "project": {
+      "type": "string"
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "layers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/layer"
+      }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/next_action"
+      }
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "sources_total",
+        "sources_present",
+        "sources_missing",
+        "sources_invalid",
+        "sources_unsafe",
+        "layers_total",
+        "layers_with_evidence",
+        "layers_missing",
+        "layers_blocked",
+        "total_tests",
+        "total_failures",
+        "total_errors",
+        "total_skipped",
+        "line_coverage_percent",
+        "branch_coverage_percent",
+        "sarif_results_total",
+        "sarif_error_results",
+        "next_actions_total"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/readiness_status"
+        },
+        "sources_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_present": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_invalid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_unsafe": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "layers_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "layers_with_evidence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "layers_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "layers_blocked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total_tests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total_failures": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total_errors": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total_skipped": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "line_coverage_percent": {
+          "$ref": "#/$defs/nullable_percent"
+        },
+        "branch_coverage_percent": {
+          "$ref": "#/$defs/nullable_percent"
+        },
+        "sarif_results_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sarif_error_results": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "next_actions_total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "path",
+        "kind",
+        "layer",
+        "state",
+        "sha256",
+        "summary",
+        "suites",
+        "tests",
+        "failures",
+        "errors",
+        "skipped",
+        "line_coverage_percent",
+        "branch_coverage_percent",
+        "lines_covered",
+        "lines_valid",
+        "branches_covered",
+        "branches_valid",
+        "sarif_runs",
+        "sarif_results_total",
+        "sarif_error_results",
+        "sarif_warning_results",
+        "sarif_note_results",
+        "sarif_none_results"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/source_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/source_kind"
+        },
+        "layer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/layer_id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "$ref": "#/$defs/source_state"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "suites": {
+          "$ref": "#/$defs/nullable_non_negative_integer"
+        },
+        "tests": {
+          "$ref": "#/$defs/nullable_non_negative_integer"
+        },
+        "failures": {
+          "$ref": "#/$defs/nullable_non_negative_integer"
+        },
+        "errors": {
+          "$ref": "#/$defs/nullable_non_negative_integer"
+        },
+        "skipped": {
+          "$ref": "#/$defs/nullable_non_negative_integer"
+        },
+        "line_coverage_percent": {
+          "$ref": "#/$defs/nullable_percent"
+        },
+        "branch_coverage_percent": {
+          "$ref": "#/$defs/nullable_percent"
+        },
+        "lines_covered": {
+          "$ref": "#/$defs/nullable_non_negative_integer"
+        },
+        "lines_valid": {
+          "$ref": "#/$defs/nullable_non_negative_integer"
+        },
+        "branches_covered": {
+          "$ref": "#/$defs/nullable_non_negative_integer"
+        },
+        "branches_valid": {
+          "$ref": "#/$defs/nullable_non_negative_integer"
+        },
+        "sarif_runs": {
+          "$ref": "#/$defs/nullable_non_negative_integer"
+        },
+        "sarif_results_total": {
+          "$ref": "#/$defs/nullable_non_negative_integer"
+        },
+        "sarif_error_results": {
+          "$ref": "#/$defs/nullable_non_negative_integer"
+        },
+        "sarif_warning_results": {
+          "$ref": "#/$defs/nullable_non_negative_integer"
+        },
+        "sarif_note_results": {
+          "$ref": "#/$defs/nullable_non_negative_integer"
+        },
+        "sarif_none_results": {
+          "$ref": "#/$defs/nullable_non_negative_integer"
+        }
+      }
+    },
+    "layer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "status",
+        "source_ids",
+        "tests",
+        "failures",
+        "errors",
+        "skipped",
+        "blockers",
+        "next_action"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/layer_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/layer_status"
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "tests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failures": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "errors": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skipped": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "next_action": {
+          "type": "string"
+        }
+      }
+    },
+    "next_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "priority",
+        "action",
+        "source_ids",
+        "layer_ids"
+      ],
+      "properties": {
+        "priority": {
+          "$ref": "#/$defs/next_action_priority"
+        },
+        "action": {
+          "type": "string"
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "layer_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/layer_id"
+          }
+        }
+      }
+    },
+    "readiness_status": {
+      "enum": [
+        "ready",
+        "partial",
+        "insufficient"
+      ],
+      "type": "string"
+    },
+    "source_state": {
+      "enum": [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe"
+      ],
+      "type": "string"
+    },
+    "layer_status": {
+      "enum": [
+        "covered",
+        "missing",
+        "blocked"
+      ],
+      "type": "string"
+    },
+    "next_action_priority": {
+      "enum": [
+        "high",
+        "medium"
+      ],
+      "type": "string"
+    },
+    "source_kind": {
+      "enum": [
+        "junit",
+        "coverage_xml",
+        "lcov",
+        "sarif"
+      ],
+      "type": "string"
+    },
+    "source_id": {
+      "enum": [
+        "unit_junit",
+        "integration_junit",
+        "component_junit",
+        "contract_junit",
+        "e2e_junit",
+        "coverage_xml",
+        "lcov_info",
+        "sarif_json"
+      ],
+      "type": "string"
+    },
+    "layer_id": {
+      "enum": [
+        "unit",
+        "integration",
+        "component",
+        "contract",
+        "e2e"
+      ],
+      "type": "string"
+    },
+    "nullable_non_negative_integer": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "nullable_percent": {
+      "anyOf": [
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}
