@@ -470,8 +470,8 @@ Experimental design-partner evidence commands:
 | `entroping report otel-mapping --output json` | Write machine-readable OpenTelemetry mapping metadata to `reports/otel-mapping.json` |
 | `entroping report observability-adapter-readiness --output md` | Write a local observability adapter readiness packet to `reports/observability-adapter-readiness.md` |
 | `entroping report observability-adapter-readiness --output json` | Write machine-readable observability adapter readiness metadata to `reports/observability-adapter-readiness.json` |
-| `entroping report api-inventory --output md` | Write a read-only API surface inventory to `reports/api-inventory.md` |
-| `entroping report api-inventory --output json` | Write machine-readable API style evidence to `reports/api-inventory.json` |
+| `entroping report api-inventory --output md` | Write a read-only API surface inventory, including WebSocket/realtime signals, to `reports/api-inventory.md` |
+| `entroping report api-inventory --output json` | Write machine-readable API style evidence, including WebSocket/realtime signals, to `reports/api-inventory.json` |
 | `entroping report mutation-readiness --output md` | Write a read-only mutation/fuzz readiness summary to `reports/mutation-readiness.md` |
 | `entroping report mutation-readiness --output json` | Write machine-readable mutation/fuzz readiness evidence to `reports/mutation-readiness.json` |
 | `entroping report evidence-index --output md` | Write a read-only local evidence artifact index to `reports/evidence-index.md` |

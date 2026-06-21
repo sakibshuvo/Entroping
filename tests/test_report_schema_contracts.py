@@ -4162,6 +4162,7 @@ def test_api_inventory_v1_schema_contract_is_versioned_and_stable() -> None:
         "grpc_proto",
         "asyncapi",
         "webhook_event",
+        "websocket_realtime",
         "unknown_http",
     ]
 

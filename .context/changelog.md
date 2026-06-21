@@ -2,6 +2,15 @@
 
 ## 2026-06-21
 
+- Added issue #1103's API inventory WebSocket/realtime classification:
+  `report api-inventory` now classifies local WebSocket/realtime contract files
+  and Hurl protocol tags alongside REST/OpenAPI, GraphQL, SOAP/XML,
+  gRPC/proto, AsyncAPI, webhook/event, and unknown HTTP signals without
+  executing Hurl, opening sockets, calling brokers, parsing traffic state,
+  generating tests, mutating source Hurl, changing `entroping run`, invoking
+  models, or rendering raw URLs, headers, bodies, examples, credentials,
+  cookies, traffic, or full file contents.
+
 - Added issue #1101's QA Brain repair-plan packet: `report
   qa-brain-repair-plan` now writes local Markdown or
   `entroping.qa-brain-repair-plan.v1` JSON that summarizes generated-test

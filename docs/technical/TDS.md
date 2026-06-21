@@ -1733,16 +1733,17 @@ report contents, or full report contents.
 at `reports/api-inventory.md` by default, or `reports/api-inventory.json` with
 `--output json`. It detects configured and conventional OpenAPI files,
 committed Hurl tests with protocol tags, GraphQL/WSDL/proto schema files,
-AsyncAPI specs, and webhook/event-contract files, then summarizes REST/OpenAPI,
-GraphQL, SOAP/XML, gRPC/proto, AsyncAPI, webhook/event, and unknown HTTP
-signals without generating tests. The packet records only source states,
-project-relative local paths, tags, operation/exchange counts, SHA-256 hashes,
-and next-action text. Missing sources are non-blocking; malformed, oversized,
-non-file, symlinked, path-escaped, or secret-like source artifacts are marked
-invalid or unsafe. The command does not execute Hurl, call providers, upload
-results, parse traffic state, call registries, generate tests, mutate source
-files, or include raw URLs, headers, bodies, cookies, prompts, credentials,
-environment values, or full file contents.
+AsyncAPI specs, webhook/event-contract files, and WebSocket/realtime contract
+files, then summarizes REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, AsyncAPI,
+webhook/event, WebSocket/realtime, and unknown HTTP signals without generating
+tests. The packet records only source states, project-relative local paths,
+tags, operation/exchange counts, SHA-256 hashes, and next-action text. Missing
+sources are non-blocking; malformed, oversized, non-file, symlinked,
+path-escaped, or secret-like source artifacts are marked invalid or unsafe.
+The command does not execute Hurl, call providers, upload results, parse
+traffic state, call registries, generate tests, mutate source files, or include
+raw URLs, headers, bodies, cookies, prompts, credentials, environment values,
+or full file contents.
 
 `entroping report mutation-readiness` writes a local read-only
 mutation/fuzz-readiness packet at `reports/mutation-readiness.md` by default,
@@ -2019,7 +2020,7 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report otel-mapping --output json` | `reports/otel-mapping.json` | Machine-readable OpenTelemetry mapping packet using `entroping.otel-mapping.v1`. |
 | `entroping report observability-adapter-readiness --output md` | `reports/observability-adapter-readiness.md` | Human-readable read-only observability adapter readiness packet. |
 | `entroping report observability-adapter-readiness --output json` | `reports/observability-adapter-readiness.json` | Machine-readable observability adapter readiness packet using `entroping.observability-adapter-readiness.v1`. |
-| `entroping report api-inventory --output md` | `reports/api-inventory.md` | Human-readable read-only API style inventory for REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, AsyncAPI, webhook/event, and unknown HTTP signals. |
+| `entroping report api-inventory --output md` | `reports/api-inventory.md` | Human-readable read-only API style inventory for REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, AsyncAPI, webhook/event, WebSocket/realtime, and unknown HTTP signals. |
 | `entroping report api-inventory --output json` | `reports/api-inventory.json` | Machine-readable API inventory packet using `entroping.api-inventory.v1`. |
 | `entroping report mutation-readiness --output md` | `reports/mutation-readiness.md` | Human-readable read-only mutation/fuzz readiness summary from generated-Hurl and optional local report evidence. |
 | `entroping report mutation-readiness --output json` | `reports/mutation-readiness.json` | Machine-readable mutation/fuzz readiness packet using `entroping.mutation-readiness.v1`. |

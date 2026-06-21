@@ -213,6 +213,7 @@
         "grpc_proto",
         "asyncapi",
         "webhook_event",
+        "websocket_realtime",
         "unknown_http"
       ]
     }
