@@ -142,6 +142,15 @@ _HTTP_METHODS: Final[frozenset[str]] = frozenset(
     {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
 )
 _SHA256_RE: Final = re.compile(r"\b[0-9a-f]{64}\b")
+_GRAPHQL_BLOCK_STRING_RE: Final = re.compile(r'"""(?:.|\n)*?"""')
+_GRAPHQL_LINE_COMMENT_RE: Final = re.compile(r"(?m)#.*$")
+_GRAPHQL_ROOT_OPERATION_BLOCK_RE: Final = re.compile(
+    r"\b(?:extend\s+)?type\s+(?:Query|Mutation|Subscription)\b[^{]*\{(?P<body>.*?)\}",
+    re.DOTALL,
+)
+_GRAPHQL_ROOT_FIELD_RE: Final = re.compile(
+    r"(?m)^[ \t]*[_A-Za-z][_0-9A-Za-z]*\s*(?:\([^{}]*\)\s*)?:"
+)
 _STYLE_LABELS: Final[dict[ApiStyle, str]] = {
     "rest_openapi": "REST/OpenAPI",
     "graphql": "GraphQL",
@@ -564,6 +573,20 @@ def _load_schema_source(*, root: Path, raw_path: Path, style: ApiStyle) -> ApiIn
     if isinstance(loaded, ApiInventorySource):
         return loaded
     raw_bytes, raw_text = loaded
+    if style == "graphql":
+        graphql_operations = _graphql_operation_count(raw_text)
+        return _source(
+            kind="schema_file",
+            style=style,
+            path=path_text,
+            state="present",
+            sha256=hashlib.sha256(raw_bytes).hexdigest(),
+            operations=graphql_operations,
+            summary=(
+                f"{graphql_operations} GraphQL root "
+                f"{_operation_word(graphql_operations)}."
+            ),
+        )
     if style == "asyncapi":
         document = _load_yaml_document(
             raw_text,
@@ -574,8 +597,8 @@ def _load_schema_source(*, root: Path, raw_path: Path, style: ApiStyle) -> ApiIn
         )
         if isinstance(document, ApiInventorySource):
             return document
-        operations = _asyncapi_operation_count(document)
-        if operations is None:
+        asyncapi_operations = _asyncapi_operation_count(document)
+        if asyncapi_operations is None:
             return _source(
                 kind="schema_file",
                 style=style,
@@ -591,8 +614,8 @@ def _load_schema_source(*, root: Path, raw_path: Path, style: ApiStyle) -> ApiIn
             path=path_text,
             state="present",
             sha256=hashlib.sha256(raw_bytes).hexdigest(),
-            operations=operations,
-            summary=f"{operations} AsyncAPI operations/channels.",
+            operations=asyncapi_operations,
+            summary=f"{asyncapi_operations} AsyncAPI operations/channels.",
         )
     if style == "webhook_event":
         document = _load_yaml_document(
@@ -604,8 +627,8 @@ def _load_schema_source(*, root: Path, raw_path: Path, style: ApiStyle) -> ApiIn
         )
         if isinstance(document, ApiInventorySource):
             return document
-        operations = _webhook_event_operation_count(document)
-        if operations is None:
+        webhook_operations = _webhook_event_operation_count(document)
+        if webhook_operations is None:
             return _source(
                 kind="schema_file",
                 style=style,
@@ -624,8 +647,11 @@ def _load_schema_source(*, root: Path, raw_path: Path, style: ApiStyle) -> ApiIn
             path=path_text,
             state="present",
             sha256=hashlib.sha256(raw_bytes).hexdigest(),
-            operations=operations,
-            summary=f"{operations} webhook/event contract {_entry_word(operations)}.",
+            operations=webhook_operations,
+            summary=(
+                f"{webhook_operations} webhook/event contract "
+                f"{_entry_word(webhook_operations)}."
+            ),
         )
     if style == "websocket_realtime":
         document = _load_yaml_document(
@@ -637,8 +663,8 @@ def _load_schema_source(*, root: Path, raw_path: Path, style: ApiStyle) -> ApiIn
         )
         if isinstance(document, ApiInventorySource):
             return document
-        operations = _websocket_realtime_operation_count(document)
-        if operations is None:
+        websocket_operations = _websocket_realtime_operation_count(document)
+        if websocket_operations is None:
             return _source(
                 kind="schema_file",
                 style=style,
@@ -654,8 +680,11 @@ def _load_schema_source(*, root: Path, raw_path: Path, style: ApiStyle) -> ApiIn
             path=path_text,
             state="present",
             sha256=hashlib.sha256(raw_bytes).hexdigest(),
-            operations=operations,
-            summary=f"{operations} WebSocket/realtime {_entry_word(operations)}.",
+            operations=websocket_operations,
+            summary=(
+                f"{websocket_operations} WebSocket/realtime "
+                f"{_entry_word(websocket_operations)}."
+            ),
         )
     return _source(
         kind="schema_file",
@@ -809,6 +838,19 @@ def _load_yaml_document(
         )
 
 
+def _graphql_operation_count(raw_text: str) -> int:
+    normalized = _strip_graphql_ignored_text(raw_text)
+    return sum(
+        len(_GRAPHQL_ROOT_FIELD_RE.findall(match.group("body")))
+        for match in _GRAPHQL_ROOT_OPERATION_BLOCK_RE.finditer(normalized)
+    )
+
+
+def _strip_graphql_ignored_text(raw_text: str) -> str:
+    without_block_strings = _GRAPHQL_BLOCK_STRING_RE.sub("", raw_text)
+    return _GRAPHQL_LINE_COMMENT_RE.sub("", without_block_strings)
+
+
 def _asyncapi_operation_count(document: object) -> int | None:
     if not isinstance(document, dict):
         return None
@@ -854,6 +896,12 @@ def _entry_word(count: int) -> str:
     if count == 1:
         return "entry"
     return "entries"
+
+
+def _operation_word(count: int) -> str:
+    if count == 1:
+        return "operation"
+    return "operations"
 
 
 def _style_from_tags(tags: frozenset[str]) -> ApiStyle | None:
