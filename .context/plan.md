@@ -16,30 +16,27 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1062 External Test Evidence Packet
+## Current Issue Slice: #1064 Test-Pyramid External Evidence Integration
 
-- Add `entroping report external-test-evidence --output md|json` as an
-  issue-backed additive report command for fixed local external test artifacts.
-- Read only `reports/external-tests/unit-junit.xml`,
-  `integration-junit.xml`, `component-junit.xml`, `contract-junit.xml`,
-  `e2e-junit.xml`, `coverage.xml`, `lcov.info`, and `sarif.json`.
-- Emit a schema-versioned `entroping.external-test-evidence.v1` packet with
-  source states, bounded hashes, JUnit counts, coverage counts/percentages,
-  SARIF run/result/severity counts, layer readiness, blockers, and next
-  actions.
-- Keep the packet value-free: no raw test names, stack traces, source snippets,
-  coverage file names, SARIF messages or locations, raw traffic, stdout/stderr,
-  prompts, provider output, credentials, cookies, environment values, webhook
-  URLs, or full artifact contents.
-- Do not execute tests or Hurl, call model providers or vendor APIs, upload
-  artifacts, mutate external systems, parse raw traffic, or change
-  `entroping run`.
-- Preserve deterministic Hurl/QAnstitution authority: this packet summarizes
-  external evidence only and does not make external test tools the source of
-  Entroping pass/fail truth.
-- Verification lane: `security-runtime` because the command reads local
-  external artifact paths and emits machine-readable evidence metadata with
-  path, parser, and secret-safety boundaries.
+- Fold optional `reports/external-test-evidence.json` into
+  `entroping report test-pyramid --output md|json` only when the local packet is
+  present.
+- Require schema `entroping.external-test-evidence.v1` before treating the
+  packet as present evidence.
+- Preserve missing-packet behavior: no External Test Evidence layer, no new
+  runtime-governance finding, and the existing six-layer summary remains intact.
+- Add an optional External Test Evidence layer with counts-only status, layer,
+  test, failure, error, and skipped totals for valid packets.
+- Report invalid, unsafe, oversized, unreadable, out-of-root, symlinked, or
+  secret-like packets as value-free invalid/unsafe layer evidence.
+- Keep runtime-governance findings limited to run JSON, JUnit XML, and
+  gate-coverage JSON so deterministic Hurl/QAnstitution proof stays authoritative.
+- Do not parse raw `reports/external-tests/*` artifacts from test-pyramid, run
+  tests or Hurl, call providers, upload artifacts, read raw traffic, mutate
+  external systems, or change `entroping run`.
+- Verification lane: `security-runtime` because this slice reads a local JSON
+  evidence packet and must preserve path, parser, schema, raw-content, and
+  secret-safety boundaries.
 
 ## Current Baseline
 
@@ -445,9 +442,8 @@ Guarded historical anchors retained for docs-link tests:
 Use these issues as the next marathon targets. Keep each one narrow, tested, and
 merged through GitHub before starting the next branch:
 
-- Next local targets are #441 explicit timeout evidence per test, #442
-  security-scheme coverage generation, and #443 undocumented live-traffic route
-  audit evidence.
+- Next local targets are #303-#305 package-index proof, #306 downstream user
+  feedback, and #308-#310 stable-core compatibility and non-GitHub CI proof.
 - Packaging issue #268 is intentionally gated on package-index alpha evidence:
   publish TestPyPI/PyPI through the protected workflow first, then promote the
   Homebrew tap from prototype to supported install path.

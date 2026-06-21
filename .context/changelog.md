@@ -2,6 +2,16 @@
 
 ## 2026-06-20
 
+- Added issue #1064's test-pyramid external-evidence integration:
+  `report test-pyramid` now folds in optional
+  `reports/external-test-evidence.json` evidence with schema
+  `entroping.external-test-evidence.v1` as a counts-only External Test Evidence
+  layer while preserving the existing missing-packet behavior, keeping invalid
+  or unsafe packets value-free, and keeping runtime-governance findings limited
+  to run JSON, JUnit XML, and gate-coverage JSON. The command still does not
+  parse raw `reports/external-tests/*` artifacts, run tests or Hurl, call
+  providers, upload artifacts, mutate external systems, read raw traffic, change
+  `entroping run`, or render raw external test values.
 - Added issue #1062's external test evidence packet: `report
   external-test-evidence` now writes local
   `entroping.external-test-evidence.v1` JSON or Markdown that reads only fixed
