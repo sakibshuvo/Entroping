@@ -85,6 +85,14 @@ from entroping.core.api_inventory import (
     ApiInventoryStyleSummary,
     ApiInventorySummary,
 )
+from entroping.core.connector_intent import (
+    CONNECTOR_INTENT_SCHEMA_VERSION,
+    ConnectorIntentNextAction,
+    ConnectorIntentPacket,
+    ConnectorIntentRecord,
+    ConnectorIntentSource,
+    ConnectorIntentSummary,
+)
 from entroping.core.devex_readiness import (
     DEVEX_READINESS_SCHEMA_VERSION,
     DevexReadinessFamily,
@@ -2605,6 +2613,139 @@ def test_devex_readiness_v1_schema_contract_is_versioned_and_stable() -> None:
     ]
 
 
+def test_connector_intent_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "connector-intent.v1.schema.json").read_text())
+    packet = ConnectorIntentPacket(
+        generated_at="2026-06-20T00:00:00+00:00",
+        project="checkout-api",
+        summary=ConnectorIntentSummary(
+            status="ready",
+            sources_total=1,
+            sources_present=1,
+            sources_missing=0,
+            sources_invalid=0,
+            sources_unsafe=0,
+            intents_total=1,
+            intents_ready=1,
+            intents_attention=0,
+            intents_blocked=0,
+            blockers_total=0,
+            next_actions_total=1,
+        ),
+        sources=(
+            ConnectorIntentSource(
+                id="runtime_card",
+                label="Runtime card",
+                path="reports/runtime-card.json",
+                state="present",
+                schema_version="entroping.runtime-card.v1",
+                sha256="a" * 64,
+                summary="pass; 0 findings",
+            ),
+        ),
+        intents=(
+            ConnectorIntentRecord(
+                id="issue_tracker",
+                label="Issue tracker",
+                target_family="issue_tracker",
+                target_systems=("jira", "linear"),
+                status="ready",
+                intent_kind="issue_link",
+                required_source_ids=("runtime_card", "notification_packet"),
+                present_source_ids=("runtime_card",),
+                missing_source_ids=("notification_packet",),
+                minimum_payload_fields=("artifact_id", "source_sha256"),
+                required_user_action="explicit_user_approval",
+                audit_fields=("actor_role", "approval_id"),
+                forbidden_actions=("call_external_api", "mutate_issue_tracker"),
+                blockers=(),
+                next_action="Prepare read-only evidence links.",
+            ),
+        ),
+        next_actions=(
+            ConnectorIntentNextAction(
+                priority="medium",
+                action="Generate notification evidence before issue tracker intents.",
+                source_ids=("notification_packet",),
+                intent_ids=("issue_tracker",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert CONNECTOR_INTENT_SCHEMA_VERSION == "entroping.connector-intent.v1"
+    assert payload["schema_version"] == "entroping.connector-intent.v1"
+    assert payload["intents"][0]["target_systems"] == ["jira", "linear"]
+    assert payload["intents"][0]["required_user_action"] == "explicit_user_approval"
+    assert schema["properties"]["schema_version"]["const"] == "entroping.connector-intent.v1"
+    assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["$defs"]["source_id"]["enum"] == [
+        "runtime_card",
+        "handoff",
+        "notification_packet",
+        "integration_readiness",
+        "devex_readiness",
+        "observability_packet",
+        "evidence_index",
+    ]
+    assert schema["$defs"]["intent_id"]["enum"] == [
+        "issue_tracker",
+        "chat",
+        "enterprise_automation",
+        "enterprise_ai",
+        "observability",
+        "devex_surface",
+    ]
+    assert schema["$defs"]["target_system"]["enum"] == [
+        "jira",
+        "linear",
+        "monday",
+        "github_issues",
+        "generic_tracker",
+        "slack",
+        "discord",
+        "teams",
+        "generic_chat",
+        "workato",
+        "zapier",
+        "generic_workflow",
+        "claude",
+        "codex",
+        "openai_compatible_agent",
+        "generic_ai_assistant",
+        "opentelemetry",
+        "datadog",
+        "splunk",
+        "grafana",
+        "generic_observability",
+        "vscode",
+        "editor",
+        "local_workbench",
+        "desktop",
+        "cloud",
+        "mobile",
+        "pr_card",
+    ]
+    assert schema["$defs"]["forbidden_action"]["enum"] == [
+        "call_external_api",
+        "invoke_model_provider",
+        "upload_artifacts",
+        "mutate_issue_tracker",
+        "post_chat_message",
+        "execute_chat_command",
+        "mutate_dashboard_or_monitor",
+        "mutate_workflow",
+        "sync_raw_repo_or_vault",
+        "read_provider_keys",
+        "override_hurl_qanstitution_result",
+        "render_raw_artifact_contents",
+        "implement_app_surface",
+        "execute_hurl",
+        "run_tests",
+    ]
+
+
 def test_integration_readiness_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "integration-readiness.v1.schema.json").read_text())
     packet = IntegrationReadinessPacket(
@@ -4269,6 +4410,7 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
             SCHEMA_DIR / "team-access-control-plan.v1.schema.json"
         ),
         "entroping.devex-readiness.v1": (SCHEMA_DIR / "devex-readiness.v1.schema.json"),
+        "entroping.connector-intent.v1": (SCHEMA_DIR / "connector-intent.v1.schema.json"),
         "entroping.integration-readiness.v1": (
             SCHEMA_DIR / "integration-readiness.v1.schema.json"
         ),

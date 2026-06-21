@@ -35,6 +35,11 @@ from entroping.core.capture_summary_report import (
     CaptureSummaryOutput,
     run_capture_summary_report,
 )
+from entroping.core.connector_intent import (
+    ConnectorIntentError,
+    ConnectorIntentOutput,
+    run_connector_intent_report,
+)
 from entroping.core.coverage_badges import BadgeReportError, write_coverage_badges
 from entroping.core.design_partner_feedback import (
     DesignPartnerFeedbackError,
@@ -1029,6 +1034,33 @@ def report_devex_readiness(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote developer experience readiness: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("connector-intent", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_connector_intent(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local connector intent packet."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported connector-intent output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_connector_intent_report(
+            project_root=Path.cwd(),
+            output=cast(ConnectorIntentOutput, normalized_output),
+        )
+    except ConnectorIntentError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote connector intent: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 

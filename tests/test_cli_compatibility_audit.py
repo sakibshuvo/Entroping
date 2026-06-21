@@ -239,6 +239,11 @@ LOCKED_CLI_CONTRACTS = (
         ("--output",),
     ),
     CliContract(
+        "entroping report connector-intent [--output <md|json>]",
+        ("report", "connector-intent", "--help"),
+        ("--output",),
+    ),
+    CliContract(
         "entroping report observability-packet [--output <md|json>]",
         ("report", "observability-packet", "--help"),
         ("--output",),
