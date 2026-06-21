@@ -244,6 +244,11 @@ LOCKED_CLI_CONTRACTS = (
         ("--output",),
     ),
     CliContract(
+        "entroping report external-test-evidence [--output <md|json>]",
+        ("report", "external-test-evidence", "--help"),
+        ("--output",),
+    ),
+    CliContract(
         "entroping report observability-packet [--output <md|json>]",
         ("report", "observability-packet", "--help"),
         ("--output",),
@@ -380,6 +385,8 @@ REPORT_ARTIFACTS = (
     "reports/test-quality.json",
     "reports/test-pyramid.md",
     "reports/test-pyramid.json",
+    "reports/external-test-evidence.md",
+    "reports/external-test-evidence.json",
     "stdout Effective Policy Diff Markdown/JSON",
     "reports/badges/*.json",
     "reports/evidence-bundle.json",

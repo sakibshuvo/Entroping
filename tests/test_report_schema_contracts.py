@@ -121,6 +121,14 @@ from entroping.core.evidence_index_report import (
     EvidenceIndexPacket,
     EvidenceIndexSummary,
 )
+from entroping.core.external_test_evidence import (
+    EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION,
+    ExternalTestEvidenceLayer,
+    ExternalTestEvidenceNextAction,
+    ExternalTestEvidencePacket,
+    ExternalTestEvidenceSource,
+    ExternalTestEvidenceSummary,
+)
 from entroping.core.handoff_packet import (
     HANDOFF_SCHEMA_VERSION,
     HandoffArtifact,
@@ -2746,6 +2754,109 @@ def test_connector_intent_v1_schema_contract_is_versioned_and_stable() -> None:
     ]
 
 
+def test_external_test_evidence_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "external-test-evidence.v1.schema.json").read_text())
+    packet = ExternalTestEvidencePacket(
+        generated_at="2026-06-21T00:00:00+00:00",
+        project="checkout-api",
+        summary=ExternalTestEvidenceSummary(
+            status="ready",
+            sources_total=1,
+            sources_present=1,
+            sources_missing=0,
+            sources_invalid=0,
+            sources_unsafe=0,
+            layers_total=1,
+            layers_with_evidence=1,
+            layers_missing=0,
+            layers_blocked=0,
+            total_tests=5,
+            total_failures=0,
+            total_errors=0,
+            total_skipped=1,
+            line_coverage_percent=87.5,
+            branch_coverage_percent=50.0,
+            sarif_results_total=3,
+            sarif_error_results=1,
+            next_actions_total=1,
+        ),
+        sources=(
+            ExternalTestEvidenceSource(
+                id="unit_junit",
+                label="unit JUnit",
+                path="reports/external-tests/unit-junit.xml",
+                kind="junit",
+                layer="unit",
+                state="present",
+                sha256="a" * 64,
+                summary="5 tests; 0 failures; 0 errors; 1 skipped",
+                suites=1,
+                tests=5,
+                failures=0,
+                errors=0,
+                skipped=1,
+            ),
+        ),
+        layers=(
+            ExternalTestEvidenceLayer(
+                id="unit",
+                label="Unit",
+                status="covered",
+                source_ids=("unit_junit",),
+                tests=5,
+                failures=0,
+                errors=0,
+                skipped=1,
+                next_action="Review counts-only evidence.",
+            ),
+        ),
+        next_actions=(
+            ExternalTestEvidenceNextAction(
+                priority="medium",
+                action="Generate integration JUnit evidence.",
+                source_ids=("integration_junit",),
+                layer_ids=("integration",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION == (
+        "entroping.external-test-evidence.v1"
+    )
+    assert payload["schema_version"] == "entroping.external-test-evidence.v1"
+    assert payload["sources"][0]["id"] == "unit_junit"
+    assert payload["layers"][0]["status"] == "covered"
+    assert schema["properties"]["schema_version"]["const"] == (
+        "entroping.external-test-evidence.v1"
+    )
+    assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["$defs"]["source_id"]["enum"] == [
+        "unit_junit",
+        "integration_junit",
+        "component_junit",
+        "contract_junit",
+        "e2e_junit",
+        "coverage_xml",
+        "lcov_info",
+        "sarif_json",
+    ]
+    assert schema["$defs"]["layer_id"]["enum"] == [
+        "unit",
+        "integration",
+        "component",
+        "contract",
+        "e2e",
+    ]
+    assert schema["$defs"]["source_kind"]["enum"] == [
+        "junit",
+        "coverage_xml",
+        "lcov",
+        "sarif",
+    ]
+
+
 def test_integration_readiness_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "integration-readiness.v1.schema.json").read_text())
     packet = IntegrationReadinessPacket(
@@ -4411,6 +4522,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         ),
         "entroping.devex-readiness.v1": (SCHEMA_DIR / "devex-readiness.v1.schema.json"),
         "entroping.connector-intent.v1": (SCHEMA_DIR / "connector-intent.v1.schema.json"),
+        "entroping.external-test-evidence.v1": (
+            SCHEMA_DIR / "external-test-evidence.v1.schema.json"
+        ),
         "entroping.integration-readiness.v1": (
             SCHEMA_DIR / "integration-readiness.v1.schema.json"
         ),

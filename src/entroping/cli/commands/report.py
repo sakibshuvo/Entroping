@@ -73,6 +73,11 @@ from entroping.core.evidence_index_report import (
     EvidenceIndexOutput,
     run_evidence_index_report,
 )
+from entroping.core.external_test_evidence import (
+    ExternalTestEvidenceError,
+    ExternalTestEvidenceOutput,
+    run_external_test_evidence_report,
+)
 from entroping.core.failure_bundle import FailureBundleError, create_failure_bundle
 from entroping.core.gate_coverage_report import (
     GateCoverageOutput,
@@ -1061,6 +1066,35 @@ def report_connector_intent(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote connector intent: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("external-test-evidence", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_external_test_evidence(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local external test evidence packet."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(
+            f"[yellow]Unsupported external-test-evidence output: {output}[/yellow]"
+        )
+        raise typer.Exit(2)
+
+    try:
+        result = run_external_test_evidence_report(
+            project_root=Path.cwd(),
+            output=cast(ExternalTestEvidenceOutput, normalized_output),
+        )
+    except ExternalTestEvidenceError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote external test evidence: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 

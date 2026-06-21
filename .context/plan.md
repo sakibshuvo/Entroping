@@ -16,35 +16,30 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1060 Connector Intent Packet
+## Current Issue Slice: #1062 External Test Evidence Packet
 
-- Add `entroping report connector-intent --output md|json` as an issue-backed
-  additive report command for future issue tracker, chat, enterprise
-  automation, enterprise AI handoff, observability, and developer-experience
-  connector surfaces.
-- Build from existing sanitized local packet artifacts: runtime card,
-  cross-surface handoff, notification packet, integration readiness, developer
-  experience readiness, observability packet, and evidence index.
-- Emit a schema-versioned `entroping.connector-intent.v1` packet with source
-  states, bounded hashes, compact summaries, target systems, intent kind,
-  minimum payload fields, required user action, audit fields, forbidden
-  actions, blockers, and next actions.
-- Keep the packet value-free: no raw report bodies, raw traffic, source Hurl,
+- Add `entroping report external-test-evidence --output md|json` as an
+  issue-backed additive report command for fixed local external test artifacts.
+- Read only `reports/external-tests/unit-junit.xml`,
+  `integration-junit.xml`, `component-junit.xml`, `contract-junit.xml`,
+  `e2e-junit.xml`, `coverage.xml`, `lcov.info`, and `sarif.json`.
+- Emit a schema-versioned `entroping.external-test-evidence.v1` packet with
+  source states, bounded hashes, JUnit counts, coverage counts/percentages,
+  SARIF run/result/severity counts, layer readiness, blockers, and next
+  actions.
+- Keep the packet value-free: no raw test names, stack traces, source snippets,
+  coverage file names, SARIF messages or locations, raw traffic, stdout/stderr,
   prompts, provider output, credentials, cookies, environment values, webhook
-  URLs, ticket/chat/dashboard/workflow mutation payloads, repo/vault/worktree
-  sync content, or full artifact contents.
-- Do not implement Jira, Linear, monday.com, Slack, Discord, Teams, Workato,
-  Zapier, Claude, Codex, OpenAI-compatible, Datadog, Splunk, OpenTelemetry,
-  Grafana, VS Code, desktop, web, cloud, or mobile adapters; do not call
-  external APIs, invoke providers/models, execute Hurl, run tests, upload
-  artifacts, mutate external systems, sync repos/vaults/worktrees, configure
-  SSO/RBAC, parse traffic state, or change `entroping run`.
-- Preserve deterministic Hurl/QAnstitution authority: this packet is local
-  intent metadata only and does not make connector targets the source of
-  pass/fail truth.
-- Verification lane: `security-runtime` because the command reads local report
-  artifact state and emits machine-readable evidence metadata with path and
-  secret-safety boundaries.
+  URLs, or full artifact contents.
+- Do not execute tests or Hurl, call model providers or vendor APIs, upload
+  artifacts, mutate external systems, parse raw traffic, or change
+  `entroping run`.
+- Preserve deterministic Hurl/QAnstitution authority: this packet summarizes
+  external evidence only and does not make external test tools the source of
+  Entroping pass/fail truth.
+- Verification lane: `security-runtime` because the command reads local
+  external artifact paths and emits machine-readable evidence metadata with
+  path, parser, and secret-safety boundaries.
 
 ## Current Baseline
 

@@ -764,6 +764,7 @@ report generation, and artifact schemas remain the compatibility contract.
 | Effective Policy Diff | `report policy-diff --base <path> --current <path> --output md|json [--fail-on-change]` | Import/gate differences between two effective-policy JSON artifacts; opt-in CI failure on changed diff |
 | Generated-Test Quality | `report test-quality --output md|json` | Static quality score for generated Hurl tests |
 | Test Pyramid Evidence | `report test-pyramid --output md|json` | Local test/evidence layer summary from existing artifacts |
+| External Test Evidence | `report external-test-evidence --output md|json` | Counts-only local ingestion of fixed external JUnit, coverage, LCOV, and SARIF artifacts |
 | Artifact Manifest | `report artifact-manifest [--output <path>] [--fail-on-incomplete]` | Checksum manifest for local report artifacts; opt-in CI failure on incomplete evidence |
 | Evidence Bundle | `report evidence-bundle` | Sanitized local upload-readiness evidence |
 | Design-Partner Feedback | `report design-partner-feedback` | Sanitized local feedback template artifact |
@@ -948,6 +949,7 @@ entroping report gate-coverage [--output <md|json>] [--fail-under <0-100>]
 entroping report gate-injection --target <path> [--output <md|json>]
 entroping report test-quality [--output <md|json>] [--fail-under <0-100>]
 entroping report test-pyramid [--output <md|json>]
+entroping report external-test-evidence [--output <md|json>]
 entroping report artifact-manifest [--output <path>] [--fail-on-incomplete]
 entroping report evidence-bundle [--output <path>]
 entroping report design-partner-feedback [--output <path>]
@@ -1184,6 +1186,23 @@ executed proof. The command does not execute Hurl or pytest, parse source Hurl,
 call model providers, upload artifacts, render raw artifact contents, or expose
 raw traffic, provider prompts, stdout/stderr, env values, or source coverage
 file names.
+
+`entroping report external-test-evidence --output md|json` reads only the
+fixed local external-test artifact paths under `reports/external-tests/`:
+`unit-junit.xml`, `integration-junit.xml`, `component-junit.xml`,
+`contract-junit.xml`, `e2e-junit.xml`, `coverage.xml`, `lcov.info`, and
+`sarif.json`. It writes `reports/external-test-evidence.md` or
+`reports/external-test-evidence.json` with schema
+`entroping.external-test-evidence.v1`, source states and hashes, counts-only
+JUnit summaries, coverage percentages/counts, SARIF run/result/severity counts,
+layer readiness, blockers, and next actions. Missing artifacts are
+non-blocking. Malformed, oversized, non-file, symlinked, wrong-format,
+out-of-root, or secret-like artifacts are unsafe or invalid. The command does
+not execute tests or Hurl, call model or vendor providers, upload artifacts,
+mutate external systems, parse raw traffic, render raw test names, stack traces,
+source snippets, coverage file names, SARIF messages or locations, stdout or
+stderr, prompts, provider outputs, secrets, environment values, webhook URLs,
+or full artifact contents, and it does not change `entroping run`.
 
 `entroping report artifact-manifest` writes `reports/artifact-manifest.json`
 by default with project-relative report paths, schema versions when available,
@@ -1672,6 +1691,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report test-quality --fail-under <0-100>` | `reports/test-quality.md` or `reports/test-quality.json` | Optional threshold gate over static generated-Hurl quality evidence. |
 | `entroping report test-pyramid --output md` | `reports/test-pyramid.md` | Human-readable local test/evidence layer summary from existing artifacts. |
 | `entroping report test-pyramid --output json` | `reports/test-pyramid.json` | Machine-readable local test/evidence layer summary using `entroping.test-pyramid-report.v1`. |
+| `entroping report external-test-evidence --output md` | `reports/external-test-evidence.md` | Human-readable counts-only local external test evidence packet from fixed JUnit, coverage, LCOV, and SARIF artifact paths. |
+| `entroping report external-test-evidence --output json` | `reports/external-test-evidence.json` | Machine-readable external test evidence packet using `entroping.external-test-evidence.v1`. |
 | `entroping report artifact-manifest [--fail-on-incomplete]` | `reports/artifact-manifest.json` and `.entroping/report-audit-chain.jsonl` | Machine-readable checksum manifest using `entroping.report-artifact-manifest.v1` plus a local tamper-evident audit chain using `entroping.report-audit-event.v1`; the optional guard exits nonzero after writing when expected artifacts are missing or audit verification is broken, and the chain is local state and not committed. |
 | `entroping report evidence-bundle` | `reports/evidence-bundle.json`, or Markdown when `--output` ends in `.md` or `.markdown` | Sanitized design-partner upload-readiness evidence using `entroping.evidence-bundle.v1`; references local artifacts by path, schema, size, checksum, readiness, diagnostics, and local remediation hints without embedding contents, executing fixes, or uploading. |
 | `entroping report design-partner-feedback` | `reports/design-partner-feedback.json` | Schema-valid sanitized product-learning template using `entroping.design-partner-feedback.v1`; records value-free evidence statuses and leaves manual feedback fields for concise sanitized summaries. |

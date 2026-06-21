@@ -231,6 +231,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "integration-readiness",
         "devex-readiness",
         "connector-intent",
+        "external-test-evidence",
         "team-access-control-plan",
         "team-evidence-readiness",
         "observability-packet",

@@ -38,6 +38,7 @@ entroping report gate-coverage [--output <md|json>] [--fail-under <0-100>]
 entroping report gate-injection --target <path> [--output <md|json>]
 entroping report test-quality [--output <md|json>] [--fail-under <0-100>]
 entroping report test-pyramid [--output <md|json>]
+entroping report external-test-evidence [--output <md|json>]
 entroping report artifact-manifest [--output <path>] [--fail-on-incomplete]
 entroping report evidence-bundle [--output <path>]
 entroping report design-partner-feedback [--output <path>]
@@ -399,6 +400,8 @@ Maintainer and baseline tools:
 | `entroping report test-quality --fail-under <0-100>` | Write the report, then exit `1` when the generated-test quality score is below the reviewed threshold |
 | `entroping report test-pyramid --output md` | Write a local test-pyramid evidence summary to `reports/test-pyramid.md` |
 | `entroping report test-pyramid --output json` | Write machine-readable test-pyramid evidence to `reports/test-pyramid.json` |
+| `entroping report external-test-evidence --output md` | Write a counts-only external test evidence packet to `reports/external-test-evidence.md` |
+| `entroping report external-test-evidence --output json` | Write machine-readable external test evidence metadata to `reports/external-test-evidence.json` |
 | `entroping report artifact-manifest` | Write checksum evidence for local report artifacts to `reports/artifact-manifest.json` |
 | `entroping report artifact-manifest --output <path>` | Write checksum evidence for local report artifacts to a custom manifest path |
 | `entroping report artifact-manifest --fail-on-incomplete` | Write the manifest, then exit `1` when expected artifacts are missing or audit verification is broken |
@@ -473,6 +476,7 @@ entroping report test-quality --output md
 entroping report test-quality --output json --fail-under 80
 entroping report test-pyramid --output md
 entroping report test-pyramid --output json
+entroping report external-test-evidence --output json
 entroping report artifact-manifest
 entroping report artifact-manifest --fail-on-incomplete
 entroping report evidence-bundle
