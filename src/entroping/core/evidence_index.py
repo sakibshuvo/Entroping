@@ -543,6 +543,22 @@ def _artifact_definitions() -> tuple[_EvidenceArtifactDefinition, ...]:
             reject_secret_like=True,
         ),
         _EvidenceArtifactDefinition(
+            id="pilot-cohort-md",
+            label="Pilot Cohort Markdown",
+            path=Path("reports") / "pilot-cohort.md",
+            kind="markdown",
+            schema_version="entroping.pilot-cohort.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="pilot-cohort-json",
+            label="Pilot Cohort JSON",
+            path=Path("reports") / "pilot-cohort.json",
+            kind="json",
+            schema_version="entroping.pilot-cohort.v1",
+            summary_builder=_status_summary,
+            reject_secret_like=True,
+        ),
+        _EvidenceArtifactDefinition(
             id="observability-packet-md",
             label="Observability Packet Markdown",
             path=Path("reports") / "observability-packet.md",

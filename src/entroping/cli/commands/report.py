@@ -156,6 +156,11 @@ from entroping.core.observability_packet import (
     ObservabilityPacketError,
     run_observability_packet_report,
 )
+from entroping.core.pilot_cohort import (
+    PilotCohortError,
+    PilotCohortOutput,
+    run_pilot_cohort_report,
+)
 from entroping.core.pilot_metrics import (
     PilotMetricsError,
     PilotMetricsOutput,
@@ -949,6 +954,41 @@ def report_pilot_outcome(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote pilot outcome packet: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("pilot-cohort", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_pilot_cohort(
+    manifest: Annotated[
+        Path,
+        typer.Option(
+            "--manifest",
+            help="Pilot cohort manifest JSON path.",
+        ),
+    ],
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local design-partner pilot cohort rollup."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported pilot-cohort output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_pilot_cohort_report(
+            project_root=Path.cwd(),
+            manifest=manifest,
+            output=cast(PilotCohortOutput, normalized_output),
+        )
+    except PilotCohortError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote pilot cohort packet: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 

@@ -195,6 +195,10 @@ produce.
 - Add a local pilot outcome packet that summarizes sanitized design-partner
   readiness, manual-input gaps, and monetization signal answers before CRM,
   billing, ticket, chat, or hosted follow-up workflows exist.
+- Add a local pilot cohort rollup that aggregates only explicit pilot outcome
+  packets into value-free cohort status, readiness, monetization signal counts,
+  and next actions before CRM, billing, analytics, ticket, chat, or hosted
+  follow-up workflows exist.
 - Support design partner pilots focused on AI-generated backend/API changes and
   measure whether engineering leads will pay for cross-repo runtime governance
   visibility.

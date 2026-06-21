@@ -16,14 +16,14 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1089 Pilot Outcome Packet
+## Current Issue Slice: #1091 Pilot Cohort Rollup
 
-Add `entroping report pilot-outcome --output md|json` as a local value-free
-design-partner outcome packet over fixed optional sanitized feedback,
-pilot-metrics, runtime-card, Evidence Cloud dashboard, and work-item import
-artifacts. No CRM, billing, ticket, chat, PR, hosted upload, vendor API,
-Hurl/test execution, provider call, traffic parsing, `entroping run` change,
-source Hurl, private partner note, URL, or raw artifact rendering.
+Add `entroping report pilot-cohort --manifest <path> --output md|json` as a
+local value-free design-partner cohort rollup over explicit pilot outcome JSON
+packets. No cohort discovery, CRM, billing, ticket, chat, PR, hosted upload,
+vendor API, Hurl/test execution, provider call, traffic parsing,
+`entroping run` change, source Hurl, private partner note, URL, raw outcome
+content, or raw artifact rendering.
 
 ## Current Baseline
 

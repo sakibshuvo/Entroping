@@ -294,6 +294,11 @@ LOCKED_CLI_CONTRACTS = (
         ("--output",),
     ),
     CliContract(
+        "entroping report pilot-cohort --manifest <path> [--output <md|json>]",
+        ("report", "pilot-cohort", "--help"),
+        ("--manifest", "--output"),
+    ),
+    CliContract(
         "entroping report connector-intent [--output <md|json>]",
         ("report", "connector-intent", "--help"),
         ("--output",),
@@ -478,6 +483,8 @@ REPORT_ARTIFACTS = (
     "reports/work-item-import-bundle.csv",
     "reports/pilot-outcome.md",
     "reports/pilot-outcome.json",
+    "reports/pilot-cohort.md",
+    "reports/pilot-cohort.json",
     "reports/observability-packet.md",
     "reports/observability-packet.json",
     "reports/api-inventory.md",

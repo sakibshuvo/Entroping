@@ -59,6 +59,7 @@ entroping report evidence-action-plan [--output <md|json>]
 entroping report work-item-draft [--output <md|json>]
 entroping report work-item-import-bundle [--output <json|csv>]
 entroping report pilot-outcome [--output <md|json>]
+entroping report pilot-cohort --manifest <path> [--output <md|json>]
 entroping report connector-intent [--output <md|json>]
 entroping report observability-packet [--output <md|json>]
 entroping report api-inventory [--output <md|json>]
@@ -456,6 +457,8 @@ Experimental design-partner evidence commands:
 | `entroping report work-item-import-bundle --output csv` | Write spreadsheet-safe tracker import bundle CSV |
 | `entroping report pilot-outcome --output md` | Write local design-partner pilot outcome Markdown to `reports/pilot-outcome.md` |
 | `entroping report pilot-outcome --output json` | Write machine-readable pilot outcome metadata to `reports/pilot-outcome.json` |
+| `entroping report pilot-cohort --manifest <path> --output md` | Write local design-partner pilot cohort Markdown to `reports/pilot-cohort.md` |
+| `entroping report pilot-cohort --manifest <path> --output json` | Write machine-readable pilot cohort metadata to `reports/pilot-cohort.json` |
 | `entroping report connector-intent --output md` | Write a local connector-intent packet to `reports/connector-intent.md` |
 | `entroping report connector-intent --output json` | Write machine-readable connector intent metadata to `reports/connector-intent.json` |
 | `entroping report observability-packet --output md` | Write a read-only observability signal packet to `reports/observability-packet.md` |
@@ -528,6 +531,7 @@ entroping report evidence-action-plan --output json
 entroping report work-item-draft --output json
 entroping report work-item-import-bundle --output csv
 entroping report pilot-outcome --output json
+entroping report pilot-cohort --manifest reports/pilot-cohort-manifest.json --output json
 entroping report connector-intent --output json
 entroping report observability-packet --output json
 entroping report api-inventory --output json
