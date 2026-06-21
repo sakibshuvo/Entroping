@@ -1066,7 +1066,8 @@ def test_report_evidence_cloud_workspace_requires_manifest() -> None:
     result = CliRunner().invoke(app, ["report", "evidence-cloud-workspace"])
 
     assert result.exit_code == 2
-    assert "Missing option '--manifest'" in result.output
+    assert "Missing option" in result.output
+    assert "--manifest" in result.output
 
 
 def test_report_evidence_cloud_workspace_rejects_unsupported_output() -> None:
