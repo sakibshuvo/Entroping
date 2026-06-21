@@ -2,6 +2,14 @@
 
 ## 2026-06-21
 
+- Added issue #1085's work item draft packet: `report work-item-draft` now
+  writes local Markdown or `entroping.work-item-draft.v1` JSON that turns
+  sanitized evidence-action-plan, connector-intent, integration-readiness,
+  evidence-links, and notification-packet state into read-only tracker draft
+  rows without ticket/chat/PR mutation, assignments, labels, vendor APIs,
+  uploads, Hurl/test execution, model calls, traffic parsing, `entroping run`
+  changes, source Hurl access, or raw artifact rendering.
+
 - Added issue #1083's evidence action plan: `report evidence-action-plan` now
   writes local Markdown or `entroping.evidence-action-plan.v1` JSON that turns
   sanitized PR evidence-card, evidence-portal, evidence-links, Evidence Cloud

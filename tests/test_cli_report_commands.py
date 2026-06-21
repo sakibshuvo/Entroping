@@ -66,6 +66,7 @@ from entroping.core.report_artifact_manifest import write_report_artifact_manife
 from entroping.core.runtime_card import RuntimeCardError
 from entroping.core.team_access_control_plan import TeamAccessControlPlanError
 from entroping.core.team_evidence_readiness import TeamEvidenceReadinessError
+from entroping.core.work_item_draft import WorkItemDraftError
 
 
 def _write_effective_policy_report(
@@ -245,6 +246,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "evidence-portal",
         "connector-intent",
         "evidence-action-plan",
+        "work-item-draft",
         "external-test-evidence",
         "team-access-control-plan",
         "team-evidence-readiness",
@@ -1524,6 +1526,68 @@ def test_report_evidence_action_plan_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "evidence action plan path is unsafe" in result.output
+
+
+def test_report_work_item_draft_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "work-item-draft"])
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote work item draft: reports/work-item-draft.md" in result.output
+    markdown = Path("reports/work-item-draft.md").read_text(encoding="utf-8")
+    assert "# Entroping Work Item Draft" in markdown
+    assert "Generate Evidence Action Plan before drafting tracker work items." in markdown
+
+
+def test_report_work_item_draft_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "work-item-draft", "--output", "json"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote work item draft: reports/work-item-draft.json" in result.output
+    payload = json.loads(Path("reports/work-item-draft.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.work-item-draft.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_work_item_draft_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(
+        app,
+        ["report", "work-item-draft", "--output", "html"],
+    )
+
+    assert result.exit_code == 2
+    assert "Unsupported work-item-draft output" in result.output
+    assert not Path("reports/work-item-draft.html").exists()
+
+
+def test_report_work_item_draft_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_work_item_draft(*args: object, **kwargs: object) -> object:
+        raise WorkItemDraftError("work item draft path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_work_item_draft_report",
+        fail_work_item_draft,
+    )
+
+    result = CliRunner().invoke(app, ["report", "work-item-draft"])
+
+    assert result.exit_code == 1
+    assert "work item draft path is unsafe" in result.output
 
 
 def test_report_team_access_control_plan_writes_markdown(

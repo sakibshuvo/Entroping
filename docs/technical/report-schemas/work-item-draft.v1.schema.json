@@ -1,0 +1,286 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://entroping.dev/schemas/work-item-draft.v1.schema.json",
+  "title": "Entroping work item draft packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "project",
+    "summary",
+    "sources",
+    "items"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.work-item-draft.v1"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "project": {
+      "type": "string"
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/item"
+      }
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "sources_total",
+        "sources_present",
+        "sources_missing",
+        "sources_invalid",
+        "sources_unsafe",
+        "items_total",
+        "items_high",
+        "items_medium",
+        "items_low",
+        "source_action_count"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "ready",
+            "partial",
+            "insufficient"
+          ]
+        },
+        "sources_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_present": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_invalid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_unsafe": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "items_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "items_high": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "items_medium": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "items_low": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_action_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "path",
+        "state",
+        "schema_version",
+        "sha256",
+        "summary",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/source_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/source_state"
+        },
+        "schema_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "category",
+        "priority",
+        "title",
+        "summary",
+        "target_systems",
+        "source_ids",
+        "source_action_ids",
+        "source_action_count",
+        "forbidden_actions",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "category": {
+          "$ref": "#/$defs/category"
+        },
+        "priority": {
+          "$ref": "#/$defs/priority"
+        },
+        "title": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "target_systems": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/target_system"
+          }
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "source_action_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "source_action_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "forbidden_actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/forbidden_action"
+          }
+        },
+        "status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "source_id": {
+      "enum": [
+        "evidence-action-plan-json",
+        "connector-intent-json",
+        "integration-readiness-json",
+        "evidence-links-json",
+        "notification-packet-json"
+      ]
+    },
+    "source_state": {
+      "enum": [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe"
+      ]
+    },
+    "priority": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "category": {
+      "enum": [
+        "draft",
+        "generate",
+        "repair"
+      ]
+    },
+    "target_system": {
+      "enum": [
+        "jira",
+        "linear",
+        "monday",
+        "github_issues",
+        "generic_tracker"
+      ]
+    },
+    "forbidden_action": {
+      "enum": [
+        "call_external_api",
+        "mutate_issue_tracker",
+        "post_chat_message",
+        "execute_chat_command",
+        "upload_artifacts",
+        "invoke_model_provider",
+        "execute_hurl",
+        "run_tests",
+        "read_provider_keys",
+        "parse_raw_traffic",
+        "render_raw_artifact_contents"
+      ]
+    }
+  }
+}

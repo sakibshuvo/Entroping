@@ -356,6 +356,13 @@ from entroping.core.team_evidence_readiness import (
     TeamEvidenceSource,
 )
 from entroping.core.traffic_artifact_manifest import TRAFFIC_ARTIFACT_APPROVAL_SCHEMA_VERSION
+from entroping.core.work_item_draft import (
+    WORK_ITEM_DRAFT_SCHEMA_VERSION,
+    WorkItemDraftItem,
+    WorkItemDraftPacket,
+    WorkItemDraftSource,
+    WorkItemDraftSummary,
+)
 from entroping.models.drift import (
     DriftBaseline,
     DriftBaselineTest,
@@ -4377,6 +4384,97 @@ def test_evidence_action_plan_v1_schema_contract_is_versioned_and_stable() -> No
     ]
 
 
+def test_work_item_draft_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "work-item-draft.v1.schema.json").read_text())
+    packet = WorkItemDraftPacket(
+        generated_at="2026-06-21T00:00:00+00:00",
+        project="checkout-api",
+        summary=WorkItemDraftSummary(
+            status="partial",
+            sources_total=2,
+            sources_present=1,
+            sources_missing=1,
+            sources_invalid=0,
+            sources_unsafe=0,
+            items_total=1,
+            items_high=0,
+            items_medium=1,
+            items_low=0,
+            source_action_count=1,
+        ),
+        sources=(
+            WorkItemDraftSource(
+                id="evidence-action-plan-json",
+                label="Evidence Action Plan",
+                path="reports/evidence-action-plan.json",
+                state="present",
+                schema_version="entroping.evidence-action-plan.v1",
+                sha256="a" * 64,
+                summary="partial",
+                status="partial",
+            ),
+            WorkItemDraftSource(
+                id="connector-intent-json",
+                label="Connector Intent",
+                path="reports/connector-intent.json",
+                state="missing",
+                schema_version=None,
+                sha256=None,
+                summary="missing",
+                status=None,
+            ),
+        ),
+        items=(
+            WorkItemDraftItem(
+                id="work-item-draft:001",
+                category="draft",
+                priority="medium",
+                title="Prepare safe tracker draft.",
+                summary="Draft tracker row for review evidence action with unknown status.",
+                source_ids=("evidence-action-plan-json",),
+                source_action_ids=("evidence-action-plan:001",),
+                source_action_count=1,
+                status="partial",
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert WORK_ITEM_DRAFT_SCHEMA_VERSION == "entroping.work-item-draft.v1"
+    assert payload["schema_version"] == "entroping.work-item-draft.v1"
+    assert payload["summary"]["source_action_count"] == 1
+    assert schema["properties"]["schema_version"]["const"] == "entroping.work-item-draft.v1"
+    assert schema["$defs"]["category"]["enum"] == ["draft", "generate", "repair"]
+    assert schema["$defs"]["target_system"]["enum"] == [
+        "jira",
+        "linear",
+        "monday",
+        "github_issues",
+        "generic_tracker",
+    ]
+    assert schema["$defs"]["forbidden_action"]["enum"] == [
+        "call_external_api",
+        "mutate_issue_tracker",
+        "post_chat_message",
+        "execute_chat_command",
+        "upload_artifacts",
+        "invoke_model_provider",
+        "execute_hurl",
+        "run_tests",
+        "read_provider_keys",
+        "parse_raw_traffic",
+        "render_raw_artifact_contents",
+    ]
+    assert schema["$defs"]["source_id"]["enum"] == [
+        "evidence-action-plan-json",
+        "connector-intent-json",
+        "integration-readiness-json",
+        "evidence-links-json",
+        "notification-packet-json",
+    ]
+
+
 def test_qa_brain_seed_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "qa-brain-seed.v1.schema.json").read_text())
     packet = QaBrainSeedPacket(
@@ -5448,6 +5546,7 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         "entroping.evidence-action-plan.v1": (
             SCHEMA_DIR / "evidence-action-plan.v1.schema.json"
         ),
+        "entroping.work-item-draft.v1": (SCHEMA_DIR / "work-item-draft.v1.schema.json"),
         "entroping.connector-intent.v1": (SCHEMA_DIR / "connector-intent.v1.schema.json"),
         "entroping.external-test-evidence.v1": (
             SCHEMA_DIR / "external-test-evidence.v1.schema.json"

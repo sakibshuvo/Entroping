@@ -16,13 +16,13 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1083 Evidence Action Plan
+## Current Issue Slice: #1085 Work Item Draft
 
-Add `entroping report evidence-action-plan --output md|json` as a local
-value-free action packet over fixed sanitized evidence-loop artifacts. No PR,
-ticket, chat, API, upload, Hurl/test execution, traffic parsing,
-`entroping run` changes, or raw artifact rendering. Verification lane:
-`security-runtime`.
+Add `entroping report work-item-draft --output md|json` as a local read-only
+tracker draft packet over fixed sanitized evidence artifacts. No ticket, chat,
+PR, API, upload, Hurl/test execution, provider call, traffic parsing,
+`entroping run` change, source Hurl, or raw artifact rendering. Verification
+lane: `security-runtime`.
 
 ## Current Baseline
 
@@ -49,19 +49,6 @@ ticket, chat, API, upload, Hurl/test execution, traffic parsing,
   `doctor --ci`, runtime gate injection, and gate-injection reports:
   malformed dates fail QAnstitution loading, and expired exceptions fail CI
   readiness before a policy can be treated as ready.
-- Deterministic OpenAPI generation now validates every compiled Hurl file
-  before writing, avoids partial generated output on parser failure, and can
-  focus regeneration to operations changed from a Git base ref.
-- Deterministic OpenAPI generation also emits auth-negative Hurl tests under
-  `tests/generated/security/` for operations with supported HTTP bearer/basic
-  or API-key header/query/cookie schemes and explicit `401`/`403` responses;
-  unsupported schemes are warnings rather than guessed tests.
-- Deterministic OpenAPI generation also emits bounded JSON negative-path Hurl
-  tests under `tests/generated/negative/` only when operations declare explicit
-  `400` or `422` validation responses. The generated corpus stays committed
-  and reviewable, carries category/severity/safety metadata, surfaces those
-  fields in run reports, and marks mutating negative tests `destructive` so
-  protected runs fail closed before Hurl.
 - HTML run reports escape header fields, summary text, rule IDs,
   known-failure summaries, and captured Hurl output before rendering.
 - Common filesystem symlink component traversal is centralized in
@@ -71,10 +58,6 @@ ticket, chat, API, upload, Hurl/test execution, traffic parsing,
   selected source `.hurl` files and explicit absolute Hurl binary paths, while
   bare `hurl` continues to trust the parent process `PATH` by design, resolves
   the PATH-selected binary target, and tolerates host-level filesystem aliases.
-- Public onboarding is launch-first: README points new users to the demo,
-  public docs, roadmap, and a short project-context handoff, while MkDocs groups
-  deeper references by reader task instead of exposing maintainer memory as a
-  flat nav.
 - AI worker lanes are artifact-only until Codex validates local files, tests,
   and CI; provider lane, billing path, model id, autonomy tier, allowed files,
   verification evidence, and merge authority belong in handoffs.
@@ -89,15 +72,6 @@ ticket, chat, API, upload, Hurl/test execution, traffic parsing,
   governance so raw worker prompts, provider responses, stdout/stderr captures,
   cookies, raw traffic, token-shaped values, and generated artifact paths stay
   out of tracked docs/context.
-- Quality audit trend evidence is a generated report:
-  `scripts/audit_quality.sh` writes `reports/quality-trend.json` with stable
-  coverage, complexity, maintainability, dead-code, and test-taxonomy metrics,
-  plus optional numeric deltas from `ENTROPING_QUALITY_TREND_PREVIOUS`.
-- Documentation diet now has an executable inventory:
-  `scripts/docs_inventory.py --strict` classifies tracked Markdown as
-  active/reference/archive, keeps default agent Markdown context under budget,
-  emits non-destructive prune/archive candidates with evidence paths, and lets
-  agents prune context packs without creating another Markdown tracker.
 - Agent context packs now have a content-free planning surface:
   `scripts/context_pack.sh --manifest` reports selected files, reasons, byte
   counts, estimated tokens, and mode budgets before a worker loads the full

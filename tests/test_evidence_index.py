@@ -441,6 +441,8 @@ def test_evidence_index_includes_recent_value_free_packet_artifacts(
     assert by_id["pr-evidence-card-json"].path == "reports/pr-evidence-card.json"
     assert by_id["evidence-action-plan-md"].path == "reports/evidence-action-plan.md"
     assert by_id["evidence-action-plan-json"].path == "reports/evidence-action-plan.json"
+    assert by_id["work-item-draft-md"].path == "reports/work-item-draft.md"
+    assert by_id["work-item-draft-json"].path == "reports/work-item-draft.json"
 
 
 def test_evidence_index_discovers_external_test_evidence_without_raw_values(

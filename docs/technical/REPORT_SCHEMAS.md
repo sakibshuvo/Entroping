@@ -50,6 +50,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Evidence portal packet | `entroping.evidence-portal.v1` | `reports/evidence-portal.json` from `entroping report evidence-portal --output json` | [evidence-portal.v1.schema.json](report-schemas/evidence-portal.v1.schema.json) |
 | PR evidence card packet | `entroping.pr-evidence-card.v1` | `reports/pr-evidence-card.json` from `entroping report pr-evidence-card --output json` | [pr-evidence-card.v1.schema.json](report-schemas/pr-evidence-card.v1.schema.json) |
 | Evidence action-plan packet | `entroping.evidence-action-plan.v1` | `reports/evidence-action-plan.json` from `entroping report evidence-action-plan --output json` | [evidence-action-plan.v1.schema.json](report-schemas/evidence-action-plan.v1.schema.json) |
+| Work item draft packet | `entroping.work-item-draft.v1` | `reports/work-item-draft.json` from `entroping report work-item-draft --output json` | [work-item-draft.v1.schema.json](report-schemas/work-item-draft.v1.schema.json) |
 | Connector intent packet | `entroping.connector-intent.v1` | `reports/connector-intent.json` from `entroping report connector-intent --output json` | [connector-intent.v1.schema.json](report-schemas/connector-intent.v1.schema.json) |
 | Observability packet | `entroping.observability-packet.v1` | `reports/observability-packet.json` from `entroping report observability-packet --output json` | [observability-packet.v1.schema.json](report-schemas/observability-packet.v1.schema.json) |
 | API inventory packet | `entroping.api-inventory.v1` | `reports/api-inventory.json` from `entroping report api-inventory --output json` | [api-inventory.v1.schema.json](report-schemas/api-inventory.v1.schema.json) |
@@ -856,6 +857,28 @@ source artifacts become high repair actions. The command does not create or
 update PRs, tickets, chat, or hosted dashboards, call external APIs, upload
 artifacts, execute Hurl/tests, invoke models, parse traffic state, change
 `entroping run`, or render raw report contents.
+
+The work item draft packet is written by:
+
+```bash
+entroping report work-item-draft
+entroping report work-item-draft --output json
+```
+
+It writes `reports/work-item-draft.md` by default or
+`reports/work-item-draft.json` with schema `entroping.work-item-draft.v1` when
+`--output json` is selected. The packet reads fixed optional sanitized
+evidence-action-plan, connector-intent, integration-readiness, evidence-links,
+and notification-packet artifacts through the evidence-index boundary, then
+emits source states, schema versions, bounded SHA-256 hashes, target tracker
+families, draft titles/summaries, priorities, source action IDs/counts, and
+explicit forbidden actions. Missing source artifacts become generation rows;
+malformed, unreadable, oversized, symlinked, or secret-like source artifacts
+become high-priority repair rows. The command does not create or update tickets,
+PRs, chat, automation, hosted state, labels, assignments, comments, uploads,
+external APIs, Hurl/tests, model providers, traffic state, `entroping run`,
+source Hurl, raw report contents, provider keys, credentials, cookies, tokens,
+webhooks, or prompts.
 
 The connector intent packet is written by:
 
