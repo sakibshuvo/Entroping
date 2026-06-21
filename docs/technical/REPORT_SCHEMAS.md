@@ -157,10 +157,16 @@ Its v1 payload classifies existing local report artifacts into code coverage,
 runtime API proof, policy governance, drift/contract, static/security, and
 generated-test quality layers. Missing, invalid, or unsafe run JSON, JUnit XML,
 and gate-coverage JSON artifacts appear as high-severity runtime-governance
-findings. The report does not execute tests, run Hurl, call providers, upload
-artifacts, parse source Hurl, include raw artifact contents, or expose raw
-traffic, prompts, stdout/stderr, environment values, or source coverage file
-names.
+findings. When `reports/external-test-evidence.json` is present with schema
+`entroping.external-test-evidence.v1`, the report adds an optional External
+Test Evidence layer with counts-only status, layer, test, failure, error, and
+skipped totals. Missing external evidence remains non-blocking and does not add
+a layer or finding; invalid or unsafe external evidence appears only as
+value-free layer evidence and does not become runtime-governance proof. The
+report does not execute tests, run Hurl, call providers, upload artifacts, parse
+source Hurl, include raw artifact contents, or expose raw traffic, prompts,
+stdout/stderr, environment values, source coverage file names, or raw external
+test artifact values.
 
 The external test evidence packet is written by:
 

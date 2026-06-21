@@ -1182,10 +1182,15 @@ and writes `reports/test-pyramid.md` or `reports/test-pyramid.json` with schema
 `entroping.test-pyramid-report.v1`. Missing, invalid, or unsafe run JSON, JUnit
 XML, and gate-coverage JSON artifacts are reported as missing
 runtime-governance proof so review can distinguish incomplete evidence from
-executed proof. The command does not execute Hurl or pytest, parse source Hurl,
-call model providers, upload artifacts, render raw artifact contents, or expose
-raw traffic, provider prompts, stdout/stderr, env values, or source coverage
-file names.
+executed proof. When `reports/external-test-evidence.json` is present with
+schema `entroping.external-test-evidence.v1`, the report adds an optional
+External Test Evidence layer with counts-only status, layer, test, failure,
+error, and skipped totals; a missing packet remains non-blocking, and invalid
+or unsafe packets remain value-free layer evidence rather than
+runtime-governance findings. The command does not execute Hurl or pytest, parse
+source Hurl, call model providers, upload artifacts, render raw artifact
+contents, or expose raw traffic, provider prompts, stdout/stderr, env values,
+source coverage file names, or raw external test artifact values.
 
 `entroping report external-test-evidence --output md|json` reads only the
 fixed local external-test artifact paths under `reports/external-tests/`:

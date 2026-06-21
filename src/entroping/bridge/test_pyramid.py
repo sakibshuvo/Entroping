@@ -94,7 +94,7 @@ def compile_test_pyramid_report(
     by_id = {artifact.id: artifact for artifact in artifacts}
     layers = tuple(
         _layer(layer_id, label, artifact_ids, by_id=by_id)
-        for layer_id, label, artifact_ids in _layer_definitions()
+        for layer_id, label, artifact_ids in _layer_definitions(by_id=by_id)
     )
     findings = tuple(
         _runtime_finding(layer.id, artifact)
@@ -174,8 +174,11 @@ def render_test_pyramid_markdown(report: TestPyramidReport) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _layer_definitions() -> tuple[tuple[str, str, tuple[str, ...]], ...]:
-    return (
+def _layer_definitions(
+    *,
+    by_id: dict[str, TestPyramidArtifactEvidence] | None = None,
+) -> tuple[tuple[str, str, tuple[str, ...]], ...]:
+    definitions = (
         ("code-coverage", "Code Coverage", ("coverage-json",)),
         ("runtime-api-proof", "Runtime API Proof", ("run-json", "junit-xml")),
         ("policy-governance", "Policy Governance", ("gate-coverage-json",)),
@@ -183,6 +186,15 @@ def _layer_definitions() -> tuple[tuple[str, str, tuple[str, ...]], ...]:
         ("static-security", "Static And Security Evidence", ("sarif",)),
         ("generated-test-quality", "Generated-Test Quality", ("test-quality-json",)),
     )
+    if by_id is not None and "external-test-evidence-json" in by_id:
+        return definitions + (
+            (
+                "external-test-evidence",
+                "External Test Evidence",
+                ("external-test-evidence-json",),
+            ),
+        )
+    return definitions
 
 
 def _artifact_definitions() -> dict[str, tuple[str, str, str | None]]:
@@ -201,6 +213,11 @@ def _artifact_definitions() -> dict[str, tuple[str, str, str | None]]:
             "Generated-Test Quality JSON",
             "reports/test-quality.json",
             "entroping.test-quality-report.v1",
+        ),
+        "external-test-evidence-json": (
+            "External Test Evidence JSON",
+            "reports/external-test-evidence.json",
+            "entroping.external-test-evidence.v1",
         ),
     }
 
@@ -282,13 +299,17 @@ def _runtime_finding(layer_id: str, artifact: TestPyramidArtifactEvidence) -> Te
 def _escape_markdown(value: str) -> str:
     normalized = _normalize_markdown_text(value)
     return (
-        normalized.replace("\\", "\\\\")
+        normalized.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\\", "\\\\")
         .replace("|", "\\|")
         .replace("`", "\\`")
         .replace("[", "\\[")
         .replace("]", "\\]")
         .replace("*", "\\*")
         .replace("_", "\\_")
+        .replace("#", "\\#")
     )
 
 
