@@ -1737,14 +1737,17 @@ AsyncAPI specs, webhook/event-contract files, and WebSocket/realtime contract
 files, then summarizes REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, AsyncAPI,
 webhook/event, WebSocket/realtime, and unknown HTTP signals without generating
 tests. GraphQL SDL sources contribute counts for root `Query`, `Mutation`, and
-`Subscription` fields without rendering field names. The packet records only
-source states, project-relative local paths, tags, operation/exchange counts,
-SHA-256 hashes, and next-action text. Missing sources are non-blocking;
-malformed, oversized, non-file, symlinked, path-escaped, or secret-like source
-artifacts are marked invalid or unsafe. The command does not execute Hurl, call
-providers, upload results, parse traffic state, call registries, generate tests,
-mutate source files, or include raw URLs, headers, bodies, cookies, prompts,
-credentials, environment values, GraphQL field names, or full file contents.
+`Subscription` fields without rendering field names; proto sources contribute
+counts for `rpc` declarations without rendering service or RPC names. The
+packet records only source states, project-relative local paths, tags,
+operation/exchange counts, SHA-256 hashes, and next-action text. Missing
+sources are non-blocking; malformed, oversized, non-file, symlinked,
+path-escaped, or secret-like source artifacts are marked invalid or unsafe. The
+command does not execute Hurl, call providers, upload results, parse traffic
+state, call registries, generate tests, mutate source files, or include raw
+URLs, headers, bodies, cookies, prompts, credentials, environment values,
+GraphQL field names, proto RPC names, proto service names, or full file
+contents.
 
 `entroping report mutation-readiness` writes a local read-only
 mutation/fuzz-readiness packet at `reports/mutation-readiness.md` by default,
