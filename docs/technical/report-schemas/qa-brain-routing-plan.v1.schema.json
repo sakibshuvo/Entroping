@@ -104,6 +104,7 @@
         "endpoint_boundary",
         "deployment_modes",
         "allowed_use_cases",
+        "repair_acceptance_gates",
         "forbidden_authority",
         "access_control_audit",
         "blockers",
@@ -153,6 +154,12 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/allowed_use_case"
+          }
+        },
+        "repair_acceptance_gates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/repair_acceptance_gate"
           }
         },
         "forbidden_authority": {
@@ -212,6 +219,40 @@
         "generation",
         "prioritization",
         "repair_proposals"
+      ]
+    },
+    "repair_acceptance_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "required",
+        "summary"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/repair_acceptance_gate_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "repair_acceptance_gate_id": {
+      "enum": [
+        "parser_validation",
+        "hurl_execution",
+        "qanstitution_governance",
+        "deterministic_evidence",
+        "secret_redaction",
+        "codex_human_review"
       ]
     },
     "packaging_stage": {
