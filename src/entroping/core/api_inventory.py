@@ -41,6 +41,7 @@ ApiStyle = Literal[
     "grpc_proto",
     "asyncapi",
     "webhook_event",
+    "websocket_realtime",
     "unknown_http",
 ]
 ApiSourceKind = Literal[
@@ -110,6 +111,33 @@ _WEBHOOK_EVENT_SUFFIXES: Final[tuple[str, ...]] = (
     ".webhooks.yaml",
     ".webhooks.yml",
 )
+_WEBSOCKET_REALTIME_SUFFIXES: Final[tuple[str, ...]] = (
+    ".websocket.json",
+    ".websocket.yaml",
+    ".websocket.yml",
+    ".websocket-contract.json",
+    ".websocket-contract.yaml",
+    ".websocket-contract.yml",
+    ".websocket_contract.json",
+    ".websocket_contract.yaml",
+    ".websocket_contract.yml",
+    ".realtime.json",
+    ".realtime.yaml",
+    ".realtime.yml",
+    ".socketio.json",
+    ".socketio.yaml",
+    ".socketio.yml",
+)
+_WEBSOCKET_REALTIME_MAPPING_KEYS: Final[tuple[str, ...]] = (
+    "channels",
+    "messages",
+    "events",
+    "websockets",
+    "sockets",
+    "subscriptions",
+    "socketio",
+    "socketio_events",
+)
 _HTTP_METHODS: Final[frozenset[str]] = frozenset(
     {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
 )
@@ -121,6 +149,7 @@ _STYLE_LABELS: Final[dict[ApiStyle, str]] = {
     "grpc_proto": "gRPC/proto",
     "asyncapi": "AsyncAPI",
     "webhook_event": "Webhook/Event",
+    "websocket_realtime": "WebSocket/realtime",
     "unknown_http": "Unknown HTTP",
 }
 _STYLE_ACTIONS: Final[dict[ApiStyle, str]] = {
@@ -130,6 +159,9 @@ _STYLE_ACTIONS: Final[dict[ApiStyle, str]] = {
     "grpc_proto": "Use proto evidence as future gRPC/proto adapter input.",
     "asyncapi": "Use AsyncAPI evidence as future message-contract adapter input.",
     "webhook_event": "Use webhook/event contract evidence with replayable Hurl coverage.",
+    "websocket_realtime": (
+        "Use WebSocket/realtime contract evidence before state-machine test adapters."
+    ),
     "unknown_http": (
         "Add protocol tags or source specs so inventory can classify this HTTP surface."
     ),
@@ -595,6 +627,36 @@ def _load_schema_source(*, root: Path, raw_path: Path, style: ApiStyle) -> ApiIn
             operations=operations,
             summary=f"{operations} webhook/event contract {_entry_word(operations)}.",
         )
+    if style == "websocket_realtime":
+        document = _load_yaml_document(
+            raw_text,
+            kind="schema_file",
+            style=style,
+            path=path_text,
+            label="WebSocket/realtime contract",
+        )
+        if isinstance(document, ApiInventorySource):
+            return document
+        operations = _websocket_realtime_operation_count(document)
+        if operations is None:
+            return _source(
+                kind="schema_file",
+                style=style,
+                path=path_text,
+                state="invalid",
+                sha256=None,
+                operations=0,
+                summary="WebSocket/realtime document must contain a realtime mapping.",
+            )
+        return _source(
+            kind="schema_file",
+            style=style,
+            path=path_text,
+            state="present",
+            sha256=hashlib.sha256(raw_bytes).hexdigest(),
+            operations=operations,
+            summary=f"{operations} WebSocket/realtime {_entry_word(operations)}.",
+        )
     return _source(
         kind="schema_file",
         style=style,
@@ -778,6 +840,16 @@ def _webhook_event_operation_count(document: object) -> int | None:
     return None
 
 
+def _websocket_realtime_operation_count(document: object) -> int | None:
+    if not isinstance(document, dict):
+        return None
+    for key in _WEBSOCKET_REALTIME_MAPPING_KEYS:
+        entries = document.get(key)
+        if isinstance(entries, dict):
+            return len(entries)
+    return None
+
+
 def _entry_word(count: int) -> str:
     if count == 1:
         return "entry"
@@ -789,7 +861,7 @@ def _style_from_tags(tags: frozenset[str]) -> ApiStyle | None:
 
     When a test carries multiple protocol tags, the report prefers the more
     specialized API style in this order: GraphQL, SOAP/XML, gRPC/proto,
-    AsyncAPI, webhook/event, REST.
+    AsyncAPI, webhook/event, WebSocket/realtime, REST.
     """
 
     normalized = {tag.lower() for tag in tags}
@@ -808,6 +880,15 @@ def _style_from_tags(tags: frozenset[str]) -> ApiStyle | None:
         or "event_contract" in normalized
     ):
         return "webhook_event"
+    if (
+        "websocket" in normalized
+        or "websocket_realtime" in normalized
+        or "ws" in normalized
+        or "wss" in normalized
+        or "socketio" in normalized
+        or "realtime" in normalized
+    ):
+        return "websocket_realtime"
     if "openapi" in normalized or "rest" in normalized or "rest_openapi" in normalized:
         return "rest_openapi"
     return None
@@ -819,6 +900,8 @@ def _schema_style_for_path(path: Path) -> ApiStyle | None:
         return "asyncapi"
     if name.endswith(_WEBHOOK_EVENT_SUFFIXES):
         return "webhook_event"
+    if name.endswith(_WEBSOCKET_REALTIME_SUFFIXES):
+        return "websocket_realtime"
     return _SCHEMA_EXTENSIONS.get(path.suffix.lower())
 
 

@@ -354,6 +354,122 @@ event_contracts:
     assert sources[("hurl_test", "tests/asyncapi.hurl")].style == "asyncapi"
 
 
+def test_api_inventory_detects_websocket_realtime_contract_and_hurl_tags(
+    tmp_path: Path,
+) -> None:
+    websocket_contract_path = _write_text(
+        tmp_path / "contracts" / "chat.websocket-contract.yaml",
+        """
+websockets:
+  chat.message:
+    url: wss://socket.example.test/chat
+    example: should-not-appear-in-report
+  chat.typing:
+    url: wss://socket.example.test/typing
+""".strip()
+        + "\n",
+    )
+    _write_text(
+        tmp_path / "tests" / "websocket-handshake.hurl",
+        """
+# entroping: tags=websocket,realtime
+GET http://127.0.0.1:18080/socket
+HTTP 101
+""".strip()
+        + "\n",
+    )
+    _write_text(
+        tmp_path / "tests" / "socketio-poll.hurl",
+        """
+# entroping: tags=socketio
+GET http://127.0.0.1:18080/socket.io/
+HTTP 200
+""".strip()
+        + "\n",
+    )
+
+    result = run_api_inventory_report(project_root=tmp_path, output="json")
+
+    payload = json.loads(result.output_path.read_text(encoding="utf-8"))
+    sources = {(source["kind"], source["path"]): source for source in payload["sources"]}
+    assert sources[("schema_file", "contracts/chat.websocket-contract.yaml")] == {
+        "kind": "schema_file",
+        "style": "websocket_realtime",
+        "path": "contracts/chat.websocket-contract.yaml",
+        "state": "present",
+        "sha256": hashlib.sha256(websocket_contract_path.read_bytes()).hexdigest(),
+        "tags": [],
+        "operations": 2,
+        "summary": "2 WebSocket/realtime entries.",
+    }
+    assert sources[("hurl_test", "tests/websocket-handshake.hurl")]["style"] == (
+        "websocket_realtime"
+    )
+    assert sources[("hurl_test", "tests/socketio-poll.hurl")]["style"] == (
+        "websocket_realtime"
+    )
+    styles = {style["style"]: style for style in payload["styles"]}
+    assert styles["websocket_realtime"]["operations"] == 4
+    assert styles["websocket_realtime"]["hurl_tests"] == 2
+    assert styles["websocket_realtime"]["tags"] == [
+        "realtime",
+        "socketio",
+        "websocket",
+    ]
+    serialized = json.dumps(payload)
+    assert "wss://socket.example.test" not in serialized
+    assert "should-not-appear-in-report" not in serialized
+    assert "127.0.0.1" not in serialized
+
+    markdown = render_api_inventory_markdown(result.packet)
+    assert "WebSocket/realtime" in markdown
+
+
+def test_api_inventory_websocket_realtime_sources_reuse_safety_boundaries(
+    tmp_path: Path,
+) -> None:
+    contracts_root = tmp_path / "contracts"
+    real_contract = _write_text(
+        tmp_path / "real.websocket.yaml",
+        "channels:\n  chat.message: {}\n",
+    )
+    contracts_root.mkdir()
+    os.symlink(real_contract, contracts_root / "linked.websocket.yaml")
+    (contracts_root / "binary.websocket.yaml").write_bytes(b"\xff")
+    _write_text(contracts_root / "secret.websocket.yaml", "sk-proj-" + ("a" * 24))
+    _write_text(contracts_root / "bad.websocket.yaml", "[]\n")
+    _write_text(contracts_root / "invalid.websocket.yaml", "{not yaml: [}\n")
+    _write_text(contracts_root / "missing-map.websocket.yaml", "name: chat\n")
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    sources = {(source.kind, source.path): source for source in packet.sources}
+    assert sources[("schema_file", "contracts/linked.websocket.yaml")].state == "unsafe"
+    assert "symlinked component" in (
+        sources[("schema_file", "contracts/linked.websocket.yaml")].summary
+    )
+    assert sources[("schema_file", "contracts/binary.websocket.yaml")].state == "invalid"
+    assert "UTF-8" in sources[("schema_file", "contracts/binary.websocket.yaml")].summary
+    assert sources[("schema_file", "contracts/secret.websocket.yaml")].state == "unsafe"
+    assert "secret-like content" in (
+        sources[("schema_file", "contracts/secret.websocket.yaml")].summary
+    )
+    assert sources[("schema_file", "contracts/bad.websocket.yaml")].state == "invalid"
+    assert "realtime mapping" in sources[
+        ("schema_file", "contracts/bad.websocket.yaml")
+    ].summary
+    assert sources[("schema_file", "contracts/invalid.websocket.yaml")].state == "invalid"
+    assert "Invalid WebSocket/realtime contract YAML" in (
+        sources[("schema_file", "contracts/invalid.websocket.yaml")].summary
+    )
+    assert sources[("schema_file", "contracts/missing-map.websocket.yaml")].state == (
+        "invalid"
+    )
+    assert "realtime mapping" in sources[
+        ("schema_file", "contracts/missing-map.websocket.yaml")
+    ].summary
+
+
 def test_api_inventory_keeps_empty_and_ambiguous_hurl_sources_unknown(
     tmp_path: Path,
 ) -> None:
