@@ -16,24 +16,19 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1077 Evidence Cloud Workspace
+## Current Issue Slice: #1079 Evidence Cloud Dashboard
 
-- Add `entroping report evidence-cloud-workspace --manifest <path>` with
-  repeatable explicit manifest inputs and `--output md|json`.
-- Write local `reports/evidence-cloud-workspace.md` by default and
-  `reports/evidence-cloud-workspace.json` with schema
-  `entroping.evidence-cloud-workspace.v1` when JSON is requested.
-- Read only explicit local `entroping.evidence-cloud-export.v1` JSON manifests,
-  then emit manifest/repository state, counts, bounded hashes, boundary-control
-  rollups, local references, and next actions without embedding source details.
-- Preserve missing, invalid, unsafe, oversized, unreadable, wrong-schema,
-  symlinked, forbidden-component, or secret-like manifests as value-free rows.
-- Do not call hosted/model APIs, upload, sync remote state, inspect raw
-  artifacts beyond explicit manifests, execute Hurl/tests, parse traffic, mutate
-  external systems, change `entroping run`, or change deterministic authority.
-- Verification lane: `security-runtime` because this slice reads explicit local
-  manifest files and must preserve path, parser, schema, raw-content, and
-  secret-safety boundaries.
+- Add `entroping report evidence-cloud-dashboard --manifest <path>` with
+  repeatable explicit manifest inputs and `--output html|json`.
+- Write static local HTML by default and
+  `entroping.evidence-cloud-dashboard.v1` JSON when requested.
+- Reuse the Evidence Cloud workspace packet boundary so manifest path safety,
+  schema validation, value-free rows, and raw-content rejection stay centralized.
+- Do not call hosted/model APIs, upload, sync, execute Hurl/tests, parse
+  traffic, mutate external systems, change `entroping run`, or render raw
+  artifacts, source Hurl, prompts, provider output, secrets, or env values.
+- Verification lane: `security-runtime` because this reads explicit local
+  manifests, writes reports, and extends a public CLI/report boundary.
 
 ## Current Baseline
 
@@ -100,45 +95,15 @@ project, and a Codex workspace with fast context rehydration.
   public docs, roadmap, and a short project-context handoff, while MkDocs groups
   deeper references by reader task instead of exposing maintainer memory as a
   flat nav.
-- Local AI job orchestration can route affordable worker jobs through OpenCode
-  by default or direct DeepSeek API with `--engine deepseek-api`; both paths
-  write ignored artifacts for Codex review and never apply patches or affect
-  Entroping runtime commands.
-- Low-risk Tier A AI jobs now have executable cheap-worker defaults:
-  `scripts/ai_jobs.py submit --autonomy-tier tier-a` uses OpenCode
-  `flash-free` by default, uses direct DeepSeek `flash` when `--engine
-  deepseek-api` is selected, stores provider lane/host/billing and merge
-  authority metadata, and injects a manifest-first context instruction before
-  workers request file snippets.
-- Direct DeepSeek API worker output is checked before execution artifacts are
-  written: secret-like generated stdout/stderr and serialized response payloads
-  are withheld, raw response and patch-proposal artifacts are skipped for that
-  run, and the worker reports a value-free failed result.
-- OpenCode-hosted DeepSeek V4 Pro is the tool-enabled DeepSeek lane: it can use
-  only OpenCode-configured agents, plugins, MCP servers, hooks, shell/tools, and
-  GitHub integrations that are present and permissioned by the OpenCode host.
-  Codex-native plugins, skills, security/browser/computer-use/thread tools, and
-  Codex-specific MCP state are not automatically transferable.
-- Model-provider lanes are explicit: `deepseek-api/direct` is the cheap queued
-  worker lane, OpenCode Go is the Kimi/Qwen/model-variety lane through
-  `opencode-go/kimi-k2.7-code`, `opencode-go/qwen3.7-max`, or
-  `opencode-go/other`, and handoffs should record provider host, billing path,
-  and concrete model id.
-- OpenCode Desktop/OpenCode Go issue handoffs now have reusable prompt-library
-  launchers that require provider lane, billing path, model id, role, autonomy
-  tier, allowed files, forbidden files, optional graph-context boundaries,
-  verification evidence, and merge authority before parallel workers edit or
-  review a PR.
-- Context-tool promotion now runs through a value-free local scorecard:
-  `scripts/factory_metrics.py context-scorecard` compares Obsidian graph views,
-  Understand Anything, and any future context tool against the repo-native
-  baseline before a tool becomes active workflow dependency; retired generated
-  context tools have been removed from active workflow surfaces.
-- Issue-level factory readiness now has a value-free local scorecard:
-  `scripts/factory_metrics.py readiness --issue <issue>` checks local metrics
-  evidence for quality, security, context preservation, and token/cost
-  efficiency before a handoff, PR, or finish decision claims the software
-  factory evidence is complete.
+- AI worker lanes are artifact-only until Codex validates local files, tests,
+  and CI; provider lane, billing path, model id, autonomy tier, allowed files,
+  verification evidence, and merge authority belong in handoffs.
+- OpenCode-hosted DeepSeek V4 Pro can use only OpenCode-permissioned tools;
+  Codex-native plugins, skills, browser/security/thread tools, and Codex MCP
+  state do not automatically transfer.
+- Factory scorecards (`scripts/factory_metrics.py readiness` and
+  `context-scorecard`) remain value-free evidence checks before any handoff,
+  PR, finish decision, or context-tool promotion claims readiness.
 - AI/context artifact hygiene is an executable gate:
   `scripts/ai_artifact_hygiene.py` runs through repo hygiene and docs
   governance so raw worker prompts, provider responses, stdout/stderr captures,

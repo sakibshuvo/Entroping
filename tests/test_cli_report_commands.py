@@ -35,6 +35,7 @@ from entroping.core.connector_intent import ConnectorIntentError
 from entroping.core.design_partner_feedback import DesignPartnerFeedbackError
 from entroping.core.devex_readiness import DevexReadinessError
 from entroping.core.evidence_bundle import EvidenceBundleError
+from entroping.core.evidence_cloud_dashboard import EvidenceCloudDashboardError
 from entroping.core.evidence_cloud_export import EvidenceCloudExportError
 from entroping.core.evidence_cloud_readiness import EvidenceCloudReadinessError
 from entroping.core.evidence_cloud_workspace import EvidenceCloudWorkspaceError
@@ -1111,6 +1112,167 @@ def test_report_evidence_cloud_workspace_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "workspace manifest path is unsafe" in result.output
+
+
+def test_report_evidence_cloud_dashboard_writes_static_html(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    manifest = Path("reports") / "evidence-cloud-export.json"
+    _write_text(
+        manifest,
+        """
+        {
+          "schema_version": "entroping.evidence-cloud-export.v1",
+          "generated_at": "2026-06-21T00:00:00+00:00",
+          "project": "checkout-api",
+          "summary": {
+            "status": "ready",
+            "sources_total": 1,
+            "sources_present": 1,
+            "sources_missing": 0,
+            "sources_invalid": 0,
+            "sources_unsafe": 0,
+            "export_items_total": 1,
+            "export_items_ready": 1,
+            "export_items_blocked": 0,
+            "boundary_controls_total": 1,
+            "next_actions_total": 0
+          },
+          "sources": [],
+          "export_items": [],
+          "boundary_controls": [
+            {
+              "id": "explicit_upload_only",
+              "label": "Explicit upload only",
+              "enforced": true,
+              "summary": "This manifest never uploads artifacts."
+            }
+          ],
+          "next_actions": []
+        }
+        """,
+    )
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "evidence-cloud-dashboard", "--manifest", str(manifest)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote Evidence Cloud dashboard: reports/evidence-cloud-dashboard.html" in (
+        result.output
+    )
+    html = Path("reports/evidence-cloud-dashboard.html").read_text(encoding="utf-8")
+    assert "<h1>Entroping Evidence Cloud Dashboard</h1>" in html
+    assert "checkout-api" in html
+
+
+def test_report_evidence_cloud_dashboard_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    manifest = Path("reports") / "evidence-cloud-export.json"
+    _write_text(
+        manifest,
+        """
+        {
+          "schema_version": "entroping.evidence-cloud-export.v1",
+          "generated_at": "2026-06-21T00:00:00+00:00",
+          "project": "checkout-api",
+          "summary": {
+            "status": "ready",
+            "sources_total": 1,
+            "sources_present": 1,
+            "sources_missing": 0,
+            "sources_invalid": 0,
+            "sources_unsafe": 0,
+            "export_items_total": 1,
+            "export_items_ready": 1,
+            "export_items_blocked": 0,
+            "boundary_controls_total": 1,
+            "next_actions_total": 0
+          },
+          "sources": [],
+          "export_items": [],
+          "boundary_controls": [],
+          "next_actions": []
+        }
+        """,
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "report",
+            "evidence-cloud-dashboard",
+            "--manifest",
+            str(manifest),
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote Evidence Cloud dashboard: reports/evidence-cloud-dashboard.json" in (
+        result.output
+    )
+    payload = json.loads(Path("reports/evidence-cloud-dashboard.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.evidence-cloud-dashboard.v1"
+    assert payload["workspace_schema_version"] == "entroping.evidence-cloud-workspace.v1"
+
+
+def test_report_evidence_cloud_dashboard_requires_manifest() -> None:
+    result = CliRunner().invoke(app, ["report", "evidence-cloud-dashboard"])
+
+    assert result.exit_code == 2
+    assert "Missing option" in result.output
+
+
+def test_report_evidence_cloud_dashboard_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(
+        app,
+        [
+            "report",
+            "evidence-cloud-dashboard",
+            "--manifest",
+            "reports/evidence-cloud-export.json",
+            "--output",
+            "md",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "Unsupported evidence-cloud-dashboard output" in result.output
+    assert not Path("reports/evidence-cloud-dashboard.md").exists()
+
+
+def test_report_evidence_cloud_dashboard_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_evidence_cloud_dashboard(*args: object, **kwargs: object) -> object:
+        raise EvidenceCloudDashboardError("dashboard manifest path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_evidence_cloud_dashboard_report",
+        fail_evidence_cloud_dashboard,
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "report",
+            "evidence-cloud-dashboard",
+            "--manifest",
+            "reports/evidence-cloud-export.json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "dashboard manifest path is unsafe" in result.output
 
 
 def test_report_evidence_links_writes_markdown(

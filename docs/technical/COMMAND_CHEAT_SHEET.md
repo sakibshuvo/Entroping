@@ -436,6 +436,7 @@ Experimental design-partner evidence commands:
 | `entroping report evidence-cloud-export --output md` | Write a local Evidence Cloud export manifest to `reports/evidence-cloud-export.md` |
 | `entroping report evidence-cloud-export --output json` | Write machine-readable Evidence Cloud export metadata to `reports/evidence-cloud-export.json` |
 | `entroping report evidence-cloud-workspace --manifest reports/evidence-cloud-export.json` | Write a local Evidence Cloud workspace packet |
+| `entroping report evidence-cloud-dashboard --manifest <path> [--output <html|json>]` | Write a static local Evidence Cloud workspace dashboard |
 | `entroping report evidence-links --output md` | Write a local cross-surface evidence links packet to `reports/evidence-links.md` |
 | `entroping report evidence-links --output json` | Write machine-readable evidence links metadata to `reports/evidence-links.json` |
 | `entroping report evidence-portal --output html` | Write a static local evidence portal dashboard to `reports/evidence-portal.html` |

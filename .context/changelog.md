@@ -2,6 +2,15 @@
 
 ## 2026-06-21
 
+- Added issue #1079's Evidence Cloud dashboard: `report
+  evidence-cloud-dashboard --manifest <path>` now writes static local HTML or
+  `entroping.evidence-cloud-dashboard.v1` JSON by reusing explicit Evidence
+  Cloud export manifests through the workspace packet boundary; it emits
+  value-free manifest state, repository cards, boundary-control rollups, and
+  next actions without hosted APIs, uploads, external assets/scripts,
+  Hurl/test execution, model calls, traffic parsing, `entroping run` changes,
+  or raw artifact rendering.
+
 - Added issue #1077's Evidence Cloud workspace packet: `report
   evidence-cloud-workspace --manifest <path>` now writes local
   `entroping.evidence-cloud-workspace.v1` JSON or Markdown that aggregates

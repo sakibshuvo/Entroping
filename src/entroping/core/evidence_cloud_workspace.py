@@ -48,7 +48,7 @@ _DEFAULT_OUTPUTS: Final[dict[EvidenceCloudWorkspaceOutput, Path]] = {
     "json": Path("reports") / "evidence-cloud-workspace.json",
 }
 _MAX_MANIFEST_BYTES: Final = 1024 * 1024
-_SHA256_HEX_RE: Final = re.compile(r"\b[0-9a-f]{64}\b")
+_SHA256_HEX_RE: Final = re.compile(r"\b[0-9a-f]{64}\b", re.IGNORECASE)
 _FORBIDDEN_MANIFEST_COMPONENTS: Final = {".entroping", "envs"}
 
 

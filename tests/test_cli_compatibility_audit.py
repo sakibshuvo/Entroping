@@ -254,6 +254,11 @@ LOCKED_CLI_CONTRACTS = (
         ("--manifest", "--output"),
     ),
     CliContract(
+        "entroping report evidence-cloud-dashboard --manifest <path> [--output <html|json>]",
+        ("report", "evidence-cloud-dashboard", "--help"),
+        ("--manifest", "--output"),
+    ),
+    CliContract(
         "entroping report evidence-links [--output <md|json>]",
         ("report", "evidence-links", "--help"),
         ("--output",),
@@ -432,6 +437,8 @@ REPORT_ARTIFACTS = (
     "reports/evidence-cloud-export.json",
     "reports/evidence-cloud-workspace.md",
     "reports/evidence-cloud-workspace.json",
+    "reports/evidence-cloud-dashboard.html",
+    "reports/evidence-cloud-dashboard.json",
     "reports/evidence-links.md",
     "reports/evidence-links.json",
     "reports/evidence-portal.html",
