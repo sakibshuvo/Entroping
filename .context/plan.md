@@ -16,15 +16,16 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1097 API Inventory Event-Contract Classification
+## Current Issue Slice: #1099 QA Brain Repair Acceptance Gates
 
-Extend `entroping report api-inventory --output md|json` so the existing local
-API inventory classifies AsyncAPI specs and webhook/event-contract evidence
-alongside REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, and unknown HTTP. Keep
-the slice value-free and deterministic: no broker, queue, webhook, WebSocket,
-gRPC stream, network call, Hurl execution, test generation, source Hurl
-mutation, provider/model call, raw URL/body/header/example rendering, or
-`entroping run` behavior change.
+Extend `entroping report qa-brain-routing-plan --output md|json` so the
+existing local QA Brain routing packet includes value-free required acceptance
+gates for future repair proposals: parser validation, deterministic Hurl
+execution, QAnstitution governance, deterministic evidence linkage, secret
+redaction, and Codex/human review. Keep the slice advisory and deterministic:
+no new command, model call, prompt execution, LiteLLM/provider configuration,
+Hurl execution, generated-test mutation, source Hurl/policy write-back,
+ticket/chat/PR mutation, hosted upload, or `entroping run` behavior change.
 
 ## Current Baseline
 

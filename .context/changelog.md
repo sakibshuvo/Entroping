@@ -2,6 +2,15 @@
 
 ## 2026-06-21
 
+- Added issue #1099's QA Brain repair acceptance gates: `report
+  qa-brain-routing-plan` now emits value-free required acceptance metadata for
+  future repair proposals, covering parser validation, deterministic Hurl
+  execution, QAnstitution governance, deterministic evidence linkage, secret
+  redaction, and Codex/human review without calling providers, invoking
+  models, executing Hurl/tests, mutating source Hurl or policy, changing
+  `entroping run`, uploading artifacts, or replacing deterministic
+  Hurl/QAnstitution authority.
+
 - Added issue #1095's observability adapter readiness packet: `report
   observability-adapter-readiness` now writes local Markdown or
   `entroping.observability-adapter-readiness.v1` JSON that summarizes

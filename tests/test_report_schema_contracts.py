@@ -316,6 +316,7 @@ from entroping.core.qa_brain_retrieval_plan import (
 )
 from entroping.core.qa_brain_routing_plan import (
     QA_BRAIN_ROUTING_PLAN_SCHEMA_VERSION,
+    QaBrainRepairAcceptanceGate,
     QaBrainRoutingPlanNextAction,
     QaBrainRoutingPlanPacket,
     QaBrainRoutingPlanRow,
@@ -5789,6 +5790,14 @@ def test_qa_brain_routing_plan_v1_schema_contract_is_versioned_and_stable() -> N
                     "prioritization",
                     "repair_proposals",
                 ),
+                repair_acceptance_gates=(
+                    QaBrainRepairAcceptanceGate(
+                        id="parser_validation",
+                        label="Parser validation",
+                        required=True,
+                        summary="Parse proposed Hurl and policy changes before review.",
+                    ),
+                ),
                 forbidden_authority="Hurl/QAnstitution remains authority.",
                 access_control_audit="Access control design is required.",
                 blockers=("Repair packaging boundaries before routing design.",),
@@ -5839,6 +5848,14 @@ def test_qa_brain_routing_plan_v1_schema_contract_is_versioned_and_stable() -> N
                     "prioritization",
                     "repair_proposals",
                 ],
+                "repair_acceptance_gates": [
+                    {
+                        "id": "parser_validation",
+                        "label": "Parser validation",
+                        "required": True,
+                        "summary": "Parse proposed Hurl and policy changes before review.",
+                    }
+                ],
                 "forbidden_authority": "Hurl/QAnstitution remains authority.",
                 "access_control_audit": "Access control design is required.",
                 "blockers": ["Repair packaging boundaries before routing design."],
@@ -5868,6 +5885,25 @@ def test_qa_brain_routing_plan_v1_schema_contract_is_versioned_and_stable() -> N
         "generation",
         "prioritization",
         "repair_proposals",
+    ]
+    assert "repair_acceptance_gates" in schema["$defs"]["routing_plan"]["required"]
+    assert schema["$defs"]["routing_plan"]["properties"]["repair_acceptance_gates"] == {
+        "type": "array",
+        "items": {"$ref": "#/$defs/repair_acceptance_gate"},
+    }
+    assert schema["$defs"]["repair_acceptance_gate"]["required"] == [
+        "id",
+        "label",
+        "required",
+        "summary",
+    ]
+    assert schema["$defs"]["repair_acceptance_gate_id"]["enum"] == [
+        "parser_validation",
+        "hurl_execution",
+        "qanstitution_governance",
+        "deterministic_evidence",
+        "secret_redaction",
+        "codex_human_review",
     ]
 
 

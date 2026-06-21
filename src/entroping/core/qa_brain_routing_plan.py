@@ -39,6 +39,14 @@ QaBrainAllowedUseCase = Literal[
     "prioritization",
     "repair_proposals",
 ]
+QaBrainRepairAcceptanceGateId = Literal[
+    "parser_validation",
+    "hurl_execution",
+    "qanstitution_governance",
+    "deterministic_evidence",
+    "secret_redaction",
+    "codex_human_review",
+]
 
 _DEFAULT_OUTPUTS: Final[dict[QaBrainRoutingPlanOutput, Path]] = {
     "md": Path("reports") / "qa-brain-routing-plan.md",
@@ -138,6 +146,72 @@ class QaBrainRoutingPlanSummary(BaseModel):
     next_actions_total: int = Field(ge=0)
 
 
+class QaBrainRepairAcceptanceGate(BaseModel):
+    """Required deterministic gate before accepting QA brain repair proposals."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: QaBrainRepairAcceptanceGateId
+    label: str
+    required: bool
+    summary: str
+
+
+_REPAIR_ACCEPTANCE_GATES: Final[tuple[QaBrainRepairAcceptanceGate, ...]] = (
+    QaBrainRepairAcceptanceGate(
+        id="parser_validation",
+        label="Parser validation",
+        required=True,
+        summary="Parse proposed Hurl and policy changes before review.",
+    ),
+    QaBrainRepairAcceptanceGate(
+        id="hurl_execution",
+        label="Hurl execution",
+        required=True,
+        summary=(
+            "Run accepted Hurl changes through deterministic subprocess "
+            "execution before pass/fail claims."
+        ),
+    ),
+    QaBrainRepairAcceptanceGate(
+        id="qanstitution_governance",
+        label="QAnstitution governance",
+        required=True,
+        summary=(
+            "Require QAnstitution gates to decide acceptance; model output "
+            "cannot override governance."
+        ),
+    ),
+    QaBrainRepairAcceptanceGate(
+        id="deterministic_evidence",
+        label="Deterministic evidence",
+        required=True,
+        summary=(
+            "Link proposals to stable source IDs, hashes, and reproducible "
+            "seeds when available."
+        ),
+    ),
+    QaBrainRepairAcceptanceGate(
+        id="secret_redaction",
+        label="Secret redaction",
+        required=True,
+        summary=(
+            "Reject proposals or evidence containing credentials, tokens, raw "
+            "traffic, headers, bodies, cookies, or provider output."
+        ),
+    ),
+    QaBrainRepairAcceptanceGate(
+        id="codex_human_review",
+        label="Codex or human review",
+        required=True,
+        summary=(
+            "Require Codex or human review before any code, Hurl, policy, or "
+            "report write-back."
+        ),
+    ),
+)
+
+
 class QaBrainRoutingPlanRow(BaseModel):
     """One deterministic future QA brain routing-plan row."""
 
@@ -154,6 +228,7 @@ class QaBrainRoutingPlanRow(BaseModel):
     endpoint_boundary: str
     deployment_modes: tuple[QaBrainDeploymentMode, ...]
     allowed_use_cases: tuple[QaBrainAllowedUseCase, ...]
+    repair_acceptance_gates: tuple[QaBrainRepairAcceptanceGate, ...]
     forbidden_authority: str
     access_control_audit: str
     blockers: tuple[str, ...] = ()
@@ -293,10 +368,11 @@ def render_qa_brain_routing_plan_markdown(packet: QaBrainRoutingPlanPacket) -> s
         "",
         "| ID | Label | Readiness | Packaging Stage | Routing Stage | "
         "Source IDs | Source Paths | LiteLLM Boundary | Endpoint Boundary | "
-        "Deployment Modes | Allowed Use Cases | Forbidden Authority | "
-        "Access Control And Audit | Blockers | Next Action |",
+        "Deployment Modes | Allowed Use Cases | Repair Acceptance Gates | "
+        "Forbidden Authority | Access Control And Audit | Blockers | "
+        "Next Action |",
         "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | "
-        "--- | --- | --- |",
+        "--- | --- | --- | --- |",
     ]
     for row in packet.routing_plans:
         lines.append(
@@ -312,6 +388,7 @@ def render_qa_brain_routing_plan_markdown(packet: QaBrainRoutingPlanPacket) -> s
             f"{_markdown_cell(row.endpoint_boundary)} | "
             f"{_markdown_cell(', '.join(row.deployment_modes))} | "
             f"{_markdown_cell(', '.join(row.allowed_use_cases))} | "
+            f"{_markdown_cell(_repair_acceptance_gate_ids(row.repair_acceptance_gates))} | "
             f"{_markdown_cell(row.forbidden_authority)} | "
             f"{_markdown_cell(row.access_control_audit)} | "
             f"{_markdown_cell('; '.join(row.blockers) or 'none')} | "
@@ -344,6 +421,11 @@ def _render_packet_content(
 
 def _row_from_packaging(row: QaBrainModelPackagingPlanRow) -> QaBrainRoutingPlanRow:
     routing_stage = _routing_stage(row)
+    allowed_use_cases = _metadata_by_case(
+        mapping=_ALLOWED_USE_CASES,
+        case_id=row.case_id,
+        field="allowed_use_cases",
+    )
     return QaBrainRoutingPlanRow(
         case_id=row.case_id,
         label=row.label,
@@ -355,11 +437,8 @@ def _row_from_packaging(row: QaBrainModelPackagingPlanRow) -> QaBrainRoutingPlan
         litellm_boundary=row.litellm_routing_boundary,
         endpoint_boundary=row.endpoint_boundary,
         deployment_modes=row.deployment_modes,
-        allowed_use_cases=_metadata_by_case(
-            mapping=_ALLOWED_USE_CASES,
-            case_id=row.case_id,
-            field="allowed_use_cases",
-        ),
+        allowed_use_cases=allowed_use_cases,
+        repair_acceptance_gates=_repair_acceptance_gates(allowed_use_cases),
         forbidden_authority=_metadata_by_case(
             mapping=_FORBIDDEN_AUTHORITY,
             case_id=row.case_id,
@@ -379,6 +458,14 @@ def _routing_stage(row: QaBrainModelPackagingPlanRow) -> QaBrainRoutingStage:
         packaging_stage=row.packaging_stage,
         field="routing_stage",
     )
+
+
+def _repair_acceptance_gates(
+    allowed_use_cases: tuple[QaBrainAllowedUseCase, ...],
+) -> tuple[QaBrainRepairAcceptanceGate, ...]:
+    if "repair_proposals" not in allowed_use_cases:
+        return ()
+    return _REPAIR_ACCEPTANCE_GATES
 
 
 def _metadata_by_stage[T](
@@ -529,6 +616,12 @@ def _inline_code(value: str) -> str:
 
 def _markdown_cell(value: str) -> str:
     return _escape_backticks(escape(" ".join(value.split())).replace("|", "\\|"))
+
+
+def _repair_acceptance_gate_ids(
+    gates: tuple[QaBrainRepairAcceptanceGate, ...],
+) -> str:
+    return ", ".join(gate.id for gate in gates) or "n/a"
 
 
 def _escape_backticks(value: str) -> str:

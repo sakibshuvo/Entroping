@@ -170,6 +170,17 @@ def test_qa_brain_routing_plan_derives_ready_rows_without_raw_values(
         "prioritization",
         "repair_proposals",
     )
+    assert tuple(
+        gate.id for gate in rows["weak_test_detection"].repair_acceptance_gates
+    ) == (
+        "parser_validation",
+        "hurl_execution",
+        "qanstitution_governance",
+        "deterministic_evidence",
+        "secret_redaction",
+        "codex_human_review",
+    )
+    assert all(gate.required for gate in rows["weak_test_detection"].repair_acceptance_gates)
     assert rows["weak_test_detection"].deployment_modes == (
         "hosted",
         "local",
@@ -241,6 +252,11 @@ def test_qa_brain_routing_plan_markdown_is_human_readable_and_value_free(
     assert (
         "| weak_test_detection | Weak-test detection | ready | packaging_ready | "
         "routing_design_ready |"
+    ) in markdown
+    assert "Repair Acceptance Gates" in markdown
+    assert (
+        "parser_validation, hurl_execution, qanstitution_governance, "
+        "deterministic_evidence, secret_redaction, codex_human_review"
     ) in markdown
     assert "reports/test-quality.json" in markdown
     assert "generated_tests" not in markdown
@@ -378,6 +394,33 @@ def test_qa_brain_routing_plan_blocks_inherited_packaging_blockers(
     assert packet.summary.next_actions_total == 1
     assert row.routing_stage == "needs_boundary_repair"
     assert row.blockers == ("Complete packaging metadata before routing design.",)
+
+
+def test_qa_brain_routing_plan_omits_repair_gates_without_repair_use_case(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import entroping.core.qa_brain_routing_plan as routing_plan
+
+    def fake_packaging(*, project_root: Path) -> QaBrainModelPackagingPlanPacket:
+        _ = project_root
+        return _packaging_packet((_packaging_row("weak_test_detection"),))
+
+    monkeypatch.setattr(
+        routing_plan,
+        "build_qa_brain_model_packaging_plan",
+        fake_packaging,
+    )
+    monkeypatch.setattr(
+        routing_plan,
+        "_ALLOWED_USE_CASES",
+        {"weak_test_detection": ("critique",)},
+    )
+
+    packet = build_qa_brain_routing_plan(project_root=tmp_path)
+
+    assert packet.routing_plans[0].allowed_use_cases == ("critique",)
+    assert packet.routing_plans[0].repair_acceptance_gates == ()
 
 
 def test_qa_brain_routing_plan_deduplicates_next_actions(
@@ -659,6 +702,17 @@ def test_qa_brain_routing_plan_writer_rejects_secret_like_rendered_output(
                         "generation",
                         "prioritization",
                         "repair_proposals",
+                    ),
+                    repair_acceptance_gates=(
+                        routing_plan.QaBrainRepairAcceptanceGate(
+                            id="parser_validation",
+                            label="Parser validation",
+                            required=True,
+                            summary=(
+                                "Parse proposed Hurl and policy changes before "
+                                "review."
+                            ),
+                        ),
                     ),
                     forbidden_authority="Hurl/QAnstitution remains authority.",
                     access_control_audit="Access control design is required.",

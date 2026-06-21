@@ -1884,9 +1884,14 @@ routing-plan packet at `reports/qa-brain-routing-plan.md` by default, or
 LiteLLM and OpenAI-compatible routing-readiness metadata from deterministic
 QA-brain model-packaging plan metadata: readiness state, packaging stage,
 value-free source IDs and paths, routing stage, LiteLLM boundary, endpoint
-boundary, deployment modes, allowed future use cases, forbidden pass/fail
-authority, access-control and audit needs, blockers, and next-action rows. It
-is not a provider adapter, LiteLLM configuration writer, endpoint
+boundary, deployment modes, allowed future use cases, required
+repair-proposal acceptance gates, forbidden pass/fail authority, access-control
+and audit needs, blockers, and next-action rows. The acceptance gates are
+value-free advisory routing metadata for parser validation, deterministic Hurl
+execution, QAnstitution governance, deterministic evidence linkage, secret
+redaction, and Codex/human review; a generated repair remains unaccepted until
+those checks pass outside this report. It is not a provider adapter, LiteLLM
+configuration writer, endpoint
 implementation, gateway, SDK adapter, model package, container build,
 executable prompt, embedding job, vector database, retrieval engine, dataset
 export, fine-tune, training run, eval run, hosted upload, or provider
