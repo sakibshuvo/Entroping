@@ -224,7 +224,11 @@ It writes `reports/evidence-index.md` by default or
 `--output json` is selected. The packet reuses the local
 `build_local_evidence_index` artifact inventory and emits stable artifact IDs,
 labels, project-relative paths, source states, schema versions, and compact
-value-free summaries for local report artifacts. Missing evidence is
+value-free summaries for local report artifacts. It includes
+`reports/external-test-evidence.json` with schema
+`entroping.external-test-evidence.v1` and
+`reports/external-test-evidence.md`; the JSON summary is limited to status,
+layer, test, failure, error, and skipped totals. Missing evidence is
 non-blocking; invalid, unsafe, symlinked, non-file, oversized, malformed, or
 unreadable source artifacts remain represented through evidence-index states
 without embedding raw source contents. The command does not execute Hurl, run
