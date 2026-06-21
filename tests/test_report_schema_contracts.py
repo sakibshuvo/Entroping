@@ -139,6 +139,14 @@ from entroping.core.evidence_links import (
     EvidenceLinksSummary,
     EvidenceLinkTarget,
 )
+from entroping.core.evidence_portal import (
+    EVIDENCE_PORTAL_SCHEMA_VERSION,
+    EvidencePortalCard,
+    EvidencePortalNextAction,
+    EvidencePortalPacket,
+    EvidencePortalSource,
+    EvidencePortalSummary,
+)
 from entroping.core.external_test_evidence import (
     EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION,
     ExternalTestEvidenceLayer,
@@ -3693,6 +3701,110 @@ def test_evidence_links_v1_schema_contract_is_versioned_and_stable() -> None:
     ]
 
 
+def test_evidence_portal_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "evidence-portal.v1.schema.json").read_text())
+    packet = EvidencePortalPacket(
+        generated_at="2026-06-21T00:00:00+00:00",
+        project="checkout-api",
+        summary=EvidencePortalSummary(
+            status="partial",
+            sources_total=2,
+            sources_present=1,
+            sources_missing=1,
+            sources_invalid=0,
+            sources_unsafe=0,
+            cards_total=2,
+            cards_ready=1,
+            cards_blocked=1,
+            surfaces_total=6,
+            next_actions_total=1,
+        ),
+        sources=(
+            EvidencePortalSource(
+                id="evidence-links-json",
+                label="Evidence Links JSON",
+                path="reports/evidence-links.json",
+                state="present",
+                schema_version="entroping.evidence-links.v1",
+                sha256="a" * 64,
+                summary="ready",
+            ),
+            EvidencePortalSource(
+                id="evidence-index-json",
+                label="Evidence Index JSON",
+                path="reports/evidence-index.json",
+                state="missing",
+                schema_version=None,
+                sha256=None,
+                summary="missing",
+            ),
+        ),
+        cards=(
+            EvidencePortalCard(
+                id="evidence-links-json",
+                label="Evidence Links JSON",
+                source_id="evidence-links-json",
+                path="reports/evidence-links.json",
+                state="ready",
+                schema_version="entroping.evidence-links.v1",
+                sha256="a" * 64,
+                summary="ready",
+                ready_targets=9,
+                blocked_targets=0,
+                surface_count=6,
+                next_actions_count=0,
+            ),
+            EvidencePortalCard(
+                id="evidence-index-json",
+                label="Evidence Index JSON",
+                source_id="evidence-index-json",
+                path="reports/evidence-index.json",
+                state="blocked",
+                schema_version=None,
+                sha256=None,
+                summary="missing",
+                ready_targets=None,
+                blocked_targets=None,
+                surface_count=None,
+                next_actions_count=None,
+            ),
+        ),
+        next_actions=(
+            EvidencePortalNextAction(
+                priority="medium",
+                action="Generate Evidence Index JSON local evidence.",
+                source_ids=("evidence-index-json",),
+                card_ids=("evidence-index-json",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert EVIDENCE_PORTAL_SCHEMA_VERSION == "entroping.evidence-portal.v1"
+    assert payload["schema_version"] == "entroping.evidence-portal.v1"
+    assert payload["summary"]["cards_blocked"] == 1
+    assert payload["cards"][0]["surface_count"] == 6
+    assert schema["properties"]["schema_version"]["const"] == "entroping.evidence-portal.v1"
+    assert schema["$defs"]["source_state"]["enum"] == [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe",
+    ]
+    assert schema["$defs"]["source_id"]["enum"] == [
+        "evidence-links-json",
+        "evidence-index-json",
+        "runtime-card-json",
+        "handoff-json",
+        "evidence-cloud-readiness-json",
+        "devex-readiness-json",
+        "connector-intent-json",
+        "observability-packet-json",
+        "test-pyramid-json",
+    ]
+
+
 def test_qa_brain_seed_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "qa-brain-seed.v1.schema.json").read_text())
     packet = QaBrainSeedPacket(
@@ -4750,6 +4862,7 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
             SCHEMA_DIR / "evidence-cloud-readiness.v1.schema.json"
         ),
         "entroping.evidence-links.v1": (SCHEMA_DIR / "evidence-links.v1.schema.json"),
+        "entroping.evidence-portal.v1": (SCHEMA_DIR / "evidence-portal.v1.schema.json"),
         "entroping.connector-intent.v1": (SCHEMA_DIR / "connector-intent.v1.schema.json"),
         "entroping.external-test-evidence.v1": (
             SCHEMA_DIR / "external-test-evidence.v1.schema.json"

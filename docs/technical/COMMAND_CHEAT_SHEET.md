@@ -51,6 +51,7 @@ entroping report integration-readiness [--output <md|json>]
 entroping report devex-readiness [--output <md|json>]
 entroping report evidence-cloud-readiness [--output <md|json>]
 entroping report evidence-links [--output <md|json>]
+entroping report evidence-portal [--output <html|json>]
 entroping report connector-intent [--output <md|json>]
 entroping report observability-packet [--output <md|json>]
 entroping report api-inventory [--output <md|json>]
@@ -432,6 +433,8 @@ Experimental design-partner evidence commands:
 | `entroping report evidence-cloud-readiness --output json` | Write machine-readable Evidence Cloud readiness metadata to `reports/evidence-cloud-readiness.json` |
 | `entroping report evidence-links --output md` | Write a local cross-surface evidence links packet to `reports/evidence-links.md` |
 | `entroping report evidence-links --output json` | Write machine-readable evidence links metadata to `reports/evidence-links.json` |
+| `entroping report evidence-portal --output html` | Write a static local evidence portal dashboard to `reports/evidence-portal.html` |
+| `entroping report evidence-portal --output json` | Write machine-readable evidence portal metadata to `reports/evidence-portal.json` |
 | `entroping report connector-intent --output md` | Write a local connector-intent packet to `reports/connector-intent.md` |
 | `entroping report connector-intent --output json` | Write machine-readable connector intent metadata to `reports/connector-intent.json` |
 | `entroping report observability-packet --output md` | Write a read-only observability signal packet to `reports/observability-packet.md` |
@@ -497,6 +500,7 @@ entroping report integration-readiness --output json
 entroping report devex-readiness --output json
 entroping report evidence-cloud-readiness --output json
 entroping report evidence-links --output json
+entroping report evidence-portal --output json
 entroping report connector-intent --output json
 entroping report observability-packet --output json
 entroping report api-inventory --output json

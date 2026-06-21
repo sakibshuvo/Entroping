@@ -44,6 +44,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Developer experience readiness packet | `entroping.devex-readiness.v1` | `reports/devex-readiness.json` from `entroping report devex-readiness --output json` | [devex-readiness.v1.schema.json](report-schemas/devex-readiness.v1.schema.json) |
 | Evidence Cloud readiness packet | `entroping.evidence-cloud-readiness.v1` | `reports/evidence-cloud-readiness.json` from `entroping report evidence-cloud-readiness --output json` | [evidence-cloud-readiness.v1.schema.json](report-schemas/evidence-cloud-readiness.v1.schema.json) |
 | Evidence links packet | `entroping.evidence-links.v1` | `reports/evidence-links.json` from `entroping report evidence-links --output json` | [evidence-links.v1.schema.json](report-schemas/evidence-links.v1.schema.json) |
+| Evidence portal packet | `entroping.evidence-portal.v1` | `reports/evidence-portal.json` from `entroping report evidence-portal --output json` | [evidence-portal.v1.schema.json](report-schemas/evidence-portal.v1.schema.json) |
 | Connector intent packet | `entroping.connector-intent.v1` | `reports/connector-intent.json` from `entroping report connector-intent --output json` | [connector-intent.v1.schema.json](report-schemas/connector-intent.v1.schema.json) |
 | Observability packet | `entroping.observability-packet.v1` | `reports/observability-packet.json` from `entroping report observability-packet --output json` | [observability-packet.v1.schema.json](report-schemas/observability-packet.v1.schema.json) |
 | API inventory packet | `entroping.api-inventory.v1` | `reports/api-inventory.json` from `entroping report api-inventory --output json` | [api-inventory.v1.schema.json](report-schemas/api-inventory.v1.schema.json) |
@@ -701,6 +702,34 @@ models, parse traffic state, change `entroping run`, or include raw URLs,
 headers, bodies, cookies, prompts, provider outputs, credentials, environment
 values, webhook URLs, ticket mutation payloads, source Hurl contents, raw report
 contents, raw traffic, or full report contents.
+
+The evidence portal packet is written by:
+
+```bash
+entroping report evidence-portal
+entroping report evidence-portal --output json
+```
+
+It writes `reports/evidence-portal.html` by default or
+`reports/evidence-portal.json` with schema `entroping.evidence-portal.v1`
+when `--output json` is selected. The packet turns existing sanitized
+evidence-links, evidence-index, runtime-card, handoff,
+evidence-cloud-readiness, devex-readiness, connector-intent,
+observability-packet, and test-pyramid artifacts into a static local dashboard
+with value-free source states, schema versions, bounded SHA-256 hashes, card
+readiness, target/surface counts, and next-action rows. These are fixed
+optional local inputs; the command has no input-selector flags, and missing
+source artifacts are non-blocking and become partial or insufficient portal
+state. Malformed, oversized, non-file, symlinked, wrong-schema, unreadable, or
+secret-like source artifacts are marked invalid or unsafe. The HTML output is
+static and local-only, with no external assets or scripts. The command does not
+host a web app, upload artifacts, sync remote state, register protocol
+handlers, call external APIs, mutate tickets or chat, call observability APIs,
+sync repos or vaults, execute Hurl, run tests, invoke models, parse traffic
+state, change `entroping run`, or include raw URLs, headers, bodies, cookies,
+prompts, provider outputs, credentials, environment values, webhook URLs,
+ticket mutation payloads, source Hurl contents, raw report contents, raw
+traffic, or full report contents.
 
 The connector intent packet is written by:
 

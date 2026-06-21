@@ -83,6 +83,11 @@ from entroping.core.evidence_links import (
     EvidenceLinksOutput,
     run_evidence_links_report,
 )
+from entroping.core.evidence_portal import (
+    EvidencePortalError,
+    EvidencePortalOutput,
+    run_evidence_portal_report,
+)
 from entroping.core.external_test_evidence import (
     ExternalTestEvidenceError,
     ExternalTestEvidenceOutput,
@@ -1022,6 +1027,33 @@ def report_evidence_links(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote evidence links: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("evidence-portal", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_evidence_portal(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: html or json."),
+    ] = "html",
+) -> None:
+    """Write a static local evidence portal dashboard."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"html", "json"}:
+        console.print(f"[yellow]Unsupported evidence-portal output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_evidence_portal_report(
+            project_root=Path.cwd(),
+            output=cast(EvidencePortalOutput, normalized_output),
+        )
+    except EvidencePortalError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote evidence portal: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 

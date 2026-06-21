@@ -38,6 +38,7 @@ from entroping.core.evidence_bundle import EvidenceBundleError
 from entroping.core.evidence_cloud_readiness import EvidenceCloudReadinessError
 from entroping.core.evidence_index_report import EvidenceIndexError
 from entroping.core.evidence_links import EvidenceLinksError
+from entroping.core.evidence_portal import EvidencePortalError
 from entroping.core.handoff_packet import HandoffError
 from entroping.core.integration_readiness import IntegrationReadinessError
 from entroping.core.mutation_readiness import MutationReadinessError
@@ -234,6 +235,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "devex-readiness",
         "evidence-cloud-readiness",
         "evidence-links",
+        "evidence-portal",
         "connector-intent",
         "external-test-evidence",
         "team-access-control-plan",
@@ -948,6 +950,68 @@ def test_report_evidence_links_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "evidence links path is unsafe" in result.output
+
+
+def test_report_evidence_portal_writes_html(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "evidence-portal"])
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote evidence portal: reports/evidence-portal.html" in result.output
+    html = Path("reports/evidence-portal.html").read_text(encoding="utf-8")
+    assert "<h1>Entroping Evidence Portal</h1>" in html
+    assert "Evidence Links JSON" in html
+
+
+def test_report_evidence_portal_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "evidence-portal", "--output", "json"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote evidence portal: reports/evidence-portal.json" in result.output
+    payload = json.loads(Path("reports/evidence-portal.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.evidence-portal.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_evidence_portal_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(
+        app,
+        ["report", "evidence-portal", "--output", "md"],
+    )
+
+    assert result.exit_code == 2
+    assert "Unsupported evidence-portal output" in result.output
+    assert not Path("reports/evidence-portal.md").exists()
+
+
+def test_report_evidence_portal_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_evidence_portal(*args: object, **kwargs: object) -> object:
+        raise EvidencePortalError("evidence portal path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_evidence_portal_report",
+        fail_evidence_portal,
+    )
+
+    result = CliRunner().invoke(app, ["report", "evidence-portal"])
+
+    assert result.exit_code == 1
+    assert "evidence portal path is unsafe" in result.output
 
 
 def test_report_team_access_control_plan_writes_markdown(
