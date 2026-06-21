@@ -133,6 +133,227 @@ HTTP 200
     assert packet.sources[0].operations == 1
 
 
+def test_api_inventory_detects_asyncapi_and_webhook_event_contract_sources(
+    tmp_path: Path,
+) -> None:
+    asyncapi_path = _write_text(
+        tmp_path / "contracts" / "orders.asyncapi.yaml",
+        """
+asyncapi: 2.6.0
+channels:
+  orders.created:
+    publish:
+      message:
+        name: OrderCreated
+  orders.cancelled:
+    subscribe:
+      message:
+        name: OrderCancelled
+""".strip()
+        + "\n",
+    )
+    webhook_contract_path = _write_text(
+        tmp_path / "contracts" / "order-events.event-contract.yaml",
+        """
+schema_version: example.webhook-events.v1
+webhooks:
+  order.created:
+    method: post
+    url: https://hooks.example.test/orders/created
+    body:
+      example: should-not-appear-in-report
+""".strip()
+        + "\n",
+    )
+    _write_text(
+        tmp_path / "tests" / "webhook.hurl",
+        """
+# entroping: tags=webhook,event-contract
+POST http://127.0.0.1:18080/hooks/order-created
+HTTP 202
+""".strip()
+        + "\n",
+    )
+
+    result = run_api_inventory_report(project_root=tmp_path, output="json")
+
+    payload = json.loads(result.output_path.read_text(encoding="utf-8"))
+    sources = {(source["kind"], source["path"]): source for source in payload["sources"]}
+    assert sources[("schema_file", "contracts/orders.asyncapi.yaml")] == {
+        "kind": "schema_file",
+        "style": "asyncapi",
+        "path": "contracts/orders.asyncapi.yaml",
+        "state": "present",
+        "sha256": hashlib.sha256(asyncapi_path.read_bytes()).hexdigest(),
+        "tags": [],
+        "operations": 2,
+        "summary": "2 AsyncAPI operations/channels.",
+    }
+    assert sources[("schema_file", "contracts/order-events.event-contract.yaml")] == {
+        "kind": "schema_file",
+        "style": "webhook_event",
+        "path": "contracts/order-events.event-contract.yaml",
+        "state": "present",
+        "sha256": hashlib.sha256(webhook_contract_path.read_bytes()).hexdigest(),
+        "tags": [],
+        "operations": 1,
+        "summary": "1 webhook/event contract entry.",
+    }
+    assert sources[("hurl_test", "tests/webhook.hurl")]["style"] == "webhook_event"
+    styles = {style["style"]: style for style in payload["styles"]}
+    assert styles["asyncapi"]["operations"] == 2
+    assert styles["webhook_event"]["operations"] == 2
+    assert styles["webhook_event"]["hurl_tests"] == 1
+    serialized = json.dumps(payload)
+    assert "https://hooks.example.test/orders/created" not in serialized
+    assert "should-not-appear-in-report" not in serialized
+    assert "127.0.0.1" not in serialized
+
+    markdown = render_api_inventory_markdown(result.packet)
+    assert "AsyncAPI" in markdown
+    assert "Webhook/Event" in markdown
+
+
+def test_api_inventory_event_contract_sources_reuse_safety_boundaries(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    contracts_root = tmp_path / "contracts"
+    real_contract = _write_text(
+        tmp_path / "real.event-contract.yaml",
+        "webhooks:\n  order.created: {}\n",
+    )
+    contracts_root.mkdir()
+    os.symlink(real_contract, contracts_root / "linked.event-contract.yaml")
+    (contracts_root / "binary.event-contract.yaml").write_bytes(b"\xff")
+    _write_text(contracts_root / "secret.event-contract.yaml", "sk-proj-" + ("a" * 24))
+    _write_text(contracts_root / "bad.event-contract.yaml", "webhooks: []\n")
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    sources = {(source.kind, source.path): source for source in packet.sources}
+    assert sources[("schema_file", "contracts/linked.event-contract.yaml")].state == "unsafe"
+    assert "symlinked component" in (
+        sources[("schema_file", "contracts/linked.event-contract.yaml")].summary
+    )
+    assert sources[("schema_file", "contracts/binary.event-contract.yaml")].state == "invalid"
+    assert "UTF-8" in sources[("schema_file", "contracts/binary.event-contract.yaml")].summary
+    assert sources[("schema_file", "contracts/secret.event-contract.yaml")].state == "unsafe"
+    assert "secret-like content" in (
+        sources[("schema_file", "contracts/secret.event-contract.yaml")].summary
+    )
+    assert sources[("schema_file", "contracts/bad.event-contract.yaml")].state == "invalid"
+    assert "webhooks or events mapping" in (
+        sources[("schema_file", "contracts/bad.event-contract.yaml")].summary
+    )
+
+    oversized_root = tmp_path / "oversized"
+    _write_text(
+        oversized_root / "contracts" / "oversized.event-contract.yaml",
+        "webhooks:\n  order.created: {}\n",
+    )
+    monkeypatch.setattr(api_inventory, "_MAX_API_INVENTORY_ARTIFACT_BYTES", 1)
+
+    oversized_packet = build_api_inventory(project_root=oversized_root)
+
+    assert oversized_packet.sources[0].state == "invalid"
+    assert "exceeds 1 bytes" in oversized_packet.sources[0].summary
+
+
+def test_api_inventory_marks_bad_asyncapi_sources_invalid(tmp_path: Path) -> None:
+    _write_text(tmp_path / "contracts" / "invalid.asyncapi.yaml", "{not yaml: [}\n")
+    _write_text(tmp_path / "contracts" / "list.asyncapi.yaml", "[]\n")
+    _write_text(tmp_path / "contracts" / "no-channels.asyncapi.yaml", "asyncapi: 2.6.0\n")
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    sources = {(source.kind, source.path): source for source in packet.sources}
+    invalid_yaml = sources[("schema_file", "contracts/invalid.asyncapi.yaml")]
+    assert invalid_yaml.state == "invalid"
+    assert "Invalid AsyncAPI YAML" in invalid_yaml.summary
+    list_document = sources[("schema_file", "contracts/list.asyncapi.yaml")]
+    assert list_document.state == "invalid"
+    assert "operations or channels" in list_document.summary
+    no_channels = sources[("schema_file", "contracts/no-channels.asyncapi.yaml")]
+    assert no_channels.state == "invalid"
+    assert "operations or channels" in no_channels.summary
+
+
+def test_api_inventory_counts_asyncapi_operations_and_sparse_channels(
+    tmp_path: Path,
+) -> None:
+    _write_text(
+        tmp_path / "contracts" / "ops.asyncapi.yaml",
+        """
+asyncapi: 3.0.0
+operations:
+  publishOrderCreated:
+    action: send
+  consumeOrderCancelled:
+    action: receive
+""".strip()
+        + "\n",
+    )
+    _write_text(
+        tmp_path / "contracts" / "sparse.asyncapi.yaml",
+        """
+asyncapi: 2.6.0
+channels:
+  orders.created: not-a-mapping
+  orders.cancelled:
+    bindings: {}
+""".strip()
+        + "\n",
+    )
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    sources = {(source.kind, source.path): source for source in packet.sources}
+    assert sources[("schema_file", "contracts/ops.asyncapi.yaml")].operations == 2
+    assert sources[("schema_file", "contracts/sparse.asyncapi.yaml")].operations == 2
+
+
+def test_api_inventory_marks_bad_webhook_event_sources_invalid(tmp_path: Path) -> None:
+    _write_text(tmp_path / "contracts" / "invalid.event-contract.yaml", "{not yaml: [}\n")
+    _write_text(tmp_path / "contracts" / "list.event-contract.yaml", "[]\n")
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    sources = {(source.kind, source.path): source for source in packet.sources}
+    invalid_yaml = sources[("schema_file", "contracts/invalid.event-contract.yaml")]
+    assert invalid_yaml.state == "invalid"
+    assert "Invalid webhook/event contract YAML" in invalid_yaml.summary
+    list_document = sources[("schema_file", "contracts/list.event-contract.yaml")]
+    assert list_document.state == "invalid"
+    assert "webhooks or events mapping" in list_document.summary
+
+
+def test_api_inventory_counts_webhook_event_plurals_and_asyncapi_tags(
+    tmp_path: Path,
+) -> None:
+    _write_text(
+        tmp_path / "contracts" / "orders.event-contract.yaml",
+        """
+event_contracts:
+  order.created: {}
+  order.cancelled: {}
+""".strip()
+        + "\n",
+    )
+    _write_text(
+        tmp_path / "tests" / "asyncapi.hurl",
+        "# entroping: tags=asyncapi\nPOST http://127.0.0.1:18080/events\nHTTP 202\n",
+    )
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    sources = {(source.kind, source.path): source for source in packet.sources}
+    contract = sources[("schema_file", "contracts/orders.event-contract.yaml")]
+    assert contract.operations == 2
+    assert contract.summary == "2 webhook/event contract entries."
+    assert sources[("hurl_test", "tests/asyncapi.hurl")].style == "asyncapi"
+
+
 def test_api_inventory_keeps_empty_and_ambiguous_hurl_sources_unknown(
     tmp_path: Path,
 ) -> None:
@@ -238,6 +459,7 @@ def test_api_inventory_handles_empty_and_unsafe_configured_specs(
         ("file://openapi.yaml", "Unsupported API source reference scheme"),
         (str(tmp_path / "openapi.yaml"), "project-relative"),
         ("../openapi.yaml", "project root"),
+        ("foo/../../openapi.yaml", "project root"),
     )
     for spec_ref, expected_summary in unsafe_refs:
         _write_text(
@@ -312,6 +534,23 @@ def test_api_inventory_marks_bad_openapi_shapes_invalid(tmp_path: Path) -> None:
     assert sources[("conventional_openapi", "swagger.yaml")].state == "invalid"
     assert sources[("conventional_openapi", "api/openapi.yaml")].state == "present"
     assert sources[("conventional_openapi", "api/openapi.yaml")].operations == 0
+
+
+def test_api_inventory_does_not_duplicate_invalid_configured_openapi(
+    tmp_path: Path,
+) -> None:
+    _write_text(
+        tmp_path / "qanstitution.yaml",
+        "project: duplicate-invalid\nsources:\n  spec: openapi.yaml\ngates: []\n",
+    )
+    _write_text(tmp_path / "openapi.yaml", "{not yaml: [}\n")
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    assert [(source.kind, source.path) for source in packet.sources] == [
+        ("configured_openapi", "openapi.yaml")
+    ]
+    assert packet.sources[0].state == "invalid"
 
 
 def test_api_inventory_invalid_only_sources_are_partial(tmp_path: Path) -> None:

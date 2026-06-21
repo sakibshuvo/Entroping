@@ -1075,9 +1075,10 @@ It writes `reports/api-inventory.md` by default or
 `reports/api-inventory.json` with schema `entroping.api-inventory.v1` when
 `--output json` is selected. The packet inventories local API-style signals
 before protocol-specific compilers are added: configured and conventional
-OpenAPI files, committed Hurl tests with protocol tags, and GraphQL/WSDL/proto
-schema files. It summarizes counts for REST/OpenAPI, GraphQL, SOAP/XML,
-gRPC/proto, and unknown HTTP surfaces. The report records source states,
+OpenAPI files, committed Hurl tests with protocol tags, GraphQL/WSDL/proto
+schema files, AsyncAPI specs, and webhook/event-contract files. It summarizes
+counts for REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, AsyncAPI,
+webhook/event, and unknown HTTP surfaces. The report records source states,
 project-relative local paths, tags, operation/exchange counts, SHA-256 hashes,
 and next-action text only. Missing sources are non-blocking; malformed,
 oversized, non-file, symlinked, path-escaped, or secret-like source artifacts

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from html import escape
 from pathlib import Path, PureWindowsPath
-from typing import Final, Literal
+from typing import Final, Literal, cast
 from urllib.parse import urlparse
 
 import yaml
@@ -39,6 +39,8 @@ ApiStyle = Literal[
     "graphql",
     "soap_xml",
     "grpc_proto",
+    "asyncapi",
+    "webhook_event",
     "unknown_http",
 ]
 ApiSourceKind = Literal[
@@ -86,6 +88,28 @@ _SCHEMA_EXTENSIONS: Final[dict[str, ApiStyle]] = {
     ".wsdl": "soap_xml",
     ".proto": "grpc_proto",
 }
+_ASYNCAPI_FILENAMES: Final[frozenset[str]] = frozenset(
+    {"asyncapi.json", "asyncapi.yaml", "asyncapi.yml"}
+)
+_ASYNCAPI_SUFFIXES: Final[tuple[str, ...]] = (
+    ".asyncapi.json",
+    ".asyncapi.yaml",
+    ".asyncapi.yml",
+)
+_WEBHOOK_EVENT_SUFFIXES: Final[tuple[str, ...]] = (
+    ".event-contract.json",
+    ".event-contract.yaml",
+    ".event-contract.yml",
+    ".event_contract.json",
+    ".event_contract.yaml",
+    ".event_contract.yml",
+    ".webhook.json",
+    ".webhook.yaml",
+    ".webhook.yml",
+    ".webhooks.json",
+    ".webhooks.yaml",
+    ".webhooks.yml",
+)
 _HTTP_METHODS: Final[frozenset[str]] = frozenset(
     {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
 )
@@ -95,6 +119,8 @@ _STYLE_LABELS: Final[dict[ApiStyle, str]] = {
     "graphql": "GraphQL",
     "soap_xml": "SOAP/XML",
     "grpc_proto": "gRPC/proto",
+    "asyncapi": "AsyncAPI",
+    "webhook_event": "Webhook/Event",
     "unknown_http": "Unknown HTTP",
 }
 _STYLE_ACTIONS: Final[dict[ApiStyle, str]] = {
@@ -102,6 +128,8 @@ _STYLE_ACTIONS: Final[dict[ApiStyle, str]] = {
     "graphql": "Keep GraphQL coverage in committed Hurl while schema-aware generation is added.",
     "soap_xml": "Use SOAP-over-HTTP Hurl assertions and QAnstitution XML gates.",
     "grpc_proto": "Use proto evidence as future gRPC/proto adapter input.",
+    "asyncapi": "Use AsyncAPI evidence as future message-contract adapter input.",
+    "webhook_event": "Use webhook/event contract evidence with replayable Hurl coverage.",
     "unknown_http": (
         "Add protocol tags or source specs so inventory can classify this HTTP surface."
     ),
@@ -209,7 +237,7 @@ def build_api_inventory(*, project_root: Path) -> ApiInventoryPacket:
 
     root = project_root.expanduser().resolve()
     configured = _configured_openapi_source(root=root)
-    configured_paths = {source.path for source in configured if source.state != "invalid"}
+    configured_paths = {source.path for source in configured}
     discovered_sources = (
         *configured,
         *_conventional_openapi_sources(root=root, skip_paths=configured_paths),
@@ -372,7 +400,7 @@ def _hurl_test_sources(*, root: Path) -> tuple[ApiInventorySource, ...]:
 def _schema_file_sources(*, root: Path) -> tuple[ApiInventorySource, ...]:
     sources: list[ApiInventorySource] = []
     for path in _iter_candidate_files(root=root):
-        style = _SCHEMA_EXTENSIONS.get(path.suffix.lower())
+        style = _schema_style_for_path(path)
         if style is None:
             continue
         relative_path = _relative_path(path, root=root)
@@ -503,7 +531,70 @@ def _load_schema_source(*, root: Path, raw_path: Path, style: ApiStyle) -> ApiIn
     )
     if isinstance(loaded, ApiInventorySource):
         return loaded
-    raw_bytes, _raw_text = loaded
+    raw_bytes, raw_text = loaded
+    if style == "asyncapi":
+        document = _load_yaml_document(
+            raw_text,
+            kind="schema_file",
+            style=style,
+            path=path_text,
+            label="AsyncAPI",
+        )
+        if isinstance(document, ApiInventorySource):
+            return document
+        operations = _asyncapi_operation_count(document)
+        if operations is None:
+            return _source(
+                kind="schema_file",
+                style=style,
+                path=path_text,
+                state="invalid",
+                sha256=None,
+                operations=0,
+                summary="AsyncAPI document must contain operations or channels.",
+            )
+        return _source(
+            kind="schema_file",
+            style=style,
+            path=path_text,
+            state="present",
+            sha256=hashlib.sha256(raw_bytes).hexdigest(),
+            operations=operations,
+            summary=f"{operations} AsyncAPI operations/channels.",
+        )
+    if style == "webhook_event":
+        document = _load_yaml_document(
+            raw_text,
+            kind="schema_file",
+            style=style,
+            path=path_text,
+            label="webhook/event contract",
+        )
+        if isinstance(document, ApiInventorySource):
+            return document
+        operations = _webhook_event_operation_count(document)
+        if operations is None:
+            return _source(
+                kind="schema_file",
+                style=style,
+                path=path_text,
+                state="invalid",
+                sha256=None,
+                operations=0,
+                summary=(
+                    "Webhook/event contract document must contain a webhooks or events "
+                    "mapping."
+                ),
+            )
+        return _source(
+            kind="schema_file",
+            style=style,
+            path=path_text,
+            state="present",
+            sha256=hashlib.sha256(raw_bytes).hexdigest(),
+            operations=operations,
+            summary=f"{operations} webhook/event contract {_entry_word(operations)}.",
+        )
     return _source(
         kind="schema_file",
         style=style,
@@ -634,11 +725,71 @@ def _openapi_operation_count(document: object) -> int | None:
     return operations
 
 
+def _load_yaml_document(
+    raw_text: str,
+    *,
+    kind: ApiSourceKind,
+    style: ApiStyle,
+    path: str,
+    label: str,
+) -> object | ApiInventorySource:
+    try:
+        return cast(object, yaml.safe_load(raw_text))
+    except yaml.YAMLError as exc:
+        return _source(
+            kind=kind,
+            style=style,
+            path=path,
+            state="invalid",
+            sha256=None,
+            operations=0,
+            summary=_safe_text(f"Invalid {label} YAML: {exc}"),
+        )
+
+
+def _asyncapi_operation_count(document: object) -> int | None:
+    if not isinstance(document, dict):
+        return None
+    operations = document.get("operations")
+    if isinstance(operations, dict):
+        return len(operations)
+    channels = document.get("channels")
+    if not isinstance(channels, dict):
+        return None
+    channel_operations = 0
+    for channel in channels.values():
+        if not isinstance(channel, dict):
+            continue
+        channel_operations += sum(
+            1
+            for operation_id in ("publish", "subscribe")
+            if isinstance(channel.get(operation_id), dict)
+        )
+    return channel_operations or len(channels)
+
+
+def _webhook_event_operation_count(document: object) -> int | None:
+    if not isinstance(document, dict):
+        return None
+    for key in ("webhooks", "events", "event_contracts"):
+        entries = document.get(key)
+        if isinstance(entries, dict):
+            return len(entries)
+    return None
+
+
+def _entry_word(count: int) -> str:
+    if count == 1:
+        return "entry"
+    return "entries"
+
+
 def _style_from_tags(tags: frozenset[str]) -> ApiStyle | None:
     """Map explicit protocol tags with deterministic priority.
 
     When a test carries multiple protocol tags, the report prefers the more
-    specialized API style in this order: GraphQL, SOAP/XML, gRPC/proto, REST.
+    specialized API style in this order: GraphQL, SOAP/XML, gRPC/proto,
+    AsyncAPI, webhook/event, REST.
     """
 
     normalized = {tag.lower() for tag in tags}
@@ -648,9 +799,27 @@ def _style_from_tags(tags: frozenset[str]) -> ApiStyle | None:
         return "soap_xml"
     if "grpc" in normalized or "grpc_proto" in normalized or "proto" in normalized:
         return "grpc_proto"
+    if "asyncapi" in normalized or "async_api" in normalized:
+        return "asyncapi"
+    if (
+        "webhook" in normalized
+        or "webhooks" in normalized
+        or "event-contract" in normalized
+        or "event_contract" in normalized
+    ):
+        return "webhook_event"
     if "openapi" in normalized or "rest" in normalized or "rest_openapi" in normalized:
         return "rest_openapi"
     return None
+
+
+def _schema_style_for_path(path: Path) -> ApiStyle | None:
+    name = path.name.lower()
+    if name in _ASYNCAPI_FILENAMES or name.endswith(_ASYNCAPI_SUFFIXES):
+        return "asyncapi"
+    if name.endswith(_WEBHOOK_EVENT_SUFFIXES):
+        return "webhook_event"
+    return _SCHEMA_EXTENSIONS.get(path.suffix.lower())
 
 
 def _style_summaries(
@@ -751,7 +920,7 @@ def _reject_unsafe_relative_reference(value: str) -> str | None:
         return f"Unsupported API source reference scheme: {parsed.scheme}"
     if Path(value).is_absolute() or PureWindowsPath(value).is_absolute():
         return "API source reference must be project-relative"
-    if Path(value).parts and Path(value).parts[0] == "..":
+    if ".." in Path(value).parts:
         return "API source reference must stay under the project root"
     return None
 
