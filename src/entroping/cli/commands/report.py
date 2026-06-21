@@ -254,6 +254,11 @@ from entroping.core.work_item_draft import (
     WorkItemDraftOutput,
     run_work_item_draft_report,
 )
+from entroping.core.work_item_import_bundle import (
+    WorkItemImportBundleError,
+    WorkItemImportBundleOutput,
+    run_work_item_import_bundle_report,
+)
 from entroping.models.hurl import HurlMetadataSyntaxError
 
 app = typer.Typer(help="Generate human handoff artifacts.")
@@ -1262,6 +1267,35 @@ def report_work_item_draft(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote work item draft: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("work-item-import-bundle", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_work_item_import_bundle(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: json or csv."),
+    ] = "json",
+) -> None:
+    """Write local tracker import bundle rows."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"json", "csv"}:
+        console.print(
+            f"[yellow]Unsupported work-item-import-bundle output: {output}[/yellow]"
+        )
+        raise typer.Exit(2)
+
+    try:
+        result = run_work_item_import_bundle_report(
+            project_root=Path.cwd(),
+            output=cast(WorkItemImportBundleOutput, normalized_output),
+        )
+    except WorkItemImportBundleError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote work item import bundle: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 

@@ -51,6 +51,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | PR evidence card packet | `entroping.pr-evidence-card.v1` | `reports/pr-evidence-card.json` from `entroping report pr-evidence-card --output json` | [pr-evidence-card.v1.schema.json](report-schemas/pr-evidence-card.v1.schema.json) |
 | Evidence action-plan packet | `entroping.evidence-action-plan.v1` | `reports/evidence-action-plan.json` from `entroping report evidence-action-plan --output json` | [evidence-action-plan.v1.schema.json](report-schemas/evidence-action-plan.v1.schema.json) |
 | Work item draft packet | `entroping.work-item-draft.v1` | `reports/work-item-draft.json` from `entroping report work-item-draft --output json` | [work-item-draft.v1.schema.json](report-schemas/work-item-draft.v1.schema.json) |
+| Work item import bundle | `entroping.work-item-import-bundle.v1` | `reports/work-item-import-bundle.json` from `entroping report work-item-import-bundle --output json` | [work-item-import-bundle.v1.schema.json](report-schemas/work-item-import-bundle.v1.schema.json) |
 | Connector intent packet | `entroping.connector-intent.v1` | `reports/connector-intent.json` from `entroping report connector-intent --output json` | [connector-intent.v1.schema.json](report-schemas/connector-intent.v1.schema.json) |
 | Observability packet | `entroping.observability-packet.v1` | `reports/observability-packet.json` from `entroping report observability-packet --output json` | [observability-packet.v1.schema.json](report-schemas/observability-packet.v1.schema.json) |
 | API inventory packet | `entroping.api-inventory.v1` | `reports/api-inventory.json` from `entroping report api-inventory --output json` | [api-inventory.v1.schema.json](report-schemas/api-inventory.v1.schema.json) |
@@ -879,6 +880,29 @@ PRs, chat, automation, hosted state, labels, assignments, comments, uploads,
 external APIs, Hurl/tests, model providers, traffic state, `entroping run`,
 source Hurl, raw report contents, provider keys, credentials, cookies, tokens,
 webhooks, or prompts.
+
+The work item import bundle is written by:
+
+```bash
+entroping report work-item-import-bundle
+entroping report work-item-import-bundle --output csv
+```
+
+It writes `reports/work-item-import-bundle.json` with schema
+`entroping.work-item-import-bundle.v1` by default or
+`reports/work-item-import-bundle.csv` when `--output csv` is selected. The
+packet reads only the fixed optional `reports/work-item-draft.json` artifact
+through the evidence-index boundary, then emits source state, schema version,
+bounded SHA-256 hash, tracker family, external ID, title, body/description,
+priority, labels, source item IDs, source action IDs/counts, and explicit
+forbidden actions. Missing draft artifacts become generation actions;
+malformed, unreadable, oversized, symlinked, or secret-like source artifacts
+become high-priority repair actions. CSV output is spreadsheet-safe and
+neutralizes formula-leading cells. The command does not create, import, update,
+sync, assign, label, comment on, or post to tickets, PRs, chat, automation,
+hosted state, dashboards, uploads, external APIs, Hurl/tests, model providers,
+traffic state, `entroping run`, source Hurl, raw report contents, provider
+keys, credentials, cookies, tokens, webhooks, or prompts.
 
 The connector intent packet is written by:
 

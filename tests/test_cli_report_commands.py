@@ -67,6 +67,7 @@ from entroping.core.runtime_card import RuntimeCardError
 from entroping.core.team_access_control_plan import TeamAccessControlPlanError
 from entroping.core.team_evidence_readiness import TeamEvidenceReadinessError
 from entroping.core.work_item_draft import WorkItemDraftError
+from entroping.core.work_item_import_bundle import WorkItemImportBundleError
 
 
 def _write_effective_policy_report(
@@ -247,6 +248,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "connector-intent",
         "evidence-action-plan",
         "work-item-draft",
+        "work-item-import-bundle",
         "external-test-evidence",
         "team-access-control-plan",
         "team-evidence-readiness",
@@ -1588,6 +1590,75 @@ def test_report_work_item_draft_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "work item draft path is unsafe" in result.output
+
+
+def test_report_work_item_import_bundle_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "work-item-import-bundle"])
+
+    assert result.exit_code == 0, result.output
+    assert (
+        "Wrote work item import bundle: reports/work-item-import-bundle.json"
+        in result.output
+    )
+    payload = json.loads(
+        Path("reports/work-item-import-bundle.json").read_text(encoding="utf-8")
+    )
+    assert payload["schema_version"] == "entroping.work-item-import-bundle.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_work_item_import_bundle_writes_csv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "work-item-import-bundle", "--output", "csv"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert (
+        "Wrote work item import bundle: reports/work-item-import-bundle.csv"
+        in result.output
+    )
+    csv_text = Path("reports/work-item-import-bundle.csv").read_text(encoding="utf-8")
+    assert csv_text.startswith("record_type,tracker_family,external_id")
+
+
+def test_report_work_item_import_bundle_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(
+        app,
+        ["report", "work-item-import-bundle", "--output", "md"],
+    )
+
+    assert result.exit_code == 2
+    assert "Unsupported work-item-import-bundle output" in result.output
+    assert not Path("reports/work-item-import-bundle.md").exists()
+
+
+def test_report_work_item_import_bundle_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_work_item_import_bundle(*args: object, **kwargs: object) -> object:
+        raise WorkItemImportBundleError("work item import bundle path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_work_item_import_bundle_report",
+        fail_work_item_import_bundle,
+    )
+
+    result = CliRunner().invoke(app, ["report", "work-item-import-bundle"])
+
+    assert result.exit_code == 1
+    assert "work item import bundle path is unsafe" in result.output
 
 
 def test_report_team_access_control_plan_writes_markdown(

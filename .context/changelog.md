@@ -2,6 +2,13 @@
 
 ## 2026-06-21
 
+- Added issue #1087's work item import bundle: `report work-item-import-bundle`
+  now writes local `entroping.work-item-import-bundle.v1` JSON or
+  spreadsheet-safe CSV that turns the work-item draft packet into import rows
+  without ticket/chat/PR mutation, imports, assignments, labels, vendor APIs,
+  uploads, Hurl/test execution, model calls, traffic parsing, `entroping run`
+  changes, source Hurl access, or raw artifact rendering.
+
 - Added issue #1085's work item draft packet: `report work-item-draft` now
   writes local Markdown or `entroping.work-item-draft.v1` JSON that turns
   sanitized evidence-action-plan, connector-intent, integration-readiness,
