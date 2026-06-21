@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://entroping.dev/schemas/otel-mapping.v1.schema.json",
+  "title": "Entroping OpenTelemetry evidence mapping packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "project",
+    "summary",
+    "sources",
+    "mappings",
+    "boundary_controls",
+    "next_actions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.otel-mapping.v1"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "project": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "mappings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/attribute_mapping"
+      }
+    },
+    "boundary_controls": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/boundary_control"
+      }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/next_action"
+      }
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "severity",
+        "sources_total",
+        "sources_present",
+        "sources_missing",
+        "sources_invalid",
+        "sources_unsafe",
+        "mappings_total",
+        "resource_mappings",
+        "log_mappings",
+        "metric_mappings",
+        "trace_mappings",
+        "boundary_controls"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "ready",
+            "partial",
+            "insufficient"
+          ]
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "attention",
+            "blocker"
+          ]
+        },
+        "sources_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_present": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_invalid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_unsafe": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mappings_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "resource_mappings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "log_mappings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "metric_mappings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "trace_mappings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "boundary_controls": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "path",
+        "state",
+        "schema_version",
+        "sha256",
+        "summary"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/source_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "present",
+            "missing",
+            "invalid",
+            "unsafe"
+          ]
+        },
+        "schema_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "attribute_mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signal",
+        "attribute",
+        "requirement",
+        "value_kind",
+        "source_ids",
+        "summary",
+        "forbidden_fields"
+      ],
+      "properties": {
+        "signal": {
+          "$ref": "#/$defs/signal"
+        },
+        "attribute": {
+          "type": "string"
+        },
+        "requirement": {
+          "enum": [
+            "required",
+            "optional"
+          ]
+        },
+        "value_kind": {
+          "enum": [
+            "identifier",
+            "status",
+            "count",
+            "percent",
+            "classification",
+            "artifact_path"
+          ]
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "summary": {
+          "type": "string"
+        },
+        "forbidden_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "boundary_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "state",
+        "summary"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "state": {
+          "const": "active"
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "next_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "priority",
+        "action",
+        "source_ids"
+      ],
+      "properties": {
+        "priority": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "action": {
+          "type": "string"
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        }
+      }
+    },
+    "source_id": {
+      "enum": [
+        "observability_packet",
+        "runtime_card",
+        "test_pyramid",
+        "external_test_evidence"
+      ]
+    },
+    "signal": {
+      "enum": [
+        "resource",
+        "log",
+        "metric",
+        "trace"
+      ]
+    }
+  }
+}

@@ -48,6 +48,7 @@ from entroping.core.integration_readiness import IntegrationReadinessError
 from entroping.core.mutation_readiness import MutationReadinessError
 from entroping.core.notification_packet import NotificationPacketError
 from entroping.core.observability_packet import ObservabilityPacketError
+from entroping.core.otel_mapping import OtelMappingError
 from entroping.core.pilot_cohort import PilotCohortError
 from entroping.core.pilot_metrics import PilotMetricsError
 from entroping.core.pilot_outcome import PilotOutcomeError
@@ -314,6 +315,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "team-access-control-plan",
         "team-evidence-readiness",
         "observability-packet",
+        "otel-mapping",
         "api-inventory",
         "mutation-readiness",
         "pilot-metrics",
@@ -2267,6 +2269,62 @@ def test_report_observability_packet_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "observability packet path is unsafe" in result.output
+
+
+def test_report_otel_mapping_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "otel-mapping"])
+
+    assert result.exit_code == 0
+    assert "Wrote OpenTelemetry mapping packet: reports/otel-mapping.md" in result.output
+    markdown = Path("reports/otel-mapping.md").read_text(encoding="utf-8")
+    assert "# Entroping OpenTelemetry Mapping" in markdown
+    assert "| metric | entroping.test.total | optional | count |" in markdown
+
+
+def test_report_otel_mapping_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "otel-mapping", "--output", "json"])
+
+    assert result.exit_code == 0
+    assert "Wrote OpenTelemetry mapping packet: reports/otel-mapping.json" in result.output
+    payload = json.loads(Path("reports/otel-mapping.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.otel-mapping.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_otel_mapping_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["report", "otel-mapping", "--output", "html"])
+
+    assert result.exit_code == 2
+    assert "Unsupported otel-mapping output" in result.output
+    assert not Path("reports/otel-mapping.html").exists()
+
+
+def test_report_otel_mapping_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_otel_mapping(*args: object, **kwargs: object) -> object:
+        raise OtelMappingError("otel mapping path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_otel_mapping_report",
+        fail_otel_mapping,
+    )
+
+    result = CliRunner().invoke(app, ["report", "otel-mapping"])
+
+    assert result.exit_code == 1
+    assert "otel mapping path is unsafe" in result.output
 
 
 def test_report_api_inventory_writes_markdown(

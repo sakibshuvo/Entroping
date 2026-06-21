@@ -56,6 +56,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Pilot cohort packet | `entroping.pilot-cohort.v1` | `reports/pilot-cohort.json` from `entroping report pilot-cohort --manifest <path> --output json` | [pilot-cohort.v1.schema.json](report-schemas/pilot-cohort.v1.schema.json) |
 | Connector intent packet | `entroping.connector-intent.v1` | `reports/connector-intent.json` from `entroping report connector-intent --output json` | [connector-intent.v1.schema.json](report-schemas/connector-intent.v1.schema.json) |
 | Observability packet | `entroping.observability-packet.v1` | `reports/observability-packet.json` from `entroping report observability-packet --output json` | [observability-packet.v1.schema.json](report-schemas/observability-packet.v1.schema.json) |
+| OpenTelemetry mapping packet | `entroping.otel-mapping.v1` | `reports/otel-mapping.json` from `entroping report otel-mapping --output json` | [otel-mapping.v1.schema.json](report-schemas/otel-mapping.v1.schema.json) |
 | API inventory packet | `entroping.api-inventory.v1` | `reports/api-inventory.json` from `entroping report api-inventory --output json` | [api-inventory.v1.schema.json](report-schemas/api-inventory.v1.schema.json) |
 | Mutation readiness packet | `entroping.mutation-readiness.v1` | `reports/mutation-readiness.json` from `entroping report mutation-readiness --output json` | [mutation-readiness.v1.schema.json](report-schemas/mutation-readiness.v1.schema.json) |
 | Evidence index packet | `entroping.evidence-index.v1` | `reports/evidence-index.json` from `entroping report evidence-index --output json` | [evidence-index.v1.schema.json](report-schemas/evidence-index.v1.schema.json) |
@@ -1007,6 +1008,32 @@ results, call observability vendor APIs, mutate dashboards or monitors, read
 traffic state, or include raw URLs, headers, bodies, cookies, prompts, provider
 outputs, credentials, environment values, raw report contents, source Hurl
 contents, or full diagnostic attributes.
+
+The OpenTelemetry mapping packet is written by:
+
+```bash
+entroping report otel-mapping
+entroping report otel-mapping --output json
+```
+
+It writes `reports/otel-mapping.md` by default or
+`reports/otel-mapping.json` with schema `entroping.otel-mapping.v1` when
+`--output json` is selected. The packet turns existing sanitized
+observability-packet, runtime-card, test-pyramid, and external-test evidence
+metadata into value-free OpenTelemetry resource, log, metric, and trace
+attribute mapping rows. It records source states, schema versions, bounded
+SHA-256 hashes, local artifact paths, mapping requirements, forbidden value
+fields, boundary controls, and next-action rows. Missing source artifacts are
+non-blocking and become partial or insufficient packet state; malformed,
+oversized, non-file, symlinked, wrong-schema, unreadable, or secret-like source
+artifacts are marked invalid or unsafe. The command does not export OTLP, call
+OpenTelemetry collectors, Datadog, Splunk, Grafana, or other vendor APIs,
+mutate dashboards, monitors, tickets, chat, PRs, or hosted state, read provider
+keys, parse traffic state, execute Hurl, run tests, invoke models, change
+`entroping run`, or include raw URLs, headers, bodies, cookies, prompts,
+provider outputs, credentials, environment values, webhook URLs, ticket
+mutation payloads, source Hurl contents, raw traffic, raw report contents, or
+full report contents.
 
 The API inventory packet is written by:
 

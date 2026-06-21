@@ -156,6 +156,11 @@ from entroping.core.observability_packet import (
     ObservabilityPacketError,
     run_observability_packet_report,
 )
+from entroping.core.otel_mapping import (
+    OtelMappingError,
+    OtelMappingOutput,
+    run_otel_mapping_report,
+)
 from entroping.core.pilot_cohort import (
     PilotCohortError,
     PilotCohortOutput,
@@ -1530,6 +1535,33 @@ def report_observability_packet(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote observability packet: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("otel-mapping", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_otel_mapping(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local OpenTelemetry evidence mapping packet."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported otel-mapping output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_otel_mapping_report(
+            project_root=Path.cwd(),
+            output=cast(OtelMappingOutput, normalized_output),
+        )
+    except OtelMappingError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote OpenTelemetry mapping packet: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 
