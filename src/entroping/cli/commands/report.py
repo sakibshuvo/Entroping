@@ -68,6 +68,11 @@ from entroping.core.evidence_bundle import (
     EvidenceBundleError,
     run_evidence_bundle_report,
 )
+from entroping.core.evidence_cloud_dashboard import (
+    EvidenceCloudDashboardError,
+    EvidenceCloudDashboardOutput,
+    run_evidence_cloud_dashboard_report,
+)
 from entroping.core.evidence_cloud_export import (
     EvidenceCloudExportError,
     EvidenceCloudExportOutput,
@@ -1072,6 +1077,41 @@ def report_evidence_cloud_workspace(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote Evidence Cloud workspace: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("evidence-cloud-dashboard", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_evidence_cloud_dashboard(
+    manifest: Annotated[
+        list[Path],
+        typer.Option(
+            "--manifest",
+            help="Evidence Cloud export JSON manifest path; repeatable.",
+        ),
+    ],
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: html or json."),
+    ] = "html",
+) -> None:
+    """Write a static local Evidence Cloud workspace dashboard."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"html", "json"}:
+        console.print(f"[yellow]Unsupported evidence-cloud-dashboard output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_evidence_cloud_dashboard_report(
+            project_root=Path.cwd(),
+            manifests=tuple(manifest),
+            output=cast(EvidenceCloudDashboardOutput, normalized_output),
+        )
+    except EvidenceCloudDashboardError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote Evidence Cloud dashboard: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 

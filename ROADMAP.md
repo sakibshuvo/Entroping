@@ -178,9 +178,9 @@ produce.
 - Add a local Evidence Cloud workspace packet that aggregates only explicit
   export manifests into value-free repository status and boundary-control
   summaries before any hosted dashboard exists.
-- Prototype a dashboard for PR/runtime-governance status across repositories:
-  pass/fail, failed gates, drift summaries, redaction confidence, and release
-  evidence anchors.
+- Add a local static dashboard prototype for PR/runtime-governance status
+  across repositories: pass/fail, failed gates, drift summaries, redaction
+  confidence, and release evidence anchors.
 - Support design partner pilots focused on AI-generated backend/API changes and
   measure whether engineering leads will pay for cross-repo runtime governance
   visibility.

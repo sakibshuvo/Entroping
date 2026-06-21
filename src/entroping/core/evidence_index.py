@@ -422,6 +422,21 @@ def _artifact_definitions() -> tuple[_EvidenceArtifactDefinition, ...]:
             summary_builder=_status_summary,
         ),
         _EvidenceArtifactDefinition(
+            id="evidence-cloud-dashboard-html",
+            label="Evidence Cloud Dashboard HTML",
+            path=Path("reports") / "evidence-cloud-dashboard.html",
+            kind="html",
+            schema_version="entroping.evidence-cloud-dashboard.html",
+        ),
+        _EvidenceArtifactDefinition(
+            id="evidence-cloud-dashboard-json",
+            label="Evidence Cloud Dashboard JSON",
+            path=Path("reports") / "evidence-cloud-dashboard.json",
+            kind="json",
+            schema_version="entroping.evidence-cloud-dashboard.v1",
+            summary_builder=_status_summary,
+        ),
+        _EvidenceArtifactDefinition(
             id="evidence-links-md",
             label="Evidence Links Markdown",
             path=Path("reports") / "evidence-links.md",

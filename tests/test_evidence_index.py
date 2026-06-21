@@ -431,6 +431,12 @@ def test_evidence_index_includes_recent_value_free_packet_artifacts(
     assert by_id["external-test-evidence-json"].state == "missing"
     assert by_id["external-test-evidence-md"].path == "reports/external-test-evidence.md"
     assert by_id["external-test-evidence-md"].state == "missing"
+    assert by_id["evidence-cloud-dashboard-html"].path == (
+        "reports/evidence-cloud-dashboard.html"
+    )
+    assert by_id["evidence-cloud-dashboard-json"].path == (
+        "reports/evidence-cloud-dashboard.json"
+    )
 
 
 def test_evidence_index_discovers_external_test_evidence_without_raw_values(

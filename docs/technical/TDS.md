@@ -778,6 +778,7 @@ report generation, and artifact schemas remain the compatibility contract.
 | Evidence Cloud Readiness | `report evidence-cloud-readiness --output md|json` | Read-only value-free readiness packet for future Evidence Cloud upload/export promotion from sanitized local report artifacts |
 | Evidence Cloud Export | `report evidence-cloud-export --output md|json` | Local value-free export manifest for future explicit Evidence Cloud upload review from sanitized report metadata |
 | Evidence Cloud Workspace | `report evidence-cloud-workspace --manifest <path> --output md|json` | Local value-free workspace dashboard packet from explicit Evidence Cloud export manifests |
+| Evidence Cloud Dashboard | `report evidence-cloud-dashboard --manifest <path> --output html|json` | Static local value-free workspace dashboard from explicit Evidence Cloud export manifests |
 | Evidence Links | `report evidence-links --output md|json` | Read-only value-free cross-surface link targets for CLI, PR, desktop, cloud, mobile, and agent surfaces from sanitized local evidence artifacts |
 | Evidence Portal | `report evidence-portal --output html|json` | Static local value-free evidence dashboard from sanitized report artifacts |
 | Connector Intent | `report connector-intent --output md|json` | Read-only value-free connector intents for issue trackers, chat, enterprise automation, enterprise AI, observability, and developer-experience surfaces |
@@ -968,6 +969,7 @@ entroping report devex-readiness [--output <md|json>]
 entroping report evidence-cloud-readiness [--output <md|json>]
 entroping report evidence-cloud-export [--output <md|json>]
 entroping report evidence-cloud-workspace --manifest <path> [--output <md|json>]
+entroping report evidence-cloud-dashboard --manifest <path> [--output <html|json>]
 entroping report evidence-links [--output <md|json>]
 entroping report evidence-portal [--output <html|json>]
 entroping report connector-intent [--output <md|json>]
@@ -1505,6 +1507,18 @@ manifests, execute Hurl/tests, parse traffic, change `entroping run`, or render
 raw traffic, secrets, prompts, provider output, source Hurl, env values, or full
 report payloads.
 
+`entroping report evidence-cloud-dashboard --manifest <path>` writes a static
+local read-only dashboard at `reports/evidence-cloud-dashboard.html` by
+default, or `reports/evidence-cloud-dashboard.json` with `--output json`. It
+reuses the Evidence Cloud workspace packet semantics over explicit export
+manifests, then emits value-free manifest state, repository cards,
+boundary-control rollups, and next actions. The HTML is static and local-only,
+with no external assets or scripts. The command does not call hosted APIs,
+upload artifacts, execute Hurl/tests, invoke models, parse traffic state,
+change `entroping run`, inspect raw artifacts beyond explicit export
+manifests, or render secrets, source Hurl, env values, raw traffic, or full
+report payloads.
+
 `entroping report evidence-links` writes a local read-only cross-surface
 evidence links packet at `reports/evidence-links.md` by default, or
 `reports/evidence-links.json` with `--output json`. It reads existing
@@ -1825,6 +1839,7 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report evidence-cloud-export --output md` | `reports/evidence-cloud-export.md` | Human-readable local Evidence Cloud export manifest from sanitized report metadata. |
 | `entroping report evidence-cloud-export --output json` | `reports/evidence-cloud-export.json` | Machine-readable Evidence Cloud export manifest using `entroping.evidence-cloud-export.v1`. |
 | `entroping report evidence-cloud-workspace --manifest <path> --output md|json` | `reports/evidence-cloud-workspace.md`, `reports/evidence-cloud-workspace.json` | Local Evidence Cloud workspace packet using `entroping.evidence-cloud-workspace.v1`. |
+| `entroping report evidence-cloud-dashboard --manifest <path> --output html|json` | `reports/evidence-cloud-dashboard.html`, `reports/evidence-cloud-dashboard.json` | Static local Evidence Cloud workspace dashboard using `entroping.evidence-cloud-dashboard.v1`. |
 | `entroping report evidence-links --output md` | `reports/evidence-links.md` | Human-readable read-only cross-surface evidence links packet from sanitized local report artifacts. |
 | `entroping report evidence-links --output json` | `reports/evidence-links.json` | Machine-readable evidence links packet using `entroping.evidence-links.v1`. |
 | `entroping report evidence-portal --output html` | `reports/evidence-portal.html` | Static local read-only evidence portal dashboard from sanitized local report artifacts. |

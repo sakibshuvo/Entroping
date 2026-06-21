@@ -45,6 +45,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Evidence Cloud readiness packet | `entroping.evidence-cloud-readiness.v1` | `reports/evidence-cloud-readiness.json` from `entroping report evidence-cloud-readiness --output json` | [evidence-cloud-readiness.v1.schema.json](report-schemas/evidence-cloud-readiness.v1.schema.json) |
 | Evidence Cloud export manifest | `entroping.evidence-cloud-export.v1` | `reports/evidence-cloud-export.json` from `entroping report evidence-cloud-export --output json` | [evidence-cloud-export.v1.schema.json](report-schemas/evidence-cloud-export.v1.schema.json) |
 | Evidence Cloud workspace packet | `entroping.evidence-cloud-workspace.v1` | `reports/evidence-cloud-workspace.json` from `entroping report evidence-cloud-workspace --manifest <path> --output json` | [evidence-cloud-workspace.v1.schema.json](report-schemas/evidence-cloud-workspace.v1.schema.json) |
+| Evidence Cloud dashboard packet | `entroping.evidence-cloud-dashboard.v1` | `reports/evidence-cloud-dashboard.json` from `entroping report evidence-cloud-dashboard --manifest <path> --output json` | [evidence-cloud-dashboard.v1.schema.json](report-schemas/evidence-cloud-dashboard.v1.schema.json) |
 | Evidence links packet | `entroping.evidence-links.v1` | `reports/evidence-links.json` from `entroping report evidence-links --output json` | [evidence-links.v1.schema.json](report-schemas/evidence-links.v1.schema.json) |
 | Evidence portal packet | `entroping.evidence-portal.v1` | `reports/evidence-portal.json` from `entroping report evidence-portal --output json` | [evidence-portal.v1.schema.json](report-schemas/evidence-portal.v1.schema.json) |
 | Connector intent packet | `entroping.connector-intent.v1` | `reports/connector-intent.json` from `entroping report connector-intent --output json` | [connector-intent.v1.schema.json](report-schemas/connector-intent.v1.schema.json) |
@@ -730,6 +731,24 @@ run tests, invoke models, parse traffic state, change `entroping run`, or
 include raw URLs, headers, bodies, cookies, prompts, provider outputs,
 credentials, environment values, webhook URLs, ticket mutation payloads, source
 Hurl contents, raw traffic, raw report contents, or full report payloads.
+
+The Evidence Cloud dashboard packet is written by:
+
+```bash
+entroping report evidence-cloud-dashboard --manifest reports/evidence-cloud-export.json
+entroping report evidence-cloud-dashboard --manifest reports/evidence-cloud-export.json --output json
+```
+
+It writes `reports/evidence-cloud-dashboard.html` by default or
+`reports/evidence-cloud-dashboard.json` with schema
+`entroping.evidence-cloud-dashboard.v1` when `--output json` is selected. The
+dashboard reuses Evidence Cloud workspace packet semantics over explicit export
+manifests, emits value-free manifest state, repository cards,
+boundary-control rollups, and next actions, and keeps HTML static and
+local-only. It does not upload artifacts, call hosted APIs, execute Hurl/tests,
+invoke models, parse traffic state, change `entroping run`, or render raw
+artifact payloads, source Hurl, secrets, prompts, provider outputs, env values,
+raw traffic, or full report contents.
 
 The evidence links packet is written by:
 
