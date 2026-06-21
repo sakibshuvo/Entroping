@@ -186,6 +186,9 @@ produce.
 - Add a local evidence action plan that converts sanitized evidence-loop packet
   state into prioritized generate, repair, and review actions before any ticket,
   chat, PR, or hosted-dashboard mutation exists.
+- Add a local work item draft packet that turns sanitized action-plan evidence
+  into read-only tracker draft rows before Jira, Linear, monday.com, GitHub
+  Issues, chat, automation, or hosted write-back connectors exist.
 - Support design partner pilots focused on AI-generated backend/API changes and
   measure whether engineering leads will pay for cross-repo runtime governance
   visibility.

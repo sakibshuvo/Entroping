@@ -497,6 +497,21 @@ def _artifact_definitions() -> tuple[_EvidenceArtifactDefinition, ...]:
             summary_builder=_status_summary,
         ),
         _EvidenceArtifactDefinition(
+            id="work-item-draft-md",
+            label="Work Item Draft Markdown",
+            path=Path("reports") / "work-item-draft.md",
+            kind="markdown",
+            schema_version="entroping.work-item-draft.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="work-item-draft-json",
+            label="Work Item Draft JSON",
+            path=Path("reports") / "work-item-draft.json",
+            kind="json",
+            schema_version="entroping.work-item-draft.v1",
+            summary_builder=_status_summary,
+        ),
+        _EvidenceArtifactDefinition(
             id="observability-packet-md",
             label="Observability Packet Markdown",
             path=Path("reports") / "observability-packet.md",

@@ -249,6 +249,11 @@ from entroping.core.test_quality_report import (
     TestQualityReportError,
     run_test_quality_report,
 )
+from entroping.core.work_item_draft import (
+    WorkItemDraftError,
+    WorkItemDraftOutput,
+    run_work_item_draft_report,
+)
 from entroping.models.hurl import HurlMetadataSyntaxError
 
 app = typer.Typer(help="Generate human handoff artifacts.")
@@ -1230,6 +1235,33 @@ def report_evidence_action_plan(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote evidence action plan: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("work-item-draft", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_work_item_draft(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write local tracker work item draft rows."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported work-item-draft output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_work_item_draft_report(
+            project_root=Path.cwd(),
+            output=cast(WorkItemDraftOutput, normalized_output),
+        )
+    except WorkItemDraftError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote work item draft: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 
