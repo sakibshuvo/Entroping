@@ -1,5 +1,24 @@
 # Entroping Changelog
 
+## 2026-06-21
+
+- Added issue #1069's Evidence Cloud readiness packet: `report
+  evidence-cloud-readiness` now writes local
+  `entroping.evidence-cloud-readiness.v1` JSON or Markdown that turns
+  sanitized team-evidence-readiness, evidence-bundle, runtime-card,
+  artifact-manifest, design-partner-feedback, pilot-metrics,
+  integration-readiness, devex-readiness, connector-intent, and evidence-index
+  artifacts into source states, schema versions, bounded hashes, readiness
+  areas, cloud-boundary controls, upload-candidate metadata, blockers, and
+  next actions for future Evidence Cloud upload/export review without calling
+  Evidence Cloud hosted APIs, uploading artifacts, syncing remote state,
+  creating accounts, configuring SSO/RBAC, calling vendor/provider APIs,
+  executing Hurl, running tests, invoking models, parsing traffic state,
+  changing `entroping run`, or
+  rendering raw report/source contents, design-partner free-form text, prompts,
+  credentials, cookies, environment values, webhook URLs, ticket payloads, raw
+  traffic, or provider outputs.
+
 ## 2026-06-20
 
 - Added issue #1066's external test evidence index entries: `report

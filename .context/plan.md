@@ -16,21 +16,26 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1066 External Test Evidence Index
+## Current Issue Slice: #1069 Evidence Cloud Readiness
 
-- Add `reports/external-test-evidence.json` and
-  `reports/external-test-evidence.md` to the canonical local evidence index.
-- Require JSON schema `entroping.external-test-evidence.v1` before emitting a
-  present JSON summary.
-- Keep the JSON artifact summary counts-only: status, layer count, total tests,
-  failures, errors, and skipped tests.
-- Treat the Markdown artifact as presence-only metadata with schema
-  `entroping.external-test-evidence.md`.
+- Add `entroping report evidence-cloud-readiness` with `--output md|json`.
+- Write local `reports/evidence-cloud-readiness.md` by default and
+  `reports/evidence-cloud-readiness.json` with schema
+  `entroping.evidence-cloud-readiness.v1` when JSON is requested.
+- Read only fixed optional sanitized local report artifacts:
+  team-evidence-readiness, evidence-bundle, runtime-card, artifact-manifest,
+  design-partner-feedback, pilot-metrics, integration-readiness,
+  devex-readiness, connector-intent, and evidence-index.
+- Emit source states, schema versions, bounded SHA-256 hashes, readiness areas,
+  cloud-boundary controls, upload-candidate metadata, blockers, and next-action
+  rows without embedding source contents.
 - Preserve missing evidence as non-blocking, and keep invalid, unsafe,
-  oversized, unreadable, wrong-schema, or secret-like packets value-free.
-- Do not parse raw `reports/external-tests/*` artifacts, run tests or Hurl,
-  call providers, upload artifacts, read raw traffic, mutate external systems,
-  change `entroping run`, or change the locked CLI surface.
+  oversized, unreadable, wrong-schema, symlinked, or secret-like packets
+  value-free.
+- Do not call Evidence Cloud hosted APIs, upload artifacts, sync remote state,
+  create accounts, configure SSO/RBAC, call vendor/provider APIs, execute Hurl,
+  run tests, invoke models, parse traffic state, mutate external systems,
+  change `entroping run`, or change deterministic runtime authority.
 - Verification lane: `security-runtime` because this slice reads local evidence
   artifacts and must preserve path, parser, schema, raw-content, and
   secret-safety boundaries.

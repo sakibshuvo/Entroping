@@ -1,0 +1,629 @@
+"""Tests for Evidence Cloud readiness packets."""
+
+import errno
+import json
+import os
+import stat as stat_module
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+
+import entroping.core.evidence_cloud_readiness as readiness
+from entroping.core.evidence_cloud_readiness import (
+    EVIDENCE_CLOUD_READINESS_SCHEMA_VERSION,
+    EvidenceCloudReadinessError,
+    EvidenceCloudReadinessPacket,
+    build_evidence_cloud_readiness,
+    render_evidence_cloud_readiness_markdown,
+    run_evidence_cloud_readiness_report,
+)
+from entroping.core.safe_write import SafeWriteError
+
+_HASH = "a" * 64
+
+
+def _write_json(path: Path, payload: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _write_ready_sources(root: Path, *, raw_marker: str = "raw-feedback-text") -> None:
+    reports = root / "reports"
+    _write_json(
+        reports / "team-evidence-readiness.json",
+        {
+            "schema_version": "entroping.team-evidence-readiness.v1",
+            "project": "checkout-api",
+            "summary": {
+                "status": "ready",
+                "sources_total": 6,
+                "sources_present": 6,
+                "sources_missing": 0,
+                "sources_invalid": 0,
+                "sources_unsafe": 0,
+                "areas_total": 6,
+                "areas_ready": 6,
+                "areas_attention": 0,
+                "areas_blocked": 0,
+                "blockers_total": 0,
+                "next_actions_total": 0,
+            },
+        },
+    )
+    for filename, schema_version, status in (
+        ("evidence-bundle.json", "entroping.evidence-bundle.v1", "ready"),
+        ("runtime-card.json", "entroping.runtime-card.v1", "pass"),
+        ("artifact-manifest.json", "entroping.report-artifact-manifest.v1", "complete"),
+        ("pilot-metrics.json", "entroping.pilot-metrics.v1", "partial"),
+        ("integration-readiness.json", "entroping.integration-readiness.v1", "ready"),
+        ("devex-readiness.json", "entroping.devex-readiness.v1", "ready"),
+        ("connector-intent.json", "entroping.connector-intent.v1", "ready"),
+        ("evidence-index.json", "entroping.evidence-index.v1", "ready"),
+    ):
+        _write_json(
+            reports / filename,
+            {
+                "schema_version": schema_version,
+                "project": "checkout-api",
+                "summary": {
+                    "status": status,
+                    "sources_total": 3,
+                    "sources_present": 3,
+                    "sources_missing": 0,
+                    "sources_invalid": 0,
+                    "sources_unsafe": 0,
+                },
+            },
+        )
+    _write_json(
+        reports / "design-partner-feedback.json",
+        {
+            "schema_version": "entroping.design-partner-feedback.v1",
+            "project": "checkout-api",
+            "evidence": {
+                "evidence_bundle_status": "ready",
+                "runtime_card_status": "pass",
+                "pilot_metrics_status": "partial",
+                "notes": raw_marker,
+            },
+        },
+    )
+
+
+def test_evidence_cloud_readiness_writes_value_free_json_from_ready_sources(
+    tmp_path: Path,
+) -> None:
+    raw_marker = "customer raw free-form feedback must not render"
+    _write_ready_sources(tmp_path, raw_marker=raw_marker)
+
+    result = run_evidence_cloud_readiness_report(project_root=tmp_path, output="json")
+
+    assert result.output_path == tmp_path / "reports" / "evidence-cloud-readiness.json"
+    payload = json.loads(result.output_path.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == EVIDENCE_CLOUD_READINESS_SCHEMA_VERSION
+    assert payload["project"] == "checkout-api"
+    assert payload["summary"] == {
+        "status": "ready",
+        "sources_total": 10,
+        "sources_present": 10,
+        "sources_missing": 0,
+        "sources_invalid": 0,
+        "sources_unsafe": 0,
+        "areas_total": 6,
+        "areas_ready": 6,
+        "areas_attention": 0,
+        "areas_blocked": 0,
+        "upload_candidates_total": 4,
+        "upload_candidates_ready": 4,
+        "upload_candidates_blocked": 0,
+        "blockers_total": 0,
+        "next_actions_total": 0,
+    }
+    sources = {source["id"]: source for source in payload["sources"]}
+    assert sources["team_evidence_readiness"]["summary"] == "ready; 6/6 sources present"
+    assert sources["design_partner_feedback"]["summary"] == "bundle ready; runtime pass"
+    assert {candidate["id"] for candidate in payload["upload_candidates"]} == {
+        "team_evidence_bundle",
+        "runtime_governance_card",
+        "integration_surface_packet",
+        "developer_experience_packet",
+    }
+    assert payload["cloud_boundary"]["upload_implemented"] is False
+    assert payload["cloud_boundary"]["hosted_sync_implemented"] is False
+    assert "raw_traffic" in payload["cloud_boundary"]["forbidden_data_classes"]
+    assert raw_marker not in json.dumps(payload)
+
+
+def test_evidence_cloud_readiness_marks_missing_invalid_and_unsafe_sources(
+    tmp_path: Path,
+) -> None:
+    reports = tmp_path / "reports"
+    reports.mkdir()
+    _write_json(
+        reports / "team-evidence-readiness.json",
+        {"schema_version": "entroping.team-evidence-readiness.v999"},
+    )
+    _write_json(
+        reports / "evidence-bundle.json",
+        {
+            "schema_version": "entroping.evidence-bundle.v1",
+            "summary": {"status": "ready"},
+            "token": "sk-proj-" + ("a" * 24),
+        },
+    )
+    real_runtime = reports / "runtime-source.json"
+    _write_json(
+        real_runtime,
+        {"schema_version": "entroping.runtime-card.v1", "summary": {"status": "pass"}},
+    )
+    os.symlink(real_runtime, reports / "runtime-card.json")
+    (reports / "artifact-manifest.json").write_text("not json\n", encoding="utf-8")
+    (reports / "pilot-metrics.json").mkdir()
+
+    packet = build_evidence_cloud_readiness(project_root=tmp_path)
+
+    sources = {source.id: source for source in packet.sources}
+    assert sources["team_evidence_readiness"].state == "invalid"
+    assert sources["evidence_bundle"].state == "unsafe"
+    assert sources["runtime_card"].state == "unsafe"
+    assert sources["artifact_manifest"].state == "invalid"
+    assert sources["design_partner_feedback"].state == "missing"
+    assert sources["pilot_metrics"].state == "unsafe"
+    assert packet.summary.status == "insufficient"
+    assert packet.summary.areas_blocked >= 2
+    assert packet.summary.blockers_total >= 2
+    assert packet.next_actions
+    assert "sk-proj" not in packet.model_dump_json()
+
+
+def test_evidence_cloud_readiness_markdown_is_escaped_and_value_free(
+    tmp_path: Path,
+) -> None:
+    raw_marker = "free-form <script>alert(1)</script>"
+    _write_ready_sources(tmp_path, raw_marker=raw_marker)
+
+    markdown = render_evidence_cloud_readiness_markdown(
+        build_evidence_cloud_readiness(project_root=tmp_path)
+    )
+
+    assert "# Entroping Evidence Cloud Readiness" in markdown
+    assert (
+        "| team_evidence_readiness | present | reports/team-evidence-readiness.json |"
+        in markdown
+    )
+    assert "upload_implemented" in markdown
+    assert raw_marker not in markdown
+    assert "<script>" not in markdown
+
+
+def test_evidence_cloud_readiness_rejects_unsafe_output_path(tmp_path: Path) -> None:
+    with pytest.raises(EvidenceCloudReadinessError, match="must not be written"):
+        run_evidence_cloud_readiness_report(
+            project_root=tmp_path,
+            output="json",
+            output_path=Path(".entroping") / "evidence-cloud-readiness.json",
+        )
+
+
+def test_evidence_cloud_readiness_rejects_unsupported_output(tmp_path: Path) -> None:
+    with pytest.raises(EvidenceCloudReadinessError, match="Unsupported"):
+        run_evidence_cloud_readiness_report(
+            project_root=tmp_path,
+            output="html",  # type: ignore[arg-type]
+        )
+
+
+def test_evidence_cloud_readiness_wraps_safe_write_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_ready_sources(tmp_path)
+
+    def fail_safe_write_text(
+        output_path: Path,
+        content: str,
+        *,
+        artifact: str,
+        root: Path,
+    ) -> Path:
+        raise SafeWriteError("outside root")
+
+    monkeypatch.setattr(readiness, "safe_write_text", fail_safe_write_text)
+
+    with pytest.raises(EvidenceCloudReadinessError, match="outside root"):
+        run_evidence_cloud_readiness_report(project_root=tmp_path, output="json")
+
+
+def test_evidence_cloud_readiness_rejects_secret_rendered_content(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_ready_sources(tmp_path)
+    monkeypatch.setattr(
+        readiness,
+        "_render_packet_content",
+        lambda packet, *, output: "api_key = sk-proj-" + ("a" * 24),
+    )
+
+    with pytest.raises(EvidenceCloudReadinessError, match="secret-like content"):
+        run_evidence_cloud_readiness_report(project_root=tmp_path, output="json")
+
+
+def test_evidence_cloud_readiness_rejects_secret_packet_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_ready_sources(tmp_path)
+    monkeypatch.setattr(
+        readiness,
+        "_packet_json",
+        lambda packet: "api_key = sk-proj-" + ("a" * 24),
+    )
+
+    with pytest.raises(EvidenceCloudReadinessError, match="secret-like content"):
+        build_evidence_cloud_readiness(project_root=tmp_path)
+
+
+def test_evidence_cloud_readiness_rejects_output_path_outside_root(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(EvidenceCloudReadinessError, match="under the project root"):
+        run_evidence_cloud_readiness_report(
+            project_root=tmp_path,
+            output="json",
+            output_path=tmp_path.parent / "evidence-cloud-readiness.json",
+        )
+
+    with pytest.raises(EvidenceCloudReadinessError, match="under the project root"):
+        run_evidence_cloud_readiness_report(
+            project_root=tmp_path,
+            output="json",
+            output_path=Path("..") / "evidence-cloud-readiness.json",
+        )
+
+
+def test_evidence_cloud_readiness_rejects_symlinked_output_path(
+    tmp_path: Path,
+) -> None:
+    linked = tmp_path / "linked-reports"
+    linked.symlink_to(tmp_path / "reports")
+
+    with pytest.raises(EvidenceCloudReadinessError, match="symlinked component"):
+        run_evidence_cloud_readiness_report(
+            project_root=tmp_path,
+            output="json",
+            output_path=linked / "evidence-cloud-readiness.json",
+        )
+
+
+def test_evidence_cloud_readiness_marks_oversized_and_unreadable_sources(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_json(
+        tmp_path / "reports" / "team-evidence-readiness.json",
+        {
+            "schema_version": "entroping.team-evidence-readiness.v1",
+            "summary": {"status": "ready"},
+        },
+    )
+    monkeypatch.setattr(readiness, "_MAX_SOURCE_BYTES", 1)
+
+    packet = build_evidence_cloud_readiness(project_root=tmp_path)
+    sources = {source.id: source for source in packet.sources}
+
+    assert sources["team_evidence_readiness"].state == "invalid"
+    assert "exceeds" in sources["team_evidence_readiness"].summary
+
+
+def test_evidence_cloud_readiness_marks_invalid_utf8_and_non_object_sources(
+    tmp_path: Path,
+) -> None:
+    reports = tmp_path / "reports"
+    reports.mkdir()
+    (reports / "team-evidence-readiness.json").write_bytes(b"\xff\xfe")
+    (reports / "evidence-bundle.json").write_text("[]", encoding="utf-8")
+
+    packet = build_evidence_cloud_readiness(project_root=tmp_path)
+    sources = {source.id: source for source in packet.sources}
+
+    assert sources["team_evidence_readiness"].state == "invalid"
+    assert "UTF-8" in sources["team_evidence_readiness"].summary
+    assert sources["evidence_bundle"].state == "invalid"
+    assert "JSON object" in sources["evidence_bundle"].summary
+
+
+def test_evidence_cloud_readiness_reads_sources_through_best_effort_fallback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_ready_sources(tmp_path)
+    monkeypatch.setattr(readiness, "_supports_no_follow_tree_open", lambda: False)
+
+    packet = build_evidence_cloud_readiness(project_root=tmp_path)
+
+    sources = {source.id: source for source in packet.sources}
+    assert sources["team_evidence_readiness"].state == "present"
+    assert sources["team_evidence_readiness"].sha256 is not None
+
+
+def test_evidence_cloud_readiness_best_effort_rejects_stat_mismatch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_json(
+        tmp_path / "reports" / "team-evidence-readiness.json",
+        {
+            "schema_version": "entroping.team-evidence-readiness.v1",
+            "summary": {"status": "ready"},
+        },
+    )
+    real_fstat = os.fstat
+
+    def mismatched_fstat(file_descriptor: int) -> SimpleNamespace:
+        original = real_fstat(file_descriptor)
+        return SimpleNamespace(
+            st_mode=original.st_mode,
+            st_size=original.st_size,
+            st_dev=original.st_dev + 1,
+            st_ino=original.st_ino + 1,
+        )
+
+    monkeypatch.setattr(readiness, "_supports_no_follow_tree_open", lambda: False)
+    monkeypatch.setattr(os, "fstat", mismatched_fstat)
+
+    packet = build_evidence_cloud_readiness(project_root=tmp_path)
+
+    sources = {source.id: source for source in packet.sources}
+    assert sources["team_evidence_readiness"].state == "invalid"
+    assert "unreadable" in sources["team_evidence_readiness"].summary
+
+
+def test_evidence_cloud_readiness_no_follow_reader_reports_os_errors(
+    tmp_path: Path,
+) -> None:
+    raw_bytes, error = readiness._read_source_artifact_bytes_no_follow(
+        tmp_path / "reports" / "missing.json"
+    )
+
+    assert raw_bytes is None
+    assert error == "unreadable"
+
+
+def test_evidence_cloud_readiness_best_effort_reader_reports_os_errors(
+    tmp_path: Path,
+) -> None:
+    missing = tmp_path / "missing.json"
+    raw_bytes, error = readiness._read_source_artifact_bytes_best_effort(missing)
+
+    assert raw_bytes is None
+    assert error == "unreadable"
+
+
+def test_evidence_cloud_readiness_best_effort_reader_rejects_non_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "source.json"
+    path.write_text("{}", encoding="utf-8")
+    real_s_isreg = stat_module.S_ISREG
+
+    def fake_s_isreg(mode: int) -> bool:
+        return False if mode == path.stat(follow_symlinks=False).st_mode else real_s_isreg(mode)
+
+    monkeypatch.setattr(readiness, "_supports_no_follow_tree_open", lambda: False)
+    monkeypatch.setattr(stat_module, "S_ISREG", fake_s_isreg)
+
+    raw_bytes, error = readiness._read_source_artifact_bytes_best_effort(path)
+
+    assert raw_bytes is None
+    assert error == "not a file"
+
+
+def test_evidence_cloud_readiness_descriptor_reader_rejects_non_file(
+    tmp_path: Path,
+) -> None:
+    directory_descriptor = os.open(tmp_path, os.O_RDONLY)
+    try:
+        raw_bytes, error = readiness._read_bounded_bytes_from_descriptor(
+            directory_descriptor
+        )
+    finally:
+        os.close(directory_descriptor)
+
+    assert raw_bytes is None
+    assert error == "not a file"
+
+
+def test_evidence_cloud_readiness_descriptor_reader_detects_growth(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "source.json"
+    path.write_text("abcdef", encoding="utf-8")
+    real_fstat = os.fstat
+
+    def small_fstat(file_descriptor: int) -> SimpleNamespace:
+        original = real_fstat(file_descriptor)
+        return SimpleNamespace(
+            st_mode=original.st_mode,
+            st_size=1,
+            st_dev=original.st_dev,
+            st_ino=original.st_ino,
+        )
+
+    monkeypatch.setattr(readiness, "_MAX_SOURCE_BYTES", 1)
+    monkeypatch.setattr(os, "fstat", small_fstat)
+    file_descriptor = os.open(path, os.O_RDONLY)
+    try:
+        raw_bytes, error = readiness._read_bounded_bytes_from_descriptor(
+            file_descriptor
+        )
+    finally:
+        os.close(file_descriptor)
+
+    assert raw_bytes is None
+    assert "exceeds" in error
+
+
+def test_evidence_cloud_readiness_os_error_summaries() -> None:
+    assert (
+        readiness._os_read_error_summary(OSError(errno.ELOOP, "too many links"))
+        == "symlinked path component"
+    )
+    assert (
+        readiness._os_read_error_summary(OSError(errno.EISDIR, "directory"))
+        == "not a file"
+    )
+    assert readiness._os_read_error_summary(OSError(errno.EPERM, "denied")) == "unreadable"
+
+
+def test_evidence_cloud_readiness_partial_when_only_optional_evidence_exists(
+    tmp_path: Path,
+) -> None:
+    _write_json(
+        tmp_path / "reports" / "team-evidence-readiness.json",
+        {
+            "schema_version": "entroping.team-evidence-readiness.v1",
+            "summary": {"status": "ready"},
+        },
+    )
+
+    packet = build_evidence_cloud_readiness(project_root=tmp_path)
+
+    assert packet.summary.status == "partial"
+    assert any(action.action.startswith("Generate") for action in packet.next_actions)
+
+
+def test_evidence_cloud_readiness_uses_runtime_card_run_project(
+    tmp_path: Path,
+) -> None:
+    _write_json(
+        tmp_path / "reports" / "runtime-card.json",
+        {
+            "schema_version": "entroping.runtime-card.v1",
+            "run": {"project": "runtime-project"},
+            "summary": {"status": "pass"},
+        },
+    )
+
+    packet = build_evidence_cloud_readiness(project_root=tmp_path)
+
+    assert packet.project == "runtime-project"
+
+
+def test_evidence_cloud_readiness_artifact_manifest_summary_counts(
+    tmp_path: Path,
+) -> None:
+    _write_json(
+        tmp_path / "reports" / "artifact-manifest.json",
+        {
+            "schema_version": "entroping.report-artifact-manifest.v1",
+            "summary": {"total_present": 2, "total_missing": 1},
+        },
+    )
+
+    packet = build_evidence_cloud_readiness(project_root=tmp_path)
+    sources = {source.id: source for source in packet.sources}
+
+    assert sources["artifact_manifest"].summary == "2 present; 1 missing"
+
+
+def test_evidence_cloud_readiness_area_next_action_without_blockers() -> None:
+    assert readiness._area_next_action(
+        label="Synthetic area",
+        status="attention",
+        source_ids=("team_evidence_readiness",),
+        blockers=(),
+    ) == (
+        "Generate Synthetic area evidence with: "
+        "entroping report team-evidence-readiness --output json."
+    )
+
+
+def test_evidence_cloud_readiness_text_field_rejects_blank_values() -> None:
+    assert readiness._text_field({"status": "   "}, "status") is None
+
+
+def test_evidence_cloud_source_rejects_invalid_sha256() -> None:
+    payload = {
+        "id": "team_evidence_readiness",
+        "label": "Team evidence readiness",
+        "path": "reports/team-evidence-readiness.json",
+        "state": "present",
+        "schema_version": "entroping.team-evidence-readiness.v1",
+        "sha256": "not-a-sha",
+        "summary": "ready",
+    }
+
+    with pytest.raises(ValueError):
+        readiness.EvidenceCloudSource.model_validate(payload)
+
+
+def test_evidence_cloud_next_action_dedupe_preserves_priority_variants() -> None:
+    actions = [
+        readiness.EvidenceCloudNextAction(
+            priority="high",
+            action="Repair evidence.",
+            source_ids=("team_evidence_readiness",),
+            area_ids=("team_upload_boundary",),
+        ),
+        readiness.EvidenceCloudNextAction(
+            priority="medium",
+            action="Repair evidence.",
+            source_ids=("team_evidence_readiness",),
+            area_ids=("team_upload_boundary",),
+        ),
+        readiness.EvidenceCloudNextAction(
+            priority="high",
+            action="Repair evidence.",
+            source_ids=("team_evidence_readiness",),
+            area_ids=("team_upload_boundary",),
+        ),
+    ]
+
+    deduped = readiness._dedupe_actions(actions)
+
+    assert [action.priority for action in deduped] == ["high", "medium"]
+
+
+def test_evidence_cloud_readiness_packet_schema_rejects_extra_fields() -> None:
+    payload = {
+        "schema_version": EVIDENCE_CLOUD_READINESS_SCHEMA_VERSION,
+        "generated_at": "2026-06-21T00:00:00+00:00",
+        "project": "checkout-api",
+        "summary": {
+            "status": "insufficient",
+            "sources_total": 0,
+            "sources_present": 0,
+            "sources_missing": 0,
+            "sources_invalid": 0,
+            "sources_unsafe": 0,
+            "areas_total": 0,
+            "areas_ready": 0,
+            "areas_attention": 0,
+            "areas_blocked": 0,
+            "upload_candidates_total": 0,
+            "upload_candidates_ready": 0,
+            "upload_candidates_blocked": 0,
+            "blockers_total": 0,
+            "next_actions_total": 0,
+        },
+        "cloud_boundary": {
+            "explicit_user_intent_required": True,
+            "upload_implemented": False,
+            "hosted_sync_implemented": False,
+            "access_control_audit_required": True,
+            "forbidden_data_classes": [],
+            "boundary_summary": "local only",
+        },
+        "sources": [],
+        "readiness_areas": [],
+        "upload_candidates": [],
+        "next_actions": [],
+        "extra": "not allowed",
+    }
+
+    with pytest.raises(ValueError):
+        EvidenceCloudReadinessPacket.model_validate(payload)
