@@ -18,6 +18,7 @@ from entroping.bridge.gate_coverage import GATE_COVERAGE_REPORT_SCHEMA_VERSION
 from entroping.bridge.gate_injection_explain import GATE_INJECTION_REPORT_SCHEMA_VERSION
 from entroping.bridge.test_pyramid import TEST_PYRAMID_REPORT_SCHEMA_VERSION
 from entroping.bridge.test_quality import TEST_QUALITY_REPORT_SCHEMA_VERSION
+from entroping.core import report_schema_versions as _report_schema_versions
 from entroping.core.agent_bundle import AGENT_REVIEW_BUNDLE_SCHEMA_VERSION
 from entroping.core.api_inventory import API_INVENTORY_SCHEMA_VERSION
 from entroping.core.drift_report import DRIFT_REPORT_SCHEMA_VERSION
@@ -43,6 +44,11 @@ _SHA256_HEX_RE: Final = re.compile(r"\b[0-9a-f]{64}\b", re.IGNORECASE)
 _HAS_O_DIRECTORY: Final = hasattr(os, "O_DIRECTORY")
 _HAS_O_NOFOLLOW: Final = hasattr(os, "O_NOFOLLOW")
 _SUPPORTS_DIR_FD_OPEN: Final = os.open in os.supports_dir_fd
+EVIDENCE_INDEX_SCHEMA_VERSION: Final = _report_schema_versions.EVIDENCE_INDEX_SCHEMA_VERSION
+OBSERVABILITY_ADAPTER_READINESS_SCHEMA_VERSION: Final = (
+    _report_schema_versions.OBSERVABILITY_ADAPTER_READINESS_SCHEMA_VERSION
+)
+OTEL_MAPPING_SCHEMA_VERSION: Final = _report_schema_versions.OTEL_MAPPING_SCHEMA_VERSION
 
 
 @dataclass(frozen=True, slots=True)
@@ -585,7 +591,23 @@ def _artifact_definitions() -> tuple[_EvidenceArtifactDefinition, ...]:
             label="OpenTelemetry Mapping JSON",
             path=Path("reports") / "otel-mapping.json",
             kind="json",
-            schema_version="entroping.otel-mapping.v1",
+            schema_version=OTEL_MAPPING_SCHEMA_VERSION,
+            summary_builder=_status_summary,
+            reject_secret_like=True,
+        ),
+        _EvidenceArtifactDefinition(
+            id="observability-adapter-readiness-md",
+            label="Observability Adapter Readiness Markdown",
+            path=Path("reports") / "observability-adapter-readiness.md",
+            kind="markdown",
+            schema_version="entroping.observability-adapter-readiness.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="observability-adapter-readiness-json",
+            label="Observability Adapter Readiness JSON",
+            path=Path("reports") / "observability-adapter-readiness.json",
+            kind="json",
+            schema_version=OBSERVABILITY_ADAPTER_READINESS_SCHEMA_VERSION,
             summary_builder=_status_summary,
             reject_secret_like=True,
         ),
@@ -629,7 +651,7 @@ def _artifact_definitions() -> tuple[_EvidenceArtifactDefinition, ...]:
             label="Evidence Index JSON",
             path=Path("reports") / "evidence-index.json",
             kind="json",
-            schema_version="entroping.evidence-index.v1",
+            schema_version=EVIDENCE_INDEX_SCHEMA_VERSION,
         ),
         _EvidenceArtifactDefinition(
             id="agent-bundle-md",

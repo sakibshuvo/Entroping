@@ -13,18 +13,20 @@ from typing import Final, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from entroping.bridge.test_pyramid import TEST_PYRAMID_REPORT_SCHEMA_VERSION
+from entroping.core import report_schema_versions as _report_schema_versions
 from entroping.core.evidence_common import (
     contains_unredacted_evidence_secret,
     safe_evidence_text,
 )
 from entroping.core.evidence_index import read_local_evidence_json_artifact_bytes
 from entroping.core.external_test_evidence import EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION
+from entroping.core.observability_contracts import OBSERVABILITY_FORBIDDEN_VALUE_FIELDS
 from entroping.core.observability_packet import OBSERVABILITY_PACKET_SCHEMA_VERSION
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.runtime_card import RUNTIME_CARD_SCHEMA_VERSION
 from entroping.core.safe_write import SafeWriteError, safe_write_text
 
-OTEL_MAPPING_SCHEMA_VERSION: Final = "entroping.otel-mapping.v1"
+OTEL_MAPPING_SCHEMA_VERSION: Final = _report_schema_versions.OTEL_MAPPING_SCHEMA_VERSION
 
 OtelMappingOutput = Literal["md", "json"]
 OtelMappingStatus = Literal["ready", "partial", "insufficient"]
@@ -53,21 +55,7 @@ _DEFAULT_OUTPUTS: Final[dict[OtelMappingOutput, Path]] = {
     "md": Path("reports") / "otel-mapping.md",
     "json": Path("reports") / "otel-mapping.json",
 }
-_FORBIDDEN_VALUE_FIELDS: Final[tuple[str, ...]] = (
-    "raw_urls",
-    "headers",
-    "bodies",
-    "cookies",
-    "prompts",
-    "provider_outputs",
-    "credentials",
-    "environment_values",
-    "webhook_urls",
-    "ticket_mutation_payloads",
-    "source_hurl_contents",
-    "raw_traffic",
-    "full_report_contents",
-)
+_FORBIDDEN_VALUE_FIELDS: Final[tuple[str, ...]] = OBSERVABILITY_FORBIDDEN_VALUE_FIELDS
 _SOURCE_LABELS: Final[dict[OtelMappingSourceId, str]] = {
     "observability_packet": "Observability packet",
     "runtime_card": "Runtime card",
@@ -459,6 +447,11 @@ def _source_path_error(path: Path, *, root: Path) -> str | None:
         return "path outside project"
     if symlink_path is not None:
         return "symlinked path component"
+    resolved = path.resolve(strict=False)
+    try:
+        resolved.relative_to(root)
+    except ValueError:
+        return "path outside project"
     return None
 
 
@@ -690,6 +683,18 @@ def _next_actions(
                 source_ids=present_source_ids,
             ),
         )
+    if (
+        summary.sources_present == 0
+        and summary.sources_invalid == 0
+        and summary.sources_unsafe == 0
+    ):
+        return (
+            OtelMappingNextAction(
+                priority="high",
+                action="Generate missing sanitized evidence before enabling an OTLP adapter.",
+                source_ids=present_source_ids,
+            ),
+        )
     return (
         OtelMappingNextAction(
             priority="high",
@@ -773,7 +778,14 @@ def _inline_code(value: str) -> str:
 
 def _markdown_cell(value: object) -> str:
     escaped = escape(str(value))
-    return escaped.replace("\\", "&#92;").replace("|", "\\|").replace("\n", " ")
+    return (
+        escaped.replace("\\", "&#92;")
+        .replace("|", "\\|")
+        .replace("*", "&#42;")
+        .replace("_", "&#95;")
+        .replace("`", "&#96;")
+        .replace("\n", " ")
+    )
 
 
 def _relative_display(path: Path, *, root: Path) -> str:

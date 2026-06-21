@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import entroping.core.observability_adapter_readiness as adapter_readiness
 import entroping.core.otel_mapping as otel_mapping
 from entroping.bridge.test_pyramid import TEST_PYRAMID_REPORT_SCHEMA_VERSION
 from entroping.core.external_test_evidence import EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION
@@ -192,6 +193,17 @@ def test_run_otel_mapping_writes_markdown_and_partial_state(tmp_path: Path) -> N
     assert "| log | entroping.diagnostic.events | required | count |" in markdown
 
 
+def test_otel_mapping_missing_only_action_requests_generation(tmp_path: Path) -> None:
+    packet = build_otel_mapping_packet(project_root=tmp_path)
+
+    assert packet.summary.status == "insufficient"
+    assert packet.summary.sources_present == 0
+    assert packet.next_actions[0].priority == "high"
+    assert packet.next_actions[0].action == (
+        "Generate missing sanitized evidence before enabling an OTLP adapter."
+    )
+
+
 def test_otel_mapping_marks_additional_bad_source_shapes(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -256,6 +268,16 @@ def test_otel_mapping_source_path_resolution_failures_are_unsafe(
     assert {source.state for source in packet.sources} == {"unsafe"}
     assert "path outside project" in {source.summary for source in packet.sources}
     assert otel_mapping._relative_display(tmp_path.parent / "outside", root=tmp_path) == "outside"
+
+    monkeypatch.setattr(
+        otel_mapping,
+        "first_symlink_path_component",
+        lambda *_args, **_kwargs: None,
+    )
+    assert (
+        otel_mapping._source_path_error(tmp_path.parent / "outside.json", root=tmp_path)
+        == "path outside project"
+    )
 
 
 def test_otel_mapping_source_summaries_keep_unknown_counts_value_free(
@@ -355,6 +377,12 @@ def test_otel_mapping_rejects_unsupported_and_unsafe_outputs(tmp_path: Path) -> 
             output="json",
             output_path=Path(".entroping") / "otel-mapping.json",
         )
+    with pytest.raises(OtelMappingError, match="must not be written into"):
+        run_otel_mapping_report(
+            project_root=tmp_path,
+            output="json",
+            output_path=Path("envs") / "otel-mapping.json",
+        )
 
 
 def test_otel_mapping_rejects_symlinked_output_path(tmp_path: Path) -> None:
@@ -409,6 +437,25 @@ def test_otel_mapping_markdown_escapes_backslash_pipe_cells(tmp_path: Path) -> N
     markdown = render_otel_mapping_markdown(build_otel_mapping_packet(project_root=tmp_path))
 
     assert "ready&#92;\\|split" in markdown
+
+    _write_json(
+        tmp_path / "reports" / "observability-packet.json",
+        {
+            "schema_version": OBSERVABILITY_PACKET_SCHEMA_VERSION,
+            "summary": {"status": "*bold*_under_`code`", "severity": "attention"},
+        },
+    )
+
+    markdown = render_otel_mapping_markdown(build_otel_mapping_packet(project_root=tmp_path))
+
+    assert "&#42;bold&#42;&#95;under&#95;&#96;code&#96;" in markdown
+
+
+def test_otel_mapping_forbidden_fields_match_observability_adapter_readiness() -> None:
+    assert otel_mapping._FORBIDDEN_VALUE_FIELDS == adapter_readiness._FORBIDDEN_VALUE_FIELDS
+    assert "ticket_mutation_payloads" in otel_mapping._FORBIDDEN_VALUE_FIELDS
+    assert "dashboard_payloads" in otel_mapping._FORBIDDEN_VALUE_FIELDS
+    assert "monitor_payloads" in otel_mapping._FORBIDDEN_VALUE_FIELDS
 
 
 def _write_json(path: Path, payload: dict[str, object]) -> Path:

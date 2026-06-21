@@ -47,6 +47,9 @@ from entroping.core.handoff_packet import HandoffError
 from entroping.core.integration_readiness import IntegrationReadinessError
 from entroping.core.mutation_readiness import MutationReadinessError
 from entroping.core.notification_packet import NotificationPacketError
+from entroping.core.observability_adapter_readiness import (
+    ObservabilityAdapterReadinessError,
+)
 from entroping.core.observability_packet import ObservabilityPacketError
 from entroping.core.otel_mapping import OtelMappingError
 from entroping.core.pilot_cohort import PilotCohortError
@@ -316,6 +319,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "team-evidence-readiness",
         "observability-packet",
         "otel-mapping",
+        "observability-adapter-readiness",
         "api-inventory",
         "mutation-readiness",
         "pilot-metrics",
@@ -2325,6 +2329,73 @@ def test_report_otel_mapping_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "otel mapping path is unsafe" in result.output
+
+
+def test_report_observability_adapter_readiness_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "observability-adapter-readiness"])
+
+    assert result.exit_code == 0
+    assert "Wrote observability adapter readiness" in result.output
+    assert "reports/observability-adapter-readiness.md" in result.output
+    markdown = Path("reports/observability-adapter-readiness.md").read_text(
+        encoding="utf-8"
+    )
+    assert "# Entroping Observability Adapter Readiness" in markdown
+    assert "| opentelemetry | OpenTelemetry | attention |" in markdown
+
+
+def test_report_observability_adapter_readiness_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "observability-adapter-readiness", "--output", "json"],
+    )
+
+    assert result.exit_code == 0
+    assert "reports/observability-adapter-readiness.json" in result.output
+    payload = json.loads(
+        Path("reports/observability-adapter-readiness.json").read_text(encoding="utf-8")
+    )
+    assert payload["schema_version"] == "entroping.observability-adapter-readiness.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_observability_adapter_readiness_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(
+        app,
+        ["report", "observability-adapter-readiness", "--output", "html"],
+    )
+
+    assert result.exit_code == 2
+    assert "Unsupported observability-adapter-readiness output" in result.output
+    assert not Path("reports/observability-adapter-readiness.html").exists()
+
+
+def test_report_observability_adapter_readiness_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_adapter_readiness(*args: object, **kwargs: object) -> object:
+        raise ObservabilityAdapterReadinessError("adapter readiness path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_observability_adapter_readiness_report",
+        fail_adapter_readiness,
+    )
+
+    result = CliRunner().invoke(app, ["report", "observability-adapter-readiness"])
+
+    assert result.exit_code == 1
+    assert "adapter readiness path is unsafe" in result.output
 
 
 def test_report_api_inventory_writes_markdown(
