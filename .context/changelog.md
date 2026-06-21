@@ -2,6 +2,21 @@
 
 ## 2026-06-21
 
+- Added issue #1075's Evidence Cloud export manifest: `report
+  evidence-cloud-export` now writes local
+  `entroping.evidence-cloud-export.v1` JSON or Markdown that turns sanitized
+  evidence-portal, evidence-links, evidence-cloud-readiness,
+  team-evidence-readiness, evidence-bundle, artifact-manifest, runtime-card,
+  handoff, integration-readiness, devex-readiness, connector-intent,
+  observability-packet, and evidence-index artifacts into source states,
+  schema versions, bounded hashes, local export references, boundary controls,
+  and next actions for future explicit Evidence Cloud upload review without
+  calling hosted APIs, uploading artifacts, syncing remote state, creating
+  accounts, configuring SSO/RBAC, executing Hurl, running tests, invoking
+  models, parsing traffic state, changing `entroping run`, or rendering raw
+  report, traffic, prompt, credential, cookie, environment, webhook, ticket,
+  source Hurl, or provider contents.
+
 - Added issue #1073's evidence portal dashboard: `report evidence-portal` now
   writes a static local `reports/evidence-portal.html` dashboard or
   `entroping.evidence-portal.v1` JSON that turns sanitized evidence-links,

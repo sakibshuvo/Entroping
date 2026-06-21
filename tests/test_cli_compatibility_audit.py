@@ -244,6 +244,11 @@ LOCKED_CLI_CONTRACTS = (
         ("--output",),
     ),
     CliContract(
+        "entroping report evidence-cloud-export [--output <md|json>]",
+        ("report", "evidence-cloud-export", "--help"),
+        ("--output",),
+    ),
+    CliContract(
         "entroping report evidence-links [--output <md|json>]",
         ("report", "evidence-links", "--help"),
         ("--output",),
@@ -418,6 +423,8 @@ REPORT_ARTIFACTS = (
     "reports/team-access-control-plan.json",
     "reports/evidence-cloud-readiness.md",
     "reports/evidence-cloud-readiness.json",
+    "reports/evidence-cloud-export.md",
+    "reports/evidence-cloud-export.json",
     "reports/evidence-links.md",
     "reports/evidence-links.json",
     "reports/evidence-portal.html",
