@@ -363,6 +363,14 @@ from entroping.core.work_item_draft import (
     WorkItemDraftSource,
     WorkItemDraftSummary,
 )
+from entroping.core.work_item_import_bundle import (
+    WORK_ITEM_IMPORT_BUNDLE_SCHEMA_VERSION,
+    WorkItemImportAction,
+    WorkItemImportBundle,
+    WorkItemImportRow,
+    WorkItemImportSource,
+    WorkItemImportSummary,
+)
 from entroping.models.drift import (
     DriftBaseline,
     DriftBaselineTest,
@@ -4475,6 +4483,102 @@ def test_work_item_draft_v1_schema_contract_is_versioned_and_stable() -> None:
     ]
 
 
+def test_work_item_import_bundle_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads(
+        (SCHEMA_DIR / "work-item-import-bundle.v1.schema.json").read_text()
+    )
+    packet = WorkItemImportBundle(
+        generated_at="2026-06-21T00:00:00+00:00",
+        project="checkout-api",
+        summary=WorkItemImportSummary(
+            status="partial",
+            sources_total=1,
+            sources_present=1,
+            sources_missing=0,
+            sources_invalid=0,
+            sources_unsafe=0,
+            rows_total=1,
+            rows_high=1,
+            rows_medium=0,
+            rows_low=0,
+            actions_total=0,
+            actions_high=0,
+            actions_medium=0,
+            actions_low=0,
+            source_item_count=1,
+            source_action_count=1,
+        ),
+        sources=(
+            WorkItemImportSource(
+                id="work-item-draft-json",
+                label="Work Item Draft",
+                path="reports/work-item-draft.json",
+                state="present",
+                schema_version="entroping.work-item-draft.v1",
+                sha256="a" * 64,
+                summary="partial",
+                status="partial",
+            ),
+        ),
+        rows=(
+            WorkItemImportRow(
+                id="entroping-work-item-draft-001-jira:import-row",
+                tracker_family="jira",
+                external_id="entroping-work-item-draft-001-jira",
+                title="Review blocked evidence before merge.",
+                body="Draft row from Entroping evidence.",
+                priority="high",
+                labels=("entroping", "runtime-governance", "priority-high"),
+                source_item_ids=("work-item-draft:001",),
+                source_action_ids=("evidence-action-plan:001",),
+                source_action_count=1,
+                status="partial",
+            ),
+        ),
+        actions=(
+            WorkItemImportAction(
+                priority="medium",
+                category="generate",
+                action="Generate Work Item Draft before building tracker import bundle.",
+                source_ids=("work-item-draft-json",),
+                status="missing",
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert WORK_ITEM_IMPORT_BUNDLE_SCHEMA_VERSION == (
+        "entroping.work-item-import-bundle.v1"
+    )
+    assert payload["schema_version"] == "entroping.work-item-import-bundle.v1"
+    assert payload["summary"]["source_item_count"] == 1
+    assert schema["properties"]["schema_version"]["const"] == (
+        "entroping.work-item-import-bundle.v1"
+    )
+    assert schema["$defs"]["tracker_family"]["enum"] == [
+        "jira",
+        "linear",
+        "monday",
+        "github_issues",
+        "generic_tracker",
+    ]
+    assert schema["$defs"]["source_id"]["enum"] == ["work-item-draft-json"]
+    assert schema["$defs"]["forbidden_action"]["enum"] == [
+        "call_external_api",
+        "mutate_issue_tracker",
+        "post_chat_message",
+        "execute_chat_command",
+        "upload_artifacts",
+        "invoke_model_provider",
+        "execute_hurl",
+        "run_tests",
+        "read_provider_keys",
+        "parse_raw_traffic",
+        "render_raw_artifact_contents",
+    ]
+
+
 def test_qa_brain_seed_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "qa-brain-seed.v1.schema.json").read_text())
     packet = QaBrainSeedPacket(
@@ -5547,6 +5651,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
             SCHEMA_DIR / "evidence-action-plan.v1.schema.json"
         ),
         "entroping.work-item-draft.v1": (SCHEMA_DIR / "work-item-draft.v1.schema.json"),
+        "entroping.work-item-import-bundle.v1": (
+            SCHEMA_DIR / "work-item-import-bundle.v1.schema.json"
+        ),
         "entroping.connector-intent.v1": (SCHEMA_DIR / "connector-intent.v1.schema.json"),
         "entroping.external-test-evidence.v1": (
             SCHEMA_DIR / "external-test-evidence.v1.schema.json"

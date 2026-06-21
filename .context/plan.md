@@ -16,31 +16,22 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1085 Work Item Draft
+## Current Issue Slice: #1087 Work Item Import Bundle
 
-Add `entroping report work-item-draft --output md|json` as a local read-only
-tracker draft packet over fixed sanitized evidence artifacts. No ticket, chat,
-PR, API, upload, Hurl/test execution, provider call, traffic parsing,
-`entroping run` change, source Hurl, or raw artifact rendering. Verification
-lane: `security-runtime`.
+Add `entroping report work-item-import-bundle --output json|csv` as a local
+read-only tracker import packet over the fixed optional work-item draft
+artifact. No ticket, chat, PR, API, upload/import, Hurl/test execution,
+provider call, traffic parsing, `entroping run` change, source Hurl, or raw
+artifact rendering.
 
 ## Current Baseline
 
-- Product, technical, user, architecture, and evolution docs are organized under `docs/`.
-- Root `README.md` and `docs/meta/VAULT_INDEX.md` are the main public and vault entry points.
-- Python package and CLI implementation exist under `src/entroping/`.
-- CLI command surface is locked to v4.1.
-- `entroping report --help` classifies existing commands by launch-critical,
-  stable-public, maintainer/baseline, and experimental design-partner evidence
-  lanes while preserving command compatibility.
-- Quality and release gates now include bounded performance-smoke evidence.
-- Report threshold guards exist for generated-test quality, policy-gate
-  coverage, capture/redaction safety, and artifact-manifest completeness while
-  preserving default evidence-only report behavior.
-- `entroping report test-pyramid --output md|json` stays local-only and
-  classifies existing report artifacts without executing tests, Hurl,
-  providers, uploads, or raw artifact reads.
-- Pydantic QAnstitution models and typed condition parsing are in place.
+- Docs live under `docs/`; public entry points are `README.md` and
+  `docs/meta/VAULT_INDEX.md`; code lives under `src/entroping/`; the CLI
+  command surface is locked to v4.1.
+- Report commands stay local-only unless a documented command explicitly says
+  otherwise; report help, threshold guards, test-pyramid evidence, and
+  performance-smoke evidence are covered in command docs and progress notes.
 - Runtime `ignore_failures` exceptions are deterministic: active entries skip
   only matching Entroping-injected QAnstitution gates in temporary execution
   copies, expired entries block before Hurl execution, and entries targeting
@@ -59,11 +50,8 @@ lane: `security-runtime`.
   bare `hurl` continues to trust the parent process `PATH` by design, resolves
   the PATH-selected binary target, and tolerates host-level filesystem aliases.
 - AI worker lanes are artifact-only until Codex validates local files, tests,
-  and CI; provider lane, billing path, model id, autonomy tier, allowed files,
-  verification evidence, and merge authority belong in handoffs.
-- OpenCode-hosted DeepSeek V4 Pro can use only OpenCode-permissioned tools;
-  Codex-native plugins, skills, browser/security/thread tools, and Codex MCP
-  state do not automatically transfer.
+  and CI; OpenCode/DeepSeek outputs are advisory and tool scopes do not
+  transfer automatically into Codex-native surfaces.
 - Factory scorecards (`scripts/factory_metrics.py readiness` and
   `context-scorecard`) remain value-free evidence checks before any handoff,
   PR, finish decision, or context-tool promotion claims readiness.
@@ -85,9 +73,7 @@ lane: `security-runtime`.
   DeepSeek/OpenAI/Anthropic/Gemini-style providers under `src/entroping`; worker
   scripts stay maintainer tooling and do not change the LiteLLM product boundary.
 - Reusable human-to-agent prompts live under `docs/meta/prompt-library/`;
-  durable policy stays in the agent control plane, and maintained prompts cover
-  issue workers, Spark-safe sessions, multi-agent marathons, reviews, PR gates,
-  backlog triage, CI/debug/security flows, and Codex Cloud root fallback.
+  durable workflow policy stays in the agent control plane.
 - Eye onboarding is honest about real proxy constraints: `watch` users should
   start in local/dev environments, expect per-client mitmproxy CA setup, and
   treat capture authorization and artifact review as their responsibility.
@@ -108,9 +94,6 @@ lane: `security-runtime`.
 - Constrained agent or downstream sessions can run `scripts/cli_smoke.sh` to
   prove the CLI boots, reports a version, initializes minimal governance, and
   runs `doctor` without requiring Hurl runtime execution.
-- Shell-completion onboarding should point to Typer's existing global
-  `entroping --install-completion` and `entroping --show-completion` options;
-  it must not introduce a custom Entroping completion command.
 - Brand terminology is intentional: `qanstitution.yaml` remains the canonical
   policy filename, the QAnstitution/Traffic/Hurl philosophy is preserved, and
   public copy must not imply Entroping is an autonomous agent swarm.
@@ -330,62 +313,35 @@ Older completed-slice detail was compressed on 2026-06-19 to keep
 agent work. The active plan should carry current constraints, current baseline,
 and next validation targets rather than a full implementation ledger.
 
-Lossless sources for the compressed history remain available through:
+Lossless sources for compressed history remain in
+`docs/meta/PROJECT_PROGRESS.md`, `.context/changelog.md`,
+`docs/meta/DECISION_REGISTRY.yaml`, and git history.
 
-- `docs/meta/PROJECT_PROGRESS.md` for milestone-level status and evidence.
-- `.context/changelog.md` for chronological implementation notes.
-- `docs/meta/DECISION_REGISTRY.yaml` for durable architecture and product
-  decisions with source pointers.
-- Git history before issue #959 for the previous long-form completed-slice
-  details that were removed from this active context surface.
-
-Guarded historical anchors retained for docs-link tests:
+Guarded anchors retained for docs-link tests:
 
 - Issue #202 defines organization QAnstitution import controls.
 - Issue #204 documents non-GitHub CI provider recipes.
 
 ## Current Validation Queue
 
-Use these issues as the next marathon targets. Keep each one narrow, tested, and
-merged through GitHub before starting the next branch:
-
-- Next local targets are #303-#305 package-index proof, #306 downstream user
-  feedback, and #308-#310 stable-core compatibility and non-GitHub CI proof.
-- Packaging issue #268 is intentionally gated on package-index alpha evidence:
-  publish TestPyPI/PyPI through the protected workflow first, then promote the
-  Homebrew tap from prototype to supported install path.
-- After local gates pass, dogfood the public install/demo flow with the
-  maintainer before changing release status language.
+Keep each marathon issue narrow, tested, merged through GitHub, and cleaned up
+before starting the next branch. Near-term validation targets remain package
+index proof (#303-#305), downstream feedback (#306), stable-core compatibility
+(#308), and non-GitHub CI proof (#309-#310); package issue #268 stays gated on
+package-index evidence.
 
 ## Explicitly Deferred
 
-- Complete non-prompt `architect build --strategy merge` if product demand justifies it.
-- Studio mutation workflows beyond read-only report-backed inspection.
-- Nuitka packaging.
-- Hosted/cloud features.
-- Generated context-tool artifacts in Git.
+- Non-prompt merge generation, Studio mutation workflows, Nuitka packaging,
+  hosted/cloud features, and generated context-tool artifacts in Git.
 
 ## Working Context Loop
 
-At the start of a new Codex thread, read:
-
-1. `AGENTS.md`
-2. `README.md`
-3. `docs/meta/VAULT_INDEX.md`
-4. `.context/plan.md`
-5. `docs/product/MVP_PLAN.md`
-6. `docs/technical/TDS.md`
-7. `docs/meta/archive/AUTONOMOUS_DEVELOPMENT.md`
-8. `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`
-9. `docs/meta/PROJECT_PROGRESS.md`
-10. `docs/meta/ISSUE_TRACKING.md`
-11. `docs/meta/TEST_STRATEGY.md`
-12. `docs/meta/DOCS_GOVERNANCE.md`
-13. `docs/meta/AGENT_CONTROL_PLANE.md`
-
-For product history, open Obsidian and start with `docs/meta/VAULT_INDEX.md`.
-
-To start an implementation or review session from an issue, dry-run the launcher first:
+At the start of a new Codex thread, hydrate from `AGENTS.md`, `.context/plan.md`,
+`docs/meta/PROJECT_PROGRESS.md`, `docs/meta/FEATURE_DELIVERY_CHECKLIST.md`,
+  `docs/meta/DOCS_GOVERNANCE.md`, `docs/meta/AGENT_CONTROL_PLANE.md`, and
+  issue files found with `rg`. For product history, start with
+`docs/meta/VAULT_INDEX.md`. To start issue work, dry-run the launcher first:
 
 ```bash
 scripts/start_issue.sh <issue-number> <type>/<short-kebab-description> --dry-run

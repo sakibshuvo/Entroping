@@ -36,7 +36,7 @@ from entroping.core.run_workflow import RUN_PLAN_SCHEMA_VERSION
 from entroping.core.runtime_card import RUNTIME_CARD_SCHEMA_VERSION
 
 EvidenceArtifactState = Literal["present", "missing", "invalid", "unsafe"]
-_ArtifactKind = Literal["json", "markdown", "xml", "html", "sarif"]
+_ArtifactKind = Literal["json", "markdown", "xml", "html", "sarif", "csv"]
 _SummaryBuilder = Callable[[dict[str, object]], str]
 _MAX_JSON_ARTIFACT_BYTES: Final = 10 * 1024 * 1024
 _SHA256_HEX_RE: Final = re.compile(r"\b[0-9a-f]{64}\b", re.IGNORECASE)
@@ -510,6 +510,21 @@ def _artifact_definitions() -> tuple[_EvidenceArtifactDefinition, ...]:
             kind="json",
             schema_version="entroping.work-item-draft.v1",
             summary_builder=_status_summary,
+        ),
+        _EvidenceArtifactDefinition(
+            id="work-item-import-bundle-json",
+            label="Work Item Import Bundle JSON",
+            path=Path("reports") / "work-item-import-bundle.json",
+            kind="json",
+            schema_version="entroping.work-item-import-bundle.v1",
+            summary_builder=_status_summary,
+        ),
+        _EvidenceArtifactDefinition(
+            id="work-item-import-bundle-csv",
+            label="Work Item Import Bundle CSV",
+            path=Path("reports") / "work-item-import-bundle.csv",
+            kind="csv",
+            schema_version="entroping.work-item-import-bundle.csv",
         ),
         _EvidenceArtifactDefinition(
             id="observability-packet-md",
