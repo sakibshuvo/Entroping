@@ -16,14 +16,13 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1081 PR Evidence Card
+## Current Issue Slice: #1083 Evidence Action Plan
 
-Add `entroping report pr-evidence-card --output md|json` as a local
-value-free PR card over sanitized report artifacts, using evidence-index and
-rejecting unsafe or secret-like output. No PR, API, or upload path, Hurl/test
-execution, traffic
-parsing, `entroping run` changes, or raw artifact rendering. Verification
-lane: `security-runtime`.
+Add `entroping report evidence-action-plan --output md|json` as a local
+value-free action packet over fixed sanitized evidence-loop artifacts. No PR,
+ticket, chat, API, upload, Hurl/test execution, traffic parsing,
+`entroping run` changes, or raw artifact rendering. Verification lane:
+`security-runtime`.
 
 ## Current Baseline
 
@@ -34,27 +33,13 @@ lane: `security-runtime`.
 - `entroping report --help` classifies existing commands by launch-critical,
   stable-public, maintainer/baseline, and experimental design-partner evidence
   lanes while preserving command compatibility.
-- `scripts/audit_quality.sh` runs `scripts/performance_smoke.py` and writes
-  `reports/performance-smoke.json` as PR-enforced bounded performance evidence.
-- `entroping report test-quality --fail-under <0-100>` can turn static
-  generated-test quality evidence into an explicit CI threshold while preserving
-  the report schema and default evidence-only behavior.
-- `entroping report gate-coverage --fail-under <0-100>` can turn matched
-  policy-gate coverage evidence into an explicit CI threshold while preserving
-  the report schema and default evidence-only behavior.
-- `entroping report capture-summary --fail-on-unredacted` can turn sanitized
-  captured-traffic redaction evidence into an explicit CI guard while preserving
-  the report schema and default evidence-only behavior.
-- `entroping report redaction --fail-on-unsafe` can turn unredacted and
-  low-confidence captured-traffic redaction evidence into an explicit CI guard
-  while preserving the report schema and default evidence-only behavior.
-- `entroping report artifact-manifest --fail-on-incomplete` can turn
-  missing-artifact and audit-chain verification evidence into an explicit CI
-  guard while preserving the report schema and default evidence-only behavior.
-- `entroping report test-pyramid --output md|json` summarizes existing local
-  report artifacts by test/evidence layer and highlights missing
-  runtime-governance proof without running tests, Hurl, providers, uploads, or
-  raw artifact reads.
+- Quality and release gates now include bounded performance-smoke evidence.
+- Report threshold guards exist for generated-test quality, policy-gate
+  coverage, capture/redaction safety, and artifact-manifest completeness while
+  preserving default evidence-only report behavior.
+- `entroping report test-pyramid --output md|json` stays local-only and
+  classifies existing report artifacts without executing tests, Hurl,
+  providers, uploads, or raw artifact reads.
 - Pydantic QAnstitution models and typed condition parsing are in place.
 - Runtime `ignore_failures` exceptions are deterministic: active entries skip
   only matching Entroping-injected QAnstitution gates in temporary execution
@@ -125,19 +110,10 @@ lane: `security-runtime`.
   `tests/test_architecture_boundaries.py` rejects direct SDK imports such as
   DeepSeek/OpenAI/Anthropic/Gemini-style providers under `src/entroping`; worker
   scripts stay maintainer tooling and do not change the LiteLLM product boundary.
-- Reusable human-to-agent prompts now live under
-  `docs/meta/prompt-library/`; the agent control plane owns durable policy,
-  while the prompt library owns copy-paste launchers for fresh Codex sessions,
-  issue workers, Spark-safe sessions, multi-agent marathons, thread steering,
-  Gemini reviews, and DeepSeek/OpenCode reviews. The maintained prompt copies
-  default to `/Users/sakibshuvo/projects/Entroping` and
-  `/Users/sakibshuvo/projects/entroping-specs` to remove local setup friction.
-  The library also covers repeated maintenance prompts for PR merge gates,
-  bug bashes, backlog triage, roadmap/progress refreshes, launch-readiness
-  reviews, stable-core audits, context reconciliation, CI failure debugging,
-  security review, and after-sleep status reports. Local-path prompts include a
-  Codex Cloud fallback to the task-provided repository root so the library can
-  stay tracked without weakening cloud sessions.
+- Reusable human-to-agent prompts live under `docs/meta/prompt-library/`;
+  durable policy stays in the agent control plane, and maintained prompts cover
+  issue workers, Spark-safe sessions, multi-agent marathons, reviews, PR gates,
+  backlog triage, CI/debug/security flows, and Codex Cloud root fallback.
 - Eye onboarding is honest about real proxy constraints: `watch` users should
   start in local/dev environments, expect per-client mitmproxy CA setup, and
   treat capture authorization and artifact review as their responsibility.

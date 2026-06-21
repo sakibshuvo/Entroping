@@ -106,6 +106,13 @@ from entroping.core.drift_report import (
     drift_baseline_to_dict,
     drift_report_to_dict,
 )
+from entroping.core.evidence_action_plan import (
+    EVIDENCE_ACTION_PLAN_SCHEMA_VERSION,
+    EvidenceActionPlanItem,
+    EvidenceActionPlanPacket,
+    EvidenceActionPlanSource,
+    EvidenceActionPlanSummary,
+)
 from entroping.core.evidence_bundle import (
     EVIDENCE_BUNDLE_SCHEMA_VERSION,
     EvidenceBundleArtifact,
@@ -4296,6 +4303,80 @@ def test_pr_evidence_card_v1_schema_contract_is_versioned_and_stable() -> None:
     ]
 
 
+def test_evidence_action_plan_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "evidence-action-plan.v1.schema.json").read_text())
+    packet = EvidenceActionPlanPacket(
+        generated_at="2026-06-21T00:00:00+00:00",
+        project="checkout-api",
+        summary=EvidenceActionPlanSummary(
+            status="partial",
+            sources_total=2,
+            sources_present=1,
+            sources_missing=1,
+            sources_invalid=0,
+            sources_unsafe=0,
+            sources_blocked=0,
+            sources_attention=1,
+            actions_total=1,
+            actions_high=0,
+            actions_medium=1,
+            actions_low=0,
+        ),
+        sources=(
+            EvidenceActionPlanSource(
+                id="pr-evidence-card-json",
+                label="PR Evidence Card",
+                path="reports/pr-evidence-card.json",
+                state="present",
+                schema_version="entroping.pr-evidence-card.v1",
+                sha256="a" * 64,
+                summary="partial",
+                status="partial",
+            ),
+            EvidenceActionPlanSource(
+                id="evidence-portal-json",
+                label="Evidence Portal",
+                path="reports/evidence-portal.json",
+                state="missing",
+                schema_version=None,
+                sha256=None,
+                summary="missing",
+                status=None,
+            ),
+        ),
+        actions=(
+            EvidenceActionPlanItem(
+                priority="medium",
+                category="generate",
+                action="Generate Evidence Portal before using the evidence action plan.",
+                source_ids=("evidence-portal-json",),
+                status="missing",
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert EVIDENCE_ACTION_PLAN_SCHEMA_VERSION == "entroping.evidence-action-plan.v1"
+    assert payload["schema_version"] == "entroping.evidence-action-plan.v1"
+    assert payload["summary"]["sources_attention"] == 1
+    assert schema["properties"]["schema_version"]["const"] == "entroping.evidence-action-plan.v1"
+    assert schema["$defs"]["priority"]["enum"] == ["high", "medium", "low"]
+    assert schema["$defs"]["category"]["enum"] == ["generate", "repair", "review"]
+    assert schema["$defs"]["source_id"]["enum"] == [
+        "pr-evidence-card-json",
+        "evidence-portal-json",
+        "evidence-links-json",
+        "evidence-cloud-dashboard-json",
+        "devex-readiness-json",
+        "integration-readiness-json",
+        "connector-intent-json",
+        "observability-packet-json",
+        "mutation-readiness-json",
+        "test-pyramid-json",
+    ]
+
+
 def test_qa_brain_seed_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "qa-brain-seed.v1.schema.json").read_text())
     packet = QaBrainSeedPacket(
@@ -5364,6 +5445,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         "entroping.evidence-links.v1": (SCHEMA_DIR / "evidence-links.v1.schema.json"),
         "entroping.evidence-portal.v1": (SCHEMA_DIR / "evidence-portal.v1.schema.json"),
         "entroping.pr-evidence-card.v1": (SCHEMA_DIR / "pr-evidence-card.v1.schema.json"),
+        "entroping.evidence-action-plan.v1": (
+            SCHEMA_DIR / "evidence-action-plan.v1.schema.json"
+        ),
         "entroping.connector-intent.v1": (SCHEMA_DIR / "connector-intent.v1.schema.json"),
         "entroping.external-test-evidence.v1": (
             SCHEMA_DIR / "external-test-evidence.v1.schema.json"

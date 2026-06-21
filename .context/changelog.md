@@ -2,6 +2,15 @@
 
 ## 2026-06-21
 
+- Added issue #1083's evidence action plan: `report evidence-action-plan` now
+  writes local Markdown or `entroping.evidence-action-plan.v1` JSON that turns
+  sanitized PR evidence-card, evidence-portal, evidence-links, Evidence Cloud
+  dashboard, devex-readiness, integration-readiness, connector-intent,
+  observability-packet, mutation-readiness, and test-pyramid packet states into
+  prioritized generate, repair, and review actions without PR/ticket/chat
+  mutation, vendor APIs, uploads, Hurl/test execution, model calls, traffic
+  parsing, `entroping run` changes, or raw artifact rendering.
+
 - Added issue #1081's PR evidence card: `report pr-evidence-card` now writes
   local Markdown or `entroping.pr-evidence-card.v1` JSON from sanitized
   runtime-card, evidence-bundle, test-pyramid, mutation-readiness,

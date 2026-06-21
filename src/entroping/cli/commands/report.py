@@ -64,6 +64,11 @@ from entroping.core.effective_policy_report import (
     EffectivePolicyReportError,
     run_effective_policy_report,
 )
+from entroping.core.evidence_action_plan import (
+    EvidenceActionPlanError,
+    EvidenceActionPlanOutput,
+    run_evidence_action_plan_report,
+)
 from entroping.core.evidence_bundle import (
     EvidenceBundleError,
     run_evidence_bundle_report,
@@ -1198,6 +1203,33 @@ def report_pr_evidence_card(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote PR evidence card: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("evidence-action-plan", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_evidence_action_plan(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local evidence action plan."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported evidence-action-plan output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_evidence_action_plan_report(
+            project_root=Path.cwd(),
+            output=cast(EvidenceActionPlanOutput, normalized_output),
+        )
+    except EvidenceActionPlanError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote evidence action plan: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 

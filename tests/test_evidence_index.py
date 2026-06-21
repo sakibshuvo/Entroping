@@ -439,6 +439,8 @@ def test_evidence_index_includes_recent_value_free_packet_artifacts(
     )
     assert by_id["pr-evidence-card-md"].path == "reports/pr-evidence-card.md"
     assert by_id["pr-evidence-card-json"].path == "reports/pr-evidence-card.json"
+    assert by_id["evidence-action-plan-md"].path == "reports/evidence-action-plan.md"
+    assert by_id["evidence-action-plan-json"].path == "reports/evidence-action-plan.json"
 
 
 def test_evidence_index_discovers_external_test_evidence_without_raw_values(
@@ -654,6 +656,25 @@ def test_evidence_index_rejects_secret_like_external_test_evidence(
     assert by_id["external-test-evidence-json"].schema_version is None
     assert by_id["external-test-evidence-json"].summary == "secret-like content"
     assert "sk-proj" not in repr(artifacts)
+
+
+def test_evidence_index_masks_mixed_case_sha_before_secret_detection(
+    tmp_path: Path,
+) -> None:
+    mixed_case_sha = ("0123456789ABCDEFabcdef" * 3)[:64]
+    _write_json(
+        tmp_path / "reports" / "external-test-evidence.json",
+        _external_test_evidence_payload(marker=mixed_case_sha),
+    )
+
+    artifacts = build_local_evidence_index(project_root=tmp_path)
+    by_id = {artifact.id: artifact for artifact in artifacts}
+
+    assert by_id["external-test-evidence-json"].state == "present"
+    assert by_id["external-test-evidence-json"].summary == (
+        "partial, 5/5 layers, 10 tests, 0 failures, 0 errors, 1 skipped"
+    )
+    assert mixed_case_sha not in repr(artifacts)
 
 
 @pytest.mark.parametrize(

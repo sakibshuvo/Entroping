@@ -55,6 +55,7 @@ entroping report evidence-cloud-workspace --manifest <path> [--output <md|json>]
 entroping report evidence-links [--output <md|json>]
 entroping report evidence-portal [--output <html|json>]
 entroping report pr-evidence-card [--output <md|json>]
+entroping report evidence-action-plan [--output <md|json>]
 entroping report connector-intent [--output <md|json>]
 entroping report observability-packet [--output <md|json>]
 entroping report api-inventory [--output <md|json>]
@@ -444,6 +445,8 @@ Experimental design-partner evidence commands:
 | `entroping report evidence-portal --output json` | Write machine-readable evidence portal metadata to `reports/evidence-portal.json` |
 | `entroping report pr-evidence-card --output md` | Write local PR evidence card Markdown |
 | `entroping report pr-evidence-card --output json` | Write machine-readable PR evidence card JSON |
+| `entroping report evidence-action-plan --output md` | Write local prioritized evidence action-plan Markdown |
+| `entroping report evidence-action-plan --output json` | Write machine-readable evidence action-plan JSON |
 | `entroping report connector-intent --output md` | Write a local connector-intent packet to `reports/connector-intent.md` |
 | `entroping report connector-intent --output json` | Write machine-readable connector intent metadata to `reports/connector-intent.json` |
 | `entroping report observability-packet --output md` | Write a read-only observability signal packet to `reports/observability-packet.md` |
@@ -512,6 +515,7 @@ entroping report evidence-cloud-export --output json
 entroping report evidence-links --output json
 entroping report evidence-portal --output json
 entroping report pr-evidence-card --output json
+entroping report evidence-action-plan --output json
 entroping report connector-intent --output json
 entroping report observability-packet --output json
 entroping report api-inventory --output json

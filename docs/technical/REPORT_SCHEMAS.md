@@ -49,6 +49,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Evidence links packet | `entroping.evidence-links.v1` | `reports/evidence-links.json` from `entroping report evidence-links --output json` | [evidence-links.v1.schema.json](report-schemas/evidence-links.v1.schema.json) |
 | Evidence portal packet | `entroping.evidence-portal.v1` | `reports/evidence-portal.json` from `entroping report evidence-portal --output json` | [evidence-portal.v1.schema.json](report-schemas/evidence-portal.v1.schema.json) |
 | PR evidence card packet | `entroping.pr-evidence-card.v1` | `reports/pr-evidence-card.json` from `entroping report pr-evidence-card --output json` | [pr-evidence-card.v1.schema.json](report-schemas/pr-evidence-card.v1.schema.json) |
+| Evidence action-plan packet | `entroping.evidence-action-plan.v1` | `reports/evidence-action-plan.json` from `entroping report evidence-action-plan --output json` | [evidence-action-plan.v1.schema.json](report-schemas/evidence-action-plan.v1.schema.json) |
 | Connector intent packet | `entroping.connector-intent.v1` | `reports/connector-intent.json` from `entroping report connector-intent --output json` | [connector-intent.v1.schema.json](report-schemas/connector-intent.v1.schema.json) |
 | Observability packet | `entroping.observability-packet.v1` | `reports/observability-packet.json` from `entroping report observability-packet --output json` | [observability-packet.v1.schema.json](report-schemas/observability-packet.v1.schema.json) |
 | API inventory packet | `entroping.api-inventory.v1` | `reports/api-inventory.json` from `entroping report api-inventory --output json` | [api-inventory.v1.schema.json](report-schemas/api-inventory.v1.schema.json) |
@@ -834,6 +835,27 @@ or include raw URLs, headers, bodies, cookies, prompts, provider outputs,
 credentials, environment values, webhook URLs, ticket mutation payloads,
 source Hurl contents, raw report contents, raw traffic, or full report
 contents.
+
+The evidence action-plan packet is written by:
+
+```bash
+entroping report evidence-action-plan
+entroping report evidence-action-plan --output json
+```
+
+It writes `reports/evidence-action-plan.md` by default or
+`reports/evidence-action-plan.json` with schema
+`entroping.evidence-action-plan.v1` when `--output json` is selected. The
+packet turns existing sanitized PR evidence-card, evidence-portal,
+evidence-links, Evidence Cloud dashboard, devex-readiness,
+integration-readiness, connector-intent, observability-packet,
+mutation-readiness, and test-pyramid artifacts into value-free prioritized
+generate, repair, and review actions. Missing source artifacts become medium
+generate actions; malformed, unreadable, oversized, symlinked, or secret-like
+source artifacts become high repair actions. The command does not create or
+update PRs, tickets, chat, or hosted dashboards, call external APIs, upload
+artifacts, execute Hurl/tests, invoke models, parse traffic state, change
+`entroping run`, or render raw report contents.
 
 The connector intent packet is written by:
 

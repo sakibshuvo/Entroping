@@ -34,6 +34,7 @@ from entroping.core.capture_summary_report import CaptureSummaryResult
 from entroping.core.connector_intent import ConnectorIntentError
 from entroping.core.design_partner_feedback import DesignPartnerFeedbackError
 from entroping.core.devex_readiness import DevexReadinessError
+from entroping.core.evidence_action_plan import EvidenceActionPlanError
 from entroping.core.evidence_bundle import EvidenceBundleError
 from entroping.core.evidence_cloud_dashboard import EvidenceCloudDashboardError
 from entroping.core.evidence_cloud_export import EvidenceCloudExportError
@@ -243,6 +244,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "evidence-links",
         "evidence-portal",
         "connector-intent",
+        "evidence-action-plan",
         "external-test-evidence",
         "team-access-control-plan",
         "team-evidence-readiness",
@@ -1460,6 +1462,68 @@ def test_report_pr_evidence_card_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "PR evidence card path is unsafe" in result.output
+
+
+def test_report_evidence_action_plan_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "evidence-action-plan"])
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote evidence action plan: reports/evidence-action-plan.md" in result.output
+    markdown = Path("reports/evidence-action-plan.md").read_text(encoding="utf-8")
+    assert "# Entroping Evidence Action Plan" in markdown
+    assert "Generate PR Evidence Card before using the evidence action plan." in markdown
+
+
+def test_report_evidence_action_plan_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "evidence-action-plan", "--output", "json"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote evidence action plan: reports/evidence-action-plan.json" in result.output
+    payload = json.loads(Path("reports/evidence-action-plan.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.evidence-action-plan.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_evidence_action_plan_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(
+        app,
+        ["report", "evidence-action-plan", "--output", "html"],
+    )
+
+    assert result.exit_code == 2
+    assert "Unsupported evidence-action-plan output" in result.output
+    assert not Path("reports/evidence-action-plan.html").exists()
+
+
+def test_report_evidence_action_plan_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_evidence_action_plan(*args: object, **kwargs: object) -> object:
+        raise EvidenceActionPlanError("evidence action plan path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_evidence_action_plan_report",
+        fail_evidence_action_plan,
+    )
+
+    result = CliRunner().invoke(app, ["report", "evidence-action-plan"])
+
+    assert result.exit_code == 1
+    assert "evidence action plan path is unsafe" in result.output
 
 
 def test_report_team_access_control_plan_writes_markdown(

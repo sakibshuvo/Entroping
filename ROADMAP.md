@@ -183,6 +183,9 @@ produce.
   confidence, and release evidence anchors.
 - Add a local PR evidence card that turns sanitized report artifacts into a
   value-free review summary before any PR mutation or hosted review app exists.
+- Add a local evidence action plan that converts sanitized evidence-loop packet
+  state into prioritized generate, repair, and review actions before any ticket,
+  chat, PR, or hosted-dashboard mutation exists.
 - Support design partner pilots focused on AI-generated backend/API changes and
   measure whether engineering leads will pay for cross-repo runtime governance
   visibility.
