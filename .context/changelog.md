@@ -2,6 +2,20 @@
 
 ## 2026-06-20
 
+- Added issue #1060's connector intent packet: `report connector-intent` now
+  writes local `entroping.connector-intent.v1` JSON or Markdown that turns
+  sanitized runtime-card, handoff, notification-packet,
+  integration-readiness, devex-readiness, observability-packet, and
+  evidence-index artifacts into source states, target systems, intent kinds,
+  minimum payload fields, required user action, audit fields, forbidden
+  actions, blockers, and next actions for future issue tracker, chat,
+  enterprise automation, enterprise AI, observability, and developer-experience
+  connector surfaces without implementing vendor/app adapters, calling external
+  APIs, invoking providers/models, executing Hurl, running tests, uploading
+  artifacts, mutating external systems, syncing repos/vaults/worktrees, parsing
+  traffic state, configuring SSO/RBAC, or rendering raw report/source contents,
+  prompts, credentials, cookies, environment values, webhook URLs, ticket
+  payloads, raw traffic, or provider outputs.
 - Added issue #1058's developer experience readiness packet: `report
   devex-readiness` now writes local `entroping.devex-readiness.v1` JSON or
   Markdown that turns sanitized runtime-card, handoff, evidence-index,

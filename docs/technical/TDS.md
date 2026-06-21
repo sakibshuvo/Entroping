@@ -774,6 +774,7 @@ report generation, and artifact schemas remain the compatibility contract.
 | Team Access-Control Plan | `report team-access-control-plan --output md|json` | Read-only value-free role, action, boundary, and audit-event plan for future team evidence surfaces |
 | Integration Readiness | `report integration-readiness --output md|json` | Read-only value-free readiness packet for issue tracker, chat, enterprise automation, cross-surface continuity, observability, and API governance surfaces |
 | Developer Experience Readiness | `report devex-readiness --output md|json` | Read-only value-free readiness packet for CLI, VS Code/editor, local workbench, PR runtime card, desktop, cloud, and mobile surfaces |
+| Connector Intent | `report connector-intent --output md|json` | Read-only value-free connector intents for issue trackers, chat, enterprise automation, enterprise AI, observability, and developer-experience surfaces |
 | Evidence Index | `report evidence-index --output md|json` | Stable value-free local evidence artifact index for cross-surface navigation |
 | QA Brain Seed | `report qa-brain-seed --output md|json` | Deterministic value-free seed metadata for future QA Brain retrieval and eval design |
 | QA Brain Eval Plan | `report qa-brain-eval-plan --output md|json` | Deterministic eval-case plan metadata for future QA Brain evaluation before fine-tuning |
@@ -957,6 +958,7 @@ entroping report team-evidence-readiness [--output <md|json>]
 entroping report team-access-control-plan [--output <md|json>]
 entroping report integration-readiness [--output <md|json>]
 entroping report devex-readiness [--output <md|json>]
+entroping report connector-intent [--output <md|json>]
 entroping report observability-packet [--output <md|json>]
 entroping report api-inventory [--output <md|json>]
 entroping report mutation-readiness [--output <md|json>]
@@ -1417,6 +1419,28 @@ systems, or include raw URLs, headers, bodies, cookies, prompts, provider
 outputs, credentials, environment values, webhook URLs, ticket mutation
 payloads, source Hurl contents, raw report contents, or full report contents.
 
+`entroping report connector-intent` writes a local read-only connector intent
+packet at `reports/connector-intent.md` by default, or
+`reports/connector-intent.json` with `--output json`. It reads existing
+sanitized runtime-card, handoff, notification-packet, integration-readiness,
+devex-readiness, observability-packet, and evidence-index artifacts, then emits
+source states, schema versions, bounded hashes, target systems, intent kind,
+minimum payload fields, required user action, audit fields, forbidden actions,
+blockers, and next actions for future issue tracker, chat, enterprise
+automation, enterprise AI, observability, and developer-experience connectors.
+Missing source artifacts are non-blocking and become partial or insufficient
+planning state; malformed, oversized, non-file, symlinked, wrong-schema, or
+secret-like source artifacts are marked invalid or unsafe. The command does not
+implement Jira, Linear, monday.com, Slack, Discord, Teams, Workato, Zapier,
+Claude, Codex, OpenAI-compatible, Datadog, Splunk, OpenTelemetry, Grafana, VS
+Code, desktop, web, cloud, or mobile adapters; call external APIs; invoke model
+providers; execute Hurl; run tests; upload artifacts; mutate tickets, chat,
+dashboards, monitors, workflows, repos, vaults, or worktrees; parse raw traffic
+state; configure SSO/RBAC; or include raw URLs, headers, bodies, cookies,
+prompts, provider outputs, credentials, environment values, webhook URLs,
+ticket mutation payloads, source Hurl contents, raw report contents, raw
+traffic, or full report contents.
+
 `entroping report observability-packet` writes a local read-only observability
 signal packet at `reports/observability-packet.md` by default, or
 `reports/observability-packet.json` with `--output json`. It converts existing
@@ -1665,6 +1689,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report integration-readiness --output json` | `reports/integration-readiness.json` | Machine-readable integration readiness packet using `entroping.integration-readiness.v1`. |
 | `entroping report devex-readiness --output md` | `reports/devex-readiness.md` | Human-readable read-only developer experience readiness packet for CLI, VS Code/editor, local workbench, PR runtime card, desktop, cloud, and mobile surfaces. |
 | `entroping report devex-readiness --output json` | `reports/devex-readiness.json` | Machine-readable developer experience readiness packet using `entroping.devex-readiness.v1`. |
+| `entroping report connector-intent --output md` | `reports/connector-intent.md` | Human-readable read-only connector intent packet for issue tracker, chat, enterprise automation, enterprise AI, observability, and developer-experience surfaces. |
+| `entroping report connector-intent --output json` | `reports/connector-intent.json` | Machine-readable connector intent packet using `entroping.connector-intent.v1`. |
 | `entroping report observability-packet --output md` | `reports/observability-packet.md` | Human-readable read-only observability signal packet for OpenTelemetry, Datadog, Splunk, Grafana, and generic surfaces. |
 | `entroping report observability-packet --output json` | `reports/observability-packet.json` | Machine-readable observability packet using `entroping.observability-packet.v1`. |
 | `entroping report api-inventory --output md` | `reports/api-inventory.md` | Human-readable read-only API style inventory for REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, and unknown HTTP signals. |

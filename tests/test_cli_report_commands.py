@@ -31,6 +31,7 @@ from entroping.bridge.redaction_review import (
 )
 from entroping.core.api_inventory import ApiInventoryError
 from entroping.core.capture_summary_report import CaptureSummaryResult
+from entroping.core.connector_intent import ConnectorIntentError
 from entroping.core.design_partner_feedback import DesignPartnerFeedbackError
 from entroping.core.devex_readiness import DevexReadinessError
 from entroping.core.evidence_bundle import EvidenceBundleError
@@ -229,6 +230,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "notification-packet",
         "integration-readiness",
         "devex-readiness",
+        "connector-intent",
         "team-access-control-plan",
         "team-evidence-readiness",
         "observability-packet",
@@ -1051,6 +1053,75 @@ def test_report_devex_readiness_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "developer experience readiness path is unsafe" in result.output
+
+
+def test_report_connector_intent_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("reports") / "runtime-card.json",
+        """
+{
+  "schema_version": "entroping.runtime-card.v1",
+  "project": "checkout-api",
+  "summary": {
+    "status": "pass",
+    "findings": 0
+  }
+}
+""",
+    )
+
+    result = CliRunner().invoke(app, ["report", "connector-intent"])
+
+    assert result.exit_code == 0
+    assert "Wrote connector intent: reports/connector-intent.md" in result.output
+    markdown = Path("reports/connector-intent.md").read_text(encoding="utf-8")
+    assert "# Entroping Connector Intent" in markdown
+    assert "| issue_tracker |" in markdown
+
+
+def test_report_connector_intent_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "connector-intent", "--output", "json"])
+
+    assert result.exit_code == 0
+    assert "Wrote connector intent: reports/connector-intent.json" in result.output
+    payload = json.loads(Path("reports/connector-intent.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.connector-intent.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_connector_intent_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["report", "connector-intent", "--output", "html"])
+
+    assert result.exit_code == 2
+    assert "Unsupported connector-intent output" in result.output
+    assert not Path("reports/connector-intent.html").exists()
+
+
+def test_report_connector_intent_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_connector_intent(*args: object, **kwargs: object) -> object:
+        raise ConnectorIntentError("connector intent path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_connector_intent_report",
+        fail_connector_intent,
+    )
+
+    result = CliRunner().invoke(app, ["report", "connector-intent"])
+
+    assert result.exit_code == 1
+    assert "connector intent path is unsafe" in result.output
 
 
 def test_report_observability_packet_writes_markdown(

@@ -1,0 +1,409 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://entroping.dev/schemas/connector-intent.v1.schema.json",
+  "title": "Entroping connector intent packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "project",
+    "summary",
+    "sources",
+    "intents",
+    "next_actions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.connector-intent.v1"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "project": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "intents": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/intent"
+      }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/next_action"
+      }
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "sources_total",
+        "sources_present",
+        "sources_missing",
+        "sources_invalid",
+        "sources_unsafe",
+        "intents_total",
+        "intents_ready",
+        "intents_attention",
+        "intents_blocked",
+        "blockers_total",
+        "next_actions_total"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/readiness_status"
+        },
+        "sources_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_present": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_invalid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_unsafe": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "intents_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "intents_ready": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "intents_attention": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "intents_blocked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blockers_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "next_actions_total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "path",
+        "state",
+        "schema_version",
+        "sha256",
+        "summary"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/source_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/source_state"
+        },
+        "schema_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "target_family",
+        "target_systems",
+        "status",
+        "intent_kind",
+        "required_source_ids",
+        "present_source_ids",
+        "missing_source_ids",
+        "minimum_payload_fields",
+        "required_user_action",
+        "audit_fields",
+        "forbidden_actions",
+        "blockers",
+        "next_action"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/intent_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "target_family": {
+          "$ref": "#/$defs/intent_id"
+        },
+        "target_systems": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/target_system"
+          }
+        },
+        "status": {
+          "$ref": "#/$defs/intent_status"
+        },
+        "intent_kind": {
+          "$ref": "#/$defs/intent_kind"
+        },
+        "required_source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "present_source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "missing_source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "minimum_payload_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "required_user_action": {
+          "type": "string"
+        },
+        "audit_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbidden_actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/forbidden_action"
+          }
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "next_action": {
+          "type": "string"
+        }
+      }
+    },
+    "next_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "priority",
+        "action",
+        "source_ids",
+        "intent_ids"
+      ],
+      "properties": {
+        "priority": {
+          "$ref": "#/$defs/next_action_priority"
+        },
+        "action": {
+          "type": "string"
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "intent_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/intent_id"
+          }
+        }
+      }
+    },
+    "readiness_status": {
+      "enum": [
+        "ready",
+        "partial",
+        "insufficient"
+      ],
+      "type": "string"
+    },
+    "source_state": {
+      "enum": [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe"
+      ],
+      "type": "string"
+    },
+    "intent_status": {
+      "enum": [
+        "ready",
+        "attention",
+        "blocked"
+      ],
+      "type": "string"
+    },
+    "next_action_priority": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "type": "string"
+    },
+    "source_id": {
+      "enum": [
+        "runtime_card",
+        "handoff",
+        "notification_packet",
+        "integration_readiness",
+        "devex_readiness",
+        "observability_packet",
+        "evidence_index"
+      ],
+      "type": "string"
+    },
+    "intent_id": {
+      "enum": [
+        "issue_tracker",
+        "chat",
+        "enterprise_automation",
+        "enterprise_ai",
+        "observability",
+        "devex_surface"
+      ],
+      "type": "string"
+    },
+    "intent_kind": {
+      "enum": [
+        "issue_link",
+        "chat_notification",
+        "workflow_handoff",
+        "ai_handoff",
+        "telemetry_signal",
+        "surface_handoff"
+      ],
+      "type": "string"
+    },
+    "target_system": {
+      "enum": [
+        "jira",
+        "linear",
+        "monday",
+        "github_issues",
+        "generic_tracker",
+        "slack",
+        "discord",
+        "teams",
+        "generic_chat",
+        "workato",
+        "zapier",
+        "generic_workflow",
+        "claude",
+        "codex",
+        "openai_compatible_agent",
+        "generic_ai_assistant",
+        "opentelemetry",
+        "datadog",
+        "splunk",
+        "grafana",
+        "generic_observability",
+        "vscode",
+        "editor",
+        "local_workbench",
+        "desktop",
+        "cloud",
+        "mobile",
+        "pr_card"
+      ],
+      "type": "string"
+    },
+    "forbidden_action": {
+      "enum": [
+        "call_external_api",
+        "invoke_model_provider",
+        "upload_artifacts",
+        "mutate_issue_tracker",
+        "post_chat_message",
+        "execute_chat_command",
+        "mutate_dashboard_or_monitor",
+        "mutate_workflow",
+        "sync_raw_repo_or_vault",
+        "read_provider_keys",
+        "override_hurl_qanstitution_result",
+        "render_raw_artifact_contents",
+        "implement_app_surface",
+        "execute_hurl",
+        "run_tests"
+      ],
+      "type": "string"
+    }
+  }
+}

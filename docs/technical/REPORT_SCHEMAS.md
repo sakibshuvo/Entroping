@@ -41,6 +41,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Team access-control plan packet | `entroping.team-access-control-plan.v1` | `reports/team-access-control-plan.json` from `entroping report team-access-control-plan --output json` | [team-access-control-plan.v1.schema.json](report-schemas/team-access-control-plan.v1.schema.json) |
 | Integration readiness packet | `entroping.integration-readiness.v1` | `reports/integration-readiness.json` from `entroping report integration-readiness --output json` | [integration-readiness.v1.schema.json](report-schemas/integration-readiness.v1.schema.json) |
 | Developer experience readiness packet | `entroping.devex-readiness.v1` | `reports/devex-readiness.json` from `entroping report devex-readiness --output json` | [devex-readiness.v1.schema.json](report-schemas/devex-readiness.v1.schema.json) |
+| Connector intent packet | `entroping.connector-intent.v1` | `reports/connector-intent.json` from `entroping report connector-intent --output json` | [connector-intent.v1.schema.json](report-schemas/connector-intent.v1.schema.json) |
 | Observability packet | `entroping.observability-packet.v1` | `reports/observability-packet.json` from `entroping report observability-packet --output json` | [observability-packet.v1.schema.json](report-schemas/observability-packet.v1.schema.json) |
 | API inventory packet | `entroping.api-inventory.v1` | `reports/api-inventory.json` from `entroping report api-inventory --output json` | [api-inventory.v1.schema.json](report-schemas/api-inventory.v1.schema.json) |
 | Mutation readiness packet | `entroping.mutation-readiness.v1` | `reports/mutation-readiness.json` from `entroping report mutation-readiness --output json` | [mutation-readiness.v1.schema.json](report-schemas/mutation-readiness.v1.schema.json) |
@@ -608,6 +609,35 @@ parsing, SSO/RBAC, or mutation of any external system, and it does not include
 raw URLs, headers, bodies, cookies, prompts, provider outputs, credentials,
 environment values, webhook URLs, ticket mutation payloads, source Hurl
 contents, raw report contents, or full report contents.
+
+The connector intent packet is written by:
+
+```bash
+entroping report connector-intent
+entroping report connector-intent --output json
+```
+
+It writes `reports/connector-intent.md` by default or
+`reports/connector-intent.json` with schema `entroping.connector-intent.v1` when
+`--output json` is selected. The packet turns existing sanitized runtime-card,
+handoff, notification-packet, integration-readiness, devex-readiness,
+observability-packet, and evidence-index artifacts into reviewable future
+connector intents for issue trackers, chat, enterprise automation, enterprise
+AI handoff, observability, and developer-experience surfaces. It records source
+states, schema versions, bounded SHA-256 hashes, target systems, intent kind,
+minimum payload fields, required user action, audit fields, forbidden actions,
+blockers, and next-action rows. Missing source artifacts are non-blocking and
+become partial or insufficient packet state; malformed, oversized, non-file,
+symlinked, wrong-schema, or secret-like source artifacts are marked invalid or
+unsafe. The command does not implement Jira, Linear, monday.com, Slack,
+Discord, Teams, Workato, Zapier, Claude, Codex, OpenAI-compatible, Datadog,
+Splunk, OpenTelemetry, Grafana, VS Code, desktop, web, cloud, or mobile
+adapters; call external APIs; invoke model providers; execute Hurl; run tests;
+upload artifacts; mutate tickets, chat, dashboards, monitors, workflows, repos,
+vaults, or worktrees; parse raw traffic state; configure SSO/RBAC; or include
+raw URLs, headers, bodies, cookies, prompts, provider outputs, credentials,
+environment values, webhook URLs, ticket mutation payloads, source Hurl
+contents, raw report contents, raw traffic, or full report contents.
 
 The observability packet is written by:
 
