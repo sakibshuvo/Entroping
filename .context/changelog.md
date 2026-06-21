@@ -2,6 +2,15 @@
 
 ## 2026-06-21
 
+- Added issue #1091's pilot cohort rollup: `report pilot-cohort --manifest`
+  now writes local Markdown or `entroping.pilot-cohort.v1` JSON that
+  aggregates explicit pilot outcome packets into cohort status, readiness
+  counts, monetization answer counts, manual-input gap counts, and next actions
+  without cohort discovery, CRM/billing, ticket/chat/PR mutation, hosted
+  uploads, vendor APIs, Hurl/test execution, model calls, traffic parsing,
+  `entroping run` changes, source Hurl access, private partner notes, URLs, or
+  raw outcome/artifact rendering.
+
 - Added issue #1089's pilot outcome packet: `report pilot-outcome` now writes
   local Markdown or `entroping.pilot-outcome.v1` JSON that summarizes
   sanitized design-partner feedback, pilot-metrics, runtime-card, Evidence

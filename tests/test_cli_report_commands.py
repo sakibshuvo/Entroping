@@ -48,6 +48,7 @@ from entroping.core.integration_readiness import IntegrationReadinessError
 from entroping.core.mutation_readiness import MutationReadinessError
 from entroping.core.notification_packet import NotificationPacketError
 from entroping.core.observability_packet import ObservabilityPacketError
+from entroping.core.pilot_cohort import PilotCohortError
 from entroping.core.pilot_metrics import PilotMetricsError
 from entroping.core.pilot_outcome import PilotOutcomeError
 from entroping.core.pr_evidence_card import PrEvidenceCardError
@@ -95,6 +96,65 @@ def _write_effective_policy_report(
 def _write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content.lstrip(), encoding="utf-8")
+
+
+def _write_pilot_outcome_packet(
+    path: Path,
+    *,
+    project: str = "checkout-api",
+    status: str = "ready",
+    hosted: str = "yes",
+    policy: str = "no",
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.pilot-outcome.v1",
+                "generated_at": "2026-06-21T00:00:00+00:00",
+                "project": project,
+                "summary": {
+                    "status": status,
+                    "sources_total": 5,
+                    "sources_present": 5,
+                    "sources_missing": 0,
+                    "sources_invalid": 0,
+                    "sources_unsafe": 0,
+                    "manual_input_gaps": 0,
+                    "monetization_yes": 1 if hosted == "yes" else 0,
+                    "monetization_no": 1 if hosted == "no" else 0,
+                    "monetization_unclear": 1 if hosted == "unclear" else 0,
+                    "actions_total": 0,
+                    "actions_high": 0,
+                    "actions_medium": 0,
+                    "actions_low": 0,
+                },
+                "sources": [],
+                "pilot_evidence_readiness": {
+                    "design_partner_feedback_status": "ready",
+                    "pilot_metrics_status": "ready",
+                    "runtime_card_status": "pass",
+                    "evidence_cloud_status": "ready",
+                    "work_item_import_status": status,
+                },
+                "manual_input_gaps": [],
+                "monetization_signals": [
+                    {
+                        "id": "hosted_aggregation",
+                        "answer": hosted,
+                        "manual_reason_required": False,
+                    },
+                    {
+                        "id": "premium_policy_packs",
+                        "answer": policy,
+                        "manual_reason_required": False,
+                    },
+                ],
+                "actions": [],
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 def _write_ready_evidence_bundle_inputs(root: Path) -> None:
@@ -258,6 +318,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "mutation-readiness",
         "pilot-metrics",
         "pilot-outcome",
+        "pilot-cohort",
         "agent-bundle",
     ):
         assert command in experimental_panel
@@ -653,6 +714,121 @@ def test_report_pilot_outcome_wraps_core_errors(monkeypatch: pytest.MonkeyPatch)
 
     assert result.exit_code == 1
     assert "pilot outcome path is unsafe" in result.output
+
+
+def test_report_pilot_cohort_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_pilot_outcome_packet(Path("reports") / "pilot-a.json")
+    _write_text(
+        Path("reports") / "pilot-cohort-manifest.json",
+        """
+{
+  "schema_version": "entroping.pilot-cohort-manifest.v1",
+  "outcomes": [{"id": "pilot-a", "path": "reports/pilot-a.json"}]
+}
+""",
+    )
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "pilot-cohort", "--manifest", "reports/pilot-cohort-manifest.json"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote pilot cohort packet: reports/pilot-cohort.md" in result.output
+    markdown = Path("reports/pilot-cohort.md").read_text(encoding="utf-8")
+    assert "# Entroping Pilot Cohort" in markdown
+    assert "checkout-api" in markdown
+
+
+def test_report_pilot_cohort_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_pilot_outcome_packet(Path("reports") / "pilot-a.json")
+    _write_text(
+        Path("reports") / "pilot-cohort-manifest.json",
+        """
+{
+  "schema_version": "entroping.pilot-cohort-manifest.v1",
+  "outcomes": [{"id": "pilot-a", "path": "reports/pilot-a.json"}]
+}
+""",
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "report",
+            "pilot-cohort",
+            "--manifest",
+            "reports/pilot-cohort-manifest.json",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote pilot cohort packet: reports/pilot-cohort.json" in result.output
+    payload = json.loads(Path("reports/pilot-cohort.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.pilot-cohort.v1"
+    assert payload["summary"]["outcomes_present"] == 1
+
+
+def test_report_pilot_cohort_requires_manifest() -> None:
+    result = CliRunner().invoke(app, ["report", "pilot-cohort"])
+
+    assert result.exit_code == 2
+    assert "Usage:" in result.output
+    assert "pilot-cohort" in result.output
+
+
+def test_report_pilot_cohort_rejects_unsupported_output(tmp_path: Path) -> None:
+    manifest = tmp_path / "reports" / "pilot-cohort-manifest.json"
+    _write_text(
+        manifest,
+        """
+{
+  "schema_version": "entroping.pilot-cohort-manifest.v1",
+  "outcomes": [{"id": "pilot-a", "path": "reports/pilot-a.json"}]
+}
+""",
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "report",
+            "pilot-cohort",
+            "--manifest",
+            str(manifest),
+            "--output",
+            "html",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "Unsupported pilot-cohort output" in result.output
+    assert not Path("reports/pilot-cohort.html").exists()
+
+
+def test_report_pilot_cohort_wraps_core_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail_pilot_cohort(*args: object, **kwargs: object) -> object:
+        raise PilotCohortError("pilot cohort path is unsafe")
+
+    monkeypatch.setattr(report_cli, "run_pilot_cohort_report", fail_pilot_cohort)
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "pilot-cohort", "--manifest", "reports/pilot-cohort-manifest.json"],
+    )
+
+    assert result.exit_code == 1
+    assert "pilot cohort path is unsafe" in result.output
 
 
 def test_report_handoff_writes_markdown(

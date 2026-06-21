@@ -53,6 +53,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Work item draft packet | `entroping.work-item-draft.v1` | `reports/work-item-draft.json` from `entroping report work-item-draft --output json` | [work-item-draft.v1.schema.json](report-schemas/work-item-draft.v1.schema.json) |
 | Work item import bundle | `entroping.work-item-import-bundle.v1` | `reports/work-item-import-bundle.json` from `entroping report work-item-import-bundle --output json` | [work-item-import-bundle.v1.schema.json](report-schemas/work-item-import-bundle.v1.schema.json) |
 | Pilot outcome packet | `entroping.pilot-outcome.v1` | `reports/pilot-outcome.json` from `entroping report pilot-outcome --output json` | [pilot-outcome.v1.schema.json](report-schemas/pilot-outcome.v1.schema.json) |
+| Pilot cohort packet | `entroping.pilot-cohort.v1` | `reports/pilot-cohort.json` from `entroping report pilot-cohort --manifest <path> --output json` | [pilot-cohort.v1.schema.json](report-schemas/pilot-cohort.v1.schema.json) |
 | Connector intent packet | `entroping.connector-intent.v1` | `reports/connector-intent.json` from `entroping report connector-intent --output json` | [connector-intent.v1.schema.json](report-schemas/connector-intent.v1.schema.json) |
 | Observability packet | `entroping.observability-packet.v1` | `reports/observability-packet.json` from `entroping report observability-packet --output json` | [observability-packet.v1.schema.json](report-schemas/observability-packet.v1.schema.json) |
 | API inventory packet | `entroping.api-inventory.v1` | `reports/api-inventory.json` from `entroping report api-inventory --output json` | [api-inventory.v1.schema.json](report-schemas/api-inventory.v1.schema.json) |
@@ -928,6 +929,31 @@ label, comment on, or post to tickets, PRs, chat, automation, hosted state,
 dashboards, uploads, external APIs, Hurl/tests, model providers, traffic state,
 `entroping run`, source Hurl, raw report contents, design-partner private
 notes, provider keys, credentials, cookies, tokens, webhooks, URLs, or prompts.
+
+The pilot cohort packet is written by:
+
+```bash
+entroping report pilot-cohort --manifest reports/pilot-cohort-manifest.json
+entroping report pilot-cohort --manifest reports/pilot-cohort-manifest.json --output json
+```
+
+It writes `reports/pilot-cohort.md` by default or
+`reports/pilot-cohort.json` with schema `entroping.pilot-cohort.v1` when
+`--output json` is selected. The manifest is local JSON with schema version
+`entroping.pilot-cohort-manifest.v1` and an explicit `outcomes[]` list of
+pilot outcome packet paths. The command reads only those explicit
+`entroping.pilot-outcome.v1` JSON packets through the evidence-index safety
+path, then emits source states, schema versions, bounded SHA-256 hashes,
+cohort status counts, value-free monetization answer counts, readiness status
+counts, manual-input gap counts, and next actions. Missing outcome packets
+become generation actions; malformed, unreadable, oversized, symlinked,
+wrong-schema, forbidden-directory, outside-project, or secret-like outcome
+packets become repair actions. The command does not discover cohorts, create,
+import, update, sync, assign, label, comment on, or post to tickets, PRs, chat,
+automation, hosted state, dashboards, uploads, external APIs, Hurl/tests,
+model providers, traffic state, `entroping run`, source Hurl, raw outcome
+contents, design-partner private notes, provider keys, credentials, cookies,
+tokens, webhooks, URLs, or prompts.
 
 The connector intent packet is written by:
 

@@ -228,6 +228,15 @@ from entroping.core.observability_packet import (
     ObservabilitySource,
     ObservabilitySummary,
 )
+from entroping.core.pilot_cohort import (
+    PILOT_COHORT_SCHEMA_VERSION,
+    PilotCohortAction,
+    PilotCohortMonetizationSignal,
+    PilotCohortOutcome,
+    PilotCohortPacket,
+    PilotCohortReadinessSignal,
+    PilotCohortSummary,
+)
 from entroping.core.pilot_metrics import (
     PILOT_METRICS_SCHEMA_VERSION,
     PilotEvidenceSource,
@@ -4677,6 +4686,116 @@ def test_pilot_outcome_v1_schema_contract_is_versioned_and_stable() -> None:
     ]
 
 
+def test_pilot_cohort_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "pilot-cohort.v1.schema.json").read_text())
+    packet = PilotCohortPacket(
+        generated_at="2026-06-21T00:00:00+00:00",
+        project="checkout-api",
+        manifest_path="reports/pilot-cohort-manifest.json",
+        summary=PilotCohortSummary(
+            status="partial",
+            outcomes_total=2,
+            outcomes_present=1,
+            outcomes_missing=1,
+            outcomes_invalid=0,
+            outcomes_unsafe=0,
+            pilots_ready=1,
+            pilots_partial=0,
+            pilots_insufficient=0,
+            manual_input_gaps_total=1,
+            actions_total=2,
+            actions_high=0,
+            actions_medium=1,
+            actions_low=1,
+        ),
+        outcomes=(
+            PilotCohortOutcome(
+                id="pilot-a",
+                path="reports/pilot-a.json",
+                state="present",
+                schema_version="entroping.pilot-outcome.v1",
+                sha256="a" * 64,
+                project="checkout-api",
+                status="ready",
+                manual_input_gaps=1,
+                summary="ready",
+            ),
+            PilotCohortOutcome(
+                id="pilot-b",
+                path="reports/pilot-b.json",
+                state="missing",
+                summary="missing",
+            ),
+        ),
+        monetization_signals=(
+            PilotCohortMonetizationSignal(
+                id="hosted_aggregation",
+                yes=1,
+                no=0,
+                unclear=0,
+            ),
+            PilotCohortMonetizationSignal(
+                id="premium_policy_packs",
+                yes=0,
+                no=0,
+                unclear=1,
+            ),
+        ),
+        readiness_signals=(
+            PilotCohortReadinessSignal(
+                id="design_partner_feedback",
+                ready=1,
+                pass_count=0,
+                partial=0,
+                insufficient=0,
+                missing=0,
+                invalid=0,
+                unsafe=0,
+                other=0,
+            ),
+        ),
+        actions=(
+            PilotCohortAction(
+                priority="medium",
+                category="generate",
+                action="Generate missing pilot outcome packets before cohort review.",
+                outcome_ids=("pilot-b",),
+                status="missing",
+            ),
+            PilotCohortAction(
+                priority="low",
+                category="review",
+                action="Review unclear monetization signals before commercial follow-up.",
+                status="unclear",
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert PILOT_COHORT_SCHEMA_VERSION == "entroping.pilot-cohort.v1"
+    assert payload["schema_version"] == "entroping.pilot-cohort.v1"
+    assert payload["summary"]["outcomes_total"] == 2
+    assert schema["properties"]["schema_version"]["const"] == "entroping.pilot-cohort.v1"
+    assert schema["$defs"]["source_state"]["enum"] == [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe",
+    ]
+    assert schema["$defs"]["signal_id"]["enum"] == [
+        "hosted_aggregation",
+        "premium_policy_packs",
+    ]
+    assert schema["$defs"]["readiness_id"]["enum"] == [
+        "design_partner_feedback",
+        "pilot_metrics",
+        "runtime_card",
+        "evidence_cloud",
+        "work_item_import",
+    ]
+
+
 def test_qa_brain_seed_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "qa-brain-seed.v1.schema.json").read_text())
     packet = QaBrainSeedPacket(
@@ -5753,6 +5872,7 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
             SCHEMA_DIR / "work-item-import-bundle.v1.schema.json"
         ),
         "entroping.pilot-outcome.v1": SCHEMA_DIR / "pilot-outcome.v1.schema.json",
+        "entroping.pilot-cohort.v1": SCHEMA_DIR / "pilot-cohort.v1.schema.json",
         "entroping.connector-intent.v1": (SCHEMA_DIR / "connector-intent.v1.schema.json"),
         "entroping.external-test-evidence.v1": (
             SCHEMA_DIR / "external-test-evidence.v1.schema.json"
