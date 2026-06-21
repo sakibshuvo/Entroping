@@ -51,6 +51,7 @@ entroping report integration-readiness [--output <md|json>]
 entroping report devex-readiness [--output <md|json>]
 entroping report evidence-cloud-readiness [--output <md|json>]
 entroping report evidence-cloud-export [--output <md|json>]
+entroping report evidence-cloud-workspace --manifest <path> [--output <md|json>]
 entroping report evidence-links [--output <md|json>]
 entroping report evidence-portal [--output <html|json>]
 entroping report connector-intent [--output <md|json>]
@@ -434,6 +435,7 @@ Experimental design-partner evidence commands:
 | `entroping report evidence-cloud-readiness --output json` | Write machine-readable Evidence Cloud readiness metadata to `reports/evidence-cloud-readiness.json` |
 | `entroping report evidence-cloud-export --output md` | Write a local Evidence Cloud export manifest to `reports/evidence-cloud-export.md` |
 | `entroping report evidence-cloud-export --output json` | Write machine-readable Evidence Cloud export metadata to `reports/evidence-cloud-export.json` |
+| `entroping report evidence-cloud-workspace --manifest reports/evidence-cloud-export.json` | Write a local Evidence Cloud workspace packet |
 | `entroping report evidence-links --output md` | Write a local cross-surface evidence links packet to `reports/evidence-links.md` |
 | `entroping report evidence-links --output json` | Write machine-readable evidence links metadata to `reports/evidence-links.json` |
 | `entroping report evidence-portal --output html` | Write a static local evidence portal dashboard to `reports/evidence-portal.html` |

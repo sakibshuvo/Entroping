@@ -175,6 +175,9 @@ produce.
   reports and artifact manifests.
 - Add a local Evidence Cloud export manifest that lists only sanitized artifact
   metadata, hashes, and boundary controls before any hosted upload flow exists.
+- Add a local Evidence Cloud workspace packet that aggregates only explicit
+  export manifests into value-free repository status and boundary-control
+  summaries before any hosted dashboard exists.
 - Prototype a dashboard for PR/runtime-governance status across repositories:
   pass/fail, failed gates, drift summaries, redaction confidence, and release
   evidence anchors.

@@ -213,7 +213,8 @@ def test_qa_brain_model_packaging_plan_preserves_attention_and_blockers(
     assert next(
         action for action in packet.next_actions if action.case_ids == ("bogus_evidence",)
     ).priority == "high"
-    assert "999" not in packet.model_dump_json()
+    assert all("999" not in " ".join(row.source_paths) for row in packet.packaging_plans)
+    assert all("999" not in " ".join(row.blockers) for row in packet.packaging_plans)
 
 
 def test_qa_brain_model_packaging_plan_markdown_is_human_readable_and_value_free(

@@ -134,6 +134,15 @@ from entroping.core.evidence_cloud_readiness import (
     EvidenceCloudSummary,
     EvidenceCloudUploadCandidate,
 )
+from entroping.core.evidence_cloud_workspace import (
+    EVIDENCE_CLOUD_WORKSPACE_SCHEMA_VERSION,
+    EvidenceCloudWorkspaceBoundaryControl,
+    EvidenceCloudWorkspaceManifest,
+    EvidenceCloudWorkspaceNextAction,
+    EvidenceCloudWorkspacePacket,
+    EvidenceCloudWorkspaceRepository,
+    EvidenceCloudWorkspaceSummary,
+)
 from entroping.core.evidence_index_report import (
     EVIDENCE_INDEX_SCHEMA_VERSION,
     EvidenceIndexArtifact,
@@ -2902,6 +2911,140 @@ def test_evidence_cloud_export_v1_schema_contract_is_versioned_and_stable() -> N
     ]
 
 
+def test_evidence_cloud_workspace_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "evidence-cloud-workspace.v1.schema.json").read_text())
+    packet = EvidenceCloudWorkspacePacket(
+        generated_at="2026-06-21T00:00:00+00:00",
+        project="tmp-workspace",
+        summary=EvidenceCloudWorkspaceSummary(
+            status="partial",
+            manifests_total=2,
+            manifests_present=2,
+            manifests_missing=0,
+            manifests_invalid=0,
+            manifests_unsafe=0,
+            repositories_total=2,
+            repositories_ready=1,
+            repositories_partial=1,
+            repositories_insufficient=0,
+            export_items_total=4,
+            export_items_ready=3,
+            export_items_blocked=1,
+            boundary_controls_total=2,
+            next_actions_total=1,
+        ),
+        manifests=(
+            EvidenceCloudWorkspaceManifest(
+                id="manifest-1",
+                path="reports/repo-a-export.json",
+                state="present",
+                schema_version="entroping.evidence-cloud-export.v1",
+                sha256="a" * 64,
+                project="checkout-api",
+                export_status="ready",
+                summary="ready",
+            ),
+            EvidenceCloudWorkspaceManifest(
+                id="manifest-2",
+                path="reports/repo-b-export.json",
+                state="present",
+                schema_version="entroping.evidence-cloud-export.v1",
+                sha256="b" * 64,
+                project="billing-api",
+                export_status="partial",
+                summary="partial",
+            ),
+        ),
+        repositories=(
+            EvidenceCloudWorkspaceRepository(
+                id="repository-1",
+                manifest_id="manifest-1",
+                project="checkout-api",
+                status="ready",
+                sources_present=2,
+                sources_total=2,
+                export_items_ready=2,
+                export_items_total=2,
+                export_items_blocked=0,
+                boundary_controls_total=2,
+                local_reference="entroping://evidence-cloud-workspace/repository-1",
+                summary="ready",
+            ),
+            EvidenceCloudWorkspaceRepository(
+                id="repository-2",
+                manifest_id="manifest-2",
+                project="billing-api",
+                status="partial",
+                sources_present=1,
+                sources_total=2,
+                export_items_ready=1,
+                export_items_total=2,
+                export_items_blocked=1,
+                boundary_controls_total=2,
+                local_reference="entroping://evidence-cloud-workspace/repository-2",
+                summary="partial",
+            ),
+        ),
+        boundary_controls=(
+            EvidenceCloudWorkspaceBoundaryControl(
+                id="explicit_upload_only",
+                label="Explicit upload only",
+                total_manifests=2,
+                enforced_manifests=2,
+                summary="Both manifests preserve explicit upload only.",
+            ),
+            EvidenceCloudWorkspaceBoundaryControl(
+                id="no_remote_api",
+                label="No remote API",
+                total_manifests=2,
+                enforced_manifests=2,
+                summary="Both manifests avoid remote APIs.",
+            ),
+        ),
+        next_actions=(
+            EvidenceCloudWorkspaceNextAction(
+                priority="medium",
+                action="Review partial Evidence Cloud export manifests before workspace promotion.",
+                manifest_ids=("manifest-2",),
+                repository_ids=("repository-2",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert EVIDENCE_CLOUD_WORKSPACE_SCHEMA_VERSION == "entroping.evidence-cloud-workspace.v1"
+    assert payload["schema_version"] == "entroping.evidence-cloud-workspace.v1"
+    assert payload["repositories"][0]["local_reference"] == (
+        "entroping://evidence-cloud-workspace/repository-1"
+    )
+    assert schema["properties"]["schema_version"]["const"] == (
+        "entroping.evidence-cloud-workspace.v1"
+    )
+    assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["$defs"]["manifest_state"]["enum"] == [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe",
+    ]
+    assert schema["$defs"]["repository_status"]["enum"] == [
+        "ready",
+        "partial",
+        "insufficient",
+    ]
+    assert schema["$defs"]["boundary_control_id"]["enum"] == [
+        "explicit_upload_only",
+        "no_remote_api",
+        "no_raw_traffic",
+        "no_secrets",
+        "no_prompts_or_provider_outputs",
+        "no_source_hurl",
+        "no_env_values",
+        "no_full_report_payloads",
+    ]
+
+
 def test_connector_intent_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "connector-intent.v1.schema.json").read_text())
     packet = ConnectorIntentPacket(
@@ -5004,6 +5147,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         ),
         "entroping.evidence-cloud-export.v1": (
             SCHEMA_DIR / "evidence-cloud-export.v1.schema.json"
+        ),
+        "entroping.evidence-cloud-workspace.v1": (
+            SCHEMA_DIR / "evidence-cloud-workspace.v1.schema.json"
         ),
         "entroping.evidence-links.v1": (SCHEMA_DIR / "evidence-links.v1.schema.json"),
         "entroping.evidence-portal.v1": (SCHEMA_DIR / "evidence-portal.v1.schema.json"),
