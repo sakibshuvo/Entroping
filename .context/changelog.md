@@ -2,6 +2,14 @@
 
 ## 2026-06-21
 
+- Added issue #1105's API inventory GraphQL operation counts: `report
+  api-inventory` now counts root `Query`, `Mutation`, and `Subscription`
+  fields from local GraphQL SDL schema files without adding a parser
+  dependency, executing Hurl, parsing traffic state, generating tests, mutating
+  source Hurl, changing `entroping run`, invoking models, or rendering raw
+  GraphQL field names, URLs, headers, bodies, examples, credentials, cookies,
+  traffic, prompts, or full file contents.
+
 - Added issue #1103's API inventory WebSocket/realtime classification:
   `report api-inventory` now classifies local WebSocket/realtime contract files
   and Hurl protocol tags alongside REST/OpenAPI, GraphQL, SOAP/XML,

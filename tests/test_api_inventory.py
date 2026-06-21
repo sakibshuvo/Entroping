@@ -76,7 +76,7 @@ HTTP 200
         "sources_unsafe": 0,
         "styles_total": 4,
         "hurl_tests_total": 2,
-        "operations_total": 4,
+        "operations_total": 5,
     }
     sources = {(source["kind"], source["path"]): source for source in payload["sources"]}
     assert sources[("configured_openapi", "openapi.yaml")] == {
@@ -92,9 +92,14 @@ HTTP 200
     assert sources[("hurl_test", "tests/graphql.hurl")]["style"] == "graphql"
     assert sources[("hurl_test", "tests/soap.hurl")]["style"] == "soap_xml"
     assert sources[("schema_file", "schema.graphql")]["style"] == "graphql"
+    assert sources[("schema_file", "schema.graphql")]["operations"] == 1
+    assert sources[("schema_file", "schema.graphql")]["summary"] == (
+        "1 GraphQL root operation."
+    )
     assert sources[("schema_file", "contracts/orders.proto")]["style"] == "grpc_proto"
     styles = {style["style"]: style for style in payload["styles"]}
     assert styles["rest_openapi"]["operations"] == 2
+    assert styles["graphql"]["operations"] == 2
     assert styles["graphql"]["hurl_tests"] == 1
     assert styles["soap_xml"]["hurl_tests"] == 1
     assert styles["grpc_proto"]["sources"] == 1
@@ -352,6 +357,89 @@ event_contracts:
     assert contract.operations == 2
     assert contract.summary == "2 webhook/event contract entries."
     assert sources[("hurl_test", "tests/asyncapi.hurl")].style == "asyncapi"
+
+
+def test_api_inventory_counts_graphql_root_operations_without_leaking_names(
+    tmp_path: Path,
+) -> None:
+    schema_path = _write_text(
+        tmp_path / "schema.graphql",
+        '''
+"""customer: internal context should not appear"""
+type Query {
+  # comment-only lines should not count
+  health: String
+  order(id: ID!): Order
+}
+
+extend type Query {
+  orders(
+    status: OrderStatus = OPEN
+  ): [Order!]!
+}
+
+type Mutation {
+  createOrder(input: OrderInput!): Order!
+}
+
+type Subscription {
+  orderCreated: Order!
+}
+
+type Order {
+  id: ID!
+}
+'''.strip()
+        + "\n",
+    )
+
+    result = run_api_inventory_report(project_root=tmp_path, output="json")
+
+    payload = json.loads(result.output_path.read_text(encoding="utf-8"))
+    sources = {(source["kind"], source["path"]): source for source in payload["sources"]}
+    assert sources[("schema_file", "schema.graphql")] == {
+        "kind": "schema_file",
+        "style": "graphql",
+        "path": "schema.graphql",
+        "state": "present",
+        "sha256": hashlib.sha256(schema_path.read_bytes()).hexdigest(),
+        "tags": [],
+        "operations": 5,
+        "summary": "5 GraphQL root operations.",
+    }
+    styles = {style["style"]: style for style in payload["styles"]}
+    assert styles["graphql"]["operations"] == 5
+    serialized = json.dumps(payload)
+    assert "health" not in serialized
+    assert "orderCreated" not in serialized
+    assert "customer: internal context" not in serialized
+    assert "OrderStatus" not in serialized
+
+
+def test_api_inventory_keeps_non_operation_graphql_sdl_present(
+    tmp_path: Path,
+) -> None:
+    _write_text(
+        tmp_path / "types.graphqls",
+        """
+type Order {
+  id: ID!
+}
+
+input OrderInput {
+  id: ID!
+}
+""".strip()
+        + "\n",
+    )
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    sources = {(source.kind, source.path): source for source in packet.sources}
+    source = sources[("schema_file", "types.graphqls")]
+    assert source.state == "present"
+    assert source.operations == 0
+    assert source.summary == "0 GraphQL root operations."
 
 
 def test_api_inventory_detects_websocket_realtime_contract_and_hurl_tags(

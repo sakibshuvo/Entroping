@@ -16,15 +16,14 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1103 API Inventory WebSocket/Realtime Classification
+## Current Issue Slice: #1105 API Inventory GraphQL Operation Counts
 
 Extend `entroping report api-inventory --output md|json` so the local API
-architecture breadth packet classifies WebSocket/realtime contract files and
-Hurl protocol tags alongside existing REST/OpenAPI, GraphQL, SOAP/XML,
-gRPC/proto, AsyncAPI, webhook/event, and unknown HTTP signals. Keep the slice
-advisory and deterministic: no provider/model call, broker/socket execution,
-traffic parsing, Hurl execution, generated-test creation, source Hurl
-mutation, adapter implementation, hosted upload, or `entroping run` behavior
+architecture breadth packet counts GraphQL SDL root `Query`, `Mutation`, and
+`Subscription` fields without rendering field names or adding a parser
+dependency. Keep the slice advisory and deterministic: no provider/model call,
+traffic parsing, Hurl execution, generated-test creation, source Hurl mutation,
+GraphQL adapter implementation, hosted upload, or `entroping run` behavior
 change.
 
 ## Current Baseline
