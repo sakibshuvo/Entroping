@@ -2,6 +2,17 @@
 
 ## 2026-06-21
 
+- Added issue #1101's QA Brain repair-plan packet: `report
+  qa-brain-repair-plan` now writes local Markdown or
+  `entroping.qa-brain-repair-plan.v1` JSON that summarizes generated-test
+  quality, mutation readiness, evidence action-plan, routing-plan, and
+  evidence-index states into value-free repair-proposal readiness rows for
+  generate, repair, and review slices without calling providers, invoking
+  models, executing prompts, repairing generated tests, running mutations or
+  fuzzing, executing Hurl/tests, mutating source Hurl or policy, changing
+  `entroping run`, uploading artifacts, mutating tickets/chat/PRs, or
+  replacing deterministic Hurl/QAnstitution authority.
+
 - Added issue #1099's QA Brain repair acceptance gates: `report
   qa-brain-routing-plan` now emits value-free required acceptance metadata for
   future repair proposals, covering parser validation, deterministic Hurl

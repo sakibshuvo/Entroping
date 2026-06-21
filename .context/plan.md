@@ -16,16 +16,16 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1099 QA Brain Repair Acceptance Gates
+## Current Issue Slice: #1101 QA Brain Repair-Plan Packet
 
-Extend `entroping report qa-brain-routing-plan --output md|json` so the
-existing local QA Brain routing packet includes value-free required acceptance
-gates for future repair proposals: parser validation, deterministic Hurl
-execution, QAnstitution governance, deterministic evidence linkage, secret
-redaction, and Codex/human review. Keep the slice advisory and deterministic:
-no new command, model call, prompt execution, LiteLLM/provider configuration,
-Hurl execution, generated-test mutation, source Hurl/policy write-back,
-ticket/chat/PR mutation, hosted upload, or `entroping run` behavior change.
+Add `entroping report qa-brain-repair-plan --output md|json` so the local QA
+Brain packet chain can summarize generated-test quality, mutation readiness,
+evidence action-plan, routing-plan, and evidence-index states into value-free
+repair-proposal readiness metadata. Keep the slice advisory and deterministic:
+no provider/model call, prompt execution, LiteLLM/provider configuration, Hurl
+execution, generated-test repair, mutation or fuzz execution, source
+Hurl/policy write-back, ticket/chat/PR mutation, hosted upload, or
+`entroping run` behavior change.
 
 ## Current Baseline
 

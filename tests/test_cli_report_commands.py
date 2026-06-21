@@ -64,6 +64,7 @@ from entroping.core.qa_brain_model_packaging_plan import (
     QaBrainModelPackagingPlanError,
 )
 from entroping.core.qa_brain_prompt_plan import QaBrainPromptPlanError
+from entroping.core.qa_brain_repair_plan import QaBrainRepairPlanError
 from entroping.core.qa_brain_retrieval_plan import QaBrainRetrievalPlanError
 from entroping.core.qa_brain_routing_plan import QaBrainRoutingPlanError
 from entroping.core.qa_brain_seed import QaBrainSeedError
@@ -3095,6 +3096,83 @@ def test_report_qa_brain_routing_plan_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "QA brain routing plan path is unsafe" in result.output
+
+
+def test_report_qa_brain_repair_plan_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("reports") / "qa-brain-routing-plan.json",
+        """
+{
+  "schema_version": "entroping.qa-brain-routing-plan.v1",
+  "summary": {"status": "ready", "routes_total": 1, "routes_ready": 1},
+  "routing_plans": [
+    {
+      "case_id": "weak_test_detection",
+      "repair_acceptance_gates": [{"id": "parser_validation"}]
+    }
+  ]
+}
+""",
+    )
+
+    result = CliRunner().invoke(app, ["report", "qa-brain-repair-plan"])
+
+    assert result.exit_code == 0
+    assert ("Wrote QA brain repair plan: reports/qa-brain-repair-plan.md") in result.output
+    markdown = Path("reports/qa-brain-repair-plan.md").read_text(encoding="utf-8")
+    assert "# Entroping QA Brain Repair Plan" in markdown
+    assert "weak_test_detection" in markdown
+
+
+def test_report_qa_brain_repair_plan_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "qa-brain-repair-plan", "--output", "json"],
+    )
+
+    assert result.exit_code == 0
+    assert ("Wrote QA brain repair plan: reports/qa-brain-repair-plan.json") in result.output
+    payload = json.loads(Path("reports/qa-brain-repair-plan.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.qa-brain-repair-plan.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_qa_brain_repair_plan_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(
+        app,
+        ["report", "qa-brain-repair-plan", "--output", "html"],
+    )
+
+    assert result.exit_code == 2
+    assert "Unsupported qa-brain-repair-plan output" in result.output
+    assert not Path("reports/qa-brain-repair-plan.html").exists()
+
+
+def test_report_qa_brain_repair_plan_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_qa_brain_repair_plan(*args: object, **kwargs: object) -> object:
+        raise QaBrainRepairPlanError("QA brain repair plan path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_qa_brain_repair_plan_report",
+        fail_qa_brain_repair_plan,
+    )
+
+    result = CliRunner().invoke(app, ["report", "qa-brain-repair-plan"])
+
+    assert result.exit_code == 1
+    assert "QA brain repair plan path is unsafe" in result.output
 
 
 def test_report_bug_generates_markdown_from_latest_failing_run(

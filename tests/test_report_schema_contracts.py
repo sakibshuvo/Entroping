@@ -307,6 +307,14 @@ from entroping.core.qa_brain_prompt_plan import (
     QaBrainPromptPlanRow,
     QaBrainPromptPlanSummary,
 )
+from entroping.core.qa_brain_repair_plan import (
+    QA_BRAIN_REPAIR_PLAN_SCHEMA_VERSION,
+    QaBrainRepairPlanNextAction,
+    QaBrainRepairPlanPacket,
+    QaBrainRepairPlanRow,
+    QaBrainRepairPlanSource,
+    QaBrainRepairPlanSummary,
+)
 from entroping.core.qa_brain_retrieval_plan import (
     QA_BRAIN_RETRIEVAL_PLAN_SCHEMA_VERSION,
     QaBrainRetrievalPlanNextAction,
@@ -5907,6 +5915,135 @@ def test_qa_brain_routing_plan_v1_schema_contract_is_versioned_and_stable() -> N
     ]
 
 
+def test_qa_brain_repair_plan_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "qa-brain-repair-plan.v1.schema.json").read_text())
+    packet = QaBrainRepairPlanPacket(
+        generated_at="2026-06-21T00:00:00+00:00",
+        project="checkout-api",
+        routing_plan_schema_version="entroping.qa-brain-routing-plan.v1",
+        summary=QaBrainRepairPlanSummary(
+            status="partial",
+            sources_total=1,
+            sources_present=1,
+            sources_missing=0,
+            sources_invalid=0,
+            sources_unsafe=0,
+            repair_plans_total=1,
+            repair_plans_ready=0,
+            repair_plans_missing=1,
+            repair_plans_attention=0,
+            blockers_total=1,
+            next_actions_total=1,
+        ),
+        sources=(
+            QaBrainRepairPlanSource(
+                id="qa-brain-routing-plan-json",
+                label="QA Brain Routing Plan JSON",
+                path="reports/qa-brain-routing-plan.json",
+                state="present",
+                schema_version="entroping.qa-brain-routing-plan.v1",
+                summary="ready routing plan",
+            ),
+        ),
+        repair_plans=(
+            QaBrainRepairPlanRow(
+                case_id="weak_test_detection",
+                label="Weak-test detection",
+                readiness="missing",
+                repair_intent="review",
+                source_ids=("qa-brain-routing-plan-json",),
+                source_paths=("reports/qa-brain-routing-plan.json",),
+                acceptance_gate_ids=("parser_validation",),
+                blockers=("Add value-free local evidence before repair proposals.",),
+                next_action="Add evidence before future QA Brain repair proposals.",
+            ),
+        ),
+        next_actions=(
+            QaBrainRepairPlanNextAction(
+                priority="medium",
+                action="Add evidence before future QA Brain repair proposals.",
+                case_ids=("weak_test_detection",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert QA_BRAIN_REPAIR_PLAN_SCHEMA_VERSION == "entroping.qa-brain-repair-plan.v1"
+    assert payload == {
+        "schema_version": "entroping.qa-brain-repair-plan.v1",
+        "generated_at": "2026-06-21T00:00:00+00:00",
+        "project": "checkout-api",
+        "routing_plan_schema_version": "entroping.qa-brain-routing-plan.v1",
+        "summary": {
+            "status": "partial",
+            "sources_total": 1,
+            "sources_present": 1,
+            "sources_missing": 0,
+            "sources_invalid": 0,
+            "sources_unsafe": 0,
+            "repair_plans_total": 1,
+            "repair_plans_ready": 0,
+            "repair_plans_missing": 1,
+            "repair_plans_attention": 0,
+            "blockers_total": 1,
+            "next_actions_total": 1,
+        },
+        "sources": [
+            {
+                "id": "qa-brain-routing-plan-json",
+                "label": "QA Brain Routing Plan JSON",
+                "path": "reports/qa-brain-routing-plan.json",
+                "state": "present",
+                "schema_version": "entroping.qa-brain-routing-plan.v1",
+                "summary": "ready routing plan",
+            }
+        ],
+        "repair_plans": [
+            {
+                "case_id": "weak_test_detection",
+                "label": "Weak-test detection",
+                "readiness": "missing",
+                "repair_intent": "review",
+                "source_ids": ["qa-brain-routing-plan-json"],
+                "source_paths": ["reports/qa-brain-routing-plan.json"],
+                "acceptance_gate_ids": ["parser_validation"],
+                "blockers": ["Add value-free local evidence before repair proposals."],
+                "next_action": "Add evidence before future QA Brain repair proposals.",
+            }
+        ],
+        "next_actions": [
+            {
+                "priority": "medium",
+                "action": "Add evidence before future QA Brain repair proposals.",
+                "case_ids": ["weak_test_detection"],
+            }
+        ],
+    }
+    assert schema["properties"]["schema_version"]["const"] == (
+        "entroping.qa-brain-repair-plan.v1"
+    )
+    assert schema["properties"]["routing_plan_schema_version"]["const"] == (
+        "entroping.qa-brain-routing-plan.v1"
+    )
+    assert schema["$defs"]["source_id"]["enum"] == [
+        "test-quality-json",
+        "mutation-readiness-json",
+        "evidence-action-plan-json",
+        "qa-brain-routing-plan-json",
+        "evidence-index-json",
+    ]
+    assert schema["$defs"]["repair_intent"]["enum"] == ["generate", "repair", "review"]
+    assert schema["$defs"]["acceptance_gate_id"]["enum"] == [
+        "parser_validation",
+        "hurl_execution",
+        "qanstitution_governance",
+        "deterministic_evidence",
+        "secret_redaction",
+        "codex_human_review",
+    ]
+
+
 def test_effective_policy_diff_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "effective-policy-diff.v1.schema.json").read_text())
     base = EffectivePolicyReport(
@@ -6247,6 +6384,7 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
             SCHEMA_DIR / "qa-brain-model-packaging-plan.v1.schema.json"
         ),
         "entroping.qa-brain-routing-plan.v1": (SCHEMA_DIR / "qa-brain-routing-plan.v1.schema.json"),
+        "entroping.qa-brain-repair-plan.v1": (SCHEMA_DIR / "qa-brain-repair-plan.v1.schema.json"),
         "entroping.design-partner-feedback.v1": (
             SCHEMA_DIR / "design-partner-feedback.v1.schema.json"
         ),
