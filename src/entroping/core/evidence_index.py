@@ -39,7 +39,7 @@ EvidenceArtifactState = Literal["present", "missing", "invalid", "unsafe"]
 _ArtifactKind = Literal["json", "markdown", "xml", "html", "sarif"]
 _SummaryBuilder = Callable[[dict[str, object]], str]
 _MAX_JSON_ARTIFACT_BYTES: Final = 10 * 1024 * 1024
-_SHA256_HEX_RE: Final = re.compile(r"\b[0-9a-f]{64}\b")
+_SHA256_HEX_RE: Final = re.compile(r"\b[0-9a-f]{64}\b", re.IGNORECASE)
 _HAS_O_DIRECTORY: Final = hasattr(os, "O_DIRECTORY")
 _HAS_O_NOFOLLOW: Final = hasattr(os, "O_NOFOLLOW")
 _SUPPORTS_DIR_FD_OPEN: Final = os.open in os.supports_dir_fd
@@ -479,6 +479,21 @@ def _artifact_definitions() -> tuple[_EvidenceArtifactDefinition, ...]:
             path=Path("reports") / "pr-evidence-card.json",
             kind="json",
             schema_version="entroping.pr-evidence-card.v1",
+            summary_builder=_status_summary,
+        ),
+        _EvidenceArtifactDefinition(
+            id="evidence-action-plan-md",
+            label="Evidence Action Plan Markdown",
+            path=Path("reports") / "evidence-action-plan.md",
+            kind="markdown",
+            schema_version="entroping.evidence-action-plan.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="evidence-action-plan-json",
+            label="Evidence Action Plan JSON",
+            path=Path("reports") / "evidence-action-plan.json",
+            kind="json",
+            schema_version="entroping.evidence-action-plan.v1",
             summary_builder=_status_summary,
         ),
         _EvidenceArtifactDefinition(
