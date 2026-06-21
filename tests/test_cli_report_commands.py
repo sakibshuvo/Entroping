@@ -48,6 +48,7 @@ from entroping.core.mutation_readiness import MutationReadinessError
 from entroping.core.notification_packet import NotificationPacketError
 from entroping.core.observability_packet import ObservabilityPacketError
 from entroping.core.pilot_metrics import PilotMetricsError
+from entroping.core.pr_evidence_card import PrEvidenceCardError
 from entroping.core.qa_brain_eval_plan import QaBrainEvalPlanError
 from entroping.core.qa_brain_fine_tune_readiness import (
     QaBrainFineTuneReadinessError,
@@ -1397,6 +1398,68 @@ def test_report_evidence_portal_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "evidence portal path is unsafe" in result.output
+
+
+def test_report_pr_evidence_card_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "pr-evidence-card"])
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote PR evidence card: reports/pr-evidence-card.md" in result.output
+    markdown = Path("reports/pr-evidence-card.md").read_text(encoding="utf-8")
+    assert "# Entroping PR Evidence Card" in markdown
+    assert "Runtime governance" in markdown
+
+
+def test_report_pr_evidence_card_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "pr-evidence-card", "--output", "json"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote PR evidence card: reports/pr-evidence-card.json" in result.output
+    payload = json.loads(Path("reports/pr-evidence-card.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.pr-evidence-card.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_pr_evidence_card_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(
+        app,
+        ["report", "pr-evidence-card", "--output", "html"],
+    )
+
+    assert result.exit_code == 2
+    assert "Unsupported pr-evidence-card output" in result.output
+    assert not Path("reports/pr-evidence-card.html").exists()
+
+
+def test_report_pr_evidence_card_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_pr_evidence_card(*args: object, **kwargs: object) -> object:
+        raise PrEvidenceCardError("PR evidence card path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_pr_evidence_card_report",
+        fail_pr_evidence_card,
+    )
+
+    result = CliRunner().invoke(app, ["report", "pr-evidence-card"])
+
+    assert result.exit_code == 1
+    assert "PR evidence card path is unsafe" in result.output
 
 
 def test_report_team_access_control_plan_writes_markdown(

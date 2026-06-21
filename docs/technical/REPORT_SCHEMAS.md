@@ -48,6 +48,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Evidence Cloud dashboard packet | `entroping.evidence-cloud-dashboard.v1` | `reports/evidence-cloud-dashboard.json` from `entroping report evidence-cloud-dashboard --manifest <path> --output json` | [evidence-cloud-dashboard.v1.schema.json](report-schemas/evidence-cloud-dashboard.v1.schema.json) |
 | Evidence links packet | `entroping.evidence-links.v1` | `reports/evidence-links.json` from `entroping report evidence-links --output json` | [evidence-links.v1.schema.json](report-schemas/evidence-links.v1.schema.json) |
 | Evidence portal packet | `entroping.evidence-portal.v1` | `reports/evidence-portal.json` from `entroping report evidence-portal --output json` | [evidence-portal.v1.schema.json](report-schemas/evidence-portal.v1.schema.json) |
+| PR evidence card packet | `entroping.pr-evidence-card.v1` | `reports/pr-evidence-card.json` from `entroping report pr-evidence-card --output json` | [pr-evidence-card.v1.schema.json](report-schemas/pr-evidence-card.v1.schema.json) |
 | Connector intent packet | `entroping.connector-intent.v1` | `reports/connector-intent.json` from `entroping report connector-intent --output json` | [connector-intent.v1.schema.json](report-schemas/connector-intent.v1.schema.json) |
 | Observability packet | `entroping.observability-packet.v1` | `reports/observability-packet.json` from `entroping report observability-packet --output json` | [observability-packet.v1.schema.json](report-schemas/observability-packet.v1.schema.json) |
 | API inventory packet | `entroping.api-inventory.v1` | `reports/api-inventory.json` from `entroping report api-inventory --output json` | [api-inventory.v1.schema.json](report-schemas/api-inventory.v1.schema.json) |
@@ -804,6 +805,35 @@ state, change `entroping run`, or include raw URLs, headers, bodies, cookies,
 prompts, provider outputs, credentials, environment values, webhook URLs,
 ticket mutation payloads, source Hurl contents, raw report contents, raw
 traffic, or full report contents.
+
+The PR evidence card packet is written by:
+
+```bash
+entroping report pr-evidence-card
+entroping report pr-evidence-card --output json
+```
+
+It writes `reports/pr-evidence-card.md` by default or
+`reports/pr-evidence-card.json` with schema
+`entroping.pr-evidence-card.v1` when `--output json` is selected. The packet
+turns existing sanitized runtime-card, evidence-bundle, test-pyramid,
+mutation-readiness, observability-packet, integration-readiness,
+devex-readiness, connector-intent, handoff, evidence-cloud-dashboard, and
+evidence-index artifacts into a local value-free PR review card with source
+states, schema versions, bounded SHA-256 hashes, checklist rows, and next
+actions. These are fixed optional local inputs; the command has no
+input-selector flags, and missing source artifacts are non-blocking and become
+partial or insufficient card state. Malformed, oversized, non-file, symlinked,
+wrong-schema, unreadable, or secret-like source artifacts are marked invalid
+or unsafe. The Markdown output is static and local-only. The command does not
+create or update pull requests, call GitHub APIs, host a web app, upload
+artifacts, sync remote state, register protocol handlers, call external APIs,
+mutate tickets or chat, call observability APIs, sync repos or vaults, execute
+Hurl, run tests, invoke models, parse traffic state, change `entroping run`,
+or include raw URLs, headers, bodies, cookies, prompts, provider outputs,
+credentials, environment values, webhook URLs, ticket mutation payloads,
+source Hurl contents, raw report contents, raw traffic, or full report
+contents.
 
 The connector intent packet is written by:
 

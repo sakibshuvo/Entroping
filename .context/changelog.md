@@ -2,6 +2,16 @@
 
 ## 2026-06-21
 
+- Added issue #1081's PR evidence card: `report pr-evidence-card` now writes
+  local Markdown or `entroping.pr-evidence-card.v1` JSON from sanitized
+  runtime-card, evidence-bundle, test-pyramid, mutation-readiness,
+  observability-packet, integration-readiness, devex-readiness,
+  connector-intent, handoff, evidence-cloud-dashboard, and evidence-index
+  artifacts; it emits value-free source states, bounded hashes, checklist
+  rows, and next actions without creating PRs, calling GitHub or vendor APIs,
+  uploading artifacts, Hurl/test execution, model calls, traffic parsing,
+  `entroping run` changes, or raw artifact rendering.
+
 - Added issue #1079's Evidence Cloud dashboard: `report
   evidence-cloud-dashboard --manifest <path>` now writes static local HTML or
   `entroping.evidence-cloud-dashboard.v1` JSON by reusing explicit Evidence

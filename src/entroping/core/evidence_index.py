@@ -467,6 +467,21 @@ def _artifact_definitions() -> tuple[_EvidenceArtifactDefinition, ...]:
             summary_builder=_status_summary,
         ),
         _EvidenceArtifactDefinition(
+            id="pr-evidence-card-md",
+            label="PR Evidence Card Markdown",
+            path=Path("reports") / "pr-evidence-card.md",
+            kind="markdown",
+            schema_version="entroping.pr-evidence-card.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="pr-evidence-card-json",
+            label="PR Evidence Card JSON",
+            path=Path("reports") / "pr-evidence-card.json",
+            kind="json",
+            schema_version="entroping.pr-evidence-card.v1",
+            summary_builder=_status_summary,
+        ),
+        _EvidenceArtifactDefinition(
             id="observability-packet-md",
             label="Observability Packet Markdown",
             path=Path("reports") / "observability-packet.md",

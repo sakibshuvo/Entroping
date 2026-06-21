@@ -16,19 +16,14 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1079 Evidence Cloud Dashboard
+## Current Issue Slice: #1081 PR Evidence Card
 
-- Add `entroping report evidence-cloud-dashboard --manifest <path>` with
-  repeatable explicit manifest inputs and `--output html|json`.
-- Write static local HTML by default and
-  `entroping.evidence-cloud-dashboard.v1` JSON when requested.
-- Reuse the Evidence Cloud workspace packet boundary so manifest path safety,
-  schema validation, value-free rows, and raw-content rejection stay centralized.
-- Do not call hosted/model APIs, upload, sync, execute Hurl/tests, parse
-  traffic, mutate external systems, change `entroping run`, or render raw
-  artifacts, source Hurl, prompts, provider output, secrets, or env values.
-- Verification lane: `security-runtime` because this reads explicit local
-  manifests, writes reports, and extends a public CLI/report boundary.
+Add `entroping report pr-evidence-card --output md|json` as a local
+value-free PR card over sanitized report artifacts, using evidence-index and
+rejecting unsafe or secret-like output. No PR, API, or upload path, Hurl/test
+execution, traffic
+parsing, `entroping run` changes, or raw artifact rendering. Verification
+lane: `security-runtime`.
 
 ## Current Baseline
 

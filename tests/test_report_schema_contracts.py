@@ -228,6 +228,14 @@ from entroping.core.pilot_metrics import (
     PilotMetricsReport,
     PilotMetricsSummary,
 )
+from entroping.core.pr_evidence_card import (
+    PR_EVIDENCE_CARD_SCHEMA_VERSION,
+    PrEvidenceCardChecklistItem,
+    PrEvidenceCardNextAction,
+    PrEvidenceCardPacket,
+    PrEvidenceCardSource,
+    PrEvidenceCardSummary,
+)
 from entroping.core.qa_brain_eval_plan import (
     QA_BRAIN_EVAL_PLAN_SCHEMA_VERSION,
     QaBrainEvalCase,
@@ -4192,6 +4200,102 @@ def test_evidence_portal_v1_schema_contract_is_versioned_and_stable() -> None:
     ]
 
 
+def test_pr_evidence_card_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "pr-evidence-card.v1.schema.json").read_text())
+    packet = PrEvidenceCardPacket(
+        generated_at="2026-06-21T00:00:00+00:00",
+        project="checkout-api",
+        summary=PrEvidenceCardSummary(
+            status="partial",
+            sources_total=2,
+            sources_present=1,
+            sources_missing=1,
+            sources_invalid=0,
+            sources_unsafe=0,
+            checklist_total=2,
+            checklist_ready=1,
+            checklist_attention=0,
+            checklist_blocked=1,
+            next_actions_total=1,
+        ),
+        sources=(
+            PrEvidenceCardSource(
+                id="runtime-card-json",
+                label="Runtime Card JSON",
+                path="reports/runtime-card.json",
+                state="present",
+                schema_version="entroping.runtime-card.v1",
+                sha256="a" * 64,
+                summary="pass",
+            ),
+            PrEvidenceCardSource(
+                id="test-pyramid-json",
+                label="Test Pyramid JSON",
+                path="reports/test-pyramid.json",
+                state="missing",
+                schema_version=None,
+                sha256=None,
+                summary="missing",
+            ),
+        ),
+        checklist=(
+            PrEvidenceCardChecklistItem(
+                id="runtime-governance",
+                label="Runtime governance",
+                source_id="runtime-card-json",
+                state="ready",
+                path="reports/runtime-card.json",
+                schema_version="entroping.runtime-card.v1",
+                sha256="a" * 64,
+                summary="pass",
+            ),
+            PrEvidenceCardChecklistItem(
+                id="test-pyramid",
+                label="Test pyramid",
+                source_id="test-pyramid-json",
+                state="blocked",
+                path="reports/test-pyramid.json",
+                schema_version=None,
+                sha256=None,
+                summary="missing",
+            ),
+        ),
+        next_actions=(
+            PrEvidenceCardNextAction(
+                priority="medium",
+                action="Generate Test Pyramid JSON before using the PR evidence card.",
+                source_ids=("test-pyramid-json",),
+                checklist_ids=("test-pyramid",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert PR_EVIDENCE_CARD_SCHEMA_VERSION == "entroping.pr-evidence-card.v1"
+    assert payload["schema_version"] == "entroping.pr-evidence-card.v1"
+    assert payload["summary"]["checklist_blocked"] == 1
+    assert schema["properties"]["schema_version"]["const"] == "entroping.pr-evidence-card.v1"
+    assert schema["$defs"]["checklist_state"]["enum"] == [
+        "ready",
+        "attention",
+        "blocked",
+    ]
+    assert schema["$defs"]["source_id"]["enum"] == [
+        "runtime-card-json",
+        "evidence-bundle-json",
+        "test-pyramid-json",
+        "mutation-readiness-json",
+        "observability-packet-json",
+        "integration-readiness-json",
+        "devex-readiness-json",
+        "connector-intent-json",
+        "handoff-json",
+        "evidence-cloud-dashboard-json",
+        "evidence-index-json",
+    ]
+
+
 def test_qa_brain_seed_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "qa-brain-seed.v1.schema.json").read_text())
     packet = QaBrainSeedPacket(
@@ -5259,6 +5363,7 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         ),
         "entroping.evidence-links.v1": (SCHEMA_DIR / "evidence-links.v1.schema.json"),
         "entroping.evidence-portal.v1": (SCHEMA_DIR / "evidence-portal.v1.schema.json"),
+        "entroping.pr-evidence-card.v1": (SCHEMA_DIR / "pr-evidence-card.v1.schema.json"),
         "entroping.connector-intent.v1": (SCHEMA_DIR / "connector-intent.v1.schema.json"),
         "entroping.external-test-evidence.v1": (
             SCHEMA_DIR / "external-test-evidence.v1.schema.json"

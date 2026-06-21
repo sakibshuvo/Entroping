@@ -437,6 +437,8 @@ def test_evidence_index_includes_recent_value_free_packet_artifacts(
     assert by_id["evidence-cloud-dashboard-json"].path == (
         "reports/evidence-cloud-dashboard.json"
     )
+    assert by_id["pr-evidence-card-md"].path == "reports/pr-evidence-card.md"
+    assert by_id["pr-evidence-card-json"].path == "reports/pr-evidence-card.json"
 
 
 def test_evidence_index_discovers_external_test_evidence_without_raw_values(

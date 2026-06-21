@@ -181,6 +181,8 @@ produce.
 - Add a local static dashboard prototype for PR/runtime-governance status
   across repositories: pass/fail, failed gates, drift summaries, redaction
   confidence, and release evidence anchors.
+- Add a local PR evidence card that turns sanitized report artifacts into a
+  value-free review summary before any PR mutation or hosted review app exists.
 - Support design partner pilots focused on AI-generated backend/API changes and
   measure whether engineering leads will pay for cross-repo runtime governance
   visibility.
@@ -201,7 +203,7 @@ local core intact. Detailed product and monetization reasoning lives in
 
 | Lane | Public promise | Promotion rule |
 | --- | --- | --- |
-| v0.5 Frictionless Evidence Loop | Make serious team adoption obvious from editor to PR through editor/workbench/onboarding/report-card surfaces over existing artifacts, including the [Design-partner pilot kit](docs/user/USER_GUIDE.md#design-partner-pilot-kit). | Start read-only and prove report-backed value before mutation or broad dashboard work. |
+| v0.5 Frictionless Evidence Loop | Make serious team adoption obvious from editor to PR through editor/workbench/onboarding/PR-card surfaces over existing artifacts, including the [Design-partner pilot kit](docs/user/USER_GUIDE.md#design-partner-pilot-kit). | Start read-only and prove report-backed value before mutation or broad dashboard work. |
 | v0.6 Cross-Surface Continuity | Let CLI, desktop/workbench, hosted evidence pages, PR cards, and mobile views point to the same sanitized evidence. | Move curated evidence and handoff metadata only; do not sync raw repos, vaults, traffic, secrets, source Hurl, env values, or mutable worktrees. |
 | v0.6 Work Management, Chat, And Enterprise Automation | Put Entroping evidence into Jira, Linear, monday.com, Slack, Discord, Workato, Claude, Codex, and similar team surfaces. | Begin with read-only links and notifications; require access control, audit evidence, and user intent before write-back or chat commands. |
 | v0.6 Observability And Test-Pyramid Governance | Connect runtime governance to OpenTelemetry, Datadog, Splunk, and existing test evidence without replacing teams' test runners. | Prove the vendor-neutral OpenTelemetry and standard-artifact path before vendor-specific adapters or scoring claims. |
