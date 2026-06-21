@@ -78,6 +78,11 @@ from entroping.core.evidence_index_report import (
     EvidenceIndexOutput,
     run_evidence_index_report,
 )
+from entroping.core.evidence_links import (
+    EvidenceLinksError,
+    EvidenceLinksOutput,
+    run_evidence_links_report,
+)
 from entroping.core.external_test_evidence import (
     ExternalTestEvidenceError,
     ExternalTestEvidenceOutput,
@@ -993,6 +998,33 @@ def report_evidence_cloud_readiness(
     raise typer.Exit(0)
 
 
+@app.command("evidence-links", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_evidence_links(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local cross-surface evidence links packet."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported evidence-links output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_evidence_links_report(
+            project_root=Path.cwd(),
+            output=cast(EvidenceLinksOutput, normalized_output),
+        )
+    except EvidenceLinksError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote evidence links: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
 @app.command("team-access-control-plan", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
 def report_team_access_control_plan(
     output: Annotated[
@@ -1112,9 +1144,7 @@ def report_external_test_evidence(
 
     normalized_output = output.strip().lower()
     if normalized_output not in {"md", "json"}:
-        console.print(
-            f"[yellow]Unsupported external-test-evidence output: {output}[/yellow]"
-        )
+        console.print(f"[yellow]Unsupported external-test-evidence output: {output}[/yellow]")
         raise typer.Exit(2)
 
     try:

@@ -1,0 +1,292 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://entroping.dev/schemas/evidence-links.v1.schema.json",
+  "title": "Entroping evidence links packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "project",
+    "summary",
+    "sources",
+    "targets",
+    "next_actions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.evidence-links.v1"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "project": {
+      "type": "string"
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/target"
+      }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/next_action"
+      }
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "sources_total",
+        "sources_present",
+        "sources_missing",
+        "sources_invalid",
+        "sources_unsafe",
+        "targets_total",
+        "targets_ready",
+        "targets_blocked",
+        "surfaces_total",
+        "next_actions_total"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "ready",
+            "partial",
+            "insufficient"
+          ]
+        },
+        "sources_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_present": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_invalid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_unsafe": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "targets_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "targets_ready": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "targets_blocked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "surfaces_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "next_actions_total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "path",
+        "state",
+        "schema_version",
+        "sha256",
+        "summary"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/source_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/source_state"
+        },
+        "schema_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "source_id",
+        "link_token",
+        "path",
+        "state",
+        "surfaces",
+        "schema_version",
+        "sha256",
+        "summary"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/source_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "source_id": {
+          "$ref": "#/$defs/source_id"
+        },
+        "link_token": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "ready",
+            "blocked"
+          ]
+        },
+        "surfaces": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/surface"
+          }
+        },
+        "schema_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "next_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "priority",
+        "action",
+        "source_ids",
+        "target_ids"
+      ],
+      "properties": {
+        "priority": {
+          "enum": [
+            "high",
+            "medium"
+          ]
+        },
+        "action": {
+          "type": "string"
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "target_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        }
+      }
+    },
+    "source_id": {
+      "enum": [
+        "evidence-index-json",
+        "handoff-json",
+        "runtime-card-json",
+        "evidence-bundle-json",
+        "evidence-cloud-readiness-json",
+        "notification-packet-json",
+        "connector-intent-json",
+        "integration-readiness-json",
+        "devex-readiness-json"
+      ]
+    },
+    "source_state": {
+      "enum": [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe"
+      ]
+    },
+    "surface": {
+      "enum": [
+        "cli",
+        "pr",
+        "desktop",
+        "cloud",
+        "mobile",
+        "agent"
+      ]
+    }
+  }
+}
