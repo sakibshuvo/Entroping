@@ -2,6 +2,20 @@
 
 ## 2026-06-21
 
+- Added issue #1095's observability adapter readiness packet: `report
+  observability-adapter-readiness` now writes local Markdown or
+  `entroping.observability-adapter-readiness.v1` JSON that summarizes
+  sanitized observability-packet, OpenTelemetry mapping, evidence-index, and
+  runtime-card metadata into future OpenTelemetry, Datadog, Splunk, Grafana,
+  and generic observability adapter readiness rows without exporting OTLP,
+  calling collectors, vendor APIs, hosted APIs, or webhooks, mutating
+  dashboards, monitors, tickets, chat, PRs, Evidence Cloud, or hosted state,
+  reading provider keys or local secret stores, parsing traffic state,
+  executing Hurl, running tests, invoking models, mutating source Hurl,
+  changing `entroping run`, or rendering raw traffic, prompts, provider output,
+  credentials, environment values, dashboard payloads, monitor payloads, or
+  full report contents.
+
 - Added issue #1093's OpenTelemetry evidence mapping packet: `report
   otel-mapping` now writes local Markdown or `entroping.otel-mapping.v1` JSON
   that maps sanitized observability, runtime-card, test-pyramid, and external

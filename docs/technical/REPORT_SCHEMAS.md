@@ -57,6 +57,7 @@ annotation tools, hosted surfaces, and scripts should key off
 | Connector intent packet | `entroping.connector-intent.v1` | `reports/connector-intent.json` from `entroping report connector-intent --output json` | [connector-intent.v1.schema.json](report-schemas/connector-intent.v1.schema.json) |
 | Observability packet | `entroping.observability-packet.v1` | `reports/observability-packet.json` from `entroping report observability-packet --output json` | [observability-packet.v1.schema.json](report-schemas/observability-packet.v1.schema.json) |
 | OpenTelemetry mapping packet | `entroping.otel-mapping.v1` | `reports/otel-mapping.json` from `entroping report otel-mapping --output json` | [otel-mapping.v1.schema.json](report-schemas/otel-mapping.v1.schema.json) |
+| Observability adapter readiness packet | `entroping.observability-adapter-readiness.v1` | `reports/observability-adapter-readiness.json` from `entroping report observability-adapter-readiness --output json` | [observability-adapter-readiness.v1.schema.json](report-schemas/observability-adapter-readiness.v1.schema.json) |
 | API inventory packet | `entroping.api-inventory.v1` | `reports/api-inventory.json` from `entroping report api-inventory --output json` | [api-inventory.v1.schema.json](report-schemas/api-inventory.v1.schema.json) |
 | Mutation readiness packet | `entroping.mutation-readiness.v1` | `reports/mutation-readiness.json` from `entroping report mutation-readiness --output json` | [mutation-readiness.v1.schema.json](report-schemas/mutation-readiness.v1.schema.json) |
 | Evidence index packet | `entroping.evidence-index.v1` | `reports/evidence-index.json` from `entroping report evidence-index --output json` | [evidence-index.v1.schema.json](report-schemas/evidence-index.v1.schema.json) |
@@ -1034,6 +1035,34 @@ keys, parse traffic state, execute Hurl, run tests, invoke models, change
 provider outputs, credentials, environment values, webhook URLs, ticket
 mutation payloads, source Hurl contents, raw traffic, raw report contents, or
 full report contents.
+
+The observability adapter readiness packet is written by:
+
+```bash
+entroping report observability-adapter-readiness
+entroping report observability-adapter-readiness --output json
+```
+
+It writes `reports/observability-adapter-readiness.md` by default or
+`reports/observability-adapter-readiness.json` with schema
+`entroping.observability-adapter-readiness.v1` when `--output json` is
+selected. The packet reads existing sanitized observability-packet,
+OpenTelemetry mapping, evidence-index, and runtime-card metadata, then emits
+value-free readiness rows for future OpenTelemetry, Datadog, Splunk, Grafana,
+and generic observability adapters. It records source states, schema versions,
+bounded SHA-256 hashes, local artifact paths, adapter readiness statuses,
+forbidden value fields, boundary controls, and next-action rows. Missing
+source artifacts are non-blocking and become partial or insufficient packet
+state; malformed, oversized, non-file, symlinked, wrong-schema, unreadable, or
+secret-like source artifacts are marked invalid or unsafe. The command does
+not export OTLP, call OpenTelemetry collectors, Datadog, Splunk, Grafana,
+hosted APIs, webhooks, dashboards, monitors, tickets, chat, PRs, or Evidence
+Cloud, read provider keys or local secret stores, parse raw traffic or
+`.entroping/` runtime state, execute Hurl, run tests, invoke models, mutate
+source Hurl, change `entroping run`, or include raw URLs, headers, bodies,
+cookies, prompts, provider outputs, credentials, environment values, webhook
+URLs, dashboard payloads, monitor payloads, source Hurl contents, raw traffic,
+raw report contents, or full report contents.
 
 The API inventory packet is written by:
 

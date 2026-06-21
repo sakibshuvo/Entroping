@@ -8,8 +8,20 @@ from typing import Any
 import pytest
 
 import entroping.core.evidence_index as evidence_index
+import entroping.core.evidence_index_report as evidence_index_report
 from entroping.core.evidence_index import build_local_evidence_index
+from entroping.core.evidence_index_report import (
+    EVIDENCE_INDEX_SCHEMA_VERSION,
+    EvidenceIndexArtifact,
+    EvidenceIndexError,
+    EvidenceIndexPacket,
+    EvidenceIndexSummary,
+    render_evidence_index_markdown,
+    run_evidence_index_report,
+)
 from entroping.core.external_test_evidence import EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION
+from entroping.core.otel_mapping import OTEL_MAPPING_SCHEMA_VERSION
+from entroping.core.safe_write import SafeWriteError
 
 
 def _write_json(path: Path, payload: dict[str, object]) -> None:
@@ -198,6 +210,121 @@ def test_evidence_index_discovers_stable_report_artifact_ids_without_raw_values(
     assert by_id["review-summary-md"].state == "present"
     assert by_id["review-summary-md"].schema_version == "entroping.review-summary.md"
     assert sensitive_marker not in repr(artifacts)
+
+
+def test_evidence_index_uses_shared_schema_constants_for_report_artifacts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        evidence_index,
+        "OTEL_MAPPING_SCHEMA_VERSION",
+        "entroping.otel-mapping.test",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        evidence_index,
+        "EVIDENCE_INDEX_SCHEMA_VERSION",
+        "entroping.evidence-index.test",
+        raising=False,
+    )
+
+    definitions = {
+        definition.id: definition for definition in evidence_index._artifact_definitions()
+    }
+
+    assert definitions["otel-mapping-json"].schema_version == "entroping.otel-mapping.test"
+    assert definitions["evidence-index-json"].schema_version == "entroping.evidence-index.test"
+    assert OTEL_MAPPING_SCHEMA_VERSION == "entroping.otel-mapping.v1"
+    assert EVIDENCE_INDEX_SCHEMA_VERSION == "entroping.evidence-index.v1"
+
+
+def test_evidence_index_report_rejects_unsupported_and_unsafe_outputs(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(EvidenceIndexError, match="Unsupported evidence-index output"):
+        run_evidence_index_report(project_root=tmp_path, output="html")  # type: ignore[arg-type]
+    with pytest.raises(EvidenceIndexError, match="must stay under"):
+        run_evidence_index_report(
+            project_root=tmp_path,
+            output="json",
+            output_path=tmp_path.parent / "evidence-index.json",
+        )
+    with pytest.raises(EvidenceIndexError, match="must not be written into"):
+        run_evidence_index_report(
+            project_root=tmp_path,
+            output="json",
+            output_path=Path(".entroping") / "evidence-index.json",
+        )
+    with pytest.raises(EvidenceIndexError, match="must not be written into"):
+        run_evidence_index_report(
+            project_root=tmp_path,
+            output="json",
+            output_path=Path("envs") / "evidence-index.json",
+        )
+
+
+def test_evidence_index_report_rejects_symlinked_output_path(tmp_path: Path) -> None:
+    (tmp_path / "real-reports").mkdir()
+    os.symlink(tmp_path / "real-reports", tmp_path / "linked-reports")
+
+    with pytest.raises(EvidenceIndexError, match="symlinked component"):
+        run_evidence_index_report(
+            project_root=tmp_path,
+            output="json",
+            output_path=Path("linked-reports") / "evidence-index.json",
+        )
+
+
+def test_evidence_index_report_wraps_safe_write_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_safe_write(*_args: object, **_kwargs: object) -> Path:
+        raise SafeWriteError("disk full")
+
+    monkeypatch.setattr(evidence_index_report, "safe_write_text", fail_safe_write)
+
+    with pytest.raises(EvidenceIndexError, match="disk full"):
+        run_evidence_index_report(project_root=tmp_path, output="json")
+
+
+def test_evidence_index_report_relative_display_falls_back_to_name(tmp_path: Path) -> None:
+    assert (
+        evidence_index_report._relative_display(tmp_path.parent / "outside", root=tmp_path)
+        == "outside"
+    )
+
+
+def test_evidence_index_markdown_escapes_table_cells() -> None:
+    packet = EvidenceIndexPacket(
+        generated_at="2026-06-21T00:00:00+00:00",
+        project="checkout-api",
+        summary=EvidenceIndexSummary(
+            status="ready",
+            artifacts_total=1,
+            artifacts_present=1,
+            artifacts_missing=0,
+            artifacts_invalid=0,
+            artifacts_unsafe=0,
+        ),
+        artifacts=(
+            EvidenceIndexArtifact(
+                id="artifact",
+                label="Artifact",
+                path="reports/artifact.json",
+                state="present",
+                schema_version="entroping.artifact.v1",
+                summary="ready\\|split *bold*_under_`code`\nnext",
+            ),
+        ),
+    )
+
+    markdown = render_evidence_index_markdown(packet)
+
+    assert (
+        "ready&#92;\\|split &#42;bold&#42;&#95;under&#95;&#96;code&#96; next"
+        in markdown
+    )
 
 
 def test_evidence_index_marks_unsafe_artifact_paths_without_following_them(
@@ -455,6 +582,12 @@ def test_evidence_index_includes_recent_value_free_packet_artifacts(
     assert by_id["observability-packet-json"].path == "reports/observability-packet.json"
     assert by_id["otel-mapping-md"].path == "reports/otel-mapping.md"
     assert by_id["otel-mapping-json"].path == "reports/otel-mapping.json"
+    assert by_id["observability-adapter-readiness-md"].path == (
+        "reports/observability-adapter-readiness.md"
+    )
+    assert by_id["observability-adapter-readiness-json"].path == (
+        "reports/observability-adapter-readiness.json"
+    )
     assert by_id["api-inventory-json"].path == "reports/api-inventory.json"
     assert by_id["mutation-readiness-json"].path == "reports/mutation-readiness.json"
     assert by_id["evidence-index-json"].path == "reports/evidence-index.json"
@@ -501,6 +634,25 @@ def test_evidence_index_rejects_secret_like_otel_mapping_json(tmp_path: Path) ->
 
     assert by_id["otel-mapping-json"].state == "unsafe"
     assert by_id["otel-mapping-json"].summary == "secret-like content"
+
+
+def test_evidence_index_rejects_secret_like_observability_adapter_readiness_json(
+    tmp_path: Path,
+) -> None:
+    _write_json(
+        tmp_path / "reports" / "observability-adapter-readiness.json",
+        {
+            "schema_version": "entroping.observability-adapter-readiness.v1",
+            "summary": {"status": "ready"},
+            "leaked": "sk-proj-" + ("a" * 24),
+        },
+    )
+
+    artifacts = build_local_evidence_index(project_root=tmp_path)
+    by_id = {artifact.id: artifact for artifact in artifacts}
+
+    assert by_id["observability-adapter-readiness-json"].state == "unsafe"
+    assert by_id["observability-adapter-readiness-json"].summary == "secret-like content"
 
 
 def test_evidence_index_discovers_external_test_evidence_without_raw_values(

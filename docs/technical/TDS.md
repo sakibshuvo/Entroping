@@ -789,6 +789,7 @@ report generation, and artifact schemas remain the compatibility contract.
 | Pilot Cohort | `report pilot-cohort --manifest <path> --output md|json` | Local value-free design-partner cohort rollup from explicit pilot outcome packets |
 | Connector Intent | `report connector-intent --output md|json` | Read-only value-free connector intents for issue trackers, chat, enterprise automation, enterprise AI, observability, and developer-experience surfaces |
 | OpenTelemetry Mapping | `report otel-mapping --output md|json` | Local value-free mapping packet from sanitized observability and test-evidence artifacts for future OTLP adapters |
+| Observability Adapter Readiness | `report observability-adapter-readiness --output md|json` | Local value-free readiness packet for future OpenTelemetry, Datadog, Splunk, Grafana, and generic observability adapters |
 | Evidence Index | `report evidence-index --output md|json` | Stable value-free local evidence artifact index for cross-surface navigation |
 | QA Brain Seed | `report qa-brain-seed --output md|json` | Deterministic value-free seed metadata for future QA Brain retrieval and eval design |
 | QA Brain Eval Plan | `report qa-brain-eval-plan --output md|json` | Deterministic eval-case plan metadata for future QA Brain evaluation before fine-tuning |
@@ -988,6 +989,7 @@ entroping report pilot-cohort --manifest <path> [--output <md|json>]
 entroping report connector-intent [--output <md|json>]
 entroping report observability-packet [--output <md|json>]
 entroping report otel-mapping [--output <md|json>]
+entroping report observability-adapter-readiness [--output <md|json>]
 entroping report api-inventory [--output <md|json>]
 entroping report mutation-readiness [--output <md|json>]
 entroping report evidence-index [--output <md|json>]
@@ -1706,6 +1708,25 @@ provider outputs, credentials, environment values, webhook URLs, ticket
 mutation payloads, source Hurl contents, raw traffic, raw report contents, or
 full report contents.
 
+`entroping report observability-adapter-readiness` writes a local read-only
+observability adapter readiness packet at
+`reports/observability-adapter-readiness.md` by default, or
+`reports/observability-adapter-readiness.json` with `--output json`. It reads
+existing sanitized observability-packet, OpenTelemetry mapping, evidence-index,
+and runtime-card metadata, then emits value-free readiness rows for future
+OpenTelemetry, Datadog, Splunk, Grafana, and generic observability adapters.
+Missing source artifacts are non-blocking and become partial or insufficient
+packet state; malformed, oversized, non-file, symlinked, wrong-schema,
+unreadable, or secret-like source artifacts are marked invalid or unsafe. The
+command does not export OTLP, call collectors, Datadog, Splunk, Grafana, hosted
+APIs, webhooks, dashboards, monitors, tickets, chat, PRs, or Evidence Cloud,
+read provider keys or local secret stores, parse raw traffic or `.entroping/`
+runtime state, execute Hurl, run tests, invoke models, mutate source Hurl,
+change `entroping run`, or include raw URLs, headers, bodies, cookies,
+prompts, provider outputs, credentials, environment values, webhook URLs,
+dashboard payloads, monitor payloads, source Hurl contents, raw traffic, raw
+report contents, or full report contents.
+
 `entroping report api-inventory` writes a local read-only API surface inventory
 at `reports/api-inventory.md` by default, or `reports/api-inventory.json` with
 `--output json`. It detects configured and conventional OpenAPI files,
@@ -1971,6 +1992,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report observability-packet --output json` | `reports/observability-packet.json` | Machine-readable observability packet using `entroping.observability-packet.v1`. |
 | `entroping report otel-mapping --output md` | `reports/otel-mapping.md` | Human-readable OpenTelemetry evidence mapping packet for future OTLP adapters. |
 | `entroping report otel-mapping --output json` | `reports/otel-mapping.json` | Machine-readable OpenTelemetry mapping packet using `entroping.otel-mapping.v1`. |
+| `entroping report observability-adapter-readiness --output md` | `reports/observability-adapter-readiness.md` | Human-readable read-only observability adapter readiness packet. |
+| `entroping report observability-adapter-readiness --output json` | `reports/observability-adapter-readiness.json` | Machine-readable observability adapter readiness packet using `entroping.observability-adapter-readiness.v1`. |
 | `entroping report api-inventory --output md` | `reports/api-inventory.md` | Human-readable read-only API style inventory for REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, and unknown HTTP signals. |
 | `entroping report api-inventory --output json` | `reports/api-inventory.json` | Machine-readable API inventory packet using `entroping.api-inventory.v1`. |
 | `entroping report mutation-readiness --output md` | `reports/mutation-readiness.md` | Human-readable read-only mutation/fuzz readiness summary from generated-Hurl and optional local report evidence. |

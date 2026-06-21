@@ -11,14 +11,16 @@ from typing import Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from entroping.core import report_schema_versions as _report_schema_versions
 from entroping.core.evidence_common import contains_unredacted_evidence_secret
 from entroping.core.evidence_index import (
     EvidenceArtifactState,
     build_local_evidence_index,
 )
+from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.safe_write import SafeWriteError, safe_write_text
 
-EVIDENCE_INDEX_SCHEMA_VERSION: Final = "entroping.evidence-index.v1"
+EVIDENCE_INDEX_SCHEMA_VERSION: Final = _report_schema_versions.EVIDENCE_INDEX_SCHEMA_VERSION
 
 EvidenceIndexOutput = Literal["md", "json"]
 EvidenceIndexStatus = Literal["ready", "partial", "insufficient"]
@@ -100,7 +102,7 @@ def run_evidence_index_report(
         msg = f"Unsupported evidence-index output: {output}"
         raise EvidenceIndexError(msg)
     root = project_root.expanduser().resolve()
-    destination = output_path or _DEFAULT_OUTPUTS[output]
+    destination = _resolve_output_path(output_path or _DEFAULT_OUTPUTS[output], root=root)
     packet = build_evidence_index_packet(project_root=root)
     content = _render_packet_content(packet, output=output)
     if contains_unredacted_evidence_secret(content):
@@ -190,6 +192,26 @@ def _render_packet_content(
     return render_evidence_index_markdown(packet)
 
 
+def _resolve_output_path(path: Path, *, root: Path) -> Path:
+    candidate = path.expanduser()
+    if not candidate.is_absolute():
+        candidate = root / candidate
+    try:
+        relative = candidate.resolve(strict=False).relative_to(root)
+    except ValueError as exc:
+        msg = "evidence-index output path must stay under the project root"
+        raise EvidenceIndexError(msg) from exc
+    if relative.parts and relative.parts[0] in {".entroping", "envs"}:
+        msg = "evidence-index packet must not be written into .entroping or envs"
+        raise EvidenceIndexError(msg)
+    symlink_path = first_symlink_path_component(candidate, root=root)
+    if symlink_path is not None:
+        display = _relative_display(symlink_path, root=root)
+        msg = f"evidence-index output path uses symlinked component: {display}"
+        raise EvidenceIndexError(msg)
+    return candidate
+
+
 def _summary(artifacts: tuple[EvidenceIndexArtifact, ...]) -> EvidenceIndexSummary:
     counts = _state_counts(artifacts)
     return EvidenceIndexSummary(
@@ -228,8 +250,22 @@ def _inline_code(value: str) -> str:
 
 
 def _markdown_cell(value: str) -> str:
-    return _escape_backticks(escape(" ".join(value.split())).replace("|", "\\|"))
+    escaped = escape(" ".join(value.split()))
+    return (
+        escaped.replace("\\", "&#92;")
+        .replace("|", "\\|")
+        .replace("*", "&#42;")
+        .replace("_", "&#95;")
+        .replace("`", "&#96;")
+    )
 
 
 def _escape_backticks(value: str) -> str:
     return value.replace("`", "&#96;")
+
+
+def _relative_display(path: Path, *, root: Path) -> str:
+    try:
+        return path.resolve(strict=False).relative_to(root).as_posix()
+    except ValueError:
+        return path.name

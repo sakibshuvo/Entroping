@@ -151,6 +151,11 @@ from entroping.core.notification_packet import (
     NotificationPacketError,
     run_notification_packet_report,
 )
+from entroping.core.observability_adapter_readiness import (
+    ObservabilityAdapterReadinessError,
+    ObservabilityAdapterReadinessOutput,
+    run_observability_adapter_readiness_report,
+)
 from entroping.core.observability_packet import (
     ObservabilityOutput,
     ObservabilityPacketError,
@@ -1562,6 +1567,37 @@ def report_otel_mapping(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote OpenTelemetry mapping packet: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("observability-adapter-readiness", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_observability_adapter_readiness(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local observability adapter readiness packet."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(
+            f"[yellow]Unsupported observability-adapter-readiness output: {output}[/yellow]"
+        )
+        raise typer.Exit(2)
+
+    try:
+        result = run_observability_adapter_readiness_report(
+            project_root=Path.cwd(),
+            output=cast(ObservabilityAdapterReadinessOutput, normalized_output),
+        )
+    except ObservabilityAdapterReadinessError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(
+        f"Wrote observability adapter readiness: {display_cli_path(result.output_path)}"
+    )
     raise typer.Exit(0)
 
 

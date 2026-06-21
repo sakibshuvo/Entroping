@@ -218,6 +218,15 @@ from entroping.core.notification_packet import (
     NotificationSource,
     NotificationSummary,
 )
+from entroping.core.observability_adapter_readiness import (
+    OBSERVABILITY_ADAPTER_READINESS_SCHEMA_VERSION,
+    ObservabilityAdapterBoundaryControl,
+    ObservabilityAdapterNextAction,
+    ObservabilityAdapterReadinessPacket,
+    ObservabilityAdapterReadinessRow,
+    ObservabilityAdapterReadinessSource,
+    ObservabilityAdapterReadinessSummary,
+)
 from entroping.core.observability_packet import (
     OBSERVABILITY_PACKET_SCHEMA_VERSION,
     ObservabilityComponentSummary,
@@ -3892,6 +3901,159 @@ def test_otel_mapping_v1_schema_contract_is_versioned_and_stable() -> None:
     assert schema["$defs"]["signal"]["enum"] == ["resource", "log", "metric", "trace"]
 
 
+def test_observability_adapter_readiness_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads(
+        (SCHEMA_DIR / "observability-adapter-readiness.v1.schema.json").read_text()
+    )
+    packet = ObservabilityAdapterReadinessPacket(
+        generated_at="2026-06-21T00:00:00+00:00",
+        project="checkout-api",
+        summary=ObservabilityAdapterReadinessSummary(
+            status="ready",
+            severity="attention",
+            sources_total=4,
+            sources_present=4,
+            sources_missing=0,
+            sources_invalid=0,
+            sources_unsafe=0,
+            adapters_total=1,
+            adapters_ready=1,
+            adapters_attention=0,
+            adapters_blocked=0,
+            boundary_controls=1,
+        ),
+        sources=(
+            ObservabilityAdapterReadinessSource(
+                id="observability_packet",
+                label="Observability packet",
+                path="reports/observability-packet.json",
+                state="present",
+                schema_version="entroping.observability-packet.v1",
+                sha256="a" * 64,
+                summary="ready observability, attention severity, 3 events",
+            ),
+        ),
+        adapters=(
+            ObservabilityAdapterReadinessRow(
+                id="opentelemetry",
+                label="OpenTelemetry",
+                status="ready",
+                required_source_ids=("observability_packet", "otel_mapping"),
+                optional_source_ids=("evidence_index", "runtime_card"),
+                summary="Required value-free evidence is present for adapter design.",
+                next_action=(
+                    "Use the mapping packet as the value-free contract for an OTLP adapter."
+                ),
+                forbidden_fields=("raw_urls", "dashboard_payloads"),
+            ),
+        ),
+        boundary_controls=(
+            ObservabilityAdapterBoundaryControl(
+                id="no_vendor_api",
+                state="active",
+                summary="This command does not call vendor APIs.",
+            ),
+        ),
+        next_actions=(
+            ObservabilityAdapterNextAction(
+                priority="low",
+                action="Use this packet as the local value-free adapter readiness contract.",
+                source_ids=("observability_packet", "otel_mapping"),
+                adapter_ids=("opentelemetry",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert OBSERVABILITY_ADAPTER_READINESS_SCHEMA_VERSION == (
+        "entroping.observability-adapter-readiness.v1"
+    )
+    assert payload == {
+        "schema_version": "entroping.observability-adapter-readiness.v1",
+        "generated_at": "2026-06-21T00:00:00+00:00",
+        "project": "checkout-api",
+        "summary": {
+            "status": "ready",
+            "severity": "attention",
+            "sources_total": 4,
+            "sources_present": 4,
+            "sources_missing": 0,
+            "sources_invalid": 0,
+            "sources_unsafe": 0,
+            "adapters_total": 1,
+            "adapters_ready": 1,
+            "adapters_attention": 0,
+            "adapters_blocked": 0,
+            "boundary_controls": 1,
+        },
+        "sources": [
+            {
+                "id": "observability_packet",
+                "label": "Observability packet",
+                "path": "reports/observability-packet.json",
+                "state": "present",
+                "schema_version": "entroping.observability-packet.v1",
+                "sha256": "a" * 64,
+                "summary": "ready observability, attention severity, 3 events",
+            }
+        ],
+        "adapters": [
+            {
+                "id": "opentelemetry",
+                "label": "OpenTelemetry",
+                "status": "ready",
+                "required_source_ids": ["observability_packet", "otel_mapping"],
+                "optional_source_ids": ["evidence_index", "runtime_card"],
+                "summary": "Required value-free evidence is present for adapter design.",
+                "next_action": (
+                    "Use the mapping packet as the value-free contract for an OTLP adapter."
+                ),
+                "forbidden_fields": ["raw_urls", "dashboard_payloads"],
+            }
+        ],
+        "boundary_controls": [
+            {
+                "id": "no_vendor_api",
+                "state": "active",
+                "summary": "This command does not call vendor APIs.",
+            }
+        ],
+        "next_actions": [
+            {
+                "priority": "low",
+                "action": (
+                    "Use this packet as the local value-free adapter readiness contract."
+                ),
+                "source_ids": ["observability_packet", "otel_mapping"],
+                "adapter_ids": ["opentelemetry"],
+            }
+        ],
+    }
+    assert schema["properties"]["schema_version"]["const"] == (
+        "entroping.observability-adapter-readiness.v1"
+    )
+    assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["$defs"]["summary"]["properties"]["status"]["enum"] == [
+        "ready",
+        "partial",
+        "insufficient",
+    ]
+    assert schema["$defs"]["source_id"]["enum"] == [
+        "observability_packet",
+        "otel_mapping",
+        "evidence_index",
+        "runtime_card",
+    ]
+    assert schema["$defs"]["adapter_id"]["enum"] == [
+        "opentelemetry",
+        "datadog",
+        "splunk",
+        "grafana",
+        "generic",
+    ]
+
+
 def test_api_inventory_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "api-inventory.v1.schema.json").read_text())
     packet = ApiInventoryPacket(
@@ -6028,6 +6190,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         "entroping.integration-readiness.v1": (SCHEMA_DIR / "integration-readiness.v1.schema.json"),
         "entroping.observability-packet.v1": (SCHEMA_DIR / "observability-packet.v1.schema.json"),
         "entroping.otel-mapping.v1": SCHEMA_DIR / "otel-mapping.v1.schema.json",
+        "entroping.observability-adapter-readiness.v1": (
+            SCHEMA_DIR / "observability-adapter-readiness.v1.schema.json"
+        ),
         "entroping.api-inventory.v1": SCHEMA_DIR / "api-inventory.v1.schema.json",
         "entroping.mutation-readiness.v1": (SCHEMA_DIR / "mutation-readiness.v1.schema.json"),
         "entroping.evidence-index.v1": SCHEMA_DIR / "evidence-index.v1.schema.json",
