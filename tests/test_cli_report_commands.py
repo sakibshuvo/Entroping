@@ -37,6 +37,7 @@ from entroping.core.devex_readiness import DevexReadinessError
 from entroping.core.evidence_bundle import EvidenceBundleError
 from entroping.core.evidence_cloud_readiness import EvidenceCloudReadinessError
 from entroping.core.evidence_index_report import EvidenceIndexError
+from entroping.core.evidence_links import EvidenceLinksError
 from entroping.core.handoff_packet import HandoffError
 from entroping.core.integration_readiness import IntegrationReadinessError
 from entroping.core.mutation_readiness import MutationReadinessError
@@ -232,6 +233,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "integration-readiness",
         "devex-readiness",
         "evidence-cloud-readiness",
+        "evidence-links",
         "connector-intent",
         "external-test-evidence",
         "team-access-control-plan",
@@ -829,9 +831,7 @@ def test_report_evidence_cloud_readiness_writes_markdown(
     result = CliRunner().invoke(app, ["report", "evidence-cloud-readiness"])
 
     assert result.exit_code == 0, result.output
-    assert "Wrote Evidence Cloud readiness: reports/evidence-cloud-readiness.md" in (
-        result.output
-    )
+    assert "Wrote Evidence Cloud readiness: reports/evidence-cloud-readiness.md" in (result.output)
     markdown = Path("reports/evidence-cloud-readiness.md").read_text(encoding="utf-8")
     assert "# Entroping Evidence Cloud Readiness" in markdown
     assert "| team_evidence_readiness | missing | reports/team-evidence-readiness.json |" in (
@@ -854,9 +854,7 @@ def test_report_evidence_cloud_readiness_writes_json(
     assert "Wrote Evidence Cloud readiness: reports/evidence-cloud-readiness.json" in (
         result.output
     )
-    payload = json.loads(
-        Path("reports/evidence-cloud-readiness.json").read_text(encoding="utf-8")
-    )
+    payload = json.loads(Path("reports/evidence-cloud-readiness.json").read_text(encoding="utf-8"))
     assert payload["schema_version"] == "entroping.evidence-cloud-readiness.v1"
     assert payload["summary"]["status"] == "insufficient"
 
@@ -888,6 +886,68 @@ def test_report_evidence_cloud_readiness_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "evidence cloud readiness path is unsafe" in result.output
+
+
+def test_report_evidence_links_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "evidence-links"])
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote evidence links: reports/evidence-links.md" in result.output
+    markdown = Path("reports/evidence-links.md").read_text(encoding="utf-8")
+    assert "# Entroping Evidence Links" in markdown
+    assert "| evidence-index-json | missing | reports/evidence-index.json |" in markdown
+
+
+def test_report_evidence_links_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "evidence-links", "--output", "json"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote evidence links: reports/evidence-links.json" in result.output
+    payload = json.loads(Path("reports/evidence-links.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.evidence-links.v1"
+    assert payload["summary"]["status"] == "insufficient"
+
+
+def test_report_evidence_links_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(
+        app,
+        ["report", "evidence-links", "--output", "html"],
+    )
+
+    assert result.exit_code == 2
+    assert "Unsupported evidence-links output" in result.output
+    assert not Path("reports/evidence-links.html").exists()
+
+
+def test_report_evidence_links_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_evidence_links(*args: object, **kwargs: object) -> object:
+        raise EvidenceLinksError("evidence links path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_evidence_links_report",
+        fail_evidence_links,
+    )
+
+    result = CliRunner().invoke(app, ["report", "evidence-links"])
+
+    assert result.exit_code == 1
+    assert "evidence links path is unsafe" in result.output
 
 
 def test_report_team_access_control_plan_writes_markdown(

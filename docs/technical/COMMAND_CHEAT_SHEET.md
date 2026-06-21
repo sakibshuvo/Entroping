@@ -50,6 +50,7 @@ entroping report team-access-control-plan [--output <md|json>]
 entroping report integration-readiness [--output <md|json>]
 entroping report devex-readiness [--output <md|json>]
 entroping report evidence-cloud-readiness [--output <md|json>]
+entroping report evidence-links [--output <md|json>]
 entroping report connector-intent [--output <md|json>]
 entroping report observability-packet [--output <md|json>]
 entroping report api-inventory [--output <md|json>]
@@ -427,6 +428,10 @@ Experimental design-partner evidence commands:
 | `entroping report integration-readiness --output json` | Write machine-readable integration readiness metadata to `reports/integration-readiness.json` |
 | `entroping report devex-readiness --output md` | Write a local developer experience readiness packet to `reports/devex-readiness.md` |
 | `entroping report devex-readiness --output json` | Write machine-readable developer experience readiness metadata to `reports/devex-readiness.json` |
+| `entroping report evidence-cloud-readiness --output md` | Write a local Evidence Cloud readiness packet to `reports/evidence-cloud-readiness.md` |
+| `entroping report evidence-cloud-readiness --output json` | Write machine-readable Evidence Cloud readiness metadata to `reports/evidence-cloud-readiness.json` |
+| `entroping report evidence-links --output md` | Write a local cross-surface evidence links packet to `reports/evidence-links.md` |
+| `entroping report evidence-links --output json` | Write machine-readable evidence links metadata to `reports/evidence-links.json` |
 | `entroping report connector-intent --output md` | Write a local connector-intent packet to `reports/connector-intent.md` |
 | `entroping report connector-intent --output json` | Write machine-readable connector intent metadata to `reports/connector-intent.json` |
 | `entroping report observability-packet --output md` | Write a read-only observability signal packet to `reports/observability-packet.md` |
@@ -490,6 +495,8 @@ entroping report team-evidence-readiness --output json
 entroping report team-access-control-plan --output json
 entroping report integration-readiness --output json
 entroping report devex-readiness --output json
+entroping report evidence-cloud-readiness --output json
+entroping report evidence-links --output json
 entroping report connector-intent --output json
 entroping report observability-packet --output json
 entroping report api-inventory --output json

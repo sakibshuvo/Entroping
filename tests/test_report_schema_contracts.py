@@ -131,6 +131,14 @@ from entroping.core.evidence_index_report import (
     EvidenceIndexPacket,
     EvidenceIndexSummary,
 )
+from entroping.core.evidence_links import (
+    EVIDENCE_LINKS_SCHEMA_VERSION,
+    EvidenceLinksNextAction,
+    EvidenceLinksPacket,
+    EvidenceLinksSource,
+    EvidenceLinksSummary,
+    EvidenceLinkTarget,
+)
 from entroping.core.external_test_evidence import (
     EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION,
     ExternalTestEvidenceLayer,
@@ -2946,9 +2954,7 @@ def test_external_test_evidence_v1_schema_contract_is_versioned_and_stable() -> 
 
     payload = packet.model_dump(mode="json")
 
-    assert EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION == (
-        "entroping.external-test-evidence.v1"
-    )
+    assert EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION == ("entroping.external-test-evidence.v1")
     assert payload["schema_version"] == "entroping.external-test-evidence.v1"
     assert payload["sources"][0]["id"] == "unit_junit"
     assert payload["layers"][0]["status"] == "covered"
@@ -3046,9 +3052,7 @@ def test_integration_readiness_v1_schema_contract_is_versioned_and_stable() -> N
         "call_external_api",
         "override_hurl_qanstitution_result",
     ]
-    assert schema["properties"]["schema_version"]["const"] == (
-        "entroping.integration-readiness.v1"
-    )
+    assert schema["properties"]["schema_version"]["const"] == ("entroping.integration-readiness.v1")
     assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
     assert schema["$defs"]["source_id"]["enum"] == [
         "team_access_control_plan",
@@ -3589,6 +3593,103 @@ def test_evidence_index_v1_schema_contract_is_versioned_and_stable() -> None:
         "missing",
         "invalid",
         "unsafe",
+    ]
+
+
+def test_evidence_links_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "evidence-links.v1.schema.json").read_text())
+    packet = EvidenceLinksPacket(
+        generated_at="2026-06-21T00:00:00+00:00",
+        project="checkout-api",
+        summary=EvidenceLinksSummary(
+            status="partial",
+            sources_total=2,
+            sources_present=1,
+            sources_missing=1,
+            sources_invalid=0,
+            sources_unsafe=0,
+            targets_total=2,
+            targets_ready=1,
+            targets_blocked=1,
+            surfaces_total=6,
+            next_actions_total=1,
+        ),
+        sources=(
+            EvidenceLinksSource(
+                id="runtime-card-json",
+                label="Runtime Card JSON",
+                path="reports/runtime-card.json",
+                state="present",
+                schema_version="entroping.runtime-card.v1",
+                sha256="a" * 64,
+                summary="pass",
+            ),
+            EvidenceLinksSource(
+                id="evidence-index-json",
+                label="Evidence Index JSON",
+                path="reports/evidence-index.json",
+                state="missing",
+                schema_version=None,
+                sha256=None,
+                summary="missing",
+            ),
+        ),
+        targets=(
+            EvidenceLinkTarget(
+                id="runtime-card-json",
+                label="Runtime Card JSON",
+                source_id="runtime-card-json",
+                link_token="entroping://evidence/runtime-card-json",
+                path="reports/runtime-card.json",
+                state="ready",
+                surfaces=("cli", "pr", "desktop", "cloud", "mobile", "agent"),
+                schema_version="entroping.runtime-card.v1",
+                sha256="a" * 64,
+                summary="pass",
+            ),
+            EvidenceLinkTarget(
+                id="evidence-index-json",
+                label="Evidence Index JSON",
+                source_id="evidence-index-json",
+                link_token="entroping://evidence/evidence-index-json",
+                path="reports/evidence-index.json",
+                state="blocked",
+                surfaces=("cli", "desktop", "cloud", "mobile", "agent"),
+                schema_version=None,
+                sha256=None,
+                summary="missing",
+            ),
+        ),
+        next_actions=(
+            EvidenceLinksNextAction(
+                priority="medium",
+                action="Generate Evidence Index JSON local evidence.",
+                source_ids=("evidence-index-json",),
+                target_ids=("evidence-index-json",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert EVIDENCE_LINKS_SCHEMA_VERSION == "entroping.evidence-links.v1"
+    assert payload["schema_version"] == "entroping.evidence-links.v1"
+    assert payload["summary"]["surfaces_total"] == 6
+    assert payload["targets"][0]["link_token"] == "entroping://evidence/runtime-card-json"
+    assert schema["properties"]["schema_version"]["const"] == "entroping.evidence-links.v1"
+    assert schema["$defs"]["source_state"]["enum"] == [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe",
+    ]
+    assert schema["$defs"]["surface"]["enum"] == [
+        "cli",
+        "pr",
+        "desktop",
+        "cloud",
+        "mobile",
+        "agent",
     ]
 
 
@@ -4648,13 +4749,12 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         "entroping.evidence-cloud-readiness.v1": (
             SCHEMA_DIR / "evidence-cloud-readiness.v1.schema.json"
         ),
+        "entroping.evidence-links.v1": (SCHEMA_DIR / "evidence-links.v1.schema.json"),
         "entroping.connector-intent.v1": (SCHEMA_DIR / "connector-intent.v1.schema.json"),
         "entroping.external-test-evidence.v1": (
             SCHEMA_DIR / "external-test-evidence.v1.schema.json"
         ),
-        "entroping.integration-readiness.v1": (
-            SCHEMA_DIR / "integration-readiness.v1.schema.json"
-        ),
+        "entroping.integration-readiness.v1": (SCHEMA_DIR / "integration-readiness.v1.schema.json"),
         "entroping.observability-packet.v1": (SCHEMA_DIR / "observability-packet.v1.schema.json"),
         "entroping.api-inventory.v1": SCHEMA_DIR / "api-inventory.v1.schema.json",
         "entroping.mutation-readiness.v1": (SCHEMA_DIR / "mutation-readiness.v1.schema.json"),

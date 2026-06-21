@@ -2,6 +2,19 @@
 
 ## 2026-06-21
 
+- Added issue #1071's evidence links packet: `report evidence-links` now writes
+  local `entroping.evidence-links.v1` JSON or Markdown that turns sanitized
+  evidence-index, handoff, runtime-card, evidence-bundle,
+  evidence-cloud-readiness, notification-packet, connector-intent,
+  integration-readiness, and devex-readiness artifacts into stable local link
+  tokens, source states, schema versions, bounded hashes, surface
+  applicability, blocked targets, and next actions for CLI, PR, desktop, cloud,
+  mobile, and agent surfaces without registering protocol handlers, serving
+  hosted pages, calling external APIs, executing Hurl, running tests, invoking
+  models, parsing traffic state, changing `entroping run`, or rendering raw
+  report/source contents, prompts, credentials, cookies, environment values,
+  webhook URLs, ticket payloads, raw traffic, or provider outputs.
+
 - Added issue #1069's Evidence Cloud readiness packet: `report
   evidence-cloud-readiness` now writes local
   `entroping.evidence-cloud-readiness.v1` JSON or Markdown that turns

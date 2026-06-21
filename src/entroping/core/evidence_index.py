@@ -75,6 +75,16 @@ def build_local_evidence_index(*, project_root: Path) -> tuple[LocalEvidenceArti
     return tuple(_artifact_status(definition, root=root) for definition in _artifact_definitions())
 
 
+def read_local_evidence_json_artifact_bytes(
+    path: Path,
+    *,
+    root: Path,
+) -> tuple[bytes | None, str]:
+    """Read one bounded local evidence JSON artifact through the index safety path."""
+
+    return _read_json_artifact_bytes(path, root=root)
+
+
 def _artifact_definitions() -> tuple[_EvidenceArtifactDefinition, ...]:
     return (
         _EvidenceArtifactDefinition(
@@ -289,6 +299,96 @@ def _artifact_definitions() -> tuple[_EvidenceArtifactDefinition, ...]:
             path=Path("reports") / "notification-packet.json",
             kind="json",
             schema_version=NOTIFICATION_PACKET_SCHEMA_VERSION,
+            summary_builder=_status_summary,
+        ),
+        _EvidenceArtifactDefinition(
+            id="team-evidence-readiness-md",
+            label="Team Evidence Readiness Markdown",
+            path=Path("reports") / "team-evidence-readiness.md",
+            kind="markdown",
+            schema_version="entroping.team-evidence-readiness.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="team-evidence-readiness-json",
+            label="Team Evidence Readiness JSON",
+            path=Path("reports") / "team-evidence-readiness.json",
+            kind="json",
+            schema_version="entroping.team-evidence-readiness.v1",
+            summary_builder=_status_summary,
+        ),
+        _EvidenceArtifactDefinition(
+            id="team-access-control-plan-md",
+            label="Team Access-Control Plan Markdown",
+            path=Path("reports") / "team-access-control-plan.md",
+            kind="markdown",
+            schema_version="entroping.team-access-control-plan.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="team-access-control-plan-json",
+            label="Team Access-Control Plan JSON",
+            path=Path("reports") / "team-access-control-plan.json",
+            kind="json",
+            schema_version="entroping.team-access-control-plan.v1",
+            summary_builder=_status_summary,
+        ),
+        _EvidenceArtifactDefinition(
+            id="integration-readiness-md",
+            label="Integration Readiness Markdown",
+            path=Path("reports") / "integration-readiness.md",
+            kind="markdown",
+            schema_version="entroping.integration-readiness.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="integration-readiness-json",
+            label="Integration Readiness JSON",
+            path=Path("reports") / "integration-readiness.json",
+            kind="json",
+            schema_version="entroping.integration-readiness.v1",
+            summary_builder=_status_summary,
+        ),
+        _EvidenceArtifactDefinition(
+            id="devex-readiness-md",
+            label="Developer Experience Readiness Markdown",
+            path=Path("reports") / "devex-readiness.md",
+            kind="markdown",
+            schema_version="entroping.devex-readiness.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="devex-readiness-json",
+            label="Developer Experience Readiness JSON",
+            path=Path("reports") / "devex-readiness.json",
+            kind="json",
+            schema_version="entroping.devex-readiness.v1",
+            summary_builder=_status_summary,
+        ),
+        _EvidenceArtifactDefinition(
+            id="connector-intent-md",
+            label="Connector Intent Markdown",
+            path=Path("reports") / "connector-intent.md",
+            kind="markdown",
+            schema_version="entroping.connector-intent.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="connector-intent-json",
+            label="Connector Intent JSON",
+            path=Path("reports") / "connector-intent.json",
+            kind="json",
+            schema_version="entroping.connector-intent.v1",
+            summary_builder=_status_summary,
+        ),
+        _EvidenceArtifactDefinition(
+            id="evidence-cloud-readiness-md",
+            label="Evidence Cloud Readiness Markdown",
+            path=Path("reports") / "evidence-cloud-readiness.md",
+            kind="markdown",
+            schema_version="entroping.evidence-cloud-readiness.md",
+        ),
+        _EvidenceArtifactDefinition(
+            id="evidence-cloud-readiness-json",
+            label="Evidence Cloud Readiness JSON",
+            path=Path("reports") / "evidence-cloud-readiness.json",
+            kind="json",
+            schema_version="entroping.evidence-cloud-readiness.v1",
             summary_builder=_status_summary,
         ),
         _EvidenceArtifactDefinition(
@@ -640,7 +740,7 @@ def _status_summary(document: dict[str, object]) -> str:
     summary = _object_field(document, "summary")
     return _allowed_status(
         summary.get("status"),
-        allowed=("ready", "not_ready", "pass", "attention", "fail"),
+        allowed=("ready", "partial", "insufficient", "not_ready", "pass", "attention", "fail"),
         fallback="unknown",
     )
 
