@@ -341,6 +341,10 @@
   optional local report artifacts without executing Hurl, mutating tests,
   generating tests, calling providers, parsing traffic state, uploading
   artifacts, or rendering raw report/source contents.
+- Added issue #1097's API architecture breadth slice: `report api-inventory`
+  now classifies AsyncAPI specs and webhook/event-contract files alongside
+  REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, and unknown HTTP signals, while
+  keeping the report value-free and local-only.
 - Added issue #1032's API surface inventory packet: `report api-inventory` now
   writes local `entroping.api-inventory.v1` JSON or Markdown that inventories
   REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, and unknown HTTP signals from

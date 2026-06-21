@@ -16,18 +16,15 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1095 Observability Adapter Readiness Packet
+## Current Issue Slice: #1097 API Inventory Event-Contract Classification
 
-Add `entroping report observability-adapter-readiness --output md|json` as a
-local value-free readiness packet from sanitized observability-packet,
-OpenTelemetry mapping, evidence-index, and runtime-card metadata into future
-OpenTelemetry, Datadog, Splunk, Grafana, and generic observability adapter
-rows. No OTLP export, collector/vendor API or webhook calls, dashboard,
-monitor, ticket, chat, PR, Evidence Cloud, or hosted-state mutation,
-provider-key or local secret-store reads, traffic state parsing, Hurl/test
-execution, model calls, source Hurl mutation, `entroping run` changes, raw
-traffic, prompts, provider output, credentials, environment values, dashboard
-payloads, monitor payloads, or full report rendering.
+Extend `entroping report api-inventory --output md|json` so the existing local
+API inventory classifies AsyncAPI specs and webhook/event-contract evidence
+alongside REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, and unknown HTTP. Keep
+the slice value-free and deterministic: no broker, queue, webhook, WebSocket,
+gRPC stream, network call, Hurl execution, test generation, source Hurl
+mutation, provider/model call, raw URL/body/header/example rendering, or
+`entroping run` behavior change.
 
 ## Current Baseline
 
