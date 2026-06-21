@@ -239,6 +239,11 @@ LOCKED_CLI_CONTRACTS = (
         ("--output",),
     ),
     CliContract(
+        "entroping report evidence-cloud-readiness [--output <md|json>]",
+        ("report", "evidence-cloud-readiness", "--help"),
+        ("--output",),
+    ),
+    CliContract(
         "entroping report connector-intent [--output <md|json>]",
         ("report", "connector-intent", "--help"),
         ("--output",),
@@ -401,6 +406,8 @@ REPORT_ARTIFACTS = (
     "reports/team-evidence-readiness.json",
     "reports/team-access-control-plan.md",
     "reports/team-access-control-plan.json",
+    "reports/evidence-cloud-readiness.md",
+    "reports/evidence-cloud-readiness.json",
     "reports/observability-packet.md",
     "reports/observability-packet.json",
     "reports/api-inventory.md",

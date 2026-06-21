@@ -74,8 +74,14 @@ def test_evidence_index_report_preserves_invalid_and_unsafe_source_states(
     reports_dir = tmp_path / "reports"
     reports_dir.mkdir()
     outside = tmp_path.parent / "outside-run-latest.json"
+    raw_target_marker = "raw-target-never-read"
     outside.write_text(
-        '{"schema_version":"entroping.run-report.v1","summary":{"total":999}}\n',
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "summary": {"status": raw_target_marker},
+            }
+        ),
         encoding="utf-8",
     )
     (reports_dir / "run-latest.json").symlink_to(outside)
@@ -91,7 +97,7 @@ def test_evidence_index_report_preserves_invalid_and_unsafe_source_states(
     assert by_id["run-json"].summary == "symlinked path component"
     assert by_id["drift-json"].state == "invalid"
     assert by_id["drift-json"].summary == "invalid JSON"
-    assert "999" not in packet.model_dump_json()
+    assert raw_target_marker not in packet.model_dump_json()
 
 
 def test_evidence_index_markdown_escapes_table_cells() -> None:

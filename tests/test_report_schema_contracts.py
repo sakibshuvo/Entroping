@@ -115,6 +115,16 @@ from entroping.core.evidence_bundle import (
     EvidenceBundleReport,
     EvidenceBundleSummary,
 )
+from entroping.core.evidence_cloud_readiness import (
+    EVIDENCE_CLOUD_READINESS_SCHEMA_VERSION,
+    EvidenceCloudBoundary,
+    EvidenceCloudNextAction,
+    EvidenceCloudReadinessArea,
+    EvidenceCloudReadinessPacket,
+    EvidenceCloudSource,
+    EvidenceCloudSummary,
+    EvidenceCloudUploadCandidate,
+)
 from entroping.core.evidence_index_report import (
     EVIDENCE_INDEX_SCHEMA_VERSION,
     EvidenceIndexArtifact,
@@ -2621,6 +2631,120 @@ def test_devex_readiness_v1_schema_contract_is_versioned_and_stable() -> None:
     ]
 
 
+def test_evidence_cloud_readiness_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "evidence-cloud-readiness.v1.schema.json").read_text())
+    packet = EvidenceCloudReadinessPacket(
+        generated_at="2026-06-21T00:00:00+00:00",
+        project="checkout-api",
+        summary=EvidenceCloudSummary(
+            status="ready",
+            sources_total=2,
+            sources_present=2,
+            sources_missing=0,
+            sources_invalid=0,
+            sources_unsafe=0,
+            areas_total=1,
+            areas_ready=1,
+            areas_attention=0,
+            areas_blocked=0,
+            upload_candidates_total=1,
+            upload_candidates_ready=1,
+            upload_candidates_blocked=0,
+            blockers_total=0,
+            next_actions_total=1,
+        ),
+        cloud_boundary=EvidenceCloudBoundary(
+            explicit_user_intent_required=True,
+            upload_implemented=False,
+            hosted_sync_implemented=False,
+            access_control_audit_required=True,
+            forbidden_data_classes=("raw_traffic", "secrets", "full_report_contents"),
+            boundary_summary="local-only readiness packet",
+        ),
+        sources=(
+            EvidenceCloudSource(
+                id="team_evidence_readiness",
+                label="Team evidence readiness",
+                path="reports/team-evidence-readiness.json",
+                state="present",
+                schema_version="entroping.team-evidence-readiness.v1",
+                sha256="a" * 64,
+                summary="ready; 6/6 sources present",
+            ),
+            EvidenceCloudSource(
+                id="evidence_bundle",
+                label="Evidence bundle",
+                path="reports/evidence-bundle.json",
+                state="present",
+                schema_version="entroping.evidence-bundle.v1",
+                sha256="b" * 64,
+                summary="ready",
+            ),
+        ),
+        readiness_areas=(
+            EvidenceCloudReadinessArea(
+                id="team_upload_boundary",
+                label="Team upload boundary",
+                status="ready",
+                source_ids=("team_evidence_readiness", "evidence_bundle"),
+                boundary="Future cloud surfaces may reference sanitized metadata only.",
+                upload_candidate=True,
+                blockers=(),
+                next_action="Review local Evidence Cloud pilot metadata.",
+            ),
+        ),
+        upload_candidates=(
+            EvidenceCloudUploadCandidate(
+                id="team_evidence_bundle",
+                label="Team evidence bundle",
+                state="ready",
+                source_ids=("team_evidence_readiness", "evidence_bundle"),
+                description="Sanitized team evidence metadata.",
+                blockers=(),
+            ),
+        ),
+        next_actions=(
+            EvidenceCloudNextAction(
+                priority="low",
+                action="Keep upload intent explicit and audited.",
+                source_ids=("team_evidence_readiness",),
+                area_ids=("team_upload_boundary",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert EVIDENCE_CLOUD_READINESS_SCHEMA_VERSION == "entroping.evidence-cloud-readiness.v1"
+    assert payload["schema_version"] == "entroping.evidence-cloud-readiness.v1"
+    assert payload["cloud_boundary"]["upload_implemented"] is False
+    assert payload["cloud_boundary"]["hosted_sync_implemented"] is False
+    assert payload["upload_candidates"][0]["id"] == "team_evidence_bundle"
+    assert schema["properties"]["schema_version"]["const"] == (
+        "entroping.evidence-cloud-readiness.v1"
+    )
+    assert schema["properties"]["cloud_boundary"]["$ref"] == "#/$defs/cloud_boundary"
+    assert schema["$defs"]["source_id"]["enum"] == [
+        "team_evidence_readiness",
+        "evidence_bundle",
+        "runtime_card",
+        "artifact_manifest",
+        "design_partner_feedback",
+        "pilot_metrics",
+        "integration_readiness",
+        "devex_readiness",
+        "connector_intent",
+        "evidence_index",
+    ]
+    assert schema["$defs"]["upload_candidate_id"]["enum"] == [
+        "team_evidence_bundle",
+        "runtime_governance_card",
+        "integration_surface_packet",
+        "developer_experience_packet",
+    ]
+    assert "design_partner_free_form_text" in schema["$defs"]["forbidden_data_class"]["enum"]
+
+
 def test_connector_intent_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads((SCHEMA_DIR / "connector-intent.v1.schema.json").read_text())
     packet = ConnectorIntentPacket(
@@ -4521,6 +4645,9 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
             SCHEMA_DIR / "team-access-control-plan.v1.schema.json"
         ),
         "entroping.devex-readiness.v1": (SCHEMA_DIR / "devex-readiness.v1.schema.json"),
+        "entroping.evidence-cloud-readiness.v1": (
+            SCHEMA_DIR / "evidence-cloud-readiness.v1.schema.json"
+        ),
         "entroping.connector-intent.v1": (SCHEMA_DIR / "connector-intent.v1.schema.json"),
         "entroping.external-test-evidence.v1": (
             SCHEMA_DIR / "external-test-evidence.v1.schema.json"
