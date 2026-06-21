@@ -156,6 +156,11 @@ from entroping.core.pilot_metrics import (
     PilotMetricsOutput,
     run_pilot_metrics_report,
 )
+from entroping.core.pr_evidence_card import (
+    PrEvidenceCardError,
+    PrEvidenceCardOutput,
+    run_pr_evidence_card_report,
+)
 from entroping.core.qa_brain_eval_plan import (
     QaBrainEvalPlanError,
     QaBrainEvalPlanOutput,
@@ -1166,6 +1171,33 @@ def report_evidence_portal(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote evidence portal: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("pr-evidence-card", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_pr_evidence_card(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    """Write a local PR evidence review card."""
+
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported pr-evidence-card output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_pr_evidence_card_report(
+            project_root=Path.cwd(),
+            output=cast(PrEvidenceCardOutput, normalized_output),
+        )
+    except PrEvidenceCardError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote PR evidence card: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 

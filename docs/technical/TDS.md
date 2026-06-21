@@ -781,6 +781,7 @@ report generation, and artifact schemas remain the compatibility contract.
 | Evidence Cloud Dashboard | `report evidence-cloud-dashboard --manifest <path> --output html|json` | Static local value-free workspace dashboard from explicit Evidence Cloud export manifests |
 | Evidence Links | `report evidence-links --output md|json` | Read-only value-free cross-surface link targets for CLI, PR, desktop, cloud, mobile, and agent surfaces from sanitized local evidence artifacts |
 | Evidence Portal | `report evidence-portal --output html|json` | Static local value-free evidence dashboard from sanitized report artifacts |
+| PR Evidence Card | `report pr-evidence-card --output md|json` | Local value-free PR review card |
 | Connector Intent | `report connector-intent --output md|json` | Read-only value-free connector intents for issue trackers, chat, enterprise automation, enterprise AI, observability, and developer-experience surfaces |
 | Evidence Index | `report evidence-index --output md|json` | Stable value-free local evidence artifact index for cross-surface navigation |
 | QA Brain Seed | `report qa-brain-seed --output md|json` | Deterministic value-free seed metadata for future QA Brain retrieval and eval design |
@@ -972,6 +973,7 @@ entroping report evidence-cloud-workspace --manifest <path> [--output <md|json>]
 entroping report evidence-cloud-dashboard --manifest <path> [--output <html|json>]
 entroping report evidence-links [--output <md|json>]
 entroping report evidence-portal [--output <html|json>]
+entroping report pr-evidence-card [--output <md|json>]
 entroping report connector-intent [--output <md|json>]
 entroping report observability-packet [--output <md|json>]
 entroping report api-inventory [--output <md|json>]
@@ -1558,6 +1560,15 @@ provider outputs, credentials, environment values, webhook URLs, ticket
 mutation payloads, source Hurl contents, raw report contents, raw traffic, or
 full report contents.
 
+`entroping report pr-evidence-card` writes `reports/pr-evidence-card.md` by
+default, or `reports/pr-evidence-card.json` with `--output json`. It reads
+fixed sanitized artifacts through the evidence-index boundary and emits only
+source states, schemas, bounded hashes, checklist rows, and next actions.
+Missing, malformed, oversized, symlinked, wrong-schema, unreadable, or
+secret-like sources stay value-free; the command does not mutate PRs, call
+APIs, upload, execute Hurl/tests, invoke models, parse traffic, change
+`entroping run`, or render raw report/source contents.
+
 `entroping report connector-intent` writes a local read-only connector intent
 packet at `reports/connector-intent.md` by default, or
 `reports/connector-intent.json` with `--output json`. It reads existing
@@ -1844,6 +1855,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report evidence-links --output json` | `reports/evidence-links.json` | Machine-readable evidence links packet using `entroping.evidence-links.v1`. |
 | `entroping report evidence-portal --output html` | `reports/evidence-portal.html` | Static local read-only evidence portal dashboard from sanitized local report artifacts. |
 | `entroping report evidence-portal --output json` | `reports/evidence-portal.json` | Machine-readable evidence portal packet using `entroping.evidence-portal.v1`. |
+| `entroping report pr-evidence-card --output md` | `reports/pr-evidence-card.md` | Human-readable local PR evidence card. |
+| `entroping report pr-evidence-card --output json` | `reports/pr-evidence-card.json` | Machine-readable PR evidence card using `entroping.pr-evidence-card.v1`. |
 | `entroping report connector-intent --output md` | `reports/connector-intent.md` | Human-readable read-only connector intent packet for issue tracker, chat, enterprise automation, enterprise AI, observability, and developer-experience surfaces. |
 | `entroping report connector-intent --output json` | `reports/connector-intent.json` | Machine-readable connector intent packet using `entroping.connector-intent.v1`. |
 | `entroping report observability-packet --output md` | `reports/observability-packet.md` | Human-readable read-only observability signal packet for OpenTelemetry, Datadog, Splunk, Grafana, and generic surfaces. |

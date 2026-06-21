@@ -269,6 +269,11 @@ LOCKED_CLI_CONTRACTS = (
         ("--output",),
     ),
     CliContract(
+        "entroping report pr-evidence-card [--output <md|json>]",
+        ("report", "pr-evidence-card", "--help"),
+        ("--output",),
+    ),
+    CliContract(
         "entroping report connector-intent [--output <md|json>]",
         ("report", "connector-intent", "--help"),
         ("--output",),
@@ -443,6 +448,8 @@ REPORT_ARTIFACTS = (
     "reports/evidence-links.json",
     "reports/evidence-portal.html",
     "reports/evidence-portal.json",
+    "reports/pr-evidence-card.md",
+    "reports/pr-evidence-card.json",
     "reports/observability-packet.md",
     "reports/observability-packet.json",
     "reports/api-inventory.md",
