@@ -1,0 +1,319 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://entroping.dev/schemas/evidence-portal.v1.schema.json",
+  "title": "Entroping evidence portal packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "project",
+    "summary",
+    "sources",
+    "cards",
+    "next_actions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "entroping.evidence-portal.v1"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "project": {
+      "type": "string"
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "cards": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/card"
+      }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/next_action"
+      }
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "sources_total",
+        "sources_present",
+        "sources_missing",
+        "sources_invalid",
+        "sources_unsafe",
+        "cards_total",
+        "cards_ready",
+        "cards_blocked",
+        "surfaces_total",
+        "next_actions_total"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "ready",
+            "partial",
+            "insufficient"
+          ]
+        },
+        "sources_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_present": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_invalid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_unsafe": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cards_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cards_ready": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cards_blocked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "surfaces_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "next_actions_total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "path",
+        "state",
+        "schema_version",
+        "sha256",
+        "summary"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/source_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/source_state"
+        },
+        "schema_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "source_id",
+        "path",
+        "state",
+        "schema_version",
+        "sha256",
+        "summary",
+        "ready_targets",
+        "blocked_targets",
+        "surface_count",
+        "next_actions_count"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/source_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "source_id": {
+          "$ref": "#/$defs/source_id"
+        },
+        "path": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "ready",
+            "blocked"
+          ]
+        },
+        "schema_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "ready_targets": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "blocked_targets": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "surface_count": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "next_actions_count": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "next_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "priority",
+        "action",
+        "source_ids",
+        "card_ids"
+      ],
+      "properties": {
+        "priority": {
+          "enum": [
+            "high",
+            "medium"
+          ]
+        },
+        "action": {
+          "type": "string"
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "card_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        }
+      }
+    },
+    "source_id": {
+      "enum": [
+        "evidence-links-json",
+        "evidence-index-json",
+        "runtime-card-json",
+        "handoff-json",
+        "evidence-cloud-readiness-json",
+        "devex-readiness-json",
+        "connector-intent-json",
+        "observability-packet-json",
+        "test-pyramid-json"
+      ]
+    },
+    "source_state": {
+      "enum": [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe"
+      ]
+    }
+  }
+}

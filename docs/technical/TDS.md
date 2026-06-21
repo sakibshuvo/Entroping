@@ -777,6 +777,7 @@ report generation, and artifact schemas remain the compatibility contract.
 | Developer Experience Readiness | `report devex-readiness --output md|json` | Read-only value-free readiness packet for CLI, VS Code/editor, local workbench, PR runtime card, desktop, cloud, and mobile surfaces |
 | Evidence Cloud Readiness | `report evidence-cloud-readiness --output md|json` | Read-only value-free readiness packet for future Evidence Cloud upload/export promotion from sanitized local report artifacts |
 | Evidence Links | `report evidence-links --output md|json` | Read-only value-free cross-surface link targets for CLI, PR, desktop, cloud, mobile, and agent surfaces from sanitized local evidence artifacts |
+| Evidence Portal | `report evidence-portal --output html|json` | Static local value-free evidence dashboard from sanitized report artifacts |
 | Connector Intent | `report connector-intent --output md|json` | Read-only value-free connector intents for issue trackers, chat, enterprise automation, enterprise AI, observability, and developer-experience surfaces |
 | Evidence Index | `report evidence-index --output md|json` | Stable value-free local evidence artifact index for cross-surface navigation |
 | QA Brain Seed | `report qa-brain-seed --output md|json` | Deterministic value-free seed metadata for future QA Brain retrieval and eval design |
@@ -964,6 +965,7 @@ entroping report integration-readiness [--output <md|json>]
 entroping report devex-readiness [--output <md|json>]
 entroping report evidence-cloud-readiness [--output <md|json>]
 entroping report evidence-links [--output <md|json>]
+entroping report evidence-portal [--output <html|json>]
 entroping report connector-intent [--output <md|json>]
 entroping report observability-packet [--output <md|json>]
 entroping report api-inventory [--output <md|json>]
@@ -1487,6 +1489,26 @@ include raw URLs, headers, bodies, cookies, prompts, provider outputs,
 credentials, environment values, webhook URLs, ticket mutation payloads, source
 Hurl contents, raw report contents, raw traffic, or full report contents.
 
+`entroping report evidence-portal` writes a static local read-only evidence
+dashboard at `reports/evidence-portal.html` by default, or
+`reports/evidence-portal.json` with `--output json`. It reads existing
+sanitized evidence-links, evidence-index, runtime-card, handoff,
+evidence-cloud-readiness, devex-readiness, connector-intent,
+observability-packet, and test-pyramid artifacts, then emits source states,
+schema versions, bounded SHA-256 hashes, card readiness, target/surface counts,
+and next-action rows. These are fixed optional local inputs; missing source
+artifacts are non-blocking and become partial or insufficient portal state.
+Malformed, oversized, non-file, symlinked, wrong-schema, unreadable, or
+secret-like source artifacts are marked invalid or unsafe. The HTML is static
+and local-only, with no external assets or scripts. The command does not host a
+web app, upload artifacts, sync remote state, register protocol handlers, call
+external APIs, mutate tickets or chat, call observability APIs, sync repos or
+vaults, execute Hurl, run tests, invoke models, parse traffic state, change
+`entroping run`, or include raw URLs, headers, bodies, cookies, prompts,
+provider outputs, credentials, environment values, webhook URLs, ticket
+mutation payloads, source Hurl contents, raw report contents, raw traffic, or
+full report contents.
+
 `entroping report connector-intent` writes a local read-only connector intent
 packet at `reports/connector-intent.md` by default, or
 `reports/connector-intent.json` with `--output json`. It reads existing
@@ -1767,6 +1789,8 @@ redacted before serialization, and absolute project-root paths are relativized.
 | `entroping report evidence-cloud-readiness --output json` | `reports/evidence-cloud-readiness.json` | Machine-readable Evidence Cloud readiness packet using `entroping.evidence-cloud-readiness.v1`. |
 | `entroping report evidence-links --output md` | `reports/evidence-links.md` | Human-readable read-only cross-surface evidence links packet from sanitized local report artifacts. |
 | `entroping report evidence-links --output json` | `reports/evidence-links.json` | Machine-readable evidence links packet using `entroping.evidence-links.v1`. |
+| `entroping report evidence-portal --output html` | `reports/evidence-portal.html` | Static local read-only evidence portal dashboard from sanitized local report artifacts. |
+| `entroping report evidence-portal --output json` | `reports/evidence-portal.json` | Machine-readable evidence portal packet using `entroping.evidence-portal.v1`. |
 | `entroping report connector-intent --output md` | `reports/connector-intent.md` | Human-readable read-only connector intent packet for issue tracker, chat, enterprise automation, enterprise AI, observability, and developer-experience surfaces. |
 | `entroping report connector-intent --output json` | `reports/connector-intent.json` | Machine-readable connector intent packet using `entroping.connector-intent.v1`. |
 | `entroping report observability-packet --output md` | `reports/observability-packet.md` | Human-readable read-only observability signal packet for OpenTelemetry, Datadog, Splunk, Grafana, and generic surfaces. |

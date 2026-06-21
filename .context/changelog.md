@@ -2,6 +2,18 @@
 
 ## 2026-06-21
 
+- Added issue #1073's evidence portal dashboard: `report evidence-portal` now
+  writes a static local `reports/evidence-portal.html` dashboard or
+  `entroping.evidence-portal.v1` JSON that turns sanitized evidence-links,
+  evidence-index, runtime-card, handoff, evidence-cloud-readiness,
+  devex-readiness, connector-intent, observability-packet, and test-pyramid
+  artifacts into source states, schema versions, bounded hashes, card
+  readiness, target/surface counts, and next actions without hosting pages,
+  external assets/scripts, calling external APIs, executing Hurl, running
+  tests, invoking models, changing `entroping run`, or rendering raw report,
+  traffic, prompt, credential, cookie, environment, webhook, ticket, or
+  provider contents.
+
 - Added issue #1071's evidence links packet: `report evidence-links` now writes
   local `entroping.evidence-links.v1` JSON or Markdown that turns sanitized
   evidence-index, handoff, runtime-card, evidence-bundle,
