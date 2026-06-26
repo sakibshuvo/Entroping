@@ -16,15 +16,15 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1120 Dependency Automation PR Governance
+## Current Issue Slice: #1121 Report Packet Boundary Guardrails
 
-Make dependency automation PRs satisfy the repo's PR governance gates without
-weakening human-authored PR checks. Keep the change scoped to CI/documentation
-guardrails: shallow PR diff fallback, a documented dependency-bot body-check
-lane for scoped dependency files, and regression coverage for both the bot lane
-and the human/default rejection path. No command-surface, runtime,
-QAnstitution, Hurl execution, provider, package metadata, or product report
-behavior changes.
+Centralize a representative slice of duplicated report packet output-boundary
+logic by moving Evidence Cloud readiness and integration readiness onto the
+shared `safe_report_output_path` helper. Keep the change narrow: preserve each
+packet schema, output format, module-specific error type, source-read behavior,
+safe write boundary, secret-like output rejection, command surface, and
+local-only execution. Do not introduce a broad packet framework or change
+`entroping run`.
 
 ## Current Baseline
 

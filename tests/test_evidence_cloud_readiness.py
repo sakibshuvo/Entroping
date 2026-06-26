@@ -6,6 +6,7 @@ import os
 import stat as stat_module
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 
@@ -204,6 +205,12 @@ def test_evidence_cloud_readiness_rejects_unsafe_output_path(tmp_path: Path) -> 
             output="json",
             output_path=Path(".entroping") / "evidence-cloud-readiness.json",
         )
+    with pytest.raises(EvidenceCloudReadinessError, match="must not be written"):
+        run_evidence_cloud_readiness_report(
+            project_root=tmp_path,
+            output="json",
+            output_path=Path("envs") / "evidence-cloud-readiness.json",
+        )
 
 
 def test_evidence_cloud_readiness_rejects_unsupported_output(tmp_path: Path) -> None:
@@ -235,6 +242,27 @@ def test_evidence_cloud_readiness_wraps_safe_write_errors(
         run_evidence_cloud_readiness_report(project_root=tmp_path, output="json")
 
 
+def test_evidence_cloud_readiness_uses_shared_report_output_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def reject_output_path(
+        path: Path,
+        *,
+        root: Path,
+        artifact: str,
+    ) -> Path:
+        assert path == Path("reports") / "evidence-cloud-readiness.json"
+        assert root == tmp_path
+        assert artifact == "Evidence Cloud readiness packet"
+        raise SafeWriteError("shared boundary rejection")
+
+    monkeypatch.setattr(readiness, "safe_report_output_path", reject_output_path)
+
+    with pytest.raises(EvidenceCloudReadinessError, match="shared boundary rejection"):
+        run_evidence_cloud_readiness_report(project_root=tmp_path, output="json")
+
+
 def test_evidence_cloud_readiness_rejects_secret_rendered_content(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -262,6 +290,61 @@ def test_evidence_cloud_readiness_rejects_secret_packet_json(
     )
 
     with pytest.raises(EvidenceCloudReadinessError, match="secret-like content"):
+        build_evidence_cloud_readiness(project_root=tmp_path)
+
+
+def test_evidence_cloud_readiness_packet_json_supports_pydantic_without_fallback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_ready_sources(tmp_path)
+    original_model_dump = cast(Any, EvidenceCloudReadinessPacket.model_dump)
+
+    def legacy_model_dump(
+        self: EvidenceCloudReadinessPacket,
+        *args: object,
+        **kwargs: object,
+    ) -> dict[str, object]:
+        if "fallback" in kwargs:
+            raise TypeError("fallback keyword is unsupported")
+        return cast(dict[str, object], original_model_dump(self, *args, **kwargs))
+
+    monkeypatch.setattr(
+        readiness.EvidenceCloudReadinessPacket,
+        "model_dump",
+        legacy_model_dump,
+    )
+
+    packet = build_evidence_cloud_readiness(project_root=tmp_path)
+
+    assert packet.summary.status == "ready"
+
+
+def test_evidence_cloud_readiness_wraps_packet_serialization_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_ready_sources(tmp_path)
+
+    def broken_model_dump(
+        self: EvidenceCloudReadinessPacket,
+        *args: object,
+        **kwargs: object,
+    ) -> dict[str, object]:
+        if "fallback" in kwargs:
+            raise TypeError("fallback keyword is unsupported")
+        raise ValueError("boom")
+
+    monkeypatch.setattr(
+        readiness.EvidenceCloudReadinessPacket,
+        "model_dump",
+        broken_model_dump,
+    )
+
+    with pytest.raises(
+        EvidenceCloudReadinessError,
+        match="could not be serialized safely",
+    ):
         build_evidence_cloud_readiness(project_root=tmp_path)
 
 
@@ -315,6 +398,27 @@ def test_evidence_cloud_readiness_marks_oversized_and_unreadable_sources(
 
     assert sources["team_evidence_readiness"].state == "invalid"
     assert "exceeds" in sources["team_evidence_readiness"].summary
+
+
+def test_evidence_cloud_readiness_rejects_escaped_source_path(tmp_path: Path) -> None:
+    with pytest.raises(EvidenceCloudReadinessError, match="source path must stay under"):
+        readiness._resolve_source_path(Path("../outside.json"), root=tmp_path)
+
+
+def test_evidence_cloud_readiness_wraps_source_path_relative_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_relative_error(*_args: object, **_kwargs: object) -> Path | None:
+        raise ValueError("not relative")
+
+    monkeypatch.setattr(readiness, "first_symlink_path_component", raise_relative_error)
+
+    with pytest.raises(EvidenceCloudReadinessError, match="source path must stay under"):
+        readiness._resolve_source_path(
+            Path("reports") / "team-evidence-readiness.json",
+            root=tmp_path,
+        )
 
 
 def test_evidence_cloud_readiness_marks_invalid_utf8_and_non_object_sources(

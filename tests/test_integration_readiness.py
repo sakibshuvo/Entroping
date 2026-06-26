@@ -597,6 +597,31 @@ def test_integration_readiness_rejects_unsupported_and_unsafe_outputs(
         )
 
 
+def test_integration_readiness_uses_shared_report_output_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def reject_output_path(
+        path: Path,
+        *,
+        root: Path,
+        artifact: str,
+    ) -> Path:
+        assert path == Path("reports") / "integration-readiness.json"
+        assert root == tmp_path
+        assert artifact == "integration readiness packet"
+        raise SafeWriteError("shared boundary rejection")
+
+    monkeypatch.setattr(
+        integration_readiness,
+        "safe_report_output_path",
+        reject_output_path,
+    )
+
+    with pytest.raises(IntegrationReadinessError, match="shared boundary rejection"):
+        run_integration_readiness_report(project_root=tmp_path, output="json")
+
+
 def test_integration_readiness_rejects_escaped_source_path(tmp_path: Path) -> None:
     with pytest.raises(IntegrationReadinessError, match="source path must stay under"):
         integration_readiness._resolve_source_path(Path("../outside.json"), root=tmp_path)

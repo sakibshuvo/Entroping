@@ -24,7 +24,11 @@ from entroping.core.notification_packet import NOTIFICATION_PACKET_SCHEMA_VERSIO
 from entroping.core.observability_packet import OBSERVABILITY_PACKET_SCHEMA_VERSION
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.runtime_card import RUNTIME_CARD_SCHEMA_VERSION
-from entroping.core.safe_write import SafeWriteError, safe_write_text
+from entroping.core.safe_write import (
+    SafeWriteError,
+    safe_report_output_path,
+    safe_write_text,
+)
 from entroping.core.team_access_control_plan import (
     TEAM_ACCESS_CONTROL_PLAN_SCHEMA_VERSION,
 )
@@ -655,28 +659,15 @@ def _resolve_source_path(raw_path: Path, *, root: Path) -> Path:
 
 
 def _resolve_output_path(raw_path: Path, *, root: Path) -> Path:
-    path = raw_path.expanduser()
-    if not path.is_absolute():
-        path = root / path
     try:
-        symlink_path = first_symlink_path_component(path, root=root)
-    except ValueError as exc:
-        msg = "integration readiness output path must stay under the project root"
+        return safe_report_output_path(
+            raw_path,
+            root=root,
+            artifact="integration readiness packet",
+        )
+    except SafeWriteError as exc:
+        msg = str(exc)
         raise IntegrationReadinessError(msg) from exc
-    if symlink_path is not None:
-        display_path = symlink_path.relative_to(root).as_posix()
-        msg = f"integration readiness output path uses symlinked component: {display_path}"
-        raise IntegrationReadinessError(msg)
-    resolved = path.resolve(strict=False)
-    try:
-        relative_parts = resolved.relative_to(root).parts
-    except ValueError as exc:
-        msg = "integration readiness output path must stay under the project root"
-        raise IntegrationReadinessError(msg) from exc
-    if relative_parts and relative_parts[0] in {".entroping", "envs"}:
-        msg = "integration readiness packet must not be written into .entroping or envs"
-        raise IntegrationReadinessError(msg)
-    return resolved
 
 
 def _read_bounded_bytes(path: Path, *, artifact: str) -> bytes:
