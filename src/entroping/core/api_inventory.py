@@ -13,6 +13,8 @@ from typing import Final, Literal, cast
 from urllib.parse import urlparse
 
 import yaml
+from defusedxml import ElementTree as SafeElementTree
+from defusedxml.common import DefusedXmlException
 from pydantic import BaseModel, ConfigDict, Field
 
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
@@ -602,6 +604,24 @@ def _load_schema_source(*, root: Path, raw_path: Path, style: ApiStyle) -> ApiIn
             operations=proto_operations,
             summary=f"{proto_operations} proto RPC {_operation_word(proto_operations)}.",
         )
+    if style == "soap_xml":
+        wsdl_operations = _wsdl_operation_count(
+            raw_text,
+            kind="schema_file",
+            style=style,
+            path=path_text,
+        )
+        if isinstance(wsdl_operations, ApiInventorySource):
+            return wsdl_operations
+        return _source(
+            kind="schema_file",
+            style=style,
+            path=path_text,
+            state="present",
+            sha256=hashlib.sha256(raw_bytes).hexdigest(),
+            operations=wsdl_operations,
+            summary=f"{wsdl_operations} WSDL {_operation_word(wsdl_operations)}.",
+        )
     if style == "asyncapi":
         document = _load_yaml_document(
             raw_text,
@@ -877,6 +897,48 @@ def _strip_proto_ignored_text(raw_text: str) -> str:
     return _PROTO_LINE_COMMENT_RE.sub("", without_block_comments)
 
 
+def _wsdl_operation_count(
+    raw_text: str,
+    *,
+    kind: ApiSourceKind,
+    style: ApiStyle,
+    path: str,
+) -> int | ApiInventorySource:
+    try:
+        root = SafeElementTree.fromstring(raw_text)
+    except DefusedXmlException as exc:
+        return _source(
+            kind=kind,
+            style=style,
+            path=path,
+            state="unsafe",
+            sha256=None,
+            operations=0,
+            summary=_safe_text(f"Unsafe WSDL XML construct: {exc}"),
+        )
+    except SafeElementTree.ParseError as exc:
+        return _source(
+            kind=kind,
+            style=style,
+            path=path,
+            state="invalid",
+            sha256=None,
+            operations=0,
+            summary=_safe_text(f"Invalid WSDL XML: {exc}"),
+        )
+
+    if _xml_local_name(root.tag) != "definitions":
+        return 0
+
+    return sum(
+        1
+        for port_type in list(root)
+        if _xml_local_name(port_type.tag) == "portType"
+        for child in list(port_type)
+        if _xml_local_name(child.tag) == "operation"
+    )
+
+
 def _asyncapi_operation_count(document: object) -> int | None:
     if not isinstance(document, dict):
         return None
@@ -928,6 +990,10 @@ def _operation_word(count: int) -> str:
     if count == 1:
         return "operation"
     return "operations"
+
+
+def _xml_local_name(tag: str) -> str:
+    return tag.rsplit("}", maxsplit=1)[-1]
 
 
 def _style_from_tags(tags: frozenset[str]) -> ApiStyle | None:

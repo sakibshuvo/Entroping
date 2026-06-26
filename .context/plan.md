@@ -16,14 +16,14 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1107 API Inventory gRPC/Proto Operation Counts
+## Current Issue Slice: #1109 API Inventory WSDL Operation Counts
 
 Extend `entroping report api-inventory --output md|json` so the local API
-architecture breadth packet counts proto `rpc` declarations without rendering
-service or RPC names or adding a proto parser dependency. Keep the slice
-advisory and deterministic: no provider/model call, traffic parsing, Hurl
-execution, generated-test creation, source Hurl mutation, gRPC adapter
-implementation, hosted upload, or `entroping run` behavior change.
+architecture breadth packet counts WSDL `portType` operations without rendering
+operation names, service names, addresses, raw XML, or adding a new parser
+dependency. Keep the slice advisory and deterministic: no provider/model call,
+traffic parsing, Hurl execution, generated-test creation, source Hurl mutation,
+SOAP adapter implementation, hosted upload, or `entroping run` behavior change.
 
 ## Current Baseline
 

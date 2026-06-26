@@ -1,5 +1,16 @@
 # Entroping Changelog
 
+## 2026-06-26
+
+- Added issue #1109's API inventory WSDL operation counts: `report
+  api-inventory` now counts WSDL `portType` operations from local `.wsdl`
+  schema files with defused XML parsing, while preserving value-free output and
+  avoiding provider/model calls, Hurl execution, traffic parsing, generated-test
+  creation, source Hurl mutation, `entroping run` changes, SOAP adapter
+  implementation, hosted uploads, or rendering raw WSDL operation names,
+  service names, addresses, XML, credentials, cookies, traffic, prompts, or full
+  file contents.
+
 ## 2026-06-21
 
 - Added issue #1107's API inventory gRPC/proto operation counts: `report
