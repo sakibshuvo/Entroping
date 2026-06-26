@@ -79,6 +79,10 @@ Use this checklist for every non-trivial Entroping feature. It is the executable
 This is proportional verification: use the smallest lane that matches the
 changed files, then escalate when the diff touches a stricter surface.
 `scripts/pr_body_check.py` enforces the lane and command evidence on PRs.
+Scoped Dependabot/app `build(deps)` PRs that only change dependency manifests,
+lockfiles, or workflow files use the PR-body checker's dependency automation
+lane; human-authored PRs and bot PRs touching source files still complete the
+normal Documentation Impact Declaration and verification evidence.
 
 - [ ] Run the documentation governance gate before final review when the lane
   requires it:

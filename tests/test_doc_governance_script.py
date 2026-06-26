@@ -39,6 +39,16 @@ def _body_with_lane(
     )
 
 
+def _dependabot_event(*, login: str = "dependabot[bot]") -> dict[str, object]:
+    return {
+        "pull_request": {
+            "title": "build(deps): bump actions/checkout from 6 to 7",
+            "body": "Bumps actions/checkout from 6 to 7.",
+            "user": {"login": login, "type": "Bot"},
+        }
+    }
+
+
 def test_doc_governance_help_documents_control_plane() -> None:
     result = subprocess.run(
         [str(DOC_GOVERNANCE_SCRIPT), "--help"],
@@ -170,6 +180,100 @@ def test_pr_body_check_accepts_normal_pr_body_without_opencode_evidence(
 
     assert result.returncode == 0, result.stderr
     assert "PR documentation impact declaration OK" in result.stdout
+
+
+def test_pr_body_check_accepts_scoped_dependabot_pr_without_docs_declaration(
+    tmp_path: Path,
+) -> None:
+    event_path = tmp_path / "event.json"
+    event_path.write_text(json.dumps(_dependabot_event()), encoding="utf-8")
+
+    result = run_pr_body_check(
+        str(event_path),
+        "--changed-file",
+        ".github/workflows/ci.yml",
+        "--changed-file",
+        ".github/workflows/pages.yml",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "dependency automation lane" in result.stdout
+
+
+def test_pr_body_check_rejects_malformed_dependabot_title_without_docs_declaration(
+    tmp_path: Path,
+) -> None:
+    event = _dependabot_event()
+    pull_request = event["pull_request"]
+    assert isinstance(pull_request, dict)
+    pull_request["title"] = "build(deps::ci): bump actions/checkout from 6 to 7"
+    event_path = tmp_path / "event.json"
+    event_path.write_text(json.dumps(event), encoding="utf-8")
+
+    result = run_pr_body_check(
+        str(event_path),
+        "--changed-file",
+        ".github/workflows/ci.yml",
+    )
+
+    assert result.returncode == 1
+    assert "Documentation Impact Declaration" in result.stderr
+
+
+def test_pr_body_check_rejects_human_pr_without_docs_declaration_for_dependency_files(
+    tmp_path: Path,
+) -> None:
+    event_path = tmp_path / "event.json"
+    event_path.write_text(
+        json.dumps(_dependabot_event(login="sakibshuvo")),
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        str(event_path),
+        "--changed-file",
+        ".github/workflows/ci.yml",
+    )
+
+    assert result.returncode == 1
+    assert "Documentation Impact Declaration" in result.stderr
+
+
+def test_pr_body_check_rejects_nonstandard_dependency_author_without_docs_declaration(
+    tmp_path: Path,
+) -> None:
+    event = _dependabot_event()
+    pull_request = event["pull_request"]
+    assert isinstance(pull_request, dict)
+    pull_request.pop("user")
+    pull_request["author"] = {"login": "dependabot[bot]", "type": "Bot"}
+    event_path = tmp_path / "event.json"
+    event_path.write_text(json.dumps(event), encoding="utf-8")
+
+    result = run_pr_body_check(
+        str(event_path),
+        "--changed-file",
+        ".github/workflows/ci.yml",
+    )
+
+    assert result.returncode == 1
+    assert "Documentation Impact Declaration" in result.stderr
+
+
+def test_pr_body_check_rejects_dependabot_pr_without_docs_declaration_for_source_files(
+    tmp_path: Path,
+) -> None:
+    event_path = tmp_path / "event.json"
+    event_path.write_text(json.dumps(_dependabot_event()), encoding="utf-8")
+
+    result = run_pr_body_check(
+        str(event_path),
+        "--changed-file",
+        "src/entroping/core/run_workflow.py",
+    )
+
+    assert result.returncode == 1
+    assert "Documentation Impact Declaration" in result.stderr
 
 
 def test_pr_body_check_rejects_changed_files_without_verification_lane(
@@ -574,6 +678,34 @@ def test_pr_body_check_rejects_security_gate_only_in_not_run_section(
         "- Verification lane: security-runtime\n\n"
         "Commands not run:\n"
         "scripts/regression.sh --security\n\n"
+        "## Documentation Impact Declaration\n\n"
+        "- [x] No docs update needed. Reason: script-only validation fixture.\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--changed-file",
+        "scripts/deepseek_worker.py",
+    )
+
+    assert result.returncode == 1
+    assert "security-runtime" in result.stderr
+    assert "security gate evidence" in result.stderr
+
+
+def test_pr_body_check_rejects_security_gate_only_in_qualified_not_run_section(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        "## Summary\n"
+        "Worker preflight change.\n\n"
+        "## Verification\n\n"
+        "- Verification lane: security-runtime\n\n"
+        "## Commands not run (already verified elsewhere)\n"
+        "- [x] scripts/regression.sh --security\n\n"
         "## Documentation Impact Declaration\n\n"
         "- [x] No docs update needed. Reason: script-only validation fixture.\n",
         encoding="utf-8",

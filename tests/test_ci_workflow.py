@@ -1,5 +1,7 @@
 """Regression tests for GitHub Actions workflow coverage."""
 
+import os
+import subprocess
 from pathlib import Path
 
 import yaml
@@ -12,6 +14,56 @@ _PERFORMANCE_WORKFLOW_PATH = (
     Path(__file__).resolve().parents[1] / ".github" / "workflows" / "performance-smoke.yml"
 )
 _REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _run_git(args: list[str], *, cwd: Path) -> None:
+    subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True)
+
+
+def _ci_pr_body_check_run_block() -> str:
+    workflow = yaml.safe_load(_WORKFLOW_PATH.read_text(encoding="utf-8"))
+    for step in workflow["jobs"]["checks"]["steps"]:
+        if step.get("name") == "Validate PR documentation impact declaration":
+            return str(step["run"])
+    raise AssertionError("Validate PR documentation impact declaration step not found")
+
+
+def _write_pr_body_check_stub(repo: Path, args_path: Path) -> None:
+    scripts_dir = repo / "scripts"
+    scripts_dir.mkdir()
+    checker = scripts_dir / "pr_body_check.py"
+    checker.write_text(
+        "#!/usr/bin/env python3\n"
+        "import os\n"
+        "import pathlib\n"
+        "import sys\n"
+        "pathlib.Path(os.environ['ARGS_PATH']).write_text('\\n'.join(sys.argv[1:]))\n",
+        encoding="utf-8",
+    )
+    checker.chmod(0o755)
+    (repo / "event.json").write_text('{"pull_request": {"body": ""}}', encoding="utf-8")
+    args_path.write_text("", encoding="utf-8")
+
+
+def _run_ci_pr_body_check_step(repo: Path, *, args_path: Path) -> list[str]:
+    _write_pr_body_check_stub(repo, args_path)
+    env = os.environ.copy()
+    env.update(
+        {
+            "ARGS_PATH": str(args_path),
+            "GITHUB_BASE_REF": "main",
+            "GITHUB_EVENT_PATH": str(repo / "event.json"),
+        },
+    )
+    subprocess.run(
+        ["bash", "-euo", "pipefail", "-c", _ci_pr_body_check_run_block()],
+        cwd=repo,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return args_path.read_text(encoding="utf-8").splitlines()
 
 
 def test_ci_workflow_runs_on_pull_requests_and_main_pushes_only() -> None:
@@ -29,11 +81,21 @@ def test_ci_workflow_enforces_security_and_quality_gates() -> None:
     quality_audit = workflow["jobs"]["quality-audit"]
     checks_run_blocks = "\n".join(str(step.get("run", "")) for step in checks["steps"])
     quality_run_blocks = "\n".join(str(step.get("run", "")) for step in quality_audit["steps"])
+    checkout_step = next(
+        step
+        for step in checks["steps"]
+        if step.get("uses") == "actions/checkout@v6"
+    )
 
+    assert checkout_step["with"]["fetch-depth"] == 0
     assert "scripts/regression.sh --security" in checks_run_blocks
     assert 'scripts/pr_body_check.py "$GITHUB_EVENT_PATH"' in checks_run_blocks
     assert "--changed-file" in checks_run_blocks
     assert "git diff --name-only" in checks_run_blocks
+    assert "git merge-base" in checks_run_blocks
+    assert "--depth=1" not in checks_run_blocks
+    assert 'diff_range="origin/$GITHUB_BASE_REF...HEAD"' in checks_run_blocks
+    assert 'diff_range="origin/$GITHUB_BASE_REF..HEAD"' in checks_run_blocks
     assert "GITHUB_BASE_REF" in checks_run_blocks
     assert "scripts/regression.sh\n" not in checks_run_blocks
     assert quality_audit["needs"] == "checks"
@@ -71,6 +133,66 @@ def test_ci_workflow_runs_live_demo_smoke_with_pinned_hurl() -> None:
     assert "actions/setup-python@v6" in workflow_text
     assert "astral-sh/setup-uv@v8.2.0" in workflow_text
     assert "actions/upload-artifact@v7" in workflow_text
+
+
+def test_ci_pr_body_check_step_handles_shallow_diff_without_merge_base(tmp_path: Path) -> None:
+    origin = tmp_path / "origin.git"
+    source = tmp_path / "source"
+    checkout = tmp_path / "checkout"
+    args_path = tmp_path / "args.txt"
+
+    _run_git(["init", "--bare", str(origin)], cwd=tmp_path)
+    _run_git(["clone", str(origin), str(source)], cwd=tmp_path)
+    _run_git(["config", "user.email", "ci@example.test"], cwd=source)
+    _run_git(["config", "user.name", "CI Test"], cwd=source)
+    (source / "README.md").write_text("base\n", encoding="utf-8")
+    _run_git(["add", "README.md"], cwd=source)
+    _run_git(["commit", "-m", "base"], cwd=source)
+    _run_git(["branch", "-M", "main"], cwd=source)
+    _run_git(["push", "origin", "main"], cwd=source)
+    _run_git(["checkout", "--orphan", "feature"], cwd=source)
+    (source / "README.md").write_text("base\n", encoding="utf-8")
+    (source / "uv.lock").write_text("dependency update\n", encoding="utf-8")
+    _run_git(["add", "README.md", "uv.lock"], cwd=source)
+    _run_git(["commit", "-m", "orphan dependency update"], cwd=source)
+    _run_git(["push", "origin", "feature"], cwd=source)
+    _run_git(
+        ["clone", "--depth=1", "--branch", "feature", f"file://{origin}", str(checkout)],
+        cwd=tmp_path,
+    )
+
+    args = _run_ci_pr_body_check_step(checkout, args_path=args_path)
+
+    assert str(checkout / "event.json") in args
+    assert args[-2:] == ["--changed-file", "uv.lock"]
+
+
+def test_ci_pr_body_check_step_handles_diff_with_merge_base(tmp_path: Path) -> None:
+    origin = tmp_path / "origin.git"
+    source = tmp_path / "source"
+    checkout = tmp_path / "checkout"
+    args_path = tmp_path / "args.txt"
+
+    _run_git(["init", "--bare", str(origin)], cwd=tmp_path)
+    _run_git(["clone", str(origin), str(source)], cwd=tmp_path)
+    _run_git(["config", "user.email", "ci@example.test"], cwd=source)
+    _run_git(["config", "user.name", "CI Test"], cwd=source)
+    (source / "README.md").write_text("base\n", encoding="utf-8")
+    _run_git(["add", "README.md"], cwd=source)
+    _run_git(["commit", "-m", "base"], cwd=source)
+    _run_git(["branch", "-M", "main"], cwd=source)
+    _run_git(["push", "origin", "main"], cwd=source)
+    _run_git(["checkout", "-b", "feature"], cwd=source)
+    (source / "pyproject.toml").write_text("[project]\nname = \"fixture\"\n", encoding="utf-8")
+    _run_git(["add", "pyproject.toml"], cwd=source)
+    _run_git(["commit", "-m", "dependency update"], cwd=source)
+    _run_git(["push", "origin", "feature"], cwd=source)
+    _run_git(["clone", "--branch", "feature", str(origin), str(checkout)], cwd=tmp_path)
+
+    args = _run_ci_pr_body_check_step(checkout, args_path=args_path)
+
+    assert str(checkout / "event.json") in args
+    assert args[-2:] == ["--changed-file", "pyproject.toml"]
 
 
 def test_ci_workflow_runs_optional_extras_runtime_smoke() -> None:

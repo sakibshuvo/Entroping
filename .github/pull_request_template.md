@@ -39,6 +39,10 @@ Commands run:
 
 ```
 
+Dependency automation note: scoped Dependabot/app `build(deps)` PRs that only
+change dependency manifests, lockfiles, or workflow files use the CI dependency
+automation lane; human-authored PRs still complete this template.
+
 ## Architecture Review
 
 - [ ] Hexagonal dependency direction preserved.

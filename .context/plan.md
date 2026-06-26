@@ -16,15 +16,15 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1118 Report Output Symlink Guards
+## Current Issue Slice: #1120 Dependency Automation PR Governance
 
-Centralize report output path validation for packet writers that accepted a
-user-controlled output path and resolved it before `safe_write_text` could see
-symlinked components. Reject direct symlink output files and symlinked parent
-components before resolution while preserving root-boundary and local-state
-directory checks. Keep the slice deterministic: no provider/model call, Hurl
-execution, traffic parsing, report schema churn, source mutation, hosted upload,
-or `entroping run` behavior change.
+Make dependency automation PRs satisfy the repo's PR governance gates without
+weakening human-authored PR checks. Keep the change scoped to CI/documentation
+guardrails: shallow PR diff fallback, a documented dependency-bot body-check
+lane for scoped dependency files, and regression coverage for both the bot lane
+and the human/default rejection path. No command-surface, runtime,
+QAnstitution, Hurl execution, provider, package metadata, or product report
+behavior changes.
 
 ## Current Baseline
 

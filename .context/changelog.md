@@ -2,6 +2,14 @@
 
 ## 2026-06-26
 
+- Fixed issue #1120's dependency automation governance gap: PR body validation
+  now has a scoped dependency automation lane for recognized Dependabot/app
+  `build(deps)` PRs that only change dependency manifests, lockfiles, or
+  workflow files, while human-authored PRs and source-code bot changes still
+  require the normal Documentation Impact Declaration; CI changed-file
+  discovery now uses full checkout history for normal PRs and falls back from
+  triple-dot to two-dot diff only when no merge base is available.
+
 - Fixed issue #1118's report output symlink guard gap: affected packet writers
   now use a shared report output path validator that rejects direct symlink
   output files and symlinked parent components before resolution, preserving
