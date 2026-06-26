@@ -1948,6 +1948,12 @@ redacted before serialization, and absolute project-root paths are relativized.
 
 ### Report Artifact Contracts
 
+Report commands that accept user-controlled output paths validate those paths
+before resolving them. Direct symlink output files and symlinked parent
+components are rejected before artifact writes, root escapes and local-state
+directories remain blocked, and `safe_write_text` remains the final write
+primitive for local report files.
+
 | Command | Artifact | Stability note |
 | --- | --- | --- |
 | `entroping run` | `.entroping/latest-run.json` | Runtime state for follow-up report commands; uses `entroping.run-report.v1`; not committed. |

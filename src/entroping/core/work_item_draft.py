@@ -23,7 +23,7 @@ from entroping.core.evidence_index import (
     build_local_evidence_index,
     read_local_evidence_json_artifact_bytes,
 )
-from entroping.core.safe_write import SafeWriteError, safe_write_text
+from entroping.core.safe_write import SafeWriteError, safe_report_output_path, safe_write_text
 
 WORK_ITEM_DRAFT_SCHEMA_VERSION: Final = "entroping.work-item-draft.v1"
 
@@ -514,19 +514,15 @@ def _render_packet_content(
 
 
 def _resolve_output_path(raw_path: Path, *, root: Path) -> Path:
-    path = raw_path.expanduser()
-    if not path.is_absolute():
-        path = root / path
-    resolved = path.resolve(strict=False)
     try:
-        relative_parts = resolved.relative_to(root).parts
-    except ValueError as exc:
-        msg = "Work item draft output path must stay under the project root"
-        raise WorkItemDraftError(msg) from exc
-    if any(part in {".entroping", "envs"} for part in relative_parts):
-        msg = "Work item draft must not be written into .entroping or envs"
-        raise WorkItemDraftError(msg)
-    return resolved
+        return safe_report_output_path(
+            raw_path,
+            root=root,
+            artifact="Work item draft",
+            forbid_components_anywhere=True,
+        )
+    except SafeWriteError as exc:
+        raise WorkItemDraftError(str(exc)) from exc
 
 
 def _source_label(source_id: WorkItemDraftSourceId) -> str:

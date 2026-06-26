@@ -23,7 +23,7 @@ from entroping.core.evidence_common import (
     safe_evidence_text,
 )
 from entroping.core.path_safety import first_symlink_path_component
-from entroping.core.safe_write import SafeWriteError, safe_write_text
+from entroping.core.safe_write import SafeWriteError, safe_report_output_path, safe_write_text
 
 EVIDENCE_CLOUD_WORKSPACE_SCHEMA_VERSION: Final = "entroping.evidence-cloud-workspace.v1"
 
@@ -311,19 +311,26 @@ def _load_manifest(raw_path: Path, *, root: Path, index: int) -> _LoadedManifest
     manifest_id = f"manifest-{index}"
     path = _normalize_manifest_path(raw_path, root=root)
     display_path = _display_path(path, root=root)
-    if _has_forbidden_component(path):
+    if _has_forbidden_component(path, root=root):
         return _invalid_manifest(
             manifest_id,
             display_path,
             state="unsafe",
             summary="forbidden manifest path component",
         )
-    if first_symlink_path_component(path) is not None:
+    if _first_manifest_symlink_component(path, root=root) is not None:
         return _invalid_manifest(
             manifest_id,
             display_path,
             state="unsafe",
             summary="symlinked path component",
+        )
+    if _relative_manifest_escapes_root(raw_path, path=path, root=root):
+        return _invalid_manifest(
+            manifest_id,
+            display_path,
+            state="unsafe",
+            summary="manifest path outside project",
         )
     if not path.exists():
         return _invalid_manifest(
@@ -589,6 +596,22 @@ def _normalize_manifest_path(raw_path: Path, *, root: Path) -> Path:
     return path
 
 
+def _relative_manifest_escapes_root(raw_path: Path, *, path: Path, root: Path) -> bool:
+    if raw_path.expanduser().is_absolute():
+        return False
+    try:
+        path.resolve(strict=False).relative_to(root)
+    except ValueError:
+        return True
+    return False
+
+
+def _first_manifest_symlink_component(path: Path, *, root: Path) -> Path | None:
+    if path.is_relative_to(root):
+        return first_symlink_path_component(path, root=root)
+    return first_symlink_path_component(path)
+
+
 def _display_path(path: Path, *, root: Path) -> str:
     try:
         return path.relative_to(root).as_posix()
@@ -596,8 +619,13 @@ def _display_path(path: Path, *, root: Path) -> str:
         return path.as_posix()
 
 
-def _has_forbidden_component(path: Path) -> bool:
-    return any(part in _FORBIDDEN_MANIFEST_COMPONENTS for part in path.parts)
+def _has_forbidden_component(path: Path, *, root: Path) -> bool:
+    candidate = path if path.is_absolute() else root / path
+    try:
+        parts = candidate.resolve(strict=False).relative_to(root).parts
+    except ValueError:
+        return False
+    return any(part.lower() in _FORBIDDEN_MANIFEST_COMPONENTS for part in parts)
 
 
 def _render_packet_content(
@@ -611,19 +639,10 @@ def _render_packet_content(
 
 
 def _resolve_output_path(raw_path: Path, *, root: Path) -> Path:
-    path = raw_path.expanduser()
-    if not path.is_absolute():
-        path = root / path
-    resolved = path.resolve(strict=False)
     try:
-        relative_parts = resolved.relative_to(root).parts
-    except ValueError as exc:
-        msg = "Evidence Cloud workspace output path must stay under the project root"
-        raise EvidenceCloudWorkspaceError(msg) from exc
-    if relative_parts and relative_parts[0] in {".entroping", "envs"}:
-        msg = "Evidence Cloud workspace packet must not be written into .entroping or envs"
-        raise EvidenceCloudWorkspaceError(msg)
-    return resolved
+        return safe_report_output_path(raw_path, root=root, artifact="Evidence Cloud workspace")
+    except SafeWriteError as exc:
+        raise EvidenceCloudWorkspaceError(str(exc)) from exc
 
 
 def _contains_unredacted_workspace_secret(raw_text: str) -> bool:

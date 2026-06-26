@@ -23,7 +23,7 @@ from entroping.core.evidence_index import (
     build_local_evidence_index,
     read_local_evidence_json_artifact_bytes,
 )
-from entroping.core.safe_write import SafeWriteError, safe_write_text
+from entroping.core.safe_write import SafeWriteError, safe_report_output_path, safe_write_text
 
 EVIDENCE_CLOUD_EXPORT_SCHEMA_VERSION: Final = "entroping.evidence-cloud-export.v1"
 
@@ -643,19 +643,10 @@ def _render_packet_content(
 
 
 def _resolve_output_path(raw_path: Path, *, root: Path) -> Path:
-    path = raw_path.expanduser()
-    if not path.is_absolute():
-        path = root / path
-    resolved = path.resolve(strict=False)
     try:
-        relative_parts = resolved.relative_to(root).parts
-    except ValueError as exc:
-        msg = "Evidence Cloud export output path must stay under the project root"
-        raise EvidenceCloudExportError(msg) from exc
-    if relative_parts and relative_parts[0] in {".entroping", "envs"}:
-        msg = "Evidence Cloud export manifest must not be written into .entroping or envs"
-        raise EvidenceCloudExportError(msg)
-    return resolved
+        return safe_report_output_path(raw_path, root=root, artifact="Evidence Cloud export")
+    except SafeWriteError as exc:
+        raise EvidenceCloudExportError(str(exc)) from exc
 
 
 def _md(value: object) -> str:

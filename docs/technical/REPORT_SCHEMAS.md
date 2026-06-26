@@ -14,6 +14,12 @@ Entroping report artifacts are downstream integration contracts. Dashboards, PR
 annotation tools, hosted surfaces, and scripts should key off
 `schema_version`, not incidental field ordering or prose.
 
+Report commands that accept user-controlled output paths must validate those
+paths before resolving them. Direct symlink output files and symlinked parent
+components are rejected before artifact writes, root escapes and local-state
+directories remain blocked, and `safe_write_text` remains the final write
+primitive for local report files.
+
 ## Current Versions
 
 | Report | Schema version | Artifact or producer | Schema file |

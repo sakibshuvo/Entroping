@@ -211,6 +211,22 @@ def test_evidence_cloud_workspace_marks_missing_invalid_unsafe_and_symlinked_man
     _write_json(real_manifest, _export_manifest(project="linked-api"))
     symlinked = tmp_path / "reports" / "linked-export.json"
     os.symlink(real_manifest, symlinked)
+    real_manifest_dir = tmp_path / "real-reports"
+    real_manifest_dir.mkdir()
+    _write_json(
+        real_manifest_dir / "parent-linked-export.json",
+        _export_manifest(project="parent-linked-api"),
+    )
+    symlinked_parent = tmp_path / "linked-reports"
+    os.symlink(real_manifest_dir, symlinked_parent)
+    external_manifest_dir = tmp_path.parent / f"{tmp_path.name}-external-reports"
+    external_manifest_dir.mkdir()
+    _write_json(
+        external_manifest_dir / "external-linked-export.json",
+        _export_manifest(project="external-linked-api"),
+    )
+    symlinked_external_parent = tmp_path / "linked-external-reports"
+    os.symlink(external_manifest_dir, symlinked_external_parent)
 
     packet = build_evidence_cloud_workspace_packet(
         project_root=tmp_path,
@@ -219,6 +235,8 @@ def test_evidence_cloud_workspace_marks_missing_invalid_unsafe_and_symlinked_man
             tmp_path / "reports" / "invalid-schema.json",
             tmp_path / "reports" / "unsafe.json",
             symlinked,
+            symlinked_parent / "parent-linked-export.json",
+            Path("linked-external-reports") / "external-linked-export.json",
         ),
     )
     manifests = {manifest.id: manifest for manifest in packet.manifests}
@@ -228,6 +246,10 @@ def test_evidence_cloud_workspace_marks_missing_invalid_unsafe_and_symlinked_man
     assert manifests["manifest-2"].state == "invalid"
     assert manifests["manifest-3"].state == "unsafe"
     assert manifests["manifest-4"].state == "unsafe"
+    assert manifests["manifest-5"].state == "unsafe"
+    assert manifests["manifest-5"].summary == "symlinked path component"
+    assert manifests["manifest-6"].state == "unsafe"
+    assert manifests["manifest-6"].summary == "symlinked path component"
     assert packet.repositories == ()
     assert packet.next_actions
     assert "sk-proj" not in packet.model_dump_json()
@@ -237,8 +259,18 @@ def test_evidence_cloud_workspace_marks_forbidden_directory_oversized_and_unread
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    forbidden = tmp_path / "envs" / "evidence-cloud-export.json"
-    _write_json(forbidden, _export_manifest(project="forbidden-api"))
+    forbidden_envs = tmp_path / "envs" / "evidence-cloud-export.json"
+    _write_json(forbidden_envs, _export_manifest(project="forbidden-envs-api"))
+    forbidden_entroping = tmp_path / ".entroping" / "evidence-cloud-export.json"
+    _write_json(
+        forbidden_entroping,
+        _export_manifest(project="forbidden-entroping-api"),
+    )
+    forbidden_case_variant = tmp_path / "Envs" / "evidence-cloud-export.json"
+    _write_json(
+        forbidden_case_variant,
+        _export_manifest(project="forbidden-case-variant-api"),
+    )
     directory = tmp_path / "reports" / "directory-export.json"
     directory.mkdir(parents=True)
     oversized = tmp_path / "reports" / "oversized-export.json"
@@ -264,14 +296,23 @@ def test_evidence_cloud_workspace_marks_forbidden_directory_oversized_and_unread
 
     packet = build_evidence_cloud_workspace_packet(
         project_root=tmp_path,
-        manifests=(forbidden, directory, oversized, unreadable),
+        manifests=(
+            forbidden_envs,
+            forbidden_entroping,
+            forbidden_case_variant,
+            directory,
+            oversized,
+            unreadable,
+        ),
     )
     manifests = {manifest.id: manifest for manifest in packet.manifests}
 
     assert manifests["manifest-1"].summary == "forbidden manifest path component"
-    assert manifests["manifest-2"].summary == "manifest is not a file"
-    assert manifests["manifest-3"].summary == "manifest too large"
-    assert manifests["manifest-4"].summary == "manifest unreadable"
+    assert manifests["manifest-2"].summary == "forbidden manifest path component"
+    assert manifests["manifest-3"].summary == "forbidden manifest path component"
+    assert manifests["manifest-4"].summary == "manifest is not a file"
+    assert manifests["manifest-5"].summary == "manifest too large"
+    assert manifests["manifest-6"].summary == "manifest unreadable"
     assert all(manifest.state == "unsafe" for manifest in packet.manifests)
 
 
@@ -309,6 +350,61 @@ def test_evidence_cloud_workspace_supports_explicit_manifest_outside_project(
 
     assert packet.manifests[0].path == external_manifest.as_posix()
     assert packet.repositories[0].project == "external-api"
+
+
+def test_evidence_cloud_workspace_allows_explicit_external_manifest_under_envs(
+    tmp_path: Path,
+) -> None:
+    external_dir = tmp_path.parent / f"{tmp_path.name}-external" / "envs"
+    external_manifest = external_dir / "evidence-cloud-export.json"
+    _write_json(external_manifest, _export_manifest(project="external-envs-api"))
+
+    packet = build_evidence_cloud_workspace_packet(
+        project_root=tmp_path,
+        manifests=(external_manifest,),
+    )
+
+    assert packet.manifests[0].state == "present"
+    assert packet.repositories[0].project == "external-envs-api"
+
+
+def test_evidence_cloud_workspace_allows_normalized_external_manifest_under_envs(
+    tmp_path: Path,
+) -> None:
+    external_dir = tmp_path.parent / f"{tmp_path.name}-normalized-external" / "envs"
+    external_manifest = external_dir / "evidence-cloud-export.json"
+    _write_json(external_manifest, _export_manifest(project="normalized-external-api"))
+    normalized_external_manifest = (
+        tmp_path
+        / ".."
+        / f"{tmp_path.name}-normalized-external"
+        / "envs"
+        / "evidence-cloud-export.json"
+    )
+
+    packet = build_evidence_cloud_workspace_packet(
+        project_root=tmp_path,
+        manifests=(normalized_external_manifest,),
+    )
+
+    assert packet.manifests[0].state == "present"
+    assert packet.repositories[0].project == "normalized-external-api"
+
+
+def test_evidence_cloud_workspace_rejects_relative_manifest_escape(
+    tmp_path: Path,
+) -> None:
+    external_manifest = tmp_path.parent / f"{tmp_path.name}-escape-export.json"
+    _write_json(external_manifest, _export_manifest(project="escape-api"))
+
+    packet = build_evidence_cloud_workspace_packet(
+        project_root=tmp_path,
+        manifests=(Path("..") / external_manifest.name,),
+    )
+
+    assert packet.manifests[0].state == "unsafe"
+    assert packet.manifests[0].summary == "manifest path outside project"
+    assert packet.repositories == ()
 
 
 def test_evidence_cloud_workspace_supports_relative_manifest_paths(tmp_path: Path) -> None:
