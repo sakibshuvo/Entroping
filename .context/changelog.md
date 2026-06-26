@@ -2,6 +2,14 @@
 
 ## 2026-06-21
 
+- Added issue #1107's API inventory gRPC/proto operation counts: `report
+  api-inventory` now counts proto `rpc` declarations from local `.proto` schema
+  files without adding a parser dependency, executing Hurl, parsing traffic
+  state, generating tests, mutating source Hurl, changing `entroping run`,
+  invoking models, or rendering raw proto RPC names, service names, message
+  names, URLs, headers, bodies, examples, credentials, cookies, traffic,
+  prompts, or full file contents.
+
 - Added issue #1105's API inventory GraphQL operation counts: `report
   api-inventory` now counts root `Query`, `Mutation`, and `Subscription`
   fields from local GraphQL SDL schema files without adding a parser

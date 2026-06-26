@@ -16,15 +16,14 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1105 API Inventory GraphQL Operation Counts
+## Current Issue Slice: #1107 API Inventory gRPC/Proto Operation Counts
 
 Extend `entroping report api-inventory --output md|json` so the local API
-architecture breadth packet counts GraphQL SDL root `Query`, `Mutation`, and
-`Subscription` fields without rendering field names or adding a parser
-dependency. Keep the slice advisory and deterministic: no provider/model call,
-traffic parsing, Hurl execution, generated-test creation, source Hurl mutation,
-GraphQL adapter implementation, hosted upload, or `entroping run` behavior
-change.
+architecture breadth packet counts proto `rpc` declarations without rendering
+service or RPC names or adding a proto parser dependency. Keep the slice
+advisory and deterministic: no provider/model call, traffic parsing, Hurl
+execution, generated-test creation, source Hurl mutation, gRPC adapter
+implementation, hosted upload, or `entroping run` behavior change.
 
 ## Current Baseline
 

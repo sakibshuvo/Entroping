@@ -442,6 +442,94 @@ input OrderInput {
     assert source.summary == "0 GraphQL root operations."
 
 
+def test_api_inventory_counts_grpc_proto_rpc_operations_without_leaking_names(
+    tmp_path: Path,
+) -> None:
+    proto_path = _write_text(
+        tmp_path / "contracts" / "orders.proto",
+        """
+syntax = "proto3";
+package internal.orders;
+
+// rpc CommentedOut(CommentedRequest) returns (CommentedResponse);
+/*
+rpc BlockCommented(BlockRequest) returns (BlockResponse);
+*/
+service Orders {
+  option deprecated = false;
+  rpc CreateOrder (CreateOrderRequest) returns (Order);
+  rpc GetOrder (GetOrderRequest) returns (Order) {}
+  rpc StreamOrders (StreamOrdersRequest) returns (stream Order);
+}
+
+message Order {
+  string internal_url = 1;
+  string note = 2 [json_name = "rpc NotADeclaration"];
+}
+""".strip()
+        + "\n",
+    )
+
+    result = run_api_inventory_report(project_root=tmp_path, output="json")
+
+    payload = json.loads(result.output_path.read_text(encoding="utf-8"))
+    sources = {(source["kind"], source["path"]): source for source in payload["sources"]}
+    assert sources[("schema_file", "contracts/orders.proto")] == {
+        "kind": "schema_file",
+        "style": "grpc_proto",
+        "path": "contracts/orders.proto",
+        "state": "present",
+        "sha256": hashlib.sha256(proto_path.read_bytes()).hexdigest(),
+        "tags": [],
+        "operations": 3,
+        "summary": "3 proto RPC operations.",
+    }
+    styles = {style["style"]: style for style in payload["styles"]}
+    assert styles["grpc_proto"]["operations"] == 3
+    serialized = json.dumps(payload)
+    assert "CreateOrder" not in serialized
+    assert "StreamOrders" not in serialized
+    assert "internal.orders" not in serialized
+    assert "NotADeclaration" not in serialized
+
+
+def test_api_inventory_keeps_non_rpc_proto_present(tmp_path: Path) -> None:
+    _write_text(
+        tmp_path / "contracts" / "messages.proto",
+        """
+syntax = "proto3";
+
+message Order {
+  string id = 1;
+}
+""".strip()
+        + "\n",
+    )
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    sources = {(source.kind, source.path): source for source in packet.sources}
+    source = sources[("schema_file", "contracts/messages.proto")]
+    assert source.state == "present"
+    assert source.operations == 0
+    assert source.summary == "0 proto RPC operations."
+
+
+def test_api_inventory_keeps_wsdl_schema_as_present_style_evidence(
+    tmp_path: Path,
+) -> None:
+    _write_text(tmp_path / "contracts" / "orders.wsdl", "<definitions />\n")
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    sources = {(source.kind, source.path): source for source in packet.sources}
+    source = sources[("schema_file", "contracts/orders.wsdl")]
+    assert source.state == "present"
+    assert source.style == "soap_xml"
+    assert source.operations == 0
+    assert source.summary == "SOAP/XML schema file."
+
+
 def test_api_inventory_detects_websocket_realtime_contract_and_hurl_tags(
     tmp_path: Path,
 ) -> None:

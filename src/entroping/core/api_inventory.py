@@ -151,6 +151,10 @@ _GRAPHQL_ROOT_OPERATION_BLOCK_RE: Final = re.compile(
 _GRAPHQL_ROOT_FIELD_RE: Final = re.compile(
     r"(?m)^[ \t]*[_A-Za-z][_0-9A-Za-z]*\s*(?:\([^{}]*\)\s*)?:"
 )
+_PROTO_STRING_RE: Final = re.compile(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'')
+_PROTO_BLOCK_COMMENT_RE: Final = re.compile(r"/\*.*?\*/", re.DOTALL)
+_PROTO_LINE_COMMENT_RE: Final = re.compile(r"(?m)//.*$")
+_PROTO_RPC_RE: Final = re.compile(r"(?m)^[ \t]*rpc\s+[_A-Za-z][_0-9A-Za-z]*\s*\(")
 _STYLE_LABELS: Final[dict[ApiStyle, str]] = {
     "rest_openapi": "REST/OpenAPI",
     "graphql": "GraphQL",
@@ -587,6 +591,17 @@ def _load_schema_source(*, root: Path, raw_path: Path, style: ApiStyle) -> ApiIn
                 f"{_operation_word(graphql_operations)}."
             ),
         )
+    if style == "grpc_proto":
+        proto_operations = _proto_rpc_operation_count(raw_text)
+        return _source(
+            kind="schema_file",
+            style=style,
+            path=path_text,
+            state="present",
+            sha256=hashlib.sha256(raw_bytes).hexdigest(),
+            operations=proto_operations,
+            summary=f"{proto_operations} proto RPC {_operation_word(proto_operations)}.",
+        )
     if style == "asyncapi":
         document = _load_yaml_document(
             raw_text,
@@ -849,6 +864,17 @@ def _graphql_operation_count(raw_text: str) -> int:
 def _strip_graphql_ignored_text(raw_text: str) -> str:
     without_block_strings = _GRAPHQL_BLOCK_STRING_RE.sub("", raw_text)
     return _GRAPHQL_LINE_COMMENT_RE.sub("", without_block_strings)
+
+
+def _proto_rpc_operation_count(raw_text: str) -> int:
+    normalized = _strip_proto_ignored_text(raw_text)
+    return len(_PROTO_RPC_RE.findall(normalized))
+
+
+def _strip_proto_ignored_text(raw_text: str) -> str:
+    without_strings = _PROTO_STRING_RE.sub("", raw_text)
+    without_block_comments = _PROTO_BLOCK_COMMENT_RE.sub("", without_strings)
+    return _PROTO_LINE_COMMENT_RE.sub("", without_block_comments)
 
 
 def _asyncapi_operation_count(document: object) -> int | None:
