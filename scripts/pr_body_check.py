@@ -54,6 +54,24 @@ MERGE_AUTHORITIES = (
     "no merge authority",
 )
 AMBIGUOUS_PROVIDER_RE = re.compile(r"\b(?:OpenCode|DeepSeek|Kimi)\b", re.IGNORECASE)
+DEPENDENCY_AUTOMATION_AUTHORS = frozenset({"dependabot[bot]", "app/dependabot"})
+DEPENDENCY_AUTOMATION_TITLE_RE = re.compile(
+    r"^(?:build|chore)\(deps(?:[-/\w]+)?\):\s+",
+    re.IGNORECASE,
+)
+DEPENDENCY_AUTOMATION_FILE_PATTERNS = (
+    ".github/dependabot.yml",
+    ".github/dependabot.yaml",
+    ".github/workflows/*.yml",
+    ".github/workflows/*.yaml",
+    "pyproject.toml",
+    "uv.lock",
+    "requirements*.txt",
+    "requirements*.in",
+    "constraints*.txt",
+    "constraints*.in",
+    "docs/meta/dependency-license-policy.json",
+)
 SECURITY_GATE_RE = re.compile(
     r"(?im)^\s*`?"
     r"scripts/(?:feature_gate\.sh --security|regression\.sh --security)"
@@ -206,7 +224,7 @@ def _is_not_run_marker(line: str) -> bool:
         return False
     normalized = re.sub(r"^#+\s*", "", normalized)
     normalized = re.sub(r"^-\s*(?:\[[ xX]\]\s*)?", "", normalized)
-    normalized = normalized.rstrip(":").strip()
+    normalized = re.sub(r"\s*(?:\(|-|:).*$", "", normalized).strip()
     return normalized in (
         "commands not run",
         "commands not executed",
@@ -376,7 +394,51 @@ def _has_closing_keyword(body: str, issue: str | None) -> bool:
 
 
 def _normalize_changed_file(path: str) -> str:
-    return path.strip().lstrip("./").replace("\\", "/")
+    normalized = path.strip().replace("\\", "/")
+    if normalized.startswith("./"):
+        return normalized[2:]
+    return normalized
+
+
+def _dependency_automation_login(pull_request: dict[str, object]) -> str | None:
+    candidate = pull_request.get("user")
+    if not isinstance(candidate, dict):
+        return None
+    login = candidate.get("login")
+    if isinstance(login, str) and login:
+        return login
+    return None
+
+
+def _is_dependency_automation_file(path: str) -> bool:
+    normalized = _normalize_changed_file(path)
+    if not normalized:
+        return False
+    return any(
+        fnmatch.fnmatchcase(normalized, pattern)
+        for pattern in DEPENDENCY_AUTOMATION_FILE_PATTERNS
+    )
+
+
+def _is_scoped_dependency_automation_pr(
+    pull_request: dict[str, object],
+    *,
+    changed_files: list[str],
+) -> bool:
+    login = _dependency_automation_login(pull_request)
+    if login not in DEPENDENCY_AUTOMATION_AUTHORS:
+        return False
+    title = pull_request.get("title")
+    if not isinstance(title, str) or DEPENDENCY_AUTOMATION_TITLE_RE.search(title) is None:
+        return False
+    normalized_files = [
+        _normalize_changed_file(path)
+        for path in changed_files
+        if _normalize_changed_file(path)
+    ]
+    if not normalized_files:
+        return False
+    return all(_is_dependency_automation_file(path) for path in normalized_files)
 
 
 def sensitive_surface_reason(path: str) -> str | None:
@@ -735,6 +797,13 @@ def main(argv: list[str] | None = None) -> int:
     pull_request = payload.get("pull_request")
     if not isinstance(pull_request, dict):
         print("No pull request payload; skipping PR documentation impact check.")
+        return 0
+
+    if not args.require_opencode_evidence and _is_scoped_dependency_automation_pr(
+        pull_request,
+        changed_files=args.changed_file,
+    ):
+        print("PR documentation impact declaration OK (dependency automation lane)")
         return 0
 
     body = pull_request.get("body") or ""

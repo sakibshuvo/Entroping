@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -37,11 +39,16 @@ jobs:
         if: github.event_name == 'pull_request'
         shell: bash
         run: |
-          git fetch --no-tags --depth=1 origin "$GITHUB_BASE_REF:refs/remotes/origin/$GITHUB_BASE_REF"
+          git fetch --no-tags origin "$GITHUB_BASE_REF:refs/remotes/origin/$GITHUB_BASE_REF"
+          if git merge-base "origin/$GITHUB_BASE_REF" HEAD >/dev/null 2>&1; then
+            diff_range="origin/$GITHUB_BASE_REF...HEAD"
+          else
+            diff_range="origin/$GITHUB_BASE_REF..HEAD"
+          fi
           changed_args=()
           while IFS= read -r path; do
             changed_args+=(--changed-file "$path")
-          done < <(git diff --name-only "origin/$GITHUB_BASE_REF...HEAD")
+          done < <(git diff --name-only "$diff_range")
           scripts/pr_body_check.py "$GITHUB_EVENT_PATH" "${changed_args[@]}"
 
       - name: Run regression suite
