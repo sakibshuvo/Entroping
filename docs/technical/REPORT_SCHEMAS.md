@@ -230,7 +230,8 @@ wrong-schema, or secret-like artifacts are marked invalid or unsafe. The report
 does not execute Hurl, mutate tests, generate tests, call providers, parse
 traffic state, upload artifacts, or render raw URLs, headers, bodies, cookies,
 prompts, credentials, environment values, seeds, full report contents, or
-source Hurl contents.
+source Hurl contents. Markdown rendering rejects secret-like output before
+returning content to direct renderer callers.
 
 The evidence-index packet is written by:
 
