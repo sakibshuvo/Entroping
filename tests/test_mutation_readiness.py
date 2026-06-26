@@ -208,6 +208,80 @@ def test_mutation_readiness_markdown_renderer_rejects_secret_like_output(
         render_mutation_readiness_markdown(unsafe_packet)
 
 
+def test_mutation_readiness_json_renderer_rejects_secret_like_output(
+    tmp_path: Path,
+) -> None:
+    packet = build_mutation_readiness(project_root=tmp_path)
+    secret_marker = "sk-proj-" + "jsonsecretmarker0123456789"
+    poisoned_source = packet.sources[0].model_copy(
+        update={"summary": f"unsafe token {secret_marker}"}
+    )
+    unsafe_packet = packet.model_copy(
+        update={"sources": (poisoned_source, *packet.sources[1:])}
+    )
+
+    with pytest.raises(MutationReadinessError, match="contains secret-like content"):
+        mutation_readiness._render_packet_content(unsafe_packet, output="json")
+
+
+def test_mutation_readiness_packet_json_rejects_secret_like_output(
+    tmp_path: Path,
+) -> None:
+    packet = build_mutation_readiness(project_root=tmp_path)
+    secret_marker = "sk-proj-" + "packetsecretmarker0123456789"
+    poisoned_source = packet.sources[0].model_copy(
+        update={"summary": f"unsafe token {secret_marker}"}
+    )
+    unsafe_packet = packet.model_copy(
+        update={"sources": (poisoned_source, *packet.sources[1:])}
+    )
+
+    with pytest.raises(MutationReadinessError, match="contains secret-like content"):
+        unsafe_packet.model_dump_json()
+
+
+def test_mutation_readiness_packet_model_dump_rejects_secret_like_output(
+    tmp_path: Path,
+) -> None:
+    packet = build_mutation_readiness(project_root=tmp_path)
+    secret_marker = "sk-proj-" + "modeldumpsecret0123456789"
+    poisoned_source = packet.sources[0].model_copy(
+        update={"summary": f"unsafe token {secret_marker}"}
+    )
+    unsafe_packet = packet.model_copy(
+        update={"sources": (poisoned_source, *packet.sources[1:])}
+    )
+
+    with pytest.raises(MutationReadinessError, match="contains secret-like content"):
+        unsafe_packet.model_dump(mode="json")
+
+
+def test_mutation_readiness_packet_json_preserves_pydantic_options(
+    tmp_path: Path,
+) -> None:
+    packet = build_mutation_readiness(project_root=tmp_path)
+
+    rendered = packet.model_dump_json(indent=2, exclude_none=True)
+
+    assert "\n  " in rendered
+    payload = json.loads(rendered)
+    assert payload["schema_version"] == "entroping.mutation-readiness.v1"
+    assert "schema_version" not in payload["sources"][0]
+
+
+def test_mutation_readiness_redacts_secret_like_project_directory_name(
+    tmp_path: Path,
+) -> None:
+    secret_like_project = tmp_path / ("sk-proj-" + "projectsecret0123456789")
+    secret_like_project.mkdir()
+
+    result = run_mutation_readiness_report(project_root=secret_like_project, output="json")
+
+    payload = json.loads(result.output_path.read_text(encoding="utf-8"))
+    assert payload["project"] == "[REDACTED]"
+    assert "projectsecret0123456789" not in result.packet.model_dump_json()
+
+
 def test_mutation_readiness_marks_invalid_hurl_and_report_states(
     tmp_path: Path,
 ) -> None:
@@ -515,6 +589,29 @@ def test_mutation_readiness_rejects_secret_like_rendered_output(
     monkeypatch.setattr(mutation_readiness, "build_mutation_readiness", build_secret_packet)
 
     with pytest.raises(MutationReadinessError, match="secret-like content"):
+        run_mutation_readiness_report(project_root=tmp_path, output="json")
+
+
+def test_mutation_readiness_writer_rejects_secret_like_renderer_content(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_rendered_content(
+        packet: mutation_readiness.MutationReadinessPacket,
+        *,
+        output: mutation_readiness.MutationReadinessOutput,
+    ) -> str:
+        _ = packet, output
+        secret_marker = "sk-proj-" + "writersecret0123456789"
+        return f"unsafe token {secret_marker}\n"
+
+    monkeypatch.setattr(
+        mutation_readiness,
+        "_render_packet_content",
+        fake_rendered_content,
+    )
+
+    with pytest.raises(MutationReadinessError, match="contains secret-like content"):
         run_mutation_readiness_report(project_root=tmp_path, output="json")
 
 

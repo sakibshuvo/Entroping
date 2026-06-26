@@ -16,14 +16,15 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1116 Mutation-Readiness Markdown Secret Guard
+## Current Issue Slice: #1122 Mutation-Readiness JSON Secret Guard
 
-Add a defense-in-depth guard to `render_mutation_readiness_markdown` so direct
-renderer callers cannot receive Markdown containing secret-like content. Keep
-the slice advisory and deterministic: no provider/model call, traffic parsing,
-Hurl execution, generated-test creation, source Hurl mutation, mutation/fuzz
-runner, hosted upload, JSON behavior change, schema-version churn, or
-`entroping run` behavior change.
+Add a defense-in-depth guard to the mutation-readiness packet rendering helper
+and packet data/JSON serialization so direct/internal packet callers cannot
+receive content containing secret-like values. Redact secret-like local project
+directory names before packet construction. Keep the slice advisory and
+deterministic: no provider/model call, traffic parsing, Hurl execution,
+generated-test creation, source Hurl mutation, mutation/fuzz runner, hosted
+upload, schema-version churn, or `entroping run` behavior change.
 
 ## Current Baseline
 

@@ -2,6 +2,11 @@
 
 ## 2026-06-26
 
+- Added issue #1122's mutation-readiness JSON renderer secret guard: the
+  shared packet-rendering helper plus direct packet data/JSON serialization now
+  reject output containing secret-like content before returning it, while
+  secret-like local project directory names are redacted before rendering.
+
 - Added issue #1116's mutation-readiness Markdown renderer secret guard:
   direct `render_mutation_readiness_markdown` calls now reject rendered
   Markdown containing secret-like content before returning it, matching the
