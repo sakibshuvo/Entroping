@@ -1770,7 +1770,9 @@ wrong-schema, or secret-like source artifacts are marked invalid or unsafe. The
 command does not execute Hurl, run mutation tests, run fuzzers, generate tests,
 call providers, upload results, parse traffic state, mutate source files, or
 include raw URLs, headers, bodies, cookies, prompts, credentials, environment
-values, seed values, full report contents, or source Hurl contents.
+values, seed values, full report contents, or source Hurl contents. Markdown
+rendering rejects secret-like output before returning content to direct
+renderer callers.
 
 `entroping report evidence-index` writes a local read-only evidence artifact
 index at `reports/evidence-index.md` by default, or

@@ -2,6 +2,12 @@
 
 ## 2026-06-26
 
+- Added issue #1116's mutation-readiness Markdown renderer secret guard:
+  direct `render_mutation_readiness_markdown` calls now reject rendered
+  Markdown containing secret-like content before returning it, matching the
+  report writer's existing defense-in-depth boundary without changing JSON
+  output, Hurl execution, provider calls, traffic parsing, or `entroping run`.
+
 - Added issue #1113's mutation-readiness missing-source evidence:
   `report mutation-readiness` now surfaces absent optional
   `reports/test-quality.json` and `reports/test-pyramid.json` inputs as

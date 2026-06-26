@@ -16,15 +16,14 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1113 Mutation-Readiness Missing Optional Reports
+## Current Issue Slice: #1116 Mutation-Readiness Markdown Secret Guard
 
-Extend `entroping report mutation-readiness --output md|json` so absent
-optional `reports/test-quality.json` and `reports/test-pyramid.json` inputs are
-surfaced as non-blocking missing source evidence instead of being silently
-skipped. Keep the slice advisory and deterministic: no provider/model call,
-traffic parsing, Hurl execution, generated-test creation, source Hurl mutation,
-mutation/fuzz runner, hosted upload, raw report rendering, schema-version
-churn, or `entroping run` behavior change.
+Add a defense-in-depth guard to `render_mutation_readiness_markdown` so direct
+renderer callers cannot receive Markdown containing secret-like content. Keep
+the slice advisory and deterministic: no provider/model call, traffic parsing,
+Hurl execution, generated-test creation, source Hurl mutation, mutation/fuzz
+runner, hosted upload, JSON behavior change, schema-version churn, or
+`entroping run` behavior change.
 
 ## Current Baseline
 

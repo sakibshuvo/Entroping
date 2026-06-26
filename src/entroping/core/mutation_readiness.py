@@ -325,7 +325,11 @@ def render_mutation_readiness_markdown(packet: MutationReadinessPacket) -> str:
             f"{'yes' if source.seed_metadata else 'no'} | "
             f"{_markdown_cell(source.summary)} |"
         )
-    return "\n".join(lines).rstrip() + "\n"
+    content = "\n".join(lines).rstrip() + "\n"
+    if contains_unredacted_evidence_secret(content):
+        msg = "mutation readiness Markdown output contains secret-like content"
+        raise MutationReadinessError(msg)
+    return content
 
 
 def _render_packet_content(

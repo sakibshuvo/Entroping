@@ -191,6 +191,23 @@ jsonpath "$.error" exists
     assert "127.0.0.1" not in serialized
 
 
+def test_mutation_readiness_markdown_renderer_rejects_secret_like_output(
+    tmp_path: Path,
+) -> None:
+    packet = build_mutation_readiness(project_root=tmp_path)
+    secret_marker = "sk-proj-" + "secretmarker0123456789"
+    poisoned_source = packet.sources[0].model_copy(
+        update={"summary": f"unsafe token {secret_marker}"}
+    )
+    unsafe_packet = packet.model_copy(
+        update={"sources": (poisoned_source, *packet.sources[1:])}
+    )
+    assert len(unsafe_packet.sources) == len(packet.sources)
+
+    with pytest.raises(MutationReadinessError, match="contains secret-like content"):
+        render_mutation_readiness_markdown(unsafe_packet)
+
+
 def test_mutation_readiness_marks_invalid_hurl_and_report_states(
     tmp_path: Path,
 ) -> None:
@@ -573,6 +590,7 @@ def test_render_mutation_readiness_markdown_escapes_values(tmp_path: Path) -> No
         """
 # entroping: tags=generated,response-shape
 # entroping: source=openapi
+# entroping: mutation_seed=pipe-seed-1
 GET http://127.0.0.1:18080/health
 HTTP 200
 [Asserts]
@@ -586,6 +604,7 @@ jsonpath "$.name" isString
     markdown = render_mutation_readiness_markdown(packet)
     assert "response_shape" in markdown
     assert "127.0.0.1" not in markdown
+    assert "pipe-seed-1" not in markdown
     assert "\\|" not in markdown
 
 
