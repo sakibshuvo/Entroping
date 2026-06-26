@@ -527,7 +527,173 @@ def test_api_inventory_keeps_wsdl_schema_as_present_style_evidence(
     assert source.state == "present"
     assert source.style == "soap_xml"
     assert source.operations == 0
-    assert source.summary == "SOAP/XML schema file."
+    assert source.summary == "0 WSDL operations."
+
+
+def test_api_inventory_marks_bad_wsdl_sources_invalid_or_unsafe(tmp_path: Path) -> None:
+    _write_text(tmp_path / "contracts" / "malformed.wsdl", "<definitions><portType>\n")
+    _write_text(
+        tmp_path / "contracts" / "entity.wsdl",
+        """
+<!DOCTYPE definitions [
+  <!ENTITY secret "should-not-appear">
+]>
+<definitions>&secret;</definitions>
+""".strip()
+        + "\n",
+    )
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    sources = {(source.kind, source.path): source for source in packet.sources}
+    malformed = sources[("schema_file", "contracts/malformed.wsdl")]
+    assert malformed.state == "invalid"
+    assert malformed.operations == 0
+    assert "Invalid WSDL XML" in malformed.summary
+    entity = sources[("schema_file", "contracts/entity.wsdl")]
+    assert entity.state == "unsafe"
+    assert entity.operations == 0
+    assert "Unsafe WSDL XML construct" in entity.summary
+    assert "should-not-appear" not in packet.model_dump_json()
+
+
+def test_api_inventory_keeps_generic_schema_styles_as_present_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setitem(api_inventory._SCHEMA_EXTENSIONS, ".http-schema", "unknown_http")
+    _write_text(tmp_path / "contracts" / "legacy.http-schema", "legacy schema\n")
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    sources = {(source.kind, source.path): source for source in packet.sources}
+    source = sources[("schema_file", "contracts/legacy.http-schema")]
+    assert source.state == "present"
+    assert source.style == "unknown_http"
+    assert source.operations == 0
+    assert source.summary == "Unknown HTTP schema file."
+
+
+def test_api_inventory_counts_wsdl_operations_without_leaking_names(
+    tmp_path: Path,
+) -> None:
+    wsdl_path = _write_text(
+        tmp_path / "contracts" / "orders.wsdl",
+        """
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions
+  xmlns="http://schemas.xmlsoap.org/wsdl/"
+  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+  targetNamespace="https://internal.example.test/orders"
+>
+  <portType name="OrdersPortType">
+    <operation name="CreateOrder">
+      <input message="tns:CreateOrderRequest" />
+      <output message="tns:CreateOrderResponse" />
+    </operation>
+    <operation name="GetOrder">
+      <input message="tns:GetOrderRequest" />
+      <output message="tns:GetOrderResponse" />
+    </operation>
+  </portType>
+  <portType name="PaymentsPortType">
+    <operation name="CreatePayment">
+      <input message="tns:CreatePaymentRequest" />
+      <output message="tns:CreatePaymentResponse" />
+    </operation>
+  </portType>
+  <binding name="OrdersBinding" type="tns:OrdersPortType">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <operation name="CreateOrder">
+      <soap:operation soapAction="https://internal.example.test/create-order" />
+    </operation>
+  </binding>
+  <service name="OrdersService">
+    <port name="OrdersPort" binding="tns:OrdersBinding">
+      <soap:address location="https://internal.example.test/soap/orders" />
+    </port>
+  </service>
+</definitions>
+""".strip()
+        + "\n",
+    )
+
+    result = run_api_inventory_report(project_root=tmp_path, output="json")
+
+    payload = json.loads(result.output_path.read_text(encoding="utf-8"))
+    sources = {(source["kind"], source["path"]): source for source in payload["sources"]}
+    assert sources[("schema_file", "contracts/orders.wsdl")] == {
+        "kind": "schema_file",
+        "style": "soap_xml",
+        "path": "contracts/orders.wsdl",
+        "state": "present",
+        "sha256": hashlib.sha256(wsdl_path.read_bytes()).hexdigest(),
+        "tags": [],
+        "operations": 3,
+        "summary": "3 WSDL operations.",
+    }
+    styles = {style["style"]: style for style in payload["styles"]}
+    assert styles["soap_xml"]["operations"] == 3
+    serialized = json.dumps(payload)
+    assert "CreateOrder" not in serialized
+    assert "CreatePayment" not in serialized
+    assert "OrdersService" not in serialized
+    assert "internal.example.test" not in serialized
+
+
+def test_api_inventory_counts_only_top_level_wsdl_port_type_operations(
+    tmp_path: Path,
+) -> None:
+    _write_text(
+        tmp_path / "contracts" / "nested.wsdl",
+        """
+<definitions xmlns="http://schemas.xmlsoap.org/wsdl/">
+  <types>
+    <schema>
+      <portType name="NestedNoise">
+        <operation name="DoNotCount" />
+      </portType>
+    </schema>
+  </types>
+  <portType name="OrdersPortType">
+    <operation name="CreateOrder" />
+  </portType>
+</definitions>
+""".strip()
+        + "\n",
+    )
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    sources = {(source.kind, source.path): source for source in packet.sources}
+    source = sources[("schema_file", "contracts/nested.wsdl")]
+    assert source.state == "present"
+    assert source.operations == 1
+    assert source.summary == "1 WSDL operation."
+
+
+def test_api_inventory_keeps_non_definitions_wsdl_as_zero_operation_evidence(
+    tmp_path: Path,
+) -> None:
+    _write_text(
+        tmp_path / "contracts" / "not-definitions.wsdl",
+        """
+<schema>
+  <portType name="NotWsdl">
+    <operation name="DoNotCount" />
+  </portType>
+</schema>
+""".strip()
+        + "\n",
+    )
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    sources = {(source.kind, source.path): source for source in packet.sources}
+    source = sources[("schema_file", "contracts/not-definitions.wsdl")]
+    assert source.state == "present"
+    assert source.operations == 0
+    assert source.summary == "0 WSDL operations."
 
 
 def test_api_inventory_detects_websocket_realtime_contract_and_hurl_tags(

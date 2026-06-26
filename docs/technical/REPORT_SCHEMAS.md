@@ -1109,18 +1109,21 @@ OpenAPI files, committed Hurl tests with protocol tags, GraphQL/WSDL/proto
 schema files, AsyncAPI specs, webhook/event-contract files, and
 WebSocket/realtime contract files. GraphQL SDL sources contribute counts for
 root `Query`, `Mutation`, and `Subscription` fields without rendering field
-names; proto sources contribute counts for `rpc` declarations without rendering
-service or RPC names. It summarizes counts for REST/OpenAPI, GraphQL, SOAP/XML,
-gRPC/proto, AsyncAPI, webhook/event, WebSocket/realtime, and unknown HTTP
-surfaces. The report records source states, project-relative local paths, tags,
+names; WSDL sources contribute counts for `portType` operations without
+rendering operation names, service names, addresses, or raw XML; proto sources
+contribute counts for `rpc` declarations without rendering service or RPC
+names. It summarizes counts for REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto,
+AsyncAPI, webhook/event, WebSocket/realtime, and unknown HTTP surfaces. The
+report records source states, project-relative local paths, tags,
 operation/exchange counts, SHA-256 hashes, and next-action text only. Missing
 sources are non-blocking; malformed, oversized, non-file, symlinked,
 path-escaped, or secret-like source artifacts are marked invalid or unsafe
 without rendering contents. The command does not execute Hurl, call providers,
 upload results, parse traffic state, call registries, generate tests, mutate
 source files, or include raw URLs, headers, bodies, cookies, prompts,
-credentials, environment values, GraphQL field names, proto RPC names, proto
-service names, or full file contents.
+credentials, environment values, GraphQL field names, WSDL operation names,
+WSDL service names, WSDL addresses, proto RPC names, proto service names, raw
+XML, or full file contents.
 
 The design-partner feedback artifact is written by:
 
