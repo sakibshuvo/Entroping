@@ -409,9 +409,6 @@ def _load_hurl_source(
 def _optional_report_sources(*, root: Path) -> tuple[MutationReadinessSource, ...]:
     sources: list[MutationReadinessSource] = []
     for kind, report_path, expected_schema in _OPTIONAL_REPORTS:
-        path = root / report_path
-        if not path.exists():
-            continue
         sources.append(
             _load_optional_report(
                 root=root,
@@ -435,6 +432,13 @@ def _load_optional_report(
     unsafe = _unsafe_path_summary(path, root=root)
     if unsafe is not None:
         return _source(kind=kind, path=path_text, state="unsafe", summary=unsafe)
+    if not path.exists():
+        return _source(
+            kind=kind,
+            path=path_text,
+            state="missing",
+            summary="optional report not found.",
+        )
     loaded = _read_text_artifact(path, artifact=path_text, root=root, kind=kind)
     if isinstance(loaded, MutationReadinessSource):
         return loaded

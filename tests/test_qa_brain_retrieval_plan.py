@@ -134,7 +134,7 @@ def test_qa_brain_retrieval_plan_preserves_attention_sources_and_next_actions(
     assert next(
         action for action in packet.next_actions if action.case_ids == ("bogus_evidence",)
     ).priority == "high"
-    assert "999" not in packet.model_dump_json()
+    assert "999" not in packet.model_dump_json(exclude={"generated_at"})
 
 
 def test_qa_brain_retrieval_plan_markdown_is_human_readable_and_value_free(

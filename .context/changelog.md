@@ -2,6 +2,14 @@
 
 ## 2026-06-26
 
+- Added issue #1113's mutation-readiness missing-source evidence:
+  `report mutation-readiness` now surfaces absent optional
+  `reports/test-quality.json` and `reports/test-pyramid.json` inputs as
+  non-blocking missing source evidence, preserving relative paths and
+  value-free JSON/Markdown output without rendering report contents, Hurl
+  contents, URLs, headers, bodies, cookies, prompts, credentials, environment
+  values, or seed values.
+
 - Added issue #1111's mutation-readiness seed-gap guidance: `report
   mutation-readiness` candidate category next actions now flag generated
   mutation/fuzz candidates that lack deterministic seed metadata without
