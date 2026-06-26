@@ -31,7 +31,11 @@ from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.pilot_metrics import PILOT_METRICS_SCHEMA_VERSION
 from entroping.core.report_artifact_manifest import REPORT_ARTIFACT_MANIFEST_SCHEMA_VERSION
 from entroping.core.runtime_card import RUNTIME_CARD_SCHEMA_VERSION
-from entroping.core.safe_write import SafeWriteError, safe_write_text
+from entroping.core.safe_write import (
+    SafeWriteError,
+    safe_report_output_path,
+    safe_write_text,
+)
 from entroping.core.team_evidence_readiness import TEAM_EVIDENCE_READINESS_SCHEMA_VERSION
 
 EVIDENCE_CLOUD_READINESS_SCHEMA_VERSION: Final = (
@@ -615,12 +619,21 @@ def _loaded_source(
 
 def _resolve_source_path(raw_path: Path, *, root: Path) -> Path:
     candidate = root / raw_path
-    symlink_path = first_symlink_path_component(candidate, root=root)
+    try:
+        symlink_path = first_symlink_path_component(candidate, root=root)
+    except ValueError as exc:
+        msg = "Evidence Cloud readiness source path must stay under the project root"
+        raise EvidenceCloudReadinessError(msg) from exc
     if symlink_path is not None:
         display_path = symlink_path.relative_to(root).as_posix()
         msg = f"Evidence Cloud readiness source path uses symlinked component: {display_path}"
         raise EvidenceCloudReadinessError(msg)
     resolved = candidate.resolve(strict=False)
+    try:
+        resolved.relative_to(root)
+    except ValueError as exc:
+        msg = "Evidence Cloud readiness source path must stay under the project root"
+        raise EvidenceCloudReadinessError(msg) from exc
     if resolved.exists() and not resolved.is_file():
         msg = f"Evidence Cloud readiness source path is not a file: {raw_path.as_posix()}"
         raise EvidenceCloudReadinessError(msg)
@@ -628,28 +641,15 @@ def _resolve_source_path(raw_path: Path, *, root: Path) -> Path:
 
 
 def _resolve_output_path(raw_path: Path, *, root: Path) -> Path:
-    path = raw_path.expanduser()
-    if not path.is_absolute():
-        path = root / path
     try:
-        symlink_path = first_symlink_path_component(path, root=root)
-    except ValueError as exc:
-        msg = "Evidence Cloud readiness output path must stay under the project root"
+        return safe_report_output_path(
+            raw_path,
+            root=root,
+            artifact="Evidence Cloud readiness packet",
+        )
+    except SafeWriteError as exc:
+        msg = str(exc)
         raise EvidenceCloudReadinessError(msg) from exc
-    if symlink_path is not None:
-        display_path = symlink_path.relative_to(root).as_posix()
-        msg = f"Evidence Cloud readiness output path uses symlinked component: {display_path}"
-        raise EvidenceCloudReadinessError(msg)
-    resolved = path.resolve(strict=False)
-    try:
-        relative_parts = resolved.relative_to(root).parts
-    except ValueError as exc:
-        msg = "Evidence Cloud readiness output path must stay under the project root"
-        raise EvidenceCloudReadinessError(msg) from exc
-    if relative_parts and relative_parts[0] in {".entroping", "envs"}:
-        msg = "Evidence Cloud readiness packet must not be written into .entroping or envs"
-        raise EvidenceCloudReadinessError(msg)
-    return resolved
 
 
 def _read_bounded_bytes(path: Path, *, artifact: str) -> bytes:
@@ -1172,10 +1172,15 @@ def _escape_backticks(value: str) -> str:
 
 
 def _packet_json(packet: EvidenceCloudReadinessPacket) -> str:
-    return json.dumps(
-        packet.model_dump(mode="json", warnings=False, fallback=str),
-        default=str,
-    )
+    try:
+        try:
+            payload = packet.model_dump(mode="json", warnings=False, fallback=str)
+        except TypeError:
+            payload = packet.model_dump(mode="json", warnings=False)
+        return json.dumps(payload)
+    except Exception as exc:
+        msg = "Evidence Cloud readiness packet could not be serialized safely"
+        raise EvidenceCloudReadinessError(msg) from exc
 
 
 def _contains_unredacted_secret_like_value(value: str) -> bool:

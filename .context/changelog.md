@@ -2,6 +2,14 @@
 
 ## 2026-06-26
 
+- Advanced issue #1121's report packet boundary guardrails: Evidence Cloud
+  readiness and integration readiness now delegate output path validation to
+  the shared `safe_report_output_path` boundary helper while preserving their
+  module-specific errors, local-only packet behavior, safe writes, symlink
+  rejection, project-root containment, and local-state directory bans; Evidence
+  Cloud readiness also wraps source-path containment failures and packet JSON
+  serialization failures in its module-specific error type.
+
 - Fixed issue #1120's dependency automation governance gap: PR body validation
   now has a scoped dependency automation lane for recognized Dependabot/app
   `build(deps)` PRs that only change dependency manifests, lockfiles, or
