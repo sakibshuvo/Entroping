@@ -2,6 +2,15 @@
 
 ## 2026-06-26
 
+- Fixed issue #1118's report output symlink guard gap: affected packet writers
+  now use a shared report output path validator that rejects direct symlink
+  output files and symlinked parent components before resolution, preserving
+  root-boundary checks, local-state directory bans, `safe_write_text` as the
+  final write primitive, deterministic report generation, and `entroping run`
+  behavior; Evidence Cloud workspace also treats relative manifest paths that
+  escape the project as unsafe while preserving explicit absolute external
+  manifest support.
+
 - Added issue #1122's mutation-readiness JSON renderer secret guard: the
   shared packet-rendering helper plus direct packet data/JSON serialization now
   reject output containing secret-like content before returning it, while

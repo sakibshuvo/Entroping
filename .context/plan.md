@@ -16,15 +16,15 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1122 Mutation-Readiness JSON Secret Guard
+## Current Issue Slice: #1118 Report Output Symlink Guards
 
-Add a defense-in-depth guard to the mutation-readiness packet rendering helper
-and packet data/JSON serialization so direct/internal packet callers cannot
-receive content containing secret-like values. Redact secret-like local project
-directory names before packet construction. Keep the slice advisory and
-deterministic: no provider/model call, traffic parsing, Hurl execution,
-generated-test creation, source Hurl mutation, mutation/fuzz runner, hosted
-upload, schema-version churn, or `entroping run` behavior change.
+Centralize report output path validation for packet writers that accepted a
+user-controlled output path and resolved it before `safe_write_text` could see
+symlinked components. Reject direct symlink output files and symlinked parent
+components before resolution while preserving root-boundary and local-state
+directory checks. Keep the slice deterministic: no provider/model call, Hurl
+execution, traffic parsing, report schema churn, source mutation, hosted upload,
+or `entroping run` behavior change.
 
 ## Current Baseline
 

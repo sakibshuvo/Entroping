@@ -8,6 +8,7 @@ from entroping.core import safe_write
 from entroping.core.safe_write import (
     SafeWriteError,
     safe_append_text,
+    safe_report_output_path,
     safe_write_bytes,
     safe_write_text,
 )
@@ -152,6 +153,38 @@ def test_safe_write_can_write_relative_path_without_root(
     assert written.read_text(encoding="utf-8") == "{}\n"
 
 
+def test_safe_write_without_root_rejects_existing_symlink_target(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    victim = tmp_path / "victim.md"
+    victim.write_text("victim\n", encoding="utf-8")
+    output = tmp_path / "reports" / "bug.md"
+    output.parent.mkdir()
+    output.symlink_to(victim)
+
+    with pytest.raises(SafeWriteError, match="symlinked bug report"):
+        safe_write_text(Path("reports") / "bug.md", "replacement\n", artifact="bug report")
+
+    assert victim.read_text(encoding="utf-8") == "victim\n"
+
+
+def test_safe_write_without_root_rejects_symlinked_parent_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (tmp_path / "reports").symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(SafeWriteError, match="symlinked path component"):
+        safe_write_text(Path("reports") / "run-latest.json", "{}\n", artifact="run report")
+
+    assert not (outside / "run-latest.json").exists()
+
+
 def test_safe_write_rejects_existing_symlink_target(tmp_path: Path) -> None:
     victim = tmp_path / "victim.md"
     victim.write_text("victim\n", encoding="utf-8")
@@ -196,6 +229,57 @@ def test_safe_write_rejects_root_escape(tmp_path: Path) -> None:
         safe_write_text(outside, "escape\n", artifact="bug report", root=tmp_path)
 
     assert not outside.exists()
+
+
+def test_safe_report_output_path_can_limit_forbidden_components_to_first_part(
+    tmp_path: Path,
+) -> None:
+    output = safe_report_output_path(
+        Path("reports") / "envs" / "packet.json",
+        root=tmp_path,
+        artifact="report packet",
+        forbid_components_anywhere=False,
+    )
+
+    assert output == tmp_path.resolve() / "reports" / "envs" / "packet.json"
+
+
+def test_safe_report_output_path_supports_custom_forbidden_components(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(SafeWriteError, match="must not be written into private"):
+        safe_report_output_path(
+            Path("reports") / "private" / "packet.json",
+            root=tmp_path,
+            artifact="report packet",
+            forbidden_components=("private",),
+        )
+
+
+def test_safe_report_output_path_formats_external_symlink_components(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    external_component = tmp_path.parent / f"{tmp_path.name}-external-link"
+
+    def find_external_component(path: Path, *, root: Path | None) -> Path:
+        _ = path, root
+        return external_component
+
+    monkeypatch.setattr(
+        safe_write,
+        "first_symlink_path_component",
+        find_external_component,
+    )
+
+    with pytest.raises(SafeWriteError) as exc_info:
+        safe_report_output_path(
+            Path("reports") / "packet.json",
+            root=tmp_path,
+            artifact="report packet",
+        )
+
+    assert external_component.as_posix() in str(exc_info.value)
 
 
 def test_safe_write_wraps_parent_directory_creation_failures(

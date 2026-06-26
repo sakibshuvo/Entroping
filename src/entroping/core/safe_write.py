@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+from collections.abc import Iterable
 from pathlib import Path
 
 from entroping.core.path_safety import first_symlink_path_component
@@ -48,6 +49,7 @@ def safe_append_text(
     destination = _prepare_destination(path, artifact=artifact, root=root_path)
     try:
         _reject_symlink_path_components(destination, artifact=artifact, root=root_path)
+        _ensure_under_root(destination, root_path, artifact=artifact)
         with destination.open("ab") as handle:
             handle.write(content.encode("utf-8"))
             handle.flush()
@@ -56,6 +58,43 @@ def safe_append_text(
         msg = f"Could not append {artifact} {destination}: {exc}"
         raise SafeWriteError(msg) from exc
     return destination
+
+
+def safe_report_output_path(
+    path: Path,
+    *,
+    root: Path,
+    artifact: str,
+    forbidden_components: Iterable[str] = (".entroping", "envs"),
+    forbid_components_anywhere: bool = True,
+) -> Path:
+    """Validate a report output path without resolving away symlink evidence."""
+
+    root_path = root.expanduser().resolve()
+    candidate = path.expanduser()
+    if not candidate.is_absolute():
+        candidate = root_path / candidate
+
+    try:
+        relative_parts = candidate.resolve(strict=False).relative_to(root_path).parts
+    except ValueError as exc:
+        msg = f"{artifact} output path must stay under the project root"
+        raise SafeWriteError(msg) from exc
+
+    symlink_component = first_symlink_path_component(candidate, root=root_path)
+    if symlink_component is not None:
+        display = _relative_display(symlink_component, root=root_path)
+        msg = f"{artifact} output path uses symlinked component: {display}"
+        raise SafeWriteError(msg)
+
+    forbidden = frozenset(part.lower() for part in forbidden_components)
+    checked_parts = relative_parts if forbid_components_anywhere else relative_parts[:1]
+    if any(part.lower() in forbidden for part in checked_parts):
+        names = " or ".join(sorted(forbidden))
+        msg = f"{artifact} must not be written into {names}"
+        raise SafeWriteError(msg)
+
+    return candidate
 
 
 def _safe_write(
@@ -70,6 +109,7 @@ def _safe_write(
     temporary_path = _write_temporary_file(destination, content)
     try:
         _reject_symlink_path_components(destination, artifact=artifact, root=root_path)
+        _ensure_under_root(destination, root_path, artifact=artifact)
         temporary_path.replace(destination)
     except OSError as exc:
         msg = f"Could not write {artifact} {destination}: {exc}"
@@ -78,6 +118,13 @@ def _safe_write(
         if temporary_path.exists():
             temporary_path.unlink()
     return destination
+
+
+def _relative_display(path: Path, *, root: Path) -> str:
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return path.as_posix()
 
 
 def _prepare_destination(path: Path, *, artifact: str, root: Path | None) -> Path:
