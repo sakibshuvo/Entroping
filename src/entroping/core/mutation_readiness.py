@@ -581,9 +581,10 @@ def _candidate_summaries(
         if source.kind == "generated_hurl" and source.state == "present"
     ]
     for category in _CATEGORY_LABELS:
-        paths = tuple(
-            source.path for source in present_hurl if category in source.candidate_categories
+        category_sources = tuple(
+            source for source in present_hurl if category in source.candidate_categories
         )
+        paths = tuple(source.path for source in category_sources)
         if not paths:
             continue
         candidates.append(
@@ -592,10 +593,29 @@ def _candidate_summaries(
                 label=_CATEGORY_LABELS[category],
                 tests=len(paths),
                 source_paths=paths,
-                next_action=_CATEGORY_ACTIONS[category],
+                next_action=_candidate_next_action(
+                    category=category,
+                    category_sources=category_sources,
+                ),
             )
         )
     return tuple(candidates)
+
+
+def _candidate_next_action(
+    *,
+    category: MutationCandidateCategory,
+    category_sources: tuple[MutationReadinessSource, ...],
+) -> str:
+    unseeded = sum(1 for source in category_sources if not source.seed_metadata)
+    if not unseeded:
+        return _CATEGORY_ACTIONS[category]
+    candidate_word = "candidate" if unseeded == 1 else "candidates"
+    return (
+        f"Add deterministic seed metadata to {unseeded} "
+        f"{_CATEGORY_LABELS[category].lower()} {candidate_word} "
+        "before future mutation/fuzz execution."
+    )
 
 
 def _summary(

@@ -1760,13 +1760,15 @@ metadata, plus optional existing `reports/test-quality.json` and
 summarizes only counts and local source states for generated corpus presence,
 negative-path evidence, auth/security evidence, assertion strength, seed
 metadata, and safe candidate categories such as status-code, schema, auth,
-latency, request-shape, and response-shape. Missing evidence is non-blocking;
-malformed, oversized, non-file, symlinked, path-escaped, wrong-schema, or
-secret-like source artifacts are marked invalid or unsafe. The command does
-not execute Hurl, run mutation tests, run fuzzers, generate tests, call
-providers, upload results, parse traffic state, mutate source files, or include
-raw URLs, headers, bodies, cookies, prompts, credentials, environment values,
-seed values, full report contents, or source Hurl contents.
+latency, request-shape, and response-shape. Candidate next actions flag
+categories that still contain generated tests without deterministic seed
+metadata, but seed values themselves are never rendered. Missing evidence is
+non-blocking; malformed, oversized, non-file, symlinked, path-escaped,
+wrong-schema, or secret-like source artifacts are marked invalid or unsafe. The
+command does not execute Hurl, run mutation tests, run fuzzers, generate tests,
+call providers, upload results, parse traffic state, mutate source files, or
+include raw URLs, headers, bodies, cookies, prompts, credentials, environment
+values, seed values, full report contents, or source Hurl contents.
 
 `entroping report evidence-index` writes a local read-only evidence artifact
 index at `reports/evidence-index.md` by default, or

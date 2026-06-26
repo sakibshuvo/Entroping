@@ -2,6 +2,15 @@
 
 ## 2026-06-26
 
+- Added issue #1111's mutation-readiness seed-gap guidance: `report
+  mutation-readiness` candidate category next actions now flag generated
+  mutation/fuzz candidates that lack deterministic seed metadata without
+  rendering seed values, executing Hurl, running mutations or fuzzers,
+  generating tests, mutating source Hurl, changing `entroping run`, calling
+  providers, parsing traffic, uploading artifacts, or rendering raw URLs,
+  headers, bodies, cookies, prompts, credentials, report contents, or source
+  Hurl contents.
+
 - Added issue #1109's API inventory WSDL operation counts: `report
   api-inventory` now counts WSDL `portType` operations from local `.wsdl`
   schema files with defused XML parsing, while preserving value-free output and
