@@ -114,6 +114,83 @@ def test_mutation_readiness_no_generated_hurl_is_insufficient_markdown(
     assert "No mutation or fuzz readiness candidates were detected." in markdown
 
 
+def test_mutation_readiness_surfaces_missing_optional_reports(
+    tmp_path: Path,
+) -> None:
+    result = run_mutation_readiness_report(project_root=tmp_path, output="json")
+
+    payload = json.loads(result.output_path.read_text(encoding="utf-8"))
+    assert payload["summary"]["sources_total"] == 2
+    assert payload["summary"]["sources_missing"] == 2
+    assert payload["summary"]["sources_present"] == 0
+    assert payload["summary"]["sources_invalid"] == 0
+    assert payload["summary"]["sources_unsafe"] == 0
+    assert payload["summary"]["optional_reports_present"] == 0
+    assert payload["summary"]["optional_reports_invalid"] == 0
+    assert payload["summary"]["optional_reports_unsafe"] == 0
+
+    sources = {(source["kind"], source["path"]): source for source in payload["sources"]}
+    assert sources[("test_quality_report", "reports/test-quality.json")] == {
+        "kind": "test_quality_report",
+        "path": "reports/test-quality.json",
+        "state": "missing",
+        "schema_version": None,
+        "tags": [],
+        "candidate_categories": [],
+        "assertions": 0,
+        "seed_metadata": False,
+        "summary": "optional report not found.",
+    }
+    assert sources[("test_pyramid_report", "reports/test-pyramid.json")]["state"] == (
+        "missing"
+    )
+    serialized = json.dumps(payload)
+    assert str(tmp_path) not in serialized
+    assert "127.0.0.1" not in serialized
+    markdown = render_mutation_readiness_markdown(result.packet)
+    assert "reports/test-quality.json" in markdown
+    assert "missing" in markdown
+    assert str(tmp_path) not in markdown
+
+
+def test_mutation_readiness_keeps_missing_optional_reports_non_blocking(
+    tmp_path: Path,
+) -> None:
+    _write_text(
+        tmp_path / "tests" / "generated" / "security" / "auth.hurl",
+        """
+# entroping: tags=generated,negative,security
+# entroping: source=openapi
+# entroping: negative_category=invalid-auth
+# entroping: mutation_seed=auth-seed-1
+GET http://127.0.0.1:18080/orders
+HTTP 401
+[Asserts]
+jsonpath "$.error" exists
+""".strip()
+        + "\n",
+    )
+    _write_json(
+        tmp_path / "reports" / "test-quality.json",
+        {
+            "schema_version": "entroping.test-quality-report.v1",
+            "summary": {"status": "pass", "score": 91},
+        },
+    )
+
+    packet = build_mutation_readiness(project_root=tmp_path)
+
+    sources = {(source.kind, source.path): source for source in packet.sources}
+    assert sources[("test_quality_report", "reports/test-quality.json")].state == "present"
+    assert sources[("test_pyramid_report", "reports/test-pyramid.json")].state == "missing"
+    assert packet.summary.status == "ready"
+    assert packet.summary.sources_missing == 1
+    assert packet.summary.optional_reports_present == 1
+    serialized = packet.model_dump_json()
+    assert "auth-seed-1" not in serialized
+    assert "127.0.0.1" not in serialized
+
+
 def test_mutation_readiness_marks_invalid_hurl_and_report_states(
     tmp_path: Path,
 ) -> None:
@@ -179,7 +256,9 @@ def test_mutation_readiness_ignores_manual_and_ignored_hurl_sources(
 
     packet = build_mutation_readiness(project_root=tmp_path)
 
-    assert packet.sources == ()
+    assert all(source.kind != "generated_hurl" for source in packet.sources)
+    assert {source.state for source in packet.sources} == {"missing"}
+    assert packet.summary.sources_missing == 2
     assert packet.summary.status == "insufficient"
     assert (
         mutation_readiness._load_hurl_source(
@@ -279,9 +358,13 @@ def test_mutation_readiness_marks_optional_report_shape_and_decode_errors(
 
     packet = build_mutation_readiness(project_root=tmp_path)
 
-    source = packet.sources[0]
-    assert source.state == "invalid"
-    assert "Could not decode" in source.summary
+    sources = {(source.kind, source.path): source for source in packet.sources}
+    quality_source = sources[("test_quality_report", "reports/test-quality.json")]
+    assert quality_source.state == "invalid"
+    assert "Could not decode" in quality_source.summary
+    assert sources[("test_pyramid_report", "reports/test-pyramid.json")].state == (
+        "missing"
+    )
 
 
 def test_mutation_readiness_marks_optional_report_directory_and_fallback_summary(
@@ -326,7 +409,10 @@ jsonpath "$.error" exists
 
     packet = build_mutation_readiness(project_root=tmp_path)
 
-    categories = packet.sources[0].candidate_categories
+    sources = {(source.kind, source.path): source for source in packet.sources}
+    categories = sources[
+        ("generated_hurl", "tests/generated/request-shape.hurl")
+    ].candidate_categories
     assert categories == ("latency", "request_shape", "status_code")
     assert {candidate.category for candidate in packet.candidates} == {
         "latency",

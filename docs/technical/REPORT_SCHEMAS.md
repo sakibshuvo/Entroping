@@ -222,7 +222,9 @@ negative-path evidence, auth/security evidence, assertion strength, seed
 metadata, and safe candidate categories such as status-code, schema, auth,
 latency, request-shape, and response-shape. Candidate next actions flag
 categories that still contain generated tests without deterministic seed
-metadata, but seed values themselves are never rendered. Missing evidence is
+metadata, but seed values themselves are never rendered. Absent optional
+test-quality and test-pyramid report inputs are surfaced as non-blocking
+missing source evidence with relative paths only. Missing evidence is
 non-blocking; malformed, oversized, path-escaped, non-file, symlinked,
 wrong-schema, or secret-like artifacts are marked invalid or unsafe. The report
 does not execute Hurl, mutate tests, generate tests, call providers, parse
