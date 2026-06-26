@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from html import escape
 from pathlib import Path
-from typing import Final, Literal
+from typing import Any, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+from pydantic.main import IncEx
 
 from entroping.core.evidence_common import (
     LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES,
@@ -177,6 +179,76 @@ class MutationReadinessPacket(BaseModel):
     sources: tuple[MutationReadinessSource, ...]
     candidates: tuple[MutationReadinessCandidate, ...]
 
+    def model_dump(
+        self,
+        *,
+        mode: Literal["json", "python"] | str = "python",
+        include: IncEx | None = None,
+        exclude: IncEx | None = None,
+        context: Any | None = None,
+        by_alias: bool | None = None,
+        exclude_unset: bool = False,
+        exclude_defaults: bool = False,
+        exclude_none: bool = False,
+        round_trip: bool = False,
+        warnings: bool | Literal["none", "warn", "error"] = True,
+        fallback: Callable[[Any], Any] | None = None,
+        serialize_as_any: bool = False,
+    ) -> dict[str, Any]:
+        """Dump packet data only if its serialized form remains safe."""
+
+        payload = super().model_dump(
+            mode=mode,
+            include=include,
+            exclude=exclude,
+            context=context,
+            by_alias=by_alias,
+            exclude_unset=exclude_unset,
+            exclude_defaults=exclude_defaults,
+            exclude_none=exclude_none,
+            round_trip=round_trip,
+            warnings=warnings,
+            fallback=fallback,
+            serialize_as_any=serialize_as_any,
+        )
+        rendered = json.dumps(payload, sort_keys=True)
+        _ensure_no_secret_like_output(rendered, output_label="packet data")
+        return payload
+
+    def model_dump_json(
+        self,
+        *,
+        indent: int | None = None,
+        include: IncEx | None = None,
+        exclude: IncEx | None = None,
+        context: Any | None = None,
+        by_alias: bool | None = None,
+        exclude_unset: bool = False,
+        exclude_defaults: bool = False,
+        exclude_none: bool = False,
+        round_trip: bool = False,
+        warnings: bool | Literal["none", "warn", "error"] = True,
+        fallback: Callable[[Any], Any] | None = None,
+        serialize_as_any: bool = False,
+    ) -> str:
+        """Serialize packet JSON only if the rendered output remains safe."""
+
+        content = super().model_dump_json(
+            indent=indent,
+            include=include,
+            exclude=exclude,
+            context=context,
+            by_alias=by_alias,
+            exclude_unset=exclude_unset,
+            exclude_defaults=exclude_defaults,
+            exclude_none=exclude_none,
+            round_trip=round_trip,
+            warnings=warnings,
+            fallback=fallback,
+            serialize_as_any=serialize_as_any,
+        )
+        return _ensure_no_secret_like_output(content, output_label="packet JSON")
+
 
 @dataclass(frozen=True, slots=True)
 class MutationReadinessResult:
@@ -256,7 +328,7 @@ def build_mutation_readiness(*, project_root: Path) -> MutationReadinessPacket:
     candidates = _candidate_summaries(sources)
     return MutationReadinessPacket(
         generated_at=datetime.now(UTC).isoformat(),
-        project=root.name,
+        project=safe_evidence_text(root.name),
         summary=_summary(sources=sources, candidates=candidates),
         sources=sources,
         candidates=candidates,
@@ -326,10 +398,7 @@ def render_mutation_readiness_markdown(packet: MutationReadinessPacket) -> str:
             f"{_markdown_cell(source.summary)} |"
         )
     content = "\n".join(lines).rstrip() + "\n"
-    if contains_unredacted_evidence_secret(content):
-        msg = "mutation readiness Markdown output contains secret-like content"
-        raise MutationReadinessError(msg)
-    return content
+    return _ensure_no_secret_like_output(content, output_label="Markdown")
 
 
 def _render_packet_content(
@@ -338,8 +407,16 @@ def _render_packet_content(
     output: MutationReadinessOutput,
 ) -> str:
     if output == "json":
-        return json.dumps(packet.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
+        content = json.dumps(packet.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
+        return _ensure_no_secret_like_output(content, output_label="JSON")
     return render_mutation_readiness_markdown(packet)
+
+
+def _ensure_no_secret_like_output(content: str, *, output_label: str) -> str:
+    if contains_unredacted_evidence_secret(content):
+        msg = f"mutation readiness {output_label} output contains secret-like content"
+        raise MutationReadinessError(msg)
+    return content
 
 
 def _generated_hurl_sources(*, root: Path) -> tuple[MutationReadinessSource, ...]:
