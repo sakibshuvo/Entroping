@@ -220,12 +220,15 @@ existing `reports/test-quality.json` and `reports/test-pyramid.json` artifacts
 when present and schema-valid. It reports counts for generated corpus presence,
 negative-path evidence, auth/security evidence, assertion strength, seed
 metadata, and safe candidate categories such as status-code, schema, auth,
-latency, request-shape, and response-shape. Missing evidence is non-blocking;
-malformed, oversized, path-escaped, non-file, symlinked, wrong-schema, or
-secret-like artifacts are marked invalid or unsafe. The report does not execute
-Hurl, mutate tests, generate tests, call providers, parse traffic state, upload
-artifacts, or render raw URLs, headers, bodies, cookies, prompts, credentials,
-environment values, seeds, full report contents, or source Hurl contents.
+latency, request-shape, and response-shape. Candidate next actions flag
+categories that still contain generated tests without deterministic seed
+metadata, but seed values themselves are never rendered. Missing evidence is
+non-blocking; malformed, oversized, path-escaped, non-file, symlinked,
+wrong-schema, or secret-like artifacts are marked invalid or unsafe. The report
+does not execute Hurl, mutate tests, generate tests, call providers, parse
+traffic state, upload artifacts, or render raw URLs, headers, bodies, cookies,
+prompts, credentials, environment values, seeds, full report contents, or
+source Hurl contents.
 
 The evidence-index packet is written by:
 

@@ -335,6 +335,47 @@ jsonpath "$.error" exists
     }
 
 
+def test_mutation_readiness_flags_unseeded_candidate_categories(
+    tmp_path: Path,
+) -> None:
+    _write_text(
+        tmp_path / "tests" / "generated" / "seeded-status.hurl",
+        """
+# entroping: tags=generated,status-code
+# entroping: mutation_seed=do-not-render
+GET http://127.0.0.1:18080/seeded
+HTTP 409
+[Asserts]
+jsonpath "$.error" exists
+""".strip()
+        + "\n",
+    )
+    _write_text(
+        tmp_path / "tests" / "generated" / "unseeded-status.hurl",
+        """
+# entroping: tags=generated,status-code
+GET http://127.0.0.1:18080/unseeded
+HTTP 409
+[Asserts]
+jsonpath "$.error" exists
+""".strip()
+        + "\n",
+    )
+
+    result = run_mutation_readiness_report(project_root=tmp_path, output="json")
+
+    payload = json.loads(result.output_path.read_text(encoding="utf-8"))
+    candidates = {candidate["category"]: candidate for candidate in payload["candidates"]}
+    assert candidates["status_code"]["tests"] == 2
+    assert candidates["status_code"]["next_action"] == (
+        "Add deterministic seed metadata to 1 status-code mutation candidate "
+        "before future mutation/fuzz execution."
+    )
+    serialized = json.dumps(payload)
+    assert "do-not-render" not in serialized
+    assert "127.0.0.1" not in serialized
+
+
 def test_mutation_readiness_rejects_unsupported_and_unsafe_outputs(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
