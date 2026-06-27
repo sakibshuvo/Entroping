@@ -428,6 +428,35 @@ def test_qa_brain_repair_plan_handles_missing_index_artifact(
     assert all(source.state == "missing" for source in packet.sources)
 
 
+def test_qa_brain_repair_plan_summary_dedupes_duplicate_blockers() -> None:
+    import entroping.core.qa_brain_repair_plan as repair_plan
+
+    rows = (
+        QaBrainRepairPlanRow(
+            case_id="weak_test_detection",
+            label="Weak-test detection",
+            readiness="missing",
+            repair_intent="review",
+            blockers=("Shared blocker.", "Row-specific blocker."),
+            next_action="Add evidence.",
+        ),
+        QaBrainRepairPlanRow(
+            case_id="missing_gate_discovery",
+            label="Missing-gate discovery",
+            readiness="missing",
+            repair_intent="generate",
+            blockers=("Shared blocker.",),
+            next_action="Add gates.",
+        ),
+    )
+
+    summary = repair_plan._summary(sources=(), repair_plans=rows, next_actions=())
+
+    assert summary.blockers_total == 2
+    assert rows[0].blockers == ("Shared blocker.", "Row-specific blocker.")
+    assert rows[1].blockers == ("Shared blocker.",)
+
+
 def test_qa_brain_repair_plan_defensive_helpers() -> None:
     import entroping.core.qa_brain_repair_plan as repair_plan
 

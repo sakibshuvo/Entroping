@@ -17,6 +17,7 @@ from entroping.core.api_inventory import API_INVENTORY_SCHEMA_VERSION
 from entroping.core.evidence_common import (
     LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES,
     contains_unredacted_evidence_secret,
+    read_local_evidence_artifact_bytes,
     safe_evidence_text,
 )
 from entroping.core.handoff_packet import HANDOFF_SCHEMA_VERSION
@@ -24,7 +25,11 @@ from entroping.core.notification_packet import NOTIFICATION_PACKET_SCHEMA_VERSIO
 from entroping.core.observability_packet import OBSERVABILITY_PACKET_SCHEMA_VERSION
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.runtime_card import RUNTIME_CARD_SCHEMA_VERSION
-from entroping.core.safe_write import SafeWriteError, safe_write_text
+from entroping.core.safe_write import (
+    SafeWriteError,
+    safe_report_output_path,
+    safe_write_text,
+)
 from entroping.core.team_access_control_plan import (
     TEAM_ACCESS_CONTROL_PLAN_SCHEMA_VERSION,
 )
@@ -655,39 +660,24 @@ def _resolve_source_path(raw_path: Path, *, root: Path) -> Path:
 
 
 def _resolve_output_path(raw_path: Path, *, root: Path) -> Path:
-    path = raw_path.expanduser()
-    if not path.is_absolute():
-        path = root / path
     try:
-        symlink_path = first_symlink_path_component(path, root=root)
-    except ValueError as exc:
-        msg = "integration readiness output path must stay under the project root"
+        return safe_report_output_path(
+            raw_path,
+            root=root,
+            artifact="integration readiness packet",
+        )
+    except SafeWriteError as exc:
+        msg = str(exc)
         raise IntegrationReadinessError(msg) from exc
-    if symlink_path is not None:
-        display_path = symlink_path.relative_to(root).as_posix()
-        msg = f"integration readiness output path uses symlinked component: {display_path}"
-        raise IntegrationReadinessError(msg)
-    resolved = path.resolve(strict=False)
-    try:
-        relative_parts = resolved.relative_to(root).parts
-    except ValueError as exc:
-        msg = "integration readiness output path must stay under the project root"
-        raise IntegrationReadinessError(msg) from exc
-    if relative_parts and relative_parts[0] in {".entroping", "envs"}:
-        msg = "integration readiness packet must not be written into .entroping or envs"
-        raise IntegrationReadinessError(msg)
-    return resolved
 
 
 def _read_bounded_bytes(path: Path, *, artifact: str) -> bytes:
-    try:
-        with path.open("rb") as handle:
-            raw_bytes = handle.read(_MAX_SOURCE_BYTES + 1)
-    except OSError as exc:
-        msg = f"Could not read {artifact}: {exc}"
-        raise IntegrationReadinessError(msg) from exc
-    if len(raw_bytes) > _MAX_SOURCE_BYTES:
-        msg = f"{artifact.capitalize()} {path.name} exceeds {_MAX_SOURCE_BYTES} bytes"
+    raw_bytes, load_error = read_local_evidence_artifact_bytes(
+        path,
+        max_bytes=_MAX_SOURCE_BYTES,
+    )
+    if raw_bytes is None:
+        msg = f"Could not read {artifact}: {load_error}"
         raise IntegrationReadinessError(msg)
     return raw_bytes
 
@@ -833,15 +823,36 @@ def _next_actions(
 def _dedupe_actions(
     actions: list[IntegrationReadinessNextAction],
 ) -> tuple[IntegrationReadinessNextAction, ...]:
-    seen: set[tuple[str, tuple[str, ...], tuple[str, ...]]] = set()
-    result: list[IntegrationReadinessNextAction] = []
+    grouped: dict[
+        tuple[str, str, tuple[IntegrationReadinessSourceId, ...]],
+        IntegrationReadinessNextAction,
+    ] = {}
+    order: list[tuple[str, str, tuple[IntegrationReadinessSourceId, ...]]] = []
     for action in actions:
-        key = (action.action, action.source_ids, action.family_ids)
-        if key in seen:
+        key = (action.priority, action.action, action.source_ids)
+        existing = grouped.get(key)
+        if existing is None:
+            grouped[key] = action
+            order.append(key)
             continue
-        seen.add(key)
-        result.append(action)
-    return tuple(result)
+        family_ids = _merge_family_ids(existing.family_ids, action.family_ids)
+        if family_ids != existing.family_ids:
+            grouped[key] = existing.model_copy(update={"family_ids": family_ids})
+    return tuple(grouped[key] for key in order)
+
+
+def _merge_family_ids(
+    first: tuple[IntegrationReadinessFamilyId, ...],
+    second: tuple[IntegrationReadinessFamilyId, ...],
+) -> tuple[IntegrationReadinessFamilyId, ...]:
+    merged: list[IntegrationReadinessFamilyId] = []
+    seen: set[IntegrationReadinessFamilyId] = set()
+    for family_id in (*first, *second):
+        if family_id in seen:
+            continue
+        seen.add(family_id)
+        merged.append(family_id)
+    return tuple(merged)
 
 
 def _summary(

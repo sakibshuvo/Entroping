@@ -63,6 +63,16 @@ archive is mounted or attached to the cloud task.
   OpenCode, DeepSeek, Gemini, Spark, and local models, but prompts still make
   the receiving agent prove every claim against repo truth before edits or
   merge.
+- For interactive OpenCode/DeepSeek handoffs without an `ai_jobs.py` job id,
+  require `.entroping/ai-reviews/issue-<issue-number>-<short-slug>/` with
+  `metadata.json`, `result.md`, `tests.txt`, and optional `proposal.diff`; Codex
+  can pick it up with
+  `python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`.
+- Refactor prompts must reject shortcut compatibility. Do not use `exec()`,
+  dynamic source-file execution, import-time code generation, broad
+  `type: ignore`, broad ruff ignores such as `F821` or `F811`, or
+  `mypy ignore_errors`; require normal importable modules with explicit
+  dependencies.
 
 ## Prompt Catalog
 

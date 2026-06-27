@@ -203,6 +203,13 @@ def test_ai_jobs_run_next_help_documents_factory_metrics_options() -> None:
     assert "disabled; use enabled only for deliberate deep-review" in result.stdout
 
 
+def test_ai_jobs_help_documents_routing_audit() -> None:
+    result = run_ai_jobs("--help")
+
+    assert result.returncode == 0
+    assert "audit-routing" in result.stdout
+
+
 def test_ai_jobs_submit_tier_a_defaults_to_cheap_opencode_context_contract(
     tmp_path: Path,
 ) -> None:
@@ -245,6 +252,109 @@ def test_ai_jobs_submit_tier_a_defaults_to_cheap_opencode_context_contract(
     assert "request only the needed files/snippets" in worker_instruction
     assert "Stop and escalate if the issue crosses into Tier B or Tier C" in worker_instruction
     assert "entroping run remains deterministic" in worker_instruction
+
+
+def test_ai_jobs_audit_routing_flags_expensive_tier_a_drift(
+    tmp_path: Path,
+) -> None:
+    job_root = tmp_path / "ai-jobs"
+    queued = job_root / "queued"
+    queued.mkdir(parents=True)
+    (queued / "expensive.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.ai-job.v1",
+                "job_id": "expensive",
+                "queue_status": "queued",
+                "engine": "opencode",
+                "profile": "pro",
+                "model": "deepseek/deepseek-v4-pro",
+                "issue": "1143",
+                "autonomy_tier": "tier_a",
+                "provider_lane": "opencode/native-deepseek",
+                "provider_host": "OpenCode",
+                "billing_path": "OpenCode configured provider",
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = run_ai_jobs("audit-routing", "--job-root", str(job_root), "--json")
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    violation = payload["violations"][0]
+    assert payload["status"] == "violations"
+    assert payload["violation_count"] == 1
+    assert violation["job_id"] == "expensive"
+    assert violation["issue"] == "1143"
+    assert violation["engine"] == "opencode"
+    assert violation["profile"] == "pro"
+    assert violation["model"] == "deepseek/deepseek-v4-pro"
+    assert violation["provider_lane"] == "opencode/native-deepseek"
+    assert violation["billing_path"] == "OpenCode configured provider"
+    assert "requeue with --autonomy-tier tier-a and no --profile override" in (
+        violation["suggested_action"]
+    )
+
+
+def test_ai_jobs_audit_routing_accepts_cheap_tier_a_and_ignores_tier_b(
+    tmp_path: Path,
+) -> None:
+    job_root = tmp_path / "ai-jobs"
+    queued = job_root / "queued"
+    queued.mkdir(parents=True)
+    (queued / "cheap.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.ai-job.v1",
+                "job_id": "cheap",
+                "queue_status": "queued",
+                "engine": "opencode",
+                "profile": "flash-free",
+                "model": "opencode/deepseek-v4-flash-free",
+                "issue": "1143",
+                "autonomy_tier": "tier_a",
+                "provider_lane": "opencode/native-deepseek",
+                "billing_path": "OpenCode free-model lane",
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (queued / "tier-b.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.ai-job.v1",
+                "job_id": "tier-b",
+                "queue_status": "queued",
+                "engine": "opencode",
+                "profile": "pro",
+                "model": "deepseek/deepseek-v4-pro",
+                "issue": "1143",
+                "autonomy_tier": "tier_b",
+                "provider_lane": "opencode/native-deepseek",
+                "billing_path": "OpenCode configured provider",
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = run_ai_jobs("audit-routing", "--job-root", str(job_root), "--json")
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "ok"
+    assert payload["violation_count"] == 0
+    assert payload["violations"] == []
 
 
 def test_ai_jobs_submit_tier_a_deepseek_api_defaults_to_flash(
@@ -1052,6 +1162,7 @@ def test_ai_jobs_deepseek_worker_command_omits_reasoning_effort_by_default(
         artifact_root=tmp_path / "ai-reviews",
         deepseek_base_url="https://api.deepseek.com",
         deepseek_api_key_env="DEEPSEEK_API_KEY",
+        allow_insecure_local_deepseek_base_url=False,
         deepseek_thinking="disabled",
         deepseek_reasoning_effort="high",
         worker_dry_run=True,
@@ -1074,6 +1185,7 @@ def test_ai_jobs_deepseek_worker_command_omits_reasoning_effort_by_default(
     thinking_index = captured_command.index("--thinking") + 1
     assert captured_command[thinking_index] == "disabled"
     assert "--reasoning-effort" not in captured_command
+    assert "--allow-insecure-local-base-url" not in captured_command
 
 
 def test_ai_jobs_run_next_preserves_deepseek_usage_for_budget_review(
@@ -1112,6 +1224,7 @@ def test_ai_jobs_run_next_preserves_deepseek_usage_for_budget_review(
             str(artifact_root),
             "--deepseek-base-url",
             base_url,
+            "--allow-insecure-local-deepseek-base-url",
             "--deepseek-api-key-env",
             "ENTROPING_TEST_DEEPSEEK_KEY",
             "--json",
@@ -1195,6 +1308,7 @@ def test_ai_jobs_run_next_deepseek_thinking_enabled_is_explicit_opt_in(
             str(artifact_root),
             "--deepseek-base-url",
             base_url,
+            "--allow-insecure-local-deepseek-base-url",
             "--deepseek-api-key-env",
             "ENTROPING_TEST_DEEPSEEK_KEY",
             "--deepseek-thinking",

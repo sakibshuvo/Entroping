@@ -3,10 +3,11 @@
 import json
 import os
 from pathlib import Path
-from typing import IO, Any, cast
+from typing import Any, cast
 
 import pytest
 
+import entroping.core.evidence_common as evidence_common
 import entroping.core.integration_readiness as integration_readiness
 from entroping.core.integration_readiness import (
     INTEGRATION_READINESS_SCHEMA_VERSION,
@@ -354,6 +355,44 @@ def test_integration_readiness_marks_symlinked_source_unsafe(tmp_path: Path) -> 
     assert "uses symlinked component" in sources["team_access_control_plan"].summary
 
 
+def test_integration_readiness_marks_symlink_swap_source_invalid(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_ready_sources(tmp_path)
+    source_path = tmp_path / "reports" / "team-access-control-plan.json"
+    outside_path = tmp_path.parent / f"{tmp_path.name}-outside-team-access-control.json"
+    _write_json(
+        outside_path,
+        {
+            "schema_version": "entroping.team-access-control-plan.v1",
+            "summary": {"status": "ready"},
+        },
+    )
+
+    def swap_then_read(path: Path, *, max_bytes: int) -> tuple[bytes | None, str]:
+        if path == source_path and not path.is_symlink():
+            path.unlink()
+            os.symlink(outside_path, path)
+        return evidence_common.read_local_evidence_artifact_bytes(
+            path,
+            max_bytes=max_bytes,
+        )
+
+    monkeypatch.setattr(
+        integration_readiness,
+        "read_local_evidence_artifact_bytes",
+        swap_then_read,
+        raising=False,
+    )
+
+    packet = build_integration_readiness(project_root=tmp_path)
+    sources = {source.id: source for source in packet.sources}
+
+    assert sources["team_access_control_plan"].state == "invalid"
+    assert "symlinked path component" in sources["team_access_control_plan"].summary
+
+
 def test_integration_readiness_marks_oversized_sources_invalid(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -375,20 +414,19 @@ def test_integration_readiness_marks_read_errors_invalid(
 ) -> None:
     _write_ready_sources(tmp_path)
 
-    def fail_open(
-        self: Path,
-        mode: str = "r",
-        buffering: int = -1,
-        encoding: str | None = None,
-        errors: str | None = None,
-        newline: str | None = None,
-    ) -> IO[Any]:
-        if self.name == "team-access-control-plan.json":
-            raise OSError("permission denied")
-        return original_open(self, mode, buffering, encoding, errors, newline)
+    def fail_read(path: Path, *, max_bytes: int) -> tuple[bytes | None, str]:
+        if path.name == "team-access-control-plan.json":
+            return None, "unreadable"
+        return evidence_common.read_local_evidence_artifact_bytes(
+            path,
+            max_bytes=max_bytes,
+        )
 
-    original_open = Path.open
-    monkeypatch.setattr(Path, "open", fail_open)
+    monkeypatch.setattr(
+        integration_readiness,
+        "read_local_evidence_artifact_bytes",
+        fail_read,
+    )
 
     packet = build_integration_readiness(project_root=tmp_path)
     first_source = packet.sources[0]
@@ -488,14 +526,25 @@ def test_integration_readiness_skips_blank_source_project_and_non_object_run(
     assert packet.summary.status == "partial"
 
 
-def test_integration_readiness_deduplicates_identical_actions() -> None:
-    action = integration_readiness.IntegrationReadinessNextAction(
+def test_integration_readiness_coalesces_family_actions_by_priority() -> None:
+    medium_action = integration_readiness.IntegrationReadinessNextAction(
         priority="medium",
-        action="Generate team access-control evidence before enabling integrations.",
+        action="Repair unsafe or invalid source evidence before enabling integrations.",
         family_ids=("issue_trackers",),
     )
+    same_priority_action = medium_action.model_copy(update={"family_ids": ("chat",)})
+    high_action = medium_action.model_copy(
+        update={"priority": "high", "family_ids": ("observability",)}
+    )
 
-    assert integration_readiness._dedupe_actions([action, action]) == (action,)
+    deduped = integration_readiness._dedupe_actions(
+        [medium_action, same_priority_action, high_action, medium_action]
+    )
+
+    assert [(action.priority, action.family_ids) for action in deduped] == [
+        ("medium", ("issue_trackers", "chat")),
+        ("high", ("observability",)),
+    ]
 
 
 def test_integration_readiness_packet_json_supports_pydantic_without_fallback(
@@ -595,6 +644,31 @@ def test_integration_readiness_rejects_unsupported_and_unsafe_outputs(
             output="json",
             output_path=tmp_path.parent / "escaped-integration-readiness.json",
         )
+
+
+def test_integration_readiness_uses_shared_report_output_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def reject_output_path(
+        path: Path,
+        *,
+        root: Path,
+        artifact: str,
+    ) -> Path:
+        assert path == Path("reports") / "integration-readiness.json"
+        assert root == tmp_path
+        assert artifact == "integration readiness packet"
+        raise SafeWriteError("shared boundary rejection")
+
+    monkeypatch.setattr(
+        integration_readiness,
+        "safe_report_output_path",
+        reject_output_path,
+    )
+
+    with pytest.raises(IntegrationReadinessError, match="shared boundary rejection"):
+        run_integration_readiness_report(project_root=tmp_path, output="json")
 
 
 def test_integration_readiness_rejects_escaped_source_path(tmp_path: Path) -> None:

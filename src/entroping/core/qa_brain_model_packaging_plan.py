@@ -47,6 +47,11 @@ _PACKAGING_STAGES: Final[dict[QaBrainEvalCaseReadiness, QaBrainModelPackagingSta
     "attention": "needs_boundary_repair",
 }
 
+_ACTION_PRIORITY_RANK: Final[dict[QaBrainNextActionPriority, int]] = {
+    "medium": 1,
+    "high": 2,
+}
+
 _DEPLOYMENT_MODES: Final[
     dict[QaBrainEvalSliceId, tuple[QaBrainDeploymentMode, ...]]
 ] = {
@@ -424,25 +429,26 @@ def _plan_next_action(row: QaBrainFineTuneReadinessRow) -> str:
 def _next_actions(
     packaging_plans: tuple[QaBrainModelPackagingPlanRow, ...],
 ) -> tuple[QaBrainModelPackagingPlanNextAction, ...]:
-    actions: list[QaBrainModelPackagingPlanNextAction] = []
-    seen_case_ids: set[QaBrainEvalSliceId] = set()
+    actions_by_case: dict[QaBrainEvalSliceId, QaBrainModelPackagingPlanNextAction] = {}
+    case_order: list[QaBrainEvalSliceId] = []
     for row in packaging_plans:
         if row.readiness == "ready" and not row.blockers:
             continue
-        if row.case_id in seen_case_ids:
-            continue
-        seen_case_ids.add(row.case_id)
         priority: QaBrainNextActionPriority = (
             "high" if row.readiness == "attention" else "medium"
         )
-        actions.append(
-            QaBrainModelPackagingPlanNextAction(
-                priority=priority,
-                action=row.next_action,
-                case_ids=(row.case_id,),
-            )
+        action = QaBrainModelPackagingPlanNextAction(
+            priority=priority,
+            action=row.next_action,
+            case_ids=(row.case_id,),
         )
-    return tuple(actions)
+        previous = actions_by_case.get(row.case_id)
+        if previous is None:
+            actions_by_case[row.case_id] = action
+            case_order.append(row.case_id)
+        elif _ACTION_PRIORITY_RANK[priority] > _ACTION_PRIORITY_RANK[previous.priority]:
+            actions_by_case[row.case_id] = action
+    return tuple(actions_by_case[case_id] for case_id in case_order)
 
 
 def _summary(
@@ -451,7 +457,9 @@ def _summary(
     next_actions: tuple[QaBrainModelPackagingPlanNextAction, ...],
 ) -> QaBrainModelPackagingPlanSummary:
     counts = _plan_counts(packaging_plans)
-    blockers_total = sum(len(row.blockers) for row in packaging_plans)
+    blockers_total = len(
+        {blocker for row in packaging_plans for blocker in row.blockers}
+    )
     return QaBrainModelPackagingPlanSummary(
         status=_status(
             counts=counts,
@@ -471,9 +479,19 @@ def _plan_counts(
     packaging_plans: tuple[QaBrainModelPackagingPlanRow, ...],
 ) -> _PlanCounts:
     return _PlanCounts(
-        ready=sum(1 for row in packaging_plans if row.readiness == "ready"),
-        missing=sum(1 for row in packaging_plans if row.readiness == "missing"),
-        attention=sum(1 for row in packaging_plans if row.readiness == "attention"),
+        ready=sum(
+            1 for row in packaging_plans if row.packaging_stage == "packaging_ready"
+        ),
+        missing=sum(
+            1
+            for row in packaging_plans
+            if row.packaging_stage == "needs_readiness_evidence"
+        ),
+        attention=sum(
+            1
+            for row in packaging_plans
+            if row.packaging_stage == "needs_boundary_repair"
+        ),
     )
 
 

@@ -41,12 +41,14 @@ Input to evaluate:
 - model id: <exact model id when known>
 - autonomy tier: <Tier A autonomous lane | Tier B assisted lane | Tier C restricted lane>
 - merge authority: <autonomous Tier A worker | Codex review required | human review required | no merge authority>
+- artifact directory: <.entroping/ai-reviews/issue-<issue-number>-<short-slug> or .entroping/ai-jobs/<job-id>>
 
 Start:
 git pull --ff-only
 git status --short
 gh issue view <issue> --repo sakibshuvo/Entroping
 scripts/context_pack.sh --mode implementation --manifest
+python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json
 
 Worktree rule:
 The accepted output must come from an issue-scoped branch created with
@@ -60,6 +62,14 @@ Evaluate:
    tier, and merge authority are explicit.
 3. Confirm the diff stayed inside the issue scope and the declared autonomy
    tier.
+   - For interactive OpenCode/DeepSeek output, confirm the Codex-pickup
+     directory `.entroping/ai-reviews/issue-<issue-number>-<short-slug>/`
+     contains `metadata.json`, `result.md`, `tests.txt`, and optional
+     `proposal.diff`.
+   - Do not use `exec()`, dynamic source-file execution, import-time code
+     generation, broad `type: ignore`, broad ruff ignores such as `F821` or
+     `F811`, or `mypy ignore_errors` as compatibility evidence; require normal
+     importable modules with explicit dependencies.
 4. Confirm source-of-truth evidence comes from local files, tests, GitHub
    issue/PR/CI state, ADRs, and canonical docs, not model summaries.
 5. Confirm focused tests cover touched behavior.
@@ -108,6 +118,7 @@ Classify each model output item as one of:
 Output:
 - issue:
 - source artifact or PR:
+- artifact directory:
 - provider lane:
 - provider host:
 - billing path:

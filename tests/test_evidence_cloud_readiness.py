@@ -1,11 +1,9 @@
 """Tests for Evidence Cloud readiness packets."""
 
-import errno
 import json
 import os
-import stat as stat_module
 from pathlib import Path
-from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 
@@ -177,6 +175,28 @@ def test_evidence_cloud_readiness_marks_missing_invalid_and_unsafe_sources(
     assert "sk-proj" not in packet.model_dump_json()
 
 
+def test_evidence_cloud_readiness_dedupes_same_invalid_source_across_areas(
+    tmp_path: Path,
+) -> None:
+    _write_ready_sources(tmp_path)
+    _write_json(
+        tmp_path / "reports" / "team-evidence-readiness.json",
+        {"schema_version": "entroping.team-evidence-readiness.v999"},
+    )
+
+    packet = build_evidence_cloud_readiness(project_root=tmp_path)
+    team_blockers = tuple(
+        blocker
+        for area in packet.readiness_areas
+        for blocker in area.blockers
+        if blocker.startswith("Team evidence readiness is invalid")
+    )
+
+    assert len(team_blockers) == 2
+    assert len(set(team_blockers)) == 1
+    assert packet.summary.blockers_total == 1
+
+
 def test_evidence_cloud_readiness_markdown_is_escaped_and_value_free(
     tmp_path: Path,
 ) -> None:
@@ -197,12 +217,34 @@ def test_evidence_cloud_readiness_markdown_is_escaped_and_value_free(
     assert "<script>" not in markdown
 
 
+def test_evidence_cloud_readiness_markdown_preserves_backslashes(
+    tmp_path: Path,
+) -> None:
+    _write_ready_sources(tmp_path)
+    packet = build_evidence_cloud_readiness(project_root=tmp_path)
+    source = packet.sources[0].model_copy(
+        update={"path": r"reports\team|evidence-readiness.json"}
+    )
+    packet = packet.model_copy(update={"sources": (source, *packet.sources[1:])})
+
+    markdown = render_evidence_cloud_readiness_markdown(packet)
+
+    assert "reports&#92;team\\|evidence-readiness.json" in markdown
+    assert "&amp;#92;" not in markdown
+
+
 def test_evidence_cloud_readiness_rejects_unsafe_output_path(tmp_path: Path) -> None:
     with pytest.raises(EvidenceCloudReadinessError, match="must not be written"):
         run_evidence_cloud_readiness_report(
             project_root=tmp_path,
             output="json",
             output_path=Path(".entroping") / "evidence-cloud-readiness.json",
+        )
+    with pytest.raises(EvidenceCloudReadinessError, match="must not be written"):
+        run_evidence_cloud_readiness_report(
+            project_root=tmp_path,
+            output="json",
+            output_path=Path("envs") / "evidence-cloud-readiness.json",
         )
 
 
@@ -235,6 +277,27 @@ def test_evidence_cloud_readiness_wraps_safe_write_errors(
         run_evidence_cloud_readiness_report(project_root=tmp_path, output="json")
 
 
+def test_evidence_cloud_readiness_uses_shared_report_output_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def reject_output_path(
+        path: Path,
+        *,
+        root: Path,
+        artifact: str,
+    ) -> Path:
+        assert path == Path("reports") / "evidence-cloud-readiness.json"
+        assert root == tmp_path
+        assert artifact == "Evidence Cloud readiness packet"
+        raise SafeWriteError("shared boundary rejection")
+
+    monkeypatch.setattr(readiness, "safe_report_output_path", reject_output_path)
+
+    with pytest.raises(EvidenceCloudReadinessError, match="shared boundary rejection"):
+        run_evidence_cloud_readiness_report(project_root=tmp_path, output="json")
+
+
 def test_evidence_cloud_readiness_rejects_secret_rendered_content(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -262,6 +325,61 @@ def test_evidence_cloud_readiness_rejects_secret_packet_json(
     )
 
     with pytest.raises(EvidenceCloudReadinessError, match="secret-like content"):
+        build_evidence_cloud_readiness(project_root=tmp_path)
+
+
+def test_evidence_cloud_readiness_packet_json_supports_pydantic_without_fallback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_ready_sources(tmp_path)
+    original_model_dump = cast(Any, EvidenceCloudReadinessPacket.model_dump)
+
+    def legacy_model_dump(
+        self: EvidenceCloudReadinessPacket,
+        *args: object,
+        **kwargs: object,
+    ) -> dict[str, object]:
+        if "fallback" in kwargs:
+            raise TypeError("fallback keyword is unsupported")
+        return cast(dict[str, object], original_model_dump(self, *args, **kwargs))
+
+    monkeypatch.setattr(
+        readiness.EvidenceCloudReadinessPacket,
+        "model_dump",
+        legacy_model_dump,
+    )
+
+    packet = build_evidence_cloud_readiness(project_root=tmp_path)
+
+    assert packet.summary.status == "ready"
+
+
+def test_evidence_cloud_readiness_wraps_packet_serialization_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_ready_sources(tmp_path)
+
+    def broken_model_dump(
+        self: EvidenceCloudReadinessPacket,
+        *args: object,
+        **kwargs: object,
+    ) -> dict[str, object]:
+        if "fallback" in kwargs:
+            raise TypeError("fallback keyword is unsupported")
+        raise ValueError("boom")
+
+    monkeypatch.setattr(
+        readiness.EvidenceCloudReadinessPacket,
+        "model_dump",
+        broken_model_dump,
+    )
+
+    with pytest.raises(
+        EvidenceCloudReadinessError,
+        match="could not be serialized safely",
+    ):
         build_evidence_cloud_readiness(project_root=tmp_path)
 
 
@@ -317,6 +435,27 @@ def test_evidence_cloud_readiness_marks_oversized_and_unreadable_sources(
     assert "exceeds" in sources["team_evidence_readiness"].summary
 
 
+def test_evidence_cloud_readiness_rejects_escaped_source_path(tmp_path: Path) -> None:
+    with pytest.raises(EvidenceCloudReadinessError, match="source path must stay under"):
+        readiness._resolve_source_path(Path("../outside.json"), root=tmp_path)
+
+
+def test_evidence_cloud_readiness_wraps_source_path_relative_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_relative_error(*_args: object, **_kwargs: object) -> Path | None:
+        raise ValueError("not relative")
+
+    monkeypatch.setattr(readiness, "first_symlink_path_component", raise_relative_error)
+
+    with pytest.raises(EvidenceCloudReadinessError, match="source path must stay under"):
+        readiness._resolve_source_path(
+            Path("reports") / "team-evidence-readiness.json",
+            root=tmp_path,
+        )
+
+
 def test_evidence_cloud_readiness_marks_invalid_utf8_and_non_object_sources(
     tmp_path: Path,
 ) -> None:
@@ -332,151 +471,6 @@ def test_evidence_cloud_readiness_marks_invalid_utf8_and_non_object_sources(
     assert "UTF-8" in sources["team_evidence_readiness"].summary
     assert sources["evidence_bundle"].state == "invalid"
     assert "JSON object" in sources["evidence_bundle"].summary
-
-
-def test_evidence_cloud_readiness_reads_sources_through_best_effort_fallback(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _write_ready_sources(tmp_path)
-    monkeypatch.setattr(readiness, "_supports_no_follow_tree_open", lambda: False)
-
-    packet = build_evidence_cloud_readiness(project_root=tmp_path)
-
-    sources = {source.id: source for source in packet.sources}
-    assert sources["team_evidence_readiness"].state == "present"
-    assert sources["team_evidence_readiness"].sha256 is not None
-
-
-def test_evidence_cloud_readiness_best_effort_rejects_stat_mismatch(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _write_json(
-        tmp_path / "reports" / "team-evidence-readiness.json",
-        {
-            "schema_version": "entroping.team-evidence-readiness.v1",
-            "summary": {"status": "ready"},
-        },
-    )
-    real_fstat = os.fstat
-
-    def mismatched_fstat(file_descriptor: int) -> SimpleNamespace:
-        original = real_fstat(file_descriptor)
-        return SimpleNamespace(
-            st_mode=original.st_mode,
-            st_size=original.st_size,
-            st_dev=original.st_dev + 1,
-            st_ino=original.st_ino + 1,
-        )
-
-    monkeypatch.setattr(readiness, "_supports_no_follow_tree_open", lambda: False)
-    monkeypatch.setattr(os, "fstat", mismatched_fstat)
-
-    packet = build_evidence_cloud_readiness(project_root=tmp_path)
-
-    sources = {source.id: source for source in packet.sources}
-    assert sources["team_evidence_readiness"].state == "invalid"
-    assert "unreadable" in sources["team_evidence_readiness"].summary
-
-
-def test_evidence_cloud_readiness_no_follow_reader_reports_os_errors(
-    tmp_path: Path,
-) -> None:
-    raw_bytes, error = readiness._read_source_artifact_bytes_no_follow(
-        tmp_path / "reports" / "missing.json"
-    )
-
-    assert raw_bytes is None
-    assert error == "unreadable"
-
-
-def test_evidence_cloud_readiness_best_effort_reader_reports_os_errors(
-    tmp_path: Path,
-) -> None:
-    missing = tmp_path / "missing.json"
-    raw_bytes, error = readiness._read_source_artifact_bytes_best_effort(missing)
-
-    assert raw_bytes is None
-    assert error == "unreadable"
-
-
-def test_evidence_cloud_readiness_best_effort_reader_rejects_non_file(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    path = tmp_path / "source.json"
-    path.write_text("{}", encoding="utf-8")
-    real_s_isreg = stat_module.S_ISREG
-
-    def fake_s_isreg(mode: int) -> bool:
-        return False if mode == path.stat(follow_symlinks=False).st_mode else real_s_isreg(mode)
-
-    monkeypatch.setattr(readiness, "_supports_no_follow_tree_open", lambda: False)
-    monkeypatch.setattr(stat_module, "S_ISREG", fake_s_isreg)
-
-    raw_bytes, error = readiness._read_source_artifact_bytes_best_effort(path)
-
-    assert raw_bytes is None
-    assert error == "not a file"
-
-
-def test_evidence_cloud_readiness_descriptor_reader_rejects_non_file(
-    tmp_path: Path,
-) -> None:
-    directory_descriptor = os.open(tmp_path, os.O_RDONLY)
-    try:
-        raw_bytes, error = readiness._read_bounded_bytes_from_descriptor(
-            directory_descriptor
-        )
-    finally:
-        os.close(directory_descriptor)
-
-    assert raw_bytes is None
-    assert error == "not a file"
-
-
-def test_evidence_cloud_readiness_descriptor_reader_detects_growth(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    path = tmp_path / "source.json"
-    path.write_text("abcdef", encoding="utf-8")
-    real_fstat = os.fstat
-
-    def small_fstat(file_descriptor: int) -> SimpleNamespace:
-        original = real_fstat(file_descriptor)
-        return SimpleNamespace(
-            st_mode=original.st_mode,
-            st_size=1,
-            st_dev=original.st_dev,
-            st_ino=original.st_ino,
-        )
-
-    monkeypatch.setattr(readiness, "_MAX_SOURCE_BYTES", 1)
-    monkeypatch.setattr(os, "fstat", small_fstat)
-    file_descriptor = os.open(path, os.O_RDONLY)
-    try:
-        raw_bytes, error = readiness._read_bounded_bytes_from_descriptor(
-            file_descriptor
-        )
-    finally:
-        os.close(file_descriptor)
-
-    assert raw_bytes is None
-    assert "exceeds" in error
-
-
-def test_evidence_cloud_readiness_os_error_summaries() -> None:
-    assert (
-        readiness._os_read_error_summary(OSError(errno.ELOOP, "too many links"))
-        == "symlinked path component"
-    )
-    assert (
-        readiness._os_read_error_summary(OSError(errno.EISDIR, "directory"))
-        == "not a file"
-    )
-    assert readiness._os_read_error_summary(OSError(errno.EPERM, "denied")) == "unreadable"
 
 
 def test_evidence_cloud_readiness_partial_when_only_optional_evidence_exists(
@@ -586,6 +580,81 @@ def test_evidence_cloud_next_action_dedupe_preserves_priority_variants() -> None
     deduped = readiness._dedupe_actions(actions)
 
     assert [action.priority for action in deduped] == ["high", "medium"]
+
+
+def test_evidence_cloud_summary_dedupes_duplicate_area_blockers() -> None:
+    areas = (
+        readiness.EvidenceCloudReadinessArea(
+            id="team_upload_boundary",
+            label="Team upload boundary",
+            status="blocked",
+            source_ids=("team_evidence_readiness",),
+            boundary="local only",
+            upload_candidate=True,
+            blockers=("Shared blocker.", "Team-specific blocker."),
+            next_action="Repair local evidence.",
+        ),
+        readiness.EvidenceCloudReadinessArea(
+            id="cloud_boundary_controls",
+            label="Cloud boundary controls",
+            status="blocked",
+            source_ids=("team_evidence_readiness",),
+            boundary="local only",
+            upload_candidate=False,
+            blockers=("Shared blocker.",),
+            next_action="Repair local evidence.",
+        ),
+    )
+
+    summary = readiness._summary(
+        sources=(),
+        areas=areas,
+        upload_candidates=(),
+        next_actions=(),
+    )
+
+    assert summary.blockers_total == 2
+    assert areas[0].blockers == ("Shared blocker.", "Team-specific blocker.")
+    assert areas[1].blockers == ("Shared blocker.",)
+
+
+def test_evidence_cloud_summary_counts_upload_candidate_blockers_once() -> None:
+    areas = (
+        readiness.EvidenceCloudReadinessArea(
+            id="team_upload_boundary",
+            label="Team upload boundary",
+            status="blocked",
+            source_ids=("team_evidence_readiness",),
+            boundary="local only",
+            upload_candidate=True,
+            blockers=("Shared blocker.",),
+            next_action="Repair local evidence.",
+        ),
+    )
+    upload_candidates = (
+        readiness.EvidenceCloudUploadCandidate(
+            id="team_evidence_bundle",
+            label="Team evidence bundle",
+            state="blocked",
+            source_ids=("team_evidence_readiness",),
+            description="Local metadata.",
+            blockers=("Shared blocker.", "Upload-only blocker."),
+        ),
+    )
+
+    summary = readiness._summary(
+        sources=(),
+        areas=areas,
+        upload_candidates=upload_candidates,
+        next_actions=(),
+    )
+
+    assert summary.blockers_total == 2
+    assert areas[0].blockers == ("Shared blocker.",)
+    assert upload_candidates[0].blockers == (
+        "Shared blocker.",
+        "Upload-only blocker.",
+    )
 
 
 def test_evidence_cloud_readiness_packet_schema_rejects_extra_fields() -> None:

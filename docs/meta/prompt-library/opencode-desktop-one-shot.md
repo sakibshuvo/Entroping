@@ -57,6 +57,14 @@ Rules:
   release-ci-architecture, stop and report.
 - Do not ask Codex for routine Tier A implementation details, formatting,
   ordinary docs/test edits, or in-scope CI fixes.
+- Write a Codex-pickup handoff directory under
+  `.entroping/ai-reviews/issue-<issue-number>-<short-slug>/` with
+  `metadata.json`, `result.md`, `tests.txt`, and optional `proposal.diff`; report
+  `python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`.
+- Do not use `exec()`, dynamic source-file execution, import-time code
+  generation, broad `type: ignore`, broad ruff ignores such as `F821` or `F811`,
+  or `mypy ignore_errors`; use normal importable modules with explicit
+  dependencies.
 
 Start:
 git pull --ff-only
@@ -92,6 +100,8 @@ In the issue worktree:
 - Write or update a failing test or doc guard first when practical.
 - Make the smallest scoped change.
 - Run the exact tests/gates from the packet.
+- Write `.entroping/ai-reviews/issue-<issue-number>-<short-slug>/` with
+  `metadata.json`, `result.md`, `tests.txt`, and optional `proposal.diff`.
 - Run:
   git diff --check
   git status --short
@@ -134,6 +144,7 @@ Final report:
 - merge commit,
 - files changed,
 - tests/gates run,
+- artifact directory and factory review packet command,
 - CI status,
 - finish cleanup result,
 - any gaps or blocked items.

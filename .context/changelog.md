@@ -1,6 +1,104 @@
 # Entroping Changelog
 
+## 2026-06-27
+
+- Added issue #1142's compact factory review packet helper:
+  `scripts/factory_review_packet.py` now reads completed AI job metadata or a
+  bounded worker artifact directory and emits compact job, result-summary,
+  proposal-diff, and test-output references for Codex review without reading
+  raw stdout, stderr, provider responses, or full transcripts by default.
+
+- Added issue #1143's Tier A routing audit:
+  `scripts/ai_jobs.py audit-routing --json` now reports queued or terminal
+  Tier A jobs that drift from the current cheap worker defaults, including job
+  id, issue, engine, profile, model, provider lane, billing path, expected
+  route, and a requeue suggestion.
+
+- Refreshed issue #1141's artifact-first worker prompts: the control plane,
+  OpenCode handoff prompt, Codex review prompt, and OpenCode readiness
+  guardrail terms now tell agents to use repo-owned worker harnesses, compact
+  review packets, and explicit `ACCEPT`, `REQUEST_SMALL_FIX`,
+  `REWRITE_WITH_CODEX`, or `ESCALATE_SCOPE` decisions instead of transcript
+  babysitting.
+
 ## 2026-06-26
+
+- Fixed issue #1157's QA Brain fine-tune readiness blocker summary noise:
+  `summary.blockers_total` now counts unique blocker messages across readiness
+  rows while preserving each row's blocker list and the existing local-only
+  packet shape.
+
+- Fixed issue #1150's QA Brain model-packaging next-action priority drift:
+  duplicate case IDs still emit one action row, but the retained row now uses
+  the highest priority seen while preserving first-seen case order and the
+  existing local-only packet shape.
+
+- Fixed issue #1149's QA Brain model-packaging ready-count drift:
+  summary ready, missing, and attention counts now derive from
+  `packaging_stage`, so inherited ready rows with blockers are counted as
+  attention while preserving row-level readiness metadata and the existing
+  local-only packet shape.
+
+- Fixed issue #1148's QA Brain model-packaging blocker summary noise:
+  `summary.blockers_total` now counts unique blocker messages across packaging
+  rows while preserving each row's blocker list and the existing local-only
+  packet shape.
+
+- Fixed issue #1146's QA Brain routing-plan blocker summary noise:
+  `summary.blockers_total` now counts unique blocker messages across routing
+  rows while preserving each row's blocker list and the existing local-only
+  packet shape.
+
+- Fixed issue #1144's team evidence readiness blocker summary noise:
+  `summary.blockers_total` now counts unique blocker messages across readiness
+  areas while preserving each area's blocker list and the existing local-only
+  packet shape.
+
+- Fixed issue #1139's QA Brain repair-plan blocker summary noise:
+  `summary.blockers_total` now counts unique blocker messages across
+  repair-plan rows while preserving each row's blocker list and the existing
+  local-only packet shape.
+
+- Fixed issue #1137's Evidence Cloud upload-candidate blocker summary gap:
+  `summary.blockers_total` now counts unique blocker messages from both
+  readiness areas and upload candidates while preserving each row's blocker
+  list and the existing local-only packet shape.
+
+- Fixed issue #1135's integration readiness family-action noise: repeated
+  family-level next actions with the same priority, text, and source IDs now
+  coalesce into one local packet row while preserving all involved family IDs in
+  first-seen order.
+
+- Fixed issue #1133's integration readiness next-action priority dedupe:
+  identical actions still collapse, while priority variants with the same
+  action text, source IDs, and family IDs remain visible in local readiness
+  packets.
+
+- Fixed issue #1131's Evidence Cloud readiness blocker total inflation:
+  duplicate readiness-area blocker messages now count once in the aggregate
+  `summary.blockers_total`, and cloud-boundary controls now reuse source
+  blocker text so the same invalid source contributes one aggregate blocker
+  while preserving each area's blocker list and the existing local-only packet
+  shape.
+
+- Fixed issue #1129's Evidence Cloud Markdown backslash escaping regression:
+  Evidence Cloud readiness table cells now preserve backslashes without
+  rendering broken `&amp;#92;` entity text, while retaining HTML, pipe, backtick,
+  value-free, and secret-like output protections.
+
+- Advanced issue #1127's no-follow source-read boundary: Evidence Cloud
+  readiness and integration readiness now share the same bounded local evidence
+  artifact reader for packet sources, preserving source states, compact
+  summaries, schema validation, safe writes, and local-only behavior while
+  rejecting symlinked source reads that appear after path validation.
+
+- Advanced issue #1121's report packet boundary guardrails: Evidence Cloud
+  readiness and integration readiness now delegate output path validation to
+  the shared `safe_report_output_path` boundary helper while preserving their
+  module-specific errors, local-only packet behavior, safe writes, symlink
+  rejection, project-root containment, and local-state directory bans; Evidence
+  Cloud readiness also wraps source-path containment failures and packet JSON
+  serialization failures in its module-specific error type.
 
 - Fixed issue #1120's dependency automation governance gap: PR body validation
   now has a scoped dependency automation lane for recognized Dependabot/app

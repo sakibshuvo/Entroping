@@ -27,6 +27,141 @@ def test_agent_control_plane_documents_cross_agent_guardrails() -> None:
     assert "No helper agent is a source of truth" in doc
 
 
+def test_agent_control_plane_documents_artifact_first_worker_review() -> None:
+    control_plane = (
+        REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md"
+    ).read_text(encoding="utf-8")
+    handoff = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-desktop-handoff.md"
+    ).read_text(encoding="utf-8")
+    review_request = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-codex-review-request.md"
+    ).read_text(encoding="utf-8")
+    combined = " ".join(f"{control_plane}\n{handoff}\n{review_request}".split())
+
+    required_terms = [
+        "artifact-first worker contract",
+        "Do not run OpenCode interactively for routine cheap-worker work",
+        "scripts/ai_jobs.py audit-routing",
+        "scripts/factory_review_packet.py",
+        "review only the job metadata, result summary, diff stat, git diff, "
+        "changed files, and test output",
+        "Do not read raw stdout, stderr, provider responses, or full "
+        "transcripts unless the compact evidence is ambiguous",
+        "ACCEPT",
+        "REQUEST_SMALL_FIX",
+        "REWRITE_WITH_CODEX",
+        "ESCALATE_SCOPE",
+    ]
+
+    for term in required_terms:
+        assert term in combined
+
+
+def test_worker_prompts_define_codex_pickup_handoff_and_shortcut_guards() -> None:
+    pickup_prompt_paths = [
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "issue-worker.md",
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-desktop-handoff.md",
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-desktop-one-shot.md",
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-week-monitoring.md",
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "model-comparison-trial.md",
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "codex-outage-daily-operations.md",
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "multi-agent-marathon.md",
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "deepseek-opencode-review.md",
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-codex-review-request.md",
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "model-output-acceptance-gate.md",
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "README.md",
+    ]
+    pickup_terms = [
+        ".entroping/ai-reviews/issue-<issue-number>-<short-slug>/",
+        "metadata.json",
+        "result.md",
+        "tests.txt",
+        "proposal.diff",
+        "scripts/factory_review_packet.py --artifact-dir",
+    ]
+
+    for prompt_path in pickup_prompt_paths:
+        prompt = prompt_path.read_text(encoding="utf-8")
+        normalized_prompt = " ".join(prompt.split())
+        missing = [
+            term for term in pickup_terms if " ".join(term.split()) not in normalized_prompt
+        ]
+        assert not missing, f"{prompt_path} missing {missing}"
+
+    shortcut_prompt_paths = [
+        *pickup_prompt_paths,
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "architecture-boundary-brief.md",
+    ]
+    shortcut_terms = [
+        "`exec()`",
+        "dynamic source-file execution",
+        "import-time code generation",
+        "mypy ignore_errors",
+        "F821",
+        "normal importable modules",
+        "explicit dependencies",
+    ]
+
+    for prompt_path in shortcut_prompt_paths:
+        prompt = prompt_path.read_text(encoding="utf-8")
+        normalized_prompt = " ".join(prompt.split())
+        missing = [
+            term
+            for term in shortcut_terms
+            if " ".join(term.split()) not in normalized_prompt
+        ]
+        assert not missing, f"{prompt_path} missing {missing}"
+
+
 def test_agent_toolchain_policy_is_linked_from_readiness_and_agent_rules() -> None:
     agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
     control_plane = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
@@ -352,6 +487,75 @@ def test_prompt_library_documents_self_contained_worker_packets() -> None:
 
     for term in required_terms:
         assert term in combined
+
+
+def test_issue_worker_prompt_enforces_artifact_first_handoff_contract() -> None:
+    issue_worker = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "issue-worker.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(issue_worker.split())
+
+    required_terms = [
+        "For repeatable hands-off runs, use the artifact scripts:",
+        "`scripts/ai_jobs.py`, `scripts/opencode_worker.py`, or `scripts/deepseek_worker.py`",
+        "Inspect job metadata, result summary, diff stat, and changed files "
+        "before any raw transcripts",
+        "For worker-assisted artifact-first passes, inspect in order",
+        "`git diff --stat`",
+        "If this run used script workers, include artifact-first fields in the handoff:",
+        "The handoff omits required artifact-first review fields from the worker output.",
+        "before any raw transcripts",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+
+def test_opencode_desktop_handoff_requires_artifact_first_fields() -> None:
+    opencode_handoff = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "opencode-desktop-handoff.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(opencode_handoff.split())
+
+    required_terms = [
+        "For run-repeatability, hand off artifact-first outputs from",
+        "`scripts/ai_jobs.py`, `scripts/opencode_worker.py`, or `scripts/deepseek_worker.py`",
+        "Review those artifact fields before raw transcripts.",
+        "Add and inspect artifact-first handoff fields before finalizing:",
+        "`git diff --stat`",
+        "artifact handoff summary",
+        "test output",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+
+def test_opencode_codex_review_request_enforces_artifact_first_review_sequence() -> None:
+    review_prompt = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-codex-review-request.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(review_prompt.split())
+
+    required_terms = [
+        "Artifact-first review protocol (before raw transcript output):",
+        "Review worker job metadata.",
+        "Review result summary.",
+        "Review `git diff --stat`.",
+        "Review changed files list.",
+        "Inspect raw transcripts only if any of the above is missing or ambiguous.",
+        "Does the handoff include job metadata, result summary, diff stat, "
+        "changed files, and test output?",
+        "Confirm artifact-first handoff evidence is complete: job metadata, "
+        "result summary, diff stat, changed files, and test output.",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
 
 
 def test_opencode_desktop_handoff_documents_tooling_setup_checklist() -> None:
@@ -1894,6 +2098,64 @@ def test_factory_role_registry_and_metrics_ledger_are_portable_guardrails() -> N
 
     for term in required_terms:
         assert term in combined
+
+
+def test_agent_control_plane_inventories_factory_template_primitives() -> None:
+    control_plane = (
+        REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(control_plane.split())
+
+    required_terms = [
+        "## Factory Template Extraction Inventory",
+        "Workflow primitives to evaluate for extraction",
+        "candidates for extraction after proof",
+        "issue templates",
+        "`scripts/start_issue.sh` and `scripts/finish_issue.sh`",
+        "`scripts/check.sh`, `scripts/feature_gate.sh`, `scripts/regression.sh`, "
+        "and `scripts/audit_quality.sh`",
+        "`scripts/context_pack.sh --manifest`",
+        "`scripts/factory_metrics.py readiness`",
+        "unknowns stay unknown",
+        "Entroping-specific product contracts",
+        "QAnstitution governance",
+        "deterministic Hurl execution",
+        "`entroping run` remains deterministic and LLM-free",
+        "Blocked before generalizing",
+        "Unsafe to generalize",
+        "raw provider transcripts",
+        "raw traffic",
+        "Tier B/Tier C merge authority",
+        "model summaries as source of truth",
+        "future template scaffold",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+    section = control_plane.split("## Factory Template Extraction Inventory", maxsplit=1)[
+        1
+    ].split("## Autonomous OpenCode Shipping Lanes", maxsplit=1)[0]
+    expected_subsections = [
+        "### Workflow primitives to evaluate for extraction",
+        "### Entroping-specific product contracts",
+        "### Blocked before generalizing",
+        "### Unsafe to generalize",
+    ]
+    positions = [section.index(subsection) for subsection in expected_subsections]
+    assert positions == sorted(positions)
+
+    extraction_candidates = section.split(
+        "### Workflow primitives to evaluate for extraction", maxsplit=1
+    )[1].split("### Entroping-specific product contracts", maxsplit=1)[0]
+    normalized_extraction_candidates = " ".join(extraction_candidates.split())
+    for term in [
+        "issue templates",
+        "`scripts/start_issue.sh` and `scripts/finish_issue.sh`",
+        "`scripts/context_pack.sh --manifest`",
+        "`scripts/factory_metrics.py readiness`",
+    ]:
+        assert term in normalized_extraction_candidates
 
 
 def test_prompt_library_contains_autonomous_tier_a_worker_prompt() -> None:

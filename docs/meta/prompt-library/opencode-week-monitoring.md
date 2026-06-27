@@ -93,6 +93,15 @@ Rules:
   - opencode-go/other
 - Do not claim launch, stable-core, package-index, enterprise, security, or
   adoption readiness from monitoring output.
+- For any recommended Tier A OpenCode/DeepSeek next action, require the future
+  worker handoff to include `.entroping/ai-reviews/issue-<issue-number>-<short-slug>/`
+  with `metadata.json`, `result.md`, `tests.txt`, optional `proposal.diff`, and
+  `python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`.
+- Flag shortcut compatibility proposals as blockers: `exec()`, dynamic
+  source-file execution, import-time code generation, broad `type: ignore`,
+  broad ruff ignores such as `F821` or `F811`, and `mypy ignore_errors` are not
+  acceptable substitutes for normal importable modules with explicit
+  dependencies.
 
 Return an after-sleep status:
 - current main commit,
@@ -102,6 +111,7 @@ Return an after-sleep status:
 - ready issues and safe next actions,
 - factory metrics report status,
 - provider-lane observations,
+- required artifact handoff for any recommended OpenCode/DeepSeek worker,
 - stale or missing close keywords,
 - dirty local files or generated state,
 - one recommended next command.

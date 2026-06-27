@@ -95,6 +95,56 @@ Setup items to verify locally, without committing local config:
   `scripts/ai_jobs.py run-next --record-factory-metrics` for queued batch jobs.
   These metrics are local workflow evidence, not release proof.
 
+## Artifact-First Worker Contract
+
+Do not run OpenCode interactively for routine cheap-worker work. Prefer the
+repo-owned handoff surfaces so the worker produces bounded artifacts and Codex
+spends tokens on review, not transcripts:
+
+```bash
+uv run python scripts/ai_jobs.py audit-routing --json
+uv run python scripts/ai_jobs.py submit --autonomy-tier tier-a --mode patch --issue <issue> --file <path>
+uv run python scripts/ai_jobs.py run-next --record-factory-metrics --json
+uv run python scripts/factory_review_packet.py --job-id <job-id> --json
+```
+
+For interactive OpenCode Desktop or DeepSeek runs that are not launched through
+`scripts/ai_jobs.py`, write the same Codex-pickup shape under
+`.entroping/ai-reviews/issue-<issue-number>-<short-slug>/`:
+
+- `metadata.json` with issue, branch, worktree, provider lane, provider host,
+  billing path, model id, autonomy tier, merge authority, commit, and PR URL
+  when present.
+- `result.md` with the human-readable final handoff.
+- `tests.txt` with exact commands and pass/fail output summaries.
+- `proposal.diff` when the worker proposes a patch Codex has not applied.
+
+Codex can pick up the interactive handoff with:
+
+```bash
+python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json
+```
+
+Worker packet rules:
+
+- Start from `scripts/context_pack.sh --mode implementation --manifest`.
+- Load only the scoped files needed for the issue.
+- Write concise result artifacts, proposal diffs, and test output references.
+- Stop and escalate on Tier B/Tier C, security, runtime, provider, release,
+  raw traffic, audit-evidence, or forbidden-file scope.
+- Review only the job metadata, result summary, diff stat, git diff, changed
+  files, and test output before reading any larger artifact.
+- Do not read raw stdout, stderr, provider responses, or full transcripts
+  unless the compact evidence is ambiguous.
+- Do not use `exec()`, dynamic source-file execution, import-time code
+  generation, broad `type: ignore`, broad ruff ignores such as `F821` or `F811`,
+  or `mypy ignore_errors` as a compatibility strategy. Refactors must produce
+  normal importable modules with explicit dependencies and narrow compatibility
+  seams.
+
+Codex review decisions must use exactly one of `ACCEPT`,
+`REQUEST_SMALL_FIX`, `REWRITE_WITH_CODEX`, or `ESCALATE_SCOPE`.
+
 ## Independent Session Preflight
 
 Before an OpenCode Desktop or OpenCode CLI session edits files, run the
@@ -245,6 +295,14 @@ Do not route this worker through external generated-context tooling. Use `rg`,
 `scripts/context_pack.sh`, `docs/meta/DECISION_REGISTRY.yaml`, source reads,
 focused tests, and CI evidence instead.
 
+For run-repeatability, hand off artifact-first outputs from
+`scripts/ai_jobs.py`, `scripts/opencode_worker.py`, or `scripts/deepseek_worker.py`.
+Review those artifact fields before raw transcripts.
+For interactive runs, write
+`.entroping/ai-reviews/issue-<issue-number>-<short-slug>/` with `metadata.json`,
+`result.md`, `tests.txt`, and optional `proposal.diff`; report
+`python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`.
+
 Read before editing:
 - AGENTS.md
 - docs/meta/AGENT_CONTROL_PLANE.md
@@ -266,17 +324,36 @@ Workflow:
    - security/provider/subprocess/path/dependency work: scripts/feature_gate.sh --security and scripts/regression.sh --security
 7. Record useful cost/context evidence when practical:
    python scripts/factory_metrics.py --help
-8. Review git diff for unrelated edits, secrets, generated local state, provider transcripts, and .entroping artifacts.
-9. Commit with a Conventional Commit message.
-10. Push and open a PR with Closes #<issue-number>, a checked Documentation Impact Declaration, commands run, Agent Autonomy Declaration when applicable, and OpenCode Provider Lane Evidence when OpenCode/DeepSeek produced the work.
+8. Add and inspect artifact-first handoff fields before finalizing:
+   - job metadata
+   - result summary
+   - `git diff --stat`
+   - changed files
+   - test output
+   - interactive artifact directory with `metadata.json`, `result.md`,
+     `tests.txt`, and optional `proposal.diff`
+9. Reject shortcut compatibility: do not use `exec()`, dynamic source-file
+   execution, import-time code generation, broad `type: ignore`, broad ruff
+   ignores such as `F821` or `F811`, or `mypy ignore_errors`; use normal
+   importable modules with explicit dependencies.
+10. Review git diff for unrelated edits, secrets, generated local state, provider transcripts, and .entroping artifacts.
+11. Commit with a Conventional Commit message.
+12. Push and open a PR with Closes #<issue-number>, a checked Documentation Impact Declaration, commands run, Agent Autonomy Declaration when applicable, and OpenCode Provider Lane Evidence when OpenCode/DeepSeek produced the work.
     Run `scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue-number>` before autonomous Tier A merge or before handing the PR to Codex/human review.
-11. Do not merge Tier B/Tier C. Tier B/Tier C requires Codex or human review before merge.
-12. Merge Tier A only when the issue and diff stayed Tier A, local gates passed, GitHub CI is green, the PR declares authority, and scripts/finish_issue.sh cleanup will run.
+13. Do not merge Tier B/Tier C. Tier B/Tier C requires Codex or human review before merge.
+14. Merge Tier A only when the issue and diff stayed Tier A, local gates passed, GitHub CI is green, the PR declares authority, and scripts/finish_issue.sh cleanup will run.
 
 Final handoff:
 - issue/worktree/branch,
 - provider lane, provider host, billing path, and model id,
 - role and autonomy tier,
+- artifact handoff summary:
+  - job metadata
+  - result summary
+  - diff stat
+  - changed files
+  - test output,
+- artifact directory and factory review packet command,
 - files changed,
 - tests/gates run with results,
 - docs/context impact,

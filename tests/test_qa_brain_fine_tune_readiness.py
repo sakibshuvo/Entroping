@@ -380,6 +380,45 @@ def test_qa_brain_fine_tune_readiness_blocks_incomplete_prompt_plan_metadata(
     assert row.blockers == ("Complete prompt-plan metadata before future dataset design.",)
 
 
+def test_qa_brain_fine_tune_readiness_summary_dedupes_duplicate_blockers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import entroping.core.qa_brain_fine_tune_readiness as fine_tune_readiness
+
+    def incomplete_prompt_row(case_id: str) -> QaBrainPromptPlanRow:
+        return _prompt_row(case_id).model_copy(
+            update={
+                "prompt_inputs_allowed": (),
+                "deterministic_acceptance_signals": (),
+            }
+        )
+
+    def fake_prompt_plan(*, project_root: Path) -> QaBrainPromptPlanPacket:
+        _ = project_root
+        return _prompt_packet(
+            (
+                incomplete_prompt_row("weak_test_detection"),
+                incomplete_prompt_row("api_drift_reasoning"),
+            )
+        )
+
+    monkeypatch.setattr(
+        fine_tune_readiness,
+        "build_qa_brain_prompt_plan",
+        fake_prompt_plan,
+    )
+
+    packet = build_qa_brain_fine_tune_readiness(project_root=tmp_path)
+
+    assert packet.summary.status == "partial"
+    assert packet.summary.blockers_total == 1
+    assert tuple(row.blockers for row in packet.readiness_rows) == (
+        ("Complete prompt-plan metadata before future dataset design.",),
+        ("Complete prompt-plan metadata before future dataset design.",),
+    )
+
+
 def test_qa_brain_fine_tune_readiness_deduplicates_next_actions(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -402,6 +441,12 @@ def test_qa_brain_fine_tune_readiness_deduplicates_next_actions(
                     source_ids=("test-quality-json",),
                     source_paths=("reports/test-quality.json",),
                 ),
+                _prompt_row(
+                    "weak_test_detection",
+                    readiness="missing",
+                    source_ids=(),
+                    source_paths=(),
+                ),
             ),
             status="partial",
         )
@@ -414,10 +459,11 @@ def test_qa_brain_fine_tune_readiness_deduplicates_next_actions(
 
     packet = build_qa_brain_fine_tune_readiness(project_root=tmp_path)
 
-    assert len(packet.readiness_rows) == 2
+    assert len(packet.readiness_rows) == 3
     assert tuple(action.case_ids for action in packet.next_actions) == (
         ("weak_test_detection",),
     )
+    assert packet.next_actions[0].priority == "high"
 
 
 def test_qa_brain_fine_tune_readiness_rejects_unsupported_output(
