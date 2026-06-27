@@ -22,9 +22,10 @@ def test_validate_hurl_content_invokes_hurlfmt_with_argument_array(
         stderr: BinaryIO,
         timeout: float,
         check: bool,
+        env: dict[str, str] | None = None,
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
-        _ = (stdout, stderr)
+        _ = (stdout, stderr, env)
         hurl_file = Path(args[-1])
         temp_paths.append(hurl_file)
         assert hurl_file.is_file()
@@ -52,6 +53,48 @@ def test_validate_hurl_content_invokes_hurlfmt_with_argument_array(
     assert not temp_paths[0].exists()
 
 
+def test_validate_hurl_content_uses_minimal_subprocess_environment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    malicious_bin = tmp_path / "malicious-bin"
+    trusted_hurlfmt = tmp_path / "trusted-bin" / "hurlfmt"
+    trusted_hurlfmt.parent.mkdir()
+    malicious_bin.mkdir()
+    trusted_hurlfmt.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    monkeypatch.setenv("PATH", str(malicious_bin))
+    calls: list[tuple[list[str], dict[str, str] | None, bool]] = []
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stdout, stderr, timeout, check)
+        calls.append((args, env, shell))
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr(
+        "entroping.core.hurl_validator.shutil.which",
+        lambda binary: str(trusted_hurlfmt),
+    )
+    monkeypatch.setattr("entroping.core.hurl_validator.subprocess.run", fake_run)
+
+    validate_hurl_content("GET /health\nHTTP 200\n", display_path="tests/generated/health.hurl")
+
+    assert len(calls) == 1
+    args, env, shell = calls[0]
+    assert args == [str(trusted_hurlfmt), "--out", "json", args[-1]]
+    assert env == {"PATH": f"{trusted_hurlfmt.parent.resolve()}:/usr/bin:/bin"}
+    assert shell is False
+    assert str(malicious_bin) not in env["PATH"]
+
+
 def test_validate_hurl_content_rejects_missing_binary(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -71,9 +114,10 @@ def test_validate_hurl_content_rejects_non_zero_without_echoing_raw_hurl(
         stderr: BinaryIO,
         timeout: float,
         check: bool,
+        env: dict[str, str] | None = None,
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
-        _ = (stdout, timeout, check, shell)
+        _ = (stdout, timeout, check, env, shell)
         stderr.write(b"GET {{base_url}}/secret\nprovider-private-context\n")
         return subprocess.CompletedProcess(args=args, returncode=1)
 
@@ -101,9 +145,10 @@ def test_validate_hurl_content_rejects_timeout_and_cleans_temp_file(
         stderr: BinaryIO,
         timeout: float,
         check: bool,
+        env: dict[str, str] | None = None,
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
-        _ = (stdout, stderr, check, shell)
+        _ = (stdout, stderr, check, env, shell)
         temp_paths.append(Path(args[-1]))
         raise subprocess.TimeoutExpired(cmd=args, timeout=timeout)
 
@@ -128,9 +173,10 @@ def test_validate_hurl_content_wraps_subprocess_os_errors_and_cleans_temp_file(
         stderr: BinaryIO,
         timeout: float,
         check: bool,
+        env: dict[str, str] | None = None,
         shell: bool = False,
     ) -> subprocess.CompletedProcess[str]:
-        _ = (stdout, stderr, timeout, check, shell)
+        _ = (stdout, stderr, timeout, check, env, shell)
         temp_paths.append(Path(args[-1]))
         raise OSError("exec failed")
 
