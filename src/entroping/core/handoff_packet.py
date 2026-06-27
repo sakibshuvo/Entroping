@@ -42,6 +42,7 @@ HandoffArtifactId = Literal[
 HandoffTargetId = Literal["cli", "pr", "desktop", "cloud", "mobile", "agent"]
 
 _MAX_HANDOFF_ARTIFACT_BYTES: Final = LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES
+_GIT_SUBPROCESS_SYSTEM_PATHS: Final = ("/usr/bin", "/bin")
 _DEFAULT_OUTPUTS: Final[dict[HandoffOutput, Path]] = {
     "md": Path("reports") / "handoff.md",
     "json": Path("reports") / "handoff.json",
@@ -704,6 +705,7 @@ def _git_value(root: Path, *args: str) -> str | None:
             [git_binary, "-C", str(root), *args],
             check=False,
             capture_output=True,
+            env=_minimal_git_subprocess_env(git_binary),
             text=True,
             timeout=_GIT_TIMEOUT_SECONDS,
         )
@@ -713,6 +715,14 @@ def _git_value(root: Path, *args: str) -> str | None:
         return None
     value = _safe_text(result.stdout.strip())
     return value or None
+
+
+def _minimal_git_subprocess_env(git_binary: str) -> dict[str, str]:
+    path_entries = [
+        str(Path(git_binary).resolve().parent),
+        *_GIT_SUBPROCESS_SYSTEM_PATHS,
+    ]
+    return {"PATH": ":".join(dict.fromkeys(path_entries))}
 
 
 def _safe_text(value: object) -> str:
