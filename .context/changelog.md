@@ -2,6 +2,11 @@
 
 ## 2026-06-26
 
+- Fixed issue #1133's integration readiness next-action priority dedupe:
+  identical actions still collapse, while priority variants with the same
+  action text, source IDs, and family IDs remain visible in local readiness
+  packets.
+
 - Fixed issue #1131's Evidence Cloud readiness blocker total inflation:
   duplicate readiness-area blocker messages now count once in the aggregate
   `summary.blockers_total`, and cloud-boundary controls now reuse source

@@ -823,10 +823,10 @@ def _next_actions(
 def _dedupe_actions(
     actions: list[IntegrationReadinessNextAction],
 ) -> tuple[IntegrationReadinessNextAction, ...]:
-    seen: set[tuple[str, tuple[str, ...], tuple[str, ...]]] = set()
+    seen: set[tuple[str, str, tuple[str, ...], tuple[str, ...]]] = set()
     result: list[IntegrationReadinessNextAction] = []
     for action in actions:
-        key = (action.action, action.source_ids, action.family_ids)
+        key = (action.priority, action.action, action.source_ids, action.family_ids)
         if key in seen:
             continue
         seen.add(key)

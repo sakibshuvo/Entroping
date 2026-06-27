@@ -16,14 +16,14 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1131 Evidence Cloud Blocker Total Deduplication
+## Current Issue Slice: #1133 Integration Readiness Action Priority Dedupe
 
-Fix Evidence Cloud readiness summary aggregation so duplicate blocker messages
-across readiness areas count once in `summary.blockers_total` while area-level
-blocker tuples remain intact. Keep the change narrow: preserve the packet
-schema, output shape, source states, upload-candidate behavior, next-action
-behavior, value-free rendering, secret-like output rejection, command surface,
-and local-only execution. Do not change `entroping run`.
+Fix integration readiness next-action deduplication so identical actions still
+collapse but same text/source/family actions with different priorities remain
+visible. Keep the change narrow: preserve the packet schema, output shape,
+source states, family readiness behavior, value-free rendering, secret-like
+output rejection, command surface, and local-only execution. Do not change
+`entroping run`.
 
 ## Current Baseline
 
