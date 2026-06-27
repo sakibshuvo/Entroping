@@ -2,6 +2,11 @@
 
 ## 2026-06-26
 
+- Fixed issue #1129's Evidence Cloud Markdown backslash escaping regression:
+  Evidence Cloud readiness table cells now preserve backslashes without
+  rendering broken `&amp;#92;` entity text, while retaining HTML, pipe, backtick,
+  value-free, and secret-like output protections.
+
 - Advanced issue #1127's no-follow source-read boundary: Evidence Cloud
   readiness and integration readiness now share the same bounded local evidence
   artifact reader for packet sources, preserving source states, compact

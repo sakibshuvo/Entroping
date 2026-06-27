@@ -1083,8 +1083,8 @@ def _inline_code(value: str) -> str:
 
 
 def _markdown_cell(value: str) -> str:
-    normalized = value.replace("\\", "&#92;")
-    return _escape_backticks(escape(" ".join(normalized.split())).replace("|", "\\|"))
+    escaped = escape(" ".join(value.split())).replace("\\", "&#92;")
+    return _escape_backticks(escaped.replace("|", "\\|"))
 
 
 def _escape_backticks(value: str) -> str:

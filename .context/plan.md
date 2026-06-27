@@ -16,15 +16,14 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1127 No-Follow Packet Source Reads
+## Current Issue Slice: #1129 Evidence Cloud Markdown Backslashes
 
-Centralize duplicated local report packet source-read guardrails by moving
-Evidence Cloud readiness and integration readiness onto one shared bounded
-descriptor reader in `evidence_common`. Keep the change narrow: preserve each
-packet schema, output format, module-specific error type, source states,
-summary shape, safe write boundary, secret-like output rejection, command
-surface, and local-only execution. Do not introduce a broad packet framework or
-change `entroping run`.
+Fix Evidence Cloud readiness Markdown table-cell escaping so Windows-style
+backslash paths render as backslashes instead of broken `&amp;#92;` entity text.
+Keep the change narrow: preserve the packet schema, output format, pipe and
+backtick escaping, HTML escaping, value-free rendering, secret-like output
+rejection, command surface, and local-only execution. Do not change
+`entroping run`.
 
 ## Current Baseline
 
