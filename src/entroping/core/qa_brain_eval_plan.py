@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from html import escape
@@ -12,6 +11,7 @@ from typing import Final, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from entroping.core.evidence_common import contains_unredacted_evidence_secret
+from entroping.core.evidence_packet_base import write_evidence_packet_report
 from entroping.core.qa_brain_seed import (
     QA_BRAIN_SEED_SCHEMA_VERSION,
     QaBrainEvalSlice,
@@ -21,7 +21,6 @@ from entroping.core.qa_brain_seed import (
     QaBrainSeedError,
     build_qa_brain_seed,
 )
-from entroping.core.safe_write import SafeWriteError, safe_write_text
 
 QA_BRAIN_EVAL_PLAN_SCHEMA_VERSION: Final = "entroping.qa-brain-eval-plan.v1"
 
@@ -229,20 +228,18 @@ def run_qa_brain_eval_plan_report(
     root = project_root.expanduser().resolve()
     destination = output_path or _DEFAULT_OUTPUTS[output]
     packet = build_qa_brain_eval_plan(project_root=root)
-    content = _render_packet_content(packet, output=output)
-    if contains_unredacted_evidence_secret(content):
-        msg = "QA brain eval plan contains secret-like content"
-        raise QaBrainEvalPlanError(msg)
-    try:
-        written = safe_write_text(
-            destination,
-            content,
-            artifact="QA brain eval plan",
-            root=root,
-        )
-    except SafeWriteError as exc:
-        raise QaBrainEvalPlanError(str(exc)) from exc
-    return QaBrainEvalPlanResult(output_path=written, packet=packet)
+    result = write_evidence_packet_report(
+        project_root=root,
+        output=output,
+        output_path=destination,
+        packet=packet,
+        render_markdown=render_qa_brain_eval_plan_markdown,
+        has_secret_content=contains_unredacted_evidence_secret,
+        unsafe_content_message="QA brain eval plan contains secret-like content",
+        artifact="QA brain eval plan",
+        error_type=QaBrainEvalPlanError,
+    )
+    return QaBrainEvalPlanResult(output_path=result.output_path, packet=result.packet)
 
 
 def build_qa_brain_eval_plan(*, project_root: Path) -> QaBrainEvalPlanPacket:
@@ -324,16 +321,6 @@ def render_qa_brain_eval_plan_markdown(packet: QaBrainEvalPlanPacket) -> str:
                 f"{_markdown_cell(', '.join(action.case_ids) or 'n/a')} |"
             )
     return "\n".join(lines).rstrip() + "\n"
-
-
-def _render_packet_content(
-    packet: QaBrainEvalPlanPacket,
-    *,
-    output: QaBrainEvalPlanOutput,
-) -> str:
-    if output == "json":
-        return json.dumps(packet.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
-    return render_qa_brain_eval_plan_markdown(packet)
 
 
 def _case_from_seed_slice(eval_slice: QaBrainEvalSlice) -> QaBrainEvalCase:
