@@ -424,6 +424,8 @@ def test_qa_brain_model_packaging_plan_deduplicates_next_actions(
     assert tuple(action.case_ids for action in packet.next_actions) == (
         ("weak_test_detection",),
     )
+    assert tuple(action.priority for action in packet.next_actions) == ("high",)
+    assert "Repair Weak Test Detection" in packet.next_actions[0].action
 
 
 def test_qa_brain_model_packaging_plan_rejects_unsupported_output(
