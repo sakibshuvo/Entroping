@@ -823,15 +823,36 @@ def _next_actions(
 def _dedupe_actions(
     actions: list[IntegrationReadinessNextAction],
 ) -> tuple[IntegrationReadinessNextAction, ...]:
-    seen: set[tuple[str, str, tuple[str, ...], tuple[str, ...]]] = set()
-    result: list[IntegrationReadinessNextAction] = []
+    grouped: dict[
+        tuple[str, str, tuple[IntegrationReadinessSourceId, ...]],
+        IntegrationReadinessNextAction,
+    ] = {}
+    order: list[tuple[str, str, tuple[IntegrationReadinessSourceId, ...]]] = []
     for action in actions:
-        key = (action.priority, action.action, action.source_ids, action.family_ids)
-        if key in seen:
+        key = (action.priority, action.action, action.source_ids)
+        existing = grouped.get(key)
+        if existing is None:
+            grouped[key] = action
+            order.append(key)
             continue
-        seen.add(key)
-        result.append(action)
-    return tuple(result)
+        family_ids = _merge_family_ids(existing.family_ids, action.family_ids)
+        if family_ids != existing.family_ids:
+            grouped[key] = existing.model_copy(update={"family_ids": family_ids})
+    return tuple(grouped[key] for key in order)
+
+
+def _merge_family_ids(
+    first: tuple[IntegrationReadinessFamilyId, ...],
+    second: tuple[IntegrationReadinessFamilyId, ...],
+) -> tuple[IntegrationReadinessFamilyId, ...]:
+    merged: list[IntegrationReadinessFamilyId] = []
+    seen: set[IntegrationReadinessFamilyId] = set()
+    for family_id in (*first, *second):
+        if family_id in seen:
+            continue
+        seen.add(family_id)
+        merged.append(family_id)
+    return tuple(merged)
 
 
 def _summary(

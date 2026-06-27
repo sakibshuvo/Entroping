@@ -526,19 +526,25 @@ def test_integration_readiness_skips_blank_source_project_and_non_object_run(
     assert packet.summary.status == "partial"
 
 
-def test_integration_readiness_deduplicates_identical_actions_by_priority() -> None:
+def test_integration_readiness_coalesces_family_actions_by_priority() -> None:
     medium_action = integration_readiness.IntegrationReadinessNextAction(
         priority="medium",
-        action="Generate team access-control evidence before enabling integrations.",
+        action="Repair unsafe or invalid source evidence before enabling integrations.",
         family_ids=("issue_trackers",),
     )
-    high_action = medium_action.model_copy(update={"priority": "high"})
-
-    deduped = integration_readiness._dedupe_actions(
-        [medium_action, high_action, medium_action]
+    same_priority_action = medium_action.model_copy(update={"family_ids": ("chat",)})
+    high_action = medium_action.model_copy(
+        update={"priority": "high", "family_ids": ("observability",)}
     )
 
-    assert [action.priority for action in deduped] == ["medium", "high"]
+    deduped = integration_readiness._dedupe_actions(
+        [medium_action, same_priority_action, high_action, medium_action]
+    )
+
+    assert [(action.priority, action.family_ids) for action in deduped] == [
+        ("medium", ("issue_trackers", "chat")),
+        ("high", ("observability",)),
+    ]
 
 
 def test_integration_readiness_packet_json_supports_pydantic_without_fallback(
