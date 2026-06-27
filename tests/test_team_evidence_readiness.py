@@ -215,6 +215,66 @@ def test_team_evidence_readiness_marks_missing_invalid_and_unsafe_sources(
     assert "sk-proj" not in packet.model_dump_json()
 
 
+def test_team_evidence_readiness_summary_dedupes_duplicate_blockers() -> None:
+    areas = (
+        readiness.TeamEvidenceReadinessArea(
+            id="upload_boundary",
+            label="Upload boundary",
+            status="blocked",
+            source_ids=("evidence_bundle",),
+            boundary="local only",
+            blockers=("Shared blocker.", "Area-specific blocker."),
+            next_action="Repair local evidence.",
+        ),
+        readiness.TeamEvidenceReadinessArea(
+            id="runtime_visibility",
+            label="Runtime visibility",
+            status="blocked",
+            source_ids=("runtime_card",),
+            boundary="local only",
+            blockers=("Shared blocker.",),
+            next_action="Repair runtime evidence.",
+        ),
+    )
+
+    summary = readiness._summary(sources=(), areas=areas, next_actions=())
+
+    assert summary.blockers_total == 2
+    assert areas[0].blockers == ("Shared blocker.", "Area-specific blocker.")
+    assert areas[1].blockers == ("Shared blocker.",)
+
+
+def test_team_evidence_readiness_cloud_controls_reuse_source_blockers() -> None:
+    source = readiness.TeamEvidenceSource(
+        id="evidence_bundle",
+        label="Evidence bundle",
+        path="reports/evidence-bundle.json",
+        state="invalid",
+        schema_version=None,
+        summary="schema mismatch",
+    )
+    by_id: dict[readiness.TeamEvidenceSourceId, readiness.TeamEvidenceSource] = {
+        "evidence_bundle": source
+    }
+    source_area = readiness._area(
+        "upload_boundary",
+        label="Upload boundary",
+        source_ids=("evidence_bundle",),
+        by_id=by_id,
+        boundary="local only",
+    )
+    cloud_area = readiness._cloud_controls_area(by_id=by_id)
+
+    summary = readiness._summary(
+        sources=(source,),
+        areas=(source_area, cloud_area),
+        next_actions=(),
+    )
+
+    assert cloud_area.blockers == source_area.blockers
+    assert summary.blockers_total == 1
+
+
 def test_team_evidence_readiness_markdown_is_escaped_and_value_free(
     tmp_path: Path,
 ) -> None:

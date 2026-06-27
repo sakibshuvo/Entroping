@@ -736,10 +736,7 @@ def _cloud_controls_area(
     unsafe_or_invalid = tuple(
         source for source in by_id.values() if source.state in {"invalid", "unsafe"}
     )
-    blockers = tuple(
-        f"{source.label} is {source.state}; repair local evidence before cloud readiness."
-        for source in unsafe_or_invalid
-    )
+    blockers = _source_blockers(unsafe_or_invalid)
     status: TeamEvidenceReadinessAreaStatus = "blocked" if blockers else "ready"
     return TeamEvidenceReadinessArea(
         id="cloud_boundary_controls",
@@ -853,7 +850,7 @@ def _summary(
     areas: tuple[TeamEvidenceReadinessArea, ...],
     next_actions: tuple[TeamEvidenceNextAction, ...],
 ) -> TeamEvidenceReadinessSummary:
-    blockers_total = sum(len(area.blockers) for area in areas)
+    blockers_total = len({blocker for area in areas for blocker in area.blockers})
     return TeamEvidenceReadinessSummary(
         status=_status(sources=sources, areas=areas),
         sources_total=len(sources),
