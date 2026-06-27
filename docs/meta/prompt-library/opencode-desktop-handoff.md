@@ -108,6 +108,23 @@ uv run python scripts/ai_jobs.py run-next --record-factory-metrics --json
 uv run python scripts/factory_review_packet.py --job-id <job-id> --json
 ```
 
+For interactive OpenCode Desktop or DeepSeek runs that are not launched through
+`scripts/ai_jobs.py`, write the same Codex-pickup shape under
+`.entroping/ai-reviews/issue-<issue-number>-<short-slug>/`:
+
+- `metadata.json` with issue, branch, worktree, provider lane, provider host,
+  billing path, model id, autonomy tier, merge authority, commit, and PR URL
+  when present.
+- `result.md` with the human-readable final handoff.
+- `tests.txt` with exact commands and pass/fail output summaries.
+- `proposal.diff` when the worker proposes a patch Codex has not applied.
+
+Codex can pick up the interactive handoff with:
+
+```bash
+python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json
+```
+
 Worker packet rules:
 
 - Start from `scripts/context_pack.sh --mode implementation --manifest`.
@@ -119,6 +136,11 @@ Worker packet rules:
   files, and test output before reading any larger artifact.
 - Do not read raw stdout, stderr, provider responses, or full transcripts
   unless the compact evidence is ambiguous.
+- Do not use `exec()`, dynamic source-file execution, import-time code
+  generation, broad `type: ignore`, broad ruff ignores such as `F821` or `F811`,
+  or `mypy ignore_errors` as a compatibility strategy. Refactors must produce
+  normal importable modules with explicit dependencies and narrow compatibility
+  seams.
 
 Codex review decisions must use exactly one of `ACCEPT`,
 `REQUEST_SMALL_FIX`, `REWRITE_WITH_CODEX`, or `ESCALATE_SCOPE`.
@@ -276,6 +298,10 @@ focused tests, and CI evidence instead.
 For run-repeatability, hand off artifact-first outputs from
 `scripts/ai_jobs.py`, `scripts/opencode_worker.py`, or `scripts/deepseek_worker.py`.
 Review those artifact fields before raw transcripts.
+For interactive runs, write
+`.entroping/ai-reviews/issue-<issue-number>-<short-slug>/` with `metadata.json`,
+`result.md`, `tests.txt`, and optional `proposal.diff`; report
+`python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`.
 
 Read before editing:
 - AGENTS.md
@@ -304,12 +330,18 @@ Workflow:
    - `git diff --stat`
    - changed files
    - test output
-9. Review git diff for unrelated edits, secrets, generated local state, provider transcripts, and .entroping artifacts.
-10. Commit with a Conventional Commit message.
-11. Push and open a PR with Closes #<issue-number>, a checked Documentation Impact Declaration, commands run, Agent Autonomy Declaration when applicable, and OpenCode Provider Lane Evidence when OpenCode/DeepSeek produced the work.
+   - interactive artifact directory with `metadata.json`, `result.md`,
+     `tests.txt`, and optional `proposal.diff`
+9. Reject shortcut compatibility: do not use `exec()`, dynamic source-file
+   execution, import-time code generation, broad `type: ignore`, broad ruff
+   ignores such as `F821` or `F811`, or `mypy ignore_errors`; use normal
+   importable modules with explicit dependencies.
+10. Review git diff for unrelated edits, secrets, generated local state, provider transcripts, and .entroping artifacts.
+11. Commit with a Conventional Commit message.
+12. Push and open a PR with Closes #<issue-number>, a checked Documentation Impact Declaration, commands run, Agent Autonomy Declaration when applicable, and OpenCode Provider Lane Evidence when OpenCode/DeepSeek produced the work.
     Run `scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue-number>` before autonomous Tier A merge or before handing the PR to Codex/human review.
-12. Do not merge Tier B/Tier C. Tier B/Tier C requires Codex or human review before merge.
-13. Merge Tier A only when the issue and diff stayed Tier A, local gates passed, GitHub CI is green, the PR declares authority, and scripts/finish_issue.sh cleanup will run.
+13. Do not merge Tier B/Tier C. Tier B/Tier C requires Codex or human review before merge.
+14. Merge Tier A only when the issue and diff stayed Tier A, local gates passed, GitHub CI is green, the PR declares authority, and scripts/finish_issue.sh cleanup will run.
 
 Final handoff:
 - issue/worktree/branch,
@@ -321,6 +353,7 @@ Final handoff:
   - diff stat
   - changed files
   - test output,
+- artifact directory and factory review packet command,
 - files changed,
 - tests/gates run with results,
 - docs/context impact,

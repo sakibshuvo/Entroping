@@ -66,6 +66,102 @@ def test_agent_control_plane_documents_artifact_first_worker_review() -> None:
         assert term in combined
 
 
+def test_worker_prompts_define_codex_pickup_handoff_and_shortcut_guards() -> None:
+    pickup_prompt_paths = [
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "issue-worker.md",
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-desktop-handoff.md",
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-desktop-one-shot.md",
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-week-monitoring.md",
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "model-comparison-trial.md",
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "codex-outage-daily-operations.md",
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "multi-agent-marathon.md",
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "deepseek-opencode-review.md",
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-codex-review-request.md",
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "model-output-acceptance-gate.md",
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "README.md",
+    ]
+    pickup_terms = [
+        ".entroping/ai-reviews/issue-<issue-number>-<short-slug>/",
+        "metadata.json",
+        "result.md",
+        "tests.txt",
+        "proposal.diff",
+        "scripts/factory_review_packet.py --artifact-dir",
+    ]
+
+    for prompt_path in pickup_prompt_paths:
+        prompt = prompt_path.read_text(encoding="utf-8")
+        normalized_prompt = " ".join(prompt.split())
+        missing = [
+            term for term in pickup_terms if " ".join(term.split()) not in normalized_prompt
+        ]
+        assert not missing, f"{prompt_path} missing {missing}"
+
+    shortcut_prompt_paths = [
+        *pickup_prompt_paths,
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "architecture-boundary-brief.md",
+    ]
+    shortcut_terms = [
+        "`exec()`",
+        "dynamic source-file execution",
+        "import-time code generation",
+        "mypy ignore_errors",
+        "F821",
+        "normal importable modules",
+        "explicit dependencies",
+    ]
+
+    for prompt_path in shortcut_prompt_paths:
+        prompt = prompt_path.read_text(encoding="utf-8")
+        normalized_prompt = " ".join(prompt.split())
+        missing = [
+            term
+            for term in shortcut_terms
+            if " ".join(term.split()) not in normalized_prompt
+        ]
+        assert not missing, f"{prompt_path} missing {missing}"
+
+
 def test_agent_toolchain_policy_is_linked_from_readiness_and_agent_rules() -> None:
     agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
     control_plane = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(

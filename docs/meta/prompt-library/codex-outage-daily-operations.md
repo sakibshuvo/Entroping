@@ -52,6 +52,10 @@ Choose work:
    - opencode-go/kimi-k2.7-code
    - opencode-go/qwen3.7-max
    - opencode-go/other
+6. Require OpenCode/DeepSeek handoffs to include
+   `.entroping/ai-reviews/issue-<issue-number>-<short-slug>/` with
+   `metadata.json`, `result.md`, `tests.txt`, optional `proposal.diff`, and
+   `python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`.
 
 Work one issue:
 scripts/start_issue.sh <issue-number> <type>/<short-kebab-description>
@@ -69,13 +73,18 @@ Then:
    includes scripts/architecture_integrity.sh; workers may also run
    scripts/architecture_integrity.sh directly as a fast preflight when
    reviewing possible architecture drift.
-6. Open a PR with Closes #<issue>, Agent Autonomy Declaration,
+6. Reject shortcut compatibility. Do not use `exec()`, dynamic source-file
+   execution, import-time code generation, broad `type: ignore`, broad ruff
+   ignores such as `F821` or `F811`, or `mypy ignore_errors`; use normal
+   importable modules with explicit dependencies.
+7. Write the Codex-pickup handoff directory.
+8. Open a PR with Closes #<issue>, Agent Autonomy Declaration,
    Documentation Impact Declaration, commands run, and provider-lane evidence
    when OpenCode/DeepSeek produced the work.
-7. Watch CI with gh pr checks <pr-number> --repo sakibshuvo/Entroping --watch.
-8. Merge only Tier A PRs after local gates and GitHub CI are green.
-9. Run scripts/finish_issue.sh <issue-number> from a separate checkout.
-10. Write an after-sleep status before stopping.
+9. Watch CI with gh pr checks <pr-number> --repo sakibshuvo/Entroping --watch.
+10. Merge only Tier A PRs after local gates and GitHub CI are green.
+11. Run scripts/finish_issue.sh <issue-number> from a separate checkout.
+12. Write an after-sleep status before stopping.
 ```
 
 ## Reference Prompts
@@ -107,6 +116,10 @@ Stop the current worker and report status when any of these happen:
 - Tier A work expanding into Tier B/Tier C scope,
 - any change that weakens hexagonal architecture, QAnstitution branding, or
   treats model summaries as source of truth,
+- any change that uses `exec()`, dynamic source-file execution, import-time code
+  generation, broad `type: ignore`, broad ruff ignores such as `F821` or `F811`,
+  or `mypy ignore_errors` instead of normal importable modules with explicit
+  dependencies,
 - any change touching Hurl runner behavior, `entroping run`, redaction, proxy,
   provider runtime boundary, dependencies, release publishing, raw traffic, or
   audit evidence.
@@ -121,6 +134,7 @@ Before ending the day, return:
 - issue worktrees still present,
 - dirty or untracked files,
 - local factory metrics ledger locations,
+- OpenCode/DeepSeek artifact directory and factory review packet command,
 - accepted/rejected/stale worker findings,
 - safe next issue,
 - blockers or stop conditions.

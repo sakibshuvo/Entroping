@@ -51,6 +51,9 @@ Worker evidence:
 - Claimed merge authority: <Tier A autonomous after gates and green CI | Codex/human required | no merge authority>
 - Commands already run: <focused tests and gates>
 - Factory review packet: <output from `scripts/factory_review_packet.py --job-id <job-id> --json` or `scripts/factory_review_packet.py --artifact-dir <artifact-dir> --json`>
+- Interactive artifact directory, if no job id:
+  `.entroping/ai-reviews/issue-<issue-number>-<short-slug>/` with
+  `metadata.json`, `result.md`, `tests.txt`, and optional `proposal.diff`.
 
 Source-of-truth rules:
 - Active repo is /Users/sakibshuvo/projects/Entroping.
@@ -72,6 +75,8 @@ Artifact-first review protocol (before raw transcript output):
 - If available, review the factory review packet from
   `scripts/factory_review_packet.py --job-id <job-id> --json` or
   `scripts/factory_review_packet.py --artifact-dir <artifact-dir> --json`.
+- For interactive runs without a job id, require:
+  `python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`.
 - Confirm `scripts/ai_jobs.py audit-routing --json` was checked before
   dispatching queued cheap workers when the job came from the queue.
 - Review worker job metadata.
@@ -96,6 +101,10 @@ Check:
 10. Are provider and LiteLLM boundaries preserved?
 11. Is the planned PR body evidence sufficient: Closes #<issue>, commands run, Documentation Impact Declaration, Agent Autonomy Declaration when relevant, and provider lane evidence?
 12. Is this safe to merge, or does it need author action?
+13. Did the diff avoid shortcut compatibility patterns such as `exec()`, dynamic
+    source-file execution, import-time code generation, broad `type: ignore`,
+    broad ruff ignores such as `F821` or `F811`, and `mypy ignore_errors`, using
+    normal importable modules with explicit dependencies instead?
 
 Return:
 - decision: ACCEPT | REQUEST_SMALL_FIX | REWRITE_WITH_CODEX | ESCALATE_SCOPE,

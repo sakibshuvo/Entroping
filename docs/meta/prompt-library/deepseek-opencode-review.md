@@ -90,6 +90,10 @@ Rules:
 - Include tests with behavior changes.
 - Preserve docs governance.
 - Avoid broad refactors.
+- Do not use `exec()`, dynamic source-file execution, import-time code
+  generation, broad `type: ignore`, broad ruff ignores such as `F821` or `F811`,
+  or `mypy ignore_errors` to preserve compatibility. Refactors must produce
+  normal importable modules with explicit dependencies.
 
 Return:
 1. summary,
@@ -114,3 +118,12 @@ python scripts/ai_jobs.py run-next
 
 Artifacts under `.entroping/ai-reviews/` and `.entroping/ai-jobs/` are ignored
 local evidence. They must not be committed.
+
+For interactive OpenCode Desktop or DeepSeek runs not launched through the
+harness, write a compatible Codex-pickup directory under
+`.entroping/ai-reviews/issue-<issue-number>-<short-slug>/` with `metadata.json`,
+`result.md`, `tests.txt`, and optional `proposal.diff`, then report:
+
+```bash
+python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json
+```

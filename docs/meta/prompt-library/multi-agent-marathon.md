@@ -57,6 +57,14 @@ For each write worker:
 - give the worker the exact issue-worker prompt,
 - do not route workers through external generated-context tooling; use `rg`,
   context packs, source reads, focused tests, and CI evidence,
+- require OpenCode/DeepSeek workers to write
+  `.entroping/ai-reviews/issue-<issue-number>-<short-slug>/` with
+  `metadata.json`, `result.md`, `tests.txt`, optional `proposal.diff`, and
+  `python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`,
+- reject shortcut compatibility: `exec()`, dynamic source-file execution,
+  import-time code generation, broad `type: ignore`, broad ruff ignores such as
+  `F821` or `F811`, and `mypy ignore_errors` are not substitutes for normal
+  importable modules with explicit dependencies,
 - require focused tests and gates,
 - require a PR with Closes #<issue>.
 - declare whether the worker has Tier A autonomous merge authority.
@@ -65,6 +73,7 @@ For external model workers:
 - use review or patch-proposal mode only,
 - do not let them apply patches directly to main,
 - classify output as verified, stale, duplicate, opinion, or unsafe.
+- require a factory review packet before accepting any patch proposal.
 
 Before merging any Tier B/Tier C PR:
 - inspect git diff,
@@ -102,6 +111,12 @@ Rules:
 - Stop if your change expands beyond the issue.
 - Stop if Tier A work crosses into Tier B or Tier C scope.
 - Run focused tests.
+- Write the Codex-pickup artifact directory when you are an OpenCode/DeepSeek
+  worker.
+- Do not use `exec()`, dynamic source-file execution, import-time code
+  generation, broad `type: ignore`, broad ruff ignores such as `F821` or `F811`,
+  or `mypy ignore_errors`; use normal importable modules with explicit
+  dependencies.
 - Report blockers early.
 - Merge your own PR only if the assignment explicitly grants Tier A autonomous
   merge authority and CI is green; otherwise wait for parent integrator review.

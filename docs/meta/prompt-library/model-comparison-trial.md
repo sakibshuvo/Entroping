@@ -53,6 +53,13 @@ Rules:
   provider-boundary, dependency, release, secret, raw traffic, or audit-evidence scope.
 - Do not paste secrets, provider transcripts, raw traffic, cookies, headers, or
   private data into prompts or committed docs.
+- For OpenCode/DeepSeek trials, write `.entroping/ai-reviews/issue-<issue-number>-<short-slug>/`
+  with `metadata.json`, `result.md`, `tests.txt`, and optional `proposal.diff`;
+  report `python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`.
+- Do not use `exec()`, dynamic source-file execution, import-time code
+  generation, broad `type: ignore`, broad ruff ignores such as `F821` or `F811`,
+  or `mypy ignore_errors`; use normal importable modules with explicit
+  dependencies.
 
 Start:
 git pull --ff-only
@@ -80,6 +87,8 @@ Work:
 7. Record cost/token/context evidence when available, but do not infer missing values.
 8. Record accepted findings, rejected findings, stale findings, and reviewer overrides.
 9. Use `scripts/factory_metrics.py report` to inspect local per-issue model evidence when practical.
+10. Record the artifact directory and factory review packet command when the
+    trial used OpenCode/DeepSeek.
 
 Output:
 - issue number:
@@ -93,6 +102,7 @@ Output:
 - files read:
 - context-pack mode:
 - context-pack manifest:
+- artifact directory:
 - tests/gates:
 - commands run:
 - CI status:
@@ -148,6 +158,9 @@ provider token or cost fields as `unknown` instead of guessing:
   - docs/meta/AGENT_CONTROL_PLANE.md
 - context-pack mode: `implementation`
 - context-pack manifest: `generated`
+- artifact directory: `.entroping/ai-reviews/issue-774-opencode-deepseek-trial/`
+- factory review packet:
+  `python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-774-opencode-deepseek-trial --json`
 - context-pack estimated tokens: `<manifest-estimated-tokens>` from
   `scripts/context_pack.sh --mode implementation --manifest`
 - context-pack bytes: `<manifest-context-bytes>` from
