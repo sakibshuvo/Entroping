@@ -17,6 +17,7 @@ from entroping.core.api_inventory import API_INVENTORY_SCHEMA_VERSION
 from entroping.core.evidence_common import (
     LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES,
     contains_unredacted_evidence_secret,
+    read_local_evidence_artifact_bytes,
     safe_evidence_text,
 )
 from entroping.core.handoff_packet import HANDOFF_SCHEMA_VERSION
@@ -671,14 +672,12 @@ def _resolve_output_path(raw_path: Path, *, root: Path) -> Path:
 
 
 def _read_bounded_bytes(path: Path, *, artifact: str) -> bytes:
-    try:
-        with path.open("rb") as handle:
-            raw_bytes = handle.read(_MAX_SOURCE_BYTES + 1)
-    except OSError as exc:
-        msg = f"Could not read {artifact}: {exc}"
-        raise IntegrationReadinessError(msg) from exc
-    if len(raw_bytes) > _MAX_SOURCE_BYTES:
-        msg = f"{artifact.capitalize()} {path.name} exceeds {_MAX_SOURCE_BYTES} bytes"
+    raw_bytes, load_error = read_local_evidence_artifact_bytes(
+        path,
+        max_bytes=_MAX_SOURCE_BYTES,
+    )
+    if raw_bytes is None:
+        msg = f"Could not read {artifact}: {load_error}"
         raise IntegrationReadinessError(msg)
     return raw_bytes
 

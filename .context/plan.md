@@ -16,15 +16,15 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1121 Report Packet Boundary Guardrails
+## Current Issue Slice: #1127 No-Follow Packet Source Reads
 
-Centralize a representative slice of duplicated report packet output-boundary
-logic by moving Evidence Cloud readiness and integration readiness onto the
-shared `safe_report_output_path` helper. Keep the change narrow: preserve each
-packet schema, output format, module-specific error type, source-read behavior,
-safe write boundary, secret-like output rejection, command surface, and
-local-only execution. Do not introduce a broad packet framework or change
-`entroping run`.
+Centralize duplicated local report packet source-read guardrails by moving
+Evidence Cloud readiness and integration readiness onto one shared bounded
+descriptor reader in `evidence_common`. Keep the change narrow: preserve each
+packet schema, output format, module-specific error type, source states,
+summary shape, safe write boundary, secret-like output rejection, command
+surface, and local-only execution. Do not introduce a broad packet framework or
+change `entroping run`.
 
 ## Current Baseline
 

@@ -3,10 +3,11 @@
 import json
 import os
 from pathlib import Path
-from typing import IO, Any, cast
+from typing import Any, cast
 
 import pytest
 
+import entroping.core.evidence_common as evidence_common
 import entroping.core.integration_readiness as integration_readiness
 from entroping.core.integration_readiness import (
     INTEGRATION_READINESS_SCHEMA_VERSION,
@@ -354,6 +355,44 @@ def test_integration_readiness_marks_symlinked_source_unsafe(tmp_path: Path) -> 
     assert "uses symlinked component" in sources["team_access_control_plan"].summary
 
 
+def test_integration_readiness_marks_symlink_swap_source_invalid(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_ready_sources(tmp_path)
+    source_path = tmp_path / "reports" / "team-access-control-plan.json"
+    outside_path = tmp_path.parent / f"{tmp_path.name}-outside-team-access-control.json"
+    _write_json(
+        outside_path,
+        {
+            "schema_version": "entroping.team-access-control-plan.v1",
+            "summary": {"status": "ready"},
+        },
+    )
+
+    def swap_then_read(path: Path, *, max_bytes: int) -> tuple[bytes | None, str]:
+        if path == source_path and not path.is_symlink():
+            path.unlink()
+            os.symlink(outside_path, path)
+        return evidence_common.read_local_evidence_artifact_bytes(
+            path,
+            max_bytes=max_bytes,
+        )
+
+    monkeypatch.setattr(
+        integration_readiness,
+        "read_local_evidence_artifact_bytes",
+        swap_then_read,
+        raising=False,
+    )
+
+    packet = build_integration_readiness(project_root=tmp_path)
+    sources = {source.id: source for source in packet.sources}
+
+    assert sources["team_access_control_plan"].state == "invalid"
+    assert "symlinked path component" in sources["team_access_control_plan"].summary
+
+
 def test_integration_readiness_marks_oversized_sources_invalid(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -375,20 +414,19 @@ def test_integration_readiness_marks_read_errors_invalid(
 ) -> None:
     _write_ready_sources(tmp_path)
 
-    def fail_open(
-        self: Path,
-        mode: str = "r",
-        buffering: int = -1,
-        encoding: str | None = None,
-        errors: str | None = None,
-        newline: str | None = None,
-    ) -> IO[Any]:
-        if self.name == "team-access-control-plan.json":
-            raise OSError("permission denied")
-        return original_open(self, mode, buffering, encoding, errors, newline)
+    def fail_read(path: Path, *, max_bytes: int) -> tuple[bytes | None, str]:
+        if path.name == "team-access-control-plan.json":
+            return None, "unreadable"
+        return evidence_common.read_local_evidence_artifact_bytes(
+            path,
+            max_bytes=max_bytes,
+        )
 
-    original_open = Path.open
-    monkeypatch.setattr(Path, "open", fail_open)
+    monkeypatch.setattr(
+        integration_readiness,
+        "read_local_evidence_artifact_bytes",
+        fail_read,
+    )
 
     packet = build_integration_readiness(project_root=tmp_path)
     first_source = packet.sources[0]

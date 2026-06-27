@@ -2,6 +2,12 @@
 
 ## 2026-06-26
 
+- Advanced issue #1127's no-follow source-read boundary: Evidence Cloud
+  readiness and integration readiness now share the same bounded local evidence
+  artifact reader for packet sources, preserving source states, compact
+  summaries, schema validation, safe writes, and local-only behavior while
+  rejecting symlinked source reads that appear after path validation.
+
 - Advanced issue #1121's report packet boundary guardrails: Evidence Cloud
   readiness and integration readiness now delegate output path validation to
   the shared `safe_report_output_path` boundary helper while preserving their
