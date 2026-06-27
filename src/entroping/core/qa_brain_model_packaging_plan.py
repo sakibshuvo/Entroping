@@ -451,7 +451,9 @@ def _summary(
     next_actions: tuple[QaBrainModelPackagingPlanNextAction, ...],
 ) -> QaBrainModelPackagingPlanSummary:
     counts = _plan_counts(packaging_plans)
-    blockers_total = sum(len(row.blockers) for row in packaging_plans)
+    blockers_total = len(
+        {blocker for row in packaging_plans for blocker in row.blockers}
+    )
     return QaBrainModelPackagingPlanSummary(
         status=_status(
             counts=counts,

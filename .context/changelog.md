@@ -2,6 +2,11 @@
 
 ## 2026-06-26
 
+- Fixed issue #1148's QA Brain model-packaging blocker summary noise:
+  `summary.blockers_total` now counts unique blocker messages across packaging
+  rows while preserving each row's blocker list and the existing local-only
+  packet shape.
+
 - Fixed issue #1146's QA Brain routing-plan blocker summary noise:
   `summary.blockers_total` now counts unique blocker messages across routing
   rows while preserving each row's blocker list and the existing local-only

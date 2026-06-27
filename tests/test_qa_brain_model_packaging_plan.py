@@ -358,6 +358,46 @@ def test_qa_brain_model_packaging_plan_blocks_inherited_readiness_blockers(
     assert row.blockers == ("Complete prompt-plan metadata before dataset design.",)
 
 
+def test_qa_brain_model_packaging_plan_summary_dedupes_duplicate_blockers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import entroping.core.qa_brain_model_packaging_plan as packaging_plan
+
+    blocker = "Complete prompt-plan metadata before dataset design."
+
+    def fake_readiness(*, project_root: Path) -> QaBrainFineTuneReadinessPacket:
+        _ = project_root
+        return _readiness_packet(
+            (
+                _readiness_row(
+                    "weak_test_detection",
+                    blockers=(blocker,),
+                ),
+                _readiness_row(
+                    "api_drift_reasoning",
+                    blockers=(blocker,),
+                ),
+            ),
+            status="partial",
+        )
+
+    monkeypatch.setattr(
+        packaging_plan,
+        "build_qa_brain_fine_tune_readiness",
+        fake_readiness,
+    )
+
+    packet = build_qa_brain_model_packaging_plan(project_root=tmp_path)
+
+    assert packet.summary.status == "partial"
+    assert packet.summary.blockers_total == 1
+    assert tuple(row.blockers for row in packet.packaging_plans) == (
+        (blocker,),
+        (blocker,),
+    )
+
+
 def test_qa_brain_model_packaging_plan_deduplicates_next_actions(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
