@@ -177,6 +177,11 @@ def _parse_args() -> argparse.Namespace:
         parents=[common],
         help="List completed jobs for Codex review.",
     )
+    subparsers.add_parser(
+        "audit-routing",
+        parents=[common],
+        help="Report Tier A jobs that drift from cheap worker routing defaults.",
+    )
 
     return parser.parse_args()
 
@@ -201,6 +206,10 @@ def _dispatch(args: argparse.Namespace) -> int:
         payload = _collect(job_root)
         _print_payload(payload, json_output=args.json)
         return 0
+    if args.command == "audit-routing":
+        payload = _audit_routing(job_root)
+        _print_payload(payload, json_output=args.json)
+        return 1 if payload["status"] == "violations" else 0
 
     msg = f"unknown command: {args.command}"
     raise AiJobError(msg)
@@ -947,6 +956,98 @@ def _collect(job_root: Path) -> dict[str, object]:
     }
 
 
+def _audit_routing(job_root: Path) -> dict[str, object]:
+    _ensure_queue_dirs(job_root)
+    scanned_jobs = 0
+    violations: list[dict[str, object]] = []
+    for state in QUEUE_STATES:
+        for path in sorted(_state_dir(job_root, state).glob("*.json")):
+            job = _read_job(path)
+            scanned_jobs += 1
+            violation = _tier_a_routing_violation(job, path)
+            if violation is not None:
+                violations.append(violation)
+
+    return {
+        "status": "violations" if violations else "ok",
+        "job_root": str(job_root),
+        "scanned_jobs": scanned_jobs,
+        "violation_count": len(violations),
+        "violations": violations,
+    }
+
+
+def _tier_a_routing_violation(
+    job: dict[str, object],
+    path: Path,
+) -> dict[str, object] | None:
+    if job.get("autonomy_tier") != "tier_a":
+        return None
+
+    engine = _string_value(job.get("engine"), default="opencode")
+    profile = _string_value(job.get("profile"), default="")
+    model = _string_value(job.get("model"), default="")
+    expected_profile, expected_model, suggested_action = _tier_a_expected_routing(engine)
+    if expected_profile is None or expected_model is None:
+        return _routing_violation_payload(
+            job,
+            path,
+            expected_profile="known Tier A engine",
+            expected_model="known Tier A model",
+            suggested_action="inspect the job and requeue it with a supported Tier A worker engine",
+        )
+    if profile == expected_profile and model == expected_model:
+        return None
+    return _routing_violation_payload(
+        job,
+        path,
+        expected_profile=expected_profile,
+        expected_model=expected_model,
+        suggested_action=suggested_action,
+    )
+
+
+def _tier_a_expected_routing(engine: str) -> tuple[str | None, str | None, str]:
+    if engine == "opencode":
+        return (
+            "flash-free",
+            MODEL_PROFILES["flash-free"],
+            "requeue with --autonomy-tier tier-a and no --profile override",
+        )
+    if engine == "deepseek-api":
+        return (
+            "flash",
+            DEEPSEEK_API_MODEL_PROFILES["flash"],
+            "requeue with --engine deepseek-api --autonomy-tier tier-a and no --profile override",
+        )
+    return None, None, "inspect the job and requeue it with a supported Tier A worker engine"
+
+
+def _routing_violation_payload(
+    job: dict[str, object],
+    path: Path,
+    *,
+    expected_profile: str,
+    expected_model: str,
+    suggested_action: str,
+) -> dict[str, object]:
+    return {
+        "job_id": job.get("job_id", path.stem),
+        "job_path": str(path),
+        "queue_status": job.get("queue_status"),
+        "issue": job.get("issue"),
+        "engine": job.get("engine", "opencode"),
+        "profile": job.get("profile"),
+        "model": job.get("model"),
+        "provider_lane": job.get("provider_lane"),
+        "provider_host": job.get("provider_host"),
+        "billing_path": job.get("billing_path"),
+        "expected_profile": expected_profile,
+        "expected_model": expected_model,
+        "suggested_action": suggested_action,
+    }
+
+
 def _completed_jobs_summary(completed_jobs: list[dict[str, object]]) -> dict[str, object]:
     usage_records = [
         usage for job in completed_jobs if (usage := _usage_payload(job.get("usage"))) is not None
@@ -1061,6 +1162,12 @@ def _string_list(value: object) -> list[str]:
     return [item for item in value if isinstance(item, str)]
 
 
+def _string_value(value: object, *, default: str) -> str:
+    if isinstance(value, str) and value:
+        return value
+    return default
+
+
 def _print_payload(payload: dict[str, object], *, json_output: bool) -> None:
     if json_output:
         print(json.dumps(payload, indent=2, sort_keys=True))
@@ -1081,6 +1188,15 @@ def _print_payload(payload: dict[str, object], *, json_output: bool) -> None:
             for job in completed_jobs:
                 if isinstance(job, dict):
                     print(f"{job.get('job_id')}: {job.get('artifact_dir')}")
+    if "violations" in payload:
+        violations = payload["violations"]
+        if isinstance(violations, list):
+            for violation in violations:
+                if isinstance(violation, dict):
+                    print(
+                        f"{violation.get('job_id')}: {violation.get('model')} "
+                        f"-> {violation.get('suggested_action')}"
+                    )
 
 
 if __name__ == "__main__":

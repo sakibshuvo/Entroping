@@ -72,6 +72,19 @@ directories for Codex review. The queue is an artifact conveyor, not an
 authority layer: it never applies patches, commits, pushes, merges, or changes
 release status.
 
+Use the artifact-first worker contract for routine cheap/open-model work. Do
+not run OpenCode interactively for routine cheap-worker work when a repo-owned
+worker harness can capture bounded artifacts. Before dispatching queued cheap
+workers, run `scripts/ai_jobs.py audit-routing --json` to surface stale Tier A
+jobs that drifted into expensive routing. After a worker finishes, use
+`scripts/factory_review_packet.py --job-id <job-id> --json` or
+`scripts/factory_review_packet.py --artifact-dir <artifact-dir> --json` to
+build a compact review packet. Codex should review only the job metadata,
+result summary, diff stat, git diff, changed files, and test output first. Do
+not read raw stdout, stderr, provider responses, or full transcripts unless the
+compact evidence is ambiguous. The Codex decision vocabulary is exactly:
+`ACCEPT`, `REQUEST_SMALL_FIX`, `REWRITE_WITH_CODEX`, or `ESCALATE_SCOPE`.
+
 ## Model Provider Lane Taxonomy
 
 Use durable lane names when planning, running, or recording multi-model factory

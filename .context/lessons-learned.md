@@ -1,5 +1,12 @@
 # Entroping Lessons Learned
 
+## 2026-06-27
+
+- Artifact handoff beats transcript supervision for cheap workers. Queue
+  OpenCode/DeepSeek work through repo-owned harnesses, audit Tier A routing
+  before dispatch, and review compact job/result/diff/test packets before
+  reading raw stdout, stderr, provider responses, or full transcripts.
+
 ## 2026-06-20
 
 - When an optional runtime dependency caps a vulnerable transitive package,
