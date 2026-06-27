@@ -95,6 +95,34 @@ Setup items to verify locally, without committing local config:
   `scripts/ai_jobs.py run-next --record-factory-metrics` for queued batch jobs.
   These metrics are local workflow evidence, not release proof.
 
+## Artifact-First Worker Contract
+
+Do not run OpenCode interactively for routine cheap-worker work. Prefer the
+repo-owned handoff surfaces so the worker produces bounded artifacts and Codex
+spends tokens on review, not transcripts:
+
+```bash
+uv run python scripts/ai_jobs.py audit-routing --json
+uv run python scripts/ai_jobs.py submit --autonomy-tier tier-a --mode patch --issue <issue> --file <path>
+uv run python scripts/ai_jobs.py run-next --record-factory-metrics --json
+uv run python scripts/factory_review_packet.py --job-id <job-id> --json
+```
+
+Worker packet rules:
+
+- Start from `scripts/context_pack.sh --mode implementation --manifest`.
+- Load only the scoped files needed for the issue.
+- Write concise result artifacts, proposal diffs, and test output references.
+- Stop and escalate on Tier B/Tier C, security, runtime, provider, release,
+  raw traffic, audit-evidence, or forbidden-file scope.
+- Review only the job metadata, result summary, diff stat, git diff, changed
+  files, and test output before reading any larger artifact.
+- Do not read raw stdout, stderr, provider responses, or full transcripts
+  unless the compact evidence is ambiguous.
+
+Codex review decisions must use exactly one of `ACCEPT`,
+`REQUEST_SMALL_FIX`, `REWRITE_WITH_CODEX`, or `ESCALATE_SCOPE`.
+
 ## Independent Session Preflight
 
 Before an OpenCode Desktop or OpenCode CLI session edits files, run the

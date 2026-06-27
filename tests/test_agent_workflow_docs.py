@@ -27,6 +27,45 @@ def test_agent_control_plane_documents_cross_agent_guardrails() -> None:
     assert "No helper agent is a source of truth" in doc
 
 
+def test_agent_control_plane_documents_artifact_first_worker_review() -> None:
+    control_plane = (
+        REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md"
+    ).read_text(encoding="utf-8")
+    handoff = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-desktop-handoff.md"
+    ).read_text(encoding="utf-8")
+    review_request = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-codex-review-request.md"
+    ).read_text(encoding="utf-8")
+    combined = " ".join(f"{control_plane}\n{handoff}\n{review_request}".split())
+
+    required_terms = [
+        "artifact-first worker contract",
+        "Do not run OpenCode interactively for routine cheap-worker work",
+        "scripts/ai_jobs.py audit-routing",
+        "scripts/factory_review_packet.py",
+        "review only the job metadata, result summary, diff stat, git diff, "
+        "changed files, and test output",
+        "Do not read raw stdout, stderr, provider responses, or full "
+        "transcripts unless the compact evidence is ambiguous",
+        "ACCEPT",
+        "REQUEST_SMALL_FIX",
+        "REWRITE_WITH_CODEX",
+        "ESCALATE_SCOPE",
+    ]
+
+    for term in required_terms:
+        assert term in combined
+
+
 def test_agent_toolchain_policy_is_linked_from_readiness_and_agent_rules() -> None:
     agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
     control_plane = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
@@ -1963,6 +2002,64 @@ def test_factory_role_registry_and_metrics_ledger_are_portable_guardrails() -> N
 
     for term in required_terms:
         assert term in combined
+
+
+def test_agent_control_plane_inventories_factory_template_primitives() -> None:
+    control_plane = (
+        REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(control_plane.split())
+
+    required_terms = [
+        "## Factory Template Extraction Inventory",
+        "Workflow primitives to evaluate for extraction",
+        "candidates for extraction after proof",
+        "issue templates",
+        "`scripts/start_issue.sh` and `scripts/finish_issue.sh`",
+        "`scripts/check.sh`, `scripts/feature_gate.sh`, `scripts/regression.sh`, "
+        "and `scripts/audit_quality.sh`",
+        "`scripts/context_pack.sh --manifest`",
+        "`scripts/factory_metrics.py readiness`",
+        "unknowns stay unknown",
+        "Entroping-specific product contracts",
+        "QAnstitution governance",
+        "deterministic Hurl execution",
+        "`entroping run` remains deterministic and LLM-free",
+        "Blocked before generalizing",
+        "Unsafe to generalize",
+        "raw provider transcripts",
+        "raw traffic",
+        "Tier B/Tier C merge authority",
+        "model summaries as source of truth",
+        "future template scaffold",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+    section = control_plane.split("## Factory Template Extraction Inventory", maxsplit=1)[
+        1
+    ].split("## Autonomous OpenCode Shipping Lanes", maxsplit=1)[0]
+    expected_subsections = [
+        "### Workflow primitives to evaluate for extraction",
+        "### Entroping-specific product contracts",
+        "### Blocked before generalizing",
+        "### Unsafe to generalize",
+    ]
+    positions = [section.index(subsection) for subsection in expected_subsections]
+    assert positions == sorted(positions)
+
+    extraction_candidates = section.split(
+        "### Workflow primitives to evaluate for extraction", maxsplit=1
+    )[1].split("### Entroping-specific product contracts", maxsplit=1)[0]
+    normalized_extraction_candidates = " ".join(extraction_candidates.split())
+    for term in [
+        "issue templates",
+        "`scripts/start_issue.sh` and `scripts/finish_issue.sh`",
+        "`scripts/context_pack.sh --manifest`",
+        "`scripts/factory_metrics.py readiness`",
+    ]:
+        assert term in normalized_extraction_candidates
 
 
 def test_prompt_library_contains_autonomous_tier_a_worker_prompt() -> None:

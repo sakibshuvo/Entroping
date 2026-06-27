@@ -20,6 +20,7 @@ from entroping.models.traffic import (
 )
 
 DEFAULT_MAX_BODY_CHARS = 4096
+_BODY_REDACTION_SCAN_EXTRA_CHARS = 512
 _MULTIPART_BODY_SUMMARY_TEMPLATE = "[REDACTED {content_type} body]"
 _OPAQUE_HEX_VALUE_RE = re.compile(r"(?<![A-Fa-f0-9])[A-Fa-f0-9]{48,}(?![A-Fa-f0-9])")
 _REDACTED_PATH_SEGMENT = quote(REDACTED, safe="")
@@ -134,17 +135,24 @@ def _redact_body(
             redaction_confidence="low",
         ), "low"
 
+    text_for_redaction, input_truncated = _bounded_body_text(
+        body.text,
+        max_body_chars=max_body_chars,
+    )
     redacted_text = (
-        _redact_json_body(body.text)
+        _redact_json_body(text_for_redaction)
         if _is_json_content_type(content_type)
-        else _redact_plain_text_body(body.text)
+        else _redact_plain_text_body(text_for_redaction)
     )
     redaction_confidence: RedactionConfidence = "low"
     if _is_json_content_type(content_type):
-        redaction_confidence = _redact_json_body_confidence(body.text)
+        redaction_confidence = _redact_json_body_confidence(text_for_redaction)
 
     truncated = (
-        body.truncated or len(body.text) > max_body_chars or len(redacted_text) > max_body_chars
+        body.truncated
+        or input_truncated
+        or len(body.text) > max_body_chars
+        or len(redacted_text) > max_body_chars
     )
     if len(redacted_text) > max_body_chars:
         redacted_text = redacted_text[:max_body_chars]
@@ -156,6 +164,13 @@ def _redact_body(
         redaction_confidence=redaction_confidence,
         truncated=truncated,
     ), redaction_confidence
+
+
+def _bounded_body_text(text: str, *, max_body_chars: int) -> tuple[str, bool]:
+    scan_limit = max_body_chars + _BODY_REDACTION_SCAN_EXTRA_CHARS
+    if len(text) <= scan_limit:
+        return text, False
+    return text[:scan_limit], True
 
 
 def _redact_json_body(text: str) -> str:

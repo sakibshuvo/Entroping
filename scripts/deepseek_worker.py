@@ -15,6 +15,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from datetime import timezone as datetime_timezone
+from ipaddress import ip_address
 from pathlib import Path
 from typing import Literal, cast
 from urllib import error, request
@@ -200,6 +201,11 @@ def _parse_args() -> DirectWorkerConfig:
         help="DeepSeek OpenAI-compatible base URL. Default: https://api.deepseek.com",
     )
     parser.add_argument(
+        "--allow-insecure-local-base-url",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
         "--api-key-env",
         default=DEFAULT_API_KEY_ENV,
         help="Environment variable containing the DeepSeek API key.",
@@ -281,7 +287,11 @@ def _parse_args() -> DirectWorkerConfig:
         raise DirectWorkerInputError(msg)
 
     api_key_env = _validate_env_name(str(args.api_key_env))
-    base_url = _validate_base_url(str(args.base_url))
+    base_url = _validate_base_url(
+        str(args.base_url),
+        allow_insecure_local=bool(args.allow_insecure_local_base_url),
+        api_key_env=api_key_env,
+    )
     mode: Mode = args.mode
     thinking: ThinkingMode = args.thinking
     reasoning_effort: ReasoningEffort = args.reasoning_effort
@@ -396,7 +406,12 @@ def _validate_env_name(raw_name: str) -> str:
     return name
 
 
-def _validate_base_url(raw_url: str) -> str:
+def _validate_base_url(
+    raw_url: str,
+    *,
+    allow_insecure_local: bool = False,
+    api_key_env: str = DEFAULT_API_KEY_ENV,
+) -> str:
     url = raw_url.strip().rstrip("/")
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
@@ -405,7 +420,31 @@ def _validate_base_url(raw_url: str) -> str:
     if parsed.username or parsed.password or parsed.query or parsed.fragment:
         msg = "--base-url must not include credentials, query, or fragment"
         raise DirectWorkerInputError(msg)
+    if parsed.scheme == "http":
+        if not allow_insecure_local:
+            msg = "--base-url must use https"
+            raise DirectWorkerInputError(msg)
+        if not _is_loopback_host(parsed.hostname):
+            msg = "--allow-insecure-local-base-url only permits loopback http hosts"
+            raise DirectWorkerInputError(msg)
+        if not api_key_env.startswith("ENTROPING_TEST_"):
+            msg = (
+                "--allow-insecure-local-base-url requires an ENTROPING_TEST_ "
+                "api key env var"
+            )
+            raise DirectWorkerInputError(msg)
     return url
+
+
+def _is_loopback_host(hostname: str | None) -> bool:
+    if hostname is None:
+        return False
+    if hostname.lower() == "localhost":
+        return True
+    try:
+        return ip_address(hostname).is_loopback
+    except ValueError:
+        return False
 
 
 def _read_api_key(env_name: str) -> str:
