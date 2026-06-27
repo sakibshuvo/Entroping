@@ -2,6 +2,11 @@
 
 ## 2026-06-26
 
+- Fixed issue #1157's QA Brain fine-tune readiness blocker summary noise:
+  `summary.blockers_total` now counts unique blocker messages across readiness
+  rows while preserving each row's blocker list and the existing local-only
+  packet shape.
+
 - Fixed issue #1150's QA Brain model-packaging next-action priority drift:
   duplicate case IDs still emit one action row, but the retained row now uses
   the highest priority seen while preserving first-seen case order and the

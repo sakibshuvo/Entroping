@@ -488,7 +488,9 @@ def _summary(
     next_actions: tuple[QaBrainFineTuneReadinessNextAction, ...],
 ) -> QaBrainFineTuneReadinessSummary:
     counts = _readiness_counts(readiness_rows)
-    blockers_total = sum(len(row.blockers) for row in readiness_rows)
+    blockers_total = len(
+        {blocker for row in readiness_rows for blocker in row.blockers}
+    )
     return QaBrainFineTuneReadinessSummary(
         status=_status(
             counts=counts,
