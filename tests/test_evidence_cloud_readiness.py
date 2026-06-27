@@ -195,6 +195,22 @@ def test_evidence_cloud_readiness_markdown_is_escaped_and_value_free(
     assert "<script>" not in markdown
 
 
+def test_evidence_cloud_readiness_markdown_preserves_backslashes(
+    tmp_path: Path,
+) -> None:
+    _write_ready_sources(tmp_path)
+    packet = build_evidence_cloud_readiness(project_root=tmp_path)
+    source = packet.sources[0].model_copy(
+        update={"path": r"reports\team|evidence-readiness.json"}
+    )
+    packet = packet.model_copy(update={"sources": (source, *packet.sources[1:])})
+
+    markdown = render_evidence_cloud_readiness_markdown(packet)
+
+    assert "reports&#92;team\\|evidence-readiness.json" in markdown
+    assert "&amp;#92;" not in markdown
+
+
 def test_evidence_cloud_readiness_rejects_unsafe_output_path(tmp_path: Path) -> None:
     with pytest.raises(EvidenceCloudReadinessError, match="must not be written"):
         run_evidence_cloud_readiness_report(
