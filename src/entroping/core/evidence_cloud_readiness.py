@@ -962,7 +962,10 @@ def _summary(
     upload_candidates: tuple[EvidenceCloudUploadCandidate, ...],
     next_actions: tuple[EvidenceCloudNextAction, ...],
 ) -> EvidenceCloudSummary:
-    blockers_total = len({blocker for area in areas for blocker in area.blockers})
+    blockers_total = len(
+        {blocker for area in areas for blocker in area.blockers}
+        | {blocker for candidate in upload_candidates for blocker in candidate.blockers}
+    )
     return EvidenceCloudSummary(
         status=_status(sources=sources, areas=areas, upload_candidates=upload_candidates),
         sources_total=len(sources),

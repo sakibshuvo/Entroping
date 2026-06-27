@@ -618,6 +618,45 @@ def test_evidence_cloud_summary_dedupes_duplicate_area_blockers() -> None:
     assert areas[1].blockers == ("Shared blocker.",)
 
 
+def test_evidence_cloud_summary_counts_upload_candidate_blockers_once() -> None:
+    areas = (
+        readiness.EvidenceCloudReadinessArea(
+            id="team_upload_boundary",
+            label="Team upload boundary",
+            status="blocked",
+            source_ids=("team_evidence_readiness",),
+            boundary="local only",
+            upload_candidate=True,
+            blockers=("Shared blocker.",),
+            next_action="Repair local evidence.",
+        ),
+    )
+    upload_candidates = (
+        readiness.EvidenceCloudUploadCandidate(
+            id="team_evidence_bundle",
+            label="Team evidence bundle",
+            state="blocked",
+            source_ids=("team_evidence_readiness",),
+            description="Local metadata.",
+            blockers=("Shared blocker.", "Upload-only blocker."),
+        ),
+    )
+
+    summary = readiness._summary(
+        sources=(),
+        areas=areas,
+        upload_candidates=upload_candidates,
+        next_actions=(),
+    )
+
+    assert summary.blockers_total == 2
+    assert areas[0].blockers == ("Shared blocker.",)
+    assert upload_candidates[0].blockers == (
+        "Shared blocker.",
+        "Upload-only blocker.",
+    )
+
+
 def test_evidence_cloud_readiness_packet_schema_rejects_extra_fields() -> None:
     payload = {
         "schema_version": EVIDENCE_CLOUD_READINESS_SCHEMA_VERSION,
