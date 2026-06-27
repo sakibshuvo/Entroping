@@ -84,7 +84,7 @@ def test_ci_workflow_enforces_security_and_quality_gates() -> None:
     checkout_step = next(
         step
         for step in checks["steps"]
-        if step.get("uses") == "actions/checkout@v6"
+        if step.get("uses") == "actions/checkout@v7"
     )
 
     assert checkout_step["with"]["fetch-depth"] == 0
@@ -129,7 +129,7 @@ def test_ci_workflow_runs_live_demo_smoke_with_pinned_hurl() -> None:
     assert "$archive.sha256" not in run_blocks
     assert "scripts/live_demo_smoke.sh" in run_blocks
     workflow_text = _WORKFLOW_PATH.read_text(encoding="utf-8")
-    assert "actions/checkout@v6" in workflow_text
+    assert "actions/checkout@v7" in workflow_text
     assert "actions/setup-python@v6" in workflow_text
     assert "astral-sh/setup-uv@v8.2.0" in workflow_text
     assert "actions/upload-artifact@v7" in workflow_text
@@ -218,7 +218,7 @@ def test_ci_workflow_runs_strict_public_docs_build() -> None:
     assert docs_site["runs-on"] == "ubuntu-latest"
     assert docs_site["needs"] == "checks"
     assert "uvx --with 'mkdocs-material==9.*' mkdocs build --strict" in run_blocks
-    assert any(step.get("uses") == "actions/checkout@v6" for step in steps)
+    assert any(step.get("uses") == "actions/checkout@v7" for step in steps)
     assert any(step.get("uses") == "actions/setup-python@v6" for step in steps)
     assert any(step.get("uses") == "astral-sh/setup-uv@v8.2.0" for step in steps)
 
@@ -283,7 +283,7 @@ def test_scorecard_workflow_is_non_blocking_and_least_privilege() -> None:
 
     steps = scorecard["steps"]
     assert any(
-        step.get("uses") == "actions/checkout@v6"
+        step.get("uses") == "actions/checkout@v7"
         and step.get("with", {}).get("persist-credentials") is False
         for step in steps
     )
@@ -319,7 +319,7 @@ def test_performance_smoke_workflow_is_scheduled_manual_and_non_blocking() -> No
     assert "uv sync --dev" in run_blocks
     assert "uv run python scripts/performance_smoke.py" in run_blocks
     assert any(
-        step.get("uses") == "actions/checkout@v6"
+        step.get("uses") == "actions/checkout@v7"
         and step.get("with", {}).get("persist-credentials") is False
         for step in steps
     )
