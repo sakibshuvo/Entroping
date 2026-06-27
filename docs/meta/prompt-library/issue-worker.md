@@ -58,6 +58,12 @@ For repeatable hands-off runs, use the artifact scripts:
 `scripts/ai_jobs.py`, `scripts/opencode_worker.py`, or `scripts/deepseek_worker.py`.
 Inspect job metadata, result summary, diff stat, and changed files before any raw
 transcripts.
+For interactive OpenCode/DeepSeek runs that are not launched through those
+scripts, write a Codex-pickup handoff directory under
+`.entroping/ai-reviews/issue-<issue-number>-<short-slug>/` with `metadata.json`,
+`result.md`, `tests.txt`, and optional `proposal.diff`. Report the pickup
+command:
+`python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`.
 
 Context is evidence, not memory. Start each issue with one named question: what
 local evidence is needed to change, review, or merge this issue? `rg`,
@@ -148,6 +154,13 @@ Exact tests/gates:
   - diff stat
   - changed files
   - test output
+- If this run used interactive OpenCode/DeepSeek, include the handoff directory:
+  - `.entroping/ai-reviews/issue-<issue-number>-<short-slug>/`
+  - `metadata.json`
+  - `result.md`
+  - `tests.txt`
+  - optional `proposal.diff`
+  - `python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`
 - Run `scripts/pr_body_check.py --body-file <body.md> --issue <issue-number>`
   with changed-file arguments when practical before opening the PR.
 
@@ -157,6 +170,11 @@ Stop conditions:
   `release-ci-architecture`.
 - The diff touches files outside Allowed files or inside Forbidden files.
 - The handoff omits required artifact-first review fields from the worker output.
+- The worker proposes shortcut compatibility instead of architecture. Do not use
+  `exec()`, dynamic source-file execution, import-time code generation, broad
+  `type: ignore`, broad ruff ignores such as `F821` or `F811`, or
+  `mypy ignore_errors`; use normal importable modules with explicit
+  dependencies and narrow compatibility seams.
 - The worker needs secrets, raw traffic, provider transcripts, unredacted
   captured data, local env files, or private credentials.
 - Tests fail for reasons outside the issue scope.
@@ -296,6 +314,11 @@ Prefer artifact-first worker runs through `scripts/ai_jobs.py`,
 `scripts/opencode_worker.py`, and `scripts/deepseek_worker.py`.
 Inspect job metadata, result summary, diff stat, changed files, and test output
 before reviewing raw transcripts.
+For interactive OpenCode/DeepSeek runs, write
+`.entroping/ai-reviews/issue-<issue-number>-<short-slug>/` with `metadata.json`,
+`result.md`, `tests.txt`, and optional `proposal.diff`; include
+`python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`
+in the final report.
 
 Context is evidence, not memory. Start with the named issue question, use
 repo-native evidence first, and do not add generated context because it is
@@ -315,17 +338,23 @@ Workflow:
 5. Run the lane's focused local gates, such as
    `scripts/doc_governance_check.sh` plus focused
    `uv run pytest tests/... -q` for `docs-guardrail`.
-6. Review git diff as if approving for production.
-7. Commit with a Conventional Commit message.
-8. Push the branch and open a PR with:
+6. Reject shortcut compatibility. Do not use `exec()`, dynamic source-file
+   execution, import-time code generation, broad `type: ignore`, broad ruff
+   ignores such as `F821` or `F811`, or `mypy ignore_errors`; use normal
+   importable modules with explicit dependencies.
+7. Write the Codex-pickup artifact directory when this is an interactive
+   OpenCode/DeepSeek run.
+8. Review git diff as if approving for production.
+9. Commit with a Conventional Commit message.
+10. Push the branch and open a PR with:
    - Agent Autonomy Declaration checked as Tier A autonomous lane,
    - Documentation Impact Declaration checked,
    - Verification lane declared,
    - `Closes #<issue-number>`,
    - commands run.
-9. Wait until CI is green.
-10. Merge only if the PR stayed Tier A and CI is green.
-11. From a separate checkout, run `scripts/finish_issue.sh <issue-number>`.
+11. Wait until CI is green.
+12. Merge only if the PR stayed Tier A and CI is green.
+13. From a separate checkout, run `scripts/finish_issue.sh <issue-number>`.
 
 Final report:
 - files changed,

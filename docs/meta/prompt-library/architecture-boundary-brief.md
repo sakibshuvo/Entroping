@@ -64,6 +64,10 @@ Issue:
 - Do not mutate source `.hurl` files during run-time gate injection.
 - Treat paths, globs, YAML, Hurl metadata, captured traffic, and model output as
   untrusted boundary inputs.
+- Refactors and package splits must produce normal importable modules with
+  explicit dependencies. Do not use `exec()`, dynamic source-file execution,
+  import-time code generation, broad `type: ignore`, broad ruff ignores such as
+  `F821` or `F811`, or `mypy ignore_errors` as a compatibility strategy.
 
 ## Provider And Runtime Constraints
 
@@ -115,4 +119,7 @@ Stop and report before editing or merging if:
   diff.
 - You find generated local state such as `.entroping/`, generated context
   output, reports, or cache files in the diff.
+- A compatibility plan depends on `exec()`, source loading, import-time code
+  generation, broad lint/type suppressions, or hidden global namespaces instead
+  of explicit module APIs.
 ```
