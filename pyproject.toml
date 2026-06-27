@@ -65,6 +65,11 @@ override-dependencies = [
 [tool.ruff.lint]
 select = ["B", "E", "F", "I", "SIM", "UP"]
 
+[tool.ruff.lint.per-file-ignores]
+# Report submodule files are exec'd into __init__.py's namespace
+# and do not carry their own core/bridge imports.
+"src/entroping/cli/commands/report/_*.py" = ["E402", "F401", "F811", "F821", "I001"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
@@ -82,3 +87,12 @@ python_version = "3.12"
 strict = true
 disallow_untyped_decorators = false
 warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = [
+    "entroping.cli.commands.report._launch",
+    "entroping.cli.commands.report._stable",
+    "entroping.cli.commands.report._maintainer",
+    "entroping.cli.commands.report._experimental",
+]
+ignore_errors = true

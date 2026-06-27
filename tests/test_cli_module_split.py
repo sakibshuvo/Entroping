@@ -44,5 +44,28 @@ def test_focused_cli_command_modules_exist() -> None:
         "config.py",
         "execution.py",
         "project.py",
-        "report.py",
     }
+
+
+def test_report_command_package_exists() -> None:
+    report_root = REPO_ROOT / "src" / "entroping" / "cli" / "commands" / "report"
+
+    assert (report_root / "__init__.py").exists()
+    assert {path.name for path in report_root.glob("*.py")} >= {
+        "__init__.py",
+        "_app.py",
+        "_panels.py",
+        "_helpers.py",
+        "_launch.py",
+        "_stable.py",
+        "_maintainer.py",
+        "_experimental.py",
+    }
+
+
+def test_report_package_re_exports_app() -> None:
+    import typer
+
+    from entroping.cli.commands import report_app
+
+    assert isinstance(report_app, typer.Typer)
