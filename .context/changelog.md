@@ -2,6 +2,11 @@
 
 ## 2026-06-26
 
+- Fixed issue #1150's QA Brain model-packaging next-action priority drift:
+  duplicate case IDs still emit one action row, but the retained row now uses
+  the highest priority seen while preserving first-seen case order and the
+  existing local-only packet shape.
+
 - Fixed issue #1149's QA Brain model-packaging ready-count drift:
   summary ready, missing, and attention counts now derive from
   `packaging_stage`, so inherited ready rows with blockers are counted as
