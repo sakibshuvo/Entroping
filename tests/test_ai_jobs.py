@@ -1162,6 +1162,7 @@ def test_ai_jobs_deepseek_worker_command_omits_reasoning_effort_by_default(
         artifact_root=tmp_path / "ai-reviews",
         deepseek_base_url="https://api.deepseek.com",
         deepseek_api_key_env="DEEPSEEK_API_KEY",
+        allow_insecure_local_deepseek_base_url=False,
         deepseek_thinking="disabled",
         deepseek_reasoning_effort="high",
         worker_dry_run=True,
@@ -1184,6 +1185,7 @@ def test_ai_jobs_deepseek_worker_command_omits_reasoning_effort_by_default(
     thinking_index = captured_command.index("--thinking") + 1
     assert captured_command[thinking_index] == "disabled"
     assert "--reasoning-effort" not in captured_command
+    assert "--allow-insecure-local-base-url" not in captured_command
 
 
 def test_ai_jobs_run_next_preserves_deepseek_usage_for_budget_review(
@@ -1222,6 +1224,7 @@ def test_ai_jobs_run_next_preserves_deepseek_usage_for_budget_review(
             str(artifact_root),
             "--deepseek-base-url",
             base_url,
+            "--allow-insecure-local-deepseek-base-url",
             "--deepseek-api-key-env",
             "ENTROPING_TEST_DEEPSEEK_KEY",
             "--json",
@@ -1305,6 +1308,7 @@ def test_ai_jobs_run_next_deepseek_thinking_enabled_is_explicit_opt_in(
             str(artifact_root),
             "--deepseek-base-url",
             base_url,
+            "--allow-insecure-local-deepseek-base-url",
             "--deepseek-api-key-env",
             "ENTROPING_TEST_DEEPSEEK_KEY",
             "--deepseek-thinking",

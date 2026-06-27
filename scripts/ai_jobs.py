@@ -137,6 +137,11 @@ def _parse_args() -> argparse.Namespace:
         help="Env var containing the direct DeepSeek API key.",
     )
     run_next.add_argument(
+        "--allow-insecure-local-deepseek-base-url",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
+    run_next.add_argument(
         "--deepseek-thinking",
         choices=("enabled", "disabled"),
         default="disabled",
@@ -853,6 +858,8 @@ def _run_deepseek_worker(
         str(args.deepseek_thinking),
         "--json",
     ]
+    if getattr(args, "allow_insecure_local_deepseek_base_url", False):
+        command.append("--allow-insecure-local-base-url")
     if args.deepseek_thinking == "enabled":
         command.extend(["--reasoning-effort", str(args.deepseek_reasoning_effort)])
     for scoped_file in _string_list(job.get("files")):
