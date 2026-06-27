@@ -454,9 +454,53 @@ def test_qa_brain_fine_tune_readiness_deduplicates_next_actions(
     packet = build_qa_brain_fine_tune_readiness(project_root=tmp_path)
 
     assert len(packet.readiness_rows) == 2
+    assert len(packet.next_actions) == 1
     assert tuple(action.case_ids for action in packet.next_actions) == (
         ("weak_test_detection",),
     )
+    assert packet.next_actions[0].priority == "high"
+
+
+def test_qa_brain_fine_tune_readiness_preserves_highest_next_action_priority(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import entroping.core.qa_brain_fine_tune_readiness as fine_tune_readiness
+
+    def fake_prompt_plan(*, project_root: Path) -> QaBrainPromptPlanPacket:
+        _ = project_root
+        return _prompt_packet(
+            (
+                _prompt_row(
+                    "weak_test_detection",
+                    readiness="attention",
+                    source_ids=("test-quality-json",),
+                    source_paths=("reports/test-quality.json",),
+                ),
+                _prompt_row(
+                    "weak_test_detection",
+                    readiness="missing",
+                    source_ids=(),
+                    source_paths=(),
+                ),
+            ),
+            status="partial",
+        )
+
+    monkeypatch.setattr(
+        fine_tune_readiness,
+        "build_qa_brain_prompt_plan",
+        fake_prompt_plan,
+    )
+
+    packet = build_qa_brain_fine_tune_readiness(project_root=tmp_path)
+
+    assert len(packet.readiness_rows) == 2
+    assert len(packet.next_actions) == 1
+    assert tuple(action.case_ids for action in packet.next_actions) == (
+        ("weak_test_detection",),
+    )
+    assert packet.next_actions[0].priority == "high"
 
 
 def test_qa_brain_fine_tune_readiness_rejects_unsupported_output(

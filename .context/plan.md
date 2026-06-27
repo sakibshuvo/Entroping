@@ -16,16 +16,18 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1157 QA Brain Fine-Tune Readiness Blocker Summary
+## Current Issue Slice: #1158 QA Brain Fine-Tune Readiness Action Priority
 
-Fix QA Brain fine-tune readiness summary aggregation so `summary.blockers_total`
-counts unique blocker messages across readiness rows. Keep the change narrow:
-preserve row-level blocker lists, readiness counts, packet schema,
-CLI/JSON/Markdown shape, local-only behavior, value-free rendering, and
-secret-like output rejection. Do not change `entroping run`, Hurl execution,
-provider/model boundaries, traffic parsing, fine-tuning/training behavior,
-LiteLLM configuration, hosted upload, ticket/chat/PR mutation, or report schema
-fields.
+Fix QA Brain fine-tune readiness `_next_actions` deduplication so duplicate case
+rows preserve the highest priority action. When prompt-plan evidence produces
+multiple readiness rows for the same eval case with different readiness states
+(e.g. "missing" then "attention"), keep only one next action per case and
+retain the highest priority ("high" > "medium" > "low"). Keep the change narrow:
+preserve first-seen case order, existing packet schema, CLI/JSON/Markdown
+shape, local-only behavior, value-free rendering, and secret-like output
+rejection. Do not change `entroping run`, Hurl execution, provider/model
+boundaries, traffic parsing, fine-tuning/training behavior, LiteLLM
+configuration, hosted upload, ticket/chat/PR mutation, or report schema fields.
 
 ## Current Baseline
 
