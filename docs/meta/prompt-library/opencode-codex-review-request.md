@@ -67,18 +67,27 @@ Review against:
 - issue body and comments if available
 - changed source, tests, docs, scripts, and prompts
 
+Artifact-first review protocol (before raw transcript output):
+- Review worker job metadata.
+- Review result summary.
+- Review `git diff --stat`.
+- Review changed files list.
+- Review test output summary.
+- Inspect raw transcripts only if any of the above is missing or ambiguous.
+
 Check:
 1. Is the diff inside the issue scope?
 2. Did it touch forbidden Tier B or Tier C surfaces?
-3. Are tests meaningful for the changed behavior?
-4. Are docs and governance updates correct if docs changed?
-5. Are there secrets, local artifacts, provider transcripts, .entroping, .opencode, or .codex state?
-6. Is QAnstitution branding preserved?
-7. Is deterministic Hurl execution preserved?
-8. Does entroping run remain LLM-free?
-9. Are provider and LiteLLM boundaries preserved?
-10. Is the planned PR body evidence sufficient: Closes #<issue>, commands run, Documentation Impact Declaration, Agent Autonomy Declaration when relevant, and provider lane evidence?
-11. Is this safe to merge, or does it need author action?
+3. Does the handoff include job metadata, result summary, diff stat, changed files, and test output?
+4. Are tests meaningful for the changed behavior?
+5. Are docs and governance updates correct if docs changed?
+6. Are there secrets, local artifacts, provider transcripts, .entroping, .opencode, or .codex state?
+7. Is QAnstitution branding preserved?
+8. Is deterministic Hurl execution preserved?
+9. Does entroping run remain LLM-free?
+10. Are provider and LiteLLM boundaries preserved?
+11. Is the planned PR body evidence sufficient: Closes #<issue>, commands run, Documentation Impact Declaration, Agent Autonomy Declaration when relevant, and provider lane evidence?
+12. Is this safe to merge, or does it need author action?
 
 Return:
 - recommendation: merge | do not merge | needs author action,
@@ -134,16 +143,17 @@ rerun with write permissions.
 Review:
 1. Confirm OpenCode readiness preflight passed or explain warnings.
 2. Confirm the PR body names provider lane, provider host, billing path, concrete model id when known, role, autonomy tier, and merge authority.
-3. Confirm `Closes #<issue-number>` is present.
-4. Confirm Documentation Impact Declaration is checked and accurate.
-5. Confirm Agent Autonomy Declaration is present for any autonomous claim.
-6. Confirm the diff touches only declared allowed files.
-7. Confirm no secrets, local env files, provider transcripts, .entroping artifacts, reports, .DS_Store, `.opencode` state, `.codex` state, or generated local state are tracked.
-8. Confirm tests match the changed behavior and any behavior change has meaningful regression coverage.
-9. Confirm architecture, QAnstitution branding, deterministic Hurl execution, and provider boundaries were not weakened.
-10. Confirm Tier B and Tier C work requires Codex or human review before merge.
-11. Confirm CI is green before any merge recommendation.
-12. Recommend merge only if the autonomy tier permits it, local evidence is adequate, and GitHub CI is green.
+3. Confirm artifact-first handoff evidence is complete: job metadata, result summary, diff stat, changed files, and test output.
+4. Confirm `Closes #<issue-number>` is present.
+5. Confirm Documentation Impact Declaration is checked and accurate.
+6. Confirm Agent Autonomy Declaration is present for any autonomous claim.
+7. Confirm the diff touches only declared allowed files.
+8. Confirm no secrets, local env files, provider transcripts, .entroping artifacts, reports, .DS_Store, `.opencode` state, `.codex` state, or generated local state are tracked.
+9. Confirm tests match the changed behavior and any behavior change has meaningful regression coverage.
+10. Confirm architecture, QAnstitution branding, deterministic Hurl execution, and provider boundaries were not weakened.
+11. Confirm Tier B and Tier C work requires Codex or human review before merge.
+12. Confirm CI is green before any merge recommendation.
+13. Recommend merge only if the autonomy tier permits it, local evidence is adequate, and GitHub CI is green.
 
 Return:
 - recommendation: merge | do not merge | needs author action,

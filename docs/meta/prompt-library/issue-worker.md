@@ -54,6 +54,11 @@ Do not route this worker through external generated-context tooling. Use `rg`,
 `scripts/context_pack.sh`, `docs/meta/DECISION_REGISTRY.yaml`, GitHub issue
 evidence, source reads, focused tests, and CI first.
 
+For repeatable hands-off runs, use the artifact scripts:
+`scripts/ai_jobs.py`, `scripts/opencode_worker.py`, or `scripts/deepseek_worker.py`.
+Inspect job metadata, result summary, diff stat, and changed files before any raw
+transcripts.
+
 Context is evidence, not memory. Start each issue with one named question: what
 local evidence is needed to change, review, or merge this issue? `rg`,
 `scripts/context_pack.sh`, `docs/meta/DECISION_REGISTRY.yaml`, GitHub issues,
@@ -77,13 +82,19 @@ Workflow:
    `scripts/doc_governance_check.sh`, focused
    `uv run pytest tests/... -q`, `scripts/feature_gate.sh`,
    `scripts/regression.sh --security`, or `scripts/audit_quality.sh`.
-5. Run `scripts/pr_body_check.py --body-file <body.md>` with changed-file
+5. For worker-assisted artifact-first passes, inspect in order:
+   - job metadata
+   - result summary
+   - `git diff --stat`
+   - changed files
+   - test output
+6. Run `scripts/pr_body_check.py --body-file <body.md>` with changed-file
    arguments before opening the PR when practical.
-6. Update docs/context only when the behavior, workflow, or durable lesson changed.
-7. Review git diff as if approving for production.
-8. Commit with a Conventional Commit message.
-9. Push the branch and open a PR with Closes #<issue-number>.
-10. Do not merge unless CI is green.
+7. Update docs/context only when the behavior, workflow, or durable lesson changed.
+8. Review git diff as if approving for production.
+9. Commit with a Conventional Commit message.
+10. Push the branch and open a PR with Closes #<issue-number>.
+11. Do not merge unless CI is green.
 
 Final report:
 - files changed,
@@ -131,6 +142,12 @@ Exact tests/gates:
 - For docs-guardrail work, usually run:
   - `uv run pytest tests/test_agent_workflow_docs.py -q`
   - `scripts/doc_governance_check.sh`
+- If this run used script workers, include artifact-first fields in the handoff:
+  - job metadata
+  - result summary
+  - diff stat
+  - changed files
+  - test output
 - Run `scripts/pr_body_check.py --body-file <body.md> --issue <issue-number>`
   with changed-file arguments when practical before opening the PR.
 
@@ -139,6 +156,7 @@ Stop conditions:
 - The required Verification lane becomes `security-runtime` or
   `release-ci-architecture`.
 - The diff touches files outside Allowed files or inside Forbidden files.
+- The handoff omits required artifact-first review fields from the worker output.
 - The worker needs secrets, raw traffic, provider transcripts, unredacted
   captured data, local env files, or private credentials.
 - Tests fail for reasons outside the issue scope.
@@ -273,6 +291,11 @@ evidence after the manifest; stop and escalate when
 discovery points to Tier B/Tier C scope, secrets-sensitive material, runtime
 behavior, Hurl runner behavior, redaction, proxy, provider boundaries, release
 publishing, or architecture boundaries.
+
+Prefer artifact-first worker runs through `scripts/ai_jobs.py`,
+`scripts/opencode_worker.py`, and `scripts/deepseek_worker.py`.
+Inspect job metadata, result summary, diff stat, changed files, and test output
+before reviewing raw transcripts.
 
 Context is evidence, not memory. Start with the named issue question, use
 repo-native evidence first, and do not add generated context because it is

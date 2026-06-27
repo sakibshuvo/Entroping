@@ -245,6 +245,10 @@ Do not route this worker through external generated-context tooling. Use `rg`,
 `scripts/context_pack.sh`, `docs/meta/DECISION_REGISTRY.yaml`, source reads,
 focused tests, and CI evidence instead.
 
+For run-repeatability, hand off artifact-first outputs from
+`scripts/ai_jobs.py`, `scripts/opencode_worker.py`, or `scripts/deepseek_worker.py`.
+Review those artifact fields before raw transcripts.
+
 Read before editing:
 - AGENTS.md
 - docs/meta/AGENT_CONTROL_PLANE.md
@@ -266,17 +270,29 @@ Workflow:
    - security/provider/subprocess/path/dependency work: scripts/feature_gate.sh --security and scripts/regression.sh --security
 7. Record useful cost/context evidence when practical:
    python scripts/factory_metrics.py --help
-8. Review git diff for unrelated edits, secrets, generated local state, provider transcripts, and .entroping artifacts.
-9. Commit with a Conventional Commit message.
-10. Push and open a PR with Closes #<issue-number>, a checked Documentation Impact Declaration, commands run, Agent Autonomy Declaration when applicable, and OpenCode Provider Lane Evidence when OpenCode/DeepSeek produced the work.
+8. Add and inspect artifact-first handoff fields before finalizing:
+   - job metadata
+   - result summary
+   - `git diff --stat`
+   - changed files
+   - test output
+9. Review git diff for unrelated edits, secrets, generated local state, provider transcripts, and .entroping artifacts.
+10. Commit with a Conventional Commit message.
+11. Push and open a PR with Closes #<issue-number>, a checked Documentation Impact Declaration, commands run, Agent Autonomy Declaration when applicable, and OpenCode Provider Lane Evidence when OpenCode/DeepSeek produced the work.
     Run `scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue-number>` before autonomous Tier A merge or before handing the PR to Codex/human review.
-11. Do not merge Tier B/Tier C. Tier B/Tier C requires Codex or human review before merge.
-12. Merge Tier A only when the issue and diff stayed Tier A, local gates passed, GitHub CI is green, the PR declares authority, and scripts/finish_issue.sh cleanup will run.
+12. Do not merge Tier B/Tier C. Tier B/Tier C requires Codex or human review before merge.
+13. Merge Tier A only when the issue and diff stayed Tier A, local gates passed, GitHub CI is green, the PR declares authority, and scripts/finish_issue.sh cleanup will run.
 
 Final handoff:
 - issue/worktree/branch,
 - provider lane, provider host, billing path, and model id,
 - role and autonomy tier,
+- artifact handoff summary:
+  - job metadata
+  - result summary
+  - diff stat
+  - changed files
+  - test output,
 - files changed,
 - tests/gates run with results,
 - docs/context impact,
