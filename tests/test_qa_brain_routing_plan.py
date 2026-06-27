@@ -396,6 +396,46 @@ def test_qa_brain_routing_plan_blocks_inherited_packaging_blockers(
     assert row.blockers == ("Complete packaging metadata before routing design.",)
 
 
+def test_qa_brain_routing_plan_summary_dedupes_duplicate_blockers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import entroping.core.qa_brain_routing_plan as routing_plan
+
+    blocker = "Complete packaging metadata before routing design."
+
+    def fake_packaging(*, project_root: Path) -> QaBrainModelPackagingPlanPacket:
+        _ = project_root
+        return _packaging_packet(
+            (
+                _packaging_row(
+                    "weak_test_detection",
+                    blockers=(blocker,),
+                ),
+                _packaging_row(
+                    "api_drift_reasoning",
+                    blockers=(blocker,),
+                ),
+            ),
+            status="partial",
+        )
+
+    monkeypatch.setattr(
+        routing_plan,
+        "build_qa_brain_model_packaging_plan",
+        fake_packaging,
+    )
+
+    packet = build_qa_brain_routing_plan(project_root=tmp_path)
+
+    assert packet.summary.status == "partial"
+    assert packet.summary.blockers_total == 1
+    assert tuple(row.blockers for row in packet.routing_plans) == (
+        (blocker,),
+        (blocker,),
+    )
+
+
 def test_qa_brain_routing_plan_omits_repair_gates_without_repair_use_case(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -565,7 +565,7 @@ def _summary(
     next_actions: tuple[QaBrainRoutingPlanNextAction, ...],
 ) -> QaBrainRoutingPlanSummary:
     counts = _route_counts(routing_plans)
-    blockers_total = sum(len(row.blockers) for row in routing_plans)
+    blockers_total = len({blocker for row in routing_plans for blocker in row.blockers})
     return QaBrainRoutingPlanSummary(
         status=_status(
             counts=counts,
