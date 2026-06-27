@@ -16,14 +16,14 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1129 Evidence Cloud Markdown Backslashes
+## Current Issue Slice: #1131 Evidence Cloud Blocker Total Deduplication
 
-Fix Evidence Cloud readiness Markdown table-cell escaping so Windows-style
-backslash paths render as backslashes instead of broken `&amp;#92;` entity text.
-Keep the change narrow: preserve the packet schema, output format, pipe and
-backtick escaping, HTML escaping, value-free rendering, secret-like output
-rejection, command surface, and local-only execution. Do not change
-`entroping run`.
+Fix Evidence Cloud readiness summary aggregation so duplicate blocker messages
+across readiness areas count once in `summary.blockers_total` while area-level
+blocker tuples remain intact. Keep the change narrow: preserve the packet
+schema, output shape, source states, upload-candidate behavior, next-action
+behavior, value-free rendering, secret-like output rejection, command surface,
+and local-only execution. Do not change `entroping run`.
 
 ## Current Baseline
 
