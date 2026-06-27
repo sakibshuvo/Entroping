@@ -526,14 +526,19 @@ def test_integration_readiness_skips_blank_source_project_and_non_object_run(
     assert packet.summary.status == "partial"
 
 
-def test_integration_readiness_deduplicates_identical_actions() -> None:
-    action = integration_readiness.IntegrationReadinessNextAction(
+def test_integration_readiness_deduplicates_identical_actions_by_priority() -> None:
+    medium_action = integration_readiness.IntegrationReadinessNextAction(
         priority="medium",
         action="Generate team access-control evidence before enabling integrations.",
         family_ids=("issue_trackers",),
     )
+    high_action = medium_action.model_copy(update={"priority": "high"})
 
-    assert integration_readiness._dedupe_actions([action, action]) == (action,)
+    deduped = integration_readiness._dedupe_actions(
+        [medium_action, high_action, medium_action]
+    )
+
+    assert [action.priority for action in deduped] == ["medium", "high"]
 
 
 def test_integration_readiness_packet_json_supports_pydantic_without_fallback(
