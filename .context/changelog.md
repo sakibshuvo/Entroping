@@ -2,6 +2,12 @@
 
 ## 2026-06-26
 
+- Fixed issue #1149's QA Brain model-packaging ready-count drift:
+  summary ready, missing, and attention counts now derive from
+  `packaging_stage`, so inherited ready rows with blockers are counted as
+  attention while preserving row-level readiness metadata and the existing
+  local-only packet shape.
+
 - Fixed issue #1148's QA Brain model-packaging blocker summary noise:
   `summary.blockers_total` now counts unique blocker messages across packaging
   rows while preserving each row's blocker list and the existing local-only

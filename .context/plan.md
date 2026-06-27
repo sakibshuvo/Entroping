@@ -16,15 +16,16 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1148 QA Brain Model-Packaging Blocker Summary
+## Current Issue Slice: #1149 QA Brain Model-Packaging Ready Counts
 
-Fix QA Brain model-packaging summary aggregation so `summary.blockers_total`
-counts unique blocker messages across packaging rows. Keep the change narrow:
-preserve row-level blocker lists, plan counts, packet schema,
-CLI/JSON/Markdown shape, local-only behavior, value-free rendering, and
-secret-like output rejection. Do not change `entroping run`, Hurl execution,
-provider/model boundaries, traffic parsing, model packaging, LiteLLM
-configuration, hosted upload, ticket/chat/PR mutation, or report schema fields.
+Fix QA Brain model-packaging summary counts so ready, missing, and attention
+totals derive from `packaging_stage` instead of inherited fine-tune readiness.
+Keep the change narrow: preserve row-level readiness metadata, row-level
+blockers, packet schema, CLI/JSON/Markdown shape, local-only behavior,
+value-free rendering, and secret-like output rejection. Do not change
+`entroping run`, Hurl execution, provider/model boundaries, traffic parsing,
+model packaging, LiteLLM configuration, hosted upload, ticket/chat/PR mutation,
+or report schema fields.
 
 ## Current Baseline
 
