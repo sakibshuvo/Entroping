@@ -115,6 +115,11 @@ _REDACTION_BOUNDARIES: Final[dict[QaBrainEvalSliceId, str]] = {
     for eval_id in _EVAL_CASE_COVERAGE
 }
 
+_NEXT_ACTION_PRIORITY_ORDER: Final[dict[QaBrainNextActionPriority, int]] = {
+    "medium": 1,
+    "high": 2,
+}
+
 
 class QaBrainFineTuneReadinessError(ValueError):
     """Raised when a QA brain fine-tune readiness report cannot be generated safely."""
@@ -461,25 +466,25 @@ def _plan_next_action(plan: QaBrainPromptPlanRow) -> str:
 def _next_actions(
     readiness_rows: tuple[QaBrainFineTuneReadinessRow, ...],
 ) -> tuple[QaBrainFineTuneReadinessNextAction, ...]:
-    actions: list[QaBrainFineTuneReadinessNextAction] = []
-    seen_case_ids: set[QaBrainEvalSliceId] = set()
+    actions_by_case: dict[QaBrainEvalSliceId, QaBrainFineTuneReadinessNextAction] = {}
     for row in readiness_rows:
         if row.readiness == "ready" and not row.blockers:
             continue
-        if row.case_id in seen_case_ids:
-            continue
-        seen_case_ids.add(row.case_id)
         priority: QaBrainNextActionPriority = (
             "high" if row.readiness == "attention" else "medium"
         )
-        actions.append(
-            QaBrainFineTuneReadinessNextAction(
-                priority=priority,
-                action=row.next_action,
-                case_ids=(row.case_id,),
-            )
+        existing = actions_by_case.get(row.case_id)
+        if existing is not None and (
+            _NEXT_ACTION_PRIORITY_ORDER[existing.priority]
+            >= _NEXT_ACTION_PRIORITY_ORDER[priority]
+        ):
+            continue
+        actions_by_case[row.case_id] = QaBrainFineTuneReadinessNextAction(
+            priority=priority,
+            action=row.next_action,
+            case_ids=(row.case_id,),
         )
-    return tuple(actions)
+    return tuple(actions_by_case.values())
 
 
 def _summary(

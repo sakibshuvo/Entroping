@@ -441,6 +441,12 @@ def test_qa_brain_fine_tune_readiness_deduplicates_next_actions(
                     source_ids=("test-quality-json",),
                     source_paths=("reports/test-quality.json",),
                 ),
+                _prompt_row(
+                    "weak_test_detection",
+                    readiness="missing",
+                    source_ids=(),
+                    source_paths=(),
+                ),
             ),
             status="partial",
         )
@@ -453,10 +459,11 @@ def test_qa_brain_fine_tune_readiness_deduplicates_next_actions(
 
     packet = build_qa_brain_fine_tune_readiness(project_root=tmp_path)
 
-    assert len(packet.readiness_rows) == 2
+    assert len(packet.readiness_rows) == 3
     assert tuple(action.case_ids for action in packet.next_actions) == (
         ("weak_test_detection",),
     )
+    assert packet.next_actions[0].priority == "high"
 
 
 def test_qa_brain_fine_tune_readiness_rejects_unsupported_output(
