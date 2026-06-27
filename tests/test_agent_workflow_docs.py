@@ -354,6 +354,75 @@ def test_prompt_library_documents_self_contained_worker_packets() -> None:
         assert term in combined
 
 
+def test_issue_worker_prompt_enforces_artifact_first_handoff_contract() -> None:
+    issue_worker = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "issue-worker.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(issue_worker.split())
+
+    required_terms = [
+        "For repeatable hands-off runs, use the artifact scripts:",
+        "`scripts/ai_jobs.py`, `scripts/opencode_worker.py`, or `scripts/deepseek_worker.py`",
+        "Inspect job metadata, result summary, diff stat, and changed files "
+        "before any raw transcripts",
+        "For worker-assisted artifact-first passes, inspect in order",
+        "`git diff --stat`",
+        "If this run used script workers, include artifact-first fields in the handoff:",
+        "The handoff omits required artifact-first review fields from the worker output.",
+        "before any raw transcripts",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+
+def test_opencode_desktop_handoff_requires_artifact_first_fields() -> None:
+    opencode_handoff = (
+        REPO_ROOT / "docs" / "meta" / "prompt-library" / "opencode-desktop-handoff.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(opencode_handoff.split())
+
+    required_terms = [
+        "For run-repeatability, hand off artifact-first outputs from",
+        "`scripts/ai_jobs.py`, `scripts/opencode_worker.py`, or `scripts/deepseek_worker.py`",
+        "Review those artifact fields before raw transcripts.",
+        "Add and inspect artifact-first handoff fields before finalizing:",
+        "`git diff --stat`",
+        "artifact handoff summary",
+        "test output",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+
+def test_opencode_codex_review_request_enforces_artifact_first_review_sequence() -> None:
+    review_prompt = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-codex-review-request.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(review_prompt.split())
+
+    required_terms = [
+        "Artifact-first review protocol (before raw transcript output):",
+        "Review worker job metadata.",
+        "Review result summary.",
+        "Review `git diff --stat`.",
+        "Review changed files list.",
+        "Inspect raw transcripts only if any of the above is missing or ambiguous.",
+        "Does the handoff include job metadata, result summary, diff stat, "
+        "changed files, and test output?",
+        "Confirm artifact-first handoff evidence is complete: job metadata, "
+        "result summary, diff stat, changed files, and test output.",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+
 def test_opencode_desktop_handoff_documents_tooling_setup_checklist() -> None:
     doc = (
         REPO_ROOT
