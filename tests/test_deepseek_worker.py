@@ -301,6 +301,90 @@ def test_deepseek_worker_rejects_base_url_with_credentials_before_model_call(
     assert not (tmp_path / "reviews").exists()
 
 
+def test_deepseek_worker_rejects_plaintext_base_url_before_model_call(
+    tmp_path: Path,
+) -> None:
+    DeepSeekStubHandler.requests = []
+    server = HTTPServer(("127.0.0.1", 0), DeepSeekStubHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base_url = f"http://127.0.0.1:{server.server_port}"
+
+    try:
+        result = run_worker(
+            "--mode",
+            "review",
+            "--file",
+            "README.md",
+            "--artifact-root",
+            str(tmp_path / "reviews"),
+            "--base-url",
+            base_url,
+            "--api-key-env",
+            "ENTROPING_TEST_DEEPSEEK_KEY",
+            env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
+        )
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+    assert result.returncode == 2
+    assert "--base-url must use https" in result.stderr
+    assert DeepSeekStubHandler.requests == []
+    assert not (tmp_path / "reviews").exists()
+
+
+def test_deepseek_worker_rejects_remote_plaintext_base_url_even_with_local_opt_in(
+    tmp_path: Path,
+) -> None:
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        "README.md",
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--base-url",
+        "http://example.com",
+        "--allow-insecure-local-base-url",
+        "--api-key-env",
+        "ENTROPING_TEST_DEEPSEEK_KEY",
+        "--dry-run",
+        env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
+    )
+
+    assert result.returncode == 2
+    assert "--allow-insecure-local-base-url only permits loopback http hosts" in result.stderr
+    assert not (tmp_path / "reviews").exists()
+
+
+def test_deepseek_worker_rejects_plaintext_local_opt_in_with_default_key_env(
+    tmp_path: Path,
+) -> None:
+    result = run_worker(
+        "--mode",
+        "review",
+        "--file",
+        "README.md",
+        "--artifact-root",
+        str(tmp_path / "reviews"),
+        "--base-url",
+        "http://127.0.0.1:8000",
+        "--allow-insecure-local-base-url",
+        "--api-key-env",
+        "DEEPSEEK_API_KEY",
+        "--dry-run",
+        env={"DEEPSEEK_API_KEY": "test-secret-token"},
+    )
+
+    assert result.returncode == 2
+    assert (
+        "--allow-insecure-local-base-url requires an ENTROPING_TEST_ api key env var"
+        in result.stderr
+    )
+    assert not (tmp_path / "reviews").exists()
+
+
 def test_deepseek_worker_posts_openai_compatible_request_and_writes_artifacts(
     tmp_path: Path,
 ) -> None:
@@ -320,6 +404,7 @@ def test_deepseek_worker_posts_openai_compatible_request_and_writes_artifacts(
             str(tmp_path / "reviews"),
             "--base-url",
             base_url,
+            "--allow-insecure-local-base-url",
             "--api-key-env",
             "ENTROPING_TEST_DEEPSEEK_KEY",
             "--json",
@@ -401,6 +486,7 @@ def test_deepseek_worker_withholds_secret_like_assistant_output(
             str(tmp_path / "reviews"),
             "--base-url",
             base_url,
+            "--allow-insecure-local-base-url",
             "--api-key-env",
             "ENTROPING_TEST_DEEPSEEK_KEY",
             "--json",
@@ -460,6 +546,7 @@ def test_deepseek_worker_withholds_secret_like_error_response(
             str(tmp_path / "reviews"),
             "--base-url",
             base_url,
+            "--allow-insecure-local-base-url",
             "--api-key-env",
             "ENTROPING_TEST_DEEPSEEK_KEY",
             "--json",
@@ -528,6 +615,7 @@ def test_deepseek_worker_patch_mode_writes_proposal_for_safe_diff(
             str(tmp_path / "reviews"),
             "--base-url",
             base_url,
+            "--allow-insecure-local-base-url",
             "--api-key-env",
             "ENTROPING_TEST_DEEPSEEK_KEY",
             "--json",
@@ -594,6 +682,7 @@ def test_deepseek_worker_withholds_secret_like_response_payload_without_proposal
             str(tmp_path / "reviews"),
             "--base-url",
             base_url,
+            "--allow-insecure-local-base-url",
             "--api-key-env",
             "ENTROPING_TEST_DEEPSEEK_KEY",
             "--json",
@@ -661,6 +750,7 @@ def test_deepseek_worker_withholds_secret_like_patch_output_without_proposal(
             str(tmp_path / "reviews"),
             "--base-url",
             base_url,
+            "--allow-insecure-local-base-url",
             "--api-key-env",
             "ENTROPING_TEST_DEEPSEEK_KEY",
             "--json",
@@ -714,6 +804,7 @@ def test_deepseek_worker_records_usage_tokens_when_available(
             str(tmp_path / "reviews"),
             "--base-url",
             base_url,
+            "--allow-insecure-local-base-url",
             "--api-key-env",
             "ENTROPING_TEST_DEEPSEEK_KEY",
             "--record-factory-metrics",
@@ -764,6 +855,7 @@ def test_deepseek_worker_thinking_enabled_adds_reasoning_effort(
             str(tmp_path / "reviews"),
             "--base-url",
             base_url,
+            "--allow-insecure-local-base-url",
             "--api-key-env",
             "ENTROPING_TEST_DEEPSEEK_KEY",
             "--thinking",
@@ -834,6 +926,7 @@ def test_deepseek_worker_rejects_symlink_before_artifact_or_model_call(
             str(tmp_path / "reviews"),
             "--base-url",
             f"http://127.0.0.1:{server.server_port}",
+            "--allow-insecure-local-base-url",
             "--api-key-env",
             "ENTROPING_TEST_DEEPSEEK_KEY",
             env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
@@ -966,6 +1059,7 @@ def test_deepseek_worker_rejects_secret_like_file_before_artifact_or_model_call(
             str(tmp_path / "reviews"),
             "--base-url",
             f"http://127.0.0.1:{server.server_port}",
+            "--allow-insecure-local-base-url",
             "--api-key-env",
             "ENTROPING_TEST_DEEPSEEK_KEY",
             env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
@@ -1016,6 +1110,7 @@ def test_deepseek_worker_rejects_sensitive_path_variants_before_model_call(
             str(tmp_path / "reviews"),
             "--base-url",
             f"http://127.0.0.1:{server.server_port}",
+            "--allow-insecure-local-base-url",
             "--api-key-env",
             "ENTROPING_TEST_DEEPSEEK_KEY",
             env={"ENTROPING_TEST_DEEPSEEK_KEY": "test-secret-token"},
