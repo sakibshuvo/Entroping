@@ -20,12 +20,16 @@ from entroping.core.evidence_common import (
     safe_evidence_text,
 )
 from entroping.core.evidence_index_report import EVIDENCE_INDEX_SCHEMA_VERSION
+from entroping.core.evidence_packet_base import (
+    EvidencePacketResult,
+    write_evidence_packet_report,
+)
 from entroping.core.handoff_packet import HANDOFF_SCHEMA_VERSION
 from entroping.core.integration_readiness import INTEGRATION_READINESS_SCHEMA_VERSION
 from entroping.core.notification_packet import NOTIFICATION_PACKET_SCHEMA_VERSION
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.runtime_card import RUNTIME_CARD_SCHEMA_VERSION
-from entroping.core.safe_write import SafeWriteError, safe_write_text
+from entroping.core.safe_write import safe_write_text
 from entroping.core.team_access_control_plan import (
     TEAM_ACCESS_CONTROL_PLAN_SCHEMA_VERSION,
 )
@@ -375,20 +379,38 @@ def run_devex_readiness_report(
     root = project_root.expanduser().resolve()
     destination = _resolve_output_path(output_path or _DEFAULT_OUTPUTS[output], root=root)
     packet = build_devex_readiness(project_root=root)
-    content = _render_packet_content(packet, output=output)
-    if _contains_unredacted_secret_like_value(content):
-        msg = "developer experience readiness packet contains secret-like content"
-        raise DevexReadinessError(msg)
-    try:
-        written = safe_write_text(
-            destination,
-            content,
-            artifact="developer experience readiness packet",
-            root=root,
-        )
-    except SafeWriteError as exc:
-        raise DevexReadinessError(str(exc)) from exc
-    return DevexReadinessResult(output_path=written, packet=packet)
+    return _write_packet_report(
+        project_root=root,
+        output=output,
+        output_path=destination,
+        packet=packet,
+    )
+
+
+def _write_packet_report(
+    *,
+    project_root: Path,
+    output: DevexReadinessOutput,
+    output_path: Path,
+    packet: DevexReadinessPacket,
+) -> DevexReadinessResult:
+    """Write a local devex packet with shared output helpers."""
+
+    result: EvidencePacketResult[DevexReadinessPacket] = write_evidence_packet_report(
+        project_root=project_root,
+        output=output,
+        output_path=output_path,
+        packet=packet,
+        render_markdown=render_devex_readiness_markdown,
+        has_secret_content=_contains_unredacted_secret_like_value,
+        secret_error_message=(
+            "developer experience readiness packet contains secret-like content"
+        ),
+        artifact="developer experience readiness packet",
+        error_type=DevexReadinessError,
+        safe_write=safe_write_text,
+    )
+    return DevexReadinessResult(output_path=result.output_path, packet=result.packet)
 
 
 def build_devex_readiness(*, project_root: Path) -> DevexReadinessPacket:
@@ -501,16 +523,6 @@ def _build_packet(*, root: Path) -> DevexReadinessPacket:
         families=families,
         next_actions=next_actions,
     )
-
-
-def _render_packet_content(
-    packet: DevexReadinessPacket,
-    *,
-    output: DevexReadinessOutput,
-) -> str:
-    if output == "json":
-        return json.dumps(packet.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
-    return render_devex_readiness_markdown(packet)
 
 
 def _load_source(definition: _SourceDefinition, *, root: Path) -> _LoadedSource:
