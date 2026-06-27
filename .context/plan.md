@@ -16,15 +16,16 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1137 Evidence Cloud Upload-Candidate Blocker Summary
+## Current Issue Slice: #1139 QA Brain Repair-Plan Blocker Summary
 
-Fix Evidence Cloud readiness summary aggregation so
-`summary.blockers_total` counts unique blocker messages from readiness areas
-and upload candidates. Keep the change narrow: preserve area and
-upload-candidate blocker lists, packet schema, CLI/JSON/Markdown shape, source
-states, local-only behavior, value-free rendering, and secret-like output
-rejection. Do not change `entroping run`, Hurl execution, provider/model
-boundaries, traffic capture, hosted upload, or report schema fields.
+Fix QA Brain repair-plan summary aggregation so `summary.blockers_total` counts
+unique blocker messages across repair-plan rows. Keep the change narrow:
+preserve row-level blocker lists, packet schema, CLI/JSON/Markdown shape,
+source states, local-only behavior, value-free rendering, and secret-like
+output rejection. Do not change `entroping run`, Hurl execution,
+provider/model boundaries, prompt execution, mutation/fuzz execution,
+generated-test repair, traffic parsing, hosted upload, ticket/chat/PR mutation,
+or report schema fields.
 
 ## Current Baseline
 
