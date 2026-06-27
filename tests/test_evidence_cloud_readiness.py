@@ -175,6 +175,28 @@ def test_evidence_cloud_readiness_marks_missing_invalid_and_unsafe_sources(
     assert "sk-proj" not in packet.model_dump_json()
 
 
+def test_evidence_cloud_readiness_dedupes_same_invalid_source_across_areas(
+    tmp_path: Path,
+) -> None:
+    _write_ready_sources(tmp_path)
+    _write_json(
+        tmp_path / "reports" / "team-evidence-readiness.json",
+        {"schema_version": "entroping.team-evidence-readiness.v999"},
+    )
+
+    packet = build_evidence_cloud_readiness(project_root=tmp_path)
+    team_blockers = tuple(
+        blocker
+        for area in packet.readiness_areas
+        for blocker in area.blockers
+        if blocker.startswith("Team evidence readiness is invalid")
+    )
+
+    assert len(team_blockers) == 2
+    assert len(set(team_blockers)) == 1
+    assert packet.summary.blockers_total == 1
+
+
 def test_evidence_cloud_readiness_markdown_is_escaped_and_value_free(
     tmp_path: Path,
 ) -> None:
@@ -558,6 +580,42 @@ def test_evidence_cloud_next_action_dedupe_preserves_priority_variants() -> None
     deduped = readiness._dedupe_actions(actions)
 
     assert [action.priority for action in deduped] == ["high", "medium"]
+
+
+def test_evidence_cloud_summary_dedupes_duplicate_area_blockers() -> None:
+    areas = (
+        readiness.EvidenceCloudReadinessArea(
+            id="team_upload_boundary",
+            label="Team upload boundary",
+            status="blocked",
+            source_ids=("team_evidence_readiness",),
+            boundary="local only",
+            upload_candidate=True,
+            blockers=("Shared blocker.", "Team-specific blocker."),
+            next_action="Repair local evidence.",
+        ),
+        readiness.EvidenceCloudReadinessArea(
+            id="cloud_boundary_controls",
+            label="Cloud boundary controls",
+            status="blocked",
+            source_ids=("team_evidence_readiness",),
+            boundary="local only",
+            upload_candidate=False,
+            blockers=("Shared blocker.",),
+            next_action="Repair local evidence.",
+        ),
+    )
+
+    summary = readiness._summary(
+        sources=(),
+        areas=areas,
+        upload_candidates=(),
+        next_actions=(),
+    )
+
+    assert summary.blockers_total == 2
+    assert areas[0].blockers == ("Shared blocker.", "Team-specific blocker.")
+    assert areas[1].blockers == ("Shared blocker.",)
 
 
 def test_evidence_cloud_readiness_packet_schema_rejects_extra_fields() -> None:
