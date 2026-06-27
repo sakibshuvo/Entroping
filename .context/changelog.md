@@ -2,6 +2,11 @@
 
 ## 2026-06-26
 
+- Fixed issue #1137's Evidence Cloud upload-candidate blocker summary gap:
+  `summary.blockers_total` now counts unique blocker messages from both
+  readiness areas and upload candidates while preserving each row's blocker
+  list and the existing local-only packet shape.
+
 - Fixed issue #1135's integration readiness family-action noise: repeated
   family-level next actions with the same priority, text, and source IDs now
   coalesce into one local packet row while preserving all involved family IDs in
