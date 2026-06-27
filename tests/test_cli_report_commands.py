@@ -251,9 +251,8 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
     )
     for panel in panels:
         assert panel in result.output
-    assert result.output.index("Launch-Critical Reports") < result.output.index(
-        "Stable Public Reports"
-    )
+    panel_offsets = [result.output.index(panel) for panel in panels]
+    assert panel_offsets == sorted(panel_offsets)
 
     launch_panel = result.output.split("Launch-Critical Reports", maxsplit=1)[1].split(
         "Stable Public Reports",
