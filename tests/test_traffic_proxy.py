@@ -261,8 +261,8 @@ def test_capture_addon_rejects_malformed_flow_objects(tmp_path: Path) -> None:
         addon.response(bad_response_flow)
 
 
-def test_body_from_decodes_text_before_redaction_processing() -> None:
-    content = b'{"token":"' + (b"a" * 128) + b'"}'
+def test_body_from_bounds_text_before_redaction_processing() -> None:
+    content = b'{"token":"' + (b"a" * 8_192) + b'"}'
     message = _Request(
         method="POST",
         pretty_url="https://api.example.test/checkout",
@@ -273,10 +273,13 @@ def test_body_from_decodes_text_before_redaction_processing() -> None:
 
     body = _body_from(message, max_body_chars=16)
 
+    expected_text = content[
+        : 16 + traffic_proxy._TEXT_BODY_REDACTION_SCAN_EXTRA_CHARS
+    ].decode("utf-8")
     assert body == TrafficBody(
         content_type="application/json",
         size_bytes=len(content),
-        text=content.decode("utf-8"),
+        text=expected_text,
         truncated=True,
     )
 

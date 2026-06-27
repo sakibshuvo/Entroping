@@ -16,6 +16,7 @@ from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficReques
 DEFAULT_WATCH_PORT = 8080
 DEFAULT_MAX_EVENTS = 1_000
 _LISTEN_HOST = "127.0.0.1"
+_TEXT_BODY_REDACTION_SCAN_EXTRA_CHARS = 512
 _TEXTUAL_CONTENT_TYPES = {
     "application/graphql",
     "application/json",
@@ -389,8 +390,10 @@ def _decode_text_body(
 
 
 def _decode_text_for_redaction(content: bytes, *, max_body_chars: int) -> tuple[str, bool]:
-    text = content.decode("utf-8", errors="replace")
-    return text, len(text) > max_body_chars
+    decode_limit = max_body_chars + _TEXT_BODY_REDACTION_SCAN_EXTRA_CHARS
+    bounded_content = content[:decode_limit]
+    text = bounded_content.decode("utf-8", errors="replace")
+    return text, len(content) > len(bounded_content) or len(text) > max_body_chars
 
 
 def _bytes_attribute(source: object, name: str) -> bytes:
