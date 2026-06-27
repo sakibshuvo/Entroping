@@ -1,9 +1,11 @@
 """Tests for Eye traffic redaction before persistence."""
 
+import json
 from datetime import UTC, datetime
 
 import pytest
 
+import entroping.core.traffic_redactor as traffic_redactor
 from entroping.core.traffic_redactor import redact_traffic_exchange
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
 
@@ -422,6 +424,42 @@ def test_redactor_redacts_plaintext_before_truncating_boundary_crossing_values()
     assert request_body.text == "note=[REDACTED]"
     assert request_body.truncated is True
     assert "eyJhbGci" not in redacted.model_dump_json()
+
+
+def test_redactor_bounds_json_parser_input_for_large_bodies(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    body_text = '{"token":"' + ("a" * 8_192) + '","safe":"ok"}'
+    parser_lengths: list[int] = []
+
+    def fake_json_loads(text: str) -> object:
+        parser_lengths.append(len(text))
+        if len(text) > 16 + traffic_redactor._BODY_REDACTION_SCAN_EXTRA_CHARS:
+            raise AssertionError("json parser input was not bounded")
+        raise json.JSONDecodeError("bounded preview", text, 0)
+
+    monkeypatch.setattr("entroping.core.traffic_redactor.json.loads", fake_json_loads)
+    exchange = _raw_exchange().model_copy(
+        update={
+            "request": _raw_exchange().request.model_copy(
+                update={
+                    "body": TrafficBody(
+                        content_type="application/json",
+                        size_bytes=len(body_text),
+                        text=body_text,
+                    ),
+                }
+            )
+        }
+    )
+
+    redacted = redact_traffic_exchange(exchange, max_body_chars=16)
+
+    assert parser_lengths
+    request_body = redacted.request.body
+    assert request_body is not None
+    assert request_body.truncated is True
+    assert request_body.redaction_confidence == "low"
 
 
 @pytest.mark.parametrize(
