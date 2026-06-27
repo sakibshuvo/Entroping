@@ -1,8 +1,4 @@
-"""Launch-critical report commands.
-
-Core and bridge functions are resolved through the parent package via
-``__getattr__`` so that test monkeypatching remains effective.
-"""
+"""Launch-critical report commands."""
 
 import json
 from pathlib import Path
@@ -13,7 +9,22 @@ import typer
 from entroping.cli.shared import console, display_cli_path, print_cli_error
 
 from ._app import app
+from ._deps import (
+    FailureBundleError,
+    HurlMetadataSyntaxError,
+    ReportWriterError,
+    ReviewSummaryError,
+    RuntimeCardError,
+    RuntimeCardOutput,
+    create_failure_bundle,
+    load_run_report,
+    report_dependency,
+    run_review_summary,
+)
 from ._panels import LAUNCH_REPORT_PANEL
+
+run_runtime_card_report = report_dependency("run_runtime_card_report")
+write_bug_report = report_dependency("write_bug_report")
 
 
 @app.command("bug", rich_help_panel=LAUNCH_REPORT_PANEL)

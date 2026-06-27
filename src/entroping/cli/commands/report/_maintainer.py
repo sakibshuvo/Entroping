@@ -1,8 +1,4 @@
-"""Maintainer and baseline tool report commands.
-
-Core and bridge functions are resolved through the parent package via
-``__getattr__`` so that test monkeypatching remains effective.
-"""
+"""Maintainer and baseline tool report commands."""
 
 from pathlib import Path
 from typing import Annotated, cast
@@ -12,8 +8,26 @@ import typer
 from entroping.cli.shared import console, display_cli_path, print_cli_error
 
 from ._app import app
-from ._helpers import _format_percent
+from ._deps import (
+    BadgeReportError,
+    DriftReportError,
+    GateInjectionOutput,
+    GateInjectionReportError,
+    ReportArtifactManifestError,
+    TestPyramidOutput,
+    TestPyramidReportError,
+    TestQualityOutput,
+    TestQualityReportError,
+    promote_reviewed_drift_baseline_candidate,
+    report_dependency,
+    run_gate_injection_report,
+    write_coverage_badges,
+    write_report_artifact_manifest,
+)
 from ._panels import MAINTAINER_REPORT_PANEL
+
+run_test_pyramid_report = report_dependency("run_test_pyramid_report")
+run_test_quality_report = report_dependency("run_test_quality_report")
 
 
 @app.command("badges", rich_help_panel=MAINTAINER_REPORT_PANEL)

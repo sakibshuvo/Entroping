@@ -1,8 +1,4 @@
-"""Stable public report commands.
-
-Core and bridge functions are resolved through the parent package via
-``__getattr__`` so that test monkeypatching remains effective.
-"""
+"""Stable public report commands."""
 
 import json
 import sys
@@ -14,8 +10,48 @@ import typer
 from entroping.cli.shared import console, display_cli_path, print_cli_error
 
 from ._app import app
+from ._deps import (
+    CaptureSummaryError,
+    CaptureSummaryOutput,
+    EffectivePolicyDiffError,
+    EffectivePolicyDiffOutput,
+    EffectivePolicyDiffReportError,
+    EffectivePolicyOutput,
+    EffectivePolicyReportError,
+    GateCoverageOutput,
+    GateCoverageReportError,
+    GitHubAnnotation,
+    GitHubAnnotationError,
+    HurlMetadataSyntaxError,
+    RedactionReviewError,
+    RedactionReviewOutput,
+    RunDeltaError,
+    SarifReportError,
+    build_effective_policy_diff_report,
+    build_run_delta_report,
+    collect_github_annotations,
+    compile_story_traceability,
+    discover_hurl_tests,
+    discover_story_documents,
+    effective_policy_diff_report_to_dict,
+    load_effective_policy_report,
+    load_run_report,
+    render_effective_policy_diff_markdown,
+    render_github_annotation,
+    render_run_delta_markdown,
+    render_story_traceability_markdown,
+    report_dependency,
+    run_delta_report_to_dict,
+    run_effective_policy_report,
+    run_sarif_report,
+    story_traceability_report_to_dict,
+)
 from ._helpers import _format_percent, _gate_coverage_percent
 from ._panels import STABLE_REPORT_PANEL
+
+run_capture_summary_report = report_dependency("run_capture_summary_report")
+run_gate_coverage_report = report_dependency("run_gate_coverage_report")
+run_redaction_review = report_dependency("run_redaction_review")
 
 
 @app.command("delta", rich_help_panel=STABLE_REPORT_PANEL)

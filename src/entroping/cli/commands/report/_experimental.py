@@ -8,7 +8,130 @@ import typer
 from entroping.cli.shared import console, display_cli_path, print_cli_error
 
 from ._app import app
+from ._deps import (
+    AGENT_BUNDLE_ROLES,
+    AgentBundleError,
+    AgentBundleOutput,
+    ApiInventoryError,
+    ApiInventoryOutput,
+    ConnectorIntentError,
+    ConnectorIntentOutput,
+    DesignPartnerFeedbackError,
+    DevexReadinessError,
+    DevexReadinessOutput,
+    EvidenceActionPlanError,
+    EvidenceActionPlanOutput,
+    EvidenceBundleError,
+    EvidenceCloudDashboardError,
+    EvidenceCloudDashboardOutput,
+    EvidenceCloudExportError,
+    EvidenceCloudExportOutput,
+    EvidenceCloudReadinessError,
+    EvidenceCloudReadinessOutput,
+    EvidenceCloudWorkspaceError,
+    EvidenceCloudWorkspaceOutput,
+    EvidenceIndexError,
+    EvidenceIndexOutput,
+    EvidenceLinksError,
+    EvidenceLinksOutput,
+    EvidencePortalError,
+    EvidencePortalOutput,
+    ExternalTestEvidenceError,
+    ExternalTestEvidenceOutput,
+    HandoffError,
+    HandoffOutput,
+    IntegrationReadinessError,
+    IntegrationReadinessOutput,
+    MutationReadinessError,
+    MutationReadinessOutput,
+    NotificationOutput,
+    NotificationPacketError,
+    ObservabilityAdapterReadinessError,
+    ObservabilityAdapterReadinessOutput,
+    ObservabilityOutput,
+    ObservabilityPacketError,
+    OtelMappingError,
+    OtelMappingOutput,
+    PilotCohortError,
+    PilotCohortOutput,
+    PilotMetricsError,
+    PilotMetricsOutput,
+    PilotOutcomeError,
+    PilotOutcomeOutput,
+    PrEvidenceCardError,
+    PrEvidenceCardOutput,
+    QaBrainEvalPlanError,
+    QaBrainEvalPlanOutput,
+    QaBrainFineTuneReadinessError,
+    QaBrainFineTuneReadinessOutput,
+    QaBrainModelPackagingPlanError,
+    QaBrainModelPackagingPlanOutput,
+    QaBrainPromptPlanError,
+    QaBrainPromptPlanOutput,
+    QaBrainRepairPlanError,
+    QaBrainRepairPlanOutput,
+    QaBrainRetrievalPlanError,
+    QaBrainRetrievalPlanOutput,
+    QaBrainRoutingPlanError,
+    QaBrainRoutingPlanOutput,
+    QaBrainSeedError,
+    QaBrainSeedOutput,
+    TeamAccessControlPlanError,
+    TeamAccessControlPlanOutput,
+    TeamEvidenceReadinessError,
+    TeamEvidenceReadinessOutput,
+    WorkItemDraftError,
+    WorkItemDraftOutput,
+    WorkItemImportBundleError,
+    WorkItemImportBundleOutput,
+    report_dependency,
+    run_agent_bundle_report,
+)
 from ._panels import EXPERIMENTAL_REPORT_PANEL
+
+run_api_inventory_report = report_dependency("run_api_inventory_report")
+run_connector_intent_report = report_dependency("run_connector_intent_report")
+run_design_partner_feedback_report = report_dependency("run_design_partner_feedback_report")
+run_devex_readiness_report = report_dependency("run_devex_readiness_report")
+run_evidence_action_plan_report = report_dependency("run_evidence_action_plan_report")
+run_evidence_bundle_report = report_dependency("run_evidence_bundle_report")
+run_evidence_cloud_dashboard_report = report_dependency("run_evidence_cloud_dashboard_report")
+run_evidence_cloud_export_report = report_dependency("run_evidence_cloud_export_report")
+run_evidence_cloud_readiness_report = report_dependency("run_evidence_cloud_readiness_report")
+run_evidence_cloud_workspace_report = report_dependency("run_evidence_cloud_workspace_report")
+run_evidence_index_report = report_dependency("run_evidence_index_report")
+run_evidence_links_report = report_dependency("run_evidence_links_report")
+run_evidence_portal_report = report_dependency("run_evidence_portal_report")
+run_external_test_evidence_report = report_dependency("run_external_test_evidence_report")
+run_handoff_report = report_dependency("run_handoff_report")
+run_integration_readiness_report = report_dependency("run_integration_readiness_report")
+run_mutation_readiness_report = report_dependency("run_mutation_readiness_report")
+run_notification_packet_report = report_dependency("run_notification_packet_report")
+run_observability_adapter_readiness_report = report_dependency(
+    "run_observability_adapter_readiness_report"
+)
+run_observability_packet_report = report_dependency("run_observability_packet_report")
+run_otel_mapping_report = report_dependency("run_otel_mapping_report")
+run_pilot_cohort_report = report_dependency("run_pilot_cohort_report")
+run_pilot_metrics_report = report_dependency("run_pilot_metrics_report")
+run_pilot_outcome_report = report_dependency("run_pilot_outcome_report")
+run_pr_evidence_card_report = report_dependency("run_pr_evidence_card_report")
+run_qa_brain_eval_plan_report = report_dependency("run_qa_brain_eval_plan_report")
+run_qa_brain_fine_tune_readiness_report = report_dependency(
+    "run_qa_brain_fine_tune_readiness_report"
+)
+run_qa_brain_model_packaging_plan_report = report_dependency(
+    "run_qa_brain_model_packaging_plan_report"
+)
+run_qa_brain_prompt_plan_report = report_dependency("run_qa_brain_prompt_plan_report")
+run_qa_brain_repair_plan_report = report_dependency("run_qa_brain_repair_plan_report")
+run_qa_brain_retrieval_plan_report = report_dependency("run_qa_brain_retrieval_plan_report")
+run_qa_brain_routing_plan_report = report_dependency("run_qa_brain_routing_plan_report")
+run_qa_brain_seed_report = report_dependency("run_qa_brain_seed_report")
+run_team_access_control_plan_report = report_dependency("run_team_access_control_plan_report")
+run_team_evidence_readiness_report = report_dependency("run_team_evidence_readiness_report")
+run_work_item_draft_report = report_dependency("run_work_item_draft_report")
+run_work_item_import_bundle_report = report_dependency("run_work_item_import_bundle_report")
 
 
 @app.command("evidence-bundle", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
