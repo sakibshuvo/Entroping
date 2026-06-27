@@ -50,6 +50,7 @@ Worker evidence:
 - Autonomy tier: <Tier A autonomous lane | Tier B assisted lane | Tier C restricted lane>
 - Claimed merge authority: <Tier A autonomous after gates and green CI | Codex/human required | no merge authority>
 - Commands already run: <focused tests and gates>
+- Factory review packet: <output from `scripts/factory_review_packet.py --job-id <job-id> --json` or `scripts/factory_review_packet.py --artifact-dir <artifact-dir> --json`>
 
 Source-of-truth rules:
 - Active repo is /Users/sakibshuvo/projects/Entroping.
@@ -68,12 +69,19 @@ Review against:
 - changed source, tests, docs, scripts, and prompts
 
 Artifact-first review protocol (before raw transcript output):
+- If available, review the factory review packet from
+  `scripts/factory_review_packet.py --job-id <job-id> --json` or
+  `scripts/factory_review_packet.py --artifact-dir <artifact-dir> --json`.
+- Confirm `scripts/ai_jobs.py audit-routing --json` was checked before
+  dispatching queued cheap workers when the job came from the queue.
 - Review worker job metadata.
 - Review result summary.
 - Review `git diff --stat`.
 - Review changed files list.
 - Review test output summary.
 - Inspect raw transcripts only if any of the above is missing or ambiguous.
+- Do not read raw stdout, stderr, provider responses, or full transcripts
+  unless the compact evidence is ambiguous.
 
 Check:
 1. Is the diff inside the issue scope?
@@ -90,6 +98,7 @@ Check:
 12. Is this safe to merge, or does it need author action?
 
 Return:
+- decision: ACCEPT | REQUEST_SMALL_FIX | REWRITE_WITH_CODEX | ESCALATE_SCOPE,
 - recommendation: merge | do not merge | needs author action,
 - blocking findings first, with file/line evidence,
 - non-blocking concerns,

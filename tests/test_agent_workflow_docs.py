@@ -27,6 +27,45 @@ def test_agent_control_plane_documents_cross_agent_guardrails() -> None:
     assert "No helper agent is a source of truth" in doc
 
 
+def test_agent_control_plane_documents_artifact_first_worker_review() -> None:
+    control_plane = (
+        REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md"
+    ).read_text(encoding="utf-8")
+    handoff = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-desktop-handoff.md"
+    ).read_text(encoding="utf-8")
+    review_request = (
+        REPO_ROOT
+        / "docs"
+        / "meta"
+        / "prompt-library"
+        / "opencode-codex-review-request.md"
+    ).read_text(encoding="utf-8")
+    combined = " ".join(f"{control_plane}\n{handoff}\n{review_request}".split())
+
+    required_terms = [
+        "artifact-first worker contract",
+        "Do not run OpenCode interactively for routine cheap-worker work",
+        "scripts/ai_jobs.py audit-routing",
+        "scripts/factory_review_packet.py",
+        "review only the job metadata, result summary, diff stat, git diff, "
+        "changed files, and test output",
+        "Do not read raw stdout, stderr, provider responses, or full "
+        "transcripts unless the compact evidence is ambiguous",
+        "ACCEPT",
+        "REQUEST_SMALL_FIX",
+        "REWRITE_WITH_CODEX",
+        "ESCALATE_SCOPE",
+    ]
+
+    for term in required_terms:
+        assert term in combined
+
+
 def test_agent_toolchain_policy_is_linked_from_readiness_and_agent_rules() -> None:
     agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
     control_plane = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(

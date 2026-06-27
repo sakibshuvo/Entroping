@@ -1,5 +1,26 @@
 # Entroping Changelog
 
+## 2026-06-27
+
+- Added issue #1142's compact factory review packet helper:
+  `scripts/factory_review_packet.py` now reads completed AI job metadata or a
+  bounded worker artifact directory and emits compact job, result-summary,
+  proposal-diff, and test-output references for Codex review without reading
+  raw stdout, stderr, provider responses, or full transcripts by default.
+
+- Added issue #1143's Tier A routing audit:
+  `scripts/ai_jobs.py audit-routing --json` now reports queued or terminal
+  Tier A jobs that drift from the current cheap worker defaults, including job
+  id, issue, engine, profile, model, provider lane, billing path, expected
+  route, and a requeue suggestion.
+
+- Refreshed issue #1141's artifact-first worker prompts: the control plane,
+  OpenCode handoff prompt, Codex review prompt, and OpenCode readiness
+  guardrail terms now tell agents to use repo-owned worker harnesses, compact
+  review packets, and explicit `ACCEPT`, `REQUEST_SMALL_FIX`,
+  `REWRITE_WITH_CODEX`, or `ESCALATE_SCOPE` decisions instead of transcript
+  babysitting.
+
 ## 2026-06-26
 
 - Fixed issue #1157's QA Brain fine-tune readiness blocker summary noise:

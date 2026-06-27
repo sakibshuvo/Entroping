@@ -16,16 +16,14 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1157 QA Brain Fine-Tune Readiness Blocker Summary
+## Current Issue Slice: #1141-#1143 Artifact-First Worker Handoff
 
-Fix QA Brain fine-tune readiness summary aggregation so `summary.blockers_total`
-counts unique blocker messages across readiness rows. Keep the change narrow:
-preserve row-level blocker lists, readiness counts, packet schema,
-CLI/JSON/Markdown shape, local-only behavior, value-free rendering, and
-secret-like output rejection. Do not change `entroping run`, Hurl execution,
-provider/model boundaries, traffic parsing, fine-tuning/training behavior,
-LiteLLM configuration, hosted upload, ticket/chat/PR mutation, or report schema
-fields.
+Refresh the multi-model worker workflow so Codex spends tokens on compact
+evidence review instead of worker transcripts. Keep the change narrow: update
+repo-owned prompt guardrails, add a read-only compact worker review packet, and
+surface stale Tier A expensive routing before dispatch. Do not change
+`entroping run`, Hurl execution, provider/model product boundaries, traffic
+capture, hosted upload, or runtime report schema fields.
 
 ## Current Baseline
 
