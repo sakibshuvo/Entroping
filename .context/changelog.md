@@ -2,6 +2,11 @@
 
 ## 2026-06-26
 
+- Fixed issue #1135's integration readiness family-action noise: repeated
+  family-level next actions with the same priority, text, and source IDs now
+  coalesce into one local packet row while preserving all involved family IDs in
+  first-seen order.
+
 - Fixed issue #1133's integration readiness next-action priority dedupe:
   identical actions still collapse, while priority variants with the same
   action text, source IDs, and family IDs remain visible in local readiness

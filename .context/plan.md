@@ -16,14 +16,14 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1133 Integration Readiness Action Priority Dedupe
+## Current Issue Slice: #1135 Integration Readiness Family Action Coalescing
 
-Fix integration readiness next-action deduplication so identical actions still
-collapse but same text/source/family actions with different priorities remain
-visible. Keep the change narrow: preserve the packet schema, output shape,
-source states, family readiness behavior, value-free rendering, secret-like
-output rejection, command surface, and local-only execution. Do not change
-`entroping run`.
+Fix integration readiness next-action aggregation so repeated family-level
+actions with the same priority, action text, and source IDs coalesce into one
+row while preserving all family IDs in first-seen order. Keep the change narrow:
+preserve the packet schema, output shape, source states, family readiness
+behavior, value-free rendering, secret-like output rejection, command surface,
+and local-only execution. Do not change `entroping run`.
 
 ## Current Baseline
 
