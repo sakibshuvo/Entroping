@@ -352,6 +352,8 @@ def test_qa_brain_model_packaging_plan_blocks_inherited_readiness_blockers(
     row = packet.packaging_plans[0]
 
     assert packet.summary.status == "partial"
+    assert packet.summary.plans_ready == 0
+    assert packet.summary.plans_attention == 1
     assert packet.summary.blockers_total == 1
     assert packet.summary.next_actions_total == 1
     assert row.packaging_stage == "needs_boundary_repair"

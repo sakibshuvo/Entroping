@@ -473,9 +473,19 @@ def _plan_counts(
     packaging_plans: tuple[QaBrainModelPackagingPlanRow, ...],
 ) -> _PlanCounts:
     return _PlanCounts(
-        ready=sum(1 for row in packaging_plans if row.readiness == "ready"),
-        missing=sum(1 for row in packaging_plans if row.readiness == "missing"),
-        attention=sum(1 for row in packaging_plans if row.readiness == "attention"),
+        ready=sum(
+            1 for row in packaging_plans if row.packaging_stage == "packaging_ready"
+        ),
+        missing=sum(
+            1
+            for row in packaging_plans
+            if row.packaging_stage == "needs_readiness_evidence"
+        ),
+        attention=sum(
+            1
+            for row in packaging_plans
+            if row.packaging_stage == "needs_boundary_repair"
+        ),
     )
 
 
