@@ -44,7 +44,7 @@ def write_evidence_packet_report[PacketType: BaseModel](
     packet: PacketType,
     render_markdown: Callable[[PacketType], str],
     has_secret_content: Callable[[str], bool],
-    secret_error_message: str,
+    unsafe_content_message: str,
     artifact: str,
     error_type: type[Exception],
     safe_write: Callable[..., Path] = safe_write_text,
@@ -57,7 +57,7 @@ def write_evidence_packet_report[PacketType: BaseModel](
         render_markdown=render_markdown,
     )
     if has_secret_content(content):
-        raise error_type(secret_error_message)
+        raise error_type(unsafe_content_message)
 
     try:
         written = safe_write(

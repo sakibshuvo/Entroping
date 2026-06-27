@@ -403,7 +403,7 @@ def _write_packet_report(
         packet=packet,
         render_markdown=render_devex_readiness_markdown,
         has_secret_content=_contains_unredacted_secret_like_value,
-        secret_error_message=(
+        unsafe_content_message=(
             "developer experience readiness packet contains secret-like content"
         ),
         artifact="developer experience readiness packet",

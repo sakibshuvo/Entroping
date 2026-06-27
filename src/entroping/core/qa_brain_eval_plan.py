@@ -235,7 +235,7 @@ def run_qa_brain_eval_plan_report(
         packet=packet,
         render_markdown=render_qa_brain_eval_plan_markdown,
         has_secret_content=contains_unredacted_evidence_secret,
-        secret_error_message="QA brain eval plan contains secret-like content",
+        unsafe_content_message="QA brain eval plan contains secret-like content",
         artifact="QA brain eval plan",
         error_type=QaBrainEvalPlanError,
     )
