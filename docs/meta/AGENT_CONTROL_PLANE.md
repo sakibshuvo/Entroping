@@ -248,6 +248,74 @@ project owns product truth.
 One write agent per issue-scoped worktree. Parallelism comes from independent
 issues, not from multiple agents editing the same files.
 
+## Factory Template Extraction Inventory
+
+This inventory is planning evidence for a future template scaffold, not the
+template itself. Extract only workflow primitives that stay useful after
+removing Entroping's product contract, then prove each extraction with its own
+issue, tests, docs, and CI.
+
+### Workflow primitives to evaluate for extraction
+
+- Issue/worktree lifecycle: issue templates plus `scripts/start_issue.sh` and
+  `scripts/finish_issue.sh` are candidates for extraction after proof because
+  they encode the useful one-issue, one-branch, one-cleanup flow. A future
+  template can keep that shape while replacing Entroping issue labels,
+  project-board fields, and session-prompt product text.
+- Gate ladder: `scripts/check.sh`, `scripts/feature_gate.sh`,
+  `scripts/regression.sh`, and `scripts/audit_quality.sh` are candidates for a
+  tiered verification ladder when each target repo supplies its own quality,
+  security, architecture, docs, and dependency checks.
+- Documentation governance and PR evidence: `scripts/doc_governance_check.sh`,
+  `scripts/pr_body_check.py`, verification lanes, close keywords, and checked
+  documentation-impact declarations are candidate review contracts.
+- Agent control plane: Tier A/B/C lanes, provider-lane evidence, role registry
+  routing, stop conditions, one write agent per issue worktree, and parent
+  integrator ownership are candidate coordination rules.
+- Context protocol: `scripts/context_pack.sh --manifest`, the decision
+  registry, `.context/` handoffs, and targeted `rg`/source reads are candidate
+  context-budget controls when each repo defines its own canonical evidence.
+- Metrics: `scripts/factory_metrics.py readiness`, per-issue reports,
+  context-pack byte/token estimates, model-comparison yield, and the rule that
+  unknowns stay unknown are candidate measurement primitives.
+
+### Entroping-specific product contracts
+
+- QAnstitution governance, deterministic Hurl execution, Traffic is Truth, Hurl
+  is the Enforcer, and Entroping branding are product truth, not template
+  defaults.
+- `entroping run` remains deterministic and LLM-free. A template must not copy
+  provider-free runtime language unless the target product has the same
+  deterministic boundary.
+- The locked v4.1 CLI, product roadmap, reports, QAnstitution/Hurl evidence,
+  source archive, Obsidian vault shape, and public launch claims stay in
+  Entroping unless separately re-specified for another product.
+
+### Blocked before generalizing
+
+- Do not create a future template scaffold from this repo until extraction
+  issues prove each primitive can run outside Entroping names, docs, GitHub
+  labels, project-board fields, and product-specific tests.
+- Do not generalize worker provider lanes until the target repo has its own
+  secret handling, artifact hygiene, provider-evidence schema, and CI policy.
+- Do not promote graph, wiki, compression, or generated context tools into a
+  template without measured scorecard evidence and explicit ignored-output
+  paths.
+- Do not present factory metrics as cross-repo benchmarks until the template
+  defines comparable roles, gates, cost fields, and missing-value semantics.
+
+### Unsafe to generalize
+
+- Never copy raw provider transcripts, raw prompts, raw traffic, secrets,
+  credentials, local env files, cookies, or product runtime evidence into a
+  template or metrics ledger.
+- Never let autonomous workers inherit Tier B/Tier C merge authority, lower
+  security gates, bypass CI, or treat model summaries as source of truth.
+- Never move LLM providers into a deterministic runtime path by copying this
+  control plane; runtime boundaries must be target-product decisions.
+- Never replace GitHub Issues, tests, ADRs, source files, and CI with generated
+  summaries or a second Markdown backlog.
+
 ## Autonomous OpenCode Shipping Lanes
 
 Autonomous shipping is risk-tiered. It exists to keep the software factory

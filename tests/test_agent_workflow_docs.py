@@ -2004,6 +2004,64 @@ def test_factory_role_registry_and_metrics_ledger_are_portable_guardrails() -> N
         assert term in combined
 
 
+def test_agent_control_plane_inventories_factory_template_primitives() -> None:
+    control_plane = (
+        REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(control_plane.split())
+
+    required_terms = [
+        "## Factory Template Extraction Inventory",
+        "Workflow primitives to evaluate for extraction",
+        "candidates for extraction after proof",
+        "issue templates",
+        "`scripts/start_issue.sh` and `scripts/finish_issue.sh`",
+        "`scripts/check.sh`, `scripts/feature_gate.sh`, `scripts/regression.sh`, "
+        "and `scripts/audit_quality.sh`",
+        "`scripts/context_pack.sh --manifest`",
+        "`scripts/factory_metrics.py readiness`",
+        "unknowns stay unknown",
+        "Entroping-specific product contracts",
+        "QAnstitution governance",
+        "deterministic Hurl execution",
+        "`entroping run` remains deterministic and LLM-free",
+        "Blocked before generalizing",
+        "Unsafe to generalize",
+        "raw provider transcripts",
+        "raw traffic",
+        "Tier B/Tier C merge authority",
+        "model summaries as source of truth",
+        "future template scaffold",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+    section = control_plane.split("## Factory Template Extraction Inventory", maxsplit=1)[
+        1
+    ].split("## Autonomous OpenCode Shipping Lanes", maxsplit=1)[0]
+    expected_subsections = [
+        "### Workflow primitives to evaluate for extraction",
+        "### Entroping-specific product contracts",
+        "### Blocked before generalizing",
+        "### Unsafe to generalize",
+    ]
+    positions = [section.index(subsection) for subsection in expected_subsections]
+    assert positions == sorted(positions)
+
+    extraction_candidates = section.split(
+        "### Workflow primitives to evaluate for extraction", maxsplit=1
+    )[1].split("### Entroping-specific product contracts", maxsplit=1)[0]
+    normalized_extraction_candidates = " ".join(extraction_candidates.split())
+    for term in [
+        "issue templates",
+        "`scripts/start_issue.sh` and `scripts/finish_issue.sh`",
+        "`scripts/context_pack.sh --manifest`",
+        "`scripts/factory_metrics.py readiness`",
+    ]:
+        assert term in normalized_extraction_candidates
+
+
 def test_prompt_library_contains_autonomous_tier_a_worker_prompt() -> None:
     prompt = (REPO_ROOT / "docs" / "meta" / "prompt-library" / "issue-worker.md").read_text(
         encoding="utf-8"
