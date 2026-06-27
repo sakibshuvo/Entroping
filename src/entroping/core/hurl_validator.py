@@ -5,6 +5,8 @@ import subprocess  # nosec B404
 import tempfile
 from pathlib import Path
 
+from entroping.core.hurl_runner import _minimal_subprocess_env
+
 
 class HurlValidationError(ValueError):
     """Raised when generated Hurl content fails parser-backed validation."""
@@ -38,6 +40,7 @@ def validate_hurl_content(
                     stderr=stderr_file,
                     timeout=timeout_ms / 1000,
                     check=False,
+                    env=_minimal_subprocess_env(binary_path),
                     shell=False,
                 )
         except subprocess.TimeoutExpired as exc:
