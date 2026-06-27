@@ -1,10 +1,14 @@
 """Report command package."""
 
 from entroping.cli.commands.report import _deps as _deps
-from entroping.cli.commands.report import _experimental as _experimental
+
+# Typer registers commands at import time; keep these in documented help-panel order.
+# isort: off
 from entroping.cli.commands.report import _launch as _launch
-from entroping.cli.commands.report import _maintainer as _maintainer
 from entroping.cli.commands.report import _stable as _stable
+from entroping.cli.commands.report import _maintainer as _maintainer
+from entroping.cli.commands.report import _experimental as _experimental
+# isort: on
 from entroping.cli.commands.report._app import app
 
 _DEPENDENCY_EXPORTS = frozenset(_deps.__all__) - {"report_dependency"}
