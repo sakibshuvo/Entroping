@@ -107,9 +107,16 @@ def test_qa_brain_prompt_plan_preserves_attention_sources_and_next_actions(
 ) -> None:
     reports = tmp_path / "reports"
     reports.mkdir()
+    outside_value = "outside-run-summary-should-not-leak"
     outside = tmp_path.parent / "outside-run-latest.json"
     outside.write_text(
-        '{"schema_version":"entroping.run-report.v1","summary":{"total":999}}\n',
+        json.dumps(
+            {
+                "schema_version": "entroping.run-report.v1",
+                "summary": {"total": 999, "raw_value": outside_value},
+            }
+        )
+        + "\n",
         encoding="utf-8",
     )
     (reports / "run-latest.json").symlink_to(outside)
@@ -136,7 +143,7 @@ def test_qa_brain_prompt_plan_preserves_attention_sources_and_next_actions(
     assert next(
         action for action in packet.next_actions if action.case_ids == ("bogus_evidence",)
     ).priority == "high"
-    assert "999" not in packet.model_dump_json()
+    assert outside_value not in packet.model_dump_json()
 
 
 def test_qa_brain_prompt_plan_markdown_is_human_readable_and_value_free(
