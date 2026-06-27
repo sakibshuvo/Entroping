@@ -391,6 +391,63 @@ def test_handoff_packet_tolerates_git_subprocess_failure(
     assert packet.git.commit is None
 
 
+def test_handoff_packet_git_subprocess_uses_minimal_environment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    git_binary = str(tmp_path / "trusted-bin" / "git")
+    calls: list[tuple[list[str], dict[str, str] | None]] = []
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-proj-" + ("a" * 24))
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-secret")
+    monkeypatch.setattr(
+        "entroping.core.handoff_packet.shutil.which",
+        lambda binary: git_binary,
+    )
+
+    def fake_run(
+        args: list[str],
+        *,
+        check: bool,
+        capture_output: bool,
+        text: bool,
+        timeout: float,
+        env: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append((args, env))
+        assert check is False
+        assert capture_output is True
+        assert text is True
+        assert timeout == handoff_packet._GIT_TIMEOUT_SECONDS
+        if args[-2:] == ["branch", "--show-current"]:
+            return subprocess.CompletedProcess(args=args, returncode=0, stdout="main\n")
+        if args[-2:] == ["rev-parse", "HEAD"]:
+            return subprocess.CompletedProcess(args=args, returncode=0, stdout=("a" * 40) + "\n")
+        return subprocess.CompletedProcess(args=args, returncode=1, stdout="")
+
+    monkeypatch.setattr("entroping.core.handoff_packet.subprocess.run", fake_run)
+
+    packet = build_handoff_packet(project_root=tmp_path)
+
+    expected_path = ":".join(
+        dict.fromkeys(
+            [
+                str(Path(git_binary).resolve().parent),
+                "/usr/bin",
+                "/bin",
+            ]
+        )
+    )
+    expected_env = {"PATH": expected_path}
+    assert packet.git.branch == "main"
+    assert packet.git.commit == "a" * 40
+    assert calls == [
+        ([git_binary, "-C", str(tmp_path), "branch", "--show-current"], expected_env),
+        ([git_binary, "-C", str(tmp_path), "rev-parse", "HEAD"], expected_env),
+    ]
+    assert "OPENAI_API_KEY" not in expected_env
+    assert "DEEPSEEK_API_KEY" not in expected_env
+
+
 def test_handoff_packet_tolerates_missing_git_binary(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
