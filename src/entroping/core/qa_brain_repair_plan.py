@@ -662,7 +662,7 @@ def _summary(
 ) -> QaBrainRepairPlanSummary:
     source_counts = _source_counts(sources)
     repair_counts = _repair_counts(repair_plans)
-    blockers_total = sum(len(row.blockers) for row in repair_plans)
+    blockers_total = len({blocker for row in repair_plans for blocker in row.blockers})
     return QaBrainRepairPlanSummary(
         status=_status(source_counts=source_counts, repair_counts=repair_counts),
         sources_total=len(sources),

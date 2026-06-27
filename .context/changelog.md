@@ -2,6 +2,11 @@
 
 ## 2026-06-26
 
+- Fixed issue #1139's QA Brain repair-plan blocker summary noise:
+  `summary.blockers_total` now counts unique blocker messages across
+  repair-plan rows while preserving each row's blocker list and the existing
+  local-only packet shape.
+
 - Fixed issue #1137's Evidence Cloud upload-candidate blocker summary gap:
   `summary.blockers_total` now counts unique blocker messages from both
   readiness areas and upload candidates while preserving each row's blocker
