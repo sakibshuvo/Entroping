@@ -64,7 +64,7 @@ directly to the stable-core blockers tracked in #306 and #308.
 ### Success / Failure Summary
 - Overall outcome:
 - Time to first useful result:
-- Sanitized logs:
+- Sanitized logs (sanitized logs only):
 - Most painful step:
 - Most pleasant surprise:
 ```
