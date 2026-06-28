@@ -74,6 +74,44 @@
   "package_index": {
     "status": "not-published",
     "blocked_by": "TestPyPI/PyPI Trusted Publishing proof has not run yet",
-    "runbook": "docs/meta/PYPI_RELEASE_RUNBOOK.md"
+    "runbook": "docs/meta/PYPI_RELEASE_RUNBOOK.md",
+    "evidence_ledger_expectations": {
+      "before_publish": {
+        "required_local_evidence": [
+          "scripts/package_index_readiness.py --strict passes",
+          "scripts/package_check.sh passes",
+          "scripts/local_wheel_install_smoke.py --skip-build passes",
+          "uvx twine check dist/* passes",
+          "scripts/release_check.sh --require-live-demo passes",
+          "git status --short is clean"
+        ],
+        "required_ci_evidence": [
+          "main branch CI is green for the commit being published",
+          "Pages CI is green for the commit being published"
+        ],
+        "insufficient_evidence": [
+          "model-generated summaries of command output without the actual command output",
+          "verbal confirmation without tagged workflow run",
+          "manual review without automated gate evidence"
+        ]
+      },
+      "after_publish": {
+        "required_external_evidence": [
+          "TestPyPI/PyPI package page URL for the published version",
+          "Install smoke from a clean venv using the published package index",
+          "Workflow run URL for the publish action with success conclusion"
+        ],
+        "required_local_evidence": [
+          "Updated release-evidence.json with published version and CI evidence",
+          "GitHub release created or updated with publish evidence",
+          "docs/meta/PROJECT_PROGRESS.md updated if stable-core blocker status changed"
+        ],
+        "insufficient_evidence": [
+          "Publish attempt without install smoke",
+          "Install smoke run from the repo venv (not a clean external venv)",
+          "Model-generated release notes without anchored CI evidence"
+        ]
+      }
+    }
   }
 }
