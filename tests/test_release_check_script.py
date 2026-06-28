@@ -1,5 +1,6 @@
 """Smoke tests for the alpha release-readiness script."""
 
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -81,8 +82,75 @@ def test_release_check_rejects_unknown_options() -> None:
     assert "Unknown option: --bogus" in result.stderr
 
 
-def test_release_check_rejects_conflicting_live_demo_options() -> None:
-    result = run_release_check("--skip-live-demo", "--require-live-demo")
+def test_package_index_readiness_invoked_in_script_source() -> None:
+    source = SCRIPT.read_text(encoding="utf-8")
 
-    assert result.returncode == 2
-    assert "--skip-live-demo and --require-live-demo cannot be used together" in result.stderr
+    assert "scripts/package_index_readiness.py --strict" in source, (
+        "release_check.sh must invoke package_index_readiness.py --strict; "
+        "removing it would silently drop the package-index gate"
+    )
+
+
+def test_package_index_readiness_not_skippable() -> None:
+    """No --skip flag exists that would bypass package_index_readiness."""
+    source = SCRIPT.read_text(encoding="utf-8")
+
+    assert "skip-package-index" not in source
+    assert "skip_package_index" not in source
+    assert "skip package index" not in source.lower()
+    assert "skip-pypi" not in source.lower()
+
+
+def test_package_index_readiness_appears_in_all_dry_run_modes() -> None:
+    """Package-index check is always present, even with all skips enabled."""
+    max_skip = run_release_check(
+        "--dry-run",
+        "--skip-security",
+        "--skip-performance",
+        "--skip-downstream-smoke",
+        "--skip-live-demo",
+    )
+    assert max_skip.returncode == 0, max_skip.stderr
+    assert "scripts/package_index_readiness.py --strict" in max_skip.stdout, (
+        "package_index_readiness must not be skippable"
+    )
+
+    minimal = run_release_check("--dry-run")
+    assert minimal.returncode == 0, minimal.stderr
+    assert "scripts/package_index_readiness.py --strict" in minimal.stdout
+
+
+def test_package_index_failure_blocks_release_check(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    for relative in (
+        ".github/workflows/publish-python-package.yml",
+        "docs/meta/PYPI_RELEASE_RUNBOOK.md",
+        "docs/meta/release-evidence.json",
+        "pyproject.toml",
+    ):
+        source = REPO_ROOT / relative
+        target = root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+
+    result = subprocess.run(
+        ["python", str(REPO_ROOT / "scripts" / "package_index_readiness.py"),
+         "--root", str(root), "--strict"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"baseline must pass: {result.stderr}"
+
+    (root / "docs" / "meta" / "release-evidence.json").unlink()
+    broken = subprocess.run(
+        ["python", str(REPO_ROOT / "scripts" / "package_index_readiness.py"),
+         "--root", str(root), "--strict"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert broken.returncode == 1, (
+        "package_index_readiness must exit 1 when evidence is missing; "
+        "otherwise the release-check gate is meaningless"
+    )
