@@ -259,7 +259,7 @@ The PyPA action is expected to produce PyPI attestations automatically for
 Trusted Publishing flows. Keep the build job unprivileged and the publish job
 small so the OIDC identity is exposed to as little code as possible.
 
-## Rollback, Abort, and Failure Modes
+## Rollback And Yank Notes, Abort, and Failure Modes
 
 Package-index releases are immutable. Once a version is published to TestPyPI or
 PyPI, its artifact content cannot be changed or deleted in a way that downstream
