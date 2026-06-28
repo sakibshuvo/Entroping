@@ -64,6 +64,8 @@ def test_factory_review_packet_reads_job_artifact_without_transcripts(
         "FILES_CHANGED: scripts/factory_review_packet.py, tests/test_factory_review_packet.py\n"
         "TESTS_RUN: uv run pytest tests/test_factory_review_packet.py -q\n"
         "KNOWN_ISSUES: none\n"
+        "VERIFICATION_LANE: normal-code\n"
+        "CI_STATUS: pass\n"
         "SUMMARY: Produced a compact review packet.\n",
         encoding="utf-8",
     )
@@ -163,8 +165,18 @@ def test_factory_review_packet_accepts_direct_artifact_dir_without_stdout(
             "model": "deepseek-v4-flash",
             "issue": "1143",
             "artifact_dir": str(artifact_dir),
+            "provider_lane": "deepseek-api/direct",
+            "merge_authority": "Codex/human required",
+            "verification_lane": "security-runtime",
+            "ci_status": "pass",
             "returncode": 0,
         },
+    )
+    (artifact_dir / "result.md").write_text(
+        "STATUS: pass\n"
+        "VERIFICATION_LANE: security-runtime\n"
+        "CI_STATUS: pass\n",
+        encoding="utf-8",
     )
     (artifact_dir / "stdout.txt").write_text("verbose provider output\n", encoding="utf-8")
 
@@ -183,6 +195,41 @@ def test_factory_review_packet_accepts_direct_artifact_dir_without_stdout(
     assert artifact["metadata_path"] == str(artifact_dir / "metadata.json")
     assert "stdout_path" not in artifact
 
+
+def test_factory_review_packet_rejects_missing_required_fields(tmp_path: Path) -> None:
+    artifact_root = tmp_path / "ai-reviews"
+    artifact_dir = artifact_root / "review-123"
+    artifact_dir.mkdir(parents=True)
+    write_json(
+        artifact_dir / "metadata.json",
+        {
+            "schema_version": "entroping.deepseek-worker.v1",
+            "status": "completed",
+            "mode": "review",
+            "model": "deepseek-v4-flash",
+            "artifact_dir": str(artifact_dir),
+            "provider_lane": "deepseek-api/direct",
+            "returncode": 0,
+        },
+    )
+    (artifact_dir / "result.md").write_text(
+        "STATUS: pass\n"
+        "CI_STATUS: pass\n",
+        encoding="utf-8",
+    )
+
+    result = run_packet(
+        "--artifact-dir",
+        str(artifact_dir),
+        "--artifact-root",
+        str(artifact_root),
+        "--json",
+    )
+
+    assert result.returncode == 2
+    assert "review packet missing required fields" in result.stderr
+    assert "issue" in result.stderr
+    assert "verification_lane" in result.stderr
 
 def _write_marathon_handoff(
     artifact_dir: Path,

@@ -54,6 +54,8 @@ def write_handoff(
         "model": "deepseek/deepseek-v4-pro",
         "autonomy_tier": "Tier B assisted lane",
         "merge_authority": "Codex/human required",
+        "verification_lane": "tests-only",
+        "ci_status": "pass",
     }
     if codex_inbox_status is not None:
         metadata["codex_inbox_status"] = codex_inbox_status
@@ -62,6 +64,8 @@ def write_handoff(
         "STATUS: pass\n"
         "FILES_CHANGED: scripts/factory_inbox.py, tests/test_factory_inbox.py\n"
         "TESTS_RUN: uv run pytest tests/test_factory_inbox.py -q\n"
+        "VERIFICATION_LANE: tests-only\n"
+        "CI_STATUS: pass\n"
         "KNOWN_ISSUES: none\n"
         "SUMMARY: Ready for Codex pickup.\n",
         encoding="utf-8",

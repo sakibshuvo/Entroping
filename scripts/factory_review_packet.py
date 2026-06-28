@@ -18,7 +18,15 @@ DEFAULT_ARTIFACT_ROOT = Path(".entroping") / "ai-reviews"
 QUEUE_STATES = ("queued", "running", "completed", "failed")
 RESULT_FILENAMES = ("result.md", "RESULT.md", "worker-result.md")
 TEST_FILENAMES = ("tests.txt", "TESTS.txt", "test-output.txt")
-SUMMARY_KEYS = ("STATUS", "FILES_CHANGED", "TESTS_RUN", "KNOWN_ISSUES", "SUMMARY")
+SUMMARY_KEYS = (
+    "STATUS",
+    "FILES_CHANGED",
+    "TESTS_RUN",
+    "KNOWN_ISSUES",
+    "SUMMARY",
+    "VERIFICATION_LANE",
+    "CI_STATUS",
+)
 HANDOFF_METADATA_KEYS = (
     "schema_version",
     "status",
@@ -158,6 +166,7 @@ def _packet_for_args(
         "job": _job_packet(job, job_path),
         "artifact": _artifact_packet(artifact_dir),
     }
+    _validate_packet(packet)
     return packet
 
 
@@ -319,6 +328,85 @@ def _result_summary(path: Path) -> dict[str, str]:
         if key in SUMMARY_KEYS:
             summary[key] = value.strip()
     return summary
+
+
+def _validate_packet(packet: dict[str, Any]) -> None:
+    artifact = packet.get("artifact")
+    if not isinstance(artifact, dict):
+        msg = "artifact is required in packet"
+        raise PacketError(msg)
+    job = packet.get("job")
+    if job is not None and not isinstance(job, dict):
+        msg = "job must be an object when present"
+        raise PacketError(msg)
+
+    metadata_value = artifact.get("metadata")
+    result_summary = artifact.get("result_summary")
+    if metadata_value is not None and not isinstance(metadata_value, dict):
+        msg = "artifact metadata must be an object when present"
+        raise PacketError(msg)
+    if result_summary is not None and not isinstance(result_summary, dict):
+        msg = "artifact result_summary must be an object when present"
+        raise PacketError(msg)
+
+    metadata = metadata_value if isinstance(metadata_value, dict) else {}
+    summary = result_summary if isinstance(result_summary, dict) else {}
+    job_payload = job if isinstance(job, dict) else {}
+
+    status = _first_value(metadata, "status")
+    issue = _first_non_empty(
+        _first_value(job_payload, "issue"),
+        _first_value(metadata, "issue"),
+    )
+    provider_lane = _first_non_empty(
+        _first_value(job_payload, "provider_lane"),
+        _first_value(metadata, "provider_lane"),
+    )
+    merge_authority = _first_non_empty(
+        _first_value(job_payload, "merge_authority"),
+        _first_value(metadata, "merge_authority"),
+    )
+    verification_lane = _first_non_empty(
+        _first_value(summary, "VERIFICATION_LANE"),
+        _first_value(metadata, "verification_lane"),
+    )
+    ci_status = _first_non_empty(
+        _first_value(summary, "CI_STATUS"),
+        _first_value(metadata, "ci_status"),
+    )
+
+    if status == "completed":
+        missing: list[str] = []
+        if issue is None:
+            missing.append("issue")
+        if provider_lane is None:
+            missing.append("provider_lane")
+        if verification_lane is None:
+            missing.append("verification_lane")
+        if ci_status is None:
+            missing.append("ci_status")
+        if merge_authority is None:
+            missing.append("merge_authority")
+        if missing:
+            msg = ", ".join(missing)
+            raise PacketError(f"review packet missing required fields: {msg}")
+
+
+def _first_value(payload: dict[str, Any], *keys: str) -> str | None:
+    for key in keys:
+        value = payload.get(key)
+        if isinstance(value, str):
+            text = value.strip()
+            if text:
+                return text
+    return None
+
+
+def _first_non_empty(*values: str | None) -> str | None:
+    for value in values:
+        if value is not None:
+            return value
+    return None
 
 
 def _proposal_diff_packet(path: Path) -> dict[str, Any]:
