@@ -99,40 +99,54 @@ archive is mounted or attached to the cloud task.
 | Debug red CI | [CI failure debug](ci-failure-debug.md) |
 | Return after unattended work | [After-sleep status](after-sleep-status.md) |
 
-## Prompt Picker
+## Prompt Selection Matrix
 
 Use this table when you know the kind of work but not the exact launcher.
 
-| Prompt | Pick When | Do Not Use When |
+| Prompt | Use When | Runner |
 | --- | --- | --- |
-| [Codex session handoff](codex-session-handoff.md) | Starting a fresh Codex thread or recovering after context loss. | You already have an active issue/worktree and need a worker packet. |
-| [Issue worker](issue-worker.md) | One agent needs one GitHub issue, one worktree, one branch, and one PR. | You need Codex to choose issues across Spark/OpenCode capacity first. |
-| [Architecture boundary brief](architecture-boundary-brief.md) | The worker needs explicit allowed files, forbidden files, invariants, and stop conditions. | The issue is tiny docs/test work with no architecture risk. |
-| [Multi-agent marathon](multi-agent-marathon.md) | Codex must select issues and generate Spark-only, OpenCode-only, or Spark + OpenCode batch prompts. | You already selected one issue for one worker. |
-| [Codex persistent marathon](codex-persistent-marathon.md) | One Codex integrator should keep shipping issues sequentially. | Several Spark/OpenCode workers will run in parallel. |
-| [Spark-safe worker](spark-safe-worker.md) | A quick Spark session should handle low-risk docs, tests, hygiene, or small guardrails. | You need issue selection and filled worker prompts for a marathon batch. |
-| [OpenCode Desktop handoff](opencode-desktop-handoff.md) | OpenCode needs a complete implementation or PR-verification packet with provider, model, preflight, and handoff evidence. | You want a one-command Tier A conveyor. |
-| [OpenCode Desktop one-shot](opencode-desktop-one-shot.md) | OpenCode Desktop should run one Tier A issue conveyor end to end. | The issue is Tier B/Tier C or needs Codex merge review. |
-| [OpenCode Codex review request](opencode-codex-review-request.md) | OpenCode wants Codex to review an OpenCode-produced diff or PR. | The worker has not produced a diff or PR yet. |
-| [Model-output acceptance gate](model-output-acceptance-gate.md) | Cheap-model output needs accept/reject/escalate triage. | You need new implementation from scratch. |
-| [Model-comparison trial](model-comparison-trial.md) | Comparing Codex, OpenCode, DeepSeek, Kimi, Qwen, or local model lanes. | You only need to ship one issue. |
-| [Codex-outage daily operations](codex-outage-daily-operations.md) | Codex capacity is low and safe OpenCode/DeepSeek operations should continue. | Normal Codex capacity is available and you need a focused issue worker. |
-| [OpenCode-only week monitoring](opencode-week-monitoring.md) | OpenCode/DeepSeek should monitor PRs, CI, ready issues, and cleanup candidates without mutating state. | You need write work or merge authority. |
-| [Thread steering](thread-steering.md) | Redirecting or pausing a running thread safely. | Starting a fresh thread from scratch. |
-| [After-sleep status](after-sleep-status.md) | Returning after overnight, unattended, or multi-session work. | You already have clear current state and need implementation. |
-| [PR review and merge gate](pr-review-merge-gate.md) | Deciding if an open PR is safe to merge. | CI is red and needs root-cause debugging first. |
-| [CI failure debug](ci-failure-debug.md) | GitHub Actions or PR checks are failing. | The question is whether a green PR is mergeable. |
-| [Bug bash](bug-bash.md) | Searching for verified bugs and quality gaps. | You already have a validated issue to implement. |
-| [Backlog triage](backlog-triage.md) | Turning reviews, feedback, and ideas into scoped GitHub issues. | You need to merge an existing PR. |
-| [Engineering health review](engineering-health-review.md) | Broad review of architecture, maintainability, tests, docs, security, and regression risk. | You need narrow issue implementation. |
-| [Security review](security-review.md) | Reviewing a security-sensitive diff, branch, or issue. | You need a full repository security scan through the security plugin. |
-| [Launch readiness review](launch-readiness-review.md) | Checking README, install, demo, public surface, and first-five-minute UX. | The question is stable-core evidence only. |
-| [Stable-core audit](stable-core-audit.md) | Verifying stable-core readiness claims. | You need product onboarding critique. |
-| [Roadmap and progress refresh](roadmap-progress-refresh.md) | Refreshing roadmap/progress without Markdown sprawl. | The work belongs in a GitHub issue only. |
-| [Context reconciliation](context-reconciliation.md) | Comparing historical source material or archived context against current repo truth. | You need a new implementation plan without source-history drift. |
-| [Gemini review](gemini-review.md) | Asking Gemini or NotebookLM for product/engineering sanity checks. | You need authoritative repo decisions. |
-| [Claude code review](claude-code-review.md) | Asking Claude Code or work-Claude for source-pinned review. | You need Codex to integrate or merge. |
-| [DeepSeek/OpenCode review](deepseek-opencode-review.md) | Getting bounded DeepSeek/OpenCode review, bug bash, or patch proposals. | You need OpenCode implementation with a full work packet. |
+| [`codex-session-handoff.md`](codex-session-handoff.md) | Start or recover a Codex thread. | Codex integrator |
+| [`issue-worker.md`](issue-worker.md) | Give one agent one GitHub issue, one worktree, one branch, and one PR. | Codex, OpenCode, DeepSeek, Spark, or local worker |
+| [`architecture-boundary-brief.md`](architecture-boundary-brief.md) | Add allowed files, forbidden files, invariants, and stop conditions to a worker packet. | Architect or integrator |
+| [`multi-agent-marathon.md`](multi-agent-marathon.md) | Ask Codex to select issues and generate Spark-only, OpenCode-only, or Spark + OpenCode batch prompts. | Parent integrator |
+| [`codex-persistent-marathon.md`](codex-persistent-marathon.md) | I want a Codex session to keep shipping issues sequentially. | Codex integrator |
+| [`spark-safe-worker.md`](spark-safe-worker.md) | Spend Spark on low-risk docs, tests, hygiene, prompt-library, or small guardrail work. | Spark or Codex Spark |
+| [`opencode-desktop-handoff.md`](opencode-desktop-handoff.md) | Start OpenCode implementation or PR verification with provider, model, preflight, and handoff evidence. | OpenCode Desktop, OpenCode CLI, or OpenCode Go |
+| [`opencode-desktop-one-shot.md`](opencode-desktop-one-shot.md) | I want OpenCode Desktop + DeepSeek to just work on one Tier A issue conveyor. | OpenCode Desktop with DeepSeek |
+| [`opencode-codex-review-request.md`](opencode-codex-review-request.md) | Ask Codex to review an OpenCode-produced diff or PR. | OpenCode requesting Codex review |
+| [`deepseek-opencode-review.md`](deepseek-opencode-review.md) | Get bounded DeepSeek/OpenCode review, bug bash, or patch proposals. | DeepSeek or OpenCode reviewer |
+| [`model-output-acceptance-gate.md`](model-output-acceptance-gate.md) | A cheap model produced a large patch or review; should I trust it? | Integrator or reviewer |
+| [`model-comparison-trial.md`](model-comparison-trial.md) | Compare Codex, OpenCode, DeepSeek, Kimi, Qwen, or local model lanes. | Integrator plus bounded workers |
+| [`codex-outage-daily-operations.md`](codex-outage-daily-operations.md) | Codex limit is low; keep moving safely. | OpenCode/DeepSeek operator |
+| [`opencode-week-monitoring.md`](opencode-week-monitoring.md) | Monitor OpenCode/DeepSeek PRs, CI, ready issues, cleanup, and metrics without mutating state. | Monitoring worker |
+| [`engineering-health-review.md`](engineering-health-review.md) | Find code quality, design, security, and documentation problems. | Review agent |
+| [`claude-code-review.md`](claude-code-review.md) | Ask Claude Code or work-Claude for source-pinned review. | Claude reviewer |
+| [`gemini-review.md`](gemini-review.md) | Ask Gemini or NotebookLM for product/engineering sanity checks. | Gemini or NotebookLM reviewer |
+| [`security-review.md`](security-review.md) | Review a security-sensitive diff, branch, or issue. | Security reviewer |
+| [`pr-review-merge-gate.md`](pr-review-merge-gate.md) | Before merge, is this PR safe? | Integrator |
+| [`ci-failure-debug.md`](ci-failure-debug.md) | GitHub Actions or PR checks are failing. | Dev or QA agent |
+| [`bug-bash.md`](bug-bash.md) | Search for verified bugs and quality gaps. | QA or review agent |
+| [`backlog-triage.md`](backlog-triage.md) | Convert reviews, feedback, and ideas into scoped GitHub issues. | Product manager or triage agent |
+| [`after-sleep-status.md`](after-sleep-status.md) | Return after overnight, unattended, or multi-session work. | Any worker or integrator |
+| [`thread-steering.md`](thread-steering.md) | Redirect or pause a running thread safely. | Human operator or parent integrator |
+| [`roadmap-progress-refresh.md`](roadmap-progress-refresh.md) | Refresh project direction and progress without Markdown sprawl. | Product manager or integrator |
+| [`launch-readiness-review.md`](launch-readiness-review.md) | Audit README, install, demo, public surface, and first-five-minute UX. | Product or review agent |
+| [`stable-core-audit.md`](stable-core-audit.md) | Check stable-core evidence before readiness claims. | Integrator or reviewer |
+| [`context-reconciliation.md`](context-reconciliation.md) | Compare historical source material or archived context against current repo truth. | Context reviewer |
+
+## Quick Selection Rules
+
+| Goal | Use |
+| --- | --- |
+| I want OpenCode Desktop + DeepSeek to just work | `opencode-desktop-one-shot.md` |
+| I need to prepare a bounded OpenCode or DeepSeek implementation packet | `issue-worker.md` plus `architecture-boundary-brief.md` when risk is non-trivial |
+| A cheap model produced a large patch or review; should I trust it? | `model-output-acceptance-gate.md` |
+| Codex limit is low; keep moving safely | `codex-outage-daily-operations.md` |
+| I want a Codex session to keep shipping issues | `codex-persistent-marathon.md` |
+| Before merge, is this PR safe? | `pr-review-merge-gate.md` |
+| Find code quality, design, security, and documentation problems | `engineering-health-review.md` |
+| CI is red | `ci-failure-debug.md` |
+| A review produced too many ideas | `backlog-triage.md` |
 
 ## Batch And Worker Prompts
 
