@@ -617,108 +617,21 @@ Do not document these as primary v4.1 commands:
 | `--verbose` | Future global flag only after spec update |
 | `freeze --dry-run` | Preview selected freeze artifacts without writing files |
 
-## Report Command Category Map
+## Report Categories
 
-Report subcommands are organized into four help panels with distinct audience
-boundaries. This map identifies beta-relevant, stable-public, maintainer-only,
-and experimental commands. Related issue: #308.
-
-### Launch Reports (`LAUNCH_REPORT_PANEL`)
-
-Beta-facing. Available in both alpha and beta releases. These commands produce
-deterministic output for end users and external projects.
-
-| Command | Category | Description |
-|---------|----------|-------------|
-| `report bug` | beta-public | Generate a bug-report bundle |
-| `report failure-bundle` | beta-public | Bundle Hurl failures with context |
-| `report runtime-card` | beta-public | Runtime environment card |
-| `report review-summary` | beta-public | Deterministic review summary |
-
-### Stable Reports (`STABLE_REPORT_PANEL`)
-
-Stable-public. These produce deterministic, versioned output intended for
-programmatic consumers. The output schema carries a schema version.
-
-| Command | Category | Description |
-|---------|----------|-------------|
-| `report delta` | stable-public | Run-result delta report |
-| `report policy-diff` | stable-public | Policy diff report |
-| `report redaction` | stable-public | Redaction evidence report |
-| `report capture-summary` | stable-public | Traffic capture summary |
-| `report policy` | stable-public | Policy document report |
-| `report gate-coverage` | stable-public | Gate coverage evidence |
-| `report github-annotations` | stable-public | GitHub Actions annotation output |
-| `report sarif` | stable-public | SARIF-format output |
-| `report traceability` | stable-public | Story traceability matrix |
-
-### Maintainer Reports (`MAINTAINER_REPORT_PANEL`)
-
-Maintainer-only. Internal quality, drift, and project-health measurement. Not
-part of the public beta surface.
-
-| Command | Category | Description |
-|---------|----------|-------------|
-| `report badges` | maintainer-only | Project badge evidence |
-| `report gate-injection` | maintainer-only | Gate injection report |
-| `report artifact-manifest` | maintainer-only | Artifact manifest listing |
-| `report test-pyramid` | maintainer-only | Test pyramid analysis |
-| `report test-quality` | maintainer-only | Test quality metrics |
-| `report promote-drift-baseline` | maintainer-only | Promote current state as drift baseline |
-
-### Experimental Reports (`EXPERIMENTAL_REPORT_PANEL`)
-
-Experimental. Design-partner and agent-produced evidence. These commands may
-change or move between panels without a compatibility guarantee. They remain
-available in the Experimental Design-Partner Evidence help panel; they are not
-part of the beta compatibility promise.
-
-| Command | Category | Description |
-|---------|----------|-------------|
-| `report agent-bundle` | experimental | Agent output bundle |
-| `report api-inventory` | experimental | API surface inventory |
-| `report connector-intent` | experimental | Connector intent map |
-| `report design-partner-feedback` | experimental | Design partner feedback intake |
-| `report devex-readiness` | experimental | Developer experience readiness |
-| `report evidence-index` | experimental | Evidence index report |
-| `report evidence-links` | experimental | Evidence link checker |
-| `report evidence-bundle` | experimental | Evidence bundle export |
-| `report evidence-portal` | experimental | Evidence portal render |
-| `report evidence-action-plan` | experimental | Evidence action plan |
-| `report evidence-cloud-dashboard` | experimental | Cloud dashboard evidence |
-| `report evidence-cloud-export` | experimental | Cloud export evidence |
-| `report evidence-cloud-readiness` | experimental | Cloud readiness evidence |
-| `report evidence-cloud-workspace` | experimental | Cloud workspace evidence |
-| `report external-test-evidence` | experimental | External test evidence |
-| `report handoff` | experimental | Session handoff packet |
-| `report integration-readiness` | experimental | Integration readiness check |
-| `report mutation-readiness` | experimental | Mutation test readiness |
-| `report notification-packet` | experimental | Notification packet |
-| `report observability-adapter-readiness` | experimental | Observability adapter readiness |
-| `report observability-packet` | experimental | Observability packet |
-| `report otel-mapping` | experimental | OpenTelemetry mapping |
-| `report pilot-cohort` | experimental | Pilot cohort report |
-| `report pilot-metrics` | experimental | Pilot metrics |
-| `report pilot-outcome` | experimental | Pilot outcome evidence |
-| `report pr-evidence-card` | experimental | PR evidence card |
-| `report qa-brain-eval-plan` | experimental | QA brain eval plan |
-| `report qa-brain-fine-tune-readiness` | experimental | QA brain fine-tune readiness |
-| `report qa-brain-model-packaging-plan` | experimental | QA brain model packaging |
-| `report qa-brain-prompt-plan` | experimental | QA brain prompt plan |
-| `report qa-brain-repair-plan` | experimental | QA brain repair plan |
-| `report qa-brain-retrieval-plan` | experimental | QA brain retrieval plan |
-| `report qa-brain-routing-plan` | experimental | QA brain routing plan |
-| `report qa-brain-seed` | experimental | QA brain seed evidence |
-| `report team-access-control-plan` | experimental | Team access control plan |
-| `report team-evidence-readiness` | experimental | Team evidence readiness |
-| `report work-item-draft` | experimental | Work item draft |
-| `report work-item-import-bundle` | experimental | Work item import bundle |
-
-### Category Definitions
-
-| Category | Audience | Stability promise | Merge authority |
-|----------|----------|-------------------|-----------------|
-| `beta-public` | End users and external projects | Backward compatible within beta | Codex |
-| `stable-public` | Programmatic consumers | Schema-versioned | Codex |
-| `maintainer-only` | Repo maintainers | No compatibility promise | Codex |
-| `experimental` | Design partners, agents | None; may change or move | N/A (evidence only) |
+- `beta-public`: `bug`, `failure-bundle`, `runtime-card`, `review-summary`
+- `stable-public`: `delta`, `policy-diff`, `redaction`, `capture-summary`,
+  `policy`, `gate-coverage`, `github-annotations`, `sarif`, `traceability`
+- `maintainer-only`: `badges`, `gate-injection`, `artifact-manifest`,
+  `test-pyramid`, `test-quality`, `promote-drift-baseline`
+- `experimental`: `agent-bundle`, `api-inventory`, `connector-intent`,
+  `design-partner-feedback`, `devex-readiness`, `evidence-{index,links,bundle,
+  portal,action-plan,cloud-dashboard,cloud-export,cloud-readiness,
+  cloud-workspace}`, `external-test-evidence`, `handoff`,
+  `integration-readiness`, `mutation-readiness`, `notification-packet`,
+  `observability-{adapter-readiness,packet}`, `otel-mapping`,
+  `pilot-{cohort,metrics,outcome}`, `pr-evidence-card`,
+  `qa-brain-{eval-plan,fine-tune-readiness,model-packaging-plan,prompt-plan,
+  repair-plan,retrieval-plan,routing-plan,seed}`,
+  `team-{access-control-plan,evidence-readiness}`,
+  `work-item-{draft,import-bundle}`
