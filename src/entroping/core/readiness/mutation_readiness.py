@@ -18,8 +18,9 @@ from entroping.core.evidence_common import (
     contains_unredacted_evidence_secret,
     safe_evidence_text,
 )
+from entroping.core.evidence_packet_base import write_evidence_packet_report
 from entroping.core.path_safety import first_symlink_path_component
-from entroping.core.safe_write import SafeWriteError, safe_write_text
+from entroping.core.safe_write import safe_write_text
 from entroping.models.hurl import (
     HurlMetadata,
     HurlMetadataSyntaxError,
@@ -296,20 +297,19 @@ def run_mutation_readiness_report(
     root = project_root.expanduser().resolve()
     destination = _resolve_output_path(output_path or _DEFAULT_OUTPUTS[output], root=root)
     packet = build_mutation_readiness(project_root=root)
-    content = _render_packet_content(packet, output=output)
-    if contains_unredacted_evidence_secret(content):
-        msg = "Mutation readiness contains secret-like content"
-        raise MutationReadinessError(msg)
-    try:
-        written = safe_write_text(
-            destination,
-            content,
-            artifact="mutation readiness",
-            root=root,
-        )
-    except SafeWriteError as exc:
-        raise MutationReadinessError(str(exc)) from exc
-    return MutationReadinessResult(output_path=written, packet=packet)
+    result = write_evidence_packet_report(
+        project_root=root,
+        output=output,
+        output_path=destination,
+        packet=packet,
+        render_markdown=render_mutation_readiness_markdown,
+        has_secret_content=contains_unredacted_evidence_secret,
+        unsafe_content_message="Mutation readiness contains secret-like content",
+        artifact="mutation readiness",
+        error_type=MutationReadinessError,
+        safe_write=safe_write_text,
+    )
+    return MutationReadinessResult(output_path=result.output_path, packet=result.packet)
 
 
 def build_mutation_readiness(*, project_root: Path) -> MutationReadinessPacket:

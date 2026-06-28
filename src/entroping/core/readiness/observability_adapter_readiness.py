@@ -21,10 +21,11 @@ from entroping.core.evidence_common import (
     contains_unredacted_evidence_secret,
     safe_evidence_text,
 )
+from entroping.core.evidence_packet_base import write_evidence_packet_report
 from entroping.core.observability_contracts import OBSERVABILITY_FORBIDDEN_VALUE_FIELDS
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.runtime_card import RUNTIME_CARD_SCHEMA_VERSION
-from entroping.core.safe_write import SafeWriteError, safe_write_text
+from entroping.core.safe_write import safe_write_text
 
 OBSERVABILITY_ADAPTER_READINESS_SCHEMA_VERSION: Final = (
     _report_schema_versions.OBSERVABILITY_ADAPTER_READINESS_SCHEMA_VERSION
@@ -199,20 +200,24 @@ def run_observability_adapter_readiness_report(
     root = project_root.expanduser().resolve()
     destination = _resolve_output_path(output_path or _DEFAULT_OUTPUTS[output], root=root)
     packet = build_observability_adapter_readiness_packet(project_root=root)
-    content = _render_packet_content(packet, output=output)
-    if contains_unredacted_evidence_secret(content):
-        msg = "observability-adapter-readiness packet contains secret-like content"
-        raise ObservabilityAdapterReadinessError(msg)
-    try:
-        written = safe_write_text(
-            destination,
-            content,
-            artifact="observability adapter readiness packet",
-            root=root,
-        )
-    except SafeWriteError as exc:
-        raise ObservabilityAdapterReadinessError(str(exc)) from exc
-    return ObservabilityAdapterReadinessResult(output_path=written, packet=packet)
+    result = write_evidence_packet_report(
+        project_root=root,
+        output=output,
+        output_path=destination,
+        packet=packet,
+        render_markdown=render_observability_adapter_readiness_markdown,
+        has_secret_content=contains_unredacted_evidence_secret,
+        unsafe_content_message=(
+            "observability-adapter-readiness packet contains secret-like content"
+        ),
+        artifact="observability adapter readiness packet",
+        error_type=ObservabilityAdapterReadinessError,
+        safe_write=safe_write_text,
+    )
+    return ObservabilityAdapterReadinessResult(
+        output_path=result.output_path,
+        packet=result.packet,
+    )
 
 
 def build_observability_adapter_readiness_packet(
