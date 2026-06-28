@@ -669,8 +669,9 @@ part of the public beta surface.
 ### Experimental Reports (`EXPERIMENTAL_REPORT_PANEL`)
 
 Experimental. Design-partner and agent-produced evidence. These commands may
-change or move between panels without a compatibility guarantee. Available
-behind the `--experimental` flag in production builds.
+change or move between panels without a compatibility guarantee. They remain
+available in the Experimental Design-Partner Evidence help panel; they are not
+part of the beta compatibility promise.
 
 | Command | Category | Description |
 |---------|----------|-------------|
