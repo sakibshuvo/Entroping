@@ -6,14 +6,14 @@ import json
 import sys
 from pathlib import Path
 
-from entroping.core.factory_inbox import (
+from factory_inbox_core import (
     DEFAULT_ARTIFACT_ROOT,
     MARK_DECISIONS,
     list_payload,
     mark_payload,
     next_payload,
 )
-from entroping.core.factory_inbox_io import InboxError, JsonObject, repo_root, resolve_root
+from factory_inbox_io import InboxError, JsonObject, repo_root, resolve_root
 
 
 def main() -> int:

@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final, assert_never
 
-from entroping.core.factory_inbox_io import (
+from factory_inbox_io import (
     InboxError,
     JsonObject,
     read_json_object,

@@ -78,7 +78,7 @@ def resolve_artifact_dir(artifact_root: Path, raw_artifact_dir: Path) -> Path:
 
 
 def review_packet(repo_root_path: Path, artifact_root: Path, artifact_dir: Path) -> JsonObject:
-    script_path = Path(__file__).resolve().parents[3] / "scripts" / "factory_review_packet.py"
+    script_path = repo_root_path / "scripts" / "factory_review_packet.py"
     try:
         completed = subprocess.run(  # nosec B603
             [
