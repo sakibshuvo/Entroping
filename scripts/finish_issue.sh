@@ -11,6 +11,8 @@ state, and local worktree safety before removing local cleanup state.
 
 Options:
   --dry-run         Print the verified cleanup plan without deleting anything.
+  --keep-worktree   Verify merged issue, PR, and CI but leave local cleanup
+                   state untouched for post-merge diagnostics.
   --worktree PATH   Override the issue worktree path.
   -h, --help        Show this help text.
 
@@ -350,12 +352,17 @@ issue_number="$1"
 shift
 
 dry_run="0"
+keep_worktree="0"
 worktree_override=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run)
       dry_run="1"
+      shift
+      ;;
+    --keep-worktree)
+      keep_worktree="1"
       shift
       ;;
     --worktree)
@@ -372,6 +379,10 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ "$dry_run" == "1" && "$keep_worktree" == "1" ]]; then
+  die "--dry-run and --keep-worktree cannot be combined"
+fi
 
 [[ "$issue_number" =~ ^[1-9][0-9]*$ ]] || die "issue-number must be a positive integer"
 command -v git >/dev/null 2>&1 || die "git is required"
@@ -417,7 +428,7 @@ if [[ -e "$worktree_path" ]]; then
   worktree_exists="1"
   worktree_real=$(canonical_path "$worktree_path")
   repo_real=$(canonical_path "$repo_root")
-  if [[ "$worktree_real" == "$repo_real" && "$dry_run" != "1" ]]; then
+  if [[ "$worktree_real" == "$repo_real" && "$dry_run" != "1" && "$keep_worktree" != "1" ]]; then
     die "refusing to remove the current worktree; run from another checkout or use --dry-run"
   fi
   worktree_is_registered "$repo_root" "$worktree_path" \
@@ -430,7 +441,7 @@ if [[ -e "$worktree_path" ]]; then
   fi
 fi
 
-if [[ "$dry_run" != "1" && -n "$(git -C "$repo_root" status --porcelain)" ]]; then
+if [[ "$dry_run" != "1" && "$keep_worktree" != "1" && -n "$(git -C "$repo_root" status --porcelain)" ]]; then
   die "current repository is not clean; commit or discard local changes before cleanup"
 fi
 
@@ -455,6 +466,22 @@ if [[ "$dry_run" == "1" ]]; then
     printf '%s\n' "No local branch found; would skip branch deletion."
   fi
   printf '%s\n' "Would remove active status labels and move project item to Done."
+  exit 0
+fi
+
+if [[ "$keep_worktree" == "1" ]]; then
+  printf '%s\n' "KEEP WORKTREE"
+  if [[ "$worktree_exists" == "1" ]]; then
+    printf '%s\n' "Kept worktree: $worktree_path"
+  else
+    printf '%s\n' "No local worktree found; skipped worktree cleanup."
+  fi
+  if git -C "$repo_root" show-ref --verify --quiet "refs/heads/$branch_name"; then
+    printf '%s\n' "Kept local branch: $branch_name"
+  else
+    printf '%s\n' "No local branch found; skipped branch cleanup."
+  fi
+  printf '%s\n' "Verified merged issue and CI; kept local cleanup state."
   exit 0
 fi
 

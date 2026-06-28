@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from importlib import import_module
 from pathlib import Path
-from typing import Literal, cast
-
-import yaml  # pyright: ignore[reportMissingModuleSource]
+from typing import Literal, Protocol, cast, runtime_checkable
 
 SCHEMA_VERSION = "entroping.package-index-readiness.v1"
 WORKFLOW_PATH = Path(".github") / "workflows" / "publish-python-package.yml"
@@ -21,6 +20,13 @@ class CheckResult:
     status: Status
     detail: str
     failures: tuple[str, ...] = ()
+
+
+@runtime_checkable
+class _YamlModule(Protocol):
+    YAMLError: type[Exception]
+
+    def safe_load(self, stream: str) -> object: ...
 
 
 def build_payload(root: Path) -> dict[str, object]:
@@ -66,8 +72,25 @@ def _validate_publish_workflow(root: Path) -> CheckResult:
         failures.append("publish workflow must not reference a long-lived package-index secret")
 
     try:
-        loaded = cast(object, yaml.safe_load(workflow_text))
-    except yaml.YAMLError as exc:
+        yaml_module = _load_yaml_module()
+    except ModuleNotFoundError as exc:
+        return CheckResult(
+            key="publish_workflow",
+            status="fail",
+            detail=f"{WORKFLOW_PATH.as_posix()} cannot be parsed without PyYAML",
+            failures=(f"publish workflow YAML parser unavailable: {exc}",),
+        )
+    except TypeError as exc:
+        return CheckResult(
+            key="publish_workflow",
+            status="fail",
+            detail=f"{WORKFLOW_PATH.as_posix()} YAML parser is invalid",
+            failures=(f"publish workflow YAML parser invalid: {exc}",),
+        )
+
+    try:
+        loaded = yaml_module.safe_load(workflow_text)
+    except yaml_module.YAMLError as exc:
         return CheckResult(
             key="publish_workflow",
             status="fail",
@@ -107,6 +130,14 @@ def _validate_publish_workflow(root: Path) -> CheckResult:
         detail="manual token-free Trusted Publishing workflow shape",
         failures=failures,
     )
+
+
+def _load_yaml_module() -> _YamlModule:
+    module = import_module("yaml")
+    if not isinstance(module, _YamlModule):
+        msg = "yaml module must expose safe_load and YAMLError"
+        raise TypeError(msg)
+    return module
 
 
 def _validate_build_job(jobs: dict[str, object], failures: list[str]) -> None:

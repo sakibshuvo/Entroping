@@ -229,6 +229,19 @@ def write_factory_metrics_fixture(worktree: Path) -> tuple[Path, Path]:
     return root_ledger, nested_ledger
 
 
+def test_finish_issue_help_documents_keep_worktree_mode() -> None:
+    result = subprocess.run(
+        [str(SCRIPT), "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "--keep-worktree" in result.stdout
+    assert "post-merge diagnostics" in result.stdout
+
+
 def test_finish_issue_dry_run_reports_verified_cleanup_plan(tmp_path: Path) -> None:
     repo, worktree = create_repo_with_worktree(tmp_path)
     fake_bin = write_fake_gh(tmp_path)
@@ -265,6 +278,21 @@ def test_finish_issue_dry_run_reports_factory_metrics_without_writing(
         / "issue-99"
     ).exists()
     assert worktree.exists()
+
+
+def test_finish_issue_keep_worktree_verifies_without_cleanup(tmp_path: Path) -> None:
+    repo, worktree = create_repo_with_worktree(tmp_path)
+    fake_bin = write_fake_gh(tmp_path)
+
+    result = run_finish_issue(repo, fake_bin, tmp_path, "99", "--keep-worktree")
+
+    assert result.returncode == 0, result.stderr
+    assert "KEEP WORKTREE" in result.stdout
+    assert "Verified merged issue and CI; kept local cleanup state." in result.stdout
+    assert "Removed worktree" not in result.stdout
+    assert "Deleted local branch" not in result.stdout
+    assert worktree.exists()
+    assert run_git(repo, "branch", "--list", "feat/dry-run").stdout.strip()
 
 
 def test_finish_issue_preserves_factory_metrics_before_worktree_removal(

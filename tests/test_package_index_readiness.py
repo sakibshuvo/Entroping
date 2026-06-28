@@ -95,6 +95,14 @@ def test_package_index_readiness_rejects_missing_publish_oidc(
     assert any("id-token: write" in item for item in _string_list(payload, "repo_failures"))
 
 
+def test_package_index_readiness_checker_has_no_pyright_suppression() -> None:
+    source = (REPO_ROOT / "scripts" / "package_index_readiness_checks.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "pyright: ignore" not in source
+
+
 def _json_payload(text: str) -> dict[str, object]:
     payload = cast(object, json.loads(text))
     assert isinstance(payload, dict)
