@@ -129,6 +129,28 @@ def test_load_drift_baseline_accepts_missing_optional_project_fields(tmp_path: P
     assert baseline.tests == ()
 
 
+def test_load_drift_baseline_wraps_json_parse_errors(tmp_path: Path) -> None:
+    baseline_path = tmp_path / ".entroping" / "drift-baseline.json"
+    baseline_path.parent.mkdir(parents=True)
+    baseline_path.write_text("{", encoding="utf-8")
+
+    with pytest.raises(DriftReportError, match="Could not parse drift baseline"):
+        load_drift_baseline(baseline_path)
+
+
+def test_load_drift_baseline_rejects_oversize_baseline_before_json_parse(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    baseline_path = tmp_path / ".entroping" / "drift-baseline.json"
+    baseline_path.parent.mkdir(parents=True)
+    baseline_path.write_text('{"tests":[]}\n', encoding="utf-8")
+    monkeypatch.setattr(drift_report, "_MAX_DRIFT_BASELINE_BYTES", 8, raising=False)
+
+    with pytest.raises(DriftReportError, match="exceeds 8 bytes"):
+        load_drift_baseline(baseline_path)
+
+
 def test_load_dependency_drift_baseline_accepts_stable_route_shape(tmp_path: Path) -> None:
     baseline_path = tmp_path / ".entroping" / "dependency-baseline.json"
     baseline_path.parent.mkdir(parents=True)
@@ -162,6 +184,28 @@ def test_load_dependency_drift_baseline_accepts_stable_route_shape(tmp_path: Pat
             ),
         ),
     )
+
+
+def test_load_dependency_drift_baseline_wraps_json_parse_errors(tmp_path: Path) -> None:
+    baseline_path = tmp_path / ".entroping" / "dependency-baseline.json"
+    baseline_path.parent.mkdir(parents=True)
+    baseline_path.write_text("{", encoding="utf-8")
+
+    with pytest.raises(DriftReportError, match="Could not parse dependency drift baseline"):
+        load_dependency_drift_baseline(baseline_path)
+
+
+def test_load_dependency_drift_baseline_rejects_oversize_baseline_before_json_parse(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    baseline_path = tmp_path / ".entroping" / "dependency-baseline.json"
+    baseline_path.parent.mkdir(parents=True)
+    baseline_path.write_text('{"routes":[]}\n', encoding="utf-8")
+    monkeypatch.setattr(drift_report, "_MAX_DRIFT_BASELINE_BYTES", 8, raising=False)
+
+    with pytest.raises(DriftReportError, match="exceeds 8 bytes"):
+        load_dependency_drift_baseline(baseline_path)
 
 
 @pytest.mark.parametrize(
@@ -874,6 +918,28 @@ def test_promote_reviewed_drift_baseline_candidate_rejects_invalid_candidates(
     candidate.write_text(payload + "\n", encoding="utf-8")
 
     with pytest.raises(DriftReportError, match=message):
+        promote_reviewed_drift_baseline_candidate(
+            project_root=tmp_path,
+            candidate_path=Path("reports") / "drift-baseline.candidate.json",
+            output_path=Path(".entroping") / "drift-baseline.json",
+        )
+
+    assert not (tmp_path / ".entroping" / "drift-baseline.json").exists()
+
+
+def test_promote_reviewed_drift_baseline_candidate_rejects_oversize_candidate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    candidate = tmp_path / "reports" / "drift-baseline.candidate.json"
+    candidate.parent.mkdir()
+    candidate.write_text(
+        json.dumps({"schema_version": DRIFT_BASELINE_SCHEMA_VERSION, "tests": []}) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(drift_report, "_MAX_DRIFT_BASELINE_BYTES", 8)
+
+    with pytest.raises(DriftReportError, match="exceeds 8 bytes"):
         promote_reviewed_drift_baseline_candidate(
             project_root=tmp_path,
             candidate_path=Path("reports") / "drift-baseline.candidate.json",

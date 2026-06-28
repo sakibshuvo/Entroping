@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Final, TypeGuard, cast
 
+from entroping.core.bounded_read import BoundedReadError, read_text_bounded
 from entroping.core.report_fingerprint import (
     _has_control_character,
     _serialized_response_body_shape,
@@ -48,12 +49,22 @@ _REQUIRED_RUN_REPORT_TEST_INT_FIELDS: Final[tuple[str, ...]] = (
 )
 _AUTH_FLOW_RE = re.compile(r"^[A-Za-z0-9_.:-]+$")
 _AUTH_VARIABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_MAX_RUN_REPORT_BYTES: Final = 100 * 1024 * 1024
 
 
 def load_run_report(path: Path) -> RunReport:
     """Load a previously written JSON run report."""
 
-    data = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        raw_json = read_text_bounded(
+            path,
+            max_bytes=_MAX_RUN_REPORT_BYTES,
+            label="run report",
+        )
+    except BoundedReadError as exc:
+        msg = str(exc)
+        raise ValueError(msg) from exc
+    data = json.loads(raw_json)
     _require_run_report_schema(data, path=path)
     summary_data = data["summary"]
     tests = tuple(

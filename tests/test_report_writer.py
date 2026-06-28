@@ -10,6 +10,7 @@ from xml.etree import ElementTree
 import pytest
 
 import entroping.core.report_rendering as report_rendering
+import entroping.core.report_serialization as report_serialization
 import entroping.core.report_writer as report_writer
 from entroping.bridge.policy_to_hurl import HurlGateAssertion
 from entroping.core.gate_injector import AppliedKnownFailure, HurlExecutionCopy
@@ -746,6 +747,19 @@ def test_load_run_report_rejects_non_object_payload(tmp_path: Path) -> None:
     latest.write_text("[]\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="must be a JSON object"):
+        load_run_report(latest)
+
+
+def test_load_run_report_rejects_oversize_report_before_json_parse(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    latest = tmp_path / ".entroping" / "latest-run.json"
+    latest.parent.mkdir()
+    latest.write_text(" " * 9, encoding="utf-8")
+    monkeypatch.setattr(report_serialization, "_MAX_RUN_REPORT_BYTES", 8, raising=False)
+
+    with pytest.raises(ValueError, match="exceeds 8 bytes"):
         load_run_report(latest)
 
 

@@ -4,7 +4,9 @@ import json
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Final
 
+from entroping.core.bounded_read import BoundedReadError, read_text_bounded
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.safe_write import SafeWriteError, safe_write_text
 from entroping.models.drift import (
@@ -21,6 +23,7 @@ from entroping.models.report import RunReport, RunTestReport
 
 _LATENCY_REGRESSION_MIN_INCREASE_MS = 100
 _LATENCY_REGRESSION_MIN_PERCENT = 25
+_MAX_DRIFT_BASELINE_BYTES: Final = 100 * 1024 * 1024
 DRIFT_BASELINE_SCHEMA_VERSION = "entroping.drift-baseline.v1"
 DRIFT_REPORT_SCHEMA_VERSION = "entroping.drift-report.v1"
 
@@ -45,8 +48,7 @@ class DriftBaselinePromotionResult:
 def load_drift_baseline(path: Path) -> DriftBaseline:
     """Load the local drift baseline from JSON."""
 
-    resolved = _resolve_read_path(path)
-    data = json.loads(resolved.read_text(encoding="utf-8"))
+    data = _load_baseline_json(path, label="drift baseline")
     if not isinstance(data, dict):
         msg = "Drift baseline must be a JSON object"
         raise DriftReportError(msg)
@@ -67,8 +69,7 @@ def load_drift_baseline(path: Path) -> DriftBaseline:
 def load_dependency_drift_baseline(path: Path) -> DependencyDriftBaseline:
     """Load the reviewed dependency-call drift baseline from JSON."""
 
-    resolved = _resolve_read_path(path)
-    data = json.loads(resolved.read_text(encoding="utf-8"))
+    data = _load_baseline_json(path, label="dependency drift baseline")
     if not isinstance(data, dict):
         msg = "Dependency drift baseline must be a JSON object"
         raise DriftReportError(msg)
@@ -691,10 +692,37 @@ def _resolve_read_path(path: Path) -> Path:
     return expanded.resolve()
 
 
+def _load_baseline_json(path: Path, *, label: str) -> object:
+    resolved = _resolve_read_path(path)
+    try:
+        raw_json = read_text_bounded(
+            resolved,
+            max_bytes=_MAX_DRIFT_BASELINE_BYTES,
+            label=label,
+        )
+    except BoundedReadError as exc:
+        msg = str(exc)
+        raise DriftReportError(msg) from exc
+    try:
+        return json.loads(raw_json)
+    except json.JSONDecodeError as exc:
+        msg = f"Could not parse {label} {_display_path(resolved)}: {exc}"
+        raise DriftReportError(msg) from exc
+
+
 def _load_reviewed_drift_baseline_candidate(path: Path) -> DriftBaseline:
     resolved = _resolve_candidate_read_path(path)
     try:
-        data = json.loads(resolved.read_text(encoding="utf-8"))
+        raw_json = read_text_bounded(
+            resolved,
+            max_bytes=_MAX_DRIFT_BASELINE_BYTES,
+            label="drift baseline candidate",
+        )
+    except BoundedReadError as exc:
+        msg = str(exc)
+        raise DriftReportError(msg) from exc
+    try:
+        data = json.loads(raw_json)
     except json.JSONDecodeError as exc:
         msg = f"Could not parse drift baseline candidate {_display_path(resolved)}: {exc}"
         raise DriftReportError(msg) from exc
