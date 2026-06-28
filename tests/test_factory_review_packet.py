@@ -236,6 +236,9 @@ def test_deepseek_valid_marathon_handoff_accepted(
     meta = cast(dict[str, object], artifact["metadata"])
     assert meta["status"] == "ready_for_codex"
     assert meta["issue"] == 1194
+    assert meta["provider_lane"] == "deepseek"
+    assert meta["merge_authority"] == "Codex only"
+    assert "review_flags" not in meta
 
 
 def test_invalid_handoff_missing_issue_number_rejected(
@@ -261,7 +264,8 @@ def test_invalid_handoff_missing_issue_number_rejected(
     packet = read_packet(result.stdout)
     artifact = cast(dict[str, object], packet["artifact"])
     meta = cast(dict[str, object], artifact["metadata"])
-    assert "issue" not in meta or meta.get("issue") is None
+    review_flags = cast(list[str], meta["review_flags"])
+    assert "metadata missing issue" in review_flags
 
 
 def test_spark_valid_marathon_handoff_accepted(
@@ -301,6 +305,9 @@ def test_spark_valid_marathon_handoff_accepted(
     meta = cast(dict[str, object], artifact["metadata"])
     assert meta["status"] == "ready_for_codex"
     assert meta["issue"] == 1204
+    assert meta["provider_host"] == "codex-spark"
+    assert meta["verification_lane"] == "docs-guardrail"
+    assert "review_flags" not in meta
 
 
 def test_invalid_handoff_missing_merge_authority_flagged(
@@ -326,10 +333,8 @@ def test_invalid_handoff_missing_merge_authority_flagged(
     packet = read_packet(result.stdout)
     artifact = cast(dict[str, object], packet["artifact"])
     meta = cast(dict[str, object], artifact["metadata"])
-    assert "merge_authority" not in meta, (
-        "missing merge_authority must be absent from metadata; "
-        "Codex reviewer must detect the omission"
-    )
+    review_flags = cast(list[str], meta["review_flags"])
+    assert "metadata missing merge_authority" in review_flags
 
 
 def test_handoff_must_have_status_ready_for_codex(
@@ -356,6 +361,5 @@ def test_handoff_must_have_status_ready_for_codex(
     packet = read_packet(result.stdout)
     artifact = cast(dict[str, object], packet["artifact"])
     meta = cast(dict[str, object], artifact["metadata"])
-    assert meta["status"] != "ready_for_codex", (
-        "handoff with status 'in-progress' must not claim ready_for_codex"
-    )
+    review_flags = cast(list[str], meta["review_flags"])
+    assert "metadata status is not ready_for_codex" in review_flags
