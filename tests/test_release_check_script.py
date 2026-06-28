@@ -82,6 +82,16 @@ def test_release_check_rejects_unknown_options() -> None:
     assert "Unknown option: --bogus" in result.stderr
 
 
+def test_release_check_rejects_conflicting_live_demo_options() -> None:
+    result = run_release_check("--skip-live-demo", "--require-live-demo")
+
+    assert result.returncode == 2
+    assert (
+        "--skip-live-demo and --require-live-demo cannot be used together"
+        in result.stderr
+    )
+
+
 def test_package_index_readiness_invoked_in_script_source() -> None:
     source = SCRIPT.read_text(encoding="utf-8")
 
