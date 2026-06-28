@@ -410,3 +410,39 @@ def test_handoff_must_have_status_ready_for_codex(
     meta = cast(dict[str, object], artifact["metadata"])
     review_flags = cast(list[str], meta["review_flags"])
     assert "metadata status is not ready_for_codex" in review_flags
+
+
+def test_factory_review_packet_rejects_missing_required_fields(tmp_path: Path) -> None:
+    artifact_root = tmp_path / "ai-reviews"
+    artifact_dir = artifact_root / "review-123"
+    artifact_dir.mkdir(parents=True)
+    write_json(
+        artifact_dir / "metadata.json",
+        {
+            "schema_version": "entroping.deepseek-worker.v1",
+            "status": "completed",
+            "mode": "review",
+            "model": "deepseek-v4-flash",
+            "artifact_dir": str(artifact_dir),
+            "provider_lane": "deepseek-api/direct",
+            "returncode": 0,
+        },
+    )
+    (artifact_dir / "result.md").write_text(
+        "STATUS: pass\n"
+        "CI_STATUS: pass\n",
+        encoding="utf-8",
+    )
+
+    result = run_packet(
+        "--artifact-dir",
+        str(artifact_dir),
+        "--artifact-root",
+        str(artifact_root),
+        "--json",
+    )
+
+    assert result.returncode == 2
+    assert "review packet missing required fields" in result.stderr
+    assert "issue" in result.stderr
+    assert "verification_lane" in result.stderr

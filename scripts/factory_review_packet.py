@@ -55,6 +55,14 @@ REQUIRED_READY_HANDOFF_KEYS = (
     "worktree",
     "branch",
     "verification_lane",
+SUMMARY_KEYS = (
+    "STATUS",
+    "FILES_CHANGED",
+    "TESTS_RUN",
+    "KNOWN_ISSUES",
+    "SUMMARY",
+    "VERIFICATION_LANE",
+    "CI_STATUS",
 )
 
 
@@ -351,7 +359,10 @@ def _validate_packet(packet: dict[str, Any]) -> None:
     summary = result_summary if isinstance(result_summary, dict) else {}
     job_payload = job if isinstance(job, dict) else {}
 
+<<<<<<< HEAD
     status = _first_value(metadata, "status")
+=======
+>>>>>>> 91f7a6e6 (feat(factory): validate marathon review packet schema)
     issue = _first_non_empty(
         _first_value(job_payload, "issue"),
         _first_value(metadata, "issue"),
@@ -373,6 +384,7 @@ def _validate_packet(packet: dict[str, Any]) -> None:
         _first_value(metadata, "ci_status"),
     )
 
+<<<<<<< HEAD
     if status == "completed":
         missing: list[str] = []
         if issue is None:
@@ -388,6 +400,22 @@ def _validate_packet(packet: dict[str, Any]) -> None:
         if missing:
             msg = ", ".join(missing)
             raise PacketError(f"review packet missing required fields: {msg}")
+=======
+    missing: list[str] = []
+    if issue is None:
+        missing.append("issue")
+    if provider_lane is None:
+        missing.append("provider_lane")
+    if verification_lane is None:
+        missing.append("verification_lane")
+    if ci_status is None:
+        missing.append("ci_status")
+    if merge_authority is None:
+        missing.append("merge_authority")
+    if missing:
+        msg = ", ".join(missing)
+        raise PacketError(f"review packet missing required fields: {msg}")
+>>>>>>> 91f7a6e6 (feat(factory): validate marathon review packet schema)
 
 
 def _first_value(payload: dict[str, Any], *keys: str) -> str | None:
