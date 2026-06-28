@@ -6,15 +6,15 @@ from pathlib import Path
 
 import pytest
 
-import entroping.core.observability_packet as observability_packet
-from entroping.core.evidence_packet_base import EvidencePacketResult
-from entroping.core.observability_packet import (
+import entroping.core.evidence.observability_packet as observability_packet
+from entroping.core.evidence.observability_packet import (
     ObservabilityPacket,
     ObservabilityPacketError,
     build_observability_packet,
     render_observability_packet_markdown,
     run_observability_packet_report,
 )
+from entroping.core.evidence_packet_base import EvidencePacketResult
 from entroping.core.runtime_card import RUNTIME_CARD_SCHEMA_VERSION
 from entroping.core.safe_write import SafeWriteError
 from entroping.core.structured_diagnostics import (

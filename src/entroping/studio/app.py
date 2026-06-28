@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
-from entroping.core.evidence_index import LocalEvidenceArtifact
+from entroping.core.evidence.evidence_index import LocalEvidenceArtifact
 from entroping.core.hurl_runner import redact_hurl_output
 from entroping.studio.status import (
     LatestRunTestStatus,

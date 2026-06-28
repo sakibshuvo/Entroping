@@ -12,9 +12,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from entroping.bridge.capture_summary import CAPTURE_SUMMARY_SCHEMA_VERSION
 from entroping.bridge.test_pyramid import TEST_PYRAMID_REPORT_SCHEMA_VERSION
-from entroping.core.agent_bundle import AGENT_REVIEW_BUNDLE_SCHEMA_VERSION
 from entroping.core.drift_report import DRIFT_REPORT_SCHEMA_VERSION
-from entroping.core.evidence_bundle import EVIDENCE_BUNDLE_SCHEMA_VERSION
+from entroping.core.evidence.agent_bundle import AGENT_REVIEW_BUNDLE_SCHEMA_VERSION
+from entroping.core.evidence.evidence_bundle import EVIDENCE_BUNDLE_SCHEMA_VERSION
 from entroping.core.evidence_common import (
     LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES,
     contains_unredacted_evidence_secret,

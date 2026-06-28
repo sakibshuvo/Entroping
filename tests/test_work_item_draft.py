@@ -7,15 +7,15 @@ from pathlib import Path
 
 import pytest
 
-import entroping.core.work_item_draft as work_item_draft
-from entroping.core.safe_write import SafeWriteError
-from entroping.core.work_item_draft import (
+import entroping.core.export.work_item_draft as work_item_draft
+from entroping.core.export.work_item_draft import (
     WORK_ITEM_DRAFT_SCHEMA_VERSION,
     WorkItemDraftError,
     build_work_item_draft_packet,
     render_work_item_draft_markdown,
     run_work_item_draft_report,
 )
+from entroping.core.safe_write import SafeWriteError
 
 _SOURCE_SCHEMAS: dict[str, str] = {
     "evidence-action-plan-json": "entroping.evidence-action-plan.v1",

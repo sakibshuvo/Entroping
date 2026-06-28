@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-import entroping.core.api_inventory as api_inventory
-from entroping.core.api_inventory import (
+import entroping.core.evidence.api_inventory as api_inventory
+from entroping.core.evidence.api_inventory import (
     ApiInventoryError,
     build_api_inventory,
     render_api_inventory_markdown,

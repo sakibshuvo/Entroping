@@ -6,8 +6,8 @@ from typing import Any, cast
 
 import pytest
 
-from entroping.core.evidence_index import LocalEvidenceArtifact
-from entroping.core.qa_brain_seed import (
+from entroping.core.evidence.evidence_index import LocalEvidenceArtifact
+from entroping.core.plan.qa_brain_seed import (
     QA_BRAIN_SEED_SCHEMA_VERSION,
     QaBrainSeedError,
     build_qa_brain_seed,
@@ -211,7 +211,7 @@ def test_qa_brain_seed_reports_ready_when_all_eval_slices_have_present_sources(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.qa_brain_seed as qa_brain_seed
+    import entroping.core.plan.qa_brain_seed as qa_brain_seed
 
     source_ids = (
         "test-quality-json",
@@ -282,7 +282,7 @@ def test_qa_brain_seed_rejects_secret_like_rendered_output(
     monkeypatch: pytest.MonkeyPatch,
     output: str,
 ) -> None:
-    import entroping.core.qa_brain_seed as qa_brain_seed
+    import entroping.core.plan.qa_brain_seed as qa_brain_seed
 
     def fake_index(*, project_root: Path) -> tuple[LocalEvidenceArtifact, ...]:
         _ = project_root

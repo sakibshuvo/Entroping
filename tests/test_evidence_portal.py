@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-import entroping.core.evidence_portal as evidence_portal
-from entroping.core.evidence_index import LocalEvidenceArtifact
-from entroping.core.evidence_portal import (
+import entroping.core.evidence.evidence_portal as evidence_portal
+from entroping.core.evidence.evidence_index import LocalEvidenceArtifact
+from entroping.core.evidence.evidence_portal import (
     EVIDENCE_PORTAL_SCHEMA_VERSION,
     EvidencePortalError,
     build_evidence_portal_packet,

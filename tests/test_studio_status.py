@@ -9,8 +9,8 @@ import pytest
 
 import entroping.studio.status as studio_status
 from entroping.core.config_loader import QanstitutionLoadError
-from entroping.core.evidence_bundle import EVIDENCE_BUNDLE_SCHEMA_VERSION
-from entroping.core.evidence_index import LocalEvidenceArtifact
+from entroping.core.evidence.evidence_bundle import EVIDENCE_BUNDLE_SCHEMA_VERSION
+from entroping.core.evidence.evidence_index import LocalEvidenceArtifact
 from entroping.core.traffic_redactor import redact_traffic_exchange
 from entroping.core.traffic_store import TrafficStore, TrafficStoreError
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse

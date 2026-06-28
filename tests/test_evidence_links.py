@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-import entroping.core.evidence_links as evidence_links
-from entroping.core.evidence_links import (
+import entroping.core.evidence.evidence_links as evidence_links
+from entroping.core.evidence.evidence_links import (
     EVIDENCE_LINKS_SCHEMA_VERSION,
     EvidenceLinksError,
     build_evidence_links_packet,

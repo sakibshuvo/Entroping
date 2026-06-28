@@ -7,8 +7,8 @@ from typing import Any, cast
 
 import pytest
 
-import entroping.core.external_test_evidence as external_test_evidence
-from entroping.core.external_test_evidence import (
+import entroping.core.evidence.external_test_evidence as external_test_evidence
+from entroping.core.evidence.external_test_evidence import (
     EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION,
     ExternalTestEvidenceError,
     ExternalTestEvidencePacket,

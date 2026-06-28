@@ -7,16 +7,16 @@ from typing import Any
 
 import pytest
 
-import entroping.core.notification_packet as notification_packet
-from entroping.core.evidence_packet_base import EvidencePacketResult
-from entroping.core.handoff_packet import HANDOFF_SCHEMA_VERSION
-from entroping.core.notification_packet import (
+import entroping.core.evidence.notification_packet as notification_packet
+from entroping.core.evidence.handoff_packet import HANDOFF_SCHEMA_VERSION
+from entroping.core.evidence.notification_packet import (
     NotificationPacket,
     NotificationPacketError,
     build_notification_packet,
     render_notification_packet_markdown,
     run_notification_packet_report,
 )
+from entroping.core.evidence_packet_base import EvidencePacketResult
 from entroping.core.safe_write import SafeWriteError
 
 

@@ -20,8 +20,8 @@ from entroping.bridge.traffic_to_graph import (
     compile_traffic_dependency_graph,
 )
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
-from entroping.core.evidence_bundle import EvidenceBundleDiagnostic, EvidenceBundleReport
-from entroping.core.evidence_index import (
+from entroping.core.evidence.evidence_bundle import EvidenceBundleDiagnostic, EvidenceBundleReport
+from entroping.core.evidence.evidence_index import (
     EvidenceArtifactState,
     LocalEvidenceArtifact,
     build_local_evidence_index,

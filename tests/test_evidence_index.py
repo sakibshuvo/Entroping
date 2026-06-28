@@ -7,10 +7,10 @@ from typing import Any
 
 import pytest
 
-import entroping.core.evidence_index as evidence_index
-import entroping.core.evidence_index_report as evidence_index_report
-from entroping.core.evidence_index import build_local_evidence_index
-from entroping.core.evidence_index_report import (
+import entroping.core.evidence.evidence_index as evidence_index
+import entroping.core.evidence.evidence_index_report as evidence_index_report
+from entroping.core.evidence.evidence_index import build_local_evidence_index
+from entroping.core.evidence.evidence_index_report import (
     EVIDENCE_INDEX_SCHEMA_VERSION,
     EvidenceIndexArtifact,
     EvidenceIndexError,
@@ -19,8 +19,8 @@ from entroping.core.evidence_index_report import (
     render_evidence_index_markdown,
     run_evidence_index_report,
 )
-from entroping.core.external_test_evidence import EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION
-from entroping.core.otel_mapping import OTEL_MAPPING_SCHEMA_VERSION
+from entroping.core.evidence.external_test_evidence import EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION
+from entroping.core.evidence.otel_mapping import OTEL_MAPPING_SCHEMA_VERSION
 from entroping.core.safe_write import SafeWriteError
 
 

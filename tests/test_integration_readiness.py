@@ -8,8 +8,8 @@ from typing import Any, cast
 import pytest
 
 import entroping.core.evidence_common as evidence_common
-import entroping.core.integration_readiness as integration_readiness
-from entroping.core.integration_readiness import (
+import entroping.core.readiness.integration_readiness as integration_readiness
+from entroping.core.readiness.integration_readiness import (
     INTEGRATION_READINESS_SCHEMA_VERSION,
     IntegrationReadinessError,
     IntegrationReadinessPacket,

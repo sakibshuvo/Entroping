@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-import entroping.core.evidence_cloud_dashboard as evidence_cloud_dashboard
-from entroping.core.evidence_cloud_dashboard import (
+import entroping.core.evidence.evidence_cloud_dashboard as evidence_cloud_dashboard
+from entroping.core.evidence.evidence_cloud_dashboard import (
     EVIDENCE_CLOUD_DASHBOARD_SCHEMA_VERSION,
     EvidenceCloudDashboardError,
     build_evidence_cloud_dashboard_packet,

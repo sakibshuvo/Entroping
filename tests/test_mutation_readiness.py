@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-import entroping.core.mutation_readiness as mutation_readiness
-from entroping.core.mutation_readiness import (
+import entroping.core.readiness.mutation_readiness as mutation_readiness
+from entroping.core.readiness.mutation_readiness import (
     MutationReadinessError,
     build_mutation_readiness,
     render_mutation_readiness_markdown,

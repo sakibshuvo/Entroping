@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-import entroping.core.evidence_action_plan as evidence_action_plan
-from entroping.core.evidence_action_plan import (
+import entroping.core.plan.evidence_action_plan as evidence_action_plan
+from entroping.core.plan.evidence_action_plan import (
     EVIDENCE_ACTION_PLAN_SCHEMA_VERSION,
     EvidenceActionPlanError,
     build_evidence_action_plan_packet,

@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-import entroping.core.evidence_bundle as evidence_bundle
+import entroping.core.evidence.evidence_bundle as evidence_bundle
 import entroping.core.report_artifact_manifest as report_artifact_manifest
-from entroping.core.evidence_bundle import (
+from entroping.core.evidence.evidence_bundle import (
     EVIDENCE_BUNDLE_SCHEMA_VERSION,
     EvidenceBundleError,
     run_evidence_bundle_report,

@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-import entroping.core.handoff_packet as handoff_packet
-from entroping.core.handoff_packet import (
+import entroping.core.evidence.handoff_packet as handoff_packet
+from entroping.core.evidence.handoff_packet import (
     HandoffError,
     build_handoff_packet,
     render_handoff_markdown,
@@ -383,7 +383,7 @@ def test_handoff_packet_tolerates_git_subprocess_failure(
     def fail_git(*args: object, **kwargs: object) -> object:
         raise subprocess.TimeoutExpired(cmd=["git"], timeout=2)
 
-    monkeypatch.setattr("entroping.core.handoff_packet.subprocess.run", fail_git)
+    monkeypatch.setattr("entroping.core.evidence.handoff_packet.subprocess.run", fail_git)
 
     packet = build_handoff_packet(project_root=tmp_path)
 
@@ -400,7 +400,7 @@ def test_handoff_packet_git_subprocess_uses_minimal_environment(
     monkeypatch.setenv("OPENAI_API_KEY", "sk-proj-" + ("a" * 24))
     monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-secret")
     monkeypatch.setattr(
-        "entroping.core.handoff_packet.shutil.which",
+        "entroping.core.evidence.handoff_packet.shutil.which",
         lambda binary: git_binary,
     )
 
@@ -424,7 +424,7 @@ def test_handoff_packet_git_subprocess_uses_minimal_environment(
             return subprocess.CompletedProcess(args=args, returncode=0, stdout=("a" * 40) + "\n")
         return subprocess.CompletedProcess(args=args, returncode=1, stdout="")
 
-    monkeypatch.setattr("entroping.core.handoff_packet.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.evidence.handoff_packet.subprocess.run", fake_run)
 
     packet = build_handoff_packet(project_root=tmp_path)
 
@@ -452,7 +452,7 @@ def test_handoff_packet_tolerates_missing_git_binary(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr("entroping.core.handoff_packet.shutil.which", lambda _: None)
+    monkeypatch.setattr("entroping.core.evidence.handoff_packet.shutil.which", lambda _: None)
 
     packet = build_handoff_packet(project_root=tmp_path)
 

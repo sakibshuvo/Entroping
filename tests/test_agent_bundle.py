@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-import entroping.core.agent_bundle as agent_bundle
-from entroping.core.agent_bundle import (
+import entroping.core.evidence.agent_bundle as agent_bundle
+from entroping.core.evidence.agent_bundle import (
     AGENT_REVIEW_BUNDLE_SCHEMA_VERSION,
     AgentBundleError,
     build_agent_bundle_report,

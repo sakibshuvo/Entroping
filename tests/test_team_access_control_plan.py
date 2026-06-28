@@ -7,9 +7,8 @@ from typing import IO, Any, cast
 
 import pytest
 
-import entroping.core.team_access_control_plan as access_plan
-from entroping.core.safe_write import SafeWriteError
-from entroping.core.team_access_control_plan import (
+import entroping.core.plan.team_access_control_plan as access_plan
+from entroping.core.plan.team_access_control_plan import (
     TEAM_ACCESS_CONTROL_PLAN_SCHEMA_VERSION,
     TeamAccessControlPlanError,
     TeamAccessControlPlanPacket,
@@ -17,6 +16,7 @@ from entroping.core.team_access_control_plan import (
     render_team_access_control_plan_markdown,
     run_team_access_control_plan_report,
 )
+from entroping.core.safe_write import SafeWriteError
 
 
 def _write_json(path: Path, payload: dict[str, object]) -> None:

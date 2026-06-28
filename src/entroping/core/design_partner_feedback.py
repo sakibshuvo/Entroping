@@ -10,9 +10,9 @@ from typing import Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from entroping.core.evidence_bundle import EvidenceBundleReport
+from entroping.core.evidence.evidence_bundle import EvidenceBundleReport
+from entroping.core.evidence.pilot_metrics import PilotMetricsReport
 from entroping.core.path_safety import first_symlink_path_component
-from entroping.core.pilot_metrics import PilotMetricsReport
 from entroping.core.runtime_card import RuntimeCardReport
 from entroping.core.safe_write import SafeWriteError, safe_write_text
 

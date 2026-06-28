@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-import entroping.core.pilot_cohort as pilot_cohort
-from entroping.core.pilot_cohort import (
+import entroping.core.evidence.pilot_cohort as pilot_cohort
+from entroping.core.evidence.pilot_cohort import (
     PILOT_COHORT_SCHEMA_VERSION,
     PilotCohortError,
     build_pilot_cohort_packet,

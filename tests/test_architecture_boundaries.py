@@ -1,5 +1,6 @@
 """Executable architecture and provider boundary tests."""
 
+from importlib import import_module
 from pathlib import Path
 
 from support.architecture_guard import (
@@ -54,6 +55,56 @@ TRAFFIC_STATE_MODULES = (
     "entroping.core.traffic_redactor",
     "entroping.core.traffic_store",
 )
+
+CORE_BOUNDED_PACKAGE_MODULES = {
+    "entroping.core.evidence": (
+        "agent_bundle",
+        "api_inventory",
+        "connector_intent",
+        "evidence_bundle",
+        "evidence_cloud_dashboard",
+        "evidence_index",
+        "evidence_index_report",
+        "evidence_links",
+        "evidence_portal",
+        "external_test_evidence",
+        "handoff_packet",
+        "notification_packet",
+        "observability_packet",
+        "otel_mapping",
+        "pilot_cohort",
+        "pilot_metrics",
+        "pilot_outcome",
+        "pr_evidence_card",
+        "test_pyramid_report",
+    ),
+    "entroping.core.export": (
+        "evidence_cloud_export",
+        "evidence_cloud_workspace",
+        "work_item_draft",
+        "work_item_import_bundle",
+    ),
+    "entroping.core.plan": (
+        "evidence_action_plan",
+        "qa_brain_eval_plan",
+        "qa_brain_fine_tune_readiness",
+        "qa_brain_model_packaging_plan",
+        "qa_brain_prompt_plan",
+        "qa_brain_repair_plan",
+        "qa_brain_retrieval_plan",
+        "qa_brain_routing_plan",
+        "qa_brain_seed",
+        "team_access_control_plan",
+    ),
+    "entroping.core.readiness": (
+        "devex_readiness",
+        "evidence_cloud_readiness",
+        "integration_readiness",
+        "mutation_readiness",
+        "observability_adapter_readiness",
+        "team_evidence_readiness",
+    ),
+}
 
 
 def test_import_boundary_checker_detects_synthetic_violations(tmp_path: Path) -> None:
@@ -167,3 +218,19 @@ def test_traffic_state_modules_do_not_import_brain_or_litellm() -> None:
     violations = find_forbidden_imports(modules, rules=rules)
 
     assert not violations, format_violations(violations)
+
+
+def test_core_evidence_families_live_in_bounded_packages_with_old_path_shims() -> None:
+    for package_name, module_names in CORE_BOUNDED_PACKAGE_MODULES.items():
+        import_module(package_name)
+        for module_name in module_names:
+            new_module = import_module(f"{package_name}.{module_name}")
+            old_module = import_module(f"entroping.core.{module_name}")
+            marker_name = f"_compat_marker_{module_name}"
+
+            assert old_module is new_module
+            setattr(old_module, marker_name, package_name)
+            try:
+                assert getattr(new_module, marker_name) == package_name
+            finally:
+                delattr(old_module, marker_name)

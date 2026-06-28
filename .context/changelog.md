@@ -2,6 +2,13 @@
 
 ## 2026-06-27
 
+- Refactored issue #1164's core report packet layout: evidence, readiness,
+  plan, and export implementation modules now live under bounded
+  `entroping.core` subpackages while old flat import paths remain forwarding
+  compatibility shims for external callers; implementation context packs now
+  cap large dirty-worktree status listings so broad package moves stay within
+  the default mode budget.
+
 - Refactored issue #1174's OpenAPI security-negative compiler path:
   `bridge.openapi_to_hurl.compiler` now delegates auth-negative generated Hurl
   rendering and security-scheme parsing to focused package modules while

@@ -7,8 +7,8 @@ from typing import Any, cast
 
 import pytest
 
-import entroping.core.connector_intent as connector_intent
-from entroping.core.connector_intent import (
+import entroping.core.evidence.connector_intent as connector_intent
+from entroping.core.evidence.connector_intent import (
     CONNECTOR_INTENT_SCHEMA_VERSION,
     ConnectorIntentError,
     ConnectorIntentPacket,

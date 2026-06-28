@@ -6,15 +6,15 @@ from pathlib import Path
 
 import pytest
 
-import entroping.core.evidence_cloud_export as evidence_cloud_export
-from entroping.core.evidence_cloud_export import (
+import entroping.core.export.evidence_cloud_export as evidence_cloud_export
+from entroping.core.evidence.evidence_index import LocalEvidenceArtifact
+from entroping.core.export.evidence_cloud_export import (
     EVIDENCE_CLOUD_EXPORT_SCHEMA_VERSION,
     EvidenceCloudExportError,
     build_evidence_cloud_export_packet,
     render_evidence_cloud_export_markdown,
     run_evidence_cloud_export_report,
 )
-from entroping.core.evidence_index import LocalEvidenceArtifact
 
 
 def _write_json(path: Path, payload: dict[str, object]) -> None:
