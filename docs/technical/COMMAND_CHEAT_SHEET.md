@@ -617,7 +617,7 @@ Do not document these as primary v4.1 commands:
 | `--verbose` | Future global flag only after spec update |
 | `freeze --dry-run` | Preview selected freeze artifacts without writing files |
 
-## Report Categories
+## Reports
 
 - `beta-public`: `bug`, `failure-bundle`, `runtime-card`, `review-summary`
 - `stable-public`: `delta`, `policy-diff`, `redaction`, `capture-summary`,
