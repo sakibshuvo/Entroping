@@ -2,6 +2,12 @@
 
 ## 2026-06-27
 
+- Refactored issue #1174's OpenAPI security-negative compiler path:
+  `bridge.openapi_to_hurl.compiler` now delegates auth-negative generated Hurl
+  rendering and security-scheme parsing to focused package modules while
+  preserving deterministic output, public compiler entry points, and existing
+  OpenAPI security coverage findings.
+
 - Added issue #1142's compact factory review packet helper:
   `scripts/factory_review_packet.py` now reads completed AI job metadata or a
   bounded worker artifact directory and emits compact job, result-summary,
