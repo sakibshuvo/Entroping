@@ -5,6 +5,7 @@ from typing import TextIO
 
 import pytest
 
+import entroping.core.openapi_loader as openapi_loader
 from entroping.core.openapi_loader import OpenApiLoadError, load_openapi_document
 
 
@@ -135,6 +136,18 @@ def test_load_openapi_document_wraps_os_read_errors(
     monkeypatch.setattr(Path, "open", raise_os_error)
 
     with pytest.raises(OpenApiLoadError, match="Could not read OpenAPI spec"):
+        load_openapi_document(spec)
+
+
+def test_load_openapi_document_rejects_oversize_specs_before_yaml_parse(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec = tmp_path / "openapi.yaml"
+    spec.write_text("openapi: '3.1.0'\npaths: {}\n", encoding="utf-8")
+    monkeypatch.setattr(openapi_loader, "_MAX_OPENAPI_DOCUMENT_BYTES", 8, raising=False)
+
+    with pytest.raises(OpenApiLoadError, match="exceeds 8 bytes"):
         load_openapi_document(spec)
 
 

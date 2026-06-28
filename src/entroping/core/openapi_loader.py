@@ -2,11 +2,15 @@
 
 from collections.abc import Mapping
 from pathlib import Path
+from typing import Final
 from urllib.parse import urlparse
 
 import yaml
 
+from entroping.core.bounded_read import BoundedReadError, read_text_bounded
 from entroping.core.path_safety import first_symlink_path_component
+
+_MAX_OPENAPI_DOCUMENT_BYTES: Final = 100 * 1024 * 1024
 
 
 class OpenApiLoadError(ValueError):
@@ -65,10 +69,13 @@ def load_openapi_document(
         raise OpenApiLoadError(msg)
 
     try:
-        with resolved.open(encoding="utf-8") as handle:
-            content = handle.read()
-    except OSError as exc:
-        msg = f"Could not read OpenAPI spec {resolved}: {exc}"
+        content = read_text_bounded(
+            resolved,
+            max_bytes=_MAX_OPENAPI_DOCUMENT_BYTES,
+            label="OpenAPI spec",
+        )
+    except BoundedReadError as exc:
+        msg = str(exc)
         raise OpenApiLoadError(msg) from exc
 
     return load_openapi_document_text(content, source_name=str(resolved))
