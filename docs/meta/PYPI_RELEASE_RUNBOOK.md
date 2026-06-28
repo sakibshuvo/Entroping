@@ -356,7 +356,8 @@ If the PyPI publish job fails:
 - **PyPI-specific constraints:** PyPI does not permit version deletion after
   any external download has been recorded. Yanking is the supported path.
   PyPI yanked releases are hidden from normal resolution but remain
-  installable with `--use-deprecated-legacy-resolver` or explicit pinning.
+  visible in index history and can still be installed when users explicitly
+  request that exact version.
 
 ### Post-Publish Docs Correction
 
