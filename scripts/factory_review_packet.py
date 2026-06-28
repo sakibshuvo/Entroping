@@ -19,6 +19,37 @@ QUEUE_STATES = ("queued", "running", "completed", "failed")
 RESULT_FILENAMES = ("result.md", "RESULT.md", "worker-result.md")
 TEST_FILENAMES = ("tests.txt", "TESTS.txt", "test-output.txt")
 SUMMARY_KEYS = ("STATUS", "FILES_CHANGED", "TESTS_RUN", "KNOWN_ISSUES", "SUMMARY")
+HANDOFF_METADATA_KEYS = (
+    "schema_version",
+    "status",
+    "mode",
+    "model",
+    "issue",
+    "provider_lane",
+    "provider_host",
+    "billing_path",
+    "autonomy_tier",
+    "merge_authority",
+    "worktree",
+    "branch",
+    "pr",
+    "verification_lane",
+    "artifact_dir",
+    "returncode",
+    "usage",
+)
+REQUIRED_READY_HANDOFF_KEYS = (
+    "issue",
+    "model",
+    "provider_lane",
+    "provider_host",
+    "billing_path",
+    "autonomy_tier",
+    "merge_authority",
+    "worktree",
+    "branch",
+    "verification_lane",
+)
 
 
 class PacketError(ValueError):
@@ -225,17 +256,45 @@ def _artifact_packet(artifact_dir: Path) -> dict[str, Any]:
 
 
 def _safe_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
-    keys = (
-        "schema_version",
-        "status",
-        "mode",
-        "model",
-        "issue",
-        "artifact_dir",
-        "returncode",
-        "usage",
+    packet = {
+        key: metadata.get(key)
+        for key in HANDOFF_METADATA_KEYS
+        if metadata.get(key) is not None
+    }
+    review_flags = _metadata_review_flags(metadata)
+    if review_flags:
+        packet["review_flags"] = review_flags
+    return packet
+
+
+def _metadata_review_flags(metadata: dict[str, Any]) -> list[str]:
+    if not _looks_like_handoff(metadata):
+        return []
+
+    flags: list[str] = []
+    if metadata.get("status") != "ready_for_codex":
+        flags.append("metadata status is not ready_for_codex")
+
+    for key in REQUIRED_READY_HANDOFF_KEYS:
+        if not metadata.get(key):
+            flags.append(f"metadata missing {key}")
+    return flags
+
+
+def _looks_like_handoff(metadata: dict[str, Any]) -> bool:
+    if metadata.get("status") == "ready_for_codex":
+        return True
+    handoff_keys = (
+        "provider_lane",
+        "provider_host",
+        "billing_path",
+        "autonomy_tier",
+        "merge_authority",
+        "worktree",
+        "branch",
+        "verification_lane",
     )
-    return {key: metadata.get(key) for key in keys if metadata.get(key) is not None}
+    return any(key in metadata for key in handoff_keys)
 
 
 def _first_existing(root: Path, filenames: tuple[str, ...]) -> Path | None:

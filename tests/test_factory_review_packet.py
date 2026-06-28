@@ -182,3 +182,184 @@ def test_factory_review_packet_accepts_direct_artifact_dir_without_stdout(
     artifact = cast(dict[str, object], packet["artifact"])
     assert artifact["metadata_path"] == str(artifact_dir / "metadata.json")
     assert "stdout_path" not in artifact
+
+
+def _write_marathon_handoff(
+    artifact_dir: Path,
+    metadata: dict[str, object],
+    result_text: str = "",
+) -> Path:
+    artifact_dir.mkdir(parents=True)
+    write_json(artifact_dir / "metadata.json", metadata)
+    (artifact_dir / "result.md").write_text(
+        result_text or "SUMMARY: marathon handoff fixture.\n", encoding="utf-8"
+    )
+    (artifact_dir / "tests.txt").write_text("tests: 0\n", encoding="utf-8")
+    return artifact_dir
+
+
+def test_deepseek_valid_marathon_handoff_accepted(
+    tmp_path: Path,
+) -> None:
+    artifact_root = tmp_path / "ai-reviews"
+    artifact_dir = _write_marathon_handoff(
+        artifact_root / "issue-1194-beta-exit-scorecard",
+        {
+            "status": "ready_for_codex",
+            "issue": 1194,
+            "provider_lane": "deepseek",
+            "provider_host": "opencode-deepseek-v4-pro",
+            "billing_path": "opencode_deepseek",
+            "model": "deepseek-v4-pro",
+            "autonomy_tier": "Tier B assisted",
+            "merge_authority": "Codex only",
+            "worktree": "/tmp/Entroping-issue-1194",
+            "branch": "deepseek/beta-exit-scorecard",
+            "pr": "https://github.com/sakibshuvo/Entroping/pull/1214",
+            "verification_lane": "docs-guardrail",
+        },
+        result_text=(
+            "STATUS: pass\nFILES_CHANGED: scripts/beta_exit_scorecard.py\n"
+            "TESTS_RUN: uv run pytest tests/test_beta_exit_scorecard.py -v\n"
+            "KNOWN_ISSUES: none\nSUMMARY: Added beta exit scorecard.\n"
+        ),
+    )
+
+    result = run_packet(
+        "--artifact-dir", str(artifact_dir),
+        "--artifact-root", str(artifact_root),
+        "--json",
+    )
+    assert result.returncode == 0, result.stderr
+    packet = read_packet(result.stdout)
+    artifact = cast(dict[str, object], packet["artifact"])
+    meta = cast(dict[str, object], artifact["metadata"])
+    assert meta["status"] == "ready_for_codex"
+    assert meta["issue"] == 1194
+    assert meta["provider_lane"] == "deepseek"
+    assert meta["merge_authority"] == "Codex only"
+    assert "review_flags" not in meta
+
+
+def test_invalid_handoff_missing_issue_number_rejected(
+    tmp_path: Path,
+) -> None:
+    artifact_root = tmp_path / "ai-reviews"
+    artifact_dir = _write_marathon_handoff(
+        artifact_root / "issue-unknown-no-issue",
+        {
+            "status": "ready_for_codex",
+            "provider_lane": "deepseek",
+            "model": "deepseek-v4-pro",
+            "merge_authority": "Codex only",
+        },
+    )
+
+    result = run_packet(
+        "--artifact-dir", str(artifact_dir),
+        "--artifact-root", str(artifact_root),
+        "--json",
+    )
+    assert result.returncode == 0, result.stderr
+    packet = read_packet(result.stdout)
+    artifact = cast(dict[str, object], packet["artifact"])
+    meta = cast(dict[str, object], artifact["metadata"])
+    review_flags = cast(list[str], meta["review_flags"])
+    assert "metadata missing issue" in review_flags
+
+
+def test_spark_valid_marathon_handoff_accepted(
+    tmp_path: Path,
+) -> None:
+    artifact_root = tmp_path / "ai-reviews"
+    artifact_dir = _write_marathon_handoff(
+        artifact_root / "issue-1204-beta-readiness-aggregator",
+        {
+            "status": "ready_for_codex",
+            "issue": 1204,
+            "provider_lane": "spark",
+            "provider_host": "codex-spark",
+            "billing_path": "codex_spark",
+            "model": "gpt-4o-mini",
+            "autonomy_tier": "Tier A autonomous",
+            "merge_authority": "Tier A autonomous after gates and green CI",
+            "worktree": "/tmp/Entroping-issue-1204",
+            "branch": "spark/beta-readiness-aggregator",
+            "verification_lane": "docs-guardrail",
+        },
+        result_text=(
+            "STATUS: pass\nFILES_CHANGED: scripts/beta_readiness_aggregator.py\n"
+            "TESTS_RUN: uv run pytest tests/ -k readiness\n"
+            "KNOWN_ISSUES: none\nSUMMARY: Spark handoff fixture.\n"
+        ),
+    )
+
+    result = run_packet(
+        "--artifact-dir", str(artifact_dir),
+        "--artifact-root", str(artifact_root),
+        "--json",
+    )
+    assert result.returncode == 0, result.stderr
+    packet = read_packet(result.stdout)
+    artifact = cast(dict[str, object], packet["artifact"])
+    meta = cast(dict[str, object], artifact["metadata"])
+    assert meta["status"] == "ready_for_codex"
+    assert meta["issue"] == 1204
+    assert meta["provider_host"] == "codex-spark"
+    assert meta["verification_lane"] == "docs-guardrail"
+    assert "review_flags" not in meta
+
+
+def test_invalid_handoff_missing_merge_authority_flagged(
+    tmp_path: Path,
+) -> None:
+    artifact_root = tmp_path / "ai-reviews"
+    artifact_dir = _write_marathon_handoff(
+        artifact_root / "issue-1209-no-merge-auth",
+        {
+            "status": "ready_for_codex",
+            "issue": 1209,
+            "provider_lane": "spark",
+            "model": "gpt-4o-mini",
+        },
+    )
+
+    result = run_packet(
+        "--artifact-dir", str(artifact_dir),
+        "--artifact-root", str(artifact_root),
+        "--json",
+    )
+    assert result.returncode == 0, result.stderr
+    packet = read_packet(result.stdout)
+    artifact = cast(dict[str, object], packet["artifact"])
+    meta = cast(dict[str, object], artifact["metadata"])
+    review_flags = cast(list[str], meta["review_flags"])
+    assert "metadata missing merge_authority" in review_flags
+
+
+def test_handoff_must_have_status_ready_for_codex(
+    tmp_path: Path,
+) -> None:
+    artifact_root = tmp_path / "ai-reviews"
+    artifact_dir = _write_marathon_handoff(
+        artifact_root / "issue-1213-incomplete",
+        {
+            "status": "in-progress",
+            "issue": 1213,
+            "provider_lane": "deepseek",
+            "model": "deepseek-v4-pro",
+            "merge_authority": "Codex only",
+        },
+    )
+
+    result = run_packet(
+        "--artifact-dir", str(artifact_dir),
+        "--artifact-root", str(artifact_root),
+        "--json",
+    )
+    assert result.returncode == 0, result.stderr
+    packet = read_packet(result.stdout)
+    artifact = cast(dict[str, object], packet["artifact"])
+    meta = cast(dict[str, object], artifact["metadata"])
+    review_flags = cast(list[str], meta["review_flags"])
+    assert "metadata status is not ready_for_codex" in review_flags
