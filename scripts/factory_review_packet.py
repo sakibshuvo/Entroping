@@ -24,8 +24,6 @@ SUMMARY_KEYS = (
     "TESTS_RUN",
     "KNOWN_ISSUES",
     "SUMMARY",
-    "VERIFICATION_LANE",
-    "CI_STATUS",
 )
 HANDOFF_METADATA_KEYS = (
     "schema_version",
