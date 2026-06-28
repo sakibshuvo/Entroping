@@ -97,6 +97,10 @@ Rules:
   worker handoff to include `.entroping/ai-reviews/issue-<issue-number>-<short-slug>/`
   with `metadata.json`, `result.md`, `tests.txt`, optional `proposal.diff`, and
   `python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`.
+  Complete marathon handoffs must set `metadata.json` `status` to
+  `ready_for_codex` so Codex can run
+  `uv run python scripts/factory_inbox.py next --json` instead of copy-pasting
+  artifact paths.
 - Flag shortcut compatibility proposals as blockers: `exec()`, dynamic
   source-file execution, import-time code generation, broad `type: ignore`,
   broad ruff ignores such as `F821` or `F811`, and `mypy ignore_errors` are not

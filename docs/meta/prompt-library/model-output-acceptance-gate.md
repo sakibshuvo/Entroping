@@ -49,6 +49,7 @@ git status --short
 gh issue view <issue> --repo sakibshuvo/Entroping
 scripts/context_pack.sh --mode implementation --manifest
 python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json
+uv run python scripts/factory_inbox.py next --json
 
 Worktree rule:
 The accepted output must come from an issue-scoped branch created with
@@ -66,6 +67,9 @@ Evaluate:
      directory `.entroping/ai-reviews/issue-<issue-number>-<short-slug>/`
      contains `metadata.json`, `result.md`, `tests.txt`, and optional
      `proposal.diff`.
+     For marathon output, `metadata.json` must include
+     `status: ready_for_codex` so Codex can use
+     `uv run python scripts/factory_inbox.py next --json`.
    - Do not use `exec()`, dynamic source-file execution, import-time code
      generation, broad `type: ignore`, broad ruff ignores such as `F821` or
      `F811`, or `mypy ignore_errors` as compatibility evidence; require normal

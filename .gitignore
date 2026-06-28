@@ -22,6 +22,7 @@ site/
 reports/
 .codex/
 .opencode/
+.omo/
 llm-wiki-out/
 .understand-anything/
 understand-anything-out/

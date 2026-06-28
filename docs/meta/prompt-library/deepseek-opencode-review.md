@@ -127,3 +127,11 @@ harness, write a compatible Codex-pickup directory under
 ```bash
 python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json
 ```
+
+For long-running OpenCode marathons, set `metadata.json` `status` to
+`ready_for_codex` only after `result.md` and `tests.txt` are complete. Codex can
+then pick up the next handoff without transcript copy-paste:
+
+```bash
+uv run python scripts/factory_inbox.py next --json
+```
