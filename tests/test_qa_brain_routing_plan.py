@@ -226,7 +226,9 @@ def test_qa_brain_routing_plan_preserves_attention_and_blockers(
     assert next(
         action for action in packet.next_actions if action.case_ids == ("bogus_evidence",)
     ).priority == "high"
-    assert "999" not in packet.model_dump_json()
+    payload = packet.model_dump(mode="json")
+    payload["generated_at"] = ""
+    assert "999" not in json.dumps(payload)
 
 
 def test_qa_brain_routing_plan_markdown_is_human_readable_and_value_free(
