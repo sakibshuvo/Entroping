@@ -1,12 +1,15 @@
 import hashlib
 import json
 import os
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
 import entroping.core.observability_packet as observability_packet
+from entroping.core.evidence_packet_base import EvidencePacketResult
 from entroping.core.observability_packet import (
+    ObservabilityPacket,
     ObservabilityPacketError,
     build_observability_packet,
     render_observability_packet_markdown,
@@ -504,6 +507,58 @@ def test_observability_packet_wraps_safe_write_errors(
 
     with pytest.raises(ObservabilityPacketError, match="disk full"):
         run_observability_packet_report(project_root=tmp_path, output="json")
+
+
+def test_observability_packet_report_uses_shared_evidence_packet_writer(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[ObservabilityPacket] = []
+
+    def fake_safe_write_text(*_args: object, **_kwargs: object) -> Path:
+        raise AssertionError("shared writer should receive but not call this sentinel")
+
+    def fake_write_evidence_packet_report(
+        *,
+        project_root: Path,
+        output: str,
+        output_path: Path,
+        packet: ObservabilityPacket,
+        render_markdown: Callable[[ObservabilityPacket], str],
+        has_secret_content: Callable[[str], bool],
+        unsafe_content_message: str,
+        artifact: str,
+        error_type: type[Exception],
+        safe_write: Callable[..., Path],
+    ) -> EvidencePacketResult[ObservabilityPacket]:
+        assert project_root == tmp_path.resolve()
+        assert output == "md"
+        assert output_path == tmp_path / "reports" / "observability-packet.md"
+        assert render_markdown is render_observability_packet_markdown
+        assert has_secret_content is observability_packet._contains_unredacted_secret_like_value
+        assert unsafe_content_message == "observability packet contains secret-like content"
+        assert artifact == "observability packet"
+        assert error_type is ObservabilityPacketError
+        assert safe_write is fake_safe_write_text
+        calls.append(packet)
+        return EvidencePacketResult(output_path=output_path, packet=packet)
+
+    monkeypatch.setattr(
+        observability_packet,
+        "safe_write_text",
+        fake_safe_write_text,
+    )
+    monkeypatch.setattr(
+        observability_packet,
+        "write_evidence_packet_report",
+        fake_write_evidence_packet_report,
+        raising=False,
+    )
+
+    result = run_observability_packet_report(project_root=tmp_path, output="md")
+
+    assert result.output_path == tmp_path / "reports" / "observability-packet.md"
+    assert result.packet is calls[0]
 
 
 def test_observability_markdown_escapes_backslash_pipe_cells(tmp_path: Path) -> None:

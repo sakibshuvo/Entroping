@@ -1,14 +1,17 @@
 import hashlib
 import json
 import os
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 import entroping.core.notification_packet as notification_packet
+from entroping.core.evidence_packet_base import EvidencePacketResult
 from entroping.core.handoff_packet import HANDOFF_SCHEMA_VERSION
 from entroping.core.notification_packet import (
+    NotificationPacket,
     NotificationPacketError,
     build_notification_packet,
     render_notification_packet_markdown,
@@ -343,6 +346,58 @@ def test_notification_packet_wraps_safe_write_errors(
 
     with pytest.raises(NotificationPacketError, match="disk full"):
         run_notification_packet_report(project_root=tmp_path, output="json")
+
+
+def test_notification_packet_report_uses_shared_evidence_packet_writer(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[NotificationPacket] = []
+
+    def fake_safe_write_text(*_args: object, **_kwargs: object) -> Path:
+        raise AssertionError("shared writer should receive but not call this sentinel")
+
+    def fake_write_evidence_packet_report(
+        *,
+        project_root: Path,
+        output: str,
+        output_path: Path,
+        packet: NotificationPacket,
+        render_markdown: Callable[[NotificationPacket], str],
+        has_secret_content: Callable[[str], bool],
+        unsafe_content_message: str,
+        artifact: str,
+        error_type: type[Exception],
+        safe_write: Callable[..., Path],
+    ) -> EvidencePacketResult[NotificationPacket]:
+        assert project_root == tmp_path.resolve()
+        assert output == "md"
+        assert output_path == tmp_path / "reports" / "notification-packet.md"
+        assert render_markdown is render_notification_packet_markdown
+        assert has_secret_content is notification_packet._contains_unredacted_secret_like_value
+        assert unsafe_content_message == "notification packet contains secret-like content"
+        assert artifact == "notification packet"
+        assert error_type is NotificationPacketError
+        assert safe_write is fake_safe_write_text
+        calls.append(packet)
+        return EvidencePacketResult(output_path=output_path, packet=packet)
+
+    monkeypatch.setattr(
+        notification_packet,
+        "safe_write_text",
+        fake_safe_write_text,
+    )
+    monkeypatch.setattr(
+        notification_packet,
+        "write_evidence_packet_report",
+        fake_write_evidence_packet_report,
+        raising=False,
+    )
+
+    result = run_notification_packet_report(project_root=tmp_path, output="md")
+
+    assert result.output_path == tmp_path / "reports" / "notification-packet.md"
+    assert result.packet is calls[0]
 
 
 def test_notification_markdown_escapes_backslash_pipe_cells(tmp_path: Path) -> None:

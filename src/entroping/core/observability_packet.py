@@ -17,9 +17,13 @@ from entroping.core.evidence_common import (
     contains_unredacted_evidence_secret,
     safe_evidence_text,
 )
+from entroping.core.evidence_packet_base import (
+    EvidencePacketResult,
+    write_evidence_packet_report,
+)
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.runtime_card import RUNTIME_CARD_SCHEMA_VERSION, RuntimeCardReport
-from entroping.core.safe_write import SafeWriteError, safe_write_text
+from entroping.core.safe_write import safe_write_text
 from entroping.core.structured_diagnostics import (
     STRUCTURED_DIAGNOSTICS_SCHEMA_VERSION,
     StructuredDiagnosticEvent,
@@ -218,15 +222,19 @@ def run_observability_packet_report(
         project_root=root,
         packet_path=destination.relative_to(root).as_posix(),
     )
-    content = _render_packet_content(packet, output=output)
-    if _contains_unredacted_secret_like_value(content):
-        msg = "observability packet contains secret-like content"
-        raise ObservabilityPacketError(msg)
-    try:
-        written = safe_write_text(destination, content, artifact="observability packet", root=root)
-    except SafeWriteError as exc:
-        raise ObservabilityPacketError(str(exc)) from exc
-    return ObservabilityPacketResult(output_path=written, packet=packet)
+    result: EvidencePacketResult[ObservabilityPacket] = write_evidence_packet_report(
+        project_root=root,
+        output=output,
+        output_path=destination,
+        packet=packet,
+        render_markdown=render_observability_packet_markdown,
+        has_secret_content=_contains_unredacted_secret_like_value,
+        unsafe_content_message="observability packet contains secret-like content",
+        artifact="observability packet",
+        error_type=ObservabilityPacketError,
+        safe_write=safe_write_text,
+    )
+    return ObservabilityPacketResult(output_path=result.output_path, packet=result.packet)
 
 
 def build_observability_packet(
@@ -376,12 +384,6 @@ def render_observability_packet_markdown(packet: ObservabilityPacket) -> str:
             f"{_markdown_cell(', '.join(message.artifact_paths) or 'n/a')} |"
         )
     return "\n".join(lines).rstrip() + "\n"
-
-
-def _render_packet_content(packet: ObservabilityPacket, *, output: ObservabilityOutput) -> str:
-    if output == "json":
-        return json.dumps(packet.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
-    return render_observability_packet_markdown(packet)
 
 
 def _load_diagnostics(*, root: Path) -> _LoadedDiagnostics:
