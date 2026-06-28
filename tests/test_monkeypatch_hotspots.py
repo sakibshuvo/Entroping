@@ -46,6 +46,26 @@ def test_excludes_virtualenvs() -> None:
         assert "__pycache__" not in h["file"]
 
 
+def test_ignores_strings_and_comments(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    tests = root / "tests"
+    tests.mkdir(parents=True)
+    (tests / "test_text_only.py").write_text(
+        "# monkeypatch in a comment\n"
+        "def test_text_only():\n"
+        "    value = 'monkeypatch in a string'\n"
+        "    assert value\n",
+        encoding="utf-8",
+    )
+
+    result = _run("--root", str(root), "--format", "json")
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["total_monkeypatch_uses"] == 0
+    assert payload["hotspots"] == []
+
+
 def test_markdown_output() -> None:
     result = _run("--format", "md")
     assert result.returncode == 0

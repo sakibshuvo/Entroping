@@ -8,6 +8,7 @@ future public-surface test replacement. Does not rewrite tests.
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import sys
 from collections import defaultdict
@@ -87,7 +88,7 @@ def _build_payload(root: Path, top_n: int) -> dict[str, object]:
                 content = py_file.read_text(encoding="utf-8", errors="replace")
             except OSError:
                 continue
-            count = content.count("monkeypatch")
+            count = _count_monkeypatch_usages(content)
             if count > 0:
                 counts[rel] = count
 
@@ -111,6 +112,22 @@ def _build_payload(root: Path, top_n: int) -> dict[str, object]:
         "files_with_monkeypatch": total_files,
         "hotspots": hotspots,
     }
+
+
+def _count_monkeypatch_usages(content: str) -> int:
+    try:
+        tree = ast.parse(content)
+    except SyntaxError:
+        return 0
+
+    count = 0
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, (ast.Name, ast.arg))
+            and (node.id if isinstance(node, ast.Name) else node.arg) == "monkeypatch"
+        ):
+            count += 1
+    return count
 
 
 def _render_markdown(payload: dict[str, object]) -> str:
