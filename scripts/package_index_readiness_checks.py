@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, cast
 
-import yaml
+import yaml  # pyright: ignore[reportMissingModuleSource]
 
 SCHEMA_VERSION = "entroping.package-index-readiness.v1"
 WORKFLOW_PATH = Path(".github") / "workflows" / "publish-python-package.yml"
@@ -66,7 +66,7 @@ def _validate_publish_workflow(root: Path) -> CheckResult:
         failures.append("publish workflow must not reference a long-lived package-index secret")
 
     try:
-        loaded = yaml.safe_load(workflow_text)
+        loaded = cast(object, yaml.safe_load(workflow_text))
     except yaml.YAMLError as exc:
         return CheckResult(
             key="publish_workflow",
@@ -166,7 +166,7 @@ def _validate_release_evidence_boundary(root: Path) -> CheckResult:
     if ledger_text is None:
         return _missing_result("release_evidence_boundary", RELEASE_EVIDENCE_PATH)
     try:
-        ledger = json.loads(ledger_text)
+        ledger = cast(object, json.loads(ledger_text))
     except json.JSONDecodeError as exc:
         return CheckResult(
             key="release_evidence_boundary",
@@ -273,7 +273,8 @@ def _steps(value: object, name: str, failures: list[str]) -> list[dict[str, obje
         failures.append(f"{name} must be a list")
         return []
     steps: list[dict[str, object]] = []
-    for index, item in enumerate(value):
+    items = cast(list[object], value)
+    for index, item in enumerate(items):
         if isinstance(item, dict):
             steps.append(cast(dict[str, object], item))
         else:

@@ -4,35 +4,41 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import cast
+from typing import Literal, Protocol, cast
 
-from package_index_readiness_checks import build_payload
+OutputFormat = Literal["md", "json"]
+
+
+class _ParsedArgs(Protocol):
+    root: Path
+    format: OutputFormat
+    strict: bool
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Validate repo-owned package-index publishing readiness guardrails."
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--root",
         type=Path,
         default=Path(__file__).resolve().parents[1],
         help="Repository root to inspect.",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--format",
         choices=("md", "json"),
         default="md",
         help="Output format.",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--strict",
         action="store_true",
         help="Exit non-zero when repo-owned package-index guardrails are invalid.",
     )
-    args = parser.parse_args()
+    args = cast(_ParsedArgs, cast(object, parser.parse_args()))
 
-    payload = build_payload(args.root.expanduser().resolve())
+    payload = _build_payload(args.root.expanduser().resolve())
     if args.format == "json":
         print(json.dumps(payload, indent=2, sort_keys=True))
     else:
@@ -45,6 +51,16 @@ def main() -> int:
             print(f"  {failure}", file=sys.stderr)
         return 1
     return 0
+
+
+def _build_payload(root: Path) -> dict[str, object]:
+    repo_root = Path(__file__).resolve().parents[1]
+    repo_root_display = str(repo_root)
+    if repo_root_display not in sys.path:
+        sys.path.insert(0, repo_root_display)
+    from scripts.package_index_readiness_checks import build_payload
+
+    return build_payload(root)
 
 
 def _render_markdown(payload: dict[str, object]) -> str:
