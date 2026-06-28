@@ -81,155 +81,79 @@ archive is mounted or attached to the cloud task.
   `mypy ignore_errors`; require normal importable modules with explicit
   dependencies.
 
-## Prompt Catalog
+## Start Here
+
+| Need | Use |
+| --- | --- |
+| Start or recover a Codex thread | [Codex session handoff](codex-session-handoff.md) |
+| Give one agent one scoped issue | [Issue worker](issue-worker.md) |
+| Add explicit allowed files, forbidden files, and stop conditions | [Architecture boundary brief](architecture-boundary-brief.md) |
+| Ask Codex to choose issues and generate Spark/OpenCode/Codex prompts | [Multi-agent marathon](multi-agent-marathon.md), section `Credit-Aware Prompt Generator Flow` |
+| Keep one Codex thread shipping issue after issue | [Codex persistent marathon](codex-persistent-marathon.md) |
+| Spend Spark on low-risk docs/tests/hygiene | [Spark-safe worker](spark-safe-worker.md) |
+| Start OpenCode Desktop/OpenCode Go implementation or verification | [OpenCode Desktop handoff](opencode-desktop-handoff.md) |
+| Run one Tier A OpenCode Desktop conveyor | [OpenCode Desktop one-shot](opencode-desktop-one-shot.md) |
+| Review OpenCode-produced work with Codex | [OpenCode Codex review request](opencode-codex-review-request.md) |
+| Decide whether model output is trustworthy | [Model-output acceptance gate](model-output-acceptance-gate.md) |
+| Decide whether a PR can merge | [PR review and merge gate](pr-review-merge-gate.md) |
+| Debug red CI | [CI failure debug](ci-failure-debug.md) |
+| Return after unattended work | [After-sleep status](after-sleep-status.md) |
+
+## Batch And Worker Prompts
+
+| Prompt | Use | Boundary |
+| --- | --- | --- |
+| [Multi-agent marathon](multi-agent-marathon.md) | Codex prepares Spark-only, OpenCode-only, or Spark + OpenCode batches and later reviews all outputs. | Parent/integrator prompt, not a worker shortcut. |
+| [Codex persistent marathon](codex-persistent-marathon.md) | One Codex session repeats the issue-worktree-PR-CI-merge-finish loop. | Single integrator, not parallel workers. |
+| [Issue worker](issue-worker.md) | One issue, one worktree, one branch, one PR. | Base packet for Codex, OpenCode, DeepSeek, or local workers. |
+| [Spark-safe worker](spark-safe-worker.md) | Ad hoc low-risk Spark work. | For marathon issue batches, prefer the filled Spark prompt generated from `multi-agent-marathon.md`. |
+| [OpenCode Desktop handoff](opencode-desktop-handoff.md) | OpenCode implementation or PR verification with provider, billing, model, preflight, and handoff evidence. | General OpenCode packet. |
+| [OpenCode Desktop one-shot](opencode-desktop-one-shot.md) | One Tier A OpenCode Desktop issue conveyor. | Do not use for Tier B/Tier C without Codex review. |
+| [OpenCode-only week monitoring](opencode-week-monitoring.md) | Read-only monitoring when Codex capacity is low. | Monitoring is not merge authority. |
+| [Codex-outage daily operations](codex-outage-daily-operations.md) | Daily safe operations during low Codex capacity. | Selects/monitors safe work, does not lower gates. |
+
+## Review And Intake
 
 | Prompt | Use |
 | --- | --- |
-| [Codex session handoff](codex-session-handoff.md) | Start a fresh Codex thread in the proper project folder. |
-| [Issue worker](issue-worker.md) | Give a coding agent one GitHub issue and an isolated worktree, including the Self-Contained OpenCode/DeepSeek Work Packet and Autonomous Tier A OpenCode/DeepSeek Worker Prompt. |
-| [Architecture boundary brief](architecture-boundary-brief.md) | Attach ownership, allowed files, forbidden files, invariants, tests, provider/runtime constraints, and stop conditions to worker issue packets. |
-| [Spark-safe worker](spark-safe-worker.md) | Use low-risk Codex Spark capacity for docs/tests/project hygiene. |
-| [Codex persistent marathon](codex-persistent-marathon.md) | Keep one Codex integrator session moving through the full issue-worktree-PR-CI-merge-finish loop instead of stopping after one issue or safe checkpoint. |
-| [Multi-agent marathon](multi-agent-marathon.md) | Run several bounded sessions while one parent thread owns integration. |
-| [OpenCode Desktop handoff](opencode-desktop-handoff.md) | Start OpenCode Desktop/OpenCode Go implementation or PR verification sessions with the self-contained worker packet, explicit provider lane, billing, model, role, merge authority, factory inbox pickup, and `scripts/opencode_readiness.py` preflight evidence. |
-| [OpenCode Desktop one-shot](opencode-desktop-one-shot.md) | Paste one bootstrap prompt into OpenCode Desktop with paid DeepSeek V4 Pro so it can pick one Tier A issue, create the work packet, run the issue worktree conveyor, open the PR, wait for CI, merge if allowed, and finish cleanup. |
-| [OpenCode Codex review request](opencode-codex-review-request.md) | Let OpenCode request a read-only Codex CLI review of an OpenCode-produced local diff or PR before merge. |
-| [Model-comparison trial](model-comparison-trial.md) | Compare Codex, OpenCode native DeepSeek, direct DeepSeek API, OpenCode Go Kimi/Qwen, and local/offline models through evidence. |
-| [Model-output acceptance gate](model-output-acceptance-gate.md) | Decide what to accept, review, convert to issues, or reject from cheap-model reviews, patches, PRs, and drafts. |
-| [Codex-outage daily operations](codex-outage-daily-operations.md) | Run daily OpenCode/DeepSeek operations safely when Codex capacity is low or unavailable. |
-| [OpenCode-only week monitoring](opencode-week-monitoring.md) | Watch OpenCode/DeepSeek PRs, CI, ready issues, cleanup candidates, and factory metrics without mutating repo state. |
-| [Thread steering](thread-steering.md) | Interrupt or redirect a running Codex thread without losing its current work. |
-| [Gemini review](gemini-review.md) | Ask Gemini or NotebookLM for a brutal product/engineering review. |
-| [Claude code review](claude-code-review.md) | Ask Claude Code or work-Claude for an occasional source-pinned code/security review. |
-| [DeepSeek/OpenCode review](deepseek-opencode-review.md) | Ask DeepSeek/OpenCode for bounded repo review, bug bash, or patch proposals. |
-| [Engineering health review](engineering-health-review.md) | Audit architectural drift, anti-patterns, code smells, docs health, quality, testability, debugging ergonomics, security, maintainability, and regression risk. |
-| [PR review and merge gate](pr-review-merge-gate.md) | Decide if an open PR is safe to merge. |
-| [Bug bash](bug-bash.md) | Run a brutal read-first bug-finding session and log verified issues. |
-| [Backlog triage](backlog-triage.md) | Convert reviews, feedback, and ideas into clean GitHub issues. |
-| [Roadmap and progress refresh](roadmap-progress-refresh.md) | Refresh project direction without creating docs sprawl. |
-| [Launch readiness review](launch-readiness-review.md) | Audit README, install, demo, public surface, and first-five-minute UX. |
-| [Stable-core audit](stable-core-audit.md) | Check stable-core evidence honestly before making readiness claims. |
-| [Context reconciliation](context-reconciliation.md) | Compare historical source material against current repo truth. |
-| [CI failure debug](ci-failure-debug.md) | Debug GitHub Actions without broad product changes. |
-| [Security review](security-review.md) | Review security-sensitive diffs, branches, or issues. |
-| [After-sleep status](after-sleep-status.md) | Summarize overnight or multi-session work before continuing. |
+| [Model-output acceptance gate](model-output-acceptance-gate.md) | Accept, reject, escalate, or convert cheap-model output to issues. |
+| [OpenCode Codex review request](opencode-codex-review-request.md) | Read-only Codex review of OpenCode-produced local diffs or PRs. |
+| [PR review and merge gate](pr-review-merge-gate.md) | Final PR merge decision. |
+| [Backlog triage](backlog-triage.md) | Turn reviews, feedback, and ideas into clean GitHub issues. |
+| [Bug bash](bug-bash.md) | Find verified bugs and quality gaps. |
+| [Engineering health review](engineering-health-review.md) | Broad engineering quality review. |
+| [Security review](security-review.md) | Security-sensitive diff, branch, or issue review. |
+| [CI failure debug](ci-failure-debug.md) | GitHub Actions failure diagnosis. |
+| [Model-comparison trial](model-comparison-trial.md) | Compare model lanes with evidence, correction effort, and cost/context metrics. |
 
-## Prompt Selection Matrix
+## Product And Context
 
-Use this table first when choosing a launcher. It is a routing aid, not a
-replacement for local repo evidence, GitHub issue state, tests, CI, or the
-decision registry.
-
-| Prompt | Use When | Runner |
-| --- | --- | --- |
-| `codex-session-handoff.md` | Start a fresh Codex thread or recover after a context reset. | Codex integrator |
-| `issue-worker.md` | Give one agent one GitHub issue, one worktree, and explicit acceptance criteria. | Codex, OpenCode, or DeepSeek worker |
-| `opencode-desktop-one-shot.md` | Run one Tier A OpenCode Desktop issue conveyor with paid DeepSeek V4 Pro and minimal manual terminal work. | OpenCode Desktop with DeepSeek |
-| `opencode-desktop-handoff.md` | Start OpenCode implementation or PR verification with provider, billing, model, role, autonomy tier, MCP/tooling, factory inbox pickup, and stop conditions declared. | OpenCode Desktop or OpenCode Go |
-| `opencode-codex-review-request.md` | Ask Codex CLI for a read-only review of an OpenCode-produced diff or PR before merge. | OpenCode requesting Codex review |
-| `deepseek-opencode-review.md` | Run bounded low-cost review, bug bash, or patch-proposal work that Codex or a parent integrator must validate. | DeepSeek or OpenCode worker |
-| `model-output-acceptance-gate.md` | Decide what to accept, reject, convert to issues, or escalate from cheap-model output. | Integrator or reviewer |
-| `model-comparison-trial.md` | Compare model lanes with evidence, accepted output, correction effort, cost, and context metrics. | Integrator plus bounded workers |
-| `codex-outage-daily-operations.md` | Keep safe Tier A progress moving when Codex capacity is low or unavailable. | OpenCode/DeepSeek operator |
-| `opencode-week-monitoring.md` | Monitor OpenCode/DeepSeek PRs, CI, ready issues, cleanup candidates, and metrics without mutating repo state. | Monitoring agent |
-| `codex-persistent-marathon.md` | Keep one Codex session acting as persistent integrator across repeated issue-worktree-PR-CI-merge-finish loops. | Codex integrator |
-| `multi-agent-marathon.md` | Run several bounded agents while one parent thread owns integration, review, and merge readiness. | Parent integrator |
-| `spark-safe-worker.md` | Spend low-risk Spark capacity on docs, tests, project hygiene, and small guardrail checks. | Spark or Codex Spark |
-| `architecture-boundary-brief.md` | Attach ownership, allowed files, forbidden files, invariants, tests, provider/runtime constraints, and stop conditions to a worker packet. | Architect or integrator |
-| `engineering-health-review.md` | Audit architectural drift, anti-patterns, code smells, docs health, code quality, testability, debugging ergonomics, security, maintainability, and regression risk. | Review agent |
-| `claude-code-review.md` | Ask Claude Code or work-Claude for an occasional source-pinned code/security review. | Claude reviewer |
-| `gemini-review.md` | Ask Gemini or NotebookLM for a brutal product and engineering sanity check. | Gemini or NotebookLM reviewer |
-| `security-review.md` | Review a security-sensitive diff, branch, or issue without widening scope. | Security reviewer |
-| `pr-review-merge-gate.md` | Decide whether an open PR is safe to merge. | Integrator |
-| `ci-failure-debug.md` | Debug GitHub Actions failures without broad product changes. | Dev or QA agent |
-| `bug-bash.md` | Find verified bugs and quality gaps from repo evidence. | QA or review agent |
-| `backlog-triage.md` | Convert reviews, feedback, and ideas into scoped GitHub issues. | Product manager or triage agent |
-| `after-sleep-status.md` | Summarize overnight, unattended, or multi-session work before continuing. | Any worker or integrator |
-| `thread-steering.md` | Interrupt or redirect a running Codex thread without losing its safe checkpoint. | Human operator or parent integrator |
-| `roadmap-progress-refresh.md` | Refresh project direction and progress without creating docs sprawl. | Product manager or integrator |
-| `launch-readiness-review.md` | Audit README, install, demo, public surface, and first-five-minute UX without overclaiming readiness. | Product or review agent |
-| `stable-core-audit.md` | Check stable-core evidence honestly before making readiness claims. | Integrator or reviewer |
-| `context-reconciliation.md` | Compare historical source material or archived context against current repo truth. | Context reviewer |
-
-## Quick Selection Rules
-
-| Goal | Use |
+| Prompt | Use |
 | --- | --- |
-| I want OpenCode Desktop + DeepSeek to just work | `opencode-desktop-one-shot.md` |
-| I need to prepare a bounded OpenCode or DeepSeek implementation packet | `issue-worker.md` plus `architecture-boundary-brief.md` when risk is non-trivial |
-| A cheap model produced a large patch or review; should I trust it? | `model-output-acceptance-gate.md` |
-| Codex limit is low; keep moving safely | `codex-outage-daily-operations.md` |
-| I want a Codex session to keep shipping issues | `codex-persistent-marathon.md` |
-| Before merge, is this PR safe? | `pr-review-merge-gate.md` |
-| Find code quality, design, security, and documentation problems | `engineering-health-review.md` |
-| CI is red | `ci-failure-debug.md` |
-| A review produced too many ideas | `backlog-triage.md` |
+| [Launch readiness review](launch-readiness-review.md) | README, install, demo, public surface, and first-five-minute UX. |
+| [Stable-core audit](stable-core-audit.md) | Stable-core evidence before readiness claims. |
+| [Roadmap and progress refresh](roadmap-progress-refresh.md) | Refresh project direction without docs sprawl. |
+| [Context reconciliation](context-reconciliation.md) | Compare historical source material against current repo truth. |
+| [Gemini review](gemini-review.md) | External product/engineering sanity check. |
+| [Claude code review](claude-code-review.md) | Occasional source-pinned Claude review. |
+| [DeepSeek/OpenCode review](deepseek-opencode-review.md) | Bounded review, bug bash, or patch proposal from DeepSeek/OpenCode. |
+| [Thread steering](thread-steering.md) | Redirect a running thread without losing its safe checkpoint. |
 
-## When To Use Which
+## Overlap Notes
 
-- New Codex thread: start with `codex-session-handoff.md`.
-- One implementation slice: use `issue-worker.md`; for OpenCode/DeepSeek
-  write work, fill its Self-Contained OpenCode/DeepSeek Work Packet before
-  the worker edits files. Use its autonomous variant only for Tier A
-  docs/tests/guard/script work.
-- Worker packet with architecture risk: attach `architecture-boundary-brief.md`
-  before implementation so the agent has explicit ownership, invariant, test,
-  provider/runtime, and stop-condition boundaries.
-- Low-token or cheaper model work: use `spark-safe-worker.md` or
-  `deepseek-opencode-review.md`; for queued low-risk Tier A work, prefer
-  `scripts/ai_jobs.py submit --autonomy-tier tier-a` so the worker defaults to
-  cheap routing and a context-pack manifest first.
-- OpenCode Desktop/OpenCode Go write sessions: use
-  `opencode-desktop-handoff.md` with the Self-Contained OpenCode/DeepSeek Work
-  Packet so provider host, billing path, concrete model id, role, autonomy
-  tier, allowed files, forbidden files, Verification lane, Exact tests/gates,
-  Stop conditions, PR body requirements, CI/merge/finish expectations,
-  Ask Codex only when rules, merge authority, and
-  `uv run python scripts/opencode_readiness.py --mode implementation --require-clean --format json`
-  evidence are explicit before work starts.
-- Desktop-only DeepSeek V4 Pro run: use `opencode-desktop-one-shot.md` when
-  you want OpenCode Desktop to run the whole Tier A conveyor through its own
-  tools without asking you to open a separate terminal.
-- OpenCode requesting Codex CLI review: use
-  `opencode-codex-review-request.md` for a read-only local-diff review with
-  `codex review` or a PR evidence review with `codex exec`.
-- Model/cost experiments: use `model-comparison-trial.md` so trial identity,
-  files changed/read, tests/gates, CI, cost/token/context evidence, accepted,
-  rejected, and stale findings, and reviewer overrides are recorded before
-  drawing conclusions.
-- Cheap-model output intake: use `model-output-acceptance-gate.md` after a
-  large OpenCode, DeepSeek, Kimi, Qwen, or local-model output so useful parts
-  can be accepted while stale, unsafe, or out-of-scope parts are rejected or
-  converted into GitHub issues.
-- Codex low-capacity or outage period: use
-  `codex-outage-daily-operations.md` to inspect PRs/issues, select only ready
-  scoped issues, enforce stop conditions, watch CI, run finish cleanup, and
-  return after-sleep status.
-- OpenCode-only monitoring week: use `opencode-week-monitoring.md` to check
-  open PRs, CI rollups, ready issues, merged PR cleanup candidates, and factory
-  metrics while staying read-only by default.
-- Single Codex marathon: use `codex-persistent-marathon.md` when one Codex
-  session should keep repeating the issue-worktree-PR-CI-merge-finish conveyor
-  until N issues are merged, a verified blocker appears, CI cannot be fixed
-  safely, the user interrupts, or a tool/runtime limit stops continuation.
-- Large overnight push: use `multi-agent-marathon.md` and keep a parent
-  integrator thread open.
-- Another thread already started: paste `thread-steering.md` before adding new
-  context.
-- External product sanity check: use `gemini-review.md`.
-- Occasional deep Claude code/security review: use `claude-code-review.md`,
-  then triage the output through `backlog-triage.md` before opening issues or
-  accepting fixes.
-- Holistic engineering-health audit: use `engineering-health-review.md`.
-- After unattended work: use `after-sleep-status.md`.
-- Before merge: use `pr-review-merge-gate.md`.
-- CI blocked: use `ci-failure-debug.md`.
-- Review output is overwhelming: use `backlog-triage.md`.
-- Progress feels confusing: use `roadmap-progress-refresh.md`.
-- Launch question: use `launch-readiness-review.md`.
-- Stable-core claim: use `stable-core-audit.md`.
-- Historical/spec drift question: use `context-reconciliation.md`.
-- Security-sensitive area: use `security-review.md`.
+- `multi-agent-marathon.md` is the owner for credit-aware prompt generation:
+  Spark-only batch, OpenCode-only batch, and Spark + OpenCode batch.
+- `spark-safe-worker.md` remains a small one-off Spark launcher; do not use it
+  as the marathon issue selector.
+- `opencode-desktop-handoff.md` is the general OpenCode work packet.
+  `opencode-desktop-one-shot.md` is only for a single Tier A conveyor.
+- `codex-persistent-marathon.md` is for one Codex integrator, not parallel
+  worker lanes.
+- `codex-outage-daily-operations.md` and `opencode-week-monitoring.md` are
+  low-capacity operating prompts. They monitor or select work, but do not
+  change merge authority.
+- `deepseek-opencode-review.md` is review or patch-proposal intake. Use
+  `issue-worker.md` or `opencode-desktop-handoff.md` for implementation.
 
 ## Maintenance
 

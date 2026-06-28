@@ -126,6 +126,364 @@ Rules:
   merge authority and CI is green; otherwise wait for parent integrator review.
 ```
 
+## Credit-Aware Prompt Generator Flow
+
+Use this flow when the human wants Codex to prepare the marathon package: issues
+plus a Spark prompt, an OpenCode prompt, and a Codex review prompt. The human
+supplies capacity. Codex fills concrete issue numbers, branches, worktrees,
+verification lanes, and stop conditions.
+
+Do not paste generic worker templates to Spark or OpenCode before Codex checks
+live issue state and overlap.
+
+### Codex Prompt Generator Prompt
+
+```text
+You are the Codex parent integrator for Entroping.
+
+Repo:
+cd /Users/sakibshuvo/projects/Entroping
+
+Open and follow:
+docs/meta/prompt-library/multi-agent-marathon.md
+docs/meta/prompt-library/model-output-acceptance-gate.md
+docs/meta/AGENT_CONTROL_PLANE.md
+docs/meta/prompt-library/spark-safe-worker.md
+docs/meta/prompt-library/opencode-desktop-handoff.md
+
+Task:
+Prepare issue-seeded marathon prompts. Do not implement yet.
+
+Available capacity:
+- Spark: <available | unavailable>; issue count: <n>; notes: <credit/time>
+- OpenCode: <available | unavailable>; issue count: <n>; notes: <host/model/credit/time>
+- Codex review capacity: <available | limited>; notes: <review window>
+- Risk ceiling: <Tier A only | Tier A and Tier B | include named Tier C only>
+- Exclusions: <issue numbers, subsystems, or worktrees to avoid>
+- Goal for this batch: <beta readiness | docs hygiene | release preflight | tests | Spark + OpenCode batch>
+
+Start:
+git pull --ff-only
+git status --short
+git branch --show-current
+git worktree list
+gh issue list --repo sakibshuvo/Entroping --state open --limit 100
+gh pr list --repo sakibshuvo/Entroping --state open --limit 50
+scripts/context_pack.sh --mode implementation --manifest
+uv run python scripts/backlog_health.py
+
+Selection rules:
+1. Select only from live open GitHub issues unless the human supplied a fixed
+   issue list.
+2. Check current worktrees, branches, PRs, issue bodies, labels, and likely file
+   overlap before assigning.
+3. Use Spark for docs, tests, prompt-library, project hygiene, small quality
+   reports, release preflight, and guardrail checks.
+4. Use OpenCode for bounded work where tool access and credit are available,
+   especially self-contained docs/tests/scripts or clear Tier A/Tier B work.
+5. Keep Tier B and Tier C under Codex review and merge authority.
+6. Do not assign two agents to the same files, package, CLI command family, or
+   CI surface unless the prompt explicitly sequences them.
+7. Prefer existing issue worktrees when present; do not create duplicates.
+8. Avoid stale/closed work, branches without open issues, and issues blocked by
+   an open PR.
+9. Include verification lane, expected files, stop conditions, PR evidence, and
+   lesson-capture requirements for every issue.
+10. If a lane is unavailable, omit that worker prompt and state why.
+
+Return exactly:
+1. Issue selection table:
+   - issue,
+   - lane,
+   - reason,
+   - expected files,
+   - verification lane,
+   - overlap risk,
+   - existing worktree/branch/PR,
+   - stop conditions.
+2. Spark prompt, only when Spark capacity is available.
+3. OpenCode prompt, only when OpenCode capacity is available.
+4. Codex review and lessons prompt, always.
+5. Rejected candidate issues and why.
+6. Recommended run order.
+
+Do not create GitHub issues, branches, PRs, or files during prompt-set
+preparation unless explicitly asked.
+```
+
+### Spark Prompt Shape
+
+```text
+You are the Codex Spark worker for Entroping.
+
+Repo:
+cd /Users/sakibshuvo/projects/Entroping
+
+If this path does not exist, use the task repository root.
+
+Lane:
+- Provider lane: codex-spark
+- Provider host: Codex Spark
+- Billing path: <Codex quota or account>
+- Model id: <Spark model id when known>
+- Autonomy tier: <Tier A or Tier B from issue selection>
+- Merge authority: Codex/human
+- Lane preference: docs, tests, hygiene, prompt-library, quality reports,
+  release preflight, and small guardrails
+
+Issues:
+<Codex inserts selected Spark issue-numbered list here>
+
+Existing worktrees:
+<Codex inserts relevant worktree list here>
+
+Authority:
+- You may implement the assigned issues within their declared scope.
+- Use one issue-scoped worktree and one branch per issue.
+- Reuse an existing issue worktree when one is listed.
+- Do not touch main directly.
+- Do not merge.
+- Codex is the only merge authority unless the issue explicitly grants Tier A
+  autonomous merge authority and all Tier A conditions are met.
+
+Hard safety rules:
+- Do not inspect secrets, provider config, local credential stores, raw traffic,
+  cookies, headers, or `.entroping` traffic artifacts.
+- Do not run provider calls unless the issue explicitly authorizes them.
+- Do not publish to package indexes or mutate external release state.
+- Do not broaden runner, provider, proxy, redaction, traffic, secret-handling,
+  package-index, or package-publishing work beyond the assigned issue and
+  declared verification lane.
+- Do not use `exec()`, dynamic source-file execution, import-time code
+  generation, broad `type: ignore`, broad ruff ignores such as `F821` or
+  `F811`, or `mypy ignore_errors`; use normal importable modules with explicit
+  dependencies.
+
+Start once from the base repo:
+git pull --ff-only
+git status --short
+git branch --show-current
+git worktree list
+gh issue list --repo sakibshuvo/Entroping --state open --limit 100
+gh pr list --repo sakibshuvo/Entroping --state open --limit 50
+scripts/context_pack.sh --mode implementation --manifest
+uv run python scripts/backlog_health.py
+
+For each issue:
+1. Read the GitHub issue body and confirm scope.
+2. If a listed worktree exists, move into it. Otherwise start one:
+   scripts/start_issue.sh <issue-number> <type>/<short-kebab-description>
+3. Move into:
+   ../Entroping-issue-<issue-number>
+4. Re-run:
+   git status --short
+   scripts/context_pack.sh --mode implementation --manifest
+   uv run python scripts/backlog_health.py
+5. If local changes already exist, inspect them before editing and preserve
+   them. Do not overwrite another agent's work.
+6. If the branch is behind main, only integrate latest main after local work is
+   safely committed or intentionally preserved. Stop and hand off on conflicts.
+7. Implement the smallest complete patch for that issue.
+8. Add or update focused tests when behavior, validation, or script output
+   changes.
+9. Run the verification lane declared in the issue body.
+10. Review git diff.
+11. Commit only if local checks pass.
+12. Push and open a PR with `Closes #<issue-number>`.
+13. Do not merge unless the issue explicitly grants Tier A autonomous merge
+    authority, local gates passed, and CI is green.
+
+No-copy handoff:
+At the end of each issue, write:
+
+`.entroping/ai-reviews/issue-<issue-number>-<short-slug>/`
+
+Required files:
+- `metadata.json`
+- `result.md`
+- `tests.txt`
+- optional `proposal.diff` when Codex must apply a patch manually
+- `lessons.md`
+
+`metadata.json` must include `status: ready_for_codex`, issue, provider lane,
+provider host, billing path, model, autonomy tier, merge authority, worktree,
+branch, PR when present, and verification lane.
+
+`result.md` must include issue, summary, files changed, PR, CI status, known
+gaps, stop conditions hit, lessons learned, and merge authority.
+
+`tests.txt` must include exact commands run, pass/fail result for each command,
+and relevant output summary.
+
+`lessons.md` is required. If no durable lesson exists, write `No durable lesson`
+and explain why in one sentence. This file is temporary handoff evidence, not
+durable memory. Otherwise use:
+- Keep: practices that worked and should be reused.
+- Change: practices that slowed review, CI, handoff, or merge readiness.
+- Follow-up: issue, test, script, or prompt-library improvement candidates.
+
+After writing the handoff directory, print:
+python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json
+```
+
+### OpenCode Prompt Shape
+
+```text
+You are the OpenCode worker for Entroping.
+
+Repo:
+cd /Users/sakibshuvo/projects/Entroping
+
+Open and follow:
+docs/meta/prompt-library/opencode-desktop-handoff.md
+docs/meta/prompt-library/issue-worker.md
+docs/meta/prompt-library/multi-agent-marathon.md
+docs/meta/prompt-library/model-output-acceptance-gate.md
+
+Lane:
+- Provider lane: <opencode/native-deepseek | opencode-go/kimi | opencode-go/qwen | other>
+- Provider host: <OpenCode Desktop | OpenCode CLI | OpenCode Go>
+- Billing path: <paid DeepSeek inside OpenCode | OpenCode Go subscription | other>
+- Model id: <exact configured model id>
+- Autonomy tier: <Tier A or Tier B from issue selection>
+- Merge authority: Codex/human unless an issue explicitly grants Tier A
+  autonomous merge authority and all Tier A conditions are met.
+
+Issues:
+<Codex inserts selected OpenCode issue-numbered list here>
+
+Existing worktrees:
+<Codex inserts relevant worktree list here>
+
+Preflight:
+uv run python scripts/opencode_readiness.py --mode implementation --require-clean --format json
+
+Rules:
+- Work only through issue-scoped worktrees.
+- Reuse listed worktrees; do not create duplicates.
+- Do not touch main directly.
+- Do not merge.
+- Do not inspect provider config, API keys, local credential stores, raw
+  traffic, cookies, headers, or `.entroping` traffic artifacts.
+- Do not run provider calls except those already required by the OpenCode host
+  to operate the coding session.
+- Do not publish to package indexes or mutate external release state.
+- Do not broaden runtime, provider, proxy, redaction, traffic, secret-handling,
+  package-index, or package-publishing scope beyond the assigned issue.
+- Do not use `exec()`, dynamic source-file execution, import-time code
+  generation, broad `type: ignore`, broad ruff ignores such as `F821` or
+  `F811`, or `mypy ignore_errors`.
+
+For each issue:
+1. Read the issue body and confirm scope.
+2. Enter or create the issue worktree.
+3. Re-run context pack and backlog health from the worktree.
+4. Preserve any existing local changes; stop on same-file conflicts.
+5. Implement the smallest complete patch.
+6. Run the declared verification lane.
+7. Review the diff.
+8. Commit only after local checks pass.
+9. Push and open a PR with `Closes #<issue-number>`.
+10. Write `.entroping/ai-reviews/issue-<issue-number>-<short-slug>/` with
+    `metadata.json`, `result.md`, `tests.txt`, `lessons.md`, and optional
+    `proposal.diff`.
+11. Print:
+    python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json
+```
+
+### Codex Review And Lessons Prompt
+
+```text
+You are the Codex parent integrator for Entroping.
+
+Repo:
+cd /Users/sakibshuvo/projects/Entroping
+
+Review marathon output for:
+<paste worker lanes and issue-numbered lists here>
+
+Your job:
+- Treat worker output as evidence, not truth.
+- Apply `docs/meta/prompt-library/model-output-acceptance-gate.md`.
+- Preserve one write agent per issue-scoped worktree.
+- Review every Tier B/Tier C diff before merge.
+- Merge only when scope, local gates, PR body, CI, and issue closure evidence
+  are correct.
+
+Start:
+git pull --ff-only
+git status --short
+git branch --show-current
+git worktree list
+gh issue list --repo sakibshuvo/Entroping --state open --limit 80
+gh pr list --repo sakibshuvo/Entroping --state open --limit 40
+scripts/context_pack.sh --mode implementation --manifest
+uv run python scripts/backlog_health.py
+uv run python scripts/factory_inbox.py list --json
+
+For each ready handoff:
+1. Claim it:
+   uv run python scripts/factory_inbox.py next --claim --json
+2. Read the compact review packet before raw transcripts.
+3. Verify the GitHub issue scope and related issue numbers.
+4. Inspect `metadata.json`, `result.md`, `tests.txt`, and `proposal.diff`
+   when present. Inspect `lessons.md` when present.
+5. Confirm provider lane, provider host, billing path, model, autonomy tier,
+   worktree, branch, PR, verification lane, and merge authority are named.
+6. Confirm the worker did not touch main directly.
+7. Confirm the worker did not inspect secrets, provider config, local
+   credential stores, raw traffic, cookies, headers, or `.entroping` traffic
+   artifacts.
+8. Check git diff and PR diff against the issue body.
+9. Re-run focused local gates as needed.
+10. Confirm PR body has `Closes #<issue-number>`, documentation impact,
+    autonomy tier, verification lane, commands run, provider evidence, known
+    gaps, and merge authority.
+11. Wait for full PR CI rollup.
+12. Merge only if Codex review passes and CI is green.
+13. After merge, run from the base checkout:
+    scripts/finish_issue.sh <issue-number>
+14. Classify session lessons:
+    - Durable: verified and useful for future sessions.
+    - One-off: true for this issue only.
+    - Noise: stale, unverifiable, or too vague.
+15. Add Codex review lessons from PR-body failures, wrong verification lanes,
+    CI friction, stale event payloads, issue/worktree overlap mistakes, worker
+    shortcuts, bad prompt wording, and finish cleanup friction.
+16. Promote durable lessons immediately:
+    - update `.context/lessons-learned.md` for reusable operational lessons,
+    - update `docs/meta/prompt-library/` when the prompt caused the problem,
+    - create or update a GitHub issue when the lesson requires code, tests,
+      tooling, or CI work,
+    - do not copy raw worker reflections into permanent docs.
+17. Mark the inbox artifact:
+    uv run python scripts/factory_inbox.py mark-accepted <artifact-dir> --json
+18. Re-run:
+    uv run python scripts/backlog_health.py
+19. After the whole batch, write a short marathon retrospective:
+    - what the workers did well,
+    - what Codex had to repair,
+    - prompt defects found,
+    - missing tests or gates,
+    - issue-selection mistakes,
+    - changes already made to lessons, prompts, or issues.
+
+Reject or mark needs-review when scope broadened, unrelated files changed, the
+verification lane is wrong, gates were skipped without a real blocker, CI is
+red or ambiguous, required PR evidence is missing, boundaries were crossed, or
+claims cannot be verified from local files, tests, CI, docs, or issues.
+
+Final report:
+- accepted issues and merged PRs,
+- rejected or needs-review handoffs,
+- gates run,
+- CI status,
+- finish_issue cleanup status,
+- durable lessons promoted or rejected,
+- prompt-library or `.context/lessons-learned.md` updates made,
+- remaining blockers.
+```
+
 ## Conflict Stop Prompt
 
 ```text
