@@ -115,7 +115,7 @@ Stable-core readiness remains blocked by evidence that cannot be manufactured en
 | [Open-source license and package metadata](https://github.com/sakibshuvo/Entroping/issues/58) | Done | Apache-2.0 public core and package metadata are explicit. |
 | [Public clean-checkout onboarding smoke](https://github.com/sakibshuvo/Entroping/issues/185) | Done | `scripts/release_check.sh --require-live-demo` passed from a fresh public clone. |
 | Public docs site decision | Done | MkDocs Material publishes existing canonical docs without duplicating the tree. |
-| PyPI/TestPyPI trusted publishing workflow | Done | Manual protected workflow exists; package-index proof is still separate. |
+| PyPI/TestPyPI trusted publishing workflow | Done | Manual protected workflow plus local package-index readiness preflight exist; package-index proof is still separate. |
 | Homebrew tap prototype | Done | Prototype stays blocked until PyPI alpha proof exists. |
 | Distribution path recommendation | Done | `uv tool install` first, PyPI next, Homebrew after PyPI, standalone later. |
 | Standalone binary distribution decision | Deferred | Nuitka/PyInstaller automation waits for demand and signing runbooks. |

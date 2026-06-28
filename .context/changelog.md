@@ -1,5 +1,13 @@
 # Entroping Changelog
 
+## 2026-06-28
+
+- Added issue #1188's package-index readiness preflight:
+  `scripts/package_index_readiness.py --strict` now validates the repo-owned
+  TestPyPI/PyPI publishing guardrails without reading secrets or calling package
+  indexes, and `scripts/release_check.sh` runs it before package artifact
+  checks.
+
 ## 2026-06-27
 
 - Refactored issue #1164's core report packet layout: evidence, readiness,

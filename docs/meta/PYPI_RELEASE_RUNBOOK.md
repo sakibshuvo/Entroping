@@ -67,6 +67,7 @@ Run these from a clean `main` checkout before any package-index attempt:
 git status --short
 git log -1 --oneline
 scripts/release_check.sh --require-live-demo
+uv run python scripts/package_index_readiness.py --strict
 scripts/package_check.sh
 uv run python scripts/local_wheel_install_smoke.py --skip-build
 uv build
@@ -77,6 +78,13 @@ uvx twine check dist/*
 wheel/sdist metadata. The extra `uvx twine check dist/*` step validates package
 metadata and README rendering with the upload toolchain before a registry sees
 the artifacts.
+
+`scripts/package_index_readiness.py --strict` validates the repo-owned
+publishing guardrails: manual-only workflow dispatch, token-free Trusted
+Publishing shape, job-level OIDC permissions, TestPyPI/PyPI environment names,
+the source-distribution version guard, and the release-evidence package-index
+boundary. It does not call TestPyPI or PyPI, inspect secrets, or prove that
+package-index Trusted Publisher records exist.
 
 `scripts/local_wheel_install_smoke.py --skip-build` must pass after
 `scripts/package_check.sh`. It installs the locally built wheel into a temporary
