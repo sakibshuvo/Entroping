@@ -259,24 +259,164 @@ The PyPA action is expected to produce PyPI attestations automatically for
 Trusted Publishing flows. Keep the build job unprivileged and the publish job
 small so the OIDC identity is exposed to as little code as possible.
 
-## Rollback And Yank Notes
+## Rollback, Abort, and Failure Modes
 
-Package-index releases are immutable. If a version is published with a bad file,
-do not try to overwrite it.
+Package-index releases are immutable. Once a version is published to TestPyPI or
+PyPI, its artifact content cannot be changed or deleted in a way that downstream
+installers can silently ignore. This section defines the abort path before
+publish, failure recovery after publish, and the limits of rollback on each index.
 
-Preferred response order:
+Related issues: #303, #304, #305, #587.
 
-1. If the package is unusable, incompatible with its own claim, or vulnerable,
-   Yank the release in PyPI/TestPyPI and provide a reason.
-2. Publish a new fixed version.
-3. Update GitHub release notes and `docs/meta/PROJECT_PROGRESS.md` with the
-   correction.
-4. Open a GitHub issue for the root cause and add a regression test or release
-   checklist item before the next publish.
+### Pre-Publish Abort
 
-Deletion is a last resort. Yanking is the normal non-destructive rollback path
-because downstream users can still diagnose what happened while installers avoid
-the yanked version in ordinary resolution.
+Before `workflow_dispatch` is approved or the publish job runs:
+
+1. **Stop condition: any local gate fails.**
+   If `scripts/package_index_readiness.py --strict` exits non-zero,
+   `scripts/package_check.sh` fails, `scripts/local_wheel_install_smoke.py
+   --skip-build` fails, `uvx twine check dist/*` fails, or `scripts/release_check.sh
+   --require-live-demo` fails, abort immediately. Correct the failure and re-run
+   all preflight checks from a clean `main` checkout before attempting publish
+   again.
+
+2. **Stop condition: dirty working tree.**
+   If `git status --short` shows uncommitted changes (excluding `.entroping/`
+   artifacts), abort. Only published commits should be uploaded to a package
+   index.
+
+3. **Stop condition: CI is red.**
+   If the `main` branch CI is red, still running, or has not completed a full
+   regression run for the commit being published, abort. Package publishes must
+   carry CI evidence for the exact commit being released.
+
+4. **Stop condition: environment reviewer blocks.**
+   If the GitHub environment required reviewer rejects the workflow run, abort.
+   Do not bypass the review gate. Record the rejection reason in the release
+   evidence ledger and open a GitHub issue if the rejection reveals a product or
+   process gap.
+
+5. **Abort cleanup:** No package-index state was mutated. Reset the version string
+   in `pyproject.toml` only if the abort was due to version choice. Otherwise,
+   leave the source tree as-is for the next attempt.
+
+### Failed TestPyPI Publish
+
+If the TestPyPI publish job fails after `build-dist` succeeded:
+
+- **Evidence to collect:** The workflow run URL, the failed step log, the
+  `scripts/package_index_readiness.py --format json` output from the preflight.
+- **Recovery:** TestPyPI failure does not block PyPI because the artifact was
+  never uploaded. Fix the publish-job configuration error and re-attempt with
+  the same or an incremented alpha version.
+- **Version reuse constraint:** If the upload succeeded but the job reports
+  failure (e.g., a post-upload validation step failed), the version is consumed
+  on TestPyPI. Increment to the next alpha version before re-publishing.
+- **What cannot be rolled back:** Published package files on TestPyPI. TestPyPI
+  supports yanking (see [Yanking After Publish](#yanking-after-publish)) but
+  does not support deletion through the web UI in the general case.
+
+### Failed Install Smoke After TestPyPI Publish
+
+If `entroping` was published to TestPyPI but the install smoke fails:
+
+- **Evidence to collect:** The exact install command, Python version, platform,
+  and error output. The wheel and sdist filenames that were published.
+- **Root-cause checklist:**
+  - Does the wheel contain the expected CLI entry point? Run `unzip -l
+    dist/*.whl | grep entroping` locally on the build artifact.
+  - Does the install command use the correct `--index-url` and
+    `--extra-index-url`? TestPyPI may not carry transitive dependencies.
+  - Is the published version string PEP 440-compliant and not already
+    consumed by a final release?
+  - Does `scripts/local_wheel_install_smoke.py --skip-build` pass on the
+    same wheel locally? If yes, the issue is in the publish or install
+    environment, not the artifact.
+- **Recovery:** If the artifact is correct but install failed due to index
+  resolution, fix the install instructions and retry. If the artifact is
+  defective (missing entry point, wrong metadata, missing dependency), yank
+  the version from TestPyPI and publish a corrected alpha.
+- **What cannot be rolled back:** TestPyPI yanked releases remain in the
+  index history and can be installed with an explicit `--yanked` flag.
+
+### Failed PyPI Publish
+
+If the PyPI publish job fails:
+
+- **Evidence to collect:** Workflow run URL, failed step log, the TestPyPI
+  smoke evidence from the previous step.
+- **Recovery path when upload failed (job error, network timeout, OIDC
+  rejection):** No PyPI state was mutated. Fix the configuration and
+  re-attempt from the same commit.
+- **Recovery path when upload succeeded but validation failed:** If `twine`
+  or the PyPA action reported upload success but a post-validation step
+  (e.g., a metadata check, attestation check) failed, the version is
+  consumed on PyPI. Do not attempt to re-upload the same version.
+  Increment the alpha version and re-publish.
+- **PyPI-specific constraints:** PyPI does not permit version deletion after
+  any external download has been recorded. Yanking is the supported path.
+  PyPI yanked releases are hidden from normal resolution but remain
+  installable with `--use-deprecated-legacy-resolver` or explicit pinning.
+
+### Post-Publish Docs Correction
+
+After a publish that reached a package index:
+
+1. **Release evidence ledger:** Update `docs/meta/release-evidence.json` with
+   the published version, CI run URL, publish workflow run URL, install smoke
+   evidence output, and the commit hash.
+2. **GitHub release:** Create or update the GitHub release for the published
+   tag. Link the package-index page and the install smoke evidence.
+3. **ROADMAP.md and PROJECT_PROGRESS.md:** Update the stable-core blocker
+   status for the relevant issue (#304 or #305) only when evidence is proven,
+   not when publish was attempted.
+4. **Correction after wrong-claim publish:** If a post-publish review finds
+   that the package metadata, README, or project classifiers overclaim (e.g.,
+   imply a stability level the project has not proven), correct the claim in
+   `pyproject.toml`, increment the version, and publish a correction.
+   Document the overclaim in a GitHub issue and add a release checklist or
+   public-claims audit item before the next publish.
+
+### Yanking After Publish
+
+Yanking is the recommended non-destructive rollback for published releases.
+
+- **When to yank:** The release is unusable, incompatible with its own public
+  claims, contains a security vulnerability, or was published with incorrect
+  metadata that misleads downstream installers.
+- **Yank command (PyPA action or through the index UI):** Provide a yank
+  reason. The reason is public and should be factual: "broken entry point",
+  "incorrect dependency upper bound", "published wrong version string".
+- **What yanking does not fix:** Yanking does not remove the artifact from
+  the index, does not prevent users who already installed the version from
+  continuing to use it, and does not withdraw the artifact from mirrors or
+  caches.
+- **After yanking:** Publish a new fixed version. Update the GitHub release
+  notes to reference the yanked version and the fix. Add a regression test or
+  release checklist item before the next publish.
+
+### What Cannot Be Rolled Back
+
+| Surface | Cannot be rolled back | Mitigation |
+|---------|----------------------|------------|
+| TestPyPI | Published package files | Yank + increment version |
+| PyPI | Published package files, version strings | Yank + increment version |
+| GitHub release tags | Published tags (rewriting causes clone conflicts) | Create a new release; deprecate old tag in release notes |
+| Downstream caches | pip/uv/poetry caches, mirror indexes | Version increment is the only guaranteed path |
+| Public claims in README/docs | `git push` of wrong claims | Force-push with extreme care only if zero external references exist; otherwise correct in a follow-up commit |
+
+### After-Action Evidence Checklist
+
+For every publish attempt (success or failure), record in the release evidence
+ledger or the relevant issue:
+
+- [ ] Preflight gates passed and their output captured.
+- [ ] Workflow run URL and result (success/failure/cancelled).
+- [ ] Install smoke result with environment details.
+- [ ] Any yank action taken with reason and replacement version.
+- [ ] GitHub release updated or annotated.
+- [ ] `docs/meta/PROJECT_PROGRESS.md` updated if stable-core blocker status changed.
+- [ ] Regression issue opened for any failure that required recovery.
 
 ## Open Decisions Before First Publish
 
