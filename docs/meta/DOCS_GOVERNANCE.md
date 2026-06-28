@@ -207,6 +207,52 @@ PR template -> PR body check in CI -> doc governance check -> feature gate -> re
   ShellCheck when available.
 - `scripts/feature_gate.sh` runs the documentation governance and shell quality
   checks before Python checks.
+
+## Beta Public-Claims Audit Checklist
+
+Before any beta or stable-core claim appears in public surfaces, run this
+checklist. Related issues: #303, #304, #305, #306, #308.
+
+### Surfaces to Inspect
+
+- [ ] `README.md` — no claim of PyPI availability, stable-core, or adoption
+- [ ] `ROADMAP.md` — explicit alpha-boundary annotations remain
+- [ ] `CHANGELOG.md` — versions tagged alpha/beta consistent with published state
+- [ ] `pyproject.toml` — classifiers and version string match actual release tier
+- [ ] `docs/product/MVP_PLAN.md` — maturity status matches current evidence
+- [ ] `docs/meta/PROJECT_PROGRESS.md` — stable-core blockers not overclaimed
+- [ ] `docs/meta/release-evidence.json` — `stable_core_ready` stays false until
+  proven
+- [ ] GitHub release descriptions — no claim of PyPI or Homebrew unless published
+- [ ] MkDocs site — no implied production readiness, 100% coverage, or security
+  guarantees
+- [ ] `scripts/public_claims_audit.py` output — passes clean
+
+### Wording Boundaries
+
+| Tier | Allowed wording | Forbidden wording |
+|------|----------------|-------------------|
+| **Alpha** | "alpha", "pre-release", "development preview", "not prod.-ready" | "beta", "stable", "prod.-ready", "secure", "v1.0" |
+| **Beta-candidate** (after alpha gates pass) | "beta candidate", "pre-beta", "approaching beta readiness" | "beta", "stable-core ready" |
+| **Beta** (after beta gates pass) | "beta", "public beta", "beta release" | "stable", "production", "guaranteed" |
+| **Stable-core** (after all blockers closed) | "stable core", "v1.0" | No restriction beyond truth |
+
+### Before Marking #306 or #308 Complete
+
+- [ ] The downstream feedback template (see `DOWNSTREAM_FEEDBACK_KIT.md`) has
+  been filled with real external evidence.
+- [ ] The compatibility decision is documented in an ADR and linked from
+  `ROADMAP.md`.
+- [ ] No beta, stable-core, or user-adoption wording exists in any public surface
+  until the corresponding issue is closed.
+
+### Automated Check
+
+Run `scripts/public_claims_audit.py` to catch unsupported production/security
+claims. The check runs as part of `scripts/doc_governance_check.sh` and
+`scripts/feature_gate.sh`. It validates the forbidden wording in the table above
+across all tracked Markdown files. A clean run is required before any release
+gate passes.
 - `scripts/regression.sh` runs the feature gate.
 
 If a future change weakens this chain, local gates and CI should fail.
