@@ -616,3 +616,22 @@ Do not document these as primary v4.1 commands:
 | `auth` | Future credential UX; MVP uses env vars or OS credential storage |
 | `--verbose` | Future global flag only after spec update |
 | `freeze --dry-run` | Preview selected freeze artifacts without writing files |
+
+## Reports
+
+- `beta-public`: `bug`, `failure-bundle`, `runtime-card`, `review-summary`
+- `stable-public`: `delta`, `policy-diff`, `redaction`, `capture-summary`,
+  `policy`, `gate-coverage`, `github-annotations`, `sarif`, `traceability`
+- `maintainer-only`: `badges`, `gate-injection`, `artifact-manifest`,
+  `test-pyramid`, `test-quality`, `promote-drift-baseline`
+- `experimental`: `agent-bundle`, `api-inventory`, `connector-intent`,
+  `design-partner-feedback`, `devex-readiness`, `evidence-{index,links,bundle,
+  portal,action-plan,cloud-dashboard,cloud-export,cloud-readiness,
+  cloud-workspace}`, `external-test-evidence`, `handoff`,
+  `integration-readiness`, `mutation-readiness`, `notification-packet`,
+  `observability-{adapter-readiness,packet}`, `otel-mapping`,
+  `pilot-{cohort,metrics,outcome}`, `pr-evidence-card`,
+  `qa-brain-{eval-plan,fine-tune-readiness,model-packaging-plan,prompt-plan,
+  repair-plan,retrieval-plan,routing-plan,seed}`,
+  `team-{access-control-plan,evidence-readiness}`,
+  `work-item-{draft,import-bundle}`
