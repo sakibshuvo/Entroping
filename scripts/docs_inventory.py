@@ -42,6 +42,16 @@ CANONICAL_PATHS = frozenset(
         ".context/lessons-learned.md",
     }
 )
+EVOLUTION_DOC_STATUS_REQUIRES_CLASSIFICATION = frozenset(
+    {
+        "archive",
+        "historical",
+        "superseded",
+        "deprecated",
+        "obsolete",
+        "stable",
+    }
+)
 PUBLIC_ROOT_PATHS = frozenset(
     {
         "README.md",
@@ -346,6 +356,10 @@ def _stale_risk(
     risks: list[str] = []
     if relative_path.startswith("docs/meta/") and not metadata:
         risks.append("missing-frontmatter")
+    if relative_path.startswith("docs/evolution/") and (
+        metadata.get("status") not in EVOLUTION_DOC_STATUS_REQUIRES_CLASSIFICATION
+    ):
+        risks.append("evolution-doc-needs-archive-classification")
     if tier == "archive":
         risks.append("archive")
     if LLM_WIKI_RE.search(text) and tier == "active":
@@ -421,6 +435,20 @@ def _prune_candidates(entries: tuple[MarkdownEntry, ...]) -> list[PruneCandidate
                     reason=(
                         "Reference doc has stale-risk markers; compare against "
                         "canonical docs before promoting, pruning, or archiving."
+                    ),
+                    evidence_paths=("docs/meta/DOCS_GOVERNANCE.md",),
+                )
+            )
+        if "evolution-doc-needs-archive-classification" in entry.stale_risk:
+            candidates.append(
+                PruneCandidate(
+                    path=entry.path,
+                    category="evolution-archive-status",
+                    action="review-evolution-archive-status",
+                    reason=(
+                        "Evolution docs are intended as historical context and "
+                        "must be explicitly marked as archive-compatible before "
+                        "any public docs cleanup or nav changes."
                     ),
                     evidence_paths=("docs/meta/DOCS_GOVERNANCE.md",),
                 )

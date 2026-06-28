@@ -1,4 +1,11 @@
+---
+title: Entroping v4.1 Requirements Analysis
+type: evolution
+status: historical
+---
+
 # Entroping v4.1 Requirements Analysis
+
 
 **Purpose:** Extract and reconcile requirements from the original Gemini conversation, older local specs, the v4.1 slide deck, and the current consolidated notes.  
 **Decision:** This document explains how the idea evolved and what the final v4.1 specification now treats as authoritative.

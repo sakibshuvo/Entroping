@@ -1,3 +1,9 @@
+---
+title: Creator Intent Audit
+type: evolution
+status: historical
+---
+
 # Creator Intent Audit
 
 **Purpose:** Re-parse the old Entroping material from multiple angles and identify requirements that were missing, misinterpreted, or intentionally excluded from the consolidated v4.1 docs.

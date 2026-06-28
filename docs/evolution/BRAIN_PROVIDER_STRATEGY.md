@@ -1,3 +1,9 @@
+---
+title: Brain Provider Strategy
+type: evolution
+status: historical
+---
+
 # Brain Provider Strategy
 
 **Purpose:** Capture the local-first/cloud-second model strategy without bloating the product specification or TDS with educational LLM detail.

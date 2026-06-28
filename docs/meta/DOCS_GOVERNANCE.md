@@ -75,6 +75,10 @@ reports non-destructive prune/archive candidates, and enforces the
 default-agent Markdown budget. Candidate categories point to stale reference
 docs, duplicate titles, default-agent context risk, or archive/source status;
 they are review evidence only and must not delete docs automatically.
+`docs/evolution` is treated as historical source material; before any
+beta-facing cleanup or MkDocs reordering, run inventory and classify each
+evolution document as `status: historical|archive|stable` in frontmatter before
+moving it toward maintainer-only or deletion.
 `README.md` and `docs/meta/VAULT_INDEX.md` remain important
 reference/navigation surfaces, but they are not default implementation context.
 
