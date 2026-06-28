@@ -114,6 +114,22 @@ def test_context_pack_strict_budget_passes_for_default_implementation_budget() -
     assert "# Entroping Agent Context Pack" in result.stdout
 
 
+def test_context_pack_limits_large_git_status_listing() -> None:
+    marker = f"context-pack-status-{uuid.uuid4().hex}"
+    paths = [REPO_ROOT / f".{marker}-{index}.tmp" for index in range(90)]
+    try:
+        for path in paths:
+            path.write_text("temporary status fixture\n", encoding="utf-8")
+
+        result = run_context_pack("--mode", "implementation")
+
+        assert result.returncode == 0, result.stderr
+        assert "additional status line(s) omitted; run git status --short" in result.stdout
+    finally:
+        for path in paths:
+            path.unlink(missing_ok=True)
+
+
 def test_context_pack_strict_budget_rejects_over_budget_override() -> None:
     result = run_context_pack(
         "--mode",

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 import entroping.studio.app as studio_app
-from entroping.core.evidence_index import LocalEvidenceArtifact
+from entroping.core.evidence.evidence_index import LocalEvidenceArtifact
 from entroping.studio.app import TextualTypes, build_studio_view_model, run_studio_app
 from entroping.studio.status import (
     LatestRunStatus,

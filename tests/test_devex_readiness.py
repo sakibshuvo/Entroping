@@ -7,8 +7,8 @@ from typing import Any, cast
 
 import pytest
 
-import entroping.core.devex_readiness as devex_readiness
-from entroping.core.devex_readiness import (
+import entroping.core.readiness.devex_readiness as devex_readiness
+from entroping.core.readiness.devex_readiness import (
     DEVEX_READINESS_SCHEMA_VERSION,
     DevexReadinessError,
     DevexReadinessPacket,

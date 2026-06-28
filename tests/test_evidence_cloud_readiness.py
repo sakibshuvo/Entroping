@@ -7,8 +7,8 @@ from typing import Any, cast
 
 import pytest
 
-import entroping.core.evidence_cloud_readiness as readiness
-from entroping.core.evidence_cloud_readiness import (
+import entroping.core.readiness.evidence_cloud_readiness as readiness
+from entroping.core.readiness.evidence_cloud_readiness import (
     EVIDENCE_CLOUD_READINESS_SCHEMA_VERSION,
     EvidenceCloudReadinessError,
     EvidenceCloudReadinessPacket,

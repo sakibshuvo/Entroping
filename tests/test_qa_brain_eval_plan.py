@@ -7,14 +7,14 @@ from typing import Any, cast
 
 import pytest
 
-from entroping.core.qa_brain_eval_plan import (
+from entroping.core.plan.qa_brain_eval_plan import (
     QA_BRAIN_EVAL_PLAN_SCHEMA_VERSION,
     QaBrainEvalPlanError,
     build_qa_brain_eval_plan,
     render_qa_brain_eval_plan_markdown,
     run_qa_brain_eval_plan_report,
 )
-from entroping.core.qa_brain_seed import (
+from entroping.core.plan.qa_brain_seed import (
     QA_BRAIN_SEED_SCHEMA_VERSION,
     QaBrainEvalSlice,
     QaBrainNextAction,
@@ -184,7 +184,7 @@ def test_qa_brain_eval_plan_reports_ready_when_all_cases_are_ready(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.qa_brain_eval_plan as qa_brain_eval_plan
+    import entroping.core.plan.qa_brain_eval_plan as qa_brain_eval_plan
 
     eval_ids = (
         "weak_test_detection",
@@ -249,7 +249,7 @@ def test_qa_brain_eval_plan_wraps_seed_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.qa_brain_eval_plan as qa_brain_eval_plan
+    import entroping.core.plan.qa_brain_eval_plan as qa_brain_eval_plan
 
     def fail_seed(*, project_root: Path) -> QaBrainSeedPacket:
         _ = project_root
@@ -265,7 +265,7 @@ def test_qa_brain_eval_plan_rejects_unknown_seed_slice_metadata(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.qa_brain_eval_plan as qa_brain_eval_plan
+    import entroping.core.plan.qa_brain_eval_plan as qa_brain_eval_plan
 
     def fake_seed(*, project_root: Path) -> SimpleNamespace:
         _ = project_root
@@ -295,7 +295,7 @@ def test_qa_brain_eval_plan_rejects_missing_negative_control_metadata(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.qa_brain_eval_plan as qa_brain_eval_plan
+    import entroping.core.plan.qa_brain_eval_plan as qa_brain_eval_plan
 
     def fake_seed(*, project_root: Path) -> SimpleNamespace:
         _ = project_root
@@ -353,7 +353,7 @@ def test_qa_brain_eval_plan_rejects_secret_like_rendered_output(
     monkeypatch: pytest.MonkeyPatch,
     output: str,
 ) -> None:
-    import entroping.core.qa_brain_eval_plan as qa_brain_eval_plan
+    import entroping.core.plan.qa_brain_eval_plan as qa_brain_eval_plan
 
     def fake_seed(*, project_root: Path) -> QaBrainSeedPacket:
         _ = project_root

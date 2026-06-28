@@ -57,6 +57,10 @@ src/entroping/
 - `bridge/` can import `models/` and pure utility code only.
 - `cli/` coordinates use cases but should not contain business rules.
 - `core/` adapts external systems such as Hurl, SQLite, filesystem, and mitmproxy.
+- `core/evidence/`, `core/readiness/`, `core/plan/`, and `core/export/`
+  group local report packet implementation families; existing
+  `entroping.core.<module>` paths remain compatibility shims until callers
+  migrate deliberately.
 - `brain/` adapts LLM providers and validates structured outputs before returning domain objects.
 - Cross-module contracts use Pydantic models, typed protocols, or explicit dataclasses.
 
@@ -123,6 +127,10 @@ src/entroping/
     story_traceability.py
     merge.py
   core/
+    evidence/
+    readiness/
+    plan/
+    export/
     config_loader.py
     hurl_runner.py
     gate_injector.py

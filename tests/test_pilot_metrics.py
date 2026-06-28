@@ -7,8 +7,8 @@ from typing import Any, cast
 
 import pytest
 
-import entroping.core.pilot_metrics as pilot_metrics
-from entroping.core.pilot_metrics import (
+import entroping.core.evidence.pilot_metrics as pilot_metrics
+from entroping.core.evidence.pilot_metrics import (
     PILOT_METRICS_SCHEMA_VERSION,
     PilotMetricsError,
     build_pilot_metrics_report,

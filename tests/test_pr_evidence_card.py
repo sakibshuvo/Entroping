@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-import entroping.core.pr_evidence_card as pr_evidence_card
-from entroping.core.pr_evidence_card import (
+import entroping.core.evidence.pr_evidence_card as pr_evidence_card
+from entroping.core.evidence.pr_evidence_card import (
     PR_EVIDENCE_CARD_SCHEMA_VERSION,
     PrEvidenceCardError,
     build_pr_evidence_card_packet,

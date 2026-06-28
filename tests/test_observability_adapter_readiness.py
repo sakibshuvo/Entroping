@@ -5,17 +5,17 @@ from pathlib import Path
 
 import pytest
 
-import entroping.core.observability_adapter_readiness as adapter_readiness
-from entroping.core.evidence_index_report import EVIDENCE_INDEX_SCHEMA_VERSION
-from entroping.core.observability_adapter_readiness import (
+import entroping.core.readiness.observability_adapter_readiness as adapter_readiness
+from entroping.core.evidence.evidence_index_report import EVIDENCE_INDEX_SCHEMA_VERSION
+from entroping.core.evidence.observability_packet import OBSERVABILITY_PACKET_SCHEMA_VERSION
+from entroping.core.evidence.otel_mapping import OTEL_MAPPING_SCHEMA_VERSION
+from entroping.core.readiness.observability_adapter_readiness import (
     OBSERVABILITY_ADAPTER_READINESS_SCHEMA_VERSION,
     ObservabilityAdapterReadinessError,
     build_observability_adapter_readiness_packet,
     render_observability_adapter_readiness_markdown,
     run_observability_adapter_readiness_report,
 )
-from entroping.core.observability_packet import OBSERVABILITY_PACKET_SCHEMA_VERSION
-from entroping.core.otel_mapping import OTEL_MAPPING_SCHEMA_VERSION
 from entroping.core.runtime_card import RUNTIME_CARD_SCHEMA_VERSION
 from entroping.core.safe_write import SafeWriteError
 

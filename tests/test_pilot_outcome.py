@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-import entroping.core.pilot_outcome as pilot_outcome
-from entroping.core.pilot_outcome import (
+import entroping.core.evidence.pilot_outcome as pilot_outcome
+from entroping.core.evidence.pilot_outcome import (
     PILOT_OUTCOME_SCHEMA_VERSION,
     PilotOutcomeError,
     build_pilot_outcome_packet,

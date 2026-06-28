@@ -5,16 +5,16 @@ from pathlib import Path
 import pytest
 
 _AFFECTED_OUTPUT_HELPERS = (
-    ("entroping.core.evidence_action_plan", "EvidenceActionPlanError"),
-    ("entroping.core.evidence_cloud_dashboard", "EvidenceCloudDashboardError"),
-    ("entroping.core.evidence_cloud_export", "EvidenceCloudExportError"),
-    ("entroping.core.evidence_cloud_workspace", "EvidenceCloudWorkspaceError"),
-    ("entroping.core.evidence_links", "EvidenceLinksError"),
-    ("entroping.core.evidence_portal", "EvidencePortalError"),
-    ("entroping.core.pilot_outcome", "PilotOutcomeError"),
-    ("entroping.core.pr_evidence_card", "PrEvidenceCardError"),
-    ("entroping.core.work_item_draft", "WorkItemDraftError"),
-    ("entroping.core.work_item_import_bundle", "WorkItemImportBundleError"),
+    ("entroping.core.plan.evidence_action_plan", "EvidenceActionPlanError"),
+    ("entroping.core.evidence.evidence_cloud_dashboard", "EvidenceCloudDashboardError"),
+    ("entroping.core.export.evidence_cloud_export", "EvidenceCloudExportError"),
+    ("entroping.core.export.evidence_cloud_workspace", "EvidenceCloudWorkspaceError"),
+    ("entroping.core.evidence.evidence_links", "EvidenceLinksError"),
+    ("entroping.core.evidence.evidence_portal", "EvidencePortalError"),
+    ("entroping.core.evidence.pilot_outcome", "PilotOutcomeError"),
+    ("entroping.core.evidence.pr_evidence_card", "PrEvidenceCardError"),
+    ("entroping.core.export.work_item_draft", "WorkItemDraftError"),
+    ("entroping.core.export.work_item_import_bundle", "WorkItemImportBundleError"),
 )
 
 

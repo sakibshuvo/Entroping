@@ -6,8 +6,8 @@ from typing import Any, cast
 
 import pytest
 
-from entroping.core.evidence_index import LocalEvidenceArtifact
-from entroping.core.evidence_index_report import (
+from entroping.core.evidence.evidence_index import LocalEvidenceArtifact
+from entroping.core.evidence.evidence_index_report import (
     EVIDENCE_INDEX_SCHEMA_VERSION,
     EvidenceIndexError,
     build_evidence_index_packet,
@@ -171,7 +171,7 @@ def test_evidence_index_report_rejects_secret_like_rendered_output(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.evidence_index_report as evidence_index_report
+    import entroping.core.evidence.evidence_index_report as evidence_index_report
 
     def fake_index(*, project_root: Path) -> tuple[LocalEvidenceArtifact, ...]:
         _ = project_root

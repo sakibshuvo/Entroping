@@ -8,7 +8,7 @@ from typer.testing import CliRunner
 
 from entroping.cli.commands import report as report_cli
 from entroping.cli.main import app
-from entroping.core.external_test_evidence import ExternalTestEvidenceError
+from entroping.core.evidence.external_test_evidence import ExternalTestEvidenceError
 
 
 def _write_text(path: Path, text: str) -> None:

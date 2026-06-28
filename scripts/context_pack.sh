@@ -197,6 +197,7 @@ esac
 
 branch="$(git branch --show-current 2>/dev/null || true)"
 status="$(git status --short 2>/dev/null || true)"
+status_line_limit=10
 
 mode_budget_bytes() {
   local default_budget
@@ -247,6 +248,27 @@ context_pack_bytes() {
     context_bytes=0
   fi
   printf '%s\n' "$context_bytes"
+}
+
+emit_git_status_block() {
+  local line_count
+  local omitted_count
+
+  if [[ -z "$status" ]]; then
+    printf "\`\`\`text\nworking tree clean\n\`\`\`\n\n"
+    return 0
+  fi
+
+  line_count="$(printf '%s\n' "$status" | wc -l | tr -d '[:space:]')"
+  printf "\`\`\`text\n"
+  if ((line_count > status_line_limit)); then
+    printf '%s\n' "$status" | sed -n "1,${status_line_limit}p"
+    omitted_count=$((line_count - status_line_limit))
+    printf '... %s additional status line(s) omitted; run git status --short for the full list.\n' "$omitted_count"
+  else
+    printf '%s\n' "$status"
+  fi
+  printf "\`\`\`\n\n"
 }
 
 file_reason() {
@@ -370,11 +392,7 @@ emit_context_pack() {
 
 EOF
 
-  if [[ -n "$status" ]]; then
-    printf "\`\`\`text\n%s\n\`\`\`\n\n" "$status"
-  else
-    printf "\`\`\`text\nworking tree clean\n\`\`\`\n\n"
-  fi
+  emit_git_status_block
 
   if [[ "$mode" == "source" ]]; then
     cat <<EOF

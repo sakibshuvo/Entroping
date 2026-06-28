@@ -8,15 +8,15 @@ from pathlib import Path
 
 import pytest
 
-import entroping.core.work_item_import_bundle as work_item_import_bundle
-from entroping.core.evidence_index import LocalEvidenceArtifact
-from entroping.core.safe_write import SafeWriteError
-from entroping.core.work_item_import_bundle import (
+import entroping.core.export.work_item_import_bundle as work_item_import_bundle
+from entroping.core.evidence.evidence_index import LocalEvidenceArtifact
+from entroping.core.export.work_item_import_bundle import (
     WORK_ITEM_IMPORT_BUNDLE_SCHEMA_VERSION,
     WorkItemImportBundleError,
     build_work_item_import_bundle,
     run_work_item_import_bundle_report,
 )
+from entroping.core.safe_write import SafeWriteError
 
 
 def _write_json(path: Path, payload: dict[str, object]) -> None:

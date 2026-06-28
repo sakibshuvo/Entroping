@@ -76,16 +76,21 @@ from entroping.bridge.test_quality import (
 from entroping.bridge.test_quality import (
     TestQualityTestReport as QualityTestReportModel,
 )
-from entroping.core.agent_bundle import AGENT_REVIEW_BUNDLE_SCHEMA_VERSION
 from entroping.core.agent_manifest import AGENT_RUN_MANIFEST_SCHEMA_VERSION
-from entroping.core.api_inventory import (
+from entroping.core.drift_report import (
+    DRIFT_BASELINE_SCHEMA_VERSION,
+    drift_baseline_to_dict,
+    drift_report_to_dict,
+)
+from entroping.core.evidence.agent_bundle import AGENT_REVIEW_BUNDLE_SCHEMA_VERSION
+from entroping.core.evidence.api_inventory import (
     API_INVENTORY_SCHEMA_VERSION,
     ApiInventoryPacket,
     ApiInventorySource,
     ApiInventoryStyleSummary,
     ApiInventorySummary,
 )
-from entroping.core.connector_intent import (
+from entroping.core.evidence.connector_intent import (
     CONNECTOR_INTENT_SCHEMA_VERSION,
     ConnectorIntentNextAction,
     ConnectorIntentPacket,
@@ -93,27 +98,7 @@ from entroping.core.connector_intent import (
     ConnectorIntentSource,
     ConnectorIntentSummary,
 )
-from entroping.core.devex_readiness import (
-    DEVEX_READINESS_SCHEMA_VERSION,
-    DevexReadinessFamily,
-    DevexReadinessNextAction,
-    DevexReadinessPacket,
-    DevexReadinessSource,
-    DevexReadinessSummary,
-)
-from entroping.core.drift_report import (
-    DRIFT_BASELINE_SCHEMA_VERSION,
-    drift_baseline_to_dict,
-    drift_report_to_dict,
-)
-from entroping.core.evidence_action_plan import (
-    EVIDENCE_ACTION_PLAN_SCHEMA_VERSION,
-    EvidenceActionPlanItem,
-    EvidenceActionPlanPacket,
-    EvidenceActionPlanSource,
-    EvidenceActionPlanSummary,
-)
-from entroping.core.evidence_bundle import (
+from entroping.core.evidence.evidence_bundle import (
     EVIDENCE_BUNDLE_SCHEMA_VERSION,
     EvidenceBundleArtifact,
     EvidenceBundleDiagnostic,
@@ -122,47 +107,19 @@ from entroping.core.evidence_bundle import (
     EvidenceBundleReport,
     EvidenceBundleSummary,
 )
-from entroping.core.evidence_cloud_dashboard import (
+from entroping.core.evidence.evidence_cloud_dashboard import (
     EVIDENCE_CLOUD_DASHBOARD_SCHEMA_VERSION,
     EvidenceCloudDashboardPacket,
     EvidenceCloudDashboardRepository,
     EvidenceCloudDashboardSummary,
 )
-from entroping.core.evidence_cloud_export import (
-    EVIDENCE_CLOUD_EXPORT_SCHEMA_VERSION,
-    EvidenceCloudExportBoundaryControl,
-    EvidenceCloudExportItem,
-    EvidenceCloudExportNextAction,
-    EvidenceCloudExportPacket,
-    EvidenceCloudExportSource,
-    EvidenceCloudExportSummary,
-)
-from entroping.core.evidence_cloud_readiness import (
-    EVIDENCE_CLOUD_READINESS_SCHEMA_VERSION,
-    EvidenceCloudBoundary,
-    EvidenceCloudNextAction,
-    EvidenceCloudReadinessArea,
-    EvidenceCloudReadinessPacket,
-    EvidenceCloudSource,
-    EvidenceCloudSummary,
-    EvidenceCloudUploadCandidate,
-)
-from entroping.core.evidence_cloud_workspace import (
-    EVIDENCE_CLOUD_WORKSPACE_SCHEMA_VERSION,
-    EvidenceCloudWorkspaceBoundaryControl,
-    EvidenceCloudWorkspaceManifest,
-    EvidenceCloudWorkspaceNextAction,
-    EvidenceCloudWorkspacePacket,
-    EvidenceCloudWorkspaceRepository,
-    EvidenceCloudWorkspaceSummary,
-)
-from entroping.core.evidence_index_report import (
+from entroping.core.evidence.evidence_index_report import (
     EVIDENCE_INDEX_SCHEMA_VERSION,
     EvidenceIndexArtifact,
     EvidenceIndexPacket,
     EvidenceIndexSummary,
 )
-from entroping.core.evidence_links import (
+from entroping.core.evidence.evidence_links import (
     EVIDENCE_LINKS_SCHEMA_VERSION,
     EvidenceLinksNextAction,
     EvidenceLinksPacket,
@@ -170,7 +127,7 @@ from entroping.core.evidence_links import (
     EvidenceLinksSummary,
     EvidenceLinkTarget,
 )
-from entroping.core.evidence_portal import (
+from entroping.core.evidence.evidence_portal import (
     EVIDENCE_PORTAL_SCHEMA_VERSION,
     EvidencePortalCard,
     EvidencePortalNextAction,
@@ -178,7 +135,7 @@ from entroping.core.evidence_portal import (
     EvidencePortalSource,
     EvidencePortalSummary,
 )
-from entroping.core.external_test_evidence import (
+from entroping.core.evidence.external_test_evidence import (
     EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION,
     ExternalTestEvidenceLayer,
     ExternalTestEvidenceNextAction,
@@ -186,7 +143,7 @@ from entroping.core.external_test_evidence import (
     ExternalTestEvidenceSource,
     ExternalTestEvidenceSummary,
 )
-from entroping.core.handoff_packet import (
+from entroping.core.evidence.handoff_packet import (
     HANDOFF_SCHEMA_VERSION,
     HandoffArtifact,
     HandoffGit,
@@ -195,22 +152,7 @@ from entroping.core.handoff_packet import (
     HandoffSummary,
     HandoffTarget,
 )
-from entroping.core.integration_readiness import (
-    INTEGRATION_READINESS_SCHEMA_VERSION,
-    IntegrationReadinessFamily,
-    IntegrationReadinessNextAction,
-    IntegrationReadinessPacket,
-    IntegrationReadinessSource,
-    IntegrationReadinessSummary,
-)
-from entroping.core.mutation_readiness import (
-    MUTATION_READINESS_SCHEMA_VERSION,
-    MutationReadinessCandidate,
-    MutationReadinessPacket,
-    MutationReadinessSource,
-    MutationReadinessSummary,
-)
-from entroping.core.notification_packet import (
+from entroping.core.evidence.notification_packet import (
     NOTIFICATION_PACKET_SCHEMA_VERSION,
     NotificationMessage,
     NotificationPacket,
@@ -218,16 +160,7 @@ from entroping.core.notification_packet import (
     NotificationSource,
     NotificationSummary,
 )
-from entroping.core.observability_adapter_readiness import (
-    OBSERVABILITY_ADAPTER_READINESS_SCHEMA_VERSION,
-    ObservabilityAdapterBoundaryControl,
-    ObservabilityAdapterNextAction,
-    ObservabilityAdapterReadinessPacket,
-    ObservabilityAdapterReadinessRow,
-    ObservabilityAdapterReadinessSource,
-    ObservabilityAdapterReadinessSummary,
-)
-from entroping.core.observability_packet import (
+from entroping.core.evidence.observability_packet import (
     OBSERVABILITY_PACKET_SCHEMA_VERSION,
     ObservabilityComponentSummary,
     ObservabilityEventSummary,
@@ -237,7 +170,7 @@ from entroping.core.observability_packet import (
     ObservabilitySource,
     ObservabilitySummary,
 )
-from entroping.core.otel_mapping import (
+from entroping.core.evidence.otel_mapping import (
     OTEL_MAPPING_SCHEMA_VERSION,
     OtelAttributeMapping,
     OtelBoundaryControl,
@@ -246,7 +179,7 @@ from entroping.core.otel_mapping import (
     OtelMappingSource,
     OtelMappingSummary,
 )
-from entroping.core.pilot_cohort import (
+from entroping.core.evidence.pilot_cohort import (
     PILOT_COHORT_SCHEMA_VERSION,
     PilotCohortAction,
     PilotCohortMonetizationSignal,
@@ -255,14 +188,14 @@ from entroping.core.pilot_cohort import (
     PilotCohortReadinessSignal,
     PilotCohortSummary,
 )
-from entroping.core.pilot_metrics import (
+from entroping.core.evidence.pilot_metrics import (
     PILOT_METRICS_SCHEMA_VERSION,
     PilotEvidenceSource,
     PilotMetric,
     PilotMetricsReport,
     PilotMetricsSummary,
 )
-from entroping.core.pilot_outcome import (
+from entroping.core.evidence.pilot_outcome import (
     PILOT_OUTCOME_SCHEMA_VERSION,
     PilotOutcomeAction,
     PilotOutcomeMonetizationSignal,
@@ -271,7 +204,7 @@ from entroping.core.pilot_outcome import (
     PilotOutcomeSource,
     PilotOutcomeSummary,
 )
-from entroping.core.pr_evidence_card import (
+from entroping.core.evidence.pr_evidence_card import (
     PR_EVIDENCE_CARD_SCHEMA_VERSION,
     PrEvidenceCardChecklistItem,
     PrEvidenceCardNextAction,
@@ -279,35 +212,75 @@ from entroping.core.pr_evidence_card import (
     PrEvidenceCardSource,
     PrEvidenceCardSummary,
 )
-from entroping.core.qa_brain_eval_plan import (
+from entroping.core.export.evidence_cloud_export import (
+    EVIDENCE_CLOUD_EXPORT_SCHEMA_VERSION,
+    EvidenceCloudExportBoundaryControl,
+    EvidenceCloudExportItem,
+    EvidenceCloudExportNextAction,
+    EvidenceCloudExportPacket,
+    EvidenceCloudExportSource,
+    EvidenceCloudExportSummary,
+)
+from entroping.core.export.evidence_cloud_workspace import (
+    EVIDENCE_CLOUD_WORKSPACE_SCHEMA_VERSION,
+    EvidenceCloudWorkspaceBoundaryControl,
+    EvidenceCloudWorkspaceManifest,
+    EvidenceCloudWorkspaceNextAction,
+    EvidenceCloudWorkspacePacket,
+    EvidenceCloudWorkspaceRepository,
+    EvidenceCloudWorkspaceSummary,
+)
+from entroping.core.export.work_item_draft import (
+    WORK_ITEM_DRAFT_SCHEMA_VERSION,
+    WorkItemDraftItem,
+    WorkItemDraftPacket,
+    WorkItemDraftSource,
+    WorkItemDraftSummary,
+)
+from entroping.core.export.work_item_import_bundle import (
+    WORK_ITEM_IMPORT_BUNDLE_SCHEMA_VERSION,
+    WorkItemImportAction,
+    WorkItemImportBundle,
+    WorkItemImportRow,
+    WorkItemImportSource,
+    WorkItemImportSummary,
+)
+from entroping.core.plan.evidence_action_plan import (
+    EVIDENCE_ACTION_PLAN_SCHEMA_VERSION,
+    EvidenceActionPlanItem,
+    EvidenceActionPlanPacket,
+    EvidenceActionPlanSource,
+    EvidenceActionPlanSummary,
+)
+from entroping.core.plan.qa_brain_eval_plan import (
     QA_BRAIN_EVAL_PLAN_SCHEMA_VERSION,
     QaBrainEvalCase,
     QaBrainEvalPlanNextAction,
     QaBrainEvalPlanPacket,
     QaBrainEvalPlanSummary,
 )
-from entroping.core.qa_brain_fine_tune_readiness import (
+from entroping.core.plan.qa_brain_fine_tune_readiness import (
     QA_BRAIN_FINE_TUNE_READINESS_SCHEMA_VERSION,
     QaBrainFineTuneReadinessNextAction,
     QaBrainFineTuneReadinessPacket,
     QaBrainFineTuneReadinessRow,
     QaBrainFineTuneReadinessSummary,
 )
-from entroping.core.qa_brain_model_packaging_plan import (
+from entroping.core.plan.qa_brain_model_packaging_plan import (
     QA_BRAIN_MODEL_PACKAGING_PLAN_SCHEMA_VERSION,
     QaBrainModelPackagingPlanNextAction,
     QaBrainModelPackagingPlanPacket,
     QaBrainModelPackagingPlanRow,
     QaBrainModelPackagingPlanSummary,
 )
-from entroping.core.qa_brain_prompt_plan import (
+from entroping.core.plan.qa_brain_prompt_plan import (
     QA_BRAIN_PROMPT_PLAN_SCHEMA_VERSION,
     QaBrainPromptPlanNextAction,
     QaBrainPromptPlanPacket,
     QaBrainPromptPlanRow,
     QaBrainPromptPlanSummary,
 )
-from entroping.core.qa_brain_repair_plan import (
+from entroping.core.plan.qa_brain_repair_plan import (
     QA_BRAIN_REPAIR_PLAN_SCHEMA_VERSION,
     QaBrainRepairPlanNextAction,
     QaBrainRepairPlanPacket,
@@ -315,14 +288,14 @@ from entroping.core.qa_brain_repair_plan import (
     QaBrainRepairPlanSource,
     QaBrainRepairPlanSummary,
 )
-from entroping.core.qa_brain_retrieval_plan import (
+from entroping.core.plan.qa_brain_retrieval_plan import (
     QA_BRAIN_RETRIEVAL_PLAN_SCHEMA_VERSION,
     QaBrainRetrievalPlanNextAction,
     QaBrainRetrievalPlanPacket,
     QaBrainRetrievalPlanRow,
     QaBrainRetrievalPlanSummary,
 )
-from entroping.core.qa_brain_routing_plan import (
+from entroping.core.plan.qa_brain_routing_plan import (
     QA_BRAIN_ROUTING_PLAN_SCHEMA_VERSION,
     QaBrainRepairAcceptanceGate,
     QaBrainRoutingPlanNextAction,
@@ -330,13 +303,74 @@ from entroping.core.qa_brain_routing_plan import (
     QaBrainRoutingPlanRow,
     QaBrainRoutingPlanSummary,
 )
-from entroping.core.qa_brain_seed import (
+from entroping.core.plan.qa_brain_seed import (
     QA_BRAIN_SEED_SCHEMA_VERSION,
     QaBrainEvalSlice,
     QaBrainNextAction,
     QaBrainSeedPacket,
     QaBrainSeedSource,
     QaBrainSeedSummary,
+)
+from entroping.core.plan.team_access_control_plan import (
+    TEAM_ACCESS_CONTROL_PLAN_SCHEMA_VERSION,
+    TeamAccessControlAuditEvent,
+    TeamAccessControlBoundary,
+    TeamAccessControlNextAction,
+    TeamAccessControlPlanPacket,
+    TeamAccessControlPlanSummary,
+    TeamAccessControlRolePlan,
+    TeamAccessControlSource,
+)
+from entroping.core.readiness.devex_readiness import (
+    DEVEX_READINESS_SCHEMA_VERSION,
+    DevexReadinessFamily,
+    DevexReadinessNextAction,
+    DevexReadinessPacket,
+    DevexReadinessSource,
+    DevexReadinessSummary,
+)
+from entroping.core.readiness.evidence_cloud_readiness import (
+    EVIDENCE_CLOUD_READINESS_SCHEMA_VERSION,
+    EvidenceCloudBoundary,
+    EvidenceCloudNextAction,
+    EvidenceCloudReadinessArea,
+    EvidenceCloudReadinessPacket,
+    EvidenceCloudSource,
+    EvidenceCloudSummary,
+    EvidenceCloudUploadCandidate,
+)
+from entroping.core.readiness.integration_readiness import (
+    INTEGRATION_READINESS_SCHEMA_VERSION,
+    IntegrationReadinessFamily,
+    IntegrationReadinessNextAction,
+    IntegrationReadinessPacket,
+    IntegrationReadinessSource,
+    IntegrationReadinessSummary,
+)
+from entroping.core.readiness.mutation_readiness import (
+    MUTATION_READINESS_SCHEMA_VERSION,
+    MutationReadinessCandidate,
+    MutationReadinessPacket,
+    MutationReadinessSource,
+    MutationReadinessSummary,
+)
+from entroping.core.readiness.observability_adapter_readiness import (
+    OBSERVABILITY_ADAPTER_READINESS_SCHEMA_VERSION,
+    ObservabilityAdapterBoundaryControl,
+    ObservabilityAdapterNextAction,
+    ObservabilityAdapterReadinessPacket,
+    ObservabilityAdapterReadinessRow,
+    ObservabilityAdapterReadinessSource,
+    ObservabilityAdapterReadinessSummary,
+)
+from entroping.core.readiness.team_evidence_readiness import (
+    TEAM_EVIDENCE_READINESS_SCHEMA_VERSION,
+    TeamEvidenceCloudBoundary,
+    TeamEvidenceNextAction,
+    TeamEvidenceReadinessArea,
+    TeamEvidenceReadinessPacket,
+    TeamEvidenceReadinessSummary,
+    TeamEvidenceSource,
 )
 from entroping.core.report_artifact_manifest import (
     REPORT_ARTIFACT_MANIFEST_SCHEMA_VERSION,
@@ -381,41 +415,7 @@ from entroping.core.structured_diagnostics import (
     StructuredDiagnosticAttribute,
     StructuredDiagnosticEvent,
 )
-from entroping.core.team_access_control_plan import (
-    TEAM_ACCESS_CONTROL_PLAN_SCHEMA_VERSION,
-    TeamAccessControlAuditEvent,
-    TeamAccessControlBoundary,
-    TeamAccessControlNextAction,
-    TeamAccessControlPlanPacket,
-    TeamAccessControlPlanSummary,
-    TeamAccessControlRolePlan,
-    TeamAccessControlSource,
-)
-from entroping.core.team_evidence_readiness import (
-    TEAM_EVIDENCE_READINESS_SCHEMA_VERSION,
-    TeamEvidenceCloudBoundary,
-    TeamEvidenceNextAction,
-    TeamEvidenceReadinessArea,
-    TeamEvidenceReadinessPacket,
-    TeamEvidenceReadinessSummary,
-    TeamEvidenceSource,
-)
 from entroping.core.traffic_artifact_manifest import TRAFFIC_ARTIFACT_APPROVAL_SCHEMA_VERSION
-from entroping.core.work_item_draft import (
-    WORK_ITEM_DRAFT_SCHEMA_VERSION,
-    WorkItemDraftItem,
-    WorkItemDraftPacket,
-    WorkItemDraftSource,
-    WorkItemDraftSummary,
-)
-from entroping.core.work_item_import_bundle import (
-    WORK_ITEM_IMPORT_BUNDLE_SCHEMA_VERSION,
-    WorkItemImportAction,
-    WorkItemImportBundle,
-    WorkItemImportRow,
-    WorkItemImportSource,
-    WorkItemImportSummary,
-)
 from entroping.models.drift import (
     DriftBaseline,
     DriftBaselineTest,

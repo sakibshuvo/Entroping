@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-import entroping.core.test_pyramid_report as test_pyramid_report
+import entroping.core.evidence.test_pyramid_report as test_pyramid_report
 from entroping.bridge.test_pyramid import (
     TestPyramidArtifactEvidence as PyramidArtifactEvidenceModel,
 )
@@ -14,13 +14,13 @@ from entroping.bridge.test_pyramid import (
     compile_test_pyramid_report,
     render_test_pyramid_markdown,
 )
-from entroping.core.evidence_index import LocalEvidenceArtifact
-from entroping.core.external_test_evidence import EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION
-from entroping.core.safe_write import SafeWriteError
-from entroping.core.test_pyramid_report import (
+from entroping.core.evidence.evidence_index import LocalEvidenceArtifact
+from entroping.core.evidence.external_test_evidence import EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION
+from entroping.core.evidence.test_pyramid_report import (
     TestPyramidReportError,
     run_test_pyramid_report,
 )
+from entroping.core.safe_write import SafeWriteError
 
 
 def _write_text(path: Path, content: str) -> None:

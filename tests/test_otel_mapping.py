@@ -5,12 +5,12 @@ from pathlib import Path
 
 import pytest
 
-import entroping.core.observability_adapter_readiness as adapter_readiness
-import entroping.core.otel_mapping as otel_mapping
+import entroping.core.evidence.otel_mapping as otel_mapping
+import entroping.core.readiness.observability_adapter_readiness as adapter_readiness
 from entroping.bridge.test_pyramid import TEST_PYRAMID_REPORT_SCHEMA_VERSION
-from entroping.core.external_test_evidence import EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION
-from entroping.core.observability_packet import OBSERVABILITY_PACKET_SCHEMA_VERSION
-from entroping.core.otel_mapping import (
+from entroping.core.evidence.external_test_evidence import EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION
+from entroping.core.evidence.observability_packet import OBSERVABILITY_PACKET_SCHEMA_VERSION
+from entroping.core.evidence.otel_mapping import (
     OTEL_MAPPING_SCHEMA_VERSION,
     OtelMappingError,
     build_otel_mapping_packet,

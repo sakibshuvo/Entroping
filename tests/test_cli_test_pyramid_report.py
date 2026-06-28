@@ -9,7 +9,7 @@ from typer.testing import CliRunner
 
 import entroping.cli.commands.report as report_commands
 from entroping.cli.main import app
-from entroping.core.test_pyramid_report import TestPyramidReportError
+from entroping.core.evidence.test_pyramid_report import TestPyramidReportError
 
 
 def _write_json(path: Path, payload: dict[str, object]) -> None:

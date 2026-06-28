@@ -7,9 +7,8 @@ from typing import Any, cast
 
 import pytest
 
-import entroping.core.team_evidence_readiness as readiness
-from entroping.core.safe_write import SafeWriteError
-from entroping.core.team_evidence_readiness import (
+import entroping.core.readiness.team_evidence_readiness as readiness
+from entroping.core.readiness.team_evidence_readiness import (
     TEAM_EVIDENCE_READINESS_SCHEMA_VERSION,
     TeamEvidenceReadinessError,
     TeamEvidenceReadinessPacket,
@@ -17,6 +16,7 @@ from entroping.core.team_evidence_readiness import (
     render_team_evidence_readiness_markdown,
     run_team_evidence_readiness_report,
 )
+from entroping.core.safe_write import SafeWriteError
 
 _HASH = "a" * 64
 

@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-import entroping.core.evidence_cloud_workspace as evidence_cloud_workspace
-from entroping.core.evidence_cloud_workspace import (
+import entroping.core.export.evidence_cloud_workspace as evidence_cloud_workspace
+from entroping.core.export.evidence_cloud_workspace import (
     EVIDENCE_CLOUD_WORKSPACE_SCHEMA_VERSION,
     EvidenceCloudWorkspaceError,
     build_evidence_cloud_workspace_packet,
