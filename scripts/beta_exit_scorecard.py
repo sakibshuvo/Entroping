@@ -77,7 +77,10 @@ BETA_GATES = (
         alpha_gate=False,
         readiness_script="scripts/stable_core_readiness.py",
         required_marker="compatibility",
-        description="A documented compatibility decision separates alpha from stable-core promises.",
+        description=(
+            "A documented compatibility decision separates alpha from "
+            "stable-core promises."
+        ),
     ),
     BetaGate(
         key="homebrew_tap",
@@ -129,7 +132,14 @@ def main() -> int:
         if failing:
             print("beta exit scorecard failed:", file=sys.stderr)
             for gate in failing:
-                print(f"  #{cast(object, gate['issue_number'])} {cast(object, gate['label'])}: {cast(object, gate['status'])} - {cast(object, gate['detail'])}", file=sys.stderr)
+                issue_number = cast(object, gate["issue_number"])
+                label = cast(object, gate["label"])
+                status = cast(object, gate["status"])
+                detail = cast(object, gate["detail"])
+                print(
+                    f"  #{issue_number} {label}: {status} - {detail}",
+                    file=sys.stderr,
+                )
             return 1
     return 0
 
@@ -211,7 +221,11 @@ def _evaluate_gate(root: Path, gate: BetaGate) -> tuple[GateStatus, str]:
                     else "external package-index evidence not yet proven",
                 )
             return "pass", "repo guardrails pass and package-index evidence present"
-        return "fail", f"repo guardrails: {guardrails}, marker '{gate.required_marker}': {has_marker}"
+        return (
+            "fail",
+            f"repo guardrails: {guardrails}, "
+            f"marker '{gate.required_marker}': {has_marker}",
+        )
 
     # For stable_core_readiness, examine blocker_issue_map for the relevant
     # issue status.
@@ -232,7 +246,11 @@ def _evaluate_gate(root: Path, gate: BetaGate) -> tuple[GateStatus, str]:
     )
     if marker_found:
         return "pass", f"evidence marker '{gate.required_marker}' found"
-    return "fail", f"evidence marker '{gate.required_marker}' not found in {gate.readiness_script} output"
+    return (
+        "fail",
+        f"evidence marker '{gate.required_marker}' not found in "
+        f"{gate.readiness_script} output",
+    )
 
 
 def _render_markdown(payload: dict[str, object]) -> str:

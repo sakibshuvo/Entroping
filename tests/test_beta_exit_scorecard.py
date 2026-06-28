@@ -37,7 +37,9 @@ def test_alpha_gates_present() -> None:
     payload = json.loads(result.stdout)
 
     alpha_keys = {g["key"] for g in payload["gates"] if g["alpha_gate"]}
-    assert "testpypi_trusted_publisher" in alpha_keys, f"missing #303 gate, got {sorted(alpha_keys)}"
+    assert "testpypi_trusted_publisher" in alpha_keys, (
+        f"missing #303 gate, got {sorted(alpha_keys)}"
+    )
     assert "testpypi_alpha_publish" in alpha_keys, f"missing #304 gate, got {sorted(alpha_keys)}"
 
     for gate in payload["gates"]:
