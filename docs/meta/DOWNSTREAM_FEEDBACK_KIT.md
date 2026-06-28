@@ -20,32 +20,66 @@ tries Entroping and sends evidence back for review.
 
 ## Feedback Template
 
+For every downstream trial, fill each section that applies. If a category has no
+evidence, mark it *Not tested* rather than leaving it blank. This template maps
+directly to the stable-core blockers tracked in #306 and #308.
+
 ```markdown
 ## Entroping Downstream Feedback
 
-- Project type:
-- Install path:
+### Install Path
+- Install method (source wheel / uv tool / pip / git clone):
 - Entroping version or commit:
-- Operating system:
+- Operating system and version:
 - Python version:
 - Hurl version:
 - Install command used:
-- Entroping command used:
-- Success or failure:
+- Install success (yes / partial / no):
+- Install friction (missing deps, docs gap, permission issue):
+
+### CLI Compatibility
+- First command attempted:
+- Help output behavior (expected / unexpected):
+- Command discovered from docs, --help, or trial:
+- Compatibility concern (none / minor / blocks alpha):
+
+### Deterministic Hurl Behavior
+- Example Hurl file used (path or brief description):
+- Command: entroping run ...
+- Output matches expectation (yes / no):
+- If not, what diverged (timing, error, missing report, unclear output):
+
+### Docs Gaps
+- Docs read before trying:
+- Docs gap encountered:
+- Search term that did not lead to the right doc:
+- Doc that would have saved time:
+
+### Product Clarity
+- Did the user understand what Entroping does before installing (yes / no):
+- Did the README demo path work for them (yes / partial / no):
+- Was the value clear after the first run (yes / no):
+- Product improvement suggestion:
+
+### Success / Failure Summary
+- Overall outcome:
 - Time to first useful result:
-- Friction:
-- What was confusing:
-- What worked well:
 - Sanitized logs:
-- Suggested next fix:
+- Most painful step:
+- Most pleasant surprise:
 ```
 
-`command used` can be the exact `entroping ...` invocation, the install command,
-or both. `success or failure` should say whether the user reached a useful
-`entroping doctor`, `entroping run`, report artifact, or understandable error.
-`friction` should capture setup confusion, docs gaps, missing dependency
-guidance, Hurl installation problems, unclear errors, or workflow mismatch.
-Keep sanitized logs short and focused on the Entroping command output.
+### Issue Mapping
+
+| Template section | Relevant issue | Blocker status |
+|-----------------|---------------|----------------|
+| Install Path | #306 real downstream feedback | blocked |
+| CLI Compatibility | #308 compatibility decision | blocked |
+| Docs Gaps | #306, #308 | blocked |
+| Product Clarity | #306 | blocked |
+
+Every filled template that includes sanitized install evidence counts toward
+#306. Compatibility concerns (or absence of them) count toward #308.
 
 ## Sanitization Rules
 
