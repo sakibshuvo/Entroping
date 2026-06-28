@@ -56,6 +56,10 @@ Choose work:
    `.entroping/ai-reviews/issue-<issue-number>-<short-slug>/` with
    `metadata.json`, `result.md`, `tests.txt`, optional `proposal.diff`, and
    `python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`.
+   Set `metadata.json` `status` to `ready_for_codex` only after the handoff is
+   complete. Codex can review marathon output with
+   `uv run python scripts/factory_inbox.py next --json` and mark reviewed
+   artifacts with `uv run python scripts/factory_inbox.py mark-reviewed <artifact-dir> --json`.
 
 Work one issue:
 scripts/start_issue.sh <issue-number> <type>/<short-kebab-description>
@@ -135,6 +139,8 @@ Before ending the day, return:
 - dirty or untracked files,
 - local factory metrics ledger locations,
 - OpenCode/DeepSeek artifact directory and factory review packet command,
+- factory inbox pickup command:
+  `uv run python scripts/factory_inbox.py next --json`,
 - accepted/rejected/stale worker findings,
 - safe next issue,
 - blockers or stop conditions.

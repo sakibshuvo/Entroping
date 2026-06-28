@@ -56,6 +56,9 @@ Rules:
 - For OpenCode/DeepSeek trials, write `.entroping/ai-reviews/issue-<issue-number>-<short-slug>/`
   with `metadata.json`, `result.md`, `tests.txt`, and optional `proposal.diff`;
   report `python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`.
+  Set `metadata.json` `status` to `ready_for_codex` when complete so Codex can
+  pick up the next trial artifact with
+  `uv run python scripts/factory_inbox.py next --json`.
 - Do not use `exec()`, dynamic source-file execution, import-time code
   generation, broad `type: ignore`, broad ruff ignores such as `F821` or `F811`,
   or `mypy ignore_errors`; use normal importable modules with explicit
@@ -161,6 +164,8 @@ provider token or cost fields as `unknown` instead of guessing:
 - artifact directory: `.entroping/ai-reviews/issue-774-opencode-deepseek-trial/`
 - factory review packet:
   `python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-774-opencode-deepseek-trial --json`
+- factory inbox pickup:
+  `uv run python scripts/factory_inbox.py next --json`
 - context-pack estimated tokens: `<manifest-estimated-tokens>` from
   `scripts/context_pack.sh --mode implementation --manifest`
 - context-pack bytes: `<manifest-context-bytes>` from

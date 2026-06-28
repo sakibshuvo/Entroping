@@ -114,15 +114,34 @@ For interactive OpenCode Desktop or DeepSeek runs that are not launched through
 
 - `metadata.json` with issue, branch, worktree, provider lane, provider host,
   billing path, model id, autonomy tier, merge authority, commit, and PR URL
-  when present.
+  when present. Set `status` to `ready_for_codex` only after `result.md` and
+  `tests.txt` are complete.
 - `result.md` with the human-readable final handoff.
 - `tests.txt` with exact commands and pass/fail output summaries.
 - `proposal.diff` when the worker proposes a patch Codex has not applied.
 
-Codex can pick up the interactive handoff with:
+Codex can pick up a specific interactive handoff with:
 
 ```bash
 python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json
+```
+
+For long OpenCode marathons, Codex can pick up the next complete handoff
+without copy-pasting paths:
+
+```bash
+uv run python scripts/factory_inbox.py next --json
+```
+
+Useful inbox commands:
+
+```bash
+uv run python scripts/factory_inbox.py list --json
+uv run python scripts/factory_inbox.py next --claim --json
+uv run python scripts/factory_inbox.py mark-reviewed <artifact-dir> --json
+uv run python scripts/factory_inbox.py mark-accepted <artifact-dir> --json
+uv run python scripts/factory_inbox.py mark-rejected <artifact-dir> --json
+uv run python scripts/factory_inbox.py mark-needs-review <artifact-dir> --json
 ```
 
 Worker packet rules:
@@ -302,6 +321,9 @@ For interactive runs, write
 `.entroping/ai-reviews/issue-<issue-number>-<short-slug>/` with `metadata.json`,
 `result.md`, `tests.txt`, and optional `proposal.diff`; report
 `python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`.
+Set `metadata.json` `status` to `ready_for_codex` only after the handoff is
+complete so Codex can auto-discover it with
+`uv run python scripts/factory_inbox.py next --json`.
 
 Read before editing:
 - AGENTS.md
@@ -332,6 +354,9 @@ Workflow:
    - test output
    - interactive artifact directory with `metadata.json`, `result.md`,
      `tests.txt`, and optional `proposal.diff`
+   - `metadata.json` status set to `ready_for_codex`
+   - Codex inbox pickup command:
+     `uv run python scripts/factory_inbox.py next --json`
 9. Reject shortcut compatibility: do not use `exec()`, dynamic source-file
    execution, import-time code generation, broad `type: ignore`, broad ruff
    ignores such as `F821` or `F811`, or `mypy ignore_errors`; use normal

@@ -64,6 +64,9 @@ scripts, write a Codex-pickup handoff directory under
 `result.md`, `tests.txt`, and optional `proposal.diff`. Report the pickup
 command:
 `python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`.
+Set `metadata.json` `status` to `ready_for_codex` after the handoff is complete
+so Codex can pick up the next marathon artifact with
+`uv run python scripts/factory_inbox.py next --json`.
 
 Context is evidence, not memory. Start each issue with one named question: what
 local evidence is needed to change, review, or merge this issue? `rg`,
@@ -161,6 +164,8 @@ Exact tests/gates:
   - `tests.txt`
   - optional `proposal.diff`
   - `python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`
+  - `metadata.json` status `ready_for_codex`
+  - `uv run python scripts/factory_inbox.py next --json`
 - Run `scripts/pr_body_check.py --body-file <body.md> --issue <issue-number>`
   with changed-file arguments when practical before opening the PR.
 
@@ -319,6 +324,9 @@ For interactive OpenCode/DeepSeek runs, write
 `result.md`, `tests.txt`, and optional `proposal.diff`; include
 `python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`
 in the final report.
+Set `metadata.json` `status` to `ready_for_codex` after the handoff is complete
+and include `uv run python scripts/factory_inbox.py next --json` for no-copy
+Codex pickup.
 
 Context is evidence, not memory. Start with the named issue question, use
 repo-native evidence first, and do not add generated context because it is

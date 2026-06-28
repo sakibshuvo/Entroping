@@ -61,6 +61,9 @@ Rules:
   `.entroping/ai-reviews/issue-<issue-number>-<short-slug>/` with
   `metadata.json`, `result.md`, `tests.txt`, and optional `proposal.diff`; report
   `python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`.
+  Set `metadata.json` `status` to `ready_for_codex` only when the handoff is
+  complete, so Codex can auto-pick it with
+  `uv run python scripts/factory_inbox.py next --json`.
 - Do not use `exec()`, dynamic source-file execution, import-time code
   generation, broad `type: ignore`, broad ruff ignores such as `F821` or `F811`,
   or `mypy ignore_errors`; use normal importable modules with explicit
@@ -102,6 +105,8 @@ In the issue worktree:
 - Run the exact tests/gates from the packet.
 - Write `.entroping/ai-reviews/issue-<issue-number>-<short-slug>/` with
   `metadata.json`, `result.md`, `tests.txt`, and optional `proposal.diff`.
+  The metadata must include `status: ready_for_codex` after the handoff is
+  complete.
 - Run:
   git diff --check
   git status --short
@@ -145,6 +150,8 @@ Final report:
 - files changed,
 - tests/gates run,
 - artifact directory and factory review packet command,
+- factory inbox pickup command:
+  `uv run python scripts/factory_inbox.py next --json`,
 - CI status,
 - finish cleanup result,
 - any gaps or blocked items.

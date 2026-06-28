@@ -68,6 +68,13 @@ archive is mounted or attached to the cloud task.
   `metadata.json`, `result.md`, `tests.txt`, and optional `proposal.diff`; Codex
   can pick it up with
   `python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`.
+- For marathon-style OpenCode runs, require `metadata.json` to include
+  `status: ready_for_codex` when the handoff is complete. Codex can then avoid
+  copy-paste pickup with `uv run python scripts/factory_inbox.py next --json`,
+  or inspect the queue with `uv run python scripts/factory_inbox.py list --json`.
+  After review, mark the artifact with
+  `uv run python scripts/factory_inbox.py mark-reviewed <artifact-dir> --json`
+  or the stricter `mark-accepted`, `mark-rejected`, or `mark-needs-review`.
 - Refactor prompts must reject shortcut compatibility. Do not use `exec()`,
   dynamic source-file execution, import-time code generation, broad
   `type: ignore`, broad ruff ignores such as `F821` or `F811`, or
@@ -84,7 +91,7 @@ archive is mounted or attached to the cloud task.
 | [Spark-safe worker](spark-safe-worker.md) | Use low-risk Codex Spark capacity for docs/tests/project hygiene. |
 | [Codex persistent marathon](codex-persistent-marathon.md) | Keep one Codex integrator session moving through the full issue-worktree-PR-CI-merge-finish loop instead of stopping after one issue or safe checkpoint. |
 | [Multi-agent marathon](multi-agent-marathon.md) | Run several bounded sessions while one parent thread owns integration. |
-| [OpenCode Desktop handoff](opencode-desktop-handoff.md) | Start OpenCode Desktop/OpenCode Go implementation or PR verification sessions with the self-contained worker packet, explicit provider lane, billing, model, role, merge authority, and `scripts/opencode_readiness.py` preflight evidence. |
+| [OpenCode Desktop handoff](opencode-desktop-handoff.md) | Start OpenCode Desktop/OpenCode Go implementation or PR verification sessions with the self-contained worker packet, explicit provider lane, billing, model, role, merge authority, factory inbox pickup, and `scripts/opencode_readiness.py` preflight evidence. |
 | [OpenCode Desktop one-shot](opencode-desktop-one-shot.md) | Paste one bootstrap prompt into OpenCode Desktop with paid DeepSeek V4 Pro so it can pick one Tier A issue, create the work packet, run the issue worktree conveyor, open the PR, wait for CI, merge if allowed, and finish cleanup. |
 | [OpenCode Codex review request](opencode-codex-review-request.md) | Let OpenCode request a read-only Codex CLI review of an OpenCode-produced local diff or PR before merge. |
 | [Model-comparison trial](model-comparison-trial.md) | Compare Codex, OpenCode native DeepSeek, direct DeepSeek API, OpenCode Go Kimi/Qwen, and local/offline models through evidence. |
@@ -118,7 +125,7 @@ decision registry.
 | `codex-session-handoff.md` | Start a fresh Codex thread or recover after a context reset. | Codex integrator |
 | `issue-worker.md` | Give one agent one GitHub issue, one worktree, and explicit acceptance criteria. | Codex, OpenCode, or DeepSeek worker |
 | `opencode-desktop-one-shot.md` | Run one Tier A OpenCode Desktop issue conveyor with paid DeepSeek V4 Pro and minimal manual terminal work. | OpenCode Desktop with DeepSeek |
-| `opencode-desktop-handoff.md` | Start OpenCode implementation or PR verification with provider, billing, model, role, autonomy tier, MCP/tooling, and stop conditions declared. | OpenCode Desktop or OpenCode Go |
+| `opencode-desktop-handoff.md` | Start OpenCode implementation or PR verification with provider, billing, model, role, autonomy tier, MCP/tooling, factory inbox pickup, and stop conditions declared. | OpenCode Desktop or OpenCode Go |
 | `opencode-codex-review-request.md` | Ask Codex CLI for a read-only review of an OpenCode-produced diff or PR before merge. | OpenCode requesting Codex review |
 | `deepseek-opencode-review.md` | Run bounded low-cost review, bug bash, or patch-proposal work that Codex or a parent integrator must validate. | DeepSeek or OpenCode worker |
 | `model-output-acceptance-gate.md` | Decide what to accept, reject, convert to issues, or escalate from cheap-model output. | Integrator or reviewer |

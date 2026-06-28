@@ -119,10 +119,12 @@ def test_worker_prompts_define_codex_pickup_handoff_and_shortcut_guards() -> Non
     pickup_terms = [
         ".entroping/ai-reviews/issue-<issue-number>-<short-slug>/",
         "metadata.json",
+        "ready_for_codex",
         "result.md",
         "tests.txt",
         "proposal.diff",
         "scripts/factory_review_packet.py --artifact-dir",
+        "scripts/factory_inbox.py next --json",
     ]
 
     for prompt_path in pickup_prompt_paths:

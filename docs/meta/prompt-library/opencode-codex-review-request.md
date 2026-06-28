@@ -54,6 +54,9 @@ Worker evidence:
 - Interactive artifact directory, if no job id:
   `.entroping/ai-reviews/issue-<issue-number>-<short-slug>/` with
   `metadata.json`, `result.md`, `tests.txt`, and optional `proposal.diff`.
+- For marathon output, require `metadata.json` `status: ready_for_codex` and
+  prefer `uv run python scripts/factory_inbox.py next --json` for no-copy
+  pickup before falling back to a copied artifact path.
 
 Source-of-truth rules:
 - Active repo is /Users/sakibshuvo/projects/Entroping.
@@ -77,6 +80,8 @@ Artifact-first review protocol (before raw transcript output):
   `scripts/factory_review_packet.py --artifact-dir <artifact-dir> --json`.
 - For interactive runs without a job id, require:
   `python scripts/factory_review_packet.py --artifact-dir .entroping/ai-reviews/issue-<issue-number>-<short-slug> --json`.
+- For marathon output, prefer:
+  `uv run python scripts/factory_inbox.py next --json`.
 - Confirm `scripts/ai_jobs.py audit-routing --json` was checked before
   dispatching queued cheap workers when the job came from the queue.
 - Review worker job metadata.
