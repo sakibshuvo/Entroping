@@ -74,6 +74,12 @@ def test_ci_workflow_runs_on_pull_requests_and_main_pushes_only() -> None:
     assert triggers["push"] == {"branches": ["main"]}
 
 
+def test_ci_workflow_declares_minimum_permissions() -> None:
+    workflow = yaml.safe_load(_WORKFLOW_PATH.read_text(encoding="utf-8"))
+
+    assert workflow["permissions"] == {"contents": "read"}
+
+
 def test_ci_workflow_enforces_security_and_quality_gates() -> None:
     workflow = yaml.safe_load(_WORKFLOW_PATH.read_text(encoding="utf-8"))
 
