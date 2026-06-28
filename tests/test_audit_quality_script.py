@@ -22,6 +22,7 @@ def test_audit_quality_help_documents_quality_gates() -> None:
 
     assert result.returncode == 0
     assert "test taxonomy" in result.stdout
+    assert "long-file hotspot" in result.stdout
     assert "quality trend summary" in result.stdout
     assert "pytest-cov" in result.stdout
     assert "radon" in result.stdout
@@ -38,6 +39,7 @@ def test_audit_quality_dry_run_shows_repeatable_steps() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "Would write test taxonomy report" in result.stdout
+    assert "Would run long-file hotspot report" in result.stdout
     assert "Would run coverage gate" in result.stdout
     assert "Would run Radon complexity gate" in result.stdout
     assert "Would run Vulture dead-code discovery" in result.stdout
