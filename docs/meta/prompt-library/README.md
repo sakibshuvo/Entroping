@@ -152,7 +152,7 @@ Use this table when you know the kind of work but not the exact launcher.
 
 | Prompt | Use | Boundary |
 | --- | --- | --- |
-| [Multi-agent marathon](multi-agent-marathon.md) | Codex prepares Spark-only, OpenCode-only, or Spark + OpenCode batches and later reviews all outputs. | Parent/integrator prompt, not a worker shortcut. |
+| [Multi-agent marathon](multi-agent-marathon.md) | Codex prepares Spark-only, OpenCode-only, or Spark + OpenCode batches, repair prompts, and post-repair review prompts. | Parent/integrator prompt, not a worker shortcut. |
 | [Codex persistent marathon](codex-persistent-marathon.md) | One Codex session repeats the issue-worktree-PR-CI-merge-finish loop. | Single integrator, not parallel workers. |
 | [Issue worker](issue-worker.md) | One issue, one worktree, one branch, one PR. | Base packet for Codex, OpenCode, DeepSeek, or local workers. |
 | [Spark-safe worker](spark-safe-worker.md) | Ad hoc low-risk Spark work. | For marathon issue batches, prefer the filled Spark prompt generated from `multi-agent-marathon.md`. |
@@ -191,7 +191,8 @@ Use this table when you know the kind of work but not the exact launcher.
 ## Overlap Notes
 
 - `multi-agent-marathon.md` is the owner for credit-aware prompt generation:
-  Spark-only batch, OpenCode-only batch, and Spark + OpenCode batch.
+  Spark-only batch, OpenCode-only batch, Spark + OpenCode batch, worker repair
+  prompts, and Codex post-repair review prompts.
 - `spark-safe-worker.md` remains a small one-off Spark launcher; do not use it
   as the marathon issue selector.
 - `opencode-desktop-handoff.md` is the general OpenCode work packet.

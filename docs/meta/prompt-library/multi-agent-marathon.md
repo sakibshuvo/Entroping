@@ -484,6 +484,165 @@ Final report:
 - remaining blockers.
 ```
 
+### Worker Repair Prompt Shape
+
+Use this when a Spark, OpenCode, DeepSeek, or local worker batch returned PRs
+that are useful but not acceptance-ready. Keep issue numbers and PR numbers in
+the chat-seeded prompt. Do not create a new prompt file for one batch.
+
+```text
+You are the <Spark | OpenCode | DeepSeek | local> repair worker for Entroping.
+
+Repo:
+cd /Users/sakibshuvo/projects/Entroping
+
+Repair only these issue-scoped PRs:
+<Codex inserts issue/PR/branch/worktree table here>
+
+Open and follow:
+docs/meta/prompt-library/multi-agent-marathon.md
+docs/meta/prompt-library/model-output-acceptance-gate.md
+docs/meta/AGENT_CONTROL_PLANE.md
+
+Rules:
+- Do not edit main directly.
+- Work only in each issue worktree and branch listed by Codex.
+- Preserve one issue, one branch, one worktree, one PR.
+- Do not broaden scope or fix unrelated findings.
+- Do not merge.
+- Do not run provider calls unless the issue explicitly authorizes them.
+- Treat Codex review findings as required fixes unless you can prove they are
+  invalid from repo files, tests, CI logs, or issue text.
+
+Start:
+git pull --ff-only
+git status --short
+git branch --show-current
+git worktree list
+gh pr list --repo sakibshuvo/Entroping --state open --limit 60
+scripts/context_pack.sh --mode implementation --manifest
+uv run python scripts/backlog_health.py
+
+For each assigned PR:
+1. Enter the listed issue worktree.
+2. Confirm branch, worktree, issue, PR, and changed files.
+3. Integrate current `origin/main` only after the local worktree is clean or
+   intentionally committed. Stop and hand off if conflicts are not obviously
+   issue-local.
+4. Fix every Codex-listed blocker for that PR.
+5. Fix PR body contract failures:
+   - `Closes #<issue-number>`
+   - checked Documentation Impact Declaration item,
+   - provider lane, provider host, billing path, and model,
+   - autonomy tier,
+   - merge authority,
+   - verification lane,
+   - exact commands run,
+   - known gaps.
+6. Regenerate `.entroping/ai-reviews/issue-<issue-number>-<short-slug>/`.
+7. Ensure `metadata.json` includes `status: ready_for_codex`, issue, provider
+   lane, provider host, billing path, model, autonomy tier, merge authority,
+   worktree, branch, PR, verification lane, and CI status when known.
+8. Ensure `result.md` includes structured summary lines:
+   - `STATUS: <pass | needs-review | blocked>`
+   - `FILES_CHANGED: <comma-separated paths>`
+   - `TESTS_RUN: <exact commands>`
+   - `VERIFICATION_LANE: <lane>`
+   - `CI_STATUS: <pending | pass | fail | not-run>`
+   - `KNOWN_ISSUES: <none or specific gaps>`
+   - `SUMMARY: <one concise summary>`
+9. Ensure `tests.txt` lists exact commands and pass/fail results.
+10. Re-run the declared verification lane after repair.
+11. Push the branch.
+12. Wait for GitHub CI status when available.
+
+Final handoff:
+Return a table:
+- issue,
+- PR,
+- branch,
+- worktree,
+- rebased or merged with current main,
+- conflicts resolved,
+- Codex findings fixed,
+- local gates,
+- CI status,
+- artifact path,
+- remaining gaps.
+```
+
+### Codex Post-Repair Review Prompt Shape
+
+Use this after a repair worker returns updated PRs. Codex decides whether to
+merge, ask for more repair, or reject the output.
+
+```text
+You are the Codex parent integrator for Entroping.
+
+Repo:
+cd /Users/sakibshuvo/projects/Entroping
+
+Review repaired worker output for:
+<Codex inserts issue/PR/branch/worktree table here>
+
+Open and apply:
+docs/meta/prompt-library/model-output-acceptance-gate.md
+docs/meta/prompt-library/multi-agent-marathon.md
+docs/meta/AGENT_CONTROL_PLANE.md
+
+Known prior blockers that must be rechecked:
+<Codex inserts prior review findings here>
+
+Start:
+git pull --ff-only
+git status --short --branch
+git worktree list
+gh pr list --repo sakibshuvo/Entroping --state open --limit 60
+gh issue list --repo sakibshuvo/Entroping --state open --limit 100
+scripts/context_pack.sh --mode implementation --manifest
+uv run python scripts/backlog_health.py
+
+For each PR:
+1. Confirm it maps to exactly one open issue and one issue worktree.
+2. Confirm the branch is current with `origin/main` or mergeable.
+3. Confirm PR body passes repo contract:
+   - `Closes #<issue-number>`
+   - checked Documentation Impact Declaration item,
+   - provider lane, host, billing, and model,
+   - autonomy tier,
+   - merge authority,
+   - verification lane,
+   - exact commands run,
+   - known gaps.
+4. Read the artifact packet:
+   uv run python scripts/factory_review_packet.py --artifact-root . --artifact-dir <artifact-dir> --json
+5. Reject or ask for repair when artifact metadata or `result.md` lacks
+   structured evidence required by the acceptance gate.
+6. Inspect changed files and compare them to the issue scope.
+7. Re-run the declared local verification lane.
+8. Check GitHub CI:
+   gh pr checks <pr> --repo sakibshuvo/Entroping
+9. Merge only if scope is correct, local gates pass, CI is green, artifacts are
+   complete, and Tier B/Tier C review requirements are satisfied.
+10. After merge, run:
+    scripts/finish_issue.sh <issue-number>
+11. Confirm issue closure, branch cleanup, and worktree cleanup.
+12. If not merged, return the exact repair request and do not close the issue.
+
+Decision output for each PR:
+- issue,
+- PR,
+- branch/worktree,
+- scope verdict,
+- artifact verdict,
+- PR body verdict,
+- local gates,
+- CI,
+- merge decision,
+- finish script status when merged,
+- exact repair request when not merged.
+```
+
 ## Conflict Stop Prompt
 
 ```text
