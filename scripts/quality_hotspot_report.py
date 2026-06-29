@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
+
+from script_safety import ScriptSafetyError, read_text_file, write_json_file
 
 SCHEMA_VERSION = "entroping.quality-hotspot-report.v1"
 
@@ -53,19 +54,19 @@ def main() -> int:
             limit=args.limit,
             prefixes=args.path_prefix,
         )
-    except ValueError as exc:
+    except (ValueError, ScriptSafetyError) as exc:
         print(f"quality-hotspot report failed: {exc}", flush=True)
         return 2
 
     output = output.expanduser()
-    if not output.is_absolute():
-        output = (root / output).resolve()
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(
-        json.dumps(payload, indent=2, sort_keys=True),
-        encoding="utf-8",
+    output_root = None if output.is_absolute() else root
+    output_path = write_json_file(
+        output,
+        payload,
+        artifact="quality hotspot report",
+        root=output_root,
     )
-    print(f"wrote quality hotspot report: {output.as_posix()}")
+    print(f"wrote quality hotspot report: {output_path.as_posix()}")
     return 0
 
 
@@ -176,7 +177,11 @@ def _should_skip_dir(directory: Path) -> bool:
 
 
 def _line_count(path: Path) -> int:
-    return len(path.read_text(encoding="utf-8", errors="replace").splitlines())
+    try:
+        content = read_text_file(path, max_bytes=20_000_000, errors="replace")
+    except ScriptSafetyError as exc:
+        raise ValueError(f"could not read source file {path}: {exc}") from exc
+    return len(content.splitlines())
 
 
 if __name__ == "__main__":

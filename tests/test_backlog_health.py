@@ -4,16 +4,24 @@ import importlib.util
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any, NoReturn
 
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+SCRIPT_PATH = REPO_ROOT / "scripts" / "script_safety.py"
+
+
 SCRIPT = REPO_ROOT / "scripts" / "backlog_health.py"
 
 
 def load_backlog_health_module() -> Any:
+    scripts_root = SCRIPT.parent
+    if str(scripts_root) not in sys.path:
+        sys.path.insert(0, str(scripts_root))
+
     spec = importlib.util.spec_from_file_location("backlog_health", SCRIPT)
     assert spec is not None
     assert spec.loader is not None
@@ -195,9 +203,9 @@ def test_backlog_health_converts_github_cli_timeout(monkeypatch: pytest.MonkeyPa
     module = load_backlog_health_module()
 
     def raise_timeout(*_args: object, **_kwargs: object) -> NoReturn:
-        raise subprocess.TimeoutExpired(cmd=["gh", "issue", "list"], timeout=30)
+        raise module.ScriptSafetyError("command timed out after 30 seconds: gh")
 
-    monkeypatch.setattr(module.subprocess, "run", raise_timeout)
+    monkeypatch.setattr(module, "run_subprocess", raise_timeout)
 
     with pytest.raises(ValueError, match="gh issue list timed out after 30 seconds"):
         module._load_issues_from_gh(repo="sakibshuvo/Entroping", limit=200)
@@ -209,17 +217,28 @@ def test_backlog_health_decodes_github_cli_output_as_utf8(
     module = load_backlog_health_module()
     captured_kwargs: dict[str, object] = {}
 
-    def complete(
-        args: list[str],
-        **kwargs: object,
-    ) -> subprocess.CompletedProcess[str]:
+    def complete(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        captured_kwargs["args"] = args
         captured_kwargs.update(kwargs)
-        return subprocess.CompletedProcess(args=args, returncode=0, stdout="[]", stderr="")
+        command = args
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="[]", stderr="")
 
-    monkeypatch.setattr(module.subprocess, "run", complete)
+    monkeypatch.setattr(module, "run_subprocess", complete)
 
     assert module._load_issues_from_gh(repo="sakibshuvo/Entroping", limit=200) == []
-    assert captured_kwargs.get("encoding") == "utf-8"
+    assert captured_kwargs["args"] == [
+        "gh",
+        "issue",
+        "list",
+        "--repo",
+        "sakibshuvo/Entroping",
+        "--state",
+        "open",
+        "--limit",
+        "200",
+        "--json",
+        "number,title,url,labels,milestone",
+    ]
 
 
 def test_backlog_health_help_documents_github_cli_mode() -> None:
