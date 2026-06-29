@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import cast
 
 SCHEMA_VERSION = "entroping.quality-hotspot-report.v1"
 
@@ -48,7 +47,12 @@ def main() -> int:
     root = args.root.expanduser().resolve()
     output = args.output
     try:
-        payload = build_payload(root, max_lines=args.max_lines, limit=args.limit, prefixes=args.path_prefix)
+        payload = build_payload(
+            root,
+            max_lines=args.max_lines,
+            limit=args.limit,
+            prefixes=args.path_prefix,
+        )
     except ValueError as exc:
         print(f"quality-hotspot report failed: {exc}", flush=True)
         return 2
@@ -153,7 +157,7 @@ def _should_skip_dir(directory: Path) -> bool:
     name = directory.name
     if name.startswith("."):
         return True
-    if name in {
+    return name in {
         ".venv",
         "venv",
         "env",
@@ -168,9 +172,7 @@ def _should_skip_dir(directory: Path) -> bool:
         ".mypy_cache",
         ".tox",
         "htmlcov",
-    }:
-        return True
-    return False
+    }
 
 
 def _line_count(path: Path) -> int:

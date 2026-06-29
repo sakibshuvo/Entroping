@@ -6,7 +6,6 @@ import json
 import subprocess
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "quality_hotspot_report.py"
 
@@ -23,7 +22,10 @@ def run_quality_hotspot_report(*args: str) -> subprocess.CompletedProcess[str]:
 
 def _write_lines(path: Path, count: int) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(f"line-{index}" for index in range(count)) + "\n", encoding="utf-8")
+    path.write_text(
+        "\n".join(f"line-{index}" for index in range(count)) + "\n",
+        encoding="utf-8",
+    )
 
 
 def test_quality_hotspot_report_detects_sorted_long_files(tmp_path: Path) -> None:
@@ -90,7 +92,9 @@ def test_quality_hotspot_report_respects_path_prefix_filter(tmp_path: Path) -> N
     assert payload["hotspots"][0]["path"].endswith("src/root.py")
 
 
-def test_quality_hotspot_report_excludes_hidden_and_generated_paths_with_dot_prefix(tmp_path: Path) -> None:
+def test_quality_hotspot_report_excludes_hidden_and_generated_paths_with_dot_prefix(
+    tmp_path: Path,
+) -> None:
     _write_lines(tmp_path / ".entroping" / "worker" / "agent.py", 600)
     _write_lines(tmp_path / ".venv" / "lib" / "tools.py", 700)
     _write_lines(tmp_path / "src" / "source.py", 700)
@@ -110,6 +114,6 @@ def test_quality_hotspot_report_excludes_hidden_and_generated_paths_with_dot_pre
     assert result.returncode == 0, result.stderr
     payload = json.loads(output.read_text(encoding="utf-8"))
     assert payload["hotspot_count"] == 1
-    assert ["src/source.py"] == [
-        item["path"].removeprefix(str(tmp_path) + "/") for item in payload["hotspots"]
+    assert [item["path"].removeprefix(f"{tmp_path}/") for item in payload["hotspots"]] == [
+        "src/source.py"
     ]
