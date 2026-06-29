@@ -11,6 +11,14 @@ WORKFLOW_PATH = Path(".github") / "workflows" / "publish-python-package.yml"
 RUNBOOK_PATH = Path("docs") / "meta" / "PYPI_RELEASE_RUNBOOK.md"
 RELEASE_EVIDENCE_PATH = Path("docs") / "meta" / "release-evidence.json"
 PYPROJECT_PATH = Path("pyproject.toml")
+PACKAGE_INDEX_PUBLISH_STATUSES = frozenset(
+    {
+        "not-published",
+        "testpypi-published",
+        "pypi-published",
+        "published",
+    }
+)
 Status = Literal["pass", "fail"]
 
 
@@ -30,6 +38,9 @@ class _YamlModule(Protocol):
 
 
 def build_payload(root: Path) -> dict[str, object]:
+    package_index_ready, package_index_evidence_gaps, package_index_failures = (
+        _assess_package_index_readiness(root)
+    )
     checks = (
         _validate_publish_workflow(root),
         _validate_release_evidence_boundary(root),
@@ -37,10 +48,11 @@ def build_payload(root: Path) -> dict[str, object]:
         _validate_pyproject_version_guard(root),
     )
     repo_failures = [failure for check in checks for failure in check.failures]
+    repo_failures.extend(package_index_failures)
     return {
         "schema_version": SCHEMA_VERSION,
         "repo_guardrails_ready": not repo_failures,
-        "package_index_ready": False,
+        "package_index_ready": package_index_ready and not package_index_evidence_gaps,
         "checks": {
             check.key: {
                 "status": check.status,
@@ -191,21 +203,15 @@ def _validate_publish_job(
 
 
 def _validate_release_evidence_boundary(root: Path) -> CheckResult:
-    ledger_path = root / RELEASE_EVIDENCE_PATH
-    ledger_text = _read_text(ledger_path)
     failures: list[str] = []
-    if ledger_text is None:
-        return _missing_result("release_evidence_boundary", RELEASE_EVIDENCE_PATH)
-    try:
-        ledger = cast(object, json.loads(ledger_text))
-    except json.JSONDecodeError as exc:
-        return CheckResult(
+    payload = _load_release_evidence_payload(root, failures)
+    if payload is None:
+        return _check_result(
             key="release_evidence_boundary",
-            status="fail",
-            detail=f"{RELEASE_EVIDENCE_PATH.as_posix()} is invalid JSON",
-            failures=(f"release evidence JSON parse failed: {exc}",),
+            detail=f"{RELEASE_EVIDENCE_PATH.as_posix()} cannot be used",
+            failures=failures,
         )
-    payload = _mapping(ledger, "release-evidence", failures)
+
     if payload.get("stable_core_ready") is not False:
         failures.append("release evidence must keep stable_core_ready false")
     blockers = payload.get("stable_core_blockers")
@@ -216,13 +222,25 @@ def _validate_release_evidence_boundary(root: Path) -> CheckResult:
         "release-evidence.package_index",
         failures,
     )
-    if package_index.get("status") != "not-published":
-        failures.append("release evidence package_index.status must remain not-published")
     if package_index.get("runbook") != RUNBOOK_PATH.as_posix():
         failures.append("release evidence package_index.runbook must point to the PyPI runbook")
+
+    release_evidence_failures: list[str] = []
+    _, publish_gaps = _assess_package_index_readiness_from_payload(
+        payload,
+        release_evidence_failures,
+    )
+    failures.extend(release_evidence_failures)
+    detail = "release evidence preserves package-index and stable-core boundaries"
+    if publish_gaps:
+        detail = (
+            "release evidence preserves package-index and stable-core boundaries; "
+            "missing publish evidence: "
+            + ", ".join(sorted(set(publish_gaps)))
+        )
     return _check_result(
         key="release_evidence_boundary",
-        detail="release evidence preserves package-index and stable-core boundaries",
+        detail=detail,
         failures=failures,
     )
 
@@ -265,6 +283,71 @@ def _validate_pyproject_version_guard(root: Path) -> CheckResult:
             "upload until a PEP 440 alpha is chosen"
         ),
     )
+
+
+def _assess_package_index_readiness(root: Path) -> tuple[bool, list[str], list[str]]:
+    failures: list[str] = []
+    payload = _load_release_evidence_payload(root, failures)
+    if payload is None:
+        return False, [], failures
+    ready, evidence_gaps = _assess_package_index_readiness_from_payload(payload, failures)
+    return ready, evidence_gaps, failures
+
+
+def _assess_package_index_readiness_from_payload(
+    payload: dict[str, object],
+    failures: list[str],
+) -> tuple[bool, list[str]]:
+    package_index = _mapping(
+        payload.get("package_index"),
+        "release-evidence.package_index",
+        failures,
+    )
+    status = package_index.get("status")
+    if not isinstance(status, str):
+        failures.append(
+            "release-evidence.package_index.status must be one of: "
+            + ", ".join(sorted(PACKAGE_INDEX_PUBLISH_STATUSES))
+        )
+        return False, []
+
+    normalized = status.strip().lower()
+    if normalized not in PACKAGE_INDEX_PUBLISH_STATUSES:
+        failures.append(
+            "release-evidence.package_index.status must be one of: "
+            + ", ".join(sorted(PACKAGE_INDEX_PUBLISH_STATUSES))
+        )
+        return False, []
+
+    if normalized == "not-published":
+        return False, [
+            "TestPyPI publish/install evidence",
+            "PyPI publish/install evidence",
+        ]
+    if normalized == "testpypi-published":
+        return False, ["PyPI publish/install evidence"]
+    if normalized == "pypi-published":
+        return False, ["TestPyPI publish/install evidence"]
+    return True, []
+
+
+def _load_release_evidence_payload(
+    root: Path,
+    failures: list[str],
+) -> dict[str, object] | None:
+    ledger_text = _read_text(root / RELEASE_EVIDENCE_PATH)
+    if ledger_text is None:
+        failures.append(f"{RELEASE_EVIDENCE_PATH.as_posix()} must exist")
+        return None
+    try:
+        release_evidence = json.loads(ledger_text)
+    except json.JSONDecodeError as exc:
+        failures.append(f"release evidence JSON parse failed: {exc}")
+        return None
+    if not isinstance(release_evidence, dict):
+        failures.append("release evidence must be a JSON object")
+        return None
+    return cast(dict[str, object], release_evidence)
 
 
 def _check_result(*, key: str, detail: str, failures: list[str]) -> CheckResult:

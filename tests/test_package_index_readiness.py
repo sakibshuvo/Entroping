@@ -55,6 +55,65 @@ def test_package_index_readiness_reports_repo_guardrails_without_overclaiming() 
     assert _check(payload, "runbook_preflight")["status"] == "pass"
 
 
+def test_package_index_readiness_distinguishes_publish_evidence_gaps(tmp_path: Path) -> None:
+    root = copy_readiness_fixture(tmp_path)
+    result = run_package_index_readiness("--format", "json", "--strict", root=root)
+
+    assert result.returncode == 0, result.stderr
+    payload = _json_payload(result.stdout)
+    detail = str(_check(payload, "release_evidence_boundary")["detail"])
+
+    assert "TestPyPI" in detail
+    assert "PyPI" in detail
+    assert _check(payload, "release_evidence_boundary")["status"] == "pass"
+    assert payload["package_index_ready"] is False
+
+
+def test_package_index_readiness_distinguishes_testpypi_and_pypi_publish_stages(
+    tmp_path: Path,
+) -> None:
+    root = copy_readiness_fixture(tmp_path)
+    release_evidence = root / "docs" / "meta" / "release-evidence.json"
+    ledger = json.loads(release_evidence.read_text(encoding="utf-8"))
+    ledger["package_index"]["status"] = "testpypi-published"
+    ledger["package_index"]["blocked_by"] = "PyPI publish proof has not run yet"
+    (root / "docs" / "meta" / "release-evidence.json").write_text(
+        json.dumps(ledger, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    result = run_package_index_readiness("--format", "json", "--strict", root=root)
+    assert result.returncode == 0, result.stderr
+    payload = _json_payload(result.stdout)
+
+    detail = str(_check(payload, "release_evidence_boundary")["detail"])
+    assert "PyPI publish/install evidence" in detail
+    assert "TestPyPI" not in detail
+    assert payload["package_index_ready"] is False
+
+
+def test_package_index_readiness_ignores_downstream_smoke_status_when_scoping_publish_readiness(
+    tmp_path: Path,
+) -> None:
+    root = copy_readiness_fixture(tmp_path)
+    release_evidence = root / "docs" / "meta" / "release-evidence.json"
+    ledger = json.loads(release_evidence.read_text(encoding="utf-8"))
+    ledger["package_index"]["status"] = "published"
+    ledger["downstream_smoke"]["status"] = "missing"
+    (root / "docs" / "meta" / "release-evidence.json").write_text(
+        json.dumps(ledger, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    result = run_package_index_readiness("--format", "json", "--strict", root=root)
+    assert result.returncode == 0, result.stderr
+    payload = _json_payload(result.stdout)
+
+    assert payload["package_index_ready"] is True
+    detail = str(_check(payload, "release_evidence_boundary")["detail"]).lower()
+    assert "downstream" not in detail
+
+
 def test_package_index_readiness_rejects_token_based_publish_workflow(
     tmp_path: Path,
 ) -> None:
