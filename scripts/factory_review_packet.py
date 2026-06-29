@@ -18,13 +18,6 @@ DEFAULT_ARTIFACT_ROOT = Path(".entroping") / "ai-reviews"
 QUEUE_STATES = ("queued", "running", "completed", "failed")
 RESULT_FILENAMES = ("result.md", "RESULT.md", "worker-result.md")
 TEST_FILENAMES = ("tests.txt", "TESTS.txt", "test-output.txt")
-SUMMARY_KEYS = (
-    "STATUS",
-    "FILES_CHANGED",
-    "TESTS_RUN",
-    "KNOWN_ISSUES",
-    "SUMMARY",
-)
 HANDOFF_METADATA_KEYS = (
     "schema_version",
     "status",
@@ -55,6 +48,13 @@ REQUIRED_READY_HANDOFF_KEYS = (
     "worktree",
     "branch",
     "verification_lane",
+)
+SUMMARY_KEYS = (
+    "STATUS",
+    "FILES_CHANGED",
+    "TESTS_RUN",
+    "KNOWN_ISSUES",
+    "SUMMARY",
 )
 
 
