@@ -224,6 +224,20 @@ def test_mutation_readiness_json_renderer_rejects_secret_like_output(
         mutation_readiness._render_packet_content(unsafe_packet, output="json")
 
 
+def test_mutation_readiness_packet_renderer_returns_json_and_markdown(
+    tmp_path: Path,
+) -> None:
+    packet = build_mutation_readiness(project_root=tmp_path)
+
+    json_content = mutation_readiness._render_packet_content(packet, output="json")
+    markdown_content = mutation_readiness._render_packet_content(packet, output="md")
+
+    assert json.loads(json_content)["schema_version"] == (
+        "entroping.mutation-readiness.v1"
+    )
+    assert "# Entroping Mutation Readiness" in markdown_content
+
+
 def test_mutation_readiness_packet_json_rejects_secret_like_output(
     tmp_path: Path,
 ) -> None:
@@ -596,23 +610,19 @@ def test_mutation_readiness_writer_rejects_secret_like_renderer_content(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def fake_rendered_content(
-        packet: mutation_readiness.MutationReadinessPacket,
-        *,
-        output: mutation_readiness.MutationReadinessOutput,
-    ) -> str:
-        _ = packet, output
+    def fake_rendered_content(packet: mutation_readiness.MutationReadinessPacket) -> str:
+        _ = packet
         secret_marker = "sk-proj-" + "writersecret0123456789"
         return f"unsafe token {secret_marker}\n"
 
     monkeypatch.setattr(
         mutation_readiness,
-        "_render_packet_content",
+        "render_mutation_readiness_markdown",
         fake_rendered_content,
     )
 
     with pytest.raises(MutationReadinessError, match="contains secret-like content"):
-        run_mutation_readiness_report(project_root=tmp_path, output="json")
+        run_mutation_readiness_report(project_root=tmp_path, output="md")
 
 
 def test_mutation_readiness_rejects_symlink_and_escaped_output_paths(

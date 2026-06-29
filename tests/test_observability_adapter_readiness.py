@@ -422,6 +422,20 @@ def test_observability_adapter_readiness_rejects_secret_like_rendered_packet(
         run_observability_adapter_readiness_report(project_root=tmp_path, output="json")
 
 
+def test_observability_adapter_readiness_packet_renderer_returns_json_and_markdown(
+    tmp_path: Path,
+) -> None:
+    packet = build_observability_adapter_readiness_packet(project_root=tmp_path)
+
+    json_content = adapter_readiness._render_packet_content(packet, output="json")
+    markdown_content = adapter_readiness._render_packet_content(packet, output="md")
+
+    assert json.loads(json_content)["schema_version"] == (
+        OBSERVABILITY_ADAPTER_READINESS_SCHEMA_VERSION
+    )
+    assert "# Entroping Observability Adapter Readiness" in markdown_content
+
+
 def test_observability_adapter_readiness_wraps_safe_write_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
