@@ -31,7 +31,7 @@ Do everything through OpenCode Desktop tools. Do not ask me to run terminal
 commands unless OpenCode cannot run them.
 
 Provider lane:
-- Lane: opencode/native-deepseek
+- Lane: <codex-spark | opencode/native-deepseek>
 - Provider host: OpenCode Desktop
 - Billing path: paid DeepSeek API key inside OpenCode
 - Model id: deepseek/deepseek-v4-pro

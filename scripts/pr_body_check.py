@@ -42,6 +42,7 @@ PROVIDER_LANES = (
     "opencode-go/qwen3.7-max",
     "opencode-go/other",
     "local/offline",
+    "codex-spark",
 )
 AUTONOMY_TIERS = (
     "Tier A autonomous lane",
