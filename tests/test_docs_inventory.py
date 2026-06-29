@@ -135,6 +135,45 @@ def test_docs_inventory_reports_non_destructive_prune_candidates(
     assert all(candidate["action"] != "delete" for candidate in report["prune_candidates"])
 
 
+def test_docs_inventory_flags_unclassified_evolution_documents(tmp_path: Path) -> None:
+    (tmp_path / ".context").mkdir()
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "evolution").mkdir()
+    (tmp_path / "docs" / "evolution" / "OLD_FEATURE_DECISIONS.md").write_text(
+        "# Old Feature Decisions\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "AGENTS.md").write_text("agent rules\n", encoding="utf-8")
+    (tmp_path / "README.md").write_text("# Demo\n", encoding="utf-8")
+    (tmp_path / "docs/meta").mkdir()
+    (tmp_path / "docs/meta" / "PROJECT_PROGRESS.md").write_text(
+        "# Progress\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "docs/meta/FEATURE_DELIVERY_CHECKLIST.md").write_text(
+        "# Checklist\n",
+        encoding="utf-8",
+    )
+
+    result = run_docs_inventory("--root", str(tmp_path), "--format", "json")
+
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)
+    candidates = {
+        (candidate["path"], candidate["category"]): candidate
+        for candidate in report["prune_candidates"]
+    }
+    evolution_candidate = candidates[
+        ("docs/evolution/OLD_FEATURE_DECISIONS.md", "evolution-archive-status")
+    ]
+    assert evolution_candidate["action"] == "review-evolution-archive-status"
+    assert "Evolution docs are intended as historical context" in evolution_candidate["reason"]
+    assert (
+        "docs/meta/DOCS_GOVERNANCE.md"
+        in evolution_candidate["evidence_paths"]
+    )
+
+
 def test_docs_inventory_docs_index_public_audience_is_exact(tmp_path: Path) -> None:
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "index.md-extra.md").write_text(
