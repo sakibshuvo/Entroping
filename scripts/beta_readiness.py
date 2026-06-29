@@ -100,19 +100,24 @@ def build_beta_readiness_payload(*, root: Path) -> BetaReadinessPayload:
         for item in group
     )
 
+    alpha_ready = bool(launch.get("alpha_launch_ready", False))
+    stable_core_ready = bool(stable_core.get("stable_core_ready", False))
+    package_ready = bool(package_index.get("package_index_ready", False))
+    repo_guardrails_ready = bool(package_index.get("repo_guardrails_ready", False))
+
     return BetaReadinessPayload(
         alpha={
-            "ready": bool(launch.get("alpha_launch_ready", False)),
+            "ready": alpha_ready,
             "blockers": list(alpha_blockers),
             "checks": launch,
         },
         stable_core={
-            "ready": bool(stable_core.get("stable_core_ready", False)),
+            "ready": stable_core_ready,
             "blockers": list(stable_core_blockers),
             "checks": stable_core,
         },
         package_index={
-            "ready": bool(package_index.get("package_index_ready", False)),
+            "ready": package_ready,
             "repo_guardrails_ready": bool(
                 package_index.get("repo_guardrails_ready", False)
             ),
@@ -120,7 +125,12 @@ def build_beta_readiness_payload(*, root: Path) -> BetaReadinessPayload:
             "checks": package_index,
         },
         blockers=blockers,
-        beta_ready=(len(blockers) == 0),
+        beta_ready=(
+            alpha_ready
+            and stable_core_ready
+            and package_ready
+            and repo_guardrails_ready
+        ),
     )
 
 

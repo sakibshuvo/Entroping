@@ -174,6 +174,38 @@ def test_beta_readiness_markdown_reports_ready_when_components_ready(
     assert "Beta ready: `true`" in rendered
 
 
+def test_beta_readiness_requires_all_surfaces_even_when_blockers_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    beta_readiness = beta_readiness_module()
+
+    monkeypatch.setattr(
+        beta_readiness,
+        "run_readiness_script",
+        lambda *_args: {
+            "alpha_launch_ready": False,
+            "checks": {},
+        }
+        if _args[0] == "scripts/launch_readiness.py"
+        else {
+            "stable_core_ready": True,
+            "blockers": [],
+        }
+        if _args[0] == "scripts/stable_core_readiness.py"
+        else {
+            "package_index_ready": True,
+            "repo_guardrails_ready": True,
+            "repo_failures": [],
+        },
+    )
+
+    payload = beta_readiness.build_beta_readiness_payload(root=REPO_ROOT)
+
+    assert payload.alpha["ready"] is False
+    assert payload.beta_ready is False
+    assert payload.blockers == ()
+
+
 def _json_payload(text: str) -> dict[str, Any]:
     payload = json.loads(text)
     assert isinstance(payload, dict)
