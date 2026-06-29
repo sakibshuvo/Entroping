@@ -1373,6 +1373,51 @@ def test_run_hurl_files_fail_fast_parallel_preserves_order_and_stops_new_work(
     assert suite.fail_fast is True
 
 
+def test_run_hurl_files_fail_fast_parallel_stops_new_work_after_timeout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first = _write_hurl(tmp_path / "tests" / "first.hurl")
+    second = _write_hurl(tmp_path / "tests" / "second.hurl")
+    third = _write_hurl(tmp_path / "tests" / "third.hurl")
+    calls: list[str] = []
+
+    def fake_run(
+        args: list[str],
+        *,
+        stdout: BinaryIO,
+        stderr: BinaryIO,
+        timeout: float,
+        check: bool,
+        env: dict[str, str] | None = None,
+        shell: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (stderr, check, env, shell)
+        name = Path(args[-1]).name
+        calls.append(name)
+        if name == "first.hurl":
+            raise subprocess.TimeoutExpired(args, timeout)
+        time.sleep(0.03 if name == "second.hurl" else 0.01)
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+
+    suite = run_hurl_files(
+        [first, second, third],
+        HurlRunOptions(binary="hurl"),
+        max_workers=2,
+        fail_fast=True,
+    )
+
+    assert sorted(calls) == ["first.hurl", "second.hurl"]
+    assert [result.path for result in suite.results] == [first.resolve(), second.resolve()]
+    assert [result.status for result in suite.results] == ["timeout", "passed"]
+    assert suite.selected_count == 3
+    assert suite.not_scheduled == 1
+    assert suite.fail_fast is True
+
+
 def test_run_hurl_files_fail_fast_parallel_schedules_while_results_pass(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
