@@ -595,6 +595,31 @@ def test_post_alpha_cli_ux_decisions_are_documented_before_surface_changes() -> 
         assert phrase in qanstitution_reference
 
 
+def test_compatibility_decision_template_is_present_and_axis_aware() -> None:
+    audit = (
+        REPO_ROOT / "docs" / "technical" / "CLI_COMPATIBILITY_AUDIT.md"
+    ).read_text(encoding="utf-8")
+
+    assert "## Compatibility Graduation Decision Template" in audit
+    for phrase in (
+        "CLI compatibility",
+        "Report schema compatibility",
+        "Install compatibility",
+        "Downstream feedback",
+        "Issue `#306`",
+        "Decision outcome",
+        "Evidence anchors",
+    ):
+        assert phrase in audit
+
+    for line in (
+        "- [ ] Ready for compatible graduation",
+        "- [ ] Graduates with follow-up issues",
+        "- [ ] Not ready",
+    ):
+        assert line in audit
+
+
 def test_typer_help_matches_locked_cli_contract_flags() -> None:
     runner = CliRunner()
 

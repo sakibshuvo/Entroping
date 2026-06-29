@@ -162,6 +162,36 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 
 ## Post-Alpha UX Decision Queue
 
+## Compatibility Graduation Decision Template
+
+Use this template only when authoring future compatibility graduation work.
+
+- CLI compatibility
+  - [ ] Locked command list and argument contracts are documented and unchanged.
+  - [ ] Exit-code contract for changed surfaces remains documented.
+- Report schema compatibility
+  - [ ] Report schema contract remains unchanged for the changed surface.
+  - [ ] Report artifact documentation maps to schema version and expected paths.
+- Install compatibility
+  - [ ] Release/install evidence reflects the same contract and evidence source.
+  - [ ] Install smoke path remains reproducible against release evidence.
+- Downstream feedback
+  - [ ] Blocking external feedback dependencies are documented.
+  - [ ] Issue `#306` evidence is linked and represented in release-facing artifacts.
+
+Decision outcome:
+
+- [ ] Ready for compatible graduation
+- [ ] Graduates with follow-up issues
+- [ ] Not ready
+
+Evidence anchors:
+
+- `docs/technical/CLI_COMPATIBILITY_AUDIT.md`
+- `docs/technical/REPORT_SCHEMAS.md`
+- `docs/meta/release-evidence.json`
+- `#306`
+
 These decisions close the current post-alpha UX questions without changing the
 locked alpha command surface.
 
