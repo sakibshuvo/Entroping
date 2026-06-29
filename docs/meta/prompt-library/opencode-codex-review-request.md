@@ -42,7 +42,7 @@ Issue:
 #<issue-number> - <issue-title>
 
 Worker evidence:
-- Provider lane: <deepseek-api/direct | opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other | local/offline>
+- Provider lane: <codex-spark | deepseek-api/direct | opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other | local/offline>
 - Provider host: <OpenCode native | OpenCode Go | direct API | local runner>
 - Billing path: <paid DeepSeek | OpenCode Go | local | other>
 - Model id: <exact model id>
@@ -147,7 +147,7 @@ Expected issue:
 #<issue-number>
 
 Expected provider lane:
-<deepseek-api/direct | opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other | local/offline>
+<codex-spark | deepseek-api/direct | opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other | local/offline>
 
 Expected autonomy tier:
 <Tier A autonomous lane | Tier B assisted lane | Tier C restricted lane>

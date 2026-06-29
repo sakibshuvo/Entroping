@@ -65,7 +65,7 @@ Complete this section for OpenCode/DeepSeek-produced or autonomous-lane PRs.
 Before merge, strict validation can run with
 `scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence --issue <issue>`.
 
-- Provider lane: <deepseek-api/direct | opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other | local/offline>
+- Provider lane: <codex-spark | deepseek-api/direct | opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other | local/offline>
 - Provider host:
 - Billing path:
 - Model id:

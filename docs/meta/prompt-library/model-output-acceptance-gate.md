@@ -35,7 +35,7 @@ repository root provided by the task, then continue with the same checks.
 Input to evaluate:
 - issue: #<issue>
 - PR or local branch: <pr-number-or-branch>
-- provider lane: <opencode/native-deepseek | deepseek-api/direct | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other | local/offline>
+- provider lane: <codex-spark | opencode/native-deepseek | deepseek-api/direct | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other | local/offline>
 - provider host: <OpenCode Desktop | OpenCode CLI | repo-local DeepSeek worker | OpenCode Go | local runtime>
 - billing path: <paid DeepSeek API | OpenCode Go subscription | local/offline | other>
 - model id: <exact model id when known>

@@ -242,7 +242,7 @@ Issue:
 #<issue-number> - <issue-title>
 
 Provider lane:
-- Lane: <opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other>
+- Lane: <codex-spark | opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other>
 - Provider host: <OpenCode native provider | OpenCode Go>
 - Billing path: <paid DeepSeek inside OpenCode | OpenCode Go subscription>
 - Model id: <exact model id from /models when known>
@@ -407,7 +407,7 @@ Expected issue:
 #<issue-number>
 
 Expected provider lane:
-<opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other>
+<codex-spark | opencode/native-deepseek | opencode-go/kimi-k2.7-code | opencode-go/qwen3.7-max | opencode-go/other>
 
 Start:
 git pull --ff-only

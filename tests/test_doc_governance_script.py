@@ -1170,6 +1170,92 @@ def test_pr_body_check_accepts_tier_a_opencode_provider_lane_evidence(
     assert "PR documentation impact declaration OK" in result.stdout
 
 
+def test_pr_body_check_accepts_codex_spark_provider_lane_evidence(
+    tmp_path: Path,
+) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        _body_with_lane(
+            lane="docs-guardrail",
+            commands=(
+                "scripts/doc_governance_check.sh\n"
+                "uv run pytest tests/test_doc_governance_script.py -q\n"
+            ),
+            docs_line="- [x] No docs update needed. Reason: checker-only validation.\n",
+        )
+        + "\n"
+        + "Closes #706\n\n"
+        + "## Agent Autonomy Declaration\n\n"
+        + "- [x] Tier B assisted lane: implementation may be agent-generated,"
+        + " but merge requires human or Codex review.\n"
+        + "- [x] Merge authority: Codex/human required.\n\n"
+        + "## OpenCode Provider Lane Evidence\n\n"
+        + "- Provider lane: codex-spark\n"
+        + "- Provider host: Codex Spark\n"
+        + "- Billing path: Codex quota\n"
+        + "- Model id: Spark\n"
+        + "- Autonomy tier: Tier B assisted lane\n"
+        + "- Merge authority: Codex/human required\n"
+        + "- Commands run: scripts/pr_body_check.py --body-file <path>\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--require-opencode-evidence",
+        "--issue",
+        "706",
+        "--changed-file",
+        "README.md",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "PR documentation impact declaration OK" in result.stdout
+
+
+def test_pr_body_check_rejects_invalid_codex_spark_lane(tmp_path: Path) -> None:
+    body_path = tmp_path / "pr-body.md"
+    body_path.write_text(
+        _body_with_lane(
+            lane="docs-guardrail",
+            commands=(
+                "scripts/doc_governance_check.sh\n"
+                "uv run pytest tests/test_doc_governance_script.py -q\n"
+            ),
+            docs_line="- [x] No docs update needed. Reason: checker-only validation.\n",
+        )
+        + "\n"
+        + "Closes #706\n\n"
+        + "## Agent Autonomy Declaration\n\n"
+        + "- [x] Tier B assisted lane: implementation may be agent-generated,"
+        + " but merge requires human or Codex review.\n"
+        + "- [x] Merge authority: Codex/human required.\n\n"
+        + "## OpenCode Provider Lane Evidence\n\n"
+        + "- Provider lane: codex-sparkx\n"
+        + "- Provider host: Codex Spark\n"
+        + "- Billing path: Codex quota\n"
+        + "- Model id: Spark\n"
+        + "- Autonomy tier: Tier B assisted lane\n"
+        + "- Merge authority: Codex/human required\n"
+        + "- Commands run: scripts/pr_body_check.py --body-file <path>\n",
+        encoding="utf-8",
+    )
+
+    result = run_pr_body_check(
+        "--body-file",
+        str(body_path),
+        "--require-opencode-evidence",
+        "--issue",
+        "706",
+        "--changed-file",
+        "README.md",
+    )
+
+    assert result.returncode == 1, result.stderr
+    assert "provider lane must be one of" in result.stderr
+
+
 def test_pr_body_check_rejects_local_body_file_missing_declaration(tmp_path: Path) -> None:
     body_path = tmp_path / "pr-body.md"
     body_path.write_text("## Summary\nOnly summary\n", encoding="utf-8")
