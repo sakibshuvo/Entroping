@@ -224,6 +224,20 @@ def test_mutation_readiness_json_renderer_rejects_secret_like_output(
         mutation_readiness._render_packet_content(unsafe_packet, output="json")
 
 
+def test_mutation_readiness_packet_renderer_returns_json_and_markdown(
+    tmp_path: Path,
+) -> None:
+    packet = build_mutation_readiness(project_root=tmp_path)
+
+    json_content = mutation_readiness._render_packet_content(packet, output="json")
+    markdown_content = mutation_readiness._render_packet_content(packet, output="md")
+
+    assert json.loads(json_content)["schema_version"] == (
+        "entroping.mutation-readiness.v1"
+    )
+    assert "# Entroping Mutation Readiness" in markdown_content
+
+
 def test_mutation_readiness_packet_json_rejects_secret_like_output(
     tmp_path: Path,
 ) -> None:
