@@ -125,8 +125,52 @@ def _iter_python_files(root: Path, prefixes: tuple[str, ...] | list[str]) -> lis
             candidate_roots.append(candidate)
     files: list[Path] = []
     for candidate in candidate_roots:
-        files.extend(candidate.rglob("*.py"))
+        files.extend(
+            file
+            for file in _walk_py_files(candidate)
+        )
     return files
+
+
+def _walk_py_files(root: Path) -> list[Path]:
+    to_visit = [root]
+    files: list[Path] = []
+
+    while to_visit:
+        current = to_visit.pop()
+        for child in current.iterdir():
+            if child.is_dir():
+                if _should_skip_dir(child):
+                    continue
+                to_visit.append(child)
+                continue
+            if child.suffix == ".py":
+                files.append(child)
+    return files
+
+
+def _should_skip_dir(directory: Path) -> bool:
+    name = directory.name
+    if name.startswith("."):
+        return True
+    if name in {
+        ".venv",
+        "venv",
+        "env",
+        "virtualenv",
+        "__pycache__",
+        "build",
+        "dist",
+        "site-packages",
+        "tmp",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".mypy_cache",
+        ".tox",
+        "htmlcov",
+    }:
+        return True
+    return False
 
 
 def _line_count(path: Path) -> int:

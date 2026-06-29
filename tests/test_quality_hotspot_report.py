@@ -88,3 +88,28 @@ def test_quality_hotspot_report_respects_path_prefix_filter(tmp_path: Path) -> N
     payload = json.loads(output.read_text(encoding="utf-8"))
     assert len(payload["hotspots"]) == 1
     assert payload["hotspots"][0]["path"].endswith("src/root.py")
+
+
+def test_quality_hotspot_report_excludes_hidden_and_generated_paths_with_dot_prefix(tmp_path: Path) -> None:
+    _write_lines(tmp_path / ".entroping" / "worker" / "agent.py", 600)
+    _write_lines(tmp_path / ".venv" / "lib" / "tools.py", 700)
+    _write_lines(tmp_path / "src" / "source.py", 700)
+    output = tmp_path / "reports" / "hotspots.json"
+
+    result = run_quality_hotspot_report(
+        "--root",
+        str(tmp_path),
+        "--output",
+        str(output),
+        "--max-lines",
+        "500",
+        "--path-prefix",
+        ".",
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["hotspot_count"] == 1
+    assert ["src/source.py"] == [
+        item["path"].removeprefix(str(tmp_path) + "/") for item in payload["hotspots"]
+    ]
