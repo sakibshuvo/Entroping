@@ -13,6 +13,7 @@ and maintenance-risk reviews.
 
 Checks:
   - test taxonomy report under reports/
+  - long-file hotspot report under reports/
   - pytest-cov coverage gate with a JSON artifact under reports/
   - radon cyclomatic complexity and maintainability-index audit
   - vulture dead-code discovery with a curated confidence threshold
@@ -74,6 +75,7 @@ if ((dry_run)); then
   log "min maintainability rank: ${min_mi_rank}"
   log "vulture confidence: ${vulture_confidence}"
   log "Would write test taxonomy report"
+  log "Would run long-file hotspot report"
   log "Would run coverage gate with pytest-cov"
   log "Would run Radon complexity gate"
   log "Would run Vulture dead-code discovery"
@@ -92,6 +94,9 @@ uv sync --dev --reinstall-package entroping
 
 log "Writing test taxonomy report"
 uv run python scripts/test_taxonomy.py --output reports/test-taxonomy.json --strict
+
+log "Running long-file hotspot report"
+uv run python scripts/quality_hotspot_report.py --output reports/long-file-hotspots.json
 
 log "Running coverage gate with pytest-cov"
 uv run pytest \
