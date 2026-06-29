@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Literal
 
 SCHEMA_VERSION = "entroping.stable-core-readiness.v1"
+MAX_READ_TEXT_BYTES = 1024 * 1024
 CheckStatus = Literal["present", "missing", "marker-missing", "invalid"]
 
 
@@ -247,7 +248,7 @@ def _check_evidence(root: Path, check: EvidenceCheck) -> CheckStatus:
     target = root / check.path
     if not target.is_file():
         return "missing"
-    content = target.read_text(encoding="utf-8", errors="replace")
+    content = _read_text_file_bounded(target, encoding="utf-8", errors="replace")
     if check.marker not in content:
         return "marker-missing"
     if check.key != "release_evidence_ledger":
@@ -312,6 +313,22 @@ def _render_markdown(payload: dict[str, object]) -> str:
             f"{raw_entry['description']}"
         )
     return "\n".join(lines)
+
+
+def _read_text_file_bounded(
+    path: Path,
+    *,
+    encoding: str = "utf-8",
+    errors: str = "replace",
+    max_bytes: int = MAX_READ_TEXT_BYTES,
+) -> str:
+    with path.open("rb") as handle:
+        data = handle.read(max_bytes + 1)
+    if len(data) > max_bytes:
+        raise ValueError(
+            f"Refusing to read {path} (size exceeds max_read_text_bytes={max_bytes})"
+        )
+    return data.decode(encoding, errors=errors)
 
 
 if __name__ == "__main__":

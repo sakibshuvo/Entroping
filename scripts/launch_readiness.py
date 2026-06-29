@@ -13,6 +13,7 @@ from typing import Literal
 from stable_core_readiness import STABLE_CORE_BLOCKERS as CANONICAL_STABLE_CORE_BLOCKERS
 
 SCHEMA_VERSION = "entroping.alpha-launch-readiness.v1"
+MAX_READ_TEXT_BYTES = 1024 * 1024
 
 CheckStatus = Literal["present", "missing", "marker-missing", "not-executable"]
 
@@ -174,7 +175,7 @@ def _check_status(target: Path, check: EvidenceCheck) -> CheckStatus:
         return "missing"
     if check.executable and not target.stat().st_mode & 0o111:
         return "not-executable"
-    content = target.read_text(encoding="utf-8", errors="replace")
+    content = _read_text_file_bounded(target, encoding="utf-8", errors="replace")
     if check.marker not in content:
         return "marker-missing"
     return "present"
@@ -189,6 +190,22 @@ def _failure_messages(payload: dict[str, object]) -> list[str]:
         if entry["status"] != "present":
             failures.append(f"{entry['path']}: {entry['status']}")
     return failures
+
+
+def _read_text_file_bounded(
+    path: Path,
+    *,
+    encoding: str = "utf-8",
+    errors: str = "replace",
+    max_bytes: int = MAX_READ_TEXT_BYTES,
+) -> str:
+    with path.open("rb") as handle:
+        data = handle.read(max_bytes + 1)
+    if len(data) > max_bytes:
+        raise ValueError(
+            f"Refusing to read {path} (size exceeds max_read_text_bytes={max_bytes})"
+        )
+    return data.decode(encoding, errors=errors)
 
 
 def _render_markdown(payload: dict[str, object]) -> str:

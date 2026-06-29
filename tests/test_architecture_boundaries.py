@@ -1,5 +1,6 @@
 """Executable architecture and provider boundary tests."""
 
+import ast
 from importlib import import_module
 from pathlib import Path
 
@@ -195,6 +196,42 @@ def test_product_source_does_not_import_factory_worker_routing() -> None:
     violations = find_forbidden_imports(modules, rules=rules)
 
     assert not violations, format_violations(violations)
+
+
+def test_security_sensitive_source_loaders_do_not_use_unbounded_read_text() -> None:
+
+    files_with_bounded_readers = (
+        Path("scripts/launch_readiness.py"),
+        Path("scripts/stable_core_readiness.py"),
+    )
+    for raw_path in files_with_bounded_readers:
+        path = raw_path
+        if not path.is_file():
+            continue
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(path))
+        parent_map: dict[ast.AST, ast.AST | None] = {tree: None}
+        for node in ast.walk(tree):
+            for child in ast.iter_child_nodes(node):
+                parent_map[child] = node
+
+        for node in ast.walk(tree):
+            if not (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "read_text"
+            ):
+                continue
+            current: ast.AST | None = node
+            function_name = None
+            while current is not None:
+                if isinstance(current, ast.FunctionDef):
+                    function_name = current.name
+                    break
+                current = parent_map.get(current)
+            assert (
+                function_name == "_read_text_file_bounded"
+            ), f"{path}:{node.lineno} uses unbounded read_text outside bounded helper"
 
 
 def test_litellm_is_the_only_model_provider_abstraction_in_source() -> None:
