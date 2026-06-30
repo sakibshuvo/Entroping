@@ -141,6 +141,7 @@ instructions.
 - [[decisions/ADR-0016-ide-authoring-support-for-qanstitution|ADR-0016]]
 - [[decisions/ADR-0017-official-github-action-boundary|ADR-0017]]
 - [[decisions/ADR-0018-docker-ci-image-boundary|ADR-0018]]
+- [[decisions/ADR-0021-core-flat-module-taxonomy|ADR-0021]]
 
 ## Working Loop
 
