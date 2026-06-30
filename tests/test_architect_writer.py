@@ -129,6 +129,32 @@ def test_write_architect_edits_checks_existing_header_without_full_read(
         )
 
 
+def test_write_architect_edits_accepts_owned_file_when_prefix_splits_utf8(
+    tmp_path: Path,
+) -> None:
+    output_path = tmp_path / "tests" / "generated" / "refund.hurl"
+    output_path.parent.mkdir(parents=True)
+    content = "# entroping: source=architect\n"
+    if (
+        architect_writer._OWNERSHIP_HEADER_READ_LIMIT_BYTES
+        - len(content.encode("utf-8"))
+    ) % 2 == 0:
+        content += "x"
+    output_path.write_text(
+        content
+        + ("é" * architect_writer._OWNERSHIP_HEADER_READ_LIMIT_BYTES)
+        + "\nGET /old\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    write_architect_edits(
+        _edit_set("tests/generated/refund.hurl", "GET /new\nHTTP 200\n"),
+        project_root=tmp_path,
+    )
+
+    assert "GET /new" in output_path.read_text(encoding="utf-8")
+
+
 def test_write_architect_edits_refuses_symlink_targets(tmp_path: Path) -> None:
     victim_path = tmp_path / "victim.hurl"
     victim_path.write_text("do not overwrite\n", encoding="utf-8")

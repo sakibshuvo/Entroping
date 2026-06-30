@@ -1,5 +1,6 @@
 """Architect command adapter."""
 
+import codecs
 import json
 import sys
 from collections.abc import Callable, Mapping, Sequence
@@ -630,7 +631,9 @@ def _has_openapi_generated_header(content: str) -> bool:
 
 def _read_ownership_header_prefix(path: Path) -> str:
     with path.open("rb") as handle:
-        return handle.read(_OWNERSHIP_HEADER_READ_LIMIT_BYTES).decode("utf-8")
+        raw_prefix = handle.read(_OWNERSHIP_HEADER_READ_LIMIT_BYTES)
+    decoder = codecs.getincrementaldecoder("utf-8")(errors="strict")
+    return decoder.decode(raw_prefix, final=False)
 
 
 def _write_prepared_generated_hurl_file(prepared: PreparedGeneratedHurlFile) -> Path:
