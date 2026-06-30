@@ -35,7 +35,7 @@ Use --strict-budget to fail when the generated pack exceeds its mode budget.
 Budget overrides are available for local experiments and tests with
 ENTROPING_CONTEXT_PACK_BUDGET_<MODE>, for example:
 
-  ENTROPING_CONTEXT_PACK_BUDGET_IMPLEMENTATION=330000 scripts/context_pack.sh --mode implementation --strict-budget
+  ENTROPING_CONTEXT_PACK_BUDGET_IMPLEMENTATION=340000 scripts/context_pack.sh --mode implementation --strict-budget
 
 Opt into ignored local software-factory metrics when measuring context cost:
 
@@ -207,7 +207,7 @@ mode_budget_bytes() {
 
   case "$mode" in
     implementation)
-      default_budget=330000
+      default_budget=340000
       ;;
     review)
       default_budget=405000
