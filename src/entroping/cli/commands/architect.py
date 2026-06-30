@@ -71,6 +71,7 @@ from entroping.core.traffic_store import TrafficStoreError, list_project_exchang
 app = typer.Typer(help="Generate, refactor, and audit Hurl tests.")
 HurlValidator = Callable[[str, str], None]
 ArchitectAuditFocus = Literal["logic", "auditor"]
+_OWNERSHIP_HEADER_READ_LIMIT_BYTES = 4096
 
 
 @dataclass(frozen=True)
@@ -607,7 +608,7 @@ def _prepare_generated_hurl_file(generated: GeneratedHurlFile) -> PreparedGenera
         msg = f"Refusing to overwrite symlinked generated Hurl file: {output_path}"
         raise ValueError(msg)
     if output_path.exists():
-        existing = output_path.read_text(encoding="utf-8")
+        existing = _read_ownership_header_prefix(output_path)
         if not _has_openapi_generated_header(existing):
             msg = f"Refusing to overwrite non-OpenAPI Hurl file: {display_cli_path(output_path)}"
             raise ValueError(msg)
@@ -625,6 +626,11 @@ def _has_openapi_generated_header(content: str) -> bool:
         if stripped == "# entroping: source=openapi":
             return True
     return False
+
+
+def _read_ownership_header_prefix(path: Path) -> str:
+    with path.open("rb") as handle:
+        return handle.read(_OWNERSHIP_HEADER_READ_LIMIT_BYTES).decode("utf-8")
 
 
 def _write_prepared_generated_hurl_file(prepared: PreparedGeneratedHurlFile) -> Path:
