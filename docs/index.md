@@ -29,7 +29,7 @@ Start here:
   [Report Schemas](technical/REPORT_SCHEMAS.md).
 - **Setup and Strategy:** [AI Provider Setup](user/AI_PROVIDER_SETUP.md),
   [Open-Core Boundaries](product/OPEN_CORE_BOUNDARIES.md), and
-  [PyPI Release Runbook](meta/PYPI_RELEASE_RUNBOOK.md).
+  [Surface Scope Policy](technical/SURFACE_SCOPE.md).
 
 ## How This Site Fits
 
@@ -54,12 +54,17 @@ Use [Technical Design](technical/TDS.md),
 [Command Cheat Sheet](technical/COMMAND_CHEAT_SHEET.md),
 [Surface Scope Policy](technical/SURFACE_SCOPE.md),
 [Studio Mutation Workflow Design](technical/STUDIO_MUTATION_WORKFLOW_DESIGN.md),
-[Python Compatibility](technical/PYTHON_COMPATIBILITY.md),
+[Python Compatibility](technical/PYTHON_COMPATIBILITY.md), and the
+`Maintainer Reference` navigation group when you need the deeper
+implementation layer. For maintainer and release evidence, use
+[Release Checklist](meta/RELEASE_CHECKLIST.md),
 [Release Evidence](meta/RELEASE_EVIDENCE.md),
+[PyPI Release Runbook](meta/PYPI_RELEASE_RUNBOOK.md),
+[Homebrew Tap Prototype](meta/HOMEBREW_TAP_PROTOTYPE.md),
 [Install Smoke Matrix](meta/INSTALL_SMOKE_MATRIX.md),
 [Downstream Smoke Evidence](meta/DOWNSTREAM_SMOKE_EVIDENCE.md), and
 [Downstream Feedback Kit](meta/DOWNSTREAM_FEEDBACK_KIT.md) when you need the
-deeper implementation or release-evidence layer.
+release-owner evidence layer.
 
 Canonical source still lives in the repository Markdown. The Obsidian vault
 entry point remains `docs/meta/VAULT_INDEX.md`; this page is only the public web landing page.

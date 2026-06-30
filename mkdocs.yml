@@ -53,12 +53,12 @@ nav:
       - Studio Mutation Workflow Design: technical/STUDIO_MUTATION_WORKFLOW_DESIGN.md
       - Advanced Boundaries:
           - WireMock and Dependency Mapping: technical/FREEZE_MAP_PLAN.md
-      - Maintainer Evidence:
-          - Release Checklist: meta/RELEASE_CHECKLIST.md
-          - Release Evidence: meta/RELEASE_EVIDENCE.md
-          - PyPI Release Runbook: meta/PYPI_RELEASE_RUNBOOK.md
-          - Homebrew Tap Prototype: meta/HOMEBREW_TAP_PROTOTYPE.md
-          - Install Smoke Matrix: meta/INSTALL_SMOKE_MATRIX.md
-          - Downstream Smoke Evidence: meta/DOWNSTREAM_SMOKE_EVIDENCE.md
-          - Downstream Feedback Kit: meta/DOWNSTREAM_FEEDBACK_KIT.md
+  - Maintainer Reference:
+      - Release Checklist: meta/RELEASE_CHECKLIST.md
+      - Release Evidence: meta/RELEASE_EVIDENCE.md
+      - PyPI Release Runbook: meta/PYPI_RELEASE_RUNBOOK.md
+      - Homebrew Tap Prototype: meta/HOMEBREW_TAP_PROTOTYPE.md
+      - Install Smoke Matrix: meta/INSTALL_SMOKE_MATRIX.md
+      - Downstream Smoke Evidence: meta/DOWNSTREAM_SMOKE_EVIDENCE.md
+      - Downstream Feedback Kit: meta/DOWNSTREAM_FEEDBACK_KIT.md
   - Roadmap: https://github.com/sakibshuvo/Entroping/blob/main/ROADMAP.md

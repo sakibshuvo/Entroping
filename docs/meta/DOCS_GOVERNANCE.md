@@ -102,6 +102,10 @@ vault or relevant maintainer docs unless they directly help a new user adopt
 the tool. New MkDocs top-level nav entries require a public-reader reason in
 the PR; otherwise place the document under an existing group or leave it out of
 the public nav.
+Maintainer release evidence can stay in MkDocs for transparency, but it belongs
+under a clearly labeled maintainer reference group after first-hour user,
+policy, CI, and technical paths. Do not place release runbooks or evidence
+ledgers in the home-page `Start here` list.
 
 ## Update Matrix
 
