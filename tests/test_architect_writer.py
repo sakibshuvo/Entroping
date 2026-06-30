@@ -102,6 +102,33 @@ def test_write_architect_edits_refuses_non_architect_owned_existing_file(tmp_pat
     assert "GET {{base_url}}/health" in output_path.read_text(encoding="utf-8")
 
 
+def test_write_architect_edits_checks_existing_header_without_full_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_path = tmp_path / "tests" / "manual.hurl"
+    output_path.parent.mkdir(parents=True)
+    output_path.write_text("# manual\n" + ("GET /health\nHTTP 200\n" * 10_000), encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def reject_full_target_read(
+        self: Path,
+        encoding: str | None = None,
+        errors: str | None = None,
+    ) -> str:
+        if self == output_path:
+            raise AssertionError("ownership guard must not read the full target")
+        return original_read_text(self, encoding=encoding, errors=errors)
+
+    monkeypatch.setattr(Path, "read_text", reject_full_target_read)
+
+    with pytest.raises(ArchitectWriteError, match="Refusing to overwrite non-Architect Hurl file"):
+        write_architect_edits(
+            _edit_set("tests/manual.hurl", "GET {{base_url}}/new\nHTTP 200\n"),
+            project_root=tmp_path,
+        )
+
+
 def test_write_architect_edits_refuses_symlink_targets(tmp_path: Path) -> None:
     victim_path = tmp_path / "victim.hurl"
     victim_path.write_text("do not overwrite\n", encoding="utf-8")
@@ -409,3 +436,36 @@ def test_write_refactor_hurl_edits_preflights_before_writing(tmp_path: Path) -> 
 
     assert "GET /old" in architect_path.read_text(encoding="utf-8")
     assert "GET /old" in manual_path.read_text(encoding="utf-8")
+
+
+def test_write_refactor_hurl_edits_checks_existing_header_without_full_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manual_path = tmp_path / "tests" / "manual.hurl"
+    manual_path.parent.mkdir(parents=True)
+    manual_path.write_text("# manual\n" + ("GET /old\nHTTP 200\n" * 10_000), encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def reject_full_target_read(
+        self: Path,
+        encoding: str | None = None,
+        errors: str | None = None,
+    ) -> str:
+        if self == manual_path:
+            raise AssertionError("ownership guard must not read the full target")
+        return original_read_text(self, encoding=encoding, errors=errors)
+
+    monkeypatch.setattr(Path, "read_text", reject_full_target_read)
+
+    with pytest.raises(ArchitectWriteError, match="Refusing to overwrite non-Architect Hurl file"):
+        write_refactor_hurl_edits(
+            [
+                PreparedHurlWrite(
+                    path="tests/manual.hurl",
+                    content="GET /new\nHTTP 200\n",
+                    require_architect_header=True,
+                ),
+            ],
+            project_root=tmp_path,
+        )

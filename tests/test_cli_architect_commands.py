@@ -2861,6 +2861,36 @@ def test_write_generated_hurl_file_rejects_existing_non_openapi_target(
         )
 
 
+def test_write_generated_hurl_file_checks_existing_header_without_full_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    target = tmp_path / "tests" / "generated" / "health.hurl"
+    target.parent.mkdir(parents=True)
+    target.write_text("# manual\n" + ("GET /health\nHTTP 200\n" * 10_000), encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def reject_full_target_read(
+        self: Path,
+        encoding: str | None = None,
+        errors: str | None = None,
+    ) -> str:
+        if self == target:
+            raise AssertionError("ownership guard must not read the full target")
+        return original_read_text(self, encoding=encoding, errors=errors)
+
+    monkeypatch.setattr(Path, "read_text", reject_full_target_read)
+
+    with pytest.raises(ValueError, match="non-OpenAPI Hurl file"):
+        architect_cli._write_generated_hurl_file(
+            GeneratedHurlFile(
+                relative_path="tests/generated/health.hurl",
+                content="# entroping: source=openapi\nGET /health\nHTTP 200\n",
+            )
+        )
+
+
 def test_write_generated_hurl_file_rejects_spoofed_openapi_marker_below_header(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

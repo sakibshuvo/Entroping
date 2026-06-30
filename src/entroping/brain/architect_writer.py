@@ -10,6 +10,7 @@ from entroping.core.path_safety import first_symlink_path_component
 from entroping.models import ArchitectEdit, ArchitectEditSet
 
 _ARCHITECT_SOURCE_MARKER = "# entroping: source=architect"
+_OWNERSHIP_HEADER_READ_LIMIT_BYTES = 4096
 
 
 class ArchitectWriteError(ValueError):
@@ -143,6 +144,11 @@ def _has_architect_header(content: str) -> bool:
     return False
 
 
+def _read_ownership_header_prefix(path: Path) -> str:
+    with path.open("rb") as handle:
+        return handle.read(_OWNERSHIP_HEADER_READ_LIMIT_BYTES).decode("utf-8")
+
+
 def _ensure_trailing_newline(content: str) -> str:
     if content.endswith("\n"):
         return content
@@ -168,7 +174,7 @@ def _validate_existing_target(path: Path) -> None:
     if not path.is_file():
         msg = f"Refusing to overwrite non-file Hurl target: {path}"
         raise ArchitectWriteError(msg)
-    existing = path.read_text(encoding="utf-8")
+    existing = _read_ownership_header_prefix(path)
     if not _has_architect_header(existing):
         msg = f"Refusing to overwrite non-Architect Hurl file: {path}"
         raise ArchitectWriteError(msg)
@@ -187,7 +193,7 @@ def _validate_existing_refactor_target(path: Path, *, require_architect_header: 
     if not require_architect_header:
         return
 
-    existing = path.read_text(encoding="utf-8")
+    existing = _read_ownership_header_prefix(path)
     if not _has_architect_header(existing):
         msg = f"Refusing to overwrite non-Architect Hurl file: {path}"
         raise ArchitectWriteError(msg)
