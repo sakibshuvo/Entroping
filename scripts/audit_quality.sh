@@ -15,6 +15,7 @@ Checks:
   - test taxonomy report under reports/
   - long-file hotspot report under reports/
   - pytest-cov coverage gate with a JSON artifact under reports/
+  - script-focused coverage and typing visibility report under reports/
   - radon cyclomatic complexity and maintainability-index audit
   - vulture dead-code discovery with a curated confidence threshold
   - quality trend summary under reports/
@@ -28,6 +29,9 @@ Environment thresholds:
   ENTROPING_QUALITY_TREND_PREVIOUS
                                   Optional previous reports/quality-trend.json
                                   to compute numeric deltas.
+  ENTROPING_SCRIPT_QUALITY_BASELINE
+                                  Optional previous script-quality report
+                                  for ratchet comparison.
 
 Options:
   --dry-run   Show deterministic audit steps without running them.
@@ -59,6 +63,7 @@ coverage_fail_under="${ENTROPING_COVERAGE_FAIL_UNDER:-100}"
 max_complexity_rank="${ENTROPING_MAX_COMPLEXITY_RANK:-D}"
 min_mi_rank="${ENTROPING_MIN_MI_RANK:-C}"
 vulture_confidence="${ENTROPING_VULTURE_CONFIDENCE:-90}"
+script_quality_baseline="${ENTROPING_SCRIPT_QUALITY_BASELINE:-}"
 
 log() {
   printf '[quality-audit] %s\n' "$*"
@@ -74,9 +79,15 @@ if ((dry_run)); then
   log "max complexity rank: ${max_complexity_rank}"
   log "min maintainability rank: ${min_mi_rank}"
   log "vulture confidence: ${vulture_confidence}"
+  if [[ -n "${script_quality_baseline}" ]]; then
+    log "script quality baseline: ${script_quality_baseline}"
+  else
+    log "script quality baseline: not configured"
+  fi
   log "Would write test taxonomy report"
   log "Would run long-file hotspot report"
   log "Would run coverage gate with pytest-cov"
+  log "Would run script quality coverage and typing visibility report"
   log "Would run Radon complexity gate"
   log "Would run Vulture dead-code discovery"
   log "Would write quality trend summary"
@@ -104,6 +115,15 @@ uv run pytest \
   --cov-report=term-missing \
   --cov-report=json:reports/coverage.json \
   --cov-fail-under="${coverage_fail_under}"
+
+log "Running script quality report"
+script_quality_args=(
+  --repo-root "${repo_root}"
+)
+if [[ -n "${script_quality_baseline}" ]]; then
+  script_quality_args+=(--baseline "${script_quality_baseline}")
+fi
+uv run python scripts/script_quality_report.py "${script_quality_args[@]}"
 
 log "Running Radon complexity audit"
 uv run radon cc src tests -s -a --json > reports/radon-cc.json
