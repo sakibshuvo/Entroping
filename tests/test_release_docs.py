@@ -224,6 +224,33 @@ def test_doc_governance_blocks_strategy_doc_sprawl() -> None:
     assert "Do not expose maintainer memory as first-level public navigation" in governance
 
 
+def test_qanstitution_policy_changes_have_code_owner_review_expectation() -> None:
+    security = (REPO_ROOT / "SECURITY.md").read_text(encoding="utf-8")
+    normalized_security = " ".join(security.split())
+    codeowners = (REPO_ROOT / ".github" / "CODEOWNERS").read_text(encoding="utf-8")
+
+    required_patterns = [
+        "/.github/CODEOWNERS @sakibshuvo",
+        "qanstitution.yaml @sakibshuvo",
+        "consumer-qanstitution.yaml @sakibshuvo",
+        "/docs/technical/qanstitution.schema.json @sakibshuvo",
+        "/docs/technical/QANSTITUTION_REFERENCE.md @sakibshuvo",
+        "/examples/policy-packs/** @sakibshuvo",
+        "/src/entroping/models/qanstitution*.py @sakibshuvo",
+        "/src/entroping/core/config_loader.py @sakibshuvo",
+        "/src/entroping/core/gate_injector.py @sakibshuvo",
+        "/src/entroping/bridge/policy_to_hurl.py @sakibshuvo",
+        "/scripts/update_qanstitution_schema.py @sakibshuvo",
+    ]
+    for pattern in required_patterns:
+        assert pattern in codeowners
+
+    assert "QAnstitution Policy Change Review" in security
+    assert ".github/CODEOWNERS" in security
+    assert "requires code owner review" in normalized_security
+    assert "does not prove branch protection is enabled" in normalized_security
+
+
 def test_design_partner_pilot_kit_has_measurable_local_first_contract() -> None:
     user_guide = (REPO_ROOT / "docs" / "user" / "USER_GUIDE.md").read_text(
         encoding="utf-8"

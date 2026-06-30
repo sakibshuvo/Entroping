@@ -26,6 +26,20 @@ High-risk areas include:
 - LiteLLM prompt construction and response parsing.
 - Local `.entroping/state.db` persistence.
 
+## QAnstitution Policy Change Review
+
+QAnstitution files and related policy implementation paths define the
+deterministic governance that Entroping enforces before API behavior is trusted.
+`.github/CODEOWNERS` routes changes to those paths to `@sakibshuvo`, including
+`qanstitution.yaml`, policy-pack examples, the QAnstitution reference/schema,
+the typed models, the loader, and policy-to-Hurl compilation.
+
+CODEOWNERS routing does not prove branch protection is enabled. Maintainers must
+configure GitHub branch protection for protected branches so it requires code
+owner review on pull requests before treating that owner mapping as enforced
+policy. Without that repository setting, the file is review-routing guidance,
+not an active merge gate.
+
 ## Local Security Checks
 
 Run:

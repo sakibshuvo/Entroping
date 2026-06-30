@@ -1,5 +1,12 @@
 # Entroping Changelog
 
+## 2026-06-30
+
+- Added issue #1253's QAnstitution governance owner-review expectation:
+  `.github/CODEOWNERS` now routes policy-sensitive QAnstitution paths to
+  `@sakibshuvo`, and `SECURITY.md` documents that the mapping is only an
+  enforced merge gate when GitHub branch protection requires code owner review.
+
 ## 2026-06-28
 
 - Added issue #1188's package-index readiness preflight:
