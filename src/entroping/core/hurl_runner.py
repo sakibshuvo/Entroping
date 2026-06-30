@@ -321,9 +321,6 @@ def run_hurl_file(
     run_options = options or HurlRunOptions()
     hurl_path = validate_hurl_path(path)
     binary_path = _resolve_hurl_binary(run_options.binary)
-    variables_file = _write_variables_file(run_options.variables or {})
-    command = (binary_path, *_variables_file_args(variables_file), str(hurl_path))
-    subprocess_env = _minimal_subprocess_env(binary_path)
 
     total_start = time.perf_counter()
     attempts: list[HurlAttemptEvidence] = []
@@ -333,8 +330,13 @@ def run_hurl_file(
     final_stderr = ""
     final_stdout_truncated = False
     final_stderr_truncated = False
+    variables_file: Path | None = None
+    command: tuple[str, ...] = ()
 
     try:
+        variables_file = _write_variables_file(run_options.variables or {})
+        command = (binary_path, *_variables_file_args(variables_file), str(hurl_path))
+        subprocess_env = _minimal_subprocess_env(binary_path)
         for attempt_number in range(1, run_options.retry + 2):
             attempt_start = time.perf_counter()
             (

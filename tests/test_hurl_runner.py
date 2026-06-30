@@ -482,6 +482,36 @@ def test_variables_file_is_removed_when_write_fails(
     assert not variables_file.exists()
 
 
+@pytest.mark.security
+def test_run_hurl_file_removes_variables_file_when_setup_after_write_interrupts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hurl_file = _write_hurl(tmp_path / "tests" / "setup-interrupt.hurl")
+    variables_file = tmp_path / "entroping-hurl-vars.env"
+
+    def write_variables_file(variables: dict[str, str]) -> Path:
+        assert variables == {"token": "live-secret"}
+        variables_file.write_text("token=live-secret\n", encoding="utf-8")
+        return variables_file
+
+    def interrupt_minimal_env(binary_path: str) -> dict[str, str]:
+        _ = binary_path
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/bin/hurl")
+    monkeypatch.setattr("entroping.core.hurl_runner._write_variables_file", write_variables_file)
+    monkeypatch.setattr("entroping.core.hurl_runner._minimal_subprocess_env", interrupt_minimal_env)
+
+    with pytest.raises(KeyboardInterrupt):
+        run_hurl_file(
+            hurl_file,
+            HurlRunOptions(binary="hurl", variables={"token": "live-secret"}),
+        )
+
+    assert not variables_file.exists()
+
+
 def test_run_hurl_file_returns_failed_result_for_non_zero_exit(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
