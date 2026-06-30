@@ -148,6 +148,7 @@ def test_release_check_help_documents_release_options() -> None:
     assert "--skip-performance" in result.stdout
     assert "--skip-downstream-smoke" in result.stdout
     assert "--require-live-demo" in result.stdout
+    assert "--skip-release-evidence-freshness" in result.stdout
     assert "--allow-dirty" in result.stdout
 
 
@@ -161,11 +162,13 @@ def test_release_check_dry_run_shows_full_alpha_gate() -> None:
     assert "scripts/package_index_readiness.py --strict" in result.stdout
     assert "scripts/install_reference_sync.py --check" in result.stdout
     assert "scripts/local_wheel_install_smoke.py --skip-build" in result.stdout
+    assert "scripts/release_evidence.py --check-freshness --strict" in result.stdout
     assert "scripts/downstream_smoke.py" in result.stdout
     assert "scripts/policy_pack_smoke.py --strict" in result.stdout
     assert "scripts/launch_readiness.py --strict" in result.stdout
     assert "scripts/performance_smoke.py" in result.stdout
     assert "scripts/live_demo_smoke.sh" in result.stdout
+    assert "release evidence freshness: yes" in result.stdout
     assert "require live demo: yes" in result.stdout
 
 
@@ -194,6 +197,15 @@ def test_release_check_dry_run_can_skip_downstream_smoke() -> None:
     assert "skip downstream smoke: yes" in result.stdout
     assert "Skipping downstream smoke by request." in result.stdout
     assert "scripts/downstream_smoke.py" not in result.stdout
+
+
+def test_release_check_dry_run_can_skip_release_evidence_freshness() -> None:
+    result = run_release_check("--dry-run", "--skip-release-evidence-freshness")
+
+    assert result.returncode == 0, result.stderr
+    assert "release evidence freshness: no" in result.stdout
+    assert "scripts/release_evidence.py --strict" in result.stdout
+    assert "scripts/release_evidence.py --check-freshness" not in result.stdout
 
 
 def test_release_check_rejects_unknown_options() -> None:
@@ -302,6 +314,11 @@ def test_release_check_aggregate_mode_succeeds_when_all_gates_pass(
 
     assert result.returncode == 0, result.stderr
     assert "Release readiness gate finished." in result.stdout
+    log = (fixture / "commands.log").read_text(encoding="utf-8")
+    assert (
+        "uv invoked: run python scripts/release_evidence.py --check-freshness --strict"
+        in log
+    )
 
 
 def test_release_check_aggregate_mode_reports_single_failure(tmp_path: Path) -> None:

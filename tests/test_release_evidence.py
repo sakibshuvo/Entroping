@@ -599,4 +599,11 @@ def test_release_check_runs_release_evidence_validator() -> None:
         encoding="utf-8"
     )
 
-    assert "scripts/release_evidence.py --strict" in release_check
+    assert "release_evidence_command+=(--check-freshness)" in release_check
+    assert "release_evidence_command+=(--strict)" in release_check
+    assert (
+        'run_or_record "release_evidence" "${release_evidence_command[@]}"'
+        in release_check
+    )
+    assert 'run_or_print "${release_evidence_command[@]}"' in release_check
+    assert "--skip-release-evidence-freshness" in release_check

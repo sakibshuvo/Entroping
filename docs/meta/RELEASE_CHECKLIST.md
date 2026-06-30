@@ -41,7 +41,7 @@ This gate includes:
 - `uv run python scripts/policy_pack_smoke.py --strict`
 - `uv run python scripts/launch_readiness.py --strict`
 - `uv run python scripts/stable_core_readiness.py --strict`
-- `uv run python scripts/release_evidence.py --strict`
+- `uv run python scripts/release_evidence.py --check-freshness --strict`
 - `scripts/package_check.sh`
 - `uv run python scripts/local_wheel_install_smoke.py --skip-build`
 - `scripts/regression.sh --security`
@@ -55,7 +55,12 @@ If the local machine does not have Hurl installed, the non-release diagnostic fo
 scripts/release_check.sh
 ```
 
-That still runs hygiene, package verification, and `scripts/regression.sh --security`, but skips the live demo unless Hurl is available.
+That still runs hygiene, package verification, release evidence freshness, and
+`scripts/regression.sh --security`, but skips the live demo unless Hurl is
+available. For a deliberately offline/local diagnostic that validates only the
+committed release evidence ledger shape, run
+`scripts/release_check.sh --skip-release-evidence-freshness`; do not use that
+form for release-candidate signoff or stable-core claims.
 
 The security regression path includes the direct dependency license policy gate.
 Review `docs/meta/dependency-license-policy.json` whenever `pyproject.toml`
@@ -131,7 +136,8 @@ Before tagging:
   claim.
 - Review `docs/meta/RELEASE_EVIDENCE.md` and run
   `uv run python scripts/release_evidence.py --strict` before any repeated
-  release, package-index, or stable-core evidence claim.
+  release, package-index, or stable-core evidence claim that only needs offline
+  ledger validation.
 - Run `uv run python scripts/install_reference_sync.py --check` before release
   notes or install guidance review. If the latest GitHub release tag in
   `docs/meta/release-evidence.json` intentionally changes, run
@@ -139,9 +145,9 @@ Before tagging:
   resulting docs diff before publishing.
 - Run `uv run python scripts/release_evidence.py --check-freshness --strict`
   when a release or stable-core claim depends on the latest successful `main`
-  CI and Pages runs. This optional GitHub CLI check is read-only, degrades when
-  `gh` is unavailable or unauthenticated, and never updates the committed
-  ledger automatically.
+  CI and Pages runs. `scripts/release_check.sh` runs this freshness check by
+  default. The GitHub CLI check is read-only, degrades when `gh` is unavailable
+  or unauthenticated, and never updates the committed ledger automatically.
 - Review the `scripts/stable_core_readiness.py --format json` output before any
   v1 or stable-core claim.
 - Run `scripts/demo_matrix.sh --dry-run` before launch copy review to inspect

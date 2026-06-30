@@ -22,6 +22,9 @@ Options:
   --skip-performance   Do not run the bounded performance smoke.
   --skip-downstream-smoke
                        Do not run the external downstream project smoke.
+  --skip-release-evidence-freshness
+                       Validate release evidence without the GitHub freshness
+                       lookup. Use only for offline/local diagnostics.
   --skip-live-demo     Do not run the live Hurl demo smoke.
   --require-live-demo  Fail if Hurl is missing instead of skipping the demo.
   --allow-dirty        Allow uncommitted changes in the working tree.
@@ -34,6 +37,7 @@ skip_security=0
 aggregate=0
 skip_performance=0
 skip_downstream_smoke=0
+release_evidence_freshness=1
 skip_live_demo=0
 require_live_demo=0
 allow_dirty=0
@@ -56,6 +60,9 @@ while (($#)); do
       ;;
     --skip-downstream-smoke)
       skip_downstream_smoke=1
+      ;;
+    --skip-release-evidence-freshness)
+      release_evidence_freshness=0
       ;;
     --skip-live-demo)
       skip_live_demo=1
@@ -137,6 +144,7 @@ log "skip security: $(yes_no "$skip_security")"
 log "aggregate mode: $(yes_no "$aggregate")"
 log "skip performance: $(yes_no "$skip_performance")"
 log "skip downstream smoke: $(yes_no "$skip_downstream_smoke")"
+log "release evidence freshness: $(yes_no "$release_evidence_freshness")"
 log "skip live demo: $(yes_no "$skip_live_demo")"
 log "require live demo: $(yes_no "$require_live_demo")"
 log "allow dirty worktree: $(yes_no "$allow_dirty")"
@@ -161,11 +169,17 @@ fi
 
 cd "$repo_root"
 
+release_evidence_command=(uv run python scripts/release_evidence.py)
+if ((release_evidence_freshness)); then
+  release_evidence_command+=(--check-freshness)
+fi
+release_evidence_command+=(--strict)
+
 if ((aggregate)); then
   run_or_record "repo_hygiene" scripts/repo_hygiene.sh
   run_or_record "policy_pack_smoke" uv run python scripts/policy_pack_smoke.py --strict
   run_or_record "launch_readiness" uv run python scripts/launch_readiness.py --strict
-  run_or_record "release_evidence" uv run python scripts/release_evidence.py --strict
+  run_or_record "release_evidence" "${release_evidence_command[@]}"
   run_or_record "package_index_readiness" uv run python scripts/package_index_readiness.py --strict
   run_or_record "install_reference_sync" uv run python scripts/install_reference_sync.py --check
   run_or_record "stable_core_readiness" uv run python scripts/stable_core_readiness.py --strict
@@ -175,7 +189,7 @@ else
   run_or_print scripts/repo_hygiene.sh
   run_or_print uv run python scripts/policy_pack_smoke.py --strict
   run_or_print uv run python scripts/launch_readiness.py --strict
-  run_or_print uv run python scripts/release_evidence.py --strict
+  run_or_print "${release_evidence_command[@]}"
   run_or_print uv run python scripts/package_index_readiness.py --strict
   run_or_print uv run python scripts/install_reference_sync.py --check
   run_or_print uv run python scripts/stable_core_readiness.py --strict
