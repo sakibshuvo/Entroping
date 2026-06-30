@@ -6,6 +6,8 @@ from textwrap import dedent
 
 import pytest
 
+import entroping.core.gate_injector as gate_injector
+import entroping.hurl_source as hurl_source
 from entroping.core.gate_injector import (
     GateInjectionError,
     inject_gate_assertions,
@@ -533,6 +535,28 @@ def test_write_injected_execution_copy_rejects_non_utf8_source(tmp_path: Path) -
         )
 
 
+def test_write_injected_execution_copy_rejects_oversized_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(hurl_source, "HURL_SOURCE_MAX_BYTES", 32)
+    source = _write_hurl(
+        tmp_path / "tests" / "oversized.hurl",
+        """
+        GET {{base_url}}/health
+        HTTP 200
+        """
+        + ("x" * 64),
+    )
+
+    with pytest.raises(GateInjectionError, match=r"Hurl source .* exceeds 32 bytes"):
+        write_injected_execution_copy(
+            HurlTest(path=source, metadata=HurlMetadata()),
+            [_gate("global_latency", "true", "duration < 2000")],
+            execution_root=tmp_path / "execution",
+        )
+
+
 def test_write_injected_execution_copy_wraps_source_read_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -545,18 +569,13 @@ def test_write_injected_execution_copy_wraps_source_read_errors(
         """,
     )
     resolved_source = source.resolve()
-    original_read_text = Path.read_text
 
-    def fail_source_read(
-        self: Path,
-        encoding: str | None = None,
-        errors: str | None = None,
-    ) -> str:
-        if self == resolved_source:
+    def fail_source_read(path: Path, *, label: str = "Hurl source") -> str:
+        if path == resolved_source:
             raise OSError("disk unavailable")
-        return original_read_text(self, encoding=encoding, errors=errors)
+        return hurl_source.read_hurl_source_text(path, label=label)
 
-    monkeypatch.setattr(Path, "read_text", fail_source_read)
+    monkeypatch.setattr(gate_injector, "read_hurl_source_text", fail_source_read)
 
     with pytest.raises(GateInjectionError, match="Could not read Hurl source file"):
         write_injected_execution_copy(

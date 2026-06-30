@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 import entroping.core.failure_bundle as failure_bundle
+import entroping.hurl_source as hurl_source
 from entroping.core.failure_bundle import FailureBundleError, create_failure_bundle
 from entroping.core.report_writer import write_json_report
 from entroping.core.safe_write import SafeWriteError
@@ -212,6 +213,37 @@ def test_create_failure_bundle_redacts_secret_like_hurl_metadata_values(
         "owner": "[REDACTED]",
         "story_id": "CHK-001",
     }
+
+
+def test_create_failure_bundle_rejects_oversized_failed_hurl_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(hurl_source, "HURL_SOURCE_MAX_BYTES", 32)
+    _write_latest(tmp_path, _run_report(path="tests/oversized.hurl"))
+    source = tmp_path / "tests" / "oversized.hurl"
+    source.parent.mkdir()
+    source.write_bytes(b"# entroping: tags=smoke\n" + (b"x" * 32))
+
+    with pytest.raises(FailureBundleError, match=r"Hurl source .* exceeds 32 bytes"):
+        create_failure_bundle(project_root=tmp_path)
+
+
+def test_create_failure_bundle_rejects_oversized_optional_text_artifact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(failure_bundle, "_MAX_FAILURE_BUNDLE_ARTIFACT_BYTES", 32, raising=False)
+    _write_latest(tmp_path, _run_report())
+    source = tmp_path / "tests" / "health.hurl"
+    source.parent.mkdir()
+    source.write_text("GET {{base_url}}/health\nHTTP 200\n", encoding="utf-8")
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    (reports_dir / "junit.xml").write_bytes(b"x" * 33)
+
+    with pytest.raises(FailureBundleError, match=r"junit artifact .* exceeds 32 bytes"):
+        create_failure_bundle(project_root=tmp_path)
 
 
 def test_create_failure_bundle_writes_fence_safe_bug_report(tmp_path: Path) -> None:
@@ -456,6 +488,16 @@ def test_create_failure_bundle_rejects_non_file_hurl_test_path(tmp_path: Path) -
     (tmp_path / "tests" / "health.hurl").mkdir(parents=True)
 
     with pytest.raises(FailureBundleError, match="is not a file"):
+        create_failure_bundle(project_root=tmp_path)
+
+
+def test_create_failure_bundle_rejects_non_hurl_failed_test_path(tmp_path: Path) -> None:
+    _write_latest(tmp_path, _run_report(path="tests/not-hurl.txt"))
+    source = tmp_path / "tests" / "not-hurl.txt"
+    source.parent.mkdir()
+    source.write_text("# entroping: tags=smoke\nGET /health\nHTTP 200\n", encoding="utf-8")
+
+    with pytest.raises(FailureBundleError, match=r"Expected a \.hurl file"):
         create_failure_bundle(project_root=tmp_path)
 
 

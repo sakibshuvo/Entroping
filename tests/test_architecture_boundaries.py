@@ -199,13 +199,17 @@ def test_product_source_does_not_import_factory_worker_routing() -> None:
 
 
 def test_security_sensitive_source_loaders_do_not_use_unbounded_read_text() -> None:
-
-    files_with_bounded_readers = (
-        Path("scripts/launch_readiness.py"),
-        Path("scripts/stable_core_readiness.py"),
-    )
-    for raw_path in files_with_bounded_readers:
-        path = raw_path
+    allowed_read_text_functions_by_file = {
+        Path("scripts/launch_readiness.py"): frozenset({"_read_text_file_bounded"}),
+        Path("scripts/stable_core_readiness.py"): frozenset({"_read_text_file_bounded"}),
+        Path("src/entroping/core/hurl_discovery.py"): frozenset(),
+        Path("src/entroping/core/gate_injector.py"): frozenset(),
+        Path("src/entroping/core/gate_injection_report.py"): frozenset(),
+        Path("src/entroping/core/hurl_variable_preflight.py"): frozenset(),
+        Path("src/entroping/core/failure_bundle.py"): frozenset(),
+        Path("src/entroping/bridge/test_quality.py"): frozenset(),
+    }
+    for path, allowed_functions in allowed_read_text_functions_by_file.items():
         if not path.is_file():
             continue
         source = path.read_text(encoding="utf-8")
@@ -229,9 +233,26 @@ def test_security_sensitive_source_loaders_do_not_use_unbounded_read_text() -> N
                     function_name = current.name
                     break
                 current = parent_map.get(current)
-            assert (
-                function_name == "_read_text_file_bounded"
-            ), f"{path}:{node.lineno} uses unbounded read_text outside bounded helper"
+            assert function_name in allowed_functions, (
+                f"{path}:{node.lineno} uses unbounded read_text outside a bounded helper"
+            )
+
+
+def test_hurl_source_loaders_share_one_max_size_contract() -> None:
+    hurl_source = import_module("entroping.hurl_source")
+    assert hurl_source.HURL_SOURCE_MAX_BYTES == 10 * 1024 * 1024
+
+    expected_importers = (
+        "entroping.core.hurl_discovery",
+        "entroping.core.gate_injector",
+        "entroping.core.gate_injection_report",
+        "entroping.core.hurl_variable_preflight",
+        "entroping.core.failure_bundle",
+        "entroping.bridge.test_quality",
+    )
+    for module_name in expected_importers:
+        module = import_module(module_name)
+        assert module.read_hurl_source_text is hurl_source.read_hurl_source_text
 
 
 def test_litellm_is_the_only_model_provider_abstraction_in_source() -> None:

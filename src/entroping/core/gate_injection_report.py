@@ -14,6 +14,7 @@ from entroping.bridge.policy_to_hurl import GateCompilationError
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution_evidence
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.safe_write import SafeWriteError, safe_write_text
+from entroping.hurl_source import read_hurl_source_text
 from entroping.models.hurl import (
     HurlMetadataSyntaxError,
     HurlTest,
@@ -74,7 +75,7 @@ def run_gate_injection_report(
 
 def _load_hurl_target(raw_target: Path, *, root: Path) -> HurlTest:
     resolved = _resolve_hurl_target(raw_target, root=root)
-    content = resolved.read_text(encoding="utf-8")
+    content = read_hurl_source_text(resolved)
     return HurlTest(
         path=resolved,
         metadata=parse_hurl_metadata(content, source=resolved),

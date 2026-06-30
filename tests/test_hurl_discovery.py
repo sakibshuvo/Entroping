@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+import entroping.hurl_source as hurl_source
 from entroping.core.hurl_discovery import (
     discover_hurl_test_selection,
     discover_hurl_tests,
@@ -263,6 +264,19 @@ def test_discover_hurl_tests_reports_non_utf8_hurl_with_file_path(tmp_path: Path
     bad_encoding.write_bytes(b"\xff\xfe\x00")
 
     with pytest.raises(HurlMetadataSyntaxError, match=f"{bad_encoding}: file is not valid UTF-8"):
+        discover_hurl_tests([tmp_path])
+
+
+def test_discover_hurl_tests_rejects_oversized_hurl_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(hurl_source, "HURL_SOURCE_MAX_BYTES", 32)
+    oversized = tmp_path / "tests" / "oversized.hurl"
+    oversized.parent.mkdir(parents=True, exist_ok=True)
+    oversized.write_bytes(b"# entroping: tags=smoke\n" + (b"x" * 32))
+
+    with pytest.raises(HurlMetadataSyntaxError, match=r"Hurl source .* exceeds 32 bytes"):
         discover_hurl_tests([tmp_path])
 
 

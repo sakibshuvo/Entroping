@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 import entroping.core.gate_injection_report as gate_injection_report
+import entroping.hurl_source as hurl_source
 from entroping.bridge.gate_injection_explain import compile_gate_injection_report
 from entroping.core.gate_injection_report import (
     GateInjectionReportError,
@@ -309,6 +310,26 @@ def test_run_gate_injection_report_rejects_unsafe_targets(tmp_path: Path) -> Non
         run_gate_injection_report(
             project_root=tmp_path,
             targets=(Path("tests/missing.hurl"),),
+            output="json",
+        )
+
+
+def test_run_gate_injection_report_rejects_oversized_hurl_target(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(hurl_source, "HURL_SOURCE_MAX_BYTES", 32)
+    _write_text(tmp_path / "qanstitution.yaml", "project: checkout-api\ngates: []\n")
+    _write_text(
+        tmp_path / "tests" / "oversized.hurl",
+        "# entroping: tags=smoke\nGET http://api.example.test/health\nHTTP 200\n"
+        + ("x" * 64),
+    )
+
+    with pytest.raises(GateInjectionReportError, match=r"Hurl source .* exceeds 32 bytes"):
+        run_gate_injection_report(
+            project_root=tmp_path,
+            targets=(Path("tests/oversized.hurl"),),
             output="json",
         )
 

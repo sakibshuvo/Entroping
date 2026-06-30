@@ -9,6 +9,7 @@ from pathlib import Path
 
 from entroping.bridge.policy_to_hurl import HurlGateAssertion, compile_matching_gates
 from entroping.core.path_safety import first_symlink_path_component
+from entroping.hurl_source import HurlSourceTooLargeError, read_hurl_source_text
 from entroping.models.hurl import HurlExchange, HurlTest, parse_hurl_exchanges
 from entroping.models.qanstitution import (
     GateRule,
@@ -79,7 +80,9 @@ def write_injected_execution_copy(
     except KnownFailureValidationError as exc:
         raise GateInjectionError(str(exc)) from exc
     try:
-        content = source_path.read_text(encoding="utf-8")
+        content = read_hurl_source_text(source_path)
+    except HurlSourceTooLargeError as exc:
+        raise GateInjectionError(str(exc)) from exc
     except UnicodeDecodeError as exc:
         msg = f"{source_path}: file is not valid UTF-8"
         raise GateInjectionError(msg) from exc

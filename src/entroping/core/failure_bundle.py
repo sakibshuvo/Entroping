@@ -7,7 +7,8 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Final
 
-from entroping.core.hurl_discovery import discover_hurl_tests
+from entroping.core.bounded_read import BoundedReadError, read_text_bounded
+from entroping.core.evidence_common import LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES
 from entroping.core.hurl_runner import redact_hurl_output
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.report_rendering import render_bug_report
@@ -17,11 +18,18 @@ from entroping.core.report_serialization import (
     run_report_to_dict,
 )
 from entroping.core.safe_write import SafeWriteError, safe_write_text
-from entroping.models.hurl import HurlTest
+from entroping.hurl_source import HurlSourceTooLargeError, read_hurl_source_text
+from entroping.models.hurl import (
+    HurlMetadataSyntaxError,
+    HurlTest,
+    parse_hurl_exchanges,
+    parse_hurl_metadata,
+)
 from entroping.models.report import RunReport, RunTestReport
 
 FAILURE_BUNDLE_SCHEMA_VERSION: Final = "entroping.failure-bundle.v1"
 HURL_METADATA_SCHEMA_VERSION: Final = "entroping.hurl-metadata.v1"
+_MAX_FAILURE_BUNDLE_ARTIFACT_BYTES: Final = LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES
 
 _DEFAULT_OUTPUT_DIR = Path("reports") / "failure-bundle"
 _OPTIONAL_TEXT_ARTIFACTS: Final = (
@@ -138,7 +146,16 @@ def create_failure_bundle(
         source_path = _resolve_optional_artifact(root, artifact_path, artifact=kind)
         if source_path is None:
             continue
-        content = redact_hurl_output(source_path.read_text(encoding="utf-8"))
+        try:
+            content = redact_hurl_output(
+                read_text_bounded(
+                    source_path,
+                    max_bytes=_MAX_FAILURE_BUNDLE_ARTIFACT_BYTES,
+                    label=f"{kind} artifact",
+                )
+            )
+        except BoundedReadError as exc:
+            raise FailureBundleError(str(exc)) from exc
         artifacts.append(
             _write_bundle_text(
                 root=root,
@@ -241,8 +258,23 @@ def _hurl_metadata_for_failed_test(test: RunTestReport, *, root: Path) -> dict[s
 def _discover_single_hurl_test(path: Path) -> HurlTest | None:
     if not path.exists():
         return None
-    discovered = discover_hurl_tests([path])
-    return discovered[0] if discovered else None
+    if path.suffix != ".hurl":
+        msg = f"Expected a .hurl file, got: {path}"
+        raise FailureBundleError(msg)
+    try:
+        content = read_hurl_source_text(path)
+        return HurlTest(
+            path=path.resolve(),
+            metadata=parse_hurl_metadata(content, source=path),
+            exchanges=parse_hurl_exchanges(content),
+        )
+    except (
+        HurlMetadataSyntaxError,
+        HurlSourceTooLargeError,
+        OSError,
+        UnicodeDecodeError,
+    ) as exc:
+        raise FailureBundleError(str(exc)) from exc
 
 
 def _redacted_hurl_metadata(metadata: Mapping[str, str]) -> dict[str, str]:
