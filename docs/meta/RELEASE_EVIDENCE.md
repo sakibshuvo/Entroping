@@ -63,13 +63,19 @@ Actions runs on `main`, use:
 uv run python scripts/release_evidence.py --check-freshness --strict
 ```
 
-That optional check uses `gh run list` when GitHub CLI is installed and
+`scripts/release_check.sh` runs this freshness check by default for the release
+gate. The check uses `gh run list` when GitHub CLI is installed and
 authenticated. If `gh` is missing, unauthenticated, or unavailable, the command
 reports `freshness.status=unavailable` and leaves normal offline ledger
 validation intact. It does not mutate the ledger; stale output names the exact
 recorded fields to refresh, such as `latest_main_ci.run_id`,
 `latest_main_ci.commit`, `latest_pages_ci.run_id`, and
 `latest_pages_ci.commit`.
+
+For a deliberately offline/local diagnostic, `scripts/release_check.sh
+--skip-release-evidence-freshness` validates the committed ledger without the
+GitHub freshness comparison. Do not use that form for release-candidate signoff,
+package-index proof, or stable-core claims.
 
 If the latest successful `main` runs are newer only because the
 release-evidence refresh commit itself merged, the freshness check treats that
