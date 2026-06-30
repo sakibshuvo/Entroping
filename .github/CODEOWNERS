@@ -1,0 +1,12 @@
+# QAnstitution governance and policy enforcement surfaces.
+/.github/CODEOWNERS @sakibshuvo
+qanstitution.yaml @sakibshuvo
+consumer-qanstitution.yaml @sakibshuvo
+/docs/technical/qanstitution.schema.json @sakibshuvo
+/docs/technical/QANSTITUTION_REFERENCE.md @sakibshuvo
+/examples/policy-packs/** @sakibshuvo
+/src/entroping/models/qanstitution*.py @sakibshuvo
+/src/entroping/core/config_loader.py @sakibshuvo
+/src/entroping/core/gate_injector.py @sakibshuvo
+/src/entroping/bridge/policy_to_hurl.py @sakibshuvo
+/scripts/update_qanstitution_schema.py @sakibshuvo
