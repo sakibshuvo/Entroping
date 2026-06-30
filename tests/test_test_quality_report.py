@@ -7,6 +7,7 @@ from typing import NoReturn
 import pytest
 
 import entroping.core.test_quality_report as test_quality_report
+import entroping.hurl_source as hurl_source
 from entroping.bridge.test_quality import (
     TEST_QUALITY_REPORT_SCHEMA_VERSION,
     compile_test_quality_report,
@@ -187,6 +188,35 @@ def test_render_test_quality_markdown_omits_raw_hurl_values(tmp_path: Path) -> N
     assert "secret-123" not in markdown
     assert "live-secret-token" not in json.dumps(payload)
     assert "secret-123" not in json.dumps(payload)
+
+
+def test_compile_test_quality_report_rejects_oversized_generated_hurl_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "tests" / "generated" / "oversized.hurl"
+    _write_text(
+        source,
+        """
+        # entroping: source=architect
+        # entroping: tags=generated
+
+        GET {{base_url}}/tokens
+        HTTP 200
+        [Asserts]
+        jsonpath "$.token" exists
+        """,
+    )
+    hurl_tests = tuple(discover_hurl_tests((tmp_path / "tests",)))
+    source.write_bytes(source.read_bytes() + (b"x" * 64))
+    monkeypatch.setattr(hurl_source, "HURL_SOURCE_MAX_BYTES", 32)
+
+    with pytest.raises(hurl_source.HurlSourceTooLargeError, match=r"Hurl source .* exceeds 32"):
+        compile_test_quality_report(
+            hurl_tests,
+            project="token-api",
+            root=tmp_path,
+        )
 
 
 def test_compile_test_quality_report_treats_generated_tag_as_generated(

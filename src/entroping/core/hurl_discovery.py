@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from entroping.core.tag_expression import CompiledTagExpression
+from entroping.hurl_source import HurlSourceTooLargeError, read_hurl_source_text
 from entroping.models.hurl import (
     HurlMetadataSyntaxError,
     HurlTest,
@@ -132,7 +133,9 @@ def discover_hurl_test_selection(
 
     for path in candidates:
         try:
-            content = path.read_text(encoding="utf-8")
+            content = read_hurl_source_text(path)
+        except HurlSourceTooLargeError as exc:
+            raise HurlMetadataSyntaxError(str(exc)) from exc
         except UnicodeDecodeError as exc:
             msg = f"{path}: file is not valid UTF-8"
             raise HurlMetadataSyntaxError(msg) from exc

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from entroping.core.gate_injector import HurlExecutionCopy
+from entroping.hurl_source import HurlSourceTooLargeError, read_hurl_source_text
 
 _HURL_TEMPLATE_RE = re.compile(r"\{\{\s*(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*\}\}")
 _SECTION_RE = re.compile(r"^\s*\[(?P<name>[A-Za-z][A-Za-z0-9_-]*)\]\s*$")
@@ -68,7 +69,9 @@ def find_missing_hurl_variables(
 
 def _read_execution_content(path: Path) -> str:
     try:
-        return path.read_text(encoding="utf-8")
+        return read_hurl_source_text(path, label="execution Hurl copy")
+    except HurlSourceTooLargeError as exc:
+        raise HurlVariablePreflightError(str(exc)) from exc
     except UnicodeDecodeError as exc:
         msg = f"{path}: execution Hurl copy is not valid UTF-8"
         raise HurlVariablePreflightError(msg) from exc

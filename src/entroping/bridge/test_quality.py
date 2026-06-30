@@ -6,6 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from entroping.hurl_source import read_hurl_source_text
 from entroping.models.hurl import HurlTest
 
 TEST_QUALITY_REPORT_SCHEMA_VERSION = "entroping.test-quality-report.v1"
@@ -121,7 +122,7 @@ def compile_test_quality_report(
     for hurl_test in hurl_tests:
         if not _is_generated_test(hurl_test, root=resolved_root):
             continue
-        content = hurl_test.path.read_text(encoding="utf-8")
+        content = read_hurl_source_text(hurl_test.path)
         generated.append(_score_test(hurl_test, content=content, root=resolved_root))
 
     corpus_findings = _corpus_findings(tuple(generated))
