@@ -542,6 +542,14 @@ def test_readme_current_alpha_does_not_understate_alpha_as_scaffold() -> None:
     )[0]
 
     assert "active alpha implementation" in current_alpha
+    assert "tiered report panels" in current_alpha
+    for report_panel in (
+        "Launch-Critical",
+        "Stable Public",
+        "Maintainer/Baseline",
+        "Experimental Design-Partner",
+    ):
+        assert report_panel in current_alpha
     assert "initial Entroping knowledge base and implementation scaffold" not in readme
     assert "Python package scaffold" not in readme
     assert "Try the scaffolded CLI" not in readme

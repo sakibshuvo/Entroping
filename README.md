@@ -71,7 +71,7 @@ Version note: v4.1 is the product/spec/CLI contract generation, not the Python p
 
 Public roadmap: [ROADMAP.md](ROADMAP.md) and [GitHub Project board](https://github.com/users/sakibshuvo/projects/1).
 
-Built today: locked v4.1 CLI surface, QAnstitution validation, Hurl discovery and execution, deterministic OpenAPI generation, prompt-backed Architect workflows through LiteLLM, Eye capture/freeze/map foundations, report artifacts, and local plus CI gates.
+Built today: locked v4.1 CLI surface, QAnstitution validation, Hurl discovery and execution, deterministic OpenAPI generation, prompt-backed Architect workflows through LiteLLM, Eye capture/freeze/map foundations, tiered report panels for Launch-Critical, Stable Public, Maintainer/Baseline, and Experimental Design-Partner artifacts, and local plus CI gates.
 
 Still alpha: package-index proof, compatibility graduation, and real downstream feedback remain open stable-core blockers. Dependency-call drift is route-level only, and Architect UX remains intentionally narrow.
 
