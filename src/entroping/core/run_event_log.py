@@ -4,13 +4,17 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Final
 
+from entroping.core.bounded_read import BoundedReadError, read_text_bounded
+from entroping.core.evidence_common import LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES
 from entroping.core.hurl_runner import redact_hurl_output
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.safe_write import SafeWriteError, safe_append_text, safe_write_text
 
 RUN_EVENT_LOG_SCHEMA_VERSION = "entroping.run-events.v1"
 RUN_EVENT_LOG_LOCK_NAME = "latest-run-events.lock"
+_MAX_RUN_EVENT_LOG_BYTES: Final = LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES
 
 
 class RunEventLogError(RuntimeError):
@@ -22,7 +26,14 @@ def read_run_events(path: Path) -> list[dict[str, object]]:
 
     if not path.exists():
         return []
-    content = path.read_text(encoding="utf-8")
+    try:
+        content = read_text_bounded(
+            path,
+            max_bytes=_MAX_RUN_EVENT_LOG_BYTES,
+            label="run event log",
+        )
+    except BoundedReadError as exc:
+        raise RunEventLogError(str(exc)) from exc
     events: list[dict[str, object]] = []
     lines = content.splitlines()
     for line_number, line in enumerate(lines, start=1):

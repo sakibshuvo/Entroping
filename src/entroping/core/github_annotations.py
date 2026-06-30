@@ -8,7 +8,7 @@ import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Literal, Protocol, cast
+from typing import Final, Literal, Protocol, cast
 
 from defusedxml import ElementTree
 from defusedxml.common import DefusedXmlException
@@ -17,11 +17,14 @@ from entroping.bridge.story_traceability import (
     StoryTraceabilityReport,
     compile_story_traceability,
 )
+from entroping.core.bounded_read import BoundedReadError, read_text_bounded
 from entroping.core.drift_report import DRIFT_REPORT_SCHEMA_VERSION
+from entroping.core.evidence_common import LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES
 from entroping.core.hurl_discovery import discover_hurl_tests
 from entroping.core.hurl_runner import redact_hurl_output
 
 AnnotationLevel = Literal["error", "warning", "notice"]
+_MAX_GITHUB_ANNOTATION_ARTIFACT_BYTES: Final = LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES
 
 
 class _XmlElement(Protocol):
@@ -214,12 +217,16 @@ def main(argv: list[str] | None = None) -> int:
 
 def _load_json_object(path: Path, *, artifact: str) -> dict[str, object]:
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        raw_json = read_text_bounded(
+            path,
+            max_bytes=_MAX_GITHUB_ANNOTATION_ARTIFACT_BYTES,
+            label=artifact,
+        )
+        data = json.loads(raw_json)
+    except BoundedReadError as exc:
+        raise GitHubAnnotationError(str(exc)) from exc
     except json.JSONDecodeError as exc:
         msg = f"Could not parse {artifact} {path}: {exc}"
-        raise GitHubAnnotationError(msg) from exc
-    except OSError as exc:
-        msg = f"Could not read {artifact} {path}: {exc}"
         raise GitHubAnnotationError(msg) from exc
     if not isinstance(data, dict):
         msg = f"{artifact.capitalize()} {path} must be a JSON object"

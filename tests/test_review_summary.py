@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import entroping.core.review_summary as review_summary
 from entroping.bridge.story_traceability import compile_story_traceability
 from entroping.core.review_summary import (
     ReviewSummaryError,
@@ -696,6 +697,43 @@ def test_review_summary_rejects_malformed_run_json(tmp_path: Path) -> None:
             run_json_path=run_json,
             junit_path=reports_dir / "junit.xml",
             drift_path=reports_dir / "drift.json",
+            traceability_report=None,
+        )
+
+
+def test_review_summary_rejects_oversized_json_artifacts_before_full_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    drift_json = reports_dir / "drift.json"
+    content = '{"findings":[]}\n'
+    drift_json.write_text(content, encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def reject_full_artifact_read(
+        path: Path,
+        encoding: str | None = None,
+        errors: str | None = None,
+    ) -> str:
+        if path == drift_json:
+            msg = "review summary used unbounded read_text"
+            raise AssertionError(msg)
+        return original_read_text(path, encoding=encoding, errors=errors)
+
+    monkeypatch.setattr(
+        review_summary,
+        "_MAX_REVIEW_SUMMARY_ARTIFACT_BYTES",
+        len(content) - 1,
+    )
+    monkeypatch.setattr(Path, "read_text", reject_full_artifact_read)
+
+    with pytest.raises(ReviewSummaryError, match="drift report .* exceeds"):
+        build_review_summary(
+            run_json_path=reports_dir / "run-latest.json",
+            junit_path=reports_dir / "junit.xml",
+            drift_path=drift_json,
             traceability_report=None,
         )
 

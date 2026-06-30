@@ -238,6 +238,39 @@ def test_write_report_artifact_manifest_reports_broken_existing_audit_chain(
     assert len(chain_path.read_text(encoding="utf-8").splitlines()) == 1
 
 
+def test_write_report_artifact_manifest_rejects_oversized_audit_chain_before_full_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    write_report_artifact_manifest(project_root=tmp_path)
+    chain_path = _chain_path(tmp_path)
+    content = chain_path.read_text(encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def reject_full_chain_read(
+        path: Path,
+        encoding: str | None = None,
+        errors: str | None = None,
+    ) -> str:
+        if path == chain_path:
+            msg = "report audit chain used unbounded read_text"
+            raise AssertionError(msg)
+        return original_read_text(path, encoding=encoding, errors=errors)
+
+    monkeypatch.setattr(
+        artifact_manifest,
+        "_MAX_REPORT_AUDIT_CHAIN_BYTES",
+        len(content) - 1,
+    )
+    monkeypatch.setattr(Path, "read_text", reject_full_chain_read)
+
+    with pytest.raises(
+        ReportArtifactManifestError,
+        match="report audit chain .* exceeds",
+    ):
+        write_report_artifact_manifest(project_root=tmp_path)
+
+
 def test_write_report_artifact_manifest_redacts_secret_like_audit_metadata(
     tmp_path: Path,
 ) -> None:
@@ -344,18 +377,28 @@ def test_write_report_artifact_manifest_wraps_audit_chain_read_errors(
         '{"schema_version":"entroping.run-report.v1"}\n',
     )
     write_report_artifact_manifest(project_root=tmp_path)
-    original_read_text = Path.read_text
+    original_open = Path.open
 
-    def fail_read_text(
+    def fail_open(
         path: Path,
+        mode: str = "r",
+        buffering: int = -1,
         encoding: str | None = None,
         errors: str | None = None,
-    ) -> str:
+        newline: str | None = None,
+    ) -> object:
         if path == _chain_path(tmp_path):
             raise OSError("read failed")
-        return original_read_text(path, encoding=encoding, errors=errors)
+        return original_open(
+            path,
+            mode=mode,
+            buffering=buffering,
+            encoding=encoding,
+            errors=errors,
+            newline=newline,
+        )
 
-    monkeypatch.setattr(Path, "read_text", fail_read_text)
+    monkeypatch.setattr(Path, "open", fail_open)
 
     with pytest.raises(ReportArtifactManifestError, match="Could not read report audit chain"):
         write_report_artifact_manifest(project_root=tmp_path)

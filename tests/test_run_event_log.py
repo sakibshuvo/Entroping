@@ -281,6 +281,37 @@ def test_read_run_events_rejects_non_object_line(tmp_path: Path) -> None:
         read_run_events(log_path)
 
 
+def test_read_run_events_rejects_oversized_log_before_full_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    log_path = tmp_path / ".entroping" / "latest-run-events.jsonl"
+    log_path.parent.mkdir()
+    content = '{"event":"run_started","schema_version":"entroping.run-events.v1"}\n'
+    log_path.write_text(content, encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def reject_full_log_read(
+        path: Path,
+        encoding: str | None = None,
+        errors: str | None = None,
+    ) -> str:
+        if path == log_path:
+            msg = "run event log used unbounded read_text"
+            raise AssertionError(msg)
+        return original_read_text(path, encoding=encoding, errors=errors)
+
+    monkeypatch.setattr(
+        run_event_log,
+        "_MAX_RUN_EVENT_LOG_BYTES",
+        len(content) - 1,
+    )
+    monkeypatch.setattr(Path, "read_text", reject_full_log_read)
+
+    with pytest.raises(RunEventLogError, match="run event log .* exceeds"):
+        read_run_events(log_path)
+
+
 def test_read_run_events_skips_blank_lines(tmp_path: Path) -> None:
     log_path = tmp_path / ".entroping" / "latest-run-events.jsonl"
     log_path.parent.mkdir()

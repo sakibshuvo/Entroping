@@ -16,6 +16,8 @@ from pydantic import (
     field_validator,
 )
 
+from entroping.core.bounded_read import BoundedReadError, read_text_bounded
+from entroping.core.evidence_common import LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES
 from entroping.core.safe_write import SafeWriteError, safe_append_text, safe_write_text
 from entroping.models.secrets import (
     contains_secret_like_value,
@@ -25,6 +27,7 @@ from entroping.models.secrets import (
 )
 
 STRUCTURED_DIAGNOSTICS_SCHEMA_VERSION: Final = "entroping.diagnostics.v1"
+_MAX_DIAGNOSTIC_EVENT_LOG_BYTES: Final = LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES
 
 type DiagnosticSeverity = Literal["debug", "info", "warning", "error"]
 type DiagnosticAttributeValue = str | int | float | bool | None
@@ -205,7 +208,14 @@ def read_diagnostic_events(path: Path) -> list[StructuredDiagnosticEvent]:
 
     if not path.exists():
         return []
-    content = path.read_text(encoding="utf-8")
+    try:
+        content = read_text_bounded(
+            path,
+            max_bytes=_MAX_DIAGNOSTIC_EVENT_LOG_BYTES,
+            label="diagnostic event log",
+        )
+    except BoundedReadError as exc:
+        raise StructuredDiagnosticsError(str(exc)) from exc
     events: list[StructuredDiagnosticEvent] = []
     lines = content.splitlines()
     for line_number, line in enumerate(lines, start=1):
