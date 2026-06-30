@@ -281,6 +281,47 @@ def test_read_diagnostic_events_returns_empty_list_when_missing(tmp_path: Path) 
     assert read_diagnostic_events(tmp_path / ".entroping" / "latest-diagnostics.jsonl") == []
 
 
+def test_read_diagnostic_events_rejects_oversized_log_before_full_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    log_path = tmp_path / ".entroping" / "latest-diagnostics.jsonl"
+    log_path.parent.mkdir()
+    event = diagnostic_event_to_dict(
+        build_diagnostic_event(
+            component="run",
+            operation="run.started",
+            severity="info",
+            code="run_started",
+            summary="Run started",
+            timestamp="2026-06-19T00:00:00+00:00",
+        )
+    )
+    content = json.dumps(event) + "\n"
+    log_path.write_text(content, encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def reject_full_diagnostic_read(
+        path: Path,
+        encoding: str | None = None,
+        errors: str | None = None,
+    ) -> str:
+        if path == log_path:
+            msg = "diagnostic log used unbounded read_text"
+            raise AssertionError(msg)
+        return original_read_text(path, encoding=encoding, errors=errors)
+
+    monkeypatch.setattr(
+        structured_diagnostics,
+        "_MAX_DIAGNOSTIC_EVENT_LOG_BYTES",
+        len(content) - 1,
+    )
+    monkeypatch.setattr(Path, "read_text", reject_full_diagnostic_read)
+
+    with pytest.raises(StructuredDiagnosticsError, match="diagnostic event log .* exceeds"):
+        read_diagnostic_events(log_path)
+
+
 def test_structured_diagnostic_log_wraps_safe_write_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

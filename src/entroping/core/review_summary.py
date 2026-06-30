@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from html import escape
 from pathlib import Path
-from typing import Literal, Protocol, cast
+from typing import Final, Literal, Protocol, cast
 
 from defusedxml import ElementTree
 from defusedxml.common import DefusedXmlException
@@ -16,6 +16,8 @@ from entroping.bridge.story_traceability import (
     StoryTraceabilityReport,
     compile_story_traceability,
 )
+from entroping.core.bounded_read import BoundedReadError, read_text_bounded
+from entroping.core.evidence_common import LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES
 from entroping.core.hurl_discovery import discover_hurl_tests
 from entroping.core.hurl_runner import redact_hurl_output
 from entroping.core.report_serialization import RUN_REPORT_SCHEMA_VERSION
@@ -25,6 +27,7 @@ ReviewStatus = Literal["pass", "attention", "fail"]
 FindingSeverity = Literal["error", "warning", "notice"]
 ArtifactState = Literal["present", "missing", "disabled"]
 _OUTSIDE_PROJECT_PATH = "[outside project]"
+_MAX_REVIEW_SUMMARY_ARTIFACT_BYTES: Final = LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES
 
 
 class _XmlElement(Protocol):
@@ -472,7 +475,14 @@ def _summary_failure_finding(
 
 def _load_json_object(path: Path, *, artifact: str) -> dict[str, object]:
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        raw_json = read_text_bounded(
+            path,
+            max_bytes=_MAX_REVIEW_SUMMARY_ARTIFACT_BYTES,
+            label=artifact,
+        )
+        data = json.loads(raw_json)
+    except BoundedReadError as exc:
+        raise ReviewSummaryError(str(exc)) from exc
     except json.JSONDecodeError as exc:
         msg = f"Could not parse {artifact} {path}: {exc}"
         raise ReviewSummaryError(msg) from exc

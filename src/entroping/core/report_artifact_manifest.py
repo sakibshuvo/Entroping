@@ -11,6 +11,7 @@ from defusedxml import ElementTree
 from defusedxml.common import DefusedXmlException
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from entroping.core.bounded_read import BoundedReadError, read_text_bounded
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.safe_write import SafeWriteError, safe_write_text
 from entroping.models.secrets import redact_secret_like_values
@@ -35,6 +36,7 @@ ReportArtifactAuditVerificationStatus = Literal["verified", "broken"]
 _DEFAULT_OUTPUT_PATH: Final = Path("reports") / "artifact-manifest.json"
 _DEFAULT_AUDIT_CHAIN_PATH: Final = Path(".entroping") / "report-audit-chain.jsonl"
 _MAX_REPORT_ARTIFACT_BYTES: Final = 100 * 1024 * 1024
+_MAX_REPORT_AUDIT_CHAIN_BYTES: Final = _MAX_REPORT_ARTIFACT_BYTES
 
 
 @dataclass(frozen=True, slots=True)
@@ -501,10 +503,13 @@ def _load_audit_chain(path: Path, *, root: Path) -> _AuditChainState:
         raise ReportArtifactManifestError(msg)
 
     try:
-        raw_lines = path.read_text(encoding="utf-8").splitlines()
-    except OSError as exc:
-        msg = f"Could not read report audit chain {_display_path(path, root=root)}: {exc}"
-        raise ReportArtifactManifestError(msg) from exc
+        raw_lines = read_text_bounded(
+            path,
+            max_bytes=_MAX_REPORT_AUDIT_CHAIN_BYTES,
+            label="report audit chain",
+        ).splitlines()
+    except BoundedReadError as exc:
+        raise ReportArtifactManifestError(str(exc)) from exc
 
     events: list[ReportArtifactAuditEvent] = []
     expected_previous_hash: str | None = None

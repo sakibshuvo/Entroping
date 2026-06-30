@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import entroping.core.github_annotations as github_annotations
 from entroping.bridge.story_traceability import (
     StoryTraceabilityFinding,
     StoryTraceabilityReport,
@@ -589,3 +590,33 @@ def test_github_annotations_main_returns_controlled_drift_schema_errors(
     assert "Unsupported drift report schema_version" in captured.err
     assert "entroping.run-report.v1" not in captured.err
     assert "Traceback" not in captured.err
+
+
+def test_github_annotations_rejects_oversized_drift_before_full_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    drift = tmp_path / "drift.json"
+    content = '{"schema_version":"entroping.drift-report.v1","findings":[]}\n'
+    drift.write_text(content, encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def reject_full_drift_read(
+        path: Path,
+        encoding: str | None = None,
+        errors: str | None = None,
+    ) -> str:
+        if path == drift:
+            msg = "github annotations used unbounded read_text"
+            raise AssertionError(msg)
+        return original_read_text(path, encoding=encoding, errors=errors)
+
+    monkeypatch.setattr(
+        github_annotations,
+        "_MAX_GITHUB_ANNOTATION_ARTIFACT_BYTES",
+        len(content) - 1,
+    )
+    monkeypatch.setattr(Path, "read_text", reject_full_drift_read)
+
+    with pytest.raises(GitHubAnnotationError, match="drift report .* exceeds"):
+        annotations_from_drift_report(drift)
