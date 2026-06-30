@@ -30,8 +30,8 @@ Environment thresholds:
                                   Optional previous reports/quality-trend.json
                                   to compute numeric deltas.
   ENTROPING_SCRIPT_QUALITY_BASELINE
-                                  Optional previous script-quality report
-                                  for ratchet comparison.
+                                  Script-quality ratchet baseline.
+                                  Default: docs/meta/script-quality-ratchet-baseline.json.
 
 Options:
   --dry-run   Show deterministic audit steps without running them.
@@ -63,7 +63,7 @@ coverage_fail_under="${ENTROPING_COVERAGE_FAIL_UNDER:-100}"
 max_complexity_rank="${ENTROPING_MAX_COMPLEXITY_RANK:-D}"
 min_mi_rank="${ENTROPING_MIN_MI_RANK:-C}"
 vulture_confidence="${ENTROPING_VULTURE_CONFIDENCE:-90}"
-script_quality_baseline="${ENTROPING_SCRIPT_QUALITY_BASELINE:-}"
+script_quality_baseline="${ENTROPING_SCRIPT_QUALITY_BASELINE:-docs/meta/script-quality-ratchet-baseline.json}"
 
 log() {
   printf '[quality-audit] %s\n' "$*"

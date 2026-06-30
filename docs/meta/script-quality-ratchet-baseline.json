@@ -1,0 +1,57 @@
+{
+  "coverage": {
+    "covered_lines": 114,
+    "files": [
+      {
+        "covered_lines": 31,
+        "missing_lines": 1,
+        "path": "scripts/optional_extras_smoke.py",
+        "percent_covered": 96.88,
+        "statements": 32
+      },
+      {
+        "covered_lines": 83,
+        "missing_lines": 19,
+        "path": "scripts/script_safety.py",
+        "percent_covered": 81.37,
+        "statements": 102
+      }
+    ],
+    "missing_lines": 20,
+    "percent_covered": 85.07,
+    "statements": 134
+  },
+  "deferred_subprocess_covered_scripts": [
+    "scripts/factory_inbox.py",
+    "scripts/factory_inbox_core.py",
+    "scripts/factory_inbox_io.py",
+    "scripts/factory_review_packet.py",
+    "scripts/package_index_readiness.py",
+    "scripts/package_index_readiness_checks.py",
+    "scripts/pr_body_check.py",
+    "scripts/release_evidence.py"
+  ],
+  "description": "Release-critical Python script coverage ratchet for scripts with in-process coverage visibility. Subprocess-heavy release/factory scripts stay visible in script-quality reports and should graduate into script_paths once coverage can observe their tests.",
+  "schema_version": "entroping.script-quality-ratchet-baseline.v1",
+  "script_paths": [
+    "scripts/optional_extras_smoke.py",
+    "scripts/script_safety.py"
+  ],
+  "typing": {
+    "files": [
+      {
+        "path": "scripts/optional_extras_smoke.py",
+        "total_functions": 2,
+        "typed_functions": 2
+      },
+      {
+        "path": "scripts/script_safety.py",
+        "total_functions": 8,
+        "typed_functions": 8
+      }
+    ],
+    "function_annotation_coverage_percent": 100.0,
+    "total_functions": 10,
+    "typed_functions": 10
+  }
+}
