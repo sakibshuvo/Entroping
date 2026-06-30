@@ -130,7 +130,6 @@ sources:
   stories: "./docs/stories"
   traffic: ".entroping/state.db"
   graph: "./schema.graphql"
-  types: "./specs/typespec"
 
 dependencies:
   - name: "auth-service"
@@ -264,7 +263,6 @@ sources:
   stories: "./docs/stories"
   traffic: ".entroping/state.db"
   graph: "./schema.graphql"
-  types: "./specs/typespec"
 ```
 
 | Source | Purpose |
@@ -273,7 +271,12 @@ sources:
 | `stories` | Markdown product stories for traceability |
 | `traffic` | SQLite traffic store used by Eye workflows |
 | `graph` | GraphQL schema input |
-| `types` | TypeSpec or future schema input |
+| `types` | Reserved future schema metadata; not a current TypeSpec compiler input |
+
+`sources.types` remains an accepted schema field for compatibility and future
+source metadata, but current Entroping alpha commands do not consume it. It does
+not generate Hurl tests, drive inventory output, or participate in drift checks.
+Use `sources.spec` for implemented OpenAPI generation and drift behavior.
 
 Primary-service `sources.spec` must reference a local file inside the project
 root. Architect rejects remote primary specs, parent/root escapes, and symlinked

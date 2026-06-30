@@ -605,3 +605,19 @@ def test_qanstitution_schema_authoring_guidance_is_public_and_editor_ready() -> 
     assert "`entroping doctor` remains the authoritative runtime validation" in readme
     assert "technical/qanstitution.schema.json" in docs_index
     assert "QAnstitution Reference: technical/QANSTITUTION_REFERENCE.md" in mkdocs
+
+
+def test_qanstitution_reference_marks_types_source_as_reserved_metadata() -> None:
+    reference = (REPO_ROOT / "docs" / "technical" / "QANSTITUTION_REFERENCE.md").read_text(
+        encoding="utf-8"
+    )
+    sources_section = reference.split("## 5. Sources", maxsplit=1)[1].split(
+        "## 6. Dependencies",
+        maxsplit=1,
+    )[0]
+    normalized_sources_section = " ".join(sources_section.split())
+
+    assert 'types: "./specs/typespec"' not in reference
+    assert "Reserved future schema metadata" in sources_section
+    assert "not a current TypeSpec compiler input" in sources_section
+    assert "does not generate Hurl tests" in normalized_sources_section
