@@ -12,6 +12,7 @@ from entroping.models import ArchitectEdit, ArchitectEditSet
 
 _ARCHITECT_SOURCE_MARKER = "# entroping: source=architect"
 _OWNERSHIP_HEADER_READ_LIMIT_BYTES = 4096
+_OWNERSHIP_HEADER_UTF8_LOOKAHEAD_BYTES = 4
 
 
 class ArchitectWriteError(ValueError):
@@ -146,10 +147,12 @@ def _has_architect_header(content: str) -> bool:
 
 
 def _read_ownership_header_prefix(path: Path) -> str:
+    decode_limit = _OWNERSHIP_HEADER_READ_LIMIT_BYTES + _OWNERSHIP_HEADER_UTF8_LOOKAHEAD_BYTES
     with path.open("rb") as handle:
-        raw_prefix = handle.read(_OWNERSHIP_HEADER_READ_LIMIT_BYTES)
+        raw_prefix = handle.read(decode_limit + 1)
+    file_continues = len(raw_prefix) > decode_limit
     decoder = codecs.getincrementaldecoder("utf-8")(errors="strict")
-    return decoder.decode(raw_prefix, final=False)
+    return decoder.decode(raw_prefix[:decode_limit], final=not file_continues)
 
 
 def _ensure_trailing_newline(content: str) -> str:
