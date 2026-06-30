@@ -49,6 +49,9 @@ def test_audit_quality_dry_run_shows_repeatable_steps() -> None:
     assert "Would run bounded performance smoke" in result.stdout
     assert "coverage fail-under: 100" in result.stdout
     assert "max complexity rank: D" in result.stdout
+    assert "script quality baseline: docs/meta/script-quality-ratchet-baseline.json" in (
+        result.stdout
+    )
 
 
 def test_audit_quality_rejects_unknown_options() -> None:

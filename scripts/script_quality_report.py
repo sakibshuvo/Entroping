@@ -15,7 +15,14 @@ from entroping.core.safe_write import safe_write_text
 
 SCHEMA_VERSION = "entroping.script-quality-report.v1"
 GENERATED_BY = "scripts/script_quality_report.py"
-SCRIPT_TEST_PATTERN = "test_*script*.py"
+SCRIPT_TEST_PATTERNS = (
+    "test_*script*.py",
+    "test_doc_governance_script.py",
+    "test_factory_inbox.py",
+    "test_factory_review_packet.py",
+    "test_package_index_readiness.py",
+    "test_release_evidence.py",
+)
 SCRIPT_SOURCE_MAX_BYTES = 1_000_000
 JSON_MAX_BYTES = 10_000_000
 PYTEST_TIMEOUT_SECONDS = 300
@@ -105,7 +112,10 @@ def _collect_script_inventory(root: Path) -> list[dict[str, object]]:
 def _discover_script_tests(tests_root: Path) -> tuple[Path, ...]:
     if not tests_root.is_dir():
         return ()
-    return tuple(sorted(tests_root.glob(SCRIPT_TEST_PATTERN)))
+    discovered: set[Path] = set()
+    for pattern in SCRIPT_TEST_PATTERNS:
+        discovered.update(tests_root.glob(pattern))
+    return tuple(sorted(discovered))
 
 
 def _run_script_coverage(
@@ -298,6 +308,107 @@ def _baseline_value(payload: dict[str, object], *keys: str) -> float | None:
     return float(value)
 
 
+def _baseline_script_paths(payload: dict[str, object]) -> tuple[str, ...] | None:
+    raw_paths = payload.get("script_paths")
+    if raw_paths is None:
+        ratchet = payload.get("ratchet")
+        if isinstance(ratchet, dict):
+            raw_paths = ratchet.get("script_paths")
+    if raw_paths is None:
+        return None
+    if not isinstance(raw_paths, list) or not raw_paths:
+        raise RuntimeError("baseline report has invalid script_paths")
+    paths: list[str] = []
+    for raw_path in raw_paths:
+        if not isinstance(raw_path, str) or raw_path.strip() == "":
+            raise RuntimeError("baseline report has invalid script_paths")
+        paths.append(raw_path)
+    return tuple(dict.fromkeys(paths))
+
+
+def _int_metric(payload: dict[str, object], key: str) -> int:
+    value = payload.get(key)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return 0
+    return int(value)
+
+
+def _file_metrics_by_path(report: dict[str, object], section: str) -> dict[str, dict[str, object]]:
+    raw_section = report.get(section)
+    if not isinstance(raw_section, dict):
+        raise RuntimeError(f"script quality report missing {section} section")
+    raw_files = raw_section.get("files")
+    if not isinstance(raw_files, list):
+        raise RuntimeError(f"script quality report missing {section} files")
+    files: dict[str, dict[str, object]] = {}
+    for raw_file in raw_files:
+        if not isinstance(raw_file, dict):
+            continue
+        path = raw_file.get("path")
+        if isinstance(path, str):
+            files[path] = raw_file
+    return files
+
+
+def _has_file_metrics(report: dict[str, object], section: str) -> bool:
+    raw_section = report.get(section)
+    if not isinstance(raw_section, dict):
+        return False
+    return isinstance(raw_section.get("files"), list)
+
+
+def _coverage_for_script_paths(
+    report: dict[str, object],
+    script_paths: tuple[str, ...],
+) -> dict[str, object]:
+    files = _file_metrics_by_path(report, "coverage")
+    missing_paths = [path for path in script_paths if path not in files]
+    if missing_paths:
+        raise RuntimeError(
+            "script quality ratchet path missing from coverage report: "
+            + ", ".join(missing_paths)
+        )
+
+    selected = [files[path] for path in script_paths]
+    statements = sum(_int_metric(file, "statements") for file in selected)
+    covered = sum(_int_metric(file, "covered_lines") for file in selected)
+    missing = sum(_int_metric(file, "missing_lines") for file in selected)
+    percent = 0.0 if statements == 0 else (covered / float(statements)) * 100.0
+    return {
+        "percent_covered": round(percent, 2),
+        "covered_lines": covered,
+        "missing_lines": missing,
+        "statements": statements,
+    }
+
+
+def _typing_for_script_paths(
+    report: dict[str, object],
+    script_paths: tuple[str, ...],
+) -> dict[str, object]:
+    files = _file_metrics_by_path(report, "typing")
+    missing_paths = [path for path in script_paths if path not in files]
+    if missing_paths:
+        raise RuntimeError(
+            "script quality ratchet path missing from typing report: "
+            + ", ".join(missing_paths)
+        )
+
+    selected = [files[path] for path in script_paths]
+    typed_functions = sum(_int_metric(file, "typed_functions") for file in selected)
+    total_functions = sum(_int_metric(file, "total_functions") for file in selected)
+    percent = (
+        0.0
+        if total_functions == 0
+        else (typed_functions / float(total_functions)) * 100.0
+    )
+    return {
+        "typed_functions": typed_functions,
+        "total_functions": total_functions,
+        "function_annotation_coverage_percent": round(percent, 2),
+    }
+
+
 def _run_ratchet(
     report: dict[str, object],
     baseline_path: Path | None,
@@ -312,18 +423,54 @@ def _run_ratchet(
         }
 
     baseline_payload = _read_json(baseline_path)
-    current_coverage = _baseline_value(report, "coverage", "percent_covered")
-    current_typing = _baseline_value(report, "typing", "function_annotation_coverage_percent")
-    baseline_coverage = _baseline_value(
-        baseline_payload,
-        "coverage",
-        "percent_covered",
-    )
-    baseline_typing = _baseline_value(
-        baseline_payload,
-        "typing",
-        "function_annotation_coverage_percent",
-    )
+    script_paths = _baseline_script_paths(baseline_payload)
+    scope = "all_scripts"
+    current_coverage_summary: dict[str, object] | None = None
+    current_typing_summary: dict[str, object] | None = None
+    baseline_coverage_summary: dict[str, object] | None = None
+    baseline_typing_summary: dict[str, object] | None = None
+    if script_paths is None:
+        current_coverage = _baseline_value(report, "coverage", "percent_covered")
+        current_typing = _baseline_value(
+            report,
+            "typing",
+            "function_annotation_coverage_percent",
+        )
+    else:
+        scope = "selected_scripts"
+        current_coverage_summary = _coverage_for_script_paths(report, script_paths)
+        current_typing_summary = _typing_for_script_paths(report, script_paths)
+        if _has_file_metrics(baseline_payload, "coverage"):
+            baseline_coverage_summary = _coverage_for_script_paths(baseline_payload, script_paths)
+        if _has_file_metrics(baseline_payload, "typing"):
+            baseline_typing_summary = _typing_for_script_paths(baseline_payload, script_paths)
+        current_coverage = _baseline_value(current_coverage_summary, "percent_covered")
+        current_typing = _baseline_value(
+            current_typing_summary,
+            "function_annotation_coverage_percent",
+        )
+    if baseline_coverage_summary is None:
+        baseline_coverage = _baseline_value(
+            baseline_payload,
+            "coverage",
+            "percent_covered",
+        )
+    else:
+        baseline_coverage = _baseline_value(
+            baseline_coverage_summary,
+            "percent_covered",
+        )
+    if baseline_typing_summary is None:
+        baseline_typing = _baseline_value(
+            baseline_payload,
+            "typing",
+            "function_annotation_coverage_percent",
+        )
+    else:
+        baseline_typing = _baseline_value(
+            baseline_typing_summary,
+            "function_annotation_coverage_percent",
+        )
 
     if current_coverage is None or baseline_coverage is None:
         raise RuntimeError("baseline report is missing coverage percent")
@@ -343,6 +490,10 @@ def _run_ratchet(
         "enabled": True,
         "status": status,
         "baseline_path": str(baseline_path),
+        "scope": scope,
+        "script_paths": list(script_paths) if script_paths is not None else None,
+        "coverage": current_coverage_summary,
+        "typing": current_typing_summary,
         "coverage_delta": coverage_delta,
         "typing_delta": typing_delta,
     }

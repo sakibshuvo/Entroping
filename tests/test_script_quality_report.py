@@ -88,6 +88,119 @@ def _write_lower_coverage_json(path: Path) -> None:
     )
 
 
+def _write_selected_script_baseline(path: Path) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.script-quality-ratchet-baseline.v1",
+                "description": "Focused baseline for release-critical scripts.",
+                "script_paths": ["scripts/typed_script.py"],
+                "coverage": {
+                    "statements": 2,
+                    "covered_lines": 2,
+                    "missing_lines": 0,
+                    "percent_covered": 100.0,
+                },
+                "typing": {
+                    "typed_functions": 1,
+                    "total_functions": 1,
+                    "function_annotation_coverage_percent": 100.0,
+                },
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write_generated_selected_scope_baseline(path: Path) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.script-quality-report.v1",
+                "coverage": {
+                    "statements": 8,
+                    "covered_lines": 2,
+                    "missing_lines": 6,
+                    "percent_covered": 25.0,
+                    "files": [
+                        {
+                            "path": "scripts/typed_script.py",
+                            "statements": 2,
+                            "covered_lines": 2,
+                            "missing_lines": 0,
+                            "percent_covered": 100.0,
+                        },
+                        {
+                            "path": "scripts/partial_script.py",
+                            "statements": 6,
+                            "covered_lines": 0,
+                            "missing_lines": 6,
+                            "percent_covered": 0.0,
+                        },
+                    ],
+                },
+                "typing": {
+                    "typed_functions": 1,
+                    "total_functions": 2,
+                    "function_annotation_coverage_percent": 50.0,
+                    "files": [
+                        {
+                            "path": "scripts/typed_script.py",
+                            "typed_functions": 1,
+                            "total_functions": 1,
+                        },
+                        {
+                            "path": "scripts/partial_script.py",
+                            "typed_functions": 0,
+                            "total_functions": 1,
+                        },
+                    ],
+                },
+                "ratchet": {
+                    "enabled": True,
+                    "status": "passed",
+                    "scope": "selected_scripts",
+                    "script_paths": ["scripts/typed_script.py"],
+                    "coverage_delta": 0.0,
+                    "typing_delta": 0.0,
+                },
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write_selected_regression_coverage_json(path: Path) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "files": {
+                    "scripts/typed_script.py": {
+                        "summary": {
+                            "num_statements": 2,
+                            "covered_lines": 1,
+                            "missing_lines": 1,
+                            "percent_covered": 50.0,
+                        }
+                    },
+                    "scripts/partial_script.py": {
+                        "summary": {
+                            "num_statements": 6,
+                            "covered_lines": 0,
+                            "missing_lines": 6,
+                            "percent_covered": 0.0,
+                        }
+                    },
+                }
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_script_quality_report_help_exposes_inputs() -> None:
     result = _run_script_quality("--help")
 
@@ -115,6 +228,17 @@ def test_script_quality_report_dry_run_lists_planned_actions(tmp_path: Path) -> 
     assert "Would run pytest --cov=scripts for script-focused test files." in result.stdout
     assert "Would write machine-readable JSON report under reports/." in result.stdout
     assert not output.exists()
+
+
+def test_script_quality_report_dry_run_lists_release_critical_tests() -> None:
+    result = _run_script_quality("--dry-run")
+
+    assert result.returncode == 0, result.stderr
+    assert "tests/test_release_evidence.py" in result.stdout
+    assert "tests/test_package_index_readiness.py" in result.stdout
+    assert "tests/test_factory_review_packet.py" in result.stdout
+    assert "tests/test_factory_inbox.py" in result.stdout
+    assert "tests/test_doc_governance_script.py" in result.stdout
 
 
 def test_script_quality_report_generates_json_report_and_no_baseline(tmp_path: Path) -> None:
@@ -176,3 +300,59 @@ def test_script_quality_report_baseline_regresses_fail(tmp_path: Path) -> None:
     regression = json.loads((tmp_path / "reports" / "regression.json").read_text(encoding="utf-8"))
     assert regression["ratchet"]["status"] == "regressed"
     assert regression["ratchet"]["coverage_delta"] < 0
+
+
+def test_script_quality_report_baseline_can_ratchet_selected_script_paths(
+    tmp_path: Path,
+) -> None:
+    _prepare_repo(tmp_path)
+    coverage_json = tmp_path / "script-coverage.json"
+    _write_coverage_json(coverage_json)
+    baseline_path = tmp_path / "ratchet-baseline.json"
+    _write_selected_script_baseline(baseline_path)
+    output = tmp_path / "reports" / "selected.json"
+
+    result = _run_script_quality(
+        "--repo-root",
+        str(tmp_path),
+        "--coverage-json",
+        str(coverage_json),
+        "--baseline",
+        str(baseline_path),
+        "--output",
+        str(output),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["ratchet"]["status"] == "passed"
+    assert payload["ratchet"]["scope"] == "selected_scripts"
+    assert payload["ratchet"]["script_paths"] == ["scripts/typed_script.py"]
+    assert payload["ratchet"]["coverage_delta"] == 0.0
+
+
+def test_script_quality_report_generated_selected_baseline_uses_selected_metrics(
+    tmp_path: Path,
+) -> None:
+    _prepare_repo(tmp_path)
+    coverage_json = tmp_path / "script-coverage.json"
+    _write_selected_regression_coverage_json(coverage_json)
+    baseline_path = tmp_path / "selected-report-baseline.json"
+    _write_generated_selected_scope_baseline(baseline_path)
+    output = tmp_path / "reports" / "selected-regression.json"
+
+    result = _run_script_quality(
+        "--repo-root",
+        str(tmp_path),
+        "--coverage-json",
+        str(coverage_json),
+        "--baseline",
+        str(baseline_path),
+        "--output",
+        str(output),
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["ratchet"]["status"] == "regressed"
+    assert payload["ratchet"]["coverage_delta"] == -50.0

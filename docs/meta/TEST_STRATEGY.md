@@ -144,6 +144,13 @@ fields for comparison across runs; set `ENTROPING_QUALITY_TREND_PREVIOUS` to a
 previous trend JSON path when a local audit should include numeric deltas.
 The default Radon cyclomatic-complexity ceiling is rank D; any rank E or F block
 must be refactored or explicitly justified before release-hardening claims.
+The audit also writes `reports/script-quality-report.json` and compares the
+release-critical in-process script subset against
+`docs/meta/script-quality-ratchet-baseline.json` by default. This baseline
+ratchets only scripts whose tests currently produce coverage evidence; the
+subprocess-heavy release and factory scripts remain listed in the baseline as
+deferred candidates until their tests can be observed by the script coverage
+mode.
 
 Performance smoke:
 
