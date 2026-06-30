@@ -5,10 +5,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+
+from script_safety import ScriptSafetyError, read_json_file, run_subprocess
 
 
 def main() -> int:
@@ -48,15 +49,14 @@ def main() -> int:
 def _load_issues(input_path: Path | None, *, repo: str, limit: int) -> list[dict[str, Any]]:
     if input_path is not None:
         try:
-            issue_json = input_path.read_text(encoding="utf-8")
-        except UnicodeDecodeError as exc:
-            raise ValueError(f"issue JSON file is not valid UTF-8: {input_path}") from exc
-        except OSError as exc:
-            raise ValueError(f"could not read issue JSON file {input_path}: {exc}") from exc
-        try:
-            payload = json.loads(issue_json)
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"invalid issue JSON in {input_path}: {exc.msg}") from exc
+            payload = read_json_file(input_path)
+        except ScriptSafetyError as exc:
+            message = str(exc)
+            if "not valid UTF-8" in message:
+                raise ValueError(f"issue JSON file is not valid UTF-8: {input_path}") from exc
+            if "invalid JSON in" in message:
+                raise ValueError(f"invalid issue JSON in {input_path}: {message}") from exc
+            raise ValueError(f"could not read issue JSON file {input_path}: {message}") from exc
     else:
         payload = _load_issues_from_gh(repo=repo, limit=limit)
     if not isinstance(payload, list):
@@ -86,19 +86,12 @@ def _load_issues_from_gh(*, repo: str, limit: int) -> object:
         "number,title,url,labels,milestone",
     ]
     try:
-        completed = subprocess.run(  # nosec B603
-            command,
-            check=False,
-            capture_output=True,
-            encoding="utf-8",
-            timeout=30,
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise ValueError(f"gh issue list timed out after {exc.timeout:g} seconds") from exc
-    except UnicodeDecodeError as exc:
-        raise ValueError("gh issue list returned output that was not valid text") from exc
-    except OSError as exc:
-        raise ValueError(f"could not run gh issue list: {exc}") from exc
+        completed = run_subprocess(command, check=False, timeout=30)
+    except ScriptSafetyError as exc:
+        message = str(exc)
+        if message.startswith("command timed out after"):
+            raise ValueError("gh issue list timed out after 30 seconds") from exc
+        raise ValueError(f"could not run gh issue list: {message}") from exc
     if completed.returncode != 0:
         details = completed.stderr.strip() or completed.stdout.strip() or "unknown error"
         raise ValueError(f"gh issue list failed: {details}")

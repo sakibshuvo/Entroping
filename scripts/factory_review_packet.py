@@ -5,13 +5,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess  # nosec B404
 import sys
 import tempfile
 from pathlib import Path
 from typing import Any
 
 from ai_worker_file_safety import secret_like_content_reason
+from script_safety import ScriptSafetyError, read_json_file, read_text_file, run_subprocess
 
 DEFAULT_JOB_ROOT = Path(".entroping") / "ai-jobs"
 DEFAULT_ARTIFACT_ROOT = Path(".entroping") / "ai-reviews"
@@ -106,14 +106,13 @@ def _parse_args() -> argparse.Namespace:
 
 def _repo_root() -> Path:
     try:
-        completed = subprocess.run(  # nosec B603
+        completed = run_subprocess(
             ["git", "rev-parse", "--show-toplevel"],
             check=True,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
+            timeout=5,
+            max_output_bytes=2048,
         )
-    except (OSError, subprocess.CalledProcessError) as exc:
+    except ScriptSafetyError as exc:
         msg = "run this from inside the Entroping git repository"
         raise PacketError(msg) from exc
     return Path(completed.stdout.strip()).resolve()
@@ -205,8 +204,8 @@ def _validated_artifact_dir(artifact_root: Path, raw_value: object) -> Path:
 
 def _read_json_object(path: Path) -> dict[str, Any]:
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+        payload = read_json_file(path)
+    except ScriptSafetyError as exc:
         msg = f"could not read JSON object: {path}"
         raise PacketError(msg) from exc
     if not isinstance(payload, dict):
@@ -315,7 +314,7 @@ def _first_existing(root: Path, filenames: tuple[str, ...]) -> Path | None:
 
 
 def _result_summary(path: Path) -> dict[str, str]:
-    content = path.read_text(encoding="utf-8", errors="replace")
+    content = read_text_file(path, errors="replace")
     secret_reason = secret_like_content_reason(content)
     if secret_reason is not None:
         return {"WITHHELD": f"secret-like result summary withheld: {secret_reason}"}
@@ -413,7 +412,7 @@ def _proposal_diff_packet(path: Path) -> dict[str, Any]:
     additions = 0
     deletions = 0
     changed_files: list[str] = []
-    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+    for line in read_text_file(path, errors="replace").splitlines():
         if line.startswith("diff --git "):
             changed_file = _changed_file_from_diff_header(line)
             if changed_file is not None and changed_file not in changed_files:
