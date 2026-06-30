@@ -216,12 +216,15 @@ def test_doc_governance_blocks_strategy_doc_sprawl() -> None:
     governance = (REPO_ROOT / "docs" / "meta" / "DOCS_GOVERNANCE.md").read_text(
         encoding="utf-8"
     )
+    normalized_governance = " ".join(governance.split())
 
     assert "Do not create a new strategy document" in governance
     assert "existing canonical owner" in governance
     assert "GitHub Issues remain the backlog" in governance
     assert "Public Docs Curation Rule" in governance
     assert "Do not expose maintainer memory as first-level public navigation" in governance
+    assert "clearly labeled maintainer reference group" in governance
+    assert "Do not place release runbooks or evidence ledgers" in normalized_governance
 
 
 def test_qanstitution_policy_changes_have_code_owner_review_expectation() -> None:

@@ -2,6 +2,11 @@
 
 ## 2026-06-30
 
+- Added issue #1254's public MkDocs curation: maintainer release evidence now
+  lives under a separate `Maintainer Reference` navigation group, the docs home
+  page keeps release runbooks out of `Start here`, and docs governance records
+  the maintainer-reference placement rule.
+
 - Added issue #1253's QAnstitution governance owner-review expectation:
   `.github/CODEOWNERS` now routes policy-sensitive QAnstitution paths to
   `@sakibshuvo`, and `SECURITY.md` documents that the mapping is only an

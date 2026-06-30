@@ -8,6 +8,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 PAGES_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "pages.yml"
 
 
+def _nav_section(nav: list[object], name: str) -> object:
+    for item in nav:
+        if isinstance(item, dict) and name in item:
+            return item[name]
+    raise AssertionError(f"missing MkDocs nav section: {name}")
+
+
 def test_public_docs_site_decision_compares_options_and_picks_mkdocs() -> None:
     decision = (
         REPO_ROOT / "docs" / "meta" / "PUBLIC_DOCS_SITE_DECISION.md"
@@ -69,12 +76,49 @@ def test_mkdocs_scaffold_uses_existing_docs_tree_with_strict_deploy() -> None:
     assert "user/AI_PROVIDER_SETUP.md" in nav_text
     assert "technical/QANSTITUTION_REFERENCE.md" in nav_text
     assert "meta/PYPI_RELEASE_RUNBOOK.md" in nav_text
-    assert "Maintainer Evidence" in nav_text
+    assert "Maintainer Reference" in nav_text
     assert "docs/evolution" not in nav_text
     assert "OBSIDIAN" not in nav_text
     assert "sources/" not in nav_text
     assert ".context/" not in nav_text
     assert "site/" in gitignore
+
+
+def test_mkdocs_keeps_maintainer_evidence_out_of_first_hour_nav() -> None:
+    config = yaml.safe_load((REPO_ROOT / "mkdocs.yml").read_text(encoding="utf-8"))
+    top_level = [
+        next(iter(item)) if isinstance(item, dict) else item
+        for item in config["nav"]
+    ]
+
+    assert top_level.index("Maintainer Reference") > top_level.index(
+        "Technical Reference"
+    )
+    assert "Maintainer Evidence" not in repr(
+        _nav_section(config["nav"], "Technical Reference")
+    )
+
+    maintainer_nav = repr(_nav_section(config["nav"], "Maintainer Reference"))
+    for expected in [
+        "meta/RELEASE_CHECKLIST.md",
+        "meta/RELEASE_EVIDENCE.md",
+        "meta/PYPI_RELEASE_RUNBOOK.md",
+        "meta/HOMEBREW_TAP_PROTOTYPE.md",
+        "meta/INSTALL_SMOKE_MATRIX.md",
+        "meta/DOWNSTREAM_SMOKE_EVIDENCE.md",
+        "meta/DOWNSTREAM_FEEDBACK_KIT.md",
+    ]:
+        assert expected in maintainer_nav
+
+
+def test_mkdocs_home_keeps_release_runbooks_out_of_start_here() -> None:
+    index = (REPO_ROOT / "docs" / "index.md").read_text(encoding="utf-8")
+    start_here = index.split("## How This Site Fits", maxsplit=1)[0]
+    project_context = index.split("## Project Context", maxsplit=1)[1]
+
+    assert "PyPI Release Runbook" not in start_here
+    assert "maintainer and release evidence" in project_context
+    assert "PyPI Release Runbook" in project_context
 
 
 def test_mkdocs_navigation_exposes_public_roadmap_without_duplicating_it() -> None:
