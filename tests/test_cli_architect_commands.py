@@ -2920,6 +2920,75 @@ def test_write_generated_hurl_file_accepts_owned_file_when_prefix_splits_utf8(
     )
 
 
+def test_write_generated_hurl_file_rejects_truncated_utf8_marker_at_eof(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    target = tmp_path / "tests" / "generated" / "health.hurl"
+    target.parent.mkdir(parents=True)
+    original = b"# entroping: source=openapi\xc3"
+    target.write_bytes(original)
+
+    with pytest.raises(UnicodeDecodeError):
+        architect_cli._write_generated_hurl_file(
+            GeneratedHurlFile(
+                relative_path="tests/generated/health.hurl",
+                content="# entroping: source=openapi\nGET /new-health\nHTTP 200\n",
+            )
+        )
+
+    assert target.read_bytes() == original
+
+
+def test_write_generated_hurl_file_rejects_sentinel_utf8_lead_byte_at_eof(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    target = tmp_path / "tests" / "generated" / "health.hurl"
+    target.parent.mkdir(parents=True)
+    header = b"# entroping: source=openapi\n"
+    padding = b"x" * (architect_cli._OWNERSHIP_HEADER_READ_LIMIT_BYTES - len(header))
+    original = header + padding + b"\xc3"
+    target.write_bytes(original)
+
+    with pytest.raises(UnicodeDecodeError):
+        architect_cli._write_generated_hurl_file(
+            GeneratedHurlFile(
+                relative_path="tests/generated/health.hurl",
+                content="# entroping: source=openapi\nGET /new-health\nHTTP 200\n",
+            )
+        )
+
+    assert target.read_bytes() == original
+
+
+def test_write_generated_hurl_file_rejects_invalid_utf8_after_split_prefix(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    target = tmp_path / "tests" / "generated" / "health.hurl"
+    target.parent.mkdir(parents=True)
+    header = b"# entroping: source=openapi\n"
+    if (architect_cli._OWNERSHIP_HEADER_READ_LIMIT_BYTES - len(header)) % 2 == 0:
+        header += b"x"
+    remaining = architect_cli._OWNERSHIP_HEADER_READ_LIMIT_BYTES - len(header)
+    original = header + ("é" * (remaining // 2)).encode("utf-8") + b"\xc3x"
+    target.write_bytes(original)
+
+    with pytest.raises(UnicodeDecodeError):
+        architect_cli._write_generated_hurl_file(
+            GeneratedHurlFile(
+                relative_path="tests/generated/health.hurl",
+                content="# entroping: source=openapi\nGET /new-health\nHTTP 200\n",
+            )
+        )
+
+    assert target.read_bytes() == original
+
+
 def test_write_generated_hurl_file_rejects_spoofed_openapi_marker_below_header(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

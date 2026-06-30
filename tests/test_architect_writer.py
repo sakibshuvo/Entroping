@@ -155,6 +155,63 @@ def test_write_architect_edits_accepts_owned_file_when_prefix_splits_utf8(
     assert "GET /new" in output_path.read_text(encoding="utf-8")
 
 
+def test_write_architect_edits_rejects_truncated_utf8_marker_at_eof(
+    tmp_path: Path,
+) -> None:
+    output_path = tmp_path / "tests" / "generated" / "refund.hurl"
+    output_path.parent.mkdir(parents=True)
+    original = b"# entroping: source=architect\xc3"
+    output_path.write_bytes(original)
+
+    with pytest.raises(UnicodeDecodeError):
+        write_architect_edits(
+            _edit_set("tests/generated/refund.hurl", "GET /new\nHTTP 200\n"),
+            project_root=tmp_path,
+        )
+
+    assert output_path.read_bytes() == original
+
+
+def test_write_architect_edits_rejects_sentinel_utf8_lead_byte_at_eof(
+    tmp_path: Path,
+) -> None:
+    output_path = tmp_path / "tests" / "generated" / "refund.hurl"
+    output_path.parent.mkdir(parents=True)
+    header = b"# entroping: source=architect\n"
+    padding = b"x" * (architect_writer._OWNERSHIP_HEADER_READ_LIMIT_BYTES - len(header))
+    original = header + padding + b"\xc3"
+    output_path.write_bytes(original)
+
+    with pytest.raises(UnicodeDecodeError):
+        write_architect_edits(
+            _edit_set("tests/generated/refund.hurl", "GET /new\nHTTP 200\n"),
+            project_root=tmp_path,
+        )
+
+    assert output_path.read_bytes() == original
+
+
+def test_write_architect_edits_rejects_invalid_utf8_after_split_prefix(
+    tmp_path: Path,
+) -> None:
+    output_path = tmp_path / "tests" / "generated" / "refund.hurl"
+    output_path.parent.mkdir(parents=True)
+    header = b"# entroping: source=architect\n"
+    if (architect_writer._OWNERSHIP_HEADER_READ_LIMIT_BYTES - len(header)) % 2 == 0:
+        header += b"x"
+    remaining = architect_writer._OWNERSHIP_HEADER_READ_LIMIT_BYTES - len(header)
+    original = header + ("é" * (remaining // 2)).encode("utf-8") + b"\xc3x"
+    output_path.write_bytes(original)
+
+    with pytest.raises(UnicodeDecodeError):
+        write_architect_edits(
+            _edit_set("tests/generated/refund.hurl", "GET /new\nHTTP 200\n"),
+            project_root=tmp_path,
+        )
+
+    assert output_path.read_bytes() == original
+
+
 def test_write_architect_edits_refuses_symlink_targets(tmp_path: Path) -> None:
     victim_path = tmp_path / "victim.hurl"
     victim_path.write_text("do not overwrite\n", encoding="utf-8")
