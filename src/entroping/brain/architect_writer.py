@@ -1,5 +1,6 @@
 """Staged filesystem writes for validated Architect Hurl edits."""
 
+import codecs
 import os
 import tempfile
 from collections.abc import Sequence
@@ -146,7 +147,9 @@ def _has_architect_header(content: str) -> bool:
 
 def _read_ownership_header_prefix(path: Path) -> str:
     with path.open("rb") as handle:
-        return handle.read(_OWNERSHIP_HEADER_READ_LIMIT_BYTES).decode("utf-8")
+        raw_prefix = handle.read(_OWNERSHIP_HEADER_READ_LIMIT_BYTES)
+    decoder = codecs.getincrementaldecoder("utf-8")(errors="strict")
+    return decoder.decode(raw_prefix, final=False)
 
 
 def _ensure_trailing_newline(content: str) -> str:

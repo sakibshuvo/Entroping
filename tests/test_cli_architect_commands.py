@@ -2891,6 +2891,35 @@ def test_write_generated_hurl_file_checks_existing_header_without_full_read(
         )
 
 
+def test_write_generated_hurl_file_accepts_owned_file_when_prefix_splits_utf8(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    target = tmp_path / "tests" / "generated" / "health.hurl"
+    target.parent.mkdir(parents=True)
+    content = "# entroping: source=openapi\n"
+    if (architect_cli._OWNERSHIP_HEADER_READ_LIMIT_BYTES - len(content.encode("utf-8"))) % 2 == 0:
+        content += "x"
+    target.write_text(
+        content
+        + ("é" * architect_cli._OWNERSHIP_HEADER_READ_LIMIT_BYTES)
+        + "\nGET /old-health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    architect_cli._write_generated_hurl_file(
+        GeneratedHurlFile(
+            relative_path="tests/generated/health.hurl",
+            content="# entroping: source=openapi\nGET /new-health\nHTTP 200\n",
+        )
+    )
+
+    assert target.read_text(encoding="utf-8") == (
+        "# entroping: source=openapi\nGET /new-health\nHTTP 200\n"
+    )
+
+
 def test_write_generated_hurl_file_rejects_spoofed_openapi_marker_below_header(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
