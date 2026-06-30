@@ -45,9 +45,7 @@ def _load_factory_metrics_module() -> Any:
 
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     return [
-        json.loads(line)
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
+        json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
 
 
@@ -232,9 +230,7 @@ def test_agent_role_registry_defines_tier_a_cheap_worker_routing_defaults() -> N
         "scripts/context_pack.sh --mode implementation --manifest"
     )
     assert "request only the needed files/snippets" in tier_a["context_rule"]
-    assert tier_a["merge_authority"] == (
-        "Tier A autonomous after gates and green CI"
-    )
+    assert tier_a["merge_authority"] == ("Tier A autonomous after gates and green CI")
 
     assert routing["tier_b"]["merge_authority"] == "Codex/human required"
     assert routing["tier_c"]["merge_authority"] == "Codex/human required"
@@ -246,6 +242,25 @@ def test_factory_metrics_role_set_matches_registry() -> None:
     module = _load_factory_metrics_module()
 
     assert set(registry["roles"]) == module.ROLES
+
+
+def test_factory_metrics_entrypoint_is_thin_module_wrapper() -> None:
+    tree = ast.parse(SCRIPT.read_text(encoding="utf-8"))
+    top_level_functions = [node.name for node in tree.body if isinstance(node, ast.FunctionDef)]
+    modules = {
+        path.name for path in (REPO_ROOT / "scripts" / "factory_metrics_modules").glob("*.py")
+    }
+
+    assert top_level_functions == []
+    assert {
+        "__init__.py",
+        "cli.py",
+        "common.py",
+        "context_scorecard.py",
+        "events.py",
+        "reporting.py",
+        "schema.py",
+    } <= modules
 
 
 def test_factory_python3_entrypoints_avoid_evaluated_python310_plus_apis() -> None:
@@ -290,9 +305,7 @@ def test_factory_python3_entrypoints_avoid_evaluated_python310_plus_apis() -> No
             ):
                 unsupported_usages.append("dataclass(..., slots=True)")
         if unsupported_usages:
-            unsupported_by_script[script.relative_to(REPO_ROOT).as_posix()] = (
-                unsupported_usages
-            )
+            unsupported_by_script[script.relative_to(REPO_ROOT).as_posix()] = unsupported_usages
 
     assert unsupported_by_script == {}
 
@@ -404,8 +417,7 @@ def test_factory_metrics_redacts_common_secret_shapes(tmp_path: Path) -> None:
         "--agent",
         "Codex",
         "--note",
-        "access_token=ghp_FAKE_NOT_A_SECRET_1234567890 "
-        "aws_access_key_id=AKIAIOSFODNN7EXAMPLE",
+        "access_token=ghp_FAKE_NOT_A_SECRET_1234567890 aws_access_key_id=AKIAIOSFODNN7EXAMPLE",
         "--ledger",
         str(ledger),
     )
@@ -863,9 +875,7 @@ def test_factory_metrics_report_groups_cost_and_yield_by_issue(
 
     unassigned = issues["unassigned"]
     assert unassigned["events"] == 1
-    assert unassigned["provider_models"] == {
-        "opencode/deepseek-v4-flash-free": 1
-    }
+    assert unassigned["provider_models"] == {"opencode/deepseek-v4-flash-free": 1}
     assert unassigned["decisions"] == {"needs_review": 1}
     report_json = json.dumps(report)
     assert "provider response omitted" not in report_json
@@ -941,9 +951,7 @@ def test_factory_metrics_report_adds_model_comparison_view(
         for row in report["model_comparison"]
     }
 
-    direct = rows[
-        ("707", "dev_agent", "deepseek-api/direct", "deepseek-v4-pro")
-    ]
+    direct = rows[("707", "dev_agent", "deepseek-api/direct", "deepseek-v4-pro")]
     assert direct["events"] == 1
     assert direct["metrics"]["estimated_tokens"] == 2400
     assert direct["metrics"]["cost_usd"] == 0.04
@@ -1514,9 +1522,7 @@ def test_factory_metrics_readiness_fails_with_actionable_missing_gates(
         agent="Codex",
         estimated_tokens=1200,
     )
-    context_event["metrics"].update(
-        {"context_bytes": 4800, "candidate_files": 4, "files_read": 2}
-    )
+    context_event["metrics"].update({"context_bytes": 4800, "candidate_files": 4, "files_read": 2})
     _write_jsonl(ledger, context_event)
 
     result = run_factory_metrics(
@@ -1546,10 +1552,7 @@ def test_factory_metrics_readiness_fails_with_actionable_missing_gates(
     ]
     assert "quality evidence requires" in payload["gates"]["quality"]["missing"][0]
     assert "security evidence requires" in payload["gates"]["security"]["missing"][0]
-    assert (
-        "token/cost evidence requires"
-        in payload["gates"]["token_cost_efficiency"]["missing"][0]
-    )
+    assert "token/cost evidence requires" in payload["gates"]["token_cost_efficiency"]["missing"][0]
 
 
 def test_factory_metrics_readiness_accepts_explicit_not_applicable_evidence(
@@ -1563,9 +1566,7 @@ def test_factory_metrics_readiness_accepts_explicit_not_applicable_evidence(
         agent="Codex",
         estimated_tokens=900,
     )
-    context_event["metrics"].update(
-        {"context_bytes": 3600, "candidate_files": 3, "files_read": 2}
-    )
+    context_event["metrics"].update({"context_bytes": 3600, "candidate_files": 3, "files_read": 2})
     quality_event = _factory_event(
         issue="746",
         event_type="gate_run",
@@ -1614,14 +1615,9 @@ def test_factory_metrics_readiness_accepts_explicit_not_applicable_evidence(
     assert result.returncode == 0, result.stderr
     payload = json.loads(result.stdout)
     assert payload["status"] == "pass"
-    assert (
-        "security:not-applicable"
-        in payload["gates"]["security"]["evidence"][0]["markers"]
-    )
+    assert "security:not-applicable" in payload["gates"]["security"]["evidence"][0]["markers"]
     assert payload["gates"]["token_cost_efficiency"]["status"] == "pass"
-    assert "provider:not-applicable" in json.dumps(
-        payload["gates"]["token_cost_efficiency"]
-    )
+    assert "provider:not-applicable" in json.dumps(payload["gates"]["token_cost_efficiency"])
 
 
 def test_factory_metrics_readiness_rejects_zero_cost_without_provider_or_no_provider(
@@ -1635,9 +1631,7 @@ def test_factory_metrics_readiness_rejects_zero_cost_without_provider_or_no_prov
         agent="Codex",
         estimated_tokens=900,
     )
-    context_event["metrics"].update(
-        {"context_bytes": 3600, "candidate_files": 3, "files_read": 2}
-    )
+    context_event["metrics"].update({"context_bytes": 3600, "candidate_files": 3, "files_read": 2})
     quality_event = _factory_event(
         issue="746",
         event_type="gate_run",
@@ -1750,10 +1744,7 @@ def test_context_tool_scorecard_report_measures_tools_against_baseline(
     assert context_map["trials"][0]["workflow"] == "context_map_assisted"
     assert context_map["missing_required_metrics"] == []
     assert "retrieval_precision" in context_map["best_trial"]["improved_metrics"]
-    assert (
-        "context_recovery_time_seconds"
-        in context_map["best_trial"]["improved_metrics"]
-    )
+    assert "context_recovery_time_seconds" in context_map["best_trial"]["improved_metrics"]
 
     symbol_lens = tools["SymbolLens"]
     assert symbol_lens["proof_status"] == "not_measured"
@@ -1904,8 +1895,7 @@ def test_context_tool_scorecard_rejects_missing_evidence_as_active_proof(
     assert payload["status"] == "invalid"
     assert "tool_evaluations[0].evidence_sources must not be empty" in payload["errors"]
     assert (
-        "tool_evaluations[0] cannot recommend active without measured trials"
-        in payload["errors"]
+        "tool_evaluations[0] cannot recommend active without measured trials" in payload["errors"]
     )
 
 
