@@ -119,7 +119,9 @@ def test_qa_brain_eval_plan_preserves_attention_sources_and_next_actions(
         },
     )
 
-    packet = build_qa_brain_eval_plan(project_root=tmp_path)
+    packet = build_qa_brain_eval_plan(project_root=tmp_path).model_copy(
+        update={"generated_at": "2026-01-01T00:00:00.999999+00:00"},
+    )
     cases = {case.id: case for case in packet.cases}
 
     assert packet.summary.status == "partial"
@@ -133,7 +135,8 @@ def test_qa_brain_eval_plan_preserves_attention_sources_and_next_actions(
     assert next(
         action for action in packet.next_actions if action.case_ids == ("bogus_evidence",)
     ).priority == "high"
-    assert "999" not in packet.model_dump_json()
+    assert "999" in packet.model_dump_json()
+    assert "999" not in packet.model_dump_json(exclude={"generated_at"})
 
 
 def test_qa_brain_eval_plan_markdown_is_human_readable_and_value_free(
