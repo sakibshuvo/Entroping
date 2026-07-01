@@ -64,6 +64,8 @@ def test_redactor_removes_headers_query_params_and_json_secret_fields() -> None:
     assert request_body.text is not None
     assert '"password":"[REDACTED]"' in request_body.text
     assert '"api_key":"[REDACTED]"' in request_body.text
+    assert request_body.redaction_confidence == "high"
+    assert redacted.redaction_confidence == "high"
 
 
 def test_redactor_treats_json_subtype_bodies_as_structured_json() -> None:
@@ -143,6 +145,23 @@ def test_redactor_preserves_absent_bodies() -> None:
     assert redacted.redaction_confidence == "high"
 
 
+def test_json_body_confidence_requires_sensitive_material_to_be_redacted() -> None:
+    assert (
+        traffic_redactor._redact_json_body_confidence(
+            {"token": "secret"},
+            {"token": "secret"},
+        )
+        == "low"
+    )
+    assert (
+        traffic_redactor._redact_json_body_confidence(
+            {"page": 1, "limit": 20},
+            {"page": 1, "limit": 20},
+        )
+        == "high"
+    )
+
+
 def test_redactor_falls_back_to_text_redaction_for_invalid_json() -> None:
     exchange = _raw_exchange().model_copy(
         update={
@@ -216,6 +235,8 @@ def test_redactor_redacts_token_shaped_values_in_non_sensitive_fields() -> None:
     assert redacted.request.headers["X-Request-ID"] == "req-[REDACTED]"
     assert redacted.request.body is not None
     assert redacted.request.body.text == '{"note":"[REDACTED]","safe":"ok"}'
+    assert redacted.request.body.redaction_confidence == "high"
+    assert redacted.redaction_confidence == "high"
 
 
 def test_redactor_fully_summarizes_multipart_bodies_before_persistence() -> None:

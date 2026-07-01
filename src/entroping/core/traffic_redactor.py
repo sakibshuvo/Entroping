@@ -139,14 +139,12 @@ def _redact_body(
         body.text,
         max_body_chars=max_body_chars,
     )
-    redacted_text = (
-        _redact_json_body(text_for_redaction)
-        if _is_json_content_type(content_type)
-        else _redact_plain_text_body(text_for_redaction)
-    )
-    redaction_confidence: RedactionConfidence = "low"
+    redaction_confidence: RedactionConfidence
     if _is_json_content_type(content_type):
-        redaction_confidence = _redact_json_body_confidence(text_for_redaction)
+        redacted_text, redaction_confidence = _redact_json_body_with_confidence(text_for_redaction)
+    else:
+        redacted_text = _redact_plain_text_body(text_for_redaction)
+        redaction_confidence = "low"
 
     truncated = (
         body.truncated
@@ -173,18 +171,23 @@ def _bounded_body_text(text: str, *, max_body_chars: int) -> tuple[str, bool]:
     return text[:scan_limit], True
 
 
-def _redact_json_body(text: str) -> str:
+def _redact_json_body_with_confidence(text: str) -> tuple[str, RedactionConfidence]:
     try:
         parsed = json.loads(text)
     except json.JSONDecodeError:
-        return _redact_text(text)
-    return json.dumps(_redact_json_value(parsed), separators=(",", ":"), sort_keys=True)
+        return _redact_text(text), "low"
+    redacted_value = _redact_json_value(parsed)
+    return (
+        json.dumps(redacted_value, separators=(",", ":"), sort_keys=True),
+        _redact_json_body_confidence(parsed, redacted_value),
+    )
 
 
-def _redact_json_body_confidence(text: str) -> RedactionConfidence:
-    try:
-        json.loads(text)
-    except json.JSONDecodeError:
+def _redact_json_body_confidence(
+    parsed_value: object,
+    redacted_value: object,
+) -> RedactionConfidence:
+    if _json_value_needs_redaction(parsed_value) and parsed_value == redacted_value:
         return "low"
     return "high"
 
@@ -217,6 +220,21 @@ def _redact_json_value(value: object, *, key: str | None = None) -> object:
     if isinstance(value, str):
         return _redact_text(value)
     return value
+
+
+def _json_value_needs_redaction(value: object, *, key: str | None = None) -> bool:
+    if key is not None and is_sensitive_key(key):
+        return True
+    if isinstance(value, dict):
+        return any(
+            _json_value_needs_redaction(item_value, key=str(item_key))
+            for item_key, item_value in value.items()
+        )
+    if isinstance(value, list):
+        return any(_json_value_needs_redaction(item) for item in value)
+    if isinstance(value, str):
+        return _redact_text(value) != value
+    return False
 
 
 def _redact_plain_text_body(text: str) -> str:
