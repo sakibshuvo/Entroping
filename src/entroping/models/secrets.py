@@ -81,6 +81,7 @@ _AUTH_VALUE_RE = re.compile(r"(?i)\b(Bearer|Basic)\s+([A-Za-z0-9._~+/=-]{10,})")
 def contains_secret_like_value(value: str) -> bool:
     """Return true when text contains common token-shaped credentials."""
 
+    value = normalize_redacted_marker(value)
     if any(pattern.search(value) is not None for pattern in _TOKEN_SECRET_PATTERNS):
         return True
     if _contains_sensitive_data_shape(value):
@@ -91,6 +92,10 @@ def contains_secret_like_value(value: str) -> bool:
         _key_value_match_is_secret(match)
         for match in _KEY_VALUE_SECRET_RE.finditer(value)
     )
+
+
+def normalize_redacted_marker(value: str) -> str:
+    return value.replace("[REDACTED]`", "[REDACTED]")
 
 
 def redact_secret_like_values(value: str) -> str:
