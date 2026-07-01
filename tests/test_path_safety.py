@@ -4,7 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from entroping.core.path_safety import display_path, first_symlink_path_component
+from entroping.core.path_safety import (
+    display_path,
+    first_symlink_path_component,
+    is_ignored_project_path,
+)
 
 
 def test_first_symlink_path_component_returns_none_for_plain_path(tmp_path: Path) -> None:
@@ -49,6 +53,26 @@ def test_first_symlink_path_component_reports_absolute_target_symlink(
     link.symlink_to(real_file)
 
     assert first_symlink_path_component(link) == link
+
+
+def test_is_ignored_project_path_ignores_hidden_and_listed_directories(
+    tmp_path: Path,
+) -> None:
+    assert is_ignored_project_path(tmp_path / ".entroping" / "state.txt", root=tmp_path)
+    assert is_ignored_project_path(
+        tmp_path / "node_modules" / "pkg" / "index.py",
+        root=tmp_path,
+    )
+    assert not is_ignored_project_path(
+        tmp_path / "tests" / "visible" / "case.py",
+        root=tmp_path,
+    )
+
+
+def test_is_ignored_project_path_returns_true_for_path_outside_root(
+    tmp_path: Path,
+) -> None:
+    assert is_ignored_project_path(tmp_path.parent / "outside.txt", root=tmp_path)
 
 
 def test_display_path_returns_project_relative_posix_path(tmp_path: Path) -> None:

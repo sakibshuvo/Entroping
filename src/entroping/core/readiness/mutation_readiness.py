@@ -19,7 +19,10 @@ from entroping.core.evidence_common import (
     safe_evidence_text,
 )
 from entroping.core.evidence_packet_base import write_evidence_packet_report
-from entroping.core.path_safety import first_symlink_path_component
+from entroping.core.path_safety import (
+    first_symlink_path_component,
+    is_ignored_project_path,
+)
 from entroping.core.safe_write import safe_write_text
 from entroping.models.hurl import (
     HurlMetadata,
@@ -52,22 +55,6 @@ _DEFAULT_OUTPUTS: Final[dict[MutationReadinessOutput, Path]] = {
     "md": Path("reports") / "mutation-readiness.md",
     "json": Path("reports") / "mutation-readiness.json",
 }
-_IGNORED_DIRECTORY_NAMES: Final[frozenset[str]] = frozenset(
-    {
-        ".entroping",
-        ".git",
-        ".mypy_cache",
-        ".pytest_cache",
-        ".ruff_cache",
-        ".venv",
-        "__pycache__",
-        "build",
-        "dist",
-        "node_modules",
-        "reports",
-        "venv",
-    }
-)
 _ASSERTION_SECTION: Final = "[Asserts]"
 _ASSERTION_PREFIXES: Final = (
     "body",
@@ -425,7 +412,7 @@ def _generated_hurl_sources(*, root: Path) -> tuple[MutationReadinessSource, ...
         return ()
     sources: list[MutationReadinessSource] = []
     for path in sorted(tests_root.rglob("*.hurl"), key=lambda candidate: str(candidate)):
-        if _ignored(path, root=root):
+        if is_ignored_project_path(path, root=root):
             continue
         source = _load_hurl_source(root=root, raw_path=Path(_relative_path(path, root=root)))
         if source is None:
@@ -550,6 +537,10 @@ def _load_optional_report(
         schema_version=expected_schema,
         summary=_optional_report_summary(document, kind=kind),
     )
+
+
+def _ignored(path: Path, *, root: Path) -> bool:
+    return is_ignored_project_path(path, root=root)
 
 
 def _read_text_artifact(
@@ -880,17 +871,6 @@ def _resolve_output_path(raw_path: Path, *, root: Path) -> Path:
         msg = "mutation readiness path is unsafe: output must not target local state"
         raise MutationReadinessError(msg)
     return path
-
-
-def _ignored(path: Path, *, root: Path) -> bool:
-    try:
-        relative = path.relative_to(root)
-    except ValueError:
-        return True
-    for part in relative.parts[:-1]:
-        if part in _IGNORED_DIRECTORY_NAMES or part.startswith("."):
-            return True
-    return False
 
 
 def _relative_path(path: Path, *, root: Path) -> str:

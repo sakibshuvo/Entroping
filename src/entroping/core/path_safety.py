@@ -1,6 +1,24 @@
 """Shared path-safety helpers for filesystem adapters."""
 
 from pathlib import Path
+from typing import Final
+
+IGNORED_PATH_COMPONENTS: Final[frozenset[str]] = frozenset(
+    {
+        ".entroping",
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".venv",
+        "__pycache__",
+        "build",
+        "dist",
+        "node_modules",
+        "reports",
+        "venv",
+    },
+)
 
 
 def display_path(path: Path, root: Path | None = None) -> str:
@@ -33,3 +51,16 @@ def first_symlink_path_component(path: Path, *, root: Path | None = None) -> Pat
         if current.is_symlink():
             return current
     return None
+
+
+def is_ignored_project_path(path: Path, *, root: Path) -> bool:
+    """Return true when a path should be skipped under Entroping local scanning."""
+
+    try:
+        relative = path.relative_to(root)
+    except ValueError:
+        return True
+    for part in relative.parts[:-1]:
+        if part in IGNORED_PATH_COMPONENTS or part.startswith("."):
+            return True
+    return False
