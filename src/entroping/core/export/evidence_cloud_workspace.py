@@ -22,6 +22,8 @@ from entroping.core.export.evidence_cloud_export import (
     EvidenceCloudExportBoundaryControl,
     EvidenceCloudExportPacket,
 )
+from entroping.core.markdown_report import markdown_cell as _md
+from entroping.core.markdown_report import markdown_table_row
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.safe_write import SafeWriteError, safe_report_output_path, safe_write_text
 
@@ -246,7 +248,7 @@ def render_evidence_cloud_workspace_markdown(packet: EvidenceCloudWorkspacePacke
         "",
         "## Summary",
         "",
-        f"- Status: `{_md(packet.summary.status)}`",
+        f"- Status: `{_md(packet.summary.status, style='evidence_cloud')}`",
         f"- Manifests: `{packet.summary.manifests_present}/"
         f"{packet.summary.manifests_total}` present",
         f"- Repositories: `{packet.summary.repositories_ready}/"
@@ -261,10 +263,15 @@ def render_evidence_cloud_workspace_markdown(packet: EvidenceCloudWorkspacePacke
     ]
     for manifest in packet.manifests:
         lines.append(
-            "| "
-            f"{_md(manifest.id)} | {_md(manifest.state)} | {_md(manifest.project or 'n/a')} | "
-            f"{_md(manifest.export_status or 'n/a')} | {_md(manifest.path)} | "
-            f"{_md(manifest.sha256 or 'n/a')} | {_md(manifest.summary)} |"
+            markdown_table_row(
+                _md(manifest.id, style="evidence_cloud"),
+                _md(manifest.state, style="evidence_cloud"),
+                _md(manifest.project or "n/a", style="evidence_cloud"),
+                _md(manifest.export_status or "n/a", style="evidence_cloud"),
+                _md(manifest.path, style="evidence_cloud"),
+                _md(manifest.sha256 or "n/a", style="evidence_cloud"),
+                _md(manifest.summary, style="evidence_cloud"),
+            )
         )
     lines.extend(
         [
@@ -277,11 +284,14 @@ def render_evidence_cloud_workspace_markdown(packet: EvidenceCloudWorkspacePacke
     )
     for repository in packet.repositories:
         lines.append(
-            "| "
-            f"{_md(repository.project)} | {_md(repository.status)} | "
-            f"{repository.sources_present}/{repository.sources_total} | "
-            f"{repository.export_items_ready}/{repository.export_items_total} | "
-            f"{repository.boundary_controls_total} | {_md(repository.local_reference)} |"
+            markdown_table_row(
+                _md(repository.project, style="evidence_cloud"),
+                _md(repository.status, style="evidence_cloud"),
+                f"{repository.sources_present}/{repository.sources_total}",
+                f"{repository.export_items_ready}/{repository.export_items_total}",
+                str(repository.boundary_controls_total),
+                _md(repository.local_reference, style="evidence_cloud"),
+            )
         )
     lines.extend(
         [
@@ -294,14 +304,19 @@ def render_evidence_cloud_workspace_markdown(packet: EvidenceCloudWorkspacePacke
     )
     for control in packet.boundary_controls:
         lines.append(
-            "| "
-            f"{_md(control.label)} | {control.enforced_manifests}/"
-            f"{control.total_manifests} | {_md(control.summary)} |"
+            markdown_table_row(
+                _md(control.label, style="evidence_cloud"),
+                f"{control.enforced_manifests}/{control.total_manifests}",
+                _md(control.summary, style="evidence_cloud"),
+            )
         )
     lines.extend(["", "## Next Actions", ""])
     if packet.next_actions:
         for action in packet.next_actions:
-            lines.append(f"- `{_md(action.priority)}` {_md(action.action)}")
+            lines.append(
+                f"- `{_md(action.priority, style='evidence_cloud')}` "
+                f"{_md(action.action, style='evidence_cloud')}"
+            )
     else:
         lines.append("No Evidence Cloud workspace actions are currently needed.")
     return "\n".join(lines) + "\n"
@@ -647,7 +662,3 @@ def _resolve_output_path(raw_path: Path, *, root: Path) -> Path:
 
 def _contains_unredacted_workspace_secret(raw_text: str) -> bool:
     return contains_unredacted_evidence_secret(_SHA256_HEX_RE.sub("[SHA256]", raw_text))
-
-
-def _md(value: object) -> str:
-    return safe_evidence_text(str(value)).replace("|", "\\|").replace("\n", " ")

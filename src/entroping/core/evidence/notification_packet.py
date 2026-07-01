@@ -6,7 +6,6 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from html import escape
 from pathlib import Path
 from typing import Final, Literal
 
@@ -26,6 +25,15 @@ from entroping.core.evidence_common import (
 from entroping.core.evidence_packet_base import (
     EvidencePacketResult,
     write_evidence_packet_report,
+)
+from entroping.core.markdown_report import (
+    markdown_cell as _markdown_cell,
+)
+from entroping.core.markdown_report import (
+    markdown_inline_code as _inline_code,
+)
+from entroping.core.markdown_report import (
+    markdown_table_row,
 )
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.safe_write import safe_write_text
@@ -241,7 +249,7 @@ def render_notification_packet_markdown(packet: NotificationPacket) -> str:
         "",
         f"- Status: `{packet.summary.status}`",
         f"- Severity: `{packet.summary.severity}`",
-        f"- Project: `{_inline_code(packet.project or 'unknown')}`",
+        f"- Project: `{_inline_code(packet.project or 'unknown', style='notification')}`",
         "- Sources: "
         f"`{packet.summary.sources_present}/{packet.summary.sources_total}` present, "
         f"`{packet.summary.sources_missing}` missing, "
@@ -256,7 +264,7 @@ def render_notification_packet_markdown(packet: NotificationPacket) -> str:
     else:
         lines.extend(
             [
-                f"- Runtime status: `{_inline_code(packet.runtime.status)}`",
+                f"- Runtime status: `{_inline_code(packet.runtime.status, style='notification')}`",
                 f"- Findings: `{packet.runtime.findings}`",
                 f"- Evidence links: `{packet.runtime.evidence_links}`",
                 f"- Failed gates: `{packet.runtime.failed_gate_ids}`",
@@ -274,13 +282,14 @@ def render_notification_packet_markdown(packet: NotificationPacket) -> str:
     )
     for source in packet.sources:
         lines.append(
-            "| "
-            f"{_markdown_cell(source.id)} | "
-            f"{_markdown_cell(source.state)} | "
-            f"{_markdown_cell(source.path)} | "
-            f"{_markdown_cell(source.schema_version or 'n/a')} | "
-            f"{_markdown_cell(source.sha256 or 'n/a')} | "
-            f"{_markdown_cell(source.summary)} |"
+            markdown_table_row(
+                _markdown_cell(source.id, style="notification"),
+                _markdown_cell(source.state, style="notification"),
+                _markdown_cell(source.path, style="notification"),
+                _markdown_cell(source.schema_version or "n/a", style="notification"),
+                _markdown_cell(source.sha256 or "n/a", style="notification"),
+                _markdown_cell(source.summary, style="notification"),
+            )
         )
 
     lines.extend(
@@ -294,12 +303,13 @@ def render_notification_packet_markdown(packet: NotificationPacket) -> str:
     )
     for message in packet.messages:
         lines.append(
-            "| "
-            f"{_markdown_cell(message.surface)} | "
-            f"{_markdown_cell(message.severity)} | "
-            f"{_markdown_cell(message.title)} | "
-            f"{_markdown_cell(message.next_action)} | "
-            f"{_markdown_cell(', '.join(message.artifact_paths) or 'n/a')} |"
+            markdown_table_row(
+                _markdown_cell(message.surface, style="notification"),
+                _markdown_cell(message.severity, style="notification"),
+                _markdown_cell(message.title, style="notification"),
+                _markdown_cell(message.next_action, style="notification"),
+                _markdown_cell(", ".join(message.artifact_paths) or "n/a", style="notification"),
+            )
         )
     return "\n".join(lines).rstrip() + "\n"
 
@@ -620,18 +630,3 @@ def _safe_text(value: object) -> str:
 
 def _contains_unredacted_secret_like_value(value: str) -> bool:
     return contains_unredacted_evidence_secret(value)
-
-
-def _inline_code(value: str) -> str:
-    return _markdown_text(value).replace("`", "'")
-
-
-def _markdown_cell(value: str) -> str:
-    return _markdown_text(value).replace("\n", "<br>")
-
-
-def _markdown_text(value: str) -> str:
-    backslash_placeholder = "\0ENTROPING_BACKSLASH\0"
-    text = value.replace("\r", " ").replace("\\", backslash_placeholder)
-    text = escape(text, quote=False).replace("|", "\\|")
-    return text.replace(backslash_placeholder, "&#92;")
