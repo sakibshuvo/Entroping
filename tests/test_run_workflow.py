@@ -8,6 +8,7 @@ from typing import cast
 import pytest
 
 from entroping.core.hurl_runner import HurlFileResult, HurlRunOptions, HurlSuiteResult
+from entroping.core.run_event_log import read_run_events
 from entroping.core.run_workflow import (
     DependencyDriftObservationError,
     HurlVariablePreflightError,
@@ -1490,6 +1491,47 @@ def test_execute_run_workflow_preflights_missing_hurl_variables_before_subproces
     assert "api_token" in message
     assert "base_url" not in message
     assert "http://localhost:18080" not in message
+
+
+def test_execute_run_workflow_records_events_for_environment_preflight_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_project(tmp_path)
+    env_dir = tmp_path / "envs"
+    env_dir.mkdir()
+    (env_dir / "local.env").write_text("base_url=http://localhost:18080\n", encoding="utf-8")
+
+    def fail_load_environment_variables(environment_name: str, *, root: Path) -> dict[str, str]:
+        _ = (environment_name, root)
+        raise ValueError("failed to load local environment")
+
+    monkeypatch.setattr(
+        "entroping.core.run_workflow.load_environment_variables",
+        fail_load_environment_variables,
+    )
+
+    with pytest.raises(ValueError, match="failed to load local environment"):
+        execute_run_workflow(
+            project_root=tmp_path,
+            environment="local",
+            tag_filters=("smoke",),
+            report_formats=(),
+            parallel=False,
+            drift_check=False,
+        )
+
+    events = read_run_events(tmp_path / ".entroping" / "latest-run-events.jsonl")
+    assert [event["event"] for event in events] == [
+        "run_started",
+        "run_error",
+        "run_completed",
+    ]
+    assert events[0]["environment"] == "local"
+    assert events[1]["error_type"] == "ValueError"
+    assert "failed to load local environment" in cast(str, events[1]["message"])
+    assert events[2]["status"] == "error"
+    assert events[2]["exit_code"] == 1
 
 
 def test_execute_run_workflow_accepts_env_file_shell_env_and_local_hurl_definitions(

@@ -207,16 +207,19 @@ def _prepare_run_selection_context(
     changed_from: str | None,
     discovery_roots: Sequence[Path] | None,
     selection_label: str | None,
+    selected_roots: Sequence[Path] | None = None,
+    no_match_label: str | None = None,
     parallel: bool,
 ) -> _PreparedRunSelectionContext:
-    selected_roots, no_match_label = _selected_run_roots(
-        root=root,
-        changed_from=changed_from,
-        discovery_roots=discovery_roots,
-        tag_expression=tag_expression,
-        operation_filters=operation_filters,
-        selection_label=selection_label,
-    )
+    if selected_roots is None or no_match_label is None:
+        selected_roots, no_match_label = _selected_run_roots(
+            root=root,
+            changed_from=changed_from,
+            discovery_roots=discovery_roots,
+            tag_expression=tag_expression,
+            operation_filters=operation_filters,
+            selection_label=selection_label,
+        )
     compiled_tag_expression = (
         compile_tag_expression(tag_expression) if tag_expression is not None else None
     )
@@ -309,20 +312,17 @@ def execute_run_workflow(
         tag_expression=tag_expression,
         operation_filters=operation_filters,
     )
+    selected_roots, no_match_label = _selected_run_roots(
+        root=root,
+        changed_from=changed_from,
+        discovery_roots=discovery_roots,
+        tag_expression=tag_expression,
+        operation_filters=operation_filters,
+        selection_label=selection_label,
+    )
     event_log = RunEventLog.open_project(root)
     started_at = time.perf_counter()
     terminal_event_recorded = False
-    selection_context = _prepare_run_selection_context(
-        root=root,
-        environment=environment,
-        tag_filters=tuple(tag_filters),
-        tag_expression=tag_expression,
-        operation_filters=operation_filters,
-        changed_from=changed_from,
-        discovery_roots=discovery_roots,
-        selection_label=selection_label,
-        parallel=parallel,
-    )
     state_dir = root / ".entroping"
     state_dir.mkdir(parents=True, exist_ok=True)
     event_log.record_started(
@@ -338,6 +338,19 @@ def execute_run_workflow(
     )
 
     try:
+        selection_context = _prepare_run_selection_context(
+            root=root,
+            environment=environment,
+            tag_filters=tuple(tag_filters),
+            tag_expression=tag_expression,
+            operation_filters=operation_filters,
+            changed_from=changed_from,
+            discovery_roots=discovery_roots,
+            selection_label=selection_label,
+            selected_roots=selected_roots,
+            no_match_label=no_match_label,
+            parallel=parallel,
+        )
         law = selection_context.law
         selection = selection_context.selection
         hurl_tests = selection.tests
