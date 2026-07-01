@@ -1912,6 +1912,44 @@ def test_write_json_report_preserves_existing_target_when_atomic_write_fails(
     assert output.read_text(encoding="utf-8") == "old\n"
 
 
+def test_report_writers_use_concrete_artifact_labels(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "tests" / "health.hurl"
+    execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
+    report = build_run_report(
+        project="checkout-api",
+        environment="local",
+        execution_copies=[_execution_copy(source, execution)],
+        suite=_suite_result(execution, "assert failed\n"),
+        project_root=tmp_path,
+    )
+    text_artifacts: list[str] = []
+    byte_artifacts: list[str] = []
+
+    def capture_safe_write_text(path: Path, content: str, *, artifact: str) -> Path:
+        _ = content
+        text_artifacts.append(artifact)
+        return path.resolve()
+
+    def capture_safe_write_bytes(path: Path, content: bytes, *, artifact: str) -> Path:
+        _ = content
+        byte_artifacts.append(artifact)
+        return path.resolve()
+
+    monkeypatch.setattr(report_writer, "safe_write_text", capture_safe_write_text)
+    monkeypatch.setattr(report_writer, "safe_write_bytes", capture_safe_write_bytes)
+
+    write_json_report(report, tmp_path / "reports" / "run-latest.json")
+    write_html_report(report, tmp_path / "reports" / "run.html")
+    write_bug_report(report, tmp_path / "reports" / "bug.md")
+    write_junit_report(report, tmp_path / "reports" / "junit.xml")
+
+    assert text_artifacts == ["run report", "HTML report", "bug report"]
+    assert byte_artifacts == ["JUnit XML report"]
+
+
 def test_build_run_report_rejects_mismatched_execution_and_result_counts(tmp_path: Path) -> None:
     execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
 
@@ -2311,7 +2349,7 @@ def test_write_bug_report_rejects_symlinked_output_path(tmp_path: Path) -> None:
     try:
         write_bug_report(report, output)
     except ReportWriterError as exc:
-        assert "symlinked path" in str(exc)
+        assert "symlinked bug report" in str(exc)
     else:
         raise AssertionError("expected symlinked report path to be rejected")
     assert not outside.exists()

@@ -191,26 +191,30 @@ def write_json_report(report: RunReport, path: Path) -> Path:
     return _write_report_text(
         path,
         json.dumps(run_report_to_dict(report), indent=2, sort_keys=True) + "\n",
-        artifact="path",
+        artifact="run report",
     )
 
 
 def write_junit_report(report: RunReport, path: Path) -> Path:
     """Write a CI-consumable JUnit XML report."""
 
-    return _write_report_bytes(path, render_junit_report(report), artifact="path")
+    return _write_report_bytes(
+        path,
+        render_junit_report(report),
+        artifact="JUnit XML report",
+    )
 
 
 def write_html_report(report: RunReport, path: Path) -> Path:
     """Write a dependency-free human-readable HTML report."""
 
-    return _write_report_text(path, render_html_report(report), artifact="path")
+    return _write_report_text(path, render_html_report(report), artifact="HTML report")
 
 
 def write_bug_report(report: RunReport, path: Path) -> Path:
     """Write a Markdown bug handoff with the same path safety as other reports."""
 
-    return _write_report_text(path, render_bug_report(report), artifact="path")
+    return _write_report_text(path, render_bug_report(report), artifact="bug report")
 
 
 def _display_path(path: Path, root: Path) -> str:
