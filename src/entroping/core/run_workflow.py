@@ -48,6 +48,7 @@ from entroping.core.hurl_variable_preflight import (
     find_missing_hurl_variables,
     preflight_hurl_variables,
 )
+from entroping.core.known_failures import normalize_known_failure_test
 from entroping.core.path_safety import display_path
 from entroping.core.report_writer import (
     build_run_report,
@@ -988,7 +989,7 @@ def _reject_unmatched_selected_known_failures(
     expected = [
         known_failure
         for known_failure in known_failures
-        if _normalize_known_failure_test(known_failure.test) in selected_test_keys
+        if normalize_known_failure_test(known_failure.test) in selected_test_keys
     ]
     if not expected:
         return
@@ -1002,7 +1003,7 @@ def _reject_unmatched_selected_known_failures(
         known_failure
         for known_failure in expected
         if (
-            _normalize_known_failure_test(known_failure.test),
+            normalize_known_failure_test(known_failure.test),
             known_failure.rule_id,
         )
         not in applied_keys
@@ -1024,10 +1025,6 @@ def _known_failure_source_key(path: Path, *, project_root: Path) -> str:
         return resolved.relative_to(project_root).as_posix()
     except ValueError:
         return resolved.as_posix()
-
-
-def _normalize_known_failure_test(test: str) -> str:
-    return test.strip().replace("\\", "/")
 
 
 def _load_current_dependency_routes(root: Path) -> tuple[DependencyDriftRoute, ...]:
