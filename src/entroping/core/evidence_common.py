@@ -6,7 +6,11 @@ import stat
 from pathlib import Path
 from typing import Final
 
-from entroping.models.secrets import contains_secret_like_value, redact_secret_like_values
+from entroping.models.secrets import (
+    contains_secret_like_value,
+    normalize_redacted_marker,
+    redact_secret_like_values,
+)
 
 LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES: Final = 100 * 1024 * 1024
 _HAS_O_DIRECTORY: Final = hasattr(os, "O_DIRECTORY")
@@ -34,8 +38,7 @@ def contains_unredacted_evidence_secret(value: str) -> bool:
     Markdown inline-code fences can trail an already-redacted marker.
     """
 
-    normalized = value.replace("[REDACTED]`", "[REDACTED]")
-    return contains_secret_like_value(normalized)
+    return contains_secret_like_value(normalize_redacted_marker(value))
 
 
 def read_local_evidence_artifact_bytes(

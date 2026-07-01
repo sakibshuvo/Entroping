@@ -58,6 +58,11 @@ def test_shared_secret_helpers_preserve_templates_and_redacted_values() -> None:
     assert redact_secret_like_values(text) == text
 
 
+def test_contains_secret_like_value_normalizes_markdown_redacted_marker() -> None:
+    assert contains_secret_like_value("token=[REDACTED]`") is False
+    assert contains_secret_like_value("token=[REDACTED]") is False
+
+
 def test_shared_secret_helpers_redact_csrf_token_key_values() -> None:
     text = "csrf_token=live-csrf-secret\nx-csrf-token=header-csrf-secret"
 
