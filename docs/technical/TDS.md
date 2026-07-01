@@ -658,8 +658,10 @@ Suggested future tables:
 | `run_history` | Last run summary used by reports and bug templates |
 | `ai_edit_audit` | AI generation/refactor metadata, prompts, file paths, and validation status |
 | `agent_run_manifest` | Value-free AI-assisted Architect run evidence |
-| `traffic_artifact_approval` | Value-free approval evidence for generated traffic-derived artifacts |
 | `baseline_snapshot` | Drift and golden-master comparison metadata |
+
+Traffic artifact approval evidence is already implemented as value-free JSON
+manifests under `reports/approvals/*.json` rather than as a SQLite table.
 
 Retention must be configurable. A safe default is bounded local growth, such as size-based rotation around 1 GB or age-based cleanup, with explicit export commands later if needed.
 
