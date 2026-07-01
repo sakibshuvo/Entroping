@@ -171,11 +171,6 @@ def _bounded_body_text(text: str, *, max_body_chars: int) -> tuple[str, bool]:
     return text[:scan_limit], True
 
 
-def _redact_json_body(text: str) -> str:
-    redacted_text, _ = _redact_json_body_with_confidence(text)
-    return redacted_text
-
-
 def _redact_json_body_with_confidence(text: str) -> tuple[str, RedactionConfidence]:
     try:
         parsed = json.loads(text)
