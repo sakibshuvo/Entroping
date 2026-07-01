@@ -345,16 +345,16 @@ def execute_run_workflow(
             root=root,
             environment=environment,
             tag_filters=tuple(tag_filters),
-        tag_expression=tag_expression,
-        operation_filters=operation_filters,
-        changed_from=changed_from,
-        discovery_roots=discovery_roots,
-        selection_label=selection_label,
-        selected_roots=selected_roots,
-        no_match_label=no_match_label,
-        compiled_tag_expression=compiled_tag_expression,
-        parallel=parallel,
-    )
+            tag_expression=tag_expression,
+            operation_filters=operation_filters,
+            changed_from=changed_from,
+            discovery_roots=discovery_roots,
+            selection_label=selection_label,
+            selected_roots=selected_roots,
+            no_match_label=no_match_label,
+            compiled_tag_expression=compiled_tag_expression,
+            parallel=parallel,
+        )
         law = selection_context.law
         selection = selection_context.selection
         hurl_tests = selection.tests
@@ -909,11 +909,7 @@ def run_execution_plan_to_dict(plan: RunExecutionPlan) -> dict[str, object]:
                     if test.safety is not None
                     else {}
                 ),
-                **(
-                    {"auth": _auth_evidence_to_dict(test.auth)}
-                    if test.auth is not None
-                    else {}
-                ),
+                **({"auth": _auth_evidence_to_dict(test.auth)} if test.auth is not None else {}),
             }
             for test in plan.tests
         ],
