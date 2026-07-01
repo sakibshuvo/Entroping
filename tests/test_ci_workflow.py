@@ -15,6 +15,12 @@ _PERFORMANCE_WORKFLOW_PATH = (
 )
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
+_CHECKOUT_PIN = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
+_SETUP_PYTHON_PIN = "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1"
+_SETUP_UV_PIN = "astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39"
+_UPLOAD_ARTIFACT_PIN = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+
+
 
 def _run_git(args: list[str], *, cwd: Path) -> None:
     subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True)
@@ -90,7 +96,7 @@ def test_ci_workflow_enforces_security_and_quality_gates() -> None:
     checkout_step = next(
         step
         for step in checks["steps"]
-        if step.get("uses") == "actions/checkout@v7"
+        if step.get("uses") == _CHECKOUT_PIN
     )
 
     assert checkout_step["with"]["fetch-depth"] == 0
@@ -107,7 +113,7 @@ def test_ci_workflow_enforces_security_and_quality_gates() -> None:
     assert quality_audit["needs"] == "checks"
     assert "scripts/audit_quality.sh" in quality_run_blocks
     assert any(
-        step.get("uses") == "actions/upload-artifact@v7"
+        step.get("uses") == _UPLOAD_ARTIFACT_PIN
         and step.get("with", {}).get("path") == "reports"
         for step in quality_audit["steps"]
     )
@@ -135,10 +141,10 @@ def test_ci_workflow_runs_live_demo_smoke_with_pinned_hurl() -> None:
     assert "$archive.sha256" not in run_blocks
     assert "scripts/live_demo_smoke.sh" in run_blocks
     workflow_text = _WORKFLOW_PATH.read_text(encoding="utf-8")
-    assert "actions/checkout@v7" in workflow_text
-    assert "actions/setup-python@v6" in workflow_text
-    assert "astral-sh/setup-uv@v8.2.0" in workflow_text
-    assert "actions/upload-artifact@v7" in workflow_text
+    assert _CHECKOUT_PIN in workflow_text
+    assert _SETUP_PYTHON_PIN in workflow_text
+    assert _SETUP_UV_PIN in workflow_text
+    assert _UPLOAD_ARTIFACT_PIN in workflow_text
 
 
 def test_ci_pr_body_check_step_handles_shallow_diff_without_merge_base(tmp_path: Path) -> None:
@@ -224,9 +230,9 @@ def test_ci_workflow_runs_strict_public_docs_build() -> None:
     assert docs_site["runs-on"] == "ubuntu-latest"
     assert docs_site["needs"] == "checks"
     assert "uvx --with 'mkdocs-material==9.*' mkdocs build --strict" in run_blocks
-    assert any(step.get("uses") == "actions/checkout@v7" for step in steps)
-    assert any(step.get("uses") == "actions/setup-python@v6" for step in steps)
-    assert any(step.get("uses") == "astral-sh/setup-uv@v8.2.0" for step in steps)
+    assert any(step.get("uses") == _CHECKOUT_PIN for step in steps)
+    assert any(step.get("uses") == _SETUP_PYTHON_PIN for step in steps)
+    assert any(step.get("uses") == _SETUP_UV_PIN for step in steps)
 
 
 def test_optional_extras_smoke_script_exercises_optional_runtime_boundaries() -> None:

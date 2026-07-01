@@ -8,6 +8,7 @@ from typing import cast
 import yaml
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
+_SETUP_PYTHON_PIN = "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1"
 _SUPPORTED_PYTHONS = ["3.12", "3.13"]
 
 
@@ -78,9 +79,9 @@ def test_docs_and_release_checklist_explain_python_compatibility_evidence() -> N
 
 def _setup_python_step(job: dict[str, object]) -> dict[str, object]:
     for step in _sequence(job["steps"]):
-        if isinstance(step, dict) and step.get("uses") == "actions/setup-python@v6":
+        if isinstance(step, dict) and step.get("uses") == _SETUP_PYTHON_PIN:
             return cast(dict[str, object], step)
-    raise AssertionError("job must use actions/setup-python@v6")
+    raise AssertionError("job must use pinned actions/setup-python")
 
 
 def _mapping(value: object) -> dict[str, object]:
