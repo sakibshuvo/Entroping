@@ -12,7 +12,7 @@ from defusedxml.common import DefusedXmlException
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from entroping.core.bounded_read import BoundedReadError, read_text_bounded
-from entroping.core.path_safety import first_symlink_path_component
+from entroping.core.path_safety import display_path, first_symlink_path_component
 from entroping.core.safe_write import SafeWriteError, safe_write_text
 from entroping.models.secrets import redact_secret_like_values
 
@@ -428,10 +428,7 @@ def _load_json_document(content: bytes, *, artifact_path: str) -> object:
 
 
 def _display_path(path: Path, *, root: Path) -> str:
-    try:
-        return path.resolve(strict=False).relative_to(root).as_posix()
-    except ValueError:
-        return path.as_posix()
+    return display_path(path, root=root)
 
 
 def _write_audit_event(
