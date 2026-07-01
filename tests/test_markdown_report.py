@@ -1,5 +1,7 @@
 from html import escape
 
+import pytest
+
 from entroping.core.evidence_common import safe_evidence_text
 from entroping.core.markdown_report import (
     markdown_cell,
@@ -42,6 +44,11 @@ def test_evidence_cloud_markdown_cell_matches_old_md_behavior() -> None:
     assert markdown_cell(value, style="evidence_cloud") == (
         safe_evidence_text(value).replace("|", "\\|").replace("\n", " ")
     )
+
+
+def test_evidence_cloud_markdown_inline_code_is_rejected() -> None:
+    with pytest.raises(ValueError, match="evidence_cloud has no inline-code helper"):
+        markdown_inline_code("not-used", style="evidence_cloud")
 
 
 def test_observability_markdown_helpers_preserve_backslashes_and_punctuation() -> None:
