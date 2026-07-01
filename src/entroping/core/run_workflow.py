@@ -57,13 +57,13 @@ from entroping.core.report_writer import (
     write_junit_report,
 )
 from entroping.core.run_event_log import RunEventLog
-from entroping.core.run_safety import evaluate_run_safety
+from entroping.core.run_safety import RunSafetyEvaluation, evaluate_run_safety
 from entroping.core.safe_write import SafeWriteError, safe_write_text
-from entroping.core.tag_expression import compile_tag_expression
+from entroping.core.tag_expression import CompiledTagExpression, compile_tag_expression
 from entroping.core.traffic_store import TrafficStoreError, list_project_exchanges_readonly
 from entroping.models.drift import DependencyDriftRoute, DriftReport
 from entroping.models.hurl import HurlTest
-from entroping.models.qanstitution import KnownFailure
+from entroping.models.qanstitution import KnownFailure, Qanstitution
 from entroping.models.report import (
     RunAuthEvidence,
     RunReport,
@@ -181,6 +181,111 @@ class RunWorkflowResult:
         return 0
 
 
+@dataclass(frozen=True, slots=True)
+class _PreparedRunSelectionContext:
+    law: Qanstitution
+    no_match_label: str
+    selected_roots: tuple[Path, ...]
+    selection: HurlTestSelection
+    env_variables: dict[str, str]
+    hurl_workers: int
+
+
+@dataclass(frozen=True, slots=True)
+class _PreparedRunExecutionContext:
+    execution_copies: tuple[HurlExecutionCopy, ...]
+    safety: RunSafetyEvaluation
+
+
+def _prepare_run_selection_context(
+    *,
+    root: Path,
+    environment: str | None,
+    tag_filters: Sequence[str],
+    tag_expression: str | None,
+    operation_filters: Collection[str],
+    changed_from: str | None,
+    discovery_roots: Sequence[Path] | None,
+    selection_label: str | None,
+    compiled_tag_expression: CompiledTagExpression | None = None,
+    selected_roots: Sequence[Path] | None = None,
+    no_match_label: str | None = None,
+    parallel: bool,
+) -> _PreparedRunSelectionContext:
+    if selected_roots is None or no_match_label is None:
+        selected_roots, no_match_label = _selected_run_roots(
+            root=root,
+            changed_from=changed_from,
+            discovery_roots=discovery_roots,
+            tag_expression=tag_expression,
+            operation_filters=operation_filters,
+            selection_label=selection_label,
+        )
+    if compiled_tag_expression is None and tag_expression is not None:
+        compiled_tag_expression = compile_tag_expression(tag_expression)
+    law = load_qanstitution(root / "qanstitution.yaml")
+    selection = discover_hurl_test_selection(
+        selected_roots,
+        tag_filters=tuple(tag_filters),
+        tag_expression=compiled_tag_expression,
+        operation_id_filters=operation_filters,
+    )
+    env_variables = (
+        load_environment_variables(environment, root=root) if environment is not None else {}
+    )
+    env_variables.update(load_process_hurl_variables())
+    hurl_workers = law.settings.parallel_workers if parallel else 1
+
+    return _PreparedRunSelectionContext(
+        law=law,
+        no_match_label=no_match_label,
+        selected_roots=tuple(selected_roots),
+        selection=selection,
+        env_variables=env_variables,
+        hurl_workers=hurl_workers,
+    )
+
+
+def _prepare_run_execution_context(
+    *,
+    root: Path,
+    law: Qanstitution,
+    selection: HurlTestSelection,
+    environment: str | None,
+    protected_run: bool,
+    suite_safety: str | None,
+    execution_root: Path,
+) -> _PreparedRunExecutionContext:
+    execution_copies = tuple(
+        write_injected_execution_copy(
+            hurl_test,
+            law.gates,
+            execution_root=execution_root,
+            known_failures=law.ignore_failures,
+            project_root=root,
+        )
+        for hurl_test in selection.tests
+    )
+    _reject_unmatched_selected_known_failures(
+        known_failures=law.ignore_failures,
+        hurl_tests=selection.tests,
+        execution_copies=execution_copies,
+        project_root=root,
+    )
+    safety = evaluate_run_safety(
+        selection.tests,
+        environment=environment,
+        protected_run=protected_run,
+        suite_safety=suite_safety,
+        protected_environments=law.settings.protected_environments,
+    )
+
+    return _PreparedRunExecutionContext(
+        execution_copies=execution_copies,
+        safety=safety,
+    )
+
+
 def execute_run_workflow(
     *,
     project_root: Path,
@@ -210,9 +315,6 @@ def execute_run_workflow(
     compiled_tag_expression = (
         compile_tag_expression(tag_expression) if tag_expression is not None else None
     )
-    event_log = RunEventLog.open_project(root)
-    started_at = time.perf_counter()
-    terminal_event_recorded = False
     selected_roots, no_match_label = _selected_run_roots(
         root=root,
         changed_from=changed_from,
@@ -221,6 +323,9 @@ def execute_run_workflow(
         operation_filters=operation_filters,
         selection_label=selection_label,
     )
+    event_log = RunEventLog.open_project(root)
+    started_at = time.perf_counter()
+    terminal_event_recorded = False
     state_dir = root / ".entroping"
     state_dir.mkdir(parents=True, exist_ok=True)
     event_log.record_started(
@@ -236,21 +341,30 @@ def execute_run_workflow(
     )
 
     try:
-        law = load_qanstitution(root / "qanstitution.yaml")
-        selection = discover_hurl_test_selection(
-            selected_roots,
+        selection_context = _prepare_run_selection_context(
+            root=root,
+            environment=environment,
             tag_filters=tuple(tag_filters),
-            tag_expression=compiled_tag_expression,
-            operation_id_filters=operation_filters,
+            tag_expression=tag_expression,
+            operation_filters=operation_filters,
+            changed_from=changed_from,
+            discovery_roots=discovery_roots,
+            selection_label=selection_label,
+            selected_roots=selected_roots,
+            no_match_label=no_match_label,
+            compiled_tag_expression=compiled_tag_expression,
+            parallel=parallel,
         )
+        law = selection_context.law
+        selection = selection_context.selection
         hurl_tests = selection.tests
-        env_variables = (
-            load_environment_variables(environment, root=root) if environment is not None else {}
-        )
-        env_variables.update(load_process_hurl_variables())
+        env_variables = selection_context.env_variables
 
         if not hurl_tests:
-            no_match_message = _no_match_message(no_match_label, selection=selection)
+            no_match_message = _no_match_message(
+                selection_context.no_match_label,
+                selection=selection,
+            )
             event_log.record_no_match(
                 message=no_match_message,
                 selected_count=selection.selected_count,
@@ -268,19 +382,20 @@ def execute_run_workflow(
             terminal_event_recorded = True
             raise NoHurlTestsMatchedError(no_match_message)
 
-        hurl_workers = law.settings.parallel_workers if parallel else 1
+        hurl_workers = selection_context.hurl_workers
 
         with tempfile.TemporaryDirectory(prefix="run-", dir=state_dir) as execution_root:
-            execution_copies = [
-                write_injected_execution_copy(
-                    hurl_test,
-                    law.gates,
-                    execution_root=Path(execution_root),
-                    known_failures=law.ignore_failures,
-                    project_root=root,
-                )
-                for hurl_test in hurl_tests
-            ]
+            execution_context = _prepare_run_execution_context(
+                root=root,
+                law=selection_context.law,
+                selection=selection_context.selection,
+                environment=environment,
+                protected_run=protected_run,
+                suite_safety=suite_safety,
+                execution_root=Path(execution_root),
+            )
+            execution_copies = execution_context.execution_copies
+            safety = execution_context.safety
             for hurl_test, execution_copy in zip(hurl_tests, execution_copies, strict=True):
                 event_log.record_test_selected(
                     path=execution_copy.source_path,
@@ -288,19 +403,6 @@ def execute_run_workflow(
                     operation_id=execution_copy.operation_id,
                     rule_ids=tuple(gate.rule_id for gate in execution_copy.injected_gates),
                 )
-            _reject_unmatched_selected_known_failures(
-                known_failures=law.ignore_failures,
-                hurl_tests=hurl_tests,
-                execution_copies=execution_copies,
-                project_root=root,
-            )
-            safety = evaluate_run_safety(
-                hurl_tests,
-                environment=environment,
-                protected_run=protected_run,
-                suite_safety=suite_safety,
-                protected_environments=law.settings.protected_environments,
-            )
             if safety.blocks:
                 suite = _blocked_suite_result(
                     execution_copies=execution_copies,
@@ -604,44 +706,35 @@ def plan_run_workflow(
     """Build a deterministic run plan without invoking Hurl or writing run state."""
 
     root = project_root.expanduser().resolve()
-    if tag_filters and tag_expression is not None:
-        msg = "tag filters cannot be combined with tag expressions"
-        raise RunWorkflowError(msg)
     operation_filters = normalize_operation_id_filters(operation_ids)
-    if operation_filters and tag_filters:
-        msg = "operation ID filters cannot be combined with tag filters"
-        raise RunWorkflowError(msg)
-    if operation_filters and tag_expression is not None:
-        msg = "operation ID filters cannot be combined with tag expressions"
-        raise RunWorkflowError(msg)
-    compiled_tag_expression = (
-        compile_tag_expression(tag_expression) if tag_expression is not None else None
-    )
-    law = load_qanstitution(root / "qanstitution.yaml")
-    selected_roots, no_match_label = _selected_run_roots(
-        root=root,
-        changed_from=changed_from,
-        discovery_roots=discovery_roots,
+    _validate_run_filters(
+        tag_filters=tuple(tag_filters),
         tag_expression=tag_expression,
         operation_filters=operation_filters,
-        selection_label=selection_label,
     )
-    selection = discover_hurl_test_selection(
-        selected_roots,
+    selection_context = _prepare_run_selection_context(
+        root=root,
+        environment=environment,
         tag_filters=tuple(tag_filters),
-        tag_expression=compiled_tag_expression,
-        operation_id_filters=operation_filters,
+        tag_expression=tag_expression,
+        operation_filters=operation_filters,
+        changed_from=changed_from,
+        discovery_roots=discovery_roots,
+        selection_label=selection_label,
+        parallel=parallel,
     )
-    env_variables = (
-        load_environment_variables(environment, root=root) if environment is not None else {}
-    )
-    env_variables.update(load_process_hurl_variables())
-    hurl_workers = law.settings.parallel_workers if parallel else 1
+    law = selection_context.law
+    selection = selection_context.selection
+    env_variables = selection_context.env_variables
+    hurl_workers = selection_context.hurl_workers
     effective_rule_ids = tuple(gate.id for gate in law.gates)
     would_write_reports = _would_write_run_reports(report_formats)
 
     if not selection.tests:
-        no_match_message = _no_match_message(no_match_label, selection=selection)
+        no_match_message = _no_match_message(
+            selection_context.no_match_label,
+            selection=selection,
+        )
         return RunExecutionPlan(
             status="no_match",
             message=no_match_message,
@@ -671,29 +764,17 @@ def plan_run_workflow(
         )
 
     with tempfile.TemporaryDirectory(prefix="entroping-run-plan-") as execution_root:
-        execution_copies = [
-            write_injected_execution_copy(
-                hurl_test,
-                law.gates,
-                execution_root=Path(execution_root),
-                known_failures=law.ignore_failures,
-                project_root=root,
-            )
-            for hurl_test in selection.tests
-        ]
-        _reject_unmatched_selected_known_failures(
-            known_failures=law.ignore_failures,
-            hurl_tests=selection.tests,
-            execution_copies=execution_copies,
-            project_root=root,
-        )
-        safety = evaluate_run_safety(
-            selection.tests,
+        execution_context = _prepare_run_execution_context(
+            root=root,
+            law=law,
+            selection=selection,
             environment=environment,
             protected_run=protected_run,
             suite_safety=suite_safety,
-            protected_environments=law.settings.protected_environments,
+            execution_root=Path(execution_root),
         )
+        execution_copies = execution_context.execution_copies
+        safety = execution_context.safety
         missing = find_missing_hurl_variables(
             execution_copies,
             variables=env_variables,
@@ -828,11 +909,7 @@ def run_execution_plan_to_dict(plan: RunExecutionPlan) -> dict[str, object]:
                     if test.safety is not None
                     else {}
                 ),
-                **(
-                    {"auth": _auth_evidence_to_dict(test.auth)}
-                    if test.auth is not None
-                    else {}
-                ),
+                **({"auth": _auth_evidence_to_dict(test.auth)} if test.auth is not None else {}),
             }
             for test in plan.tests
         ],
