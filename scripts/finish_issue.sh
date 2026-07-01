@@ -35,13 +35,9 @@ warn() {
   printf 'finish_issue warning: %s\n' "$*" >&2
 }
 
-project_item_list_limit() {
-  local limit="${ENTROPING_PROJECT_ITEM_LIST_LIMIT:-1000}"
-  if [[ ! "$limit" =~ ^[1-9][0-9]*$ ]]; then
-    limit="1000"
-  fi
-  printf '%s\n' "$limit"
-}
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+# shellcheck source=scripts/_project_board_lib.sh
+source "$script_dir/_project_board_lib.sh"
 
 json_key() {
   local payload="$1"
@@ -110,98 +106,6 @@ if bad:
 
 print(len(checks))
 '
-}
-
-json_project_status_ids() {
-  local payload="$1"
-  printf '%s' "$payload" | python3 -c '
-import json
-import sys
-
-data = json.load(sys.stdin)
-for field in data.get("fields", []):
-    if field.get("name") != "Status":
-        continue
-    for option in field.get("options", []):
-        if option.get("name") == "Done":
-            print(field.get("id", ""))
-            print(option.get("id", ""))
-            raise SystemExit(0)
-raise SystemExit(1)
-'
-}
-
-json_project_item_id() {
-  local payload="$1"
-  local issue_number="$2"
-  printf '%s' "$payload" | python3 -c '
-import json
-import sys
-
-data = json.load(sys.stdin)
-issue_number = int(sys.argv[1])
-for item in data.get("items", []):
-    content = item.get("content", {})
-    if content.get("number") == issue_number:
-        print(item.get("id", ""))
-        raise SystemExit(0)
-raise SystemExit(1)
-' "$issue_number"
-}
-
-retry_project_item_id() {
-  local project_number="$1"
-  local project_owner="$2"
-  local issue_number="$3"
-  local attempts="${ENTROPING_PROJECT_ITEM_LOOKUP_RETRIES:-3}"
-  local delay_seconds="${ENTROPING_PROJECT_ITEM_LOOKUP_RETRY_DELAY_SECONDS:-1}"
-  local attempt
-  local items_json
-  local item_id
-  local item_list_limit
-
-  if [[ ! "$attempts" =~ ^[1-9][0-9]*$ ]]; then
-    attempts="3"
-  fi
-  if [[ ! "$delay_seconds" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
-    delay_seconds="1"
-  fi
-  item_list_limit=$(project_item_list_limit)
-
-  for ((attempt = 1; attempt <= attempts; attempt++)); do
-    if ! items_json=$(gh project item-list "$project_number" --owner "$project_owner" --limit "$item_list_limit" --format json 2>/dev/null); then
-      return 2
-    fi
-    if item_id=$(json_project_item_id "$items_json" "$issue_number"); then
-      printf '%s\n' "$item_id"
-      return 0
-    fi
-    if ((attempt < attempts)); then
-      sleep "$delay_seconds"
-    fi
-  done
-  return 1
-}
-
-project_graphql_quota_allows_update() {
-  local minimum_remaining="${ENTROPING_PROJECT_GRAPHQL_MIN_REMAINING:-50}"
-  local remaining
-
-  if [[ ! "$minimum_remaining" =~ ^[0-9]+$ ]]; then
-    minimum_remaining="50"
-  fi
-
-  if ! remaining=$(gh api rate_limit --jq '.resources.graphql.remaining' 2>/dev/null); then
-    return 0
-  fi
-  if [[ ! "$remaining" =~ ^[0-9]+$ ]]; then
-    return 0
-  fi
-  if ((remaining < minimum_remaining)); then
-    warn "GitHub Project GraphQL quota is low ($remaining remaining; need at least $minimum_remaining); skipping Project board update"
-    return 1
-  fi
-  return 0
 }
 
 canonical_path() {
@@ -300,7 +204,7 @@ move_project_done() {
     warn "could not read GitHub Project fields"
     return 0
   fi
-  if ! ids=$(json_project_status_ids "$fields_json"); then
+  if ! ids=$(json_project_status_ids "$fields_json" "Done"); then
     warn "could not find Project Status/Done field option"
     return 0
   fi
@@ -387,6 +291,7 @@ fi
 [[ "$issue_number" =~ ^[1-9][0-9]*$ ]] || die "issue-number must be a positive integer"
 command -v git >/dev/null 2>&1 || die "git is required"
 command -v gh >/dev/null 2>&1 || die "GitHub CLI (gh) is required"
+command -v uv >/dev/null 2>&1 || die "uv is required"
 command -v python3 >/dev/null 2>&1 || die "python3 is required"
 
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null) \
