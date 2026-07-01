@@ -22,6 +22,10 @@ _VERSION_RE = re.compile(r"\b(?P<major>\d+)\.(?P<minor>\d+)(?:\.(?P<patch>\d+))?
 _VERSION_TIMEOUT_SECONDS = 2.0
 _VERSION_OUTPUT_LIMIT_BYTES = 4 * 1024
 _HOST_LEVEL_SYMLINK_ANCHOR_NAMES = frozenset({"tmp", "var"})
+_MINIMAL_SUBPROCESS_RUNTIME_PATHS = (
+    Path("/opt/homebrew/bin"),
+    Path("/run/current-system/sw/bin"),
+)
 HURL_MINIMUM_SUPPORTED_VERSION = (4, 3, 0)
 HURL_MINIMUM_SUPPORTED_VERSION_TEXT = "4.3.0"
 
@@ -535,6 +539,7 @@ def _should_check_hurl_version(binary: str, resolved: str) -> bool:
 def _minimal_subprocess_env(binary_path: str) -> dict[str, str]:
     path_entries = [
         str(Path(binary_path).resolve().parent),
+        *(str(path) for path in _MINIMAL_SUBPROCESS_RUNTIME_PATHS if path.is_dir()),
         "/usr/bin",
         "/bin",
     ]
