@@ -8,6 +8,7 @@ from hashlib import sha256
 from pathlib import Path
 
 from entroping.bridge.policy_to_hurl import HurlGateAssertion, compile_matching_gates
+from entroping.core.known_failures import normalize_known_failure_test
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.hurl_source import HurlSourceTooLargeError, read_hurl_source_text
 from entroping.models.hurl import HurlExchange, HurlTest, parse_hurl_exchanges
@@ -216,7 +217,7 @@ def _matching_known_failures_by_rule_id(
     test_key = _test_path_key(source_path, project_root)
     matches: dict[str, KnownFailure] = {}
     for known_failure in known_failures:
-        if _normalize_known_failure_test(known_failure.test) != test_key:
+        if normalize_known_failure_test(known_failure.test) != test_key:
             continue
         matches.setdefault(known_failure.rule_id, known_failure)
     return matches
@@ -233,13 +234,9 @@ def _test_path_key(source_path: Path, project_root: Path | None) -> str:
     return resolved.as_posix()
 
 
-def _normalize_known_failure_test(test: str) -> str:
-    return test.strip().replace("\\", "/")
-
-
 def _to_applied_known_failure(known_failure: KnownFailure) -> AppliedKnownFailure:
     return AppliedKnownFailure(
-        test=_normalize_known_failure_test(known_failure.test),
+        test=normalize_known_failure_test(known_failure.test),
         rule_id=known_failure.rule_id,
         issue_id=known_failure.issue_id,
         expires=known_failure.expires,
