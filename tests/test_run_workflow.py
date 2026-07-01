@@ -1534,6 +1534,25 @@ def test_execute_run_workflow_records_events_for_environment_preflight_failure(
     assert events[2]["exit_code"] == 1
 
 
+def test_execute_run_workflow_invalid_tag_expression_does_not_start_event_log(
+    tmp_path: Path,
+) -> None:
+    _write_project(tmp_path)
+
+    with pytest.raises(ValueError, match="Expected tag or"):
+        execute_run_workflow(
+            project_root=tmp_path,
+            environment=None,
+            tag_filters=(),
+            tag_expression="smoke and or slow",
+            report_formats=(),
+            parallel=False,
+            drift_check=False,
+        )
+
+    assert not (tmp_path / ".entroping" / "latest-run-events.jsonl").exists()
+
+
 def test_execute_run_workflow_accepts_env_file_shell_env_and_local_hurl_definitions(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

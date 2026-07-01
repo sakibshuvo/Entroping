@@ -59,7 +59,7 @@ from entroping.core.report_writer import (
 from entroping.core.run_event_log import RunEventLog
 from entroping.core.run_safety import RunSafetyEvaluation, evaluate_run_safety
 from entroping.core.safe_write import SafeWriteError, safe_write_text
-from entroping.core.tag_expression import compile_tag_expression
+from entroping.core.tag_expression import CompiledTagExpression, compile_tag_expression
 from entroping.core.traffic_store import TrafficStoreError, list_project_exchanges_readonly
 from entroping.models.drift import DependencyDriftRoute, DriftReport
 from entroping.models.hurl import HurlTest
@@ -207,6 +207,7 @@ def _prepare_run_selection_context(
     changed_from: str | None,
     discovery_roots: Sequence[Path] | None,
     selection_label: str | None,
+    compiled_tag_expression: CompiledTagExpression | None = None,
     selected_roots: Sequence[Path] | None = None,
     no_match_label: str | None = None,
     parallel: bool,
@@ -220,9 +221,8 @@ def _prepare_run_selection_context(
             operation_filters=operation_filters,
             selection_label=selection_label,
         )
-    compiled_tag_expression = (
-        compile_tag_expression(tag_expression) if tag_expression is not None else None
-    )
+    if compiled_tag_expression is None and tag_expression is not None:
+        compiled_tag_expression = compile_tag_expression(tag_expression)
     law = load_qanstitution(root / "qanstitution.yaml")
     selection = discover_hurl_test_selection(
         selected_roots,
@@ -312,6 +312,9 @@ def execute_run_workflow(
         tag_expression=tag_expression,
         operation_filters=operation_filters,
     )
+    compiled_tag_expression = (
+        compile_tag_expression(tag_expression) if tag_expression is not None else None
+    )
     selected_roots, no_match_label = _selected_run_roots(
         root=root,
         changed_from=changed_from,
@@ -342,15 +345,16 @@ def execute_run_workflow(
             root=root,
             environment=environment,
             tag_filters=tuple(tag_filters),
-            tag_expression=tag_expression,
-            operation_filters=operation_filters,
-            changed_from=changed_from,
-            discovery_roots=discovery_roots,
-            selection_label=selection_label,
-            selected_roots=selected_roots,
-            no_match_label=no_match_label,
-            parallel=parallel,
-        )
+        tag_expression=tag_expression,
+        operation_filters=operation_filters,
+        changed_from=changed_from,
+        discovery_roots=discovery_roots,
+        selection_label=selection_label,
+        selected_roots=selected_roots,
+        no_match_label=no_match_label,
+        compiled_tag_expression=compiled_tag_expression,
+        parallel=parallel,
+    )
         law = selection_context.law
         selection = selection_context.selection
         hurl_tests = selection.tests
