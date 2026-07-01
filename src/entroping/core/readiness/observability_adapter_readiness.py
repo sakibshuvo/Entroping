@@ -6,7 +6,6 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from html import escape
 from pathlib import Path
 from typing import Final, Literal
 
@@ -22,6 +21,15 @@ from entroping.core.evidence_common import (
     safe_evidence_text,
 )
 from entroping.core.evidence_packet_base import write_evidence_packet_report
+from entroping.core.markdown_report import (
+    markdown_cell as _markdown_cell,
+)
+from entroping.core.markdown_report import (
+    markdown_inline_code as _inline_code,
+)
+from entroping.core.markdown_report import (
+    markdown_table_row,
+)
 from entroping.core.observability_contracts import OBSERVABILITY_FORBIDDEN_VALUE_FIELDS
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.runtime_card import RUNTIME_CARD_SCHEMA_VERSION
@@ -257,7 +265,7 @@ def render_observability_adapter_readiness_markdown(
         "",
         f"- Status: `{packet.summary.status}`",
         f"- Severity: `{packet.summary.severity}`",
-        f"- Project: `{_inline_code(packet.project or 'unknown')}`",
+        f"- Project: `{_inline_code(packet.project or 'unknown', style='observability')}`",
         "- Sources: "
         f"`{packet.summary.sources_present}/{packet.summary.sources_total}` present, "
         f"`{packet.summary.sources_missing}` missing, "
@@ -275,13 +283,14 @@ def render_observability_adapter_readiness_markdown(
     ]
     for source in packet.sources:
         lines.append(
-            "| "
-            f"{_markdown_cell(source.id)} | "
-            f"{_markdown_cell(source.state)} | "
-            f"{_markdown_cell(source.path)} | "
-            f"{_markdown_cell(source.schema_version or 'n/a')} | "
-            f"{_markdown_cell(source.sha256 or 'n/a')} | "
-            f"{_markdown_cell(source.summary)} |"
+            markdown_table_row(
+                _markdown_cell(source.id, style="observability"),
+                _markdown_cell(source.state, style="observability"),
+                _markdown_cell(source.path, style="observability"),
+                _markdown_cell(source.schema_version or "n/a", style="observability"),
+                _markdown_cell(source.sha256 or "n/a", style="observability"),
+                _markdown_cell(source.summary, style="observability"),
+            )
         )
 
     lines.extend(
@@ -295,13 +304,17 @@ def render_observability_adapter_readiness_markdown(
     )
     for adapter in packet.adapters:
         lines.append(
-            "| "
-            f"{_markdown_cell(adapter.id)} | "
-            f"{_markdown_cell(adapter.label)} | "
-            f"{_markdown_cell(adapter.status)} | "
-            f"{_markdown_cell(', '.join(adapter.required_source_ids))} | "
-            f"{_markdown_cell(', '.join(adapter.optional_source_ids) or 'n/a')} | "
-            f"{_markdown_cell(adapter.next_action)} |"
+            markdown_table_row(
+                _markdown_cell(adapter.id, style="observability"),
+                _markdown_cell(adapter.label, style="observability"),
+                _markdown_cell(adapter.status, style="observability"),
+                _markdown_cell(", ".join(adapter.required_source_ids), style="observability"),
+                _markdown_cell(
+                    ", ".join(adapter.optional_source_ids) or "n/a",
+                    style="observability",
+                ),
+                _markdown_cell(adapter.next_action, style="observability"),
+            )
         )
 
     lines.extend(
@@ -315,10 +328,11 @@ def render_observability_adapter_readiness_markdown(
     )
     for control in packet.boundary_controls:
         lines.append(
-            "| "
-            f"{_markdown_cell(control.id)} | "
-            f"{_markdown_cell(control.state)} | "
-            f"{_markdown_cell(control.summary)} |"
+            markdown_table_row(
+                _markdown_cell(control.id, style="observability"),
+                _markdown_cell(control.state, style="observability"),
+                _markdown_cell(control.summary, style="observability"),
+            )
         )
 
     lines.extend(
@@ -332,11 +346,12 @@ def render_observability_adapter_readiness_markdown(
     )
     for action in packet.next_actions:
         lines.append(
-            "| "
-            f"{_markdown_cell(action.priority)} | "
-            f"{_markdown_cell(action.action)} | "
-            f"{_markdown_cell(', '.join(action.source_ids))} | "
-            f"{_markdown_cell(', '.join(action.adapter_ids))} |"
+            markdown_table_row(
+                _markdown_cell(action.priority, style="observability"),
+                _markdown_cell(action.action, style="observability"),
+                _markdown_cell(", ".join(action.source_ids), style="observability"),
+                _markdown_cell(", ".join(action.adapter_ids), style="observability"),
+            )
         )
     return "\n".join(lines).rstrip() + "\n"
 
@@ -719,8 +734,19 @@ def _next_actions(
     sources: tuple[ObservabilityAdapterReadinessSource, ...],
     adapters: tuple[ObservabilityAdapterReadinessRow, ...],
 ) -> tuple[ObservabilityAdapterNextAction, ...]:
-    present_source_ids = tuple(source.id for source in sources if source.state == "present")
-    active_adapter_ids = tuple(adapter.id for adapter in adapters if adapter.status != "ready")
+    present_source_ids: tuple[ObservabilityAdapterSourceId, ...] = tuple(
+        source.id
+        for source in sources
+        if source.state == "present"
+    )
+    active_adapter_ids: tuple[ObservabilityAdapterId, ...] = tuple(
+        adapter.id
+        for adapter in adapters
+        if adapter.status != "ready"
+    )
+    all_adapter_ids: tuple[ObservabilityAdapterId, ...] = tuple(
+        adapter.id for adapter in adapters
+    )
     if summary.status == "ready":
         return (
             ObservabilityAdapterNextAction(
@@ -729,7 +755,7 @@ def _next_actions(
                     "Use this packet as the local value-free adapter readiness contract."
                 ),
                 source_ids=present_source_ids,
-                adapter_ids=tuple(adapter.id for adapter in adapters),
+                adapter_ids=all_adapter_ids,
             ),
         )
     if summary.status == "partial":
@@ -817,22 +843,6 @@ def _safe_optional_text(value: object) -> str | None:
 
 def _count(value: int | None) -> str:
     return str(value) if value is not None else "unknown"
-
-
-def _inline_code(value: str) -> str:
-    return escape(value).replace("`", "'")
-
-
-def _markdown_cell(value: object) -> str:
-    escaped = escape(str(value))
-    return (
-        escaped.replace("\\", "&#92;")
-        .replace("|", "\\|")
-        .replace("*", "&#42;")
-        .replace("_", "&#95;")
-        .replace("`", "&#96;")
-        .replace("\n", " ")
-    )
 
 
 def _relative_display(path: Path, *, root: Path) -> str:
