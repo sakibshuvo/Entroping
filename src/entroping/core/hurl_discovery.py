@@ -4,6 +4,7 @@ from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from entroping.core.path_safety import is_ignored_project_path
 from entroping.core.tag_expression import CompiledTagExpression
 from entroping.hurl_source import HurlSourceTooLargeError, read_hurl_source_text
 from entroping.models.hurl import (
@@ -14,22 +15,6 @@ from entroping.models.hurl import (
 )
 
 _DEFAULT_ROOTS = (Path("tests"),)
-_IGNORED_DIRECTORY_NAMES = frozenset(
-    {
-        ".entroping",
-        ".git",
-        ".mypy_cache",
-        ".pytest_cache",
-        ".ruff_cache",
-        ".venv",
-        "__pycache__",
-        "build",
-        "dist",
-        "node_modules",
-        "reports",
-        "venv",
-    },
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -181,7 +166,10 @@ def _discover_hurl_files(roots: Sequence[Path]) -> list[Path]:
             resolved_path = path.resolve()
             if not _is_within_root(resolved_path, root):
                 continue
-            if _is_ignored_path(path, root) or _is_ignored_path(resolved_path, root):
+            if is_ignored_project_path(path, root=root) or is_ignored_project_path(
+                resolved_path,
+                root=root,
+            ):
                 continue
             candidates.append(resolved_path)
 
@@ -194,11 +182,3 @@ def _is_within_root(path: Path, root: Path) -> bool:
     except ValueError:
         return False
     return True
-
-
-def _is_ignored_path(path: Path, root: Path) -> bool:
-    relative = path.relative_to(root)
-    for part in relative.parts[:-1]:
-        if part in _IGNORED_DIRECTORY_NAMES or part.startswith("."):
-            return True
-    return False

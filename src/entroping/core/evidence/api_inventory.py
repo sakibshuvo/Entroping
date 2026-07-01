@@ -23,7 +23,7 @@ from entroping.core.evidence_common import (
     contains_unredacted_evidence_secret,
     safe_evidence_text,
 )
-from entroping.core.path_safety import first_symlink_path_component
+from entroping.core.path_safety import first_symlink_path_component, is_ignored_project_path
 from entroping.core.safe_write import SafeWriteError, safe_write_text
 from entroping.models.hurl import (
     HurlMetadataSyntaxError,
@@ -58,22 +58,6 @@ _DEFAULT_OUTPUTS: Final[dict[ApiInventoryOutput, Path]] = {
     "md": Path("reports") / "api-inventory.md",
     "json": Path("reports") / "api-inventory.json",
 }
-_IGNORED_DIRECTORY_NAMES: Final[frozenset[str]] = frozenset(
-    {
-        ".entroping",
-        ".git",
-        ".mypy_cache",
-        ".pytest_cache",
-        ".ruff_cache",
-        ".venv",
-        "__pycache__",
-        "build",
-        "dist",
-        "node_modules",
-        "reports",
-        "venv",
-    }
-)
 _OPENAPI_FILENAMES: Final[frozenset[str]] = frozenset(
     {
         "openapi.json",
@@ -438,7 +422,7 @@ def _hurl_test_sources(*, root: Path) -> tuple[ApiInventorySource, ...]:
         return ()
     sources: list[ApiInventorySource] = []
     for path in sorted(tests_root.rglob("*.hurl"), key=lambda candidate: str(candidate)):
-        if _ignored(path, root=root):
+        if is_ignored_project_path(path, root=root):
             continue
         sources.append(_load_hurl_source(root=root, raw_path=Path(_relative_path(path, root=root))))
     return tuple(sources)
@@ -1116,21 +1100,14 @@ def _iter_candidate_files(*, root: Path) -> tuple[Path, ...]:
     for path in root.rglob("*"):
         if path.is_dir():
             continue
-        if _ignored(path, root=root):
+        if is_ignored_project_path(path, root=root):
             continue
         paths.append(path)
     return tuple(sorted(paths, key=lambda candidate: _relative_path(candidate, root=root)))
 
 
 def _ignored(path: Path, *, root: Path) -> bool:
-    try:
-        relative = path.relative_to(root)
-    except ValueError:
-        return True
-    for part in relative.parts[:-1]:
-        if part in _IGNORED_DIRECTORY_NAMES or part.startswith("."):
-            return True
-    return False
+    return is_ignored_project_path(path, root=root)
 
 
 def _reject_unsafe_relative_reference(value: str) -> str | None:
