@@ -1,6 +1,7 @@
 """Executable architecture and provider boundary tests."""
 
 import ast
+from collections.abc import Iterable
 from importlib import import_module
 from pathlib import Path
 
@@ -13,6 +14,63 @@ from support.architecture_guard import (
 )
 
 SOURCE_ROOT = Path("src/entroping")
+SCRIPTS_ROOT = Path("scripts")
+READ_TEXT_SCAN_EXCLUDED_PARTS = frozenset(
+    {
+        ".entroping",
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".venv",
+        "htmlcov",
+        "reports",
+        "site",
+    }
+)
+APPROVED_READ_TEXT_FUNCTIONS_BY_FILE = {
+    Path("scripts/ai_jobs.py"): frozenset({"_read_job"}),
+    Path("scripts/deepseek_worker.py"): frozenset({"_build_prompt"}),
+    Path("scripts/dependency_license_check.py"): frozenset(
+        {"_declared_dependencies", "_load_policy"}
+    ),
+    Path("scripts/docs_inventory.py"): frozenset({"_entry_for_path"}),
+    Path("scripts/factory_inbox_io.py"): frozenset({"read_json_object"}),
+    Path("scripts/factory_metrics_modules/context_scorecard_validation.py"): frozenset(
+        {"_load_context_scorecard"}
+    ),
+    Path("scripts/install_reference_sync.py"): frozenset(
+        {"latest_release_tag", "find_references", "sync_references"}
+    ),
+    Path("scripts/local_wheel_install_smoke.py"): frozenset({"_expected_wheel"}),
+    Path("scripts/monkeypatch_hotspots.py"): frozenset({"_build_payload"}),
+    Path("scripts/opencode_readiness.py"): frozenset({"_check_prompt_guardrails"}),
+    Path("scripts/opencode_worker.py"): frozenset({"_build_prompt"}),
+    Path("scripts/package_index_readiness_checks.py"): frozenset({"_read_text"}),
+    Path("scripts/pr_body_check.py"): frozenset({"main"}),
+    Path("scripts/public_claims_audit.py"): frozenset({"_audit_files"}),
+    Path("scripts/quality_trend_summary.py"): frozenset({"_read_text"}),
+    Path("scripts/release_evidence.py"): frozenset({"_load_ledger", "_load_freshness_fixture"}),
+    Path("scripts/test_taxonomy.py"): frozenset({"_declared_pytest_markers", "collect_test_files"}),
+    Path("src/entroping/brain/architect_build.py"): frozenset({"_read_merge_target"}),
+    Path("src/entroping/brain/architect_refactor.py"): frozenset({"_read_refactor_target"}),
+    Path("src/entroping/brain/persona_loader.py"): frozenset({"_read_persona"}),
+    Path("src/entroping/core/config_writer.py"): frozenset({"_read_yaml_mapping"}),
+    Path("src/entroping/core/coverage_badges.py"): frozenset({"_read_json_object"}),
+    Path("src/entroping/core/effective_policy_diff_report.py"): frozenset(
+        {"load_effective_policy_report"}
+    ),
+    Path("src/entroping/core/env_loader.py"): frozenset({"_read_env_file"}),
+    Path("src/entroping/core/evidence/agent_bundle.py"): frozenset({"_load_manifests"}),
+    Path("src/entroping/core/evidence/pilot_metrics.py"): frozenset({"_load_json_object"}),
+    Path("src/entroping/core/github_actions_starter.py"): frozenset({"<module>"}),
+    Path("src/entroping/core/policy_pack_vendor.py"): frozenset(
+        {"_read_yaml_mapping", "_read_config_mapping"}
+    ),
+    Path("src/entroping/core/run_suite_manifest.py"): frozenset({"_read_yaml_mapping"}),
+    Path("src/entroping/core/runtime_card.py"): frozenset({"_load_json_object"}),
+    Path("src/entroping/core/story_documents.py"): frozenset({"discover_story_documents"}),
+}
 
 
 ARCHITECTURE_RULES = (
@@ -108,6 +166,70 @@ CORE_BOUNDED_PACKAGE_MODULES = {
 }
 
 
+def _repo_relative_path(path: Path) -> Path:
+    try:
+        return path.relative_to(Path.cwd())
+    except ValueError:
+        return path
+
+
+def _is_read_text_scan_candidate(path: Path) -> bool:
+    return path.suffix == ".py" and not any(
+        part in READ_TEXT_SCAN_EXCLUDED_PARTS for part in path.parts
+    )
+
+
+def _read_text_guard_source_paths() -> tuple[Path, ...]:
+    source_paths = sorted(
+        path for path in SOURCE_ROOT.rglob("*.py") if _is_read_text_scan_candidate(path)
+    )
+    script_paths = sorted(
+        path for path in SCRIPTS_ROOT.rglob("*.py") if _is_read_text_scan_candidate(path)
+    )
+    return tuple([*source_paths, *script_paths])
+
+
+def _enclosing_function_name(node: ast.AST, parent_map: dict[ast.AST, ast.AST | None]) -> str:
+    current: ast.AST | None = node
+    while current is not None:
+        if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            return current.name
+        current = parent_map.get(current)
+    return "<module>"
+
+
+def _find_unapproved_read_text_calls(
+    paths: Iterable[Path],
+    *,
+    allowed_functions_by_file: dict[Path, frozenset[str]],
+) -> list[str]:
+    violations: list[str] = []
+    for path in paths:
+        display_path = _repo_relative_path(path)
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(display_path))
+        parent_map: dict[ast.AST, ast.AST | None] = {tree: None}
+        for node in ast.walk(tree):
+            for child in ast.iter_child_nodes(node):
+                parent_map[child] = node
+
+        allowed_functions = allowed_functions_by_file.get(display_path, frozenset())
+        for node in ast.walk(tree):
+            if not (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "read_text"
+            ):
+                continue
+            function_name = _enclosing_function_name(node, parent_map)
+            if function_name not in allowed_functions:
+                violations.append(
+                    f"{display_path}:{node.lineno} uses unbounded read_text outside an approved "
+                    f"helper ({function_name})"
+                )
+    return violations
+
+
 def test_import_boundary_checker_detects_synthetic_violations(tmp_path: Path) -> None:
     package = tmp_path / "entroping"
     (package / "models").mkdir(parents=True)
@@ -198,44 +320,34 @@ def test_product_source_does_not_import_factory_worker_routing() -> None:
     assert not violations, format_violations(violations)
 
 
-def test_security_sensitive_source_loaders_do_not_use_unbounded_read_text() -> None:
-    allowed_read_text_functions_by_file = {
-        Path("scripts/launch_readiness.py"): frozenset({"_read_text_file_bounded"}),
-        Path("scripts/stable_core_readiness.py"): frozenset({"_read_text_file_bounded"}),
-        Path("src/entroping/core/hurl_discovery.py"): frozenset(),
-        Path("src/entroping/core/gate_injector.py"): frozenset(),
-        Path("src/entroping/core/gate_injection_report.py"): frozenset(),
-        Path("src/entroping/core/hurl_variable_preflight.py"): frozenset(),
-        Path("src/entroping/core/failure_bundle.py"): frozenset(),
-        Path("src/entroping/bridge/test_quality.py"): frozenset(),
-    }
-    for path, allowed_functions in allowed_read_text_functions_by_file.items():
-        if not path.is_file():
-            continue
-        source = path.read_text(encoding="utf-8")
-        tree = ast.parse(source, filename=str(path))
-        parent_map: dict[ast.AST, ast.AST | None] = {tree: None}
-        for node in ast.walk(tree):
-            for child in ast.iter_child_nodes(node):
-                parent_map[child] = node
+def test_unbounded_read_text_guard_reports_unapproved_source_file(tmp_path: Path) -> None:
+    source_path = tmp_path / "src" / "entroping" / "core" / "hurl_indexer.py"
+    source_path.parent.mkdir(parents=True)
+    source_path.write_text(
+        "from pathlib import Path\n\n"
+        "def load_hurl(path: Path) -> str:\n"
+        "    return path.read_text(encoding='utf-8')\n",
+        encoding="utf-8",
+    )
 
-        for node in ast.walk(tree):
-            if not (
-                isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Attribute)
-                and node.func.attr == "read_text"
-            ):
-                continue
-            current: ast.AST | None = node
-            function_name = None
-            while current is not None:
-                if isinstance(current, ast.FunctionDef):
-                    function_name = current.name
-                    break
-                current = parent_map.get(current)
-            assert function_name in allowed_functions, (
-                f"{path}:{node.lineno} uses unbounded read_text outside a bounded helper"
-            )
+    violations = _find_unapproved_read_text_calls(
+        (source_path,),
+        allowed_functions_by_file={},
+    )
+
+    assert violations == [
+        f"{source_path}:4 uses unbounded read_text outside an approved helper "
+        "(load_hurl)",
+    ]
+
+
+def test_security_sensitive_source_loaders_do_not_use_unbounded_read_text() -> None:
+    violations = _find_unapproved_read_text_calls(
+        _read_text_guard_source_paths(),
+        allowed_functions_by_file=APPROVED_READ_TEXT_FUNCTIONS_BY_FILE,
+    )
+
+    assert not violations, "\n".join(violations)
 
 
 def test_hurl_source_loaders_share_one_max_size_contract() -> None:
