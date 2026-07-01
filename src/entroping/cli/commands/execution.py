@@ -39,6 +39,7 @@ from entroping.core.run_workflow import (
     NoHurlTestsMatchedError,
     RunExecutionPlan,
     RunWorkflowError,
+    RunWorkflowResult,
     execute_run_workflow,
     plan_run_workflow,
     write_run_execution_plan,
@@ -570,6 +571,23 @@ def run(
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
 
+    _print_run_result(
+        workflow_result,
+        rerun_selection=rerun_selection,
+        tag_expression=tag_expression,
+        operation_filters=operation_filters,
+    )
+
+    raise typer.Exit(workflow_result.exit_code)
+
+
+def _print_run_result(
+    workflow_result: RunWorkflowResult,
+    *,
+    rerun_selection: RerunFailureSelection | None,
+    tag_expression: str | None,
+    operation_filters: tuple[str, ...],
+) -> None:
     hurl_suite = workflow_result.suite
     drift_report = workflow_result.drift_report
     selection = getattr(workflow_result, "selection", None)
@@ -629,8 +647,6 @@ def run(
             console.print(result.stdout, markup=False)
         if result.stderr:
             console.print(result.stderr, markup=False)
-
-    raise typer.Exit(workflow_result.exit_code)
 
 
 def _execute_run_dry_run(
