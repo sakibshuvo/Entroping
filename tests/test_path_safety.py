@@ -67,3 +67,9 @@ def test_display_path_handles_unresolved_relative_path(tmp_path: Path) -> None:
     report_path = tmp_path / "reports" / "missing.json"
 
     assert display_path(report_path, root=tmp_path) == "reports/missing.json"
+
+
+def test_display_path_without_root_returns_absolute_posix_path(tmp_path: Path) -> None:
+    report_path = tmp_path / "reports" / "missing.json"
+
+    assert display_path(report_path) == report_path.resolve(strict=False).as_posix()
