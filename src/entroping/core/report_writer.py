@@ -7,6 +7,7 @@ from pathlib import Path
 
 from entroping.core.gate_injector import HurlExecutionCopy
 from entroping.core.hurl_runner import HurlFileResult, HurlSuiteResult, redact_hurl_output
+from entroping.core.path_safety import display_path
 from entroping.core.report_errors import ReportWriterError
 from entroping.core.report_fingerprint import (
     _extract_response_fingerprint,
@@ -218,11 +219,7 @@ def write_bug_report(report: RunReport, path: Path) -> Path:
 
 
 def _display_path(path: Path, root: Path) -> str:
-    resolved = path.expanduser().resolve()
-    try:
-        return str(resolved.relative_to(root))
-    except ValueError:
-        return str(resolved)
+    return display_path(path, root=root)
 
 
 def _write_report_text(path: Path, content: str, *, artifact: str) -> Path:

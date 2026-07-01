@@ -3,6 +3,18 @@
 from pathlib import Path
 
 
+def display_path(path: Path, root: Path | None = None) -> str:
+    resolved_path = path.expanduser().resolve(strict=False)
+    if root is None:
+        return resolved_path.as_posix()
+
+    resolved_root = root.expanduser().resolve(strict=False)
+    try:
+        return resolved_path.relative_to(resolved_root).as_posix()
+    except ValueError:
+        return resolved_path.as_posix()
+
+
 def first_symlink_path_component(path: Path, *, root: Path | None = None) -> Path | None:
     """Return the first symlink component in ``path`` without resolving it."""
 

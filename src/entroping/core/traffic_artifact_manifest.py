@@ -12,7 +12,7 @@ from entroping.bridge.redaction_review import (
     RedactionReviewReport,
     compile_redaction_review,
 )
-from entroping.core.path_safety import first_symlink_path_component
+from entroping.core.path_safety import display_path, first_symlink_path_component
 from entroping.core.safe_write import SafeWriteError, safe_write_text
 from entroping.models.traffic import TrafficExchange
 
@@ -210,7 +210,4 @@ def _reject_symlink_path(path: Path, *, root: Path, artifact: str) -> None:
 
 
 def _display_path(path: Path, root: Path) -> str:
-    try:
-        return path.resolve(strict=False).relative_to(root).as_posix()
-    except ValueError:
-        return str(path)
+    return display_path(path, root=root)

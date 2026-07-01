@@ -10,7 +10,7 @@ from typing import Final
 from entroping.core.bounded_read import BoundedReadError, read_text_bounded
 from entroping.core.evidence_common import LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES
 from entroping.core.hurl_runner import redact_hurl_output
-from entroping.core.path_safety import first_symlink_path_component
+from entroping.core.path_safety import display_path, first_symlink_path_component
 from entroping.core.report_rendering import render_bug_report
 from entroping.core.report_serialization import (
     RUN_REPORT_SCHEMA_VERSION,
@@ -446,7 +446,4 @@ def _schema_version_for_optional_artifact(bundle_name: str) -> str:
 
 
 def _display_path(path: Path, root: Path) -> str:
-    try:
-        return path.resolve(strict=False).relative_to(root).as_posix()
-    except ValueError:
-        return str(path)
+    return display_path(path, root=root)

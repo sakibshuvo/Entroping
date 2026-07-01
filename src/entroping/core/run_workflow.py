@@ -48,6 +48,7 @@ from entroping.core.hurl_variable_preflight import (
     find_missing_hurl_variables,
     preflight_hurl_variables,
 )
+from entroping.core.path_safety import display_path
 from entroping.core.report_writer import (
     build_run_report,
     write_html_report,
@@ -942,12 +943,7 @@ def _group_missing_variables(
 
 
 def _display_path(path: Path, project_root: Path) -> str:
-    resolved_root = project_root.expanduser().resolve()
-    resolved_path = path.expanduser().resolve()
-    try:
-        return resolved_path.relative_to(resolved_root).as_posix()
-    except ValueError:
-        return resolved_path.as_posix()
+    return display_path(path, root=project_root)
 
 
 def _default_no_match_label(
