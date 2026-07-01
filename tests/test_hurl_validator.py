@@ -63,6 +63,7 @@ def test_validate_hurl_content_uses_minimal_subprocess_environment(
     malicious_bin.mkdir()
     trusted_hurlfmt.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     monkeypatch.setenv("PATH", str(malicious_bin))
+    monkeypatch.setattr(Path, "is_dir", lambda path: False)
     calls: list[tuple[list[str], dict[str, str] | None, bool]] = []
 
     def fake_run(

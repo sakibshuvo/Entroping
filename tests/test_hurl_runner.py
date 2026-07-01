@@ -146,6 +146,7 @@ def test_discover_hurl_reports_compatible_version(
 
     monkeypatch.setattr("entroping.core.hurl_runner.shutil.which", lambda binary: "/opt/bin/hurl")
     monkeypatch.setattr("entroping.core.hurl_runner.subprocess.run", fake_run)
+    monkeypatch.setattr(Path, "is_dir", lambda path: False)
 
     status = discover_hurl("hurl")
 
@@ -359,6 +360,7 @@ def test_run_hurl_file_uses_minimal_subprocess_environment(
     hurl_file = _write_hurl(tmp_path / "tests" / "health.hurl")
     calls: list[dict[str, str]] = []
     monkeypatch.setenv("DB_URL", "postgres://user:secret-host/db")
+    monkeypatch.setattr(Path, "is_dir", lambda path: False)
 
     def fake_run(
         args: list[str],
@@ -391,6 +393,33 @@ def test_run_hurl_file_uses_minimal_subprocess_environment(
     )
     assert calls == [{"PATH": expected_path}]
     assert "secret-host" not in result.stdout
+
+
+def test_minimal_subprocess_environment_includes_existing_non_fhs_runtime_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    binary_path = tmp_path / "nix-store" / "bin" / "hurl"
+    non_fhs_paths = {
+        Path("/opt/homebrew/bin"),
+        Path("/run/current-system/sw/bin"),
+    }
+
+    def fake_is_dir(path: Path) -> bool:
+        return path in non_fhs_paths
+
+    monkeypatch.setattr(Path, "is_dir", fake_is_dir)
+    monkeypatch.setenv("PATH", "/untrusted/bin")
+
+    env = hurl_runner._minimal_subprocess_env(str(binary_path))
+
+    path_entries = env["PATH"].split(":")
+    assert path_entries[:3] == [
+        str(binary_path.resolve().parent),
+        "/opt/homebrew/bin",
+        "/run/current-system/sw/bin",
+    ]
+    assert "/untrusted/bin" not in path_entries
 
 
 def test_run_hurl_file_passes_variables_as_argument_array_and_redacts_values(
@@ -1065,6 +1094,7 @@ def test_run_hurl_file_explicit_absolute_binary_bypasses_parent_path(
     )
     _write_executable(malicious_bin / "hurl", "#!/bin/sh\necho malicious\n")
     monkeypatch.setenv("PATH", str(malicious_bin))
+    monkeypatch.setattr(Path, "is_dir", lambda path: False)
     calls: list[dict[str, object]] = []
 
     def fake_run(
