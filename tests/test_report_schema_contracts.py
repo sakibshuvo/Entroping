@@ -4439,6 +4439,7 @@ def test_evidence_links_v1_schema_contract_is_versioned_and_stable() -> None:
                 label="Runtime Card JSON",
                 source_id="runtime-card-json",
                 link_token="entroping://evidence/runtime-card-json",
+                artifact_uri="entroping://evidence/runtime-card-json",
                 path="reports/runtime-card.json",
                 state="ready",
                 surfaces=("cli", "pr", "desktop", "cloud", "mobile", "agent"),
@@ -4451,6 +4452,7 @@ def test_evidence_links_v1_schema_contract_is_versioned_and_stable() -> None:
                 label="Evidence Index JSON",
                 source_id="evidence-index-json",
                 link_token="entroping://evidence/evidence-index-json",
+                artifact_uri="entroping://evidence/evidence-index-json",
                 path="reports/evidence-index.json",
                 state="blocked",
                 surfaces=("cli", "desktop", "cloud", "mobile", "agent"),
@@ -4475,6 +4477,7 @@ def test_evidence_links_v1_schema_contract_is_versioned_and_stable() -> None:
     assert payload["schema_version"] == "entroping.evidence-links.v1"
     assert payload["summary"]["surfaces_total"] == 6
     assert payload["targets"][0]["link_token"] == "entroping://evidence/runtime-card-json"
+    assert payload["targets"][0]["artifact_uri"] == "entroping://evidence/runtime-card-json"
     assert schema["properties"]["schema_version"]["const"] == "entroping.evidence-links.v1"
     assert schema["$defs"]["source_state"]["enum"] == [
         "present",

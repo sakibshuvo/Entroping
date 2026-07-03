@@ -167,6 +167,7 @@
         "label",
         "source_id",
         "link_token",
+        "artifact_uri",
         "path",
         "state",
         "surfaces",
@@ -185,6 +186,9 @@
           "$ref": "#/$defs/source_id"
         },
         "link_token": {
+          "type": "string"
+        },
+        "artifact_uri": {
           "type": "string"
         },
         "path": {
