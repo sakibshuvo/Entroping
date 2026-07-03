@@ -464,7 +464,7 @@ def test_connector_intent_marks_read_errors_invalid(
     def fail_open(
         path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
         flags: int,
-        mode: int = 0o777,
+        mode: int = 0o600,
     ) -> int:
         if Path(os.fsdecode(path)).name == "runtime-card.json":
             raise OSError("permission denied")
@@ -500,7 +500,7 @@ def test_connector_intent_rejects_source_replaced_between_validation_and_read(
     def swap_before_open(
         path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
         flags: int,
-        mode: int = 0o777,
+        mode: int = 0o600,
     ) -> int:
         candidate = Path(os.fsdecode(path))
         if candidate == target and not candidate.is_symlink():

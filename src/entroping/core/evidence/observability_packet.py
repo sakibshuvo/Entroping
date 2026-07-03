@@ -223,8 +223,10 @@ def run_observability_packet_report(
     """Write a local vendor-neutral observability packet."""
 
     match output:
-        case "md" | "json":
-            observability_output: ObservabilityOutput = output
+        case "md":
+            observability_output: ObservabilityOutput = "md"
+        case "json":
+            observability_output = "json"
         case _:
             msg = f"Unsupported observability output: {output}"
             raise ObservabilityPacketError(msg)

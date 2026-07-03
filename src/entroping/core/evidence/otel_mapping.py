@@ -181,8 +181,10 @@ def run_otel_mapping_report(
     """Write a local OpenTelemetry evidence mapping packet."""
 
     match output:
-        case "md" | "json":
-            selected_output: OtelMappingOutput = output
+        case "md":
+            selected_output: OtelMappingOutput = "md"
+        case "json":
+            selected_output = "json"
         case _:
             msg = f"Unsupported otel-mapping output: {output}"
             raise OtelMappingError(msg)

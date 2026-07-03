@@ -10,6 +10,10 @@
   smoke, and Scorecard workflows now use immutable action SHAs, and workflow
   guardrail tests reject future tag-style refs in tracked workflows.
 
+- Fixed issue #1331's high-signal CodeQL findings: test file-open monkeypatches
+  no longer default to permissive modes, drift candidate assertions avoid
+  mutation inside `assert`, and evidence packet output selection is explicit.
+
 - Added issue #1316's PR evidence-card GitHub Actions example: downstream
   teams can copy a read-only PR workflow that runs the local evidence card
   after Entroping reports exist, publishes it through the GitHub job summary and
