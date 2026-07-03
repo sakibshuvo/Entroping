@@ -13,6 +13,8 @@ mkdir -p "$DEMO_BASE"
 WORK_DIR="$(mktemp -d "$DEMO_BASE/work.XXXXXX")"
 ARTIFACT_DIR="$(mktemp -d "$DEMO_BASE/artifacts.XXXXXX")"
 SERVER_LOG="$WORK_DIR/server.log"
+export BASE_URL
+export WORK_DIR
 
 cleanup() {
   if [ -n "$SERVER_PID" ]; then
@@ -32,11 +34,13 @@ trap cleanup EXIT
 
 cp -R "$REPO_ROOT/examples/checkout-api" "$WORK_DIR/"
 cp "$WORK_DIR/checkout-api/envs/local.env.example" "$WORK_DIR/checkout-api/envs/local.env"
-python - <<PY
+python - <<'PY'
+import os
 from pathlib import Path
-path = Path("$WORK_DIR/checkout-api/envs/local.env")
+
+path = Path(os.environ["WORK_DIR"]) / "checkout-api/envs/local.env"
 content = [line for line in path.read_text(encoding="utf-8").splitlines() if not line.startswith("base_url=")]
-content.append(f"base_url={BASE_URL}")
+content.append(f"base_url={os.environ['BASE_URL']}")
 path.write_text("\n".join(content) + "\n", encoding="utf-8")
 PY
 cd "$WORK_DIR/checkout-api"
