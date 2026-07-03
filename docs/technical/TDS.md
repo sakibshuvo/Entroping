@@ -1824,7 +1824,8 @@ plan at `reports/qa-brain-eval-plan.md` by default, or
 `reports/qa-brain-eval-plan.json` with `--output json`. It derives future eval
 case metadata from deterministic QA-brain seed readiness: readiness state,
 value-free source IDs and paths, input/output contracts, deterministic
-acceptance signals, negative controls, and next-action rows. It is not a
+acceptance signals, negative controls, value-free source-state catalog counts,
+categories, schema versions, missing-evidence reasons, and next-action rows. It is not a
 model, fine-tune, retrieval engine, eval runner, or provider integration, and
 it preserves LiteLLM/provider-neutral boundaries. Missing evidence is
 non-blocking; attention cases remain represented without embedding source

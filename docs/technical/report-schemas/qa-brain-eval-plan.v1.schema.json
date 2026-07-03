@@ -97,7 +97,8 @@
         "output_contract",
         "acceptance_signal",
         "negative_controls",
-        "next_action"
+        "next_action",
+        "evidence_catalog"
       ],
       "properties": {
         "id": {
@@ -138,6 +139,101 @@
         },
         "next_action": {
           "type": "string"
+        },
+        "evidence_catalog": {
+          "$ref": "#/$defs/evidence_catalog"
+        }
+      }
+    },
+    "evidence_catalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected_sources_total",
+        "sources_present",
+        "sources_missing",
+        "sources_invalid",
+        "sources_unsafe",
+        "categories",
+        "missing_reasons",
+        "sources"
+      ],
+      "properties": {
+        "expected_sources_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_present": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_invalid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources_unsafe": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/catalog_category"
+          }
+        },
+        "missing_reasons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/missing_reason"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/catalog_source"
+          }
+        }
+      }
+    },
+    "catalog_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "state",
+        "category",
+        "schema_version",
+        "missing_reason"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/catalog_source_state"
+        },
+        "category": {
+          "$ref": "#/$defs/catalog_category"
+        },
+        "schema_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "missing_reason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/missing_reason"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     },
@@ -167,6 +263,36 @@
           }
         }
       }
+    },
+    "catalog_source_state": {
+      "enum": [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe"
+      ]
+    },
+    "catalog_category": {
+      "enum": [
+        "runtime_governance",
+        "policy_governance",
+        "generated_test_quality",
+        "test_pyramid",
+        "api_inventory",
+        "mutation_fuzz",
+        "redaction_safety",
+        "cross_surface_handoff",
+        "agent_review",
+        "review_signal",
+        "generic_evidence"
+      ]
+    },
+    "missing_reason": {
+      "enum": [
+        "artifact_missing",
+        "artifact_invalid",
+        "artifact_unsafe"
+      ]
     },
     "case_readiness": {
       "enum": [
