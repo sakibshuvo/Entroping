@@ -15,10 +15,12 @@ from entroping.core.evidence.observability_packet import (
     run_observability_packet_report,
 )
 from entroping.core.evidence_packet_base import EvidencePacketResult
+from entroping.core.report_schema_versions import EVIDENCE_INDEX_SCHEMA_VERSION
 from entroping.core.runtime_card import RUNTIME_CARD_SCHEMA_VERSION
 from entroping.core.safe_write import SafeWriteError
 from entroping.core.structured_diagnostics import (
     STRUCTURED_DIAGNOSTICS_SCHEMA_VERSION,
+    DiagnosticSeverity,
     build_diagnostic_event,
     diagnostic_event_to_dict,
 )
@@ -56,6 +58,7 @@ def test_run_observability_packet_writes_value_free_json_from_local_evidence(
         ],
     )
     _write_runtime_card(tmp_path, status="attention", failed_gate_ids=("latency-budget",))
+    _write_evidence_index(tmp_path)
 
     result = run_observability_packet_report(project_root=tmp_path, output="json")
 
@@ -65,8 +68,8 @@ def test_run_observability_packet_writes_value_free_json_from_local_evidence(
     assert payload["summary"] == {
         "status": "ready",
         "severity": "blocker",
-        "sources_total": 2,
-        "sources_present": 2,
+        "sources_total": 3,
+        "sources_present": 3,
         "sources_missing": 0,
         "sources_invalid": 0,
         "sources_unsafe": 0,
@@ -94,6 +97,7 @@ def test_run_observability_packet_writes_value_free_json_from_local_evidence(
         "summary": "3 diagnostic events.",
     }
     assert sources["runtime_card"]["state"] == "present"
+    assert sources["evidence_index"]["state"] == "present"
     components = {component["component"]: component for component in payload["components"]}
     assert components["run"] == {
         "component": "run",
@@ -120,10 +124,90 @@ def test_run_observability_packet_writes_value_free_json_from_local_evidence(
         "reports/observability-packet.json",
         ".entroping/latest-diagnostics.jsonl",
         "reports/runtime-card.json",
+        "reports/evidence-index.json",
     ]
     serialized = json.dumps(payload)
     assert "sk-proj" not in serialized
     assert "latency-budget" not in serialized
+
+
+def test_observability_packet_links_runtime_governance_anchor_metadata(
+    tmp_path: Path,
+) -> None:
+    diagnostics_path = _write_diagnostics(
+        tmp_path,
+        [
+            _event(
+                component="doctor",
+                operation="ci",
+                severity="info",
+                code="doctor.ready",
+                summary="Doctor readiness is available.",
+            )
+        ],
+    )
+    _write_runtime_card(tmp_path)
+    evidence_index_path = _write_evidence_index(tmp_path, status="partial")
+
+    result = run_observability_packet_report(project_root=tmp_path, output="json")
+
+    payload = json.loads(result.output_path.read_text(encoding="utf-8"))
+    sources = {source["id"]: source for source in payload["sources"]}
+    assert sources["evidence_index"] == {
+        "id": "evidence_index",
+        "label": "Evidence index",
+        "path": "reports/evidence-index.json",
+        "state": "present",
+        "schema_version": EVIDENCE_INDEX_SCHEMA_VERSION,
+        "sha256": hashlib.sha256(evidence_index_path.read_bytes()).hexdigest(),
+        "summary": "partial evidence index",
+    }
+    opentelemetry = next(
+        message for message in payload["messages"] if message["surface"] == "opentelemetry"
+    )
+    assert opentelemetry["artifact_paths"] == [
+        "reports/observability-packet.json",
+        ".entroping/latest-diagnostics.jsonl",
+        "reports/runtime-card.json",
+        "reports/evidence-index.json",
+    ]
+    serialized = json.dumps(payload)
+    assert hashlib.sha256(diagnostics_path.read_bytes()).hexdigest() in serialized
+    assert "raw-artifact-marker" not in serialized
+
+
+def test_observability_packet_marks_missing_evidence_index_as_nonfatal_gap(
+    tmp_path: Path,
+) -> None:
+    _write_diagnostics(
+        tmp_path,
+        [
+            _event(
+                component="doctor",
+                operation="ci",
+                severity="info",
+                code="doctor.ready",
+                summary="Doctor readiness is available.",
+            )
+        ],
+    )
+    _write_runtime_card(tmp_path, status="pass")
+
+    packet = build_observability_packet(project_root=tmp_path)
+
+    sources = {source.id: source for source in packet.sources}
+    assert sources["evidence_index"].state == "missing"
+    assert sources["evidence_index"].summary == "Evidence index is missing."
+    assert packet.summary.status == "partial"
+    assert packet.summary.severity == "attention"
+    opentelemetry = next(
+        message for message in packet.messages if message.surface == "opentelemetry"
+    )
+    assert opentelemetry.artifact_paths == (
+        "reports/observability-packet.json",
+        ".entroping/latest-diagnostics.jsonl",
+        "reports/runtime-card.json",
+    )
 
 
 def test_observability_packet_falls_back_to_diagnostics_when_runtime_missing(
@@ -391,6 +475,83 @@ def test_observability_packet_marks_unreadable_runtime_card_invalid(
     assert "Could not read runtime card" in sources["runtime_card"].summary
 
 
+def test_observability_packet_marks_bad_evidence_index_payloads(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_diagnostics(
+        tmp_path,
+        [
+            _event(
+                component="doctor",
+                operation="ci",
+                severity="info",
+                code="doctor.ready",
+                summary="Doctor readiness is available.",
+            )
+        ],
+    )
+    _write_runtime_card(tmp_path)
+    evidence_path = tmp_path / "reports" / "evidence-index.json"
+    evidence_path.write_bytes(b"\xff")
+
+    packet = build_observability_packet(project_root=tmp_path)
+
+    sources = {source.id: source for source in packet.sources}
+    assert sources["evidence_index"].state == "invalid"
+    assert "UTF-8" in sources["evidence_index"].summary
+
+    evidence_path.write_text("sk-proj-" + ("a" * 24), encoding="utf-8")
+
+    packet = build_observability_packet(project_root=tmp_path)
+
+    sources = {source.id: source for source in packet.sources}
+    assert sources["evidence_index"].state == "unsafe"
+    assert "secret-like content" in sources["evidence_index"].summary
+
+    _write_json(evidence_path, {"schema_version": "wrong"})
+
+    packet = build_observability_packet(project_root=tmp_path)
+
+    sources = {source.id: source for source in packet.sources}
+    assert sources["evidence_index"].state == "invalid"
+    assert "unsupported schema" in sources["evidence_index"].summary
+
+    _write_json(
+        evidence_path,
+        {"schema_version": EVIDENCE_INDEX_SCHEMA_VERSION, "summary": "ready"},
+    )
+
+    packet = build_observability_packet(project_root=tmp_path)
+
+    sources = {source.id: source for source in packet.sources}
+    assert sources["evidence_index"].state == "invalid"
+    assert "summary must be a JSON object" in sources["evidence_index"].summary
+
+    _write_json(
+        evidence_path,
+        {
+            "schema_version": EVIDENCE_INDEX_SCHEMA_VERSION,
+            "summary": {"status": "unknown"},
+        },
+    )
+
+    packet = build_observability_packet(project_root=tmp_path)
+
+    sources = {source.id: source for source in packet.sources}
+    assert sources["evidence_index"].state == "invalid"
+    assert "summary status is missing or unsupported" in sources["evidence_index"].summary
+
+    _write_evidence_index(tmp_path)
+    monkeypatch.setattr(observability_packet, "_MAX_OBSERVABILITY_ARTIFACT_BYTES", 1)
+
+    packet = build_observability_packet(project_root=tmp_path)
+
+    sources = {source.id: source for source in packet.sources}
+    assert sources["evidence_index"].state == "invalid"
+    assert "exceeds 1 bytes" in sources["evidence_index"].summary
+
+
 def test_observability_packet_uses_runtime_status_for_severity(tmp_path: Path) -> None:
     _write_diagnostics(
         tmp_path,
@@ -405,6 +566,7 @@ def test_observability_packet_uses_runtime_status_for_severity(tmp_path: Path) -
         ],
     )
     _write_runtime_card(tmp_path, status="pass", failed_gate_ids=("latency-budget",))
+    _write_evidence_index(tmp_path)
 
     packet = build_observability_packet(project_root=tmp_path)
 
@@ -441,7 +603,7 @@ def test_observability_packet_rejects_unsupported_and_unsafe_outputs(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with pytest.raises(ObservabilityPacketError, match="Unsupported observability output"):
-        run_observability_packet_report(project_root=tmp_path, output="html")  # type: ignore[arg-type]
+        run_observability_packet_report(project_root=tmp_path, output="html")
     with pytest.raises(ObservabilityPacketError, match="must stay under"):
         run_observability_packet_report(
             project_root=tmp_path,
@@ -586,7 +748,7 @@ def _event(
     *,
     component: str,
     operation: str,
-    severity: str,
+    severity: DiagnosticSeverity,
     code: str,
     summary: str,
     attributes: dict[str, object] | None = None,
@@ -595,7 +757,7 @@ def _event(
         build_diagnostic_event(
             component=component,
             operation=operation,
-            severity=severity,  # type: ignore[arg-type]
+            severity=severity,
             code=code,
             summary=summary,
             attributes=attributes,
@@ -687,6 +849,37 @@ def _write_runtime_card(
             "findings": [],
         },
     )
+
+
+def _write_evidence_index(root: Path, *, status: str = "ready") -> Path:
+    path = root / "reports" / "evidence-index.json"
+    _write_json(
+        path,
+        {
+            "schema_version": EVIDENCE_INDEX_SCHEMA_VERSION,
+            "generated_at": "2026-06-20T00:00:00+00:00",
+            "project": "checkout-api",
+            "summary": {
+                "status": status,
+                "artifacts_total": 1,
+                "artifacts_present": 1,
+                "artifacts_missing": 0,
+                "artifacts_invalid": 0,
+                "artifacts_unsafe": 0,
+            },
+            "artifacts": [
+                {
+                    "id": "runtime-card-json",
+                    "label": "Runtime Card JSON",
+                    "path": "reports/runtime-card.json",
+                    "state": "present",
+                    "schema_version": RUNTIME_CARD_SCHEMA_VERSION,
+                    "summary": "raw-artifact-marker",
+                }
+            ],
+        },
+    )
+    return path
 
 
 def _write_json(path: Path, payload: object) -> None:

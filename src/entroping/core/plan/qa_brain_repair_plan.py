@@ -36,6 +36,8 @@ QaBrainRepairPlanOutput = Literal["md", "json"]
 QaBrainRepairPlanStatus = Literal["ready", "partial", "insufficient"]
 QaBrainRepairPlanReadiness = Literal["ready", "missing", "attention"]
 QaBrainRepairIntent = Literal["generate", "repair", "review"]
+QaBrainRepairProposalDryRunPrerequisiteStatus = Literal["ready", "partial", "missing"]
+QaBrainRepairProposalDryRunGateStatus = Literal["ready", "missing"]
 QaBrainRepairPlanSourceState = EvidenceArtifactState
 QaBrainRepairPlanSourceId = Literal[
     "test-quality-json",
@@ -219,6 +221,24 @@ class QaBrainRepairPlanNextAction(BaseModel):
     case_ids: tuple[QaBrainEvalSliceId, ...]
 
 
+class QaBrainRepairProposalDryRunArtifactStatus(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source_id: QaBrainRepairPlanSourceId
+    status: QaBrainRepairPlanSourceState
+
+
+class QaBrainRepairProposalDryRunChecklistItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    case_id: QaBrainEvalSliceId
+    prerequisite_status: QaBrainRepairProposalDryRunPrerequisiteStatus
+    readiness: QaBrainRepairPlanReadiness
+    artifact_statuses: tuple[QaBrainRepairProposalDryRunArtifactStatus, ...]
+    acceptance_gate_status: QaBrainRepairProposalDryRunGateStatus
+    next_action_label: str
+
+
 class QaBrainRepairPlanPacket(BaseModel):
     """Schema-versioned local QA brain repair-plan packet."""
 
@@ -233,6 +253,9 @@ class QaBrainRepairPlanPacket(BaseModel):
     summary: QaBrainRepairPlanSummary
     sources: tuple[QaBrainRepairPlanSource, ...]
     repair_plans: tuple[QaBrainRepairPlanRow, ...]
+    repair_proposal_dry_run_checklist: tuple[
+        QaBrainRepairProposalDryRunChecklistItem, ...
+    ] = ()
     next_actions: tuple[QaBrainRepairPlanNextAction, ...]
 
 
@@ -295,6 +318,10 @@ def build_qa_brain_repair_plan(*, project_root: Path) -> QaBrainRepairPlanPacket
     root = project_root.expanduser().resolve()
     sources, gates_by_case = _sources_and_routing_gates(root=root)
     repair_plans = _repair_plan_rows(sources=sources, gates_by_case=gates_by_case)
+    checklist = _repair_proposal_dry_run_checklist(
+        sources=sources,
+        repair_plans=repair_plans,
+    )
     next_actions = _next_actions(repair_plans)
     packet = QaBrainRepairPlanPacket(
         generated_at=datetime.now(UTC).isoformat(),
@@ -307,6 +334,7 @@ def build_qa_brain_repair_plan(*, project_root: Path) -> QaBrainRepairPlanPacket
         ),
         sources=sources,
         repair_plans=repair_plans,
+        repair_proposal_dry_run_checklist=checklist,
         next_actions=next_actions,
     )
     if _contains_unredacted_packet_secret_like_value(packet.model_dump_json()):
@@ -364,6 +392,25 @@ def render_qa_brain_repair_plan_markdown(packet: QaBrainRepairPlanPacket) -> str
             f"{_markdown_cell(', '.join(row.acceptance_gate_ids) or 'n/a')} | "
             f"{_markdown_cell('; '.join(row.blockers) or 'none')} | "
             f"{_markdown_cell(row.next_action)} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## Repair Proposal Dry-Run Checklist",
+            "",
+            "| ID | Status | Readiness | Artifacts | Gates | Next Action |",
+            "| --- | --- | --- | --- | --- | --- |",
+        ]
+    )
+    for item in packet.repair_proposal_dry_run_checklist:
+        lines.append(
+            "| "
+            f"{_markdown_cell(item.case_id)} | "
+            f"{_markdown_cell(item.prerequisite_status)} | "
+            f"{_markdown_cell(item.readiness)} | "
+            f"{_markdown_cell(_artifact_statuses_label(item.artifact_statuses))} | "
+            f"{_markdown_cell(item.acceptance_gate_status)} | "
+            f"{_markdown_cell(item.next_action_label)} |"
         )
     lines.extend(
         [
@@ -654,6 +701,96 @@ def _next_actions(
     return tuple(actions)
 
 
+def _repair_proposal_dry_run_checklist(
+    *,
+    sources: tuple[QaBrainRepairPlanSource, ...],
+    repair_plans: tuple[QaBrainRepairPlanRow, ...],
+) -> tuple[QaBrainRepairProposalDryRunChecklistItem, ...]:
+    sources_by_id: dict[QaBrainRepairPlanSourceId, QaBrainRepairPlanSource] = {
+        source.id: source for source in sources
+    }
+    return tuple(
+        _repair_proposal_dry_run_checklist_item(row=row, sources_by_id=sources_by_id)
+        for row in repair_plans
+    )
+
+
+def _repair_proposal_dry_run_checklist_item(
+    *,
+    row: QaBrainRepairPlanRow,
+    sources_by_id: Mapping[QaBrainRepairPlanSourceId, QaBrainRepairPlanSource],
+) -> QaBrainRepairProposalDryRunChecklistItem:
+    artifact_statuses: list[QaBrainRepairProposalDryRunArtifactStatus] = []
+    for source_id in _REPAIR_SOURCE_IDS[row.case_id]:
+        source = sources_by_id.get(source_id)
+        artifact_statuses.append(
+            QaBrainRepairProposalDryRunArtifactStatus(
+                source_id=source_id,
+                status=source.state if source is not None else "missing",
+            )
+        )
+    artifact_status_tuple = tuple(artifact_statuses)
+    gate_status = _acceptance_gate_status(row)
+    prerequisite_status = _prerequisite_status(
+        artifact_statuses=artifact_status_tuple,
+        acceptance_gate_status=gate_status,
+    )
+    return QaBrainRepairProposalDryRunChecklistItem(
+        case_id=row.case_id,
+        prerequisite_status=prerequisite_status,
+        readiness=row.readiness,
+        artifact_statuses=artifact_status_tuple,
+        acceptance_gate_status=gate_status,
+        next_action_label=_dry_run_next_action_label(
+            prerequisite_status=prerequisite_status,
+            artifact_statuses=artifact_status_tuple,
+            acceptance_gate_status=gate_status,
+        ),
+    )
+
+
+def _acceptance_gate_status(
+    row: QaBrainRepairPlanRow,
+) -> QaBrainRepairProposalDryRunGateStatus:
+    return "ready" if row.acceptance_gate_ids else "missing"
+
+
+def _prerequisite_status(
+    *,
+    artifact_statuses: tuple[QaBrainRepairProposalDryRunArtifactStatus, ...],
+    acceptance_gate_status: QaBrainRepairProposalDryRunGateStatus,
+) -> QaBrainRepairProposalDryRunPrerequisiteStatus:
+    if (
+        all(artifact.status == "present" for artifact in artifact_statuses)
+        and acceptance_gate_status == "ready"
+    ):
+        return "ready"
+    if any(artifact.status != "missing" for artifact in artifact_statuses):
+        return "partial"
+    if acceptance_gate_status == "ready":
+        return "partial"
+    return "missing"
+
+
+def _dry_run_next_action_label(
+    *,
+    prerequisite_status: QaBrainRepairProposalDryRunPrerequisiteStatus,
+    artifact_statuses: tuple[QaBrainRepairProposalDryRunArtifactStatus, ...],
+    acceptance_gate_status: QaBrainRepairProposalDryRunGateStatus,
+) -> str:
+    if any(artifact.status in {"invalid", "unsafe"} for artifact in artifact_statuses):
+        return "repair-local-evidence"
+    if prerequisite_status == "ready":
+        return "repair-proposal-dry-run"
+    if (
+        prerequisite_status == "partial"
+        and acceptance_gate_status == "missing"
+        and any(artifact.status == "present" for artifact in artifact_statuses)
+    ):
+        return "add-routing-acceptance-gates"
+    return "add-value-free-evidence"
+
+
 def _summary(
     *,
     sources: tuple[QaBrainRepairPlanSource, ...],
@@ -783,3 +920,11 @@ def _markdown_cell(value: str) -> str:
 
 def _escape_backticks(value: str) -> str:
     return value.replace("`", "&#96;")
+
+
+def _artifact_statuses_label(
+    artifact_statuses: tuple[QaBrainRepairProposalDryRunArtifactStatus, ...],
+) -> str:
+    return ", ".join(
+        f"{artifact.source_id}:{artifact.status}" for artifact in artifact_statuses
+    )

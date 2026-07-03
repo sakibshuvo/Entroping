@@ -152,6 +152,78 @@ def test_qa_brain_repair_plan_derives_ready_rows_without_raw_values(
     assert "generated_tests" not in rendered
 
 
+def test_qa_brain_repair_plan_adds_ready_repair_proposal_dry_run_checklist(
+    tmp_path: Path,
+) -> None:
+    _write_ready_sources(tmp_path)
+
+    packet = build_qa_brain_repair_plan(project_root=tmp_path)
+    checklist = {item.case_id: item for item in packet.repair_proposal_dry_run_checklist}
+    item = checklist["unsafe_generated_hurl"]
+
+    assert item.prerequisite_status == "ready"
+    assert item.readiness == "ready"
+    assert item.acceptance_gate_status == "ready"
+    assert item.next_action_label == "repair-proposal-dry-run"
+    assert tuple(
+        (artifact.source_id, artifact.status) for artifact in item.artifact_statuses
+    ) == (
+        ("test-quality-json", "present"),
+        ("mutation-readiness-json", "present"),
+        ("qa-brain-routing-plan-json", "present"),
+    )
+
+
+def test_qa_brain_repair_plan_marks_partial_repair_proposal_dry_run_checklist(
+    tmp_path: Path,
+) -> None:
+    reports = tmp_path / "reports"
+    _write_json(
+        reports / "test-quality.json",
+        {
+            "schema_version": "entroping.test-quality-report.v1",
+            "summary": {"status": "warn", "score": 80},
+        },
+    )
+    _write_json(reports / "qa-brain-routing-plan.json", _routing_plan_payload())
+
+    packet = build_qa_brain_repair_plan(project_root=tmp_path)
+    checklist = {item.case_id: item for item in packet.repair_proposal_dry_run_checklist}
+    item = checklist["weak_test_detection"]
+
+    assert item.prerequisite_status == "partial"
+    assert item.readiness == "ready"
+    assert item.acceptance_gate_status == "ready"
+    assert item.next_action_label == "add-value-free-evidence"
+    assert tuple(
+        (artifact.source_id, artifact.status) for artifact in item.artifact_statuses
+    ) == (
+        ("test-quality-json", "present"),
+        ("evidence-action-plan-json", "missing"),
+        ("qa-brain-routing-plan-json", "present"),
+    )
+
+
+def test_qa_brain_repair_plan_marks_missing_repair_proposal_dry_run_checklist(
+    tmp_path: Path,
+) -> None:
+    packet = build_qa_brain_repair_plan(project_root=tmp_path)
+    checklist = {item.case_id: item for item in packet.repair_proposal_dry_run_checklist}
+    item = checklist["weak_test_detection"]
+
+    assert item.prerequisite_status == "missing"
+    assert item.readiness == "missing"
+    assert item.acceptance_gate_status == "missing"
+    assert item.next_action_label == "add-value-free-evidence"
+    assert tuple(
+        (artifact.source_id, artifact.status) for artifact in item.artifact_statuses
+    ) == (
+        ("test-quality-json", "missing"),
+        ("evidence-action-plan-json", "missing"),
+        ("qa-brain-routing-plan-json", "missing"),
+    )
+
+
 def test_qa_brain_repair_plan_reports_partial_when_some_rows_are_ready(
     tmp_path: Path,
 ) -> None:
@@ -186,6 +258,8 @@ def test_qa_brain_repair_plan_markdown_is_human_readable_and_value_free(
 
     assert "# Entroping QA Brain Repair Plan" in markdown
     assert "- Schema: `entroping.qa-brain-repair-plan.v1`" in markdown
+    assert "Repair Proposal Dry-Run Checklist" in markdown
+    assert "repair-proposal-dry-run" in markdown
     assert "Repair Plans" in markdown
     assert "parser_validation, hurl_execution, qanstitution_governance" in markdown
     assert "reports/qa-brain-routing-plan.json" in markdown
@@ -468,6 +542,12 @@ def test_qa_brain_repair_plan_defensive_helpers() -> None:
         next_action="Add evidence.",
     )
     actions = repair_plan._next_actions((low,))
+    missing_artifacts = (
+        repair_plan.QaBrainRepairProposalDryRunArtifactStatus(
+            source_id="test-quality-json",
+            status="missing",
+        ),
+    )
 
     assert repair_plan._load_failure_state("artifact too large") == "invalid"
     assert repair_plan._routing_summary({"summary": {"status": "partial"}}) == (
@@ -481,6 +561,13 @@ def test_qa_brain_repair_plan_defensive_helpers() -> None:
             action="Add evidence.",
             case_ids=("weak_test_detection",),
         ),
+    )
+    assert (
+        repair_plan._prerequisite_status(
+            artifact_statuses=missing_artifacts,
+            acceptance_gate_status="ready",
+        )
+        == "partial"
     )
     assert not repair_plan._contains_unredacted_packet_secret_like_value(
         json.dumps({"sha256": "a" * 64})
