@@ -1553,16 +1553,19 @@ evidence links packet at `reports/evidence-links.md` by default, or
 sanitized evidence-index, handoff, runtime-card, evidence-bundle,
 evidence-cloud-readiness, notification-packet, connector-intent,
 integration-readiness, and devex-readiness artifacts, then emits stable local
-link tokens, source states, schema versions, bounded SHA-256 hashes, surface
-applicability, blocked targets, and next-action rows. These are fixed optional
-local inputs; missing source artifacts are non-blocking and become partial or
-insufficient packet state. Malformed, oversized, non-file, symlinked,
-wrong-schema, unreadable, or secret-like source artifacts are marked invalid or
-unsafe. The command does not register protocol handlers, serve hosted pages,
-build UI surfaces, upload artifacts, sync remote state, call external APIs,
-mutate tickets or chat, call observability APIs, sync repos or vaults, execute
-Hurl, run tests, invoke models, parse traffic state, change `entroping run`, or
-include raw URLs, headers, bodies, cookies, prompts, provider outputs,
+link tokens, `artifact_uri` anchors such as
+`entroping://evidence/runtime-card-json`, source states, schema versions,
+bounded SHA-256 hashes, surface applicability, blocked targets, and next-action
+rows. These are fixed optional local inputs and value-free local metadata, not
+registered protocol handlers or network endpoints; missing source artifacts are
+non-blocking and become partial or insufficient packet state. Malformed,
+oversized, non-file, symlinked, wrong-schema, unreadable, or secret-like source
+artifacts are marked invalid or unsafe. The command does not register protocol
+handlers, serve hosted pages, build UI surfaces, upload artifacts, sync remote
+state, call external APIs, mutate tickets or chat, call observability APIs, sync
+repos or vaults, execute Hurl, run tests, invoke models, parse traffic state,
+change `entroping run`, or include raw URLs, headers, bodies, cookies, prompts,
+provider outputs,
 credentials, environment values, webhook URLs, ticket mutation payloads, source
 Hurl contents, raw report contents, raw traffic, or full report contents.
 
