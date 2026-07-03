@@ -1,0 +1,6 @@
+schema_version: example.webhook-events.v1
+webhooks:
+  order.created:
+    description: New order created in checkout flow.
+  order.canceled:
+    description: Order was canceled by customer.

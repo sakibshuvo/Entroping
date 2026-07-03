@@ -14,6 +14,9 @@ from entroping.core.evidence.api_inventory import (
 )
 from entroping.core.safe_write import SafeWriteError
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+WEBHOOK_FIXTURE_ROOT = REPO_ROOT / "examples" / "webhook-api"
+
 
 def test_run_api_inventory_writes_json_from_local_api_signals(tmp_path: Path) -> None:
     openapi_path = _write_text(
@@ -112,6 +115,18 @@ HTTP 200
     assert "127.0.0.1" not in serialized
     assert "127.0.0.1:18082/graphql" not in serialized
     assert "POST" not in serialized
+
+
+def test_api_inventory_detects_webhook_example_event_contract_fixture() -> None:
+    packet = build_api_inventory(project_root=WEBHOOK_FIXTURE_ROOT)
+    sources = {(source.kind, source.path): source for source in packet.sources}
+
+    assert packet.summary.status == "ready"
+    contract = sources[("schema_file", "contracts/order-events.event-contract.yaml")]
+    assert contract.style == "webhook_event"
+    assert contract.state == "present"
+    assert contract.operations == 2
+    assert contract.summary == "2 webhook/event contract entries."
 
 
 def test_api_inventory_no_sources_is_insufficient_markdown(tmp_path: Path) -> None:
