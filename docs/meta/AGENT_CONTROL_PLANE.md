@@ -279,6 +279,32 @@ issue, tests, docs, and CI.
   context-pack byte/token estimates, model-comparison yield, and the rule that
   unknowns stay unknown are candidate measurement primitives.
 
+### Portable context-as-evidence protocol
+
+A reusable factory template should make context an auditable evidence trail,
+not a second memory system. The source-of-truth priority is: local repo files
+and tests; GitHub Issues, PRs, CI; decision registry and ADRs; product and
+technical docs; external source/reference material; then chat memory last. A
+worker may cite chat for intent, but merge readiness must point back to local
+files, issue/PR evidence, CI, or reviewed external references.
+
+Use manifest-only context when `scripts/context_pack.sh --manifest` identifies
+the relevant files and the issue has a narrow named question. Use the full
+context pack only when targeted reads, `rg`, the decision registry, and the
+manifest cannot answer the question. Keep `.context/`, the decision registry,
+prompt-library prompts, and handoff comments concise: record decisions,
+commands, evidence paths, known gaps, and cleanup status instead of raw
+transcripts or broad scratchpads.
+
+Track whether the protocol is working with measurable signals: stale claim
+rate, wrong-file references, human steering, context bytes/tokens, review
+correction count, and accepted output ratio. Cleanup rules are part of the
+protocol: generated local context stays ignored unless intentionally promoted,
+ignored artifacts remain out of Git, and stale Markdown is pruned or archived
+instead of copied into new strategy documents. Retired graph/compression tools
+and Obsidian are optional aids, not default dependencies or authority layers
+for a template.
+
 ### Entroping-specific product contracts
 
 - QAnstitution governance, deterministic Hurl execution, Traffic is Truth, Hurl

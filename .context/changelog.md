@@ -18,6 +18,11 @@
   observability and OpenTelemetry mapping reports now normalize output literals
   through typed return helpers before selecting output paths or renderers.
 
+- Added issue #792's portable context-as-evidence protocol: the factory
+  extraction inventory now defines source-of-truth priority, manifest versus
+  full-context use, measurable context signals, cleanup rules, and optional
+  graph/wiki tools as aids rather than dependencies.
+
 - Added issue #1316's PR evidence-card GitHub Actions example: downstream
   teams can copy a read-only PR workflow that runs the local evidence card
   after Entroping reports exist, publishes it through the GitHub job summary and

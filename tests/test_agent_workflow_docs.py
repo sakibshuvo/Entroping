@@ -2160,6 +2160,40 @@ def test_agent_control_plane_inventories_factory_template_primitives() -> None:
         assert term in normalized_extraction_candidates
 
 
+def test_agent_control_plane_defines_portable_context_evidence_protocol() -> None:
+    control_plane = (
+        REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(control_plane.split())
+
+    required_terms = [
+        "### Portable context-as-evidence protocol",
+        "source-of-truth priority",
+        "local repo files and tests",
+        "GitHub Issues, PRs, CI",
+        "decision registry and ADRs",
+        "product and technical docs",
+        "external source/reference material",
+        "chat memory last",
+        "manifest-only context",
+        "full context pack",
+        "stale claim rate",
+        "wrong-file references",
+        "human steering",
+        "context bytes/tokens",
+        "review correction count",
+        "accepted output ratio",
+        "generated local context",
+        "ignored artifacts",
+        "stale Markdown",
+        "Retired graph/compression tools and Obsidian",
+        "optional aids, not default dependencies",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+
 def test_prompt_library_contains_autonomous_tier_a_worker_prompt() -> None:
     prompt = (REPO_ROOT / "docs" / "meta" / "prompt-library" / "issue-worker.md").read_text(
         encoding="utf-8"
