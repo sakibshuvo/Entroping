@@ -11,6 +11,7 @@
     "summary",
     "runtime",
     "sources",
+    "previews",
     "messages"
   ],
   "properties": {
@@ -44,6 +45,9 @@
       "items": {
         "$ref": "#/$defs/source"
       }
+    },
+    "previews": {
+      "$ref": "#/$defs/previews"
     },
     "messages": {
       "type": "array",
@@ -180,6 +184,64 @@
           "pattern": "^[0-9a-f]{64}$"
         },
         "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "previews": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/preview"
+      }
+    },
+    "preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family",
+        "surface",
+        "label",
+        "readiness",
+        "local_evidence_refs",
+        "next_action"
+      ],
+      "properties": {
+        "family": {
+          "enum": [
+            "issue_tracker",
+            "chat",
+            "automation",
+            "agent"
+          ]
+        },
+        "surface": {
+          "enum": [
+            "jira",
+            "linear",
+            "monday",
+            "slack",
+            "discord",
+            "workato",
+            "agent"
+          ]
+        },
+        "label": {
+          "type": "string"
+        },
+        "readiness": {
+          "enum": [
+            "ready",
+            "partial",
+            "insufficient"
+          ]
+        },
+        "local_evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "next_action": {
           "type": "string"
         }
       }

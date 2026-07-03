@@ -156,6 +156,7 @@ from entroping.core.evidence.notification_packet import (
     NOTIFICATION_PACKET_SCHEMA_VERSION,
     NotificationMessage,
     NotificationPacket,
+    NotificationPreview,
     NotificationRuntimeSummary,
     NotificationSource,
     NotificationSummary,
@@ -2247,6 +2248,16 @@ def test_notification_packet_v1_schema_contract_is_versioned_and_stable() -> Non
                 summary="ready handoff evidence",
             ),
         ),
+        previews=(
+            NotificationPreview(
+                family="issue_tracker",
+                surface="jira",
+                label="Jira",
+                readiness="ready",
+                local_evidence_refs=("reports/notification-packet.json", "reports/handoff.json"),
+                next_action="Attach this packet as read-only issue evidence.",
+            ),
+        ),
         messages=(
             NotificationMessage(
                 surface="jira",
@@ -2293,6 +2304,19 @@ def test_notification_packet_v1_schema_contract_is_versioned_and_stable() -> Non
                 "summary": "ready handoff evidence",
             }
         ],
+        "previews": [
+            {
+                "family": "issue_tracker",
+                "surface": "jira",
+                "label": "Jira",
+                "readiness": "ready",
+                "local_evidence_refs": [
+                    "reports/notification-packet.json",
+                    "reports/handoff.json",
+                ],
+                "next_action": "Attach this packet as read-only issue evidence.",
+            }
+        ],
         "messages": [
             {
                 "surface": "jira",
@@ -2328,6 +2352,18 @@ def test_notification_packet_v1_schema_contract_is_versioned_and_stable() -> Non
         "discord",
         "workato",
         "agent",
+    ]
+    assert schema["properties"]["previews"]["$ref"] == "#/$defs/previews"
+    assert schema["$defs"]["preview"]["properties"]["family"]["enum"] == [
+        "issue_tracker",
+        "chat",
+        "automation",
+        "agent",
+    ]
+    assert schema["$defs"]["preview"]["properties"]["readiness"]["enum"] == [
+        "ready",
+        "partial",
+        "insufficient",
     ]
 
 

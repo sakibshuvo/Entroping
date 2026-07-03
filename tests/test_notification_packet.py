@@ -80,6 +80,79 @@ def test_run_notification_packet_writes_value_free_json_from_handoff(
     assert "sk-proj" not in json.dumps(payload)
 
 
+def test_notification_packet_includes_value_free_platform_previews(
+    tmp_path: Path,
+) -> None:
+    _write_handoff(tmp_path)
+
+    packet = build_notification_packet(project_root=tmp_path)
+    payload = packet.model_dump(mode="json")
+
+    previews = payload["previews"]
+    assert {preview["surface"] for preview in previews} == {
+        "jira",
+        "linear",
+        "monday",
+        "slack",
+        "discord",
+        "workato",
+        "agent",
+    }
+    jira = next(preview for preview in previews if preview["surface"] == "jira")
+    assert jira == {
+        "family": "issue_tracker",
+        "surface": "jira",
+        "label": "Jira",
+        "readiness": "ready",
+        "local_evidence_refs": [
+            "reports/notification-packet.json",
+            "reports/handoff.json",
+            "reports/runtime-card.json",
+            "reports/evidence-bundle.json",
+            "reports/pilot-metrics.json",
+            "reports/artifact-manifest.json",
+            "reports/test-pyramid.json",
+        ],
+        "next_action": "Attach this packet as read-only issue evidence.",
+    }
+    assert "sk-proj" not in json.dumps(previews)
+
+
+def test_notification_packet_markdown_groups_platform_previews(
+    tmp_path: Path,
+) -> None:
+    _write_handoff(tmp_path)
+
+    markdown = render_notification_packet_markdown(
+        build_notification_packet(project_root=tmp_path)
+    )
+
+    assert "## Platform Previews" in markdown
+    assert "### Issue Tracker" in markdown
+    assert "### Chat" in markdown
+    assert "### Automation" in markdown
+    assert "### Agent" in markdown
+    assert "| jira | ready |" in markdown
+    assert "| slack | ready |" in markdown
+    assert "https://" not in markdown
+    assert "sk-proj" not in markdown
+
+
+def test_notification_packet_markdown_skips_empty_preview_families(
+    tmp_path: Path,
+) -> None:
+    _write_handoff(tmp_path)
+    packet = build_notification_packet(project_root=tmp_path).model_copy(
+        update={"previews": ()}
+    )
+
+    markdown = render_notification_packet_markdown(packet)
+
+    assert "## Platform Previews" in markdown
+    assert "### Issue Tracker" not in markdown
+    assert "## Messages" in markdown
+
+
 def test_notification_packet_falls_back_to_runtime_card_when_handoff_missing(
     tmp_path: Path,
 ) -> None:
