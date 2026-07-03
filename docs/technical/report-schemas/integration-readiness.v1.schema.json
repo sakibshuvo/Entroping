@@ -113,6 +113,12 @@
         "next_actions_total": {
           "type": "integer",
           "minimum": 0
+        },
+        "surface_blocker_totals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/surface_blocker_total"
+          }
         }
       }
     },
@@ -273,6 +279,51 @@
         }
       }
     },
+    "surface_blocker_total": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "label",
+        "family_ids",
+        "surface_ids",
+        "families_blocked",
+        "families_attention",
+        "blockers_total"
+      ],
+      "properties": {
+        "surface": {
+          "$ref": "#/$defs/surface_group_id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "family_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/family_id"
+          }
+        },
+        "surface_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/surface_id"
+          }
+        },
+        "families_blocked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "families_attention": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blockers_total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
     "readiness_status": {
       "enum": [
         "ready",
@@ -303,6 +354,16 @@
         "high",
         "medium",
         "low"
+      ],
+      "type": "string"
+    },
+    "surface_group_id": {
+      "enum": [
+        "tracker",
+        "chat",
+        "automation",
+        "evidence_surface",
+        "observability_surface"
       ],
       "type": "string"
     },

@@ -153,6 +153,65 @@ def test_integration_readiness_writes_value_free_json_from_ready_sources(
         "families_blocked": 0,
         "blockers_total": 0,
         "next_actions_total": 0,
+        "surface_blocker_totals": [
+            {
+                "surface": "tracker",
+                "label": "Tracker",
+                "family_ids": ["issue_trackers"],
+                "surface_ids": ["jira", "linear", "monday"],
+                "families_blocked": 0,
+                "families_attention": 0,
+                "blockers_total": 0,
+            },
+            {
+                "surface": "chat",
+                "label": "Chat",
+                "family_ids": ["chat"],
+                "surface_ids": ["slack", "discord"],
+                "families_blocked": 0,
+                "families_attention": 0,
+                "blockers_total": 0,
+            },
+            {
+                "surface": "automation",
+                "label": "Automation",
+                "family_ids": ["enterprise_automation"],
+                "surface_ids": ["workato", "claude", "codex"],
+                "families_blocked": 0,
+                "families_attention": 0,
+                "blockers_total": 0,
+            },
+            {
+                "surface": "evidence_surface",
+                "label": "Evidence surface",
+                "family_ids": ["cross_surface_continuity", "api_governance"],
+                "surface_ids": [
+                    "cli",
+                    "desktop",
+                    "cloud",
+                    "mobile",
+                    "openapi",
+                    "graphql",
+                    "soap_xml",
+                    "grpc",
+                    "webhooks",
+                    "asyncapi",
+                    "websocket",
+                ],
+                "families_blocked": 0,
+                "families_attention": 0,
+                "blockers_total": 0,
+            },
+            {
+                "surface": "observability_surface",
+                "label": "Observability surface",
+                "family_ids": ["observability"],
+                "surface_ids": ["opentelemetry", "datadog", "splunk"],
+                "families_blocked": 0,
+                "families_attention": 0,
+                "blockers_total": 0,
+            },
+        ],
     }
     families = {family["id"]: family for family in payload["families"]}
     assert families["issue_trackers"]["surface_ids"] == ["jira", "linear", "monday"]
@@ -172,6 +231,49 @@ def test_integration_readiness_writes_value_free_json_from_ready_sources(
     assert "artifact_id" in families["chat"]["event_requirements"]
     assert "source_sha256" in families["cross_surface_continuity"]["link_requirements"]
     assert "sk-proj" not in json.dumps(payload)
+
+
+def test_integration_readiness_counts_blockers_by_surface_group(
+    tmp_path: Path,
+) -> None:
+    _write_ready_sources(tmp_path)
+    reports = tmp_path / "reports"
+    _write_json(
+        reports / "observability-packet.json",
+        {
+            "schema_version": "entroping.observability-packet.v1",
+            "summary": {"status": "", "severity": "info"},
+        },
+    )
+    _write_json(
+        reports / "api-inventory.json",
+        {
+            "schema_version": "entroping.api-inventory.v1",
+            "summary": {
+                "status": "ready",
+                "styles_total": True,
+                "operations_total": 18,
+            },
+        },
+    )
+
+    result = run_integration_readiness_report(project_root=tmp_path, output="json")
+
+    payload = json.loads(result.output_path.read_text(encoding="utf-8"))
+    totals = {
+        total["surface"]: total
+        for total in payload["summary"]["surface_blocker_totals"]
+    }
+    assert totals["tracker"]["blockers_total"] == 0
+    assert totals["chat"]["blockers_total"] == 0
+    assert totals["automation"]["blockers_total"] == 0
+    assert totals["evidence_surface"]["families_blocked"] == 1
+    assert totals["evidence_surface"]["blockers_total"] == 1
+    assert totals["observability_surface"]["families_blocked"] == 1
+    assert totals["observability_surface"]["blockers_total"] == 1
+    serialized = json.dumps(payload)
+    assert "styles_total must be a non-negative integer" in serialized
+    assert "status must be a non-empty string" in serialized
 
 
 def test_integration_readiness_marks_missing_invalid_and_unsafe_sources(
@@ -238,6 +340,9 @@ def test_integration_readiness_markdown_is_escaped_and_value_free(
     assert "- Project: `checkout &#96;api&#96; | demo`" in markdown
     assert "| issue_trackers | ready | jira, linear, monday |" in markdown
     assert "call_external_api" in markdown
+    assert "## Surface Blockers" in markdown
+    assert "| tracker | 0 | 0 | 0 | issue_trackers |" in markdown
+    assert "| observability_surface | 0 | 0 | 0 | observability |" in markdown
     assert "No integration readiness actions are currently needed." in markdown
     assert "checkout `api`" not in markdown
 

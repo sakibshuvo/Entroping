@@ -348,6 +348,7 @@ from entroping.core.readiness.integration_readiness import (
     IntegrationReadinessPacket,
     IntegrationReadinessSource,
     IntegrationReadinessSummary,
+    IntegrationReadinessSurfaceBlockerTotal,
 )
 from entroping.core.readiness.mutation_readiness import (
     MUTATION_READINESS_SCHEMA_VERSION,
@@ -3478,6 +3479,17 @@ def test_integration_readiness_v1_schema_contract_is_versioned_and_stable() -> N
             families_blocked=0,
             blockers_total=0,
             next_actions_total=1,
+            surface_blocker_totals=(
+                IntegrationReadinessSurfaceBlockerTotal(
+                    surface="tracker",
+                    label="Tracker",
+                    family_ids=("issue_trackers",),
+                    surface_ids=("jira", "linear", "monday"),
+                    families_blocked=0,
+                    families_attention=0,
+                    blockers_total=0,
+                ),
+            ),
         ),
         sources=(
             IntegrationReadinessSource(
@@ -3525,8 +3537,31 @@ def test_integration_readiness_v1_schema_contract_is_versioned_and_stable() -> N
         "call_external_api",
         "override_hurl_qanstitution_result",
     ]
+    assert payload["summary"]["surface_blocker_totals"] == [
+        {
+            "surface": "tracker",
+            "label": "Tracker",
+            "family_ids": ["issue_trackers"],
+            "surface_ids": ["jira", "linear", "monday"],
+            "families_blocked": 0,
+            "families_attention": 0,
+            "blockers_total": 0,
+        }
+    ]
     assert schema["properties"]["schema_version"]["const"] == ("entroping.integration-readiness.v1")
     assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert "surface_blocker_totals" not in schema["$defs"]["summary"]["required"]
+    assert schema["$defs"]["summary"]["properties"]["surface_blocker_totals"] == {
+        "type": "array",
+        "items": {"$ref": "#/$defs/surface_blocker_total"},
+    }
+    assert schema["$defs"]["surface_group_id"]["enum"] == [
+        "tracker",
+        "chat",
+        "automation",
+        "evidence_surface",
+        "observability_surface",
+    ]
     assert schema["$defs"]["source_id"]["enum"] == [
         "team_access_control_plan",
         "notification_packet",
