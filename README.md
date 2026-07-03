@@ -49,6 +49,10 @@ Expected proof: Hurl passes and writes JSON, JUnit, and HTML reports. `scripts/d
 [examples/ai-regression-demo](examples/ai-regression-demo/README.md) is the failure-path fixture.
 For launch screenshots, including `docs/assets/launch/terminal-demo-screenshot.png`, `docs/assets/launch/html-report-screenshot.png`, and `docs/assets/launch/dependency-map-screenshot.png`, plus GIF rebuilds, see the [Two-Minute Demo Assets](docs/assets/launch/README.md).
 
+For a first-hour API integrity quickstart that starts with OpenAPI and ends with
+Hurl run, report, drift, and delta evidence, use
+[examples/support-api](examples/support-api/README.md#api-integrity-quickstart).
+
 ## Security Policy Pack Wedge
 
 The [OWASP API Top 10 starter policy pack](examples/policy-packs/owasp-api-top-10/README.md) shows Entroping as runtime governance instead of generic test generation. It catches missing auth, missing request ID headers, server-error regressions, and latency budget breaches before merge.
