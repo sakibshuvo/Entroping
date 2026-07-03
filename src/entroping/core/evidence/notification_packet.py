@@ -44,6 +44,7 @@ NotificationOutput = Literal["md", "json"]
 NotificationStatus = Literal["ready", "partial", "insufficient"]
 NotificationSeverity = Literal["info", "attention", "blocker"]
 NotificationSourceState = Literal["present", "missing", "invalid", "unsafe"]
+NotificationSurfaceFamily = Literal["issue_tracker", "chat", "automation", "agent"]
 NotificationSourceId = Literal[
     "handoff",
     "runtime_card",
@@ -75,6 +76,21 @@ _SURFACE_LABELS: Final[dict[NotificationSurface, str]] = {
     "slack": "Slack",
     "discord": "Discord",
     "workato": "Workato",
+    "agent": "Agent",
+}
+_SURFACE_FAMILIES: Final[dict[NotificationSurface, NotificationSurfaceFamily]] = {
+    "jira": "issue_tracker",
+    "linear": "issue_tracker",
+    "monday": "issue_tracker",
+    "slack": "chat",
+    "discord": "chat",
+    "workato": "automation",
+    "agent": "agent",
+}
+_SURFACE_FAMILY_LABELS: Final[dict[NotificationSurfaceFamily, str]] = {
+    "issue_tracker": "Issue Tracker",
+    "chat": "Chat",
+    "automation": "Automation",
     "agent": "Agent",
 }
 _SURFACE_ACTIONS: Final[dict[NotificationSurface, str]] = {
@@ -145,6 +161,17 @@ class NotificationMessage(BaseModel):
     artifact_paths: tuple[str, ...] = ()
 
 
+class NotificationPreview(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    family: NotificationSurfaceFamily
+    surface: NotificationSurface
+    label: str
+    readiness: NotificationStatus
+    local_evidence_refs: tuple[str, ...] = ()
+    next_action: str
+
+
 class NotificationPacket(BaseModel):
     """Schema-versioned read-only notification packet."""
 
@@ -158,6 +185,7 @@ class NotificationPacket(BaseModel):
     summary: NotificationSummary
     runtime: NotificationRuntimeSummary | None
     sources: tuple[NotificationSource, ...]
+    previews: tuple[NotificationPreview, ...]
     messages: tuple[NotificationMessage, ...]
 
 
@@ -232,6 +260,11 @@ def build_notification_packet(
         summary=summary,
         runtime=runtime,
         sources=sources,
+        previews=_previews(
+            sources=sources,
+            summary=summary,
+            packet_path=_safe_text(packet_path),
+        ),
         messages=_messages(
             sources=sources,
             runtime=runtime,
@@ -292,9 +325,35 @@ def render_notification_packet_markdown(packet: NotificationPacket) -> str:
             )
         )
 
+    lines.extend(["", "## Platform Previews", ""])
+    for family, label in _SURFACE_FAMILY_LABELS.items():
+        previews = tuple(preview for preview in packet.previews if preview.family == family)
+        if not previews:
+            continue
+        lines.extend(
+            [
+                f"### {label}",
+                "",
+                "| Surface | Readiness | Local Evidence Refs | Next Action |",
+                "| --- | --- | --- | --- |",
+            ]
+        )
+        for preview in previews:
+            lines.append(
+                markdown_table_row(
+                    _markdown_cell(preview.surface, style="notification"),
+                    _markdown_cell(preview.readiness, style="notification"),
+                    _markdown_cell(
+                        ", ".join(preview.local_evidence_refs) or "n/a",
+                        style="notification",
+                    ),
+                    _markdown_cell(preview.next_action, style="notification"),
+                )
+            )
+        lines.append("")
+
     lines.extend(
         [
-            "",
             "## Messages",
             "",
             "| Surface | Severity | Title | Next Action | Artifact Paths |",
@@ -516,6 +575,26 @@ def _messages(
             body=body,
             next_action=_SURFACE_ACTIONS[surface],
             artifact_paths=artifact_paths,
+        )
+        for surface in _SURFACE_LABELS
+    )
+
+
+def _previews(
+    *,
+    sources: tuple[NotificationSource, ...],
+    summary: NotificationSummary,
+    packet_path: str,
+) -> tuple[NotificationPreview, ...]:
+    evidence_refs = _artifact_paths(packet_path=packet_path, sources=sources)
+    return tuple(
+        NotificationPreview(
+            family=_SURFACE_FAMILIES[surface],
+            surface=surface,
+            label=_SURFACE_LABELS[surface],
+            readiness=summary.status,
+            local_evidence_refs=evidence_refs,
+            next_action=_SURFACE_ACTIONS[surface],
         )
         for surface in _SURFACE_LABELS
     )

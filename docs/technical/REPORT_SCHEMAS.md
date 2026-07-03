@@ -589,16 +589,19 @@ It writes `reports/notification-packet.md` by default or
 `reports/notification-packet.json` with schema
 `entroping.notification-packet.v1` when `--output json` is selected. The packet
 turns existing sanitized handoff/runtime evidence into value-free messages for
-Jira, Linear, monday.com, Slack, Discord, Workato, and agent surfaces. It reads
-bounded local artifacts only, prefers `reports/handoff.json` when present, and
-falls back to local report metadata when the handoff packet is missing or
-invalid. Message payloads contain status/severity labels, counts, local artifact
-paths, and next-action text only. The command does not execute Hurl, run tests,
-call providers, upload results, call issue-tracker, chat, automation, Claude, or
-Codex APIs, mutate tickets or chat, read traffic state, or include raw URLs,
-headers, bodies, cookies, prompts, provider outputs, credentials, environment
-values, webhook URLs, ticket mutation payloads, source Hurl contents, or full
-report contents.
+Jira, Linear, monday.com, Slack, Discord, Workato, and agent surfaces. It also
+adds grouped platform preview rows for issue-tracker, chat, automation, and
+agent surfaces so reviewers can see readiness, local evidence references, and
+the next action before any connector exists. It reads bounded local artifacts
+only, prefers `reports/handoff.json` when present, and falls back to local
+report metadata when the handoff packet is missing or invalid. Message payloads
+and preview rows contain status/severity labels, counts, local artifact paths,
+readiness states, and next-action text only. The command does not execute Hurl,
+run tests, call providers, upload results, call issue-tracker, chat, automation,
+Claude, or Codex APIs, mutate tickets or chat, read traffic state, or include
+raw URLs, headers, bodies, cookies, prompts, provider outputs, credentials,
+environment values, webhook URLs, ticket mutation payloads, source Hurl
+contents, or full report contents.
 
 The team evidence readiness packet is written by:
 
