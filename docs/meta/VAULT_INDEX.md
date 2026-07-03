@@ -27,6 +27,7 @@ Use these first. They are the control panel for current work:
 
 - [[ROADMAP|ROADMAP]] - public roadmap, release sequence, and open-core boundary.
 - [[docs/product/PRODUCT_SPEC|PRODUCT_SPEC]] - what Entroping is and what v4.1 must do.
+- [[docs/product/PRODUCT_SPEC|PRODUCT_SPEC#backend/api-integrity-position]] - API-first positioning, governance, and runtime integrity policy.
 - [[docs/user/USER_GUIDE|USER_GUIDE]] - how a developer uses Entroping.
 - [[docs/user/DRIFT_BASELINE_WORKFLOW|DRIFT_BASELINE_WORKFLOW]] - reviewed candidate-to-baseline drift workflow.
 - [[docs/product/MVP_PLAN|MVP_PLAN]] - implementation sequence.
