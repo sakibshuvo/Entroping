@@ -1,6 +1,7 @@
 """Regression tests for GitHub Actions workflow coverage."""
 
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -22,7 +23,9 @@ _CHECKOUT_PIN = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
 _SETUP_PYTHON_PIN = "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1"
 _SETUP_UV_PIN = "astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39"
 _UPLOAD_ARTIFACT_PIN = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+_SCORECARD_PIN = "ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a"
 _CODEQL_ACTION_PIN = "github/codeql-action/{action}@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a"
+_TAG_STYLE_ACTION_REF_RE = re.compile(r"uses:\s*[^@\s]+@(?:v[0-9]|release/|[0-9]+\.)")
 
 
 
@@ -113,6 +116,21 @@ def test_codeql_workflow_runs_tracked_code_scanning_with_minimum_permissions() -
     assert _CODEQL_ACTION_PIN.format(action="init") in step_uses
     assert _CODEQL_ACTION_PIN.format(action="analyze") in step_uses
     assert steps[0]["with"]["persist-credentials"] == "false"
+
+
+def test_tracked_workflows_pin_actions_by_commit_sha() -> None:
+    failures: list[str] = []
+
+    for workflow_path in sorted((_REPO_ROOT / ".github" / "workflows").glob("*.yml")):
+        relative = workflow_path.relative_to(_REPO_ROOT)
+        for line_number, line in enumerate(
+            workflow_path.read_text(encoding="utf-8").splitlines(),
+            start=1,
+        ):
+            if _TAG_STYLE_ACTION_REF_RE.search(line):
+                failures.append(f"{relative}:{line_number}: {line.strip()}")
+
+    assert failures == []
 
 
 def test_ci_workflow_enforces_security_and_quality_gates() -> None:
@@ -324,19 +342,19 @@ def test_scorecard_workflow_is_non_blocking_and_least_privilege() -> None:
 
     steps = scorecard["steps"]
     assert any(
-        step.get("uses") == "actions/checkout@v7"
+        step.get("uses") == _CHECKOUT_PIN
         and step.get("with", {}).get("persist-credentials") is False
         for step in steps
     )
     assert any(
-        step.get("uses") == "ossf/scorecard-action@v2.4.3"
+        step.get("uses") == _SCORECARD_PIN
         and step.get("with", {}).get("publish_results") is True
         and step.get("with", {}).get("results_file") == "scorecard-results.json"
         and step.get("with", {}).get("results_format") == "json"
         for step in steps
     )
     assert any(
-        step.get("uses") == "actions/upload-artifact@v7"
+        step.get("uses") == _UPLOAD_ARTIFACT_PIN
         and step.get("with", {}).get("path") == "scorecard-results.json"
         for step in steps
     )
@@ -360,14 +378,14 @@ def test_performance_smoke_workflow_is_scheduled_manual_and_non_blocking() -> No
     assert "uv sync --dev" in run_blocks
     assert "uv run python scripts/performance_smoke.py" in run_blocks
     assert any(
-        step.get("uses") == "actions/checkout@v7"
+        step.get("uses") == _CHECKOUT_PIN
         and step.get("with", {}).get("persist-credentials") is False
         for step in steps
     )
-    assert any(step.get("uses") == "actions/setup-python@v6" for step in steps)
-    assert any(step.get("uses") == "astral-sh/setup-uv@v8.2.0" for step in steps)
+    assert any(step.get("uses") == _SETUP_PYTHON_PIN for step in steps)
+    assert any(step.get("uses") == _SETUP_UV_PIN for step in steps)
     assert any(
-        step.get("uses") == "actions/upload-artifact@v7"
+        step.get("uses") == _UPLOAD_ARTIFACT_PIN
         and step.get("with", {}).get("path") == "reports/performance-smoke.json"
         for step in steps
     )

@@ -6,6 +6,10 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PAGES_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "pages.yml"
+CHECKOUT_PIN = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
+CONFIGURE_PAGES_PIN = "actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d"
+UPLOAD_PAGES_ARTIFACT_PIN = "actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9"
+DEPLOY_PAGES_PIN = "actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128"
 
 
 def _nav_section(nav: list[object], name: str) -> object:
@@ -138,11 +142,7 @@ def test_pages_workflow_builds_strict_mkdocs_and_deploys_with_least_privilege() 
     assert triggers["push"] == {"branches": ["main"]}
     assert "pull_request" not in triggers
     assert "workflow_dispatch" in triggers
-    assert workflow["permissions"] == {
-        "contents": "read",
-        "id-token": "write",
-        "pages": "write",
-    }
+    assert workflow["permissions"] == {"contents": "read"}
     assert workflow["concurrency"] == {
         "cancel-in-progress": False,
         "group": "pages",
@@ -161,14 +161,22 @@ def test_pages_workflow_builds_strict_mkdocs_and_deploys_with_least_privilege() 
         "pages": "write",
     }
     assert "uvx --with 'mkdocs-material==9.*' mkdocs build --strict" in build_run_blocks
-    assert any(step.get("uses") == "actions/configure-pages@v6" for step in build["steps"])
     assert any(
-        step.get("uses") == "actions/upload-pages-artifact@v5"
+        step.get("uses") == CONFIGURE_PAGES_PIN
+        for step in build["steps"]
+    )
+    assert any(
+        step.get("uses") == CHECKOUT_PIN
+        and step.get("with", {}).get("persist-credentials") is False
+        for step in build["steps"]
+    )
+    assert any(
+        step.get("uses") == UPLOAD_PAGES_ARTIFACT_PIN
         and step.get("with", {}).get("path") == "site"
         for step in build["steps"]
     )
     assert any(
-        step.get("uses") == "actions/deploy-pages@v5"
+        step.get("uses") == DEPLOY_PAGES_PIN
         and step.get("id") == "deployment"
         for step in deploy["steps"]
     )

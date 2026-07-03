@@ -6,6 +6,10 @@
   repo-owned, least-privilege workflow for Python and GitHub Actions analysis,
   with pinned CodeQL actions and local workflow guardrail coverage.
 
+- Added issue #1329's workflow action pinning: Pages, publish, performance
+  smoke, and Scorecard workflows now use immutable action SHAs, and workflow
+  guardrail tests reject future tag-style refs in tracked workflows.
+
 - Added issue #1316's PR evidence-card GitHub Actions example: downstream
   teams can copy a read-only PR workflow that runs the local evidence card
   after Entroping reports exist, publishes it through the GitHub job summary and
