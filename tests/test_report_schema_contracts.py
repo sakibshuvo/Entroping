@@ -353,6 +353,7 @@ from entroping.core.readiness.mutation_readiness import (
     MUTATION_READINESS_SCHEMA_VERSION,
     MutationReadinessCandidate,
     MutationReadinessPacket,
+    MutationReadinessSeededFuzzCandidate,
     MutationReadinessSource,
     MutationReadinessSummary,
 )
@@ -4187,6 +4188,7 @@ def test_mutation_readiness_v1_schema_contract_is_versioned_and_stable() -> None
             assertions_total=2,
             seed_metadata_tests=1,
             candidate_categories_total=1,
+            seeded_fuzz_candidates_total=1,
             optional_reports_present=0,
             optional_reports_invalid=0,
             optional_reports_unsafe=0,
@@ -4213,6 +4215,19 @@ def test_mutation_readiness_v1_schema_contract_is_versioned_and_stable() -> None
                 next_action="Keep auth/security cases explicit before future mutation execution.",
             ),
         ),
+        seeded_fuzz_candidates=(
+            MutationReadinessSeededFuzzCandidate(
+                id="seeded-fuzz:auth:tests/generated/security/auth.hurl",
+                category="auth",
+                source_path="tests/generated/security/auth.hurl",
+                assertions=2,
+                seed_metadata=True,
+                next_action=(
+                    "Review auth/security mutation candidate before future seeded "
+                    "fuzz execution."
+                ),
+            ),
+        ),
     )
 
     payload = packet.model_dump(mode="json")
@@ -4235,6 +4250,7 @@ def test_mutation_readiness_v1_schema_contract_is_versioned_and_stable() -> None
             "assertions_total": 2,
             "seed_metadata_tests": 1,
             "candidate_categories_total": 1,
+            "seeded_fuzz_candidates_total": 1,
             "optional_reports_present": 0,
             "optional_reports_invalid": 0,
             "optional_reports_unsafe": 0,
@@ -4263,9 +4279,25 @@ def test_mutation_readiness_v1_schema_contract_is_versioned_and_stable() -> None
                 ),
             }
         ],
+        "seeded_fuzz_candidates": [
+            {
+                "id": "seeded-fuzz:auth:tests/generated/security/auth.hurl",
+                "category": "auth",
+                "source_path": "tests/generated/security/auth.hurl",
+                "assertions": 2,
+                "seed_metadata": True,
+                "next_action": (
+                    "Review auth/security mutation candidate before future seeded "
+                    "fuzz execution."
+                ),
+            }
+        ],
     }
     assert schema["properties"]["schema_version"]["const"] == "entroping.mutation-readiness.v1"
     assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["properties"]["seeded_fuzz_candidates"]["items"]["$ref"] == (
+        "#/$defs/seeded_fuzz_candidate"
+    )
     assert schema["$defs"]["summary"]["properties"]["status"]["enum"] == [
         "ready",
         "partial",
