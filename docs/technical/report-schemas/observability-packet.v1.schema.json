@@ -184,7 +184,8 @@
         "id": {
           "enum": [
             "diagnostics",
-            "runtime_card"
+            "runtime_card",
+            "evidence_index"
           ]
         },
         "label": {
