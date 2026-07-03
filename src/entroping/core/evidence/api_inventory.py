@@ -9,13 +9,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from html import escape
 from pathlib import Path, PureWindowsPath
-from typing import Final, Literal, cast
+from typing import ClassVar, Final, Literal, cast
 from urllib.parse import urlparse
 
 import yaml
 from defusedxml import ElementTree as SafeElementTree
 from defusedxml.common import DefusedXmlException
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SerializerFunctionWrapHandler, model_serializer
 
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
 from entroping.core.evidence_common import (
@@ -36,6 +36,7 @@ API_INVENTORY_SCHEMA_VERSION: Final = "entroping.api-inventory.v1"
 ApiInventoryOutput = Literal["md", "json"]
 ApiInventoryStatus = Literal["ready", "partial", "insufficient"]
 ApiSourceState = Literal["present", "missing", "invalid", "unsafe"]
+ApiInventorySignalName = Literal["query", "mutation", "subscription"]
 ApiStyle = Literal[
     "rest_openapi",
     "graphql",
@@ -131,7 +132,7 @@ _SHA256_RE: Final = re.compile(r"\b[0-9a-f]{64}\b")
 _GRAPHQL_BLOCK_STRING_RE: Final = re.compile(r'"""(?:.|\n)*?"""')
 _GRAPHQL_LINE_COMMENT_RE: Final = re.compile(r"(?m)#.*$")
 _GRAPHQL_ROOT_OPERATION_BLOCK_RE: Final = re.compile(
-    r"\b(?:extend\s+)?type\s+(?:Query|Mutation|Subscription)\b[^{]*\{(?P<body>.*?)\}",
+    r"\b(?:extend\s+)?type\s+(?P<root>Query|Mutation|Subscription)\b[^{]*\{(?P<body>.*?)\}",
     re.DOTALL,
 )
 _GRAPHQL_ROOT_FIELD_RE: Final = re.compile(
@@ -165,6 +166,16 @@ _STYLE_ACTIONS: Final[dict[ApiStyle, str]] = {
         "Add protocol tags or source specs so inventory can classify this HTTP surface."
     ),
 }
+_GRAPHQL_SIGNAL_NAMES: Final[tuple[ApiInventorySignalName, ...]] = (
+    "query",
+    "mutation",
+    "subscription",
+)
+_GRAPHQL_SIGNAL_BY_ROOT: Final[dict[str, ApiInventorySignalName]] = {
+    "Query": "query",
+    "Mutation": "mutation",
+    "Subscription": "subscription",
+}
 
 
 class ApiInventoryError(ValueError):
@@ -187,6 +198,13 @@ class ApiInventorySummary(BaseModel):
     operations_total: int = Field(ge=0)
 
 
+class ApiInventorySignalCount(BaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
+
+    name: ApiInventorySignalName
+    count: int = Field(ge=0)
+
+
 class ApiInventorySource(BaseModel):
     """One local source or evidence artifact in the API inventory."""
 
@@ -199,7 +217,15 @@ class ApiInventorySource(BaseModel):
     sha256: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
     tags: tuple[str, ...] = ()
     operations: int = Field(ge=0)
+    signals: tuple[ApiInventorySignalCount, ...] = ()
     summary: str
+
+    @model_serializer(mode="wrap")
+    def _serialize_model(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        data = cast(dict[str, object], handler(self))
+        if not self.signals:
+            _ = data.pop("signals", None)
+        return data
 
 
 class ApiInventoryStyleSummary(BaseModel):
@@ -212,9 +238,17 @@ class ApiInventoryStyleSummary(BaseModel):
     sources: int = Field(ge=0)
     hurl_tests: int = Field(ge=0)
     operations: int = Field(ge=0)
+    signals: tuple[ApiInventorySignalCount, ...] = ()
     tags: tuple[str, ...] = ()
     source_paths: tuple[str, ...] = ()
     next_action: str
+
+    @model_serializer(mode="wrap")
+    def _serialize_model(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        data = cast(dict[str, object], handler(self))
+        if not self.signals:
+            _ = data.pop("signals", None)
+        return data
 
 
 class ApiInventoryPacket(BaseModel):
@@ -241,18 +275,16 @@ class ApiInventoryResult:
 def run_api_inventory_report(
     *,
     project_root: Path,
-    output: ApiInventoryOutput,
+    output: str,
     output_path: Path | None = None,
 ) -> ApiInventoryResult:
     """Write a local API inventory report."""
 
-    if output not in _DEFAULT_OUTPUTS:
-        msg = f"Unsupported API inventory output: {output}"
-        raise ApiInventoryError(msg)
+    output_format = _api_inventory_output(output)
     root = project_root.expanduser().resolve()
-    destination = _resolve_output_path(output_path or _DEFAULT_OUTPUTS[output], root=root)
+    destination = _resolve_output_path(output_path or _DEFAULT_OUTPUTS[output_format], root=root)
     packet = build_api_inventory(project_root=root)
-    content = _render_packet_content(packet, output=output)
+    content = _render_packet_content(packet, output=output_format)
     if _contains_unredacted_secret_like_value(_content_for_secret_scan(content)):
         msg = "API inventory contains secret-like content"
         raise ApiInventoryError(msg)
@@ -261,6 +293,15 @@ def run_api_inventory_report(
     except SafeWriteError as exc:
         raise ApiInventoryError(str(exc)) from exc
     return ApiInventoryResult(output_path=written, packet=packet)
+
+
+def _api_inventory_output(output: str) -> ApiInventoryOutput:
+    match output:
+        case "md" | "json":
+            return output
+        case _:
+            msg = f"Unsupported API inventory output: {output}"
+            raise ApiInventoryError(msg)
 
 
 def build_api_inventory(*, project_root: Path) -> ApiInventoryPacket:
@@ -312,8 +353,8 @@ def render_api_inventory_markdown(packet: ApiInventoryPacket) -> str:
     else:
         lines.extend(
             [
-                "| Style | Sources | Hurl Tests | Operations | Tags | Next Action |",
-                "| --- | ---: | ---: | ---: | --- | --- |",
+                "| Style | Sources | Hurl Tests | Operations | Signals | Tags | Next Action |",
+                "| --- | ---: | ---: | ---: | --- | --- | --- |",
             ]
         )
         for style in packet.styles:
@@ -323,6 +364,7 @@ def render_api_inventory_markdown(packet: ApiInventoryPacket) -> str:
                 f"{style.sources} | "
                 f"{style.hurl_tests} | "
                 f"{style.operations} | "
+                f"{_markdown_cell(_signal_count_summary(style.signals) or 'n/a')} | "
                 f"{_markdown_cell(', '.join(style.tags) or 'n/a')} | "
                 f"{_markdown_cell(style.next_action)} |"
             )
@@ -332,8 +374,8 @@ def render_api_inventory_markdown(packet: ApiInventoryPacket) -> str:
             "",
             "## Sources",
             "",
-            "| Kind | Style | State | Path | Operations | Tags | SHA-256 | Summary |",
-            "| --- | --- | --- | --- | ---: | --- | --- | --- |",
+            "| Kind | Style | State | Path | Operations | Signals | Tags | SHA-256 | Summary |",
+            "| --- | --- | --- | --- | ---: | --- | --- | --- | --- |",
         ]
     )
     for source in packet.sources:
@@ -344,6 +386,7 @@ def render_api_inventory_markdown(packet: ApiInventoryPacket) -> str:
             f"{_markdown_cell(source.state)} | "
             f"{_markdown_cell(source.path)} | "
             f"{source.operations} | "
+            f"{_markdown_cell(_signal_count_summary(source.signals) or 'n/a')} | "
             f"{_markdown_cell(', '.join(source.tags) or 'n/a')} | "
             f"{_markdown_cell(source.sha256 or 'n/a')} | "
             f"{_markdown_cell(source.summary)} |"
@@ -564,7 +607,8 @@ def _load_schema_source(*, root: Path, raw_path: Path, style: ApiStyle) -> ApiIn
         return loaded
     raw_bytes, raw_text = loaded
     if style == "graphql":
-        graphql_operations = _graphql_operation_count(raw_text)
+        graphql_signals = _graphql_operation_signals(raw_text)
+        graphql_operations = _signal_count_total(graphql_signals)
         return _source(
             kind="schema_file",
             style=style,
@@ -572,9 +616,11 @@ def _load_schema_source(*, root: Path, raw_path: Path, style: ApiStyle) -> ApiIn
             state="present",
             sha256=hashlib.sha256(raw_bytes).hexdigest(),
             operations=graphql_operations,
+            signals=graphql_signals,
             summary=(
                 f"{graphql_operations} GraphQL root "
-                f"{_operation_word(graphql_operations)}."
+                f"{_operation_word(graphql_operations)} "
+                f"({_signal_count_summary(graphql_signals)})."
             ),
         )
     if style == "grpc_proto":
@@ -857,11 +903,37 @@ def _load_yaml_document(
         )
 
 
-def _graphql_operation_count(raw_text: str) -> int:
+def _graphql_operation_signals(raw_text: str) -> tuple[ApiInventorySignalCount, ...]:
     normalized = _strip_graphql_ignored_text(raw_text)
-    return sum(
-        len(_GRAPHQL_ROOT_FIELD_RE.findall(match.group("body")))
-        for match in _GRAPHQL_ROOT_OPERATION_BLOCK_RE.finditer(normalized)
+    counts = dict.fromkeys(_GRAPHQL_SIGNAL_NAMES, 0)
+    for match in _GRAPHQL_ROOT_OPERATION_BLOCK_RE.finditer(normalized):
+        root_signal = _GRAPHQL_SIGNAL_BY_ROOT[match.group("root")]
+        counts[root_signal] += len(_GRAPHQL_ROOT_FIELD_RE.findall(match.group("body")))
+    return tuple(
+        ApiInventorySignalCount(name=signal_name, count=counts[signal_name])
+        for signal_name in _GRAPHQL_SIGNAL_NAMES
+    )
+
+
+def _signal_count_total(signals: tuple[ApiInventorySignalCount, ...]) -> int:
+    return sum(signal.count for signal in signals)
+
+
+def _signal_count_summary(signals: tuple[ApiInventorySignalCount, ...]) -> str:
+    return ", ".join(f"{signal.name}: {signal.count}" for signal in signals)
+
+
+def _aggregate_signal_counts(
+    sources: tuple[ApiInventorySource, ...],
+) -> tuple[ApiInventorySignalCount, ...]:
+    totals: dict[ApiInventorySignalName, int] = {}
+    for source in sources:
+        for signal in source.signals:
+            totals[signal.name] = totals.get(signal.name, 0) + signal.count
+    return tuple(
+        ApiInventorySignalCount(name=signal_name, count=totals[signal_name])
+        for signal_name in _GRAPHQL_SIGNAL_NAMES
+        if signal_name in totals
     )
 
 
@@ -1047,6 +1119,7 @@ def _style_summaries(
                 sources=len(present_sources),
                 hurl_tests=sum(1 for source in present_sources if source.kind == "hurl_test"),
                 operations=sum(source.operations for source in present_sources),
+                signals=_aggregate_signal_counts(tuple(present_sources)),
                 tags=tuple(tags),
                 source_paths=tuple(source.path for source in present_sources),
                 next_action=_STYLE_ACTIONS[style],
@@ -1160,6 +1233,7 @@ def _source(
     operations: int,
     summary: str,
     tags: tuple[str, ...] = (),
+    signals: tuple[ApiInventorySignalCount, ...] = (),
 ) -> ApiInventorySource:
     return ApiInventorySource(
         kind=kind,
@@ -1169,6 +1243,7 @@ def _source(
         sha256=sha256,
         tags=tuple(_safe_text(tag) for tag in tags),
         operations=operations,
+        signals=signals,
         summary=_safe_text(summary),
     )
 
