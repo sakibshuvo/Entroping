@@ -364,7 +364,8 @@ def test_run_report_drift_writes_missing_baseline_artifact(
     )
     assert len(candidate["tests"]) == 1
     candidate_test = candidate["tests"][0]
-    assert candidate_test.pop("duration_ms") >= 0
+    duration_ms = candidate_test.pop("duration_ms")
+    assert duration_ms >= 0
     assert candidate_test == {
         "exit_code": 0,
         "path": "tests/health.hurl",
