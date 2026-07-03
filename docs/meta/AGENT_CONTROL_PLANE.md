@@ -336,6 +336,36 @@ missing evidence, flaky or failing gates, forbidden provider use, context
 drift, or any attempt to downgrade risk for budget reasons. Do not create an
 external template repo from this issue.
 
+### Portable anti-slop gate ladder
+
+The portable anti-slop gate ladder starts with quick local checks and rises
+through focused tests, docs governance, the standard quality gate, the
+security/regression gate, and the quality audit. Each rung should be cheap
+enough to run at its intended point and strict enough to stop weak model output
+before it becomes review debt.
+
+Required PR evidence is explicit: architecture impact, security impact, docs
+governance status, test coverage, verification lane, commands run, autonomy
+tier, merge authority, and known gaps. The rule is that model output is advisory until
+deterministic gates and human/Codex review validate it against local files,
+tests, CI, and issue scope.
+
+The portable gates are the shape of the ladder: PR-body validation, focused tests,
+docs governance, source formatting/lint/type checks, security/regression
+checks, quality audit, CI rollup, and finish cleanup. The project-specific gates
+are the target repo's architecture checks, product runtime boundaries,
+dependency policy, release proof, coverage thresholds, and domain-specific
+security rules.
+
+Tier A minimum verification is focused tests for the touched surface,
+documentation governance when docs change, the repo's standard gate or
+security/regression gate when sensitive surfaces are touched, green CI, and
+finish cleanup. Tier B/C work requires stricter gates plus Codex or human
+review before merge. Stop on scope creep, flaky tests, missing evidence,
+forbidden provider use, context drift, architecture uncertainty, or any request
+to loosen existing Entroping CI, docs governance, security, or coverage
+expectations.
+
 ### Entroping-specific product contracts
 
 - QAnstitution governance, deterministic Hurl execution, Traffic is Truth, Hurl
