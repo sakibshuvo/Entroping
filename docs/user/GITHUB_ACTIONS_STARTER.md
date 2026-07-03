@@ -207,6 +207,38 @@ step, or CircleCI command can upload or post itself, add:
 entroping report review-summary --traceability
 ```
 
+## PR Evidence Card Example
+
+Use `examples/github-actions/pr-evidence-card.yml` when you want a PR-only
+workflow that writes the local PR evidence card without changing pull request
+state. The example keeps `permissions: contents: read`.
+It does not comment on or mutate pull requests.
+
+The PR evidence card should run after local run and report artifacts exist. At
+minimum, run the deterministic gate with report output:
+
+```bash
+entroping run --ci --report json --report junit --report html
+```
+
+Then write the fixed optional inputs that make the card more useful:
+
+```bash
+entroping report runtime-card --output json
+entroping report artifact-manifest
+entroping report evidence-index --output json
+entroping report pr-evidence-card
+entroping report pr-evidence-card --output json
+```
+
+The example appends `reports/pr-evidence-card.md` to the GitHub job summary and
+uploads `reports/pr-evidence-card.md`, `reports/pr-evidence-card.json`,
+`reports/runtime-card.json`, `reports/evidence-index.json`, and
+`reports/artifact-manifest.json` as a workflow artifact. Missing optional
+evidence remains local PR evidence-card state; the workflow does not call
+GitHub APIs, post comments, publish packages, call model providers, upload
+hosted evidence, or upload `.entroping/`.
+
 ## Expected Artifacts
 
 The workflow writes the same report paths Entroping uses locally:
@@ -219,6 +251,16 @@ reports/run-latest.html
 reports/entroping.sarif
 reports/review-summary.md
 .entroping/latest-run.json
+```
+
+The separate PR evidence-card example also writes:
+
+```text
+reports/pr-evidence-card.md
+reports/pr-evidence-card.json
+reports/runtime-card.json
+reports/evidence-index.json
+reports/artifact-manifest.json
 ```
 
 The annotation step reads local reports and prints GitHub workflow-command

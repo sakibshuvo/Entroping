@@ -8,6 +8,9 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 STARTER_WORKFLOW = REPO_ROOT / "examples" / "github-actions" / "entroping-ci.yml"
+PR_EVIDENCE_CARD_WORKFLOW = (
+    REPO_ROOT / "examples" / "github-actions" / "pr-evidence-card.yml"
+)
 STARTER_DOC = REPO_ROOT / "docs" / "user" / "GITHUB_ACTIONS_STARTER.md"
 DISTRIBUTION_DOC = REPO_ROOT / "docs" / "meta" / "DISTRIBUTION_RECOMMENDATION.md"
 DECISION_REGISTRY = REPO_ROOT / "docs" / "meta" / "DECISION_REGISTRY.yaml"
@@ -69,6 +72,55 @@ def test_downstream_github_actions_starter_is_copyable_and_configurable() -> Non
     assert "actions/upload-artifact@v7" in uses
 
 
+def test_pr_evidence_card_actions_example_is_read_only_and_copyable() -> None:
+    workflow = yaml.safe_load(PR_EVIDENCE_CARD_WORKFLOW.read_text(encoding="utf-8"))
+    workflow_text = PR_EVIDENCE_CARD_WORKFLOW.read_text(encoding="utf-8")
+
+    triggers = workflow["on"]
+    assert "pull_request" in triggers
+    assert workflow["permissions"] == {"contents": "read"}
+
+    job = workflow["jobs"]["pr-evidence-card"]
+    assert job["runs-on"] == "ubuntu-latest"
+    assert job["env"]["HURL_VERSION"] == "8.0.1"
+    assert len(job["env"]["HURL_SHA256"]) == 64
+    assert (
+        job["env"]["ENTROPING_INSTALL_SPEC"]
+        == "git+https://github.com/sakibshuvo/Entroping.git"
+    )
+
+    run_blocks = "\n".join(str(step.get("run", "")) for step in job["steps"])
+    assert "entroping run --ci --report json --report junit --report html" in run_blocks
+    assert "entroping report runtime-card --output json" in run_blocks
+    assert "entroping report evidence-index --output json" in run_blocks
+    assert "entroping report pr-evidence-card" in run_blocks
+    assert "entroping report pr-evidence-card --output json" in run_blocks
+    assert run_blocks.index("entroping run --ci") < run_blocks.index(
+        "entroping report pr-evidence-card"
+    )
+    assert 'cat reports/pr-evidence-card.md >> "$GITHUB_STEP_SUMMARY"' in run_blocks
+
+    uses = [step.get("uses") for step in job["steps"]]
+    assert "actions/checkout@v6" in uses
+    assert "actions/setup-python@v6" in uses
+    assert "astral-sh/setup-uv@v8.2.0" in uses
+    assert "actions/upload-artifact@v7" in uses
+    upload_step = next(
+        step for step in job["steps"] if step.get("uses") == "actions/upload-artifact@v7"
+    )
+    upload_path = upload_step["with"]["path"]
+    assert "reports/pr-evidence-card.md" in upload_path
+    assert "reports/pr-evidence-card.json" in upload_path
+    assert "reports/runtime-card.json" in upload_path
+    assert "reports/evidence-index.json" in upload_path
+
+    assert "pull-requests: write" not in workflow_text
+    assert "issues: write" not in workflow_text
+    assert "gh pr" not in workflow_text
+    assert "gh issue" not in workflow_text
+    assert "secrets." not in workflow_text
+
+
 def test_downstream_github_actions_docs_link_required_files_and_assumptions() -> None:
     doc = STARTER_DOC.read_text(encoding="utf-8")
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
@@ -92,6 +144,15 @@ def test_downstream_github_actions_docs_link_required_files_and_assumptions() ->
     assert "reports/entroping.sarif" in doc
     assert "entroping report review-summary" in doc
     assert "reports/review-summary.md" in doc
+    assert "examples/github-actions/pr-evidence-card.yml" in doc
+    assert "entroping report pr-evidence-card" in doc
+    assert "reports/pr-evidence-card.md" in doc
+    assert "reports/pr-evidence-card.json" in doc
+    assert "reports/runtime-card.json" in doc
+    assert "reports/evidence-index.json" in doc
+    assert "GitHub job summary" in doc
+    assert "does not comment on or mutate pull requests" in doc
+    assert "permissions: contents: read" in doc
     assert "reports/doctor-health.json" in doc
     assert "HURL_SHA256" in doc
     assert "ENTROPING_INSTALL_SPEC" in doc

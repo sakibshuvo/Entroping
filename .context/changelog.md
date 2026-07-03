@@ -1,5 +1,12 @@
 # Entroping Changelog
 
+## 2026-07-03
+
+- Added issue #1316's PR evidence-card GitHub Actions example: downstream
+  teams can copy a read-only PR workflow that runs the local evidence card
+  after Entroping reports exist, publishes it through the GitHub job summary and
+  an artifact, and keeps permissions to `contents: read` with no PR mutation.
+
 ## 2026-06-30
 
 - Added issue #1254's public MkDocs curation: maintainer release evidence now
