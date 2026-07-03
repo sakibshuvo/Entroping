@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -78,6 +79,7 @@ def test_evidence_links_writes_value_free_json_from_ready_sources(
     assert sources["runtime-card-json"]["sha256"]
     targets = {target["id"]: target for target in payload["targets"]}
     assert targets["runtime-card-json"]["link_token"] == ("entroping://evidence/runtime-card-json")
+    assert targets["runtime-card-json"]["artifact_uri"] == "entroping://evidence/runtime-card-json"
     assert targets["runtime-card-json"]["surfaces"] == [
         "cli",
         "pr",
@@ -101,6 +103,27 @@ def test_evidence_links_markdown_is_escaped_and_value_free(tmp_path: Path) -> No
     assert "entroping://evidence/runtime-card-json" in markdown
     assert raw_marker not in markdown
     assert "<script>" not in markdown
+
+
+def test_evidence_links_artifact_uri_is_stable_when_source_is_missing(
+    tmp_path: Path,
+) -> None:
+    missing_packet = build_evidence_links_packet(project_root=tmp_path)
+    missing_targets = {target.id: target for target in missing_packet.targets}
+
+    _write_ready_sources(tmp_path)
+    ready_packet = build_evidence_links_packet(project_root=tmp_path)
+    ready_targets = {target.id: target for target in ready_packet.targets}
+
+    assert missing_targets["runtime-card-json"].state == "blocked"
+    assert ready_targets["runtime-card-json"].state == "ready"
+    assert (
+        missing_targets["runtime-card-json"].artifact_uri
+        == ready_targets["runtime-card-json"].artifact_uri
+    )
+    assert missing_targets["runtime-card-json"].artifact_uri == (
+        "entroping://evidence/runtime-card-json"
+    )
 
 
 def test_evidence_links_marks_missing_invalid_and_unsafe_sources(
@@ -233,7 +256,7 @@ def test_evidence_links_rejects_unsupported_output(tmp_path: Path) -> None:
     with pytest.raises(EvidenceLinksError, match="Unsupported evidence-links output"):
         run_evidence_links_report(
             project_root=tmp_path,
-            output="html",  # type: ignore[arg-type]
+            output=cast(Any, "html"),
         )
 
 

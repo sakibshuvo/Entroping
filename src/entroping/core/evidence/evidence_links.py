@@ -152,6 +152,7 @@ class EvidenceLinkTarget(BaseModel):
     label: str
     source_id: EvidenceLinksSourceId
     link_token: str
+    artifact_uri: str
     path: str
     state: EvidenceLinksTargetState
     surfaces: tuple[EvidenceLinkSurface, ...]
@@ -287,8 +288,8 @@ def render_evidence_links_markdown(packet: EvidenceLinksPacket) -> str:
             "",
             "## Link Targets",
             "",
-            "| ID | State | Link Token | Surfaces | Source |",
-            "| --- | --- | --- | --- | --- |",
+            "| ID | State | Link Token | Artifact URI | Surfaces | Source |",
+            "| --- | --- | --- | --- | --- | --- |",
         ]
     )
     for target in packet.targets:
@@ -297,6 +298,7 @@ def render_evidence_links_markdown(packet: EvidenceLinksPacket) -> str:
             f"{_markdown_cell(target.id)} | "
             f"{_markdown_cell(target.state)} | "
             f"{_markdown_cell(target.link_token)} | "
+            f"{_markdown_cell(target.artifact_uri)} | "
             f"{_markdown_cell(', '.join(target.surfaces))} | "
             f"{_markdown_cell(target.path)} |"
         )
@@ -360,7 +362,8 @@ def _target_from_source(
         id=source.id,
         label=source.label,
         source_id=source.id,
-        link_token=f"entroping://evidence/{source.id}",
+        link_token=_artifact_uri(source.id),
+        artifact_uri=_artifact_uri(source.id),
         path=source.path,
         state="ready" if source.state == "present" else "blocked",
         surfaces=surfaces,
@@ -424,7 +427,9 @@ def _next_actions(
             )
         )
     if any(target.state == "blocked" for target in targets):
-        blocked_ids = tuple(target.id for target in targets if target.state == "blocked")
+        blocked_ids: tuple[EvidenceLinksSourceId, ...] = tuple(
+            target.id for target in targets if target.state == "blocked"
+        )
         actions.append(
             EvidenceLinksNextAction(
                 priority="medium",
@@ -467,6 +472,10 @@ def _json_document(path: Path, *, root: Path) -> dict[str, object] | None:
 
 def _surfaces_for(source_id: EvidenceLinksSourceId) -> tuple[EvidenceLinkSurface, ...]:
     return _SURFACES_BY_SOURCE_ID[source_id]
+
+
+def _artifact_uri(source_id: EvidenceLinksSourceId) -> str:
+    return f"entroping://evidence/{source_id}"
 
 
 def _render_packet_content(
