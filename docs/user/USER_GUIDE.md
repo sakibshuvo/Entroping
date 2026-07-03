@@ -583,6 +583,29 @@ workflow.
 
 ## Design-Partner Pilot Kit
 
+### Local evidence-loop demo
+
+Use this local fixture when you want to exercise report packet generation end-to-end
+before sharing anything externally:
+
+```bash
+./examples/evidence-loop/run-evidence-loop-demo.sh
+```
+
+The script prepares a temporary copy of `examples/checkout-api`, runs
+`entroping doctor`, executes a local smoke run, and writes packet artifacts for:
+
+- `runtime-card` (stabilized)
+- `handoff` (stabilized)
+- `design-partner-feedback` (design-partner packet)
+- `evidence-links` (experimental)
+- `notification-packet` (experimental)
+- `evidence-portal` (experimental)
+
+Artifacts are written under `$ENTROPING_DEMO_TMP_BASE` (default
+`$HOME/.cache/entroping-demo`) and removed unless
+`ENTROPING_DEMO_KEEP_ARTIFACTS=1`.
+
 Use this pilot kit when a design partner wants to evaluate Entroping on
 AI-generated backend/API changes. The pilot is a local-first evidence loop, not
 a hosted product launch or a claim that demand has already been validated.
