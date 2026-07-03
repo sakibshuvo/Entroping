@@ -10,6 +10,9 @@ _WORKFLOW_PATH = Path(__file__).resolve().parents[1] / ".github" / "workflows" /
 _SCORECARD_WORKFLOW_PATH = (
     Path(__file__).resolve().parents[1] / ".github" / "workflows" / "scorecard.yml"
 )
+_CODEQL_WORKFLOW_PATH = (
+    Path(__file__).resolve().parents[1] / ".github" / "workflows" / "codeql.yml"
+)
 _PERFORMANCE_WORKFLOW_PATH = (
     Path(__file__).resolve().parents[1] / ".github" / "workflows" / "performance-smoke.yml"
 )
@@ -19,6 +22,7 @@ _CHECKOUT_PIN = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
 _SETUP_PYTHON_PIN = "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1"
 _SETUP_UV_PIN = "astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39"
 _UPLOAD_ARTIFACT_PIN = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+_CODEQL_ACTION_PIN = "github/codeql-action/{action}@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a"
 
 
 
@@ -84,6 +88,31 @@ def test_ci_workflow_declares_minimum_permissions() -> None:
     workflow = yaml.safe_load(_WORKFLOW_PATH.read_text(encoding="utf-8"))
 
     assert workflow["permissions"] == {"contents": "read"}
+
+
+def test_codeql_workflow_runs_tracked_code_scanning_with_minimum_permissions() -> None:
+    workflow = yaml.load(_CODEQL_WORKFLOW_PATH.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+
+    triggers = workflow["on"]
+    analyze = workflow["jobs"]["analyze"]
+    steps = analyze["steps"]
+    step_uses = [step.get("uses") for step in steps]
+
+    assert "pull_request" in triggers
+    assert triggers["push"] == {"branches": ["main"]}
+    assert "schedule" in triggers
+    assert "workflow_dispatch" in triggers
+    assert workflow["permissions"] == {
+        "actions": "read",
+        "contents": "read",
+        "security-events": "write",
+    }
+    assert analyze["strategy"]["fail-fast"] == "false"
+    assert analyze["strategy"]["matrix"]["language"] == ["python", "actions"]
+    assert _CHECKOUT_PIN in step_uses
+    assert _CODEQL_ACTION_PIN.format(action="init") in step_uses
+    assert _CODEQL_ACTION_PIN.format(action="analyze") in step_uses
+    assert steps[0]["with"]["persist-credentials"] == "false"
 
 
 def test_ci_workflow_enforces_security_and_quality_gates() -> None:

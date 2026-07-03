@@ -2,6 +2,10 @@
 
 ## 2026-07-03
 
+- Added issue #1327's tracked CodeQL workflow: GitHub code scanning now has a
+  repo-owned, least-privilege workflow for Python and GitHub Actions analysis,
+  with pinned CodeQL actions and local workflow guardrail coverage.
+
 - Added issue #1316's PR evidence-card GitHub Actions example: downstream
   teams can copy a read-only PR workflow that runs the local evidence card
   after Entroping reports exist, publishes it through the GitHub job summary and
