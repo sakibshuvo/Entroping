@@ -62,6 +62,16 @@ It is not primarily:
 - A generic prompt wrapper.
 - A replacement for unit tests.
 
+### Backend/API Integrity Position
+
+Entroping's core positioning is to make backend/API behavior deterministic and testable through local execution evidence:
+
+- **Backend/API integrity over generic AI output.** The CLI uses AI to scale test production, but merges only when executable governance and Hurl evidence pass.
+- **Policy-backed API quality.** `qanstitution.yaml` captures local governance rules and can include security, latency, status-shape, and dependency expectations.
+- **Traffic-informed governance.** Observed, redacted traffic is converted into reproducible test and mock artifacts when useful, while still requiring review before merge.
+- **Evidence-first operations.** PRs and releases stay on explicit JSON/JUnit/HTML/sarif artifacts instead of implicit model confidence scores.
+- **Runtime determinism first.** `entroping run` and report generation remain the enforcement boundary; provider calls do not alter pass/fail decisions.
+
 ## 5. Operating Principles
 
 1. **QAnstitution is Law:** Governance rules live in versioned YAML and are injected into every relevant run.
