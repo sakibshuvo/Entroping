@@ -1443,6 +1443,19 @@ Check whether the local Ollama model is installed and running. If the machine is
 Run `entroping doctor` to confirm configured persona files are safe and the
 expected `api_key_env` names are set without exposing secret values.
 
+### Evidence packet picker
+
+Use this compact map before sharing or reviewing local packets:
+
+| User question | Packet surface | Command | Output artifact | Required prior evidence |
+| --- | --- | --- | --- | --- |
+| Is the PR ready for merge review? | Launch-critical | `entroping report runtime-card --output json` | `reports/runtime-card.json` | `reports/run-latest.json`, `reports/effective-policy.json` |
+| Is API quality evidence complete? | Launch-critical | `entroping report test-quality --output json` | `reports/test-quality.json` | `reports/run-latest.json` |
+| Do we have safe upload-ready evidence? | Maintainer/Stable | `entroping report evidence-bundle --output json` | `reports/evidence-bundle.json` | `reports/run-latest.json`, `reports/effective-policy.json`, `reports/artifact-manifest.json` |
+| Where are external-facing links and IDs? | Stable | `entroping report evidence-links --output md` | `reports/evidence-links.md` | `reports/evidence-index.json`, `reports/run-latest.json` |
+| What did the AI evidence loop imply? | Experimental | `entroping report design-partner-feedback` | `reports/design-partner-feedback.json` | `reports/evidence-bundle.json`, `reports/runtime-card.json` |
+| Which experiment or QA packet is next? | Experimental | `entroping report qa-brain-repair-plan` | `reports/qa-brain-repair-plan.json` | `reports/test-quality.json`, `reports/mutation-readiness.json`, `reports/devex-readiness.json`, `reports/action-plan.json` |
+
 ## 16. Safe Defaults
 
 - Keep `.entroping/state.db` out of Git.
