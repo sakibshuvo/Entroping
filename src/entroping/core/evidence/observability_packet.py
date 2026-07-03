@@ -222,14 +222,7 @@ def run_observability_packet_report(
 ) -> ObservabilityPacketResult:
     """Write a local vendor-neutral observability packet."""
 
-    match output:
-        case "md":
-            observability_output: ObservabilityOutput = "md"
-        case "json":
-            observability_output = "json"
-        case _:
-            msg = f"Unsupported observability output: {output}"
-            raise ObservabilityPacketError(msg)
+    observability_output = _observability_output(output)
     root = project_root.expanduser().resolve()
     destination = _resolve_output_path(
         output_path or _DEFAULT_OUTPUTS[observability_output],
@@ -252,6 +245,17 @@ def run_observability_packet_report(
         safe_write=safe_write_text,
     )
     return ObservabilityPacketResult(output_path=result.output_path, packet=result.packet)
+
+
+def _observability_output(output: str) -> ObservabilityOutput:
+    match output:
+        case "md":
+            return "md"
+        case "json":
+            return "json"
+        case _:
+            msg = f"Unsupported observability output: {output}"
+            raise ObservabilityPacketError(msg)
 
 
 def build_observability_packet(
