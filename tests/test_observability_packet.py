@@ -475,6 +475,83 @@ def test_observability_packet_marks_unreadable_runtime_card_invalid(
     assert "Could not read runtime card" in sources["runtime_card"].summary
 
 
+def test_observability_packet_marks_bad_evidence_index_payloads(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_diagnostics(
+        tmp_path,
+        [
+            _event(
+                component="doctor",
+                operation="ci",
+                severity="info",
+                code="doctor.ready",
+                summary="Doctor readiness is available.",
+            )
+        ],
+    )
+    _write_runtime_card(tmp_path)
+    evidence_path = tmp_path / "reports" / "evidence-index.json"
+    evidence_path.write_bytes(b"\xff")
+
+    packet = build_observability_packet(project_root=tmp_path)
+
+    sources = {source.id: source for source in packet.sources}
+    assert sources["evidence_index"].state == "invalid"
+    assert "UTF-8" in sources["evidence_index"].summary
+
+    evidence_path.write_text("sk-proj-" + ("a" * 24), encoding="utf-8")
+
+    packet = build_observability_packet(project_root=tmp_path)
+
+    sources = {source.id: source for source in packet.sources}
+    assert sources["evidence_index"].state == "unsafe"
+    assert "secret-like content" in sources["evidence_index"].summary
+
+    _write_json(evidence_path, {"schema_version": "wrong"})
+
+    packet = build_observability_packet(project_root=tmp_path)
+
+    sources = {source.id: source for source in packet.sources}
+    assert sources["evidence_index"].state == "invalid"
+    assert "unsupported schema" in sources["evidence_index"].summary
+
+    _write_json(
+        evidence_path,
+        {"schema_version": EVIDENCE_INDEX_SCHEMA_VERSION, "summary": "ready"},
+    )
+
+    packet = build_observability_packet(project_root=tmp_path)
+
+    sources = {source.id: source for source in packet.sources}
+    assert sources["evidence_index"].state == "invalid"
+    assert "summary must be a JSON object" in sources["evidence_index"].summary
+
+    _write_json(
+        evidence_path,
+        {
+            "schema_version": EVIDENCE_INDEX_SCHEMA_VERSION,
+            "summary": {"status": "unknown"},
+        },
+    )
+
+    packet = build_observability_packet(project_root=tmp_path)
+
+    sources = {source.id: source for source in packet.sources}
+    assert sources["evidence_index"].state == "invalid"
+    assert "summary status is missing or unsupported" in sources["evidence_index"].summary
+
+    _write_evidence_index(tmp_path)
+    monkeypatch.setattr(observability_packet, "_MAX_OBSERVABILITY_ARTIFACT_BYTES", 1)
+
+    packet = build_observability_packet(project_root=tmp_path)
+
+    sources = {source.id: source for source in packet.sources}
+    assert sources["evidence_index"].state == "invalid"
+    assert "exceeds 1 bytes" in sources["evidence_index"].summary
+
+
 def test_observability_packet_uses_runtime_status_for_severity(tmp_path: Path) -> None:
     _write_diagnostics(
         tmp_path,
