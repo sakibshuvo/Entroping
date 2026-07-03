@@ -79,11 +79,11 @@ def test_run_otel_mapping_writes_value_free_json_from_local_evidence(
         "sources_missing": 0,
         "sources_invalid": 0,
         "sources_unsafe": 0,
-        "mappings_total": 7,
+        "mappings_total": 10,
         "resource_mappings": 2,
-        "log_mappings": 2,
-        "metric_mappings": 2,
-        "trace_mappings": 1,
+        "log_mappings": 3,
+        "metric_mappings": 3,
+        "trace_mappings": 2,
         "boundary_controls": 5,
     }
     sources = {source["id"]: source for source in payload["sources"]}
@@ -112,6 +112,9 @@ def test_run_otel_mapping_writes_value_free_json_from_local_evidence(
         "entroping.test.total",
         "entroping.coverage.line_percent",
         "entroping.runtime.status",
+        "entroping.runtime_governance.status",
+        "entroping.runtime_governance.findings",
+        "entroping.runtime_governance.evidence_links",
     } <= attributes
     assert payload["next_actions"] == [
         {
@@ -191,6 +194,59 @@ def test_run_otel_mapping_writes_markdown_and_partial_state(tmp_path: Path) -> N
     markdown = result.output_path.read_text(encoding="utf-8")
     assert "# Entroping OpenTelemetry Mapping" in markdown
     assert "| log | entroping.diagnostic.events | required | count |" in markdown
+
+
+def test_otel_mapping_surfaces_runtime_governance_semantic_preview(
+    tmp_path: Path,
+) -> None:
+    _write_json(
+        tmp_path / "reports" / "observability-packet.json",
+        {
+            "schema_version": OBSERVABILITY_PACKET_SCHEMA_VERSION,
+            "project": "checkout-api",
+            "summary": {"status": "ready", "severity": "info", "events_total": 0},
+        },
+    )
+    _write_json(
+        tmp_path / "reports" / "runtime-card.json",
+        {
+            "schema_version": RUNTIME_CARD_SCHEMA_VERSION,
+            "summary": {"status": "attention", "findings": 2, "evidence_links": 4},
+        },
+    )
+    _write_json(
+        tmp_path / "reports" / "test-pyramid.json",
+        {
+            "schema_version": TEST_PYRAMID_REPORT_SCHEMA_VERSION,
+            "summary": {"status": "partial", "layers_total": 6, "layers_covered": 4},
+        },
+    )
+
+    packet = build_otel_mapping_packet(project_root=tmp_path)
+    markdown = render_otel_mapping_markdown(packet)
+
+    mappings = {mapping.attribute: mapping for mapping in packet.mappings}
+    assert {
+        "entroping.runtime_governance.status",
+        "entroping.runtime_governance.findings",
+        "entroping.runtime_governance.evidence_links",
+    } <= set(mappings)
+    assert mappings["entroping.runtime_governance.status"].source_ids == (
+        "runtime_card",
+        "test_pyramid",
+    )
+    assert mappings["entroping.runtime_governance.status"].value_kind == "status"
+    assert "Runtime-governance semantic preview" in (
+        mappings["entroping.runtime_governance.status"].summary
+    )
+    serialized = packet.model_dump_json()
+    assert "sk-proj" not in serialized
+    assert "raw.example.internal" not in serialized
+    assert "## Semantic Preview" in markdown
+    assert (
+        "| trace | entroping.runtime&#95;governance.evidence&#95;links | optional | count |"
+        in markdown
+    )
 
 
 def test_otel_mapping_missing_only_action_requests_generation(tmp_path: Path) -> None:
@@ -364,7 +420,7 @@ def test_otel_mapping_source_summaries_keep_unknown_counts_value_free(
 
 def test_otel_mapping_rejects_unsupported_and_unsafe_outputs(tmp_path: Path) -> None:
     with pytest.raises(OtelMappingError, match="Unsupported otel-mapping output"):
-        run_otel_mapping_report(project_root=tmp_path, output="html")  # type: ignore[arg-type]
+        run_otel_mapping_report(project_root=tmp_path, output="html")
     with pytest.raises(OtelMappingError, match="must stay under"):
         run_otel_mapping_report(
             project_root=tmp_path,
