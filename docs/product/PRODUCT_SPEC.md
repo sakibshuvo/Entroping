@@ -62,6 +62,16 @@ It is not primarily:
 - A generic prompt wrapper.
 - A replacement for unit tests.
 
+### Backend/API Integrity Position
+
+Entroping's core positioning is to make backend/API behavior deterministic and testable through local execution evidence:
+
+- **Backend/API integrity over generic AI output.** The CLI uses AI to scale test production, but merges only when executable governance and Hurl evidence pass.
+- **Policy-backed API quality.** `qanstitution.yaml` captures local governance rules and can include security, latency, status-shape, and dependency expectations.
+- **Traffic-informed governance.** Observed, redacted traffic is converted into reproducible test and mock artifacts when useful, while still requiring review before merge.
+- **Evidence-first operations.** PRs and releases stay on explicit JSON/JUnit/HTML/sarif artifacts instead of implicit model confidence scores.
+- **Runtime determinism first.** `entroping run` and report generation remain the enforcement boundary; provider calls do not alter pass/fail decisions.
+
 ## 5. Operating Principles
 
 1. **QAnstitution is Law:** Governance rules live in versioned YAML and are injected into every relevant run.
@@ -131,6 +141,14 @@ Entroping manages the QA lifecycle as Git-native assets:
 - Markdown user stories under `docs/stories/*.md` link to tests through Entroping-readable Hurl comments such as `# entroping: story_id=CHK-001`; the shipped bridge compiles this local metadata into traceability reports and gap summaries without calling external business-system APIs.
 - Known failures require issue IDs, reasons, and expiry dates.
 - Reports provide machine-readable and human-readable evidence.
+
+AI-generated change quality is managed as a seeded evidence loop before any repair change is proposed:
+
+- generated-test quality (`entroping report test-quality`) ->
+  mutation/readiness (`entroping report mutation-readiness`) ->
+  QA Brain packets (`qa-brain-seed`, `qa-brain-eval-plan`, `qa-brain-retrieval-plan`, `qa-brain-prompt-plan`, `qa-brain-routing-plan`) ->
+  repair-plan (`entroping report qa-brain-repair-plan`).
+- Every stage is advisory and read-only; deterministic Hurl execution (`entroping run --ci`) remains the release gate.
 - Local product-learning artifacts, such as
   `reports/design-partner-feedback.json`, may preserve sanitized pilot feedback
   through explicit local report commands without claiming validated demand.
