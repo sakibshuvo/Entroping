@@ -542,6 +542,12 @@ def test_qa_brain_repair_plan_defensive_helpers() -> None:
         next_action="Add evidence.",
     )
     actions = repair_plan._next_actions((low,))
+    missing_artifacts = (
+        repair_plan.QaBrainRepairProposalDryRunArtifactStatus(
+            source_id="test-quality-json",
+            status="missing",
+        ),
+    )
 
     assert repair_plan._load_failure_state("artifact too large") == "invalid"
     assert repair_plan._routing_summary({"summary": {"status": "partial"}}) == (
@@ -555,6 +561,13 @@ def test_qa_brain_repair_plan_defensive_helpers() -> None:
             action="Add evidence.",
             case_ids=("weak_test_detection",),
         ),
+    )
+    assert (
+        repair_plan._prerequisite_status(
+            artifact_statuses=missing_artifacts,
+            acceptance_gate_status="ready",
+        )
+        == "partial"
     )
     assert not repair_plan._contains_unredacted_packet_secret_like_value(
         json.dumps({"sha256": "a" * 64})
