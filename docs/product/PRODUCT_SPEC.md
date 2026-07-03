@@ -141,6 +141,14 @@ Entroping manages the QA lifecycle as Git-native assets:
 - Markdown user stories under `docs/stories/*.md` link to tests through Entroping-readable Hurl comments such as `# entroping: story_id=CHK-001`; the shipped bridge compiles this local metadata into traceability reports and gap summaries without calling external business-system APIs.
 - Known failures require issue IDs, reasons, and expiry dates.
 - Reports provide machine-readable and human-readable evidence.
+
+AI-generated change quality is managed as a seeded evidence loop before any repair change is proposed:
+
+- generated-test quality (`entroping report test-quality`) ->
+  mutation/readiness (`entroping report mutation-readiness`) ->
+  QA Brain packets (`qa-brain-seed`, `qa-brain-eval-plan`, `qa-brain-retrieval-plan`, `qa-brain-prompt-plan`, `qa-brain-routing-plan`) ->
+  repair-plan (`entroping report qa-brain-repair-plan`).
+- Every stage is advisory and read-only; deterministic Hurl execution (`entroping run --ci`) remains the release gate.
 - Local product-learning artifacts, such as
   `reports/design-partner-feedback.json`, may preserve sanitized pilot feedback
   through explicit local report commands without claiming validated demand.
