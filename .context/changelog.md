@@ -14,6 +14,10 @@
   no longer default to permissive modes, drift candidate assertions avoid
   mutation inside `assert`, and evidence packet output selection is explicit.
 
+- Fixed issue #1333's residual CodeQL evidence-output initialization alerts:
+  observability and OpenTelemetry mapping reports now normalize output literals
+  through typed return helpers before selecting output paths or renderers.
+
 - Added issue #1316's PR evidence-card GitHub Actions example: downstream
   teams can copy a read-only PR workflow that runs the local evidence card
   after Entroping reports exist, publishes it through the GitHub job summary and

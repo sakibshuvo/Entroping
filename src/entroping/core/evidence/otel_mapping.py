@@ -180,14 +180,7 @@ def run_otel_mapping_report(
 ) -> OtelMappingResult:
     """Write a local OpenTelemetry evidence mapping packet."""
 
-    match output:
-        case "md":
-            selected_output: OtelMappingOutput = "md"
-        case "json":
-            selected_output = "json"
-        case _:
-            msg = f"Unsupported otel-mapping output: {output}"
-            raise OtelMappingError(msg)
+    selected_output = _otel_mapping_output(output)
     root = project_root.expanduser().resolve()
     destination = _resolve_output_path(
         output_path or _DEFAULT_OUTPUTS[selected_output],
@@ -205,6 +198,17 @@ def run_otel_mapping_report(
     except SafeWriteError as exc:
         raise OtelMappingError(str(exc)) from exc
     return OtelMappingResult(output_path=written, packet=packet)
+
+
+def _otel_mapping_output(output: str) -> OtelMappingOutput:
+    match output:
+        case "md":
+            return "md"
+        case "json":
+            return "json"
+        case _:
+            msg = f"Unsupported otel-mapping output: {output}"
+            raise OtelMappingError(msg)
 
 
 def build_otel_mapping_packet(*, project_root: Path) -> OtelMappingPacket:
