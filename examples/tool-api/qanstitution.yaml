@@ -1,0 +1,11 @@
+project: "tool-api-demo"
+version: "4.1"
+description: "Tool-style REST API inventory fixture for local governance."
+
+gates: []
+
+settings:
+  timeout: 30000
+  parallel_workers: 1
+  follow_redirects: true
+  retry: 0

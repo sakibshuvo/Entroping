@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import shutil
 from pathlib import Path
 
 import pytest
@@ -137,6 +138,33 @@ def test_api_inventory_no_sources_is_insufficient_markdown(tmp_path: Path) -> No
     markdown = result.output_path.read_text(encoding="utf-8")
     assert "# Entroping API Inventory" in markdown
     assert "No API styles were detected." in markdown
+
+
+def test_api_inventory_detects_tool_api_example_inventory_fixture(tmp_path: Path) -> None:
+    fixture_root = Path(__file__).resolve().parent.parent / "examples" / "tool-api"
+    project_root = tmp_path / "tool-api"
+    shutil.copytree(fixture_root, project_root)
+
+    result = run_api_inventory_report(project_root=project_root, output="json")
+    payload = json.loads(result.output_path.read_text(encoding="utf-8"))
+
+    sources = {(source["kind"], source["path"]): source for source in payload["sources"]}
+    configured_source = sources[("conventional_openapi", "openapi.yaml")]
+    assert configured_source["kind"] == "conventional_openapi"
+    assert configured_source["style"] == "rest_openapi"
+    assert configured_source["operations"] == 2
+    assert configured_source["summary"] == "2 OpenAPI operations."
+    assert payload["summary"]["sources_present"] == 1
+
+    serialized = json.dumps(payload)
+    assert "/tools/list" not in serialized
+    assert "/tools/call" not in serialized
+    assert "callTool" not in serialized
+    assert "listTools" not in serialized
+
+    markdown = render_api_inventory_markdown(result.packet)
+    assert "REST/OpenAPI" in markdown
+    assert "/tools/list" not in markdown
 
 
 def test_api_inventory_detects_unknown_http_hurl_without_protocol_tags(tmp_path: Path) -> None:
