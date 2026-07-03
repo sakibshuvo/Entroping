@@ -175,20 +175,26 @@ class _LoadedSource:
 def run_otel_mapping_report(
     *,
     project_root: Path,
-    output: OtelMappingOutput,
+    output: str,
     output_path: Path | None = None,
 ) -> OtelMappingResult:
     """Write a local OpenTelemetry evidence mapping packet."""
 
-    if output not in _DEFAULT_OUTPUTS:
-        msg = f"Unsupported otel-mapping output: {output}"
-        raise OtelMappingError(msg)
+    match output:
+        case "md" | "json":
+            selected_output: OtelMappingOutput = output
+        case _:
+            msg = f"Unsupported otel-mapping output: {output}"
+            raise OtelMappingError(msg)
     root = project_root.expanduser().resolve()
-    destination = _resolve_output_path(output_path or _DEFAULT_OUTPUTS[output], root=root)
+    destination = _resolve_output_path(
+        output_path or _DEFAULT_OUTPUTS[selected_output],
+        root=root,
+    )
     packet = build_otel_mapping_packet(
         project_root=root,
     )
-    content = _render_packet_content(packet, output=output)
+    content = _render_packet_content(packet, output=selected_output)
     if contains_unredacted_evidence_secret(content):
         msg = "otel-mapping packet contains secret-like content"
         raise OtelMappingError(msg)
@@ -259,7 +265,7 @@ def render_otel_mapping_markdown(packet: OtelMappingPacket) -> str:
     lines.extend(
         [
             "",
-            "## Attribute Mappings",
+            "## Semantic Preview",
             "",
             "| Signal | Attribute | Requirement | Value Kind | Sources | Summary |",
             "| --- | --- | --- | --- | --- | --- |",
@@ -603,6 +609,30 @@ def _attribute_mappings() -> tuple[OtelAttributeMapping, ...]:
             ("runtime_card", "observability_packet"),
             "Runtime status maps to trace attributes for future API-span correlation.",
         ),
+        _mapping(
+            "log",
+            "entroping.runtime_governance.status",
+            "required",
+            "status",
+            ("runtime_card", "test_pyramid"),
+            "Runtime-governance semantic preview from sanitized status metadata.",
+        ),
+        _mapping(
+            "metric",
+            "entroping.runtime_governance.findings",
+            "optional",
+            "count",
+            ("runtime_card", "test_pyramid"),
+            "Runtime-governance semantic preview from value-free finding counts.",
+        ),
+        _mapping(
+            "trace",
+            "entroping.runtime_governance.evidence_links",
+            "optional",
+            "count",
+            ("runtime_card",),
+            "Runtime-governance semantic preview from local evidence-link counts.",
+        ),
     )
 
 
@@ -666,7 +696,9 @@ def _next_actions(
     summary: OtelMappingSummary,
     sources: tuple[OtelMappingSource, ...],
 ) -> tuple[OtelMappingNextAction, ...]:
-    present_source_ids = tuple(source.id for source in sources if source.state == "present")
+    present_source_ids: tuple[OtelMappingSourceId, ...] = tuple(
+        source.id for source in sources if source.state == "present"
+    )
     if summary.status == "ready":
         return (
             OtelMappingNextAction(
