@@ -267,6 +267,38 @@ HTTP 202
     assert "Webhook/Event" in markdown
 
 
+def test_api_inventory_detects_asyncapi_example_fixture_inventory(tmp_path: Path) -> None:
+    fixture_root = Path(__file__).resolve().parent.parent / "examples" / "asyncapi-events"
+    project_root = tmp_path / "asyncapi-events"
+    shutil.copytree(fixture_root, project_root)
+
+    result = run_api_inventory_report(project_root=project_root, output="json")
+    payload = json.loads(result.output_path.read_text(encoding="utf-8"))
+
+    sources = {(source["kind"], source["path"]): source for source in payload["sources"]}
+    fixture_source = sources[("schema_file", "contracts/orders.asyncapi.yaml")]
+    assert fixture_source["kind"] == "schema_file"
+    assert fixture_source["style"] == "asyncapi"
+    assert fixture_source["operations"] == 2
+    assert fixture_source["summary"] == "2 AsyncAPI operations/channels."
+    assert payload["summary"]["sources_present"] == 1
+
+    serialized = json.dumps(payload)
+    assert "order.created.v1" not in serialized
+    assert "order.cancelled.v1" not in serialized
+    assert "OrderCreated" not in serialized
+    assert "OrderCancelled" not in serialized
+    assert "payload_marker" not in serialized
+    assert "example-marker" not in serialized
+
+    markdown = render_api_inventory_markdown(result.packet)
+    assert "AsyncAPI" in markdown
+    assert "order.created.v1" not in markdown
+    assert "order.cancelled.v1" not in markdown
+    assert "OrderCreated" not in markdown
+    assert "payload_marker" not in markdown
+
+
 def test_api_inventory_event_contract_sources_reuse_safety_boundaries(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
