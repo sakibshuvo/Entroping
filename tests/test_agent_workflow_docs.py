@@ -2225,6 +2225,42 @@ def test_agent_control_plane_defines_minimal_seed_repo_contract() -> None:
         assert term in normalized
 
 
+def test_agent_control_plane_defines_portable_anti_slop_gate_ladder() -> None:
+    control_plane = (
+        REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(control_plane.split())
+
+    required_terms = [
+        "### Portable anti-slop gate ladder",
+        "quick local checks",
+        "focused tests",
+        "docs governance",
+        "standard quality gate",
+        "security/regression gate",
+        "quality audit",
+        "Required PR evidence",
+        "architecture",
+        "security",
+        "test coverage",
+        "model output is advisory",
+        "deterministic gates",
+        "human/Codex review",
+        "portable gates",
+        "project-specific gates",
+        "Tier A minimum",
+        "Tier B/C work",
+        "scope creep",
+        "flaky tests",
+        "missing evidence",
+        "forbidden provider use",
+        "context drift",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+
 def test_prompt_library_contains_autonomous_tier_a_worker_prompt() -> None:
     prompt = (REPO_ROOT / "docs" / "meta" / "prompt-library" / "issue-worker.md").read_text(
         encoding="utf-8"

@@ -28,6 +28,11 @@
   evidence, local verification expectations, project-local decisions,
   exclusions, autonomy assumptions, and stop conditions.
 
+- Added issue #796's portable anti-slop gate ladder: the factory extraction
+  inventory now maps checks from quick local feedback through quality audit,
+  defines PR evidence, preserves model-output-as-advisory review, separates
+  portable from project-specific gates, and lists stop conditions.
+
 - Added issue #1316's PR evidence-card GitHub Actions example: downstream
   teams can copy a read-only PR workflow that runs the local evidence card
   after Entroping reports exist, publishes it through the GitHub job summary and
