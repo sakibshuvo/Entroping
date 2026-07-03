@@ -528,6 +528,20 @@ missing, invalid, or unsafe. It does not run pytest or Hurl, parse source Hurl,
 call providers, upload artifacts, or print raw report contents, raw traffic,
 stdout/stderr, environment values, or source coverage file names.
 
+Review API inventory evidence from local schema fixtures:
+
+```bash
+entroping report api-inventory --output md
+entroping report api-inventory --output json
+```
+
+The API inventory report writes `reports/api-inventory.md` (default) or
+`reports/api-inventory.json`. It scans local schema artifacts and annotated Hurl
+metadata to produce a deterministic inventory before running checks. It does not run
+`entroping run`, execute Hurl files, call providers, or mutate fixtures.
+Use it to prove API surface evidence locally before execution workflows.
+Tool-style HTTP APIs are governed as ordinary REST schema contracts here.
+
 Write checksum evidence for the local report artifacts:
 
 ```bash
