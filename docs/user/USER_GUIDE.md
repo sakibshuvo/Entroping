@@ -257,6 +257,17 @@ If you already have Hurl tests, Entroping should adopt them rather than replace 
 entroping run --env local --report html
 ```
 
+If you want to confirm contract-only surfaces before runtime execution, you can
+run the API inventory report in a fixture directory:
+
+```bash
+cd examples/webhook-api
+uv run --project ../.. entroping report api-inventory --output md
+```
+
+This local inventory command surfaces webhook/event contract evidence even if no
+fixture HTTP traffic has run yet.
+
 To apply a safe bulk change:
 
 ```bash
