@@ -112,8 +112,47 @@ def test_support_fixture_files_exercise_distinct_api_shapes() -> None:
     assert "PATCH http://127.0.0.1:18081/tickets/tkt_cust-123_001/status" in hurl
     assert 'header "X-Audit-Id" exists' in hurl
 
+    required_commands = [
+        "python examples/support-api/demo_server.py --port 18081",
+        "uv run --project ../.. entroping architect build --new --tag support",
+        "cp envs/local.env.example envs/local.env",
+        (
+            "uv run --project ../.. entroping run --env local --tag support "
+            "--report html --report json --report junit --report drift"
+        ),
+        "cp reports/run-latest.json reports/run-baseline.json",
+        "uv run --project ../.. entroping report promote-drift-baseline",
+        (
+            "uv run --project ../.. entroping run --env local --tag support "
+            "--drift-check --report html --report json --report junit --report drift"
+        ),
+        (
+            "uv run --project ../.. entroping report delta "
+            "--base reports/run-baseline.json --current reports/run-latest.json "
+            "--output md > reports/run-delta.md"
+        ),
+    ]
+    for command in required_commands:
+        assert command in readme
+
+    for artifact in [
+        "tests/generated/",
+        "reports/run-latest.html",
+        "reports/run-latest.json",
+        "reports/junit.xml",
+        "reports/drift.json",
+        "reports/drift-baseline.candidate.json",
+        ".entroping/drift-baseline.json",
+        "reports/run-delta.md",
+    ]:
+        assert artifact in readme
+
     assert "different from the checkout fixture" in readme
+    assert "API-first/backend-integrity" in readme
+    assert "generic AI QA" not in readme
     assert "entroping run --tag support --report html --report json --report junit" in readme
+    assert "API integrity quickstart" in root_readme
+    assert "examples/support-api/README.md#api-integrity-quickstart" in root_readme
     assert "[examples/support-api](examples/support-api/README.md)" in root_readme
     assert "[[examples/support-api/README|Support API demo fixture]]" in index
 
