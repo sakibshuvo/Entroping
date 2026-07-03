@@ -97,6 +97,9 @@ _WEBHOOK_EVENT_SUFFIXES: Final[tuple[str, ...]] = (
     ".webhooks.yaml",
     ".webhooks.yml",
 )
+_WEBHOOK_EVENT_FILENAMES: Final[frozenset[str]] = frozenset(
+    suffix.removeprefix(".") for suffix in _WEBHOOK_EVENT_SUFFIXES
+)
 _WEBSOCKET_REALTIME_SUFFIXES: Final[tuple[str, ...]] = (
     ".websocket.json",
     ".websocket.yaml",
@@ -1022,7 +1025,7 @@ def _schema_style_for_path(path: Path) -> ApiStyle | None:
     name = path.name.lower()
     if name in _ASYNCAPI_FILENAMES or name.endswith(_ASYNCAPI_SUFFIXES):
         return "asyncapi"
-    if name.endswith(_WEBHOOK_EVENT_SUFFIXES):
+    if name in _WEBHOOK_EVENT_FILENAMES or name.endswith(_WEBHOOK_EVENT_SUFFIXES):
         return "webhook_event"
     if name.endswith(_WEBSOCKET_REALTIME_SUFFIXES):
         return "websocket_realtime"
