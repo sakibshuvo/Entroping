@@ -99,6 +99,43 @@ def test_qa_brain_eval_plan_derives_ready_cases_without_raw_values(
     assert secret_marker not in rendered
 
 
+def test_qa_brain_eval_plan_catalogs_value_free_source_states(
+    tmp_path: Path,
+) -> None:
+    reports = tmp_path / "reports"
+    _write_json(
+        reports / "test-quality.json",
+        {
+            "schema_version": "entroping.test-quality-report.v1",
+            "summary": {"status": "warn", "score": 80, "generated_tests": 2},
+        },
+    )
+    (reports / "test-pyramid.json").write_text("{not-json\n", encoding="utf-8")
+
+    packet = build_qa_brain_eval_plan(project_root=tmp_path)
+    case = next(case for case in packet.cases if case.id == "weak_test_detection")
+    catalog = case.evidence_catalog
+    sources = {source.id: source for source in catalog.sources}
+
+    assert catalog.expected_sources_total == 4
+    assert catalog.sources_present == 1
+    assert catalog.sources_missing == 2
+    assert catalog.sources_invalid == 1
+    assert catalog.sources_unsafe == 0
+    assert catalog.categories == ("generated_test_quality", "test_pyramid")
+    assert catalog.missing_reasons == ("artifact_invalid", "artifact_missing")
+    assert sources["test-quality-json"].state == "present"
+    assert sources["test-quality-json"].schema_version == (
+        "entroping.test-quality-report.v1"
+    )
+    assert sources["test-quality-json"].category == "generated_test_quality"
+    assert sources["test-quality-json"].missing_reason is None
+    assert sources["test-pyramid-json"].state == "invalid"
+    assert sources["test-pyramid-json"].missing_reason == "artifact_invalid"
+    assert sources["test-pyramid-md"].state == "missing"
+    assert sources["test-pyramid-md"].missing_reason == "artifact_missing"
+
+
 def test_qa_brain_eval_plan_preserves_attention_sources_and_next_actions(
     tmp_path: Path,
 ) -> None:
@@ -273,6 +310,7 @@ def test_qa_brain_eval_plan_rejects_unknown_seed_slice_metadata(
     def fake_seed(*, project_root: Path) -> SimpleNamespace:
         _ = project_root
         return SimpleNamespace(
+            sources=(),
             eval_slices=(
                 QaBrainEvalSlice.model_construct(
                     id="new_eval",
@@ -303,6 +341,7 @@ def test_qa_brain_eval_plan_rejects_missing_negative_control_metadata(
     def fake_seed(*, project_root: Path) -> SimpleNamespace:
         _ = project_root
         return SimpleNamespace(
+            sources=(),
             eval_slices=(
                 QaBrainEvalSlice(
                     id="weak_test_detection",

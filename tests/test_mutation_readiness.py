@@ -82,6 +82,7 @@ body contains "validation"
         "assertions_total": 4,
         "seed_metadata_tests": 2,
         "candidate_categories_total": 2,
+        "seeded_fuzz_candidates_total": 2,
         "optional_reports_present": 2,
         "optional_reports_invalid": 0,
         "optional_reports_unsafe": 0,
@@ -96,6 +97,29 @@ body contains "validation"
     assert sources[
         ("generated_hurl", "tests/generated/negative/schema.hurl")
     ]["candidate_categories"] == ["schema"]
+    assert payload["seeded_fuzz_candidates"] == [
+        {
+            "id": "seeded-fuzz:auth:tests/generated/security/auth.hurl",
+            "category": "auth",
+            "source_path": "tests/generated/security/auth.hurl",
+            "assertions": 2,
+            "seed_metadata": True,
+            "next_action": (
+                "Review auth/security mutation candidate before future seeded fuzz "
+                "execution."
+            ),
+        },
+        {
+            "id": "seeded-fuzz:schema:tests/generated/negative/schema.hurl",
+            "category": "schema",
+            "source_path": "tests/generated/negative/schema.hurl",
+            "assertions": 2,
+            "seed_metadata": True,
+            "next_action": (
+                "Review schema mutation candidate before future seeded fuzz execution."
+            ),
+        },
+    ]
     serialized = json.dumps(payload)
     assert "127.0.0.1" not in serialized
     assert "POST" not in serialized
@@ -567,12 +591,40 @@ jsonpath "$.error" exists
     assert "127.0.0.1" not in serialized
 
 
+def test_mutation_readiness_seeded_fuzz_manifest_omits_unseeded_candidates(
+    tmp_path: Path,
+) -> None:
+    _write_text(
+        tmp_path / "tests" / "generated" / "unseeded-request-shape.hurl",
+        """
+# entroping: tags=generated,request-shape
+# entroping: fuzz_category=request-shape
+GET http://127.0.0.1:18080/unseeded
+HTTP 400
+[Asserts]
+jsonpath "$.error" exists
+""".strip()
+        + "\n",
+    )
+
+    result = run_mutation_readiness_report(project_root=tmp_path, output="md")
+
+    assert result.packet.summary.candidate_categories_total == 1
+    assert result.packet.summary.seeded_fuzz_candidates_total == 0
+    assert result.packet.seeded_fuzz_candidates == ()
+    markdown = result.output_path.read_text(encoding="utf-8")
+    assert "## Seeded Fuzz Candidate Manifest" in markdown
+    assert "No deterministic seeded fuzz candidates were detected." in markdown
+    assert "127.0.0.1" not in markdown
+
+
 def test_mutation_readiness_rejects_unsupported_and_unsafe_outputs(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    unsupported_output = json.loads('"html"')
     with pytest.raises(MutationReadinessError, match="Unsupported mutation-readiness output"):
-        run_mutation_readiness_report(project_root=tmp_path, output="html")  # type: ignore[arg-type]
+        run_mutation_readiness_report(project_root=tmp_path, output=unsupported_output)
 
     with pytest.raises(MutationReadinessError, match="mutation readiness path is unsafe"):
         run_mutation_readiness_report(

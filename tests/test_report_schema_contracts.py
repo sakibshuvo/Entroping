@@ -287,6 +287,8 @@ from entroping.core.plan.qa_brain_repair_plan import (
     QaBrainRepairPlanRow,
     QaBrainRepairPlanSource,
     QaBrainRepairPlanSummary,
+    QaBrainRepairProposalDryRunArtifactStatus,
+    QaBrainRepairProposalDryRunChecklistItem,
 )
 from entroping.core.plan.qa_brain_retrieval_plan import (
     QA_BRAIN_RETRIEVAL_PLAN_SCHEMA_VERSION,
@@ -351,6 +353,7 @@ from entroping.core.readiness.mutation_readiness import (
     MUTATION_READINESS_SCHEMA_VERSION,
     MutationReadinessCandidate,
     MutationReadinessPacket,
+    MutationReadinessSeededFuzzCandidate,
     MutationReadinessSource,
     MutationReadinessSummary,
 )
@@ -4185,6 +4188,7 @@ def test_mutation_readiness_v1_schema_contract_is_versioned_and_stable() -> None
             assertions_total=2,
             seed_metadata_tests=1,
             candidate_categories_total=1,
+            seeded_fuzz_candidates_total=1,
             optional_reports_present=0,
             optional_reports_invalid=0,
             optional_reports_unsafe=0,
@@ -4211,6 +4215,19 @@ def test_mutation_readiness_v1_schema_contract_is_versioned_and_stable() -> None
                 next_action="Keep auth/security cases explicit before future mutation execution.",
             ),
         ),
+        seeded_fuzz_candidates=(
+            MutationReadinessSeededFuzzCandidate(
+                id="seeded-fuzz:auth:tests/generated/security/auth.hurl",
+                category="auth",
+                source_path="tests/generated/security/auth.hurl",
+                assertions=2,
+                seed_metadata=True,
+                next_action=(
+                    "Review auth/security mutation candidate before future seeded "
+                    "fuzz execution."
+                ),
+            ),
+        ),
     )
 
     payload = packet.model_dump(mode="json")
@@ -4233,6 +4250,7 @@ def test_mutation_readiness_v1_schema_contract_is_versioned_and_stable() -> None
             "assertions_total": 2,
             "seed_metadata_tests": 1,
             "candidate_categories_total": 1,
+            "seeded_fuzz_candidates_total": 1,
             "optional_reports_present": 0,
             "optional_reports_invalid": 0,
             "optional_reports_unsafe": 0,
@@ -4261,9 +4279,25 @@ def test_mutation_readiness_v1_schema_contract_is_versioned_and_stable() -> None
                 ),
             }
         ],
+        "seeded_fuzz_candidates": [
+            {
+                "id": "seeded-fuzz:auth:tests/generated/security/auth.hurl",
+                "category": "auth",
+                "source_path": "tests/generated/security/auth.hurl",
+                "assertions": 2,
+                "seed_metadata": True,
+                "next_action": (
+                    "Review auth/security mutation candidate before future seeded "
+                    "fuzz execution."
+                ),
+            }
+        ],
     }
     assert schema["properties"]["schema_version"]["const"] == "entroping.mutation-readiness.v1"
     assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["properties"]["seeded_fuzz_candidates"]["items"]["$ref"] == (
+        "#/$defs/seeded_fuzz_candidate"
+    )
     assert schema["$defs"]["summary"]["properties"]["status"]["enum"] == [
         "ready",
         "partial",
@@ -5325,6 +5359,16 @@ def test_qa_brain_eval_plan_v1_schema_contract_is_versioned_and_stable() -> None
                 "acceptance_signal": "Detect weak tests without using raw report contents.",
                 "negative_controls": ["Do not reward generic confidence."],
                 "next_action": "Review invalid evidence before eval execution.",
+                "evidence_catalog": {
+                    "expected_sources_total": 0,
+                    "sources_present": 0,
+                    "sources_missing": 0,
+                    "sources_invalid": 0,
+                    "sources_unsafe": 0,
+                    "categories": [],
+                    "missing_reasons": [],
+                    "sources": [],
+                },
             }
         ],
         "next_actions": [
@@ -5337,6 +5381,20 @@ def test_qa_brain_eval_plan_v1_schema_contract_is_versioned_and_stable() -> None
     }
     assert schema["properties"]["schema_version"]["const"] == ("entroping.qa-brain-eval-plan.v1")
     assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
+    assert schema["$defs"]["eval_case"]["properties"]["evidence_catalog"]["$ref"] == (
+        "#/$defs/evidence_catalog"
+    )
+    assert schema["$defs"]["catalog_source_state"]["enum"] == [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe",
+    ]
+    assert schema["$defs"]["missing_reason"]["enum"] == [
+        "artifact_missing",
+        "artifact_invalid",
+        "artifact_unsafe",
+    ]
     assert schema["$defs"]["case_readiness"]["enum"] == [
         "ready",
         "missing",
@@ -5959,6 +6017,21 @@ def test_qa_brain_repair_plan_v1_schema_contract_is_versioned_and_stable() -> No
                 next_action="Add evidence before future QA Brain repair proposals.",
             ),
         ),
+        repair_proposal_dry_run_checklist=(
+            QaBrainRepairProposalDryRunChecklistItem(
+                case_id="weak_test_detection",
+                prerequisite_status="partial",
+                readiness="missing",
+                artifact_statuses=(
+                    QaBrainRepairProposalDryRunArtifactStatus(
+                        source_id="qa-brain-routing-plan-json",
+                        status="present",
+                    ),
+                ),
+                acceptance_gate_status="ready",
+                next_action_label="add-value-free-evidence",
+            ),
+        ),
         next_actions=(
             QaBrainRepairPlanNextAction(
                 priority="medium",
@@ -6013,6 +6086,21 @@ def test_qa_brain_repair_plan_v1_schema_contract_is_versioned_and_stable() -> No
                 "next_action": "Add evidence before future QA Brain repair proposals.",
             }
         ],
+        "repair_proposal_dry_run_checklist": [
+            {
+                "case_id": "weak_test_detection",
+                "prerequisite_status": "partial",
+                "readiness": "missing",
+                "artifact_statuses": [
+                    {
+                        "source_id": "qa-brain-routing-plan-json",
+                        "status": "present",
+                    }
+                ],
+                "acceptance_gate_status": "ready",
+                "next_action_label": "add-value-free-evidence",
+            }
+        ],
         "next_actions": [
             {
                 "priority": "medium",
@@ -6035,6 +6123,12 @@ def test_qa_brain_repair_plan_v1_schema_contract_is_versioned_and_stable() -> No
         "evidence-index-json",
     ]
     assert schema["$defs"]["repair_intent"]["enum"] == ["generate", "repair", "review"]
+    assert schema["$defs"]["prerequisite_status"]["enum"] == [
+        "ready",
+        "partial",
+        "missing",
+    ]
+    assert schema["$defs"]["acceptance_gate_status"]["enum"] == ["ready", "missing"]
     assert schema["$defs"]["acceptance_gate_id"]["enum"] == [
         "parser_validation",
         "hurl_execution",

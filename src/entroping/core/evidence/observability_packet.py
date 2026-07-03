@@ -22,6 +22,7 @@ from entroping.core.evidence_packet_base import (
     write_evidence_packet_report,
 )
 from entroping.core.path_safety import first_symlink_path_component
+from entroping.core.report_schema_versions import EVIDENCE_INDEX_SCHEMA_VERSION
 from entroping.core.runtime_card import RUNTIME_CARD_SCHEMA_VERSION, RuntimeCardReport
 from entroping.core.safe_write import safe_write_text
 from entroping.core.structured_diagnostics import (
@@ -37,7 +38,7 @@ ObservabilityOutput = Literal["md", "json"]
 ObservabilityStatus = Literal["ready", "partial", "insufficient"]
 ObservabilitySeverity = Literal["info", "attention", "blocker"]
 ObservabilitySourceState = Literal["present", "missing", "invalid", "unsafe"]
-ObservabilitySourceId = Literal["diagnostics", "runtime_card"]
+ObservabilitySourceId = Literal["diagnostics", "runtime_card", "evidence_index"]
 ObservabilitySurface = Literal[
     "opentelemetry",
     "datadog",
@@ -50,6 +51,7 @@ ObservabilityEventSeverity = Literal["debug", "info", "warning", "error"]
 _MAX_OBSERVABILITY_ARTIFACT_BYTES: Final = LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES
 _DIAGNOSTICS_PATH: Final = Path(".entroping") / "latest-diagnostics.jsonl"
 _RUNTIME_CARD_PATH: Final = Path("reports") / "runtime-card.json"
+_EVIDENCE_INDEX_PATH: Final = Path("reports") / "evidence-index.json"
 _DEFAULT_OUTPUTS: Final[dict[ObservabilityOutput, Path]] = {
     "md": Path("reports") / "observability-packet.md",
     "json": Path("reports") / "observability-packet.json",
@@ -57,10 +59,12 @@ _DEFAULT_OUTPUTS: Final[dict[ObservabilityOutput, Path]] = {
 _SOURCE_LABELS: Final[dict[ObservabilitySourceId, str]] = {
     "diagnostics": "Structured diagnostics",
     "runtime_card": "Runtime card",
+    "evidence_index": "Evidence index",
 }
 _SOURCE_PATHS: Final[dict[ObservabilitySourceId, Path]] = {
     "diagnostics": _DIAGNOSTICS_PATH,
     "runtime_card": _RUNTIME_CARD_PATH,
+    "evidence_index": _EVIDENCE_INDEX_PATH,
 }
 _SURFACE_LABELS: Final[dict[ObservabilitySurface, str]] = {
     "opentelemetry": "OpenTelemetry",
@@ -205,26 +209,37 @@ class _LoadedRuntimeCard:
     card: RuntimeCardReport | None
 
 
+@dataclass(frozen=True, slots=True)
+class _LoadedEvidenceIndex:
+    source: ObservabilitySource
+
+
 def run_observability_packet_report(
     *,
     project_root: Path,
-    output: ObservabilityOutput,
+    output: str,
     output_path: Path | None = None,
 ) -> ObservabilityPacketResult:
     """Write a local vendor-neutral observability packet."""
 
-    if output not in _DEFAULT_OUTPUTS:
-        msg = f"Unsupported observability output: {output}"
-        raise ObservabilityPacketError(msg)
+    match output:
+        case "md" | "json":
+            observability_output: ObservabilityOutput = output
+        case _:
+            msg = f"Unsupported observability output: {output}"
+            raise ObservabilityPacketError(msg)
     root = project_root.expanduser().resolve()
-    destination = _resolve_output_path(output_path or _DEFAULT_OUTPUTS[output], root=root)
+    destination = _resolve_output_path(
+        output_path or _DEFAULT_OUTPUTS[observability_output],
+        root=root,
+    )
     packet = build_observability_packet(
         project_root=root,
         packet_path=destination.relative_to(root).as_posix(),
     )
     result: EvidencePacketResult[ObservabilityPacket] = write_evidence_packet_report(
         project_root=root,
-        output=output,
+        output=observability_output,
         output_path=destination,
         packet=packet,
         render_markdown=render_observability_packet_markdown,
@@ -247,9 +262,10 @@ def build_observability_packet(
     root = project_root.expanduser().resolve()
     diagnostics = _load_diagnostics(root=root)
     runtime_card = _load_runtime_card(root=root)
+    evidence_index = _load_evidence_index(root=root)
     runtime = _runtime_summary(runtime_card.card)
     event_summaries = tuple(_event_summary(event) for event in diagnostics.events)
-    sources = (diagnostics.source, runtime_card.source)
+    sources = (diagnostics.source, runtime_card.source, evidence_index.source)
     summary = _summary(sources=sources, runtime=runtime, events=event_summaries)
     return ObservabilityPacket(
         generated_at=datetime.now(UTC).isoformat(),
@@ -536,10 +552,7 @@ def _load_runtime_card(*, root: Path) -> _LoadedRuntimeCard:
             card=None,
         )
     try:
-        document = json.loads(raw_text)
-        if not isinstance(document, dict):
-            msg = "Runtime card must be a JSON object"
-            raise ObservabilityPacketError(msg)
+        document = _json_object(raw_text, artifact="Runtime card")
         schema_version = _schema_version(document)
         if schema_version != RUNTIME_CARD_SCHEMA_VERSION:
             msg = (
@@ -548,7 +561,7 @@ def _load_runtime_card(*, root: Path) -> _LoadedRuntimeCard:
             )
             raise ObservabilityPacketError(msg)
         card = RuntimeCardReport.model_validate(document)
-    except (json.JSONDecodeError, ValidationError, ObservabilityPacketError) as exc:
+    except (ValidationError, ObservabilityPacketError) as exc:
         return _LoadedRuntimeCard(
             source=_source(
                 source_id,
@@ -568,6 +581,94 @@ def _load_runtime_card(*, root: Path) -> _LoadedRuntimeCard:
             summary=f"{card.summary.status} runtime evidence",
         ),
         card=card,
+    )
+
+
+def _load_evidence_index(*, root: Path) -> _LoadedEvidenceIndex:
+    source_id: ObservabilitySourceId = "evidence_index"
+    try:
+        path = _resolve_source_path(_EVIDENCE_INDEX_PATH, root=root)
+    except ObservabilityPacketError as exc:
+        return _LoadedEvidenceIndex(
+            source=_source(
+                source_id,
+                state="unsafe",
+                schema_version=None,
+                sha256=None,
+                summary=str(exc),
+            )
+        )
+    if not path.exists():
+        return _LoadedEvidenceIndex(
+            source=_source(
+                source_id,
+                state="missing",
+                schema_version=None,
+                sha256=None,
+                summary="Evidence index is missing.",
+            )
+        )
+    try:
+        raw_bytes = _read_bounded_bytes(path, artifact="evidence index")
+        raw_text = raw_bytes.decode("utf-8")
+    except ObservabilityPacketError as exc:
+        return _LoadedEvidenceIndex(
+            source=_source(
+                source_id,
+                state="invalid",
+                schema_version=None,
+                sha256=None,
+                summary=str(exc),
+            )
+        )
+    except UnicodeDecodeError as exc:
+        return _LoadedEvidenceIndex(
+            source=_source(
+                source_id,
+                state="invalid",
+                schema_version=None,
+                sha256=None,
+                summary=_safe_text(f"Could not decode evidence index as UTF-8: {exc}"),
+            )
+        )
+    if _contains_unredacted_secret_like_value(raw_text):
+        return _LoadedEvidenceIndex(
+            source=_source(
+                source_id,
+                state="unsafe",
+                schema_version=None,
+                sha256=None,
+                summary="Evidence index contains secret-like content.",
+            )
+        )
+    try:
+        document = _json_object(raw_text, artifact="Evidence index")
+        schema_version = _schema_version(document)
+        if schema_version != EVIDENCE_INDEX_SCHEMA_VERSION:
+            msg = (
+                "Evidence index uses unsupported schema "
+                f"{schema_version or 'unknown'}; expected {EVIDENCE_INDEX_SCHEMA_VERSION}"
+            )
+            raise ObservabilityPacketError(msg)
+        status = _evidence_index_status(document)
+    except ObservabilityPacketError as exc:
+        return _LoadedEvidenceIndex(
+            source=_source(
+                source_id,
+                state="invalid",
+                schema_version=None,
+                sha256=None,
+                summary=_safe_text(f"Invalid evidence index: {exc}"),
+            )
+        )
+    return _LoadedEvidenceIndex(
+        source=_source(
+            source_id,
+            state="present",
+            schema_version=EVIDENCE_INDEX_SCHEMA_VERSION,
+            sha256=hashlib.sha256(raw_bytes).hexdigest(),
+            summary=f"{status} evidence index",
+        )
     )
 
 
@@ -824,6 +925,48 @@ def _read_bounded_bytes(path: Path, *, artifact: str) -> bytes:
 def _schema_version(document: dict[str, object]) -> str | None:
     value = document.get("schema_version")
     return _safe_text(value) if isinstance(value, str) else None
+
+
+def _json_object(raw_text: str, *, artifact: str) -> dict[str, object]:
+    try:
+        loaded = json.loads(raw_text)
+    except json.JSONDecodeError as exc:
+        msg = f"{artifact} contains invalid JSON: {exc}"
+        raise ObservabilityPacketError(msg) from exc
+    if not isinstance(loaded, dict):
+        msg = f"{artifact} must be a JSON object"
+        raise ObservabilityPacketError(msg)
+    document: dict[str, object] = {}
+    for key, value in loaded.items():
+        if isinstance(key, str):
+            document[key] = value
+    return document
+
+
+def _json_object_field(
+    document: dict[str, object],
+    field: str,
+    *,
+    artifact: str,
+) -> dict[str, object]:
+    value = document.get(field)
+    if not isinstance(value, dict):
+        msg = f"{artifact} {field} must be a JSON object"
+        raise ObservabilityPacketError(msg)
+    result: dict[str, object] = {}
+    for key, item in value.items():
+        if isinstance(key, str):
+            result[key] = item
+    return result
+
+
+def _evidence_index_status(document: dict[str, object]) -> str:
+    summary = _json_object_field(document, "summary", artifact="Evidence index")
+    status = summary.get("status")
+    if not isinstance(status, str) or status not in {"ready", "partial", "insufficient"}:
+        msg = "Evidence index summary status is missing or unsupported"
+        raise ObservabilityPacketError(msg)
+    return _safe_text(status)
 
 
 def _safe_optional_text(value: str | None) -> str | None:
