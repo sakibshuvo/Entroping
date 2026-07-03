@@ -664,10 +664,11 @@ handoff, observability-packet, API-inventory, and runtime-card artifacts into
 value-free readiness rows for issue trackers, chat, enterprise automation,
 cross-surface continuity, observability, and API governance surfaces. It records
 source states, schema versions, bounded SHA-256 hashes, local artifact paths,
-surface IDs, link/event requirements, forbidden actions, blockers, and
-next-action rows. Missing source artifacts are non-blocking and become partial
-or insufficient packet state; malformed, oversized, non-file, symlinked,
-wrong-schema, or secret-like source artifacts are marked invalid or unsafe. The
+surface IDs, link/event requirements, forbidden actions, family blockers,
+surface-group blocker totals, and next-action rows. Missing source artifacts are
+non-blocking and become partial or insufficient packet state; malformed,
+oversized, non-file, symlinked, wrong-schema, or secret-like source artifacts
+are marked invalid or unsafe. The
 command does not execute Hurl, run tests, call Jira, Linear, monday.com, Slack,
 Discord, Workato, Claude, Codex, OpenAI, Datadog, Splunk, or other external
 APIs, upload results, create accounts, configure SSO or RBAC, mutate tickets or

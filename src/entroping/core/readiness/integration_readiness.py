@@ -41,6 +41,13 @@ IntegrationReadinessStatus = Literal["ready", "partial", "insufficient"]
 IntegrationReadinessSourceState = Literal["present", "missing", "invalid", "unsafe"]
 IntegrationReadinessFamilyStatus = Literal["ready", "attention", "blocked"]
 IntegrationReadinessNextActionPriority = Literal["high", "medium", "low"]
+IntegrationReadinessSurfaceGroupId = Literal[
+    "tracker",
+    "chat",
+    "automation",
+    "evidence_surface",
+    "observability_surface",
+]
 IntegrationReadinessSourceId = Literal[
     "team_access_control_plan",
     "notification_packet",
@@ -152,6 +159,13 @@ class _FamilyDefinition:
     required_source_ids: tuple[IntegrationReadinessSourceId, ...]
     ready_action: str
     attention_action: str
+
+
+@dataclass(frozen=True, slots=True)
+class _SurfaceGroupDefinition:
+    id: IntegrationReadinessSurfaceGroupId
+    label: str
+    family_ids: tuple[IntegrationReadinessFamilyId, ...]
 
 
 _SOURCE_DEFINITIONS: Final[tuple[_SourceDefinition, ...]] = (
@@ -288,6 +302,45 @@ _FAMILY_DEFINITIONS: Final[tuple[_FamilyDefinition, ...]] = (
         ),
     ),
 )
+_SURFACE_GROUP_DEFINITIONS: Final[tuple[_SurfaceGroupDefinition, ...]] = (
+    _SurfaceGroupDefinition(
+        id="tracker",
+        label="Tracker",
+        family_ids=("issue_trackers",),
+    ),
+    _SurfaceGroupDefinition(
+        id="chat",
+        label="Chat",
+        family_ids=("chat",),
+    ),
+    _SurfaceGroupDefinition(
+        id="automation",
+        label="Automation",
+        family_ids=("enterprise_automation",),
+    ),
+    _SurfaceGroupDefinition(
+        id="evidence_surface",
+        label="Evidence surface",
+        family_ids=("cross_surface_continuity", "api_governance"),
+    ),
+    _SurfaceGroupDefinition(
+        id="observability_surface",
+        label="Observability surface",
+        family_ids=("observability",),
+    ),
+)
+
+
+class IntegrationReadinessSurfaceBlockerTotal(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    surface: IntegrationReadinessSurfaceGroupId
+    label: str
+    family_ids: tuple[IntegrationReadinessFamilyId, ...]
+    surface_ids: tuple[IntegrationReadinessSurfaceId, ...]
+    families_blocked: int = Field(ge=0)
+    families_attention: int = Field(ge=0)
+    blockers_total: int = Field(ge=0)
 
 
 class IntegrationReadinessSummary(BaseModel):
@@ -307,6 +360,7 @@ class IntegrationReadinessSummary(BaseModel):
     families_blocked: int = Field(ge=0)
     blockers_total: int = Field(ge=0)
     next_actions_total: int = Field(ge=0)
+    surface_blocker_totals: tuple[IntegrationReadinessSurfaceBlockerTotal, ...] = ()
 
 
 class IntegrationReadinessSource(BaseModel):
@@ -439,11 +493,31 @@ def render_integration_readiness_markdown(packet: IntegrationReadinessPacket) ->
         f"- Blockers: `{packet.summary.blockers_total}`",
         f"- Next actions: `{packet.summary.next_actions_total}`",
         "",
-        "## Sources",
+        "## Surface Blockers",
         "",
-        "| Source | State | Path | Schema | SHA-256 | Summary |",
-        "| --- | --- | --- | --- | --- | --- |",
+        "| Surface | Blocked | Attention | Blockers | Families | Target Surfaces |",
+        "| --- | ---: | ---: | ---: | --- | --- |",
     ]
+    for total in packet.summary.surface_blocker_totals:
+        lines.append(
+            "| "
+            f"{_markdown_cell(total.surface)} | "
+            f"{total.families_blocked} | "
+            f"{total.families_attention} | "
+            f"{total.blockers_total} | "
+            f"{_markdown_cell(', '.join(total.family_ids))} | "
+            f"{_markdown_cell(', '.join(total.surface_ids))} |"
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Sources",
+            "",
+            "| Source | State | Path | Schema | SHA-256 | Summary |",
+            "| --- | --- | --- | --- | --- | --- |",
+        ]
+    )
     for source in packet.sources:
         lines.append(
             "| "
@@ -875,7 +949,40 @@ def _summary(
         families_blocked=sum(1 for family in families if family.status == "blocked"),
         blockers_total=blockers_total,
         next_actions_total=len(next_actions),
+        surface_blocker_totals=_surface_blocker_totals(families),
     )
+
+
+def _surface_blocker_totals(
+    families: tuple[IntegrationReadinessFamily, ...],
+) -> tuple[IntegrationReadinessSurfaceBlockerTotal, ...]:
+    family_by_id = {family.id: family for family in families}
+    totals: list[IntegrationReadinessSurfaceBlockerTotal] = []
+    for definition in _SURFACE_GROUP_DEFINITIONS:
+        group_families = tuple(family_by_id[family_id] for family_id in definition.family_ids)
+        blockers_total = len(
+            {blocker for family in group_families for blocker in family.blockers}
+        )
+        totals.append(
+            IntegrationReadinessSurfaceBlockerTotal(
+                surface=definition.id,
+                label=definition.label,
+                family_ids=definition.family_ids,
+                surface_ids=tuple(
+                    surface_id
+                    for family in group_families
+                    for surface_id in family.surface_ids
+                ),
+                families_blocked=sum(
+                    1 for family in group_families if family.status == "blocked"
+                ),
+                families_attention=sum(
+                    1 for family in group_families if family.status == "attention"
+                ),
+                blockers_total=blockers_total,
+            )
+        )
+    return tuple(totals)
 
 
 def _status(sources: tuple[IntegrationReadinessSource, ...]) -> IntegrationReadinessStatus:
