@@ -23,6 +23,11 @@
   full-context use, measurable context signals, cleanup rules, and optional
   graph/wiki tools as aids rather than dependencies.
 
+- Added issue #793's minimal seed-repo contract: the factory extraction
+  inventory now identifies the smallest portable process surface, required CI
+  evidence, local verification expectations, project-local decisions,
+  exclusions, autonomy assumptions, and stop conditions.
+
 - Added issue #1316's PR evidence-card GitHub Actions example: downstream
   teams can copy a read-only PR workflow that runs the local evidence card
   after Entroping reports exist, publishes it through the GitHub job summary and

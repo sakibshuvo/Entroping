@@ -305,6 +305,37 @@ instead of copied into new strategy documents. Retired graph/compression tools
 and Obsidian are optional aids, not default dependencies or authority layers
 for a template.
 
+### Minimal seed-repo contract
+
+A future reusable seed repo needs only the smallest portable process surface:
+agent instructions, issue lifecycle, gate ladder, context pack, decision
+registry, role registry, and metrics. Those files and commands are reusable
+only when they describe how work is selected, isolated, verified, reviewed,
+and cleaned up; product behavior stays in the target repository.
+
+Required CI evidence for a seed repo is: PR-body validation for close keywords,
+documentation impact, autonomy and merge authority; docs governance; focused
+tests for changed workflow docs or scripts; the repo's standard quality gate;
+and a security/regression gate before autonomous merge. The local verification
+expectations are the same shape: run the focused slice first, then the
+declared lane, then wait for green CI before merge and finish cleanup.
+
+Keep project-local rather than template-global decisions in the target repo:
+product slogans, runtime boundaries, provider policy, dependency policy,
+release claims, public docs, and security severity. Its explicit exclusions
+are no Entroping runtime behavior, no QAnstitution branding reuse unless a
+future project explicitly chooses it, no provider secrets, and no generated
+vendor lock-in.
+
+Tier A/B/C autonomy assumptions carry over only as review and stop-condition
+language. Tier A requires low-risk scope, deterministic local gates, green CI,
+and finish cleanup. Tier B requires Codex or human review. Tier C is
+proposal-only for runtime, security, provider, release, dependency, secret, or
+destructive filesystem surfaces. The required stop conditions are scope creep,
+missing evidence, flaky or failing gates, forbidden provider use, context
+drift, or any attempt to downgrade risk for budget reasons. Do not create an
+external template repo from this issue.
+
 ### Entroping-specific product contracts
 
 - QAnstitution governance, deterministic Hurl execution, Traffic is Truth, Hurl

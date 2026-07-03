@@ -2194,6 +2194,37 @@ def test_agent_control_plane_defines_portable_context_evidence_protocol() -> Non
         assert term in normalized
 
 
+def test_agent_control_plane_defines_minimal_seed_repo_contract() -> None:
+    control_plane = (
+        REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(control_plane.split())
+
+    required_terms = [
+        "### Minimal seed-repo contract",
+        "agent instructions",
+        "issue lifecycle",
+        "gate ladder",
+        "context pack",
+        "decision registry",
+        "role registry",
+        "metrics",
+        "Required CI evidence",
+        "local verification expectations",
+        "project-local rather than template-global",
+        "no Entroping runtime behavior",
+        "no QAnstitution branding reuse",
+        "no provider secrets",
+        "no generated vendor lock-in",
+        "Tier A/B/C autonomy assumptions",
+        "required stop conditions",
+        "Do not create an external template repo",
+    ]
+
+    for term in required_terms:
+        assert term in normalized
+
+
 def test_prompt_library_contains_autonomous_tier_a_worker_prompt() -> None:
     prompt = (REPO_ROOT / "docs" / "meta" / "prompt-library" / "issue-worker.md").read_text(
         encoding="utf-8"
