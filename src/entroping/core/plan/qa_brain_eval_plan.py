@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from html import escape
@@ -18,7 +19,10 @@ from entroping.core.plan.qa_brain_seed import (
     QaBrainEvalSliceId,
     QaBrainEvalSliceStatus,
     QaBrainNextActionPriority,
+    QaBrainSeedCategory,
     QaBrainSeedError,
+    QaBrainSeedSource,
+    QaBrainSeedSourceState,
     build_qa_brain_seed,
 )
 
@@ -27,6 +31,13 @@ QA_BRAIN_EVAL_PLAN_SCHEMA_VERSION: Final = "entroping.qa-brain-eval-plan.v1"
 QaBrainEvalPlanOutput = Literal["md", "json"]
 QaBrainEvalPlanStatus = Literal["ready", "partial", "insufficient"]
 QaBrainEvalCaseReadiness = QaBrainEvalSliceStatus
+QaBrainEvalCatalogSourceState = QaBrainSeedSourceState
+QaBrainEvalCatalogCategory = QaBrainSeedCategory
+QaBrainEvalMissingReason = Literal[
+    "artifact_missing",
+    "artifact_invalid",
+    "artifact_unsafe",
+]
 
 _DEFAULT_OUTPUTS: Final[dict[QaBrainEvalPlanOutput, Path]] = {
     "md": Path("reports") / "qa-brain-eval-plan.md",
@@ -138,6 +149,20 @@ _NEGATIVE_CONTROLS: Final[dict[QaBrainEvalSliceId, tuple[str, ...]]] = {
     ),
 }
 
+_MISSING_REASON_BY_STATE: Final[
+    dict[QaBrainEvalCatalogSourceState, QaBrainEvalMissingReason | None]
+] = {
+    "present": None,
+    "missing": "artifact_missing",
+    "invalid": "artifact_invalid",
+    "unsafe": "artifact_unsafe",
+}
+_MISSING_REASON_ORDER: Final[tuple[QaBrainEvalMissingReason, ...]] = (
+    "artifact_unsafe",
+    "artifact_invalid",
+    "artifact_missing",
+)
+
 
 class QaBrainEvalPlanError(ValueError):
     """Raised when a QA brain eval-plan report cannot be generated safely."""
@@ -156,6 +181,43 @@ class QaBrainEvalPlanSummary(BaseModel):
     next_actions_total: int = Field(ge=0)
 
 
+class QaBrainEvalCatalogSource(BaseModel):
+    """One value-free source row in a future QA brain eval-case catalog."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    state: QaBrainEvalCatalogSourceState
+    category: QaBrainEvalCatalogCategory
+    schema_version: str | None = None
+    missing_reason: QaBrainEvalMissingReason | None = None
+
+
+class QaBrainEvalCaseCatalog(BaseModel):
+    """Value-free evidence catalog metadata for one future QA brain eval case."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    expected_sources_total: int = Field(ge=0)
+    sources_present: int = Field(ge=0)
+    sources_missing: int = Field(ge=0)
+    sources_invalid: int = Field(ge=0)
+    sources_unsafe: int = Field(ge=0)
+    categories: tuple[QaBrainEvalCatalogCategory, ...] = ()
+    missing_reasons: tuple[QaBrainEvalMissingReason, ...] = ()
+    sources: tuple[QaBrainEvalCatalogSource, ...] = ()
+
+
+def _empty_evidence_catalog() -> QaBrainEvalCaseCatalog:
+    return QaBrainEvalCaseCatalog(
+        expected_sources_total=0,
+        sources_present=0,
+        sources_missing=0,
+        sources_invalid=0,
+        sources_unsafe=0,
+    )
+
+
 class QaBrainEvalCase(BaseModel):
     """One deterministic future QA brain evaluation case."""
 
@@ -171,6 +233,7 @@ class QaBrainEvalCase(BaseModel):
     acceptance_signal: str
     negative_controls: tuple[str, ...]
     next_action: str
+    evidence_catalog: QaBrainEvalCaseCatalog = Field(default_factory=_empty_evidence_catalog)
 
 
 class QaBrainEvalPlanNextAction(BaseModel):
@@ -250,7 +313,14 @@ def build_qa_brain_eval_plan(*, project_root: Path) -> QaBrainEvalPlanPacket:
         seed = build_qa_brain_seed(project_root=root)
     except QaBrainSeedError as exc:
         raise QaBrainEvalPlanError(str(exc)) from exc
-    cases = tuple(_case_from_seed_slice(eval_slice) for eval_slice in seed.eval_slices)
+    catalogs = _evidence_catalogs(seed.sources)
+    cases = tuple(
+        _case_from_seed_slice(
+            eval_slice=eval_slice,
+            evidence_catalog=catalogs.get(eval_slice.id, _empty_evidence_catalog()),
+        )
+        for eval_slice in seed.eval_slices
+    )
     next_actions = _next_actions(cases)
     return QaBrainEvalPlanPacket(
         generated_at=datetime.now(UTC).isoformat(),
@@ -302,6 +372,49 @@ def render_qa_brain_eval_plan_markdown(packet: QaBrainEvalPlanPacket) -> str:
             f"{_markdown_cell(case.output_contract)} | "
             f"{_markdown_cell(case.acceptance_signal)} |"
         )
+    lines.extend(
+        [
+            "",
+            "## Eval Case Catalog",
+            "",
+            "| ID | Expected Sources | Present | Missing | Invalid | Unsafe | "
+            "Categories | Missing Reasons |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        ]
+    )
+    for case in packet.cases:
+        catalog = case.evidence_catalog
+        lines.append(
+            "| "
+            f"{_markdown_cell(case.id)} | "
+            f"{catalog.expected_sources_total} | "
+            f"{catalog.sources_present} | "
+            f"{catalog.sources_missing} | "
+            f"{catalog.sources_invalid} | "
+            f"{catalog.sources_unsafe} | "
+            f"{_markdown_cell(', '.join(catalog.categories) or 'n/a')} | "
+            f"{_markdown_cell(', '.join(catalog.missing_reasons) or 'n/a')} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## Eval Case Catalog Sources",
+            "",
+            "| Case ID | Source ID | State | Category | Schema | Missing Reason |",
+            "| --- | --- | --- | --- | --- | --- |",
+        ]
+    )
+    for case in packet.cases:
+        for source in case.evidence_catalog.sources:
+            lines.append(
+                "| "
+                f"{_markdown_cell(case.id)} | "
+                f"{_markdown_cell(source.id)} | "
+                f"{_markdown_cell(source.state)} | "
+                f"{_markdown_cell(source.category)} | "
+                f"{_markdown_cell(source.schema_version or 'n/a')} | "
+                f"{_markdown_cell(source.missing_reason or 'n/a')} |"
+            )
     lines.extend(["", "## Negative Controls", ""])
     for case in packet.cases:
         lines.append(f"### {_markdown_heading(case.label)}")
@@ -323,7 +436,11 @@ def render_qa_brain_eval_plan_markdown(packet: QaBrainEvalPlanPacket) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _case_from_seed_slice(eval_slice: QaBrainEvalSlice) -> QaBrainEvalCase:
+def _case_from_seed_slice(
+    *,
+    eval_slice: QaBrainEvalSlice,
+    evidence_catalog: QaBrainEvalCaseCatalog,
+) -> QaBrainEvalCase:
     return QaBrainEvalCase(
         id=eval_slice.id,
         label=eval_slice.label,
@@ -351,7 +468,59 @@ def _case_from_seed_slice(eval_slice: QaBrainEvalSlice) -> QaBrainEvalCase:
             field="negative_controls",
         ),
         next_action=_case_next_action(eval_slice),
+        evidence_catalog=evidence_catalog,
     )
+
+
+def _evidence_catalogs(
+    sources: tuple[QaBrainSeedSource, ...],
+) -> dict[QaBrainEvalSliceId, QaBrainEvalCaseCatalog]:
+    catalogs: dict[QaBrainEvalSliceId, QaBrainEvalCaseCatalog] = {}
+    for eval_id in _INPUT_CONTRACTS:
+        case_sources = tuple(source for source in sources if eval_id in source.eval_slices)
+        catalogs[eval_id] = _evidence_catalog(case_sources)
+    return catalogs
+
+
+def _evidence_catalog(
+    sources: tuple[QaBrainSeedSource, ...],
+) -> QaBrainEvalCaseCatalog:
+    catalog_sources = tuple(_catalog_source(source) for source in sources)
+    return QaBrainEvalCaseCatalog(
+        expected_sources_total=len(catalog_sources),
+        sources_present=sum(1 for source in catalog_sources if source.state == "present"),
+        sources_missing=sum(1 for source in catalog_sources if source.state == "missing"),
+        sources_invalid=sum(1 for source in catalog_sources if source.state == "invalid"),
+        sources_unsafe=sum(1 for source in catalog_sources if source.state == "unsafe"),
+        categories=_ordered_unique(source.category for source in catalog_sources),
+        missing_reasons=_missing_reasons(catalog_sources),
+        sources=catalog_sources,
+    )
+
+
+def _catalog_source(source: QaBrainSeedSource) -> QaBrainEvalCatalogSource:
+    return QaBrainEvalCatalogSource(
+        id=source.id,
+        state=source.state,
+        category=source.category,
+        schema_version=source.schema_version,
+        missing_reason=_MISSING_REASON_BY_STATE[source.state],
+    )
+
+
+def _ordered_unique[T](values: Iterable[T]) -> tuple[T, ...]:
+    return tuple(dict.fromkeys(values))
+
+
+def _missing_reasons(
+    sources: tuple[QaBrainEvalCatalogSource, ...],
+) -> tuple[QaBrainEvalMissingReason, ...]:
+    reasons = frozenset(
+        source.missing_reason
+        for source in sources
+        if source.missing_reason is not None
+    )
+    return tuple(reason for reason in _MISSING_REASON_ORDER if reason in reasons)
 
 
 def _metadata_text(
