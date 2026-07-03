@@ -110,6 +110,7 @@ instructions.
 - [[docs/meta/OBSIDIAN_START_HERE|OBSIDIAN_START_HERE]] - first-time Obsidian workflow for this vault.
 - [[docs/meta/GLOSSARY|GLOSSARY]] - plain-language explanation of Entroping terms.
 - [[docs/technical/THREAT_MODEL|THREAT_MODEL]] - stable-core security boundaries, residual risks, and remediation issue map.
+- [[docs/technical/THREAT_MODEL|THREAT_MODEL#local-first-traffic-and-evidence-export-faq]] - local state paths, redaction boundaries, upload behavior, and evidence sharing guidance.
 - [[docs/technical/CLI_COMPATIBILITY_AUDIT|CLI_COMPATIBILITY_AUDIT]] - locked alpha command, exit-code, and report-artifact compatibility audit.
 - [[docs/technical/PYTHON_COMPATIBILITY|PYTHON_COMPATIBILITY]] - CI-proven Python runtime support policy.
 - [[docs/technical/REPORT_SCHEMAS|REPORT_SCHEMAS]] - run, diagnostics, drift, effective-policy, and traceability schema versions.
