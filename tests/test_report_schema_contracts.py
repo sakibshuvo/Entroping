@@ -287,6 +287,8 @@ from entroping.core.plan.qa_brain_repair_plan import (
     QaBrainRepairPlanRow,
     QaBrainRepairPlanSource,
     QaBrainRepairPlanSummary,
+    QaBrainRepairProposalDryRunArtifactStatus,
+    QaBrainRepairProposalDryRunChecklistItem,
 )
 from entroping.core.plan.qa_brain_retrieval_plan import (
     QA_BRAIN_RETRIEVAL_PLAN_SCHEMA_VERSION,
@@ -5959,6 +5961,21 @@ def test_qa_brain_repair_plan_v1_schema_contract_is_versioned_and_stable() -> No
                 next_action="Add evidence before future QA Brain repair proposals.",
             ),
         ),
+        repair_proposal_dry_run_checklist=(
+            QaBrainRepairProposalDryRunChecklistItem(
+                case_id="weak_test_detection",
+                prerequisite_status="partial",
+                readiness="missing",
+                artifact_statuses=(
+                    QaBrainRepairProposalDryRunArtifactStatus(
+                        source_id="qa-brain-routing-plan-json",
+                        status="present",
+                    ),
+                ),
+                acceptance_gate_status="ready",
+                next_action_label="add-value-free-evidence",
+            ),
+        ),
         next_actions=(
             QaBrainRepairPlanNextAction(
                 priority="medium",
@@ -6013,6 +6030,21 @@ def test_qa_brain_repair_plan_v1_schema_contract_is_versioned_and_stable() -> No
                 "next_action": "Add evidence before future QA Brain repair proposals.",
             }
         ],
+        "repair_proposal_dry_run_checklist": [
+            {
+                "case_id": "weak_test_detection",
+                "prerequisite_status": "partial",
+                "readiness": "missing",
+                "artifact_statuses": [
+                    {
+                        "source_id": "qa-brain-routing-plan-json",
+                        "status": "present",
+                    }
+                ],
+                "acceptance_gate_status": "ready",
+                "next_action_label": "add-value-free-evidence",
+            }
+        ],
         "next_actions": [
             {
                 "priority": "medium",
@@ -6035,6 +6067,12 @@ def test_qa_brain_repair_plan_v1_schema_contract_is_versioned_and_stable() -> No
         "evidence-index-json",
     ]
     assert schema["$defs"]["repair_intent"]["enum"] == ["generate", "repair", "review"]
+    assert schema["$defs"]["prerequisite_status"]["enum"] == [
+        "ready",
+        "partial",
+        "missing",
+    ]
+    assert schema["$defs"]["acceptance_gate_status"]["enum"] == ["ready", "missing"]
     assert schema["$defs"]["acceptance_gate_id"]["enum"] == [
         "parser_validation",
         "hurl_execution",

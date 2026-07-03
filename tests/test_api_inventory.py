@@ -364,6 +364,34 @@ event_contracts:
     assert sources[("hurl_test", "tests/asyncapi.hurl")].style == "asyncapi"
 
 
+def test_api_inventory_detects_conventional_asyncapi_and_webhook_filenames(
+    tmp_path: Path,
+) -> None:
+    _ = _write_text(
+        tmp_path / "contracts" / "asyncapi.yaml",
+        """
+asyncapi: 3.0.0
+channels:
+  orders.created: {}
+""".strip()
+        + "\n",
+    )
+    _ = _write_text(
+        tmp_path / "contracts" / "webhooks.yaml",
+        """
+webhooks:
+  order.created: {}
+""".strip()
+        + "\n",
+    )
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    sources = {(source.kind, source.path): source for source in packet.sources}
+    assert sources[("schema_file", "contracts/asyncapi.yaml")].style == "asyncapi"
+    assert sources[("schema_file", "contracts/webhooks.yaml")].style == "webhook_event"
+
+
 def test_api_inventory_counts_graphql_root_operations_without_leaking_names(
     tmp_path: Path,
 ) -> None:
