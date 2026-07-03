@@ -21,6 +21,15 @@ AI can ship backend changes faster than humans can fully review them. The hard f
 - **Hurl is the Enforcer:** execute committed `.hurl` tests through a deterministic Rust binary.
 - **CI stays LLM-free:** generation can use AI, but `entroping run` is reproducible.
 
+## Backend/API integrity positioning
+
+Entroping positions itself as a backend/API integrity layer, not as a generic AI coding helper:
+
+- **API contracts stay the source of truth for shape** through deterministic Hurl execution.
+- **Behavior changes need governance checks** from local traffic, QAnstitution gates, and CI-run evidence before merge.
+- **Runtime proofs are local-first and reviewable**, with exported artifacts that do not claim hosted analysis by default.
+- **Trust is earned by reproducible evidence, not model judgment**, keeping AI suggestions separate from enforcement.
+
 ## Use Entroping When
 
 - **AI changed your API:** prove runtime behavior still passes committed Hurl tests before merge.

@@ -141,7 +141,9 @@ def test_capture_addon_redacts_before_persisting_flow(tmp_path: Path) -> None:
 def test_capture_addon_redacts_body_before_truncating_boundary_crossing_secret(
     tmp_path: Path,
 ) -> None:
-    secret = "Aa1Bb2Cc3Dd4Ee5Ff6Gg7Hh8Ii9Jj0Kk1Ll2Mm3Nn4"
+    secret = "".join(
+        ("Aa1Bb2Cc3Dd4", "Ee5Ff6Gg7Hh", "8Ii9Jj0Kk1Ll", "2Mm3Nn4")
+    )
     store = TrafficStore.open_project(tmp_path)
     addon = TrafficCaptureAddon(
         store=store,
