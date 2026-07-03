@@ -120,6 +120,7 @@ class MutationReadinessSummary(BaseModel):
     assertions_total: int = Field(ge=0)
     seed_metadata_tests: int = Field(ge=0)
     candidate_categories_total: int = Field(ge=0)
+    seeded_fuzz_candidates_total: int = Field(default=0, ge=0)
     optional_reports_present: int = Field(ge=0)
     optional_reports_invalid: int = Field(ge=0)
     optional_reports_unsafe: int = Field(ge=0)
@@ -153,6 +154,17 @@ class MutationReadinessCandidate(BaseModel):
     next_action: str
 
 
+class MutationReadinessSeededFuzzCandidate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    category: MutationCandidateCategory
+    source_path: str
+    assertions: int = Field(ge=0)
+    seed_metadata: bool
+    next_action: str
+
+
 class MutationReadinessPacket(BaseModel):
     """Schema-versioned local mutation/fuzz readiness packet."""
 
@@ -166,6 +178,7 @@ class MutationReadinessPacket(BaseModel):
     summary: MutationReadinessSummary
     sources: tuple[MutationReadinessSource, ...]
     candidates: tuple[MutationReadinessCandidate, ...]
+    seeded_fuzz_candidates: tuple[MutationReadinessSeededFuzzCandidate, ...] = ()
 
     def model_dump(
         self,
@@ -313,12 +326,18 @@ def build_mutation_readiness(*, project_root: Path) -> MutationReadinessPacket:
         )
     )
     candidates = _candidate_summaries(sources)
+    seeded_fuzz_candidates = _seeded_fuzz_candidate_manifest(sources)
     return MutationReadinessPacket(
         generated_at=datetime.now(UTC).isoformat(),
         project=safe_evidence_text(root.name),
-        summary=_summary(sources=sources, candidates=candidates),
+        summary=_summary(
+            sources=sources,
+            candidates=candidates,
+            seeded_fuzz_candidates=seeded_fuzz_candidates,
+        ),
         sources=sources,
         candidates=candidates,
+        seeded_fuzz_candidates=seeded_fuzz_candidates,
     )
 
 
@@ -341,6 +360,7 @@ def render_mutation_readiness_markdown(packet: MutationReadinessPacket) -> str:
         f"- Assertions: `{packet.summary.assertions_total}`",
         f"- Seed metadata tests: `{packet.summary.seed_metadata_tests}`",
         f"- Candidate categories: `{packet.summary.candidate_categories_total}`",
+        f"- Seeded fuzz candidates: `{packet.summary.seeded_fuzz_candidates_total}`",
         "",
         "## Candidate Categories",
         "",
@@ -361,6 +381,33 @@ def render_mutation_readiness_markdown(packet: MutationReadinessPacket) -> str:
                 f"{candidate.tests} | "
                 f"{_markdown_cell(', '.join(candidate.source_paths))} | "
                 f"{_markdown_cell(candidate.next_action)} |"
+            )
+
+    lines.extend(
+        [
+            "",
+            "## Seeded Fuzz Candidate Manifest",
+            "",
+        ]
+    )
+    if not packet.seeded_fuzz_candidates:
+        lines.append("No deterministic seeded fuzz candidates were detected.")
+    else:
+        lines.extend(
+            [
+                "| ID | Category | Source | Assertions | Seed Metadata | Next Action |",
+                "| --- | --- | --- | ---: | --- | --- |",
+            ]
+        )
+        for manifest_row in packet.seeded_fuzz_candidates:
+            lines.append(
+                "| "
+                f"{_markdown_cell(manifest_row.id)} | "
+                f"{_markdown_cell(manifest_row.category)} | "
+                f"{_markdown_cell(manifest_row.source_path)} | "
+                f"{manifest_row.assertions} | "
+                f"{'yes' if manifest_row.seed_metadata else 'no'} | "
+                f"{_markdown_cell(manifest_row.next_action)} |"
             )
 
     lines.extend(
@@ -678,6 +725,45 @@ def _candidate_summaries(
     return tuple(candidates)
 
 
+def _seeded_fuzz_candidate_manifest(
+    sources: tuple[MutationReadinessSource, ...],
+) -> tuple[MutationReadinessSeededFuzzCandidate, ...]:
+    candidates: list[MutationReadinessSeededFuzzCandidate] = []
+    for source in _present_hurl_sources(sources):
+        if not source.seed_metadata:
+            continue
+        for category in source.candidate_categories:
+            candidates.append(
+                MutationReadinessSeededFuzzCandidate(
+                    id=_seeded_fuzz_candidate_id(
+                        category=category,
+                        source_path=source.path,
+                    ),
+                    category=category,
+                    source_path=source.path,
+                    assertions=source.assertions,
+                    seed_metadata=True,
+                    next_action=_seeded_fuzz_next_action(category),
+                )
+            )
+    return tuple(sorted(candidates, key=lambda candidate: candidate.id))
+
+
+def _seeded_fuzz_candidate_id(
+    *,
+    category: MutationCandidateCategory,
+    source_path: str,
+) -> str:
+    return f"seeded-fuzz:{category}:{source_path}"
+
+
+def _seeded_fuzz_next_action(category: MutationCandidateCategory) -> str:
+    return (
+        f"Review {_CATEGORY_LABELS[category].lower()} candidate before future seeded "
+        "fuzz execution."
+    )
+
+
 def _candidate_next_action(
     *,
     category: MutationCandidateCategory,
@@ -698,6 +784,7 @@ def _summary(
     *,
     sources: tuple[MutationReadinessSource, ...],
     candidates: tuple[MutationReadinessCandidate, ...],
+    seeded_fuzz_candidates: tuple[MutationReadinessSeededFuzzCandidate, ...],
 ) -> MutationReadinessSummary:
     states = _source_state_counts(sources)
     hurl = _hurl_evidence_counts(sources)
@@ -715,6 +802,7 @@ def _summary(
         assertions_total=hurl.assertions_total,
         seed_metadata_tests=hurl.seed_metadata_tests,
         candidate_categories_total=len(candidates),
+        seeded_fuzz_candidates_total=len(seeded_fuzz_candidates),
         optional_reports_present=optional.present,
         optional_reports_invalid=optional.invalid,
         optional_reports_unsafe=optional.unsafe,

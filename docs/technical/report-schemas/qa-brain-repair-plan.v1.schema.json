@@ -12,6 +12,7 @@
     "summary",
     "sources",
     "repair_plans",
+    "repair_proposal_dry_run_checklist",
     "next_actions"
   ],
   "properties": {
@@ -40,6 +41,12 @@
       "type": "array",
       "items": {
         "$ref": "#/$defs/repair_plan"
+      }
+    },
+    "repair_proposal_dry_run_checklist": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/repair_proposal_dry_run_checklist_item"
       }
     },
     "next_actions": {
@@ -212,6 +219,57 @@
         }
       }
     },
+    "repair_proposal_dry_run_checklist_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "prerequisite_status",
+        "readiness",
+        "artifact_statuses",
+        "acceptance_gate_status",
+        "next_action_label"
+      ],
+      "properties": {
+        "case_id": {
+          "$ref": "#/$defs/eval_slice_id"
+        },
+        "prerequisite_status": {
+          "$ref": "#/$defs/prerequisite_status"
+        },
+        "readiness": {
+          "$ref": "#/$defs/readiness"
+        },
+        "artifact_statuses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/repair_proposal_dry_run_artifact_status"
+          }
+        },
+        "acceptance_gate_status": {
+          "$ref": "#/$defs/acceptance_gate_status"
+        },
+        "next_action_label": {
+          "type": "string"
+        }
+      }
+    },
+    "repair_proposal_dry_run_artifact_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "status"
+      ],
+      "properties": {
+        "source_id": {
+          "$ref": "#/$defs/source_id"
+        },
+        "status": {
+          "$ref": "#/$defs/source_state"
+        }
+      }
+    },
     "next_action": {
       "type": "object",
       "additionalProperties": false,
@@ -264,6 +322,19 @@
         "generate",
         "repair",
         "review"
+      ]
+    },
+    "prerequisite_status": {
+      "enum": [
+        "ready",
+        "partial",
+        "missing"
+      ]
+    },
+    "acceptance_gate_status": {
+      "enum": [
+        "ready",
+        "missing"
       ]
     },
     "acceptance_gate_id": {
