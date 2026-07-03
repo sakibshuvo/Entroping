@@ -452,6 +452,23 @@ CLI output. `architect audit --focus auditor` uses the configured Auditor route
 to produce validated review findings without writing files. `entroping run`
 remains LLM-free.
 
+### Generated-test QA loop sequence
+
+The planned QA loop for generated changes is a deterministic read-only chain:
+
+- `entroping report test-quality`
+- `entroping report mutation-readiness`
+- `entroping report qa-brain-seed`
+- `entroping report qa-brain-eval-plan`
+- `entroping report qa-brain-retrieval-plan`
+- `entroping report qa-brain-prompt-plan`
+- `entroping report qa-brain-routing-plan`
+- `entroping report qa-brain-repair-plan`
+
+Each step records structured local artifacts and advisory planning state only.
+None of these packets execute code, call providers for enforcement evidence,
+or replace Hurl-based pass/fail behavior.
+
 Self-healing Hurl maintenance stays a review-first Architect workflow, not an
 autonomous runtime repair loop. Accepted proposal inputs are an explicit prompt,
 an OpenAPI diff, a failed deterministic run or failure bundle, or a drift report.

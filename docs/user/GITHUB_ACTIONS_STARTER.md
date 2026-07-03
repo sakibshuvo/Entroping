@@ -214,6 +214,36 @@ workflow that writes the local PR evidence card without changing pull request
 state. The example keeps `permissions: contents: read`.
 It does not comment on or mutate pull requests.
 
+## PR Evidence Card workflow walkthrough
+
+The example workflow follows this exact sequence:
+
+1. **Checkout and tool setup**
+   - `actions/checkout@v6`
+   - `actions/setup-python@v6`
+   - `astral-sh/setup-uv@v8.2.0`
+
+2. **Install pinned Hurl and Entroping**
+   - Linux Hurl archive pinned with `HURL_VERSION` + `HURL_SHA256`
+   - `uv tool install "${ENTROPING_INSTALL_SPEC}"` with reviewed branch/tag
+
+3. **Gate preflight**
+   - `entroping doctor --ci`
+   - Persist JSON doctor evidence to `reports/doctor-health.json`
+
+4. **Deterministic enforcement run**
+   - `entroping run --ci --report json --report junit --report html`
+
+5. **Evidence card generation (always-on)**
+   - Generate runtime-card, artifact-manifest, evidence-index, and pr-evidence-card
+   - Append markdown card to `GITHUB_STEP_SUMMARY`
+
+6. **Artifact upload**
+   - Upload only `reports/` paths that this workflow owns
+
+The `if: always()` guard keeps post-run evidence output available for failure
+forensics when the run gate fails.
+
 The PR evidence card should run after local run and report artifacts exist. At
 minimum, run the deterministic gate with report output:
 

@@ -62,6 +62,29 @@ Set `ENTROPING_INSTALL_SPEC` to a reviewed tag such as
 `git+https://github.com/sakibshuvo/Entroping.git@v0.1.1-alpha` when a provider
 job should pin Entroping instead of following the latest GitHub source branch.
 
+### PR evidence card recipe
+
+For teams that want a review-friendly PR evidence card from local artifacts,
+start from `examples/github-actions/pr-evidence-card.yml` and verify these
+sequence guarantees:
+
+1. **Least-privilege permissions**
+   - Keep job-level permissions to `contents: read` unless your host explicitly
+     needs more.
+2. **Deterministic setup with pinned binaries/tools**
+   - Keep Hurl checksum-pinned, install Entroping after verified tooling.
+3. **Preflight and run proof**
+   - Run `entroping doctor --ci` before `entroping run --ci --report json`
+4. **Always-on evidence emission**
+   - Wrap evidence report generation and uploads in `if: always()` guards.
+5. **Failure forensics preserved**
+   - Ensure runtime card, manifest, and evidence-index artifacts upload even
+     when `entroping run --ci` fails.
+
+Do not add hosted secrets for this workflow. Any API provider keys are
+team-specific and should be explicit workflow repository secrets only when
+commands outside Entroping require them.
+
 No provider secrets are required by Entroping itself. If your API tests need
 real credentials, inject them through the CI provider's secret store and keep
 them out of `qanstitution.yaml`, Hurl files, committed env files, and uploaded
