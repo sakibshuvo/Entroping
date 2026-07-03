@@ -93,8 +93,13 @@ HTTP 200
     assert sources[("hurl_test", "tests/soap.hurl")]["style"] == "soap_xml"
     assert sources[("schema_file", "schema.graphql")]["style"] == "graphql"
     assert sources[("schema_file", "schema.graphql")]["operations"] == 1
+    assert sources[("schema_file", "schema.graphql")]["signals"] == [
+        {"name": "query", "count": 1},
+        {"name": "mutation", "count": 0},
+        {"name": "subscription", "count": 0},
+    ]
     assert sources[("schema_file", "schema.graphql")]["summary"] == (
-        "1 GraphQL root operation."
+        "1 GraphQL root operation (query: 1, mutation: 0, subscription: 0)."
     )
     assert sources[("schema_file", "contracts/orders.proto")]["style"] == "grpc_proto"
     styles = {style["style"]: style for style in payload["styles"]}
@@ -433,10 +438,20 @@ type Order {
         "sha256": hashlib.sha256(schema_path.read_bytes()).hexdigest(),
         "tags": [],
         "operations": 5,
-        "summary": "5 GraphQL root operations.",
+        "signals": [
+            {"name": "query", "count": 3},
+            {"name": "mutation", "count": 1},
+            {"name": "subscription", "count": 1},
+        ],
+        "summary": "5 GraphQL root operations (query: 3, mutation: 1, subscription: 1).",
     }
     styles = {style["style"]: style for style in payload["styles"]}
     assert styles["graphql"]["operations"] == 5
+    assert styles["graphql"]["signals"] == [
+        {"name": "query", "count": 3},
+        {"name": "mutation", "count": 1},
+        {"name": "subscription", "count": 1},
+    ]
     serialized = json.dumps(payload)
     assert "health" not in serialized
     assert "orderCreated" not in serialized
@@ -467,7 +482,12 @@ input OrderInput {
     source = sources[("schema_file", "types.graphqls")]
     assert source.state == "present"
     assert source.operations == 0
-    assert source.summary == "0 GraphQL root operations."
+    assert [signal.model_dump(mode="json") for signal in source.signals] == [
+        {"name": "query", "count": 0},
+        {"name": "mutation", "count": 0},
+        {"name": "subscription", "count": 0},
+    ]
+    assert source.summary == "0 GraphQL root operations (query: 0, mutation: 0, subscription: 0)."
 
 
 def test_api_inventory_counts_grpc_proto_rpc_operations_without_leaking_names(
@@ -1145,7 +1165,7 @@ def test_api_inventory_rejects_unsupported_and_unsafe_outputs(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with pytest.raises(ApiInventoryError, match="Unsupported API inventory output"):
-        run_api_inventory_report(project_root=tmp_path, output="html")  # type: ignore[arg-type]
+        run_api_inventory_report(project_root=tmp_path, output="html")
     with pytest.raises(ApiInventoryError, match="must stay under"):
         run_api_inventory_report(
             project_root=tmp_path,
