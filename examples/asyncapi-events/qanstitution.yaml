@@ -1,0 +1,11 @@
+project: "asyncapi-events-demo"
+version: "4.1"
+description: "AsyncAPI inventory fixture for local evidence discovery"
+
+gates: []
+
+settings:
+  timeout: 30000
+  parallel_workers: 1
+  follow_redirects: true
+  retry: 0

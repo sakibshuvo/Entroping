@@ -1,0 +1,28 @@
+asyncapi: 2.6.0
+info:
+  title: Order Events Service
+  version: 1.0.0
+  description: |
+    Local inventory fixture for AsyncAPI channel detection.
+channels:
+  order.created.v1:
+    publish:
+      message:
+        name: OrderCreated
+        payload:
+          type: object
+          properties:
+            customer_email:
+              type: string
+            payload_marker:
+              type: string
+              example: "example-marker"
+  order.cancelled.v1:
+    subscribe:
+      message:
+        name: OrderCancelled
+        payload:
+          type: object
+          properties:
+            audit_trace:
+              type: string
