@@ -1120,14 +1120,17 @@ It writes `reports/api-inventory.md` by default or
 `--output json` is selected. The packet inventories local API-style signals
 before protocol-specific compilers are added: configured and conventional
 OpenAPI files, committed Hurl tests with protocol tags, GraphQL/WSDL/proto
-schema files, AsyncAPI specs, webhook/event-contract files, and
-WebSocket/realtime contract files. GraphQL SDL sources contribute counts for
-root `Query`, `Mutation`, and `Subscription` fields without rendering field
-names; WSDL sources contribute counts for `portType` operations without
-rendering operation names, service names, addresses, or raw XML; proto sources
-contribute counts for `rpc` declarations without rendering service or RPC
-names. It summarizes counts for REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto,
-AsyncAPI, webhook/event, WebSocket/realtime, and unknown HTTP surfaces. The
+schema files, AsyncAPI specs, webhook/event-contract files,
+WebSocket/realtime contract files, and Bruno collection manifests/request
+files. GraphQL SDL sources contribute counts for root `Query`, `Mutation`, and
+`Subscription` fields without rendering field names; WSDL sources contribute
+counts for `portType` operations without rendering operation names, service
+names, addresses, or raw XML; proto sources contribute counts for `rpc`
+declarations without rendering service or RPC names; Bruno `.bru` sources
+contribute request-file counts without rendering names, URLs, headers, auth
+values, bodies, or collection variable values. It summarizes counts for
+REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, AsyncAPI, webhook/event,
+WebSocket/realtime, Bruno collection, and unknown HTTP surfaces. The
 report records source states, project-relative local paths, tags,
 operation/exchange counts, SHA-256 hashes, and next-action text only. Missing
 sources are non-blocking; malformed, oversized, non-file, symlinked,
@@ -1137,7 +1140,7 @@ upload results, parse traffic state, call registries, generate tests, mutate
 source files, or include raw URLs, headers, bodies, cookies, prompts,
 credentials, environment values, GraphQL field names, WSDL operation names,
 WSDL service names, WSDL addresses, proto RPC names, proto service names, raw
-XML, or full file contents.
+XML, Bruno request values, Bruno collection values, or full file contents.
 
 The design-partner feedback artifact is written by:
 

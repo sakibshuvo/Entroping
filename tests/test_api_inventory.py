@@ -392,6 +392,107 @@ webhooks:
     assert sources[("schema_file", "contracts/webhooks.yaml")].style == "webhook_event"
 
 
+def test_api_inventory_detects_bruno_collection_files_without_leaking_values(
+    tmp_path: Path,
+) -> None:
+    manifest_path = _write_text(
+        tmp_path / "collections" / "checkout" / "bruno.json",
+        """
+{
+  "version": "1",
+  "name": "checkout-internal",
+  "type": "collection"
+}
+""".strip()
+        + "\n",
+    )
+    request_path = _write_text(
+        tmp_path / "collections" / "checkout" / "orders" / "create-order.bru",
+        """
+meta {
+  name: Create order
+  type: http
+}
+
+post {
+  url: https://internal.example.test/orders
+  body: json
+  auth: bearer
+}
+
+headers {
+  x-request-id: trace-value-should-not-appear
+}
+""".strip()
+        + "\n",
+    )
+
+    result = run_api_inventory_report(project_root=tmp_path, output="json")
+
+    payload = json.loads(result.output_path.read_text(encoding="utf-8"))
+    sources = {(source["kind"], source["path"]): source for source in payload["sources"]}
+    assert sources[("schema_file", "collections/checkout/bruno.json")] == {
+        "kind": "schema_file",
+        "style": "bruno_collection",
+        "path": "collections/checkout/bruno.json",
+        "state": "present",
+        "sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+        "tags": [],
+        "operations": 0,
+        "summary": "Bruno collection manifest.",
+    }
+    assert sources[
+        ("schema_file", "collections/checkout/orders/create-order.bru")
+    ] == {
+        "kind": "schema_file",
+        "style": "bruno_collection",
+        "path": "collections/checkout/orders/create-order.bru",
+        "state": "present",
+        "sha256": hashlib.sha256(request_path.read_bytes()).hexdigest(),
+        "tags": [],
+        "operations": 1,
+        "summary": "1 Bruno request file.",
+    }
+    styles = {style["style"]: style for style in payload["styles"]}
+    assert styles["bruno_collection"]["sources"] == 2
+    assert styles["bruno_collection"]["operations"] == 1
+    serialized = json.dumps(payload)
+    assert "checkout-internal" not in serialized
+    assert "Create order" not in serialized
+    assert "https://internal.example.test/orders" not in serialized
+    assert "trace-value-should-not-appear" not in serialized
+
+    markdown = render_api_inventory_markdown(result.packet)
+    assert "Bruno collection" in markdown
+
+
+def test_api_inventory_marks_bad_bruno_collection_sources_invalid_or_unsafe(
+    tmp_path: Path,
+) -> None:
+    contracts_root = tmp_path / "collections" / "checkout"
+    _write_text(contracts_root / "invalid.bruno.json", "{not yaml: [}\n")
+    _write_text(contracts_root / "list.bruno.json", "[]\n")
+    _write_text(contracts_root / "secret.bru", "sk-proj-" + ("a" * 24))
+    (contracts_root / "binary.bru").parent.mkdir(parents=True, exist_ok=True)
+    (contracts_root / "binary.bru").write_bytes(b"\xff")
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    sources = {(source.kind, source.path): source for source in packet.sources}
+    invalid_yaml = sources[("schema_file", "collections/checkout/invalid.bruno.json")]
+    assert invalid_yaml.state == "invalid"
+    assert "Invalid Bruno collection YAML" in invalid_yaml.summary
+    list_document = sources[("schema_file", "collections/checkout/list.bruno.json")]
+    assert list_document.state == "invalid"
+    assert "Bruno collection document must be an object" in list_document.summary
+    secret_source = sources[("schema_file", "collections/checkout/secret.bru")]
+    assert secret_source.state == "unsafe"
+    assert "secret-like content" in secret_source.summary
+    binary_source = sources[("schema_file", "collections/checkout/binary.bru")]
+    assert binary_source.state == "invalid"
+    assert "UTF-8" in binary_source.summary
+
+
 def test_api_inventory_counts_graphql_root_operations_without_leaking_names(
     tmp_path: Path,
 ) -> None:
