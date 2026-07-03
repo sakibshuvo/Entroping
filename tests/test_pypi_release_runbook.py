@@ -12,7 +12,7 @@ def test_pypi_release_runbook_defines_token_free_testpypi_first_path() -> None:
     required_terms = [
         "TestPyPI first",
         "Trusted Publishing",
-        "pypa/gh-action-pypi-publish@release/v1",
+        "pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b",
         "id-token: write",
         "environment: testpypi",
         "environment: pypi",

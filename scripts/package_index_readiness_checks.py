@@ -11,6 +11,8 @@ WORKFLOW_PATH = Path(".github") / "workflows" / "publish-python-package.yml"
 RUNBOOK_PATH = Path("docs") / "meta" / "PYPI_RELEASE_RUNBOOK.md"
 RELEASE_EVIDENCE_PATH = Path("docs") / "meta" / "release-evidence.json"
 PYPROJECT_PATH = Path("pyproject.toml")
+DOWNLOAD_ARTIFACT_PIN = "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"
+PYPI_PUBLISH_PIN = "pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b"
 PACKAGE_INDEX_PUBLISH_STATUSES = frozenset(
     {
         "not-published",
@@ -186,10 +188,10 @@ def _validate_publish_job(
     if job.get("permissions") != {"contents": "read", "id-token": "write"}:
         failures.append(f"{job_name} permissions must include id-token: write")
     steps = _steps(job.get("steps"), f"{job_name}.steps", failures)
-    if not any(step.get("uses") == "actions/download-artifact@v8" for step in steps):
+    if not any(step.get("uses") == DOWNLOAD_ARTIFACT_PIN for step in steps):
         failures.append(f"{job_name} must download built distributions")
     publish_steps = [
-        step for step in steps if step.get("uses") == "pypa/gh-action-pypi-publish@release/v1"
+        step for step in steps if step.get("uses") == PYPI_PUBLISH_PIN
     ]
     if len(publish_steps) != 1:
         failures.append(f"{job_name} must publish with the PyPA Trusted Publishing action")

@@ -7,6 +7,12 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = REPO_ROOT / ".github" / "workflows" / "publish-python-package.yml"
+CHECKOUT_PIN = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
+SETUP_PYTHON_PIN = "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1"
+SETUP_UV_PIN = "astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39"
+UPLOAD_ARTIFACT_PIN = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+DOWNLOAD_ARTIFACT_PIN = "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"
+PYPI_PUBLISH_PIN = "pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b"
 
 
 def test_publish_workflow_is_manual_and_token_free() -> None:
@@ -33,20 +39,25 @@ def test_publish_workflow_builds_unprivileged_artifacts_before_publish() -> None
     build = _mapping(_mapping(workflow["jobs"])["build-dist"])
     steps = _steps(build)
     run_blocks = "\n".join(str(step.get("run", "")) for step in steps)
+    build_permissions = _mapping(build["permissions"])
 
     assert build["runs-on"] == "ubuntu-latest"
-    assert build["permissions"] == {"contents": "read"}
-    assert "id-token" not in build["permissions"]
+    assert build_permissions == {"contents": "read"}
+    assert "id-token" not in build_permissions
     assert "uv sync --dev" in run_blocks
     assert "scripts/regression.sh --security" in run_blocks
     assert "Current 0.1.1 must not be published to package indexes" in run_blocks
     assert "scripts/package_check.sh" in run_blocks
     assert "uvx twine check dist/*" in run_blocks
-    assert any(step.get("uses") == "actions/checkout@v7" for step in steps)
-    assert any(step.get("uses") == "actions/setup-python@v6" for step in steps)
-    assert any(step.get("uses") == "astral-sh/setup-uv@v8.2.0" for step in steps)
     assert any(
-        step.get("uses") == "actions/upload-artifact@v7"
+        step.get("uses") == CHECKOUT_PIN
+        and _step_with(step).get("persist-credentials") is False
+        for step in steps
+    )
+    assert any(step.get("uses") == SETUP_PYTHON_PIN for step in steps)
+    assert any(step.get("uses") == SETUP_UV_PIN for step in steps)
+    assert any(
+        step.get("uses") == UPLOAD_ARTIFACT_PIN
         and _step_with(step).get("name") == "python-distributions"
         and _step_with(step).get("path") == "dist/"
         and _step_with(step).get("if-no-files-found") == "error"
@@ -71,15 +82,15 @@ def test_publish_workflow_uses_separate_trusted_publisher_environments() -> None
 
     testpypi_steps = _steps(testpypi)
     pypi_steps = _steps(pypi)
-    assert any(step.get("uses") == "actions/download-artifact@v8" for step in testpypi_steps)
-    assert any(step.get("uses") == "actions/download-artifact@v8" for step in pypi_steps)
+    assert any(step.get("uses") == DOWNLOAD_ARTIFACT_PIN for step in testpypi_steps)
+    assert any(step.get("uses") == DOWNLOAD_ARTIFACT_PIN for step in pypi_steps)
     assert any(
-        step.get("uses") == "pypa/gh-action-pypi-publish@release/v1"
+        step.get("uses") == PYPI_PUBLISH_PIN
         and _step_with(step).get("repository-url") == "https://test.pypi.org/legacy/"
         for step in testpypi_steps
     )
     assert any(
-        step.get("uses") == "pypa/gh-action-pypi-publish@release/v1"
+        step.get("uses") == PYPI_PUBLISH_PIN
         and "with" not in step
         for step in pypi_steps
     )
