@@ -4166,6 +4166,7 @@ def test_api_inventory_v1_schema_contract_is_versioned_and_stable() -> None:
         "asyncapi",
         "webhook_event",
         "websocket_realtime",
+        "bruno_collection",
         "unknown_http",
     ]
 

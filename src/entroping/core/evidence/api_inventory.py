@@ -45,6 +45,7 @@ ApiStyle = Literal[
     "asyncapi",
     "webhook_event",
     "websocket_realtime",
+    "bruno_collection",
     "unknown_http",
 ]
 ApiSourceKind = Literal[
@@ -128,6 +129,15 @@ _WEBSOCKET_REALTIME_MAPPING_KEYS: Final[tuple[str, ...]] = (
     "socketio",
     "socketio_events",
 )
+_BRUNO_COLLECTION_FILENAMES: Final[frozenset[str]] = frozenset(
+    {"bruno.json", "bruno.yaml", "bruno.yml"}
+)
+_BRUNO_COLLECTION_SUFFIXES: Final[tuple[str, ...]] = (
+    ".bruno.json",
+    ".bruno.yaml",
+    ".bruno.yml",
+    ".bru",
+)
 _HTTP_METHODS: Final[frozenset[str]] = frozenset(
     {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
 )
@@ -153,6 +163,7 @@ _STYLE_LABELS: Final[dict[ApiStyle, str]] = {
     "asyncapi": "AsyncAPI",
     "webhook_event": "Webhook/Event",
     "websocket_realtime": "WebSocket/realtime",
+    "bruno_collection": "Bruno collection",
     "unknown_http": "Unknown HTTP",
 }
 _STYLE_ACTIONS: Final[dict[ApiStyle, str]] = {
@@ -164,6 +175,9 @@ _STYLE_ACTIONS: Final[dict[ApiStyle, str]] = {
     "webhook_event": "Use webhook/event contract evidence with replayable Hurl coverage.",
     "websocket_realtime": (
         "Use WebSocket/realtime contract evidence before state-machine test adapters."
+    ),
+    "bruno_collection": (
+        "Use Bruno collection evidence as review input before Hurl promotion."
     ),
     "unknown_http": (
         "Add protocol tags or source specs so inventory can classify this HTTP surface."
@@ -754,6 +768,45 @@ def _load_schema_source(*, root: Path, raw_path: Path, style: ApiStyle) -> ApiIn
                 f"{_entry_word(websocket_operations)}."
             ),
         )
+    if style == "bruno_collection":
+        if raw_path.suffix.lower() == ".bru":
+            return _source(
+                kind="schema_file",
+                style=style,
+                path=path_text,
+                state="present",
+                sha256=hashlib.sha256(raw_bytes).hexdigest(),
+                operations=1,
+                summary="1 Bruno request file.",
+            )
+        document = _load_yaml_document(
+            raw_text,
+            kind="schema_file",
+            style=style,
+            path=path_text,
+            label="Bruno collection",
+        )
+        if isinstance(document, ApiInventorySource):
+            return document
+        if not isinstance(document, dict):
+            return _source(
+                kind="schema_file",
+                style=style,
+                path=path_text,
+                state="invalid",
+                sha256=None,
+                operations=0,
+                summary="Bruno collection document must be an object.",
+            )
+        return _source(
+            kind="schema_file",
+            style=style,
+            path=path_text,
+            state="present",
+            sha256=hashlib.sha256(raw_bytes).hexdigest(),
+            operations=0,
+            summary="Bruno collection manifest.",
+        )
     return _source(
         kind="schema_file",
         style=style,
@@ -1101,6 +1154,8 @@ def _schema_style_for_path(path: Path) -> ApiStyle | None:
         return "webhook_event"
     if name.endswith(_WEBSOCKET_REALTIME_SUFFIXES):
         return "websocket_realtime"
+    if name in _BRUNO_COLLECTION_FILENAMES or name.endswith(_BRUNO_COLLECTION_SUFFIXES):
+        return "bruno_collection"
     return _SCHEMA_EXTENSIONS.get(path.suffix.lower())
 
 
