@@ -103,6 +103,16 @@ class MutationReadinessError(ValueError):
     """Raised when a mutation-readiness report cannot be generated safely."""
 
 
+class MutationReadinessCategoryCoverage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    category: MutationCandidateCategory
+    label: str
+    candidate_tests: int = Field(ge=0)
+    seeded_tests: int = Field(ge=0)
+    missing_seed_tests: int = Field(ge=0)
+
+
 class MutationReadinessSummary(BaseModel):
     """Aggregate mutation/fuzz readiness state."""
 
@@ -121,6 +131,7 @@ class MutationReadinessSummary(BaseModel):
     seed_metadata_tests: int = Field(ge=0)
     candidate_categories_total: int = Field(ge=0)
     seeded_fuzz_candidates_total: int = Field(default=0, ge=0)
+    category_coverage: tuple[MutationReadinessCategoryCoverage, ...] = ()
     optional_reports_present: int = Field(ge=0)
     optional_reports_invalid: int = Field(ge=0)
     optional_reports_unsafe: int = Field(ge=0)
@@ -362,9 +373,33 @@ def render_mutation_readiness_markdown(packet: MutationReadinessPacket) -> str:
         f"- Candidate categories: `{packet.summary.candidate_categories_total}`",
         f"- Seeded fuzz candidates: `{packet.summary.seeded_fuzz_candidates_total}`",
         "",
-        "## Candidate Categories",
+        "## Category Coverage",
         "",
+        "| Category | Candidates | Seeded | Missing Seeds |",
+        "| --- | ---: | ---: | ---: |",
     ]
+    for coverage in packet.summary.category_coverage:
+        lines.append(
+            "| "
+            f"{_markdown_cell(coverage.label)} | "
+            f"{coverage.candidate_tests} | "
+            f"{coverage.seeded_tests} | "
+            f"{coverage.missing_seed_tests} |"
+        )
+    top_missing = _top_missing_category(packet.summary.category_coverage)
+    lines.extend(
+        [
+            "",
+            f"Top missing category: `{top_missing or 'none'}`",
+            "",
+        ]
+    )
+    lines.extend(
+        [
+            "## Candidate Categories",
+            "",
+        ]
+    )
     if not packet.candidates:
         lines.append("No mutation or fuzz readiness candidates were detected.")
     else:
@@ -803,6 +838,7 @@ def _summary(
         seed_metadata_tests=hurl.seed_metadata_tests,
         candidate_categories_total=len(candidates),
         seeded_fuzz_candidates_total=len(seeded_fuzz_candidates),
+        category_coverage=_category_coverage(sources),
         optional_reports_present=optional.present,
         optional_reports_invalid=optional.invalid,
         optional_reports_unsafe=optional.unsafe,
@@ -845,6 +881,41 @@ def _present_hurl_sources(
         for source in sources
         if source.kind == "generated_hurl" and source.state == "present"
     )
+
+
+def _category_coverage(
+    sources: tuple[MutationReadinessSource, ...],
+) -> tuple[MutationReadinessCategoryCoverage, ...]:
+    present_hurl = _present_hurl_sources(sources)
+    rows: list[MutationReadinessCategoryCoverage] = []
+    for category, label in _CATEGORY_LABELS.items():
+        category_sources = tuple(
+            source for source in present_hurl if category in source.candidate_categories
+        )
+        seeded_tests = sum(1 for source in category_sources if source.seed_metadata)
+        candidate_tests = len(category_sources)
+        rows.append(
+            MutationReadinessCategoryCoverage(
+                category=category,
+                label=label,
+                candidate_tests=candidate_tests,
+                seeded_tests=seeded_tests,
+                missing_seed_tests=candidate_tests - seeded_tests,
+            )
+        )
+    return tuple(rows)
+
+
+def _top_missing_category(
+    coverage_rows: tuple[MutationReadinessCategoryCoverage, ...],
+) -> MutationCandidateCategory | None:
+    for row in coverage_rows:
+        if row.candidate_tests == 0:
+            return row.category
+    for row in coverage_rows:
+        if row.missing_seed_tests:
+            return row.category
+    return None
 
 
 def _optional_report_counts(
