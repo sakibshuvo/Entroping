@@ -45,6 +45,18 @@ def test_run_first_run_checklist_reports_all_artifacts_present(
     assert states["delta-output"] == "present"
 
 
+def test_run_first_run_checklist_detects_named_delta_artifact(tmp_path: Path) -> None:
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    (reports_dir / "custom-delta-report.json").write_text("{}", encoding="utf-8")
+
+    result = run_first_run_checklist(project_root=tmp_path)
+
+    delta_item = next(item for item in result.items if item.key == "delta-output")
+    assert delta_item.state == "present"
+    assert delta_item.paths == (reports_dir / "custom-delta-report.json",)
+
+
 def test_run_first_run_checklist_marks_hurl_discovery_error_state(
     tmp_path: Path,
 ) -> None:
