@@ -222,6 +222,7 @@ def _parse_parameter(
         example_value=value,
         style=style,
         explode=explode,
+        schema=schema_mapping,
     )
 
 
@@ -413,11 +414,13 @@ def _render_request_target(
     parameters: tuple[_OpenApiParameter, ...],
     *,
     path_overrides: Mapping[str, _ScalarParameterValue] | None = None,
+    query_overrides: Mapping[str, _ScalarParameterValue] | None = None,
 ) -> str:
     path_parameters = {
         parameter.name: parameter for parameter in parameters if parameter.location == "path"
     }
     overrides = path_overrides or {}
+    query_overrides = query_overrides or {}
 
     def replace_path_parameter(match: re.Match[str]) -> str:
         raw_name = match.group(1)
@@ -434,12 +437,16 @@ def _render_request_target(
         return _url_component(parameter.example_value)
 
     rendered_path = _PATH_PARAMETER_RE.sub(replace_path_parameter, path)
-    query_parts = [
-        part
-        for parameter in parameters
-        if parameter.location == "query"
-        for part in _render_query_parameter(parameter)
-    ]
+    query_parts: list[str] = []
+    for parameter in parameters:
+        if parameter.location != "query":
+            continue
+        if parameter.name in query_overrides:
+            query_parts.append(
+                f"{_url_component(parameter.name)}={_url_component(query_overrides[parameter.name])}"
+            )
+            continue
+        query_parts.extend(_render_query_parameter(parameter))
     if not query_parts:
         return rendered_path
     return f"{rendered_path}?{'&'.join(query_parts)}"

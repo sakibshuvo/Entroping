@@ -753,6 +753,172 @@ def test_compile_openapi_generates_bounded_negative_path_corpus_with_safety_meta
     }
 
 
+def test_compile_openapi_generates_invalid_enum_negative_for_body_and_query_fields() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/shipments": {
+                "post": {
+                    "operationId": "createShipment",
+                    "parameters": [
+                        {
+                            "name": "region",
+                            "in": "query",
+                            "schema": {"type": "string", "enum": ["us", "eu"]},
+                        },
+                    ],
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["mode"],
+                                    "properties": {
+                                        "mode": {
+                                            "type": "string",
+                                            "enum": ["standard", "express"],
+                                        },
+                                        "priority": {
+                                            "type": "integer",
+                                            "enum": [1, 2],
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "responses": {
+                        "201": {"description": "created"},
+                        "422": {"description": "validation failed"},
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset({"shipments"}))
+    enum_negative = next(
+        item
+        for item in result.files
+        if item.relative_path == "tests/generated/negative/create_shipment_invalid_enum_values.hurl"
+    )
+
+    assert "# entroping: negative_category=invalid-enum-values" in enum_negative.content
+    assert "POST {{base_url}}/shipments?region=entroping_invalid_enum" in enum_negative.content
+    assert '"mode": "entroping_invalid_enum"' in enum_negative.content
+    assert '"priority": "entroping_invalid_enum"' in enum_negative.content
+    assert "HTTP 422" in enum_negative.content
+    assert parse_hurl_metadata(enum_negative.content).tags >= frozenset(
+        {"shipments", "generated", "negative", "invalid-enum-values"}
+    )
+
+
+def test_compile_openapi_invalid_enum_negative_handles_path_suffix_and_skips_params() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/shipments/{kind}": {
+                "post": {
+                    "operationId": "createShipmentByKind",
+                    "parameters": [
+                        {
+                            "name": "kind",
+                            "in": "path",
+                            "schema": {
+                                "type": "string",
+                                "enum": ["entroping_invalid_enum"],
+                            },
+                        },
+                        {
+                            "name": "X-Mode",
+                            "in": "header",
+                            "schema": {"type": "string", "enum": ["strict"]},
+                        },
+                        {
+                            "name": "tags",
+                            "in": "query",
+                            "example": ["fast"],
+                            "schema": {"type": "array", "items": {"type": "string"}},
+                        },
+                    ],
+                    "requestBody": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["mode"],
+                                    "properties": {"mode": {"type": "string"}},
+                                },
+                            },
+                        },
+                    },
+                    "responses": {
+                        "201": {"description": "created"},
+                        "400": {"description": "validation failed"},
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset())
+    enum_negative = next(
+        item
+        for item in result.files
+        if item.relative_path
+        == "tests/generated/negative/create_shipment_by_kind_invalid_enum_values.hurl"
+    )
+
+    assert (
+        "POST {{base_url}}/shipments/entroping_invalid_enum_2?tags=fast"
+        in enum_negative.content
+    )
+    assert '"mode": "string"' in enum_negative.content
+    assert "X-Mode" not in enum_negative.content
+
+
+def test_compile_openapi_skips_invalid_enum_negative_without_validation_response() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/shipments": {
+                "post": {
+                    "operationId": "createShipment",
+                    "parameters": [
+                        {
+                            "name": "region",
+                            "in": "query",
+                            "schema": {"type": "string", "enum": ["us", "eu"]},
+                        },
+                    ],
+                    "requestBody": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["mode"],
+                                    "properties": {
+                                        "mode": {
+                                            "type": "string",
+                                            "enum": ["standard", "express"],
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "responses": {"201": {"description": "created"}},
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset())
+
+    assert [item.relative_path for item in result.files] == ["tests/generated/create_shipment.hurl"]
+
+
 def test_compile_openapi_rejects_duplicate_schema_negative_generated_paths(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
