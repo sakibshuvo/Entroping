@@ -6,6 +6,11 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
+def _concat_text(*parts: str) -> str:
+    """Join text fragments without implicit concatenation."""
+    return "".join(parts)
+
+
 
 def test_agent_control_plane_documents_cross_agent_guardrails() -> None:
     doc = (REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md").read_text(
@@ -52,10 +57,14 @@ def test_agent_control_plane_documents_artifact_first_worker_review() -> None:
         "Do not run OpenCode interactively for routine cheap-worker work",
         "scripts/ai_jobs.py audit-routing",
         "scripts/factory_review_packet.py",
-        "review only the job metadata, result summary, diff stat, git diff, "
-        "changed files, and test output",
-        "Do not read raw stdout, stderr, provider responses, or full "
-        "transcripts unless the compact evidence is ambiguous",
+        _concat_text(
+            'review only the job metadata, result summary, diff stat, git diff, changed',
+            ' files, and test output',
+        ),
+        _concat_text(
+            'Do not read raw stdout, stderr, provider responses, or full transcripts',
+            ' unless the compact evidence is ambiguous',
+        ),
         "ACCEPT",
         "REQUEST_SMALL_FIX",
         "REWRITE_WITH_CODEX",
@@ -500,8 +509,10 @@ def test_issue_worker_prompt_enforces_artifact_first_handoff_contract() -> None:
     required_terms = [
         "For repeatable hands-off runs, use the artifact scripts:",
         "`scripts/ai_jobs.py`, `scripts/opencode_worker.py`, or `scripts/deepseek_worker.py`",
-        "Inspect job metadata, result summary, diff stat, and changed files "
-        "before any raw transcripts",
+        _concat_text(
+            'Inspect job metadata, result summary, diff stat, and changed files before',
+            ' any raw transcripts',
+        ),
         "For worker-assisted artifact-first passes, inspect in order",
         "`git diff --stat`",
         "If this run used script workers, include artifact-first fields in the handoff:",
@@ -550,10 +561,14 @@ def test_opencode_codex_review_request_enforces_artifact_first_review_sequence()
         "Review `git diff --stat`.",
         "Review changed files list.",
         "Inspect raw transcripts only if any of the above is missing or ambiguous.",
-        "Does the handoff include job metadata, result summary, diff stat, "
-        "changed files, and test output?",
-        "Confirm artifact-first handoff evidence is complete: job metadata, "
-        "result summary, diff stat, changed files, and test output.",
+        _concat_text(
+            'Does the handoff include job metadata, result summary, diff stat, changed',
+            ' files, and test output?',
+        ),
+        _concat_text(
+            'Confirm artifact-first handoff evidence is complete: job metadata, result',
+            ' summary, diff stat, changed files, and test output.',
+        ),
     ]
 
     for term in required_terms:
@@ -637,8 +652,10 @@ def test_opencode_desktop_handoff_deepseek_v4_pro_issue_launch_checklist() -> No
     section = " ".join(section_match.group(1).split())
     required_terms = [
         "`scripts/start_issue.sh <issue-number> <type>/<short-kebab-description>`",
-        "`uv run python scripts/opencode_readiness.py --mode implementation "
-        "--require-clean --format json`",
+        _concat_text(
+            '`uv run python scripts/opencode_readiness.py --mode implementation',
+            ' --require-clean --format json`',
+        ),
         "`scripts/context_pack.sh --mode implementation --manifest`",
         "Follow the manifest `recommended_next_action` before loading broader context",
         "OpenCode Provider Lane Evidence in packet/PR body includes:",
@@ -699,13 +716,17 @@ def test_prompt_library_includes_opencode_desktop_one_shot_prompt() -> None:
         "scripts/start_issue.sh <issue-number>",
         "/Users/sakibshuvo/projects/Entroping-issue-<issue-number>",
         (
-            "uv run python scripts/opencode_readiness.py --mode implementation "
-            "--require-clean --format json"
+            _concat_text(
+                'uv run python scripts/opencode_readiness.py --mode implementation',
+                ' --require-clean --format json',
+            )
         ),
         "scripts/context_pack.sh --mode implementation --manifest",
         (
-            "scripts/pr_body_check.py --body-file <body.md> "
-            "--require-opencode-evidence --issue <issue-number>"
+            _concat_text(
+                'scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence',
+                ' --issue <issue-number>',
+            )
         ),
         "gh pr checks <pr-number> --repo sakibshuvo/Entroping --watch",
         "scripts/finish_issue.sh <issue-number>",
@@ -941,16 +962,22 @@ def test_model_comparison_trial_documents_deepseek_cost_example() -> None:
         "- tests/test_agent_workflow_docs.py",
         "context-pack mode: `implementation`",
         "context-pack manifest: `generated`",
-        "context-pack estimated tokens: `<manifest-estimated-tokens>` from "
-        "`scripts/context_pack.sh --mode implementation --manifest`",
-        "context-pack bytes: `<manifest-context-bytes>` from `scripts/context_pack.sh "
-        "--mode implementation --manifest`",
+        _concat_text(
+            'context-pack estimated tokens: `<manifest-estimated-tokens>` from',
+            ' `scripts/context_pack.sh --mode implementation --manifest`',
+        ),
+        _concat_text(
+            'context-pack bytes: `<manifest-context-bytes>` from',
+            ' `scripts/context_pack.sh --mode implementation --manifest`',
+        ),
         "commands run:",
         "git pull --ff-only",
         "scripts/context_pack.sh --mode implementation --manifest",
         "scripts/factory_metrics.py report --format json",
-        "scripts/factory_metrics.py report --format md --output "
-        ".entroping/factory-metrics/factory-report.md",
+        _concat_text(
+            'scripts/factory_metrics.py report --format md --output',
+            ' .entroping/factory-metrics/factory-report.md',
+        ),
         "scripts/factory_metrics.py readiness --issue 774 --format json",
         "cost/token/context evidence:",
         "provider_input_tokens: `unknown`",
@@ -1010,8 +1037,10 @@ def test_prompt_library_includes_model_output_acceptance_gate_prompt() -> None:
         "scripts/context_pack.sh --mode implementation --manifest",
         "scripts/start_issue.sh",
         (
-            "scripts/pr_body_check.py --body-file <body.md> "
-            "--require-opencode-evidence --issue <issue>"
+            _concat_text(
+                'scripts/pr_body_check.py --body-file <body.md> --require-opencode-evidence',
+                ' --issue <issue>',
+            )
         ),
         "scripts/regression.sh --security",
         "GitHub CI is green",
@@ -1223,8 +1252,10 @@ def test_prompt_library_includes_opencode_week_monitoring_prompt() -> None:
         "missing close keywords",
         "block merge or cleanup",
         (
-            "Do not claim launch, stable-core, package-index, enterprise, "
-            "security, or adoption readiness"
+            _concat_text(
+                'Do not claim launch, stable-core, package-index, enterprise, security, or',
+                ' adoption readiness',
+            )
         ),
         "opencode/native-deepseek",
         "deepseek-api/direct",
@@ -1315,8 +1346,10 @@ def test_agent_control_plane_defines_risk_tiered_software_factory() -> None:
     required_terms = [
         "## Software Factory Operating Model",
         (
-            "Codex owns factory design, Tier B/Tier C integration, and merge "
-            "readiness for sensitive lanes."
+            _concat_text(
+                'Codex owns factory design, Tier B/Tier C integration, and merge readiness',
+                ' for sensitive lanes.',
+            )
         ),
         "Tier A autonomous lane",
         "Tier B assisted lane",
@@ -1345,8 +1378,10 @@ def test_agent_control_plane_defines_autonomous_shipping_lane_limits() -> None:
         "Tier A autonomous lane",
         "low-risk docs, tests, guard tests, prompt-library maintenance, and non-runtime scripts",
         (
-            "may implement, push, open a PR, wait for GitHub CI, merge, and run "
-            "`scripts/finish_issue.sh` without Codex"
+            _concat_text(
+                'may implement, push, open a PR, wait for GitHub CI, merge, and run',
+                ' `scripts/finish_issue.sh` without Codex',
+            )
         ),
         "Tier B assisted lane",
         "requires human or Codex review before merge",
@@ -1378,8 +1413,10 @@ def test_agents_md_allows_only_documented_tier_a_autonomy() -> None:
         "OpenCode/DeepSeek may independently implement and merge only Tier A autonomous lanes",
         "Tier B and Tier C remain human/Codex-reviewed",
         (
-            "Do not let any unattended agent push to `main` outside a documented "
-            "Tier A autonomous lane"
+            _concat_text(
+                'Do not let any unattended agent push to `main` outside a documented Tier A',
+                ' autonomous lane',
+            )
         ),
     ]
 
@@ -1400,9 +1437,11 @@ def test_decision_registry_indexes_autonomous_opencode_lane() -> None:
         "PR autonomy declaration",
         "green CI",
         (
-            "Tier C runtime, Hurl, redaction, proxy, provider-boundary, release, "
-            "architecture, secrets, security, and audit-evidence work must never "
-            "merge autonomously"
+            _concat_text(
+                'Tier C runtime, Hurl, redaction, proxy, provider-boundary, release,',
+                ' architecture, secrets, security, and audit-evidence work must never merge',
+                ' autonomously',
+            )
         ),
         "docs/meta/AGENT_CONTROL_PLANE.md",
         ".github/pull_request_template.md",
@@ -1464,8 +1503,10 @@ def test_factory_metrics_docs_wire_per_issue_report_export() -> None:
 
     required_terms = [
         "scripts/factory_metrics.py report --format json",
-        "scripts/factory_metrics.py report --format md --output "
-        ".entroping/factory-metrics/factory-report.md",
+        _concat_text(
+            'scripts/factory_metrics.py report --format md --output',
+            ' .entroping/factory-metrics/factory-report.md',
+        ),
         "entroping.factory-metrics-report.v1",
         "model_comparison",
         "provider lane",
@@ -1789,17 +1830,23 @@ def test_context_management_does_not_frame_graph_tools_as_rehydration_path() -> 
     required_terms = [
         "Entroping uses layered, repo-native context",
         (
-            "Optional graph, wiki, comprehension, or compression tooling is not "
-            "part of normal rehydration"
+            _concat_text(
+                'Optional graph, wiki, comprehension, or compression tooling is not part of',
+                ' normal rehydration',
+            )
         ),
         "must earn promotion through measured scorecard evidence",
         (
-            "Keep curated Markdown, source links, ADR pointers, and lessons "
-            "accurate before adding generated or model-authored summaries"
+            _concat_text(
+                'Keep curated Markdown, source links, ADR pointers, and lessons accurate',
+                ' before adding generated or model-authored summaries',
+            )
         ),
         (
-            "not active in this Codex session without a restart; generated graph "
-            "output remains outside active workflow"
+            _concat_text(
+                'not active in this Codex session without a restart; generated graph output',
+                ' remains outside active workflow',
+            )
         ),
     ]
     for term in required_terms:
@@ -1818,28 +1865,34 @@ def test_context_engineering_factory_boundary_is_canonical() -> None:
     required_terms = [
         "## Context Engineering Factory Boundary",
         (
-            "GitHub Issues, PRs, CI, source files, tests, ADRs, the decision "
-            "registry, and QAnstitution/Hurl evidence remain the "
-            "source-of-truth layer"
+            _concat_text(
+                'GitHub Issues, PRs, CI, source files, tests, ADRs, the decision registry,',
+                ' and QAnstitution/Hurl evidence remain the source-of-truth layer',
+            )
         ),
         "Obsidian, the LLM wiki, and curated source exports are the memory layer",
         (
-            "Retired generated context tooling is not part of active agent "
-            "workflow"
+            'Retired generated context tooling is not part of active agent workflow'
         ),
         "Understand Anything remains optional for human comprehension",
         (
-            "must not hide exact diffs, failing test output, security findings, "
-            "audit evidence, or secrets-sensitive material"
+            _concat_text(
+                'must not hide exact diffs, failing test output, security findings, audit',
+                ' evidence, or secrets-sensitive material',
+            )
         ),
         (
-            "`entroping run` remains deterministic, Hurl-based, "
-            "QAnstitution-governed, and provider-free"
+            _concat_text(
+                '`entroping run` remains deterministic, Hurl-based, QAnstitution-governed,',
+                ' and provider-free',
+            )
         ),
         (
-            "Codex remains the factory architect and Tier B/Tier C merge owner, "
-            "while Tier A autonomous workers can merge only under the documented "
-            "shipping lanes"
+            _concat_text(
+                'Codex remains the factory architect and Tier B/Tier C merge owner, while',
+                ' Tier A autonomous workers can merge only under the documented shipping',
+                ' lanes',
+            )
         ),
     ]
 
@@ -1860,12 +1913,16 @@ def test_context_factory_rollout_order_is_documented() -> None:
         "Phase 3 - Understand Anything for human comprehension and onboarding",
         "Phase 4 - bounded cheap, Chinese, and local model workers behind Codex-owned validation",
         (
-            "Do not advance a layer until the previous layer has a documented "
-            "owner, ignored generated-output path, and reviewable promotion path"
+            _concat_text(
+                'Do not advance a layer until the previous layer has a documented owner,',
+                ' ignored generated-output path, and reviewable promotion path',
+            )
         ),
         (
-            "No rollout layer may require ordinary contributors to install "
-            "graph, wiki, compression, or model-worker tooling"
+            _concat_text(
+                'No rollout layer may require ordinary contributors to install graph, wiki,',
+                ' compression, or model-worker tooling',
+            )
         ),
     ]
 
@@ -1887,16 +1944,22 @@ def test_context_tool_generated_outputs_stay_local_and_ignored() -> None:
         "`llm-wiki-out/`",
         "`understand-anything-out/`",
         (
-            "Generated context outputs must remain ignored/local unless "
-            "intentionally promoted into curated Markdown"
+            _concat_text(
+                'Generated context outputs must remain ignored/local unless intentionally',
+                ' promoted into curated Markdown',
+            )
         ),
         (
-            "Do not delete, archive, or rewrite context-preservation material "
-            "just because generated output is noisy"
+            _concat_text(
+                'Do not delete, archive, or rewrite context-preservation material just',
+                ' because generated output is noisy',
+            )
         ),
         (
-            "ordinary contributors must not be required to install external "
-            "graph, compression, Obsidian plugin, LLM wiki, or comprehension tools"
+            _concat_text(
+                'ordinary contributors must not be required to install external graph,',
+                ' compression, Obsidian plugin, LLM wiki, or comprehension tools',
+            )
         ),
     ]
 
@@ -1921,13 +1984,16 @@ def test_unproven_context_tools_are_not_active_agent_dependencies() -> None:
     required_terms = [
         "Retired generated context tooling is not part of active agent workflow",
         (
-            "Do not route normal Codex, OpenCode, DeepSeek, or Spark sessions "
-            "through external context tools"
+            _concat_text(
+                'Do not route normal Codex, OpenCode, DeepSeek, or Spark sessions through',
+                ' external context tools',
+            )
         ),
         (
-            "Use `rg`, `scripts/context_pack.sh`, "
-            "`docs/meta/DECISION_REGISTRY.yaml`, GitHub issues, source files, "
-            "tests, and CI first"
+            _concat_text(
+                'Use `rg`, `scripts/context_pack.sh`, `docs/meta/DECISION_REGISTRY.yaml`,',
+                ' GitHub issues, source files, tests, and CI first',
+            )
         ),
         "Understand Anything remains optional for human comprehension",
     ]
@@ -1964,31 +2030,41 @@ def test_repo_native_context_budget_baseline_is_canonical() -> None:
         "## Repo-Native Context Budget Baseline",
         "Context is evidence, not memory",
         (
-            "Start each issue with one named question: what local evidence is "
-            "needed to change, review, or merge this issue?"
+            _concat_text(
+                'Start each issue with one named question: what local evidence is needed to',
+                ' change, review, or merge this issue?',
+            )
         ),
         (
-            "`rg`, `scripts/context_pack.sh`, "
-            "`docs/meta/DECISION_REGISTRY.yaml`, GitHub issues, source files, "
-            "focused tests, CI, and `scripts/factory_metrics.py report` are "
-            "the active context-cost baseline"
+            _concat_text(
+                '`rg`, `scripts/context_pack.sh`, `docs/meta/DECISION_REGISTRY.yaml`,',
+                ' GitHub issues, source files, focused tests, CI, and',
+                ' `scripts/factory_metrics.py report` are the active context-cost baseline',
+            )
         ),
         (
-            "Do not add generated context because it is interesting, visual, "
-            "popular, or already installed"
+            _concat_text(
+                'Do not add generated context because it is interesting, visual, popular,',
+                ' or already installed',
+            )
         ),
         (
-            "Load extra context only when it answers the named issue question "
-            "and records an evidence pointer"
+            _concat_text(
+                'Load extra context only when it answers the named issue question and',
+                ' records an evidence pointer',
+            )
         ),
         (
-            "Use `scripts/context_pack.sh --record-factory-metrics` and "
-            "`scripts/factory_metrics.py report` when token or cost claims "
-            "matter"
+            _concat_text(
+                'Use `scripts/context_pack.sh --record-factory-metrics` and',
+                ' `scripts/factory_metrics.py report` when token or cost claims matter',
+            )
         ),
         (
-            "No token-saving claim is accepted without measured local evidence "
-            "from the current workflow lane"
+            _concat_text(
+                'No token-saving claim is accepted without measured local evidence from the',
+                ' current workflow lane',
+            )
         ),
     ]
 
@@ -2090,13 +2166,19 @@ def test_factory_role_registry_and_metrics_ledger_are_portable_guardrails() -> N
         ".entroping/factory-metrics/",
         "entroping.factory-metrics.v1",
         "portable software-factory protocol",
-        "Product Manager, Architect, Dev Agent, QA Agent, Code Review Agent, "
-        "Security Agent, Monitoring Agent, and Integrator",
+        _concat_text(
+            'Product Manager, Architect, Dev Agent, QA Agent, Code Review Agent,',
+            ' Security Agent, Monitoring Agent, and Integrator',
+        ),
         "Codex, Claude Code, OpenCode, DeepSeek, Gemini, Spark, and local models",
-        "must not store raw prompts, provider transcripts, secrets, raw traffic, "
-        "or product runtime evidence",
-        "The factory framework owns workflow, context, metrics, and guardrails; "
-        "the project owns product truth.",
+        _concat_text(
+            'must not store raw prompts, provider transcripts, secrets, raw traffic, or',
+            ' product runtime evidence',
+        ),
+        _concat_text(
+            'The factory framework owns workflow, context, metrics, and guardrails; the',
+            ' project owns product truth.',
+        ),
     ]
 
     for term in required_terms:
@@ -2115,8 +2197,10 @@ def test_agent_control_plane_inventories_factory_template_primitives() -> None:
         "candidates for extraction after proof",
         "issue templates",
         "`scripts/start_issue.sh` and `scripts/finish_issue.sh`",
-        "`scripts/check.sh`, `scripts/feature_gate.sh`, `scripts/regression.sh`, "
-        "and `scripts/audit_quality.sh`",
+        _concat_text(
+            '`scripts/check.sh`, `scripts/feature_gate.sh`, `scripts/regression.sh`,',
+            ' and `scripts/audit_quality.sh`',
+        ),
         "`scripts/context_pack.sh --manifest`",
         "`scripts/factory_metrics.py readiness`",
         "unknowns stay unknown",
