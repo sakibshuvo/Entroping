@@ -1,3 +1,4 @@
+import socket
 import sys
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from entroping.core.demo_runner import (
     demo_result_to_dict,
     provision_demo_workspace,
     run_demo_plan,
+    run_demo_workspace,
 )
 
 
@@ -19,6 +21,7 @@ def test_provision_demo_workspace_copies_demo_fixture_and_can_be_cleaned() -> No
     try:
         assert workspace.root.is_dir()
         assert workspace.fixture_id == "checkout-api"
+        assert workspace.temporary is True
         assert (workspace.root / "README.md").is_file()
         assert (workspace.root / "demo_server.py").is_file()
         assert (workspace.root / "tests" / "checkout_smoke.hurl").is_file()
@@ -27,6 +30,31 @@ def test_provision_demo_workspace_copies_demo_fixture_and_can_be_cleaned() -> No
     finally:
         workspace.cleanup()
         assert not workspace.root.exists()
+
+
+def test_provision_demo_workspace_can_use_empty_selected_project(tmp_path: Path) -> None:
+    project = tmp_path / "my-demo-project"
+
+    workspace = provision_demo_workspace(destination=project)
+
+    assert workspace.root == project.resolve()
+    assert workspace.temporary is False
+    assert (project / "README.md").is_file()
+    workspace.cleanup()
+    assert project.exists()
+
+
+def test_provision_demo_workspace_rejects_non_empty_selected_project(tmp_path: Path) -> None:
+    project = tmp_path / "existing-project"
+    project.mkdir()
+    (project / "README.md").write_text("real project\n", encoding="utf-8")
+
+    try:
+        _ = provision_demo_workspace(destination=project)
+    except DemoRunnerError as exc:
+        assert "must be empty" in str(exc)
+    else:
+        raise AssertionError("expected non-empty demo project destination to fail")
 
 
 def test_build_demo_command_plan_includes_architect_and_optional_smoke_run() -> None:
@@ -43,20 +71,15 @@ def test_build_demo_command_plan_includes_architect_and_optional_smoke_run() -> 
             "architect-build",
             "demo-run",
         ]
-        assert str(workspace.root) in " ".join(plan.commands[0].argv)
-        assert plan.commands[0].argv[:6] == (
-            "uv",
-            "run",
-            "--project",
-            str(workspace.root),
+        assert plan.commands[0].cwd == workspace.root
+        assert plan.commands[0].argv[:4] == (
             "entroping",
             "architect",
+            "build",
+            "--new",
         )
-        assert plan.commands[1].argv[:9] == (
-            "uv",
-            "run",
-            "--project",
-            str(workspace.root),
+        assert plan.commands[1].cwd == workspace.root
+        assert plan.commands[1].argv[:5] == (
             "entroping",
             "run",
             "--env",
@@ -66,6 +89,32 @@ def test_build_demo_command_plan_includes_architect_and_optional_smoke_run() -> 
         assert "--report" in plan.commands[1].argv
         assert "json" in plan.commands[1].argv
         assert "junit" in plan.commands[1].argv
+    finally:
+        workspace.cleanup()
+
+
+def test_build_demo_command_plan_accepts_explicit_command_prefix() -> None:
+    workspace = provision_demo_workspace()
+    try:
+        plan = build_demo_command_plan(
+            workspace=workspace,
+            include_smoke_run=True,
+            command_prefix=(sys.executable, "-m", "entroping.cli.main"),
+        )
+
+        assert plan.commands[0].argv[:5] == (
+            sys.executable,
+            "-m",
+            "entroping.cli.main",
+            "architect",
+            "build",
+        )
+        assert plan.commands[1].argv[:4] == (
+            sys.executable,
+            "-m",
+            "entroping.cli.main",
+            "run",
+        )
     finally:
         workspace.cleanup()
 
@@ -247,3 +296,39 @@ def test_default_executor_returns_error_for_missing_command(tmp_path: Path) -> N
     assert result.status == "failed"
     assert result.command_results[0].status == "error"
     assert result.command_results[0].exit_code is None
+
+
+def test_run_demo_workspace_starts_server_writes_env_and_runs_plan() -> None:
+    workspace = provision_demo_workspace()
+    seen_commands: list[str] = []
+    try:
+        port = _unused_tcp_port()
+
+        def fake_executor(command: DemoCommandStep) -> DemoCommandResult:
+            seen_commands.append(command.name)
+            return DemoCommandResult(
+                name=command.name,
+                status="passed",
+                exit_code=0,
+                duration_ms=5,
+            )
+
+        result = run_demo_workspace(
+            workspace=workspace,
+            port=port,
+            executor=fake_executor,
+        )
+
+        assert result.status == "passed"
+        assert seen_commands == ["architect-build", "demo-run"]
+        assert (workspace.root / "envs" / "local.env").read_text(encoding="utf-8") == (
+            f"base_url=http://127.0.0.1:{port}\ncart_id=demo-cart-001\n"
+        )
+    finally:
+        workspace.cleanup()
+
+
+def _unused_tcp_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
+        server.bind(("127.0.0.1", 0))
+        return int(server.getsockname()[1])

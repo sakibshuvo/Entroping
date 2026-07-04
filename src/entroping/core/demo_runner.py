@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import shutil
+import socket
 import subprocess  # nosec B404
+import sys
 import tempfile
 import time
 from collections.abc import Callable, Sequence
@@ -10,14 +12,17 @@ from pathlib import Path
 from typing import Final, Literal
 
 from .demo_fixtures import DemoFixtureError, copy_demo_fixture
+from .safe_write import SafeWriteError, safe_write_text
 
 DemoPlanStatus = Literal["ready", "blocked"]
 DemoCommandStatus = Literal["not_run", "passed", "failed", "error", "blocked"]
 DemoRunStatus = Literal["ready", "passed", "failed", "blocked"]
 
 DEMO_DEFAULT_FIXTURE: Final = "checkout-api"
+DEMO_DEFAULT_PORT: Final = 18080
 DEMO_DEFAULT_REPORT_FORMATS: Final = ("json", "junit", "html")
 DEMO_RUNNER_SCHEMA_VERSION: Final = "entroping.demo-runner.v1"
+DEMO_SERVER_READY_TIMEOUT_SECONDS: Final = 10.0
 
 
 class DemoRunnerError(ValueError):
@@ -29,9 +34,11 @@ class DemoWorkspace:
     fixture_id: str
     root: Path
     copied_files: tuple[Path, ...]
+    temporary: bool = True
 
     def cleanup(self) -> None:
-        shutil.rmtree(self.root, ignore_errors=True)
+        if self.temporary:
+            shutil.rmtree(self.root, ignore_errors=True)
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,25 +91,28 @@ DemoCommandExecutor = Callable[[DemoCommandStep], DemoCommandResult]
 def provision_demo_workspace(
     *,
     fixture_id: str = DEMO_DEFAULT_FIXTURE,
+    destination: Path | None = None,
     source_examples_root: Path | None = None,
     package_root: Path | None = None,
 ) -> DemoWorkspace:
-    temp_root = Path(tempfile.mkdtemp(prefix="entroping-demo-runner-")).resolve()
+    workspace_root, temporary = _demo_workspace_root(destination)
     try:
         copied = copy_demo_fixture(
             fixture_id,
-            temp_root,
+            workspace_root,
             source_examples_root=source_examples_root,
             package_root=package_root,
         )
     except DemoFixtureError as exc:
-        shutil.rmtree(temp_root, ignore_errors=True)
+        if temporary:
+            shutil.rmtree(workspace_root, ignore_errors=True)
         raise DemoRunnerError(str(exc)) from exc
 
     return DemoWorkspace(
         fixture_id=fixture_id,
         root=copied.root,
         copied_files=copied.files,
+        temporary=temporary,
     )
 
 
@@ -111,18 +121,21 @@ def build_demo_command_plan(
     workspace: DemoWorkspace,
     include_smoke_run: bool = False,
     report_formats: Sequence[str] | None = None,
+    command_prefix: Sequence[str] = ("entroping",),
 ) -> DemoRunnerPlan:
     formats = (
         DEMO_DEFAULT_REPORT_FORMATS
         if report_formats is None
         else tuple(report_formats)
     )
+    prefix = _validate_command_prefix(command_prefix)
     command_list = (
-        _architect_build_step(workspace),
+        _architect_build_step(workspace, command_prefix=prefix),
         *_smoke_run_steps(
             workspace=workspace,
             include_smoke_run=include_smoke_run,
             formats=tuple(_validate_report_format(item) for item in formats),
+            command_prefix=prefix,
         ),
     )
     return DemoRunnerPlan(
@@ -206,6 +219,30 @@ def run_demo_plan(
     )
 
 
+def run_demo_workspace(
+    *,
+    workspace: DemoWorkspace,
+    report_formats: Sequence[str] | None = None,
+    command_prefix: Sequence[str] = ("entroping",),
+    port: int = DEMO_DEFAULT_PORT,
+    executor: DemoCommandExecutor | None = None,
+) -> DemoRunnerResult:
+    _validate_demo_port(port)
+    server = _start_demo_server(workspace, port=port)
+    try:
+        _wait_for_demo_server(server, port=port)
+        _write_demo_env(workspace, port=port)
+        plan = build_demo_command_plan(
+            workspace=workspace,
+            include_smoke_run=True,
+            report_formats=report_formats,
+            command_prefix=command_prefix,
+        )
+        return run_demo_plan(plan=plan, dry_run=False, executor=executor)
+    finally:
+        _stop_demo_server(server)
+
+
 def demo_plan_to_dict(plan: DemoRunnerPlan) -> dict[str, object]:
     return {
         "schema_version": DEMO_RUNNER_SCHEMA_VERSION,
@@ -252,15 +289,30 @@ def demo_result_to_dict(result: DemoRunnerResult) -> dict[str, object]:
     }
 
 
-def _architect_build_step(workspace: DemoWorkspace) -> DemoCommandStep:
+def _demo_workspace_root(destination: Path | None) -> tuple[Path, bool]:
+    if destination is None:
+        return Path(tempfile.mkdtemp(prefix="entroping-demo-runner-")).resolve(), True
+
+    root = destination.expanduser().resolve(strict=False)
+    if root.exists():
+        if not root.is_dir():
+            msg = f"Demo project destination must be a directory: {root}"
+            raise DemoRunnerError(msg)
+        if any(root.iterdir()):
+            msg = f"Demo project destination must be empty: {root}"
+            raise DemoRunnerError(msg)
+    return root, False
+
+
+def _architect_build_step(
+    workspace: DemoWorkspace,
+    *,
+    command_prefix: tuple[str, ...],
+) -> DemoCommandStep:
     return DemoCommandStep(
         name="architect-build",
         argv=(
-            "uv",
-            "run",
-            "--project",
-            str(workspace.root),
-            "entroping",
+            *command_prefix,
             "architect",
             "build",
             "--new",
@@ -277,6 +329,7 @@ def _smoke_run_steps(
     workspace: DemoWorkspace,
     include_smoke_run: bool,
     formats: tuple[str, ...],
+    command_prefix: tuple[str, ...],
 ) -> tuple[DemoCommandStep, ...]:
     if not include_smoke_run:
         return ()
@@ -289,11 +342,7 @@ def _smoke_run_steps(
         DemoCommandStep(
             name="demo-run",
             argv=(
-                "uv",
-                "run",
-                "--project",
-                str(workspace.root),
-                "entroping",
+                *command_prefix,
                 "run",
                 "--env",
                 "local",
@@ -305,6 +354,76 @@ def _smoke_run_steps(
             description="Run demo smoke tests through entroping.",
         ),
     )
+
+
+def _validate_command_prefix(command_prefix: Sequence[str]) -> tuple[str, ...]:
+    normalized = tuple(item for item in command_prefix if item.strip())
+    if not normalized:
+        msg = "Demo command prefix must not be empty"
+        raise DemoRunnerError(msg)
+    return normalized
+
+
+def _validate_demo_port(port: int) -> None:
+    if port < 1 or port > 65535:
+        msg = f"Demo server port must be between 1 and 65535, got: {port}"
+        raise DemoRunnerError(msg)
+
+
+def _start_demo_server(workspace: DemoWorkspace, *, port: int) -> subprocess.Popen[str]:
+    server_path = workspace.root / "demo_server.py"
+    if not server_path.is_file():
+        msg = f"Demo server is missing from fixture workspace: {server_path}"
+        raise DemoRunnerError(msg)
+    try:
+        return subprocess.Popen(  # nosec B603
+            [sys.executable, str(server_path), "--port", str(port)],
+            cwd=str(workspace.root),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+    except OSError as exc:
+        msg = f"Could not start demo server: {exc}"
+        raise DemoRunnerError(msg) from exc
+
+
+def _wait_for_demo_server(process: subprocess.Popen[str], *, port: int) -> None:
+    deadline = time.monotonic() + DEMO_SERVER_READY_TIMEOUT_SECONDS
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            msg = f"Demo server exited before readiness on port {port}"
+            raise DemoRunnerError(msg)
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+                return
+        except OSError:
+            time.sleep(0.2)
+    msg = f"Demo server did not become ready on port {port}"
+    raise DemoRunnerError(msg)
+
+
+def _write_demo_env(workspace: DemoWorkspace, *, port: int) -> None:
+    try:
+        safe_write_text(
+            workspace.root / "envs" / "local.env",
+            f"base_url=http://127.0.0.1:{port}\ncart_id=demo-cart-001\n",
+            artifact="demo env file",
+            root=workspace.root,
+        )
+    except SafeWriteError as exc:
+        raise DemoRunnerError(str(exc)) from exc
+
+
+def _stop_demo_server(process: subprocess.Popen[str]) -> None:
+    if process.poll() is not None:
+        return
+    process.terminate()
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=5)
 
 
 def _default_command_executor(command: DemoCommandStep) -> DemoCommandResult:
@@ -367,6 +486,7 @@ def _validate_report_format(value: str) -> str:
 
 __all__ = [
     "DEMO_DEFAULT_FIXTURE",
+    "DEMO_DEFAULT_PORT",
     "DEMO_RUNNER_SCHEMA_VERSION",
     "DemoCommandExecutor",
     "DemoCommandResult",
@@ -381,4 +501,5 @@ __all__ = [
     "demo_result_to_dict",
     "provision_demo_workspace",
     "run_demo_plan",
+    "run_demo_workspace",
 ]

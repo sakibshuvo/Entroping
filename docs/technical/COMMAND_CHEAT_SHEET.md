@@ -87,7 +87,7 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 
 ## Setup
 
-Current alpha implementation supports `init`, `doctor`, `config list`,
+Current alpha implementation supports `init`, `doctor`, `demo`, `config list`,
 `config set`, `config vendor-policy-pack`, and `config test-policy-pack`.
 `init --github-actions` installs the reviewed GitHub Actions starter workflow
 to `.github/workflows/entroping.yml` and refuses to overwrite an existing file.
@@ -116,6 +116,7 @@ model-provider access.
 | `entroping doctor` | Validate local setup, tools, config, and policies |
 | `entroping doctor --output json` | Emit versioned machine-readable setup health |
 | `entroping doctor --ci --output json` | Emit strict CI-readiness evidence without provider calls |
+| `entroping demo --project <path>` | Prepare and run the reviewed local checkout demo in a new or empty project directory |
 | `entroping config list` | Show effective non-secret configuration |
 | `entroping config set --agent <name> --model <id>` | Configure model routing for an agent role |
 | `entroping config vendor-policy-pack --pack <path>` | Vendor a reviewed local policy pack and append a local import |
@@ -127,6 +128,7 @@ Examples:
 entroping init
 entroping init --minimal --github-actions
 entroping doctor
+entroping demo --project ./entroping-checkout-demo
 entroping config list
 entroping config set --agent auditor --model openai/auditor-model
 entroping config test-policy-pack --pack ../entroping-policy-pack-api-baseline --output json

@@ -13,6 +13,14 @@ from cli_test_support import (
     yaml,
 )
 
+from entroping.core.demo_runner import (
+    DemoCommandResult,
+    DemoResultSummary,
+    DemoRunnerPlan,
+    DemoRunnerResult,
+    DemoWorkspace,
+)
+
 
 def _fake_hurl_status(
     *,
@@ -45,6 +53,7 @@ def test_root_help_groups_locked_commands_by_first_contact_workflow() -> None:
     for command in (
         "init",
         "doctor",
+        "demo",
         "architect",
         "run",
         "watch",
@@ -62,6 +71,140 @@ def test_version_flag() -> None:
 
     assert result.exit_code == 0
     assert "entroping 0.1.1" in result.output
+
+
+def test_demo_command_runs_core_runner_in_selected_project(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project = tmp_path / "checkout-demo"
+    workspace = DemoWorkspace(
+        fixture_id="checkout-api",
+        root=project,
+        copied_files=(project / "README.md",),
+        temporary=False,
+    )
+    plan = DemoRunnerPlan(
+        status="ready",
+        message="ready",
+        fixture_id="checkout-api",
+        workspace=project,
+        commands=(),
+    )
+    result = DemoRunnerResult(
+        status="passed",
+        plan=plan,
+        command_results=(
+            DemoCommandResult(
+                name="architect-build",
+                status="passed",
+                exit_code=0,
+                duration_ms=10,
+            ),
+            DemoCommandResult(
+                name="demo-run",
+                status="passed",
+                exit_code=0,
+                duration_ms=20,
+            ),
+        ),
+        summary=DemoResultSummary(
+            total_commands=2,
+            passed=2,
+            failed=0,
+            not_run=0,
+            blocked=0,
+            errors=0,
+            duration_ms=30,
+        ),
+    )
+    calls: dict[str, object] = {}
+
+    def fake_provision_demo_workspace(*, destination: Path) -> DemoWorkspace:
+        calls["destination"] = destination
+        return workspace
+
+    def fake_run_demo_workspace(*, workspace: DemoWorkspace) -> DemoRunnerResult:
+        calls["workspace"] = workspace
+        return result
+
+    monkeypatch.setattr(
+        project_cli,
+        "provision_demo_workspace",
+        fake_provision_demo_workspace,
+    )
+    monkeypatch.setattr(project_cli, "run_demo_workspace", fake_run_demo_workspace)
+
+    cli_result = CliRunner().invoke(app, ["demo", "--project", str(project)])
+
+    assert cli_result.exit_code == 0
+    assert calls == {"destination": project, "workspace": workspace}
+    assert "Entroping demo: passed" in cli_result.output
+    assert "Fixture: checkout-api" in cli_result.output
+    assert "Commands: 2 total, 2 passed, 0 failed, 0 errors, 0 blocked" in (
+        cli_result.output
+    )
+    assert "Reports: reports/run-latest.json, reports/junit.xml, reports/run-latest.html" in (
+        cli_result.output
+    )
+
+
+def test_demo_command_exits_nonzero_when_core_runner_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project = tmp_path / "checkout-demo"
+    workspace = DemoWorkspace(
+        fixture_id="checkout-api",
+        root=project,
+        copied_files=(project / "README.md",),
+        temporary=False,
+    )
+    plan = DemoRunnerPlan(
+        status="ready",
+        message="ready",
+        fixture_id="checkout-api",
+        workspace=project,
+        commands=(),
+    )
+    result = DemoRunnerResult(
+        status="failed",
+        plan=plan,
+        command_results=(
+            DemoCommandResult(
+                name="demo-run",
+                status="failed",
+                exit_code=1,
+                duration_ms=20,
+            ),
+        ),
+        summary=DemoResultSummary(
+            total_commands=1,
+            passed=0,
+            failed=1,
+            not_run=0,
+            blocked=0,
+            errors=0,
+            duration_ms=20,
+        ),
+    )
+
+    monkeypatch.setattr(
+        project_cli,
+        "provision_demo_workspace",
+        lambda *, destination: workspace,
+    )
+    monkeypatch.setattr(
+        project_cli,
+        "run_demo_workspace",
+        lambda *, workspace: result,
+    )
+
+    cli_result = CliRunner().invoke(app, ["demo", "--project", str(project)])
+
+    assert cli_result.exit_code == 1
+    assert "Entroping demo: failed" in cli_result.output
+    assert "demo-run: failed (exit 1" in cli_result.output
 
 
 def test_init_minimal_creates_safe_runtime_skeleton(
