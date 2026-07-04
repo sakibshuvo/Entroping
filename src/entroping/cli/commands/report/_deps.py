@@ -111,6 +111,11 @@ from entroping.core.evidence.otel_mapping import (
     OtelMappingOutput,
     run_otel_mapping_report,
 )
+from entroping.core.evidence.otlp_preview import (
+    OtlpPreviewError,
+    OtlpPreviewOutput,
+    run_otlp_preview_report,
+)
 from entroping.core.evidence.pilot_cohort import (
     PilotCohortError,
     PilotCohortOutput,
@@ -359,6 +364,8 @@ __all__ = [
     "ObservabilityPacketError",
     "OtelMappingError",
     "OtelMappingOutput",
+    "OtlpPreviewError",
+    "OtlpPreviewOutput",
     "PilotCohortError",
     "PilotCohortOutput",
     "PilotMetricsError",
@@ -452,6 +459,7 @@ __all__ = [
     "run_observability_adapter_readiness_report",
     "run_observability_packet_report",
     "run_otel_mapping_report",
+    "run_otlp_preview_report",
     "run_pilot_cohort_report",
     "run_pilot_metrics_report",
     "run_pilot_outcome_report",
