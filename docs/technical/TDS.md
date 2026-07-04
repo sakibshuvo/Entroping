@@ -830,6 +830,7 @@ report generation, and artifact schemas remain the compatibility contract.
 | Pilot Cohort | `report pilot-cohort --manifest <path> --output md|json` | Local value-free design-partner cohort rollup from explicit pilot outcome packets |
 | Connector Intent | `report connector-intent --output md|json` | Read-only value-free connector intents for issue trackers, chat, enterprise automation, enterprise AI, observability, and developer-experience surfaces |
 | OpenTelemetry Mapping | `report otel-mapping --output md|json` | Local value-free mapping packet from sanitized observability and test-evidence artifacts for future OTLP adapters |
+| OTLP Preview | `report otlp-preview --output md|json` | Local deterministic OTLP-shaped preview fixture from sanitized run/report evidence; not an exporter |
 | Observability Adapter Readiness | `report observability-adapter-readiness --output md|json` | Local value-free readiness packet for future OpenTelemetry, Datadog, Splunk, Grafana, and generic observability adapters |
 | Evidence Index | `report evidence-index --output md|json` | Stable value-free local evidence artifact index for cross-surface navigation |
 | QA Brain Seed | `report qa-brain-seed --output md|json` | Deterministic value-free seed metadata for future QA Brain retrieval and eval design |
@@ -1031,6 +1032,7 @@ entroping report pilot-cohort --manifest <path> [--output <md|json>]
 entroping report connector-intent [--output <md|json>]
 entroping report observability-packet [--output <md|json>]
 entroping report otel-mapping [--output <md|json>]
+entroping report otlp-preview [--output <md|json>]
 entroping report observability-adapter-readiness [--output <md|json>]
 entroping report api-inventory [--output <md|json>]
 entroping report mutation-readiness [--output <md|json>]
@@ -1754,6 +1756,20 @@ provider outputs, credentials, environment values, webhook URLs, ticket
 mutation payloads, source Hurl contents, raw traffic, raw report contents, or
 full report contents.
 
+`entroping report otlp-preview` writes a local read-only OTLP-shaped preview at
+`reports/otlp-preview.md` by default, or `reports/otlp-preview.json` with
+`--output json`. It converts sanitized run/report evidence into aggregate
+resource, log, metric, and span preview rows without exporting telemetry or
+configuring collectors. Missing source artifacts become explicit readiness
+states; malformed, oversized, non-file, symlinked, wrong-schema, unreadable, or
+secret-like artifacts are marked invalid or unsafe. The command does not call
+OpenTelemetry collectors, Datadog, Splunk, Grafana, or other vendor APIs,
+mutate dashboards, monitors, tickets, chat, PRs, or hosted state, parse traffic
+state, execute Hurl, run tests, invoke models, change `entroping run`, or
+include raw test output, test paths, URLs, headers, bodies, cookies, prompts,
+provider outputs, credentials, environment values, raw traffic, or full report
+contents.
+
 `entroping report observability-adapter-readiness` writes a local read-only
 observability adapter readiness packet at
 `reports/observability-adapter-readiness.md` by default, or
@@ -2082,6 +2098,8 @@ primitive for local report files.
 | `entroping report observability-packet --output json` | `reports/observability-packet.json` | Machine-readable observability packet using `entroping.observability-packet.v1`. |
 | `entroping report otel-mapping --output md` | `reports/otel-mapping.md` | Human-readable OpenTelemetry evidence mapping packet for future OTLP adapters. |
 | `entroping report otel-mapping --output json` | `reports/otel-mapping.json` | Machine-readable OpenTelemetry mapping packet using `entroping.otel-mapping.v1`. |
+| `entroping report otlp-preview --output md` | `reports/otlp-preview.md` | Human-readable local OTLP-shaped preview fixture; not an exporter. |
+| `entroping report otlp-preview --output json` | `reports/otlp-preview.json` | Machine-readable local OTLP preview packet using `entroping.otlp-preview.v1`. |
 | `entroping report observability-adapter-readiness --output md` | `reports/observability-adapter-readiness.md` | Human-readable read-only observability adapter readiness packet. |
 | `entroping report observability-adapter-readiness --output json` | `reports/observability-adapter-readiness.json` | Machine-readable observability adapter readiness packet using `entroping.observability-adapter-readiness.v1`. |
 | `entroping report api-inventory --output md` | `reports/api-inventory.md` | Human-readable read-only API style inventory for REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, AsyncAPI, webhook/event, WebSocket/realtime, and unknown HTTP signals. |

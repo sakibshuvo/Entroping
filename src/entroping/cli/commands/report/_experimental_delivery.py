@@ -25,6 +25,8 @@ from ._deps import (
     EvidencePortalOutput,
     NotificationOutput,
     NotificationPacketError,
+    OtlpPreviewError,
+    OtlpPreviewOutput,
     PrEvidenceCardError,
     PrEvidenceCardOutput,
     TeamEvidenceReadinessError,
@@ -42,6 +44,7 @@ run_evidence_portal_report = report_dependency("run_evidence_portal_report")
 run_evidence_action_plan_report = report_dependency("run_evidence_action_plan_report")
 run_handoff_report = report_dependency("run_handoff_report")
 run_notification_packet_report = report_dependency("run_notification_packet_report")
+run_otlp_preview_report = report_dependency("run_otlp_preview_report")
 run_pr_evidence_card_report = report_dependency("run_pr_evidence_card_report")
 run_team_evidence_readiness_report = report_dependency("run_team_evidence_readiness_report")
 
@@ -248,6 +251,31 @@ def report_evidence_links(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote evidence links: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("otlp-preview", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_otlp_preview(
+    output: Annotated[
+        str,
+        typer.Option("--output", help="Output format: md or json."),
+    ] = "md",
+) -> None:
+    normalized_output = output.strip().lower()
+    if normalized_output not in {"md", "json"}:
+        console.print(f"[yellow]Unsupported otlp-preview output: {output}[/yellow]")
+        raise typer.Exit(2)
+
+    try:
+        result = run_otlp_preview_report(
+            project_root=Path.cwd(),
+            output=cast(OtlpPreviewOutput, normalized_output),
+        )
+    except OtlpPreviewError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(f"Wrote OTLP preview: {display_cli_path(result.output_path)}")
     raise typer.Exit(0)
 
 

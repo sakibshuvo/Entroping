@@ -42,6 +42,7 @@ from entroping.core.evidence.handoff_packet import HandoffError
 from entroping.core.evidence.notification_packet import NotificationPacketError
 from entroping.core.evidence.observability_packet import ObservabilityPacketError
 from entroping.core.evidence.otel_mapping import OtelMappingError
+from entroping.core.evidence.otlp_preview import OtlpPreviewError
 from entroping.core.evidence.pilot_cohort import PilotCohortError
 from entroping.core.evidence.pilot_metrics import PilotMetricsError
 from entroping.core.evidence.pilot_outcome import PilotOutcomeError
@@ -321,6 +322,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "team-evidence-readiness",
         "observability-packet",
         "otel-mapping",
+        "otlp-preview",
         "observability-adapter-readiness",
         "api-inventory",
         "mutation-readiness",
@@ -2341,6 +2343,91 @@ def test_report_otel_mapping_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "otel mapping path is unsafe" in result.output
+
+
+def test_report_otlp_preview_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("reports") / "run-latest.json",
+        """
+{
+  "schema_version": "entroping.run-report.v1",
+  "project": "private-checkout-service",
+  "environment": "local",
+  "generated_at": "2026-07-04T00:00:00+00:00",
+  "summary": {"total": 2, "passed": 1, "failed": 1, "exit_code": 1},
+  "tests": [
+    {
+      "path": "tests/private-flow.hurl",
+      "execution_path": ".entroping/run/private-flow.hurl",
+      "status": "failed",
+      "exit_code": 1,
+      "duration_ms": 10,
+      "rule_ids": [],
+      "stdout": "raw-output-should-not-render",
+      "stderr": ""
+    }
+  ]
+}
+""",
+    )
+
+    result = CliRunner().invoke(app, ["report", "otlp-preview"])
+
+    assert result.exit_code == 0
+    assert "Wrote OTLP preview: reports/otlp-preview.md" in result.output
+    markdown = Path("reports/otlp-preview.md").read_text(encoding="utf-8")
+    assert "# Entroping OTLP Preview" in markdown
+    assert "| entroping.tests.total | 1 | sum | 2 |" in markdown
+    assert "local-only-no-export" in markdown
+    assert "private-checkout-service" not in markdown
+    assert "private-flow" not in markdown
+    assert "raw-output-should-not-render" not in markdown
+
+
+def test_report_otlp_preview_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "otlp-preview", "--output", "json"])
+
+    assert result.exit_code == 0
+    assert "Wrote OTLP preview: reports/otlp-preview.json" in result.output
+    payload = json.loads(Path("reports/otlp-preview.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.otlp-preview.v1"
+    assert payload["summary"]["status"] == "insufficient"
+    assert payload["fixture"]["network_policy"] == "local-only-no-export"
+
+
+def test_report_otlp_preview_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["report", "otlp-preview", "--output", "html"])
+
+    assert result.exit_code == 2
+    assert "Unsupported otlp-preview output" in result.output
+    assert not Path("reports/otlp-preview.html").exists()
+
+
+def test_report_otlp_preview_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_otlp_preview(*args: object, **kwargs: object) -> object:
+        raise OtlpPreviewError("otlp preview path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_otlp_preview_report",
+        fail_otlp_preview,
+    )
+
+    result = CliRunner().invoke(app, ["report", "otlp-preview"])
+
+    assert result.exit_code == 1
+    assert "otlp preview path is unsafe" in result.output
 
 
 def test_report_observability_adapter_readiness_writes_markdown(
