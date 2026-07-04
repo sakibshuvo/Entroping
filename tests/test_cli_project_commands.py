@@ -252,6 +252,196 @@ def test_doctor_reports_compatible_hurl_version(
     assert "compatible with >= 4.3.0" in result.output
 
 
+def test_doctor_hints_aha_demo_command_in_checkout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "demo.sh").write_text(
+        "#!/usr/bin/env bash\nprintf done\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        project_cli,
+        "which",
+        lambda name: "/usr/local/bin/uv" if name == "uv" else None,
+    )
+
+    def fake_discover_hurl(binary: str = "hurl") -> SimpleNamespace:
+        if binary == "hurl":
+            return _fake_hurl_status(version="8.0.1", version_parts=(8, 0, 1))
+        return _fake_hurl_status(
+            path="/usr/local/bin/hurlfmt",
+            version_checked=False,
+            version=None,
+            version_parts=None,
+            version_output=None,
+        )
+
+    monkeypatch.setattr(project_cli, "discover_hurl", fake_discover_hurl)
+    runner.invoke(app, ["init", "--minimal"])
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 0
+    assert "Aha: next command: scripts/demo.sh" in result.output
+
+
+def test_doctor_hints_demo_prerequisites_when_not_ready(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "demo.sh").write_text(
+        "#!/usr/bin/env bash\nprintf done\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        project_cli,
+        "which",
+        lambda name: "/usr/local/bin/uv" if name == "uv" else None,
+    )
+
+    def fake_discover_hurl(binary: str = "hurl") -> SimpleNamespace:
+        if binary == "hurl":
+            return _fake_hurl_status(version="4.2.0", version_parts=(4, 2, 0))
+        return _fake_hurl_status(
+            path="/usr/local/bin/hurlfmt",
+            version_checked=False,
+            version=None,
+            version_parts=None,
+            version_output=None,
+        )
+
+    monkeypatch.setattr(project_cli, "discover_hurl", fake_discover_hurl)
+    runner.invoke(app, ["init", "--minimal"])
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 0
+    assert "Aha prerequisites not met yet" in result.output
+    assert "upgrade hurl to 4.3.0 or newer" in result.output
+    assert "Aha: next command: scripts/demo.sh" not in result.output
+
+
+def test_doctor_hints_demo_prerequisites_for_missing_uv_and_hurl(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "demo.sh").write_text(
+        "#!/usr/bin/env bash\nprintf done\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(project_cli, "which", lambda name: None)
+
+    def fake_discover_hurl(binary: str = "hurl") -> SimpleNamespace:
+        if binary == "hurl":
+            return _fake_hurl_status(
+                available=False,
+                path=None,
+                version=None,
+                version_parts=None,
+                version_checked=False,
+                version_output=None,
+            )
+        return _fake_hurl_status(
+            path="/usr/local/bin/hurlfmt",
+            version_checked=False,
+            version=None,
+            version_parts=None,
+            version_output=None,
+        )
+
+    monkeypatch.setattr(project_cli, "discover_hurl", fake_discover_hurl)
+    runner.invoke(app, ["init", "--minimal"])
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 0
+    assert "Aha prerequisites not met yet" in result.output
+    assert "install uv" in result.output
+    assert "install hurl 4.3.0 or newer" in result.output
+
+
+def test_doctor_hints_demo_prerequisites_for_unparsable_hurl_and_policy(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "demo.sh").write_text(
+        "#!/usr/bin/env bash\nprintf done\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        project_cli,
+        "which",
+        lambda name: "/usr/local/bin/uv" if name == "uv" else None,
+    )
+
+    def fake_discover_hurl(binary: str = "hurl") -> SimpleNamespace:
+        if binary == "hurl":
+            return _fake_hurl_status(
+                version=None,
+                version_parts=None,
+                version_output="hurl unknown",
+            )
+        return _fake_hurl_status(
+            path="/usr/local/bin/hurlfmt",
+            version_checked=False,
+            version=None,
+            version_parts=None,
+            version_output=None,
+        )
+
+    monkeypatch.setattr(project_cli, "discover_hurl", fake_discover_hurl)
+    runner.invoke(app, ["init", "--minimal"])
+    Path("qanstitution.yaml").write_text("project:\n  - invalid\n", encoding="utf-8")
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 1
+    assert "Aha prerequisites not met yet" in result.output
+    assert "resolve hurl version detection before running demo" in result.output
+    assert "fix qanstitution.yaml" in result.output
+
+
+def test_doctor_does_not_hint_aha_without_checkout_demo_script(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        project_cli,
+        "which",
+        lambda name: "/usr/local/bin/uv" if name == "uv" else None,
+    )
+    monkeypatch.setattr(
+        project_cli,
+        "discover_hurl",
+        lambda binary="hurl": _fake_hurl_status(
+            version="8.0.1",
+            version_parts=(8, 0, 1),
+            path=f"/usr/local/bin/{binary}",
+        ),
+    )
+    runner.invoke(app, ["init", "--minimal"])
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 0
+    assert "Aha:" not in result.output
+
+
 def test_doctor_json_reports_unsupported_hurl_version(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
