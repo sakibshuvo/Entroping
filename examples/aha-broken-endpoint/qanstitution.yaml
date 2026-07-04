@@ -1,0 +1,21 @@
+project: "aha-broken-endpoint"
+version: "4.1"
+description: "Local fixture proving a missing endpoint is caught before commit."
+
+gates:
+  - id: "no_server_errors"
+    description: "Fail when an endpoint returns a server error"
+    condition: "true"
+    gate: "status < 500"
+    enforcement: "block"
+  - id: "no_missing_product_endpoint"
+    description: "Block endpoints that are missing from implementation"
+    condition: "path startswith '/products/ghost'"
+    gate: 'status != 404'
+    enforcement: "block"
+
+settings:
+  timeout: 30000
+  parallel_workers: 1
+  follow_redirects: true
+  retry: 0
