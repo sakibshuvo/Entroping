@@ -2698,6 +2698,10 @@ def test_devex_readiness_v1_schema_contract_is_versioned_and_stable() -> None:
             families_blocked=0,
             blockers_total=0,
             next_actions_total=1,
+            first_five_minutes_score=100,
+            first_five_minutes_readiness_band="ready",
+            missing_source_count=0,
+            top_next_action="Generate evidence-index evidence before editor surfaces.",
         ),
         sources=(
             DevexReadinessSource(
