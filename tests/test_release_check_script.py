@@ -372,3 +372,23 @@ def test_release_check_aggregate_mode_reports_multiple_failures(tmp_path: Path) 
     ) in result.stdout
     assert "repo_hygiene :: scripts/repo_hygiene.sh (exit 4)" in result.stdout
     assert "regression_security :: scripts/regression.sh --security (exit 5)" in result.stdout
+
+
+def test_aha_failure_demo_script_is_syntax_valid() -> None:
+    script = REPO_ROOT / "scripts" / "aha_failure_demo.sh"
+    result = subprocess.run(
+        ["bash", "-n", str(script)],
+        check=False,
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_aha_failure_demo_wrapper_documents_expected_block() -> None:
+    script = (REPO_ROOT / "scripts" / "aha_failure_demo.sh").read_text(encoding="utf-8")
+
+    assert "expected output: entroping run blocks on request_id_header" in script
+    assert "scripts/ai_regression_demo.sh" in script
