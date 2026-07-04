@@ -13,6 +13,7 @@ is `200`.
 ```text
 demo_server.py
 qanstitution.yaml
+schema.graphql
 envs/local.env.example
 tests/graphql_smoke.hurl
 ```
@@ -53,6 +54,7 @@ Wrote report: reports/junit.xml
 ## Design Notes
 
 - The checked-in Hurl file uses literal local URLs for a quick deterministic smoke path.
+- `schema.graphql` is the local SDL fixture used by the deterministic scaffold compiler.
 - `envs/local.env.example` is safe to commit and reserved for generated or copied variants.
 - The governance rule `graphql_no_top_level_errors` proves that protocol-specific response semantics can be enforced without a protocol-specific runner.
 - The fixture intentionally keeps queries small and avoids real user data, secrets, cookies, or tokens.
