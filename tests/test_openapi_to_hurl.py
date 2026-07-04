@@ -1264,6 +1264,222 @@ def test_compile_openapi_negative_boundaries_use_maximum_constraints() -> None:
     assert '"level": 11' in boundary.content
 
 
+def test_compile_openapi_negative_boundaries_use_exclusive_numeric_constraints() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/limits": {
+                "post": {
+                    "operationId": "createLimit",
+                    "requestBody": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["count", "score"],
+                                    "properties": {
+                                        "count": {
+                                            "type": "integer",
+                                            "exclusiveMaximum": 10,
+                                        },
+                                        "score": {
+                                            "type": "number",
+                                            "exclusiveMinimum": 1.5,
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "responses": {
+                        "201": {"description": "created"},
+                        "400": {"description": "validation failed"},
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset())
+    boundary = next(
+        item
+        for item in result.files
+        if item.relative_path == "tests/generated/negative/create_limit_boundary_values.hurl"
+    )
+
+    assert '"count": 10' in boundary.content
+    assert '"score": 1.5' in boundary.content
+
+
+def test_compile_openapi_generates_numeric_boundary_negative_for_path_and_query() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/limits/{level}": {
+                "get": {
+                    "operationId": "getLimit",
+                    "parameters": [
+                        {
+                            "name": "level",
+                            "in": "path",
+                            "required": True,
+                            "example": 9,
+                            "schema": {"type": "integer", "exclusiveMaximum": 10},
+                        },
+                        {
+                            "name": "limit",
+                            "in": "query",
+                            "example": 5,
+                            "schema": {"type": "integer", "minimum": 1},
+                        },
+                        {
+                            "name": "score",
+                            "in": "query",
+                            "example": 2.5,
+                            "schema": {"type": "number", "exclusiveMinimum": 1.5},
+                        },
+                        {
+                            "name": "page",
+                            "in": "query",
+                            "example": 1,
+                            "schema": {"type": "integer"},
+                        },
+                    ],
+                    "responses": {
+                        "200": {"description": "ok"},
+                        "422": {"description": "validation failed"},
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset({"limits"}))
+    boundary = next(
+        item
+        for item in result.files
+        if item.relative_path == "tests/generated/negative/get_limit_numeric_boundary_values.hurl"
+    )
+
+    assert "# entroping: negative_category=numeric-boundary-values" in boundary.content
+    assert "GET {{base_url}}/limits/10?limit=0&score=1.5&page=1" in boundary.content
+    assert "HTTP 422" in boundary.content
+    assert parse_hurl_metadata(boundary.content).tags >= frozenset(
+        {"limits", "generated", "negative", "numeric-boundary-values"}
+    )
+
+
+def test_compile_openapi_numeric_boundary_parameter_negative_preserves_json_body() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/limits": {
+                "post": {
+                    "operationId": "createLimit",
+                    "parameters": [
+                        {
+                            "name": "count",
+                            "in": "query",
+                            "example": 10,
+                            "schema": {"type": "integer", "maximum": 10},
+                        },
+                    ],
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["sku"],
+                                    "properties": {"sku": {"type": "string"}},
+                                },
+                            },
+                        },
+                    },
+                    "responses": {
+                        "201": {"description": "created"},
+                        "400": {"description": "validation failed"},
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset())
+    expected_path = "tests/generated/negative/create_limit_numeric_boundary_values.hurl"
+    boundary = next(
+        item for item in result.files if item.relative_path == expected_path
+    )
+
+    assert "POST {{base_url}}/limits?count=11" in boundary.content
+    assert "Content-Type: application/json" in boundary.content
+    assert '"sku": "string"' in boundary.content
+    assert "HTTP 400" in boundary.content
+
+
+def test_compile_openapi_skips_ambiguous_integer_numeric_boundaries() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/limits": {
+                "post": {
+                    "operationId": "createLimit",
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "count": {"type": "integer", "minimum": 1.5},
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "responses": {
+                        "201": {"description": "created"},
+                        "422": {"description": "validation failed"},
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset())
+
+    assert [item.relative_path for item in result.files] == [
+        "tests/generated/create_limit.hurl",
+        "tests/generated/negative/create_limit_malformed_json.hurl",
+    ]
+
+
+def test_compile_openapi_rejects_duplicate_numeric_boundary_generated_paths(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def duplicate_numeric_boundary_file(**_: object) -> tuple[openapi_compiler.GeneratedHurlFile]:
+        return (
+            openapi_compiler.GeneratedHurlFile(
+                relative_path="tests/generated/list_orders.hurl",
+                content="GET {{base_url}}/duplicate\nHTTP 422\n",
+            ),
+        )
+
+    monkeypatch.setattr(
+        openapi_compiler,
+        "_numeric_boundary_parameter_negative_files",
+        duplicate_numeric_boundary_file,
+    )
+
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {"/orders": {"get": _ok_operation("listOrders")}},
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="duplicate Hurl path"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
 def test_compile_openapi_skips_non_finite_numeric_bounds_in_negative_generation() -> None:
     document: dict[str, object] = {
         "openapi": "3.1.0",
