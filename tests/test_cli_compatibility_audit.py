@@ -569,14 +569,16 @@ def test_report_schema_docs_include_observability_adapter_troubleshooting_matrix
     ).read_text(encoding="utf-8")
 
     matrix_lines = [
-        "| OpenTelemetry | `ready` |",
-        "| Datadog | `ready` |",
-        "| Splunk | `ready` |",
-        "| Grafana | `ready` |",
-        "| Generic observability | `ready` |",
+        "| OpenTelemetry | `ready`/`attention`/`blocked` |",
+        "| Datadog | `ready`/`attention`/`blocked` |",
+        "| Splunk | `ready`/`attention`/`blocked` |",
+        "| Grafana | `ready`/`attention`/`blocked` |",
+        "| Generic observability | `ready`/`attention`/`blocked` |",
     ]
     for line in matrix_lines:
         assert line in report_schemas
+    assert "local troubleshooting matrix" in report_schemas
+    assert "`ready`/`attention`/`blocked`" in report_schemas
 
 
 def test_post_alpha_cli_ux_decisions_are_documented_before_surface_changes() -> None:

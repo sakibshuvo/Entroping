@@ -477,7 +477,7 @@ Experimental design-partner evidence commands:
 | `entroping report observability-packet --output json` | Write machine-readable observability evidence to `reports/observability-packet.json` |
 | `entroping report otel-mapping --output md` | Write a local OpenTelemetry evidence mapping packet to `reports/otel-mapping.md` |
 | `entroping report otel-mapping --output json` | Write machine-readable OpenTelemetry mapping metadata to `reports/otel-mapping.json` |
-| `entroping report observability-adapter-readiness --output md` | Write a local observability adapter readiness packet to `reports/observability-adapter-readiness.md` |
+| `entroping report observability-adapter-readiness --output md` | Write a local observability adapter readiness troubleshooting packet (Datadog/Splunk/Grafana) to `reports/observability-adapter-readiness.md` |
 | `entroping report observability-adapter-readiness --output json` | Write machine-readable observability adapter readiness metadata to `reports/observability-adapter-readiness.json` |
 | `entroping report api-inventory --output md` | Write a read-only API surface inventory, including WebSocket/realtime signals, to `reports/api-inventory.md` |
 | `entroping report api-inventory --output json` | Write machine-readable API style evidence, including WebSocket/realtime signals, to `reports/api-inventory.json` |
