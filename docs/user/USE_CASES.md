@@ -290,3 +290,29 @@ entroping run --suite prod-smoke --ci
 ### Value
 
 Production behavior gets a fast, deterministic safety check.
+
+## 11. AI-broke-my-API Walkthrough
+
+### Scenario
+
+An AI-assisted edit removes a response header that downstream operations rely on,
+while the endpoint still returns an apparently healthy payload and status.
+
+### Entroping Workflow
+
+```bash
+scripts/ai_regression_demo.sh
+```
+
+### Expected Artifacts
+
+- `examples/ai-regression-demo/` fixture that intentionally omits a required
+  `X-Request-Id` header.
+- `reports/run-latest.json` with a failing `request_id_header` gate.
+- Local proof that runtime governance catches the regression before review or
+  deployment.
+
+### Value
+
+Teams can validate that AI-generated changes pass happy-path behavior while still
+failing deterministic policy gates for operational integrity.
