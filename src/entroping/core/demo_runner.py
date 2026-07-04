@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import tempfile
 import time
 from collections.abc import Callable, Sequence
@@ -305,14 +305,26 @@ def _smoke_run_steps(
 
 def _default_command_executor(command: DemoCommandStep) -> DemoCommandResult:
     started = time.perf_counter()
-    completed = subprocess.run(
-        list(command.argv),
-        cwd=str(command.cwd),
-        check=False,
-        timeout=120,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        completed = subprocess.run(  # nosec B603
+            list(command.argv),
+            cwd=str(command.cwd),
+            check=False,
+            shell=False,
+            timeout=120,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        return DemoCommandResult(
+            name=command.name,
+            status="error",
+            exit_code=None,
+            duration_ms=duration_ms,
+        )
+
     duration_ms = int((time.perf_counter() - started) * 1000)
     status: DemoCommandStatus = "passed" if completed.returncode == 0 else "failed"
     return DemoCommandResult(

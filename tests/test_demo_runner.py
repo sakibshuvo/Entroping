@@ -1,6 +1,9 @@
+from pathlib import Path
+
 from entroping.core.demo_runner import (
     DemoCommandResult,
     DemoCommandStep,
+    DemoRunnerPlan,
     build_demo_command_plan,
     provision_demo_workspace,
     run_demo_plan,
@@ -92,3 +95,27 @@ def test_run_demo_plan_dry_run_and_fake_executor_return_summary() -> None:
         assert live_result.summary.failed == 0
     finally:
         workspace.cleanup()
+
+
+def test_default_executor_returns_error_for_missing_command(tmp_path: Path) -> None:
+    command = DemoCommandStep(
+        name="missing-command",
+        argv=("entroping-demo-missing-command",),
+        cwd=tmp_path,
+        description="Missing command should become value-free error metadata.",
+    )
+
+    result = run_demo_plan(
+        plan=DemoRunnerPlan(
+            status="ready",
+            message="ready",
+            fixture_id="checkout-api",
+            workspace=tmp_path,
+            commands=(command,),
+        ),
+        dry_run=False,
+    )
+
+    assert result.status == "failed"
+    assert result.command_results[0].status == "error"
+    assert result.command_results[0].exit_code is None
