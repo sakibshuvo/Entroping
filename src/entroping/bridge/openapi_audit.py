@@ -27,6 +27,19 @@ from entroping.models.hurl import HurlExchange, HurlTest
 
 _HTTP_METHODS = frozenset({"get", "post", "put", "patch", "delete", "head", "options", "trace"})
 OPENAPI_AUDIT_SCHEMA_VERSION = "entroping.openapi-audit.v1"
+_AUTH_NEGATIVE_CATEGORIES = frozenset({"invalid-auth"})
+_VALIDATION_NEGATIVE_CATEGORIES = frozenset(
+    {
+        "boundary-values",
+        "idor-path-variants",
+        "invalid-enum-values",
+        "malformed-json",
+        "missing-required-parameter",
+        "numeric-boundary-values",
+        "schema-violations",
+        "sqli-like-strings",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -51,6 +64,8 @@ class OpenApiOperationCoverage:
     status: str
     test_paths: tuple[str, ...]
     negative_test_paths: tuple[str, ...] = ()
+    auth_negative_test_paths: tuple[str, ...] = ()
+    validation_negative_test_paths: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -176,13 +191,24 @@ def render_audit_markdown(report: OpenApiAuditReport) -> str:
         [
             "## Operation Coverage Matrix",
             "",
-            "| Operation | Method | Path | Status | Tests | Negative Tests |",
-            "| --- | --- | --- | --- | --- | --- |",
+            (
+                "| Operation | Method | Path | Status | Tests | Negative Tests | "
+                "Auth Negative Tests | Validation Negative Tests |"
+            ),
+            "| --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
     for row in report.operation_matrix:
         tests = ", ".join(row.test_paths) if row.test_paths else "-"
         negative_tests = ", ".join(row.negative_test_paths) if row.negative_test_paths else "-"
+        auth_negative_tests = (
+            ", ".join(row.auth_negative_test_paths) if row.auth_negative_test_paths else "-"
+        )
+        validation_negative_tests = (
+            ", ".join(row.validation_negative_test_paths)
+            if row.validation_negative_test_paths
+            else "-"
+        )
         lines.append(
             "| "
             f"{_markdown_table_cell(row.operation_id)} | "
@@ -190,7 +216,9 @@ def render_audit_markdown(report: OpenApiAuditReport) -> str:
             f"{_markdown_table_cell(row.path)} | "
             f"{_markdown_table_cell(row.status)} | "
             f"{_markdown_table_cell(tests)} | "
-            f"{_markdown_table_cell(negative_tests)} |"
+            f"{_markdown_table_cell(negative_tests)} | "
+            f"{_markdown_table_cell(auth_negative_tests)} | "
+            f"{_markdown_table_cell(validation_negative_tests)} |"
         )
     if report.stale_references:
         lines.extend(
@@ -225,6 +253,15 @@ def audit_report_to_dict(report: OpenApiAuditReport) -> dict[str, object]:
             "total_operations": report.total_operations,
             "covered_operations": report.covered_operations,
             "missing_operations": report.missing_operations,
+            "happy_path_covered_operations": sum(
+                1 for row in report.operation_matrix if row.test_paths
+            ),
+            "auth_negative_covered_operations": sum(
+                1 for row in report.operation_matrix if row.auth_negative_test_paths
+            ),
+            "validation_negative_covered_operations": sum(
+                1 for row in report.operation_matrix if row.validation_negative_test_paths
+            ),
             "ambiguous_operations": sum(
                 1 for row in report.operation_matrix if row.status == "ambiguous"
             ),
@@ -238,6 +275,8 @@ def audit_report_to_dict(report: OpenApiAuditReport) -> dict[str, object]:
                 "status": row.status,
                 "tests": list(row.test_paths),
                 "negative_tests": list(row.negative_test_paths),
+                "auth_negative_tests": list(row.auth_negative_test_paths),
+                "validation_negative_tests": list(row.validation_negative_test_paths),
             }
             for row in report.operation_matrix
         ],
@@ -329,6 +368,24 @@ def _operation_coverage_row(
             }
         )
     )
+    auth_negative_paths = tuple(
+        sorted(
+            {
+                _hurl_test_path(hurl_test, project_root=project_root)
+                for hurl_test in hurl_tests
+                if _hurl_test_is_auth_negative_evidence(hurl_test, operation)
+            }
+        )
+    )
+    validation_negative_paths = tuple(
+        sorted(
+            {
+                _hurl_test_path(hurl_test, project_root=project_root)
+                for hurl_test in hurl_tests
+                if _hurl_test_is_validation_negative_evidence(hurl_test, operation)
+            }
+        )
+    )
     if not positive_paths:
         status = "uncovered"
     elif len(positive_paths) == 1:
@@ -342,6 +399,8 @@ def _operation_coverage_row(
         status=status,
         test_paths=positive_paths,
         negative_test_paths=negative_paths,
+        auth_negative_test_paths=auth_negative_paths,
+        validation_negative_test_paths=validation_negative_paths,
     )
 
 
@@ -401,6 +460,26 @@ def _hurl_test_is_negative_evidence(hurl_test: HurlTest, expected: _ExpectedOper
     return _hurl_test_matches_operation(hurl_test, expected) and _is_negative_hurl_test(hurl_test)
 
 
+def _hurl_test_is_auth_negative_evidence(
+    hurl_test: HurlTest,
+    expected: _ExpectedOperation,
+) -> bool:
+    return _hurl_test_is_negative_evidence(hurl_test, expected) and _is_auth_negative_hurl_test(
+        hurl_test
+    )
+
+
+def _hurl_test_is_validation_negative_evidence(
+    hurl_test: HurlTest,
+    expected: _ExpectedOperation,
+) -> bool:
+    return (
+        _hurl_test_is_negative_evidence(hurl_test, expected)
+        and not _is_auth_negative_hurl_test(hurl_test)
+        and _is_validation_negative_hurl_test(hurl_test)
+    )
+
+
 def _hurl_test_matches_operation(hurl_test: HurlTest, expected: _ExpectedOperation) -> bool:
     if hurl_test.metadata.meta.get("source") != "openapi":
         return False
@@ -418,6 +497,28 @@ def _is_negative_hurl_test(hurl_test: HurlTest) -> bool:
         or "negative_category" in hurl_test.metadata.meta
         or hurl_test.metadata.meta.get("generation") == "negative-path-fuzzing"
     )
+
+
+def _is_auth_negative_hurl_test(hurl_test: HurlTest) -> bool:
+    return bool(_negative_markers(hurl_test) & _AUTH_NEGATIVE_CATEGORIES)
+
+
+def _is_validation_negative_hurl_test(hurl_test: HurlTest) -> bool:
+    return bool(_negative_markers(hurl_test) & _VALIDATION_NEGATIVE_CATEGORIES) or (
+        hurl_test.metadata.meta.get("generation") == "negative-path-fuzzing"
+    )
+
+
+def _negative_markers(hurl_test: HurlTest) -> frozenset[str]:
+    markers = {_normalize_negative_marker(tag) for tag in hurl_test.tags}
+    category = hurl_test.metadata.meta.get("negative_category")
+    if category is not None:
+        markers.add(_normalize_negative_marker(category))
+    return frozenset(markers)
+
+
+def _normalize_negative_marker(value: str) -> str:
+    return value.strip().lower().replace("_", "-")
 
 
 def _hurl_test_path(hurl_test: HurlTest, *, project_root: Path | None) -> str:

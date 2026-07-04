@@ -1274,10 +1274,13 @@ Its v1 payload includes an `operation_matrix` array with covered, uncovered,
 and ambiguous OpenAPI operation rows. Each row keeps positive/non-negative Hurl
 coverage paths in `tests` and matching generated negative-path evidence in
 `negative_tests`, so negative coverage does not satisfy positive operation
-coverage. The payload also includes a `stale_references` array for committed
-Hurl `operation_id` metadata that no longer exists in the configured spec.
-Paths are project-relative when the CLI discovers tests from the current
-project.
+coverage. Rows also split generated negative-path evidence into
+`auth_negative_tests` and `validation_negative_tests`, and the summary includes
+`happy_path_covered_operations`, `auth_negative_covered_operations`, and
+`validation_negative_covered_operations` counts. The payload also includes a
+`stale_references` array for committed Hurl `operation_id` metadata that no
+longer exists in the configured spec. Paths are project-relative when the CLI
+discovers tests from the current project.
 
 When redacted Eye traffic state is available, the same payload includes an
 optional `traffic_routes` object with schema version

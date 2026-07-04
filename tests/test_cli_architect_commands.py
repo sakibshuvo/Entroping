@@ -2034,6 +2034,9 @@ paths:
     assert payload["schema_version"] == "entroping.openapi-audit.v1"
     assert payload["status"] == "fail"
     assert payload["summary"]["missing_operations"] == 1
+    assert payload["summary"]["happy_path_covered_operations"] == 1
+    assert payload["summary"]["auth_negative_covered_operations"] == 0
+    assert payload["summary"]["validation_negative_covered_operations"] == 0
     assert payload["summary"]["ambiguous_operations"] == 0
     assert payload["summary"]["stale_references"] == 1
     assert payload["findings"][0]["operation_id"] == "createCheckout"
@@ -2045,6 +2048,8 @@ paths:
             "status": "covered",
             "tests": ["tests/generated/get_health.hurl"],
             "negative_tests": [],
+            "auth_negative_tests": [],
+            "validation_negative_tests": [],
         },
         {
             "operation_id": "createCheckout",
@@ -2053,6 +2058,8 @@ paths:
             "status": "uncovered",
             "tests": [],
             "negative_tests": [],
+            "auth_negative_tests": [],
+            "validation_negative_tests": [],
         },
     ]
     assert payload["stale_references"] == [
