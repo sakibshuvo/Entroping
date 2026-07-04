@@ -45,3 +45,67 @@ def test_aha_artifact_index_marks_symlinked_artifact_unsafe(tmp_path: Path) -> N
 
     assert by_key["run-json"].state == "unsafe"
     assert by_key["run-json"].schema_version is None
+
+
+def test_aha_artifact_index_marks_directory_artifact_unsafe(tmp_path: Path) -> None:
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    (reports_dir / "run-latest.json").mkdir()
+
+    index = build_aha_artifact_index(project_root=tmp_path)
+    by_key = {item.key: item for item in index.items}
+
+    assert by_key["run-json"].state == "unsafe"
+    assert by_key["run-json"].hints == ("Expected a file artifact.",)
+
+
+def test_aha_artifact_index_marks_invalid_json_artifact_invalid(tmp_path: Path) -> None:
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    (reports_dir / "run-latest.json").write_text("{", encoding="utf-8")
+
+    index = build_aha_artifact_index(project_root=tmp_path)
+    by_key = {item.key: item for item in index.items}
+
+    assert by_key["run-json"].state == "invalid"
+    assert by_key["run-json"].hints == ("Artifact JSON is invalid.",)
+
+
+def test_aha_artifact_index_marks_non_object_json_artifact_invalid(
+    tmp_path: Path,
+) -> None:
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    (reports_dir / "run-latest.json").write_text("[]", encoding="utf-8")
+
+    index = build_aha_artifact_index(project_root=tmp_path)
+    by_key = {item.key: item for item in index.items}
+
+    assert by_key["run-json"].state == "invalid"
+    assert by_key["run-json"].hints == ("Artifact JSON must be an object.",)
+
+
+def test_aha_artifact_index_marks_missing_schema_artifact_invalid(
+    tmp_path: Path,
+) -> None:
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    (reports_dir / "run-latest.json").write_text("{}", encoding="utf-8")
+
+    index = build_aha_artifact_index(project_root=tmp_path)
+    by_key = {item.key: item for item in index.items}
+
+    assert by_key["run-json"].state == "invalid"
+    assert by_key["run-json"].hints == ("Artifact JSON is missing schema_version.",)
+
+
+def test_aha_artifact_index_marks_oversize_artifact_invalid(tmp_path: Path) -> None:
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    (reports_dir / "run-latest.json").write_text("x" * ((256 * 1024) + 1), encoding="utf-8")
+
+    index = build_aha_artifact_index(project_root=tmp_path)
+    by_key = {item.key: item for item in index.items}
+
+    assert by_key["run-json"].state == "invalid"
+    assert "exceeds 262144 bytes" in by_key["run-json"].hints[0]

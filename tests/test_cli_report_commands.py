@@ -3479,6 +3479,22 @@ def test_report_aha_artifact_index_prints_local_paths_schema_and_hints(
     assert "private-demo" not in result.output
 
 
+def test_report_aha_artifact_index_exits_nonzero_for_invalid_artifact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports_dir = Path("reports")
+    reports_dir.mkdir()
+    (reports_dir / "run-latest.json").write_text("{", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["report", "aha-artifact-index"])
+
+    assert result.exit_code == 1
+    assert "Run JSON: invalid" in result.output
+    assert "hint: Artifact JSON is invalid." in result.output
+
+
 def test_report_first_run_checklist_reports_missing_hint_and_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
