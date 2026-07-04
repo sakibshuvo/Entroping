@@ -59,6 +59,17 @@ def supports_no_follow_tree_open() -> bool:
     return _HAS_O_DIRECTORY and _HAS_O_NOFOLLOW and _SUPPORTS_DIR_FD_OPEN
 
 
+def append_local_evidence_descriptor(
+    directory_descriptors: list[int],
+    descriptor: int,
+) -> None:
+    try:
+        directory_descriptors.append(descriptor)
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
 def read_local_evidence_artifact_bytes_no_follow(
     path: Path,
     *,
@@ -97,21 +108,22 @@ def _append_directory_descriptors_no_follow(
     directory_descriptors: list[int],
 ) -> None:
     if parent.is_absolute():
-        directory_descriptors.append(os.open(parent.anchor, os.O_RDONLY | os.O_DIRECTORY))
+        descriptor = os.open(parent.anchor, os.O_RDONLY | os.O_DIRECTORY)
+        append_local_evidence_descriptor(directory_descriptors, descriptor)
         parts = parent.parts[1:]
     else:
-        directory_descriptors.append(os.open(".", os.O_RDONLY | os.O_DIRECTORY))
+        descriptor = os.open(".", os.O_RDONLY | os.O_DIRECTORY)
+        append_local_evidence_descriptor(directory_descriptors, descriptor)
         parts = parent.parts
     for part in parts:
         if part == "..":
             raise OSError(errno.EINVAL, "parent traversal is not allowed")
-        directory_descriptors.append(
-            os.open(
-                part,
-                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
-                dir_fd=directory_descriptors[-1],
-            )
+        descriptor = os.open(
+            part,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+            dir_fd=directory_descriptors[-1],
         )
+        append_local_evidence_descriptor(directory_descriptors, descriptor)
 
 
 def read_local_evidence_artifact_bytes_best_effort(
