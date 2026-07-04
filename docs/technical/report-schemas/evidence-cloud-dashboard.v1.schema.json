@@ -131,6 +131,7 @@
         "path",
         "state",
         "schema_version",
+        "freshness_state",
         "sha256",
         "project",
         "export_status",
@@ -145,6 +146,9 @@
         },
         "state": {
           "$ref": "#/$defs/manifest_state"
+        },
+        "freshness_state": {
+          "$ref": "#/$defs/manifest_freshness_state"
         },
         "schema_version": {
           "type": [
@@ -320,6 +324,13 @@
         "missing",
         "invalid",
         "unsafe"
+      ]
+    },
+    "manifest_freshness_state": {
+      "enum": [
+        "present",
+        "stale",
+        "unknown"
       ]
     },
     "repository_status": {

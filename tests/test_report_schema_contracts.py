@@ -109,6 +109,7 @@ from entroping.core.evidence.evidence_bundle import (
 )
 from entroping.core.evidence.evidence_cloud_dashboard import (
     EVIDENCE_CLOUD_DASHBOARD_SCHEMA_VERSION,
+    EvidenceCloudDashboardManifest,
     EvidenceCloudDashboardPacket,
     EvidenceCloudDashboardRepository,
     EvidenceCloudDashboardSummary,
@@ -3185,7 +3186,7 @@ def test_evidence_cloud_dashboard_v1_schema_contract_is_versioned_and_stable() -
             next_actions_total=1,
         ),
         manifests=(
-            EvidenceCloudWorkspaceManifest(
+            EvidenceCloudDashboardManifest(
                 id="manifest-1",
                 path="reports/repo-a-export.json",
                 state="present",
