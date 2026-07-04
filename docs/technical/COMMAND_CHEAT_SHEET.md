@@ -635,3 +635,14 @@ Do not document these as primary v4.1 commands:
   repair-plan,retrieval-plan,routing-plan,seed}`,
   `team-{access-control-plan,evidence-readiness}`,
   `work-item-{draft,import-bundle}`
+
+### Evidence packet picker by surface
+
+| Surface | Question | Command | Artifact |
+| --- | --- | --- | --- |
+| Launch-critical | Should I block merge? | `entroping report runtime-card --output json` | `reports/runtime-card.json` |
+| Launch-critical | What changed in this CI run? | `entroping report review-summary` | `reports/review-summary.md` |
+| Stable public | Is report inventory complete? | `entroping report artifact-manifest` | `reports/artifact-manifest.json` |
+| Stable public | Did tests keep expected quality and policy coverage? | `entroping report test-quality --output json`, `entroping report gate-coverage --output json` | `reports/test-quality.json`, `reports/gate-coverage.json` |
+| Maintainer-only | Can we share upload-ready evidence safely? | `entroping report evidence-bundle --output json` | `reports/evidence-bundle.json` |
+| Experimental | What should we do next from evidence? | `entroping report qa-brain-repair-plan --output json` | `reports/qa-brain-repair-plan.json` |

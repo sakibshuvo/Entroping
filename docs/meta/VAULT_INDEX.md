@@ -27,6 +27,7 @@ Use these first. They are the control panel for current work:
 
 - [[ROADMAP|ROADMAP]] - public roadmap, release sequence, and open-core boundary.
 - [[docs/product/PRODUCT_SPEC|PRODUCT_SPEC]] - what Entroping is and what v4.1 must do.
+- [[docs/product/PRODUCT_SPEC|PRODUCT_SPEC#backend/api-integrity-position]] - API-first positioning, governance, and runtime integrity policy.
 - [[docs/user/USER_GUIDE|USER_GUIDE]] - how a developer uses Entroping.
 - [[docs/user/DRIFT_BASELINE_WORKFLOW|DRIFT_BASELINE_WORKFLOW]] - reviewed candidate-to-baseline drift workflow.
 - [[docs/product/MVP_PLAN|MVP_PLAN]] - implementation sequence.
@@ -38,6 +39,7 @@ Use these first. They are the control panel for current work:
 - [[docs/technical/TDS|TDS]] - architecture, adapters, schemas, execution, and test strategy.
 - [[docs/technical/FREEZE_MAP_PLAN|FREEZE_MAP_PLAN]] - Eye freeze/map boundaries, tests, and implementation issue set.
 - [[docs/technical/COMMAND_CHEAT_SHEET|COMMAND_CHEAT_SHEET]] - locked command surface.
+- [[docs/technical/COMMAND_CHEAT_SHEET#evidence-packet-picker-by-surface|COMMAND_CHEAT_SHEET#evidence-packet-picker]] - packet picker table for review surfaces.
 - [[docs/technical/QANSTITUTION_REFERENCE|QANSTITUTION_REFERENCE]] - executable governance schema.
 - [[docs/technical/POLICY_PACK_LAYOUT|POLICY_PACK_LAYOUT]] - reusable QAnstitution policy-pack layout and example.
 - [[docs/technical/POLICY_PACK_DISTRIBUTION|POLICY_PACK_DISTRIBUTION]] - local-first policy-pack distribution, provenance, attribution, and open-core boundary.
@@ -105,6 +107,7 @@ instructions.
 - [[docs/user/QANSTITUTION_FIRST_HOUR|QANSTITUTION_FIRST_HOUR]] - first-hour status, latency, and request-ID header policy guide.
 - [[docs/user/DRIFT_BASELINE_WORKFLOW|DRIFT_BASELINE_WORKFLOW]] - safe drift baseline creation and update workflow.
 - [[docs/user/AI_PROVIDER_SETUP|AI_PROVIDER_SETUP]] - LiteLLM, local Qwen/oMLX, cloud model, and no-provider CI setup.
+- [[docs/user/USER_GUIDE#evidence-packet-picker|USER_GUIDE - evidence packet picker]] - packet chooser map for launch/stable/experimental surfaces.
 - [[docs/user/GITHUB_ACTIONS_STARTER|GITHUB_ACTIONS_STARTER]] - copyable downstream GitHub Actions CI gate.
 - [[docs/user/CI_PROVIDER_RECIPES|CI_PROVIDER_RECIPES]] - GitLab CI, Buildkite, CircleCI, and generic shell guidance.
 - [[docs/meta/OBSIDIAN_START_HERE|OBSIDIAN_START_HERE]] - first-time Obsidian workflow for this vault.

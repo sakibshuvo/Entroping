@@ -512,6 +512,21 @@ for `entroping run` or QAnstitution enforcement. Add `--fail-under <0-100>` in
 CI when a team has agreed on a minimum generated-test quality floor; the report
 is still written before the command exits nonzero.
 
+### Generated-test QA loop narrative
+
+A local-first QA loop for AI-generated changes follows this evidence sequence:
+
+1. `entroping report test-quality --output json` (generated-test quality)
+2. `entroping report mutation-readiness --output json` (mutation/readiness)
+3. `entroping report qa-brain-seed --output json` (seed contract)
+4. `entroping report qa-brain-eval-plan --output json`
+5. `entroping report qa-brain-retrieval-plan --output json`
+6. `entroping report qa-brain-prompt-plan --output json`
+7. `entroping report qa-brain-routing-plan --output json`
+8. `entroping report qa-brain-repair-plan --output json`
+
+Each packet is a read-only, deterministic evidence artifact. It does not auto-repair code or bypass Hurl enforcement. Human/Codex review is required before generated changes are accepted.
+
 Summarize local test/evidence layers from existing reports:
 
 ```bash
@@ -1475,6 +1490,19 @@ expected `api_key_env` names are set without exposing secret values.
   Yes, after review. Use evidence artifacts that keep secrets out and keep
   sharing scope explicit, then document anything missing as `manual_input_required`
   in review packets instead of inventing raw fields.
+
+### Evidence packet picker
+
+Use this compact map before sharing or reviewing local packets:
+
+| User question | Packet surface | Command | Output artifact | Required prior evidence |
+| --- | --- | --- | --- | --- |
+| Is the PR ready for merge review? | Launch-critical | `entroping report runtime-card --output json` | `reports/runtime-card.json` | `reports/run-latest.json`, `reports/effective-policy.json` |
+| Is API quality evidence complete? | Launch-critical | `entroping report test-quality --output json` | `reports/test-quality.json` | `reports/run-latest.json` |
+| Do we have safe upload-ready evidence? | Maintainer/Stable | `entroping report evidence-bundle --output json` | `reports/evidence-bundle.json` | `reports/run-latest.json`, `reports/effective-policy.json`, `reports/artifact-manifest.json` |
+| Where are external-facing links and IDs? | Stable | `entroping report evidence-links --output md` | `reports/evidence-links.md` | `reports/evidence-index.json`, `reports/run-latest.json` |
+| What did the AI evidence loop imply? | Experimental | `entroping report design-partner-feedback` | `reports/design-partner-feedback.json` | `reports/evidence-bundle.json`, `reports/runtime-card.json` |
+| Which experiment or QA packet is next? | Experimental | `entroping report qa-brain-repair-plan` | `reports/qa-brain-repair-plan.json` | `reports/test-quality.json`, `reports/mutation-readiness.json`, `reports/devex-readiness.json`, `reports/action-plan.json` |
 
 ## 16. Safe Defaults
 

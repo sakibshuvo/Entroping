@@ -1,5 +1,7 @@
 name: Entroping PR Evidence Card
 
+# Review-oriented PR evidence workflow using local artifacts only.
+
 "on":
   pull_request:
 
@@ -74,6 +76,7 @@ jobs:
       - name: Write PR evidence card
         if: always()
         run: |
+          # Preserve evidence card artifacts even when the gate run fails.
           entroping report pr-evidence-card
           entroping report pr-evidence-card --output json
           cat reports/pr-evidence-card.md >> "$GITHUB_STEP_SUMMARY"
