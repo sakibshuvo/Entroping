@@ -457,7 +457,25 @@ def test_readme_promotes_demo_wrapper_without_expanding_cli_surface() -> None:
     assert "scripts/live_demo_smoke.sh" in try_it
     assert "docs/assets/launch/checkout-demo.gif" in try_it
     assert "docs/assets/launch/ai-regression-proof.gif" in try_it
+    assert "entroping demo" in try_it
+    assert "deferred" in try_it
     assert "entroping demo" not in command_cheat_sheet
+
+
+def test_user_guide_onboarding_blocks_premature_entroping_demo_claims() -> None:
+    user_guide = (REPO_ROOT / "docs" / "user" / "USER_GUIDE.md").read_text(
+        encoding="utf-8"
+    )
+    quick_start = user_guide.split("## 3. New Project Quick Start", maxsplit=1)[1]
+    install = user_guide.split("## 2. Install", maxsplit=1)[1].split(
+        "## 3. New Project Quick Start",
+        maxsplit=1,
+    )[0]
+
+    assert "scripts/demo.sh" in quick_start
+    assert "`entroping demo --project <path>`" in install
+    assert "is intentionally deferred" in install
+    assert "docs/meta/ZERO_CONFIG_DEMO_ENTRYPOINT.md" in install
 
 
 def test_readme_keeps_first_hour_troubleshooting_and_cli_surface_scan_friendly() -> None:

@@ -74,6 +74,10 @@ Hurl variables, and assumptions that `run --ci` needs model-provider access are
 reported before test execution.
 
 For local solo development, keep the install editable with `uv tool install -e .`. Homebrew, Nuitka binaries, Docker, and PyPI are distribution targets after the CLI is stable.
+The first onboarding flow is source-first on purpose: checkout, set up `uv` and Hurl, and run `scripts/demo.sh`.
+
+`entroping demo --project <path>` is intentionally deferred until package fixture ownership and a command-surface compatibility decision complete.
+Use this repo as the onboarding entrypoint now, and check `docs/meta/ZERO_CONFIG_DEMO_ENTRYPOINT.md` for the current command-surface decision.
 
 ## 3. New Project Quick Start
 
@@ -82,6 +86,14 @@ Initialize Entroping:
 ```bash
 entroping init
 ```
+
+For an onboarding-first proof, keep this a source checkout flow and run:
+
+```bash
+scripts/demo.sh
+```
+
+That path is the current Aha entrypoint.
 
 Define your law in `qanstitution.yaml`:
 
