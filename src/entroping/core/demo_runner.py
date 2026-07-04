@@ -112,7 +112,11 @@ def build_demo_command_plan(
     include_smoke_run: bool = False,
     report_formats: Sequence[str] | None = None,
 ) -> DemoRunnerPlan:
-    formats = tuple(report_formats or DEMO_DEFAULT_REPORT_FORMATS)
+    formats = (
+        DEMO_DEFAULT_REPORT_FORMATS
+        if report_formats is None
+        else tuple(report_formats)
+    )
     command_list = (
         _architect_build_step(workspace),
         *_smoke_run_steps(
