@@ -3,6 +3,7 @@
 import os
 import sys
 from pathlib import Path
+from shutil import which
 from typing import Annotated
 
 import typer
@@ -63,6 +64,7 @@ settings:
 """
 _AGENT_ROLE_ORDER: tuple[AgentRole, ...] = ("builder", "auditor", "breaker")
 _DOCTOR_OUTPUTS = frozenset({"text", "json"})
+_DOCTOR_CHECKOUT_DEMO_SCRIPT = Path("scripts") / "demo.sh"
 
 
 def register_project_commands(root_app: typer.Typer) -> None:
@@ -152,7 +154,7 @@ def _collect_doctor_health(*, ci: bool = False) -> DoctorHealthReport:
         if ci
         else None
     )
-    statuses = [
+    statuses: list[DoctorHealthStatus] = [
         hurl_health.status,
         hurl_compatibility.status,
         hurl_parser_health.status,
@@ -405,6 +407,7 @@ def _render_doctor_health(report: DoctorHealthReport) -> None:
         _render_agent_readiness(report.agents)
     if report.ci_readiness is not None:
         _render_ci_readiness(report.ci_readiness)
+    _render_doctor_demo_guidance(report)
 
 
 def _render_tool_health(label: str, tool: DoctorToolHealth, *, missing_guidance: str) -> None:
@@ -545,3 +548,52 @@ def _overall_status(statuses: list[DoctorHealthStatus]) -> DoctorHealthStatus:
     if "warn" in statuses:
         return "warn"
     return "ok"
+
+
+def _render_doctor_demo_guidance(report: DoctorHealthReport) -> None:
+    if not _is_checkout_demo_available():
+        return
+
+    if _doctor_demo_prerequisites_met(report):
+        console.print("[green]Aha:[/green] next command: scripts/demo.sh")
+        return
+
+    missing = _doctor_demo_missing_prerequisites(report)
+    console.print("[yellow]Aha prerequisites not met yet:[/yellow]")
+    for line in missing:
+        console.print(f"- {line}")
+
+
+def _is_checkout_demo_available() -> bool:
+    return _DOCTOR_CHECKOUT_DEMO_SCRIPT.is_file()
+
+
+def _doctor_demo_prerequisites_met(report: DoctorHealthReport) -> bool:
+    return (
+        report.hurl_compatibility.compatibility == "compatible"
+        and report.qanstitution.status == "ok"
+        and which("uv") is not None
+    )
+
+
+def _doctor_demo_missing_prerequisites(report: DoctorHealthReport) -> list[str]:
+    missing: list[str] = []
+
+    if which("uv") is None:
+        missing.append("install uv (https://docs.astral.sh/uv/)")
+
+    if report.hurl_compatibility.compatibility == "missing":
+        missing.append(
+            f"install hurl {report.hurl_compatibility.minimum_version} or newer"
+        )
+    elif report.hurl_compatibility.compatibility == "unsupported":
+        missing.append(
+            f"upgrade hurl to {report.hurl_compatibility.minimum_version} or newer"
+        )
+    elif report.hurl_compatibility.compatibility == "unparsable":
+        missing.append("resolve hurl version detection before running demo")
+
+    if report.qanstitution.status != "ok":
+        missing.append("fix qanstitution.yaml")
+
+    return missing
