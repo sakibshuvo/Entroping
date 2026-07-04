@@ -452,15 +452,16 @@ def test_readme_promotes_demo_wrapper_and_approved_demo_surface() -> None:
         "## What You Get",
         maxsplit=1,
     )[0]
+    normalized_try_it = " ".join(try_it.split())
 
     assert "scripts/demo.sh" in try_it
     assert "scripts/live_demo_smoke.sh" in try_it
     assert "docs/assets/launch/checkout-demo.gif" in try_it
     assert "docs/assets/launch/ai-regression-proof.gif" in try_it
     assert "entroping demo" in try_it
-    assert "approved compatibility shape" in try_it
-    assert "tracked by #1385" in try_it
-    assert "entroping demo" not in command_cheat_sheet
+    assert "same local-only Aha path is available" in try_it
+    assert "does not call model providers or external APIs" in normalized_try_it
+    assert "entroping demo --project <path>" in command_cheat_sheet
 
 
 def test_user_guide_onboarding_links_approved_entroping_demo_decision() -> None:
@@ -475,9 +476,9 @@ def test_user_guide_onboarding_links_approved_entroping_demo_decision() -> None:
 
     assert "scripts/demo.sh" in quick_start
     assert "`entroping demo --project <path>`" in install
-    assert "approved compatibility shape" in install
-    assert "#1385" in install
-    assert "docs/meta/ZERO_CONFIG_DEMO_ENTRYPOINT.md" in install
+    assert "package-installed Aha proof" in install
+    assert "new or empty project directory" in install
+    assert "does not call model providers or external APIs" in install
 
 
 def test_readme_transcripts_cover_aha_demo_and_failure_flows() -> None:
@@ -495,7 +496,7 @@ def test_readme_transcripts_cover_aha_demo_and_failure_flows() -> None:
     assert "scripts/demo.sh" in try_it_commands
     assert "scripts/ai_regression_demo.sh" in try_it_commands
     assert "entroping demo" not in try_it_commands
-    assert "Package-installed one-command Aha has an approved compatibility shape" in try_it
+    assert "After installing the package, the same local-only Aha path is available" in try_it
 
 
 def test_readme_keeps_first_hour_troubleshooting_and_cli_surface_scan_friendly() -> None:
@@ -596,10 +597,10 @@ def test_zero_config_demo_decision_keeps_live_smoke_as_release_gate() -> None:
 
     assert "scripts/demo.sh" in decision
     assert "scripts/live_demo_smoke.sh" in decision
-    assert "Approve `entroping demo --project <path>`" in decision
+    assert "Current package-installed outcome" in decision
     assert "Do not add `init --demo`" in decision
     assert "entroping demo --project" in decision
-    assert "The package-installed Aha entrypoint shape is approved" in decision
+    assert "The package-installed Aha entrypoint is implemented" in decision
     assert "Aha entrypoint command" in cli_audit
     assert "v1 change policy" in cli_audit
     assert "[[docs/meta/ZERO_CONFIG_DEMO_ENTRYPOINT|ZERO_CONFIG_DEMO_ENTRYPOINT]]" in index

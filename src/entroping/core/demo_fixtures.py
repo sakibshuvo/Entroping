@@ -87,10 +87,14 @@ def resolve_demo_fixture_source(
     package_root: Path | None = None,
 ) -> DemoFixtureSource:
     fixture = _fixture_for_id(fixture_id)
-    if package_root is not None:
-        source = _resolve_source_root(package_root, fixture=fixture, kind="package-resource")
-        if source.root.exists():
-            return source
+    package_source_root = package_root if package_root is not None else _package_fixture_root()
+    source = _resolve_source_root(
+        package_source_root,
+        fixture=fixture,
+        kind="package-resource",
+    )
+    if source.root.exists():
+        return source
 
     examples_root = (
         source_examples_root if source_examples_root is not None else _source_examples_root()
@@ -168,6 +172,10 @@ def _resolve_source_root(
 
 def _source_examples_root() -> Path:
     return Path(__file__).resolve().parents[3] / "examples"
+
+
+def _package_fixture_root() -> Path:
+    return Path(__file__).resolve().parents[1] / "demo_fixtures"
 
 
 def _validate_manifest_file(relative_file: Path) -> None:

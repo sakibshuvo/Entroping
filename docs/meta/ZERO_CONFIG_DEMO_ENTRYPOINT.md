@@ -15,9 +15,9 @@ tags:
 Current checkout outcome: `scripts/demo.sh` remains the implemented checkout
 demo entrypoint.
 
-Current package-installed decision: approve `entroping demo --project <path>` as
-the next Aha command shape. Implementation is tracked by #1385 and must preserve
-the local-only deterministic demo boundary.
+Current package-installed outcome: `entroping demo --project <path>` is the
+implemented Aha command shape for a new or empty demo project directory. It
+preserves the local-only deterministic demo boundary.
 
 ## Problem
 
@@ -31,9 +31,9 @@ demo command needs an explicit compatibility decision before implementation.
 
 ## Decision
 
-Use `scripts/demo.sh` as the public checkout demo entrypoint for v0.2. Approve
-`entroping demo --project <path>` as the package-installed Aha entrypoint shape
-for #1385.
+Use `scripts/demo.sh` as the public checkout demo entrypoint for v0.2. Use
+`entroping demo --project <path>` as the package-installed Aha entrypoint for
+new or empty demo project directories.
 
 `scripts/demo.sh` performs friendly local preflight checks for `uv` and `hurl`,
 prints what it is about to prove, and then delegates to
@@ -47,7 +47,7 @@ Do not add `init --demo` in v0.2.
 | Option | Decision | Reason |
 | --- | --- | --- |
 | `scripts/demo.sh` | Chosen now | Gives a one-command checkout path without changing the CLI contract. |
-| `entroping demo --project <path>` | Approved next | Gives package-installed users the same local deterministic Aha path once #1385 implements the package-owned fixture flow. |
+| `entroping demo --project <path>` | Implemented | Gives package-installed users the same local deterministic Aha path through the package-owned fixture flow. |
 | `entroping init --demo` | Deferred | It changes setup semantics and could blur the minimal-project path. |
 | Keep only `scripts/live_demo_smoke.sh` | Superseded for users | It remains valuable for automation, but it reads like an internal smoke gate. |
 
@@ -57,29 +57,28 @@ Do not add `init --demo` in v0.2.
   external API traffic.
 - Keep `scripts/live_demo_smoke.sh` reproducible and automation-friendly.
 - Keep `scripts/demo.sh` a thin wrapper; do not duplicate demo logic.
-- Implement the product-level demo command only through #1385 or a successor
-  compatibility issue.
+- Keep the product-level demo command limited to the approved
+  `entroping demo --project <path>` surface unless a successor compatibility
+  issue changes it.
 
 ## Current Commands
 
 ```bash
 scripts/demo.sh
+entroping demo --project ./entroping-checkout-demo
 ```
 
-## Package-installed entrypoint decision
+## Package-installed entrypoint
 
-The package-installed Aha entrypoint shape is approved:
+The package-installed Aha entrypoint is implemented:
 
 `entroping demo --project <path>`
 
-Approve `entroping demo --project <path>` as a local-only command that prepares
-or copies the reviewed checkout demo fixture into the selected project, runs the
-same deterministic Hurl-backed proof as the checkout demo, and does not call
-model providers or external APIs.
-
-Until #1385 lands, `scripts/demo.sh` continues to be the only implemented public
-Aha entrypoint. This decision approves the command surface; it does not claim
-package-index proof, stable-core readiness, or downstream adoption.
+`entroping demo --project <path>` is a local-only command that prepares or
+copies the reviewed checkout demo fixture into a new or empty selected project,
+runs the same deterministic Hurl-backed proof as the checkout demo, and does not
+call model providers or external APIs. This implemented command surface does not
+claim package-index proof, stable-core readiness, or downstream adoption.
 
 For persistent report artifacts:
 

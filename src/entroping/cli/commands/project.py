@@ -12,6 +12,12 @@ from entroping.brain.persona_loader import PersonaLoadError, load_agent_persona
 from entroping.cli.shared import console, display_cli_path, safe_cli_text
 from entroping.core.ci_readiness import collect_ci_readiness
 from entroping.core.config_loader import QanstitutionLoadError, load_qanstitution
+from entroping.core.demo_runner import (
+    DemoRunnerError,
+    DemoRunnerResult,
+    provision_demo_workspace,
+    run_demo_workspace,
+)
 from entroping.core.github_actions_starter import (
     GitHubActionsStarterError,
     install_github_actions_starter,
@@ -70,6 +76,7 @@ _DOCTOR_CHECKOUT_DEMO_SCRIPT = Path("scripts") / "demo.sh"
 def register_project_commands(root_app: typer.Typer) -> None:
     root_app.command(rich_help_panel="Core Workflow")(init)
     root_app.command(rich_help_panel="Core Workflow")(doctor)
+    root_app.command(rich_help_panel="Core Workflow")(demo)
 
 
 def init(
@@ -131,6 +138,32 @@ def doctor(
         _render_doctor_health(report)
 
     if report.status == "error":
+        raise typer.Exit(1)
+
+
+def demo(
+    project: Annotated[
+        Path,
+        typer.Option(
+            "--project",
+            help="New or empty directory where Entroping prepares the local checkout demo.",
+            file_okay=False,
+            dir_okay=True,
+            resolve_path=False,
+        ),
+    ],
+) -> None:
+    """Run the reviewed local checkout demo without model-provider calls."""
+
+    try:
+        workspace = provision_demo_workspace(destination=project)
+        result = run_demo_workspace(workspace=workspace)
+    except DemoRunnerError as exc:
+        console.print(safe_cli_text(str(exc)), style="red")
+        raise typer.Exit(1) from exc
+
+    _render_demo_result(result)
+    if result.status != "passed":
         raise typer.Exit(1)
 
 
@@ -408,6 +441,37 @@ def _render_doctor_health(report: DoctorHealthReport) -> None:
     if report.ci_readiness is not None:
         _render_ci_readiness(report.ci_readiness)
     _render_doctor_demo_guidance(report)
+
+
+def _render_demo_result(result: DemoRunnerResult) -> None:
+    style = "green" if result.status == "passed" else "red"
+    summary = result.summary
+    console.print(f"Entroping demo: [{style}]{result.status}[/{style}]")
+    console.print(f"Fixture: {safe_cli_text(result.plan.fixture_id)}")
+    console.print(f"Project: {display_cli_path(result.plan.workspace)}")
+    console.print(
+        "Commands: "
+        f"{summary.total_commands} total, "
+        f"{summary.passed} passed, "
+        f"{summary.failed} failed, "
+        f"{summary.errors} errors, "
+        f"{summary.blocked} blocked"
+    )
+    for command_result in result.command_results:
+        exit_text = (
+            "exit unavailable"
+            if command_result.exit_code is None
+            else f"exit {command_result.exit_code}"
+        )
+        console.print(
+            f"{safe_cli_text(command_result.name)}: "
+            f"{safe_cli_text(command_result.status)} "
+            f"({exit_text}, {command_result.duration_ms} ms)"
+        )
+    if result.status == "passed":
+        console.print(
+            "Reports: reports/run-latest.json, reports/junit.xml, reports/run-latest.html"
+        )
 
 
 def _render_tool_health(label: str, tool: DoctorToolHealth, *, missing_guidance: str) -> None:

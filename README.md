@@ -53,9 +53,15 @@ scripts/ai_regression_demo.sh
 
 Expected proof: Hurl passes and writes JSON, JUnit, and HTML reports. `scripts/demo.sh` delegates to the same deterministic `scripts/live_demo_smoke.sh` release gate used by CI.
 
-Package-installed one-command Aha has an approved compatibility shape:
-`entroping demo --project <path>`, tracked by #1385. Until that command lands,
-the supported local onboarding flow remains `scripts/demo.sh`.
+After installing the package, the same local-only Aha path is available as:
+
+```bash
+entroping demo --project ./entroping-checkout-demo
+```
+
+The command prepares a new or empty demo directory, starts the reviewed local
+checkout API fixture, runs deterministic Entroping/Hurl proof, and does not call
+model providers or external APIs.
 
 ![Checkout demo: Hurl run passes and reports are emitted](docs/assets/launch/checkout-demo.gif)
 
@@ -92,7 +98,7 @@ Public roadmap: [ROADMAP.md](ROADMAP.md) and [GitHub Project board](https://gith
 
 Built today: locked v4.1 CLI surface, QAnstitution validation, Hurl discovery and execution, deterministic OpenAPI generation, prompt-backed Architect workflows through LiteLLM, Eye capture/freeze/map foundations, tiered report panels for Launch-Critical, Stable Public, Maintainer/Baseline, and Experimental Design-Partner artifacts, and local plus CI gates.
 
-Still alpha: package-index proof, compatibility graduation, and real downstream feedback remain open stable-core blockers. Dependency-call drift is route-level only, and Architect UX remains intentionally narrow.
+Still alpha: package-index proof and real downstream feedback remain open stable-core blockers. Dependency-call drift is route-level only, and Architect UX remains intentionally narrow.
 
 ## Install
 

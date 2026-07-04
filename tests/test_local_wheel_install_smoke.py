@@ -55,6 +55,25 @@ def _write_fake_python(path: Path) -> None:
                     raise SystemExit(1)
                 print("QAnstitution: valid")
                 raise SystemExit(0)
+            if len(args) == 3 and args[:2] == ["demo", "--project"]:
+                project = Path(args[2])
+                project.mkdir(parents=True, exist_ok=True)
+                (project / "reports").mkdir(exist_ok=True)
+                (project / "reports" / "run-latest.json").write_text(
+                    '{"schema_version":"entroping.run-report.v1","status":"passed"}',
+                    encoding="utf-8",
+                )
+                (project / "reports" / "junit.xml").write_text(
+                    "<testsuite />\\\\n",
+                    encoding="utf-8",
+                )
+                (project / "reports" / "run-latest.html").write_text(
+                    "<html></html>\\\\n",
+                    encoding="utf-8",
+                )
+                print("Entroping demo: passed")
+                print("Commands: 2 total, 2 passed, 0 failed, 0 errors, 0 blocked")
+                raise SystemExit(0)
             if args == ["architect", "build", "--new", "--tag", "smoke"]:
                 Path("tests/generated").mkdir(parents=True, exist_ok=True)
                 Path("tests/generated/checkout_smoke.hurl").write_text(
@@ -190,9 +209,7 @@ def test_local_wheel_install_smoke_json_dry_run_describes_public_cli() -> None:
     assert "entroping --version" in commands
     assert "entroping init --minimal" in commands
     assert "entroping doctor" in commands
-    assert "copy demo fixture through installed package" in commands
-    assert "entroping architect build --new --tag smoke" in commands
-    assert "entroping run --env local --tag smoke --report json" in commands
+    assert "entroping demo --project <temp-root>/demo" in commands
 
 
 def test_local_wheel_install_smoke_runs_with_fake_installer(tmp_path: Path) -> None:
@@ -281,11 +298,9 @@ def test_local_wheel_install_smoke_runs_demo_path_with_installed_cli(
         "entroping --version",
         "entroping init --minimal",
         "entroping doctor",
-        "copy demo fixture",
-        "entroping architect build demo",
-        "entroping run demo",
+        "entroping demo",
     ]
-    assert "Hurl run: 1 passed, 0 failed" in payload["commands"][-1]["stdout"]
+    assert "Entroping demo: passed" in payload["commands"][-1]["stdout"]
 
 
 def test_local_wheel_install_smoke_reports_missing_wheel(tmp_path: Path) -> None:
