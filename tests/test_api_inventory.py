@@ -645,6 +645,67 @@ def test_api_inventory_detects_postman_collection_files(tmp_path: Path) -> None:
     assert "Postman collection" in markdown
 
 
+def test_api_inventory_detects_postman_collection_files_by_shape(tmp_path: Path) -> None:
+    manifest_path = _write_text(
+        tmp_path / "collections" / "payments" / "checkout-apis.json",
+        """
+{
+  "info": {
+    "name": "Checkout APIs"
+  },
+  "item": [
+    {
+      "name": "Catalog",
+      "item": [
+        {
+          "name": "List items",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "https://internal.example.test/catalog"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+""".strip()
+        + "\n",
+    )
+
+    result = run_api_inventory_report(project_root=tmp_path, output="json")
+    payload = json.loads(result.output_path.read_text(encoding="utf-8"))
+    sources = {(source["kind"], source["path"]): source for source in payload["sources"]}
+    assert sources[("schema_file", "collections/payments/checkout-apis.json")] == {
+        "kind": "schema_file",
+        "style": "postman_collection",
+        "path": "collections/payments/checkout-apis.json",
+        "state": "present",
+        "sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+        "tags": [],
+        "operations": 1,
+        "summary": "1 Postman request entry.",
+    }
+    styles = {style["style"]: style for style in payload["styles"]}
+    assert styles["postman_collection"]["sources"] == 1
+    assert styles["postman_collection"]["operations"] == 1
+
+
+def test_api_inventory_marks_bad_named_postman_collection_source_invalid(tmp_path: Path) -> None:
+    _write_text(
+        tmp_path / "collections" / "broken" / "postman-workbench.json",
+        "{not json: [}\n",
+    )
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    sources = {(source.kind, source.path): source for source in packet.sources}
+    broken_source = sources[("schema_file", "collections/broken/postman-workbench.json")]
+    assert broken_source.state == "invalid"
+    assert "Invalid Postman collection YAML" in broken_source.summary
+
+
 def test_api_inventory_marks_bad_postman_collection_sources_invalid(tmp_path: Path) -> None:
     _write_text(tmp_path / "collections" / "broken.postman_collection.json", "{not json: [}\n")
 

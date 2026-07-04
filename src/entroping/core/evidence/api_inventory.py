@@ -147,6 +147,9 @@ _POSTMAN_COLLECTION_SUFFIXES: Final[tuple[str, ...]] = (
     ".postman_collection.yaml",
     ".postman_collection.yml",
 )
+_POSTMAN_COLLECTION_JSON_NAME_HINTS: Final[frozenset[str]] = frozenset(
+    {"postman", "postman_collection"}
+)
 _HTTP_METHODS: Final[frozenset[str]] = frozenset(
     {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
 )
@@ -505,6 +508,8 @@ def _schema_file_sources(*, root: Path) -> tuple[ApiInventorySource, ...]:
     sources: list[ApiInventorySource] = []
     for path in _iter_candidate_files(root=root):
         style = _schema_style_for_path(path)
+        if style is None and path.suffix.lower() == ".json":
+            style = _schema_style_from_postman_probe(path=path, root=root)
         if style is None:
             continue
         relative_path = _relative_path(path, root=root)
@@ -1242,6 +1247,38 @@ def _schema_style_for_path(path: Path) -> ApiStyle | None:
     ):
         return "postman_collection"
     return _SCHEMA_EXTENSIONS.get(path.suffix.lower())
+
+
+def _schema_style_from_postman_probe(
+    *, path: Path, root: Path
+) -> ApiStyle | None:
+    lower_name = path.name.lower()
+    if any(hint in lower_name for hint in _POSTMAN_COLLECTION_JSON_NAME_HINTS):
+        return "postman_collection"
+
+    resolved = _resolve_source_path(path, root=root)
+    if isinstance(resolved, ApiInventorySource):
+        return None
+    try:
+        if resolved.stat().st_size > _MAX_API_INVENTORY_ARTIFACT_BYTES:
+            return None
+    except OSError:
+        return None
+
+    try:
+        raw_bytes = resolved.read_bytes()
+        raw_text = raw_bytes.decode("utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+
+    try:
+        document = cast(object, json.loads(raw_text))
+    except json.JSONDecodeError:
+        return None
+
+    if _postman_operation_count(document) is not None:
+        return "postman_collection"
+    return None
 
 
 def _style_summaries(
