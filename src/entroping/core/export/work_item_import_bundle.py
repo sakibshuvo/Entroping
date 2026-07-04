@@ -27,6 +27,7 @@ from entroping.core.evidence_common import (
 from entroping.core.safe_write import SafeWriteError, safe_report_output_path, safe_write_text
 
 WORK_ITEM_IMPORT_BUNDLE_SCHEMA_VERSION: Final = "entroping.work-item-import-bundle.v1"
+WORK_ITEM_IMPORT_CSV_CONTRACT_VERSION: Final = "entroping.work-item-import-csv.v1"
 
 WorkItemImportBundleOutput = Literal["json", "csv"]
 WorkItemImportStatus = Literal["ready", "partial", "insufficient"]
@@ -64,7 +65,7 @@ _DEFAULT_OUTPUTS: Final[dict[WorkItemImportBundleOutput, Path]] = {
 }
 _SHA256_HEX_RE: Final = re.compile(r"\b[0-9a-f]{64}\b", re.IGNORECASE)
 _SLUG_RE: Final = re.compile(r"[^a-z0-9]+")
-_CSV_FIELDNAMES: Final[tuple[str, ...]] = (
+WORK_ITEM_IMPORT_CSV_COLUMNS: Final[tuple[str, ...]] = (
     "record_type",
     "tracker_family",
     "external_id",
@@ -185,6 +186,10 @@ class WorkItemImportBundle(BaseModel):
     schema_version: Literal["entroping.work-item-import-bundle.v1"] = (
         WORK_ITEM_IMPORT_BUNDLE_SCHEMA_VERSION
     )
+    csv_contract_version: Literal["entroping.work-item-import-csv.v1"] = (
+        WORK_ITEM_IMPORT_CSV_CONTRACT_VERSION
+    )
+    csv_columns: tuple[str, ...] = WORK_ITEM_IMPORT_CSV_COLUMNS
     generated_at: str
     project: str
     summary: WorkItemImportSummary
@@ -554,7 +559,11 @@ def render_work_item_import_bundle_csv(packet: WorkItemImportBundle) -> str:
     """Render deterministic spreadsheet-safe CSV rows."""
 
     stream = io.StringIO()
-    writer = csv.DictWriter(stream, fieldnames=_CSV_FIELDNAMES, lineterminator="\n")
+    writer = csv.DictWriter(
+        stream,
+        fieldnames=WORK_ITEM_IMPORT_CSV_COLUMNS,
+        lineterminator="\n",
+    )
     writer.writeheader()
     for row in packet.rows:
         writer.writerow(_csv_row_from_import_row(row))
