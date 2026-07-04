@@ -16,6 +16,7 @@ from cli_test_support import (
 from entroping.core.demo_runner import (
     DemoCommandResult,
     DemoResultSummary,
+    DemoRunnerError,
     DemoRunnerPlan,
     DemoRunnerResult,
     DemoWorkspace,
@@ -205,6 +206,27 @@ def test_demo_command_exits_nonzero_when_core_runner_fails(
     assert cli_result.exit_code == 1
     assert "Entroping demo: failed" in cli_result.output
     assert "demo-run: failed (exit 1" in cli_result.output
+
+
+def test_demo_command_exits_nonzero_when_core_runner_raises(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project = tmp_path / "checkout-demo"
+
+    def fake_provision_demo_workspace(*, destination: Path) -> DemoWorkspace:
+        raise DemoRunnerError(f"demo fixture unavailable: {destination}")
+
+    monkeypatch.setattr(
+        project_cli,
+        "provision_demo_workspace",
+        fake_provision_demo_workspace,
+    )
+
+    cli_result = CliRunner().invoke(app, ["demo", "--project", str(project)])
+
+    assert cli_result.exit_code == 1
+    assert "demo fixture unavailable" in cli_result.output
 
 
 def test_init_minimal_creates_safe_runtime_skeleton(
