@@ -108,12 +108,12 @@ def test_project_progress_stays_a_short_daily_dashboard() -> None:
     assert "stable-core external proof" in progress
     assert "| 1 | #303-#305 |" in progress
     assert "| 2 | #306 |" in progress
-    assert "| 3 | #308-#310 |" in progress
+    assert "| 3 | #309-#310 |" in progress
     assert "Roadmap and docs inventory curation" in progress
     assert "Tier A cheap-worker defaults" in progress
     assert "Docs-prune candidate report" in progress
     assert "Four-gate factory readiness" in progress
-    assert "stable-core compatibility decision" in progress
+    assert "Stable-core compatibility decision" in progress
     assert "Compatibility discipline" not in progress
     assert "Policy-diff CI failure mode" in progress
     assert "traffic approval manifest redaction confidence" in progress
@@ -442,7 +442,7 @@ def test_readme_is_demo_first_open_source_front_door() -> None:
     assert first_read.count("\n- ") <= 18
 
 
-def test_readme_promotes_demo_wrapper_without_expanding_cli_surface() -> None:
+def test_readme_promotes_demo_wrapper_and_approved_demo_surface() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     command_cheat_sheet = (
         REPO_ROOT / "docs" / "technical" / "COMMAND_CHEAT_SHEET.md"
@@ -458,11 +458,12 @@ def test_readme_promotes_demo_wrapper_without_expanding_cli_surface() -> None:
     assert "docs/assets/launch/checkout-demo.gif" in try_it
     assert "docs/assets/launch/ai-regression-proof.gif" in try_it
     assert "entroping demo" in try_it
-    assert "deferred" in try_it
+    assert "approved compatibility shape" in try_it
+    assert "tracked by #1385" in try_it
     assert "entroping demo" not in command_cheat_sheet
 
 
-def test_user_guide_onboarding_blocks_premature_entroping_demo_claims() -> None:
+def test_user_guide_onboarding_links_approved_entroping_demo_decision() -> None:
     user_guide = (REPO_ROOT / "docs" / "user" / "USER_GUIDE.md").read_text(
         encoding="utf-8"
     )
@@ -474,7 +475,8 @@ def test_user_guide_onboarding_blocks_premature_entroping_demo_claims() -> None:
 
     assert "scripts/demo.sh" in quick_start
     assert "`entroping demo --project <path>`" in install
-    assert "is intentionally deferred" in install
+    assert "approved compatibility shape" in install
+    assert "#1385" in install
     assert "docs/meta/ZERO_CONFIG_DEMO_ENTRYPOINT.md" in install
 
 
@@ -493,7 +495,7 @@ def test_readme_transcripts_cover_aha_demo_and_failure_flows() -> None:
     assert "scripts/demo.sh" in try_it_commands
     assert "scripts/ai_regression_demo.sh" in try_it_commands
     assert "entroping demo" not in try_it_commands
-    assert "Package-installed one-command Aha is currently deferred" in try_it
+    assert "Package-installed one-command Aha has an approved compatibility shape" in try_it
 
 
 def test_readme_keeps_first_hour_troubleshooting_and_cli_surface_scan_friendly() -> None:
@@ -594,11 +596,12 @@ def test_zero_config_demo_decision_keeps_live_smoke_as_release_gate() -> None:
 
     assert "scripts/demo.sh" in decision
     assert "scripts/live_demo_smoke.sh" in decision
-    assert "Do not add `entroping demo`" in decision
+    assert "Approve `entroping demo --project <path>`" in decision
     assert "Do not add `init --demo`" in decision
     assert "entroping demo --project" in decision
-    assert "The next package-installed Aha entrypoint shape is deferred" in decision
+    assert "The package-installed Aha entrypoint shape is approved" in decision
     assert "Aha entrypoint command" in cli_audit
+    assert "v1 change policy" in cli_audit
     assert "[[docs/meta/ZERO_CONFIG_DEMO_ENTRYPOINT|ZERO_CONFIG_DEMO_ENTRYPOINT]]" in index
 
 

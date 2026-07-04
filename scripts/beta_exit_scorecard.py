@@ -227,17 +227,22 @@ def _evaluate_gate(root: Path, gate: BetaGate) -> tuple[GateStatus, str]:
             f"marker '{gate.required_marker}': {has_marker}",
         )
 
-    # For stable_core_readiness, examine blocker_issue_map for the relevant
-    # issue status.
     if "blocker_issue_map" in data:
-        blocker_map = data["blocker_issue_map"]
-        for _blocker, issues in blocker_map.items():
-            for issue in issues:
-                if issue.get("number") == gate.issue_number:
-                    status = issue.get("status", "unknown")
-                    if status == "done":
-                        return "pass", f"#{gate.issue_number} marked done"
-                    return "blocked", f"#{gate.issue_number} status: {status}"
+        for map_key in ("blocker_issue_map", "completed_issue_map"):
+            issue_map = data.get(map_key)
+            if not isinstance(issue_map, dict):
+                continue
+            for issues in issue_map.values():
+                if not isinstance(issues, list):
+                    continue
+                for issue in issues:
+                    if not isinstance(issue, dict):
+                        continue
+                    if issue.get("number") == gate.issue_number:
+                        status = issue.get("status", "unknown")
+                        if status == "done":
+                            return "pass", f"#{gate.issue_number} marked done"
+                        return "blocked", f"#{gate.issue_number} status: {status}"
         return "fail", f"#{gate.issue_number} not found in blocker issue map"
 
     # Generic check: does the required marker appear in any top-level key?

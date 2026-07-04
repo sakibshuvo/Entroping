@@ -3,8 +3,7 @@
   "stable_core_ready": false,
   "stable_core_blockers": [
     "package-index proof",
-    "real downstream user feedback",
-    "stable-core compatibility decision"
+    "real downstream user feedback"
   ],
   "releases": [
     {

@@ -58,6 +58,9 @@ def test_beta_gates_present() -> None:
     assert "compatibility_decision" in beta_keys, f"missing #308 gate, got {sorted(beta_keys)}"
     assert "homebrew_tap" in beta_keys, f"missing #587 gate, got {sorted(beta_keys)}"
 
+    compatibility = next(g for g in payload["gates"] if g["key"] == "compatibility_decision")
+    assert compatibility["status"] == "pass"
+
     homebrew = next(g for g in payload["gates"] if g["key"] == "homebrew_tap")
     assert homebrew["optional"] is True
 

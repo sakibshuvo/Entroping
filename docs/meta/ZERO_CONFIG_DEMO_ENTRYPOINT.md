@@ -1,7 +1,7 @@
 ---
 title: Zero Config Demo Entrypoint
 type: decision
-status: archival
+status: active
 tags:
   - onboarding
   - demo
@@ -10,14 +10,14 @@ tags:
 
 # Zero Config Demo Entrypoint
 
-## Archived Outcome
+## Current Outcome
 
-Archived outcome: `scripts/demo.sh` is the checkout demo entrypoint.
+Current checkout outcome: `scripts/demo.sh` remains the implemented checkout
+demo entrypoint.
 
-This is a completed v0.2 decision note retained for traceability. The durable
-current guidance lives in `README.md`, `docs/user/USER_GUIDE.md`, and
-`scripts/demo.sh`; do not treat this note as an active roadmap or command
-proposal.
+Current package-installed decision: approve `entroping demo --project <path>` as
+the next Aha command shape. Implementation is tracked by #1385 and must preserve
+the local-only deterministic demo boundary.
 
 ## Problem
 
@@ -26,27 +26,28 @@ from a clean checkout. The repository already has a hardened live smoke script,
 checked-in launch assets, and a README demo, but the public entrypoint should be
 easier to remember than `scripts/live_demo_smoke.sh`.
 
-At the same time, the v4.1 CLI surface is intentionally locked. Adding a new
-product command or flag before packaging and demo-asset ownership are settled
-would create command drift.
+At the same time, the v4.1 CLI surface is intentionally locked. A package-level
+demo command needs an explicit compatibility decision before implementation.
 
 ## Decision
 
-Use `scripts/demo.sh` as the public checkout demo entrypoint for v0.2.
+Use `scripts/demo.sh` as the public checkout demo entrypoint for v0.2. Approve
+`entroping demo --project <path>` as the package-installed Aha entrypoint shape
+for #1385.
 
 `scripts/demo.sh` performs friendly local preflight checks for `uv` and `hurl`,
 prints what it is about to prove, and then delegates to
 `scripts/live_demo_smoke.sh`. The smoke script remains the deterministic
 release-gate primitive for CI, release checks, and reproducible launch assets.
 
-Do not add `entroping demo` in v0.2. Do not add `init --demo` in v0.2.
+Do not add `init --demo` in v0.2.
 
 ## Why
 
 | Option | Decision | Reason |
 | --- | --- | --- |
 | `scripts/demo.sh` | Chosen now | Gives a one-command checkout path without changing the CLI contract. |
-| `entroping demo` | Deferred | It expands the locked command surface and needs package-data rules for demo fixtures. |
+| `entroping demo --project <path>` | Approved next | Gives package-installed users the same local deterministic Aha path once #1385 implements the package-owned fixture flow. |
 | `entroping init --demo` | Deferred | It changes setup semantics and could blur the minimal-project path. |
 | Keep only `scripts/live_demo_smoke.sh` | Superseded for users | It remains valuable for automation, but it reads like an internal smoke gate. |
 
@@ -56,8 +57,8 @@ Do not add `entroping demo` in v0.2. Do not add `init --demo` in v0.2.
   external API traffic.
 - Keep `scripts/live_demo_smoke.sh` reproducible and automation-friendly.
 - Keep `scripts/demo.sh` a thin wrapper; do not duplicate demo logic.
-- Revisit a product-level demo command only after PyPI/TestPyPI packaging and
-  demo fixture distribution are settled.
+- Implement the product-level demo command only through #1385 or a successor
+  compatibility issue.
 
 ## Current Commands
 
@@ -67,23 +68,18 @@ scripts/demo.sh
 
 ## Package-installed entrypoint decision
 
-The next package-installed Aha entrypoint shape is deferred until fixture
-distribution and command-surface review are complete.
-
-When those prerequisites are accepted, the deterministic package-installed shape is:
+The package-installed Aha entrypoint shape is approved:
 
 `entroping demo --project <path>`
 
-Current blocked prerequisites include:
+Approve `entroping demo --project <path>` as a local-only command that prepares
+or copies the reviewed checkout demo fixture into the selected project, runs the
+same deterministic Hurl-backed proof as the checkout demo, and does not call
+model providers or external APIs.
 
-- package-owned fixture distribution for demo targets
-- install-time parity checks that match release smoke behavior
-- a locked command-surface change through a compatibility decision
-- release-only `entroping` command packaging proof
-
-Until all prerequisites are satisfied, this issue remains a checkout-only public
-path and `scripts/demo.sh` continues to be the only public Aha entrypoint in this
-release cycle.
+Until #1385 lands, `scripts/demo.sh` continues to be the only implemented public
+Aha entrypoint. This decision approves the command surface; it does not claim
+package-index proof, stable-core readiness, or downstream adoption.
 
 For persistent report artifacts:
 
