@@ -1773,6 +1773,15 @@ prompts, provider outputs, credentials, environment values, webhook URLs,
 dashboard payloads, monitor payloads, source Hurl contents, raw traffic, raw
 report contents, or full report contents.
 
+Troubleshooting posture:
+
+- Datadog and Splunk should enter adapter implementation only after local
+  packets are generated (especially observability packet and mapping packet).
+- Grafana design should reference local packet metadata first, then wire to the
+  vendor layer.
+- Generic observability adapters consume the same local packet set and stay
+  value-free by default.
+
 `entroping report api-inventory` writes a local read-only API surface inventory
 at `reports/api-inventory.md` by default, or `reports/api-inventory.json` with
 `--output json`. It detects configured and conventional OpenAPI files,
