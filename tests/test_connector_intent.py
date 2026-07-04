@@ -157,10 +157,6 @@ def test_connector_intent_writes_value_free_json_from_ready_sources(
     assert payload["schema_version"] == CONNECTOR_INTENT_SCHEMA_VERSION
     assert payload["project"] == "checkout-api"
     assert "capability_matrix" in payload
-    matrix = {
-        row["target_system"]: row
-        for row in payload["capability_matrix"]
-    }
     assert payload["summary"] == {
         "status": "ready",
         "sources_total": 7,
@@ -222,6 +218,30 @@ def test_connector_intent_writes_value_free_json_from_ready_sources(
     assert "invoke_model_provider" in intents["enterprise_ai"]["forbidden_actions"]
     assert "mutate_dashboard_or_monitor" in intents["observability"]["forbidden_actions"]
     assert "implement_app_surface" in intents["devex_surface"]["forbidden_actions"]
+    assert "sk-proj" not in json.dumps(payload)
+
+
+def test_connector_intent_capability_matrix_maps_target_systems(
+    tmp_path: Path,
+) -> None:
+    _write_ready_sources(tmp_path)
+
+    result = run_connector_intent_report(project_root=tmp_path, output="json")
+
+    payload = json.loads(result.output_path.read_text(encoding="utf-8"))
+    matrix = {row["target_system"]: row for row in payload["capability_matrix"]}
+    expected_intents = {
+        "jira": "issue_tracker",
+        "linear": "issue_tracker",
+        "monday": "issue_tracker",
+        "slack": "chat",
+        "discord": "chat",
+        "workato": "enterprise_automation",
+        "zapier": "enterprise_automation",
+        "pr_card": "devex_surface",
+        "codex": "enterprise_ai",
+    }
+
     assert matrix["jira"]["intent_id"] == "issue_tracker"
     assert matrix["jira"]["status"] == "ready"
     assert matrix["jira"]["local_evidence_prerequisites"] == [
@@ -231,22 +251,14 @@ def test_connector_intent_writes_value_free_json_from_ready_sources(
     ]
     assert matrix["slack"]["intent_id"] == "chat"
     assert matrix["slack"]["status"] == "ready"
-    assert matrix["linear"]["intent_id"] == "issue_tracker"
-    assert matrix["monday"]["intent_id"] == "issue_tracker"
-    assert matrix["discord"]["intent_id"] == "chat"
-    assert matrix["workato"]["intent_id"] == "enterprise_automation"
-    assert matrix["zapier"]["intent_id"] == "enterprise_automation"
-    assert matrix["pr_card"]["intent_id"] == "devex_surface"
-    assert matrix["codex"]["intent_id"] == "enterprise_ai"
-    assert any(
-        "invoke_model_provider" in row["forbidden_actions"]
-        for row in payload["capability_matrix"]
-    )
-    assert all(
-        all("http://" not in str(value) and "https://" not in str(value) for value in row.values())
-        for row in payload["capability_matrix"]
-    )
-    assert "sk-proj" not in json.dumps(payload)
+    assert {
+        target_system: matrix[target_system]["intent_id"]
+        for target_system in expected_intents
+    } == expected_intents
+    assert "invoke_model_provider" in matrix["codex"]["forbidden_actions"]
+    serialized = json.dumps(payload["capability_matrix"])
+    assert "http://" not in serialized
+    assert "https://" not in serialized
 
 
 def test_connector_intent_marks_missing_invalid_and_unsafe_sources(
