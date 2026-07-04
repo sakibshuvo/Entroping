@@ -261,6 +261,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
     for command in (
         "bug",
         "failure-bundle",
+        "first-run-checklist",
         "runtime-card",
         "review-summary",
     ):
@@ -3418,6 +3419,75 @@ def test_report_failure_bundle_returns_actionable_message_without_failures(
 
     assert result.exit_code == 1
     assert "no failures to bundle" in result.output
+
+
+def test_report_first_run_checklist_prints_local_artifact_states(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    tests_dir = Path("tests")
+    tests_dir.mkdir()
+    (tests_dir / "health.hurl").write_text(
+        "GET https://example.internal/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+    reports_dir = Path("reports")
+    reports_dir.mkdir()
+    (reports_dir / "run-latest.json").write_text("{}", encoding="utf-8")
+    (reports_dir / "run-latest.html").write_text("{}", encoding="utf-8")
+    (reports_dir / "junit.xml").write_text("<testsuite></testsuite>", encoding="utf-8")
+    (reports_dir / "drift-baseline.candidate.json").write_text("{}", encoding="utf-8")
+    (reports_dir / "delta.json").write_text("{}", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["report", "first-run-checklist"])
+
+    assert result.exit_code == 0
+    assert "Hurl tests: " in result.output
+    assert "Latest run JSON: " in result.output
+    assert "run-latest.html" in result.output
+    assert "JUnit XML" in result.output
+    assert "Drift baseline candidate" in result.output
+    assert "Delta output: " in result.output
+    assert "present" in result.output
+    assert "optional" not in result.output.lower()
+
+
+def test_report_first_run_checklist_reports_missing_hint_and_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    tests_dir = Path("tests")
+    tests_dir.mkdir()
+    (tests_dir / "health.hurl").write_text(
+        "# entroping: tags=\nGET https://example.internal/health\nHTTP 200\n",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["report", "first-run-checklist"])
+
+    assert result.exit_code == 1
+    assert "Could not discover Hurl tests" in result.output
+    assert "No discoverable .hurl files are available" not in result.output
+
+
+def test_report_first_run_checklist_marks_missing_non_errors_without_fail_exit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "first-run-checklist"])
+
+    assert result.exit_code == 0
+    assert "Hurl tests: missing" in result.output
+    assert "Latest run JSON: missing" in result.output
+    assert "Latest run HTML: missing" in result.output
+    assert "JUnit XML: missing" in result.output
+    assert "Drift baseline candidate: missing" in result.output
+    assert "Delta output: optional-missing" in result.output
+    assert "Optional" in result.output
 
 
 def test_report_bug_wraps_writer_errors(

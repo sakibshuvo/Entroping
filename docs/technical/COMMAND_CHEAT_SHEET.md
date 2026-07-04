@@ -28,6 +28,7 @@ entroping studio [--env <name>]
 entroping run [--env <name>] [--suite <name>] [--tag <tag>] [--tag-expression <expr>] [--operation-id <id>] [--ci] [--parallel] [--fail-fast] [--dry-run] [--report <html|junit|json|drift> ...] [--drift-check] [--changed-from <ref>] [--rerun-failures]
 entroping report bug
 entroping report failure-bundle [--output <directory>]
+entroping report first-run-checklist
 entroping report delta [--base <path>] [--current <path>] [--output <md|json>]
 entroping report badges [--output <directory>] [--run-json <path>] [--policy-json <path>] [--openapi-json <path>] [--traceability-json <path>]
 entroping report redaction [--output <md|html>] [--fail-on-unsafe]
@@ -383,6 +384,7 @@ Launch-critical report commands:
 | --- | --- |
 | `entroping report bug` | Generate a Markdown bug report from the latest failure |
 | `entroping report failure-bundle` | Write a sanitized issue handoff bundle to `reports/failure-bundle/manifest.json` |
+| `entroping report first-run-checklist` | Write a first-run local artifact existence checklist to stdout |
 | `entroping report runtime-card` | Write a concise PR/runtime evidence card to `reports/runtime-card.md` |
 | `entroping report review-summary --output md` | Write a provider-neutral Markdown review summary to `reports/review-summary.md` |
 
@@ -507,6 +509,7 @@ Example:
 ```bash
 entroping report bug
 entroping report failure-bundle
+entroping report first-run-checklist
 entroping report delta --base reports/run-base.json --current reports/run-latest.json
 entroping report badges
 entroping report redaction --output md
@@ -645,6 +648,7 @@ Do not document these as primary v4.1 commands:
 
 | Surface | Question | Command | Artifact |
 | --- | --- | --- | --- |
+| Launch-critical | What local artifacts are ready for first-run checks? | `entroping report first-run-checklist` | `reports/` |
 | Launch-critical | Should I block merge? | `entroping report runtime-card --output json` | `reports/runtime-card.json` |
 | Launch-critical | What changed in this CI run? | `entroping report review-summary` | `reports/review-summary.md` |
 | Stable public | Is report inventory complete? | `entroping report artifact-manifest` | `reports/artifact-manifest.json` |
