@@ -259,6 +259,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         maxsplit=1,
     )[0]
     for command in (
+        "aha-artifact-index",
         "bug",
         "failure-bundle",
         "first-run-checklist",
@@ -3451,6 +3452,47 @@ def test_report_first_run_checklist_prints_local_artifact_states(
     assert "Delta output: " in result.output
     assert "present" in result.output
     assert "optional" not in result.output.lower()
+
+
+def test_report_aha_artifact_index_prints_local_paths_schema_and_hints(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports_dir = Path("reports")
+    reports_dir.mkdir()
+    (reports_dir / "run-latest.json").write_text(
+        '{"schema_version":"entroping.run-report.v1","project":"private-demo"}\n',
+        encoding="utf-8",
+    )
+    (reports_dir / "run-latest.html").write_text("<!doctype html>\n", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["report", "aha-artifact-index"])
+
+    assert result.exit_code == 0
+    assert "Run JSON: present" in result.output
+    assert "path: reports/run-latest.json" in result.output
+    assert "schema: entroping.run-report.v1" in result.output
+    assert "Run HTML: present" in result.output
+    assert "Runtime card JSON: missing" in result.output
+    assert "hint: Run entroping report runtime-card --output json" in result.output
+    assert "private-demo" not in result.output
+
+
+def test_report_aha_artifact_index_exits_nonzero_for_invalid_artifact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports_dir = Path("reports")
+    reports_dir.mkdir()
+    (reports_dir / "run-latest.json").write_text("{", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["report", "aha-artifact-index"])
+
+    assert result.exit_code == 1
+    assert "Run JSON: invalid" in result.output
+    assert "hint: Artifact JSON is invalid." in result.output
 
 
 def test_report_first_run_checklist_reports_missing_hint_and_errors(
