@@ -271,6 +271,21 @@ def compile_openapi_to_hurl_with_report(
                 used_paths.add(item.relative_path)
                 generated.append(item)
 
+            for item in _numeric_boundary_parameter_negative_files(
+                method=method_name,
+                path=raw_path,
+                path_item=path_item,
+                operation=operation,
+                operation_id=operation_id,
+                tags=tags,
+                parameter_components=parameter_components,
+            ):
+                if item.relative_path in used_paths:
+                    msg = f"OpenAPI operations compile to duplicate Hurl path: {item.relative_path}"
+                    raise OpenApiCompilationError(msg)
+                used_paths.add(item.relative_path)
+                generated.append(item)
+
             for item in _schema_negative_files(
                 method=method_name,
                 path=raw_path,
@@ -486,6 +501,115 @@ def _render_missing_required_parameter_negative_operation(
     return "\n".join(lines)
 
 
+def _numeric_boundary_parameter_negative_files(
+    *,
+    method: str,
+    path: str,
+    path_item: Mapping[str, object],
+    operation: Mapping[str, object],
+    operation_id: str,
+    tags: frozenset[str],
+    parameter_components: Mapping[str, object],
+) -> tuple[GeneratedHurlFile, ...]:
+    status = _validation_failure_status(operation)
+    if status is None:
+        return ()
+
+    parameters = _operation_parameters(
+        path_item=path_item,
+        operation=operation,
+        path=path,
+        parameter_components=parameter_components,
+    )
+    target = _numeric_boundary_parameter_target(path=path, parameters=parameters)
+    if target is None:
+        return ()
+
+    request_content = _json_request_schema(operation)
+    slug = _slugify_operation_id(operation_id)
+    return (
+        GeneratedHurlFile(
+            relative_path=f"tests/generated/negative/{slug}_numeric_boundary_values.hurl",
+            content=_render_numeric_boundary_parameter_negative_operation(
+                method=method,
+                path=path,
+                operation_id=operation_id,
+                tags=frozenset({*tags, "negative", "numeric-boundary-values"}),
+                status=status,
+                target=target,
+                parameters=parameters,
+                request_content=request_content,
+            ),
+        ),
+    )
+
+
+def _numeric_boundary_parameter_target(
+    *,
+    path: str,
+    parameters: tuple[_OpenApiParameter, ...],
+) -> str | None:
+    path_overrides: dict[str, _ScalarParameterValue] = {}
+    query_overrides: dict[str, _ScalarParameterValue] = {}
+    for parameter in parameters:
+        if parameter.location not in {"path", "query"}:
+            continue
+        if parameter.schema is None or parameter.schema.get("type") == "array":
+            continue
+        value = _numeric_boundary_violation_value(parameter.schema)
+        if value is None:
+            continue
+        if parameter.location == "path":
+            path_overrides[parameter.name] = value
+        else:
+            query_overrides[parameter.name] = value
+    if not path_overrides and not query_overrides:
+        return None
+    return _render_request_target(
+        path,
+        parameters,
+        path_overrides=path_overrides,
+        query_overrides=query_overrides,
+    )
+
+
+def _render_numeric_boundary_parameter_negative_operation(
+    *,
+    method: str,
+    path: str,
+    operation_id: str,
+    tags: frozenset[str],
+    status: str,
+    target: str,
+    parameters: tuple[_OpenApiParameter, ...],
+    request_content: _JsonContentSchema | None,
+) -> str:
+    lines = [
+        f"# entroping: tags={_render_tags(tags)}",
+        "# entroping: source=openapi",
+        "# entroping: generation=negative-path-fuzzing",
+        f"# entroping: operation_id={operation_id}",
+        "# entroping: negative_category=numeric-boundary-values",
+        "# entroping: severity=medium",
+        f"# entroping: safety={_negative_path_safety(method)}",
+        f"# entroping: path={path}",
+        "",
+        f"{method} {{{{base_url}}}}{target}",
+    ]
+    lines.extend(_render_parameter_headers(parameters))
+    if request_content is not None:
+        lines.append(f"Content-Type: {request_content.media_type}")
+        lines.extend(
+            json.dumps(
+                _example_for_schema(request_content.schema),
+                indent=2,
+                allow_nan=False,
+            ).splitlines()
+        )
+    lines.extend((f"HTTP {status}", ""))
+    return "\n".join(lines)
+
+
 def _schema_negative_cases(
     *,
     schema: Mapping[str, object],
@@ -665,16 +789,48 @@ def _boundary_violation_value(schema: Mapping[str, object]) -> object:
                 max_length + 1,
                 context="OpenAPI string boundary violation",
             )
-    if schema_type in {"integer", "number"}:
-        minimum = _finite_numeric_bound(schema.get("minimum"))
-        if minimum is not None:
-            value = minimum - 1
-            return int(value) if schema_type == "integer" else value
-        maximum = _finite_numeric_bound(schema.get("maximum"))
-        if maximum is not None:
-            value = maximum + 1
-            return int(value) if schema_type == "integer" else value
+    numeric = _numeric_boundary_violation_value(schema)
+    if numeric is not None:
+        return numeric
     return _MISSING
+
+
+def _numeric_boundary_violation_value(
+    schema: Mapping[str, object],
+) -> _ScalarParameterValue | None:
+    schema_type = schema.get("type")
+    if schema_type not in {"integer", "number"}:
+        return None
+
+    exclusive_minimum = _finite_numeric_bound(schema.get("exclusiveMinimum"))
+    if exclusive_minimum is not None:
+        return _coerce_numeric_boundary_value(exclusive_minimum, schema_type=schema_type)
+
+    minimum = _finite_numeric_bound(schema.get("minimum"))
+    if minimum is not None:
+        return _coerce_numeric_boundary_value(minimum - 1, schema_type=schema_type)
+
+    exclusive_maximum = _finite_numeric_bound(schema.get("exclusiveMaximum"))
+    if exclusive_maximum is not None:
+        return _coerce_numeric_boundary_value(exclusive_maximum, schema_type=schema_type)
+
+    maximum = _finite_numeric_bound(schema.get("maximum"))
+    if maximum is not None:
+        return _coerce_numeric_boundary_value(maximum + 1, schema_type=schema_type)
+
+    return None
+
+
+def _coerce_numeric_boundary_value(
+    value: int | float,
+    *,
+    schema_type: object,
+) -> _ScalarParameterValue | None:
+    if schema_type != "integer":
+        return value
+    if isinstance(value, float) and not value.is_integer():
+        return None
+    return int(value)
 
 
 def _invalid_enum_body(
