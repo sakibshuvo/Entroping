@@ -710,6 +710,35 @@ jsonpath "$.error" exists
     assert "127.0.0.1" not in markdown
 
 
+def test_mutation_readiness_top_missing_category_prefers_unseeded_then_none() -> None:
+    categories: tuple[mutation_readiness.MutationCandidateCategory, ...] = (
+        "status_code",
+        "schema",
+        "auth",
+        "latency",
+        "request_shape",
+        "response_shape",
+    )
+    coverage_rows = tuple(
+        mutation_readiness.MutationReadinessCategoryCoverage(
+            category=category,
+            label=category,
+            candidate_tests=1,
+            seeded_tests=1,
+            missing_seed_tests=0,
+        )
+        for category in categories
+    )
+    unseeded_request_shape = coverage_rows[4].model_copy(
+        update={"seeded_tests": 0, "missing_seed_tests": 1}
+    )
+
+    assert mutation_readiness._top_missing_category(
+        (*coverage_rows[:4], unseeded_request_shape, coverage_rows[5])
+    ) == "request_shape"
+    assert mutation_readiness._top_missing_category(coverage_rows) is None
+
+
 def test_mutation_readiness_rejects_unsupported_and_unsafe_outputs(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
