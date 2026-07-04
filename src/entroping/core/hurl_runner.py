@@ -13,11 +13,11 @@ from pathlib import Path
 from typing import BinaryIO, Literal
 
 from entroping.core.path_safety import first_symlink_path_component
+from entroping.models.hurl import HURL_VARIABLE_NAME_RE
 from entroping.models.secrets import REDACTED, redact_secret_like_values
 
 _DEFAULT_OUTPUT_LIMIT_BYTES = 64 * 1024
 _TRUNCATION_TEMPLATE = "\n[entroping: {stream_name} truncated]\n"
-_VARIABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _VERSION_RE = re.compile(r"\b(?P<major>\d+)\.(?P<minor>\d+)(?:\.(?P<patch>\d+))?\b")
 _VERSION_TIMEOUT_SECONDS = 2.0
 _VERSION_OUTPUT_LIMIT_BYTES = 4 * 1024
@@ -647,7 +647,7 @@ def _write_variables_file(variables: Mapping[str, str]) -> Path | None:
 
 def _validate_variables(variables: Mapping[str, str]) -> None:
     for key, value in variables.items():
-        if _VARIABLE_NAME_RE.fullmatch(key) is None:
+        if HURL_VARIABLE_NAME_RE.fullmatch(key) is None:
             msg = f"Invalid Hurl variable name: {key!r}"
             raise ValueError(msg)
         if "\n" in value or "\r" in value:

@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 
 _METADATA_PREFIX = "# entroping:"
 _METADATA_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-_VARIABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+HURL_VARIABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _AUTH_FLOW_RE = re.compile(r"^[A-Za-z0-9_.:-]+$")
 _REQUEST_LINE_RE = re.compile(
     r"^(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|CONNECT|TRACE)\s+(\S+)(?:\s+.*)?$",
@@ -204,7 +204,7 @@ def _parse_auth_variable_names(
     seen: set[str] = set()
     for raw_name in raw_value.split(","):
         name = raw_name.strip()
-        if not name or _VARIABLE_NAME_RE.fullmatch(name) is None:
+        if not name or HURL_VARIABLE_NAME_RE.fullmatch(name) is None:
             _raise_auth_metadata_error(
                 line_number=line_number,
                 source=source,
