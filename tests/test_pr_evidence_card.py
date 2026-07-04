@@ -297,6 +297,8 @@ def test_pr_evidence_card_rejects_unsupported_output(tmp_path: Path) -> None:
 
 
 def test_pr_evidence_card_summary_report_renders_markdown(tmp_path: Path) -> None:
+    for source_id in _SOURCE_SCHEMAS:
+        _write_source_artifact(tmp_path, source_id)
     packet = build_pr_evidence_card_packet(project_root=tmp_path)
     artifact_path = tmp_path / "reports" / "pr-evidence-card.json"
     artifact_path.parent.mkdir(parents=True, exist_ok=True)
@@ -308,6 +310,22 @@ def test_pr_evidence_card_summary_report_renders_markdown(tmp_path: Path) -> Non
     assert "# Entroping PR Evidence Card Summary" in result.summary_markdown
     assert "## Sources" in result.summary_markdown
     assert "## Checks" in result.summary_markdown
+    assert "- No PR evidence-card actions are currently needed." in result.summary_markdown
+
+
+def test_pr_evidence_card_summary_report_renders_actions(tmp_path: Path) -> None:
+    packet = build_pr_evidence_card_packet(project_root=tmp_path)
+    artifact_path = tmp_path / "reports" / "pr-evidence-card.json"
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    artifact_path.write_text(packet.model_dump_json(), encoding="utf-8")
+
+    result = run_pr_evidence_card_summary_report(project_root=tmp_path)
+
+    assert "**medium**" in result.summary_markdown
+    assert (
+        "Generate Runtime Card JSON before using the PR evidence card."
+        in result.summary_markdown
+    )
 
 
 def test_pr_evidence_card_summary_report_rejects_missing_artifact(tmp_path: Path) -> None:
@@ -333,6 +351,24 @@ def test_pr_evidence_card_summary_report_rejects_wrong_schema(tmp_path: Path) ->
     )
 
     with pytest.raises(PrEvidenceCardSummaryError, match="unexpected schema"):
+        run_pr_evidence_card_summary_report(project_root=tmp_path)
+
+
+def test_pr_evidence_card_summary_report_rejects_non_utf8_artifact(tmp_path: Path) -> None:
+    artifact_path = tmp_path / "reports" / "pr-evidence-card.json"
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    artifact_path.write_bytes(b"\xff")
+
+    with pytest.raises(PrEvidenceCardSummaryError, match="non-UTF-8 content"):
+        run_pr_evidence_card_summary_report(project_root=tmp_path)
+
+
+def test_pr_evidence_card_summary_report_rejects_invalid_json(tmp_path: Path) -> None:
+    artifact_path = tmp_path / "reports" / "pr-evidence-card.json"
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    artifact_path.write_text("{not json", encoding="utf-8")
+
+    with pytest.raises(PrEvidenceCardSummaryError, match="does not contain valid JSON"):
         run_pr_evidence_card_summary_report(project_root=tmp_path)
 
 
