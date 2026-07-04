@@ -156,6 +156,7 @@ _VENDOR_JSON_MEDIA_RE = re.compile(
 _VALIDATION_FAILURE_STATUSES = ("400", "422")
 _SCHEMA_REF_PREFIX = "#/components/schemas/"
 _MAX_RESPONSE_SCHEMA_REF_DEPTH = 64
+_INVALID_ENUM_VALUE = "entroping_invalid_enum"
 
 
 def compile_openapi_to_hurl(
@@ -421,6 +422,18 @@ def _schema_negative_cases(
             )
         )
 
+    enum_body = _invalid_enum_body(base_body=base_body, properties=properties)
+    enum_target = _invalid_enum_target(path=path, parameters=parameters)
+    if enum_body is not None or enum_target is not None:
+        cases.append(
+            _NegativePathCase(
+                category="invalid-enum-values",
+                severity="medium",
+                target=enum_target or _render_request_target(path, parameters),
+                body=enum_body or base_body,
+            )
+        )
+
     sqli_body = _sqli_like_body(
         base_body=base_body,
         properties=properties,
@@ -552,6 +565,66 @@ def _boundary_violation_value(schema: Mapping[str, object]) -> object:
             value = maximum + 1
             return int(value) if schema_type == "integer" else value
     return _MISSING
+
+
+def _invalid_enum_body(
+    *,
+    base_body: Mapping[str, object],
+    properties: Mapping[str, object],
+) -> dict[str, object] | None:
+    body = dict(base_body)
+    changed = False
+    for field_name, raw_schema in properties.items():
+        field_schema = _ensure_mapping(raw_schema, f"schema for {field_name!r}")
+        value = _invalid_enum_value(field_schema)
+        if value is None:
+            continue
+        body[_validate_json_object_key(field_name, context="OpenAPI object properties")] = value
+        changed = True
+    if not changed:
+        return None
+    return body
+
+
+def _invalid_enum_target(
+    *,
+    path: str,
+    parameters: tuple[_OpenApiParameter, ...],
+) -> str | None:
+    path_overrides: dict[str, _ScalarParameterValue] = {}
+    query_overrides: dict[str, _ScalarParameterValue] = {}
+    for parameter in parameters:
+        if parameter.location not in {"path", "query"}:
+            continue
+        if parameter.schema is None or parameter.schema.get("type") == "array":
+            continue
+        value = _invalid_enum_value(parameter.schema)
+        if value is None:
+            continue
+        if parameter.location == "path":
+            path_overrides[parameter.name] = value
+        else:
+            query_overrides[parameter.name] = value
+    if not path_overrides and not query_overrides:
+        return None
+    return _render_request_target(
+        path,
+        parameters,
+        path_overrides=path_overrides,
+        query_overrides=query_overrides,
+    )
+
+
+def _invalid_enum_value(schema: Mapping[str, object]) -> str | None:
+    raw_enum = schema.get("enum")
+    if not isinstance(raw_enum, Sequence) or isinstance(raw_enum, str | bytes) or not raw_enum:
+        return None
+    candidate = _INVALID_ENUM_VALUE
+    suffix = 2
+    while any(value == candidate for value in raw_enum):
+        candidate = f"{_INVALID_ENUM_VALUE}_{suffix}"
+        suffix += 1
+    return candidate
 
 
 def _sqli_like_body(

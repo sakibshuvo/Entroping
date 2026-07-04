@@ -55,6 +55,7 @@ class _OpenApiParameter:
     example_value: _ParameterExampleValue | None
     style: str
     explode: bool
+    schema: Mapping[str, object] | None = None
 
 
 @dataclass(frozen=True)
