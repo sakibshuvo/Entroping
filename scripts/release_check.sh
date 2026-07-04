@@ -15,7 +15,8 @@ bounded performance smoke, checks alpha launch and stable-core evidence, and
 runs downstream and live demo smokes when the Hurl binary is available.
 
 Options:
-  --dry-run            Show the planned release gate without running commands.
+  --dry-run            Show the planned release gate without running commands,
+                       including informational Aha demo readiness when present.
   --skip-security      Run regression without dependency/security audits.
   --aggregate          Run all independent release gates and print a summary of all
                        command failures before exiting.
@@ -262,6 +263,19 @@ elif ((require_live_demo)); then
   exit 1
 else
   log "Skipping live demo smoke because hurl is not installed. Use --require-live-demo for release-candidate proof."
+fi
+
+if ((dry_run)); then
+  if [[ -f "$repo_root/scripts/aha_readiness.py" ]]; then
+    log "Aha demo gate: informational dry-run only; not required for release-candidate signoff yet."
+    if ((aggregate)); then
+      run_or_record "aha_readiness" uv run python scripts/aha_readiness.py --format json
+    else
+      run_or_print uv run python scripts/aha_readiness.py --format json
+    fi
+  else
+    log "Aha demo gate not planned because scripts/aha_readiness.py is missing."
+  fi
 fi
 
 if ((aggregate)) && ((${#failed_gates[@]} > 0)); then
