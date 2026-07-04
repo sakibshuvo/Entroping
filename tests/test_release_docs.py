@@ -698,3 +698,13 @@ def test_release_evidence_ledger_is_discoverable_from_vault_and_docs() -> None:
     assert "scripts/stable_core_readiness.py --format json" in release_evidence
     assert "blocker_issue_map" in release_evidence
     assert "release-evidence.json" in stable_readiness
+
+
+def test_use_cases_includes_aha_regression_walkthrough() -> None:
+    use_cases = (REPO_ROOT / "docs" / "user" / "USE_CASES.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "## 11. AI-broke-my-API Walkthrough" in use_cases
+    assert "scripts/ai_regression_demo.sh" in use_cases
+    assert "request_id_header" in use_cases
