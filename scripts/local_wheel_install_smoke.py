@@ -7,17 +7,38 @@ import argparse
 import json
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
+import time
 import tomllib
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Final
 
 SCHEMA_VERSION = "entroping.local-wheel-install-smoke.v1"
 EVIDENCE_NAME = "local-wheel-install-smoke-evidence.json"
 OUTPUT_LIMIT = 4000
+DEMO_FIXTURE_ID: Final = "checkout-api"
+DEMO_PORT_ENV: Final = "ENTROPING_DEMO_PORT"
+DEFAULT_DEMO_PORT: Final = 18080
+COPY_DEMO_FIXTURE_CODE: Final = """
+from pathlib import Path
+import sys
+from entroping.core.demo_fixtures import copy_demo_fixture
+
+destination = Path(sys.argv[1])
+source_examples_root = Path(sys.argv[2])
+fixture_id = sys.argv[3]
+copy_demo_fixture(
+    fixture_id,
+    destination,
+    source_examples_root=source_examples_root,
+)
+print(f"Copied {fixture_id} demo fixture to {destination}")
+"""
 
 
 @dataclass(frozen=True)
@@ -99,8 +120,8 @@ def main() -> int:
 
     repo_root = args.root.expanduser().resolve()
     if args.dry_run:
-        payload = _planned_payload(skip_build=args.skip_build)
-        _print_payload(payload, args.format)
+        planned_payload = _planned_payload(skip_build=args.skip_build)
+        _print_payload(planned_payload, args.format)
         return 0
 
     temp_root: Path | None = None
@@ -174,6 +195,13 @@ def main() -> int:
             cwd=project_dir,
             display="entroping doctor",
         )
+        _run_installed_demo_smoke(
+            commands,
+            repo_root=repo_root,
+            temp_root=temp_root,
+            venv_python=venv_python,
+            entroping_bin=entroping_bin,
+        )
         payload = _result_payload(
             status="pass",
             wheel=wheel,
@@ -215,6 +243,18 @@ def _planned_payload(*, skip_build: bool) -> dict[str, object]:
             _planned_command("entroping --version", "entroping --version"),
             _planned_command("entroping init --minimal", "entroping init --minimal"),
             _planned_command("entroping doctor", "entroping doctor"),
+            _planned_command(
+                "copy demo fixture",
+                "copy demo fixture through installed package",
+            ),
+            _planned_command(
+                "entroping architect build demo",
+                "entroping architect build --new --tag smoke",
+            ),
+            _planned_command(
+                "entroping run demo",
+                "entroping run --env local --tag smoke --report json",
+            ),
         ]
     )
     return {
@@ -337,6 +377,130 @@ def _venv_executable(venv_dir: Path, name: str) -> Path:
     return _venv_bin_dir(venv_dir) / f"{name}{suffix}"
 
 
+def _run_installed_demo_smoke(
+    commands: list[CommandEvidence],
+    *,
+    repo_root: Path,
+    temp_root: Path,
+    venv_python: Path,
+    entroping_bin: Path,
+) -> None:
+    if shutil.which("hurl") is None:
+        commands.append(
+            CommandEvidence(
+                name="installed demo smoke skipped",
+                command="entroping demo fixture smoke",
+                cwd=str(temp_root),
+                exit_code=None,
+                stdout=(
+                    "Skipped installed demo smoke because Hurl is not available on PATH. "
+                    "Install Hurl, then rerun this smoke to execute the demo path."
+                ),
+                stderr="",
+            )
+        )
+        return
+
+    demo_port = _demo_port_from_env()
+    demo_dir = temp_root / "demo"
+    _run_and_record(
+        commands,
+        name="copy demo fixture",
+        argv=(
+            str(venv_python),
+            "-c",
+            COPY_DEMO_FIXTURE_CODE,
+            str(demo_dir),
+            str(repo_root / "examples"),
+            DEMO_FIXTURE_ID,
+        ),
+        cwd=temp_root,
+        display="copy demo fixture through installed package",
+    )
+
+    server = subprocess.Popen(
+        [str(venv_python), str(demo_dir / "demo_server.py"), "--port", str(demo_port)],
+        cwd=demo_dir,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    try:
+        _wait_for_demo_server(server, demo_port)
+        _run_and_record(
+            commands,
+            name="entroping architect build demo",
+            argv=(str(entroping_bin), "architect", "build", "--new", "--tag", "smoke"),
+            cwd=demo_dir,
+            display="entroping architect build --new --tag smoke",
+            timeout=120,
+        )
+        env_dir = demo_dir / "envs"
+        env_dir.mkdir(exist_ok=True)
+        (env_dir / "local.env").write_text(
+            f"base_url=http://127.0.0.1:{demo_port}\ncart_id=demo-cart-001\n",
+            encoding="utf-8",
+        )
+        _run_and_record(
+            commands,
+            name="entroping run demo",
+            argv=(
+                str(entroping_bin),
+                "run",
+                "--env",
+                "local",
+                "--tag",
+                "smoke",
+                "--report",
+                "json",
+            ),
+            cwd=demo_dir,
+            display="entroping run --env local --tag smoke --report json",
+            timeout=120,
+        )
+    finally:
+        _stop_process(server)
+
+
+def _demo_port_from_env() -> int:
+    raw = os.environ.get(DEMO_PORT_ENV, str(DEFAULT_DEMO_PORT))
+    try:
+        port = int(raw)
+    except ValueError as exc:
+        msg = f"{DEMO_PORT_ENV} must be an integer port, got: {raw}"
+        raise SmokeError(msg) from exc
+    if port < 1 or port > 65535:
+        msg = f"{DEMO_PORT_ENV} must be between 1 and 65535, got: {port}"
+        raise SmokeError(msg)
+    return port
+
+
+def _wait_for_demo_server(server: subprocess.Popen[str], port: int) -> None:
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        if server.poll() is not None:
+            msg = f"Demo server exited before readiness on port {port}"
+            raise SmokeError(msg)
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+                return
+        except OSError:
+            time.sleep(0.2)
+    msg = f"Demo server did not become ready on port {port}"
+    raise SmokeError(msg)
+
+
+def _stop_process(process: subprocess.Popen[str]) -> None:
+    if process.poll() is not None:
+        return
+    process.terminate()
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=5)
+
+
 def _run_and_record(
     commands: list[CommandEvidence],
     *,
@@ -454,11 +618,14 @@ def _print_payload(payload: dict[str, object], output_format: str) -> None:
         lines.append(f"- Wheel: `{payload['wheel']}`")
     if payload["project_path"]:
         lines.append(f"- Temporary project: `{payload['project_path']}`")
-    if payload["artifacts"]:
+    artifacts = payload["artifacts"]
+    if isinstance(artifacts, list) and artifacts:
         lines.extend(["", "## Artifacts", ""])
-        lines.extend(f"- `{artifact}`" for artifact in payload["artifacts"])
+        lines.extend(f"- `{artifact}`" for artifact in artifacts)
     lines.extend(["", "## Commands", ""])
-    for command in payload["commands"]:
+    commands = payload["commands"]
+    command_items = commands if isinstance(commands, list) else []
+    for command in command_items:
         command_data = command if isinstance(command, dict) else {}
         lines.append(
             "- "

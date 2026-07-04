@@ -645,6 +645,7 @@ def test_alpha_release_checklist_documents_required_evidence() -> None:
     assert "License-Expression" in checklist
     assert "local wheel install smoke" in checklist
     assert "temporary project outside the repository" in checklist
+    assert "explicit skip" in checklist
     assert "PyPI/TestPyPI tokens" in checklist
     assert "scripts/regression.sh --security" in checklist
     assert "scripts/live_demo_smoke.sh" in checklist

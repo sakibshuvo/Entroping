@@ -2263,10 +2263,12 @@ PyPI/TestPyPI and must not require package-index credentials.
 
 The local wheel install smoke reuses the built wheel, creates an external
 temporary virtual environment and project, installs the wheel through
-`uv pip install --offline`, and runs only installed public CLI commands:
-`entroping --version`, `entroping init --minimal`, and `entroping doctor`.
-The smoke emits `entroping.local-wheel-install-smoke.v1` evidence and remains
-separate from TestPyPI/PyPI package-index proof.
+`uv pip install --offline`, runs installed public CLI commands:
+`entroping --version`, `entroping init --minimal`, and `entroping doctor`,
+then exercises the installed demo path against the checkout fixture when Hurl
+is available. When Hurl is missing, the demo portion is recorded as an explicit
+skip. The smoke emits `entroping.local-wheel-install-smoke.v1` evidence and
+remains separate from TestPyPI/PyPI package-index proof.
 
 The downstream smoke creates a separate temporary API project and executes
 `entroping run --ci` from that project through the public CLI. It is a local

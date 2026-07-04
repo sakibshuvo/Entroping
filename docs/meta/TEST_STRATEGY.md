@@ -331,8 +331,10 @@ check now runs `uv run python scripts/launch_readiness.py --strict` and
 stable-core evidence files and markers cannot silently disappear.
 After `scripts/package_check.sh`, the release check also runs
 `uv run python scripts/local_wheel_install_smoke.py --skip-build` so a locally
-built wheel is installed into a fresh temporary venv and exercised only through
-the installed public CLI without package-index access.
+built wheel is installed into a fresh temporary venv, exercised through the
+installed public CLI, and driven through the installed demo path when Hurl is
+available. Missing Hurl is recorded as an explicit demo-skip without requiring
+package-index access.
 The release check also runs `uv run python scripts/downstream_smoke.py` when
 Hurl is available, proving the local CLI can govern an external temporary
 project from outside the repository. `--skip-downstream-smoke` is a diagnostic
