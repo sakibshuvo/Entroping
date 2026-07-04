@@ -717,6 +717,82 @@ def test_api_inventory_marks_bad_postman_collection_sources_invalid(tmp_path: Pa
     assert "Invalid Postman collection YAML" in missing_item.summary
 
 
+def test_api_inventory_marks_malformed_postman_collection_shapes_invalid(
+    tmp_path: Path,
+) -> None:
+    list_path = _write_text(tmp_path / "collections" / "list.postman_collection.json", "[]\n")
+    missing_items_path = _write_text(
+        tmp_path / "collections" / "missing-items.postman_collection.json",
+        '{"info": {"name": "Checkout"}}\n',
+    )
+
+    list_source = api_inventory._load_schema_source(
+        root=tmp_path,
+        raw_path=list_path,
+        style="postman_collection",
+    )
+    missing_items_source = api_inventory._load_schema_source(
+        root=tmp_path,
+        raw_path=missing_items_path,
+        style="postman_collection",
+    )
+
+    assert list_source.state == "invalid"
+    assert list_source.summary == "Postman collection document must be an object."
+    assert missing_items_source.state == "invalid"
+    assert missing_items_source.summary == (
+        "Postman collection document must contain an item list."
+    )
+
+
+def test_api_inventory_postman_shape_probe_ignores_invalid_json_candidates(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert api_inventory._postman_operation_count([]) is None
+    assert api_inventory._postman_operation_count({"item": "not a list"}) is None
+    assert api_inventory._postman_operation_count({"item": [[], {"item": "bad"}]}) == 0
+    assert (
+        api_inventory._schema_style_from_postman_probe(
+            path=tmp_path / "missing.json",
+            root=tmp_path,
+        )
+        is None
+    )
+    directory_path = tmp_path / "directory.json"
+    directory_path.mkdir()
+    assert (
+        api_inventory._schema_style_from_postman_probe(path=directory_path, root=tmp_path)
+        is None
+    )
+
+    oversized_path = _write_text(tmp_path / "oversized.json", "{}\n")
+    monkeypatch.setattr(api_inventory, "_MAX_API_INVENTORY_ARTIFACT_BYTES", 1)
+    assert (
+        api_inventory._schema_style_from_postman_probe(path=oversized_path, root=tmp_path)
+        is None
+    )
+    monkeypatch.setattr(api_inventory, "_MAX_API_INVENTORY_ARTIFACT_BYTES", 10 * 1024 * 1024)
+
+    binary_path = tmp_path / "binary.json"
+    binary_path.write_bytes(b"\xff")
+    malformed_path = _write_text(tmp_path / "malformed.json", "{not json\n")
+    no_operations_path = _write_text(tmp_path / "no-operations.json", '{"item": "bad"}\n')
+
+    assert api_inventory._schema_style_from_postman_probe(path=binary_path, root=tmp_path) is None
+    assert (
+        api_inventory._schema_style_from_postman_probe(path=malformed_path, root=tmp_path)
+        is None
+    )
+    assert (
+        api_inventory._schema_style_from_postman_probe(
+            path=no_operations_path,
+            root=tmp_path,
+        )
+        is None
+    )
+
+
 def test_api_inventory_counts_graphql_root_operations_without_leaking_names(
     tmp_path: Path,
 ) -> None:
