@@ -64,7 +64,11 @@
         "families_attention",
         "families_blocked",
         "blockers_total",
-        "next_actions_total"
+        "next_actions_total",
+        "first_five_minutes_score",
+        "first_five_minutes_readiness_band",
+        "missing_source_count",
+        "top_next_action"
       ],
       "properties": {
         "status": {
@@ -113,6 +117,21 @@
         "next_actions_total": {
           "type": "integer",
           "minimum": 0
+        },
+        "first_five_minutes_score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "first_five_minutes_readiness_band": {
+          "$ref": "#/$defs/readiness_band"
+        },
+        "missing_source_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "top_next_action": {
+          "type": "string"
         }
       }
     },
@@ -303,6 +322,14 @@
         "high",
         "medium",
         "low"
+      ],
+      "type": "string"
+    },
+    "readiness_band": {
+      "enum": [
+        "ready",
+        "attention",
+        "blocked"
       ],
       "type": "string"
     },
