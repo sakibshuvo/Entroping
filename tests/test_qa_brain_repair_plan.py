@@ -174,6 +174,51 @@ def test_qa_brain_repair_plan_adds_ready_repair_proposal_dry_run_checklist(
     )
 
 
+def test_qa_brain_repair_plan_adds_acceptance_gate_checklist(
+    tmp_path: Path,
+) -> None:
+    _write_ready_sources(tmp_path)
+
+    result = run_qa_brain_repair_plan_report(project_root=tmp_path, output="md")
+    packet = result.packet
+    checklist = {
+        (item.case_id, item.gate_id): item
+        for item in packet.repair_acceptance_checklist
+    }
+    item = checklist[("unsafe_generated_hurl", "hurl_execution")]
+
+    assert len(packet.repair_acceptance_checklist) == len(_EVAL_IDS) * len(_GATE_IDS)
+    assert item.gate_family == "hurl"
+    assert item.source_evidence_ids == (
+        "test-quality-json",
+        "mutation-readiness-json",
+        "qa-brain-routing-plan-json",
+    )
+    assert item.required_reviewer == "codex_or_human"
+    assert item.forbidden_shortcut_notes == (
+        "Do not replace Hurl execution with Python HTTP clients or model claims.",
+    )
+    markdown = result.output_path.read_text(encoding="utf-8")
+    assert "## Repair Acceptance Checklist" in markdown
+    assert "| unsafe_generated_hurl | hurl_execution | hurl |" in markdown
+    assert "Python HTTP clients" in markdown
+    assert "generated_tests" not in markdown
+
+
+def test_qa_brain_repair_plan_omits_acceptance_checklist_without_routing_plan(
+    tmp_path: Path,
+) -> None:
+    result = run_qa_brain_repair_plan_report(project_root=tmp_path, output="md")
+
+    assert result.packet.repair_acceptance_checklist == ()
+    markdown = result.output_path.read_text(encoding="utf-8")
+    assert "## Repair Acceptance Checklist" in markdown
+    assert (
+        "No repair acceptance gates are available until routing-plan inputs are present."
+        in markdown
+    )
+
+
 def test_qa_brain_repair_plan_marks_partial_repair_proposal_dry_run_checklist(
     tmp_path: Path,
 ) -> None:

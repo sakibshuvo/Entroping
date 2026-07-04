@@ -6188,6 +6188,7 @@ def test_qa_brain_repair_plan_v1_schema_contract_is_versioned_and_stable() -> No
                 "next_action_label": "add-value-free-evidence",
             }
         ],
+        "repair_acceptance_checklist": [],
         "next_actions": [
             {
                 "priority": "medium",
@@ -6216,6 +6217,26 @@ def test_qa_brain_repair_plan_v1_schema_contract_is_versioned_and_stable() -> No
         "missing",
     ]
     assert schema["$defs"]["acceptance_gate_status"]["enum"] == ["ready", "missing"]
+    assert schema["properties"]["repair_acceptance_checklist"]["items"]["$ref"] == (
+        "#/$defs/repair_acceptance_checklist_item"
+    )
+    assert schema["$defs"]["repair_acceptance_checklist_item"]["required"] == [
+        "case_id",
+        "gate_id",
+        "gate_family",
+        "source_evidence_ids",
+        "required_reviewer",
+        "forbidden_shortcut_notes",
+    ]
+    assert schema["$defs"]["acceptance_gate_family"]["enum"] == [
+        "parser",
+        "hurl",
+        "policy",
+        "evidence",
+        "redaction",
+        "review",
+    ]
+    assert schema["$defs"]["acceptance_reviewer"]["enum"] == ["codex_or_human"]
     assert schema["$defs"]["acceptance_gate_id"]["enum"] == [
         "parser_validation",
         "hurl_execution",

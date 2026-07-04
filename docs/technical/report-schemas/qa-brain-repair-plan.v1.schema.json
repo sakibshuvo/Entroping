@@ -49,6 +49,12 @@
         "$ref": "#/$defs/repair_proposal_dry_run_checklist_item"
       }
     },
+    "repair_acceptance_checklist": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/repair_acceptance_checklist_item"
+      }
+    },
     "next_actions": {
       "type": "array",
       "items": {
@@ -270,6 +276,44 @@
         }
       }
     },
+    "repair_acceptance_checklist_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "gate_id",
+        "gate_family",
+        "source_evidence_ids",
+        "required_reviewer",
+        "forbidden_shortcut_notes"
+      ],
+      "properties": {
+        "case_id": {
+          "$ref": "#/$defs/eval_slice_id"
+        },
+        "gate_id": {
+          "$ref": "#/$defs/acceptance_gate_id"
+        },
+        "gate_family": {
+          "$ref": "#/$defs/acceptance_gate_family"
+        },
+        "source_evidence_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "required_reviewer": {
+          "$ref": "#/$defs/acceptance_reviewer"
+        },
+        "forbidden_shortcut_notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "next_action": {
       "type": "object",
       "additionalProperties": false,
@@ -335,6 +379,21 @@
       "enum": [
         "ready",
         "missing"
+      ]
+    },
+    "acceptance_gate_family": {
+      "enum": [
+        "parser",
+        "hurl",
+        "policy",
+        "evidence",
+        "redaction",
+        "review"
+      ]
+    },
+    "acceptance_reviewer": {
+      "enum": [
+        "codex_or_human"
       ]
     },
     "acceptance_gate_id": {
