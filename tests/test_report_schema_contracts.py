@@ -241,6 +241,8 @@ from entroping.core.export.work_item_draft import (
 )
 from entroping.core.export.work_item_import_bundle import (
     WORK_ITEM_IMPORT_BUNDLE_SCHEMA_VERSION,
+    WORK_ITEM_IMPORT_CSV_COLUMNS,
+    WORK_ITEM_IMPORT_CSV_CONTRACT_VERSION,
     WorkItemImportAction,
     WorkItemImportBundle,
     WorkItemImportRow,
@@ -5014,10 +5016,18 @@ def test_work_item_import_bundle_v1_schema_contract_is_versioned_and_stable() ->
         "entroping.work-item-import-bundle.v1"
     )
     assert payload["schema_version"] == "entroping.work-item-import-bundle.v1"
+    assert payload["csv_contract_version"] == WORK_ITEM_IMPORT_CSV_CONTRACT_VERSION
+    assert payload["csv_columns"] == list(WORK_ITEM_IMPORT_CSV_COLUMNS)
     assert payload["summary"]["source_item_count"] == 1
     assert schema["properties"]["schema_version"]["const"] == (
         "entroping.work-item-import-bundle.v1"
     )
+    assert schema["properties"]["csv_contract_version"]["const"] == (
+        "entroping.work-item-import-csv.v1"
+    )
+    assert schema["properties"]["csv_columns"]["prefixItems"] == [
+        {"const": column} for column in WORK_ITEM_IMPORT_CSV_COLUMNS
+    ]
     assert schema["$defs"]["tracker_family"]["enum"] == [
         "jira",
         "linear",
@@ -6189,6 +6199,7 @@ def test_qa_brain_repair_plan_v1_schema_contract_is_versioned_and_stable() -> No
                 "next_action_label": "add-value-free-evidence",
             }
         ],
+        "repair_acceptance_checklist": [],
         "next_actions": [
             {
                 "priority": "medium",
@@ -6217,6 +6228,26 @@ def test_qa_brain_repair_plan_v1_schema_contract_is_versioned_and_stable() -> No
         "missing",
     ]
     assert schema["$defs"]["acceptance_gate_status"]["enum"] == ["ready", "missing"]
+    assert schema["properties"]["repair_acceptance_checklist"]["items"]["$ref"] == (
+        "#/$defs/repair_acceptance_checklist_item"
+    )
+    assert schema["$defs"]["repair_acceptance_checklist_item"]["required"] == [
+        "case_id",
+        "gate_id",
+        "gate_family",
+        "source_evidence_ids",
+        "required_reviewer",
+        "forbidden_shortcut_notes",
+    ]
+    assert schema["$defs"]["acceptance_gate_family"]["enum"] == [
+        "parser",
+        "hurl",
+        "policy",
+        "evidence",
+        "redaction",
+        "review",
+    ]
+    assert schema["$defs"]["acceptance_reviewer"]["enum"] == ["codex_or_human"]
     assert schema["$defs"]["acceptance_gate_id"]["enum"] == [
         "parser_validation",
         "hurl_execution",

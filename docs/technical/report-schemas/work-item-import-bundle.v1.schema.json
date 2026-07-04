@@ -17,6 +17,55 @@
     "schema_version": {
       "const": "entroping.work-item-import-bundle.v1"
     },
+    "csv_contract_version": {
+      "const": "entroping.work-item-import-csv.v1"
+    },
+    "csv_columns": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "record_type"
+        },
+        {
+          "const": "tracker_family"
+        },
+        {
+          "const": "external_id"
+        },
+        {
+          "const": "title"
+        },
+        {
+          "const": "body"
+        },
+        {
+          "const": "priority"
+        },
+        {
+          "const": "labels"
+        },
+        {
+          "const": "source_ids"
+        },
+        {
+          "const": "source_item_ids"
+        },
+        {
+          "const": "source_action_ids"
+        },
+        {
+          "const": "source_action_count"
+        },
+        {
+          "const": "status"
+        },
+        {
+          "const": "forbidden_actions"
+        }
+      ],
+      "minItems": 13,
+      "maxItems": 13
+    },
     "generated_at": {
       "type": "string"
     },

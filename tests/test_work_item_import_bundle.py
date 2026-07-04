@@ -12,6 +12,8 @@ import entroping.core.export.work_item_import_bundle as work_item_import_bundle
 from entroping.core.evidence.evidence_index import LocalEvidenceArtifact
 from entroping.core.export.work_item_import_bundle import (
     WORK_ITEM_IMPORT_BUNDLE_SCHEMA_VERSION,
+    WORK_ITEM_IMPORT_CSV_COLUMNS,
+    WORK_ITEM_IMPORT_CSV_CONTRACT_VERSION,
     WorkItemImportBundleError,
     build_work_item_import_bundle,
     run_work_item_import_bundle_report,
@@ -110,6 +112,8 @@ def test_work_item_import_bundle_writes_json_rows_from_draft(
     assert result.output_path == tmp_path / "reports" / "work-item-import-bundle.json"
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
     assert payload["schema_version"] == WORK_ITEM_IMPORT_BUNDLE_SCHEMA_VERSION
+    assert payload["csv_contract_version"] == WORK_ITEM_IMPORT_CSV_CONTRACT_VERSION
+    assert payload["csv_columns"] == list(WORK_ITEM_IMPORT_CSV_COLUMNS)
     assert payload["summary"]["status"] == "partial"
     assert payload["summary"]["sources_present"] == 1
     assert payload["summary"]["rows_total"] == 2
@@ -144,8 +148,10 @@ def test_work_item_import_bundle_writes_spreadsheet_safe_csv(tmp_path: Path) -> 
 
     result = run_work_item_import_bundle_report(project_root=tmp_path, output="csv")
 
-    rows = list(csv.DictReader(result.output_path.read_text(encoding="utf-8").splitlines()))
+    reader = csv.DictReader(result.output_path.read_text(encoding="utf-8").splitlines())
+    rows = list(reader)
     assert result.output_path == tmp_path / "reports" / "work-item-import-bundle.csv"
+    assert reader.fieldnames == list(WORK_ITEM_IMPORT_CSV_COLUMNS)
     assert len(rows) == 1
     assert rows[0]["record_type"] == "import_row"
     assert rows[0]["tracker_family"] == "github_issues"
@@ -172,9 +178,15 @@ def test_work_item_import_bundle_missing_source_yields_generation_action(
 def test_work_item_import_bundle_writes_missing_source_action_csv(tmp_path: Path) -> None:
     result = run_work_item_import_bundle_report(project_root=tmp_path, output="csv")
 
-    rows = list(csv.DictReader(result.output_path.read_text(encoding="utf-8").splitlines()))
+    reader = csv.DictReader(result.output_path.read_text(encoding="utf-8").splitlines())
+    rows = list(reader)
+    assert reader.fieldnames == list(WORK_ITEM_IMPORT_CSV_COLUMNS)
     assert len(rows) == 1
     assert rows[0]["record_type"] == "action"
+    assert rows[0]["external_id"] == ""
+    assert rows[0]["source_item_ids"] == ""
+    assert rows[0]["source_action_ids"] == ""
+    assert rows[0]["source_action_count"] == "0"
     assert rows[0]["priority"] == "medium"
     assert rows[0]["title"] == (
         "Generate Work Item Draft before building tracker import bundle."
