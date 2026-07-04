@@ -123,7 +123,6 @@ EVIDENCE_CHECKS = (
 STABLE_CORE_BLOCKERS = (
     "package-index proof",
     "real downstream user feedback",
-    "stable-core compatibility decision",
 )
 STABLE_CORE_BLOCKER_ISSUES = {
     "package-index proof": (
@@ -155,11 +154,13 @@ STABLE_CORE_BLOCKER_ISSUES = {
             status="done",
         ),
     ),
+}
+STABLE_CORE_COMPLETED_ISSUES = {
     "stable-core compatibility decision": (
         IssueRef(
             number=308,
             title="stable-core: make compatibility graduation decision",
-            status="blocked",
+            status="done",
         ),
     ),
 }
@@ -197,11 +198,15 @@ def main() -> int:
     else:
         print(_render_markdown(payload))
 
-    missing = [
-        f"{entry['path']}: {entry['status']}"
-        for entry in payload["evidence"].values()
-        if entry["status"] != "present"
-    ]
+    evidence_payload = payload["evidence"]
+    if isinstance(evidence_payload, dict):
+        missing = [
+            f"{entry['path']}: {entry['status']}"
+            for entry in evidence_payload.values()
+            if isinstance(entry, dict) and entry["status"] != "present"
+        ]
+    else:
+        missing = ["evidence: invalid"]
     if args.strict and missing:
         print("stable-core evidence check failed:", file=sys.stderr)
         for item in missing:
@@ -225,6 +230,7 @@ def _build_payload(root: Path) -> dict[str, object]:
         "stable_core_ready": False,
         "blockers": list(STABLE_CORE_BLOCKERS),
         "blocker_issue_map": _blocker_issue_map_payload(),
+        "completed_issue_map": _completed_issue_map_payload(),
         "evidence": evidence,
     }
 
@@ -242,6 +248,21 @@ def _blocker_issue_map_payload() -> dict[str, list[dict[str, object]]]:
             for issue in STABLE_CORE_BLOCKER_ISSUES[blocker]
         ]
     return blocker_issue_map
+
+
+def _completed_issue_map_payload() -> dict[str, list[dict[str, object]]]:
+    completed_issue_map: dict[str, list[dict[str, object]]] = {}
+    for evidence_name, issues in STABLE_CORE_COMPLETED_ISSUES.items():
+        completed_issue_map[evidence_name] = [
+            {
+                "number": issue.number,
+                "title": issue.title,
+                "url": issue.url,
+                "status": issue.status,
+            }
+            for issue in issues
+        ]
+    return completed_issue_map
 
 
 def _check_evidence(root: Path, check: EvidenceCheck) -> CheckStatus:
@@ -305,6 +326,19 @@ def _render_markdown(payload: dict[str, object]) -> str:
                 f"[#{raw_issue['number']}]({raw_issue['url']}) ({raw_issue['status']})"
             )
         lines.append(f"- {blocker}: {', '.join(links)}")
+    lines.extend(["", "## Completed Issue Map", ""])
+    completed_issue_map = payload["completed_issue_map"]
+    assert isinstance(completed_issue_map, dict)
+    for evidence_name, raw_issues in completed_issue_map.items():
+        assert isinstance(evidence_name, str)
+        assert isinstance(raw_issues, list)
+        links = []
+        for raw_issue in raw_issues:
+            assert isinstance(raw_issue, dict)
+            links.append(
+                f"[#{raw_issue['number']}]({raw_issue['url']}) ({raw_issue['status']})"
+            )
+        lines.append(f"- {evidence_name}: {', '.join(links)}")
     lines.extend(["", "## Evidence", ""])
     for key, raw_entry in evidence.items():
         assert isinstance(raw_entry, dict)

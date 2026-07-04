@@ -49,7 +49,6 @@ def write_release_evidence_ledger(
                 "stable_core_blockers": [
                     "package-index proof",
                     "real downstream user feedback",
-                    "stable-core compatibility decision",
                 ],
                 "releases": [
                     {
@@ -213,6 +212,7 @@ def test_release_evidence_json_reports_alpha_ci_and_stable_blockers() -> None:
     assert "repeated release evidence" not in payload["stable_core_blockers"]
     assert "package-index proof" in payload["stable_core_blockers"]
     assert "real downstream user feedback" in payload["stable_core_blockers"]
+    assert "stable-core compatibility decision" not in payload["stable_core_blockers"]
     assert payload["ledger_path"] == "docs/meta/release-evidence.json"
 
 

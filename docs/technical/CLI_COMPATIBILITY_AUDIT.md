@@ -15,7 +15,7 @@ This audit is the compatibility decision for the Entroping v4.1 alpha command
 surface before stable-core claims. It compares the Typer app, README, technical
 design, command cheat sheet, and tests.
 
-Status: **Locked alpha**. These commands are not a v1 stability promise yet, but
+Status: **Locked alpha with approved Aha addition**. These commands are not a v1 stability promise yet, but
 they are the reviewed alpha contract. Do not rename commands, add aliases, remove
 flags, or change report artifact paths without a GitHub issue, tests, docs
 updates, and an explicit compatibility decision.
@@ -106,7 +106,7 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 | Aliases | No alias is compatibility-supported. Deprecated brainstorm names such as `gen`, `fix`, `scan`, `chaos`, `verify`, top-level `build`, `auth`, and `report --type` remain unavailable. |
 | Global flags | Only Typer completion helpers and `--version` are current global flags. `--verbose` is not a product flag. `freeze --dry-run` and `run --dry-run` are command-scoped and do not create a global dry-run mode. |
 | Init CI starter | `init --github-actions` is an explicit opt-in setup helper that writes the reviewed starter to `.github/workflows/entroping.yml`, refuses to overwrite an existing workflow, and does not add secrets, provider credentials, hosted-service coupling, or package-index readiness claims. |
-| Aha entrypoint command | `entroping demo` remains a deferred command; the package-installed Aha shape is `entroping demo --project <path>` once fixture ownership and command-surface prerequisites are accepted. |
+| Aha entrypoint command | `entroping demo --project <path>` is the approved package-installed Aha command shape for #1385. Until that implementation lands, `scripts/demo.sh` remains the only implemented public Aha entrypoint. |
 | Determinism | `entroping run` remains deterministic, Hurl-backed, and LLM-free. |
 | Doctor CI readiness | `doctor --ci` is a strict local preflight for PR gates. It validates Hurl availability, safe report paths, suite manifests, required Hurl variables, and provider-free `run --ci` expectations without calling CI provider APIs or mutating workflows. |
 | Named suites | `run --suite <name>` loads committed `suites/<name>.yaml` manifests with schema `entroping.suite.v1`, root-bounded local path globs, tags, env, reports, parallel, fail-fast, and drift settings. It cannot be combined with ad hoc selectors; `--ci` remains allowed for exit behavior. |
@@ -195,6 +195,24 @@ Evidence anchors:
 
 These decisions close the current post-alpha UX questions without changing the
 locked alpha command surface.
+
+## v1 change policy
+
+The stable public CLI, QAnstitution schema, report schema, artifact path, and
+exit-code contracts may graduate only after the package-index proof and
+downstream feedback blockers are closed. Until then, the current alpha contract
+is frozen for compatibility review but not a v1 promise.
+
+Allowed compatible changes:
+
+- Additive flags or commands only after a GitHub issue, docs update, tests, and
+  compatibility-audit entry.
+- Additive JSON fields only when existing fields and schema versions remain
+  valid.
+- New report artifacts only when existing artifact paths remain unchanged.
+
+Breaking changes require a migration issue, public docs, test updates, release
+notes, and an explicit compatibility decision before merge.
 
 | Question | Decision | Rationale | Future change gate |
 | --- | --- | --- | --- |

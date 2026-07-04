@@ -18,7 +18,6 @@ GITHUB_URL_RE = re.compile(r"^https://github\.com/sakibshuvo/Entroping/")
 REQUIRED_BLOCKERS = (
     "package-index proof",
     "real downstream user feedback",
-    "stable-core compatibility decision",
 )
 DOWNSTREAM_SMOKE_SCHEMA_VERSION = "entroping.downstream-smoke.v1"
 RELEASE_CANDIDATE_KIND = "local-release-candidate"

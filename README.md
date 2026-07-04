@@ -53,7 +53,9 @@ scripts/ai_regression_demo.sh
 
 Expected proof: Hurl passes and writes JSON, JUnit, and HTML reports. `scripts/demo.sh` delegates to the same deterministic `scripts/live_demo_smoke.sh` release gate used by CI.
 
-Package-installed one-command Aha is currently deferred. `entroping demo` is a planned v0.2 command shape (`entroping demo --project <path>`) but is blocked until fixture ownership and command-surface compatibility decisions are completed. Until then, the supported local onboarding flow remains `scripts/demo.sh`.
+Package-installed one-command Aha has an approved compatibility shape:
+`entroping demo --project <path>`, tracked by #1385. Until that command lands,
+the supported local onboarding flow remains `scripts/demo.sh`.
 
 ![Checkout demo: Hurl run passes and reports are emitted](docs/assets/launch/checkout-demo.gif)
 

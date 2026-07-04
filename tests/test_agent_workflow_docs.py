@@ -1625,7 +1625,7 @@ def test_knowledge_base_workflow_documents_source_promotion() -> None:
     assert "KNOWLEDGE_BASE_WORKFLOW owns source promotion" in doc
 
 
-def test_vault_index_marks_archival_context_and_history() -> None:
+def test_vault_index_marks_archival_context_and_active_decisions() -> None:
     index = (REPO_ROOT / "docs" / "meta" / "VAULT_INDEX.md").read_text(encoding="utf-8")
     zero_config = (
         REPO_ROOT / "docs" / "meta" / "ZERO_CONFIG_DEMO_ENTRYPOINT.md"
@@ -1633,8 +1633,9 @@ def test_vault_index_marks_archival_context_and_history() -> None:
 
     assert "historical source evidence, not current product truth" in index
     assert "Archived Decision Notes" in index
-    assert "status: archival" in zero_config
-    assert "Archived outcome" in zero_config
+    assert "status: active" in zero_config
+    assert "Current Outcome" in zero_config
+    assert "entroping demo --project <path>" in zero_config
 
 
 def test_obsidian_context_engine_documents_project_evolution_loop() -> None:

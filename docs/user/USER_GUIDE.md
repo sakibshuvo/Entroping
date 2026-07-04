@@ -76,8 +76,11 @@ reported before test execution.
 For local solo development, keep the install editable with `uv tool install -e .`. Homebrew, Nuitka binaries, Docker, and PyPI are distribution targets after the CLI is stable.
 The first onboarding flow is source-first on purpose: checkout, set up `uv` and Hurl, and run `scripts/demo.sh`.
 
-`entroping demo --project <path>` is intentionally deferred until package fixture ownership and a command-surface compatibility decision complete.
-Use this repo as the onboarding entrypoint now, and check `docs/meta/ZERO_CONFIG_DEMO_ENTRYPOINT.md` for the current command-surface decision.
+`entroping demo --project <path>` is the approved compatibility shape for the
+package-installed Aha command, tracked by #1385. Use this repo as the onboarding
+entrypoint until that command lands, and check
+`docs/meta/ZERO_CONFIG_DEMO_ENTRYPOINT.md` for the current command-surface
+decision.
 
 ## 3. New Project Quick Start
 

@@ -96,7 +96,7 @@ and current user docs for today's behavior and promises.
 These completed one-off notes are retained for traceability, not active
 instructions.
 
-- [[docs/meta/ZERO_CONFIG_DEMO_ENTRYPOINT|ZERO_CONFIG_DEMO_ENTRYPOINT]] - archived v0.2 decision explaining why `scripts/demo.sh` became the checkout demo entrypoint without expanding the CLI command surface.
+- [[docs/meta/ZERO_CONFIG_DEMO_ENTRYPOINT|ZERO_CONFIG_DEMO_ENTRYPOINT]] - active demo-entrypoint decision approving `entroping demo --project <path>` for package-installed Aha implementation while preserving `scripts/demo.sh`.
 - [[docs/meta/archive/AUTONOMOUS_DEVELOPMENT|AUTONOMOUS_DEVELOPMENT]] - archived historical autonomous-dev operating plan.
 - [[docs/meta/archive/OBSIDIAN_CONTEXT_ENGINE_GUIDE|OBSIDIAN_CONTEXT_ENGINE_GUIDE]] - archived Obsidian context-engine strategy.
 

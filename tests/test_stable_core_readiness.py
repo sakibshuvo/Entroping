@@ -39,10 +39,14 @@ def test_stable_core_readiness_json_reports_alpha_blockers() -> None:
         for issue in payload["blocker_issue_map"]["real downstream user feedback"]
     ] == [306, 318]
     assert payload["blocker_issue_map"]["real downstream user feedback"][1]["status"] == "done"
+    assert "stable-core compatibility decision" not in payload["blockers"]
+    assert "stable-core compatibility decision" not in payload["blocker_issue_map"]
     assert [
         issue["number"]
-        for issue in payload["blocker_issue_map"]["stable-core compatibility decision"]
+        for issue in payload["completed_issue_map"]["stable-core compatibility decision"]
     ] == [308]
+    completed_issue = payload["completed_issue_map"]["stable-core compatibility decision"][0]
+    assert completed_issue["status"] == "done"
 
 
 def test_stable_core_readiness_markdown_links_blocker_issues() -> None:
@@ -50,6 +54,7 @@ def test_stable_core_readiness_markdown_links_blocker_issues() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "## Blocker Issue Map" in result.stdout
+    assert "## Completed Issue Map" in result.stdout
     assert "repeated release evidence" not in result.stdout
     assert (
         "- package-index proof: "
@@ -62,6 +67,11 @@ def test_stable_core_readiness_markdown_links_blocker_issues() -> None:
         "- real downstream user feedback: "
         "[#306](https://github.com/sakibshuvo/Entroping/issues/306) (blocked), "
         "[#318](https://github.com/sakibshuvo/Entroping/issues/318) (done)"
+        in result.stdout
+    )
+    assert (
+        "- stable-core compatibility decision: "
+        "[#308](https://github.com/sakibshuvo/Entroping/issues/308) (done)"
         in result.stdout
     )
 

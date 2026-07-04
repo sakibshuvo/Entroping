@@ -116,7 +116,6 @@ recorded in a reviewed format.
 `stable_core_ready` must remain `false` until the project has:
 
 - package-index proof from TestPyPI/PyPI Trusted Publishing;
-- a stable-core compatibility decision;
 - real downstream user feedback from projects outside this repository.
 
 The downstream smoke entry is maintainer-controlled local smoke evidence. It
