@@ -919,6 +919,216 @@ def test_compile_openapi_skips_invalid_enum_negative_without_validation_response
     assert [item.relative_path for item in result.files] == ["tests/generated/create_shipment.hurl"]
 
 
+def test_compile_openapi_generates_missing_required_parameter_negatives() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/orders": {
+                "get": {
+                    "operationId": "listOrders",
+                    "parameters": [
+                        {
+                            "name": "customer_id",
+                            "in": "query",
+                            "required": True,
+                            "example": "cust_1",
+                            "schema": {"type": "string"},
+                        },
+                        {
+                            "name": "page",
+                            "in": "query",
+                            "example": 1,
+                            "schema": {"type": "integer"},
+                        },
+                        {
+                            "name": "X-Tenant",
+                            "in": "header",
+                            "required": True,
+                            "example": "tenant_1",
+                            "schema": {"type": "string"},
+                        },
+                        {
+                            "name": "session_id",
+                            "in": "cookie",
+                            "required": True,
+                            "example": "sess_1",
+                            "schema": {"type": "string"},
+                        },
+                    ],
+                    "responses": {
+                        "200": {"description": "ok"},
+                        "422": {"description": "validation failed"},
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset({"orders"}))
+    files = {item.relative_path: item.content for item in result.files}
+
+    query_negative = files[
+        "tests/generated/negative/list_orders_missing_required_query_customer_id.hurl"
+    ]
+    header_negative = files[
+        "tests/generated/negative/list_orders_missing_required_header_x_tenant.hurl"
+    ]
+    cookie_negative = files[
+        "tests/generated/negative/list_orders_missing_required_cookie_session_id.hurl"
+    ]
+
+    assert "# entroping: negative_category=missing-required-parameter" in query_negative
+    assert "GET {{base_url}}/orders?page=1" in query_negative
+    assert "customer_id=" not in query_negative
+    assert "X-Tenant: tenant_1" in query_negative
+    assert "Cookie: session_id=sess_1" in query_negative
+    assert "HTTP 422" in query_negative
+    assert parse_hurl_metadata(query_negative).tags >= frozenset(
+        {"orders", "generated", "negative", "missing-required-parameter"}
+    )
+
+    assert "GET {{base_url}}/orders?customer_id=cust_1&page=1" in header_negative
+    assert "X-Tenant:" not in header_negative
+    assert "Cookie: session_id=sess_1" in header_negative
+    assert "HTTP 422" in header_negative
+
+    assert "GET {{base_url}}/orders?customer_id=cust_1&page=1" in cookie_negative
+    assert "X-Tenant: tenant_1" in cookie_negative
+    assert "Cookie:" not in cookie_negative
+    assert "HTTP 422" in cookie_negative
+
+
+def test_compile_openapi_missing_required_parameter_negatives_need_validation_response() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/orders": {
+                "get": {
+                    "operationId": "listOrders",
+                    "parameters": [
+                        {
+                            "name": "customer_id",
+                            "in": "query",
+                            "required": True,
+                            "example": "cust_1",
+                            "schema": {"type": "string"},
+                        },
+                    ],
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset())
+
+    assert [item.relative_path for item in result.files] == ["tests/generated/list_orders.hurl"]
+
+
+def test_compile_openapi_missing_required_parameter_negative_preserves_json_body() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/orders": {
+                "post": {
+                    "operationId": "createOrder",
+                    "parameters": [
+                        {
+                            "name": "X-Tenant",
+                            "in": "header",
+                            "required": True,
+                            "example": "tenant_1",
+                            "schema": {"type": "string"},
+                        },
+                    ],
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["sku"],
+                                    "properties": {"sku": {"type": "string"}},
+                                },
+                            },
+                        },
+                    },
+                    "responses": {
+                        "201": {"description": "created"},
+                        "400": {"description": "validation failed"},
+                    },
+                },
+            },
+        },
+    }
+
+    result = compile_openapi_to_hurl_with_report(document, tags=frozenset())
+    missing_header = next(
+        item
+        for item in result.files
+        if item.relative_path
+        == "tests/generated/negative/create_order_missing_required_header_x_tenant.hurl"
+    )
+
+    assert "POST {{base_url}}/orders" in missing_header.content
+    assert "X-Tenant:" not in missing_header.content
+    assert "Content-Type: application/json" in missing_header.content
+    assert '"sku": "string"' in missing_header.content
+    assert "HTTP 400" in missing_header.content
+
+
+def test_compile_openapi_rejects_non_boolean_parameter_required() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/orders": {
+                "get": {
+                    "operationId": "listOrders",
+                    "parameters": [
+                        {
+                            "name": "customer_id",
+                            "in": "query",
+                            "required": "true",
+                            "example": "cust_1",
+                            "schema": {"type": "string"},
+                        },
+                    ],
+                    "responses": {"200": {"description": "ok"}},
+                },
+            },
+        },
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="parameter required must be a boolean"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
+def test_compile_openapi_rejects_duplicate_missing_required_generated_paths(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def duplicate_missing_required_file(**_: object) -> tuple[openapi_compiler.GeneratedHurlFile]:
+        return (
+            openapi_compiler.GeneratedHurlFile(
+                relative_path="tests/generated/list_orders.hurl",
+                content="GET {{base_url}}/duplicate\nHTTP 422\n",
+            ),
+        )
+
+    monkeypatch.setattr(
+        openapi_compiler,
+        "_missing_required_parameter_negative_files",
+        duplicate_missing_required_file,
+    )
+
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {"/orders": {"get": _ok_operation("listOrders")}},
+    }
+
+    with pytest.raises(OpenApiCompilationError, match="duplicate Hurl path"):
+        compile_openapi_to_hurl(document, tags=frozenset())
+
+
 def test_compile_openapi_rejects_duplicate_schema_negative_generated_paths(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

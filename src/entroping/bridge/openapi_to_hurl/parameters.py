@@ -34,6 +34,7 @@ __all__ = (
     "_parameter_example_value",
     "_parameter_explode",
     "_parameter_location",
+    "_parameter_required",
     "_parameter_name",
     "_parameter_style",
     "_parameter_value_token",
@@ -203,6 +204,7 @@ def _parse_parameter(
     if location in {"header", "cookie"} and _HTTP_TOKEN_RE.fullmatch(name) is None:
         msg = f"{context} parameter name is not safe for {location}: {name!r}"
         raise OpenApiCompilationError(msg)
+    required = _parameter_required(parameter.get("required"), context=context)
 
     schema = parameter.get("schema")
     schema_mapping = _ensure_mapping(schema, f"{context} schema") if schema is not None else {}
@@ -222,6 +224,7 @@ def _parse_parameter(
         example_value=value,
         style=style,
         explode=explode,
+        required=required,
         schema=schema_mapping,
     )
 
@@ -245,6 +248,15 @@ def _parameter_location(value: object, *, context: str) -> str:
         msg = f"{context} parameter location is not supported: {value!r}"
         raise OpenApiCompilationError(msg)
     return location
+
+
+def _parameter_required(value: object, *, context: str) -> bool:
+    if value is None:
+        return False
+    if not isinstance(value, bool):
+        msg = f"{context} parameter required must be a boolean"
+        raise OpenApiCompilationError(msg)
+    return value
 
 
 def _parameter_example_value(
@@ -415,6 +427,7 @@ def _render_request_target(
     *,
     path_overrides: Mapping[str, _ScalarParameterValue] | None = None,
     query_overrides: Mapping[str, _ScalarParameterValue] | None = None,
+    omitted_parameters: frozenset[tuple[str, str]] = frozenset(),
 ) -> str:
     path_parameters = {
         parameter.name: parameter for parameter in parameters if parameter.location == "path"
@@ -441,6 +454,8 @@ def _render_request_target(
     for parameter in parameters:
         if parameter.location != "query":
             continue
+        if (parameter.location, parameter.name) in omitted_parameters:
+            continue
         if parameter.name in query_overrides:
             query_parts.append(
                 f"{_url_component(parameter.name)}={_url_component(query_overrides[parameter.name])}"
@@ -466,16 +481,19 @@ def _render_parameter_headers(
     parameters: tuple[_OpenApiParameter, ...],
     *,
     extra_cookie_pairs: tuple[tuple[str, str], ...] = (),
+    omitted_parameters: frozenset[tuple[str, str]] = frozenset(),
 ) -> list[str]:
     headers = [
         f"{parameter.name}: {_parameter_value_token(parameter, url_component=False)}"
         for parameter in parameters
         if parameter.location == "header"
+        if (parameter.location, parameter.name) not in omitted_parameters
     ]
     cookie_pairs = [
         (parameter.name, _parameter_value_token(parameter, url_component=True))
         for parameter in parameters
         if parameter.location == "cookie"
+        if (parameter.location, parameter.name) not in omitted_parameters
     ]
     cookie_pairs.extend(extra_cookie_pairs)
     if cookie_pairs:
