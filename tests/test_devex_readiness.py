@@ -149,6 +149,10 @@ def test_devex_readiness_writes_value_free_json_from_ready_sources(
         "families_blocked": 0,
         "blockers_total": 0,
         "next_actions_total": 0,
+        "first_five_minutes_score": 100,
+        "first_five_minutes_readiness_band": "ready",
+        "missing_source_count": 0,
+        "top_next_action": "No developer experience readiness actions are currently needed.",
     }
     families = {family["id"]: family for family in payload["families"]}
     assert families["cli"]["surface_ids"] == ["cli"]
@@ -212,6 +216,10 @@ def test_devex_readiness_marks_missing_invalid_and_unsafe_sources(
     assert packet.summary.status == "insufficient"
     assert packet.summary.families_blocked == 7
     assert packet.summary.blockers_total == 4
+    assert packet.summary.first_five_minutes_score == 0
+    assert packet.summary.first_five_minutes_readiness_band == "blocked"
+    assert packet.summary.missing_source_count == 2
+    assert packet.summary.top_next_action == "Repair Runtime card local evidence."
     assert packet.next_actions
     assert "sk-proj" not in packet.model_dump_json()
 
@@ -228,6 +236,7 @@ def test_devex_readiness_markdown_is_escaped_and_value_free(
 
     assert "# Entroping Developer Experience Readiness" in markdown
     assert "- Project: `checkout &#96;api&#96; | demo`" in markdown
+    assert "## First five minutes" in markdown
     assert "| editor | ready | vscode, editor |" in markdown
     assert "call_external_api" in markdown
     assert "No developer experience readiness actions are currently needed." in markdown
@@ -240,6 +249,10 @@ def test_devex_readiness_handles_empty_sources(tmp_path: Path) -> None:
     assert packet.project is None
     assert packet.summary.status == "insufficient"
     assert packet.summary.sources_missing == 6
+    assert packet.summary.first_five_minutes_score == 40
+    assert packet.summary.first_five_minutes_readiness_band == "blocked"
+    assert packet.summary.missing_source_count == 6
+    assert packet.summary.top_next_action == "Generate Runtime card local evidence."
     assert {source.state for source in packet.sources} == {"missing"}
     assert packet.summary.families_attention == 7
     assert packet.next_actions
