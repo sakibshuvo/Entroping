@@ -42,6 +42,10 @@ from entroping.bridge.openapi_to_hurl import (
     OpenApiSecurityCoverageFinding,
     compile_openapi_to_hurl_with_report,
 )
+from entroping.bridge.target_to_hurl import (
+    TargetHurlCompilationError,
+    compile_target_url_to_hurl,
+)
 from entroping.bridge.traffic_openapi_audit import (
     TrafficOpenApiAuditError,
     TrafficOpenApiAuditReport,
@@ -87,6 +91,10 @@ class PreparedGeneratedHurlFile:
 @app.command("build")
 def architect_build(
     new: Annotated[bool, typer.Option("--new", help="Generate new tests.")] = False,
+    target_url: Annotated[
+        str | None,
+        typer.Option("--target-url", help="Generate one smoke Hurl file from a target URL."),
+    ] = None,
     prompt: Annotated[
         str | None,
         typer.Option("--prompt", help="Scoped generation intent."),
@@ -107,12 +115,19 @@ def architect_build(
 ) -> None:
     """Generate Hurl tests from configured sources or prompts."""
 
-    normalized_strategy: str | None = None
-    if strategy is not None:
-        normalized_strategy = strategy.strip().lower()
-        if normalized_strategy != "merge":
-            console.print(f"[yellow]Unsupported architect build strategy: {strategy}[/yellow]")
-            raise typer.Exit(2)
+    normalized_strategy = _normalize_architect_build_strategy(strategy)
+    if target_url is not None:
+        _run_architect_target_url_build(
+            target_url,
+            new=new,
+            prompt=prompt,
+            changed_from=changed_from,
+            strategy=strategy,
+            tag=tag,
+            agent=agent,
+        )
+        return
+
     build_agent = _normalize_architect_build_agent(agent)
     if prompt is not None:
         if changed_from is not None:
@@ -137,6 +152,7 @@ def architect_build(
     if not new:
         console.print("[yellow]Choose a supported architect build mode:[/yellow]")
         console.print("  entroping architect build --new")
+        console.print("  entroping architect build --target-url <url>")
         console.print('  entroping architect build --prompt "<intent>"')
         console.print('  entroping architect build --agent breaker --prompt "<intent>"')
         console.print('  entroping architect build --strategy merge --prompt "<intent>"')
@@ -200,6 +216,63 @@ def architect_build(
     for path in written:
         console.print(f"Wrote Hurl test: {display_cli_path(path)}")
     _print_security_coverage_findings(compilation.security_findings)
+
+
+def _normalize_architect_build_strategy(strategy: str | None) -> str | None:
+    if strategy is None:
+        return None
+    normalized_strategy = strategy.strip().lower()
+    if normalized_strategy == "merge":
+        return "merge"
+    console.print(f"[yellow]Unsupported architect build strategy: {strategy}[/yellow]")
+    raise typer.Exit(2)
+
+
+def _run_architect_target_url_build(
+    target_url: str,
+    *,
+    new: bool,
+    prompt: str | None,
+    changed_from: str | None,
+    strategy: str | None,
+    tag: Sequence[str] | None,
+    agent: str | None,
+) -> None:
+    if any(
+        (
+            new,
+            prompt is not None,
+            changed_from is not None,
+            strategy is not None,
+            tag is not None,
+            agent is not None,
+        )
+    ):
+        console.print(
+            "[yellow]--target-url is incompatible with other architect build mode flags.[/yellow]"
+        )
+        raise typer.Exit(2)
+
+    try:
+        generated = _compile_target_url_generated_hurl(target_url)
+        prepared = _prepare_generated_hurl_files((generated,))
+        written = [_write_prepared_generated_hurl_file(item) for item in prepared]
+    except (TargetHurlCompilationError, ValueError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+
+    noun = "test" if len(written) == 1 else "tests"
+    console.print(f"[green]Generated {len(written)} Hurl {noun} under tests/generated.[/green]")
+    for path in written:
+        console.print(f"Wrote Hurl test: {display_cli_path(path)}")
+
+
+def _compile_target_url_generated_hurl(target_url: str) -> GeneratedHurlFile:
+    compiled = compile_target_url_to_hurl(target_url)
+    return GeneratedHurlFile(
+        relative_path=compiled.relative_path,
+        content=compiled.content,
+    )
 
 
 @app.command("refactor")
@@ -625,7 +698,7 @@ def _has_openapi_generated_header(content: str) -> bool:
             return False
         if not stripped.startswith("# entroping: "):
             return False
-        if stripped == "# entroping: source=openapi":
+        if stripped in {"# entroping: source=openapi", "# entroping: source=target-url"}:
             return True
     return False
 

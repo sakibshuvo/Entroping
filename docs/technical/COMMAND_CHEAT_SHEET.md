@@ -16,7 +16,7 @@ entroping config set --agent <builder|auditor|breaker> --model <model-id>
 entroping config vendor-policy-pack --pack <path> [--name <dir>]
 entroping config test-policy-pack --pack <path> [--output <text|json>]
 
-entroping architect build [--new] [--changed-from <ref>] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>]
+entroping architect build [--new] [--changed-from <ref>] [--prompt <text>] [--strategy merge] [--tag <tag>] [--agent <builder|breaker>] [--target-url <url>]
 entroping architect refactor --target <glob> --prompt <text> [--preview]
 entroping architect audit [--focus <logic|auditor>] [--output <json|md>] [--changed-from <ref>]
 
@@ -136,16 +136,19 @@ entroping config vendor-policy-pack --pack ../entroping-policy-pack-api-baseline
 
 Current alpha implementation supports deterministic `architect build --new` from a local
 OpenAPI file configured at `sources.spec` in `qanstitution.yaml`, focused
-OpenAPI regeneration with `architect build --new --changed-from <ref>`,
-prompt-backed `architect build --prompt`, Breaker-backed hostile prompt
-generation through `architect build --agent breaker --prompt`, deterministic
-`architect audit --focus logic`, Auditor-backed `architect audit --focus auditor`,
-and prompt-backed `architect refactor` for Architect-owned Hurl files and manual
-files with explicit managed blocks. Prompt-backed `architect build --strategy
-merge` is available for existing Hurl targets. Successful prompt-backed
-Builder, Breaker, refactor, merge, and Auditor review runs write value-free
-manifests under `.entroping/agent-runs/` with provider, latency, token, and
-configured cost-estimate evidence. Remote specs remain planned.
+OpenAPI regeneration with `architect build --new --changed-from <ref>`, and
+deterministic single-scaffold generation with `architect build --target-url <url>`
+for quick smoke proof from one reachable endpoint. `--target-url` writes one Hurl
+file with smoke metadata under `tests/generated` and does not perform API
+discovery or hosted scanning. Prompt-backed `architect build --prompt`,
+Breaker-backed hostile prompt generation through `architect build --agent
+breaker --prompt`, deterministic `architect audit --focus logic`, Auditor-backed
+`architect audit --focus auditor`, and prompt-backed `architect refactor` for
+Architect-owned Hurl files and manual files with explicit managed blocks. Prompt-
+backed `architect build --strategy merge` is available for existing Hurl targets.
+Successful prompt-backed Builder, Breaker, refactor, merge, and Auditor review
+runs write value-free manifests under `.entroping/agent-runs/` with provider,
+latency, token, and configured cost-estimate evidence. Remote specs remain planned.
 `architect refactor --preview` validates the proposed Hurl edits and prints a
 unified diff without writing target files. Treat it as review evidence, not
 execution proof; run the affected Hurl tests or the full suite before merging.
@@ -165,6 +168,7 @@ variants. These files are committed/reviewable Hurl with `negative_category`,
 | Command | Purpose |
 | --- | --- |
 | `entroping architect build --new` | Generate new Hurl tests from configured sources |
+| `entroping architect build --target-url <url>` | Write one smoke scaffold Hurl from a target URL |
 | `entroping architect build --new --changed-from <ref>` | Generate only current OpenAPI operations changed from a Git base ref |
 | `entroping architect build --prompt "<text>"` | Generate scoped tests from natural language |
 | `entroping architect build --agent breaker --prompt "<text>"` | Generate hostile negative/security tests with the Breaker persona |
@@ -183,6 +187,7 @@ Examples:
 ```bash
 entroping architect build --new --tag smoke
 entroping architect build --new --changed-from origin/main --tag smoke
+entroping architect build --target-url https://api.example.test/health
 entroping architect build --prompt "Add checkout smoke coverage" --tag ai
 entroping architect build --agent breaker --prompt "Generate hostile auth bypass tests" --tag security
 entroping architect build --strategy merge --prompt "Cover the new refund endpoint"

@@ -658,10 +658,69 @@ def test_architect_build_requires_supported_generation_mode() -> None:
     assert result.exit_code == 2
     assert "Choose a supported architect build mode" in result.output
     assert "architect build --new" in result.output
+    assert "architect build --target-url <url>" in result.output
     assert 'architect build --prompt "<intent>"' in result.output
     assert 'architect build --strategy merge --prompt "<intent>"' in result.output
     assert "not built yet" not in result.output
     assert "not implemented" not in result.output
+
+
+def test_architect_build_target_url_generates_single_smoke_scaffold(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _accept_openapi_hurl_validation(monkeypatch)
+
+    result = CliRunner().invoke(
+        app,
+        ["architect", "build", "--target-url", "https://api.example.test/health?ready=true"],
+    )
+
+    assert result.exit_code == 0
+    assert "Generated 1 Hurl test" in result.output
+    generated = Path("tests/generated/target-api-example-test-health.hurl")
+    assert generated.is_file()
+    assert generated.read_text(encoding="utf-8") == (
+        "# entroping: tags=target,smoke\n"
+        "# entroping: source=target-url\n"
+        "# entroping: target_origin=https://api.example.test\n"
+        "\n"
+        "GET https://api.example.test/health?ready=true\n"
+        "HTTP 200\n"
+    )
+
+
+def test_architect_build_target_url_rejects_unsafe_url(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(
+        app,
+        ["architect", "build", "--target-url", "ftp://api.example.test/health"],
+    )
+
+    assert result.exit_code == 1
+    assert "target URL scheme must be http or https" in result.output
+    assert not (tmp_path / "tests" / "generated").exists()
+
+
+def test_architect_build_target_url_rejects_other_mode_flags() -> None:
+    result = CliRunner().invoke(
+        app,
+        [
+            "architect",
+            "build",
+            "--target-url",
+            "https://api.example.test/health",
+            "--prompt",
+            "Generate coverage",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "incompatible with other architect build mode flags" in result.output
 
 
 def test_architect_build_rejects_unsupported_strategy() -> None:
@@ -3051,12 +3110,45 @@ def test_write_generated_hurl_file_overwrites_existing_openapi_header_target(
     )
 
 
+def test_write_generated_hurl_file_overwrites_existing_target_url_header_target(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    target = tmp_path / "tests" / "generated" / "health.hurl"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "# entroping: source=target-url\n"
+        "GET /old-health\n"
+        "HTTP 200\n",
+        encoding="utf-8",
+    )
+
+    architect_cli._write_generated_hurl_file(
+        GeneratedHurlFile(
+            relative_path="tests/generated/health.hurl",
+            content=(
+                "# entroping: source=target-url\n"
+                "GET /new-health\n"
+                "HTTP 200\n"
+            ),
+        )
+    )
+
+    assert target.read_text(encoding="utf-8") == (
+        "# entroping: source=target-url\n"
+        "GET /new-health\n"
+        "HTTP 200\n"
+    )
+
+
 @pytest.mark.parametrize(
     ("content", "expected"),
     [
         ("# entroping: tags=generated\n\n# entroping: source=openapi\n", False),
         ("# entroping: tags=generated\n", False),
         ("# entroping: tags=generated\n# entroping: source=openapi\n", True),
+        ("# entroping: tags=generated\n# entroping: source=target-url\n", True),
     ],
 )
 def test_openapi_generated_header_detection_requires_contiguous_source_header(
