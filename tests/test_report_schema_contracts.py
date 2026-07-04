@@ -3329,6 +3329,7 @@ def test_connector_intent_v1_schema_contract_is_versioned_and_stable() -> None:
     assert payload["intents"][0]["target_systems"] == ["jira", "linear"]
     assert payload["intents"][0]["required_user_action"] == "explicit_user_approval"
     assert schema["properties"]["schema_version"]["const"] == "entroping.connector-intent.v1"
+    assert schema["properties"]["capability_matrix"]["items"]["$ref"] == "#/$defs/capability"
     assert schema["properties"]["summary"]["$ref"] == "#/$defs/summary"
     assert schema["$defs"]["source_id"]["enum"] == [
         "runtime_card",

@@ -156,6 +156,11 @@ def test_connector_intent_writes_value_free_json_from_ready_sources(
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
     assert payload["schema_version"] == CONNECTOR_INTENT_SCHEMA_VERSION
     assert payload["project"] == "checkout-api"
+    assert "capability_matrix" in payload
+    matrix = {
+        row["target_system"]: row
+        for row in payload["capability_matrix"]
+    }
     assert payload["summary"] == {
         "status": "ready",
         "sources_total": 7,
@@ -217,6 +222,30 @@ def test_connector_intent_writes_value_free_json_from_ready_sources(
     assert "invoke_model_provider" in intents["enterprise_ai"]["forbidden_actions"]
     assert "mutate_dashboard_or_monitor" in intents["observability"]["forbidden_actions"]
     assert "implement_app_surface" in intents["devex_surface"]["forbidden_actions"]
+    assert matrix["jira"]["intent_id"] == "issue_tracker"
+    assert matrix["jira"]["status"] == "ready"
+    assert matrix["jira"]["local_evidence_prerequisites"] == [
+        "runtime_card",
+        "notification_packet",
+        "integration_readiness",
+    ]
+    assert matrix["slack"]["intent_id"] == "chat"
+    assert matrix["slack"]["status"] == "ready"
+    assert matrix["linear"]["intent_id"] == "issue_tracker"
+    assert matrix["monday"]["intent_id"] == "issue_tracker"
+    assert matrix["discord"]["intent_id"] == "chat"
+    assert matrix["workato"]["intent_id"] == "enterprise_automation"
+    assert matrix["zapier"]["intent_id"] == "enterprise_automation"
+    assert matrix["pr_card"]["intent_id"] == "devex_surface"
+    assert matrix["codex"]["intent_id"] == "enterprise_ai"
+    assert any(
+        "invoke_model_provider" in row["forbidden_actions"]
+        for row in payload["capability_matrix"]
+    )
+    assert all(
+        all("http://" not in str(value) and "https://" not in str(value) for value in row.values())
+        for row in payload["capability_matrix"]
+    )
     assert "sk-proj" not in json.dumps(payload)
 
 
@@ -288,6 +317,9 @@ def test_connector_intent_markdown_is_escaped_and_value_free(
         "| issue_tracker | ready | jira, linear, monday, github_issues, generic_tracker |"
         in markdown
     )
+    assert "## Capability Matrix" in markdown
+    assert "| jira | issue_tracker | ready |" in markdown
+    assert "| pr_card | devex_surface | ready |" in markdown
     assert "call_external_api" in markdown
     assert "No connector intent actions are currently needed." in markdown
     assert "checkout `api`" not in markdown
@@ -327,6 +359,7 @@ def test_connector_intent_markdown_output_renders_next_actions(
     markdown = result.output_path.read_text(encoding="utf-8")
     assert result.output_path == tmp_path / "reports" / "connector-intent.md"
     assert "| Priority | Action | Sources | Intents |" in markdown
+    assert "## Capability Matrix" in markdown
     assert "Generate Runtime card local evidence." in markdown
 
 

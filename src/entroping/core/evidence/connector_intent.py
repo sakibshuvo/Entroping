@@ -35,6 +35,7 @@ ConnectorIntentOutput = Literal["md", "json"]
 ConnectorIntentStatus = Literal["ready", "partial", "insufficient"]
 ConnectorIntentSourceState = Literal["present", "missing", "invalid", "unsafe"]
 ConnectorIntentRecordStatus = Literal["ready", "attention", "blocked"]
+ConnectorIntentCapabilityStatus = Literal["ready", "attention", "blocked"]
 ConnectorIntentNextActionPriority = Literal["high", "medium", "low"]
 ConnectorIntentSourceId = Literal[
     "runtime_card",
@@ -388,6 +389,19 @@ class ConnectorIntentRecord(BaseModel):
     next_action: str
 
 
+class ConnectorIntentCapability(BaseModel):
+    """One local connector-capability row for a target system."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    target_system: ConnectorIntentTargetSystem
+    intent_id: ConnectorIntentId
+    status: ConnectorIntentCapabilityStatus
+    local_evidence_prerequisites: tuple[ConnectorIntentSourceId, ...]
+    forbidden_actions: tuple[ConnectorIntentForbiddenAction, ...]
+    blockers: tuple[str, ...] = ()
+
+
 class ConnectorIntentNextAction(BaseModel):
     """One local action before enabling future connector intents."""
 
@@ -412,6 +426,7 @@ class ConnectorIntentPacket(BaseModel):
     summary: ConnectorIntentSummary
     sources: tuple[ConnectorIntentSource, ...]
     intents: tuple[ConnectorIntentRecord, ...]
+    capability_matrix: tuple[ConnectorIntentCapability, ...] = ()
     next_actions: tuple[ConnectorIntentNextAction, ...]
 
 
@@ -531,6 +546,27 @@ def render_connector_intent_markdown(packet: ConnectorIntentPacket) -> str:
             f"{_markdown_cell(intent.next_action)} |"
         )
 
+    lines.extend(
+        [
+            "",
+            "## Capability Matrix",
+            "",
+            "| Target System | Intent | Capability | Local Evidence Prerequisites | "
+            "Forbidden Actions | Blockers |",
+            "| --- | --- | --- | --- | --- | --- |",
+        ]
+    )
+    for capability in packet.capability_matrix:
+        lines.append(
+            "| "
+            f"{_markdown_cell(capability.target_system)} | "
+            f"{_markdown_cell(capability.intent_id)} | "
+            f"{_markdown_cell(capability.status)} | "
+            f"{_markdown_cell(', '.join(capability.local_evidence_prerequisites) or 'n/a')} | "
+            f"{_markdown_cell(', '.join(capability.forbidden_actions))} | "
+            f"{_markdown_cell('; '.join(capability.blockers) or 'none')} |"
+        )
+
     lines.extend(["", "## Next Actions", ""])
     if not packet.next_actions:
         lines.append("No connector intent actions are currently needed.")
@@ -557,6 +593,11 @@ def _build_packet(*, root: Path) -> ConnectorIntentPacket:
     sources = tuple(item.source for item in loaded)
     documents = {item.source.id: item.document for item in loaded}
     intents = _intents(sources)
+    source_by_id = {source.id: source for source in sources}
+    capability_matrix = _capability_matrix(
+        intents=intents,
+        source_by_id=source_by_id,
+    )
     next_actions = _next_actions(sources=sources, intents=intents)
     return ConnectorIntentPacket(
         generated_at=datetime.now(UTC).isoformat(),
@@ -564,6 +605,7 @@ def _build_packet(*, root: Path) -> ConnectorIntentPacket:
         summary=_summary(sources=sources, intents=intents, next_actions=next_actions),
         sources=sources,
         intents=intents,
+        capability_matrix=capability_matrix,
         next_actions=next_actions,
     )
 
@@ -917,6 +959,36 @@ def _next_actions(
             )
         )
     return tuple(_dedupe_actions(actions))
+
+
+def _capability_matrix(
+    *,
+    intents: tuple[ConnectorIntentRecord, ...],
+    source_by_id: Mapping[ConnectorIntentSourceId, ConnectorIntentSource],
+) -> tuple[ConnectorIntentCapability, ...]:
+    rows: list[ConnectorIntentCapability] = []
+    for intent in intents:
+        blockers = tuple(
+            f"{source_by_id[source_id].label} is {source_by_id[source_id].state}: "
+            f"{source_by_id[source_id].summary}"
+            for source_id in intent.required_source_ids
+            if source_by_id[source_id].state in {"invalid", "unsafe"}
+        )
+        status: ConnectorIntentCapabilityStatus = (
+            "blocked" if blockers else intent.status
+        )
+        for target_system in intent.target_systems:
+            rows.append(
+                ConnectorIntentCapability(
+                    target_system=target_system,
+                    intent_id=intent.id,
+                    status=status,
+                    local_evidence_prerequisites=intent.required_source_ids,
+                    forbidden_actions=intent.forbidden_actions,
+                    blockers=blockers,
+                )
+            )
+    return tuple(rows)
 
 
 def _dedupe_actions(
