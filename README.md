@@ -63,12 +63,9 @@ The command prepares a new or empty demo directory, starts the reviewed local
 checkout API fixture, runs deterministic Entroping/Hurl proof, and does not call
 model providers or external APIs.
 
-README-first package-installed transcript:
-
 ```text
 $ entroping demo --project ./entroping-checkout-demo
-[info] Writing local proof artifacts: JSON, JUnit, HTML, drift, and delta
-[pass] Aha local smoke completed without provider or external API calls.
+[pass] Aha local smoke wrote JSON, JUnit, HTML, drift, and delta without provider or external API calls.
 ```
 
 ![Checkout demo: Hurl run passes and reports are emitted](docs/assets/launch/checkout-demo.gif)
