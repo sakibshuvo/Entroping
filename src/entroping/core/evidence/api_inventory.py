@@ -46,6 +46,7 @@ ApiStyle = Literal[
     "webhook_event",
     "websocket_realtime",
     "bruno_collection",
+    "postman_collection",
     "unknown_http",
 ]
 ApiSourceKind = Literal[
@@ -138,6 +139,17 @@ _BRUNO_COLLECTION_SUFFIXES: Final[tuple[str, ...]] = (
     ".bruno.yml",
     ".bru",
 )
+_POSTMAN_COLLECTION_FILENAMES: Final[frozenset[str]] = frozenset(
+    {"postman_collection.json", "postman.collection.json"}
+)
+_POSTMAN_COLLECTION_SUFFIXES: Final[tuple[str, ...]] = (
+    ".postman_collection.json",
+    ".postman_collection.yaml",
+    ".postman_collection.yml",
+)
+_POSTMAN_COLLECTION_JSON_NAME_HINTS: Final[frozenset[str]] = frozenset(
+    {"postman", "postman_collection"}
+)
 _HTTP_METHODS: Final[frozenset[str]] = frozenset(
     {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
 )
@@ -164,6 +176,7 @@ _STYLE_LABELS: Final[dict[ApiStyle, str]] = {
     "webhook_event": "Webhook/Event",
     "websocket_realtime": "WebSocket/realtime",
     "bruno_collection": "Bruno collection",
+    "postman_collection": "Postman collection",
     "unknown_http": "Unknown HTTP",
 }
 _STYLE_ACTIONS: Final[dict[ApiStyle, str]] = {
@@ -178,6 +191,9 @@ _STYLE_ACTIONS: Final[dict[ApiStyle, str]] = {
     ),
     "bruno_collection": (
         "Use Bruno collection evidence as review input before Hurl promotion."
+    ),
+    "postman_collection": (
+        "Use Postman collection evidence as review input before Hurl promotion."
     ),
     "unknown_http": (
         "Add protocol tags or source specs so inventory can classify this HTTP surface."
@@ -492,6 +508,8 @@ def _schema_file_sources(*, root: Path) -> tuple[ApiInventorySource, ...]:
     sources: list[ApiInventorySource] = []
     for path in _iter_candidate_files(root=root):
         style = _schema_style_for_path(path)
+        if style is None and path.suffix.lower() == ".json":
+            style = _schema_style_from_postman_probe(path=path, root=root)
         if style is None:
             continue
         relative_path = _relative_path(path, root=root)
@@ -807,6 +825,49 @@ def _load_schema_source(*, root: Path, raw_path: Path, style: ApiStyle) -> ApiIn
             operations=0,
             summary="Bruno collection manifest.",
         )
+    if style == "postman_collection":
+        document = _load_yaml_document(
+            raw_text,
+            kind="schema_file",
+            style=style,
+            path=path_text,
+            label="Postman collection",
+        )
+        if isinstance(document, ApiInventorySource):
+            return document
+        if not isinstance(document, dict):
+            return _source(
+                kind="schema_file",
+                style=style,
+                path=path_text,
+                state="invalid",
+                sha256=None,
+                operations=0,
+                summary="Postman collection document must be an object.",
+            )
+        postman_operations = _postman_operation_count(document)
+        if postman_operations is None:
+            return _source(
+                kind="schema_file",
+                style=style,
+                path=path_text,
+                state="invalid",
+                sha256=None,
+                operations=0,
+                summary="Postman collection document must contain an item list.",
+            )
+        return _source(
+            kind="schema_file",
+            style=style,
+            path=path_text,
+            state="present",
+            sha256=hashlib.sha256(raw_bytes).hexdigest(),
+            operations=postman_operations,
+            summary=(
+                f"{postman_operations} Postman request "
+                f"{'entry' if postman_operations == 1 else 'entries'}."
+            ),
+        )
     return _source(
         kind="schema_file",
         style=style,
@@ -1092,6 +1153,30 @@ def _websocket_realtime_operation_count(document: object) -> int | None:
     return None
 
 
+def _postman_operation_count(document: object) -> int | None:
+    if not isinstance(document, dict):
+        return None
+    items = document.get("item")
+    if not isinstance(items, list):
+        return None
+
+    def _walk_nodes(nodes: object) -> int:
+        if not isinstance(nodes, list):
+            return 0
+        total = 0
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            if isinstance(node.get("request"), dict):
+                total += 1
+            nested = node.get("item")
+            if nested is not None:
+                total += _walk_nodes(nested)
+        return total
+
+    return _walk_nodes(items)
+
+
 def _entry_word(count: int) -> str:
     if count == 1:
         return "entry"
@@ -1156,7 +1241,44 @@ def _schema_style_for_path(path: Path) -> ApiStyle | None:
         return "websocket_realtime"
     if name in _BRUNO_COLLECTION_FILENAMES or name.endswith(_BRUNO_COLLECTION_SUFFIXES):
         return "bruno_collection"
+    if (
+        name in _POSTMAN_COLLECTION_FILENAMES
+        or name.endswith(_POSTMAN_COLLECTION_SUFFIXES)
+    ):
+        return "postman_collection"
     return _SCHEMA_EXTENSIONS.get(path.suffix.lower())
+
+
+def _schema_style_from_postman_probe(
+    *, path: Path, root: Path
+) -> ApiStyle | None:
+    lower_name = path.name.lower()
+    if any(hint in lower_name for hint in _POSTMAN_COLLECTION_JSON_NAME_HINTS):
+        return "postman_collection"
+
+    resolved = _resolve_source_path(path, root=root)
+    if isinstance(resolved, ApiInventorySource):
+        return None
+    try:
+        if resolved.stat().st_size > _MAX_API_INVENTORY_ARTIFACT_BYTES:
+            return None
+    except OSError:
+        return None
+
+    try:
+        raw_bytes = resolved.read_bytes()
+        raw_text = raw_bytes.decode("utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+
+    try:
+        document = cast(object, json.loads(raw_text))
+    except json.JSONDecodeError:
+        return None
+
+    if _postman_operation_count(document) is not None:
+        return "postman_collection"
+    return None
 
 
 def _style_summaries(
