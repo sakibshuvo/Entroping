@@ -14,6 +14,7 @@ from entroping.core.evidence.evidence_cloud_dashboard import (
     render_evidence_cloud_dashboard_html,
     run_evidence_cloud_dashboard_report,
 )
+from entroping.core.export.evidence_cloud_workspace import EvidenceCloudWorkspaceManifest
 from entroping.core.safe_write import SafeWriteError
 
 
@@ -230,6 +231,65 @@ def test_evidence_cloud_dashboard_manifests_show_freshness_states(tmp_path: Path
     assert "unknown" in html
 
 
+def test_evidence_cloud_dashboard_manifest_timestamp_probe_is_defensive(
+    tmp_path: Path,
+) -> None:
+    invalid_json_path = tmp_path / "reports" / "invalid.json"
+    invalid_json_path.parent.mkdir(parents=True, exist_ok=True)
+    invalid_json_path.write_text("{", encoding="utf-8")
+    invalid_utf8_path = tmp_path / "reports" / "invalid-utf8.json"
+    invalid_utf8_path.write_bytes(b"\xff")
+    missing_timestamp_path = tmp_path / "reports" / "missing-timestamp.json"
+    _write_json(missing_timestamp_path, {"generated_at": 42})
+    naive_timestamp_path = tmp_path / "reports" / "naive-timestamp.json"
+    _write_json(naive_timestamp_path, {"generated_at": "2026-06-21T00:00:00"})
+
+    def row(path: Path) -> EvidenceCloudWorkspaceManifest:
+        return EvidenceCloudWorkspaceManifest(
+            id=path.stem,
+            path=path.relative_to(tmp_path).as_posix(),
+            state="present",
+            summary="manifest timestamp probe",
+        )
+
+    assert (
+        evidence_cloud_dashboard._manifest_generated_at(
+            row=row(tmp_path / "reports" / "missing.json"),
+            root=tmp_path,
+        )
+        is None
+    )
+    assert (
+        evidence_cloud_dashboard._manifest_generated_at(
+            row=row(invalid_utf8_path),
+            root=tmp_path,
+        )
+        is None
+    )
+    assert (
+        evidence_cloud_dashboard._manifest_generated_at(
+            row=row(invalid_json_path),
+            root=tmp_path,
+        )
+        is None
+    )
+    assert (
+        evidence_cloud_dashboard._manifest_generated_at(
+            row=row(missing_timestamp_path),
+            root=tmp_path,
+        )
+        is None
+    )
+
+    generated_at = evidence_cloud_dashboard._manifest_generated_at(
+        row=row(naive_timestamp_path),
+        root=tmp_path,
+    )
+
+    assert generated_at is not None
+    assert generated_at.tzinfo is UTC
+
+
 @pytest.mark.parametrize(
     "secret_like_value",
     (
@@ -399,9 +459,11 @@ def test_evidence_cloud_dashboard_wraps_safe_write_errors(
 
 
 def test_evidence_cloud_dashboard_rejects_unsupported_output(tmp_path: Path) -> None:
+    unsupported_output = json.loads('"md"')
+
     with pytest.raises(EvidenceCloudDashboardError, match="Unsupported"):
         run_evidence_cloud_dashboard_report(
             project_root=tmp_path,
             manifests=(tmp_path / "reports" / "repo-a-export.json",),
-            output="md",  # type: ignore[arg-type]
+            output=unsupported_output,
         )
