@@ -29,6 +29,8 @@ AI-native API quality governance for teams using coding agents.
 
 The product should not look like a generic test generator. The sharp wedge is runtime governance: Hurl executes the truth, QAnstitution defines the law, and AI only proposes changes.
 
+Entroping is explicit about being an API/backend integrity layer before a broad QA-suite platform. It is optimized for deterministic local proofs and policy-controlled review surfaces instead of replacing every test strategy or hosted execution workflow.
+
 ## World-Class Open Source Checklist
 
 - README that shows the real product in the first screen.

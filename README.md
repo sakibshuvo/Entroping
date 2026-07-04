@@ -29,6 +29,7 @@ Entroping positions itself as a backend/API integrity layer, not as a generic AI
 - **Behavior changes need governance checks** from local traffic, QAnstitution gates, and CI-run evidence before merge.
 - **Runtime proofs are local-first and reviewable**, with exported artifacts that do not claim hosted analysis by default.
 - **Trust is earned by reproducible evidence, not model judgment**, keeping AI suggestions separate from enforcement.
+It is an API integrity layer, not a broad AI QA platform. It does not replace testing design, manual QA ownership, or human review; it hardens API behavior through deterministic execution before merge.
 
 ## Use Entroping When
 
