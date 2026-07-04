@@ -6,9 +6,9 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from entroping.core.path_safety import first_symlink_path_component
+from entroping.models.hurl import HURL_VARIABLE_NAME_RE
 
 _ENV_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
-_VARIABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 class EnvironmentLoadError(ValueError):
@@ -52,7 +52,7 @@ def load_process_hurl_variables(
         if not env_key.startswith("HURL_VARIABLE_"):
             continue
         variable_name = env_key.removeprefix("HURL_VARIABLE_")
-        if _VARIABLE_NAME_RE.fullmatch(variable_name) is None:
+        if HURL_VARIABLE_NAME_RE.fullmatch(variable_name) is None:
             msg = f"Invalid Hurl environment variable name {env_key!r}"
             raise EnvironmentLoadError(msg)
         variables[variable_name] = value
@@ -86,7 +86,7 @@ def _read_env_file(path: Path) -> dict[str, str]:
             raise EnvironmentLoadError(msg)
 
         key, value = (part.strip() for part in line.split("=", maxsplit=1))
-        if _VARIABLE_NAME_RE.fullmatch(key) is None:
+        if HURL_VARIABLE_NAME_RE.fullmatch(key) is None:
             msg = f"{resolved}: line {line_number}: Invalid environment variable name {key!r}"
             raise EnvironmentLoadError(msg)
         if key in variables:

@@ -13,6 +13,7 @@ from entroping.core.report_fingerprint import (
     _serialized_response_headers,
     _serialized_response_status,
 )
+from entroping.models.hurl import HURL_VARIABLE_NAME_RE
 from entroping.models.report import (
     KnownFailureEvidence,
     RunAttemptEvidence,
@@ -48,7 +49,6 @@ _REQUIRED_RUN_REPORT_TEST_INT_FIELDS: Final[tuple[str, ...]] = (
     "duration_ms",
 )
 _AUTH_FLOW_RE = re.compile(r"^[A-Za-z0-9_.:-]+$")
-_AUTH_VARIABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _MAX_RUN_REPORT_BYTES: Final = 100 * 1024 * 1024
 
 
@@ -467,7 +467,7 @@ def _serialized_auth_variables(raw_variables: object) -> tuple[str, ...]:
         if (
             not name
             or _has_control_character(name)
-            or _AUTH_VARIABLE_NAME_RE.fullmatch(name) is None
+            or HURL_VARIABLE_NAME_RE.fullmatch(name) is None
             or name in seen
         ):
             continue
