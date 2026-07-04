@@ -13,18 +13,45 @@ import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, cast
+from typing import Literal, TypedDict
 
 SCHEMA_VERSION = "entroping.aha-readiness.v1"
 MAX_READ_TEXT_BYTES = 1024 * 1024
 CheckStatus = Literal["ready", "partial", "blocked"]
+CheckCategory = Literal["local", "external"]
+
+
+class CheckPayload(TypedDict):
+    key: str
+    path: str
+    category: CheckCategory
+    status: CheckStatus
+    detail: str
+    description: str
+
+
+class BlockerPayload(TypedDict):
+    key: str
+    reason: str
+
+
+class AhaReadinessPayload(TypedDict):
+    schema_version: str
+    status: CheckStatus
+    aha_ready: bool
+    stable_core_ready: bool
+    ready_checks: int
+    total_checks: int
+    checks: dict[str, CheckPayload]
+    local_blockers: list[BlockerPayload]
+    external_blockers: list[BlockerPayload]
 
 
 @dataclass(frozen=True)
 class Check:
     key: str
     path: str
-    category: Literal["local", "external"]
+    category: CheckCategory
     description: str
     markers: tuple[str, ...]
     allow_marker_subset: bool = True
@@ -141,10 +168,10 @@ def main() -> int:
     return 0
 
 
-def _build_payload(root: Path) -> dict[str, object]:
-    checks: dict[str, dict[str, object]] = {}
-    local_blockers: list[dict[str, str]] = []
-    external_blockers: list[dict[str, str]] = []
+def _build_payload(root: Path) -> AhaReadinessPayload:
+    checks: dict[str, CheckPayload] = {}
+    local_blockers: list[BlockerPayload] = []
+    external_blockers: list[BlockerPayload] = []
 
     for check in _iter_checks():
         result = _evaluate_check(root, check)
@@ -220,7 +247,7 @@ class _Result:
     detail: str
 
 
-def _aggregate_status(checks: dict[str, dict[str, object]]) -> str:
+def _aggregate_status(checks: dict[str, CheckPayload]) -> CheckStatus:
     if any(entry["status"] == "blocked" for entry in checks.values()):
         return "blocked"
     if any(entry["status"] == "partial" for entry in checks.values()):
@@ -240,8 +267,8 @@ def _read_text_file_bounded(path: Path) -> str:
     return data.decode("utf-8", errors="replace")
 
 
-def _render_markdown(payload: dict[str, object]) -> str:
-    checks = cast(dict[str, dict[str, object]], payload["checks"])
+def _render_markdown(payload: AhaReadinessPayload) -> str:
+    checks = payload["checks"]
     lines = [
         "# Aha Readiness Scorecard",
         "",
@@ -256,7 +283,7 @@ def _render_markdown(payload: dict[str, object]) -> str:
     ]
 
     for check in checks.values():
-        status = cast(str, check["status"])
+        status = check["status"]
         lines.append(f"- `{check['key']}` ({check['category']}): {status}")
         lines.append(f"  - {check['detail']}")
 
