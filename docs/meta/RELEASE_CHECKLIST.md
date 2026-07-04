@@ -85,10 +85,13 @@ environments.
 
 The local wheel install smoke reuses the built wheel, creates a temporary
 virtual environment and temporary project outside the repository, installs the
-wheel with `uv pip install --offline`, then runs only public installed CLI
-commands: `entroping --version`, `entroping init --minimal`, and
-`entroping doctor`. It emits machine-readable evidence and does not require
-PyPI, TestPyPI, registry credentials, or committed `dist/` artifacts.
+wheel with `uv pip install --offline`, then runs public installed CLI commands:
+`entroping --version`, `entroping init --minimal`, and `entroping doctor`. When
+Hurl is available, it also copies the checkout demo fixture through the
+installed package and runs the installed demo path; when Hurl is missing, it
+records the demo proof as an explicit skip. It emits machine-readable evidence
+and does not require PyPI, TestPyPI, registry credentials, or committed `dist/`
+artifacts.
 
 The downstream smoke creates a separate temporary API project, starts a local
 fixture server, and runs Entroping through the public CLI from that external

@@ -89,8 +89,10 @@ package-index Trusted Publisher records exist.
 `scripts/local_wheel_install_smoke.py --skip-build` must pass after
 `scripts/package_check.sh`. It installs the locally built wheel into a temporary
 venv using `uv pip install --offline` and runs the installed public CLI from a
-temporary project, proving the wheel path without PyPI, TestPyPI, or network
-registry access.
+temporary project, then runs the installed demo path against the checkout demo
+fixture when Hurl is available. When Hurl is missing, the demo proof is recorded
+as an explicit skip. This proves the wheel path without PyPI, TestPyPI, or
+network registry access.
 
 Do not publish if:
 
