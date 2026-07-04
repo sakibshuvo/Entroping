@@ -568,6 +568,94 @@ def test_api_inventory_marks_bad_bruno_collection_sources_invalid_or_unsafe(
     assert "UTF-8" in binary_source.summary
 
 
+def test_api_inventory_detects_postman_collection_files(tmp_path: Path) -> None:
+    manifest_path = _write_text(
+        tmp_path / "collections" / "payments" / "checkout.postman_collection.json",
+        """
+{
+  "info": {
+    "name": "Checkout"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "https://internal.example.test/health"
+        }
+      }
+    },
+    {
+      "name": "Catalog",
+      "item": [
+        {
+          "name": "List items",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "https://internal.example.test/catalog"
+            }
+          }
+        },
+        {
+          "name": "Item operations",
+          "item": [
+            {
+              "name": "Create item",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "https://internal.example.test/items"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+""".strip()
+        + "\n",
+    )
+
+    result = run_api_inventory_report(project_root=tmp_path, output="json")
+    payload = json.loads(result.output_path.read_text(encoding="utf-8"))
+    sources = {(source["kind"], source["path"]): source for source in payload["sources"]}
+    assert sources[("schema_file", "collections/payments/checkout.postman_collection.json")] == {
+        "kind": "schema_file",
+        "style": "postman_collection",
+        "path": "collections/payments/checkout.postman_collection.json",
+        "state": "present",
+        "sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+        "tags": [],
+        "operations": 3,
+        "summary": "3 Postman request entries.",
+    }
+    styles = {style["style"]: style for style in payload["styles"]}
+    assert styles["postman_collection"]["sources"] == 1
+    assert styles["postman_collection"]["operations"] == 3
+    serialized = json.dumps(payload)
+    assert "Create item" not in serialized
+    assert "Health" not in serialized
+    assert "https://internal.example.test/health" not in serialized
+
+    markdown = render_api_inventory_markdown(result.packet)
+    assert "Postman collection" in markdown
+
+
+def test_api_inventory_marks_bad_postman_collection_sources_invalid(tmp_path: Path) -> None:
+    _write_text(tmp_path / "collections" / "broken.postman_collection.json", "{not json: [}\n")
+
+    packet = build_api_inventory(project_root=tmp_path)
+
+    sources = {(source.kind, source.path): source for source in packet.sources}
+    missing_item = sources[("schema_file", "collections/broken.postman_collection.json")]
+    assert missing_item.state == "invalid"
+    assert "Invalid Postman collection YAML" in missing_item.summary
+
+
 def test_api_inventory_counts_graphql_root_operations_without_leaking_names(
     tmp_path: Path,
 ) -> None:
