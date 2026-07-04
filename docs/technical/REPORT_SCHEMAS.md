@@ -1125,7 +1125,8 @@ It writes `reports/api-inventory.md` by default or
 before protocol-specific compilers are added: configured and conventional
 OpenAPI files, committed Hurl tests with protocol tags, GraphQL/WSDL/proto
 schema files, AsyncAPI specs, webhook/event-contract files,
-WebSocket/realtime contract files, and Bruno collection manifests/request
+WebSocket/realtime contract files, Postman collection manifests (including
+JSON files that match collection-shape), and Bruno collection manifests/request
 files. GraphQL SDL sources contribute counts for root `Query`, `Mutation`, and
 `Subscription` fields without rendering field names; WSDL sources contribute
 counts for `portType` operations without rendering operation names, service
