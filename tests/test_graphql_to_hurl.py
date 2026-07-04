@@ -56,6 +56,15 @@ def test_compile_graphql_sdl_to_hurl_accepts_local_fixture_target() -> None:
     assert "# entroping: target_origin=http://127.0.0.1:18082\n" in generated.content
 
 
+def test_compile_graphql_sdl_to_hurl_ignores_empty_operation_blocks() -> None:
+    generated = compile_graphql_sdl_to_hurl(
+        "type Mutation {}\ntype Query { viewer: String }",
+        target_url="https://api.example.test/graphql",
+    )
+
+    assert "# entroping: operation_categories=query\n" in generated.content
+
+
 def test_compile_graphql_sdl_to_hurl_requires_query_root() -> None:
     with pytest.raises(GraphqlHurlCompilationError, match="at least one Query field"):
         compile_graphql_sdl_to_hurl(
