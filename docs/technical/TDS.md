@@ -123,6 +123,7 @@ src/entroping/
     traffic_to_hurl.py
     traffic_to_wiremock.py
     traffic_to_graph.py
+    graphql_to_hurl.py
     policy_to_hurl.py
     story_traceability.py
     merge.py
