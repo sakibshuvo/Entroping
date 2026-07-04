@@ -1458,6 +1458,39 @@ Check whether the local Ollama model is installed and running. If the machine is
 Run `entroping doctor` to confirm configured persona files are safe and the
 expected `api_key_env` names are set without exposing secret values.
 
+### Local-first traffic and evidence export FAQ
+
+- **Where is data stored locally?**
+  - Runtime state: `.entroping/state.db`
+  - Reports and artifacts: `reports/`
+  - Event log: `.entroping/latest-run-events.jsonl`
+  - Latest run metadata: `.entroping/latest-run.json`
+
+- **What is redacted before storage or report write?**
+  Entroping redacts token-like values, URL userinfo/query fragments, request
+  and response body fragments, headers, and cookies before persistence. Redacted
+  summaries are kept for deterministic report generation.
+
+- **What is never uploaded by default?**
+  Raw traffic, secrets, source Hurl contents, env values, prompts, and provider
+  responses are not uploaded by Entroping in the local examples or default
+  commands.
+
+- **Can a provider boundary receive runtime evidence?**
+  `entroping run` is LLM-free by design. Provider calls occur only in Architect/
+  Brain commands, and those commands only emit sanitized output and artifacts.
+
+- **Can this be safely shared?**
+  Share only curated artifacts (for example
+  `reports/run-latest.json`, `reports/evidence-bundle.json`,
+  `reports/pilot-metrics.json`, `reports/runtime-card.md`) and avoid sharing
+  `.entroping/` directories.
+
+- **Can I share evidence outside the repo?**
+  Yes, after review. Use evidence artifacts that keep secrets out and keep
+  sharing scope explicit, then document anything missing as `manual_input_required`
+  in review packets instead of inventing raw fields.
+
 ### Evidence packet picker
 
 Use this compact map before sharing or reviewing local packets:

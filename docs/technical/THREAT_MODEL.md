@@ -153,6 +153,34 @@ The **Dependency policy** is local-first and conservative:
 | Traffic | Redaction covers sensitive headers, URL userinfo/query values, JSON fields, token-like text, and bounded body summaries before SQLModel persistence; low-confidence redaction records are rejected before freeze/mock/png-map artifact writes; `report redaction` lets users inspect counts-only coverage before freezing or mapping. |
 | CI | Pull requests run `scripts/regression.sh --security`, `scripts/audit_quality.sh`, optional-extras runtime smoke, and live demo smoke. |
 
+## Local-first traffic and evidence export FAQ
+
+### Where is local state written?
+
+- Runtime capture and policy-execution state stay in `.entroping/state.db`.
+- Run metadata goes to `.entroping/latest-run.json` and
+  `.entroping/latest-run-events.jsonl`.
+- Reports and evidence live in `reports/` unless a specific command writes to
+  another local artifact path.
+
+### What is redacted by default?
+
+Traffic and output paths apply redaction before persistence and emission for
+secret-shaped values, including URL userinfo/query credentials, cookies, token-like
+headers and body fragments, and low-confidence body summaries.
+
+### What should never be uploaded by default?
+
+Entroping does not upload raw traffic, secrets, source Hurl files, env files,
+provider outputs, or `.entroping/` state in default local examples. Uploads
+should remain workflow-authored and review-controlled.
+
+### How should local evidence be shared?
+
+Share only reviewed, schema-valid artifacts and keep provider prompts, raw
+traffic, and private values out of shared packets. Missing fields should be marked
+explicitly as `manual_input_required` where local inference cannot prove them.
+
 ## Validated Findings And Remediation Status
 
 The last full post-alpha security review was issue #96. It validated 14
