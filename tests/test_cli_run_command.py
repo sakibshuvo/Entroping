@@ -225,6 +225,13 @@ def test_run_writes_json_junit_reports_and_latest_state(
     )
 
     assert result.exit_code == 0
+    assert "Run summary: passed (1 passed, 0 failed)" in result.output
+    assert "Next local artifacts:" in result.output
+    assert "- Latest run state: .entroping/latest-run.json" in result.output
+    assert "- Execution events: .entroping/latest-run-events.jsonl" in result.output
+    assert "- JSON report: reports/run-latest.json" in result.output
+    assert "- JUnit report: reports/junit.xml" in result.output
+    assert "- HTML report: reports/run-latest.html" in result.output
     assert "reports/run-latest.json" in result.output
     assert "reports/junit.xml" in result.output
     assert "reports/run-latest.html" in result.output

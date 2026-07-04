@@ -2,7 +2,7 @@
 
 import asyncio
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Final
 
 import typer
 
@@ -58,6 +58,14 @@ from entroping.studio.status import (
     collect_studio_status,
     ensure_studio_available,
 )
+
+_RUN_ARTIFACT_LABELS: Final = {
+    "run-latest.json": "JSON report",
+    "junit.xml": "JUnit report",
+    "run-latest.html": "HTML report",
+    "drift.json": "Drift report",
+    "drift-baseline.candidate.json": "Drift baseline candidate",
+}
 
 
 def register_execution_commands(root_app: typer.Typer) -> None:
@@ -614,6 +622,7 @@ def _print_run_result(
             markup=False,
         )
     console.print(f"Hurl run: {hurl_suite.passed} passed, {hurl_suite.failed} failed")
+    _print_first_run_summary(workflow_result)
     if hurl_suite.fail_fast and hurl_suite.not_scheduled:
         console.print(
             (
@@ -647,6 +656,29 @@ def _print_run_result(
             console.print(result.stdout, markup=False)
         if result.stderr:
             console.print(result.stderr, markup=False)
+
+
+def _print_first_run_summary(workflow_result: RunWorkflowResult) -> None:
+    hurl_suite = workflow_result.suite
+    status = "passed" if hurl_suite.failed == 0 else "failed"
+    console.print(
+        (
+            f"Run summary: {status} "
+            f"({hurl_suite.passed} passed, {hurl_suite.failed} failed)"
+        ),
+        markup=False,
+    )
+    console.print("Next local artifacts:")
+    console.print(
+        f"- Latest run state: {display_cli_path(workflow_result.latest_state_path)}",
+        markup=False,
+    )
+    event_log_path = getattr(workflow_result, "event_log_path", None)
+    if isinstance(event_log_path, Path):
+        console.print(f"- Execution events: {display_cli_path(event_log_path)}", markup=False)
+    for artifact in workflow_result.artifacts:
+        label = _RUN_ARTIFACT_LABELS.get(artifact.name, "Report")
+        console.print(f"- {label}: {display_cli_path(artifact)}", markup=False)
 
 
 def _execute_run_dry_run(
