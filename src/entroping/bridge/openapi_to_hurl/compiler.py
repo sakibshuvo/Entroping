@@ -38,6 +38,7 @@ from entroping.bridge.openapi_to_hurl.parameters import (
     _parameter_explode,
     _parameter_location,
     _parameter_name,
+    _parameter_required,
     _parameter_style,
     _parameter_value_token,
     _parameters_from_container,
@@ -130,6 +131,7 @@ __all__ = (
     "_parameter_explode",
     "_parameter_location",
     "_parameter_name",
+    "_parameter_required",
     "_parameter_style",
     "_parameter_value_token",
     "_parameters_from_container",
@@ -254,6 +256,21 @@ def compile_openapi_to_hurl_with_report(
                 generated.append(item)
             security_findings.extend(security_result.security_findings)
 
+            for item in _missing_required_parameter_negative_files(
+                method=method_name,
+                path=raw_path,
+                path_item=path_item,
+                operation=operation,
+                operation_id=operation_id,
+                tags=tags,
+                parameter_components=parameter_components,
+            ):
+                if item.relative_path in used_paths:
+                    msg = f"OpenAPI operations compile to duplicate Hurl path: {item.relative_path}"
+                    raise OpenApiCompilationError(msg)
+                used_paths.add(item.relative_path)
+                generated.append(item)
+
             for item in _schema_negative_files(
                 method=method_name,
                 path=raw_path,
@@ -374,6 +391,99 @@ def _schema_negative_files(
         )
         for case in cases
     )
+
+
+def _missing_required_parameter_negative_files(
+    *,
+    method: str,
+    path: str,
+    path_item: Mapping[str, object],
+    operation: Mapping[str, object],
+    operation_id: str,
+    tags: frozenset[str],
+    parameter_components: Mapping[str, object],
+) -> tuple[GeneratedHurlFile, ...]:
+    status = _validation_failure_status(operation)
+    if status is None:
+        return ()
+
+    parameters = _operation_parameters(
+        path_item=path_item,
+        operation=operation,
+        path=path,
+        parameter_components=parameter_components,
+    )
+    required_parameters = tuple(
+        parameter
+        for parameter in parameters
+        if parameter.required and parameter.location in {"query", "header", "cookie"}
+    )
+    if not required_parameters:
+        return ()
+
+    request_content = _json_request_schema(operation)
+    slug = _slugify_operation_id(operation_id)
+    return tuple(
+        GeneratedHurlFile(
+            relative_path=(
+                "tests/generated/negative/"
+                f"{slug}_missing_required_{parameter.location}_"
+                f"{_slugify_operation_id(parameter.name)}.hurl"
+            ),
+            content=_render_missing_required_parameter_negative_operation(
+                method=method,
+                path=path,
+                operation_id=operation_id,
+                tags=frozenset({*tags, "negative", "missing-required-parameter"}),
+                status=status,
+                omitted_parameter=parameter,
+                parameters=parameters,
+                request_content=request_content,
+            ),
+        )
+        for parameter in required_parameters
+    )
+
+
+def _render_missing_required_parameter_negative_operation(
+    *,
+    method: str,
+    path: str,
+    operation_id: str,
+    tags: frozenset[str],
+    status: str,
+    omitted_parameter: _OpenApiParameter,
+    parameters: tuple[_OpenApiParameter, ...],
+    request_content: _JsonContentSchema | None,
+) -> str:
+    omitted = frozenset({(omitted_parameter.location, omitted_parameter.name)})
+    lines = [
+        f"# entroping: tags={_render_tags(tags)}",
+        "# entroping: source=openapi",
+        "# entroping: generation=negative-path-fuzzing",
+        f"# entroping: operation_id={operation_id}",
+        "# entroping: negative_category=missing-required-parameter",
+        "# entroping: severity=medium",
+        f"# entroping: safety={_negative_path_safety(method)}",
+        f"# entroping: path={path}",
+        "",
+        (
+            f"{method} {{{{base_url}}}}"
+            f"{_render_request_target(path, parameters, omitted_parameters=omitted)}"
+        ),
+    ]
+    lines.extend(_render_parameter_headers(parameters, omitted_parameters=omitted))
+    if request_content is not None:
+        lines.append(f"Content-Type: {request_content.media_type}")
+        lines.extend(
+            json.dumps(
+                _example_for_schema(request_content.schema),
+                indent=2,
+                allow_nan=False,
+            ).splitlines()
+        )
+    lines.extend((f"HTTP {status}", ""))
+    return "\n".join(lines)
 
 
 def _schema_negative_cases(

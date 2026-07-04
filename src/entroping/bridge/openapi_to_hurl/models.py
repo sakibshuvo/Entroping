@@ -55,6 +55,7 @@ class _OpenApiParameter:
     example_value: _ParameterExampleValue | None
     style: str
     explode: bool
+    required: bool = False
     schema: Mapping[str, object] | None = None
 
 
