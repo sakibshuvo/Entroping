@@ -11,9 +11,11 @@ import entroping.core.evidence.pr_evidence_card as pr_evidence_card
 from entroping.core.evidence.pr_evidence_card import (
     PR_EVIDENCE_CARD_SCHEMA_VERSION,
     PrEvidenceCardError,
+    PrEvidenceCardSummaryError,
     build_pr_evidence_card_packet,
     render_pr_evidence_card_markdown,
     run_pr_evidence_card_report,
+    run_pr_evidence_card_summary_report,
 )
 from entroping.core.safe_write import SafeWriteError
 
@@ -292,6 +294,59 @@ def test_pr_evidence_card_rejects_unsupported_output(tmp_path: Path) -> None:
             project_root=tmp_path,
             output="html",  # type: ignore[arg-type]
         )
+
+
+def test_pr_evidence_card_summary_report_renders_markdown(tmp_path: Path) -> None:
+    packet = build_pr_evidence_card_packet(project_root=tmp_path)
+    artifact_path = tmp_path / "reports" / "pr-evidence-card.json"
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    artifact_path.write_text(packet.model_dump_json(), encoding="utf-8")
+
+    result = run_pr_evidence_card_summary_report(project_root=tmp_path)
+
+    assert result.artifact_path == artifact_path
+    assert "# Entroping PR Evidence Card Summary" in result.summary_markdown
+    assert "## Sources" in result.summary_markdown
+    assert "## Checks" in result.summary_markdown
+
+
+def test_pr_evidence_card_summary_report_rejects_missing_artifact(tmp_path: Path) -> None:
+    with pytest.raises(
+        PrEvidenceCardSummaryError,
+        match="Could not read PR evidence-card artifact",
+    ):
+        run_pr_evidence_card_summary_report(project_root=tmp_path)
+
+
+def test_pr_evidence_card_summary_report_rejects_wrong_schema(tmp_path: Path) -> None:
+    artifact_path = tmp_path / "reports" / "pr-evidence-card.json"
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    artifact_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "entroping.runtime-card.v1",
+                "generated_at": "2026-01-01T00:00:00Z",
+                "project": "checkout-api",
+            },
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(PrEvidenceCardSummaryError, match="unexpected schema"):
+        run_pr_evidence_card_summary_report(project_root=tmp_path)
+
+
+def test_pr_evidence_card_summary_report_rejects_secret_like_content(tmp_path: Path) -> None:
+    packet = build_pr_evidence_card_packet(project_root=tmp_path)
+    packet_payload = packet.model_dump()
+    packet_payload["project"] = "ghp_" + ("a" * 24)
+
+    artifact_path = tmp_path / "reports" / "pr-evidence-card.json"
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    artifact_path.write_text(json.dumps(packet_payload), encoding="utf-8")
+
+    with pytest.raises(PrEvidenceCardSummaryError, match="secret-like"):
+        run_pr_evidence_card_summary_report(project_root=tmp_path)
 
 
 def test_pr_evidence_card_defensive_source_fallbacks(tmp_path: Path) -> None:

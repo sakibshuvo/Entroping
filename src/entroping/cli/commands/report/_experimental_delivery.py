@@ -29,6 +29,7 @@ from ._deps import (
     OtlpPreviewOutput,
     PrEvidenceCardError,
     PrEvidenceCardOutput,
+    PrEvidenceCardSummaryError,
     TeamEvidenceReadinessError,
     TeamEvidenceReadinessOutput,
     report_dependency,
@@ -46,6 +47,7 @@ run_handoff_report = report_dependency("run_handoff_report")
 run_notification_packet_report = report_dependency("run_notification_packet_report")
 run_otlp_preview_report = report_dependency("run_otlp_preview_report")
 run_pr_evidence_card_report = report_dependency("run_pr_evidence_card_report")
+run_pr_evidence_card_summary_report = report_dependency("run_pr_evidence_card_summary_report")
 run_team_evidence_readiness_report = report_dependency("run_team_evidence_readiness_report")
 
 
@@ -330,6 +332,29 @@ def report_pr_evidence_card(
         raise typer.Exit(1) from exc
 
     console.print(f"Wrote PR evidence card: {display_cli_path(result.output_path)}")
+    raise typer.Exit(0)
+
+
+@app.command("pr-evidence-card-summary", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_pr_evidence_card_summary(
+    artifact_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--artifact-path",
+            help="Path to a local PR evidence-card JSON artifact.",
+        ),
+    ] = None,
+) -> None:
+    try:
+        result = run_pr_evidence_card_summary_report(
+            project_root=Path.cwd(),
+            artifact_path=artifact_path,
+        )
+    except PrEvidenceCardSummaryError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    console.print(result.summary_markdown)
     raise typer.Exit(0)
 
 

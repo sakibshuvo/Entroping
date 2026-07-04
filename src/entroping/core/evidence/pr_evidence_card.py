@@ -28,6 +28,7 @@ from entroping.core.safe_write import SafeWriteError, safe_report_output_path, s
 PR_EVIDENCE_CARD_SCHEMA_VERSION: Final = "entroping.pr-evidence-card.v1"
 
 PrEvidenceCardOutput = Literal["md", "json"]
+PrEvidenceCardSummaryOutput = Literal["md"]
 PrEvidenceCardStatus = Literal["ready", "partial", "insufficient"]
 PrEvidenceCardSourceState = EvidenceArtifactState
 PrEvidenceCardChecklistState = Literal["ready", "attention", "blocked"]
@@ -63,6 +64,7 @@ _DEFAULT_OUTPUTS: Final[dict[PrEvidenceCardOutput, Path]] = {
     "md": Path("reports") / "pr-evidence-card.md",
     "json": Path("reports") / "pr-evidence-card.json",
 }
+_DEFAULT_SUMMARY_INPUT_PATH: Final = Path("reports") / "pr-evidence-card.json"
 _SHA256_HEX_RE: Final = re.compile(r"\b[0-9a-f]{64}\b", re.IGNORECASE)
 _READY_STATUSES: Final = {"pass", "ready", "verified", "complete", "known"}
 _BLOCKED_STATUSES: Final = {
@@ -80,6 +82,10 @@ _BLOCKED_STATUSES: Final = {
 
 class PrEvidenceCardError(ValueError):
     """Raised when the PR evidence card cannot be generated safely."""
+
+
+class PrEvidenceCardSummaryError(ValueError):
+    pass
 
 
 @dataclass(frozen=True, slots=True)
@@ -215,15 +221,129 @@ def run_pr_evidence_card_report(
     return PrEvidenceCardResult(output_path=written, packet=packet)
 
 
-def build_pr_evidence_card_packet(*, project_root: Path) -> PrEvidenceCardPacket:
-    """Build a value-free local PR evidence card packet."""
+@dataclass(frozen=True, slots=True)
+class PrEvidenceCardSummaryResult:
+    artifact_path: Path
+    summary_markdown: str
+    packet: PrEvidenceCardPacket
 
+
+def run_pr_evidence_card_summary_report(
+    *,
+    project_root: Path,
+    artifact_path: Path | None = None,
+) -> PrEvidenceCardSummaryResult:
+    root = project_root.expanduser().resolve()
+    source_path = _resolve_summary_input_path(
+        artifact_path or _DEFAULT_SUMMARY_INPUT_PATH,
+        root=root,
+    )
+    packet = build_pr_evidence_card_summary_packet(
+        artifact_path=source_path,
+        project_root=root,
+    )
+    return PrEvidenceCardSummaryResult(
+        artifact_path=source_path,
+        summary_markdown=render_pr_evidence_card_summary_markdown(packet),
+        packet=packet,
+    )
+
+
+def render_pr_evidence_card_summary_markdown(packet: PrEvidenceCardPacket) -> str:
+    source_rows = "\n".join(
+        f"| {_md(_source_label(row.id))} | {row.id} | `{_md(row.path)}` | {_md(row.state)} |"
+        for row in packet.sources
+    )
+    checklist_rows = "\n".join(
+        f"| {_md(row.label)} | {row.source_id} | `{_md(row.path)}` | {_md(row.state)} |"
+        for row in packet.checklist
+    )
+    if not packet.next_actions:
+        next_action_rows = "- No PR evidence-card actions are currently needed."
+    else:
+        next_action_rows = "\n".join(_action_markdown(row) for row in packet.next_actions)
+
+    return "\n".join(
+        (
+            "# Entroping PR Evidence Card Summary",
+            "",
+            f"- Project: `{_md(packet.project)}`",
+            f"- Overall status: `{_md(packet.summary.status)}`",
+            (
+                f"- Sources present: "
+                f"`{packet.summary.sources_present}/{packet.summary.sources_total}`"
+            ),
+            (
+                f"- Checklist ready: "
+                f"`{packet.summary.checklist_ready}/{packet.summary.checklist_total}`"
+            ),
+            "",
+            "## Sources",
+            "",
+            "| Label | ID | Path | Status |",
+            "| --- | --- | --- | --- |",
+            source_rows,
+            "",
+            "## Checks",
+            "",
+            "| Check | Source ID | Path | Status |",
+            "| --- | --- | --- | --- |",
+            checklist_rows,
+            "",
+            "## Next Actions",
+            "",
+            next_action_rows,
+            "",
+        )
+    )
+
+
+def build_pr_evidence_card_summary_packet(
+    *,
+    project_root: Path,
+    artifact_path: Path,
+) -> PrEvidenceCardPacket:
+    source_path = _resolve_summary_input_path(artifact_path, root=project_root)
+    raw_bytes, load_error = read_local_evidence_json_artifact_bytes(source_path, root=project_root)
+    if raw_bytes is None:
+        msg = (
+            f"Could not read PR evidence-card artifact at {source_path}"
+            if not load_error
+            else f"Could not read PR evidence-card artifact at {source_path}: {load_error}"
+        )
+        raise PrEvidenceCardSummaryError(msg)
+    try:
+        raw_text = raw_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        raise PrEvidenceCardSummaryError(
+            f"PR evidence-card artifact at {source_path} contains non-UTF-8 content",
+        ) from None
+    if _contains_unredacted_pr_card_secret(raw_text):
+        raise PrEvidenceCardSummaryError("PR evidence-card summary contains secret-like content")
+    document = _parse_document(raw_text)
+    if document is None:
+        raise PrEvidenceCardSummaryError(
+            f"PR evidence-card artifact at {source_path} does not contain valid JSON",
+        )
+    try:
+        return PrEvidenceCardPacket.model_validate(document)
+    except Exception as exc:
+        raise PrEvidenceCardSummaryError(
+            f"PR evidence-card artifact at {source_path} has an unexpected schema",
+        ) from exc
+
+
+def build_pr_evidence_card_packet(*, project_root: Path) -> PrEvidenceCardPacket:
     root = project_root.expanduser().resolve()
     indexed = {artifact.id: artifact for artifact in build_local_evidence_index(project_root=root)}
     sources: list[PrEvidenceCardSource] = []
     documents: dict[PrEvidenceCardSourceId, dict[str, object]] = {}
     for source_id in _SOURCE_IDS:
-        source, document = _source_from_index(source_id, indexed.get(source_id), root=root)
+        source, document = _source_from_index(
+            source_id,
+            indexed.get(source_id),
+            root=root,
+        )
         sources.append(source)
         if document is not None:
             documents[source_id] = document
@@ -517,6 +637,10 @@ def _resolve_output_path(raw_path: Path, *, root: Path) -> Path:
         return safe_report_output_path(raw_path, root=root, artifact="PR evidence card")
     except SafeWriteError as exc:
         raise PrEvidenceCardError(str(exc)) from exc
+
+
+def _resolve_summary_input_path(raw_path: Path, *, root: Path) -> Path:
+    return root.joinpath(raw_path).resolve()
 
 
 def _source_label(source_id: PrEvidenceCardSourceId) -> str:

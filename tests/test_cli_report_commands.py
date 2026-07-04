@@ -46,7 +46,12 @@ from entroping.core.evidence.otlp_preview import OtlpPreviewError
 from entroping.core.evidence.pilot_cohort import PilotCohortError
 from entroping.core.evidence.pilot_metrics import PilotMetricsError
 from entroping.core.evidence.pilot_outcome import PilotOutcomeError
-from entroping.core.evidence.pr_evidence_card import PrEvidenceCardError
+from entroping.core.evidence.pr_evidence_card import (
+    PrEvidenceCardError,
+    PrEvidenceCardSummaryError,
+    build_pr_evidence_card_packet,
+    run_pr_evidence_card_report,
+)
 from entroping.core.export.evidence_cloud_export import EvidenceCloudExportError
 from entroping.core.export.evidence_cloud_workspace import EvidenceCloudWorkspaceError
 from entroping.core.export.work_item_draft import WorkItemDraftError
@@ -1714,6 +1719,56 @@ def test_report_pr_evidence_card_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "PR evidence card path is unsafe" in result.output
+
+
+def test_report_pr_evidence_card_summary_uses_default_artifact_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    run_pr_evidence_card_report(project_root=tmp_path, output="json")
+    result = CliRunner().invoke(app, ["report", "pr-evidence-card-summary"])
+
+    assert result.exit_code == 0, result.output
+    assert "# Entroping PR Evidence Card Summary" in result.output
+    assert "## Next Actions" in result.output
+
+
+def test_report_pr_evidence_card_summary_supports_artifact_path_option(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    artifact_path = tmp_path / "artifacts" / "pr-evidence-card.json"
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    packet = build_pr_evidence_card_packet(project_root=tmp_path)
+    artifact_path.write_text(packet.model_dump_json(), encoding="utf-8")
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "pr-evidence-card-summary", "--artifact-path", str(artifact_path)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "## Sources" in result.output
+
+
+def test_report_pr_evidence_card_summary_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_pr_evidence_card_summary(*args: object, **kwargs: object) -> object:
+        raise PrEvidenceCardSummaryError("PR evidence card summary is unavailable")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_pr_evidence_card_summary_report",
+        fail_pr_evidence_card_summary,
+    )
+
+    result = CliRunner().invoke(app, ["report", "pr-evidence-card-summary"])
+
+    assert result.exit_code == 1
+    assert "PR evidence card summary is unavailable" in result.output
 
 
 def test_report_evidence_action_plan_writes_markdown(

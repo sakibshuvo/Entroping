@@ -134,7 +134,10 @@ from entroping.core.evidence.pilot_outcome import (
 from entroping.core.evidence.pr_evidence_card import (
     PrEvidenceCardError,
     PrEvidenceCardOutput,
+    PrEvidenceCardSummaryError,
+    PrEvidenceCardSummaryResult,
     run_pr_evidence_card_report,
+    run_pr_evidence_card_summary_report,
 )
 from entroping.core.evidence.test_pyramid_report import (
     TestPyramidOutput,
@@ -374,6 +377,8 @@ __all__ = [
     "PilotOutcomeOutput",
     "PrEvidenceCardError",
     "PrEvidenceCardOutput",
+    "PrEvidenceCardSummaryError",
+    "PrEvidenceCardSummaryResult",
     "QaBrainEvalPlanError",
     "QaBrainEvalPlanOutput",
     "QaBrainFineTuneReadinessError",
@@ -464,6 +469,7 @@ __all__ = [
     "run_pilot_metrics_report",
     "run_pilot_outcome_report",
     "run_pr_evidence_card_report",
+    "run_pr_evidence_card_summary_report",
     "run_qa_brain_eval_plan_report",
     "run_qa_brain_fine_tune_readiness_report",
     "run_qa_brain_model_packaging_plan_report",
