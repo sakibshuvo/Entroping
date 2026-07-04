@@ -17,6 +17,11 @@ from entroping.bridge.story_traceability import (
     story_traceability_report_to_dict,
 )
 from entroping.cli.shared import console, display_cli_path, print_cli_error
+from entroping.core.aha_artifact_index import (
+    AhaArtifactIndex,
+    AhaArtifactIndexItem,
+    build_aha_artifact_index,
+)
 from entroping.core.capture_summary_report import (
     CaptureSummaryError,
     CaptureSummaryOutput,
@@ -291,6 +296,8 @@ from entroping.models.hurl import HurlMetadataSyntaxError
 
 __all__ = [
     "AGENT_BUNDLE_ROLES",
+    "AhaArtifactIndex",
+    "AhaArtifactIndexItem",
     "AgentBundleError",
     "AgentBundleOutput",
     "ApiInventoryError",
@@ -398,6 +405,7 @@ __all__ = [
     "WorkItemImportBundleError",
     "WorkItemImportBundleOutput",
     "build_effective_policy_diff_report",
+    "build_aha_artifact_index",
     "build_run_delta_report",
     "collect_github_annotations",
     "compile_story_traceability",

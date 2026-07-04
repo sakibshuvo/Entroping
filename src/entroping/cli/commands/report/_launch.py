@@ -10,6 +10,7 @@ from entroping.cli.shared import console, display_cli_path, print_cli_error
 
 from ._app import app
 from ._deps import (
+    AhaArtifactIndex,
     FailureBundleError,
     HurlMetadataSyntaxError,
     ReportWriterError,
@@ -26,6 +27,27 @@ from ._panels import LAUNCH_REPORT_PANEL
 run_runtime_card_report = report_dependency("run_runtime_card_report")
 write_bug_report = report_dependency("write_bug_report")
 run_first_run_checklist = report_dependency("run_first_run_checklist")
+run_aha_artifact_index = report_dependency("build_aha_artifact_index")
+
+
+@app.command("aha-artifact-index", rich_help_panel=LAUNCH_REPORT_PANEL)
+def report_aha_artifact_index() -> None:
+    index = cast(AhaArtifactIndex, run_aha_artifact_index(project_root=Path.cwd()))
+    for item in index.items:
+        color = {
+            "present": "green",
+            "missing": "yellow",
+            "invalid": "red",
+            "unsafe": "red",
+        }[item.state]
+        console.print(f"{item.label}: [{color}]{item.state}[/{color}]")
+        console.print(f"  - path: {display_cli_path(item.path)}")
+        if item.schema_version is not None:
+            console.print(f"  - schema: {item.schema_version}")
+        for hint in item.hints:
+            console.print(f"  - hint: {hint}")
+    if index.has_errors:
+        raise typer.Exit(1)
 
 
 @app.command("bug", rich_help_panel=LAUNCH_REPORT_PANEL)
