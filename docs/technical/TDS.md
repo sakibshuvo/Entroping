@@ -329,6 +329,7 @@ current top-level inventory is:
 | `effective_policy_diff.py` | Deterministic diffs between effective policy evidence reports | Policy mutation, compatibility decisions |
 | `gate_coverage.py` | QAnstitution gate coverage over discovered Hurl tests | Hurl subprocess execution, report file writes |
 | `gate_injection_explain.py` | Deterministic gate-injection explanation reports | Temporary execution-copy creation, Hurl execution |
+| `asyncapi_to_hurl.py` | AsyncAPI webhook acknowledgement smoke scaffold compilation from local contract metadata | Broker/cloud/webhook execution, message delivery, file writes |
 | `merge.py` | Manual-edit-preserving Hurl merge/refactor logic | Test generation strategy |
 | `openapi_audit.py` | OpenAPI operation coverage audit against discovered Hurl tests | File discovery, Hurl execution, LLM calls |
 | `openapi_diff.py` | Pure OpenAPI operation-change detection | Git invocation, file reads, generated-test writes |
