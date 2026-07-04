@@ -478,6 +478,24 @@ def test_user_guide_onboarding_blocks_premature_entroping_demo_claims() -> None:
     assert "docs/meta/ZERO_CONFIG_DEMO_ENTRYPOINT.md" in install
 
 
+def test_readme_transcripts_cover_aha_demo_and_failure_flows() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+
+    try_it = readme.split("## Try It In Two Minutes", maxsplit=1)[1].split(
+        "## What You Get",
+        maxsplit=1,
+    )[0]
+    try_it_commands = try_it.split("```bash", maxsplit=1)[1].split(
+        "```",
+        maxsplit=1,
+    )[0]
+
+    assert "scripts/demo.sh" in try_it_commands
+    assert "scripts/ai_regression_demo.sh" in try_it_commands
+    assert "entroping demo" not in try_it_commands
+    assert "Package-installed one-command Aha is currently deferred" in try_it
+
+
 def test_readme_keeps_first_hour_troubleshooting_and_cli_surface_scan_friendly() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 

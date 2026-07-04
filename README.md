@@ -48,6 +48,7 @@ git clone https://github.com/sakibshuvo/Entroping.git
 cd Entroping
 brew install uv hurl # macOS; use your package manager elsewhere
 scripts/demo.sh
+scripts/ai_regression_demo.sh
 ```
 
 Expected proof: Hurl passes and writes JSON, JUnit, and HTML reports. `scripts/demo.sh` delegates to the same deterministic `scripts/live_demo_smoke.sh` release gate used by CI.
