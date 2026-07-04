@@ -41,6 +41,7 @@ DevexReadinessStatus = Literal["ready", "partial", "insufficient"]
 DevexReadinessSourceState = Literal["present", "missing", "invalid", "unsafe"]
 DevexReadinessFamilyStatus = Literal["ready", "attention", "blocked"]
 DevexReadinessNextActionPriority = Literal["high", "medium", "low"]
+DevexReadinessBand = Literal["ready", "attention", "blocked"]
 DevexReadinessSourceId = Literal[
     "runtime_card",
     "handoff",
@@ -295,6 +296,10 @@ class DevexReadinessSummary(BaseModel):
     families_blocked: int = Field(ge=0)
     blockers_total: int = Field(ge=0)
     next_actions_total: int = Field(ge=0)
+    first_five_minutes_score: int = Field(ge=0, le=100)
+    first_five_minutes_readiness_band: DevexReadinessBand
+    missing_source_count: int = Field(ge=0)
+    top_next_action: str
 
 
 class DevexReadinessSource(BaseModel):
@@ -444,6 +449,13 @@ def render_devex_readiness_markdown(packet: DevexReadinessPacket) -> str:
         f"`{packet.summary.families_blocked}` blocked",
         f"- Blockers: `{packet.summary.blockers_total}`",
         f"- Next actions: `{packet.summary.next_actions_total}`",
+        "",
+        "## First five minutes",
+        "",
+        f"- Score: `{packet.summary.first_five_minutes_score}`",
+        f"- Readiness band: `{packet.summary.first_five_minutes_readiness_band}`",
+        f"- Missing source count: `{packet.summary.missing_source_count}`",
+        f"- Top next action: { _markdown_cell(packet.summary.top_next_action)}",
         "",
         "## Sources",
         "",
@@ -898,7 +910,48 @@ def _summary(
         families_blocked=sum(1 for family in families if family.status == "blocked"),
         blockers_total=blockers_total,
         next_actions_total=len(next_actions),
+        missing_source_count=sum(1 for source in sources if source.state == "missing"),
+        top_next_action=(
+            next_actions[0].action
+            if next_actions
+            else "No developer experience readiness actions are currently needed."
+        ),
+        first_five_minutes_score=_first_five_minutes_score(
+            sources=sources,
+            blockers_total=blockers_total,
+            next_actions=next_actions,
+        ),
+        first_five_minutes_readiness_band=_first_five_minutes_readiness_band(
+            score=_first_five_minutes_score(
+                sources=sources,
+                blockers_total=blockers_total,
+                next_actions=next_actions,
+            ),
+        ),
     )
+
+
+def _first_five_minutes_score(
+    *,
+    sources: tuple[DevexReadinessSource, ...],
+    blockers_total: int,
+    next_actions: tuple[DevexReadinessNextAction, ...],
+) -> int:
+    score = 100
+    score -= sum(1 for source in sources if source.state == "missing") * 10
+    score -= sum(1 for source in sources if source.state == "invalid") * 20
+    score -= sum(1 for source in sources if source.state == "unsafe") * 25
+    score -= blockers_total * 5
+    score -= sum(1 for action in next_actions if action.priority == "high") * 2
+    return max(0, min(100, score))
+
+
+def _first_five_minutes_readiness_band(*, score: int) -> DevexReadinessBand:
+    if score >= 85:
+        return "ready"
+    if score >= 55:
+        return "attention"
+    return "blocked"
 
 
 def _status(sources: tuple[DevexReadinessSource, ...]) -> DevexReadinessStatus:
