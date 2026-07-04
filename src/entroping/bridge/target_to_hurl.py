@@ -127,11 +127,7 @@ def _target_file_stem(target_url: str) -> str:
     parts = urlsplit(target_url)
     path = parts.path.strip("/") or "root"
     raw_stem = f"target-{parts.hostname or 'target'}-{path}"
-    stem = _SAFE_STEM_RE.sub("-", raw_stem).strip(".-_").lower()
-    if not stem:
-        msg = "target URL does not produce a safe Hurl filename"
-        raise TargetHurlCompilationError(msg)
-    return stem
+    return _SAFE_STEM_RE.sub("-", raw_stem).strip(".-_").lower()
 
 
 def _contains_control(value: str) -> bool:
