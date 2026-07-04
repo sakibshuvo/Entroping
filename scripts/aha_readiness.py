@@ -215,7 +215,10 @@ def _evaluate_check(root: Path, check: Check) -> _Result:
 
     content = _read_text_file_bounded(path)
 
-    if check.category == "external" and "deferred" in content.lower():
+    if check.category == "external" and _check_marker_explicitly_deferred(
+        content,
+        check.markers,
+    ):
         return _Result(
             "blocked",
             (
@@ -239,6 +242,20 @@ def _evaluate_check(root: Path, check: Check) -> _Result:
             )
 
     return _Result("ready", "present")
+
+
+def _check_marker_explicitly_deferred(
+    content: str,
+    markers: tuple[str, ...],
+) -> bool:
+    normalized_markers = tuple(marker.casefold() for marker in markers)
+    for line in content.splitlines():
+        normalized_line = line.casefold()
+        if "deferred" not in normalized_line:
+            continue
+        if any(marker in normalized_line for marker in normalized_markers):
+            return True
+    return False
 
 
 @dataclass(frozen=True)
