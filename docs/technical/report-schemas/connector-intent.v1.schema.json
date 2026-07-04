@@ -41,6 +41,12 @@
         "$ref": "#/$defs/intent"
       }
     },
+    "capability_matrix": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/capability"
+      }
+    },
     "next_actions": {
       "type": "array",
       "items": {
@@ -285,6 +291,46 @@
         }
       }
     },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_system",
+        "intent_id",
+        "status",
+        "local_evidence_prerequisites",
+        "forbidden_actions"
+      ],
+      "properties": {
+        "target_system": {
+          "$ref": "#/$defs/target_system"
+        },
+        "intent_id": {
+          "$ref": "#/$defs/intent_id"
+        },
+        "status": {
+          "$ref": "#/$defs/capability_status"
+        },
+        "local_evidence_prerequisites": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_id"
+          }
+        },
+        "forbidden_actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/forbidden_action"
+          }
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "readiness_status": {
       "enum": [
         "ready",
@@ -303,6 +349,14 @@
       "type": "string"
     },
     "intent_status": {
+      "enum": [
+        "ready",
+        "attention",
+        "blocked"
+      ],
+      "type": "string"
+    },
+    "capability_status": {
       "enum": [
         "ready",
         "attention",
