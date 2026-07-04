@@ -140,6 +140,8 @@ def test_audit_openapi_coverage_reports_operation_matrix_and_stale_references() 
         "status": "ambiguous",
         "tests": ["tests/generated/get_order.hurl", "tests/manual/get_order_smoke.hurl"],
         "negative_tests": [],
+        "auth_negative_tests": [],
+        "validation_negative_tests": [],
     }
     assert stale_references == [
         {
@@ -346,6 +348,83 @@ def test_audit_openapi_coverage_does_not_count_auth_negative_tests_as_positive()
     assert report.operation_matrix[0].negative_test_paths == (
         "tests/generated/security/get_secure_invalid_auth.hurl",
     )
+
+
+def test_audit_openapi_coverage_classifies_negative_evidence_by_family() -> None:
+    document: dict[str, object] = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/checkout": {
+                "post": {
+                    "operationId": "createCheckout",
+                    "responses": {
+                        "201": {"description": "created"},
+                        "400": {"description": "bad request"},
+                        "401": {"description": "unauthorized"},
+                    },
+                },
+            },
+        },
+    }
+    positive = HurlTest(
+        path=Path("tests/generated/create_checkout.hurl"),
+        metadata=HurlMetadata(meta={"source": "openapi", "operation_id": "createCheckout"}),
+        exchanges=(HurlExchange(method="POST", url="{{base_url}}/checkout", path="/checkout"),),
+    )
+    auth_negative = HurlTest(
+        path=Path("tests/generated/security/create_checkout_invalid_auth.hurl"),
+        metadata=HurlMetadata(
+            tags=frozenset({"generated", "negative", "auth", "invalid-auth"}),
+            meta={
+                "source": "openapi",
+                "operation_id": "createCheckout",
+                "negative_category": "invalid-auth",
+                "severity": "high",
+            },
+        ),
+        exchanges=(HurlExchange(method="POST", url="{{base_url}}/checkout", path="/checkout"),),
+    )
+    validation_negative = HurlTest(
+        path=Path("tests/generated/negative/create_checkout_malformed_json.hurl"),
+        metadata=HurlMetadata(
+            tags=frozenset({"generated", "negative", "malformed-json"}),
+            meta={
+                "source": "openapi",
+                "generation": "negative-path-fuzzing",
+                "operation_id": "createCheckout",
+                "negative_category": "malformed-json",
+                "severity": "medium",
+            },
+        ),
+        exchanges=(HurlExchange(method="POST", url="{{base_url}}/checkout", path="/checkout"),),
+    )
+
+    report = audit_openapi_coverage(document, [positive, validation_negative, auth_negative])
+
+    payload = audit_report_to_dict(report)
+    summary = payload["summary"]
+    matrix = payload["operation_matrix"]
+    assert isinstance(summary, dict)
+    assert isinstance(matrix, list)
+    assert summary["happy_path_covered_operations"] == 1
+    assert summary["auth_negative_covered_operations"] == 1
+    assert summary["validation_negative_covered_operations"] == 1
+    row = matrix[0]
+    assert isinstance(row, dict)
+    assert row["tests"] == ["tests/generated/create_checkout.hurl"]
+    assert row["negative_tests"] == [
+        "tests/generated/negative/create_checkout_malformed_json.hurl",
+        "tests/generated/security/create_checkout_invalid_auth.hurl",
+    ]
+    assert row["auth_negative_tests"] == [
+        "tests/generated/security/create_checkout_invalid_auth.hurl",
+    ]
+    assert row["validation_negative_tests"] == [
+        "tests/generated/negative/create_checkout_malformed_json.hurl",
+    ]
+    markdown = render_audit_markdown(report)
+    assert "Auth Negative Tests" in markdown
+    assert "Validation Negative Tests" in markdown
 
 
 def test_audit_openapi_coverage_enumerates_default_response_operations() -> None:
@@ -571,4 +650,5 @@ def test_openapi_breaking_diff_links_only_openapi_operation_metadata() -> None:
 
     assert report.openapi_diff is not None
     assert report.openapi_diff.findings[0].test_paths == ("tests/generated/delete_legacy.hurl",)
+    assert "openapi_diff" in audit_report_to_dict(report)
     assert "## OpenAPI Breaking-Change Diff" in render_audit_markdown(report)

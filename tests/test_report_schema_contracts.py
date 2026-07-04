@@ -6407,6 +6407,9 @@ def test_openapi_audit_v1_schema_contract_is_versioned_and_stable() -> None:
             "total_operations": 2,
             "covered_operations": 1,
             "missing_operations": 1,
+            "happy_path_covered_operations": 1,
+            "auth_negative_covered_operations": 0,
+            "validation_negative_covered_operations": 0,
             "ambiguous_operations": 0,
             "stale_references": 1,
         },
@@ -6418,6 +6421,8 @@ def test_openapi_audit_v1_schema_contract_is_versioned_and_stable() -> None:
                 "status": "covered",
                 "tests": ["tests/generated/get_health.hurl"],
                 "negative_tests": [],
+                "auth_negative_tests": [],
+                "validation_negative_tests": [],
             },
             {
                 "operation_id": "createCheckout",
@@ -6426,6 +6431,8 @@ def test_openapi_audit_v1_schema_contract_is_versioned_and_stable() -> None:
                 "status": "uncovered",
                 "tests": [],
                 "negative_tests": [],
+                "auth_negative_tests": [],
+                "validation_negative_tests": [],
             },
         ],
         "findings": [
