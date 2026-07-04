@@ -38,6 +38,15 @@ QaBrainRepairPlanReadiness = Literal["ready", "missing", "attention"]
 QaBrainRepairIntent = Literal["generate", "repair", "review"]
 QaBrainRepairProposalDryRunPrerequisiteStatus = Literal["ready", "partial", "missing"]
 QaBrainRepairProposalDryRunGateStatus = Literal["ready", "missing"]
+QaBrainRepairAcceptanceGateFamily = Literal[
+    "parser",
+    "hurl",
+    "policy",
+    "evidence",
+    "redaction",
+    "review",
+]
+QaBrainRepairAcceptanceReviewer = Literal["codex_or_human"]
 QaBrainRepairPlanSourceState = EvidenceArtifactState
 QaBrainRepairPlanSourceId = Literal[
     "test-quality-json",
@@ -156,6 +165,32 @@ _GATE_ID_RE: Final = re.compile(
     r"^(parser_validation|hurl_execution|qanstitution_governance|"
     r"deterministic_evidence|secret_redaction|codex_human_review)$"
 )
+_NON_REDACTION_GATE_FAMILIES: Final[
+    dict[QaBrainRepairAcceptanceGateId, QaBrainRepairAcceptanceGateFamily]
+] = {
+    "parser_validation": "parser",
+    "hurl_execution": "hurl",
+    "qanstitution_governance": "policy",
+    "deterministic_evidence": "evidence",
+    "codex_human_review": "review",
+}
+_NON_REDACTION_FORBIDDEN_SHORTCUTS: Final[dict[QaBrainRepairAcceptanceGateId, str]] = {
+    "parser_validation": (
+        "Do not accept provider output that skips parser-backed Hurl validation."
+    ),
+    "hurl_execution": (
+        "Do not replace Hurl execution with Python HTTP clients or model claims."
+    ),
+    "qanstitution_governance": (
+        "Do not bypass QAnstitution gates or weaken policy to pass repair."
+    ),
+    "deterministic_evidence": (
+        "Do not invent evidence IDs, raw fields, or unverified report contents."
+    ),
+    "codex_human_review": (
+        "Do not self-merge repair proposals without Codex/human review."
+    ),
+}
 _SHA256_HEX_RE: Final = re.compile(r"\b[0-9a-f]{64}\b", re.IGNORECASE)
 
 
@@ -239,6 +274,17 @@ class QaBrainRepairProposalDryRunChecklistItem(BaseModel):
     next_action_label: str
 
 
+class QaBrainRepairAcceptanceChecklistItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    case_id: QaBrainEvalSliceId
+    gate_id: QaBrainRepairAcceptanceGateId
+    gate_family: QaBrainRepairAcceptanceGateFamily
+    source_evidence_ids: tuple[QaBrainRepairPlanSourceId, ...]
+    required_reviewer: QaBrainRepairAcceptanceReviewer
+    forbidden_shortcut_notes: tuple[str, ...]
+
+
 class QaBrainRepairPlanPacket(BaseModel):
     """Schema-versioned local QA brain repair-plan packet."""
 
@@ -256,6 +302,7 @@ class QaBrainRepairPlanPacket(BaseModel):
     repair_proposal_dry_run_checklist: tuple[
         QaBrainRepairProposalDryRunChecklistItem, ...
     ] = ()
+    repair_acceptance_checklist: tuple[QaBrainRepairAcceptanceChecklistItem, ...] = ()
     next_actions: tuple[QaBrainRepairPlanNextAction, ...]
 
 
@@ -322,6 +369,7 @@ def build_qa_brain_repair_plan(*, project_root: Path) -> QaBrainRepairPlanPacket
         sources=sources,
         repair_plans=repair_plans,
     )
+    acceptance_checklist = _repair_acceptance_checklist(repair_plans)
     next_actions = _next_actions(repair_plans)
     packet = QaBrainRepairPlanPacket(
         generated_at=datetime.now(UTC).isoformat(),
@@ -335,6 +383,7 @@ def build_qa_brain_repair_plan(*, project_root: Path) -> QaBrainRepairPlanPacket
         sources=sources,
         repair_plans=repair_plans,
         repair_proposal_dry_run_checklist=checklist,
+        repair_acceptance_checklist=acceptance_checklist,
         next_actions=next_actions,
     )
     if _contains_unredacted_packet_secret_like_value(packet.model_dump_json()):
@@ -402,16 +451,44 @@ def render_qa_brain_repair_plan_markdown(packet: QaBrainRepairPlanPacket) -> str
             "| --- | --- | --- | --- | --- | --- |",
         ]
     )
-    for item in packet.repair_proposal_dry_run_checklist:
+    for dry_run_item in packet.repair_proposal_dry_run_checklist:
         lines.append(
             "| "
-            f"{_markdown_cell(item.case_id)} | "
-            f"{_markdown_cell(item.prerequisite_status)} | "
-            f"{_markdown_cell(item.readiness)} | "
-            f"{_markdown_cell(_artifact_statuses_label(item.artifact_statuses))} | "
-            f"{_markdown_cell(item.acceptance_gate_status)} | "
-            f"{_markdown_cell(item.next_action_label)} |"
+            f"{_markdown_cell(dry_run_item.case_id)} | "
+            f"{_markdown_cell(dry_run_item.prerequisite_status)} | "
+            f"{_markdown_cell(dry_run_item.readiness)} | "
+            f"{_markdown_cell(_artifact_statuses_label(dry_run_item.artifact_statuses))} | "
+            f"{_markdown_cell(dry_run_item.acceptance_gate_status)} | "
+            f"{_markdown_cell(dry_run_item.next_action_label)} |"
         )
+    lines.extend(
+        [
+            "",
+            "## Repair Acceptance Checklist",
+            "",
+        ]
+    )
+    if not packet.repair_acceptance_checklist:
+        lines.append(
+            "No repair acceptance gates are available until routing-plan inputs are present."
+        )
+    else:
+        lines.extend(
+            [
+                "| Case | Gate | Family | Source Evidence | Reviewer | Forbidden Shortcuts |",
+                "| --- | --- | --- | --- | --- | --- |",
+            ]
+        )
+        for acceptance_item in packet.repair_acceptance_checklist:
+            lines.append(
+                "| "
+                f"{_markdown_cell(acceptance_item.case_id)} | "
+                f"{_markdown_cell(acceptance_item.gate_id)} | "
+                f"{_markdown_cell(acceptance_item.gate_family)} | "
+                f"{_markdown_cell(', '.join(acceptance_item.source_evidence_ids) or 'n/a')} | "
+                f"{_markdown_cell(acceptance_item.required_reviewer)} | "
+                f"{_markdown_cell('; '.join(acceptance_item.forbidden_shortcut_notes))} |"
+            )
     lines.extend(
         [
             "",
@@ -747,6 +824,39 @@ def _repair_proposal_dry_run_checklist_item(
             acceptance_gate_status=gate_status,
         ),
     )
+
+
+def _repair_acceptance_checklist(
+    repair_plans: tuple[QaBrainRepairPlanRow, ...],
+) -> tuple[QaBrainRepairAcceptanceChecklistItem, ...]:
+    rows: list[QaBrainRepairAcceptanceChecklistItem] = []
+    for row in repair_plans:
+        for gate_id in row.acceptance_gate_ids:
+            rows.append(
+                QaBrainRepairAcceptanceChecklistItem(
+                    case_id=row.case_id,
+                    gate_id=gate_id,
+                    gate_family=_gate_family(gate_id),
+                    source_evidence_ids=row.source_ids,
+                    required_reviewer="codex_or_human",
+                    forbidden_shortcut_notes=(_forbidden_shortcut_note(gate_id),),
+                )
+            )
+    return tuple(rows)
+
+
+def _gate_family(
+    gate_id: QaBrainRepairAcceptanceGateId,
+) -> QaBrainRepairAcceptanceGateFamily:
+    if gate_id == "secret_redaction":
+        return "redaction"
+    return _NON_REDACTION_GATE_FAMILIES[gate_id]
+
+
+def _forbidden_shortcut_note(gate_id: QaBrainRepairAcceptanceGateId) -> str:
+    if gate_id == "secret_redaction":
+        return "Do not paste raw prompts, provider output, source Hurl, secrets, or traffic bodies."
+    return _NON_REDACTION_FORBIDDEN_SHORTCUTS[gate_id]
 
 
 def _acceptance_gate_status(
