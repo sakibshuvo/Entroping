@@ -1,6 +1,7 @@
 """Tests for local Evidence Cloud workspace HTML dashboards."""
 
 import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -13,6 +14,7 @@ from entroping.core.evidence.evidence_cloud_dashboard import (
     render_evidence_cloud_dashboard_html,
     run_evidence_cloud_dashboard_report,
 )
+from entroping.core.export.evidence_cloud_workspace import EvidenceCloudWorkspaceManifest
 from entroping.core.safe_write import SafeWriteError
 
 
@@ -31,11 +33,12 @@ def _export_manifest(
     export_items_total: int = 2,
     export_items_blocked: int = 0,
     boundary_controls_total: int = 2,
+    generated_at: str = "2026-06-21T00:00:00+00:00",
     raw_marker: str = "raw dashboard detail must not render",
 ) -> dict[str, object]:
     return {
         "schema_version": "entroping.evidence-cloud-export.v1",
-        "generated_at": "2026-06-21T00:00:00+00:00",
+        "generated_at": generated_at,
         "project": project,
         "summary": {
             "status": status,
@@ -178,6 +181,113 @@ def test_evidence_cloud_dashboard_html_is_static_escaped_and_value_free(
     assert raw_marker not in html
     assert "<script" not in html.lower()
     assert "https://" not in html
+
+
+def test_evidence_cloud_dashboard_manifests_show_freshness_states(tmp_path: Path) -> None:
+    now = datetime.now(UTC)
+    _write_json(
+        tmp_path / "reports" / "repo-a-export.json",
+        _export_manifest(
+            project="fresh-api",
+            generated_at=(now - timedelta(hours=1)).isoformat(),
+        ),
+    )
+    _write_json(
+        tmp_path / "reports" / "repo-b-export.json",
+        _export_manifest(
+            project="stale-api",
+            generated_at=(now - timedelta(days=35)).isoformat(),
+            status="partial",
+        ),
+    )
+    _write_json(
+        tmp_path / "reports" / "repo-c-export.json",
+        _export_manifest(
+            project="unknown-api",
+            generated_at="",
+        ),
+    )
+
+    packet = build_evidence_cloud_dashboard_packet(
+        project_root=tmp_path,
+        manifests=(
+            tmp_path / "reports" / "repo-a-export.json",
+            tmp_path / "reports" / "repo-b-export.json",
+            tmp_path / "reports" / "repo-c-export.json",
+        ),
+    )
+    freshness_by_project = {
+        row.project: row.freshness_state for row in packet.manifests if row.project is not None
+    }
+
+    assert freshness_by_project["fresh-api"] == "present"
+    assert freshness_by_project["stale-api"] == "stale"
+    assert freshness_by_project["unknown-api"] == "unknown"
+
+    html = render_evidence_cloud_dashboard_html(packet)
+
+    assert "<th>Freshness</th>" in html
+    assert "stale" in html
+    assert "unknown" in html
+
+
+def test_evidence_cloud_dashboard_manifest_timestamp_probe_is_defensive(
+    tmp_path: Path,
+) -> None:
+    invalid_json_path = tmp_path / "reports" / "invalid.json"
+    invalid_json_path.parent.mkdir(parents=True, exist_ok=True)
+    invalid_json_path.write_text("{", encoding="utf-8")
+    invalid_utf8_path = tmp_path / "reports" / "invalid-utf8.json"
+    invalid_utf8_path.write_bytes(b"\xff")
+    missing_timestamp_path = tmp_path / "reports" / "missing-timestamp.json"
+    _write_json(missing_timestamp_path, {"generated_at": 42})
+    naive_timestamp_path = tmp_path / "reports" / "naive-timestamp.json"
+    _write_json(naive_timestamp_path, {"generated_at": "2026-06-21T00:00:00"})
+
+    def row(path: Path) -> EvidenceCloudWorkspaceManifest:
+        return EvidenceCloudWorkspaceManifest(
+            id=path.stem,
+            path=path.relative_to(tmp_path).as_posix(),
+            state="present",
+            summary="manifest timestamp probe",
+        )
+
+    assert (
+        evidence_cloud_dashboard._manifest_generated_at(
+            row=row(tmp_path / "reports" / "missing.json"),
+            root=tmp_path,
+        )
+        is None
+    )
+    assert (
+        evidence_cloud_dashboard._manifest_generated_at(
+            row=row(invalid_utf8_path),
+            root=tmp_path,
+        )
+        is None
+    )
+    assert (
+        evidence_cloud_dashboard._manifest_generated_at(
+            row=row(invalid_json_path),
+            root=tmp_path,
+        )
+        is None
+    )
+    assert (
+        evidence_cloud_dashboard._manifest_generated_at(
+            row=row(missing_timestamp_path),
+            root=tmp_path,
+        )
+        is None
+    )
+
+    generated_at = evidence_cloud_dashboard._manifest_generated_at(
+        row=row(naive_timestamp_path),
+        root=tmp_path,
+    )
+
+    assert generated_at is not None
+    assert generated_at.tzinfo is UTC
 
 
 @pytest.mark.parametrize(
@@ -349,9 +459,11 @@ def test_evidence_cloud_dashboard_wraps_safe_write_errors(
 
 
 def test_evidence_cloud_dashboard_rejects_unsupported_output(tmp_path: Path) -> None:
+    unsupported_output = json.loads('"md"')
+
     with pytest.raises(EvidenceCloudDashboardError, match="Unsupported"):
         run_evidence_cloud_dashboard_report(
             project_root=tmp_path,
             manifests=(tmp_path / "reports" / "repo-a-export.json",),
-            output="md",  # type: ignore[arg-type]
+            output=unsupported_output,
         )

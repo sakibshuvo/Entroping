@@ -5,13 +5,14 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from html import escape
 from pathlib import Path
 from typing import Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from entroping.core.bounded_read import BoundedReadError, read_text_bounded
 from entroping.core.evidence_common import (
     contains_unredacted_evidence_secret,
     safe_evidence_text,
@@ -35,12 +36,14 @@ EVIDENCE_CLOUD_DASHBOARD_SCHEMA_VERSION: Final = "entroping.evidence-cloud-dashb
 EvidenceCloudDashboardOutput = Literal["html", "json"]
 EvidenceCloudDashboardStatus = EvidenceCloudWorkspaceStatus
 EvidenceCloudDashboardRepositoryState = Literal["ready", "attention"]
+EvidenceCloudDashboardManifestFreshnessState = Literal["present", "stale", "unknown"]
 
 _DEFAULT_OUTPUTS: Final[dict[EvidenceCloudDashboardOutput, Path]] = {
     "html": Path("reports") / "evidence-cloud-dashboard.html",
     "json": Path("reports") / "evidence-cloud-dashboard.json",
 }
 _SHA256_HEX_RE: Final = re.compile(r"\b[0-9a-f]{64}\b", re.IGNORECASE)
+_FRESHNESS_AGE: Final = timedelta(days=14)
 
 
 class EvidenceCloudDashboardError(ValueError):
@@ -85,6 +88,12 @@ class EvidenceCloudDashboardRepository(BaseModel):
     summary: str
 
 
+class EvidenceCloudDashboardManifest(EvidenceCloudWorkspaceManifest):
+    """One manifest row with computed freshness for dashboard rendering."""
+
+    freshness_state: EvidenceCloudDashboardManifestFreshnessState = "unknown"
+
+
 class EvidenceCloudDashboardPacket(BaseModel):
     """Schema-versioned local static Evidence Cloud dashboard packet."""
 
@@ -99,7 +108,7 @@ class EvidenceCloudDashboardPacket(BaseModel):
         EVIDENCE_CLOUD_WORKSPACE_SCHEMA_VERSION
     )
     summary: EvidenceCloudDashboardSummary
-    manifests: tuple[EvidenceCloudWorkspaceManifest, ...]
+    manifests: tuple[EvidenceCloudDashboardManifest, ...]
     repositories: tuple[EvidenceCloudDashboardRepository, ...]
     boundary_controls: tuple[EvidenceCloudWorkspaceBoundaryControl, ...]
     next_actions: tuple[EvidenceCloudWorkspaceNextAction, ...]
@@ -151,9 +160,11 @@ def build_evidence_cloud_dashboard_packet(
 ) -> EvidenceCloudDashboardPacket:
     """Build a value-free static Evidence Cloud dashboard packet."""
 
+    root = project_root.expanduser().resolve()
+
     try:
         workspace = build_evidence_cloud_workspace_packet(
-            project_root=project_root,
+            project_root=root,
             manifests=manifests,
         )
     except EvidenceCloudWorkspaceError as exc:
@@ -163,7 +174,9 @@ def build_evidence_cloud_dashboard_packet(
         generated_at=datetime.now(UTC).isoformat(),
         project=workspace.project,
         summary=_summary(workspace=workspace, repositories=repositories),
-        manifests=workspace.manifests,
+        manifests=tuple(
+            _enrich_manifest_manifest(row, root=root) for row in workspace.manifests
+        ),
         repositories=repositories,
         boundary_controls=workspace.boundary_controls,
         next_actions=workspace.next_actions,
@@ -268,7 +281,7 @@ def render_evidence_cloud_dashboard_html(packet: EvidenceCloudDashboardPacket) -
         <thead>
           <tr>
             <th>ID</th><th>State</th><th>Project</th>
-            <th>Export Status</th><th>Path</th><th>SHA-256</th><th>Summary</th>
+            <th>Export Status</th><th>Path</th><th>SHA-256</th><th>Freshness</th><th>Summary</th>
           </tr>
         </thead>
         <tbody>
@@ -361,7 +374,7 @@ def _resolve_output_path(raw_path: Path, *, root: Path) -> Path:
         raise EvidenceCloudDashboardError(str(exc)) from exc
 
 
-def _manifest_row_html(row: EvidenceCloudWorkspaceManifest) -> str:
+def _manifest_row_html(row: EvidenceCloudDashboardManifest) -> str:
     return (
         "          <tr>"
         f"<td>{_html(row.id)}</td>"
@@ -370,6 +383,7 @@ def _manifest_row_html(row: EvidenceCloudWorkspaceManifest) -> str:
         f"<td>{_html(row.export_status or 'n/a')}</td>"
         f"<td><code>{_html(row.path)}</code></td>"
         f"<td><code>{_html(row.sha256 or 'n/a')}</code></td>"
+        f"<td>{_html(getattr(row, 'freshness_state', 'unknown'))}</td>"
         f"<td>{_html(row.summary)}</td>"
         "</tr>"
     )
@@ -415,3 +429,70 @@ def _contains_unredacted_dashboard_secret(raw_text: str) -> bool:
 
 def _html(value: object) -> str:
     return escape(safe_evidence_text(str(value)), quote=True)
+
+
+def _enrich_manifest_manifest(
+    row: EvidenceCloudWorkspaceManifest,
+    *,
+    root: Path,
+) -> EvidenceCloudDashboardManifest:
+    return EvidenceCloudDashboardManifest(
+        **row.model_dump(),
+        freshness_state=_manifest_freshness_state(row=row, root=root),
+    )
+
+
+def _manifest_freshness_state(
+    row: EvidenceCloudWorkspaceManifest,
+    *,
+    root: Path,
+) -> EvidenceCloudDashboardManifestFreshnessState:
+    if row.state != "present":
+        return "unknown"
+    generated_at = _manifest_generated_at(row=row, root=root)
+    if generated_at is None:
+        return "unknown"
+    age = datetime.now(UTC) - generated_at
+    if age >= _FRESHNESS_AGE:
+        return "stale"
+    return "present"
+
+
+def _manifest_generated_at(
+    *,
+    row: EvidenceCloudWorkspaceManifest,
+    root: Path,
+) -> datetime | None:
+    path = Path(row.path)
+    manifest_path = path if path.is_absolute() else root / path
+    if not manifest_path.exists():
+        return None
+    try:
+        raw = read_text_bounded(
+            manifest_path,
+            max_bytes=10 * 1024 * 1024,
+            label=f"Evidence Cloud manifest {manifest_path}",
+        )
+    except (OSError, BoundedReadError):
+        return None
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    raw_timestamp = payload.get("generated_at")
+    if not isinstance(raw_timestamp, str):
+        return None
+    generated_at = _parse_generated_at(raw_timestamp)
+    if generated_at is None:
+        return None
+    return generated_at.astimezone(UTC)
+
+
+def _parse_generated_at(raw_timestamp: str) -> datetime | None:
+    try:
+        generated_at = datetime.fromisoformat(raw_timestamp)
+    except ValueError:
+        return None
+    if generated_at.tzinfo is None:
+        return generated_at.replace(tzinfo=UTC)
+    return generated_at.astimezone(UTC)
