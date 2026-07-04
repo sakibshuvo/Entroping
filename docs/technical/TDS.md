@@ -318,17 +318,31 @@ Implementation rule: keep the YAML-facing `GateRule.condition` field as the orig
 
 ## 6.1 Bridge Compiler Boundaries
 
-`bridge/` is a set of small compilers, not a dumping ground:
+`bridge/` is a set of small compilers and analyzers, not a dumping ground. The
+current top-level inventory is:
 
 | Module | Owns | Must not own |
 | --- | --- | --- |
+| `capture_summary.py` | Safe aggregate summaries from redacted captured traffic | Proxy capture, SQLite persistence, raw body retention |
+| `effective_policy.py` | Effective QAnstitution policy evidence rendering | Policy loading, filesystem writes outside the report adapter |
+| `effective_policy_diff.py` | Deterministic diffs between effective policy evidence reports | Policy mutation, compatibility decisions |
+| `gate_coverage.py` | QAnstitution gate coverage over discovered Hurl tests | Hurl subprocess execution, report file writes |
+| `gate_injection_explain.py` | Deterministic gate-injection explanation reports | Temporary execution-copy creation, Hurl execution |
+| `merge.py` | Manual-edit-preserving Hurl merge/refactor logic | Test generation strategy |
+| `openapi_audit.py` | OpenAPI operation coverage audit against discovered Hurl tests | File discovery, Hurl execution, LLM calls |
+| `openapi_diff.py` | Pure OpenAPI operation-change detection | Git invocation, file reads, generated-test writes |
 | `openapi_to_hurl/` | OpenAPI operation/schema/parameter translation to Hurl models through bounded compiler, schema, validation, parameter, and data-model modules | LLM calls, file writes, merge strategy |
+| `policy_to_hurl.py` | QAnstitution gate to Hurl assertions | Hurl subprocess execution |
+| `redaction_review.py` | Safe redaction review summaries from redacted traffic | Raw traffic capture, secret storage |
+| `story_traceability.py` | Story IDs, local story Markdown files, owners, external doc URLs | Business-system API clients |
+| `target_to_hurl.py` | Single target URL smoke-test Hurl scaffold compilation | Network execution, CLI file writes, non-read-only HTTP methods |
+| `test_pyramid.py` | Local test-pyramid evidence summaries | Test execution, artifact generation |
+| `test_quality.py` | Deterministic quality reports for generated Hurl tests | Hurl parsing side effects, source mutation |
+| `traffic_openapi_audit.py` | Redacted traffic route audit against OpenAPI operations | Traffic persistence, OpenAPI file loading |
+| `traffic_sessions.py` | Pure traffic filtering and session candidate transformations | Database access, proxy capture |
 | `traffic_to_hurl.py` | Redacted traffic session to Hurl models | mitmproxy capture, SQLite persistence |
 | `traffic_to_wiremock.py` | Redacted dependency traffic to WireMock mappings | Filesystem writes, mock server runtime |
 | `traffic_to_graph.py` | Redacted traffic to dependency graph models | SQLite reads, renderer invocation |
-| `policy_to_hurl.py` | QAnstitution gate to Hurl assertions | Hurl subprocess execution |
-| `story_traceability.py` | Story IDs, local story Markdown files, owners, external doc URLs | Business-system API clients |
-| `merge.py` | Manual-edit-preserving Hurl merge/refactor logic | Test generation strategy |
 
 The shipped `story_traceability.py` bridge compiles discovered Hurl metadata
 and core-discovered `docs/stories/*.md` story documents into local story/test
