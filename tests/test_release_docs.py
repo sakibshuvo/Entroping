@@ -551,12 +551,18 @@ def test_zero_config_demo_decision_keeps_live_smoke_as_release_gate() -> None:
     decision = (
         REPO_ROOT / "docs" / "meta" / "ZERO_CONFIG_DEMO_ENTRYPOINT.md"
     ).read_text(encoding="utf-8")
+    cli_audit = (
+        REPO_ROOT / "docs" / "technical" / "CLI_COMPATIBILITY_AUDIT.md"
+    ).read_text(encoding="utf-8")
     index = (REPO_ROOT / "docs/meta/VAULT_INDEX.md").read_text(encoding="utf-8")
 
     assert "scripts/demo.sh" in decision
     assert "scripts/live_demo_smoke.sh" in decision
     assert "Do not add `entroping demo`" in decision
     assert "Do not add `init --demo`" in decision
+    assert "entroping demo --project" in decision
+    assert "The next package-installed Aha entrypoint shape is deferred" in decision
+    assert "Aha entrypoint command" in cli_audit
     assert "[[docs/meta/ZERO_CONFIG_DEMO_ENTRYPOINT|ZERO_CONFIG_DEMO_ENTRYPOINT]]" in index
 
 

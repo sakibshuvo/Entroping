@@ -65,6 +65,26 @@ Do not add `entroping demo` in v0.2. Do not add `init --demo` in v0.2.
 scripts/demo.sh
 ```
 
+## Package-installed entrypoint decision
+
+The next package-installed Aha entrypoint shape is deferred until fixture
+distribution and command-surface review are complete.
+
+When those prerequisites are accepted, the deterministic package-installed shape is:
+
+`entroping demo --project <path>`
+
+Current blocked prerequisites include:
+
+- package-owned fixture distribution for demo targets
+- install-time parity checks that match release smoke behavior
+- a locked command-surface change through a compatibility decision
+- release-only `entroping` command packaging proof
+
+Until all prerequisites are satisfied, this issue remains a checkout-only public
+path and `scripts/demo.sh` continues to be the only public Aha entrypoint in this
+release cycle.
+
 For persistent report artifacts:
 
 ```bash
