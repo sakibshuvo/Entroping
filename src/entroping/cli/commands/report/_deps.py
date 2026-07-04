@@ -152,6 +152,11 @@ from entroping.core.export.work_item_import_bundle import (
     run_work_item_import_bundle_report,
 )
 from entroping.core.failure_bundle import FailureBundleError, create_failure_bundle
+from entroping.core.first_run_checklist import (
+    FirstRunChecklist,
+    FirstRunChecklistItem,
+    run_first_run_checklist,
+)
 from entroping.core.gate_coverage_report import (
     GateCoverageOutput,
     GateCoverageReportError,
@@ -324,6 +329,8 @@ __all__ = [
     "ExternalTestEvidenceError",
     "ExternalTestEvidenceOutput",
     "FailureBundleError",
+    "FirstRunChecklist",
+    "FirstRunChecklistItem",
     "GateCoverageOutput",
     "GateCoverageReportError",
     "GateInjectionOutput",
@@ -413,6 +420,7 @@ __all__ = [
     "run_api_inventory_report",
     "run_capture_summary_report",
     "run_connector_intent_report",
+    "run_first_run_checklist",
     "run_delta_report_to_dict",
     "run_design_partner_feedback_report",
     "run_devex_readiness_report",

@@ -25,6 +25,7 @@ from ._panels import LAUNCH_REPORT_PANEL
 
 run_runtime_card_report = report_dependency("run_runtime_card_report")
 write_bug_report = report_dependency("write_bug_report")
+run_first_run_checklist = report_dependency("run_first_run_checklist")
 
 
 @app.command("bug", rich_help_panel=LAUNCH_REPORT_PANEL)
@@ -74,6 +75,25 @@ def report_failure_bundle(
         f"Wrote failure bundle: {display_cli_path(result.manifest_path)} "
         f"({len(result.artifacts)} {noun})"
     )
+
+
+@app.command("first-run-checklist", rich_help_panel=LAUNCH_REPORT_PANEL)
+def report_first_run_checklist() -> None:
+    result = run_first_run_checklist(project_root=Path.cwd())
+    for item in result.items:
+        color = {
+            "present": "green",
+            "missing": "yellow",
+            "optional-missing": "yellow",
+            "error": "red",
+        }[item.state]
+        console.print(f"{item.label}: [{color}]{item.state}[/{color}]")
+        for path in item.paths:
+            console.print(f"  - path: {display_cli_path(path)}")
+        for hint in item.hints:
+            console.print(f"  - hint: {hint}")
+    if result.has_errors:
+        raise typer.Exit(1)
 
 
 @app.command("runtime-card", rich_help_panel=LAUNCH_REPORT_PANEL)
