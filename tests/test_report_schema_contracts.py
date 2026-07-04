@@ -4323,6 +4323,7 @@ def test_mutation_readiness_v1_schema_contract_is_versioned_and_stable() -> None
             "seed_metadata_tests": 1,
             "candidate_categories_total": 1,
             "seeded_fuzz_candidates_total": 1,
+            "category_coverage": [],
             "optional_reports_present": 0,
             "optional_reports_invalid": 0,
             "optional_reports_unsafe": 0,
@@ -4374,6 +4375,17 @@ def test_mutation_readiness_v1_schema_contract_is_versioned_and_stable() -> None
         "ready",
         "partial",
         "insufficient",
+    ]
+    assert schema["$defs"]["summary"]["properties"]["category_coverage"] == {
+        "type": "array",
+        "items": {"$ref": "#/$defs/category_coverage"},
+    }
+    assert schema["$defs"]["category_coverage"]["required"] == [
+        "category",
+        "label",
+        "candidate_tests",
+        "seeded_tests",
+        "missing_seed_tests",
     ]
     assert schema["$defs"]["candidate_category"]["enum"] == [
         "status_code",

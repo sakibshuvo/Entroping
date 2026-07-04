@@ -123,6 +123,12 @@
           "type": "integer",
           "minimum": 0
         },
+        "category_coverage": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/category_coverage"
+          }
+        },
         "optional_reports_present": {
           "type": "integer",
           "minimum": 0
@@ -132,6 +138,37 @@
           "minimum": 0
         },
         "optional_reports_unsafe": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "category_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "category",
+        "label",
+        "candidate_tests",
+        "seeded_tests",
+        "missing_seed_tests"
+      ],
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/candidate_category"
+        },
+        "label": {
+          "type": "string"
+        },
+        "candidate_tests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "seeded_tests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "missing_seed_tests": {
           "type": "integer",
           "minimum": 0
         }

@@ -83,6 +83,50 @@ body contains "validation"
         "seed_metadata_tests": 2,
         "candidate_categories_total": 2,
         "seeded_fuzz_candidates_total": 2,
+        "category_coverage": [
+            {
+                "category": "status_code",
+                "label": "Status-code mutation",
+                "candidate_tests": 0,
+                "seeded_tests": 0,
+                "missing_seed_tests": 0,
+            },
+            {
+                "category": "schema",
+                "label": "Schema mutation",
+                "candidate_tests": 1,
+                "seeded_tests": 1,
+                "missing_seed_tests": 0,
+            },
+            {
+                "category": "auth",
+                "label": "Auth/security mutation",
+                "candidate_tests": 1,
+                "seeded_tests": 1,
+                "missing_seed_tests": 0,
+            },
+            {
+                "category": "latency",
+                "label": "Latency boundary mutation",
+                "candidate_tests": 0,
+                "seeded_tests": 0,
+                "missing_seed_tests": 0,
+            },
+            {
+                "category": "request_shape",
+                "label": "Request-shape fuzz",
+                "candidate_tests": 0,
+                "seeded_tests": 0,
+                "missing_seed_tests": 0,
+            },
+            {
+                "category": "response_shape",
+                "label": "Response-shape mutation",
+                "candidate_tests": 0,
+                "seeded_tests": 0,
+                "missing_seed_tests": 0,
+            },
+        ],
         "optional_reports_present": 2,
         "optional_reports_invalid": 0,
         "optional_reports_unsafe": 0,
@@ -615,6 +659,54 @@ jsonpath "$.error" exists
     markdown = result.output_path.read_text(encoding="utf-8")
     assert "## Seeded Fuzz Candidate Manifest" in markdown
     assert "No deterministic seeded fuzz candidates were detected." in markdown
+    assert "127.0.0.1" not in markdown
+
+
+def test_mutation_readiness_category_coverage_rollup_marks_missing_and_unseeded(
+    tmp_path: Path,
+) -> None:
+    _write_text(
+        tmp_path / "tests" / "generated" / "seeded-status.hurl",
+        """
+# entroping: tags=generated,status-code
+# entroping: mutation_seed=do-not-render
+GET http://127.0.0.1:18080/seeded
+HTTP 409
+[Asserts]
+jsonpath "$.error" exists
+""".strip()
+        + "\n",
+    )
+    _write_text(
+        tmp_path / "tests" / "generated" / "unseeded-request-shape.hurl",
+        """
+# entroping: tags=generated,request-shape
+GET http://127.0.0.1:18080/unseeded
+HTTP 400
+[Asserts]
+jsonpath "$.error" exists
+""".strip()
+        + "\n",
+    )
+
+    result = run_mutation_readiness_report(project_root=tmp_path, output="md")
+
+    coverage = {
+        row.category: row for row in result.packet.summary.category_coverage
+    }
+    assert coverage["status_code"].candidate_tests == 1
+    assert coverage["status_code"].seeded_tests == 1
+    assert coverage["status_code"].missing_seed_tests == 0
+    assert coverage["request_shape"].candidate_tests == 1
+    assert coverage["request_shape"].seeded_tests == 0
+    assert coverage["request_shape"].missing_seed_tests == 1
+    assert coverage["schema"].candidate_tests == 0
+    assert len(coverage) == 6
+    markdown = result.output_path.read_text(encoding="utf-8")
+    assert "## Category Coverage" in markdown
+    assert "| Request-shape fuzz | 1 | 0 | 1 |" in markdown
+    assert "Top missing category: `schema`" in markdown
+    assert "do-not-render" not in markdown
     assert "127.0.0.1" not in markdown
 
 
