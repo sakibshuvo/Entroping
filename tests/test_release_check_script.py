@@ -168,6 +168,8 @@ def test_release_check_dry_run_shows_full_alpha_gate() -> None:
     assert "scripts/launch_readiness.py --strict" in result.stdout
     assert "scripts/performance_smoke.py" in result.stdout
     assert "scripts/live_demo_smoke.sh" in result.stdout
+    assert "scripts/aha_readiness.py --format json" in result.stdout
+    assert "Aha demo gate: informational dry-run only" in result.stdout
     assert "release evidence freshness: yes" in result.stdout
     assert "require live demo: yes" in result.stdout
 
@@ -206,6 +208,43 @@ def test_release_check_dry_run_can_skip_release_evidence_freshness() -> None:
     assert "release evidence freshness: no" in result.stdout
     assert "scripts/release_evidence.py --strict" in result.stdout
     assert "scripts/release_evidence.py --check-freshness" not in result.stdout
+
+
+def test_release_check_dry_run_skips_aha_gate_when_script_is_missing(
+    tmp_path: Path,
+) -> None:
+    fixture = build_release_check_fixture(tmp_path)
+    result = run_release_check_in_fixture(fixture, "--dry-run", "--allow-dirty")
+
+    assert result.returncode == 0, result.stderr
+    assert "Aha demo gate not planned because scripts/aha_readiness.py is missing." in (
+        result.stdout
+    )
+    assert "scripts/aha_readiness.py --format json" not in result.stdout
+
+
+def test_release_check_runtime_does_not_run_aha_gate_until_promoted(
+    tmp_path: Path,
+) -> None:
+    fixture = build_release_check_fixture(tmp_path)
+    (fixture / "scripts" / "aha_readiness.py").write_text(
+        "#!/usr/bin/env python\n",
+        encoding="utf-8",
+    )
+
+    result = run_release_check_in_fixture(
+        fixture,
+        "--aggregate",
+        "--allow-dirty",
+        "--skip-downstream-smoke",
+        "--skip-live-demo",
+        "--skip-performance",
+    )
+
+    assert result.returncode == 0, result.stderr
+    log = (fixture / "commands.log").read_text(encoding="utf-8")
+    assert "scripts/aha_readiness.py" not in log
+    assert "Aha demo gate" not in result.stdout
 
 
 def test_release_check_rejects_unknown_options() -> None:

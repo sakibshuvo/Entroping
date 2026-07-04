@@ -49,6 +49,15 @@ This gate includes:
 - `uv run python scripts/downstream_smoke.py`
 - `scripts/live_demo_smoke.sh`
 
+Dry-run mode also shows the local Aha demo readiness command when its script is
+present:
+
+- `uv run python scripts/aha_readiness.py --format json`
+
+That Aha line is informational until a separate release decision promotes it.
+It does not replace `scripts/live_demo_smoke.sh`, and it is not required for
+release-candidate signoff.
+
 If the local machine does not have Hurl installed, the non-release diagnostic form is:
 
 ```bash
