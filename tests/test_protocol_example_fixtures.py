@@ -10,6 +10,7 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GRAPHQL_ROOT = REPO_ROOT / "examples" / "graphql-api"
 SOAP_ROOT = REPO_ROOT / "examples" / "soap-api"
+ASYNCAPI_ROOT = REPO_ROOT / "examples" / "asyncapi-events"
 
 
 def test_graphql_demo_server_returns_data_without_top_level_errors() -> None:
@@ -89,6 +90,7 @@ def test_protocol_fixture_files_are_discoverable_and_hurl_over_http() -> None:
     soap_hurl = (SOAP_ROOT / "tests" / "soap_smoke.hurl").read_text(encoding="utf-8")
     graphql_readme = (GRAPHQL_ROOT / "README.md").read_text(encoding="utf-8")
     soap_readme = (SOAP_ROOT / "README.md").read_text(encoding="utf-8")
+    asyncapi_readme = (ASYNCAPI_ROOT / "README.md").read_text(encoding="utf-8")
     root_readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     use_cases = (REPO_ROOT / "docs" / "user" / "USE_CASES.md").read_text(
         encoding="utf-8"
@@ -121,6 +123,8 @@ def test_protocol_fixture_files_are_discoverable_and_hurl_over_http() -> None:
     assert "top-level GraphQL `errors`" in graphql_readme
     assert "Hurl-over-HTTP" in soap_readme
     assert "SOAPAction" in soap_readme
+    assert "deterministic webhook acknowledgement scaffold compiler" in asyncapi_readme
+    assert "compile_asyncapi_webhook_to_hurl" in asyncapi_readme
     assert "advanced examples remain documented" in root_readme
     assert "## 8. GraphQL API Governance" in use_cases
     assert "[[examples/graphql-api/README|GraphQL API demo fixture]]" in vault_index
