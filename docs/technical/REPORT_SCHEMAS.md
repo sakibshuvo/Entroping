@@ -1112,6 +1112,16 @@ cookies, prompts, provider outputs, credentials, environment values, webhook
 URLs, dashboard payloads, monitor payloads, source Hurl contents, raw traffic,
 raw report contents, or full report contents.
 
+The matrix below is the local troubleshooting model for adapter design:
+
+| Adapter | Ready state text | Ready action | Attention action |
+| --- | --- | --- | --- |
+| OpenTelemetry | `ready` | Use the mapping packet as the value-free contract for an OTLP adapter. | Generate observability and OpenTelemetry mapping packets first. |
+| Datadog | `ready` | Review Datadog dashboard or monitor design from local packet metadata. | Generate vendor-neutral packets before Datadog adapter design. |
+| Splunk | `ready` | Review Splunk search or incident design from local packet metadata. | Generate vendor-neutral packets before Splunk adapter design. |
+| Grafana | `ready` | Review Grafana dashboard design from local packet metadata. | Generate vendor-neutral packets before Grafana adapter design. |
+| Generic observability | `ready` | Use the packet as generic read-only observability adapter input. | Generate observability and evidence-index packets first. |
+
 The API inventory packet is written by:
 
 ```bash
