@@ -3,6 +3,7 @@
 import errno
 import os
 import stat as stat_module
+from contextlib import ExitStack
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -36,6 +37,30 @@ def test_append_local_evidence_descriptor_closes_on_append_failure(
         evidence_common.append_local_evidence_descriptor(FailingDescriptors(), 123)
 
     assert closed_descriptors == [123]
+
+
+def test_register_local_evidence_descriptor_closes_on_callback_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    closed_descriptors: list[int] = []
+
+    def fail_callback(
+        self: ExitStack,
+        callback: object,
+        /,
+        *args: object,
+        **kwargs: object,
+    ) -> object:
+        del self, callback, args, kwargs
+        raise RuntimeError("callback failed")
+
+    monkeypatch.setattr(ExitStack, "callback", fail_callback)
+    monkeypatch.setattr(os, "close", closed_descriptors.append)
+
+    with pytest.raises(RuntimeError, match="callback failed"):
+        evidence_common.register_local_evidence_descriptor(ExitStack(), 124)
+
+    assert closed_descriptors == [124]
 
 
 def test_safe_evidence_text_redacts_and_normalizes_ascii_controls() -> None:
