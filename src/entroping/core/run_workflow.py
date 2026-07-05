@@ -460,7 +460,6 @@ def execute_run_workflow(
                     passed=suite.passed,
                     failed=suite.failed,
                 )
-                terminal_event_recorded = True
                 return result
             preflight_hurl_variables(
                 execution_copies,
@@ -570,7 +569,6 @@ def execute_run_workflow(
             passed=suite.passed,
             failed=suite.failed,
         )
-        terminal_event_recorded = True
         return result
     except Exception as exc:
         if not terminal_event_recorded and not isinstance(exc, NoHurlTestsMatchedError):
