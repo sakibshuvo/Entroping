@@ -411,8 +411,8 @@ def _run_hurl_attempt(
     subprocess_env: dict[str, str],
     options: HurlRunOptions,
 ) -> tuple[HurlRunStatus, int, str, str, bool, bool]:
-    status: HurlRunStatus = "error"
-    exit_code = 126
+    status: HurlRunStatus
+    exit_code: int
     extra_stderr = ""
 
     with (
