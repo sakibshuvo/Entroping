@@ -63,6 +63,25 @@ def test_register_local_evidence_descriptor_closes_on_callback_failure(
     assert closed_descriptors == [124]
 
 
+def test_register_local_evidence_descriptor_registers_close_callback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    closed_descriptors: list[int] = []
+
+    monkeypatch.setattr(os, "close", closed_descriptors.append)
+
+    with ExitStack() as descriptor_stack:
+        descriptor = evidence_common.register_local_evidence_descriptor(
+            descriptor_stack,
+            125,
+        )
+
+        assert descriptor == 125
+        assert closed_descriptors == []
+
+    assert closed_descriptors == [125]
+
+
 def test_safe_evidence_text_redacts_and_normalizes_ascii_controls() -> None:
     text = safe_evidence_text("Authorization: Bearer live-token\r\nnext\tvalue\x00tail")
 

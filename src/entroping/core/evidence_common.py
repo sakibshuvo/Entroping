@@ -90,58 +90,43 @@ def read_local_evidence_artifact_bytes_no_follow(
 ) -> tuple[bytes | None, str]:
     """Read an artifact path without following parent or final symlink components."""
 
+    directory_descriptors: list[int] = []
     file_descriptor: int | None = None
     try:
-        with ExitStack() as descriptor_stack:
-            directory_descriptor = _open_parent_descriptor_no_follow(
-                path.parent,
-                descriptor_stack=descriptor_stack,
-            )
-            file_descriptor = register_local_evidence_descriptor(
-                descriptor_stack,
-                os.open(
-                    path.name,
-                    os.O_RDONLY | os.O_NOFOLLOW,
-                    dir_fd=directory_descriptor,
-                ),
-            )
-            return read_bounded_local_evidence_bytes_from_descriptor(
-                file_descriptor,
-                max_bytes=max_bytes,
-            )
-    except OSError as exc:
-        return None, local_evidence_read_error_summary(exc)
-
-
-def _open_parent_descriptor_no_follow(
-    parent: Path,
-    *,
-    descriptor_stack: ExitStack,
-) -> int:
-    if parent.is_absolute():
-        directory_descriptor = register_local_evidence_descriptor(
-            descriptor_stack,
-            os.open(parent.anchor, os.O_RDONLY | os.O_DIRECTORY),
-        )
-        parts = parent.parts[1:]
-    else:
-        directory_descriptor = register_local_evidence_descriptor(
-            descriptor_stack,
-            os.open(".", os.O_RDONLY | os.O_DIRECTORY),
-        )
-        parts = parent.parts
-    for part in parts:
-        if part == "..":
-            raise OSError(errno.EINVAL, "parent traversal is not allowed")
-        directory_descriptor = register_local_evidence_descriptor(
-            descriptor_stack,
-            os.open(
+        parent = path.parent
+        if parent.is_absolute():
+            directory_descriptor = os.open(parent.anchor, os.O_RDONLY | os.O_DIRECTORY)
+            directory_descriptors.append(directory_descriptor)
+            parts = parent.parts[1:]
+        else:
+            directory_descriptor = os.open(".", os.O_RDONLY | os.O_DIRECTORY)
+            directory_descriptors.append(directory_descriptor)
+            parts = parent.parts
+        for part in parts:
+            if part == "..":
+                raise OSError(errno.EINVAL, "parent traversal is not allowed")
+            directory_descriptor = os.open(
                 part,
                 os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
                 dir_fd=directory_descriptor,
-            ),
+            )
+            directory_descriptors.append(directory_descriptor)
+        file_descriptor = os.open(
+            path.name,
+            os.O_RDONLY | os.O_NOFOLLOW,
+            dir_fd=directory_descriptor,
         )
-    return directory_descriptor
+        return read_bounded_local_evidence_bytes_from_descriptor(
+            file_descriptor,
+            max_bytes=max_bytes,
+        )
+    except OSError as exc:
+        return None, local_evidence_read_error_summary(exc)
+    finally:
+        if file_descriptor is not None:
+            os.close(file_descriptor)
+        for directory_descriptor in reversed(directory_descriptors):
+            os.close(directory_descriptor)
 
 
 def read_local_evidence_artifact_bytes_best_effort(
