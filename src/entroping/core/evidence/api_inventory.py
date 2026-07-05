@@ -329,12 +329,12 @@ def run_api_inventory_report(
 
 
 def _api_inventory_output(output: str) -> ApiInventoryOutput:
-    match output:
-        case "md" | "json":
-            return output
-        case _:
-            msg = f"Unsupported API inventory output: {output}"
-            raise ApiInventoryError(msg)
+    if output == "md":
+        return "md"
+    if output == "json":
+        return "json"
+    msg = f"Unsupported API inventory output: {output}"
+    raise ApiInventoryError(msg)
 
 
 def build_api_inventory(*, project_root: Path) -> ApiInventoryPacket:

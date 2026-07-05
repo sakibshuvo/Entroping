@@ -201,14 +201,12 @@ def run_otel_mapping_report(
 
 
 def _otel_mapping_output(output: str) -> OtelMappingOutput:
-    match output:
-        case "md":
-            return "md"
-        case "json":
-            return "json"
-        case _:
-            msg = f"Unsupported otel-mapping output: {output}"
-            raise OtelMappingError(msg)
+    if output == "md":
+        return "md"
+    if output == "json":
+        return "json"
+    msg = f"Unsupported otel-mapping output: {output}"
+    raise OtelMappingError(msg)
 
 
 def build_otel_mapping_packet(*, project_root: Path) -> OtelMappingPacket:
