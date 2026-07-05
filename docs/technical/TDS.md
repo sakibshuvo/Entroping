@@ -330,6 +330,7 @@ current top-level inventory is:
 | `gate_coverage.py` | QAnstitution gate coverage over discovered Hurl tests | Hurl subprocess execution, report file writes |
 | `gate_injection_explain.py` | Gate-injection explanation reports | Temporary execution-copy creation, Hurl execution |
 | `asyncapi_to_hurl.py` | AsyncAPI webhook-ack Hurl scaffold from local contract metadata | Broker/cloud/webhook execution, message delivery, file writes |
+| `graphql_to_hurl.py` | GraphQL SDL typename-smoke Hurl scaffold from local schema metadata | GraphQL runtime execution, resolver calls, file writes |
 | `merge.py` | Manual-edit-preserving Hurl merge/refactor logic | Test generation strategy |
 | `openapi_audit.py` | OpenAPI operation coverage audit against Hurl tests | File discovery, Hurl execution, LLM calls |
 | `openapi_diff.py` | Pure OpenAPI operation-change detection | Git invocation, file reads, generated-test writes |
