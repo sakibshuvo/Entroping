@@ -326,15 +326,16 @@ current top-level inventory is:
 | --- | --- | --- |
 | `capture_summary.py` | Safe aggregate summaries from redacted captured traffic | Proxy capture, SQLite persistence, raw body retention |
 | `effective_policy.py` | Effective QAnstitution policy evidence rendering | Policy loading, filesystem writes outside the report adapter |
-| `effective_policy_diff.py` | Deterministic diffs between effective policy evidence reports | Policy mutation, compatibility decisions |
+| `effective_policy_diff.py` | Effective-policy evidence diffs | Policy mutation, compatibility decisions |
 | `gate_coverage.py` | QAnstitution gate coverage over discovered Hurl tests | Hurl subprocess execution, report file writes |
-| `gate_injection_explain.py` | Deterministic gate-injection explanation reports | Temporary execution-copy creation, Hurl execution |
+| `gate_injection_explain.py` | Gate-injection explanation reports | Temporary execution-copy creation, Hurl execution |
 | `asyncapi_to_hurl.py` | AsyncAPI webhook-ack Hurl scaffold from local contract metadata | Broker/cloud/webhook execution, message delivery, file writes |
 | `merge.py` | Manual-edit-preserving Hurl merge/refactor logic | Test generation strategy |
-| `openapi_audit.py` | OpenAPI operation coverage audit against discovered Hurl tests | File discovery, Hurl execution, LLM calls |
+| `openapi_audit.py` | OpenAPI operation coverage audit against Hurl tests | File discovery, Hurl execution, LLM calls |
 | `openapi_diff.py` | Pure OpenAPI operation-change detection | Git invocation, file reads, generated-test writes |
 | `openapi_to_hurl/` | OpenAPI operation/schema/parameter translation to Hurl models through bounded compiler modules | LLM calls, file writes, merge strategy |
 | `policy_to_hurl.py` | QAnstitution gate to Hurl assertions | Hurl subprocess execution |
+| `proto_to_hurl.py` | Proto HTTP-transcoding Hurl scaffold | Native gRPC, streaming, proto detail rendering |
 | `redaction_review.py` | Safe redaction review summaries from redacted traffic | Raw traffic capture, secret storage |
 | `soap_to_hurl.py` | Local WSDL to SOAP smoke Hurl scaffold | SOAP runtime, network execution, WSDL detail rendering |
 | `story_traceability.py` | Story IDs, local story Markdown files, owners, external doc URLs | Business-system API clients |
