@@ -446,15 +446,18 @@ def render_team_access_control_plan_markdown(
         f"- Schema: `{packet.schema_version}`",
         f"- Status: `{packet.summary.status}`",
         f"- Project: `{_inline_code(packet.project or 'unknown')}`",
-        "- Sources: "
-        f"`{packet.summary.sources_present}/{packet.summary.sources_total}` present, "
-        f"`{packet.summary.sources_missing}` missing, "
-        f"`{packet.summary.sources_invalid}` invalid, "
-        f"`{packet.summary.sources_unsafe}` unsafe",
-        "- Roles: "
-        f"`{packet.summary.roles_ready}/{packet.summary.roles_total}` ready, "
-        f"`{packet.summary.roles_attention}` attention, "
-        f"`{packet.summary.roles_blocked}` blocked",
+        (
+            f"- Sources: `{packet.summary.sources_present}/"
+            + f"{packet.summary.sources_total}` present, "
+            + f"`{packet.summary.sources_missing}` missing, "
+            + f"`{packet.summary.sources_invalid}` invalid, "
+            + f"`{packet.summary.sources_unsafe}` unsafe"
+        ),
+        (
+            f"- Roles: `{packet.summary.roles_ready}/{packet.summary.roles_total}` ready, "
+            + f"`{packet.summary.roles_attention}` attention, "
+            + f"`{packet.summary.roles_blocked}` blocked"
+        ),
         f"- Audit events: `{packet.summary.audit_events_total}`",
         f"- Blockers: `{packet.summary.blockers_total}`",
         f"- Next actions: `{packet.summary.next_actions_total}`",
@@ -497,8 +500,10 @@ def render_team_access_control_plan_markdown(
             "",
             "## Roles",
             "",
-            "| Role | Status | Allowed Actions | Forbidden Actions | Audit Events | "
-            "Blockers | Next Action |",
+            (
+                "| Role | Status | Allowed Actions | Forbidden Actions | Audit Events | "
+                + "Blockers | Next Action |"
+            ),
             "| --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
@@ -986,9 +991,9 @@ def _boundary() -> TeamAccessControlBoundary:
         pass_fail_override_allowed=False,
         forbidden_data_classes=_FORBIDDEN_DATA_CLASSES,
         boundary_summary=(
-            "This packet is a local access-control and audit plan only. Future "
-            "team surfaces must require explicit user intent, access-control "
-            "implementation, audit logging, and value-free evidence references."
+            "This packet is a local access-control and audit plan only. Future team "
+            + "surfaces must require explicit user intent, access-control implementation, "
+            + "audit logging, and value-free evidence references."
         ),
     )
 

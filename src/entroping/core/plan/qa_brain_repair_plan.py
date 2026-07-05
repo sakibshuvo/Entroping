@@ -162,8 +162,10 @@ _READY_ACTIONS: Final[dict[QaBrainEvalSliceId, str]] = {
     ),
 }
 _GATE_ID_RE: Final = re.compile(
-    r"^(parser_validation|hurl_execution|qanstitution_governance|"
-    r"deterministic_evidence|secret_redaction|codex_human_review)$"
+    "^("
+    + "parser_validation|hurl_execution|qanstitution_governance|deterministic_evidence|"
+    + "secret_redaction|codex_human_review"
+    + ")$"
 )
 _NON_REDACTION_GATE_FAMILIES: Final[
     dict[QaBrainRepairAcceptanceGateId, QaBrainRepairAcceptanceGateFamily]
@@ -398,13 +400,15 @@ def render_qa_brain_repair_plan_markdown(packet: QaBrainRepairPlanPacket) -> str
     lines = [
         "# Entroping QA Brain Repair Plan",
         "",
-        "Deterministic local planning metadata for future Entroping QA Brain "
-        "repair proposals. This report does not execute Hurl, run tests, run "
-        "mutations or fuzzers, call providers, invoke models, change LiteLLM "
-        "configuration, generate or repair tests, mutate source Hurl or policy, "
-        "upload artifacts, create embeddings, retrieve documents, fine-tune "
-        "models, export datasets, mutate tickets or chat, or render raw report "
-        "contents.",
+        (
+            "Deterministic local planning metadata for future Entroping QA Brain "
+            + "repair proposals. This report does not execute Hurl, run tests, run "
+            + "mutations or fuzzers, call providers, invoke models, change LiteLLM "
+            + "configuration, generate or repair tests, mutate source Hurl or policy, "
+            + "upload artifacts, create embeddings, retrieve documents, fine-tune "
+            + "models, export datasets, mutate tickets or chat, or render raw report "
+            + "contents."
+        ),
         "",
         "## Summary",
         "",
@@ -413,15 +417,19 @@ def render_qa_brain_repair_plan_markdown(packet: QaBrainRepairPlanPacket) -> str
         f"- Generated at: `{_inline_code(packet.generated_at)}`",
         f"- Project: `{_inline_code(packet.project)}`",
         f"- Routing plan schema: `{packet.routing_plan_schema_version}`",
-        "- Sources: "
-        f"`{packet.summary.sources_present}/{packet.summary.sources_total}` present, "
-        f"`{packet.summary.sources_missing}` missing, "
-        f"`{packet.summary.sources_invalid}` invalid, "
-        f"`{packet.summary.sources_unsafe}` unsafe",
-        "- Repair plans: "
-        f"`{packet.summary.repair_plans_ready}/{packet.summary.repair_plans_total}` ready, "
-        f"`{packet.summary.repair_plans_missing}` missing, "
-        f"`{packet.summary.repair_plans_attention}` attention",
+        (
+            f"- Sources: `{packet.summary.sources_present}/"
+            + f"{packet.summary.sources_total}` present, "
+            + f"`{packet.summary.sources_missing}` missing, "
+            + f"`{packet.summary.sources_invalid}` invalid, "
+            + f"`{packet.summary.sources_unsafe}` unsafe"
+        ),
+        (
+            f"- Repair plans: `{packet.summary.repair_plans_ready}/"
+            + f"{packet.summary.repair_plans_total}` ready, "
+            + f"`{packet.summary.repair_plans_missing}` missing, "
+            + f"`{packet.summary.repair_plans_attention}` attention"
+        ),
         f"- Blockers: `{packet.summary.blockers_total}`",
         f"- Next actions: `{packet.summary.next_actions_total}`",
         "",
@@ -751,7 +759,7 @@ def _next_action(
     if readiness == "attention":
         return (
             f"Repair invalid or unsafe local evidence for {_REPAIR_LABELS[case_id]} "
-            "before future QA Brain repair proposals."
+            + "before future QA Brain repair proposals."
         )
     return (
         f"Add value-free evidence and routing acceptance gates for "

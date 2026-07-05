@@ -299,17 +299,20 @@ def render_observability_packet_markdown(packet: ObservabilityPacket) -> str:
         f"- Status: `{packet.summary.status}`",
         f"- Severity: `{packet.summary.severity}`",
         f"- Project: `{_inline_code(packet.project or 'unknown')}`",
-        "- Sources: "
-        f"`{packet.summary.sources_present}/{packet.summary.sources_total}` present, "
-        f"`{packet.summary.sources_missing}` missing, "
-        f"`{packet.summary.sources_invalid}` invalid, "
-        f"`{packet.summary.sources_unsafe}` unsafe",
-        "- Events: "
-        f"`{packet.summary.events_total}` total, "
-        f"`{packet.summary.error_events}` error, "
-        f"`{packet.summary.warning_events}` warning, "
-        f"`{packet.summary.info_events}` info, "
-        f"`{packet.summary.debug_events}` debug",
+        (
+            f"- Sources: `{packet.summary.sources_present}/"
+            + f"{packet.summary.sources_total}` present, "
+            + f"`{packet.summary.sources_missing}` missing, "
+            + f"`{packet.summary.sources_invalid}` invalid, "
+            + f"`{packet.summary.sources_unsafe}` unsafe"
+        ),
+        (
+            f"- Events: `{packet.summary.events_total}` total, "
+            + f"`{packet.summary.error_events}` error, "
+            + f"`{packet.summary.warning_events}` warning, "
+            + f"`{packet.summary.info_events}` info, "
+            + f"`{packet.summary.debug_events}` debug"
+        ),
         "",
         "## Runtime",
         "",

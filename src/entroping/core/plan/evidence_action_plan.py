@@ -545,8 +545,8 @@ def _source_path(source_id: EvidenceActionPlanSourceId) -> str:
 def _source_markdown(row: EvidenceActionPlanSource) -> str:
     return (
         f"| {_md(row.label)} | {_md(row.state)} | {_md(row.status or 'n/a')} | "
-        f"`{_md(row.path)}` | {_md(row.schema_version or 'n/a')} | "
-        f"`{_md(row.sha256 or 'n/a')}` | {_md(row.summary)} |"
+        + f"{_md(row.path)} | {_md(row.schema_version or 'n/a')} | "
+        + f"{_md(row.sha256 or 'n/a')} | {_md(row.summary)} |"
     )
 
 

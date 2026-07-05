@@ -246,11 +246,13 @@ def render_handoff_markdown(packet: HandoffPacket) -> str:
         f"- Project: `{_inline_code(packet.project or 'unknown')}`",
         f"- Branch: `{_inline_code(packet.git.branch or 'unknown')}`",
         f"- Commit: `{_inline_code(packet.git.commit or 'unknown')}`",
-        "- Artifacts: "
-        f"`{packet.summary.artifacts_present}/{packet.summary.artifacts_total}` present, "
-        f"`{packet.summary.artifacts_missing}` missing, "
-        f"`{packet.summary.artifacts_invalid}` invalid, "
-        f"`{packet.summary.artifacts_unsafe}` unsafe",
+        (
+            f"- Artifacts: `{packet.summary.artifacts_present}/"
+            + f"{packet.summary.artifacts_total}` present, "
+            + f"`{packet.summary.artifacts_missing}` missing, "
+            + f"`{packet.summary.artifacts_invalid}` invalid, "
+            + f"`{packet.summary.artifacts_unsafe}` unsafe"
+        ),
         "",
         "## Runtime",
         "",
@@ -264,10 +266,14 @@ def render_handoff_markdown(packet: HandoffPacket) -> str:
                 f"- Findings: `{packet.runtime.findings}`",
                 f"- Evidence links: `{packet.runtime.evidence_links}`",
                 f"- Failed gates: `{packet.runtime.failed_gate_ids}`",
-                "- Pilot readiness: "
-                f"`{_inline_code(packet.runtime.pilot_readiness_status or 'unknown')}`",
-                "- Test pyramid: "
-                f"`{_inline_code(packet.runtime.test_pyramid_status or 'unknown')}`",
+                (
+                    "- Pilot readiness: "
+                    + f"`{_inline_code(packet.runtime.pilot_readiness_status or 'unknown')}`"
+                ),
+                (
+                    "- Test pyramid: "
+                    + f"`{_inline_code(packet.runtime.test_pyramid_status or 'unknown')}`"
+                ),
             ]
         )
 

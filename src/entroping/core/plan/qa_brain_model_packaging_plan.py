@@ -68,7 +68,7 @@ _DEPLOYMENT_MODES: Final[
 _ENDPOINT_BOUNDARIES: Final[dict[QaBrainEvalSliceId, str]] = {
     eval_id: (
         "OpenAI-compatible endpoint planning only; this report does not start a "
-        "server, gateway, hosted endpoint, SDK adapter, or inference process."
+        + "server, gateway, hosted endpoint, SDK adapter, or inference process."
     )
     for eval_id in _DEPLOYMENT_MODES
 }
@@ -76,7 +76,7 @@ _ENDPOINT_BOUNDARIES: Final[dict[QaBrainEvalSliceId, str]] = {
 _LITELLM_ROUTING_BOUNDARIES: Final[dict[QaBrainEvalSliceId, str]] = {
     eval_id: (
         "Future routing must stay behind LiteLLM or an OpenAI-compatible surface; "
-        "this packet does not change LiteLLM configuration or provider selection."
+        + "this packet does not change LiteLLM configuration or provider selection."
     )
     for eval_id in _DEPLOYMENT_MODES
 }
@@ -84,8 +84,8 @@ _LITELLM_ROUTING_BOUNDARIES: Final[dict[QaBrainEvalSliceId, str]] = {
 _ARTIFACT_BOUNDARIES: Final[dict[QaBrainEvalSliceId, str]] = {
     eval_id: (
         "No model weights, adapters, containers, datasets, embeddings, vector "
-        "indexes, prompt transcripts, eval outputs, or provider artifacts are "
-        "produced by this report."
+        + "indexes, prompt transcripts, eval outputs, or provider artifacts are "
+        + "produced by this report."
     )
     for eval_id in _DEPLOYMENT_MODES
 }
@@ -93,8 +93,8 @@ _ARTIFACT_BOUNDARIES: Final[dict[QaBrainEvalSliceId, str]] = {
 _ACCESS_CONTROL_AUDIT: Final[dict[QaBrainEvalSliceId, str]] = {
     eval_id: (
         "Hosted, local, and enterprise packaging would need explicit access "
-        "control, audit logging, retention, and tenant-boundary evidence before "
-        "implementation."
+        + "control, audit logging, retention, and tenant-boundary evidence before "
+        + "implementation."
     )
     for eval_id in _DEPLOYMENT_MODES
 }
@@ -246,13 +246,15 @@ def render_qa_brain_model_packaging_plan_markdown(
     lines = [
         "# Entroping QA Brain Model Packaging Plan",
         "",
-        "Deterministic local planning metadata for future Entroping QA Brain Pro "
-        "hosted, local, and enterprise model packaging. This report does not "
-        "execute Hurl, run tests, call providers, start an endpoint, implement a "
-        "gateway, package models, build containers, export datasets, train or "
-        "fine-tune models, create embeddings, use a vector database, retrieve "
-        "documents, execute prompts, upload artifacts, parse traffic state, run "
-        "mutations, or render raw report contents.",
+        (
+            "Deterministic local planning metadata for future Entroping QA Brain Pro "
+            + "hosted, local, and enterprise model packaging. This report does not "
+            + "execute Hurl, run tests, call providers, start an endpoint, implement "
+            + "a gateway, package models, build containers, export datasets, train "
+            + "or fine-tune models, create embeddings, use a vector database, "
+            + "retrieve documents, execute prompts, upload artifacts, parse traffic "
+            + "state, run mutations, or render raw report contents."
+        ),
         "",
         "## Summary",
         "",
@@ -260,20 +262,24 @@ def render_qa_brain_model_packaging_plan_markdown(
         f"- Status: `{packet.summary.status}`",
         f"- Generated at: `{_inline_code(packet.generated_at)}`",
         f"- Project: `{_inline_code(packet.project)}`",
-        "- Fine-tune readiness schema: "
-        f"`{packet.fine_tune_readiness_schema_version}`",
-        "- Packaging plans: "
-        f"`{packet.summary.plans_ready}/{packet.summary.plans_total}` ready, "
-        f"`{packet.summary.plans_missing}` missing, "
-        f"`{packet.summary.plans_attention}` attention",
+        f"- Fine-tune readiness schema: `{packet.fine_tune_readiness_schema_version}`",
+        (
+            f"- Packaging plans: `{packet.summary.plans_ready}/"
+            + f"{packet.summary.plans_total}` ready, "
+            + f"`{packet.summary.plans_missing}` missing, "
+            + f"`{packet.summary.plans_attention}` attention"
+        ),
         f"- Blockers: `{packet.summary.blockers_total}`",
         f"- Next actions: `{packet.summary.next_actions_total}`",
         "",
         "## Packaging Plans",
         "",
-        "| ID | Label | Readiness | Stage | Source IDs | Source Paths | "
-        "Endpoint Boundary | LiteLLM Routing | Deployment Modes | "
-        "Artifact Boundary | Access Control And Audit | Blockers | Next Action |",
+        (
+            "| ID | Label | Readiness | Stage | Source IDs | Source Paths | "
+            + "Endpoint Boundary | LiteLLM Routing | Deployment Modes | "
+            + "Artifact Boundary | Access Control And Audit | Blockers | "
+            + "Next Action |"
+        ),
         "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for row in packet.packaging_plans:
@@ -411,17 +417,15 @@ def _plan_next_action(row: QaBrainFineTuneReadinessRow) -> str:
     if row.readiness == "ready" and not row.blockers:
         return (
             f"Use {row.label} readiness metadata for future hosted, local, and "
-            "enterprise model-packaging design without producing model artifacts."
+            + "enterprise model-packaging design without producing model artifacts."
         )
     if row.readiness == "attention":
         return (
-            f"Repair {row.label} readiness evidence before future model-packaging "
-            "design."
+            f"Repair {row.label} readiness evidence before future model-packaging design."
         )
     if row.readiness == "missing":
         return (
-            f"Add {row.label} readiness evidence before future model-packaging "
-            "design."
+            f"Add {row.label} readiness evidence before future model-packaging design."
         )
     return f"Resolve {row.label} blockers before future model-packaging design."
 

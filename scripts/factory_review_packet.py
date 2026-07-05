@@ -160,7 +160,7 @@ def _packet_for_args(
         "schema_version": "entroping.factory-review-packet.v1",
         "review_rule": (
             "Review this compact packet, job metadata, diff artifacts, changed files, "
-            "and tests before reading raw transcripts."
+            + "and tests before reading raw transcripts."
         ),
         "job": _job_packet(job, job_path),
         "artifact": _artifact_packet(artifact_dir),
@@ -482,9 +482,9 @@ def _print_packet(packet: dict[str, Any], *, json_output: bool) -> None:
         if isinstance(proposal, dict):
             print(
                 "Proposal diff: "
-                f"{proposal.get('files_changed', 0)} files, "
-                f"+{proposal.get('additions', 0)} "
-                f"-{proposal.get('deletions', 0)}"
+                + f"{proposal.get('files_changed', 0)} files, "
+                + f"+{proposal.get('additions', 0)} "
+                + f"-{proposal.get('deletions', 0)}"
             )
 
 

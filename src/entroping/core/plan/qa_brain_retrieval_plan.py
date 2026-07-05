@@ -58,36 +58,36 @@ _RETRIEVAL_CATEGORIES: Final[dict[QaBrainEvalSliceId, QaBrainRetrievalCategory]]
 
 _RETRIEVAL_INTENTS: Final[dict[QaBrainEvalSliceId, str]] = {
     "weak_test_detection": (
-        "Find generated-test quality signals for weak assertions, shallow "
-        "coverage, and missing negative paths by stable artifact ID."
+        "Find generated-test quality signals for weak assertions, shallow coverage, "
+        + "and missing negative paths by stable artifact ID."
     ),
     "missing_gate_discovery": (
         "Find policy and gate evidence that shows missing or under-covered "
-        "QAnstitution checks by stable gate and artifact IDs."
+        + "QAnstitution checks by stable gate and artifact IDs."
     ),
     "unsafe_generated_hurl": (
         "Find generated-Hurl safety signals for overbroad, brittle, or unsafe "
-        "test proposals without reading source Hurl contents."
+        + "test proposals without reading source Hurl contents."
     ),
     "bogus_evidence": (
         "Find artifact integrity and run-state signals that challenge unsupported "
-        "evidence claims through schema and artifact metadata."
+        + "evidence claims through schema and artifact metadata."
     ),
     "redaction_mistakes": (
         "Find redaction-risk signals from counts and state metadata without "
-        "rendering headers, cookies, bodies, or tokens."
+        + "rendering headers, cookies, bodies, or tokens."
     ),
     "api_drift_reasoning": (
-        "Find API inventory and drift signals that explain behavior changes "
-        "from value-free route and schema metadata."
+        "Find API inventory and drift signals that explain behavior changes from "
+        + "value-free route and schema metadata."
     ),
     "mutation_fuzz_readiness": (
         "Find mutation and fuzz readiness signals from deterministic seed and "
-        "coverage metadata without running fuzzers or mutations."
+        + "coverage metadata without running fuzzers or mutations."
     ),
     "cross_surface_handoff_quality": (
         "Find handoff and evidence-index signals that show whether CLI, PR, "
-        "desktop, cloud, mobile, and agent surfaces share enough context."
+        + "desktop, cloud, mobile, and agent surfaces share enough context."
     ),
 }
 
@@ -213,8 +213,10 @@ _QUERY_HINTS: Final[dict[QaBrainEvalSliceId, tuple[str, ...]]] = {
 _SAFETY_NOTES: Final[dict[QaBrainEvalSliceId, tuple[str, ...]]] = {
     eval_id: (
         "Use value-free local metadata only.",
-        "Do not embed raw traffic, source Hurl, prompts, provider output, "
-        "secrets, or environment values.",
+        (
+            "Do not embed raw traffic, source Hurl, prompts, provider output, "
+            + "secrets, or environment values."
+        ),
         "Treat retrieval rows as future model context candidates, not pass/fail authority.",
     )
     for eval_id in _RETRIEVAL_CATEGORIES
@@ -356,27 +358,33 @@ def render_qa_brain_retrieval_plan_markdown(
     lines = [
         "# Entroping QA Brain Retrieval Plan",
         "",
-        "Deterministic local retrieval-plan metadata for future Entroping QA Brain "
-        "retrieval, prompt, and model-evaluation design. This report does not "
-        "execute Hurl, run tests, call providers, create embeddings, use a vector "
-        "database, fine-tune models, upload artifacts, parse traffic state, run "
-        "mutations, or render raw report contents.",
+        (
+            "Deterministic local retrieval-plan metadata for future Entroping QA Brain "
+            + "retrieval, prompt, and model-evaluation design. This report does not "
+            + "execute Hurl, run tests, call providers, create embeddings, use a "
+            + "vector database, fine-tune models, upload artifacts, parse traffic "
+            + "state, run mutations, or render raw report contents."
+        ),
         "",
         "## Summary",
         "",
         f"- Status: `{packet.summary.status}`",
         f"- Project: `{_inline_code(packet.project)}`",
         f"- Eval-plan schema: `{packet.eval_plan_schema_version}`",
-        "- Retrieval plans: "
-        f"`{packet.summary.plans_ready}/{packet.summary.plans_total}` ready, "
-        f"`{packet.summary.plans_missing}` missing, "
-        f"`{packet.summary.plans_attention}` attention",
+        (
+            f"- Retrieval plans: `{packet.summary.plans_ready}/"
+            + f"{packet.summary.plans_total}` ready, "
+            + f"`{packet.summary.plans_missing}` missing, "
+            + f"`{packet.summary.plans_attention}` attention"
+        ),
         f"- Next actions: `{packet.summary.next_actions_total}`",
         "",
         "## Retrieval Plans",
         "",
-        "| ID | Label | Readiness | Category | Sources | Intent | Allowed Fields | "
-        "Forbidden Fields | Query Hints |",
+        (
+            "| ID | Label | Readiness | Category | Sources | Intent | "
+            + "Allowed Fields | Forbidden Fields | Query Hints |"
+        ),
         "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for plan in packet.retrieval_plans:
@@ -508,8 +516,7 @@ def _plan_next_action(eval_case: QaBrainEvalCase) -> str:
         return f"Use value-free local evidence for {eval_case.label} retrieval design."
     if eval_case.readiness == "attention":
         return (
-            f"Repair invalid or unsafe local evidence before {eval_case.label} "
-            "retrieval indexing."
+            f"Repair invalid or unsafe local evidence before {eval_case.label} retrieval indexing."
         )
     return f"Add value-free local evidence before {eval_case.label} retrieval indexing."
 

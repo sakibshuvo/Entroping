@@ -114,9 +114,9 @@ _ALLOWED_USE_CASES: Final[
 
 _FORBIDDEN_AUTHORITY: Final[dict[QaBrainEvalSliceId, str]] = {
     eval_id: (
-        "Future QA Brain routing can support critique, generation, "
-        "prioritization, and repair proposals only; Hurl/QAnstitution remains "
-        "the pass/fail authority for entroping run."
+        "Future QA Brain routing can support critique, generation, prioritization, "
+        + "and repair proposals only; Hurl/QAnstitution remains the pass/fail "
+        + "authority for entroping run."
     )
     for eval_id in _ALLOWED_USE_CASES
 }
@@ -169,8 +169,8 @@ _REPAIR_ACCEPTANCE_GATES: Final[tuple[QaBrainRepairAcceptanceGate, ...]] = (
         label="Hurl execution",
         required=True,
         summary=(
-            "Run accepted Hurl changes through deterministic subprocess "
-            "execution before pass/fail claims."
+            "Run accepted Hurl changes through deterministic subprocess execution "
+            + "before pass/fail claims."
         ),
     ),
     QaBrainRepairAcceptanceGate(
@@ -178,8 +178,8 @@ _REPAIR_ACCEPTANCE_GATES: Final[tuple[QaBrainRepairAcceptanceGate, ...]] = (
         label="QAnstitution governance",
         required=True,
         summary=(
-            "Require QAnstitution gates to decide acceptance; model output "
-            "cannot override governance."
+            "Require QAnstitution gates to decide acceptance; model output cannot "
+            + "override governance."
         ),
     ),
     QaBrainRepairAcceptanceGate(
@@ -187,8 +187,7 @@ _REPAIR_ACCEPTANCE_GATES: Final[tuple[QaBrainRepairAcceptanceGate, ...]] = (
         label="Deterministic evidence",
         required=True,
         summary=(
-            "Link proposals to stable source IDs, hashes, and reproducible "
-            "seeds when available."
+            'Link proposals to stable source IDs, hashes, and reproducible seeds when available.'
         ),
     ),
     QaBrainRepairAcceptanceGate(
@@ -196,8 +195,8 @@ _REPAIR_ACCEPTANCE_GATES: Final[tuple[QaBrainRepairAcceptanceGate, ...]] = (
         label="Secret redaction",
         required=True,
         summary=(
-            "Reject proposals or evidence containing credentials, tokens, raw "
-            "traffic, headers, bodies, cookies, or provider output."
+            "Reject proposals or evidence containing credentials, tokens, raw traffic, "
+            + "headers, bodies, cookies, or provider output."
         ),
     ),
     QaBrainRepairAcceptanceGate(
@@ -205,8 +204,7 @@ _REPAIR_ACCEPTANCE_GATES: Final[tuple[QaBrainRepairAcceptanceGate, ...]] = (
         label="Codex or human review",
         required=True,
         summary=(
-            "Require Codex or human review before any code, Hurl, policy, or "
-            "report write-back."
+            'Require Codex or human review before any code, Hurl, policy, or report write-back.'
         ),
     ),
 )
@@ -340,14 +338,16 @@ def render_qa_brain_routing_plan_markdown(packet: QaBrainRoutingPlanPacket) -> s
     lines = [
         "# Entroping QA Brain Routing Plan",
         "",
-        "Deterministic local planning metadata for future Entroping QA Brain Pro "
-        "LiteLLM and OpenAI-compatible routing across hosted, local, and "
-        "enterprise deployment modes. This report does not execute Hurl, run "
-        "tests, call providers, read provider keys, change LiteLLM "
-        "configuration, start endpoints, implement gateways, package models, "
-        "build containers, export datasets, train or fine-tune models, create "
-        "embeddings, use vector databases, retrieve documents, execute prompts, "
-        "upload artifacts, parse traffic state, or render raw report contents.",
+        (
+            "Deterministic local planning metadata for future Entroping QA Brain Pro "
+            + "LiteLLM and OpenAI-compatible routing across hosted, local, and "
+            + "enterprise deployment modes. This report does not execute Hurl, run "
+            + "tests, call providers, read provider keys, change LiteLLM "
+            + "configuration, start endpoints, implement gateways, package models, "
+            + "build containers, export datasets, train or fine-tune models, create "
+            + "embeddings, use vector databases, retrieve documents, execute prompts, "
+            + "upload artifacts, parse traffic state, or render raw report contents."
+        ),
         "",
         "## Summary",
         "",
@@ -355,24 +355,28 @@ def render_qa_brain_routing_plan_markdown(packet: QaBrainRoutingPlanPacket) -> s
         f"- Status: `{packet.summary.status}`",
         f"- Generated at: `{_inline_code(packet.generated_at)}`",
         f"- Project: `{_inline_code(packet.project)}`",
-        "- Model-packaging plan schema: "
-        f"`{packet.model_packaging_plan_schema_version}`",
-        "- Routing plans: "
-        f"`{packet.summary.routes_ready}/{packet.summary.routes_total}` ready, "
-        f"`{packet.summary.routes_missing}` missing, "
-        f"`{packet.summary.routes_attention}` attention",
+        f"- Model-packaging plan schema: `{packet.model_packaging_plan_schema_version}`",
+        (
+            f"- Routing plans: `{packet.summary.routes_ready}/"
+            + f"{packet.summary.routes_total}` ready, "
+            + f"`{packet.summary.routes_missing}` missing, "
+            + f"`{packet.summary.routes_attention}` attention"
+        ),
         f"- Blockers: `{packet.summary.blockers_total}`",
         f"- Next actions: `{packet.summary.next_actions_total}`",
         "",
         "## Routing Plans",
         "",
-        "| ID | Label | Readiness | Packaging Stage | Routing Stage | "
-        "Source IDs | Source Paths | LiteLLM Boundary | Endpoint Boundary | "
-        "Deployment Modes | Allowed Use Cases | Repair Acceptance Gates | "
-        "Forbidden Authority | Access Control And Audit | Blockers | "
-        "Next Action |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | "
-        "--- | --- | --- | --- |",
+        (
+            "| ID | Label | Readiness | Packaging Stage | Routing Stage | Source IDs | "
+            + "Source Paths | LiteLLM Boundary | Endpoint Boundary | Deployment Modes | "
+            + "Allowed Use Cases | Repair Acceptance Gates | Forbidden Authority | "
+            + "Access Control And Audit | Blockers | Next Action |"
+        ),
+        (
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | "
+            + "--- | --- | --- | --- | --- |"
+        ),
     ]
     for row in packet.routing_plans:
         lines.append(
@@ -518,18 +522,16 @@ def _plan_next_action(
     if routing_stage == "routing_design_ready" and not row.blockers:
         return (
             f"Use {row.label} packaging metadata for future LiteLLM and "
-            "OpenAI-compatible routing design without changing runtime "
-            "configuration or calling providers."
+            + "OpenAI-compatible routing design without changing runtime configuration "
+            + "or calling providers."
         )
     if routing_stage == "needs_boundary_repair":
         return (
-            f"Repair {row.label} model-packaging boundaries before future "
-            "routing design."
+            f"Repair {row.label} model-packaging boundaries before future routing design."
         )
     if routing_stage == "needs_packaging_evidence":
         return (
-            f"Add {row.label} model-packaging evidence before future routing "
-            "design."
+            f"Add {row.label} model-packaging evidence before future routing design."
         )
     return f"Resolve {row.label} blockers before future routing design."
 

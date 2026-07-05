@@ -87,7 +87,7 @@ _OUTPUT_CONTRACTS: Final[dict[QaBrainEvalSliceId, str]] = {
 _ACCEPTANCE_SIGNALS: Final[dict[QaBrainEvalSliceId, str]] = {
     "weak_test_detection": (
         "Flags shallow generated tests without using raw report contents or acting "
-        "as pass/fail authority."
+        + "as pass/fail authority."
     ),
     "missing_gate_discovery": (
         "Identifies absent policy or gate evidence while preserving QAnstitution as authority."
@@ -97,7 +97,7 @@ _ACCEPTANCE_SIGNALS: Final[dict[QaBrainEvalSliceId, str]] = {
     ),
     "bogus_evidence": (
         "Challenges unsupported evidence claims using only local artifact state "
-        "and schema metadata."
+        + "and schema metadata."
     ),
     "redaction_mistakes": (
         "Surfaces redaction risk without rendering headers, bodies, cookies, or tokens."
@@ -110,7 +110,7 @@ _ACCEPTANCE_SIGNALS: Final[dict[QaBrainEvalSliceId, str]] = {
     ),
     "cross_surface_handoff_quality": (
         "Checks whether handoff metadata is sufficient for CLI, PR, desktop, "
-        "cloud, and mobile surfaces."
+        + "cloud, and mobile surfaces."
     ),
 }
 
@@ -338,27 +338,32 @@ def render_qa_brain_eval_plan_markdown(packet: QaBrainEvalPlanPacket) -> str:
     lines = [
         "# Entroping QA Brain Eval Plan",
         "",
-        "Deterministic local eval-plan metadata for future Entroping QA Brain "
-        "retrieval, prompt, and model-evaluation design. This report does not "
-        "execute Hurl, run tests, call providers, fine-tune models, retrieve "
-        "documents, upload artifacts, parse traffic state, run mutations, or "
-        "render raw report contents.",
+        (
+            "Deterministic local eval-plan metadata for future Entroping QA Brain "
+            + "retrieval, prompt, and model-evaluation design. This report does not "
+            + "execute Hurl, run tests, call providers, fine-tune models, retrieve "
+            + "documents, upload artifacts, parse traffic state, run mutations, or "
+            + "render raw report contents."
+        ),
         "",
         "## Summary",
         "",
         f"- Status: `{packet.summary.status}`",
         f"- Project: `{_inline_code(packet.project)}`",
         f"- Seed schema: `{packet.seed_schema_version}`",
-        "- Cases: "
-        f"`{packet.summary.cases_ready}/{packet.summary.cases_total}` ready, "
-        f"`{packet.summary.cases_missing}` missing, "
-        f"`{packet.summary.cases_attention}` attention",
+        (
+            f"- Cases: `{packet.summary.cases_ready}/{packet.summary.cases_total}` ready, "
+            + f"`{packet.summary.cases_missing}` missing, "
+            + f"`{packet.summary.cases_attention}` attention"
+        ),
         f"- Next actions: `{packet.summary.next_actions_total}`",
         "",
         "## Eval Cases",
         "",
-        "| ID | Label | Readiness | Sources | Input Contract | "
-        "Output Contract | Acceptance Signal |",
+        (
+            "| ID | Label | Readiness | Sources | Input Contract | Output Contract | "
+            + "Acceptance Signal |"
+        ),
         "| --- | --- | --- | --- | --- | --- | --- |",
     ]
     for case in packet.cases:
@@ -377,8 +382,10 @@ def render_qa_brain_eval_plan_markdown(packet: QaBrainEvalPlanPacket) -> str:
             "",
             "## Eval Case Catalog",
             "",
-            "| ID | Expected Sources | Present | Missing | Invalid | Unsafe | "
-            "Categories | Missing Reasons |",
+            (
+                "| ID | Expected Sources | Present | Missing | Invalid | Unsafe | "
+                + "Categories | Missing Reasons |"
+            ),
             "| --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
