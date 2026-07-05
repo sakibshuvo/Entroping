@@ -50,7 +50,7 @@ def select_changed_hurl_tests(*, project_root: Path, base_ref: str) -> tuple[Pat
             continue
         selected.add(path)
 
-    return tuple(sorted(selected, key=lambda path: str(path)))
+    return tuple(sorted(selected, key=str))
 
 
 def _parse_changed_paths(output: bytes) -> tuple[str, ...]:

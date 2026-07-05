@@ -418,7 +418,7 @@ def test_run_studio_app_launches_lazily_created_textual_app(
         created_models.append(model)
         return FakeApp()
 
-    monkeypatch.setattr(studio_app, "_load_textual_types", lambda: studio_app.TextualTypes())
+    monkeypatch.setattr(studio_app, "_load_textual_types", studio_app.TextualTypes)
     monkeypatch.setattr(studio_app, "_create_textual_app", fake_create_textual_app)
 
     studio_app.run_studio_app(status)
