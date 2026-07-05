@@ -7,13 +7,7 @@ from typing import Any, cast
 
 import pytest
 
-from entroping.core.plan.qa_brain_prompt_plan import (
-    QA_BRAIN_PROMPT_PLAN_SCHEMA_VERSION,
-    QaBrainPromptPlanError,
-    build_qa_brain_prompt_plan,
-    render_qa_brain_prompt_plan_markdown,
-    run_qa_brain_prompt_plan_report,
-)
+import entroping.core.plan.qa_brain_prompt_plan as qa_brain_prompt_plan
 from entroping.core.plan.qa_brain_retrieval_plan import (
     QA_BRAIN_RETRIEVAL_PLAN_SCHEMA_VERSION,
     QaBrainRetrievalPlanError,
@@ -21,6 +15,22 @@ from entroping.core.plan.qa_brain_retrieval_plan import (
     QaBrainRetrievalPlanPacket,
     QaBrainRetrievalPlanRow,
     QaBrainRetrievalPlanSummary,
+)
+
+QA_BRAIN_PROMPT_PLAN_SCHEMA_VERSION = (
+    qa_brain_prompt_plan.QA_BRAIN_PROMPT_PLAN_SCHEMA_VERSION
+)
+QaBrainPromptPlanError = (
+    qa_brain_prompt_plan.QaBrainPromptPlanError
+)
+build_qa_brain_prompt_plan = (
+    qa_brain_prompt_plan.build_qa_brain_prompt_plan
+)
+render_qa_brain_prompt_plan_markdown = (
+    qa_brain_prompt_plan.render_qa_brain_prompt_plan_markdown
+)
+run_qa_brain_prompt_plan_report = (
+    qa_brain_prompt_plan.run_qa_brain_prompt_plan_report
 )
 
 
@@ -170,7 +180,6 @@ def test_qa_brain_prompt_plan_markdown_escapes_table_cells_and_inline_code(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_prompt_plan as qa_brain_prompt_plan
 
     def fake_retrieval_plan(*, project_root: Path) -> QaBrainRetrievalPlanPacket:
         _ = project_root
@@ -244,7 +253,6 @@ def test_qa_brain_prompt_plan_deduplicates_allowed_prompt_inputs(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_prompt_plan as qa_brain_prompt_plan
 
     def fake_retrieval_plan(*, project_root: Path) -> QaBrainRetrievalPlanPacket:
         _ = project_root
@@ -306,7 +314,6 @@ def test_qa_brain_prompt_plan_reports_insufficient_for_empty_retrieval_plan(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_prompt_plan as qa_brain_prompt_plan
 
     def fake_retrieval_plan(*, project_root: Path) -> QaBrainRetrievalPlanPacket:
         _ = project_root
@@ -343,7 +350,6 @@ def test_qa_brain_prompt_plan_reports_ready_when_all_prompts_are_ready(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_prompt_plan as qa_brain_prompt_plan
 
     eval_ids = (
         "weak_test_detection",
@@ -418,7 +424,6 @@ def test_qa_brain_prompt_plan_wraps_retrieval_plan_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_prompt_plan as qa_brain_prompt_plan
 
     def fail_retrieval_plan(*, project_root: Path) -> QaBrainRetrievalPlanPacket:
         _ = project_root
@@ -438,7 +443,6 @@ def test_qa_brain_prompt_plan_rejects_unknown_case_metadata(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_prompt_plan as qa_brain_prompt_plan
 
     def fake_retrieval_plan(*, project_root: Path) -> SimpleNamespace:
         _ = project_root
@@ -478,7 +482,6 @@ def test_qa_brain_prompt_plan_rejects_missing_forbidden_input_metadata(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_prompt_plan as qa_brain_prompt_plan
 
     def fake_retrieval_plan(*, project_root: Path) -> SimpleNamespace:
         _ = project_root
@@ -519,7 +522,6 @@ def test_qa_brain_prompt_plan_rejects_missing_output_field_metadata(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_prompt_plan as qa_brain_prompt_plan
 
     def fake_retrieval_plan(*, project_root: Path) -> SimpleNamespace:
         _ = project_root
@@ -589,7 +591,6 @@ def test_qa_brain_prompt_plan_rejects_secret_like_rendered_output(
     monkeypatch: pytest.MonkeyPatch,
     output: str,
 ) -> None:
-    import entroping.core.plan.qa_brain_prompt_plan as qa_brain_prompt_plan
 
     def fake_retrieval_plan(*, project_root: Path) -> QaBrainRetrievalPlanPacket:
         _ = project_root

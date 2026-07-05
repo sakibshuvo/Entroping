@@ -7,6 +7,7 @@ from typing import Any, cast
 
 import pytest
 
+import entroping.core.plan.qa_brain_retrieval_plan as qa_brain_retrieval_plan
 from entroping.core.plan.qa_brain_eval_plan import (
     QA_BRAIN_EVAL_PLAN_SCHEMA_VERSION,
     QaBrainEvalCase,
@@ -15,12 +16,21 @@ from entroping.core.plan.qa_brain_eval_plan import (
     QaBrainEvalPlanPacket,
     QaBrainEvalPlanSummary,
 )
-from entroping.core.plan.qa_brain_retrieval_plan import (
-    QA_BRAIN_RETRIEVAL_PLAN_SCHEMA_VERSION,
-    QaBrainRetrievalPlanError,
-    build_qa_brain_retrieval_plan,
-    render_qa_brain_retrieval_plan_markdown,
-    run_qa_brain_retrieval_plan_report,
+
+QA_BRAIN_RETRIEVAL_PLAN_SCHEMA_VERSION = (
+    qa_brain_retrieval_plan.QA_BRAIN_RETRIEVAL_PLAN_SCHEMA_VERSION
+)
+QaBrainRetrievalPlanError = (
+    qa_brain_retrieval_plan.QaBrainRetrievalPlanError
+)
+build_qa_brain_retrieval_plan = (
+    qa_brain_retrieval_plan.build_qa_brain_retrieval_plan
+)
+render_qa_brain_retrieval_plan_markdown = (
+    qa_brain_retrieval_plan.render_qa_brain_retrieval_plan_markdown
+)
+run_qa_brain_retrieval_plan_report = (
+    qa_brain_retrieval_plan.run_qa_brain_retrieval_plan_report
 )
 
 
@@ -185,7 +195,6 @@ def test_qa_brain_retrieval_plan_reports_ready_when_all_plans_are_ready(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_retrieval_plan as qa_brain_retrieval_plan
 
     eval_ids = (
         "weak_test_detection",
@@ -254,7 +263,6 @@ def test_qa_brain_retrieval_plan_wraps_eval_plan_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_retrieval_plan as qa_brain_retrieval_plan
 
     def fail_eval_plan(*, project_root: Path) -> QaBrainEvalPlanPacket:
         _ = project_root
@@ -270,7 +278,6 @@ def test_qa_brain_retrieval_plan_rejects_unknown_case_metadata(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_retrieval_plan as qa_brain_retrieval_plan
 
     def fake_eval_plan(*, project_root: Path) -> SimpleNamespace:
         _ = project_root
@@ -304,7 +311,6 @@ def test_qa_brain_retrieval_plan_rejects_missing_forbidden_field_metadata(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_retrieval_plan as qa_brain_retrieval_plan
 
     def fake_eval_plan(*, project_root: Path) -> SimpleNamespace:
         _ = project_root
@@ -339,7 +345,6 @@ def test_qa_brain_retrieval_plan_rejects_missing_intent_metadata(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_retrieval_plan as qa_brain_retrieval_plan
 
     def fake_eval_plan(*, project_root: Path) -> SimpleNamespace:
         _ = project_root
@@ -403,7 +408,6 @@ def test_qa_brain_retrieval_plan_rejects_secret_like_rendered_output(
     monkeypatch: pytest.MonkeyPatch,
     output: str,
 ) -> None:
-    import entroping.core.plan.qa_brain_retrieval_plan as qa_brain_retrieval_plan
 
     def fake_eval_plan(*, project_root: Path) -> QaBrainEvalPlanPacket:
         _ = project_root
