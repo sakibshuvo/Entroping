@@ -186,11 +186,13 @@ def render_qa_brain_corpus_manifest_markdown(
     lines = [
         "# Entroping QA Brain Corpus Manifest",
         "",
-        "Deterministic local corpus-manifest metadata for future Entroping QA Brain "
-        "retrieval. This report records schema IDs, source categories, safe local "
-        "paths, and exclusion reasons only. It does not create embeddings, use a "
-        "vector database, call providers, upload artifacts, parse traffic state, "
-        "or render raw report contents.",
+        (
+            "Deterministic local corpus-manifest metadata for future Entroping QA Brain "
+            + "retrieval. This report records schema IDs, source categories, safe local "
+            + "paths, and exclusion reasons only. It does not create embeddings, use a "
+            + "vector database, call providers, upload artifacts, parse traffic state, "
+            + "or render raw report contents."
+        ),
         "",
         "## Summary",
         "",
