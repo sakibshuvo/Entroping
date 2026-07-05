@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Final, Literal, Protocol, cast
@@ -29,10 +29,8 @@ _MAX_GITHUB_ANNOTATION_ARTIFACT_BYTES: Final = LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES
 
 class _XmlElement(Protocol):
     text: str | None
-
-    def get(self, key: str) -> str | None: ...
-
-    def findall(self, path: str) -> Sequence[_XmlElement]: ...
+    get: Callable[[str], str | None]
+    findall: Callable[[str], Sequence[_XmlElement]]
 
 
 class GitHubAnnotationError(ValueError):
@@ -77,7 +75,7 @@ def annotations_from_junit_report(path: Path) -> tuple[GitHubAnnotation, ...]:
         return ()
 
     try:
-        root = cast(_XmlElement, ElementTree.parse(path).getroot())
+        root = cast(_XmlElement, cast(object, ElementTree.parse(path).getroot()))
     except DefusedXmlException as exc:
         msg = f"Could not parse JUnit report {path}: unsafe XML construct: {exc}"
         raise GitHubAnnotationError(msg) from exc

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
@@ -35,8 +36,7 @@ class CheckResult:
 @runtime_checkable
 class _YamlModule(Protocol):
     YAMLError: type[Exception]
-
-    def safe_load(self, stream: str) -> object: ...
+    safe_load: Callable[[str], object]
 
 
 def build_payload(root: Path) -> dict[str, object]:
