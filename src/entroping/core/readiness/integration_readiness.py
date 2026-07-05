@@ -535,8 +535,8 @@ def render_integration_readiness_markdown(packet: IntegrationReadinessPacket) ->
             "## Families",
             "",
             "| Family | Status | Surfaces | Required Sources | Present Sources | "
-            "Missing Sources | Blockers | Link Requirements | Event Requirements | "
-            "Forbidden Actions | Next Action |",
+            + "Missing Sources | Blockers | Link Requirements | Event Requirements | "
+            + "Forbidden Actions | Next Action |",
             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )

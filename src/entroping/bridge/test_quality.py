@@ -167,8 +167,8 @@ def render_test_quality_markdown(report: TestQualityReport) -> str:
         "# Entroping Generated-Test Quality Score",
         "",
         "Static local evidence for reviewing AI- or compiler-generated Hurl tests. "
-        "This score does not execute Hurl, call model providers, upload artifacts, "
-        "or replace QAnstitution/Hurl pass-fail authority.",
+        + "This score does not execute Hurl, call model providers, upload artifacts, "
+        + "or replace QAnstitution/Hurl pass-fail authority.",
         "",
         "## Summary",
         "",

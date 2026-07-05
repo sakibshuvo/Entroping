@@ -364,7 +364,7 @@ def render_external_test_evidence_markdown(packet: ExternalTestEvidencePacket) -
             "## Layers",
             "",
             "| Layer | Status | Sources | Tests | Failures | Errors | Skipped "
-            "| Blockers | Next Action |",
+            + "| Blockers | Next Action |",
             "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )

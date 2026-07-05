@@ -522,9 +522,9 @@ def render_connector_intent_markdown(packet: ConnectorIntentPacket) -> str:
             "## Intents",
             "",
             "| Intent | Status | Target Systems | Kind | Required Sources | "
-            "Present Sources | Missing Sources | Minimum Payload Fields | "
-            "Required User Action | Audit Fields | Forbidden Actions | "
-            "Blockers | Next Action |",
+            + "Present Sources | Missing Sources | Minimum Payload Fields | "
+            + "Required User Action | Audit Fields | Forbidden Actions | "
+            + "Blockers | Next Action |",
             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
@@ -552,7 +552,7 @@ def render_connector_intent_markdown(packet: ConnectorIntentPacket) -> str:
             "## Capability Matrix",
             "",
             "| Target System | Intent | Capability | Local Evidence Prerequisites | "
-            "Forbidden Actions | Blockers |",
+            + "Forbidden Actions | Blockers |",
             "| --- | --- | --- | --- | --- | --- |",
         ]
     )

@@ -144,7 +144,7 @@ def render_gate_injection_markdown(report: GateInjectionReport) -> str:
         "# Entroping Gate Injection Explanation",
         "",
         "Local-only evidence for QAnstitution gates that would be injected into selected "
-        "Hurl files. Hurl is not executed and source files are not modified.",
+        + "Hurl files. Hurl is not executed and source files are not modified.",
         "",
         "## Summary",
         "",
@@ -171,7 +171,7 @@ def render_gate_injection_markdown(report: GateInjectionReport) -> str:
         lines.extend(
             [
                 "| Status | Gate ID | Source | Enforcement | Final | Condition | Assertion | "
-                "Known Failure |",
+                + "Known Failure |",
                 "| --- | --- | --- | --- | --- | --- | --- | --- |",
             ]
         )

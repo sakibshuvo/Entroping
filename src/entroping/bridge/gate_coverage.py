@@ -130,11 +130,11 @@ def render_gate_coverage_markdown(report: GateCoverageReport) -> str:
         "# Entroping Policy Gate Coverage Matrix",
         "",
         "Local-only evidence showing which committed Hurl tests match each effective "
-        "QAnstitution gate. This does not execute Hurl, evaluate assertion pass/fail, "
-        "or call model providers.",
+        + "QAnstitution gate. This does not execute Hurl, evaluate assertion pass/fail, "
+        + "or call model providers.",
         "",
         "Use this beside `entroping report policy` for effective policy provenance and "
-        "`entroping run` reports for runtime pass/fail evidence.",
+        + "`entroping run` reports for runtime pass/fail evidence.",
         "",
         "## Summary",
         "",

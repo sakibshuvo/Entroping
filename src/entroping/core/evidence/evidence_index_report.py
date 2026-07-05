@@ -150,9 +150,9 @@ def render_evidence_index_markdown(packet: EvidenceIndexPacket) -> str:
         "# Entroping Evidence Index",
         "",
         "Read-only local evidence artifact index for CLI, PR, desktop, cloud, "
-        "mobile, and agent surfaces. This report does not execute Hurl, run "
-        "tests, call providers, upload artifacts, parse traffic state, or render "
-        "raw report contents.",
+        + "mobile, and agent surfaces. This report does not execute Hurl, run "
+        + "tests, call providers, upload artifacts, parse traffic state, or render "
+        + "raw report contents.",
         "",
         "## Summary",
         "",

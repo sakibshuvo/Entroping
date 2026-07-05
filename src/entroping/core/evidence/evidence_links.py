@@ -252,8 +252,8 @@ def render_evidence_links_markdown(packet: EvidenceLinksPacket) -> str:
         "# Entroping Evidence Links",
         "",
         "Read-only local cross-surface link packet for CLI, PR, desktop, cloud, "
-        "mobile, and coding-agent handoff surfaces. Link tokens are stable local "
-        "references, not registered protocol handlers or hosted uploads.",
+        + "mobile, and coding-agent handoff surfaces. Link tokens are stable local "
+        + "references, not registered protocol handlers or hosted uploads.",
         "",
         "## Summary",
         "",
