@@ -3,13 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from entroping.core.plan.mutation_candidate_coverage import (
-    MUTATION_CANDIDATE_COVERAGE_SCHEMA_VERSION,
-    MutationCandidateCoverageError,
-    build_mutation_candidate_coverage,
-    render_mutation_candidate_coverage_markdown,
-    run_mutation_candidate_coverage_report,
-)
+from entroping.core.plan import mutation_candidate_coverage as coverage
 
 
 def _write_json(path: Path, payload: dict[str, object]) -> None:
@@ -140,11 +134,11 @@ def test_mutation_candidate_coverage_summarizes_existing_manifests(
         {"schema_version": "entroping.test-quality-report.v1", "summary": {"score": 90}},
     )
 
-    packet = build_mutation_candidate_coverage(project_root=tmp_path)
+    packet = coverage.build_mutation_candidate_coverage(project_root=tmp_path)
     payload = packet.model_dump(mode="json")
     rendered = json.dumps(payload, sort_keys=True)
 
-    assert packet.schema_version == MUTATION_CANDIDATE_COVERAGE_SCHEMA_VERSION
+    assert packet.schema_version == coverage.MUTATION_CANDIDATE_COVERAGE_SCHEMA_VERSION
     assert packet.summary.status == "partial"
     assert packet.summary.manifests_total == 3
     assert packet.summary.manifests_present == 2
@@ -172,14 +166,14 @@ def test_mutation_candidate_coverage_summarizes_existing_manifests(
 def test_mutation_candidate_coverage_missing_required_manifest_is_insufficient(
     tmp_path: Path,
 ) -> None:
-    packet = build_mutation_candidate_coverage(project_root=tmp_path)
+    packet = coverage.build_mutation_candidate_coverage(project_root=tmp_path)
 
     assert packet.summary.status == "insufficient"
     assert packet.summary.manifests_missing == 3
     assert packet.summary.candidate_tests_total == 0
     assert packet.categories == ()
     assert packet.next_actions[0].manifest_ids == ("mutation-readiness-json",)
-    markdown = render_mutation_candidate_coverage_markdown(packet)
+    markdown = coverage.render_mutation_candidate_coverage_markdown(packet)
     assert "# Entroping Mutation Candidate Coverage" in markdown
     assert "mutation-readiness-json" in markdown
     assert str(tmp_path) not in markdown
@@ -201,8 +195,8 @@ def test_mutation_candidate_coverage_ready_when_manifests_and_seeds_present(
         {"schema_version": "entroping.test-pyramid-report.v1"},
     )
 
-    packet = build_mutation_candidate_coverage(project_root=tmp_path)
-    markdown = render_mutation_candidate_coverage_markdown(packet)
+    packet = coverage.build_mutation_candidate_coverage(project_root=tmp_path)
+    markdown = coverage.render_mutation_candidate_coverage_markdown(packet)
 
     assert packet.summary.status == "ready"
     assert packet.next_actions == ()
@@ -221,7 +215,7 @@ def test_mutation_candidate_coverage_partial_for_missing_optional_manifest_only(
         {"schema_version": "entroping.test-quality-report.v1"},
     )
 
-    packet = build_mutation_candidate_coverage(project_root=tmp_path)
+    packet = coverage.build_mutation_candidate_coverage(project_root=tmp_path)
 
     assert packet.summary.status == "partial"
     assert packet.summary.missing_seed_tests_total == 0
@@ -245,7 +239,7 @@ def test_mutation_candidate_coverage_excludes_unsafe_and_invalid_manifests(
         },
     )
 
-    packet = build_mutation_candidate_coverage(project_root=tmp_path)
+    packet = coverage.build_mutation_candidate_coverage(project_root=tmp_path)
     manifests = {manifest.id: manifest for manifest in packet.manifests}
 
     assert packet.summary.status == "insufficient"
@@ -262,7 +256,7 @@ def test_mutation_candidate_coverage_excludes_symlinked_manifest_directory(
     _write_json(real_reports / "mutation-readiness.json", _ready_mutation_readiness_payload())
     (tmp_path / "reports").symlink_to(real_reports)
 
-    packet = build_mutation_candidate_coverage(project_root=tmp_path)
+    packet = coverage.build_mutation_candidate_coverage(project_root=tmp_path)
 
     assert packet.manifests[0].state == "unsafe"
 
@@ -289,7 +283,7 @@ def test_mutation_candidate_coverage_rejects_bad_required_manifest_shapes(
     path.parent.mkdir(parents=True)
     path.write_bytes(payload)
 
-    packet = build_mutation_candidate_coverage(project_root=tmp_path)
+    packet = coverage.build_mutation_candidate_coverage(project_root=tmp_path)
 
     assert packet.manifests[0].state == state
     assert packet.summary.status == "insufficient"
@@ -308,7 +302,6 @@ def test_mutation_candidate_coverage_maps_local_read_errors(
     read_error: str,
     state: str,
 ) -> None:
-    import entroping.core.plan.mutation_candidate_coverage as coverage
 
     _write_json(
         tmp_path / "reports" / "mutation-readiness.json",
@@ -320,7 +313,7 @@ def test_mutation_candidate_coverage_maps_local_read_errors(
         lambda path: (None, read_error),
     )
 
-    packet = build_mutation_candidate_coverage(project_root=tmp_path)
+    packet = coverage.build_mutation_candidate_coverage(project_root=tmp_path)
 
     assert packet.manifests[0].state == state
 
@@ -329,7 +322,6 @@ def test_mutation_candidate_coverage_excludes_absolute_manifest_paths(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.mutation_candidate_coverage as coverage
 
     outside = tmp_path.parent / "mutation-readiness.json"
     _write_json(outside, _ready_mutation_readiness_payload())
@@ -346,7 +338,7 @@ def test_mutation_candidate_coverage_excludes_absolute_manifest_paths(
         ),
     )
 
-    packet = build_mutation_candidate_coverage(project_root=tmp_path)
+    packet = coverage.build_mutation_candidate_coverage(project_root=tmp_path)
 
     assert packet.manifests[0].state == "unsafe"
 
@@ -384,7 +376,7 @@ def test_mutation_candidate_coverage_tracks_zero_candidate_and_unsafe_source_sta
     }
     _write_json(tmp_path / "reports" / "mutation-readiness.json", payload)
 
-    packet = build_mutation_candidate_coverage(project_root=tmp_path)
+    packet = coverage.build_mutation_candidate_coverage(project_root=tmp_path)
 
     assert packet.categories[0].state == "missing"
     assert packet.source_kinds[0].unsafe == 1
@@ -394,17 +386,17 @@ def test_mutation_candidate_coverage_tracks_zero_candidate_and_unsafe_source_sta
 def test_mutation_candidate_coverage_writes_json_report(tmp_path: Path) -> None:
     _write_json(tmp_path / "reports" / "mutation-readiness.json", _mutation_readiness_payload())
 
-    result = run_mutation_candidate_coverage_report(project_root=tmp_path, output="json")
+    result = coverage.run_mutation_candidate_coverage_report(project_root=tmp_path, output="json")
 
     assert result.output_path == tmp_path / "reports" / "mutation-candidate-coverage.json"
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
-    assert payload["schema_version"] == MUTATION_CANDIDATE_COVERAGE_SCHEMA_VERSION
+    assert payload["schema_version"] == coverage.MUTATION_CANDIDATE_COVERAGE_SCHEMA_VERSION
 
 
 def test_mutation_candidate_coverage_writes_markdown_report(tmp_path: Path) -> None:
     _write_json(tmp_path / "reports" / "mutation-readiness.json", _mutation_readiness_payload())
 
-    result = run_mutation_candidate_coverage_report(project_root=tmp_path, output="md")
+    result = coverage.run_mutation_candidate_coverage_report(project_root=tmp_path, output="md")
 
     assert result.output_path == tmp_path / "reports" / "mutation-candidate-coverage.md"
     assert "# Entroping Mutation Candidate Coverage" in result.output_path.read_text(
@@ -416,10 +408,10 @@ def test_mutation_candidate_coverage_rejects_unsupported_output(tmp_path: Path) 
     output = json.loads('"html"')
 
     with pytest.raises(
-        MutationCandidateCoverageError,
+        coverage.MutationCandidateCoverageError,
         match="Unsupported mutation-candidate-coverage output",
     ):
-        run_mutation_candidate_coverage_report(project_root=tmp_path, output=output)
+        coverage.run_mutation_candidate_coverage_report(project_root=tmp_path, output=output)
 
 
 def test_mutation_candidate_coverage_wraps_safe_write_errors(tmp_path: Path) -> None:
@@ -428,8 +420,8 @@ def test_mutation_candidate_coverage_wraps_safe_write_errors(tmp_path: Path) -> 
         _ready_mutation_readiness_payload(),
     )
 
-    with pytest.raises(MutationCandidateCoverageError, match="path must stay under"):
-        run_mutation_candidate_coverage_report(
+    with pytest.raises(coverage.MutationCandidateCoverageError, match="path must stay under"):
+        coverage.run_mutation_candidate_coverage_report(
             project_root=tmp_path,
             output="json",
             output_path=tmp_path.parent / "mutation-candidate-coverage.json",
@@ -440,7 +432,6 @@ def test_mutation_candidate_coverage_rejects_secret_like_rendered_output(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.mutation_candidate_coverage as coverage
 
     monkeypatch.setattr(
         coverage,
@@ -448,8 +439,11 @@ def test_mutation_candidate_coverage_rejects_secret_like_rendered_output(
         lambda value: True,
     )
 
-    with pytest.raises(MutationCandidateCoverageError, match="contains secret-like content"):
-        run_mutation_candidate_coverage_report(project_root=tmp_path, output="json")
+    with pytest.raises(
+        coverage.MutationCandidateCoverageError,
+        match="contains secret-like content",
+    ):
+        coverage.run_mutation_candidate_coverage_report(project_root=tmp_path, output="json")
 
 
 def test_mutation_candidate_coverage_excludes_secret_like_manifest_content(
@@ -473,7 +467,7 @@ def test_mutation_candidate_coverage_excludes_secret_like_manifest_content(
         },
     )
 
-    packet = build_mutation_candidate_coverage(project_root=tmp_path)
+    packet = coverage.build_mutation_candidate_coverage(project_root=tmp_path)
 
     assert packet.summary.status == "insufficient"
     assert packet.manifests[0].state == "unsafe"

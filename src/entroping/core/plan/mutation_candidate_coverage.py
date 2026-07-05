@@ -269,26 +269,36 @@ def render_mutation_candidate_coverage_markdown(
     lines = [
         "# Entroping Mutation Candidate Coverage",
         "",
-        "Deterministic local mutation-candidate coverage over existing manifests. "
-        "This report records schema IDs, manifest states, candidate category "
-        "counts, source-kind coverage, and missing seed-link counts only. It does "
-        "not run mutations, fuzzers, Hurl, providers, or render raw test contents.",
+        (
+            "Deterministic local mutation-candidate coverage over existing manifests. "
+            + "This report records schema IDs, manifest states, candidate category "
+            + "counts, source-kind coverage, and missing seed-link counts only. It does "
+            + "not run mutations, fuzzers, Hurl, providers, or render raw test contents."
+        ),
         "",
         "## Summary",
         "",
         f"- Status: `{packet.summary.status}`",
         f"- Project: `{_inline_code(packet.project)}`",
-        "- Manifests: "
-        f"`{packet.summary.manifests_present}/{packet.summary.manifests_total}` present, "
-        f"`{packet.summary.manifests_missing}` missing, "
-        f"`{packet.summary.manifests_invalid}` invalid, "
-        f"`{packet.summary.manifests_unsafe}` unsafe",
-        "- Candidate tests: "
-        f"`{packet.summary.seeded_tests_total}/{packet.summary.candidate_tests_total}` seeded, "
-        f"`{packet.summary.missing_seed_tests_total}` missing seed links",
-        "- Source kinds: "
-        f"`{packet.summary.source_kinds_present}/{packet.summary.source_kinds_total}` present, "
-        f"`{packet.summary.source_kinds_missing}` missing",
+        (
+            "- Manifests: "
+            + f"`{packet.summary.manifests_present}/{packet.summary.manifests_total}` present, "
+            + f"`{packet.summary.manifests_missing}` missing, "
+            + f"`{packet.summary.manifests_invalid}` invalid, "
+            + f"`{packet.summary.manifests_unsafe}` unsafe"
+        ),
+        (
+            "- Candidate tests: "
+            + f"`{packet.summary.seeded_tests_total}/"
+            + f"{packet.summary.candidate_tests_total}` seeded, "
+            + f"`{packet.summary.missing_seed_tests_total}` missing seed links"
+        ),
+        (
+            "- Source kinds: "
+            + f"`{packet.summary.source_kinds_present}/"
+            + f"{packet.summary.source_kinds_total}` present, "
+            + f"`{packet.summary.source_kinds_missing}` missing"
+        ),
         f"- Next actions: `{packet.summary.next_actions_total}`",
         "",
         "## Manifests",
@@ -299,11 +309,11 @@ def render_mutation_candidate_coverage_markdown(
     for manifest in packet.manifests:
         lines.append(
             "| "
-            f"{_markdown_cell(manifest.id)} | "
-            f"{_markdown_cell(manifest.state)} | "
-            f"{_markdown_cell(manifest.schema_version or 'n/a')} | "
-            f"{_markdown_cell(str(manifest.required).lower())} | "
-            f"{_markdown_cell(manifest.path)} |"
+            + f"{_markdown_cell(manifest.id)} | "
+            + f"{_markdown_cell(manifest.state)} | "
+            + f"{_markdown_cell(manifest.schema_version or 'n/a')} | "
+            + f"{_markdown_cell(str(manifest.required).lower())} | "
+            + f"{_markdown_cell(manifest.path)} |"
         )
     lines.extend(["", "## Candidate Categories", ""])
     if not packet.categories:
@@ -318,11 +328,11 @@ def render_mutation_candidate_coverage_markdown(
         for category in packet.categories:
             lines.append(
                 "| "
-                f"{_markdown_cell(category.category)} | "
-                f"{_markdown_cell(category.state)} | "
-                f"{category.candidate_tests} | "
-                f"{category.seeded_tests} | "
-                f"{category.missing_seed_tests} |"
+                + f"{_markdown_cell(category.category)} | "
+                + f"{_markdown_cell(category.state)} | "
+                + f"{category.candidate_tests} | "
+                + f"{category.seeded_tests} | "
+                + f"{category.missing_seed_tests} |"
             )
     lines.extend(["", "## Source Kinds", ""])
     if not packet.source_kinds:
@@ -337,11 +347,11 @@ def render_mutation_candidate_coverage_markdown(
         for source_kind in packet.source_kinds:
             lines.append(
                 "| "
-                f"{_markdown_cell(source_kind.kind)} | "
-                f"{source_kind.present} | "
-                f"{source_kind.missing} | "
-                f"{source_kind.invalid} | "
-                f"{source_kind.unsafe} |"
+                + f"{_markdown_cell(source_kind.kind)} | "
+                + f"{source_kind.present} | "
+                + f"{source_kind.missing} | "
+                + f"{source_kind.invalid} | "
+                + f"{source_kind.unsafe} |"
             )
     lines.extend(["", "## Next Actions", ""])
     if not packet.next_actions:
@@ -356,10 +366,10 @@ def render_mutation_candidate_coverage_markdown(
         for action in packet.next_actions:
             lines.append(
                 "| "
-                f"{_markdown_cell(action.priority)} | "
-                f"{_markdown_cell(action.action)} | "
-                f"{_markdown_cell(', '.join(action.manifest_ids) or 'n/a')} | "
-                f"{_markdown_cell(', '.join(action.categories) or 'n/a')} |"
+                + f"{_markdown_cell(action.priority)} | "
+                + f"{_markdown_cell(action.action)} | "
+                + f"{_markdown_cell(', '.join(action.manifest_ids) or 'n/a')} | "
+                + f"{_markdown_cell(', '.join(action.categories) or 'n/a')} |"
             )
     return "\n".join(lines).rstrip() + "\n"
 
