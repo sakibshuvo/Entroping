@@ -1,5 +1,6 @@
 """Tests for read-only local evidence artifact indexing."""
 
+import errno
 import json
 import os
 from pathlib import Path
@@ -241,8 +242,10 @@ def test_evidence_index_uses_shared_schema_constants_for_report_artifacts(
 def test_evidence_index_report_rejects_unsupported_and_unsafe_outputs(
     tmp_path: Path,
 ) -> None:
+    unsupported_output = json.loads('"html"')
+
     with pytest.raises(EvidenceIndexError, match="Unsupported evidence-index output"):
-        run_evidence_index_report(project_root=tmp_path, output="html")  # type: ignore[arg-type]
+        run_evidence_index_report(project_root=tmp_path, output=unsupported_output)
     with pytest.raises(EvidenceIndexError, match="must stay under"):
         run_evidence_index_report(
             project_root=tmp_path,
@@ -964,6 +967,43 @@ def test_evidence_index_no_follow_reader_reports_missing_artifact(tmp_path: Path
         root=tmp_path,
         relative_path=Path("missing.json"),
     ) == (None, "unreadable")
+
+
+def test_evidence_index_no_follow_reader_closes_opened_parent_descriptors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    opened_descriptors: list[tuple[int, str, int | None]] = []
+    closed_descriptors: list[int] = []
+
+    def fake_open(
+        path: os.PathLike[str] | str,
+        flags: int,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> int:
+        del flags, mode
+        name = os.fspath(path)
+        if name == "blocked":
+            raise OSError(errno.EACCES, "blocked")
+        descriptor = 200 + len(opened_descriptors)
+        opened_descriptors.append((descriptor, name, dir_fd))
+        return descriptor
+
+    monkeypatch.setattr(os, "open", fake_open)
+    monkeypatch.setattr(os, "close", closed_descriptors.append)
+
+    assert evidence_index._read_json_artifact_bytes_no_follow(
+        root=tmp_path,
+        relative_path=Path("reports") / "blocked" / "artifact.json",
+    ) == (None, "unreadable")
+
+    assert opened_descriptors == [
+        (200, os.fspath(tmp_path), None),
+        (201, "reports", 200),
+    ]
+    assert closed_descriptors == [201, 200]
 
 
 def test_evidence_index_best_effort_reader_handles_platform_fallback(
