@@ -3,14 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from entroping.core.plan.qa_brain_corpus_manifest import (
-    QA_BRAIN_CORPUS_MANIFEST_SCHEMA_VERSION,
-    QaBrainCorpusManifestError,
-    build_qa_brain_corpus_manifest,
-    build_qa_brain_corpus_manifest_from_retrieval_plan,
-    render_qa_brain_corpus_manifest_markdown,
-    run_qa_brain_corpus_manifest_report,
-)
+import entroping.core.plan.qa_brain_corpus_manifest as corpus_manifest
 from entroping.core.plan.qa_brain_retrieval_plan import (
     QA_BRAIN_RETRIEVAL_PLAN_SCHEMA_VERSION,
     QaBrainRetrievalPlanError,
@@ -115,7 +108,6 @@ def test_qa_brain_corpus_manifest_includes_eligible_and_excluded_sources(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_corpus_manifest as corpus_manifest
 
     _write_json(
         tmp_path / "reports" / "test-quality.json",
@@ -144,11 +136,11 @@ def test_qa_brain_corpus_manifest_includes_eligible_and_excluded_sources(
         lambda *, project_root: _retrieval_packet(project=project_root.name),
     )
 
-    packet = build_qa_brain_corpus_manifest(project_root=tmp_path)
+    packet = corpus_manifest.build_qa_brain_corpus_manifest(project_root=tmp_path)
     candidates = {candidate.source_id: candidate for candidate in packet.candidates}
     rendered = packet.model_dump_json()
 
-    assert packet.schema_version == QA_BRAIN_CORPUS_MANIFEST_SCHEMA_VERSION
+    assert packet.schema_version == corpus_manifest.QA_BRAIN_CORPUS_MANIFEST_SCHEMA_VERSION
     assert packet.retrieval_plan_schema_version == QA_BRAIN_RETRIEVAL_PLAN_SCHEMA_VERSION
     assert packet.summary.status == "partial"
     assert packet.summary.candidates_total == 4
@@ -171,7 +163,6 @@ def test_qa_brain_corpus_manifest_excludes_invalid_json_and_unsafe_paths(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_corpus_manifest as corpus_manifest
 
     reports = tmp_path / "reports"
     reports.mkdir()
@@ -185,7 +176,7 @@ def test_qa_brain_corpus_manifest_excludes_invalid_json_and_unsafe_paths(
         lambda *, project_root: _retrieval_packet(project=project_root.name),
     )
 
-    packet = build_qa_brain_corpus_manifest(project_root=tmp_path)
+    packet = corpus_manifest.build_qa_brain_corpus_manifest(project_root=tmp_path)
     candidates = {candidate.source_id: candidate for candidate in packet.candidates}
 
     assert packet.summary.status == "insufficient"
@@ -206,7 +197,7 @@ def test_qa_brain_corpus_manifest_excludes_symlinked_path_components(
     )
     reports.symlink_to(real_reports)
 
-    manifest = build_qa_brain_corpus_manifest_from_retrieval_plan(
+    manifest = corpus_manifest.build_qa_brain_corpus_manifest_from_retrieval_plan(
         project_root=tmp_path,
         retrieval_plan=_packet_with_sources(
             source_ids=("test-quality-json",),
@@ -227,12 +218,12 @@ def test_qa_brain_corpus_manifest_markdown_is_value_free(tmp_path: Path) -> None
         },
     )
     packet = _retrieval_packet(project=tmp_path.name)
-    manifest = build_qa_brain_corpus_manifest_from_retrieval_plan(
+    manifest = corpus_manifest.build_qa_brain_corpus_manifest_from_retrieval_plan(
         project_root=tmp_path,
         retrieval_plan=packet,
     )
 
-    markdown = render_qa_brain_corpus_manifest_markdown(manifest)
+    markdown = corpus_manifest.render_qa_brain_corpus_manifest_markdown(manifest)
 
     assert "# Entroping QA Brain Corpus Manifest" in markdown
     assert "| test-quality-json | eligible | test_quality |" in markdown
@@ -247,7 +238,7 @@ def test_qa_brain_corpus_manifest_marks_all_eligible_sources_ready(
         tmp_path / "reports" / "test-quality.json",
         {"schema_version": "entroping.test-quality-report.v1"},
     )
-    manifest = build_qa_brain_corpus_manifest_from_retrieval_plan(
+    manifest = corpus_manifest.build_qa_brain_corpus_manifest_from_retrieval_plan(
         project_root=tmp_path,
         retrieval_plan=_packet_with_sources(
             source_ids=("test-quality-json",),
@@ -256,7 +247,7 @@ def test_qa_brain_corpus_manifest_marks_all_eligible_sources_ready(
         ),
     )
 
-    markdown = render_qa_brain_corpus_manifest_markdown(manifest)
+    markdown = corpus_manifest.render_qa_brain_corpus_manifest_markdown(manifest)
 
     assert manifest.summary.status == "ready"
     assert manifest.next_actions == ()
@@ -267,7 +258,6 @@ def test_qa_brain_corpus_manifest_writes_json_report(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_corpus_manifest as corpus_manifest
 
     _write_json(
         tmp_path / "reports" / "test-quality.json",
@@ -279,18 +269,19 @@ def test_qa_brain_corpus_manifest_writes_json_report(
         lambda *, project_root: _retrieval_packet(project=project_root.name),
     )
 
-    result = run_qa_brain_corpus_manifest_report(project_root=tmp_path, output="json")
+    result = corpus_manifest.run_qa_brain_corpus_manifest_report(
+        project_root=tmp_path, output="json"
+    )
 
     assert result.output_path == tmp_path / "reports" / "qa-brain-corpus-manifest.json"
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
-    assert payload["schema_version"] == QA_BRAIN_CORPUS_MANIFEST_SCHEMA_VERSION
+    assert payload["schema_version"] == corpus_manifest.QA_BRAIN_CORPUS_MANIFEST_SCHEMA_VERSION
 
 
 def test_qa_brain_corpus_manifest_writes_markdown_report(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_corpus_manifest as corpus_manifest
 
     _write_json(
         tmp_path / "reports" / "test-quality.json",
@@ -306,29 +297,26 @@ def test_qa_brain_corpus_manifest_writes_markdown_report(
         ),
     )
 
-    result = run_qa_brain_corpus_manifest_report(project_root=tmp_path, output="md")
+    result = corpus_manifest.run_qa_brain_corpus_manifest_report(project_root=tmp_path, output="md")
 
     assert result.output_path == tmp_path / "reports" / "qa-brain-corpus-manifest.md"
-    assert "# Entroping QA Brain Corpus Manifest" in result.output_path.read_text(
-        encoding="utf-8"
-    )
+    assert "# Entroping QA Brain Corpus Manifest" in result.output_path.read_text(encoding="utf-8")
 
 
 def test_qa_brain_corpus_manifest_rejects_unsupported_output(tmp_path: Path) -> None:
     output = json.loads('"html"')
 
     with pytest.raises(
-        QaBrainCorpusManifestError,
+        corpus_manifest.QaBrainCorpusManifestError,
         match="Unsupported qa-brain-corpus-manifest output",
     ):
-        run_qa_brain_corpus_manifest_report(project_root=tmp_path, output=output)
+        corpus_manifest.run_qa_brain_corpus_manifest_report(project_root=tmp_path, output=output)
 
 
 def test_qa_brain_corpus_manifest_wraps_retrieval_plan_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_corpus_manifest as corpus_manifest
 
     def raise_retrieval_error(*, project_root: Path) -> QaBrainRetrievalPlanPacket:
         raise QaBrainRetrievalPlanError("retrieval failed")
@@ -339,15 +327,14 @@ def test_qa_brain_corpus_manifest_wraps_retrieval_plan_errors(
         raise_retrieval_error,
     )
 
-    with pytest.raises(QaBrainCorpusManifestError, match="retrieval failed"):
-        build_qa_brain_corpus_manifest(project_root=tmp_path)
+    with pytest.raises(corpus_manifest.QaBrainCorpusManifestError, match="retrieval failed"):
+        corpus_manifest.build_qa_brain_corpus_manifest(project_root=tmp_path)
 
 
 def test_qa_brain_corpus_manifest_wraps_safe_write_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_corpus_manifest as corpus_manifest
 
     _write_json(
         tmp_path / "reports" / "test-quality.json",
@@ -363,8 +350,8 @@ def test_qa_brain_corpus_manifest_wraps_safe_write_errors(
         ),
     )
 
-    with pytest.raises(QaBrainCorpusManifestError, match="path must stay under"):
-        run_qa_brain_corpus_manifest_report(
+    with pytest.raises(corpus_manifest.QaBrainCorpusManifestError, match="path must stay under"):
+        corpus_manifest.run_qa_brain_corpus_manifest_report(
             project_root=tmp_path,
             output="json",
             output_path=tmp_path.parent / "manifest.json",
@@ -389,7 +376,7 @@ def test_qa_brain_corpus_manifest_excludes_invalid_artifact_shapes(
     path.parent.mkdir(parents=True)
     path.write_bytes(payload)
 
-    manifest = build_qa_brain_corpus_manifest_from_retrieval_plan(
+    manifest = corpus_manifest.build_qa_brain_corpus_manifest_from_retrieval_plan(
         project_root=tmp_path,
         retrieval_plan=_packet_with_sources(
             source_ids=("candidate",),
@@ -415,7 +402,6 @@ def test_qa_brain_corpus_manifest_maps_local_read_errors(
     read_error: str,
     reason: str,
 ) -> None:
-    import entroping.core.plan.qa_brain_corpus_manifest as corpus_manifest
 
     _write_json(
         tmp_path / "reports" / "test-quality.json",
@@ -427,7 +413,7 @@ def test_qa_brain_corpus_manifest_maps_local_read_errors(
         lambda path: (None, read_error),
     )
 
-    manifest = build_qa_brain_corpus_manifest_from_retrieval_plan(
+    manifest = corpus_manifest.build_qa_brain_corpus_manifest_from_retrieval_plan(
         project_root=tmp_path,
         retrieval_plan=_packet_with_sources(
             source_ids=("candidate",),
@@ -443,7 +429,7 @@ def test_qa_brain_corpus_manifest_excludes_absolute_paths(tmp_path: Path) -> Non
     outside = tmp_path.parent / "outside.json"
     _write_json(outside, {"schema_version": "entroping.outside.v1"})
 
-    manifest = build_qa_brain_corpus_manifest_from_retrieval_plan(
+    manifest = corpus_manifest.build_qa_brain_corpus_manifest_from_retrieval_plan(
         project_root=tmp_path,
         retrieval_plan=_packet_with_sources(
             source_ids=("outside",),
@@ -459,13 +445,14 @@ def test_qa_brain_corpus_manifest_rejects_secret_like_rendered_output(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_corpus_manifest as corpus_manifest
 
     secret_id = "sk-" + "proj-" + "secretmarker0123456789"
     packet = _retrieval_packet(project=tmp_path.name).model_copy(
         update={
             "retrieval_plans": (
-                _retrieval_packet(project=tmp_path.name).retrieval_plans[0].model_copy(
+                _retrieval_packet(project=tmp_path.name)
+                .retrieval_plans[0]
+                .model_copy(
                     update={"source_ids": (secret_id,), "source_paths": ("reports/x.json",)}
                 ),
             )
@@ -477,5 +464,7 @@ def test_qa_brain_corpus_manifest_rejects_secret_like_rendered_output(
         lambda *, project_root: packet,
     )
 
-    with pytest.raises(QaBrainCorpusManifestError, match="contains secret-like content"):
-        run_qa_brain_corpus_manifest_report(project_root=tmp_path, output="json")
+    with pytest.raises(
+        corpus_manifest.QaBrainCorpusManifestError, match="contains secret-like content"
+    ):
+        corpus_manifest.run_qa_brain_corpus_manifest_report(project_root=tmp_path, output="json")

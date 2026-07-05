@@ -16,10 +16,6 @@ from entroping.bridge.test_pyramid import (
 )
 from entroping.core.evidence.evidence_index import LocalEvidenceArtifact
 from entroping.core.evidence.external_test_evidence import EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION
-from entroping.core.evidence.test_pyramid_report import (
-    TestPyramidReportError,
-    run_test_pyramid_report,
-)
 from entroping.core.safe_write import SafeWriteError
 
 
@@ -170,7 +166,7 @@ def test_run_test_pyramid_report_classifies_existing_evidence_without_raw_values
         },
     )
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     assert result.output_path == tmp_path / "reports" / "test-pyramid.json"
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
@@ -189,7 +185,9 @@ def test_run_test_pyramid_report_classifies_existing_evidence_without_raw_values
     assert coverage_layer["artifacts"][0]["summary"] == "coverage 100%"
     assert secret_marker not in json.dumps(payload)
 
-    markdown_result = run_test_pyramid_report(project_root=tmp_path, output="md")
+    markdown_result = test_pyramid_report.run_test_pyramid_report(
+        project_root=tmp_path, output="md"
+    )
     markdown = markdown_result.output_path.read_text(encoding="utf-8")
     assert "No missing runtime-governance proof detected from local artifacts." in markdown
     assert secret_marker not in markdown
@@ -198,7 +196,7 @@ def test_run_test_pyramid_report_classifies_existing_evidence_without_raw_values
 def test_run_test_pyramid_report_omits_missing_external_test_evidence(
     tmp_path: Path,
 ) -> None:
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     layer_ids = {layer.id for layer in result.report.layers}
 
@@ -215,7 +213,7 @@ def test_run_test_pyramid_report_includes_sanitized_external_test_evidence(
         _external_test_evidence_payload(marker=raw_marker),
     )
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
     layers = {layer["id"]: layer for layer in payload["layers"]}
@@ -240,17 +238,14 @@ def test_run_test_pyramid_report_marks_invalid_external_test_evidence_value_free
     payload["schema_version"] = "wrong.schema"
     _write_json(tmp_path / "reports" / "external-test-evidence.json", payload)
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     rendered = result.output_path.read_text(encoding="utf-8")
     output = json.loads(rendered)
     layers = {layer["id"]: layer for layer in output["layers"]}
     assert layers["external-test-evidence"]["status"] == "invalid"
     assert layers["external-test-evidence"]["artifacts"][0]["summary"] == "schema mismatch"
-    assert {
-        (finding["artifact_id"], finding["state"])
-        for finding in output["findings"]
-    } == {
+    assert {(finding["artifact_id"], finding["state"]) for finding in output["findings"]} == {
         ("run-json", "missing"),
         ("junit-xml", "missing"),
         ("gate-coverage-json", "missing"),
@@ -269,7 +264,7 @@ def test_run_test_pyramid_report_marks_symlinked_external_test_evidence_unsafe(
     (tmp_path / "reports").mkdir()
     (tmp_path / "reports" / "external-test-evidence.json").symlink_to(outside)
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     rendered = result.output_path.read_text(encoding="utf-8")
     output = json.loads(rendered)
@@ -286,7 +281,7 @@ def test_run_test_pyramid_report_marks_external_test_evidence_directory_unsafe(
 ) -> None:
     (tmp_path / "reports" / "external-test-evidence.json").mkdir(parents=True)
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     output = json.loads(result.output_path.read_text(encoding="utf-8"))
     layers = {layer["id"]: layer for layer in output["layers"]}
@@ -300,15 +295,13 @@ def test_run_test_pyramid_report_rejects_secret_like_external_test_evidence(
     payload = _external_test_evidence_payload(marker="sk-proj-" + ("a" * 24))
     _write_json(tmp_path / "reports" / "external-test-evidence.json", payload)
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     rendered = result.output_path.read_text(encoding="utf-8")
     output = json.loads(rendered)
     layers = {layer["id"]: layer for layer in output["layers"]}
     assert layers["external-test-evidence"]["status"] == "unsafe"
-    assert layers["external-test-evidence"]["artifacts"][0]["summary"] == (
-        "secret-like content"
-    )
+    assert layers["external-test-evidence"]["artifacts"][0]["summary"] == ("secret-like content")
     assert "sk-proj" not in rendered
 
 
@@ -326,14 +319,12 @@ def test_run_test_pyramid_report_marks_malformed_external_test_evidence_invalid(
 ) -> None:
     _write_text(tmp_path / "reports" / "external-test-evidence.json", raw_text)
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     output = json.loads(result.output_path.read_text(encoding="utf-8"))
     layers = {layer["id"]: layer for layer in output["layers"]}
     assert layers["external-test-evidence"]["status"] == "invalid"
-    assert layers["external-test-evidence"]["artifacts"][0]["summary"] == (
-        expected_summary
-    )
+    assert layers["external-test-evidence"]["artifacts"][0]["summary"] == (expected_summary)
 
 
 def test_run_test_pyramid_report_marks_schema_invalid_external_test_evidence_invalid(
@@ -343,14 +334,12 @@ def test_run_test_pyramid_report_marks_schema_invalid_external_test_evidence_inv
     payload.pop("summary")
     _write_json(tmp_path / "reports" / "external-test-evidence.json", payload)
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     output = json.loads(result.output_path.read_text(encoding="utf-8"))
     layers = {layer["id"]: layer for layer in output["layers"]}
     assert layers["external-test-evidence"]["status"] == "invalid"
-    assert layers["external-test-evidence"]["artifacts"][0]["summary"] == (
-        "schema invalid"
-    )
+    assert layers["external-test-evidence"]["artifacts"][0]["summary"] == ("schema invalid")
 
 
 def test_run_test_pyramid_report_marks_non_utf8_external_test_evidence_invalid(
@@ -360,14 +349,12 @@ def test_run_test_pyramid_report_marks_non_utf8_external_test_evidence_invalid(
     path.parent.mkdir(parents=True)
     path.write_bytes(b"\xff")
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     output = json.loads(result.output_path.read_text(encoding="utf-8"))
     layers = {layer["id"]: layer for layer in output["layers"]}
     assert layers["external-test-evidence"]["status"] == "invalid"
-    assert layers["external-test-evidence"]["artifacts"][0]["summary"] == (
-        "invalid JSON"
-    )
+    assert layers["external-test-evidence"]["artifacts"][0]["summary"] == ("invalid JSON")
 
 
 def test_read_bounded_text_rejects_file_that_grows_after_fstat(
@@ -427,7 +414,7 @@ def test_run_test_pyramid_report_marks_unreadable_external_test_evidence_invalid
 
     monkeypatch.setattr(test_pyramid_report, "_read_bounded_text", fail_external_read)
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     output = json.loads(result.output_path.read_text(encoding="utf-8"))
     layers = {layer["id"]: layer for layer in output["layers"]}
@@ -445,26 +432,23 @@ def test_run_test_pyramid_report_marks_oversized_external_test_evidence_invalid(
     )
     monkeypatch.setattr(test_pyramid_report, "_MAX_EXTERNAL_EVIDENCE_ARTIFACT_BYTES", 1)
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     output = json.loads(result.output_path.read_text(encoding="utf-8"))
     layers = {layer["id"]: layer for layer in output["layers"]}
     assert layers["external-test-evidence"]["status"] == "invalid"
-    assert layers["external-test-evidence"]["artifacts"][0]["summary"] == (
-        "artifact too large"
-    )
+    assert layers["external-test-evidence"]["artifacts"][0]["summary"] == ("artifact too large")
 
 
 def test_run_test_pyramid_report_highlights_missing_runtime_governance_proof(
     tmp_path: Path,
 ) -> None:
-    result = run_test_pyramid_report(project_root=tmp_path, output="md")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="md")
 
     assert result.output_path == tmp_path / "reports" / "test-pyramid.md"
     assert result.report.summary.runtime_governance_status == "incomplete"
     assert {
-        (finding.layer_id, finding.artifact_id, finding.state)
-        for finding in result.report.findings
+        (finding.layer_id, finding.artifact_id, finding.state) for finding in result.report.findings
     } == {
         ("runtime-api-proof", "run-json", "missing"),
         ("runtime-api-proof", "junit-xml", "missing"),
@@ -493,18 +477,11 @@ def test_compile_test_pyramid_report_synthesizes_missing_required_artifacts() ->
         project="checkout-api",
     )
 
-    artifacts = {
-        artifact.id: artifact
-        for layer in report.layers
-        for artifact in layer.artifacts
-    }
+    artifacts = {artifact.id: artifact for layer in report.layers for artifact in layer.artifacts}
     assert artifacts["run-json"].state == "present"
     assert artifacts["coverage-json"].state == "missing"
     assert artifacts["junit-xml"].state == "missing"
-    assert {
-        (finding.artifact_id, finding.state)
-        for finding in report.findings
-    } == {
+    assert {(finding.artifact_id, finding.state) for finding in report.findings} == {
         ("junit-xml", "missing"),
         ("gate-coverage-json", "missing"),
     }
@@ -516,14 +493,11 @@ def test_run_test_pyramid_report_handles_partial_evidence_index(
 ) -> None:
     monkeypatch.setattr(test_pyramid_report, "build_local_evidence_index", lambda **_: ())
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
     assert payload["summary"]["runtime_governance_status"] == "incomplete"
-    assert {
-        (finding["artifact_id"], finding["state"])
-        for finding in payload["findings"]
-    } == {
+    assert {(finding["artifact_id"], finding["state"]) for finding in payload["findings"]} == {
         ("run-json", "missing"),
         ("junit-xml", "missing"),
         ("gate-coverage-json", "missing"),
@@ -570,7 +544,7 @@ def test_run_test_pyramid_report_marks_partial_runtime_proof_incomplete(
         },
     )
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
     layers = {layer["id"]: layer for layer in payload["layers"]}
@@ -591,13 +565,12 @@ def test_run_test_pyramid_report_marks_unsafe_artifacts_without_following_them(
     (tmp_path / "reports").mkdir()
     (tmp_path / "reports" / "run-latest.json").symlink_to(outside)
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
     findings = payload["findings"]
     assert {
-        (finding["artifact_id"], finding["state"], finding["message"])
-        for finding in findings
+        (finding["artifact_id"], finding["state"], finding["message"]) for finding in findings
     } >= {
         (
             "run-json",
@@ -617,7 +590,7 @@ def test_run_test_pyramid_report_marks_symlinked_coverage_unsafe_without_reading
     (tmp_path / "reports").mkdir()
     (tmp_path / "reports" / "coverage.json").symlink_to(outside)
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
     coverage_layer = next(layer for layer in payload["layers"] if layer["id"] == "code-coverage")
@@ -630,7 +603,7 @@ def test_run_test_pyramid_report_marks_coverage_directory_unsafe(
 ) -> None:
     (tmp_path / "reports" / "coverage.json").mkdir(parents=True)
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
     coverage_layer = next(layer for layer in payload["layers"] if layer["id"] == "code-coverage")
@@ -643,7 +616,7 @@ def test_run_test_pyramid_report_marks_invalid_coverage_without_raw_values(
 ) -> None:
     _write_text(tmp_path / "reports" / "coverage.json", '{"file":"secret-source.py"}')
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
     coverage_layer = next(layer for layer in payload["layers"] if layer["id"] == "code-coverage")
@@ -675,7 +648,7 @@ def test_run_test_pyramid_report_preserves_unsafe_coverage_index_state(
         lambda *, project_root: (unsafe_coverage,),
     )
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
     coverage_layer = next(layer for layer in payload["layers"] if layer["id"] == "code-coverage")
@@ -693,7 +666,7 @@ def test_run_test_pyramid_report_preserves_unsafe_coverage_index_state(
 def test_run_test_pyramid_report_marks_invalid_coverage_json(tmp_path: Path) -> None:
     _write_text(tmp_path / "reports" / "coverage.json", "{not-json")
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
     coverage_layer = next(layer for layer in payload["layers"] if layer["id"] == "code-coverage")
@@ -706,7 +679,7 @@ def test_run_test_pyramid_report_marks_non_object_coverage_json_invalid(
 ) -> None:
     _write_text(tmp_path / "reports" / "coverage.json", "[]")
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
     coverage_layer = next(layer for layer in payload["layers"] if layer["id"] == "code-coverage")
@@ -722,7 +695,7 @@ def test_run_test_pyramid_report_marks_coverage_without_percent_invalid(
         {"totals": {"percent_covered_display": "all", "percent_covered": -1}},
     )
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
     coverage_layer = next(layer for layer in payload["layers"] if layer["id"] == "code-coverage")
@@ -737,7 +710,7 @@ def test_run_test_pyramid_report_marks_oversized_coverage_without_reading(
     _write_text(tmp_path / "reports" / "coverage.json", "{}")
     monkeypatch.setattr(test_pyramid_report, "_MAX_COVERAGE_ARTIFACT_BYTES", 1)
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
     coverage_layer = next(layer for layer in payload["layers"] if layer["id"] == "code-coverage")
@@ -763,7 +736,7 @@ def test_run_test_pyramid_report_marks_unreadable_coverage_without_value_leak(
 
     monkeypatch.setattr(test_pyramid_report, "_read_bounded_text", fail_coverage_read)
 
-    result = run_test_pyramid_report(project_root=tmp_path, output="json")
+    result = test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
     coverage_layer = next(layer for layer in payload["layers"] if layer["id"] == "code-coverage")
@@ -782,8 +755,8 @@ def test_run_test_pyramid_report_wraps_evidence_index_errors(
 
     monkeypatch.setattr(test_pyramid_report, "build_local_evidence_index", fail_index)
 
-    with pytest.raises(TestPyramidReportError, match="index unavailable"):
-        run_test_pyramid_report(project_root=tmp_path, output="json")
+    with pytest.raises(test_pyramid_report.TestPyramidReportError, match="index unavailable"):
+        test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
 
 def test_run_test_pyramid_report_wraps_safe_write_errors(
@@ -796,8 +769,8 @@ def test_run_test_pyramid_report_wraps_safe_write_errors(
 
     monkeypatch.setattr(test_pyramid_report, "safe_write_text", fail_write)
 
-    with pytest.raises(TestPyramidReportError, match="write blocked"):
-        run_test_pyramid_report(project_root=tmp_path, output="json")
+    with pytest.raises(test_pyramid_report.TestPyramidReportError, match="write blocked"):
+        test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="json")
 
 
 def test_unsafe_coverage_summary_handles_path_safety_errors(
@@ -840,4 +813,4 @@ def test_unsafe_coverage_summary_rejects_resolved_path_outside_project(
 
 def test_run_test_pyramid_report_rejects_unknown_output(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="Unsupported test-pyramid output"):
-        run_test_pyramid_report(project_root=tmp_path, output="html")  # type: ignore[arg-type]
+        test_pyramid_report.run_test_pyramid_report(project_root=tmp_path, output="html")  # type: ignore[arg-type]

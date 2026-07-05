@@ -18,12 +18,6 @@ from entroping.bridge.test_quality import (
 )
 from entroping.core.hurl_discovery import discover_hurl_tests
 from entroping.core.safe_write import SafeWriteError
-from entroping.core.test_quality_report import (
-    TestQualityReportError as QualityReportError,
-)
-from entroping.core.test_quality_report import (
-    run_test_quality_report,
-)
 
 
 def _write_text(path: Path, content: str) -> None:
@@ -343,14 +337,15 @@ def test_run_test_quality_report_writes_json_and_markdown(tmp_path: Path) -> Non
         """,
     )
 
-    json_result = run_test_quality_report(project_root=tmp_path, output="json")
-    md_result = run_test_quality_report(project_root=tmp_path, output="md")
+    json_result = test_quality_report.run_test_quality_report(project_root=tmp_path, output="json")
+    md_result = test_quality_report.run_test_quality_report(project_root=tmp_path, output="md")
 
     assert json_result.output_path == tmp_path / "reports" / "test-quality.json"
     assert md_result.output_path == tmp_path / "reports" / "test-quality.md"
-    assert json.loads(json_result.output_path.read_text(encoding="utf-8"))[
-        "schema_version"
-    ] == TEST_QUALITY_REPORT_SCHEMA_VERSION
+    assert (
+        json.loads(json_result.output_path.read_text(encoding="utf-8"))["schema_version"]
+        == TEST_QUALITY_REPORT_SCHEMA_VERSION
+    )
     assert "# Entroping Generated-Test Quality Score" in md_result.output_path.read_text(
         encoding="utf-8"
     )
@@ -404,8 +399,8 @@ def test_run_test_quality_report_wraps_discovery_errors(
 
     monkeypatch.setattr(test_quality_report, "discover_hurl_tests", fail_discovery)
 
-    with pytest.raises(QualityReportError, match="bad hurl metadata"):
-        run_test_quality_report(project_root=tmp_path, output="json")
+    with pytest.raises(test_quality_report.TestQualityReportError, match="bad hurl metadata"):
+        test_quality_report.run_test_quality_report(project_root=tmp_path, output="json")
 
 
 def test_run_test_quality_report_wraps_safe_write_errors(
@@ -418,5 +413,5 @@ def test_run_test_quality_report_wraps_safe_write_errors(
 
     monkeypatch.setattr(test_quality_report, "safe_write_text", fail_write)
 
-    with pytest.raises(QualityReportError, match="write refused"):
-        run_test_quality_report(project_root=tmp_path, output="json")
+    with pytest.raises(test_quality_report.TestQualityReportError, match="write refused"):
+        test_quality_report.run_test_quality_report(project_root=tmp_path, output="json")

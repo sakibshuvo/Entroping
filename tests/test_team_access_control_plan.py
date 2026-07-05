@@ -8,14 +8,6 @@ from typing import IO, Any, cast
 import pytest
 
 import entroping.core.plan.team_access_control_plan as access_plan
-from entroping.core.plan.team_access_control_plan import (
-    TEAM_ACCESS_CONTROL_PLAN_SCHEMA_VERSION,
-    TeamAccessControlPlanError,
-    TeamAccessControlPlanPacket,
-    build_team_access_control_plan,
-    render_team_access_control_plan_markdown,
-    run_team_access_control_plan_report,
-)
 from entroping.core.safe_write import SafeWriteError
 
 
@@ -93,11 +85,11 @@ def test_team_access_control_plan_writes_value_free_json_from_ready_sources(
 ) -> None:
     _write_ready_sources(tmp_path)
 
-    result = run_team_access_control_plan_report(project_root=tmp_path, output="json")
+    result = access_plan.run_team_access_control_plan_report(project_root=tmp_path, output="json")
 
     assert result.output_path == tmp_path / "reports" / "team-access-control-plan.json"
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
-    assert payload["schema_version"] == TEAM_ACCESS_CONTROL_PLAN_SCHEMA_VERSION
+    assert payload["schema_version"] == access_plan.TEAM_ACCESS_CONTROL_PLAN_SCHEMA_VERSION
     assert payload["project"] == "checkout-api"
     assert payload["summary"] == {
         "status": "ready",
@@ -162,7 +154,7 @@ def test_team_access_control_plan_marks_missing_invalid_and_unsafe_sources(
     )
     os.symlink(real_runtime, reports / "runtime-card.json")
 
-    packet = build_team_access_control_plan(project_root=tmp_path)
+    packet = access_plan.build_team_access_control_plan(project_root=tmp_path)
     sources = {source.id: source for source in packet.sources}
 
     assert sources["team_evidence_readiness"].state == "invalid"
@@ -180,11 +172,11 @@ def test_team_access_control_plan_markdown_is_escaped_and_value_free(
     tmp_path: Path,
 ) -> None:
     _write_ready_sources(tmp_path)
-    packet = build_team_access_control_plan(project_root=tmp_path).model_copy(
+    packet = access_plan.build_team_access_control_plan(project_root=tmp_path).model_copy(
         update={"project": "checkout `api` | demo"}
     )
 
-    markdown = render_team_access_control_plan_markdown(packet)
+    markdown = access_plan.render_team_access_control_plan_markdown(packet)
 
     assert "# Entroping Team Access-Control Plan" in markdown
     assert "- Project: `checkout &#96;api&#96; | demo`" in markdown
@@ -195,7 +187,7 @@ def test_team_access_control_plan_markdown_is_escaped_and_value_free(
 
 
 def test_team_access_control_plan_handles_empty_sources(tmp_path: Path) -> None:
-    packet = build_team_access_control_plan(project_root=tmp_path)
+    packet = access_plan.build_team_access_control_plan(project_root=tmp_path)
 
     assert packet.project is None
     assert packet.summary.status == "insufficient"
@@ -208,7 +200,7 @@ def test_team_access_control_plan_handles_empty_sources(tmp_path: Path) -> None:
 def test_team_access_control_plan_markdown_output_renders_next_actions(
     tmp_path: Path,
 ) -> None:
-    result = run_team_access_control_plan_report(project_root=tmp_path, output="md")
+    result = access_plan.run_team_access_control_plan_report(project_root=tmp_path, output="md")
 
     markdown = result.output_path.read_text(encoding="utf-8")
     assert result.output_path == tmp_path / "reports" / "team-access-control-plan.md"
@@ -235,7 +227,7 @@ def test_team_access_control_plan_marks_malformed_sources_invalid(
         },
     )
 
-    packet = build_team_access_control_plan(project_root=tmp_path)
+    packet = access_plan.build_team_access_control_plan(project_root=tmp_path)
     sources = {source.id: source for source in packet.sources}
 
     assert sources["team_evidence_readiness"].state == "invalid"
@@ -257,7 +249,7 @@ def test_team_access_control_plan_marks_non_file_and_non_utf8_sources_unsafe_or_
     (reports / "team-evidence-readiness.json").mkdir(parents=True)
     (reports / "handoff.json").write_bytes(b"\xff")
 
-    packet = build_team_access_control_plan(project_root=tmp_path)
+    packet = access_plan.build_team_access_control_plan(project_root=tmp_path)
     sources = {source.id: source for source in packet.sources}
 
     assert sources["team_evidence_readiness"].state == "unsafe"
@@ -273,7 +265,7 @@ def test_team_access_control_plan_marks_oversized_sources_invalid(
     _write_ready_sources(tmp_path)
     monkeypatch.setattr(access_plan, "_MAX_SOURCE_BYTES", 1)
 
-    packet = build_team_access_control_plan(project_root=tmp_path)
+    packet = access_plan.build_team_access_control_plan(project_root=tmp_path)
     first_source = packet.sources[0]
 
     assert first_source.id == "team_evidence_readiness"
@@ -302,7 +294,7 @@ def test_team_access_control_plan_marks_read_errors_invalid(
     original_open = Path.open
     monkeypatch.setattr(Path, "open", fail_open)
 
-    packet = build_team_access_control_plan(project_root=tmp_path)
+    packet = access_plan.build_team_access_control_plan(project_root=tmp_path)
     first_source = packet.sources[0]
 
     assert first_source.id == "team_evidence_readiness"
@@ -335,7 +327,7 @@ def test_team_access_control_plan_falls_back_to_runtime_card_project(
         },
     )
 
-    packet = build_team_access_control_plan(project_root=tmp_path)
+    packet = access_plan.build_team_access_control_plan(project_root=tmp_path)
 
     assert packet.project == "checkout-api"
     assert packet.summary.status == "partial"
@@ -355,7 +347,7 @@ def test_team_access_control_plan_keeps_project_unknown_when_runtime_card_has_no
         },
     )
 
-    packet = build_team_access_control_plan(project_root=tmp_path)
+    packet = access_plan.build_team_access_control_plan(project_root=tmp_path)
 
     assert packet.project is None
     assert packet.summary.status == "partial"
@@ -375,7 +367,7 @@ def test_team_access_control_plan_ignores_blank_runtime_card_project(
         },
     )
 
-    packet = build_team_access_control_plan(project_root=tmp_path)
+    packet = access_plan.build_team_access_control_plan(project_root=tmp_path)
 
     assert packet.project is None
     assert packet.summary.status == "partial"
@@ -408,10 +400,10 @@ def test_team_access_control_plan_packet_json_supports_pydantic_without_fallback
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _write_ready_sources(tmp_path)
-    original_model_dump = cast(Any, TeamAccessControlPlanPacket.model_dump)
+    original_model_dump = cast(Any, access_plan.TeamAccessControlPlanPacket.model_dump)
 
     def legacy_model_dump(
-        self: TeamAccessControlPlanPacket,
+        self: access_plan.TeamAccessControlPlanPacket,
         *args: object,
         **kwargs: object,
     ) -> dict[str, object]:
@@ -425,7 +417,7 @@ def test_team_access_control_plan_packet_json_supports_pydantic_without_fallback
         legacy_model_dump,
     )
 
-    packet = build_team_access_control_plan(project_root=tmp_path)
+    packet = access_plan.build_team_access_control_plan(project_root=tmp_path)
 
     assert packet.summary.status == "ready"
 
@@ -437,7 +429,7 @@ def test_team_access_control_plan_wraps_packet_serialization_errors(
     _write_ready_sources(tmp_path)
 
     def broken_model_dump(
-        self: TeamAccessControlPlanPacket,
+        self: access_plan.TeamAccessControlPlanPacket,
         *args: object,
         **kwargs: object,
     ) -> dict[str, object]:
@@ -452,26 +444,28 @@ def test_team_access_control_plan_wraps_packet_serialization_errors(
     )
 
     with pytest.raises(
-        TeamAccessControlPlanError,
+        access_plan.TeamAccessControlPlanError,
         match="could not be serialized safely",
     ):
-        build_team_access_control_plan(project_root=tmp_path)
+        access_plan.build_team_access_control_plan(project_root=tmp_path)
 
 
 def test_team_access_control_plan_rejects_unsupported_and_unsafe_outputs(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    with pytest.raises(TeamAccessControlPlanError, match="Unsupported team-access"):
-        run_team_access_control_plan_report(project_root=tmp_path, output=cast(Any, "html"))
-    with pytest.raises(TeamAccessControlPlanError, match="must stay under"):
-        run_team_access_control_plan_report(
+    with pytest.raises(access_plan.TeamAccessControlPlanError, match="Unsupported team-access"):
+        access_plan.run_team_access_control_plan_report(
+            project_root=tmp_path, output=cast(Any, "html")
+        )
+    with pytest.raises(access_plan.TeamAccessControlPlanError, match="must stay under"):
+        access_plan.run_team_access_control_plan_report(
             project_root=tmp_path,
             output="json",
             output_path=tmp_path.parent / "team-access-control-plan.json",
         )
-    with pytest.raises(TeamAccessControlPlanError, match="must not be written into"):
-        run_team_access_control_plan_report(
+    with pytest.raises(access_plan.TeamAccessControlPlanError, match="must not be written into"):
+        access_plan.run_team_access_control_plan_report(
             project_root=tmp_path,
             output="json",
             output_path=Path(".entroping") / "team-access-control-plan.json",
@@ -482,8 +476,8 @@ def test_team_access_control_plan_rejects_unsupported_and_unsafe_outputs(
         "first_symlink_path_component",
         lambda *_args, **_kwargs: None,
     )
-    with pytest.raises(TeamAccessControlPlanError, match="must stay under"):
-        run_team_access_control_plan_report(
+    with pytest.raises(access_plan.TeamAccessControlPlanError, match="must stay under"):
+        access_plan.run_team_access_control_plan_report(
             project_root=tmp_path,
             output="json",
             output_path=tmp_path.parent / "escaped-team-access-control-plan.json",
@@ -496,8 +490,8 @@ def test_team_access_control_plan_rejects_symlinked_output_path(
     (tmp_path / "real-reports").mkdir()
     os.symlink(tmp_path / "real-reports", tmp_path / "linked-reports")
 
-    with pytest.raises(TeamAccessControlPlanError, match="symlinked component"):
-        run_team_access_control_plan_report(
+    with pytest.raises(access_plan.TeamAccessControlPlanError, match="symlinked component"):
+        access_plan.run_team_access_control_plan_report(
             project_root=tmp_path,
             output="json",
             output_path=Path("linked-reports") / "team-access-control-plan.json",
@@ -508,15 +502,17 @@ def test_team_access_control_plan_rejects_secret_like_rendered_packet(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    packet = build_team_access_control_plan(project_root=tmp_path)
+    packet = access_plan.build_team_access_control_plan(project_root=tmp_path)
     monkeypatch.setattr(
         access_plan,
         "build_team_access_control_plan",
         lambda **_: packet.model_copy(update={"project": "sk-proj-" + ("a" * 24)}),
     )
 
-    with pytest.raises(TeamAccessControlPlanError, match="contains secret-like content"):
-        run_team_access_control_plan_report(project_root=tmp_path, output="json")
+    with pytest.raises(
+        access_plan.TeamAccessControlPlanError, match="contains secret-like content"
+    ):
+        access_plan.run_team_access_control_plan_report(project_root=tmp_path, output="json")
 
 
 def test_team_access_control_plan_wraps_safe_write_errors(
@@ -528,16 +524,16 @@ def test_team_access_control_plan_wraps_safe_write_errors(
 
     monkeypatch.setattr(access_plan, "safe_write_text", fail_safe_write)
 
-    with pytest.raises(TeamAccessControlPlanError, match="disk full"):
-        run_team_access_control_plan_report(project_root=tmp_path, output="json")
+    with pytest.raises(access_plan.TeamAccessControlPlanError, match="disk full"):
+        access_plan.run_team_access_control_plan_report(project_root=tmp_path, output="json")
 
 
 def test_team_access_control_plan_defensively_rejects_secret_like_packet(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    packet = TeamAccessControlPlanPacket.model_construct(
-        schema_version=TEAM_ACCESS_CONTROL_PLAN_SCHEMA_VERSION,
+    packet = access_plan.TeamAccessControlPlanPacket.model_construct(
+        schema_version=access_plan.TEAM_ACCESS_CONTROL_PLAN_SCHEMA_VERSION,
         generated_at="2026-06-20T00:00:00+00:00",
         project="sk-proj-" + ("a" * 24),
         summary=object(),
@@ -551,6 +547,6 @@ def test_team_access_control_plan_defensively_rejects_secret_like_packet(
 
     with (
         pytest.warns(UserWarning, match="Pydantic serializer warnings"),
-        pytest.raises(TeamAccessControlPlanError, match="contains secret-like"),
+        pytest.raises(access_plan.TeamAccessControlPlanError, match="contains secret-like"),
     ):
-        build_team_access_control_plan(project_root=tmp_path)
+        access_plan.build_team_access_control_plan(project_root=tmp_path)

@@ -1,10 +1,10 @@
 """mitmproxy adapter for capture-only Eye traffic observation."""
 
 import importlib
+import importlib.metadata as importlib_metadata
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from importlib import metadata as importlib_metadata
 from pathlib import Path
 from typing import Literal, Protocol, cast
 from urllib.parse import urlsplit
@@ -144,11 +144,7 @@ class TrafficCaptureAddon:
         self._ignored_count = 0
         self._malformed_count = 0
 
-        if (
-            self._target_scope is None
-            and not self._scope_hosts
-            and not self._scope_url_prefixes
-        ):
+        if self._target_scope is None and not self._scope_hosts and not self._scope_url_prefixes:
             msg = "traffic capture requires an explicit scope"
             raise TrafficProxyError(msg)
 

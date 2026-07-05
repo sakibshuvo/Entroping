@@ -6,7 +6,6 @@ from datetime import UTC, datetime
 import pytest
 
 import entroping.core.traffic_redactor as traffic_redactor
-from entroping.core.traffic_redactor import redact_traffic_exchange
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
 
 
@@ -45,11 +44,14 @@ def _raw_exchange() -> TrafficExchange:
 
 
 def test_redactor_removes_headers_query_params_and_json_secret_fields() -> None:
-    redacted = redact_traffic_exchange(_raw_exchange())
+    redacted = traffic_redactor.redact_traffic_exchange(_raw_exchange())
 
     serialized = redacted.model_dump_json()
     assert redacted.redacted is True
-    assert redacted.request.url == "https://api.example.test/checkout?access_token=%5BREDACTED%5D&cart_id=cart-1"
+    assert (
+        redacted.request.url
+        == "https://api.example.test/checkout?access_token=%5BREDACTED%5D&cart_id=cart-1"
+    )
     assert redacted.request.headers["Authorization"] == "[REDACTED]"
     assert redacted.request.headers["Cookie"] == "[REDACTED]"
     assert redacted.response is not None
@@ -84,7 +86,7 @@ def test_redactor_treats_json_subtype_bodies_as_structured_json() -> None:
         },
     )
 
-    redacted = redact_traffic_exchange(exchange)
+    redacted = traffic_redactor.redact_traffic_exchange(exchange)
 
     serialized = redacted.model_dump_json()
     assert "problem-secret" not in serialized
@@ -97,7 +99,7 @@ def test_redactor_treats_json_subtype_bodies_as_structured_json() -> None:
 
 def test_redactor_rejects_non_positive_body_limit() -> None:
     with pytest.raises(ValueError, match="max_body_chars must be positive"):
-        redact_traffic_exchange(_raw_exchange(), max_body_chars=0)
+        traffic_redactor.redact_traffic_exchange(_raw_exchange(), max_body_chars=0)
 
 
 def test_redactor_preserves_non_text_body_metadata() -> None:
@@ -117,7 +119,7 @@ def test_redactor_preserves_non_text_body_metadata() -> None:
         },
     )
 
-    redacted = redact_traffic_exchange(exchange)
+    redacted = traffic_redactor.redact_traffic_exchange(exchange)
 
     assert redacted.request.body is not None
     assert redacted.request.body.text is None
@@ -137,7 +139,7 @@ def test_redactor_preserves_absent_bodies() -> None:
         },
     )
 
-    redacted = redact_traffic_exchange(exchange)
+    redacted = traffic_redactor.redact_traffic_exchange(exchange)
 
     assert redacted.request.body is None
     assert redacted.response is not None
@@ -177,7 +179,7 @@ def test_redactor_falls_back_to_text_redaction_for_invalid_json() -> None:
         },
     )
 
-    redacted = redact_traffic_exchange(exchange)
+    redacted = traffic_redactor.redact_traffic_exchange(exchange)
 
     assert redacted.request.body is not None
     assert redacted.request.body.text == '{"token":"[REDACTED]"'
@@ -201,7 +203,7 @@ def test_redactor_redacts_secret_values_inside_json_arrays() -> None:
         },
     )
 
-    redacted = redact_traffic_exchange(exchange)
+    redacted = traffic_redactor.redact_traffic_exchange(exchange)
 
     assert redacted.request.body is not None
     assert redacted.request.body.text == (
@@ -228,7 +230,7 @@ def test_redactor_redacts_token_shaped_values_in_non_sensitive_fields() -> None:
         },
     )
 
-    redacted = redact_traffic_exchange(exchange)
+    redacted = traffic_redactor.redact_traffic_exchange(exchange)
 
     serialized = redacted.model_dump_json()
     assert token not in serialized
@@ -303,7 +305,7 @@ def test_redactor_fully_summarizes_multipart_bodies_before_persistence() -> None
         },
     )
 
-    redacted = redact_traffic_exchange(exchange)
+    redacted = traffic_redactor.redact_traffic_exchange(exchange)
 
     serialized = redacted.model_dump_json()
     assert request_secret not in serialized
@@ -333,7 +335,7 @@ def test_redactor_removes_url_userinfo_credentials() -> None:
         },
     )
 
-    redacted = redact_traffic_exchange(exchange)
+    redacted = traffic_redactor.redact_traffic_exchange(exchange)
 
     assert redacted.request.url == "https://example.test/checkout?token=%5BREDACTED%5D"
     assert redacted.request.host == "example.test"
@@ -355,7 +357,7 @@ def test_redactor_strips_url_fragments_before_persistence() -> None:
         },
     )
 
-    redacted = redact_traffic_exchange(exchange)
+    redacted = traffic_redactor.redact_traffic_exchange(exchange)
 
     assert redacted.request.url == "https://api.example.test/oauth/callback?state=visible-state"
     assert "#" not in redacted.request.url
@@ -378,11 +380,10 @@ def test_redactor_redacts_secret_like_url_path_segments() -> None:
         },
     )
 
-    redacted = redact_traffic_exchange(exchange)
+    redacted = traffic_redactor.redact_traffic_exchange(exchange)
 
     assert redacted.request.url == (
-        "https://api.example.test/password-reset/%5BREDACTED%5D/orders"
-        "?token=%5BREDACTED%5D"
+        "https://api.example.test/password-reset/%5BREDACTED%5D/orders?token=%5BREDACTED%5D"
     )
     assert token not in redacted.model_dump_json()
     assert "user:pass" not in redacted.model_dump_json()
@@ -406,7 +407,7 @@ def test_redactor_bounds_text_body_summaries() -> None:
         }
     )
 
-    redacted = redact_traffic_exchange(exchange, max_body_chars=16)
+    redacted = traffic_redactor.redact_traffic_exchange(exchange, max_body_chars=16)
 
     request_body = redacted.request.body
     assert request_body is not None
@@ -438,7 +439,7 @@ def test_redactor_redacts_plaintext_before_truncating_boundary_crossing_values()
         }
     )
 
-    redacted = redact_traffic_exchange(exchange, max_body_chars=20)
+    redacted = traffic_redactor.redact_traffic_exchange(exchange, max_body_chars=20)
 
     request_body = redacted.request.body
     assert request_body is not None
@@ -474,7 +475,7 @@ def test_redactor_bounds_json_parser_input_for_large_bodies(
         }
     )
 
-    redacted = redact_traffic_exchange(exchange, max_body_chars=16)
+    redacted = traffic_redactor.redact_traffic_exchange(exchange, max_body_chars=16)
 
     assert parser_lengths
     request_body = redacted.request.body
@@ -519,7 +520,7 @@ def test_redactor_redacts_sensitive_shapes_in_non_sensitive_json_fields(
         }
     )
 
-    redacted = redact_traffic_exchange(exchange)
+    redacted = traffic_redactor.redact_traffic_exchange(exchange)
 
     assert leaked_fragment not in redacted.model_dump_json()
     assert redacted.request.body is not None

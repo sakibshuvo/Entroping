@@ -7,11 +7,6 @@ from pathlib import Path
 import pytest
 
 import entroping.core.report_artifact_manifest as artifact_manifest
-from entroping.core.report_artifact_manifest import (
-    REPORT_ARTIFACT_MANIFEST_SCHEMA_VERSION,
-    ReportArtifactManifestError,
-    write_report_artifact_manifest,
-)
 from entroping.core.safe_write import SafeWriteError
 
 
@@ -30,14 +25,17 @@ def _chain_path(root: Path) -> Path:
 
 def _audit_event_line(event: dict[str, object]) -> str:
     payload = {key: value for key, value in event.items() if key != "event_hash"}
-    return json.dumps(
-        {
-            **payload,
-            "event_hash": artifact_manifest._hash_audit_event_payload(payload),
-        },
-        separators=(",", ":"),
-        sort_keys=True,
-    ) + "\n"
+    return (
+        json.dumps(
+            {
+                **payload,
+                "event_hash": artifact_manifest._hash_audit_event_payload(payload),
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        + "\n"
+    )
 
 
 def test_write_report_artifact_manifest_records_default_artifacts_with_checksums(
@@ -47,7 +45,7 @@ def test_write_report_artifact_manifest_records_default_artifacts_with_checksums
         "reports/agent-bundle.json": '{"schema_version":"entroping.agent-review-bundle.v1"}\n',
         "reports/run-latest.json": '{"schema_version":"entroping.run-report.v1"}\n',
         "reports/run-plan.json": '{"schema_version":"entroping.run-plan.v1"}\n',
-        "reports/junit.xml": "<testsuite tests=\"1\"></testsuite>\n",
+        "reports/junit.xml": '<testsuite tests="1"></testsuite>\n',
         "reports/run-latest.html": (
             "<!doctype html><html><body><h1>Entroping Run Report</h1></body></html>\n"
         ),
@@ -60,10 +58,12 @@ def test_write_report_artifact_manifest_records_default_artifacts_with_checksums
     for path, content in artifacts.items():
         _write_text(tmp_path / path, content)
 
-    result = write_report_artifact_manifest(project_root=tmp_path)
+    result = artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
     assert result.output_path == tmp_path / "reports" / "artifact-manifest.json"
-    assert result.manifest.schema_version == REPORT_ARTIFACT_MANIFEST_SCHEMA_VERSION
+    assert (
+        result.manifest.schema_version == artifact_manifest.REPORT_ARTIFACT_MANIFEST_SCHEMA_VERSION
+    )
     assert result.manifest.summary.total_expected == 10
     assert result.manifest.summary.total_present == 10
     assert result.manifest.summary.total_missing == 0
@@ -116,13 +116,12 @@ def test_write_report_artifact_manifest_keeps_invalid_known_artifacts_without_hi
     for path, content in artifacts.items():
         _write_text(tmp_path / path, content)
 
-    result = write_report_artifact_manifest(project_root=tmp_path)
+    result = artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
     by_path = {artifact.path: artifact for artifact in result.manifest.artifacts}
     assert set(by_path) == set(artifacts)
     assert [
-        (by_path[path].kind, path, by_path[path].schema_version)
-        for path in sorted(artifacts)
+        (by_path[path].kind, path, by_path[path].schema_version) for path in sorted(artifacts)
     ] == [
         ("junit", "reports/junit.xml", None),
         ("review_summary", "reports/review-summary.md", None),
@@ -138,20 +137,18 @@ def test_write_report_artifact_manifest_accepts_bom_prefixed_known_text_artifact
 ) -> None:
     artifacts = {
         "reports/run-latest.html": (
-            "\ufeff<!doctype html><html><body>"
-            "<h1>Entroping Run Report</h1></body></html>\n"
+            "\ufeff<!doctype html><html><body><h1>Entroping Run Report</h1></body></html>\n"
         ),
         "reports/review-summary.md": "\ufeff# Entroping Review Summary\n\n- Status: `pass`\n",
     }
     for path, content in artifacts.items():
         _write_text(tmp_path / path, content)
 
-    result = write_report_artifact_manifest(project_root=tmp_path)
+    result = artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
     by_path = {artifact.path: artifact for artifact in result.manifest.artifacts}
     assert [
-        (by_path[path].kind, path, by_path[path].schema_version)
-        for path in sorted(artifacts)
+        (by_path[path].kind, path, by_path[path].schema_version) for path in sorted(artifacts)
     ] == [
         ("review_summary", "reports/review-summary.md", "entroping.review-summary.md"),
         ("run_html", "reports/run-latest.html", "entroping.run-report.html"),
@@ -166,12 +163,12 @@ def test_write_report_artifact_manifest_appends_tamper_evident_audit_events(
         '{"schema_version":"entroping.run-report.v1"}\n',
     )
 
-    first = write_report_artifact_manifest(project_root=tmp_path)
+    first = artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
     _write_text(
         tmp_path / "reports" / "run-plan.json",
         '{"schema_version":"entroping.run-plan.v1"}\n',
     )
-    second = write_report_artifact_manifest(project_root=tmp_path)
+    second = artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
     chain_path = _chain_path(tmp_path)
     chain = [
@@ -218,7 +215,7 @@ def test_write_report_artifact_manifest_reports_broken_existing_audit_chain(
         tmp_path / "reports" / "run-latest.json",
         '{"schema_version":"entroping.run-report.v1"}\n',
     )
-    write_report_artifact_manifest(project_root=tmp_path)
+    artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
     chain_path = tmp_path / ".entroping" / "report-audit-chain.jsonl"
     tampered = chain_path.read_text(encoding="utf-8").replace(
         "entroping.run-report.v1",
@@ -226,14 +223,12 @@ def test_write_report_artifact_manifest_reports_broken_existing_audit_chain(
     )
     chain_path.write_text(tampered, encoding="utf-8")
 
-    result = write_report_artifact_manifest(project_root=tmp_path)
+    result = artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
     assert result.manifest.audit.verification.status == "broken"
     assert result.manifest.audit.verification.checked_events == 1
     assert result.manifest.audit.verification.latest_event_hash is None
-    assert result.manifest.audit.verification.diagnostics == (
-        "line 1 event hash mismatch",
-    )
+    assert result.manifest.audit.verification.diagnostics == ("line 1 event hash mismatch",)
     assert result.manifest.audit.event is None
     assert len(chain_path.read_text(encoding="utf-8").splitlines()) == 1
 
@@ -242,7 +237,7 @@ def test_write_report_artifact_manifest_rejects_oversized_audit_chain_before_ful
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    write_report_artifact_manifest(project_root=tmp_path)
+    artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
     chain_path = _chain_path(tmp_path)
     content = chain_path.read_text(encoding="utf-8")
     original_read_text = Path.read_text
@@ -265,10 +260,10 @@ def test_write_report_artifact_manifest_rejects_oversized_audit_chain_before_ful
     monkeypatch.setattr(Path, "read_text", reject_full_chain_read)
 
     with pytest.raises(
-        ReportArtifactManifestError,
+        artifact_manifest.ReportArtifactManifestError,
         match="report audit chain .* exceeds",
     ):
-        write_report_artifact_manifest(project_root=tmp_path)
+        artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
 
 def test_write_report_artifact_manifest_redacts_secret_like_audit_metadata(
@@ -279,7 +274,7 @@ def test_write_report_artifact_manifest_redacts_secret_like_audit_metadata(
         '{"schema_version":"password=live-secret"}\n',
     )
 
-    result = write_report_artifact_manifest(
+    result = artifact_manifest.write_report_artifact_manifest(
         project_root=tmp_path,
         output_path=Path("reports") / "token=live-secret.json",
     )
@@ -299,14 +294,12 @@ def test_write_report_artifact_manifest_records_missing_defaults(tmp_path: Path)
         '{"schema_version":"entroping.run-report.v1"}\n',
     )
 
-    result = write_report_artifact_manifest(project_root=tmp_path)
+    result = artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
     assert result.manifest.summary.total_expected == 10
     assert result.manifest.summary.total_present == 1
     assert result.manifest.summary.total_missing == 9
-    assert [artifact.path for artifact in result.manifest.artifacts] == [
-        "reports/run-latest.json"
-    ]
+    assert [artifact.path for artifact in result.manifest.artifacts] == ["reports/run-latest.json"]
     assert [missing.path for missing in result.manifest.missing_artifacts] == [
         "reports/agent-bundle.json",
         "reports/drift.json",
@@ -326,23 +319,29 @@ def test_write_report_artifact_manifest_rejects_unsafe_paths(tmp_path: Path) -> 
     (tmp_path / "reports").mkdir()
     (tmp_path / "reports" / "junit.xml").symlink_to(outside)
 
-    with pytest.raises(ReportArtifactManifestError, match="symlinked component"):
-        write_report_artifact_manifest(project_root=tmp_path)
+    with pytest.raises(artifact_manifest.ReportArtifactManifestError, match="symlinked component"):
+        artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
-    with pytest.raises(ReportArtifactManifestError, match="output path must stay inside"):
-        write_report_artifact_manifest(
+    with pytest.raises(
+        artifact_manifest.ReportArtifactManifestError, match="output path must stay inside"
+    ):
+        artifact_manifest.write_report_artifact_manifest(
             project_root=tmp_path,
             output_path=tmp_path.parent / "artifact-manifest.json",
         )
 
-    with pytest.raises(ReportArtifactManifestError, match="output path must stay inside"):
-        write_report_artifact_manifest(
+    with pytest.raises(
+        artifact_manifest.ReportArtifactManifestError, match="output path must stay inside"
+    ):
+        artifact_manifest.write_report_artifact_manifest(
             project_root=tmp_path,
             output_path=Path("..") / "artifact-manifest.json",
         )
 
-    with pytest.raises(ReportArtifactManifestError, match="must not be written into .entroping"):
-        write_report_artifact_manifest(
+    with pytest.raises(
+        artifact_manifest.ReportArtifactManifestError, match="must not be written into .entroping"
+    ):
+        artifact_manifest.write_report_artifact_manifest(
             project_root=tmp_path,
             output_path=Path(".entroping") / "artifact-manifest.json",
         )
@@ -351,8 +350,8 @@ def test_write_report_artifact_manifest_rejects_unsafe_paths(tmp_path: Path) -> 
 def test_write_report_artifact_manifest_rejects_non_file_artifacts(tmp_path: Path) -> None:
     (tmp_path / "reports" / "run-latest.json").mkdir(parents=True)
 
-    with pytest.raises(ReportArtifactManifestError, match="not a file"):
-        write_report_artifact_manifest(project_root=tmp_path)
+    with pytest.raises(artifact_manifest.ReportArtifactManifestError, match="not a file"):
+        artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
 
 def test_write_report_artifact_manifest_rejects_non_file_audit_chain(
@@ -364,8 +363,10 @@ def test_write_report_artifact_manifest_rejects_non_file_audit_chain(
     )
     _chain_path(tmp_path).mkdir(parents=True)
 
-    with pytest.raises(ReportArtifactManifestError, match="audit chain path is not a file"):
-        write_report_artifact_manifest(project_root=tmp_path)
+    with pytest.raises(
+        artifact_manifest.ReportArtifactManifestError, match="audit chain path is not a file"
+    ):
+        artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
 
 def test_write_report_artifact_manifest_wraps_audit_chain_read_errors(
@@ -376,7 +377,7 @@ def test_write_report_artifact_manifest_wraps_audit_chain_read_errors(
         tmp_path / "reports" / "run-latest.json",
         '{"schema_version":"entroping.run-report.v1"}\n',
     )
-    write_report_artifact_manifest(project_root=tmp_path)
+    artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
     original_open = Path.open
 
     def fail_open(
@@ -400,8 +401,10 @@ def test_write_report_artifact_manifest_wraps_audit_chain_read_errors(
 
     monkeypatch.setattr(Path, "open", fail_open)
 
-    with pytest.raises(ReportArtifactManifestError, match="Could not read report audit chain"):
-        write_report_artifact_manifest(project_root=tmp_path)
+    with pytest.raises(
+        artifact_manifest.ReportArtifactManifestError, match="Could not read report audit chain"
+    ):
+        artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
 
 @pytest.mark.parametrize(
@@ -423,7 +426,7 @@ def test_write_report_artifact_manifest_reports_malformed_audit_chain_lines(
     )
     _write_text(_chain_path(tmp_path), chain_content)
 
-    result = write_report_artifact_manifest(project_root=tmp_path)
+    result = artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
     assert result.manifest.audit.verification.status == "broken"
     assert result.manifest.audit.verification.diagnostics == (diagnostic,)
@@ -436,17 +439,15 @@ def test_write_report_artifact_manifest_reports_previous_hash_mismatch(
         tmp_path / "reports" / "run-latest.json",
         '{"schema_version":"entroping.run-report.v1"}\n',
     )
-    write_report_artifact_manifest(project_root=tmp_path)
+    artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
     event = json.loads(_chain_path(tmp_path).read_text(encoding="utf-8"))
     event["previous_event_hash"] = "0" * 64
     _chain_path(tmp_path).write_text(_audit_event_line(event), encoding="utf-8")
 
-    result = write_report_artifact_manifest(project_root=tmp_path)
+    result = artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
     assert result.manifest.audit.verification.status == "broken"
-    assert result.manifest.audit.verification.diagnostics == (
-        "line 1 previous hash mismatch",
-    )
+    assert result.manifest.audit.verification.diagnostics == ("line 1 previous hash mismatch",)
 
 
 def test_write_report_artifact_manifest_reports_audit_event_schema_mismatch(
@@ -456,17 +457,15 @@ def test_write_report_artifact_manifest_reports_audit_event_schema_mismatch(
         tmp_path / "reports" / "run-latest.json",
         '{"schema_version":"entroping.run-report.v1"}\n',
     )
-    write_report_artifact_manifest(project_root=tmp_path)
+    artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
     event = json.loads(_chain_path(tmp_path).read_text(encoding="utf-8"))
     event["sequence"] = 0
     _chain_path(tmp_path).write_text(_audit_event_line(event), encoding="utf-8")
 
-    result = write_report_artifact_manifest(project_root=tmp_path)
+    result = artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
     assert result.manifest.audit.verification.status == "broken"
-    assert result.manifest.audit.verification.diagnostics == (
-        "line 1 failed schema validation",
-    )
+    assert result.manifest.audit.verification.diagnostics == ("line 1 failed schema validation",)
 
 
 def test_write_report_artifact_manifest_ignores_blank_audit_chain_lines(
@@ -476,11 +475,11 @@ def test_write_report_artifact_manifest_ignores_blank_audit_chain_lines(
         tmp_path / "reports" / "run-latest.json",
         '{"schema_version":"entroping.run-report.v1"}\n',
     )
-    write_report_artifact_manifest(project_root=tmp_path)
+    artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
     chain_path = _chain_path(tmp_path)
     chain_path.write_text(chain_path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
 
-    result = write_report_artifact_manifest(project_root=tmp_path)
+    result = artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
     assert result.manifest.audit.verification.status == "verified"
     assert result.manifest.audit.verification.checked_events == 2
@@ -502,8 +501,8 @@ def test_write_report_artifact_manifest_rejects_invalid_default_definitions(
         ),
     )
 
-    with pytest.raises(ReportArtifactManifestError, match="project-relative"):
-        write_report_artifact_manifest(project_root=tmp_path)
+    with pytest.raises(artifact_manifest.ReportArtifactManifestError, match="project-relative"):
+        artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
     monkeypatch.setattr(
         artifact_manifest,
@@ -517,8 +516,8 @@ def test_write_report_artifact_manifest_rejects_invalid_default_definitions(
         ),
     )
 
-    with pytest.raises(ReportArtifactManifestError, match="must stay inside"):
-        write_report_artifact_manifest(project_root=tmp_path)
+    with pytest.raises(artifact_manifest.ReportArtifactManifestError, match="must stay inside"):
+        artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
 
 def test_write_report_artifact_manifest_allows_unknown_schema_versions(
@@ -527,7 +526,7 @@ def test_write_report_artifact_manifest_allows_unknown_schema_versions(
     _write_text(tmp_path / "reports" / "run-latest.json", "[]\n")
     _write_text(tmp_path / "reports" / "entroping.sarif", "[]\n")
 
-    result = write_report_artifact_manifest(project_root=tmp_path)
+    result = artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
     by_path = {artifact.path: artifact for artifact in result.manifest.artifacts}
     assert by_path["reports/run-latest.json"].schema_version is None
@@ -544,12 +543,11 @@ def test_write_report_artifact_manifest_keeps_malformed_json_artifacts_without_h
     for path, content in artifacts.items():
         _write_text(tmp_path / path, content)
 
-    result = write_report_artifact_manifest(project_root=tmp_path)
+    result = artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
     by_path = {artifact.path: artifact for artifact in result.manifest.artifacts}
     assert [
-        (by_path[path].kind, path, by_path[path].schema_version)
-        for path in sorted(artifacts)
+        (by_path[path].kind, path, by_path[path].schema_version) for path in sorted(artifacts)
     ] == [
         ("sarif", "reports/entroping.sarif", None),
         ("run_json", "reports/run-latest.json", None),
@@ -561,7 +559,7 @@ def test_write_report_artifact_manifest_keeps_malformed_json_artifacts_without_h
 
 def test_schema_sniff_errors_do_not_include_raw_decode_details() -> None:
     with pytest.raises(
-        ReportArtifactManifestError,
+        artifact_manifest.ReportArtifactManifestError,
         match="Could not read schema version from report artifact reports/run-latest.json",
     ) as exc_info:
         artifact_manifest._load_json_document(
@@ -577,7 +575,7 @@ def test_schema_sniff_errors_do_not_include_raw_decode_details() -> None:
     ("artifact_path", "content"),
     (
         ("reports/run-latest.json", '{"schema_version":"entroping.run-report.v1"}\n'),
-        ("reports/junit.xml", "<testsuite tests=\"1\"></testsuite>\n"),
+        ("reports/junit.xml", '<testsuite tests="1"></testsuite>\n'),
         ("reports/review-summary.md", "# Entroping Review Summary\n"),
     ),
 )
@@ -603,10 +601,10 @@ def test_write_report_artifact_manifest_rejects_oversized_artifacts_before_full_
     monkeypatch.setattr(Path, "read_bytes", fail_if_oversized_read)
 
     with pytest.raises(
-        ReportArtifactManifestError,
+        artifact_manifest.ReportArtifactManifestError,
         match=f"report artifact {artifact_path} exceeds {max_bytes} bytes",
     ):
-        write_report_artifact_manifest(project_root=tmp_path)
+        artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
 
 def test_write_report_artifact_manifest_wraps_read_errors(
@@ -640,8 +638,10 @@ def test_write_report_artifact_manifest_wraps_read_errors(
 
     monkeypatch.setattr(Path, "open", fail_open)
 
-    with pytest.raises(ReportArtifactManifestError, match="Could not read report artifact"):
-        write_report_artifact_manifest(project_root=tmp_path)
+    with pytest.raises(
+        artifact_manifest.ReportArtifactManifestError, match="Could not read report artifact"
+    ):
+        artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
 
 def test_display_path_falls_back_to_absolute_path_for_external_paths(
@@ -668,8 +668,10 @@ def test_write_report_artifact_manifest_wraps_safe_write_errors(
 
     monkeypatch.setattr(artifact_manifest, "safe_write_text", fail_safe_write)
 
-    with pytest.raises(ReportArtifactManifestError, match="temporary write failed"):
-        write_report_artifact_manifest(project_root=tmp_path)
+    with pytest.raises(
+        artifact_manifest.ReportArtifactManifestError, match="temporary write failed"
+    ):
+        artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)
 
 
 def test_write_report_artifact_manifest_wraps_final_manifest_write_errors(
@@ -695,5 +697,7 @@ def test_write_report_artifact_manifest_wraps_final_manifest_write_errors(
 
     monkeypatch.setattr(artifact_manifest, "safe_write_text", fail_manifest_write)
 
-    with pytest.raises(ReportArtifactManifestError, match="manifest replacement failed"):
-        write_report_artifact_manifest(project_root=tmp_path)
+    with pytest.raises(
+        artifact_manifest.ReportArtifactManifestError, match="manifest replacement failed"
+    ):
+        artifact_manifest.write_report_artifact_manifest(project_root=tmp_path)

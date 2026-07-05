@@ -8,13 +8,6 @@ from pathlib import Path
 import pytest
 
 import entroping.core.export.work_item_draft as work_item_draft
-from entroping.core.export.work_item_draft import (
-    WORK_ITEM_DRAFT_SCHEMA_VERSION,
-    WorkItemDraftError,
-    build_work_item_draft_packet,
-    render_work_item_draft_markdown,
-    run_work_item_draft_report,
-)
 from entroping.core.safe_write import SafeWriteError
 
 _SOURCE_SCHEMAS: dict[str, str] = {
@@ -95,11 +88,11 @@ def test_work_item_draft_writes_value_free_json_from_action_plan(
     )
     _write_source(tmp_path, "connector-intent-json")
 
-    result = run_work_item_draft_report(project_root=tmp_path, output="json")
+    result = work_item_draft.run_work_item_draft_report(project_root=tmp_path, output="json")
 
     assert result.output_path == tmp_path / "reports" / "work-item-draft.json"
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
-    assert payload["schema_version"] == WORK_ITEM_DRAFT_SCHEMA_VERSION
+    assert payload["schema_version"] == work_item_draft.WORK_ITEM_DRAFT_SCHEMA_VERSION
     assert payload["project"] == "checkout-api"
     assert payload["summary"]["status"] == "insufficient"
     assert payload["summary"]["sources_present"] == 2
@@ -107,7 +100,8 @@ def test_work_item_draft_writes_value_free_json_from_action_plan(
     assert any(
         item["title"] == "Review PR Evidence Card blocked status before merge."
         and item["source_action_count"] == 1
-        and item["target_systems"] == [
+        and item["target_systems"]
+        == [
             "jira",
             "linear",
             "monday",
@@ -130,8 +124,8 @@ def test_work_item_draft_reports_ready_when_all_sources_are_ready(
         if source_id != "evidence-action-plan-json":
             _write_source(tmp_path, source_id)
 
-    packet = build_work_item_draft_packet(project_root=tmp_path)
-    markdown = render_work_item_draft_markdown(packet)
+    packet = work_item_draft.build_work_item_draft_packet(project_root=tmp_path)
+    markdown = work_item_draft.render_work_item_draft_markdown(packet)
 
     assert packet.summary.status == "ready"
     assert packet.summary.sources_present == len(_SOURCE_SCHEMAS)
@@ -151,14 +145,14 @@ def test_work_item_draft_reports_partial_when_sources_have_no_status(
             },
         )
 
-    packet = build_work_item_draft_packet(project_root=tmp_path)
+    packet = work_item_draft.build_work_item_draft_packet(project_root=tmp_path)
 
     assert packet.summary.status == "partial"
     assert packet.summary.items_total == 0
 
 
 def test_work_item_draft_missing_sources_create_generation_items(tmp_path: Path) -> None:
-    packet = build_work_item_draft_packet(project_root=tmp_path)
+    packet = work_item_draft.build_work_item_draft_packet(project_root=tmp_path)
 
     assert packet.summary.status == "insufficient"
     assert packet.summary.sources_missing == len(_SOURCE_SCHEMAS)
@@ -173,8 +167,8 @@ def test_work_item_draft_marks_secret_like_sources_unsafe(tmp_path: Path) -> Non
         _action_plan_artifact(status="ready", raw_marker=secret_like_value),
     )
 
-    packet = build_work_item_draft_packet(project_root=tmp_path)
-    markdown = render_work_item_draft_markdown(packet)
+    packet = work_item_draft.build_work_item_draft_packet(project_root=tmp_path)
+    markdown = work_item_draft.render_work_item_draft_markdown(packet)
     source = {item.id: item for item in packet.sources}["evidence-action-plan-json"]
 
     assert source.state == "unsafe"
@@ -195,7 +189,7 @@ def test_work_item_draft_marks_secondary_read_failures_unsafe(
         lambda *_args, **_kwargs: (None, "not a file"),
     )
 
-    packet = build_work_item_draft_packet(project_root=tmp_path)
+    packet = work_item_draft.build_work_item_draft_packet(project_root=tmp_path)
     source = {item.id: item for item in packet.sources}["evidence-action-plan-json"]
 
     assert source.state == "unsafe"
@@ -213,7 +207,7 @@ def test_work_item_draft_marks_secondary_invalid_json_invalid(
         lambda *_args, **_kwargs: (b"{not json", ""),
     )
 
-    packet = build_work_item_draft_packet(project_root=tmp_path)
+    packet = work_item_draft.build_work_item_draft_packet(project_root=tmp_path)
     source = {item.id: item for item in packet.sources}["evidence-action-plan-json"]
 
     assert source.state == "invalid"
@@ -234,7 +228,7 @@ def test_work_item_draft_filters_malformed_or_secret_source_actions(
         ),
     )
 
-    packet = build_work_item_draft_packet(project_root=tmp_path)
+    packet = work_item_draft.build_work_item_draft_packet(project_root=tmp_path)
 
     assert any(
         item.priority == "medium"
@@ -292,8 +286,8 @@ def test_work_item_draft_markdown_escapes_inline_code_and_html_breakouts(
     payload["project"] = "checkout`api<unsafe>|line\nbreak"
     _write_json(tmp_path / "reports" / "evidence-action-plan.json", payload)
 
-    markdown = render_work_item_draft_markdown(
-        build_work_item_draft_packet(project_root=tmp_path)
+    markdown = work_item_draft.render_work_item_draft_markdown(
+        work_item_draft.build_work_item_draft_packet(project_root=tmp_path)
     )
 
     assert "checkout`api<unsafe>|line\nbreak" not in markdown
@@ -316,8 +310,8 @@ def test_work_item_draft_markdown_neutralizes_link_and_formatting_syntax(
         ),
     )
 
-    markdown = render_work_item_draft_markdown(
-        build_work_item_draft_packet(project_root=tmp_path)
+    markdown = work_item_draft.render_work_item_draft_markdown(
+        work_item_draft.build_work_item_draft_packet(project_root=tmp_path)
     )
 
     assert "[tracker](https://example.test)" not in markdown
@@ -331,17 +325,17 @@ def test_work_item_draft_markdown_neutralizes_link_and_formatting_syntax(
 
 
 def test_work_item_draft_writes_markdown_by_default(tmp_path: Path) -> None:
-    result = run_work_item_draft_report(project_root=tmp_path, output="md")
+    result = work_item_draft.run_work_item_draft_report(project_root=tmp_path, output="md")
 
     assert result.output_path == tmp_path / "reports" / "work-item-draft.md"
-    assert result.output_path.read_text(encoding="utf-8").startswith(
-        "# Entroping Work Item Draft"
-    )
+    assert result.output_path.read_text(encoding="utf-8").startswith("# Entroping Work Item Draft")
 
 
 def test_work_item_draft_rejects_output_outside_project(tmp_path: Path) -> None:
-    with pytest.raises(WorkItemDraftError, match="must stay under the project root"):
-        run_work_item_draft_report(
+    with pytest.raises(
+        work_item_draft.WorkItemDraftError, match="must stay under the project root"
+    ):
+        work_item_draft.run_work_item_draft_report(
             project_root=tmp_path,
             output="json",
             output_path=tmp_path.parent / "work-item-draft.json",
@@ -351,8 +345,8 @@ def test_work_item_draft_rejects_output_outside_project(tmp_path: Path) -> None:
 def test_work_item_draft_rejects_output_under_forbidden_directory(
     tmp_path: Path,
 ) -> None:
-    with pytest.raises(WorkItemDraftError, match="must not be written"):
-        run_work_item_draft_report(
+    with pytest.raises(work_item_draft.WorkItemDraftError, match="must not be written"):
+        work_item_draft.run_work_item_draft_report(
             project_root=tmp_path,
             output="json",
             output_path=Path(".entroping") / "work-item-draft.json",
@@ -362,8 +356,8 @@ def test_work_item_draft_rejects_output_under_forbidden_directory(
 def test_work_item_draft_rejects_nested_forbidden_output_directory(
     tmp_path: Path,
 ) -> None:
-    with pytest.raises(WorkItemDraftError, match="must not be written"):
-        run_work_item_draft_report(
+    with pytest.raises(work_item_draft.WorkItemDraftError, match="must not be written"):
+        work_item_draft.run_work_item_draft_report(
             project_root=tmp_path,
             output="json",
             output_path=Path("reports") / ".entroping" / "work-item-draft.json",
@@ -380,8 +374,8 @@ def test_work_item_draft_rejects_secret_like_rendered_output(
         lambda *_args, **_kwargs: "sk-proj-" + ("a" * 24),
     )
 
-    with pytest.raises(WorkItemDraftError, match="contains secret-like content"):
-        run_work_item_draft_report(project_root=tmp_path, output="json")
+    with pytest.raises(work_item_draft.WorkItemDraftError, match="contains secret-like content"):
+        work_item_draft.run_work_item_draft_report(project_root=tmp_path, output="json")
 
 
 def test_work_item_draft_wraps_safe_write_errors(
@@ -393,13 +387,13 @@ def test_work_item_draft_wraps_safe_write_errors(
 
     monkeypatch.setattr(work_item_draft, "safe_write_text", fail_write)
 
-    with pytest.raises(WorkItemDraftError, match="blocked write"):
-        run_work_item_draft_report(project_root=tmp_path, output="json")
+    with pytest.raises(work_item_draft.WorkItemDraftError, match="blocked write"):
+        work_item_draft.run_work_item_draft_report(project_root=tmp_path, output="json")
 
 
 def test_work_item_draft_rejects_unsupported_output(tmp_path: Path) -> None:
-    with pytest.raises(WorkItemDraftError, match="Unsupported"):
-        run_work_item_draft_report(
+    with pytest.raises(work_item_draft.WorkItemDraftError, match="Unsupported"):
+        work_item_draft.run_work_item_draft_report(
             project_root=tmp_path,
             output="html",  # type: ignore[arg-type]
         )
