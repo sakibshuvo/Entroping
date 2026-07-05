@@ -329,15 +329,16 @@ current top-level inventory is:
 | `effective_policy_diff.py` | Deterministic diffs between effective policy evidence reports | Policy mutation, compatibility decisions |
 | `gate_coverage.py` | QAnstitution gate coverage over discovered Hurl tests | Hurl subprocess execution, report file writes |
 | `gate_injection_explain.py` | Deterministic gate-injection explanation reports | Temporary execution-copy creation, Hurl execution |
-| `asyncapi_to_hurl.py` | AsyncAPI webhook acknowledgement smoke scaffold compilation from local contract metadata | Broker/cloud/webhook execution, message delivery, file writes |
+| `asyncapi_to_hurl.py` | AsyncAPI webhook-ack Hurl scaffold from local contract metadata | Broker/cloud/webhook execution, message delivery, file writes |
 | `merge.py` | Manual-edit-preserving Hurl merge/refactor logic | Test generation strategy |
 | `openapi_audit.py` | OpenAPI operation coverage audit against discovered Hurl tests | File discovery, Hurl execution, LLM calls |
 | `openapi_diff.py` | Pure OpenAPI operation-change detection | Git invocation, file reads, generated-test writes |
-| `openapi_to_hurl/` | OpenAPI operation/schema/parameter translation to Hurl models through bounded compiler, schema, validation, parameter, and data-model modules | LLM calls, file writes, merge strategy |
+| `openapi_to_hurl/` | OpenAPI operation/schema/parameter translation to Hurl models through bounded compiler modules | LLM calls, file writes, merge strategy |
 | `policy_to_hurl.py` | QAnstitution gate to Hurl assertions | Hurl subprocess execution |
 | `redaction_review.py` | Safe redaction review summaries from redacted traffic | Raw traffic capture, secret storage |
+| `soap_to_hurl.py` | Local WSDL to SOAP smoke Hurl scaffold | SOAP runtime, network execution, WSDL detail rendering |
 | `story_traceability.py` | Story IDs, local story Markdown files, owners, external doc URLs | Business-system API clients |
-| `target_to_hurl.py` | Single target URL smoke-test Hurl scaffold compilation | Network execution, CLI file writes, non-read-only HTTP methods |
+| `target_to_hurl.py` | Single target URL smoke-test Hurl scaffold | Network execution, CLI file writes, non-read-only HTTP methods |
 | `test_pyramid.py` | Local test-pyramid evidence summaries | Test execution, artifact generation |
 | `test_quality.py` | Deterministic quality reports for generated Hurl tests | Hurl parsing side effects, source mutation |
 | `traffic_openapi_audit.py` | Redacted traffic route audit against OpenAPI operations | Traffic persistence, OpenAPI file loading |

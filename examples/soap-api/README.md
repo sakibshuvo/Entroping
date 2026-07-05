@@ -11,6 +11,7 @@ deterministic runtime boundary.
 
 ```text
 demo_server.py
+contracts/orders.wsdl
 qanstitution.yaml
 envs/local.env.example
 tests/soap_smoke.hurl
@@ -52,7 +53,9 @@ Wrote report: reports/junit.xml
 ## Design Notes
 
 - The checked-in Hurl file uses literal local URLs for a quick deterministic smoke path.
+- `contracts/orders.wsdl` is a local-only contract fixture for inventory and scaffold generation.
 - `envs/local.env.example` is safe to commit and reserved for generated or copied variants.
 - The request demonstrates `SOAPAction` and a SOAP XML envelope.
 - The governance rule `soap_envelope_success` proves that XML response semantics can be enforced through Hurl `xpath` assertions.
 - The fixture intentionally avoids real order, customer, credential, cookie, or token data.
+- `entroping.bridge.soap_to_hurl.compile_wsdl_to_soap_hurl()` can produce a deterministic smoke scaffold from the WSDL without rendering WSDL operation names, service addresses, SOAPAction URLs, or XML payload contents.
