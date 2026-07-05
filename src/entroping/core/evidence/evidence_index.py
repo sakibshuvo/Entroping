@@ -8,6 +8,7 @@ import os
 import re
 import stat
 from collections.abc import Callable
+from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, Literal
@@ -28,8 +29,8 @@ from entroping.core.evidence.handoff_packet import HANDOFF_SCHEMA_VERSION
 from entroping.core.evidence.notification_packet import NOTIFICATION_PACKET_SCHEMA_VERSION
 from entroping.core.evidence.observability_packet import OBSERVABILITY_PACKET_SCHEMA_VERSION
 from entroping.core.evidence_common import (
-    append_local_evidence_descriptor,
     contains_unredacted_evidence_secret,
+    register_local_evidence_descriptor,
 )
 from entroping.core.failure_bundle import FAILURE_BUNDLE_SCHEMA_VERSION
 from entroping.core.path_safety import first_symlink_path_component
@@ -803,33 +804,32 @@ def _read_json_artifact_bytes_no_follow(
 ) -> tuple[bytes | None, str]:
     if any(part in {"", ".", ".."} for part in relative_path.parts):
         return None, "path outside project"
-    directory_descriptors: list[int] = []
-    file_descriptor: int | None = None
     try:
-        root_descriptor = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
-        append_local_evidence_descriptor(directory_descriptors, root_descriptor)
-        directory_descriptor = root_descriptor
-        for component in relative_path.parts[:-1]:
-            next_descriptor = os.open(
-                component,
-                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
-                dir_fd=directory_descriptor,
+        with ExitStack() as descriptor_stack:
+            directory_descriptor = register_local_evidence_descriptor(
+                descriptor_stack,
+                os.open(root, os.O_RDONLY | os.O_DIRECTORY),
             )
-            append_local_evidence_descriptor(directory_descriptors, next_descriptor)
-            directory_descriptor = next_descriptor
-        file_descriptor = os.open(
-            relative_path.name,
-            os.O_RDONLY | os.O_NOFOLLOW,
-            dir_fd=directory_descriptor,
-        )
-        return _read_bounded_bytes_from_descriptor(file_descriptor)
+            for component in relative_path.parts[:-1]:
+                directory_descriptor = register_local_evidence_descriptor(
+                    descriptor_stack,
+                    os.open(
+                        component,
+                        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                        dir_fd=directory_descriptor,
+                    ),
+                )
+            file_descriptor = register_local_evidence_descriptor(
+                descriptor_stack,
+                os.open(
+                    relative_path.name,
+                    os.O_RDONLY | os.O_NOFOLLOW,
+                    dir_fd=directory_descriptor,
+                ),
+            )
+            return _read_bounded_bytes_from_descriptor(file_descriptor)
     except OSError as exc:
         return None, _os_read_error_summary(exc)
-    finally:
-        if file_descriptor is not None:
-            os.close(file_descriptor)
-        for directory_descriptor in reversed(directory_descriptors):
-            os.close(directory_descriptor)
 
 
 def _read_json_artifact_bytes_best_effort(path: Path) -> tuple[bytes | None, str]:

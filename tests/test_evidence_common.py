@@ -3,6 +3,7 @@
 import errno
 import os
 import stat as stat_module
+from contextlib import ExitStack
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -36,6 +37,30 @@ def test_append_local_evidence_descriptor_closes_on_append_failure(
         evidence_common.append_local_evidence_descriptor(FailingDescriptors(), 123)
 
     assert closed_descriptors == [123]
+
+
+def test_register_local_evidence_descriptor_closes_on_callback_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    closed_descriptors: list[int] = []
+
+    def fail_callback(
+        self: ExitStack,
+        callback: object,
+        /,
+        *args: object,
+        **kwargs: object,
+    ) -> object:
+        del self, callback, args, kwargs
+        raise RuntimeError("callback failed")
+
+    monkeypatch.setattr(ExitStack, "callback", fail_callback)
+    monkeypatch.setattr(os, "close", closed_descriptors.append)
+
+    with pytest.raises(RuntimeError, match="callback failed"):
+        evidence_common.register_local_evidence_descriptor(ExitStack(), 124)
+
+    assert closed_descriptors == [124]
 
 
 def test_safe_evidence_text_redacts_and_normalizes_ascii_controls() -> None:
@@ -168,6 +193,40 @@ def test_read_local_evidence_artifact_bytes_no_follow_reports_os_errors(
 
     assert raw_bytes is None
     assert error == "unreadable"
+
+
+def test_read_local_evidence_artifact_bytes_no_follow_closes_opened_parent_descriptors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    opened_descriptors: list[tuple[int, str, int | None]] = []
+    closed_descriptors: list[int] = []
+
+    def fake_open(
+        path: os.PathLike[str] | str,
+        flags: int,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> int:
+        del flags, mode
+        name = os.fspath(path)
+        if name == "blocked":
+            raise OSError(errno.EACCES, "blocked")
+        descriptor = 100 + len(opened_descriptors)
+        opened_descriptors.append((descriptor, name, dir_fd))
+        return descriptor
+
+    monkeypatch.setattr(os, "open", fake_open)
+    monkeypatch.setattr(os, "close", closed_descriptors.append)
+
+    raw_bytes, error = evidence_common.read_local_evidence_artifact_bytes_no_follow(
+        Path("reports") / "blocked" / "artifact.json"
+    )
+
+    assert raw_bytes is None
+    assert error == "unreadable"
+    assert opened_descriptors == [(100, ".", None), (101, "reports", 100)]
+    assert closed_descriptors == [101, 100]
 
 
 def test_read_local_evidence_artifact_bytes_best_effort_reports_os_errors(
