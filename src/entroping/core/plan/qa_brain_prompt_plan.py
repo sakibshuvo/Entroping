@@ -37,35 +37,35 @@ _DEFAULT_OUTPUTS: Final[dict[QaBrainPromptPlanOutput, Path]] = {
 _PROMPT_OBJECTIVES: Final[dict[QaBrainEvalSliceId, str]] = {
     "weak_test_detection": (
         "Design a critique prompt that identifies weak generated API tests using "
-        "stable quality, coverage, and evidence IDs only."
+        + "stable quality, coverage, and evidence IDs only."
     ),
     "missing_gate_discovery": (
         "Design a critique prompt that finds missing QAnstitution gate evidence "
-        "without inventing policy or weakening final gates."
+        + "without inventing policy or weakening final gates."
     ),
     "unsafe_generated_hurl": (
         "Design a critique prompt that flags unsafe generated-Hurl proposals "
-        "without reading source Hurl contents or executing repairs."
+        + "without reading source Hurl contents or executing repairs."
     ),
     "bogus_evidence": (
         "Design a critique prompt that challenges unsupported evidence claims "
-        "through schema, artifact, and run-state metadata."
+        + "through schema, artifact, and run-state metadata."
     ),
     "redaction_mistakes": (
         "Design a critique prompt that detects redaction-risk signals using only "
-        "counts, confidence states, and artifact IDs."
+        + "counts, confidence states, and artifact IDs."
     ),
     "api_drift_reasoning": (
         "Design a critique prompt that explains API drift from value-free "
-        "inventory, route, and drift metadata."
+        + "inventory, route, and drift metadata."
     ),
     "mutation_fuzz_readiness": (
         "Design a critique prompt that separates mutation/fuzz readiness from "
-        "actual mutation or fuzz execution."
+        + "actual mutation or fuzz execution."
     ),
     "cross_surface_handoff_quality": (
         "Design a critique prompt that checks whether CLI, PR, desktop, cloud, "
-        "mobile, and agent handoff metadata is sufficient."
+        + "mobile, and agent handoff metadata is sufficient."
     ),
 }
 
@@ -173,8 +173,10 @@ _SAFETY_NOTES: Final[dict[QaBrainEvalSliceId, tuple[str, ...]]] = {
     eval_id: (
         "Use value-free local metadata only.",
         "Treat prompt-plan rows as future prompt design metadata, not executable prompts.",
-        "Do not embed raw traffic, source Hurl, prompt text for execution, "
-        "provider output, secrets, or environment values.",
+        (
+            "Do not embed raw traffic, source Hurl, prompt text for execution, "
+            + "provider output, secrets, or environment values."
+        ),
     )
     for eval_id in _PROMPT_OBJECTIVES
 }
@@ -317,11 +319,14 @@ def render_qa_brain_prompt_plan_markdown(packet: QaBrainPromptPlanPacket) -> str
     lines = [
         "# Entroping QA Brain Prompt Plan",
         "",
-        "Deterministic local prompt-plan metadata for future Entroping QA Brain "
-        "prompt and model-evaluation design. This report does not execute Hurl, "
-        "run tests, call providers, create embeddings, use a vector database, "
-        "retrieve documents, fine-tune models, upload artifacts, parse traffic "
-        "state, run mutations, execute prompts, or render raw report contents.",
+        (
+            "Deterministic local prompt-plan metadata for future Entroping QA Brain "
+            + "prompt and model-evaluation design. This report does not execute "
+            + "Hurl, run tests, call providers, create embeddings, use a vector "
+            + "database, retrieve documents, fine-tune models, upload artifacts, "
+            + "parse traffic state, run mutations, execute prompts, or render raw "
+            + "report contents."
+        ),
         "",
         "## Summary",
         "",
@@ -330,16 +335,21 @@ def render_qa_brain_prompt_plan_markdown(packet: QaBrainPromptPlanPacket) -> str
         f"- Generated at: `{_inline_code(packet.generated_at)}`",
         f"- Project: `{_inline_code(packet.project)}`",
         f"- Retrieval-plan schema: `{packet.retrieval_plan_schema_version}`",
-        "- Prompt plans: "
-        f"`{packet.summary.prompts_ready}/{packet.summary.prompts_total}` ready, "
-        f"`{packet.summary.prompts_missing}` missing, "
-        f"`{packet.summary.prompts_attention}` attention",
+        (
+            f"- Prompt plans: `{packet.summary.prompts_ready}/"
+            + f"{packet.summary.prompts_total}` ready, "
+            + f"`{packet.summary.prompts_missing}` missing, "
+            + f"`{packet.summary.prompts_attention}` attention"
+        ),
         f"- Next actions: `{packet.summary.next_actions_total}`",
         "",
         "## Prompt Plans",
         "",
-        "| ID | Label | Readiness | Category | Sources | Objective | Allowed Inputs | "
-        "Forbidden Inputs | Expected Outputs | Acceptance Signals |",
+        (
+            "| ID | Label | Readiness | Category | Sources | Objective | "
+            + "Allowed Inputs | Forbidden Inputs | Expected Outputs | "
+            + "Acceptance Signals |"
+        ),
         "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for plan in packet.prompt_plans:
@@ -484,8 +494,7 @@ def _plan_next_action(plan: QaBrainRetrievalPlanRow) -> str:
         return f"Use value-free local evidence for {plan.label} prompt design."
     if plan.readiness == "attention":
         return (
-            f"Repair invalid or unsafe local evidence before {plan.label} "
-            "prompt design."
+            f"Repair invalid or unsafe local evidence before {plan.label} prompt design."
         )
     return f"Add value-free local evidence before {plan.label} prompt design."
 

@@ -283,11 +283,13 @@ def render_notification_packet_markdown(packet: NotificationPacket) -> str:
         f"- Status: `{packet.summary.status}`",
         f"- Severity: `{packet.summary.severity}`",
         f"- Project: `{_inline_code(packet.project or 'unknown', style='notification')}`",
-        "- Sources: "
-        f"`{packet.summary.sources_present}/{packet.summary.sources_total}` present, "
-        f"`{packet.summary.sources_missing}` missing, "
-        f"`{packet.summary.sources_invalid}` invalid, "
-        f"`{packet.summary.sources_unsafe}` unsafe",
+        (
+            f"- Sources: `{packet.summary.sources_present}/"
+            + f"{packet.summary.sources_total}` present, "
+            + f"`{packet.summary.sources_missing}` missing, "
+            + f"`{packet.summary.sources_invalid}` invalid, "
+            + f"`{packet.summary.sources_unsafe}` unsafe"
+        ),
         "",
         "## Runtime",
         "",

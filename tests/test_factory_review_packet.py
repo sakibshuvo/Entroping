@@ -61,12 +61,12 @@ def test_factory_review_packet_reads_job_artifact_without_transcripts(
     )
     (artifact_dir / "result.md").write_text(
         "STATUS: pass\n"
-        "FILES_CHANGED: scripts/factory_review_packet.py, tests/test_factory_review_packet.py\n"
-        "TESTS_RUN: uv run pytest tests/test_factory_review_packet.py -q\n"
-        "KNOWN_ISSUES: none\n"
-        "VERIFICATION_LANE: normal-code\n"
-        "CI_STATUS: pass\n"
-        "SUMMARY: Produced a compact review packet.\n",
+        + "FILES_CHANGED: scripts/factory_review_packet.py, tests/test_factory_review_packet.py\n"
+        + "TESTS_RUN: uv run pytest tests/test_factory_review_packet.py -q\n"
+        + "KNOWN_ISSUES: none\n"
+        + "VERIFICATION_LANE: normal-code\n"
+        + "CI_STATUS: pass\n"
+        + "SUMMARY: Produced a compact review packet.\n",
         encoding="utf-8",
     )
     (artifact_dir / "tests.txt").write_text("2 passed\n", encoding="utf-8")
@@ -76,12 +76,12 @@ def test_factory_review_packet_reads_job_artifact_without_transcripts(
     )
     (artifact_dir / "proposal.diff").write_text(
         "diff --git a/scripts/factory_review_packet.py b/scripts/factory_review_packet.py\n"
-        "index 0000000..1111111 100644\n"
-        "--- a/scripts/factory_review_packet.py\n"
-        "+++ b/scripts/factory_review_packet.py\n"
-        "@@ -0,0 +1,2 @@\n"
-        "+line one\n"
-        "+line two\n",
+        + "index 0000000..1111111 100644\n"
+        + "--- a/scripts/factory_review_packet.py\n"
+        + "+++ b/scripts/factory_review_packet.py\n"
+        + "@@ -0,0 +1,2 @@\n"
+        + "+line one\n"
+        + "+line two\n",
         encoding="utf-8",
     )
     write_json(
@@ -173,9 +173,7 @@ def test_factory_review_packet_accepts_direct_artifact_dir_without_stdout(
         },
     )
     (artifact_dir / "result.md").write_text(
-        "STATUS: pass\n"
-        "VERIFICATION_LANE: security-runtime\n"
-        "CI_STATUS: pass\n",
+        'STATUS: pass\nVERIFICATION_LANE: security-runtime\nCI_STATUS: pass\n',
         encoding="utf-8",
     )
     (artifact_dir / "stdout.txt").write_text("verbose provider output\n", encoding="utf-8")
@@ -231,9 +229,11 @@ def test_deepseek_valid_marathon_handoff_accepted(
             "verification_lane": "docs-guardrail",
         },
         result_text=(
-            "STATUS: pass\nFILES_CHANGED: scripts/beta_exit_scorecard.py\n"
-            "TESTS_RUN: uv run pytest tests/test_beta_exit_scorecard.py -v\n"
-            "KNOWN_ISSUES: none\nSUMMARY: Added beta exit scorecard.\n"
+            "STATUS: pass\n"
+            + "FILES_CHANGED: scripts/beta_exit_scorecard.py\n"
+            + "TESTS_RUN: uv run pytest tests/test_beta_exit_scorecard.py -v\n"
+            + "KNOWN_ISSUES: none\n"
+            + "SUMMARY: Added beta exit scorecard.\n"
         ),
     )
 
@@ -300,9 +300,11 @@ def test_spark_valid_marathon_handoff_accepted(
             "verification_lane": "docs-guardrail",
         },
         result_text=(
-            "STATUS: pass\nFILES_CHANGED: scripts/beta_readiness_aggregator.py\n"
-            "TESTS_RUN: uv run pytest tests/ -k readiness\n"
-            "KNOWN_ISSUES: none\nSUMMARY: Spark handoff fixture.\n"
+            "STATUS: pass\n"
+            + "FILES_CHANGED: scripts/beta_readiness_aggregator.py\n"
+            + "TESTS_RUN: uv run pytest tests/ -k readiness\n"
+            + "KNOWN_ISSUES: none\n"
+            + "SUMMARY: Spark handoff fixture.\n"
         ),
     )
 
@@ -394,8 +396,7 @@ def test_factory_review_packet_rejects_missing_required_fields(tmp_path: Path) -
         },
     )
     (artifact_dir / "result.md").write_text(
-        "STATUS: pass\n"
-        "CI_STATUS: pass\n",
+        'STATUS: pass\nCI_STATUS: pass\n',
         encoding="utf-8",
     )
 

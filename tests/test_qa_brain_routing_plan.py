@@ -247,18 +247,15 @@ def test_qa_brain_routing_plan_markdown_is_human_readable_and_value_free(
 
     assert "# Entroping QA Brain Routing Plan" in markdown
     assert "- Schema: `entroping.qa-brain-routing-plan.v1`" in markdown
-    assert (
-        "- Model-packaging plan schema: "
-        "`entroping.qa-brain-model-packaging-plan.v1`"
-    ) in markdown
+    assert "- Model-packaging plan schema: `entroping.qa-brain-model-packaging-plan.v1`" in markdown
     assert (
         "| weak_test_detection | Weak-test detection | ready | packaging_ready | "
-        "routing_design_ready |"
+        + "routing_design_ready |"
     ) in markdown
     assert "Repair Acceptance Gates" in markdown
     assert (
         "parser_validation, hurl_execution, qanstitution_governance, "
-        "deterministic_evidence, secret_redaction, codex_human_review"
+        + "deterministic_evidence, secret_redaction, codex_human_review"
     ) in markdown
     assert "reports/test-quality.json" in markdown
     assert "generated_tests" not in markdown
@@ -751,8 +748,7 @@ def test_qa_brain_routing_plan_writer_rejects_secret_like_rendered_output(
                             label="Parser validation",
                             required=True,
                             summary=(
-                                "Parse proposed Hurl and policy changes before "
-                                "review."
+                                'Parse proposed Hurl and policy changes before review.'
                             ),
                         ),
                     ),
