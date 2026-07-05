@@ -7,6 +7,7 @@ from typing import Any, cast
 
 import pytest
 
+import entroping.core.plan.qa_brain_model_packaging_plan as packaging_plan
 from entroping.core.plan.qa_brain_fine_tune_readiness import (
     QA_BRAIN_FINE_TUNE_READINESS_SCHEMA_VERSION,
     QaBrainFineTuneReadinessError,
@@ -15,12 +16,21 @@ from entroping.core.plan.qa_brain_fine_tune_readiness import (
     QaBrainFineTuneReadinessRow,
     QaBrainFineTuneReadinessSummary,
 )
-from entroping.core.plan.qa_brain_model_packaging_plan import (
-    QA_BRAIN_MODEL_PACKAGING_PLAN_SCHEMA_VERSION,
-    QaBrainModelPackagingPlanError,
-    build_qa_brain_model_packaging_plan,
-    render_qa_brain_model_packaging_plan_markdown,
-    run_qa_brain_model_packaging_plan_report,
+
+QA_BRAIN_MODEL_PACKAGING_PLAN_SCHEMA_VERSION = (
+    packaging_plan.QA_BRAIN_MODEL_PACKAGING_PLAN_SCHEMA_VERSION
+)
+QaBrainModelPackagingPlanError = (
+    packaging_plan.QaBrainModelPackagingPlanError
+)
+build_qa_brain_model_packaging_plan = (
+    packaging_plan.build_qa_brain_model_packaging_plan
+)
+render_qa_brain_model_packaging_plan_markdown = (
+    packaging_plan.render_qa_brain_model_packaging_plan_markdown
+)
+run_qa_brain_model_packaging_plan_report = (
+    packaging_plan.run_qa_brain_model_packaging_plan_report
 )
 
 _EVAL_IDS = (
@@ -247,7 +257,6 @@ def test_qa_brain_model_packaging_plan_markdown_escapes_cells_and_inline_code(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_model_packaging_plan as packaging_plan
 
     def fake_readiness(*, project_root: Path) -> QaBrainFineTuneReadinessPacket:
         _ = project_root
@@ -292,7 +301,6 @@ def test_qa_brain_model_packaging_plan_reports_insufficient_for_empty_readiness(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_model_packaging_plan as packaging_plan
 
     def fake_readiness(*, project_root: Path) -> QaBrainFineTuneReadinessPacket:
         _ = project_root
@@ -311,7 +319,6 @@ def test_qa_brain_model_packaging_plan_reports_ready_when_all_rows_are_ready(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_model_packaging_plan as packaging_plan
 
     def fake_readiness(*, project_root: Path) -> QaBrainFineTuneReadinessPacket:
         _ = project_root
@@ -332,7 +339,6 @@ def test_qa_brain_model_packaging_plan_blocks_inherited_readiness_blockers(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_model_packaging_plan as packaging_plan
 
     def fake_readiness(*, project_root: Path) -> QaBrainFineTuneReadinessPacket:
         _ = project_root
@@ -364,7 +370,6 @@ def test_qa_brain_model_packaging_plan_summary_dedupes_duplicate_blockers(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_model_packaging_plan as packaging_plan
 
     blocker = "Complete prompt-plan metadata before dataset design."
 
@@ -404,7 +409,6 @@ def test_qa_brain_model_packaging_plan_deduplicates_next_actions(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_model_packaging_plan as packaging_plan
 
     def fake_readiness(*, project_root: Path) -> QaBrainFineTuneReadinessPacket:
         _ = project_root
@@ -445,7 +449,6 @@ def test_qa_brain_model_packaging_plan_wraps_readiness_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_model_packaging_plan as packaging_plan
 
     def fail_readiness(*, project_root: Path) -> QaBrainFineTuneReadinessPacket:
         _ = project_root
@@ -461,7 +464,6 @@ def test_qa_brain_model_packaging_plan_rejects_unknown_case_metadata(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_model_packaging_plan as packaging_plan
 
     def fake_readiness(*, project_root: Path) -> SimpleNamespace:
         _ = project_root
@@ -499,7 +501,6 @@ def test_qa_brain_model_packaging_plan_rejects_missing_stage_metadata(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_model_packaging_plan as packaging_plan
 
     def fake_readiness(*, project_root: Path) -> QaBrainFineTuneReadinessPacket:
         _ = project_root
@@ -545,7 +546,6 @@ def test_qa_brain_model_packaging_plan_build_rejects_secret_like_packet_content(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_model_packaging_plan as packaging_plan
 
     secret_marker = _provider_token_fixture()
 
@@ -573,7 +573,6 @@ def test_qa_brain_model_packaging_plan_writer_rejects_secret_like_rendered_outpu
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_model_packaging_plan as packaging_plan
 
     secret_marker = _provider_token_fixture()
 

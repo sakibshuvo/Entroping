@@ -7,13 +7,7 @@ from typing import Any, cast
 
 import pytest
 
-from entroping.core.plan.qa_brain_fine_tune_readiness import (
-    QA_BRAIN_FINE_TUNE_READINESS_SCHEMA_VERSION,
-    QaBrainFineTuneReadinessError,
-    build_qa_brain_fine_tune_readiness,
-    render_qa_brain_fine_tune_readiness_markdown,
-    run_qa_brain_fine_tune_readiness_report,
-)
+import entroping.core.plan.qa_brain_fine_tune_readiness as fine_tune_readiness
 from entroping.core.plan.qa_brain_prompt_plan import (
     QA_BRAIN_PROMPT_PLAN_SCHEMA_VERSION,
     QaBrainPromptPlanError,
@@ -21,6 +15,22 @@ from entroping.core.plan.qa_brain_prompt_plan import (
     QaBrainPromptPlanPacket,
     QaBrainPromptPlanRow,
     QaBrainPromptPlanSummary,
+)
+
+QA_BRAIN_FINE_TUNE_READINESS_SCHEMA_VERSION = (
+    fine_tune_readiness.QA_BRAIN_FINE_TUNE_READINESS_SCHEMA_VERSION
+)
+QaBrainFineTuneReadinessError = (
+    fine_tune_readiness.QaBrainFineTuneReadinessError
+)
+build_qa_brain_fine_tune_readiness = (
+    fine_tune_readiness.build_qa_brain_fine_tune_readiness
+)
+render_qa_brain_fine_tune_readiness_markdown = (
+    fine_tune_readiness.render_qa_brain_fine_tune_readiness_markdown
+)
+run_qa_brain_fine_tune_readiness_report = (
+    fine_tune_readiness.run_qa_brain_fine_tune_readiness_report
 )
 
 _EVAL_IDS = (
@@ -249,7 +259,6 @@ def test_qa_brain_fine_tune_readiness_markdown_escapes_table_cells_and_inline_co
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_fine_tune_readiness as fine_tune_readiness
 
     def fake_prompt_plan(*, project_root: Path) -> QaBrainPromptPlanPacket:
         _ = project_root
@@ -298,7 +307,6 @@ def test_qa_brain_fine_tune_readiness_reports_insufficient_for_empty_prompt_plan
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_fine_tune_readiness as fine_tune_readiness
 
     def fake_prompt_plan(*, project_root: Path) -> QaBrainPromptPlanPacket:
         _ = project_root
@@ -321,7 +329,6 @@ def test_qa_brain_fine_tune_readiness_reports_ready_when_all_rows_are_ready(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_fine_tune_readiness as fine_tune_readiness
 
     def fake_prompt_plan(*, project_root: Path) -> QaBrainPromptPlanPacket:
         _ = project_root
@@ -346,7 +353,6 @@ def test_qa_brain_fine_tune_readiness_blocks_incomplete_prompt_plan_metadata(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_fine_tune_readiness as fine_tune_readiness
 
     def fake_prompt_plan(*, project_root: Path) -> QaBrainPromptPlanPacket:
         _ = project_root
@@ -384,7 +390,6 @@ def test_qa_brain_fine_tune_readiness_summary_dedupes_duplicate_blockers(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_fine_tune_readiness as fine_tune_readiness
 
     def incomplete_prompt_row(case_id: str) -> QaBrainPromptPlanRow:
         return _prompt_row(case_id).model_copy(
@@ -423,7 +428,6 @@ def test_qa_brain_fine_tune_readiness_deduplicates_next_actions(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_fine_tune_readiness as fine_tune_readiness
 
     def fake_prompt_plan(*, project_root: Path) -> QaBrainPromptPlanPacket:
         _ = project_root
@@ -483,7 +487,6 @@ def test_qa_brain_fine_tune_readiness_wraps_prompt_plan_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_fine_tune_readiness as fine_tune_readiness
 
     def fail_prompt_plan(*, project_root: Path) -> QaBrainPromptPlanPacket:
         _ = project_root
@@ -506,7 +509,6 @@ def test_qa_brain_fine_tune_readiness_rejects_unknown_case_metadata(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_fine_tune_readiness as fine_tune_readiness
 
     def fake_prompt_plan(*, project_root: Path) -> SimpleNamespace:
         _ = project_root
@@ -548,7 +550,6 @@ def test_qa_brain_fine_tune_readiness_rejects_missing_readiness_stage_metadata(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_fine_tune_readiness as fine_tune_readiness
 
     def fake_prompt_plan(*, project_root: Path) -> QaBrainPromptPlanPacket:
         _ = project_root
@@ -598,7 +599,6 @@ def test_qa_brain_fine_tune_readiness_rejects_secret_like_rendered_output(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_fine_tune_readiness as fine_tune_readiness
 
     secret_marker = _provider_token_fixture()
 
@@ -635,7 +635,6 @@ def test_qa_brain_fine_tune_readiness_build_rejects_secret_like_packet_content(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_fine_tune_readiness as fine_tune_readiness
 
     secret_marker = _provider_token_fixture()
 
@@ -668,7 +667,6 @@ def test_qa_brain_fine_tune_readiness_writer_rejects_secret_like_rendered_output
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_fine_tune_readiness as fine_tune_readiness
 
     secret_marker = _provider_token_fixture()
 

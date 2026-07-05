@@ -6,18 +6,39 @@ from typing import Any, cast
 
 import pytest
 
-from entroping.core.plan.qa_brain_repair_plan import (
-    QA_BRAIN_REPAIR_PLAN_SCHEMA_VERSION,
-    QaBrainRepairPlanError,
-    QaBrainRepairPlanNextAction,
-    QaBrainRepairPlanPacket,
-    QaBrainRepairPlanRow,
-    QaBrainRepairPlanSource,
-    QaBrainRepairPlanSummary,
-    build_qa_brain_repair_plan,
-    render_qa_brain_repair_plan_markdown,
-    run_qa_brain_repair_plan_report,
+import entroping.core.plan.qa_brain_repair_plan as repair_plan
+
+QA_BRAIN_REPAIR_PLAN_SCHEMA_VERSION = (
+    repair_plan.QA_BRAIN_REPAIR_PLAN_SCHEMA_VERSION
 )
+QaBrainRepairPlanError = (
+    repair_plan.QaBrainRepairPlanError
+)
+QaBrainRepairPlanNextAction = (
+    repair_plan.QaBrainRepairPlanNextAction
+)
+QaBrainRepairPlanPacket = (
+    repair_plan.QaBrainRepairPlanPacket
+)
+QaBrainRepairPlanRow = (
+    repair_plan.QaBrainRepairPlanRow
+)
+QaBrainRepairPlanSource = (
+    repair_plan.QaBrainRepairPlanSource
+)
+QaBrainRepairPlanSummary = (
+    repair_plan.QaBrainRepairPlanSummary
+)
+build_qa_brain_repair_plan = (
+    repair_plan.build_qa_brain_repair_plan
+)
+render_qa_brain_repair_plan_markdown = (
+    repair_plan.render_qa_brain_repair_plan_markdown
+)
+run_qa_brain_repair_plan_report = (
+    repair_plan.run_qa_brain_repair_plan_report
+)
+
 
 _EVAL_IDS = (
     "weak_test_detection",
@@ -441,7 +462,6 @@ def test_qa_brain_repair_plan_build_rejects_secret_like_packet_content(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_repair_plan as repair_plan
 
     secret_marker = _provider_token_fixture()
 
@@ -477,7 +497,6 @@ def test_qa_brain_repair_plan_writer_rejects_secret_like_rendered_output(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_repair_plan as repair_plan
 
     secret_marker = _provider_token_fixture()
     packet = QaBrainRepairPlanPacket(
@@ -538,7 +557,6 @@ def test_qa_brain_repair_plan_handles_missing_index_artifact(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_repair_plan as repair_plan
 
     monkeypatch.setattr(repair_plan, "build_local_evidence_index", lambda *, project_root: ())
 
@@ -548,7 +566,6 @@ def test_qa_brain_repair_plan_handles_missing_index_artifact(
 
 
 def test_qa_brain_repair_plan_summary_dedupes_duplicate_blockers() -> None:
-    import entroping.core.plan.qa_brain_repair_plan as repair_plan
 
     rows = (
         QaBrainRepairPlanRow(
@@ -577,7 +594,6 @@ def test_qa_brain_repair_plan_summary_dedupes_duplicate_blockers() -> None:
 
 
 def test_qa_brain_repair_plan_defensive_helpers() -> None:
-    import entroping.core.plan.qa_brain_repair_plan as repair_plan
 
     low = QaBrainRepairPlanRow(
         case_id="weak_test_detection",

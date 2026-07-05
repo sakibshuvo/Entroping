@@ -7,6 +7,7 @@ from typing import Any, cast
 
 import pytest
 
+import entroping.core.plan.qa_brain_routing_plan as routing_plan
 from entroping.core.plan.qa_brain_model_packaging_plan import (
     QA_BRAIN_MODEL_PACKAGING_PLAN_SCHEMA_VERSION,
     QaBrainModelPackagingPlanError,
@@ -15,12 +16,21 @@ from entroping.core.plan.qa_brain_model_packaging_plan import (
     QaBrainModelPackagingPlanRow,
     QaBrainModelPackagingPlanSummary,
 )
-from entroping.core.plan.qa_brain_routing_plan import (
-    QA_BRAIN_ROUTING_PLAN_SCHEMA_VERSION,
-    QaBrainRoutingPlanError,
-    build_qa_brain_routing_plan,
-    render_qa_brain_routing_plan_markdown,
-    run_qa_brain_routing_plan_report,
+
+QA_BRAIN_ROUTING_PLAN_SCHEMA_VERSION = (
+    routing_plan.QA_BRAIN_ROUTING_PLAN_SCHEMA_VERSION
+)
+QaBrainRoutingPlanError = (
+    routing_plan.QaBrainRoutingPlanError
+)
+build_qa_brain_routing_plan = (
+    routing_plan.build_qa_brain_routing_plan
+)
+render_qa_brain_routing_plan_markdown = (
+    routing_plan.render_qa_brain_routing_plan_markdown
+)
+run_qa_brain_routing_plan_report = (
+    routing_plan.run_qa_brain_routing_plan_report
 )
 
 _EVAL_IDS = (
@@ -265,7 +275,6 @@ def test_qa_brain_routing_plan_markdown_escapes_cells_and_inline_code(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_routing_plan as routing_plan
 
     def fake_packaging(*, project_root: Path) -> QaBrainModelPackagingPlanPacket:
         _ = project_root
@@ -315,7 +324,6 @@ def test_qa_brain_routing_plan_reports_insufficient_for_empty_packaging(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_routing_plan as routing_plan
 
     def fake_packaging(*, project_root: Path) -> QaBrainModelPackagingPlanPacket:
         _ = project_root
@@ -338,7 +346,6 @@ def test_qa_brain_routing_plan_reports_ready_when_all_rows_are_ready(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_routing_plan as routing_plan
 
     def fake_packaging(*, project_root: Path) -> QaBrainModelPackagingPlanPacket:
         _ = project_root
@@ -365,7 +372,6 @@ def test_qa_brain_routing_plan_blocks_inherited_packaging_blockers(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_routing_plan as routing_plan
 
     def fake_packaging(*, project_root: Path) -> QaBrainModelPackagingPlanPacket:
         _ = project_root
@@ -399,7 +405,6 @@ def test_qa_brain_routing_plan_summary_dedupes_duplicate_blockers(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_routing_plan as routing_plan
 
     blocker = "Complete packaging metadata before routing design."
 
@@ -439,7 +444,6 @@ def test_qa_brain_routing_plan_omits_repair_gates_without_repair_use_case(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_routing_plan as routing_plan
 
     def fake_packaging(*, project_root: Path) -> QaBrainModelPackagingPlanPacket:
         _ = project_root
@@ -466,7 +470,6 @@ def test_qa_brain_routing_plan_deduplicates_next_actions(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_routing_plan as routing_plan
 
     def fake_packaging(*, project_root: Path) -> QaBrainModelPackagingPlanPacket:
         _ = project_root
@@ -535,7 +538,6 @@ def test_qa_brain_routing_plan_deduplicates_next_actions(
 
 
 def test_qa_brain_routing_plan_defensive_next_action_fallback() -> None:
-    import entroping.core.plan.qa_brain_routing_plan as routing_plan
 
     assert routing_plan._plan_next_action(
         row=_packaging_row("weak_test_detection"),
@@ -560,7 +562,6 @@ def test_qa_brain_routing_plan_wraps_packaging_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_routing_plan as routing_plan
 
     def fail_packaging(*, project_root: Path) -> QaBrainModelPackagingPlanPacket:
         _ = project_root
@@ -580,7 +581,6 @@ def test_qa_brain_routing_plan_rejects_unknown_case_metadata(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_routing_plan as routing_plan
 
     def fake_packaging(*, project_root: Path) -> SimpleNamespace:
         _ = project_root
@@ -621,7 +621,6 @@ def test_qa_brain_routing_plan_rejects_missing_stage_metadata(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_routing_plan as routing_plan
 
     def fake_packaging(*, project_root: Path) -> QaBrainModelPackagingPlanPacket:
         _ = project_root
@@ -671,7 +670,6 @@ def test_qa_brain_routing_plan_build_rejects_secret_like_packet_content(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_routing_plan as routing_plan
 
     secret_marker = _provider_token_fixture()
 
@@ -703,7 +701,6 @@ def test_qa_brain_routing_plan_writer_rejects_secret_like_rendered_output(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import entroping.core.plan.qa_brain_routing_plan as routing_plan
 
     secret_marker = _provider_token_fixture()
 

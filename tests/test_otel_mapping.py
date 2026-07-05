@@ -10,15 +10,24 @@ import entroping.core.readiness.observability_adapter_readiness as adapter_readi
 from entroping.bridge.test_pyramid import TEST_PYRAMID_REPORT_SCHEMA_VERSION
 from entroping.core.evidence.external_test_evidence import EXTERNAL_TEST_EVIDENCE_SCHEMA_VERSION
 from entroping.core.evidence.observability_packet import OBSERVABILITY_PACKET_SCHEMA_VERSION
-from entroping.core.evidence.otel_mapping import (
-    OTEL_MAPPING_SCHEMA_VERSION,
-    OtelMappingError,
-    build_otel_mapping_packet,
-    render_otel_mapping_markdown,
-    run_otel_mapping_report,
-)
 from entroping.core.runtime_card import RUNTIME_CARD_SCHEMA_VERSION
 from entroping.core.safe_write import SafeWriteError
+
+OTEL_MAPPING_SCHEMA_VERSION = (
+    otel_mapping.OTEL_MAPPING_SCHEMA_VERSION
+)
+OtelMappingError = (
+    otel_mapping.OtelMappingError
+)
+build_otel_mapping_packet = (
+    otel_mapping.build_otel_mapping_packet
+)
+render_otel_mapping_markdown = (
+    otel_mapping.render_otel_mapping_markdown
+)
+run_otel_mapping_report = (
+    otel_mapping.run_otel_mapping_report
+)
 
 
 def test_run_otel_mapping_writes_value_free_json_from_local_evidence(

@@ -8,13 +8,20 @@ from pathlib import Path
 import pytest
 
 import entroping.core.evidence.pilot_cohort as pilot_cohort
-from entroping.core.evidence.pilot_cohort import (
-    PILOT_COHORT_SCHEMA_VERSION,
-    PilotCohortError,
-    build_pilot_cohort_packet,
-    run_pilot_cohort_report,
-)
 from entroping.core.safe_write import SafeWriteError
+
+PILOT_COHORT_SCHEMA_VERSION = (
+    pilot_cohort.PILOT_COHORT_SCHEMA_VERSION
+)
+PilotCohortError = (
+    pilot_cohort.PilotCohortError
+)
+build_pilot_cohort_packet = (
+    pilot_cohort.build_pilot_cohort_packet
+)
+run_pilot_cohort_report = (
+    pilot_cohort.run_pilot_cohort_report
+)
 
 
 def _write_json(path: Path, payload: dict[str, object]) -> None:

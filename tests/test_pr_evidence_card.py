@@ -8,16 +8,29 @@ from pathlib import Path
 import pytest
 
 import entroping.core.evidence.pr_evidence_card as pr_evidence_card
-from entroping.core.evidence.pr_evidence_card import (
-    PR_EVIDENCE_CARD_SCHEMA_VERSION,
-    PrEvidenceCardError,
-    PrEvidenceCardSummaryError,
-    build_pr_evidence_card_packet,
-    render_pr_evidence_card_markdown,
-    run_pr_evidence_card_report,
-    run_pr_evidence_card_summary_report,
-)
 from entroping.core.safe_write import SafeWriteError
+
+PR_EVIDENCE_CARD_SCHEMA_VERSION = (
+    pr_evidence_card.PR_EVIDENCE_CARD_SCHEMA_VERSION
+)
+PrEvidenceCardError = (
+    pr_evidence_card.PrEvidenceCardError
+)
+PrEvidenceCardSummaryError = (
+    pr_evidence_card.PrEvidenceCardSummaryError
+)
+build_pr_evidence_card_packet = (
+    pr_evidence_card.build_pr_evidence_card_packet
+)
+render_pr_evidence_card_markdown = (
+    pr_evidence_card.render_pr_evidence_card_markdown
+)
+run_pr_evidence_card_report = (
+    pr_evidence_card.run_pr_evidence_card_report
+)
+run_pr_evidence_card_summary_report = (
+    pr_evidence_card.run_pr_evidence_card_summary_report
+)
 
 _SOURCE_SCHEMAS: dict[str, str] = {
     "runtime-card-json": "entroping.runtime-card.v1",

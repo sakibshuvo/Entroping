@@ -8,14 +8,23 @@ from typing import Any, cast
 import pytest
 
 import entroping.core.evidence.pilot_metrics as pilot_metrics
-from entroping.core.evidence.pilot_metrics import (
-    PILOT_METRICS_SCHEMA_VERSION,
-    PilotMetricsError,
-    build_pilot_metrics_report,
-    render_pilot_metrics_markdown,
-    run_pilot_metrics_report,
-)
 from entroping.core.safe_write import SafeWriteError
+
+PILOT_METRICS_SCHEMA_VERSION = (
+    pilot_metrics.PILOT_METRICS_SCHEMA_VERSION
+)
+PilotMetricsError = (
+    pilot_metrics.PilotMetricsError
+)
+build_pilot_metrics_report = (
+    pilot_metrics.build_pilot_metrics_report
+)
+render_pilot_metrics_markdown = (
+    pilot_metrics.render_pilot_metrics_markdown
+)
+run_pilot_metrics_report = (
+    pilot_metrics.run_pilot_metrics_report
+)
 
 
 def _write_json(path: Path, payload: dict[str, object]) -> None:
