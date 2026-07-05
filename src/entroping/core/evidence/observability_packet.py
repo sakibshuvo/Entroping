@@ -248,14 +248,12 @@ def run_observability_packet_report(
 
 
 def _observability_output(output: str) -> ObservabilityOutput:
-    match output:
-        case "md":
-            return "md"
-        case "json":
-            return "json"
-        case _:
-            msg = f"Unsupported observability output: {output}"
-            raise ObservabilityPacketError(msg)
+    if output == "md":
+        return "md"
+    if output == "json":
+        return "json"
+    msg = f"Unsupported observability output: {output}"
+    raise ObservabilityPacketError(msg)
 
 
 def build_observability_packet(

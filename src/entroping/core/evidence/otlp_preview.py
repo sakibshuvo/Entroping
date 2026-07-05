@@ -350,14 +350,12 @@ def render_otlp_preview_markdown(packet: OtlpPreviewPacket) -> str:
 
 
 def _otlp_preview_output(output: str) -> OtlpPreviewOutput:
-    match output:
-        case "md":
-            return "md"
-        case "json":
-            return "json"
-        case _:
-            msg = f"Unsupported otlp-preview output: {output}"
-            raise OtlpPreviewError(msg)
+    if output == "md":
+        return "md"
+    if output == "json":
+        return "json"
+    msg = f"Unsupported otlp-preview output: {output}"
+    raise OtlpPreviewError(msg)
 
 
 def _render_packet_content(packet: OtlpPreviewPacket, *, output: OtlpPreviewOutput) -> str:
