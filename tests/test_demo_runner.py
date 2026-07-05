@@ -6,24 +6,11 @@ from pathlib import Path
 import pytest
 
 import entroping.core.demo_runner as demo_runner
-from entroping.core.demo_runner import (
-    DemoCommandResult,
-    DemoCommandStep,
-    DemoRunnerError,
-    DemoRunnerPlan,
-    DemoWorkspace,
-    build_demo_command_plan,
-    demo_plan_to_dict,
-    demo_result_to_dict,
-    provision_demo_workspace,
-    run_demo_plan,
-    run_demo_workspace,
-)
 from entroping.core.safe_write import SafeWriteError
 
 
 def test_provision_demo_workspace_copies_demo_fixture_and_can_be_cleaned() -> None:
-    workspace = provision_demo_workspace()
+    workspace = demo_runner.provision_demo_workspace()
     try:
         assert workspace.root.is_dir()
         assert workspace.fixture_id == "checkout-api"
@@ -41,7 +28,7 @@ def test_provision_demo_workspace_copies_demo_fixture_and_can_be_cleaned() -> No
 def test_provision_demo_workspace_can_use_empty_selected_project(tmp_path: Path) -> None:
     project = tmp_path / "my-demo-project"
 
-    workspace = provision_demo_workspace(destination=project)
+    workspace = demo_runner.provision_demo_workspace(destination=project)
 
     assert workspace.root == project.resolve()
     assert workspace.temporary is False
@@ -56,8 +43,8 @@ def test_provision_demo_workspace_rejects_non_empty_selected_project(tmp_path: P
     (project / "README.md").write_text("real project\n", encoding="utf-8")
 
     try:
-        _ = provision_demo_workspace(destination=project)
-    except DemoRunnerError as exc:
+        _ = demo_runner.provision_demo_workspace(destination=project)
+    except demo_runner.DemoRunnerError as exc:
         assert "must be empty" in str(exc)
     else:
         raise AssertionError("expected non-empty demo project destination to fail")
@@ -68,17 +55,17 @@ def test_provision_demo_workspace_rejects_file_destination(tmp_path: Path) -> No
     destination.write_text("not a directory\n", encoding="utf-8")
 
     try:
-        _ = provision_demo_workspace(destination=destination)
-    except DemoRunnerError as exc:
+        _ = demo_runner.provision_demo_workspace(destination=destination)
+    except demo_runner.DemoRunnerError as exc:
         assert "must be a directory" in str(exc)
     else:
         raise AssertionError("expected file demo project destination to fail")
 
 
 def test_build_demo_command_plan_includes_architect_and_optional_smoke_run() -> None:
-    workspace = provision_demo_workspace()
+    workspace = demo_runner.provision_demo_workspace()
     try:
-        plan = build_demo_command_plan(
+        plan = demo_runner.build_demo_command_plan(
             workspace=workspace,
             include_smoke_run=True,
             report_formats=("json", "junit"),
@@ -112,9 +99,9 @@ def test_build_demo_command_plan_includes_architect_and_optional_smoke_run() -> 
 
 
 def test_build_demo_command_plan_accepts_explicit_command_prefix() -> None:
-    workspace = provision_demo_workspace()
+    workspace = demo_runner.provision_demo_workspace()
     try:
-        plan = build_demo_command_plan(
+        plan = demo_runner.build_demo_command_plan(
             workspace=workspace,
             include_smoke_run=True,
             command_prefix=(sys.executable, "-m", "entroping.cli.main"),
@@ -138,11 +125,11 @@ def test_build_demo_command_plan_accepts_explicit_command_prefix() -> None:
 
 
 def test_build_demo_command_plan_rejects_empty_command_prefix() -> None:
-    workspace = provision_demo_workspace()
+    workspace = demo_runner.provision_demo_workspace()
     try:
         try:
-            _ = build_demo_command_plan(workspace=workspace, command_prefix=("", " "))
-        except DemoRunnerError as exc:
+            _ = demo_runner.build_demo_command_plan(workspace=workspace, command_prefix=("", " "))
+        except demo_runner.DemoRunnerError as exc:
             assert "command prefix must not be empty" in str(exc)
         else:
             raise AssertionError("expected empty command prefix to fail")
@@ -151,25 +138,25 @@ def test_build_demo_command_plan_rejects_empty_command_prefix() -> None:
 
 
 def test_run_demo_plan_dry_run_and_fake_executor_return_summary() -> None:
-    workspace = provision_demo_workspace()
+    workspace = demo_runner.provision_demo_workspace()
     try:
-        plan = build_demo_command_plan(workspace=workspace, include_smoke_run=True)
+        plan = demo_runner.build_demo_command_plan(workspace=workspace, include_smoke_run=True)
 
-        dry_run_result = run_demo_plan(plan=plan, dry_run=True)
+        dry_run_result = demo_runner.run_demo_plan(plan=plan, dry_run=True)
         assert dry_run_result.status == "ready"
         assert dry_run_result.summary.total_commands == 2
         assert dry_run_result.summary.not_run == 2
         assert all(item.status == "not_run" for item in dry_run_result.command_results)
 
-        def fake_executor(_: DemoCommandStep) -> DemoCommandResult:
-            return DemoCommandResult(
+        def fake_executor(_: demo_runner.DemoCommandStep) -> demo_runner.DemoCommandResult:
+            return demo_runner.DemoCommandResult(
                 name="fake-command",
                 status="passed",
                 exit_code=0,
                 duration_ms=5,
             )
 
-        live_result = run_demo_plan(
+        live_result = demo_runner.run_demo_plan(
             plan=plan,
             dry_run=False,
             executor=fake_executor,
@@ -182,13 +169,13 @@ def test_run_demo_plan_dry_run_and_fake_executor_return_summary() -> None:
 
 
 def test_run_demo_plan_reports_blocked_and_empty_plans(tmp_path: Path) -> None:
-    blocked_plan = DemoRunnerPlan(
+    blocked_plan = demo_runner.DemoRunnerPlan(
         status="blocked",
         message="missing fixture",
         fixture_id="checkout-api",
         workspace=tmp_path,
         commands=(
-            DemoCommandStep(
+            demo_runner.DemoCommandStep(
                 name="blocked-command",
                 argv=("uv", "--version"),
                 cwd=tmp_path,
@@ -197,12 +184,12 @@ def test_run_demo_plan_reports_blocked_and_empty_plans(tmp_path: Path) -> None:
         ),
     )
 
-    blocked_result = run_demo_plan(plan=blocked_plan, dry_run=False)
+    blocked_result = demo_runner.run_demo_plan(plan=blocked_plan, dry_run=False)
     assert blocked_result.status == "blocked"
     assert blocked_result.summary.blocked == 1
     assert blocked_result.command_results[0].status == "blocked"
 
-    empty_plan = DemoRunnerPlan(
+    empty_plan = demo_runner.DemoRunnerPlan(
         status="ready",
         message="empty",
         fixture_id="checkout-api",
@@ -210,19 +197,19 @@ def test_run_demo_plan_reports_blocked_and_empty_plans(tmp_path: Path) -> None:
         commands=(),
     )
 
-    empty_result = run_demo_plan(plan=empty_plan, dry_run=False)
+    empty_result = demo_runner.run_demo_plan(plan=empty_plan, dry_run=False)
     assert empty_result.status == "ready"
     assert empty_result.summary.total_commands == 0
 
 
 def test_demo_runner_serializes_plan_and_result() -> None:
-    workspace = provision_demo_workspace()
+    workspace = demo_runner.provision_demo_workspace()
     try:
-        plan = build_demo_command_plan(workspace=workspace)
-        result = run_demo_plan(plan=plan, dry_run=True)
+        plan = demo_runner.build_demo_command_plan(workspace=workspace)
+        result = demo_runner.run_demo_plan(plan=plan, dry_run=True)
 
-        plan_payload = demo_plan_to_dict(plan)
-        result_payload = demo_result_to_dict(result)
+        plan_payload = demo_runner.demo_plan_to_dict(plan)
+        result_payload = demo_runner.demo_result_to_dict(result)
 
         assert plan_payload["schema_version"] == "entroping.demo-runner.v1"
         assert plan_payload["command_count"] == 1
@@ -241,9 +228,9 @@ def test_demo_runner_serializes_plan_and_result() -> None:
 
 
 def test_demo_plan_rejects_invalid_report_format_and_allows_empty_formats() -> None:
-    workspace = provision_demo_workspace()
+    workspace = demo_runner.provision_demo_workspace()
     try:
-        empty_format_plan = build_demo_command_plan(
+        empty_format_plan = demo_runner.build_demo_command_plan(
             workspace=workspace,
             include_smoke_run=True,
             report_formats=(),
@@ -253,12 +240,12 @@ def test_demo_plan_rejects_invalid_report_format_and_allows_empty_formats() -> N
         ]
 
         try:
-            _ = build_demo_command_plan(
+            _ = demo_runner.build_demo_command_plan(
                 workspace=workspace,
                 include_smoke_run=True,
                 report_formats=("xml",),
             )
-        except DemoRunnerError as exc:
+        except demo_runner.DemoRunnerError as exc:
             assert str(exc) == "Unsupported demo report format: xml"
         else:
             raise AssertionError("expected invalid demo report format to fail")
@@ -268,29 +255,29 @@ def test_demo_plan_rejects_invalid_report_format_and_allows_empty_formats() -> N
 
 def test_provision_demo_workspace_wraps_fixture_errors() -> None:
     try:
-        _ = provision_demo_workspace(fixture_id="missing-demo-fixture")
-    except DemoRunnerError as exc:
+        _ = demo_runner.provision_demo_workspace(fixture_id="missing-demo-fixture")
+    except demo_runner.DemoRunnerError as exc:
         assert "Unknown demo fixture" in str(exc)
     else:
         raise AssertionError("expected missing demo fixture to fail")
 
 
 def test_default_executor_reports_subprocess_exit_codes(tmp_path: Path) -> None:
-    passed_command = DemoCommandStep(
+    passed_command = demo_runner.DemoCommandStep(
         name="python-pass",
         argv=(sys.executable, "-c", "raise SystemExit(0)"),
         cwd=tmp_path,
         description="Successful command should pass.",
     )
-    failed_command = DemoCommandStep(
+    failed_command = demo_runner.DemoCommandStep(
         name="python-fail",
         argv=(sys.executable, "-c", "raise SystemExit(7)"),
         cwd=tmp_path,
         description="Non-zero command should fail.",
     )
 
-    result = run_demo_plan(
-        plan=DemoRunnerPlan(
+    result = demo_runner.run_demo_plan(
+        plan=demo_runner.DemoRunnerPlan(
             status="ready",
             message="ready",
             fixture_id="checkout-api",
@@ -306,15 +293,15 @@ def test_default_executor_reports_subprocess_exit_codes(tmp_path: Path) -> None:
 
 
 def test_default_executor_returns_error_for_missing_command(tmp_path: Path) -> None:
-    command = DemoCommandStep(
+    command = demo_runner.DemoCommandStep(
         name="missing-command",
         argv=("entroping-demo-missing-command",),
         cwd=tmp_path,
         description="Missing command should become value-free error metadata.",
     )
 
-    result = run_demo_plan(
-        plan=DemoRunnerPlan(
+    result = demo_runner.run_demo_plan(
+        plan=demo_runner.DemoRunnerPlan(
             status="ready",
             message="ready",
             fixture_id="checkout-api",
@@ -330,21 +317,21 @@ def test_default_executor_returns_error_for_missing_command(tmp_path: Path) -> N
 
 
 def test_run_demo_workspace_starts_server_writes_env_and_runs_plan() -> None:
-    workspace = provision_demo_workspace()
+    workspace = demo_runner.provision_demo_workspace()
     seen_commands: list[str] = []
     try:
         port = _unused_tcp_port()
 
-        def fake_executor(command: DemoCommandStep) -> DemoCommandResult:
+        def fake_executor(command: demo_runner.DemoCommandStep) -> demo_runner.DemoCommandResult:
             seen_commands.append(command.name)
-            return DemoCommandResult(
+            return demo_runner.DemoCommandResult(
                 name=command.name,
                 status="passed",
                 exit_code=0,
                 duration_ms=5,
             )
 
-        result = run_demo_workspace(
+        result = demo_runner.run_demo_workspace(
             workspace=workspace,
             port=port,
             executor=fake_executor,
@@ -360,11 +347,11 @@ def test_run_demo_workspace_starts_server_writes_env_and_runs_plan() -> None:
 
 
 def test_run_demo_workspace_rejects_invalid_port() -> None:
-    workspace = provision_demo_workspace()
+    workspace = demo_runner.provision_demo_workspace()
     try:
         try:
-            _ = run_demo_workspace(workspace=workspace, port=0)
-        except DemoRunnerError as exc:
+            _ = demo_runner.run_demo_workspace(workspace=workspace, port=0)
+        except demo_runner.DemoRunnerError as exc:
             assert "between 1 and 65535" in str(exc)
         else:
             raise AssertionError("expected invalid demo port to fail")
@@ -373,7 +360,7 @@ def test_run_demo_workspace_rejects_invalid_port() -> None:
 
 
 def test_run_demo_workspace_rejects_missing_server(tmp_path: Path) -> None:
-    workspace = DemoWorkspace(
+    workspace = demo_runner.DemoWorkspace(
         fixture_id="checkout-api",
         root=tmp_path,
         copied_files=(),
@@ -381,8 +368,8 @@ def test_run_demo_workspace_rejects_missing_server(tmp_path: Path) -> None:
     )
 
     try:
-        _ = run_demo_workspace(workspace=workspace)
-    except DemoRunnerError as exc:
+        _ = demo_runner.run_demo_workspace(workspace=workspace)
+    except demo_runner.DemoRunnerError as exc:
         assert "Demo server is missing" in str(exc)
     else:
         raise AssertionError("expected missing demo server to fail")
@@ -391,15 +378,16 @@ def test_run_demo_workspace_rejects_missing_server(tmp_path: Path) -> None:
 def test_run_demo_workspace_wraps_server_start_and_env_write_errors(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    workspace = provision_demo_workspace()
+    workspace = demo_runner.provision_demo_workspace()
     try:
+
         def fake_popen(*_: object, **__: object) -> subprocess.Popen[str]:
             raise OSError("blocked server")
 
         monkeypatch.setattr("entroping.core.demo_runner.subprocess.Popen", fake_popen)
         try:
-            _ = run_demo_workspace(workspace=workspace)
-        except DemoRunnerError as exc:
+            _ = demo_runner.run_demo_workspace(workspace=workspace)
+        except demo_runner.DemoRunnerError as exc:
             assert "Could not start demo server" in str(exc)
         else:
             raise AssertionError("expected demo server start failure")
@@ -407,13 +395,14 @@ def test_run_demo_workspace_wraps_server_start_and_env_write_errors(
         workspace.cleanup()
         monkeypatch.undo()
 
-    workspace = provision_demo_workspace()
+    workspace = demo_runner.provision_demo_workspace()
     try:
+
         def fake_safe_write_text(*_: object, **__: object) -> Path:
             raise SafeWriteError("blocked env")
 
-        def fake_executor(command: DemoCommandStep) -> DemoCommandResult:
-            return DemoCommandResult(
+        def fake_executor(command: demo_runner.DemoCommandStep) -> demo_runner.DemoCommandResult:
+            return demo_runner.DemoCommandResult(
                 name=command.name,
                 status="passed",
                 exit_code=0,
@@ -422,12 +411,12 @@ def test_run_demo_workspace_wraps_server_start_and_env_write_errors(
 
         monkeypatch.setattr(demo_runner, "safe_write_text", fake_safe_write_text)
         try:
-            _ = run_demo_workspace(
+            _ = demo_runner.run_demo_workspace(
                 workspace=workspace,
                 port=_unused_tcp_port(),
                 executor=fake_executor,
             )
-        except DemoRunnerError as exc:
+        except demo_runner.DemoRunnerError as exc:
             assert "blocked env" in str(exc)
         else:
             raise AssertionError("expected demo env write failure")
@@ -446,7 +435,7 @@ def test_demo_server_wait_and_stop_error_paths(monkeypatch: pytest.MonkeyPatch) 
             exited_process,
             port=18080,
         )
-    except DemoRunnerError as exc:
+    except demo_runner.DemoRunnerError as exc:
         assert "exited before readiness" in str(exc)
     else:
         raise AssertionError("expected exited demo server readiness failure")
@@ -461,7 +450,7 @@ def test_demo_server_wait_and_stop_error_paths(monkeypatch: pytest.MonkeyPatch) 
             pending_process,
             port=_unused_tcp_port(),
         )
-    except DemoRunnerError as exc:
+    except demo_runner.DemoRunnerError as exc:
         assert "did not become ready" in str(exc)
     else:
         raise AssertionError("expected demo server readiness timeout")

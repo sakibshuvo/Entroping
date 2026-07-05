@@ -8,13 +8,6 @@ import pytest
 import entroping.core.sarif_report as sarif_report
 from entroping.core.github_annotations import GitHubAnnotation, GitHubAnnotationError
 from entroping.core.safe_write import SafeWriteError
-from entroping.core.sarif_report import (
-    SarifReportError,
-    build_sarif_report,
-    run_sarif_report,
-    sarif_report_to_dict,
-    write_sarif_report,
-)
 
 
 def test_sarif_report_maps_annotations_to_rules_results_and_locations(
@@ -37,8 +30,8 @@ def test_sarif_report_maps_annotations_to_rules_results_and_locations(
         ),
     )
 
-    report = build_sarif_report(annotations, project_root=tmp_path)
-    payload = sarif_report_to_dict(report)
+    report = sarif_report.build_sarif_report(annotations, project_root=tmp_path)
+    payload = sarif_report.sarif_report_to_dict(report)
     run = payload["runs"][0]
     rules = run["tool"]["driver"]["rules"]
     results = run["results"]
@@ -97,7 +90,9 @@ def test_sarif_report_deduplicates_rules_and_sanitizes_secret_like_content(
         ),
     )
 
-    payload = sarif_report_to_dict(build_sarif_report(annotations, project_root=tmp_path))
+    payload = sarif_report.sarif_report_to_dict(
+        sarif_report.build_sarif_report(annotations, project_root=tmp_path)
+    )
     serialized = json.dumps(payload, sort_keys=True)
 
     assert "live-secret" not in serialized
@@ -105,9 +100,7 @@ def test_sarif_report_deduplicates_rules_and_sanitizes_secret_like_content(
     assert [rule["id"] for rule in payload["runs"][0]["tool"]["driver"]["rules"]] == [
         "entroping.drift.auth-token-redacted",
     ]
-    assert [
-        result["ruleId"] for result in payload["runs"][0]["results"]
-    ] == [
+    assert [result["ruleId"] for result in payload["runs"][0]["results"]] == [
         "entroping.drift.auth-token-redacted",
         "entroping.drift.auth-token-redacted",
     ]
@@ -145,7 +138,9 @@ def test_sarif_report_drops_unsafe_or_invalid_locations(tmp_path: Path) -> None:
         ),
     )
 
-    payload = sarif_report_to_dict(build_sarif_report(annotations, project_root=tmp_path))
+    payload = sarif_report.sarif_report_to_dict(
+        sarif_report.build_sarif_report(annotations, project_root=tmp_path)
+    )
     results = payload["runs"][0]["results"]
 
     assert "locations" not in results[0]
@@ -187,7 +182,9 @@ def test_sarif_report_handles_generic_rules_notice_level_and_empty_paths(
         ),
     )
 
-    payload = sarif_report_to_dict(build_sarif_report(annotations, project_root=tmp_path))
+    payload = sarif_report.sarif_report_to_dict(
+        sarif_report.build_sarif_report(annotations, project_root=tmp_path)
+    )
     results = payload["runs"][0]["results"]
 
     assert [rule["id"] for rule in payload["runs"][0]["tool"]["driver"]["rules"]] == [
@@ -220,7 +217,7 @@ def test_run_sarif_report_accepts_absolute_inputs_and_output(tmp_path: Path) -> 
     )
     output = reports_dir / "absolute.sarif"
 
-    result = run_sarif_report(
+    result = sarif_report.run_sarif_report(
         project_root=tmp_path,
         output_path=output,
         junit_path=junit,
@@ -240,8 +237,8 @@ def test_run_sarif_report_rejects_outside_project_output(tmp_path: Path) -> None
     project_root.mkdir()
     output = tmp_path / "outside.sarif"
 
-    with pytest.raises(SarifReportError, match="SARIF report path must stay under"):
-        run_sarif_report(
+    with pytest.raises(sarif_report.SarifReportError, match="SARIF report path must stay under"):
+        sarif_report.run_sarif_report(
             project_root=project_root,
             output_path=output,
             junit_path=project_root / "reports" / "missing-junit.xml",
@@ -270,7 +267,7 @@ def test_run_sarif_report_rejects_unsupported_drift_schema_versions(
     output = reports_dir / "entroping.sarif"
 
     with pytest.raises(GitHubAnnotationError, match="drift report schema_version"):
-        run_sarif_report(
+        sarif_report.run_sarif_report(
             project_root=tmp_path,
             output_path=output,
             junit_path=reports_dir / "missing-junit.xml",
@@ -282,7 +279,7 @@ def test_run_sarif_report_rejects_unsupported_drift_schema_versions(
 
 
 def test_write_sarif_report_writes_machine_readable_json(tmp_path: Path) -> None:
-    report = build_sarif_report(
+    report = sarif_report.build_sarif_report(
         (
             GitHubAnnotation(
                 level="error",
@@ -295,7 +292,7 @@ def test_write_sarif_report_writes_machine_readable_json(tmp_path: Path) -> None
         project_root=tmp_path,
     )
 
-    output = write_sarif_report(report, tmp_path / "reports" / "entroping.sarif")
+    output = sarif_report.write_sarif_report(report, tmp_path / "reports" / "entroping.sarif")
 
     assert output == tmp_path / "reports" / "entroping.sarif"
     payload = json.loads(output.read_text(encoding="utf-8"))
@@ -306,7 +303,7 @@ def test_write_sarif_report_wraps_safe_write_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    report = build_sarif_report((), project_root=tmp_path)
+    report = sarif_report.build_sarif_report((), project_root=tmp_path)
 
     def fail_safe_write(
         path: Path,
@@ -320,5 +317,5 @@ def test_write_sarif_report_wraps_safe_write_errors(
 
     monkeypatch.setattr(sarif_report, "safe_write_text", fail_safe_write)
 
-    with pytest.raises(SarifReportError, match="disk unavailable"):
-        write_sarif_report(report, tmp_path / "reports" / "entroping.sarif")
+    with pytest.raises(sarif_report.SarifReportError, match="disk unavailable"):
+        sarif_report.write_sarif_report(report, tmp_path / "reports" / "entroping.sarif")

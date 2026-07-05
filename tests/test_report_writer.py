@@ -15,16 +15,6 @@ import entroping.core.report_writer as report_writer
 from entroping.bridge.policy_to_hurl import HurlGateAssertion
 from entroping.core.gate_injector import AppliedKnownFailure, HurlExecutionCopy
 from entroping.core.hurl_runner import HurlAttemptEvidence, HurlFileResult, HurlSuiteResult
-from entroping.core.report_writer import (
-    ReportWriterError,
-    build_run_report,
-    load_run_report,
-    render_bug_report,
-    write_bug_report,
-    write_html_report,
-    write_json_report,
-    write_junit_report,
-)
 from entroping.core.safe_write import SafeWriteError
 from entroping.models.report import (
     RunReport,
@@ -90,7 +80,7 @@ def _suite_result(execution: Path, stderr: str) -> HurlSuiteResult:
 def test_write_json_report_includes_ci_debug_fields_and_redacts_output(tmp_path: Path) -> None:
     source = tmp_path / "tests" / "health.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="local",
         execution_copies=[_execution_copy(source, execution)],
@@ -99,7 +89,7 @@ def test_write_json_report_includes_ci_debug_fields_and_redacts_output(tmp_path:
     )
     output = tmp_path / "reports" / "run-latest.json"
 
-    write_json_report(report, output)
+    report_writer.write_json_report(report, output)
 
     data = json.loads(output.read_text(encoding="utf-8"))
     assert data["project"] == "checkout-api"
@@ -115,7 +105,7 @@ def test_write_json_report_includes_ci_debug_fields_and_redacts_output(tmp_path:
     assert "token=[REDACTED]" in data["tests"][0]["stderr"]
 
     junit_path = tmp_path / "reports" / "junit.xml"
-    write_junit_report(report, junit_path)
+    report_writer.write_junit_report(report, junit_path)
     properties = ElementTree.parse(junit_path).getroot().find("testcase/properties")
     assert properties is not None
     values = {
@@ -125,7 +115,7 @@ def test_write_json_report_includes_ci_debug_fields_and_redacts_output(tmp_path:
     assert values["entroping.timeout_ms"] == "2500"
 
     html_path = tmp_path / "reports" / "run-latest.html"
-    write_html_report(report, html_path)
+    report_writer.write_html_report(report, html_path)
     html = html_path.read_text(encoding="utf-8")
     assert "<th>Timeout</th>" in html
     assert "<td>2500 ms</td>" in html
@@ -134,7 +124,7 @@ def test_write_json_report_includes_ci_debug_fields_and_redacts_output(tmp_path:
 def test_reports_include_operation_id_evidence(tmp_path: Path) -> None:
     source = tmp_path / "tests" / "checkout.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "checkout.hurl"
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="local",
         execution_copies=[_execution_copy(source, execution, operation_id="createCheckout")],
@@ -150,7 +140,7 @@ def test_reports_include_operation_id_evidence(tmp_path: Path) -> None:
     assert first_test["operation_id"] == "createCheckout"
 
     junit_path = tmp_path / "reports" / "junit.xml"
-    write_junit_report(report, junit_path)
+    report_writer.write_junit_report(report, junit_path)
     properties = ElementTree.parse(junit_path).getroot().find("testcase/properties")
     assert properties is not None
     values = {
@@ -160,7 +150,7 @@ def test_reports_include_operation_id_evidence(tmp_path: Path) -> None:
     assert values["entroping.operation_id"] == "createCheckout"
 
     html_path = tmp_path / "reports" / "run-latest.html"
-    write_html_report(report, html_path)
+    report_writer.write_html_report(report, html_path)
     html = html_path.read_text(encoding="utf-8")
     assert "<th>Operation</th>" in html
     assert "createCheckout" in html
@@ -169,7 +159,7 @@ def test_reports_include_operation_id_evidence(tmp_path: Path) -> None:
 def test_reports_include_generated_negative_path_metadata(tmp_path: Path) -> None:
     source = tmp_path / "tests" / "generated" / "negative" / "checkout_boundary.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "checkout_boundary.hurl"
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="local",
         execution_copies=[
@@ -196,7 +186,7 @@ def test_reports_include_generated_negative_path_metadata(tmp_path: Path) -> Non
     assert first_test["severity"] == "medium"
 
     junit_path = tmp_path / "reports" / "junit.xml"
-    write_junit_report(report, junit_path)
+    report_writer.write_junit_report(report, junit_path)
     properties = ElementTree.parse(junit_path).getroot().find("testcase/properties")
     assert properties is not None
     values = {
@@ -208,7 +198,7 @@ def test_reports_include_generated_negative_path_metadata(tmp_path: Path) -> Non
     assert values["entroping.severity"] == "medium"
 
     html_path = tmp_path / "reports" / "run-latest.html"
-    write_html_report(report, html_path)
+    report_writer.write_html_report(report, html_path)
     html = html_path.read_text(encoding="utf-8")
     assert "boundary-values" in html
     assert "medium" in html
@@ -217,7 +207,7 @@ def test_reports_include_generated_negative_path_metadata(tmp_path: Path) -> Non
 def test_reports_include_auth_chain_evidence_without_secret_values(tmp_path: Path) -> None:
     source = tmp_path / "tests" / "auth_chain.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "auth_chain.hurl"
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="local",
         execution_copies=[
@@ -251,15 +241,15 @@ def test_reports_include_auth_chain_evidence_without_secret_values(tmp_path: Pat
     assert "live-csrf-secret" not in serialized
 
     output = tmp_path / "reports" / "run-latest.json"
-    write_json_report(report, output)
-    loaded = load_run_report(output)
+    report_writer.write_json_report(report, output)
+    loaded = report_writer.load_run_report(output)
     assert loaded.tests[0].auth is not None
     assert loaded.tests[0].auth.flow == "oauth2-client-credentials"
     assert loaded.tests[0].auth.requires == ("access_token", "csrf_token")
     assert loaded.tests[0].auth.produces == ("session_cookie",)
 
     junit_path = tmp_path / "reports" / "junit.xml"
-    write_junit_report(report, junit_path)
+    report_writer.write_junit_report(report, junit_path)
     properties = ElementTree.parse(junit_path).getroot().find("testcase/properties")
     assert properties is not None
     values = {
@@ -271,7 +261,7 @@ def test_reports_include_auth_chain_evidence_without_secret_values(tmp_path: Pat
     assert values["entroping.auth.produces"] == "session_cookie"
 
     html_path = tmp_path / "reports" / "run-latest.html"
-    write_html_report(report, html_path)
+    report_writer.write_html_report(report, html_path)
     html = html_path.read_text(encoding="utf-8")
     assert "auth_flow=oauth2-client-credentials" in html
     assert "auth_requires=access_token,csrf_token" in html
@@ -290,7 +280,7 @@ def test_reports_include_applied_known_failure_evidence(tmp_path: Path) -> None:
         expires="2026-06-30",
         reason="Temporary upstream latency regression.",
     )
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="local",
         execution_copies=[_execution_copy(source, execution, (known_failure,))],
@@ -314,7 +304,7 @@ def test_reports_include_applied_known_failure_evidence(tmp_path: Path) -> None:
     ]
 
     junit_path = tmp_path / "reports" / "junit.xml"
-    write_junit_report(report, junit_path)
+    report_writer.write_junit_report(report, junit_path)
     testcase = ElementTree.parse(junit_path).getroot().find("testcase")
     assert testcase is not None
     properties = testcase.find("properties")
@@ -328,7 +318,7 @@ def test_reports_include_applied_known_failure_evidence(tmp_path: Path) -> None:
     )
 
     html_path = tmp_path / "reports" / "run-latest.html"
-    write_html_report(report, html_path)
+    report_writer.write_html_report(report, html_path)
     html = html_path.read_text(encoding="utf-8")
     assert "Known failures" in html
     assert "GH-123" in html
@@ -354,7 +344,7 @@ def test_reports_surface_timeout_failures_distinctly(tmp_path: Path) -> None:
             ),
         ),
     )
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="ci",
         execution_copies=[_execution_copy(source, execution)],
@@ -372,7 +362,7 @@ def test_reports_surface_timeout_failures_distinctly(tmp_path: Path) -> None:
     assert first_test["timeout_ms"] == 250
 
     junit_path = tmp_path / "reports" / "junit.xml"
-    write_junit_report(report, junit_path)
+    report_writer.write_junit_report(report, junit_path)
     failure = ElementTree.parse(junit_path).getroot().find("testcase/failure")
     assert failure is not None
     assert failure.attrib["message"] == "timeout"
@@ -380,7 +370,7 @@ def test_reports_surface_timeout_failures_distinctly(tmp_path: Path) -> None:
     assert "timeout_ms: 250" in (failure.text or "")
 
     html_path = tmp_path / "reports" / "run-latest.html"
-    write_html_report(report, html_path)
+    report_writer.write_html_report(report, html_path)
     html = html_path.read_text(encoding="utf-8")
     assert 'class="timeout"' in html
     assert "Hurl subprocess timed out after 250 ms" in html
@@ -424,7 +414,7 @@ def test_reports_include_retry_and_flake_evidence_without_raw_attempt_output(
             ),
         ),
     )
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="local",
         execution_copies=[_execution_copy(source, execution)],
@@ -462,7 +452,7 @@ def test_reports_include_retry_and_flake_evidence_without_raw_attempt_output(
     assert "raw attempt" not in json.dumps(first_test)
 
     junit_path = tmp_path / "reports" / "junit.xml"
-    write_junit_report(report, junit_path)
+    report_writer.write_junit_report(report, junit_path)
     properties = ElementTree.parse(junit_path).getroot().find("testcase/properties")
     assert properties is not None
     values = {
@@ -475,7 +465,7 @@ def test_reports_include_retry_and_flake_evidence_without_raw_attempt_output(
     assert values["entroping.attempt.2"] == "passed exit=0 duration_ms=30"
 
     html_path = tmp_path / "reports" / "run-latest.html"
-    write_html_report(report, html_path)
+    report_writer.write_html_report(report, html_path)
     html = html_path.read_text(encoding="utf-8")
     assert "Retry evidence" in html
     assert "unstable: true" in html
@@ -520,7 +510,7 @@ def test_junit_failure_text_includes_retry_evidence_for_final_failures(
             ),
         ),
     )
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="ci",
         execution_copies=[_execution_copy(source, execution)],
@@ -529,7 +519,7 @@ def test_junit_failure_text_includes_retry_evidence_for_final_failures(
     )
 
     junit_path = tmp_path / "reports" / "junit.xml"
-    write_junit_report(report, junit_path)
+    report_writer.write_junit_report(report, junit_path)
 
     failure = ElementTree.parse(junit_path).getroot().find("testcase/failure")
     assert failure is not None
@@ -557,7 +547,7 @@ def test_junit_failure_text_replaces_xml_illegal_control_characters(
             ),
         ),
     )
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="ci",
         execution_copies=[_execution_copy(source, execution)],
@@ -566,7 +556,7 @@ def test_junit_failure_text_replaces_xml_illegal_control_characters(
     )
     output = tmp_path / "reports" / "junit.xml"
 
-    write_junit_report(report, output)
+    report_writer.write_junit_report(report, output)
 
     xml_text = output.read_text(encoding="utf-8")
     assert "\x01" not in xml_text
@@ -582,7 +572,7 @@ def test_junit_report_replaces_xml_illegal_control_characters_in_attributes(
 ) -> None:
     source = tmp_path / "tests" / "metadata-control.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "metadata-control.hurl"
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="ci",
         execution_copies=[
@@ -597,7 +587,7 @@ def test_junit_report_replaces_xml_illegal_control_characters_in_attributes(
     )
     output = tmp_path / "reports" / "junit.xml"
 
-    write_junit_report(report, output)
+    report_writer.write_junit_report(report, output)
 
     xml_text = output.read_text(encoding="utf-8")
     assert "\x01" not in xml_text
@@ -676,7 +666,7 @@ def test_load_run_report_round_trips_retry_evidence_and_ignores_malformed_entrie
         encoding="utf-8",
     )
 
-    report = load_run_report(latest)
+    report = report_writer.load_run_report(latest)
 
     assert report.tests[0].timeout_ms == 2500
     assert report.tests[1].timeout_ms == 0
@@ -736,7 +726,7 @@ def test_load_run_report_rejects_unversioned_or_unsupported_schema(
         ValueError,
         match="must use schema_version entroping\\.run-report\\.v1",
     ) as exc_info:
-        load_run_report(latest)
+        report_writer.load_run_report(latest)
     if forbidden_error_fragment is not None:
         assert forbidden_error_fragment not in str(exc_info.value)
 
@@ -747,7 +737,7 @@ def test_load_run_report_rejects_non_object_payload(tmp_path: Path) -> None:
     latest.write_text("[]\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="must be a JSON object"):
-        load_run_report(latest)
+        report_writer.load_run_report(latest)
 
 
 def test_load_run_report_rejects_oversize_report_before_json_parse(
@@ -760,7 +750,7 @@ def test_load_run_report_rejects_oversize_report_before_json_parse(
     monkeypatch.setattr(report_serialization, "_MAX_RUN_REPORT_BYTES", 8, raising=False)
 
     with pytest.raises(ValueError, match="exceeds 8 bytes"):
-        load_run_report(latest)
+        report_writer.load_run_report(latest)
 
 
 def test_load_run_report_rejects_non_string_schema_version(tmp_path: Path) -> None:
@@ -782,7 +772,7 @@ def test_load_run_report_rejects_non_string_schema_version(tmp_path: Path) -> No
     )
 
     with pytest.raises(ValueError, match="field schema_version must be a string") as exc_info:
-        load_run_report(latest)
+        report_writer.load_run_report(latest)
     assert "private-runtime-value" not in str(exc_info.value)
 
 
@@ -824,7 +814,7 @@ def test_load_run_report_ignores_bool_optional_integer_fields(tmp_path: Path) ->
         encoding="utf-8",
     )
 
-    report = load_run_report(latest)
+    report = report_writer.load_run_report(latest)
 
     assert report.summary.selected is None
     assert report.summary.executed is None
@@ -1049,7 +1039,7 @@ def test_load_run_report_rejects_versioned_payload_with_invalid_required_fields(
     latest.write_text(json.dumps(payload) + "\n", encoding="utf-8")
 
     with pytest.raises(ValueError) as exc_info:
-        load_run_report(latest)
+        report_writer.load_run_report(latest)
     assert expected_error in str(exc_info.value)
     assert "private-runtime-value" not in str(exc_info.value)
     assert "private-summary-value" not in str(exc_info.value)
@@ -1152,7 +1142,7 @@ def test_load_run_report_round_trips_safety_and_ignores_malformed_entries(
         encoding="utf-8",
     )
 
-    report = load_run_report(latest)
+    report = report_writer.load_run_report(latest)
 
     assert report.tests[0].safety == RunSafetyEvidence(
         protected_environment=True,
@@ -1167,7 +1157,7 @@ def test_load_run_report_round_trips_safety_and_ignores_malformed_entries(
 def test_junit_report_includes_safety_properties(tmp_path: Path) -> None:
     source = tmp_path / "tests" / "checkout.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "checkout.hurl"
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="prod",
         execution_copies=[_execution_copy(source, execution)],
@@ -1209,7 +1199,7 @@ def test_junit_report_includes_safety_properties(tmp_path: Path) -> None:
     )
 
     junit_path = tmp_path / "reports" / "junit.xml"
-    write_junit_report(report, junit_path)
+    report_writer.write_junit_report(report, junit_path)
 
     properties = ElementTree.parse(junit_path).getroot().findall("testcase/properties/property")
     values = {item.attrib["name"]: item.attrib["value"] for item in properties}
@@ -1224,7 +1214,7 @@ def test_junit_report_includes_safety_properties(tmp_path: Path) -> None:
 def test_junit_report_includes_suite_scheduling_properties(tmp_path: Path) -> None:
     source = tmp_path / "tests" / "checkout.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "checkout.hurl"
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="prod",
         execution_copies=[_execution_copy(source, execution)],
@@ -1248,7 +1238,7 @@ def test_junit_report_includes_suite_scheduling_properties(tmp_path: Path) -> No
     )
     output = tmp_path / "reports" / "junit.xml"
 
-    write_junit_report(report, output)
+    report_writer.write_junit_report(report, output)
 
     suite_properties = ElementTree.parse(output).getroot().findall("properties/property")
     values = {item.attrib["name"]: item.attrib["value"] for item in suite_properties}
@@ -1265,7 +1255,7 @@ def test_normal_run_omits_suite_scheduling_evidence_across_report_formats(
 ) -> None:
     source = tmp_path / "tests" / "health.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="local",
         execution_copies=[_execution_copy(source, execution)],
@@ -1296,11 +1286,11 @@ def test_normal_run_omits_suite_scheduling_evidence_across_report_formats(
     }
 
     junit_path = tmp_path / "reports" / "junit.xml"
-    write_junit_report(report, junit_path)
+    report_writer.write_junit_report(report, junit_path)
     assert ElementTree.parse(junit_path).getroot().find("properties") is None
 
     html_path = tmp_path / "reports" / "run-latest.html"
-    write_html_report(report, html_path)
+    report_writer.write_html_report(report, html_path)
     html = html_path.read_text(encoding="utf-8")
     assert "<dt>Selected</dt>" not in html
     assert "<dt>Executed</dt>" not in html
@@ -1350,7 +1340,7 @@ def test_selected_executed_gap_derives_scheduling_evidence_across_report_formats
     }
 
     junit_path = tmp_path / "reports" / "junit.xml"
-    write_junit_report(report, junit_path)
+    report_writer.write_junit_report(report, junit_path)
     suite_properties = ElementTree.parse(junit_path).getroot().findall("properties/property")
     values = {item.attrib["name"]: item.attrib["value"] for item in suite_properties}
     assert values == {
@@ -1361,7 +1351,7 @@ def test_selected_executed_gap_derives_scheduling_evidence_across_report_formats
     }
 
     html_path = tmp_path / "reports" / "run-latest.html"
-    write_html_report(report, html_path)
+    report_writer.write_html_report(report, html_path)
     html = html_path.read_text(encoding="utf-8")
     assert "<dt>Selected</dt><dd>2</dd>" in html
     assert "<dt>Executed</dt><dd>1</dd>" in html
@@ -1372,7 +1362,7 @@ def test_selected_executed_gap_derives_scheduling_evidence_across_report_formats
 def test_html_report_includes_safety_summary_and_none_fallback(tmp_path: Path) -> None:
     source = tmp_path / "tests" / "checkout.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "checkout.hurl"
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="prod",
         execution_copies=[_execution_copy(source, execution)],
@@ -1406,7 +1396,7 @@ def test_html_report_includes_safety_summary_and_none_fallback(tmp_path: Path) -
     )
     output = tmp_path / "reports" / "run-latest.html"
 
-    write_html_report(report, output)
+    report_writer.write_html_report(report, output)
 
     html = output.read_text(encoding="utf-8")
     assert "<strong>Safety</strong>" in html
@@ -1431,7 +1421,7 @@ def test_html_report_includes_safety_summary_and_none_fallback(tmp_path: Path) -
 def test_html_report_includes_suite_scheduling_summary(tmp_path: Path) -> None:
     source = tmp_path / "tests" / "checkout.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "checkout.hurl"
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="prod",
         execution_copies=[_execution_copy(source, execution)],
@@ -1455,7 +1445,7 @@ def test_html_report_includes_suite_scheduling_summary(tmp_path: Path) -> None:
     )
     output = tmp_path / "reports" / "run-latest.html"
 
-    write_html_report(report, output)
+    report_writer.write_html_report(report, output)
 
     html = output.read_text(encoding="utf-8")
     assert "<dt>Selected</dt><dd>2</dd>" in html
@@ -1488,7 +1478,7 @@ def test_write_json_report_includes_sanitized_response_fingerprint(tmp_path: Pat
             ),
         ),
     )
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="local",
         execution_copies=[_execution_copy(source, execution)],
@@ -1497,7 +1487,7 @@ def test_write_json_report_includes_sanitized_response_fingerprint(tmp_path: Pat
     )
     output = tmp_path / "reports" / "run-latest.json"
 
-    write_json_report(report, output)
+    report_writer.write_json_report(report, output)
 
     response = json.loads(output.read_text(encoding="utf-8"))["tests"][0]["response"]
     assert response == {
@@ -1521,7 +1511,7 @@ def test_build_run_report_omits_response_when_stdout_is_not_structured(
 ) -> None:
     source = tmp_path / "tests" / "health.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="local",
         execution_copies=[_execution_copy(source, execution)],
@@ -1567,7 +1557,7 @@ def test_load_run_report_round_trips_response_fingerprint(tmp_path: Path) -> Non
         encoding="utf-8",
     )
 
-    report = load_run_report(latest)
+    report = report_writer.load_run_report(latest)
 
     response = report.tests[0].response
     assert response is not None
@@ -1630,7 +1620,7 @@ def test_load_run_report_ignores_malformed_optional_response_fields(tmp_path: Pa
         encoding="utf-8",
     )
 
-    report = load_run_report(latest)
+    report = report_writer.load_run_report(latest)
 
     assert report.tests[0].response is None
     assert report.tests[1].response is None
@@ -1709,7 +1699,7 @@ def test_load_run_report_round_trips_valid_known_failures_and_ignores_malformed_
         encoding="utf-8",
     )
 
-    report = load_run_report(latest)
+    report = report_writer.load_run_report(latest)
 
     assert [
         (
@@ -1811,7 +1801,7 @@ def test_load_run_report_round_trips_auth_evidence_and_ignores_malformed_entries
         encoding="utf-8",
     )
 
-    report = load_run_report(latest)
+    report = report_writer.load_run_report(latest)
 
     assert report.tests[0].auth is not None
     assert report.tests[0].auth.flow == "oauth2-client-credentials"
@@ -1878,7 +1868,7 @@ def test_load_run_report_trims_valid_operation_ids_and_ignores_malformed_values(
         encoding="utf-8",
     )
 
-    report = load_run_report(latest)
+    report = report_writer.load_run_report(latest)
 
     assert [test.operation_id for test in report.tests] == [None, None, "createCheckout"]
 
@@ -1889,7 +1879,7 @@ def test_write_json_report_preserves_existing_target_when_atomic_write_fails(
 ) -> None:
     source = tmp_path / "tests" / "health.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="local",
         execution_copies=[_execution_copy(source, execution)],
@@ -1906,8 +1896,8 @@ def test_write_json_report_preserves_existing_target_when_atomic_write_fails(
 
     monkeypatch.setattr(report_writer, "safe_write_text", fail_safe_write)
 
-    with pytest.raises(ReportWriterError, match="temporary write failed"):
-        write_json_report(report, output)
+    with pytest.raises(report_writer.ReportWriterError, match="temporary write failed"):
+        report_writer.write_json_report(report, output)
 
     assert output.read_text(encoding="utf-8") == "old\n"
 
@@ -1918,7 +1908,7 @@ def test_report_writers_use_concrete_artifact_labels(
 ) -> None:
     source = tmp_path / "tests" / "health.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="local",
         execution_copies=[_execution_copy(source, execution)],
@@ -1941,10 +1931,10 @@ def test_report_writers_use_concrete_artifact_labels(
     monkeypatch.setattr(report_writer, "safe_write_text", capture_safe_write_text)
     monkeypatch.setattr(report_writer, "safe_write_bytes", capture_safe_write_bytes)
 
-    write_json_report(report, tmp_path / "reports" / "run-latest.json")
-    write_html_report(report, tmp_path / "reports" / "run.html")
-    write_bug_report(report, tmp_path / "reports" / "bug.md")
-    write_junit_report(report, tmp_path / "reports" / "junit.xml")
+    report_writer.write_json_report(report, tmp_path / "reports" / "run-latest.json")
+    report_writer.write_html_report(report, tmp_path / "reports" / "run.html")
+    report_writer.write_bug_report(report, tmp_path / "reports" / "bug.md")
+    report_writer.write_junit_report(report, tmp_path / "reports" / "junit.xml")
 
     assert text_artifacts == ["run report", "HTML report", "bug report"]
     assert byte_artifacts == ["JUnit XML report"]
@@ -1953,8 +1943,10 @@ def test_report_writers_use_concrete_artifact_labels(
 def test_build_run_report_rejects_mismatched_execution_and_result_counts(tmp_path: Path) -> None:
     execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
 
-    with pytest.raises(ReportWriterError, match="Execution copy count does not match"):
-        build_run_report(
+    with pytest.raises(
+        report_writer.ReportWriterError, match="Execution copy count does not match"
+    ):
+        report_writer.build_run_report(
             project="checkout-api",
             environment="local",
             execution_copies=[],
@@ -1968,8 +1960,8 @@ def test_build_run_report_rejects_result_without_execution_copy(tmp_path: Path) 
     execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
     unrelated_execution = tmp_path / ".entroping" / "run-1" / "other.hurl"
 
-    with pytest.raises(ReportWriterError, match="Hurl result path does not match"):
-        build_run_report(
+    with pytest.raises(report_writer.ReportWriterError, match="Hurl result path does not match"):
+        report_writer.build_run_report(
             project="checkout-api",
             environment="local",
             execution_copies=[_execution_copy(source, execution)],
@@ -1985,7 +1977,7 @@ def test_build_run_report_displays_absolute_paths_outside_project_root(tmp_path:
     outside_source = tmp_path.parent / "external-health.hurl"
     outside_execution = tmp_path.parent / "external-run-health.hurl"
 
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="local",
         execution_copies=[_execution_copy(outside_source, outside_execution)],
@@ -2053,7 +2045,7 @@ def test_junit_elementtree_nosec_documents_construction_only() -> None:
 def test_write_junit_report_is_valid_ci_consumable_xml(tmp_path: Path) -> None:
     source = tmp_path / "tests" / "health.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="ci",
         execution_copies=[_execution_copy(source, execution)],
@@ -2062,7 +2054,7 @@ def test_write_junit_report_is_valid_ci_consumable_xml(tmp_path: Path) -> None:
     )
     output = tmp_path / "reports" / "junit.xml"
 
-    write_junit_report(report, output)
+    report_writer.write_junit_report(report, output)
 
     root = ElementTree.parse(output).getroot()
     assert root.tag == "testsuite"
@@ -2085,7 +2077,7 @@ def test_write_junit_report_preserves_existing_target_when_atomic_write_fails(
 ) -> None:
     source = tmp_path / "tests" / "health.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="ci",
         execution_copies=[_execution_copy(source, execution)],
@@ -2102,8 +2094,8 @@ def test_write_junit_report_preserves_existing_target_when_atomic_write_fails(
 
     monkeypatch.setattr(report_writer, "safe_write_bytes", fail_safe_write)
 
-    with pytest.raises(ReportWriterError, match="temporary write failed"):
-        write_junit_report(report, output)
+    with pytest.raises(report_writer.ReportWriterError, match="temporary write failed"):
+        report_writer.write_junit_report(report, output)
 
     assert output.read_text(encoding="utf-8") == "<old />\n"
 
@@ -2111,7 +2103,7 @@ def test_write_junit_report_preserves_existing_target_when_atomic_write_fails(
 def test_write_html_report_escapes_failure_output(tmp_path: Path) -> None:
     source = tmp_path / "tests" / "health.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="local",
         execution_copies=[_execution_copy(source, execution)],
@@ -2120,7 +2112,7 @@ def test_write_html_report_escapes_failure_output(tmp_path: Path) -> None:
     )
     output = tmp_path / "reports" / "run-latest.html"
 
-    write_html_report(report, output)
+    report_writer.write_html_report(report, output)
 
     html = output.read_text(encoding="utf-8")
     assert "<title>Entroping checkout-api</title>" in html
@@ -2148,7 +2140,7 @@ def test_write_html_report_escapes_summary_text_defensively(tmp_path: Path) -> N
     )
     output = tmp_path / "reports" / "run-latest.html"
 
-    write_html_report(report, output)
+    report_writer.write_html_report(report, output)
 
     html = output.read_text(encoding="utf-8")
     assert "<script>" not in html
@@ -2161,7 +2153,7 @@ def test_write_html_report_escapes_summary_text_defensively(tmp_path: Path) -> N
 def test_latest_run_state_round_trips_and_renders_bug_report(tmp_path: Path) -> None:
     source = tmp_path / "tests" / "health.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="local",
         execution_copies=[_execution_copy(source, execution)],
@@ -2170,9 +2162,9 @@ def test_latest_run_state_round_trips_and_renders_bug_report(tmp_path: Path) -> 
     )
     latest = tmp_path / ".entroping" / "latest-run.json"
 
-    write_json_report(report, latest)
-    loaded = load_run_report(latest)
-    bug = render_bug_report(loaded)
+    report_writer.write_json_report(report, latest)
+    loaded = report_writer.load_run_report(latest)
+    bug = report_writer.render_bug_report(loaded)
 
     assert loaded.summary.failed == 1
     assert "tests/health.hurl" in bug
@@ -2196,7 +2188,7 @@ def test_render_bug_report_without_failures_returns_guidance() -> None:
             ),
         ),
     )
-    run_report = build_run_report(
+    run_report = report_writer.build_run_report(
         project="checkout-api",
         environment="local",
         execution_copies=[_execution_copy(Path("tests/health.hurl"), Path("tests/health.hurl"))],
@@ -2204,7 +2196,7 @@ def test_render_bug_report_without_failures_returns_guidance() -> None:
         project_root=Path("."),
     )
 
-    assert render_bug_report(run_report) == (
+    assert report_writer.render_bug_report(run_report) == (
         "No failing Entroping run is available for bug report generation.\n"
     )
 
@@ -2223,7 +2215,7 @@ def test_render_bug_report_uses_fence_longer_than_captured_output(
 ) -> None:
     source = tmp_path / "tests" / "fence.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "fence.hurl"
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="local",
         execution_copies=[_execution_copy(source, execution)],
@@ -2231,7 +2223,7 @@ def test_render_bug_report_uses_fence_longer_than_captured_output(
         project_root=tmp_path,
     )
 
-    bug = render_bug_report(report)
+    bug = report_writer.render_bug_report(report)
 
     output_section = bug.split("## Output\n\n", maxsplit=1)[1]
     assert output_section.startswith(f"{expected_fence}text\n")
@@ -2259,7 +2251,7 @@ def test_render_bug_report_quotes_structural_markdown_fields() -> None:
         ),
     )
 
-    bug = render_bug_report(report)
+    bug = report_writer.render_bug_report(report)
 
     summary_section = bug.split("## Output\n\n", maxsplit=1)[0]
     assert (
@@ -2272,10 +2264,7 @@ def test_render_bug_report_quotes_structural_markdown_fields() -> None:
     )
     assert "- Test: ``tests/checkout`danger`.hurl\\n## forged test``" in summary_section
     assert "- Status: `failed\\n## forged status`" in summary_section
-    assert (
-        "- Rule IDs: `[global_latency](https://evil.test)\\n## forged rule`"
-        in summary_section
-    )
+    assert "- Rule IDs: `[global_latency](https://evil.test)\\n## forged rule`" in summary_section
     assert "\n## forged project" not in summary_section
     assert "\n## forged environment" not in summary_section
     assert "\n## forged test" not in summary_section
@@ -2303,7 +2292,7 @@ def test_render_bug_report_replaces_nonprintable_output_controls() -> None:
         ),
     )
 
-    bug = render_bug_report(report)
+    bug = report_writer.render_bug_report(report)
 
     output_section = bug.split("## Output\n\n", maxsplit=1)[1]
     assert "\x00" not in output_section
@@ -2315,7 +2304,7 @@ def test_render_bug_report_replaces_nonprintable_output_controls() -> None:
 def test_write_bug_report_writes_failure_markdown(tmp_path: Path) -> None:
     source = tmp_path / "tests" / "health.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="local",
         execution_copies=[_execution_copy(source, execution)],
@@ -2324,7 +2313,7 @@ def test_write_bug_report_writes_failure_markdown(tmp_path: Path) -> None:
     )
     output = tmp_path / "reports" / "bug.md"
 
-    written = write_bug_report(report, output)
+    written = report_writer.write_bug_report(report, output)
 
     assert written == output.resolve()
     assert "# Entroping Failure Report" in output.read_text(encoding="utf-8")
@@ -2334,7 +2323,7 @@ def test_write_bug_report_writes_failure_markdown(tmp_path: Path) -> None:
 def test_write_bug_report_rejects_symlinked_output_path(tmp_path: Path) -> None:
     source = tmp_path / "tests" / "health.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="local",
         execution_copies=[_execution_copy(source, execution)],
@@ -2347,8 +2336,8 @@ def test_write_bug_report_rejects_symlinked_output_path(tmp_path: Path) -> None:
     output.symlink_to(outside)
 
     try:
-        write_bug_report(report, output)
-    except ReportWriterError as exc:
+        report_writer.write_bug_report(report, output)
+    except report_writer.ReportWriterError as exc:
         assert "symlinked bug report" in str(exc)
     else:
         raise AssertionError("expected symlinked report path to be rejected")
@@ -2358,7 +2347,7 @@ def test_write_bug_report_rejects_symlinked_output_path(tmp_path: Path) -> None:
 def test_write_report_rejects_symlinked_parent_directory(tmp_path: Path) -> None:
     source = tmp_path / "tests" / "health.hurl"
     execution = tmp_path / ".entroping" / "run-1" / "health.hurl"
-    report = build_run_report(
+    report = report_writer.build_run_report(
         project="checkout-api",
         environment="local",
         execution_copies=[_execution_copy(source, execution)],
@@ -2370,8 +2359,8 @@ def test_write_report_rejects_symlinked_parent_directory(tmp_path: Path) -> None
     (tmp_path / "reports").symlink_to(outside_dir, target_is_directory=True)
 
     try:
-        write_json_report(report, tmp_path / "reports" / "run-latest.json")
-    except ReportWriterError as exc:
+        report_writer.write_json_report(report, tmp_path / "reports" / "run-latest.json")
+    except report_writer.ReportWriterError as exc:
         assert "symlinked path component" in str(exc)
     else:
         raise AssertionError("expected symlinked report parent to be rejected")

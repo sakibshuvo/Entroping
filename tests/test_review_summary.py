@@ -7,24 +7,18 @@ import pytest
 
 import entroping.core.review_summary as review_summary
 from entroping.bridge.story_traceability import compile_story_traceability
-from entroping.core.review_summary import (
-    ReviewSummaryError,
-    build_review_summary,
-    render_review_summary_markdown,
-    run_review_summary,
-)
 from entroping.models.hurl import HurlMetadata, HurlTest
 
 
 def test_review_summary_reports_missing_artifacts_without_failing(tmp_path: Path) -> None:
-    summary = build_review_summary(
+    summary = review_summary.build_review_summary(
         run_json_path=tmp_path / "reports" / "run-latest.json",
         junit_path=tmp_path / "reports" / "junit.xml",
         drift_path=tmp_path / "reports" / "drift.json",
         traceability_report=None,
     )
 
-    markdown = render_review_summary_markdown(summary)
+    markdown = review_summary.render_review_summary_markdown(summary)
 
     assert summary.status == "attention"
     assert summary.findings == ()
@@ -62,14 +56,14 @@ token=live-secret</failure>
         encoding="utf-8",
     )
 
-    summary = build_review_summary(
+    summary = review_summary.build_review_summary(
         run_json_path=reports_dir / "run-latest.json",
         junit_path=reports_dir / "junit.xml",
         drift_path=reports_dir / "drift.json",
         traceability_report=None,
     )
 
-    markdown = render_review_summary_markdown(summary)
+    markdown = review_summary.render_review_summary_markdown(summary)
     assert summary.status == "fail"
     assert "- Project: `checkout-api`" in markdown
     assert "- Environment: `ci`" in markdown
@@ -130,14 +124,14 @@ def test_review_summary_includes_retry_and_unstable_run_evidence(tmp_path: Path)
         encoding="utf-8",
     )
 
-    summary = build_review_summary(
+    summary = review_summary.build_review_summary(
         run_json_path=reports_dir / "run-latest.json",
         junit_path=reports_dir / "junit.xml",
         drift_path=reports_dir / "drift.json",
         traceability_report=None,
     )
 
-    markdown = render_review_summary_markdown(summary)
+    markdown = review_summary.render_review_summary_markdown(summary)
     assert summary.status == "attention"
     assert "| Run JSON | warning | tests/eventual.hurl |" in markdown
     assert "unstable after 1 retry" in markdown
@@ -174,14 +168,14 @@ def test_review_summary_includes_timeout_run_evidence(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    summary = build_review_summary(
+    summary = review_summary.build_review_summary(
         run_json_path=reports_dir / "run-latest.json",
         junit_path=reports_dir / "junit.xml",
         drift_path=reports_dir / "drift.json",
         traceability_report=None,
     )
 
-    markdown = render_review_summary_markdown(summary)
+    markdown = review_summary.render_review_summary_markdown(summary)
     assert summary.status == "fail"
     assert [
         (finding.source, finding.severity, finding.path, finding.message)
@@ -226,14 +220,14 @@ def test_review_summary_includes_run_only_failure_evidence(tmp_path: Path) -> No
         encoding="utf-8",
     )
 
-    summary = build_review_summary(
+    summary = review_summary.build_review_summary(
         run_json_path=reports_dir / "run-latest.json",
         junit_path=reports_dir / "junit.xml",
         drift_path=reports_dir / "drift.json",
         traceability_report=None,
     )
 
-    markdown = render_review_summary_markdown(summary)
+    markdown = review_summary.render_review_summary_markdown(summary)
     assert summary.status == "fail"
     assert [
         (finding.source, finding.severity, finding.path, finding.message)
@@ -269,7 +263,7 @@ def test_review_summary_includes_summary_failure_evidence_without_test_rows(
         encoding="utf-8",
     )
 
-    summary = build_review_summary(
+    summary = review_summary.build_review_summary(
         run_json_path=reports_dir / "run-latest.json",
         junit_path=reports_dir / "junit.xml",
         drift_path=reports_dir / "drift.json",
@@ -318,14 +312,14 @@ def test_review_summary_includes_nonzero_exit_failure_evidence(
         encoding="utf-8",
     )
 
-    summary = build_review_summary(
+    summary = review_summary.build_review_summary(
         run_json_path=run_json,
         junit_path=reports_dir / "junit.xml",
         drift_path=reports_dir / "drift.json",
         traceability_report=None,
     )
 
-    markdown = render_review_summary_markdown(summary)
+    markdown = review_summary.render_review_summary_markdown(summary)
     assert [
         (finding.source, finding.severity, finding.path, finding.message)
         for finding in summary.findings
@@ -352,7 +346,7 @@ def test_review_summary_includes_nonzero_exit_failure_evidence(
         ),
         encoding="utf-8",
     )
-    summary_without_test_rows = build_review_summary(
+    summary_without_test_rows = review_summary.build_review_summary(
         run_json_path=run_json,
         junit_path=reports_dir / "junit.xml",
         drift_path=reports_dir / "drift.json",
@@ -446,7 +440,7 @@ assert failed</failure>
         encoding="utf-8",
     )
 
-    result = run_review_summary(
+    result = review_summary.run_review_summary(
         project_root=tmp_path,
         run_json_path=Path("reports") / "run-latest.json",
         junit_path=Path("reports") / "junit.xml",
@@ -497,7 +491,7 @@ def test_review_summary_ignores_malformed_retry_entries_and_reports_stable_retri
         encoding="utf-8",
     )
 
-    summary = build_review_summary(
+    summary = review_summary.build_review_summary(
         run_json_path=run_json,
         junit_path=reports_dir / "junit.xml",
         drift_path=reports_dir / "drift.json",
@@ -505,9 +499,7 @@ def test_review_summary_ignores_malformed_retry_entries_and_reports_stable_retri
     )
 
     assert summary.status == "pass"
-    assert [
-        (finding.severity, finding.path, finding.message) for finding in summary.findings
-    ] == [
+    assert [(finding.severity, finding.path, finding.message) for finding in summary.findings] == [
         (
             "notice",
             "tests/stable-retry.hurl",
@@ -528,7 +520,7 @@ def test_review_summary_ignores_malformed_retry_entries_and_reports_stable_retri
         ),
         encoding="utf-8",
     )
-    summary_without_tests = build_review_summary(
+    summary_without_tests = review_summary.build_review_summary(
         run_json_path=run_json,
         junit_path=reports_dir / "junit.xml",
         drift_path=reports_dir / "drift.json",
@@ -550,8 +542,8 @@ def test_review_summary_ignores_malformed_retry_entries_and_reports_stable_retri
         ),
         encoding="utf-8",
     )
-    with pytest.raises(ReviewSummaryError, match="must contain a tests list"):
-        build_review_summary(
+    with pytest.raises(review_summary.ReviewSummaryError, match="must contain a tests list"):
+        review_summary.build_review_summary(
             run_json_path=run_json,
             junit_path=reports_dir / "junit.xml",
             drift_path=reports_dir / "drift.json",
@@ -587,7 +579,7 @@ def test_review_summary_includes_drift_and_traceability_findings(
         encoding="utf-8",
     )
 
-    result = run_review_summary(
+    result = review_summary.run_review_summary(
         project_root=tmp_path,
         run_json_path=reports_dir / "run-latest.json",
         junit_path=reports_dir / "junit.xml",
@@ -601,8 +593,7 @@ def test_review_summary_includes_drift_and_traceability_findings(
     assert "| Drift | error | tests/checkout.hurl | Response status changed. |" in markdown
     assert (
         "| Traceability | error | tests/missing-story.hurl | "
-        "tests/missing-story.hurl has no # entroping: story_id metadata. |"
-        in markdown
+        "tests/missing-story.hurl has no # entroping: story_id metadata. |" in markdown
     )
 
 
@@ -621,14 +612,14 @@ value: &lt;script&gt;|break</failure>
         encoding="utf-8",
     )
 
-    summary = build_review_summary(
+    summary = review_summary.build_review_summary(
         run_json_path=reports_dir / "run-latest.json",
         junit_path=reports_dir / "junit.xml",
         drift_path=reports_dir / "drift.json",
         traceability_report=None,
     )
 
-    markdown = render_review_summary_markdown(summary)
+    markdown = review_summary.render_review_summary_markdown(summary)
     assert "&lt;script&gt;\\|break" in markdown
     assert "<script>|break" not in markdown
 
@@ -638,8 +629,8 @@ def test_review_summary_rejects_malformed_artifacts(tmp_path: Path) -> None:
     reports_dir.mkdir()
     (reports_dir / "drift.json").write_text("{", encoding="utf-8")
 
-    with pytest.raises(ReviewSummaryError, match="Could not parse drift report"):
-        build_review_summary(
+    with pytest.raises(review_summary.ReviewSummaryError, match="Could not parse drift report"):
+        review_summary.build_review_summary(
             run_json_path=reports_dir / "run-latest.json",
             junit_path=reports_dir / "junit.xml",
             drift_path=reports_dir / "drift.json",
@@ -653,8 +644,10 @@ def test_review_summary_rejects_malformed_run_json(tmp_path: Path) -> None:
     run_json = reports_dir / "run-latest.json"
     run_json.write_text("[]", encoding="utf-8")
 
-    with pytest.raises(ReviewSummaryError, match="Run report .* must be a JSON object"):
-        build_review_summary(
+    with pytest.raises(
+        review_summary.ReviewSummaryError, match="Run report .* must be a JSON object"
+    ):
+        review_summary.build_review_summary(
             run_json_path=run_json,
             junit_path=reports_dir / "junit.xml",
             drift_path=reports_dir / "drift.json",
@@ -670,8 +663,8 @@ def test_review_summary_rejects_malformed_run_json(tmp_path: Path) -> None:
         ),
         encoding="utf-8",
     )
-    with pytest.raises(ReviewSummaryError, match="must contain a summary object"):
-        build_review_summary(
+    with pytest.raises(review_summary.ReviewSummaryError, match="must contain a summary object"):
+        review_summary.build_review_summary(
             run_json_path=run_json,
             junit_path=reports_dir / "junit.xml",
             drift_path=reports_dir / "drift.json",
@@ -687,13 +680,13 @@ def test_review_summary_rejects_malformed_run_json(tmp_path: Path) -> None:
                     "passed": 0,
                     "failed": 0,
                     "exit_code": 0,
-                }
+                },
             }
         ),
         encoding="utf-8",
     )
-    with pytest.raises(ReviewSummaryError, match="summary.total"):
-        build_review_summary(
+    with pytest.raises(review_summary.ReviewSummaryError, match="summary.total"):
+        review_summary.build_review_summary(
             run_json_path=run_json,
             junit_path=reports_dir / "junit.xml",
             drift_path=reports_dir / "drift.json",
@@ -729,8 +722,8 @@ def test_review_summary_rejects_oversized_json_artifacts_before_full_read(
     )
     monkeypatch.setattr(Path, "read_text", reject_full_artifact_read)
 
-    with pytest.raises(ReviewSummaryError, match="drift report .* exceeds"):
-        build_review_summary(
+    with pytest.raises(review_summary.ReviewSummaryError, match="drift report .* exceeds"):
+        review_summary.build_review_summary(
             run_json_path=reports_dir / "run-latest.json",
             junit_path=reports_dir / "junit.xml",
             drift_path=drift_json,
@@ -765,10 +758,10 @@ def test_review_summary_rejects_unversioned_or_unsupported_run_json(
     run_json.write_text(json.dumps(payload), encoding="utf-8")
 
     with pytest.raises(
-        ReviewSummaryError,
+        review_summary.ReviewSummaryError,
         match="must use schema_version entroping\\.run-report\\.v1",
     ) as exc_info:
-        build_review_summary(
+        review_summary.build_review_summary(
             run_json_path=run_json,
             junit_path=reports_dir / "junit.xml",
             drift_path=reports_dir / "drift.json",
@@ -785,8 +778,8 @@ def test_review_summary_handles_junit_fallback_paths_and_parse_errors(
     reports_dir.mkdir()
     junit = reports_dir / "junit.xml"
     junit.write_text("<testsuite><testcase>", encoding="utf-8")
-    with pytest.raises(ReviewSummaryError, match="Could not parse JUnit report"):
-        build_review_summary(
+    with pytest.raises(review_summary.ReviewSummaryError, match="Could not parse JUnit report"):
+        review_summary.build_review_summary(
             run_json_path=reports_dir / "run-latest.json",
             junit_path=junit,
             drift_path=reports_dir / "drift.json",
@@ -806,8 +799,8 @@ def test_review_summary_handles_junit_fallback_paths_and_parse_errors(
 """,
         encoding="utf-8",
     )
-    with pytest.raises(ReviewSummaryError, match="unsafe XML"):
-        build_review_summary(
+    with pytest.raises(review_summary.ReviewSummaryError, match="unsafe XML"):
+        review_summary.build_review_summary(
             run_json_path=reports_dir / "run-latest.json",
             junit_path=junit,
             drift_path=reports_dir / "drift.json",
@@ -831,7 +824,7 @@ def test_review_summary_handles_junit_fallback_paths_and_parse_errors(
         encoding="utf-8",
     )
 
-    summary = build_review_summary(
+    summary = review_summary.build_review_summary(
         run_json_path=reports_dir / "run-latest.json",
         junit_path=junit,
         drift_path=reports_dir / "drift.json",
@@ -852,8 +845,8 @@ def test_review_summary_handles_drift_edge_shapes_and_warning_status(
     reports_dir.mkdir()
     drift = reports_dir / "drift.json"
     drift.write_text(json.dumps({"findings": {}}), encoding="utf-8")
-    with pytest.raises(ReviewSummaryError, match="must contain a findings list"):
-        build_review_summary(
+    with pytest.raises(review_summary.ReviewSummaryError, match="must contain a findings list"):
+        review_summary.build_review_summary(
             run_json_path=reports_dir / "run-latest.json",
             junit_path=reports_dir / "junit.xml",
             drift_path=drift,
@@ -883,7 +876,7 @@ def test_review_summary_handles_drift_edge_shapes_and_warning_status(
         encoding="utf-8",
     )
 
-    summary = build_review_summary(
+    summary = review_summary.build_review_summary(
         run_json_path=reports_dir / "run-latest.json",
         junit_path=reports_dir / "junit.xml",
         drift_path=drift,
@@ -912,14 +905,14 @@ def test_review_summary_uses_run_fallback_fields_and_pass_status(tmp_path: Path)
         encoding="utf-8",
     )
 
-    summary = build_review_summary(
+    summary = review_summary.build_review_summary(
         run_json_path=reports_dir / "run-latest.json",
         junit_path=reports_dir / "junit.xml",
         drift_path=reports_dir / "drift.json",
         traceability_report=None,
     )
 
-    markdown = render_review_summary_markdown(summary)
+    markdown = review_summary.render_review_summary_markdown(summary)
     assert summary.status == "pass"
     assert "- Project: `unknown`" in markdown
     assert "- Environment: `default`" in markdown
@@ -949,7 +942,7 @@ def test_review_summary_reports_traceability_warnings(tmp_path: Path) -> None:
         ]
     )
 
-    summary = build_review_summary(
+    summary = review_summary.build_review_summary(
         run_json_path=tmp_path / "reports" / "run-latest.json",
         junit_path=tmp_path / "reports" / "junit.xml",
         drift_path=tmp_path / "reports" / "drift.json",
@@ -965,8 +958,8 @@ def test_review_summary_reports_traceability_warnings(tmp_path: Path) -> None:
 def test_review_summary_wraps_safe_write_errors(tmp_path: Path) -> None:
     outside = tmp_path.parent / "review-summary.md"
 
-    with pytest.raises(ReviewSummaryError, match="path must stay under"):
-        run_review_summary(
+    with pytest.raises(review_summary.ReviewSummaryError, match="path must stay under"):
+        review_summary.run_review_summary(
             project_root=tmp_path,
             run_json_path=tmp_path / "reports" / "run-latest.json",
             junit_path=tmp_path / "reports" / "junit.xml",

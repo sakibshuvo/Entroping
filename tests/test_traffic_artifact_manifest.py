@@ -9,12 +9,6 @@ import pytest
 
 import entroping.core.traffic_artifact_manifest as traffic_artifact_manifest
 from entroping.core.safe_write import SafeWriteError
-from entroping.core.traffic_artifact_manifest import (
-    TRAFFIC_ARTIFACT_APPROVAL_SCHEMA_VERSION,
-    TrafficArtifactApprovalError,
-    TrafficArtifactManifestArtifact,
-    write_traffic_artifact_approval_manifest,
-)
 from entroping.core.traffic_redactor import redact_traffic_exchange
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
 
@@ -27,20 +21,22 @@ def test_write_traffic_artifact_approval_manifest_is_value_free_and_deterministi
     artifact_path.parent.mkdir(parents=True)
     artifact_path.write_text("GET https://api.example.test/checkout\nHTTP 200\n", encoding="utf-8")
 
-    result = write_traffic_artifact_approval_manifest(
+    result = traffic_artifact_manifest.write_traffic_artifact_approval_manifest(
         project_root=tmp_path,
         manifest_name="freeze-checkout_flow",
         workflow="freeze-hurl",
         source_session_name="checkout_flow",
         source_records=(exchange,),
         artifacts=(
-            TrafficArtifactManifestArtifact(kind="hurl", path=artifact_path),
+            traffic_artifact_manifest.TrafficArtifactManifestArtifact(
+                kind="hurl", path=artifact_path
+            ),
         ),
     )
 
     payload = json.loads(result.manifest_path.read_text(encoding="utf-8"))
     assert payload == {
-        "schema_version": TRAFFIC_ARTIFACT_APPROVAL_SCHEMA_VERSION,
+        "schema_version": traffic_artifact_manifest.TRAFFIC_ARTIFACT_APPROVAL_SCHEMA_VERSION,
         "workflow": "freeze-hurl",
         "source": {
             "session_name": "checkout_flow",
@@ -90,15 +86,19 @@ def test_write_traffic_artifact_approval_manifest_refuses_unredacted_source_reco
     artifact_path.parent.mkdir(parents=True)
     artifact_path.write_text("GET https://api.example.test/checkout\n", encoding="utf-8")
 
-    with pytest.raises(TrafficArtifactApprovalError, match="requires redacted traffic"):
-        write_traffic_artifact_approval_manifest(
+    with pytest.raises(
+        traffic_artifact_manifest.TrafficArtifactApprovalError, match="requires redacted traffic"
+    ):
+        traffic_artifact_manifest.write_traffic_artifact_approval_manifest(
             project_root=tmp_path,
             manifest_name="freeze-checkout_flow",
             workflow="freeze-hurl",
             source_session_name="checkout_flow",
             source_records=(_exchange(secret="approval-secret"),),
             artifacts=(
-                TrafficArtifactManifestArtifact(kind="hurl", path=artifact_path),
+                traffic_artifact_manifest.TrafficArtifactManifestArtifact(
+                    kind="hurl", path=artifact_path
+                ),
             ),
         )
 
@@ -113,19 +113,27 @@ def test_write_traffic_artifact_approval_manifest_requires_source_records_and_ar
     artifact_path.write_text("GET https://api.example.test/checkout\n", encoding="utf-8")
     exchange = redact_traffic_exchange(_exchange(secret="approval-secret"))
 
-    with pytest.raises(TrafficArtifactApprovalError, match="at least one source traffic record"):
-        write_traffic_artifact_approval_manifest(
+    with pytest.raises(
+        traffic_artifact_manifest.TrafficArtifactApprovalError,
+        match="at least one source traffic record",
+    ):
+        traffic_artifact_manifest.write_traffic_artifact_approval_manifest(
             project_root=tmp_path,
             manifest_name="freeze-checkout_flow",
             workflow="freeze-hurl",
             source_session_name="checkout_flow",
             source_records=(),
             artifacts=(
-                TrafficArtifactManifestArtifact(kind="hurl", path=artifact_path),
+                traffic_artifact_manifest.TrafficArtifactManifestArtifact(
+                    kind="hurl", path=artifact_path
+                ),
             ),
         )
-    with pytest.raises(TrafficArtifactApprovalError, match="at least one generated artifact"):
-        write_traffic_artifact_approval_manifest(
+    with pytest.raises(
+        traffic_artifact_manifest.TrafficArtifactApprovalError,
+        match="at least one generated artifact",
+    ):
+        traffic_artifact_manifest.write_traffic_artifact_approval_manifest(
             project_root=tmp_path,
             manifest_name="freeze-checkout_flow",
             workflow="freeze-hurl",
@@ -155,15 +163,17 @@ def test_write_traffic_artifact_approval_manifest_rejects_unsafe_manifest_names(
     artifact_path.write_text("GET https://api.example.test/checkout\n", encoding="utf-8")
     exchange = redact_traffic_exchange(_exchange(secret="approval-secret"))
 
-    with pytest.raises(TrafficArtifactApprovalError, match=message):
-        write_traffic_artifact_approval_manifest(
+    with pytest.raises(traffic_artifact_manifest.TrafficArtifactApprovalError, match=message):
+        traffic_artifact_manifest.write_traffic_artifact_approval_manifest(
             project_root=tmp_path,
             manifest_name=manifest_name,
             workflow="freeze-hurl",
             source_session_name="checkout_flow",
             source_records=(exchange,),
             artifacts=(
-                TrafficArtifactManifestArtifact(kind="hurl", path=artifact_path),
+                traffic_artifact_manifest.TrafficArtifactManifestArtifact(
+                    kind="hurl", path=artifact_path
+                ),
             ),
         )
 
@@ -176,15 +186,19 @@ def test_write_traffic_artifact_approval_manifest_rejects_unsafe_session_name(
     artifact_path.write_text("GET https://api.example.test/checkout\n", encoding="utf-8")
     exchange = redact_traffic_exchange(_exchange(secret="approval-secret"))
 
-    with pytest.raises(TrafficArtifactApprovalError, match="source session name"):
-        write_traffic_artifact_approval_manifest(
+    with pytest.raises(
+        traffic_artifact_manifest.TrafficArtifactApprovalError, match="source session name"
+    ):
+        traffic_artifact_manifest.write_traffic_artifact_approval_manifest(
             project_root=tmp_path,
             manifest_name="freeze-checkout_flow",
             workflow="freeze-hurl",
             source_session_name="bad\nsession",
             source_records=(exchange,),
             artifacts=(
-                TrafficArtifactManifestArtifact(kind="hurl", path=artifact_path),
+                traffic_artifact_manifest.TrafficArtifactManifestArtifact(
+                    kind="hurl", path=artifact_path
+                ),
             ),
         )
 
@@ -207,15 +221,17 @@ def test_write_traffic_artifact_approval_manifest_refuses_unsafe_artifact_paths(
     absolute_artifact_path.parent.mkdir(parents=True, exist_ok=True)
     absolute_artifact_path.write_text("raw local state\n", encoding="utf-8")
 
-    with pytest.raises(TrafficArtifactApprovalError, match=message):
-        write_traffic_artifact_approval_manifest(
+    with pytest.raises(traffic_artifact_manifest.TrafficArtifactApprovalError, match=message):
+        traffic_artifact_manifest.write_traffic_artifact_approval_manifest(
             project_root=tmp_path,
             manifest_name="freeze-checkout_flow",
             workflow="freeze-hurl",
             source_session_name="checkout_flow",
             source_records=(exchange,),
             artifacts=(
-                TrafficArtifactManifestArtifact(kind="hurl", path=absolute_artifact_path),
+                traffic_artifact_manifest.TrafficArtifactManifestArtifact(
+                    kind="hurl", path=absolute_artifact_path
+                ),
             ),
         )
 
@@ -228,14 +244,14 @@ def test_write_traffic_artifact_approval_manifest_accepts_relative_artifact_path
     artifact_path.write_text("GET https://api.example.test/checkout\n", encoding="utf-8")
     exchange = redact_traffic_exchange(_exchange(secret="approval-secret"))
 
-    result = write_traffic_artifact_approval_manifest(
+    result = traffic_artifact_manifest.write_traffic_artifact_approval_manifest(
         project_root=tmp_path,
         manifest_name="freeze-checkout_flow",
         workflow="freeze-hurl",
         source_session_name="checkout_flow",
         source_records=(exchange,),
         artifacts=(
-            TrafficArtifactManifestArtifact(
+            traffic_artifact_manifest.TrafficArtifactManifestArtifact(
                 kind="hurl",
                 path=Path("tests/generated/checkout_flow.hurl"),
             ),
@@ -251,15 +267,17 @@ def test_write_traffic_artifact_approval_manifest_rejects_missing_and_non_file_a
 ) -> None:
     exchange = redact_traffic_exchange(_exchange(secret="approval-secret"))
 
-    with pytest.raises(TrafficArtifactApprovalError, match="does not exist"):
-        write_traffic_artifact_approval_manifest(
+    with pytest.raises(
+        traffic_artifact_manifest.TrafficArtifactApprovalError, match="does not exist"
+    ):
+        traffic_artifact_manifest.write_traffic_artifact_approval_manifest(
             project_root=tmp_path,
             manifest_name="freeze-checkout_flow",
             workflow="freeze-hurl",
             source_session_name="checkout_flow",
             source_records=(exchange,),
             artifacts=(
-                TrafficArtifactManifestArtifact(
+                traffic_artifact_manifest.TrafficArtifactManifestArtifact(
                     kind="hurl",
                     path=Path("tests/generated/missing.hurl"),
                 ),
@@ -268,15 +286,19 @@ def test_write_traffic_artifact_approval_manifest_rejects_missing_and_non_file_a
 
     directory_artifact = tmp_path / "tests" / "generated" / "not-a-file.hurl"
     directory_artifact.mkdir(parents=True)
-    with pytest.raises(TrafficArtifactApprovalError, match="is not a file"):
-        write_traffic_artifact_approval_manifest(
+    with pytest.raises(
+        traffic_artifact_manifest.TrafficArtifactApprovalError, match="is not a file"
+    ):
+        traffic_artifact_manifest.write_traffic_artifact_approval_manifest(
             project_root=tmp_path,
             manifest_name="freeze-checkout_flow",
             workflow="freeze-hurl",
             source_session_name="checkout_flow",
             source_records=(exchange,),
             artifacts=(
-                TrafficArtifactManifestArtifact(kind="hurl", path=directory_artifact),
+                traffic_artifact_manifest.TrafficArtifactManifestArtifact(
+                    kind="hurl", path=directory_artifact
+                ),
             ),
         )
 
@@ -291,15 +313,19 @@ def test_write_traffic_artifact_approval_manifest_rejects_symlink_artifact_path(
     victim.write_text("GET https://api.example.test/checkout\n", encoding="utf-8")
     artifact_path.symlink_to(victim)
 
-    with pytest.raises(TrafficArtifactApprovalError, match="symlinked path component"):
-        write_traffic_artifact_approval_manifest(
+    with pytest.raises(
+        traffic_artifact_manifest.TrafficArtifactApprovalError, match="symlinked path component"
+    ):
+        traffic_artifact_manifest.write_traffic_artifact_approval_manifest(
             project_root=tmp_path,
             manifest_name="freeze-checkout_flow",
             workflow="freeze-hurl",
             source_session_name="checkout_flow",
             source_records=(exchange,),
             artifacts=(
-                TrafficArtifactManifestArtifact(kind="hurl", path=artifact_path),
+                traffic_artifact_manifest.TrafficArtifactManifestArtifact(
+                    kind="hurl", path=artifact_path
+                ),
             ),
         )
 
@@ -325,22 +351,29 @@ def test_write_traffic_artifact_approval_manifest_wraps_safe_write_errors(
 
     monkeypatch.setattr(traffic_artifact_manifest, "safe_write_text", fail_safe_write)
 
-    with pytest.raises(TrafficArtifactApprovalError, match="approval manifest write failed"):
-        write_traffic_artifact_approval_manifest(
+    with pytest.raises(
+        traffic_artifact_manifest.TrafficArtifactApprovalError,
+        match="approval manifest write failed",
+    ):
+        traffic_artifact_manifest.write_traffic_artifact_approval_manifest(
             project_root=tmp_path,
             manifest_name="freeze-checkout_flow",
             workflow="freeze-hurl",
             source_session_name="checkout_flow",
             source_records=(exchange,),
             artifacts=(
-                TrafficArtifactManifestArtifact(kind="hurl", path=artifact_path),
+                traffic_artifact_manifest.TrafficArtifactManifestArtifact(
+                    kind="hurl", path=artifact_path
+                ),
             ),
         )
 
 
 def test_private_path_helpers_report_outside_paths_without_raw_state(tmp_path: Path) -> None:
     outside = tmp_path.parent / "outside.hurl"
-    with pytest.raises(TrafficArtifactApprovalError, match="must stay inside"):
+    with pytest.raises(
+        traffic_artifact_manifest.TrafficArtifactApprovalError, match="must stay inside"
+    ):
         traffic_artifact_manifest._reject_symlink_path(
             outside,
             root=tmp_path,

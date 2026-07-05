@@ -8,7 +8,6 @@ import pytest
 
 import entroping.studio.app as studio_app
 from entroping.core.evidence.evidence_index import LocalEvidenceArtifact
-from entroping.studio.app import TextualTypes, build_studio_view_model, run_studio_app
 from entroping.studio.status import (
     LatestRunStatus,
     LatestRunTestStatus,
@@ -141,7 +140,7 @@ def test_build_studio_view_model_exposes_summary_suite_failures_reports_and_traf
         ),
     )
 
-    model = build_studio_view_model(status)
+    model = studio_app.build_studio_view_model(status)
 
     assert model.summary_rows == (
         ("Environment", "local"),
@@ -155,9 +154,7 @@ def test_build_studio_view_model_exposes_summary_suite_failures_reports_and_traf
         ("tests/health.hurl", "passed", "0", "10 ms", "global_latency"),
         ("tests/checkout.hurl", "failed", "1", "25 ms", "auth_required, global_latency"),
     )
-    assert model.failure_rows == (
-        ("tests/checkout.hurl", "exit 1", "assertion failed"),
-    )
+    assert model.failure_rows == (("tests/checkout.hurl", "exit 1", "assertion failed"),)
     assert model.gate_rows == (
         (
             "global_latency",
@@ -239,7 +236,7 @@ def test_build_studio_view_model_handles_absent_latest_run_reports_and_traffic()
         traffic_state_available=False,
     )
 
-    model = build_studio_view_model(status)
+    model = studio_app.build_studio_view_model(status)
 
     assert model.summary_rows[-1] == ("Latest run", "none")
     assert model.suite_rows == (("No latest run found", "", "", "", ""),)
@@ -270,7 +267,7 @@ def test_build_studio_view_model_exposes_unsafe_evidence_artifact_rows() -> None
         ),
     )
 
-    model = build_studio_view_model(status)
+    model = studio_app.build_studio_view_model(status)
 
     assert model.report_rows == (
         (
@@ -309,7 +306,7 @@ def test_build_studio_view_model_exposes_evidence_bundle_readiness_rows() -> Non
         ),
     )
 
-    model = build_studio_view_model(status)
+    model = studio_app.build_studio_view_model(status)
 
     assert model.evidence_bundle_rows == (
         ("Artifact state", "present"),
@@ -332,7 +329,7 @@ def test_build_studio_view_model_preserves_legacy_report_paths_without_evidence_
         traffic_state_available=False,
     )
 
-    model = build_studio_view_model(status)
+    model = studio_app.build_studio_view_model(status)
 
     assert model.report_rows == (
         (
@@ -357,7 +354,7 @@ def test_build_studio_view_model_handles_traffic_state_errors() -> None:
         traffic_state_status="error: could not read traffic state",
     )
 
-    model = build_studio_view_model(status)
+    model = studio_app.build_studio_view_model(status)
 
     assert model.traffic_rows == (
         ("state", "error: could not read traffic state", "", "", "", "", "", ""),
@@ -391,7 +388,7 @@ def test_build_studio_view_model_handles_failed_test_without_stderr() -> None:
         traffic_state_available=False,
     )
 
-    model = build_studio_view_model(status)
+    model = studio_app.build_studio_view_model(status)
 
     assert model.suite_rows == (("tests/checkout.hurl", "failed", "1", "25 ms", "-"),)
     assert model.failure_rows == (("tests/checkout.hurl", "exit 1", ""),)
@@ -421,10 +418,10 @@ def test_run_studio_app_launches_lazily_created_textual_app(
         created_models.append(model)
         return FakeApp()
 
-    monkeypatch.setattr(studio_app, "_load_textual_types", lambda: TextualTypes())
+    monkeypatch.setattr(studio_app, "_load_textual_types", lambda: studio_app.TextualTypes())
     monkeypatch.setattr(studio_app, "_create_textual_app", fake_create_textual_app)
 
-    run_studio_app(status)
+    studio_app.run_studio_app(status)
 
     assert launched == [True]
     assert created_models[0].summary_rows[-1] == ("Latest run", "none")
@@ -447,7 +444,7 @@ def test_run_studio_app_wraps_missing_textual_dependency(monkeypatch: pytest.Mon
     monkeypatch.setattr(studio_app, "_load_textual_types", fail_load_textual)
 
     with pytest.raises(StudioDependencyError, match="uv sync --extra studio"):
-        run_studio_app(status)
+        studio_app.run_studio_app(status)
 
 
 def test_render_table_pads_columns_and_handles_short_rows() -> None:

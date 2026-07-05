@@ -7,17 +7,6 @@ from pathlib import Path
 import pytest
 
 import entroping.core.runtime_card as runtime_card
-from entroping.core.runtime_card import (
-    RUNTIME_CARD_SCHEMA_VERSION,
-    RuntimeCardDriftEvidence,
-    RuntimeCardError,
-    RuntimeCardFinding,
-    RuntimeCardRedactionEvidence,
-    RuntimeCardRunEvidence,
-    build_runtime_card,
-    render_runtime_card_markdown,
-    run_runtime_card_report,
-)
 
 
 def _write_json(path: Path, payload: dict[str, object]) -> None:
@@ -184,10 +173,10 @@ def test_run_runtime_card_report_summarizes_existing_evidence(tmp_path: Path) ->
     _write_runtime_card_inputs(tmp_path)
     _write_test_pyramid_report(tmp_path, runtime_governance_status="incomplete", findings=2)
 
-    result = run_runtime_card_report(project_root=tmp_path, output="json")
+    result = runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
     assert result.output_path == tmp_path / "reports" / "runtime-card.json"
-    assert result.card.schema_version == RUNTIME_CARD_SCHEMA_VERSION
+    assert result.card.schema_version == runtime_card.RUNTIME_CARD_SCHEMA_VERSION
     assert result.card.summary.status == "fail"
     assert result.card.run is not None
     assert result.card.run.project == "checkout-api"
@@ -221,7 +210,7 @@ def test_run_runtime_card_report_summarizes_existing_evidence(tmp_path: Path) ->
 def test_run_runtime_card_report_writes_fail_card_when_run_report_is_missing(
     tmp_path: Path,
 ) -> None:
-    result = run_runtime_card_report(project_root=tmp_path, output="json")
+    result = runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
     assert result.card.summary.status == "fail"
     assert result.card.run is None
@@ -235,7 +224,7 @@ def test_run_runtime_card_report_writes_fail_card_when_run_report_is_missing(
 def test_run_runtime_card_report_writes_markdown_without_evidence_links(
     tmp_path: Path,
 ) -> None:
-    result = run_runtime_card_report(project_root=tmp_path, output="md")
+    result = runtime_card.run_runtime_card_report(project_root=tmp_path, output="md")
 
     markdown = result.output_path.read_text(encoding="utf-8")
     assert result.card.summary.status == "fail"
@@ -249,7 +238,7 @@ def test_run_runtime_card_report_marks_missing_release_evidence_attention(
     _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
     _write_verified_capture_summary(tmp_path)
 
-    result = run_runtime_card_report(project_root=tmp_path, output="json")
+    result = runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
     assert result.card.summary.status == "attention"
     assert result.card.summary.findings == 2
@@ -270,7 +259,7 @@ def test_run_runtime_card_report_marks_missing_release_evidence_attention(
 def test_runtime_card_marks_missing_redaction_attention(tmp_path: Path) -> None:
     _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
 
-    card = build_runtime_card(project_root=tmp_path)
+    card = runtime_card.build_runtime_card(project_root=tmp_path)
 
     assert card.summary.status == "attention"
     assert card.redaction.status == "missing"
@@ -282,15 +271,15 @@ def test_run_runtime_card_report_rejects_malformed_present_artifacts(
     (tmp_path / "reports").mkdir()
     (tmp_path / "reports" / "run-latest.json").write_text("{", encoding="utf-8")
 
-    with pytest.raises(RuntimeCardError, match="Could not parse run report"):
-        run_runtime_card_report(project_root=tmp_path, output="json")
+    with pytest.raises(runtime_card.RuntimeCardError, match="Could not parse run report"):
+        runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
     assert not (tmp_path / "reports" / "runtime-card.json").exists()
 
 
 def test_run_runtime_card_report_rejects_unsupported_output(tmp_path: Path) -> None:
-    with pytest.raises(RuntimeCardError, match="Unsupported runtime card output"):
-        run_runtime_card_report(
+    with pytest.raises(runtime_card.RuntimeCardError, match="Unsupported runtime card output"):
+        runtime_card.run_runtime_card_report(
             project_root=tmp_path,
             output="html",  # type: ignore[arg-type]
         )
@@ -299,8 +288,8 @@ def test_run_runtime_card_report_rejects_unsupported_output(tmp_path: Path) -> N
 def test_run_runtime_card_report_rejects_unsafe_output_path(tmp_path: Path) -> None:
     _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
 
-    with pytest.raises(RuntimeCardError, match="runtime card path must stay under"):
-        run_runtime_card_report(
+    with pytest.raises(runtime_card.RuntimeCardError, match="runtime card path must stay under"):
+        runtime_card.run_runtime_card_report(
             project_root=tmp_path,
             output="json",
             output_path=tmp_path.parent / "runtime-card.json",
@@ -318,8 +307,8 @@ def test_run_runtime_card_report_rejects_secret_like_rendered_content(
         lambda _card: "token=live-secret\n",
     )
 
-    with pytest.raises(RuntimeCardError, match="contains secret-like content"):
-        run_runtime_card_report(project_root=tmp_path, output="md")
+    with pytest.raises(runtime_card.RuntimeCardError, match="contains secret-like content"):
+        runtime_card.run_runtime_card_report(project_root=tmp_path, output="md")
 
 
 def test_run_runtime_card_report_rejects_schema_mismatch(tmp_path: Path) -> None:
@@ -329,8 +318,8 @@ def test_run_runtime_card_report_rejects_schema_mismatch(tmp_path: Path) -> None
         {"schema_version": "entroping.drift-report.v999"},
     )
 
-    with pytest.raises(RuntimeCardError, match="must use schema_version"):
-        run_runtime_card_report(project_root=tmp_path, output="json")
+    with pytest.raises(runtime_card.RuntimeCardError, match="must use schema_version"):
+        runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
 
 def test_run_runtime_card_report_rejects_wrong_test_pyramid_schema(tmp_path: Path) -> None:
@@ -340,8 +329,8 @@ def test_run_runtime_card_report_rejects_wrong_test_pyramid_schema(tmp_path: Pat
         {"schema_version": "entroping.test-pyramid-report.v999"},
     )
 
-    with pytest.raises(RuntimeCardError, match="Test Pyramid"):
-        run_runtime_card_report(project_root=tmp_path, output="json")
+    with pytest.raises(runtime_card.RuntimeCardError, match="Test Pyramid"):
+        runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
 
 def test_run_runtime_card_report_rejects_unknown_test_pyramid_status(
@@ -349,9 +338,7 @@ def test_run_runtime_card_report_rejects_unknown_test_pyramid_status(
 ) -> None:
     _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
     _write_test_pyramid_report(tmp_path)
-    payload = json.loads(
-        (tmp_path / "reports" / "test-pyramid.json").read_text(encoding="utf-8")
-    )
+    payload = json.loads((tmp_path / "reports" / "test-pyramid.json").read_text(encoding="utf-8"))
     assert isinstance(payload["summary"], dict)
     payload["summary"]["runtime_governance_status"] = "maybe"
     (tmp_path / "reports" / "test-pyramid.json").write_text(
@@ -359,8 +346,8 @@ def test_run_runtime_card_report_rejects_unknown_test_pyramid_status(
         encoding="utf-8",
     )
 
-    with pytest.raises(RuntimeCardError, match="runtime_governance_status"):
-        run_runtime_card_report(project_root=tmp_path, output="json")
+    with pytest.raises(runtime_card.RuntimeCardError, match="runtime_governance_status"):
+        runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
 
 def test_run_runtime_card_report_rejects_inconsistent_test_pyramid_counts(
@@ -368,9 +355,7 @@ def test_run_runtime_card_report_rejects_inconsistent_test_pyramid_counts(
 ) -> None:
     _write_json(tmp_path / "reports" / "run-latest.json", _passing_run_report())
     _write_test_pyramid_report(tmp_path)
-    payload = json.loads(
-        (tmp_path / "reports" / "test-pyramid.json").read_text(encoding="utf-8")
-    )
+    payload = json.loads((tmp_path / "reports" / "test-pyramid.json").read_text(encoding="utf-8"))
     assert isinstance(payload["summary"], dict)
     payload["summary"]["present_layers"] = 7
     (tmp_path / "reports" / "test-pyramid.json").write_text(
@@ -378,8 +363,8 @@ def test_run_runtime_card_report_rejects_inconsistent_test_pyramid_counts(
         encoding="utf-8",
     )
 
-    with pytest.raises(RuntimeCardError, match="present_layers \\+ attention_layers"):
-        run_runtime_card_report(project_root=tmp_path, output="json")
+    with pytest.raises(runtime_card.RuntimeCardError, match="present_layers \\+ attention_layers"):
+        runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
 
 def test_run_runtime_card_report_rejects_non_object_json(tmp_path: Path) -> None:
@@ -387,8 +372,8 @@ def test_run_runtime_card_report_rejects_non_object_json(tmp_path: Path) -> None
     reports.mkdir()
     (reports / "run-latest.json").write_text("[]", encoding="utf-8")
 
-    with pytest.raises(RuntimeCardError, match="must be a JSON object"):
-        run_runtime_card_report(project_root=tmp_path, output="json")
+    with pytest.raises(runtime_card.RuntimeCardError, match="must be a JSON object"):
+        runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
 
 def test_run_runtime_card_report_rejects_unreadable_artifact(
@@ -409,15 +394,15 @@ def test_run_runtime_card_report_rejects_unreadable_artifact(
 
     monkeypatch.setattr(Path, "read_text", fail_run_read)
 
-    with pytest.raises(RuntimeCardError, match="Could not read run report"):
-        run_runtime_card_report(project_root=tmp_path, output="json")
+    with pytest.raises(runtime_card.RuntimeCardError, match="Could not read run report"):
+        runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
 
 def test_run_runtime_card_report_rejects_directory_artifact(tmp_path: Path) -> None:
     (tmp_path / "reports" / "run-latest.json").mkdir(parents=True)
 
-    with pytest.raises(RuntimeCardError, match="path is not a file"):
-        run_runtime_card_report(project_root=tmp_path, output="json")
+    with pytest.raises(runtime_card.RuntimeCardError, match="path is not a file"):
+        runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
 
 def test_run_runtime_card_report_rejects_symlinked_artifact_component(tmp_path: Path) -> None:
@@ -426,8 +411,8 @@ def test_run_runtime_card_report_rejects_symlinked_artifact_component(tmp_path: 
     (tmp_path / "reports").symlink_to(actual, target_is_directory=True)
     _write_json(actual / "run-latest.json", _passing_run_report())
 
-    with pytest.raises(RuntimeCardError, match="uses symlinked component"):
-        run_runtime_card_report(project_root=tmp_path, output="json")
+    with pytest.raises(runtime_card.RuntimeCardError, match="uses symlinked component"):
+        runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
 
 def test_run_runtime_card_report_wraps_artifact_boundary_errors(
@@ -442,8 +427,8 @@ def test_run_runtime_card_report_wraps_artifact_boundary_errors(
 
     monkeypatch.setattr(runtime_card, "first_symlink_path_component", fail_symlink_check)
 
-    with pytest.raises(RuntimeCardError, match="must stay inside the project"):
-        run_runtime_card_report(project_root=tmp_path, output="json")
+    with pytest.raises(runtime_card.RuntimeCardError, match="must stay inside the project"):
+        runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
 
 @pytest.mark.parametrize(
@@ -518,8 +503,8 @@ def test_run_runtime_card_report_rejects_malformed_run_fields(
 ) -> None:
     _write_json(tmp_path / "reports" / "run-latest.json", payload)
 
-    with pytest.raises(RuntimeCardError, match=message):
-        run_runtime_card_report(project_root=tmp_path, output="json")
+    with pytest.raises(runtime_card.RuntimeCardError, match=message):
+        runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
 
 def test_runtime_card_summarizes_optional_attention_and_verified_paths(
@@ -599,7 +584,7 @@ def test_runtime_card_summarizes_optional_attention_and_verified_paths(
         },
     )
 
-    card = build_runtime_card(project_root=tmp_path)
+    card = runtime_card.build_runtime_card(project_root=tmp_path)
 
     assert card.summary.status == "fail"
     assert card.run is not None
@@ -634,13 +619,11 @@ def test_runtime_card_summarizes_clean_optional_evidence(tmp_path: Path) -> None
         _evidence_bundle_payload(status="ready"),
     )
 
-    result = run_runtime_card_report(project_root=tmp_path, output="md")
+    result = runtime_card.run_runtime_card_report(project_root=tmp_path, output="md")
 
     assert result.card.summary.status == "pass"
     assert result.card.drift.status == "none"
-    assert "No runtime-card findings were found." in result.output_path.read_text(
-        encoding="utf-8"
-    )
+    assert "No runtime-card findings were found." in result.output_path.read_text(encoding="utf-8")
 
 
 def test_runtime_card_marks_present_drift_attention(tmp_path: Path) -> None:
@@ -654,7 +637,7 @@ def test_runtime_card_marks_present_drift_attention(tmp_path: Path) -> None:
         },
     )
 
-    card = build_runtime_card(project_root=tmp_path)
+    card = runtime_card.build_runtime_card(project_root=tmp_path)
 
     assert card.summary.status == "attention"
     assert card.drift.status == "missing_baseline"
@@ -662,7 +645,7 @@ def test_runtime_card_marks_present_drift_attention(tmp_path: Path) -> None:
 
 def test_runtime_card_error_findings_force_failure() -> None:
     status = runtime_card._card_status(
-        run=RuntimeCardRunEvidence(
+        run=runtime_card.RuntimeCardRunEvidence(
             project="checkout-api",
             environment="ci",
             total=1,
@@ -671,13 +654,13 @@ def test_runtime_card_error_findings_force_failure() -> None:
             exit_code=0,
             failed_tests=0,
         ),
-        drift=RuntimeCardDriftEvidence(
+        drift=runtime_card.RuntimeCardDriftEvidence(
             status="none",
             findings=0,
             drifted=0,
             missing_baseline=False,
         ),
-        redaction=RuntimeCardRedactionEvidence(
+        redaction=runtime_card.RuntimeCardRedactionEvidence(
             status="verified",
             total_records=1,
             redacted_records=1,
@@ -685,7 +668,7 @@ def test_runtime_card_error_findings_force_failure() -> None:
         ),
         findings=(
             [
-                RuntimeCardFinding(
+                runtime_card.RuntimeCardFinding(
                     severity="error",
                     code="unsafe",
                     path=None,
@@ -720,7 +703,7 @@ def test_runtime_card_summarizes_audit_and_agent_attention(tmp_path: Path) -> No
         },
     )
 
-    card = build_runtime_card(project_root=tmp_path)
+    card = runtime_card.build_runtime_card(project_root=tmp_path)
 
     assert card.summary.status == "attention"
     assert card.release.artifact_manifest_audit_status == "broken"
@@ -745,8 +728,8 @@ def test_runtime_card_rejects_invalid_capture_categories(tmp_path: Path) -> None
         },
     )
 
-    with pytest.raises(RuntimeCardError, match="redaction_categories must be a list"):
-        run_runtime_card_report(project_root=tmp_path, output="json")
+    with pytest.raises(runtime_card.RuntimeCardError, match="redaction_categories must be a list"):
+        runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
 
 def test_runtime_card_agent_unknown_status_requires_attention(tmp_path: Path) -> None:
@@ -765,7 +748,7 @@ def test_runtime_card_agent_unknown_status_requires_attention(tmp_path: Path) ->
         },
     )
 
-    card = build_runtime_card(project_root=tmp_path)
+    card = runtime_card.build_runtime_card(project_root=tmp_path)
 
     assert card.summary.status == "attention"
     assert card.agent_provenance.status == "attention"
@@ -779,8 +762,8 @@ def test_runtime_card_markdown_redacts_and_escapes_unsafe_fields(tmp_path: Path)
     )
     _write_test_pyramid_report(tmp_path)
 
-    result = run_runtime_card_report(project_root=tmp_path, output="md")
-    markdown = render_runtime_card_markdown(result.card)
+    result = runtime_card.run_runtime_card_report(project_root=tmp_path, output="md")
+    markdown = runtime_card.render_runtime_card_markdown(result.card)
 
     assert result.output_path == tmp_path / "reports" / "runtime-card.md"
     assert "live-secret" not in markdown
@@ -840,7 +823,7 @@ def test_runtime_card_includes_ready_pilot_readiness(tmp_path: Path) -> None:
         _evidence_bundle_payload(status="ready"),
     )
 
-    result = run_runtime_card_report(project_root=tmp_path, output="md")
+    result = runtime_card.run_runtime_card_report(project_root=tmp_path, output="md")
 
     assert result.card.summary.status == "pass"
     assert result.card.pilot_readiness.status == "ready"
@@ -860,7 +843,7 @@ def test_runtime_card_marks_missing_pilot_readiness(tmp_path: Path) -> None:
     _write_verified_capture_summary(tmp_path)
     _write_verified_artifact_manifest(tmp_path)
 
-    card = build_runtime_card(project_root=tmp_path)
+    card = runtime_card.build_runtime_card(project_root=tmp_path)
 
     assert card.summary.status == "attention"
     assert card.pilot_readiness.status == "missing"
@@ -876,7 +859,7 @@ def test_runtime_card_marks_malformed_evidence_bundle_invalid(tmp_path: Path) ->
     _write_verified_capture_summary(tmp_path)
     (tmp_path / "reports" / "evidence-bundle.json").write_text("{", encoding="utf-8")
 
-    result = run_runtime_card_report(project_root=tmp_path, output="json")
+    result = runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
     assert result.card.summary.status == "fail"
     assert result.card.pilot_readiness.status == "invalid"
@@ -889,7 +872,7 @@ def test_runtime_card_marks_non_utf8_evidence_bundle_invalid(tmp_path: Path) -> 
     _write_verified_capture_summary(tmp_path)
     (tmp_path / "reports" / "evidence-bundle.json").write_bytes(b"\xff")
 
-    result = run_runtime_card_report(project_root=tmp_path, output="json")
+    result = runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
     assert result.card.summary.status == "fail"
     assert result.card.pilot_readiness.status == "invalid"
@@ -919,7 +902,7 @@ def test_runtime_card_marks_oversized_evidence_bundle_invalid(
 
     monkeypatch.setattr(Path, "stat", fake_stat)
 
-    result = run_runtime_card_report(project_root=tmp_path, output="json")
+    result = runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
     assert result.card.summary.status == "fail"
     assert result.card.pilot_readiness.status == "invalid"
@@ -937,7 +920,7 @@ def test_runtime_card_marks_unsupported_evidence_bundle_schema_invalid(
         {"schema_version": "entroping.evidence-bundle.v999"},
     )
 
-    result = run_runtime_card_report(project_root=tmp_path, output="json")
+    result = runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
     assert result.card.summary.status == "fail"
     assert result.card.pilot_readiness.status == "invalid"
@@ -959,7 +942,7 @@ def test_runtime_card_marks_malformed_evidence_bundle_readiness_invalid(
         },
     )
 
-    result = run_runtime_card_report(project_root=tmp_path, output="json")
+    result = runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
     assert result.card.summary.status == "fail"
     assert result.card.pilot_readiness.status == "invalid"
@@ -978,7 +961,7 @@ def test_runtime_card_rejects_boolean_evidence_bundle_readiness_count(
     summary["required_missing"] = True
     _write_json(tmp_path / "reports" / "evidence-bundle.json", payload)
 
-    result = run_runtime_card_report(project_root=tmp_path, output="json")
+    result = runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
     assert result.card.summary.status == "fail"
     assert result.card.pilot_readiness.status == "invalid"
@@ -996,7 +979,7 @@ def test_runtime_card_accepts_pilot_readiness_without_manifest_audit(
     payload["manifest_audit"] = None
     _write_json(tmp_path / "reports" / "evidence-bundle.json", payload)
 
-    result = run_runtime_card_report(project_root=tmp_path, output="json")
+    result = runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
     assert result.card.summary.status == "pass"
     assert result.card.pilot_readiness.status == "ready"
@@ -1008,7 +991,7 @@ def test_runtime_card_marks_unsafe_evidence_bundle_path(tmp_path: Path) -> None:
     _write_verified_capture_summary(tmp_path)
     (tmp_path / "reports" / "evidence-bundle.json").mkdir()
 
-    result = run_runtime_card_report(project_root=tmp_path, output="json")
+    result = runtime_card.run_runtime_card_report(project_root=tmp_path, output="json")
 
     assert result.card.summary.status == "fail"
     assert result.card.pilot_readiness.status == "unsafe"

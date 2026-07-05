@@ -5,13 +5,6 @@ from pathlib import Path
 import pytest
 
 import entroping.core.evidence.otlp_preview as otlp_preview
-from entroping.core.evidence.otlp_preview import (
-    OTLP_PREVIEW_SCHEMA_VERSION,
-    OtlpPreviewError,
-    build_otlp_preview_packet,
-    render_otlp_preview_markdown,
-    run_otlp_preview_report,
-)
 from entroping.core.safe_write import SafeWriteError
 
 
@@ -99,10 +92,10 @@ def _write_otel_mapping(path: Path) -> None:
 
 
 def test_otlp_preview_reports_missing_sources_explicitly(tmp_path: Path) -> None:
-    packet = build_otlp_preview_packet(project_root=tmp_path)
+    packet = otlp_preview.build_otlp_preview_packet(project_root=tmp_path)
     by_id = {source.id: source for source in packet.sources}
 
-    assert packet.schema_version == OTLP_PREVIEW_SCHEMA_VERSION
+    assert packet.schema_version == otlp_preview.OTLP_PREVIEW_SCHEMA_VERSION
     assert packet.summary.status == "insufficient"
     assert by_id["run_report"].state == "missing"
     assert by_id["otel_mapping"].state == "missing"
@@ -115,9 +108,9 @@ def test_otlp_preview_reports_missing_sources_explicitly(tmp_path: Path) -> None
 def test_otlp_preview_uses_counts_without_raw_run_values(tmp_path: Path) -> None:
     _write_run_report(tmp_path / "reports" / "run-latest.json")
 
-    packet = build_otlp_preview_packet(project_root=tmp_path)
+    packet = otlp_preview.build_otlp_preview_packet(project_root=tmp_path)
     payload = json.dumps(packet.model_dump(mode="json"), sort_keys=True)
-    markdown = render_otlp_preview_markdown(packet)
+    markdown = otlp_preview.render_otlp_preview_markdown(packet)
 
     assert packet.summary.status == "partial"
     assert packet.summary.sources_present == 1
@@ -140,14 +133,12 @@ def test_otlp_preview_marks_wrong_schema_invalid(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    packet = build_otlp_preview_packet(project_root=tmp_path)
+    packet = otlp_preview.build_otlp_preview_packet(project_root=tmp_path)
     by_id = {source.id: source for source in packet.sources}
 
     assert packet.summary.status == "insufficient"
     assert by_id["run_report"].state == "invalid"
-    assert by_id["run_report"].summary == (
-        "schema mismatch: expected entroping.run-report.v1"
-    )
+    assert by_id["run_report"].summary == ("schema mismatch: expected entroping.run-report.v1")
 
 
 def test_otlp_preview_marks_symlinked_source_unsafe(tmp_path: Path) -> None:
@@ -157,7 +148,7 @@ def test_otlp_preview_marks_symlinked_source_unsafe(tmp_path: Path) -> None:
     _ = target.write_text('{"schema_version":"entroping.run-report.v1"}\n', encoding="utf-8")
     os.symlink(target, reports / "run-latest.json")
 
-    packet = build_otlp_preview_packet(project_root=tmp_path)
+    packet = otlp_preview.build_otlp_preview_packet(project_root=tmp_path)
     by_id = {source.id: source for source in packet.sources}
 
     assert packet.summary.status == "insufficient"
@@ -173,7 +164,7 @@ def test_otlp_preview_marks_secret_like_source_unsafe(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    packet = build_otlp_preview_packet(project_root=tmp_path)
+    packet = otlp_preview.build_otlp_preview_packet(project_root=tmp_path)
     by_id = {source.id: source for source in packet.sources}
 
     assert by_id["run_report"].state == "unsafe"
@@ -186,7 +177,7 @@ def test_otlp_preview_reports_ready_when_all_sources_are_present(tmp_path: Path)
     _write_runtime_card(reports / "runtime-card.json")
     _write_otel_mapping(reports / "otel-mapping.json")
 
-    packet = build_otlp_preview_packet(project_root=tmp_path)
+    packet = otlp_preview.build_otlp_preview_packet(project_root=tmp_path)
     by_id = {source.id: source for source in packet.sources}
 
     assert packet.summary.status == "ready"
@@ -201,7 +192,7 @@ def test_otlp_preview_marks_directory_source_unsafe(tmp_path: Path) -> None:
     run_report = tmp_path / "reports" / "run-latest.json"
     run_report.mkdir(parents=True)
 
-    packet = build_otlp_preview_packet(project_root=tmp_path)
+    packet = otlp_preview.build_otlp_preview_packet(project_root=tmp_path)
     by_id = {source.id: source for source in packet.sources}
 
     assert packet.summary.status == "insufficient"
@@ -223,7 +214,7 @@ def test_otlp_preview_marks_invalid_source_bytes_invalid(
         lambda path, *, root: (None, "artifact too large"),
     )
 
-    packet = build_otlp_preview_packet(project_root=tmp_path)
+    packet = otlp_preview.build_otlp_preview_packet(project_root=tmp_path)
     by_id = {source.id: source for source in packet.sources}
 
     assert by_id["run_report"].state == "invalid"
@@ -237,19 +228,19 @@ def test_otlp_preview_marks_invalid_utf8_json_and_non_object_sources(
     reports.mkdir()
     (reports / "run-latest.json").write_bytes(b"\xff")
 
-    utf8_packet = build_otlp_preview_packet(project_root=tmp_path)
+    utf8_packet = otlp_preview.build_otlp_preview_packet(project_root=tmp_path)
     utf8_by_id = {source.id: source for source in utf8_packet.sources}
     assert utf8_by_id["run_report"].state == "invalid"
     assert utf8_by_id["run_report"].summary.startswith("invalid UTF-8:")
 
     _ = (reports / "run-latest.json").write_text("not-json", encoding="utf-8")
-    json_packet = build_otlp_preview_packet(project_root=tmp_path)
+    json_packet = otlp_preview.build_otlp_preview_packet(project_root=tmp_path)
     json_by_id = {source.id: source for source in json_packet.sources}
     assert json_by_id["run_report"].state == "invalid"
     assert json_by_id["run_report"].summary == "invalid JSON: Expecting value"
 
     _ = (reports / "run-latest.json").write_text("[]", encoding="utf-8")
-    object_packet = build_otlp_preview_packet(project_root=tmp_path)
+    object_packet = otlp_preview.build_otlp_preview_packet(project_root=tmp_path)
     object_by_id = {source.id: source for source in object_packet.sources}
     assert object_by_id["run_report"].state == "invalid"
     assert object_by_id["run_report"].summary == "JSON artifact must be an object"
@@ -260,7 +251,7 @@ def test_otlp_preview_adds_repair_action_for_invalid_optional_source(tmp_path: P
     _write_passing_run_report(reports / "run-latest.json")
     _ = (reports / "runtime-card.json").write_text("not-json", encoding="utf-8")
 
-    packet = build_otlp_preview_packet(project_root=tmp_path)
+    packet = otlp_preview.build_otlp_preview_packet(project_root=tmp_path)
 
     assert any(action.source_ids == ("runtime_card",) for action in packet.next_actions)
 
@@ -270,25 +261,25 @@ def test_run_otlp_preview_report_writes_json_and_rejects_unsupported_output(
 ) -> None:
     _write_passing_run_report(tmp_path / "reports" / "run-latest.json")
 
-    result = run_otlp_preview_report(project_root=tmp_path, output="json")
+    result = otlp_preview.run_otlp_preview_report(project_root=tmp_path, output="json")
 
     assert result.output_path == tmp_path / "reports" / "otlp-preview.json"
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
-    assert payload["schema_version"] == OTLP_PREVIEW_SCHEMA_VERSION
+    assert payload["schema_version"] == otlp_preview.OTLP_PREVIEW_SCHEMA_VERSION
 
-    with pytest.raises(OtlpPreviewError, match="Unsupported otlp-preview output"):
-        run_otlp_preview_report(project_root=tmp_path, output="yaml")
+    with pytest.raises(otlp_preview.OtlpPreviewError, match="Unsupported otlp-preview output"):
+        otlp_preview.run_otlp_preview_report(project_root=tmp_path, output="yaml")
 
 
 def test_run_otlp_preview_report_rejects_unsafe_output_paths(tmp_path: Path) -> None:
-    with pytest.raises(OtlpPreviewError, match="must stay under the project root"):
-        run_otlp_preview_report(
+    with pytest.raises(otlp_preview.OtlpPreviewError, match="must stay under the project root"):
+        otlp_preview.run_otlp_preview_report(
             project_root=tmp_path,
             output="md",
             output_path=tmp_path.parent / "otlp-preview.md",
         )
-    with pytest.raises(OtlpPreviewError, match="must not be written into"):
-        run_otlp_preview_report(
+    with pytest.raises(otlp_preview.OtlpPreviewError, match="must not be written into"):
+        otlp_preview.run_otlp_preview_report(
             project_root=tmp_path,
             output="md",
             output_path=Path(".entroping") / "otlp-preview.md",
@@ -297,8 +288,8 @@ def test_run_otlp_preview_report_rejects_unsafe_output_paths(tmp_path: Path) -> 
     real_dir = tmp_path / "real"
     real_dir.mkdir()
     os.symlink(real_dir, tmp_path / "linked")
-    with pytest.raises(OtlpPreviewError, match="symlinked component:"):
-        run_otlp_preview_report(
+    with pytest.raises(otlp_preview.OtlpPreviewError, match="symlinked component:"):
+        otlp_preview.run_otlp_preview_report(
             project_root=tmp_path,
             output="md",
             output_path=Path("linked") / "otlp-preview.md",
@@ -310,8 +301,8 @@ def test_run_otlp_preview_report_wraps_secret_and_write_errors(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(otlp_preview, "contains_unredacted_evidence_secret", lambda content: True)
-    with pytest.raises(OtlpPreviewError, match="contains secret-like content"):
-        run_otlp_preview_report(project_root=tmp_path, output="md")
+    with pytest.raises(otlp_preview.OtlpPreviewError, match="contains secret-like content"):
+        otlp_preview.run_otlp_preview_report(project_root=tmp_path, output="md")
 
     monkeypatch.setattr(otlp_preview, "contains_unredacted_evidence_secret", lambda content: False)
 
@@ -319,8 +310,8 @@ def test_run_otlp_preview_report_wraps_secret_and_write_errors(
         raise SafeWriteError("write blocked")
 
     monkeypatch.setattr(otlp_preview, "safe_write_text", fail_write)
-    with pytest.raises(OtlpPreviewError, match="write blocked"):
-        run_otlp_preview_report(project_root=tmp_path, output="md")
+    with pytest.raises(otlp_preview.OtlpPreviewError, match="write blocked"):
+        otlp_preview.run_otlp_preview_report(project_root=tmp_path, output="md")
 
 
 def test_otlp_preview_internal_safety_helpers_cover_absent_and_escaped_paths(

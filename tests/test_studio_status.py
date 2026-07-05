@@ -14,12 +14,6 @@ from entroping.core.evidence.evidence_index import LocalEvidenceArtifact
 from entroping.core.traffic_redactor import redact_traffic_exchange
 from entroping.core.traffic_store import TrafficStore, TrafficStoreError
 from entroping.models.traffic import TrafficBody, TrafficExchange, TrafficRequest, TrafficResponse
-from entroping.studio.status import (
-    StudioDependencyError,
-    collect_studio_status,
-    ensure_studio_available,
-    render_studio_status,
-)
 
 BASE_TIME = datetime(2026, 5, 31, 12, 0, tzinfo=UTC)
 _HASH = "a" * 64
@@ -169,8 +163,8 @@ def test_ensure_studio_available_reports_missing_textual(
 ) -> None:
     monkeypatch.setattr("entroping.studio.status.importlib.util.find_spec", lambda name: None)
 
-    with pytest.raises(StudioDependencyError, match="uv sync --extra studio"):
-        ensure_studio_available()
+    with pytest.raises(studio_status.StudioDependencyError, match="uv sync --extra studio"):
+        studio_status.ensure_studio_available()
 
 
 def test_collect_studio_status_without_latest_run(tmp_path: Path) -> None:
@@ -179,20 +173,20 @@ def test_collect_studio_status_without_latest_run(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    status = collect_studio_status(project_root=tmp_path, environment="local")
+    status = studio_status.collect_studio_status(project_root=tmp_path, environment="local")
 
     assert status.environment == "local"
     assert status.project == "checkout-api"
     assert status.qanstitution_status == "ok"
     assert status.latest_run is None
     assert not status.traffic_state_available
-    rendered = render_studio_status(status)
+    rendered = studio_status.render_studio_status(status)
     assert "Latest run: none" in rendered
     assert "Reports: none" in rendered
 
 
 def test_collect_studio_status_without_qanstitution(tmp_path: Path) -> None:
-    status = collect_studio_status(project_root=tmp_path, environment=None)
+    status = studio_status.collect_studio_status(project_root=tmp_path, environment=None)
 
     assert status.project == "not configured"
     assert status.qanstitution_status == "missing"
@@ -210,7 +204,7 @@ def test_collect_studio_status_reports_qanstitution_load_errors(
 
     monkeypatch.setattr(studio_status, "load_qanstitution", fail_load)
 
-    status = collect_studio_status(project_root=tmp_path, environment=None)
+    status = studio_status.collect_studio_status(project_root=tmp_path, environment=None)
 
     assert status.project == "unavailable"
     assert status.qanstitution_status == "error: invalid policy"
@@ -225,7 +219,7 @@ def test_collect_studio_status_reports_latest_run_load_errors(tmp_path: Path) ->
     state_dir.mkdir()
     (state_dir / "latest-run.json").write_text('{"summary":{}}\n', encoding="utf-8")
 
-    status = collect_studio_status(project_root=tmp_path, environment=None)
+    status = studio_status.collect_studio_status(project_root=tmp_path, environment=None)
 
     assert status.latest_run is None
     assert status.latest_run_status.startswith("error:")
@@ -287,8 +281,8 @@ gates:
     (reports_dir / "run-latest.json").write_text("{}\n", encoding="utf-8")
     (reports_dir / "junit.xml").write_text("<testsuite />\n", encoding="utf-8")
 
-    status = collect_studio_status(project_root=tmp_path, environment=None)
-    rendered = render_studio_status(status)
+    status = studio_status.collect_studio_status(project_root=tmp_path, environment=None)
+    rendered = studio_status.render_studio_status(status)
 
     assert status.environment == "default"
     assert status.latest_run is not None
@@ -333,9 +327,9 @@ def test_collect_studio_status_exposes_read_only_evidence_artifacts(tmp_path: Pa
     )
     (reports_dir / "evidence-bundle.json").write_text("not json\n", encoding="utf-8")
 
-    status = collect_studio_status(project_root=tmp_path, environment="local")
+    status = studio_status.collect_studio_status(project_root=tmp_path, environment="local")
     by_id = {artifact.id: artifact for artifact in status.evidence_artifacts}
-    rendered = render_studio_status(status)
+    rendered = studio_status.render_studio_status(status)
 
     assert status.report_paths == (
         "reports/capture-summary.json",
@@ -359,9 +353,9 @@ def test_collect_studio_status_exposes_ready_evidence_bundle_readiness(
         required_invalid=0,
     )
 
-    status = collect_studio_status(project_root=tmp_path, environment="local")
+    status = studio_status.collect_studio_status(project_root=tmp_path, environment="local")
     readiness = status.evidence_bundle_readiness
-    rendered = render_studio_status(status)
+    rendered = studio_status.render_studio_status(status)
 
     assert readiness is not None
     assert readiness.artifact_state == "present"
@@ -400,9 +394,9 @@ def test_collect_studio_status_exposes_not_ready_evidence_bundle_diagnostics(
         manifest_status="broken",
     )
 
-    status = collect_studio_status(project_root=tmp_path, environment="local")
+    status = studio_status.collect_studio_status(project_root=tmp_path, environment="local")
     readiness = status.evidence_bundle_readiness
-    rendered = render_studio_status(status)
+    rendered = studio_status.render_studio_status(status)
 
     assert readiness is not None
     assert readiness.artifact_state == "present"
@@ -418,15 +412,14 @@ def test_collect_studio_status_exposes_not_ready_evidence_bundle_diagnostics(
     assert readiness.checksum_mismatches == 1
     assert readiness.audit_chain_status == "broken"
     assert (
-        "Evidence bundle: not_ready (2/3 required, 1 missing, 1 invalid; audit broken)"
-        in rendered
+        "Evidence bundle: not_ready (2/3 required, 1 missing, 1 invalid; audit broken)" in rendered
     )
 
 
 def test_collect_studio_status_exposes_invalid_missing_and_unsafe_bundle_states(
     tmp_path: Path,
 ) -> None:
-    missing = collect_studio_status(project_root=tmp_path, environment="local")
+    missing = studio_status.collect_studio_status(project_root=tmp_path, environment="local")
     assert missing.evidence_bundle_readiness is not None
     assert missing.evidence_bundle_readiness.artifact_state == "missing"
     assert missing.evidence_bundle_readiness.status == "missing"
@@ -435,21 +428,21 @@ def test_collect_studio_status_exposes_invalid_missing_and_unsafe_bundle_states(
     reports_dir = tmp_path / "reports"
     reports_dir.mkdir(exist_ok=True)
     (reports_dir / "evidence-bundle.json").write_text("not json\n", encoding="utf-8")
-    invalid = collect_studio_status(project_root=tmp_path, environment="local")
+    invalid = studio_status.collect_studio_status(project_root=tmp_path, environment="local")
     assert invalid.evidence_bundle_readiness is not None
     assert invalid.evidence_bundle_readiness.artifact_state == "invalid"
     assert invalid.evidence_bundle_readiness.status == "invalid"
     assert invalid.evidence_bundle_readiness.invalid_diagnostics == 1
-    assert "Evidence bundle: invalid" in render_studio_status(invalid)
+    assert "Evidence bundle: invalid" in studio_status.render_studio_status(invalid)
 
     (reports_dir / "evidence-bundle.json").unlink()
     (reports_dir / "evidence-bundle.json").mkdir()
-    unsafe = collect_studio_status(project_root=tmp_path, environment="local")
+    unsafe = studio_status.collect_studio_status(project_root=tmp_path, environment="local")
     assert unsafe.evidence_bundle_readiness is not None
     assert unsafe.evidence_bundle_readiness.artifact_state == "unsafe"
     assert unsafe.evidence_bundle_readiness.status == "unsafe"
     assert unsafe.evidence_bundle_readiness.unsafe_diagnostics == 1
-    assert "Evidence bundle: unsafe" in render_studio_status(unsafe)
+    assert "Evidence bundle: unsafe" in studio_status.render_studio_status(unsafe)
 
 
 def test_studio_evidence_bundle_readiness_handles_absent_artifact_definition(
@@ -481,7 +474,7 @@ def test_studio_evidence_bundle_readiness_rejects_invalid_bundle_contract(
         encoding="utf-8",
     )
 
-    status = collect_studio_status(project_root=tmp_path, environment="local")
+    status = studio_status.collect_studio_status(project_root=tmp_path, environment="local")
     readiness = status.evidence_bundle_readiness
 
     assert readiness is not None
@@ -561,7 +554,7 @@ def test_render_studio_status_handles_missing_evidence_index() -> None:
         traffic_state_available=False,
     )
 
-    rendered = render_studio_status(status)
+    rendered = studio_status.render_studio_status(status)
 
     assert "Evidence artifacts: none" in rendered
 
@@ -600,9 +593,9 @@ def test_collect_studio_status_reads_redacted_traffic_routes_without_raw_values(
         store.record_exchange(redact_traffic_exchange(exchange))
     before = (tmp_path / ".entroping" / "state.db").stat().st_mtime_ns
 
-    status = collect_studio_status(project_root=tmp_path, environment="local")
+    status = studio_status.collect_studio_status(project_root=tmp_path, environment="local")
     after = (tmp_path / ".entroping" / "state.db").stat().st_mtime_ns
-    rendered = render_studio_status(status)
+    rendered = studio_status.render_studio_status(status)
     serialized_status = repr(status.traffic_routes) + repr(status.traffic_redactions) + rendered
 
     assert after == before
@@ -639,7 +632,7 @@ def test_collect_studio_status_reads_redacted_traffic_routes_without_raw_values(
 def test_collect_studio_status_handles_empty_traffic_state(tmp_path: Path) -> None:
     TrafficStore.open_project(tmp_path)
 
-    status = collect_studio_status(project_root=tmp_path, environment=None)
+    status = studio_status.collect_studio_status(project_root=tmp_path, environment=None)
 
     assert status.traffic_state_available
     assert status.traffic_state_status == "empty"
@@ -662,7 +655,7 @@ def test_collect_studio_status_reports_traffic_state_errors_without_crashing(
 
     monkeypatch.setattr(studio_status, "list_project_exchanges_readonly", fail_readonly)
 
-    status = collect_studio_status(project_root=tmp_path, environment=None)
+    status = studio_status.collect_studio_status(project_root=tmp_path, environment=None)
 
     assert status.traffic_state_available
     assert status.traffic_state_status == "error: traffic store failed"

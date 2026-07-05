@@ -8,14 +8,6 @@ from typing import Any, cast
 import pytest
 
 import entroping.core.readiness.team_evidence_readiness as readiness
-from entroping.core.readiness.team_evidence_readiness import (
-    TEAM_EVIDENCE_READINESS_SCHEMA_VERSION,
-    TeamEvidenceReadinessError,
-    TeamEvidenceReadinessPacket,
-    build_team_evidence_readiness,
-    render_team_evidence_readiness_markdown,
-    run_team_evidence_readiness_report,
-)
 from entroping.core.safe_write import SafeWriteError
 
 _HASH = "a" * 64
@@ -130,11 +122,11 @@ def test_team_evidence_readiness_writes_value_free_json_from_ready_sources(
 ) -> None:
     _write_ready_sources(tmp_path)
 
-    result = run_team_evidence_readiness_report(project_root=tmp_path, output="json")
+    result = readiness.run_team_evidence_readiness_report(project_root=tmp_path, output="json")
 
     assert result.output_path == tmp_path / "reports" / "team-evidence-readiness.json"
     payload = json.loads(result.output_path.read_text(encoding="utf-8"))
-    assert payload["schema_version"] == TEAM_EVIDENCE_READINESS_SCHEMA_VERSION
+    assert payload["schema_version"] == readiness.TEAM_EVIDENCE_READINESS_SCHEMA_VERSION
     assert payload["project"] == "checkout-api"
     assert payload["summary"] == {
         "status": "ready",
@@ -199,7 +191,7 @@ def test_team_evidence_readiness_marks_missing_invalid_and_unsafe_sources(
     (reports / "handoff.json").write_text("not json\n", encoding="utf-8")
     (reports / "notification-packet.json").mkdir()
 
-    packet = build_team_evidence_readiness(project_root=tmp_path)
+    packet = readiness.build_team_evidence_readiness(project_root=tmp_path)
 
     sources = {source.id: source for source in packet.sources}
     assert sources["evidence_bundle"].state == "invalid"
@@ -279,11 +271,11 @@ def test_team_evidence_readiness_markdown_is_escaped_and_value_free(
     tmp_path: Path,
 ) -> None:
     _write_ready_sources(tmp_path)
-    packet = build_team_evidence_readiness(project_root=tmp_path).model_copy(
+    packet = readiness.build_team_evidence_readiness(project_root=tmp_path).model_copy(
         update={"project": "checkout `api` | demo"}
     )
 
-    markdown = render_team_evidence_readiness_markdown(packet)
+    markdown = readiness.render_team_evidence_readiness_markdown(packet)
 
     assert "# Entroping Team Evidence Readiness" in markdown
     assert "- Project: `checkout &#96;api&#96; | demo`" in markdown
@@ -294,7 +286,7 @@ def test_team_evidence_readiness_markdown_is_escaped_and_value_free(
 
 
 def test_team_evidence_readiness_handles_empty_sources(tmp_path: Path) -> None:
-    packet = build_team_evidence_readiness(project_root=tmp_path)
+    packet = readiness.build_team_evidence_readiness(project_root=tmp_path)
 
     assert packet.project is None
     assert packet.summary.status == "insufficient"
@@ -306,7 +298,7 @@ def test_team_evidence_readiness_handles_empty_sources(tmp_path: Path) -> None:
 def test_team_evidence_readiness_markdown_output_renders_next_actions(
     tmp_path: Path,
 ) -> None:
-    result = run_team_evidence_readiness_report(project_root=tmp_path, output="md")
+    result = readiness.run_team_evidence_readiness_report(project_root=tmp_path, output="md")
 
     markdown = result.output_path.read_text(encoding="utf-8")
     assert result.output_path == tmp_path / "reports" / "team-evidence-readiness.md"
@@ -327,7 +319,7 @@ def test_team_evidence_readiness_project_can_fall_back_to_runtime_card(
         },
     )
 
-    packet = build_team_evidence_readiness(project_root=tmp_path)
+    packet = readiness.build_team_evidence_readiness(project_root=tmp_path)
 
     assert packet.project == "runtime-api"
     assert packet.summary.status == "partial"
@@ -371,21 +363,17 @@ def test_team_evidence_readiness_marks_malformed_source_contracts_invalid(
     )
     (reports / "notification-packet.json").write_text("[]", encoding="utf-8")
 
-    packet = build_team_evidence_readiness(project_root=tmp_path)
+    packet = readiness.build_team_evidence_readiness(project_root=tmp_path)
     sources = {source.id: source for source in packet.sources}
 
     assert sources["evidence_bundle"].state == "invalid"
     assert "Could not decode" in sources["evidence_bundle"].summary
     assert sources["runtime_card"].summary == "Runtime card summary must be an object"
-    assert sources["pilot_metrics"].summary == (
-        "Pilot metrics status must be a non-empty string"
-    )
+    assert sources["pilot_metrics"].summary == ("Pilot metrics status must be a non-empty string")
     assert sources["handoff"].summary == (
         "Cross-surface handoff artifacts_present must be a non-negative integer"
     )
-    assert sources["notification_packet"].summary == (
-        "Notification packet must be a JSON object"
-    )
+    assert sources["notification_packet"].summary == ("Notification packet must be a JSON object")
 
 
 def test_team_evidence_readiness_marks_oversized_source_invalid(
@@ -405,7 +393,7 @@ def test_team_evidence_readiness_marks_oversized_source_invalid(
     )
     monkeypatch.setattr(readiness, "_MAX_SOURCE_BYTES", 2)
 
-    packet = build_team_evidence_readiness(project_root=tmp_path)
+    packet = readiness.build_team_evidence_readiness(project_root=tmp_path)
     source = next(source for source in packet.sources if source.id == "evidence_bundle")
 
     assert source.state == "invalid"
@@ -416,19 +404,19 @@ def test_team_evidence_readiness_rejects_unsupported_and_unsafe_outputs(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    with pytest.raises(TeamEvidenceReadinessError, match="Unsupported team-evidence"):
-        run_team_evidence_readiness_report(
+    with pytest.raises(readiness.TeamEvidenceReadinessError, match="Unsupported team-evidence"):
+        readiness.run_team_evidence_readiness_report(
             project_root=tmp_path,
             output=cast(Any, "html"),
         )
-    with pytest.raises(TeamEvidenceReadinessError, match="must stay under"):
-        run_team_evidence_readiness_report(
+    with pytest.raises(readiness.TeamEvidenceReadinessError, match="must stay under"):
+        readiness.run_team_evidence_readiness_report(
             project_root=tmp_path,
             output="json",
             output_path=tmp_path.parent / "team-evidence-readiness.json",
         )
-    with pytest.raises(TeamEvidenceReadinessError, match="must not be written into"):
-        run_team_evidence_readiness_report(
+    with pytest.raises(readiness.TeamEvidenceReadinessError, match="must not be written into"):
+        readiness.run_team_evidence_readiness_report(
             project_root=tmp_path,
             output="json",
             output_path=Path(".entroping") / "team-evidence-readiness.json",
@@ -439,8 +427,8 @@ def test_team_evidence_readiness_rejects_unsupported_and_unsafe_outputs(
         "first_symlink_path_component",
         lambda *_args, **_kwargs: None,
     )
-    with pytest.raises(TeamEvidenceReadinessError, match="must stay under"):
-        run_team_evidence_readiness_report(
+    with pytest.raises(readiness.TeamEvidenceReadinessError, match="must stay under"):
+        readiness.run_team_evidence_readiness_report(
             project_root=tmp_path,
             output="json",
             output_path=tmp_path.parent / "escaped-team-evidence-readiness.json",
@@ -451,8 +439,8 @@ def test_team_evidence_readiness_rejects_symlinked_output_path(tmp_path: Path) -
     (tmp_path / "real-reports").mkdir()
     os.symlink(tmp_path / "real-reports", tmp_path / "linked-reports")
 
-    with pytest.raises(TeamEvidenceReadinessError, match="symlinked component"):
-        run_team_evidence_readiness_report(
+    with pytest.raises(readiness.TeamEvidenceReadinessError, match="symlinked component"):
+        readiness.run_team_evidence_readiness_report(
             project_root=tmp_path,
             output="json",
             output_path=Path("linked-reports") / "team-evidence-readiness.json",
@@ -463,15 +451,15 @@ def test_team_evidence_readiness_rejects_secret_like_rendered_packet(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    packet = build_team_evidence_readiness(project_root=tmp_path)
+    packet = readiness.build_team_evidence_readiness(project_root=tmp_path)
     monkeypatch.setattr(
         readiness,
         "build_team_evidence_readiness",
         lambda **_: packet.model_copy(update={"project": "sk-proj-" + ("a" * 24)}),
     )
 
-    with pytest.raises(TeamEvidenceReadinessError, match="contains secret-like content"):
-        run_team_evidence_readiness_report(project_root=tmp_path, output="json")
+    with pytest.raises(readiness.TeamEvidenceReadinessError, match="contains secret-like content"):
+        readiness.run_team_evidence_readiness_report(project_root=tmp_path, output="json")
 
 
 def test_team_evidence_readiness_wraps_safe_write_errors(
@@ -483,16 +471,16 @@ def test_team_evidence_readiness_wraps_safe_write_errors(
 
     monkeypatch.setattr(readiness, "safe_write_text", fail_safe_write)
 
-    with pytest.raises(TeamEvidenceReadinessError, match="disk full"):
-        run_team_evidence_readiness_report(project_root=tmp_path, output="json")
+    with pytest.raises(readiness.TeamEvidenceReadinessError, match="disk full"):
+        readiness.run_team_evidence_readiness_report(project_root=tmp_path, output="json")
 
 
 def test_team_evidence_readiness_defensively_rejects_secret_like_packet(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    packet = TeamEvidenceReadinessPacket.model_construct(
-        schema_version=TEAM_EVIDENCE_READINESS_SCHEMA_VERSION,
+    packet = readiness.TeamEvidenceReadinessPacket.model_construct(
+        schema_version=readiness.TEAM_EVIDENCE_READINESS_SCHEMA_VERSION,
         generated_at="2026-06-20T00:00:00+00:00",
         project="sk-proj-" + ("a" * 24),
         summary=object(),
@@ -507,8 +495,8 @@ def test_team_evidence_readiness_defensively_rejects_secret_like_packet(
         lambda **_: packet,
     )
 
-    with pytest.raises(TeamEvidenceReadinessError, match="contains secret-like content"):
-        build_team_evidence_readiness(project_root=tmp_path)
+    with pytest.raises(readiness.TeamEvidenceReadinessError, match="contains secret-like content"):
+        readiness.build_team_evidence_readiness(project_root=tmp_path)
 
 
 def test_team_evidence_readiness_helpers_handle_unreadable_and_duplicate_actions(
@@ -523,7 +511,7 @@ def test_team_evidence_readiness_helpers_handle_unreadable_and_duplicate_actions
 
     monkeypatch.setattr(Path, "read_bytes", fail_read_bytes)
 
-    with pytest.raises(TeamEvidenceReadinessError, match="Could not read source"):
+    with pytest.raises(readiness.TeamEvidenceReadinessError, match="Could not read source"):
         readiness._read_bounded_bytes(path, artifact="source")
 
     action = readiness.TeamEvidenceNextAction(
