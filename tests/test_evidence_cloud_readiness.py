@@ -18,8 +18,6 @@ from entroping.core.readiness.evidence_cloud_readiness import (
 )
 from entroping.core.safe_write import SafeWriteError
 
-_HASH = "a" * 64
-
 
 def _write_json(path: Path, payload: dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
