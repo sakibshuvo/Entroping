@@ -21,6 +21,10 @@ def _load_script_module() -> ModuleType:
     return module
 
 
+def _non_callable_completion_boundary() -> object:
+    return object()
+
+
 def test_optional_extras_smoke_success_suppresses_dependency_noise(
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
@@ -70,7 +74,11 @@ def test_optional_extras_smoke_rejects_non_callable_completion(
 ) -> None:
     module = _load_script_module()
 
-    monkeypatch.setattr(module, "_load_completion_func", lambda: object())
+    monkeypatch.setattr(
+        module,
+        "_load_completion_func",
+        _non_callable_completion_boundary,
+    )
 
     exit_code = module.main()
 

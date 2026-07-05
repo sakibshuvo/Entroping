@@ -136,7 +136,7 @@ def compile_story_traceability(
         )
 
     for story_id, paths in sorted(story_paths.items()):
-        sorted_paths = tuple(sorted(paths, key=lambda path: str(path)))
+        sorted_paths = tuple(sorted(paths, key=str))
         if len(sorted_paths) > 1:
             findings.append(
                 StoryTraceabilityFinding(
@@ -153,7 +153,7 @@ def compile_story_traceability(
     if story_document_scope_present or story_documents or story_findings:
         for story_id in sorted(test_paths):
             if story_id not in story_paths:
-                sorted_tests = tuple(sorted(test_paths[story_id], key=lambda path: str(path)))
+                sorted_tests = tuple(sorted(test_paths[story_id], key=str))
                 findings.append(
                     StoryTraceabilityFinding(
                         kind="missing_story",
@@ -169,7 +169,7 @@ def compile_story_traceability(
         for story_id in sorted(story_paths):
             if story_id in test_paths:
                 continue
-            sorted_paths = tuple(sorted(story_paths[story_id], key=lambda path: str(path)))
+            sorted_paths = tuple(sorted(story_paths[story_id], key=str))
             findings.append(
                 StoryTraceabilityFinding(
                     kind="story_without_tests",
@@ -187,10 +187,10 @@ def compile_story_traceability(
         StoryTraceabilityStory(
             story_id=story_id,
             test_paths=tuple(
-                sorted(test_paths.get(story_id, set()), key=lambda path: str(path)),
+                sorted(test_paths.get(story_id, set()), key=str),
             ),
             story_paths=tuple(
-                sorted(story_paths.get(story_id, set()), key=lambda path: str(path)),
+                sorted(story_paths.get(story_id, set()), key=str),
             ),
             titles=tuple(sorted(story_titles.get(story_id, set()))),
             owners=tuple(sorted(story_owners.get(story_id, set()))),

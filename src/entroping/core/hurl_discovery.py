@@ -173,7 +173,7 @@ def _discover_hurl_files(roots: Sequence[Path]) -> list[Path]:
                 continue
             candidates.append(resolved_path)
 
-    return sorted(set(candidates), key=lambda path: str(path))
+    return sorted(set(candidates), key=str)
 
 
 def _is_within_root(path: Path, root: Path) -> bool:

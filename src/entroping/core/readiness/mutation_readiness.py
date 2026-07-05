@@ -588,7 +588,7 @@ def _generated_hurl_sources(*, root: Path) -> tuple[MutationReadinessSource, ...
     if not tests_root.exists():
         return ()
     sources: list[MutationReadinessSource] = []
-    for path in sorted(tests_root.rglob("*.hurl"), key=lambda candidate: str(candidate)):
+    for path in sorted(tests_root.rglob("*.hurl"), key=str):
         if is_ignored_project_path(path, root=root):
             continue
         source = _load_hurl_source(root=root, raw_path=Path(_relative_path(path, root=root)))

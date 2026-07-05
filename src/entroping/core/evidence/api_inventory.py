@@ -497,7 +497,7 @@ def _hurl_test_sources(*, root: Path) -> tuple[ApiInventorySource, ...]:
     if not tests_root.exists():
         return ()
     sources: list[ApiInventorySource] = []
-    for path in sorted(tests_root.rglob("*.hurl"), key=lambda candidate: str(candidate)):
+    for path in sorted(tests_root.rglob("*.hurl"), key=str):
         if is_ignored_project_path(path, root=root):
             continue
         sources.append(_load_hurl_source(root=root, raw_path=Path(_relative_path(path, root=root))))
