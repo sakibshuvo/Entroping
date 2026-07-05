@@ -1,8 +1,7 @@
 import re
 from dataclasses import dataclass
-from typing import Final
+from typing import Any, Final
 from urllib.parse import parse_qsl, urlsplit, urlunsplit
-from xml.etree.ElementTree import Element as XmlElement
 
 from defusedxml import ElementTree as SafeElementTree
 from defusedxml.common import DefusedXmlException
@@ -86,7 +85,7 @@ def _validate_wsdl_text(wsdl_xml: str) -> None:
         raise SoapHurlCompilationError(msg)
 
 
-def _load_wsdl_document(wsdl_xml: str) -> XmlElement:
+def _load_wsdl_document(wsdl_xml: str) -> Any:
     try:
         root = SafeElementTree.fromstring(wsdl_xml)
     except DefusedXmlException as exc:
@@ -102,7 +101,7 @@ def _load_wsdl_document(wsdl_xml: str) -> XmlElement:
     return root
 
 
-def _wsdl_port_type_operation_count(root: XmlElement) -> int:
+def _wsdl_port_type_operation_count(root: Any) -> int:
     return sum(
         1
         for port_type in list(root)
@@ -112,7 +111,7 @@ def _wsdl_port_type_operation_count(root: XmlElement) -> int:
     )
 
 
-def _soap_action_count(root: XmlElement) -> int:
+def _soap_action_count(root: Any) -> int:
     count = 0
     for element in root.iter():
         if _xml_local_name(element.tag) != "operation":
