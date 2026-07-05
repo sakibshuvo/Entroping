@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions
+  xmlns="http://schemas.xmlsoap.org/wsdl/"
+  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+  xmlns:tns="https://internal.example.test/contracts/orders"
+  targetNamespace="https://internal.example.test/contracts/orders">
+  <portType name="OrderPortType">
+    <operation name="GetOrder">
+      <input message="tns:GetOrderRequest" />
+      <output message="tns:GetOrderResponse" />
+    </operation>
+  </portType>
+  <binding name="OrderBinding" type="tns:OrderPortType">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <operation name="GetOrder">
+      <soap:operation soapAction="https://internal.example.test/actions/get-order" />
+    </operation>
+  </binding>
+  <service name="OrderService">
+    <port name="OrderPort" binding="tns:OrderBinding">
+      <soap:address location="https://internal.example.test/soap/orders" />
+    </port>
+  </service>
+</definitions>
