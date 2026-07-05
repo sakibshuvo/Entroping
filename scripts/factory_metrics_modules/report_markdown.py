@@ -36,10 +36,10 @@ def _render_report_markdown(report: dict[str, Any]) -> str:
         f"- Duration seconds: {totals['duration_seconds']:.2f}",
         "",
         "| Issue | Events | Estimated tokens | Cost USD | Duration s | "
-        "Files read | Files touched | Tests | Gates | Outcomes | Decisions | "
-        "Roles | Agents | Provider/models |",
+        + "Files read | Files touched | Tests | Gates | Outcomes | Decisions | "
+        + "Roles | Agents | Provider/models |",
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | "
-        "--- | --- | --- | --- | --- |",
+        + "--- | --- | --- | --- | --- |",
     ]
 
     for issue in report["issues"]:
@@ -68,8 +68,8 @@ def _render_report_markdown(report: dict[str, Any]) -> str:
             "## Model Comparison",
             "",
             "| Issue | Role | Provider lane | Model ID | Events | Estimated tokens | "
-            "Cost USD | Duration s | Unknown metrics | Outcomes | Decisions | "
-            "Accepted ratio |",
+            + "Cost USD | Duration s | Unknown metrics | Outcomes | Decisions | "
+            + "Accepted ratio |",
             "| --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- | --- | ---: |",
         ]
     )

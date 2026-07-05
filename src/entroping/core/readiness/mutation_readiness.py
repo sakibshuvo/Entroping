@@ -454,8 +454,8 @@ def render_mutation_readiness_markdown(packet: MutationReadinessPacket) -> str:
         "# Entroping Mutation Readiness",
         "",
         "Local evidence for future deterministic mutation and seeded fuzz workflows. "
-        "This report does not execute Hurl, generate tests, call providers, parse "
-        "traffic state, or mutate source files.",
+        + "This report does not execute Hurl, generate tests, call providers, parse "
+        + "traffic state, or mutate source files.",
         "",
         "## Summary",
         "",

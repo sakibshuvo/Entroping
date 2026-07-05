@@ -318,9 +318,9 @@ def render_qa_brain_seed_markdown(packet: QaBrainSeedPacket) -> str:
         "# Entroping QA Brain Seed",
         "",
         "Deterministic local seed metadata for future Entroping QA Brain retrieval "
-        "and eval design. This report does not execute Hurl, run tests, call "
-        "providers, fine-tune models, upload artifacts, parse traffic state, or "
-        "render raw report contents.",
+        + "and eval design. This report does not execute Hurl, run tests, call "
+        + "providers, fine-tune models, upload artifacts, parse traffic state, or "
+        + "render raw report contents.",
         "",
         "## Summary",
         "",

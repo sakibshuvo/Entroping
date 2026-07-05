@@ -70,7 +70,7 @@ def render_effective_policy_markdown(report: EffectivePolicyReport) -> str:
         "# Entroping Effective Policy",
         "",
         "Local-only evidence for the resolved QAnstitution gates. Raw traffic, "
-        "provider credentials, and model prompts are not included.",
+        + "provider credentials, and model prompts are not included.",
         "",
         "## Summary",
         "",
@@ -114,7 +114,7 @@ def render_effective_policy_markdown(report: EffectivePolicyReport) -> str:
             "## Gates",
             "",
             "| ID | Source | Import Chain | Group | Enforcement | Final | Condition | "
-            "Assertion | Description |",
+            + "Assertion | Description |",
             "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )

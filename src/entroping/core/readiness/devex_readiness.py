@@ -479,8 +479,8 @@ def render_devex_readiness_markdown(packet: DevexReadinessPacket) -> str:
             "## Families",
             "",
             "| Family | Status | Surfaces | Required Sources | Present Sources | "
-            "Missing Sources | Blockers | Link Requirements | Action Requirements | "
-            "Forbidden Actions | Next Action |",
+            + "Missing Sources | Blockers | Link Requirements | Action Requirements | "
+            + "Forbidden Actions | Next Action |",
             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )

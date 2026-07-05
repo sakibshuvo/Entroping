@@ -266,7 +266,7 @@ def render_pilot_cohort_markdown(packet: PilotCohortPacket) -> str:
             "## Readiness Signals",
             "",
             "| Signal | Ready | Pass | Partial | Insufficient | Missing | "
-            "Invalid | Unsafe | Other |",
+            + "Invalid | Unsafe | Other |",
             "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
         ]
     )

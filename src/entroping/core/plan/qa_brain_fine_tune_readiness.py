@@ -267,11 +267,11 @@ def render_qa_brain_fine_tune_readiness_markdown(
         "# Entroping QA Brain Fine-Tune Readiness",
         "",
         "Deterministic local readiness metadata for future Entroping QA Brain "
-        "proprietary-model experiments. This report does not execute Hurl, run "
-        "tests, call providers, create embeddings, use a vector database, "
-        "retrieve documents, execute prompts, export datasets, upload artifacts, "
-        "fine-tune models, train models, package models, parse traffic state, "
-        "run mutations, or render raw report contents.",
+        + "proprietary-model experiments. This report does not execute Hurl, run "
+        + "tests, call providers, create embeddings, use a vector database, "
+        + "retrieve documents, execute prompts, export datasets, upload artifacts, "
+        + "fine-tune models, train models, package models, parse traffic state, "
+        + "run mutations, or render raw report contents.",
         "",
         "## Summary",
         "",
@@ -281,17 +281,17 @@ def render_qa_brain_fine_tune_readiness_markdown(
         f"- Project: `{_inline_code(packet.project)}`",
         f"- Prompt-plan schema: `{packet.prompt_plan_schema_version}`",
         "- Readiness rows: "
-        f"`{packet.summary.readiness_ready}/{packet.summary.readiness_total}` ready, "
-        f"`{packet.summary.readiness_missing}` missing, "
-        f"`{packet.summary.readiness_attention}` attention",
+        + f"`{packet.summary.readiness_ready}/{packet.summary.readiness_total}` ready, "
+        + f"`{packet.summary.readiness_missing}` missing, "
+        + f"`{packet.summary.readiness_attention}` attention",
         f"- Blockers: `{packet.summary.blockers_total}`",
         f"- Next actions: `{packet.summary.next_actions_total}`",
         "",
         "## Readiness Rows",
         "",
         "| ID | Label | Readiness | Stage | Sources | Evidence Coverage | "
-        "Prompt Plan | Safety Boundary | Eval Coverage | Redaction Boundary | "
-        "Deterministic Acceptance | Blockers | Next Action |",
+        + "Prompt Plan | Safety Boundary | Eval Coverage | Redaction Boundary | "
+        + "Deterministic Acceptance | Blockers | Next Action |",
         "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for row in packet.readiness_rows:

@@ -27,7 +27,7 @@ def _render_context_scorecard_markdown(report: dict[str, Any]) -> str:
             "## Tool Decisions",
             "",
             "| Tool | Setup | Proof | Recommendation | Trials | Evidence | Best issue | "
-            "Improvements | Regressions | Improved metrics |",
+            + "Improvements | Regressions | Improved metrics |",
             "| --- | --- | --- | --- | ---: | ---: | --- | ---: | ---: | --- |",
         ]
     )
@@ -55,7 +55,7 @@ def _render_context_scorecard_markdown(report: dict[str, Any]) -> str:
             "## Trial Comparisons",
             "",
             "| Tool | Issue | Workflow | Improvements | Regressions | "
-            "Improved metrics | Regressed metrics |",
+            + "Improved metrics | Regressed metrics |",
             "| --- | --- | --- | ---: | ---: | --- | --- |",
         ]
     )
