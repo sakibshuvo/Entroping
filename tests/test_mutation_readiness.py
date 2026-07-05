@@ -7,8 +7,10 @@ import pytest
 import entroping.core.readiness.mutation_readiness as mutation_readiness
 from entroping.core.readiness.mutation_readiness import (
     MutationReadinessError,
+    MutationReadinessReplayValidationError,
     build_mutation_readiness,
     render_mutation_readiness_markdown,
+    run_mutation_readiness_replay_validation,
     run_mutation_readiness_report,
 )
 from entroping.core.safe_write import SafeWriteError
@@ -761,6 +763,184 @@ def test_mutation_readiness_rejects_unsupported_and_unsafe_outputs(
 
     with pytest.raises(MutationReadinessError, match="cannot write mutation readiness"):
         run_mutation_readiness_report(project_root=tmp_path, output="md")
+
+
+def test_mutation_readiness_replay_validation_accepts_valid_manifest(tmp_path: Path) -> None:
+    _write_text(
+        tmp_path / "tests" / "generated" / "negative" / "schema.hurl",
+        "\n".join(
+            (
+                "# entroping: tags=generated,negative",
+                "# entroping: source=openapi",
+                "# entroping: negative_category=schema-violations",
+                "# entroping: fuzz_seed=schema-seed",
+                "POST http://127.0.0.1:18080/orders",
+                "HTTP 422",
+                "[Asserts]",
+                'jsonpath "$.code" isString',
+            )
+        )
+        + "\n",
+    )
+    _write_text(
+        tmp_path / "tests" / "generated" / "security" / "auth.hurl",
+        "\n".join(
+            (
+                "# entroping: tags=generated,negative",
+                "# entroping: source=openapi",
+                "# entroping: operation_id=getOrders",
+                "# entroping: negative_category=invalid-auth",
+                "# entroping: mutation_seed=auth-seed",
+                "GET http://127.0.0.1:18080/orders",
+                "HTTP 401",
+                "[Asserts]",
+                'header "WWW-Authenticate" exists',
+            )
+        )
+        + "\n",
+    )
+    report = run_mutation_readiness_report(project_root=tmp_path, output="json")
+
+    validation = run_mutation_readiness_replay_validation(project_root=tmp_path)
+
+    assert validation.passed
+    assert validation.manifest_path == report.output_path
+    assert validation.candidate_count == 2
+    assert validation.errors == ()
+    assert validation.warnings == ()
+
+
+def test_mutation_readiness_replay_validation_reports_determinism_and_seed_errors(
+    tmp_path: Path,
+) -> None:
+    _write_text(
+        tmp_path / "tests" / "generated" / "negative" / "schema.hurl",
+        "\n".join(
+            (
+                "# entroping: tags=generated,negative",
+                "# entroping: source=openapi",
+                "# entroping: negative_category=schema-violations",
+                "# entroping: fuzz_seed=schema-seed",
+                "POST http://127.0.0.1:18080/orders",
+                "HTTP 422",
+                "[Asserts]",
+                'jsonpath "$.code" isString',
+            )
+        )
+        + "\n",
+    )
+    _write_text(
+        tmp_path / "tests" / "generated" / "security" / "auth.hurl",
+        "\n".join(
+            (
+                "# entroping: tags=generated,negative",
+                "# entroping: source=openapi",
+                "# entroping: operation_id=getOrders",
+                "# entroping: negative_category=invalid-auth",
+                "# entroping: mutation_seed=auth-seed",
+                "GET http://127.0.0.1:18080/orders",
+                "HTTP 401",
+                "[Asserts]",
+                'header "WWW-Authenticate" exists',
+            )
+        )
+        + "\n",
+    )
+    run_mutation_readiness_report(project_root=tmp_path, output="json")
+
+    manifest_path = tmp_path / "reports" / "mutation-readiness.json"
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    candidates = payload["seeded_fuzz_candidates"]
+    assert len(candidates) == 2
+    candidates[0], candidates[1] = candidates[1], candidates[0]
+    candidates[0]["seed_metadata"] = False
+    manifest_path.write_text(json.dumps(payload, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+
+    validation = run_mutation_readiness_replay_validation(project_root=tmp_path)
+
+    assert not validation.passed
+    assert validation.manifest_path == manifest_path
+    assert any(
+        "seeded fuzz manifest candidates are not sorted deterministically" in error
+        for error in validation.errors
+    )
+    assert any(
+        "missing seed metadata" in error for error in validation.errors
+    )
+
+
+def test_mutation_readiness_replay_validation_reports_missing_source_links(tmp_path: Path) -> None:
+    _write_text(
+        tmp_path / "tests" / "generated" / "security" / "auth.hurl",
+        "\n".join(
+            (
+                "# entroping: tags=generated,negative",
+                "# entroping: source=openapi",
+                "# entroping: operation_id=getOrders",
+                "# entroping: negative_category=invalid-auth",
+                "# entroping: mutation_seed=auth-seed",
+                "GET http://127.0.0.1:18080/orders",
+                "HTTP 401",
+                "[Asserts]",
+                'header "WWW-Authenticate" exists',
+            )
+        )
+        + "\n",
+    )
+    run_mutation_readiness_report(project_root=tmp_path, output="json")
+
+    manifest_path = tmp_path / "reports" / "mutation-readiness.json"
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    candidate = payload["seeded_fuzz_candidates"][0]
+    candidate["seed_metadata"] = True
+    candidate["source_path"] = "tests/generated/security/missing.hurl"
+    candidate["id"] = (
+        candidate["id"].rsplit(":", maxsplit=1)[0]
+        + ":tests/generated/security/missing.hurl"
+    )
+    payload["sources"] = [
+        source
+        for source in payload["sources"]
+        if source["path"] != "tests/generated/security/auth.hurl"
+    ]
+    manifest_path.write_text(json.dumps(payload, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+
+    validation = run_mutation_readiness_replay_validation(project_root=tmp_path)
+    assert not validation.passed
+    assert any(
+        "is not present in sources" in error for error in validation.errors
+    )
+
+
+def test_mutation_readiness_replay_validation_rejects_invalid_manifest_path(
+    tmp_path: Path,
+) -> None:
+    result_report = run_mutation_readiness_report(project_root=tmp_path, output="json")
+    payload = json.loads(result_report.output_path.read_text(encoding="utf-8"))
+    manifest_path = tmp_path.parent / "outside" / "mutation-readiness.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+        MutationReadinessReplayValidationError,
+        match="manifest path is unsafe",
+        ):
+        run_mutation_readiness_replay_validation(
+            project_root=tmp_path,
+            manifest_path=tmp_path.parent / "outside" / "mutation-readiness.json",
+        )
+
+
+def test_mutation_readiness_replay_validation_rejects_bad_json(tmp_path: Path) -> None:
+    manifest_path = tmp_path / "reports" / "mutation-readiness.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text("{bad-json", encoding="utf-8")
+
+    with pytest.raises(
+        MutationReadinessReplayValidationError,
+        match="manifest is not valid JSON",
+    ):
+        run_mutation_readiness_replay_validation(project_root=tmp_path)
 
 
 def test_mutation_readiness_rejects_secret_like_rendered_output(

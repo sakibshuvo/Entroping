@@ -255,6 +255,9 @@ from entroping.core.readiness.integration_readiness import (
 from entroping.core.readiness.mutation_readiness import (
     MutationReadinessError,
     MutationReadinessOutput,
+    MutationReadinessReplayValidationError,
+    MutationReadinessReplayValidationResult,
+    run_mutation_readiness_replay_validation,
     run_mutation_readiness_report,
 )
 from entroping.core.readiness.observability_adapter_readiness import (
@@ -359,6 +362,8 @@ __all__ = [
     "IntegrationReadinessOutput",
     "MutationReadinessError",
     "MutationReadinessOutput",
+    "MutationReadinessReplayValidationError",
+    "MutationReadinessReplayValidationResult",
     "NotificationOutput",
     "NotificationPacketError",
     "ObservabilityAdapterReadinessError",
@@ -460,6 +465,7 @@ __all__ = [
     "run_handoff_report",
     "run_integration_readiness_report",
     "run_mutation_readiness_report",
+    "run_mutation_readiness_replay_validation",
     "run_notification_packet_report",
     "run_observability_adapter_readiness_report",
     "run_observability_packet_report",

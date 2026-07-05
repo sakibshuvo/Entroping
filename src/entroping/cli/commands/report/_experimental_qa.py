@@ -12,6 +12,7 @@ from ._deps import (
     AGENT_BUNDLE_ROLES,
     AgentBundleError,
     AgentBundleOutput,
+    MutationReadinessReplayValidationError,
     QaBrainEvalPlanError,
     QaBrainEvalPlanOutput,
     QaBrainFineTuneReadinessError,
@@ -45,6 +46,9 @@ run_qa_brain_repair_plan_report = report_dependency("run_qa_brain_repair_plan_re
 run_qa_brain_retrieval_plan_report = report_dependency("run_qa_brain_retrieval_plan_report")
 run_qa_brain_routing_plan_report = report_dependency("run_qa_brain_routing_plan_report")
 run_qa_brain_seed_report = report_dependency("run_qa_brain_seed_report")
+run_mutation_readiness_replay_validation = report_dependency(
+    "run_mutation_readiness_replay_validation"
+)
 
 
 @app.command("qa-brain-seed", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
@@ -311,3 +315,32 @@ def report_agent_bundle(
 
     console.print(f"Wrote agent review bundle: {display_cli_path(result.output_path)}")
     raise typer.Exit(0 if result.report.summary.status != "fail" else 1)
+
+
+@app.command("mutation-readiness-replay", rich_help_panel=EXPERIMENTAL_REPORT_PANEL)
+def report_mutation_readiness_replay(
+    manifest: Annotated[
+        Path,
+        typer.Option("--manifest", help="Path to the mutation-readiness JSON manifest."),
+    ] = Path("reports") / "mutation-readiness.json",
+) -> None:
+    try:
+        result = run_mutation_readiness_replay_validation(
+            project_root=Path.cwd(),
+            manifest_path=manifest,
+        )
+    except MutationReadinessReplayValidationError as exc:
+        print_cli_error(exc)
+        raise typer.Exit(1) from exc
+
+    for warning in result.warnings:
+        console.print(f"[yellow]warn: {warning}[/yellow]")
+    if result.errors:
+        for error in result.errors:
+            console.print(f"[red]error: {error}[/red]")
+        raise typer.Exit(1)
+
+    console.print(
+        f"mutation-readiness replay manifest valid: {display_cli_path(result.manifest_path)}"
+    )
+    raise typer.Exit(0)
