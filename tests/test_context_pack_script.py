@@ -122,8 +122,14 @@ def test_context_pack_limits_large_git_status_listing() -> None:
             path.write_text("temporary status fixture\n", encoding="utf-8")
 
         result = run_context_pack("--mode", "implementation")
+        strict_result = run_context_pack(
+            "--mode",
+            "implementation",
+            "--strict-budget",
+        )
 
         assert result.returncode == 0, result.stderr
+        assert strict_result.returncode == 0, strict_result.stderr
         assert "additional status line(s) omitted; run git status --short" in result.stdout
     finally:
         for path in paths:
