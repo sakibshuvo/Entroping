@@ -123,8 +123,12 @@ def test_qa_brain_seed_preserves_invalid_and_unsafe_evidence_states(
     reports = tmp_path / "reports"
     reports.mkdir()
     outside = tmp_path.parent / "outside-run-latest.json"
+    leak_marker = "DO_NOT_LEAK_UNSAFE_SYMLINK_CONTENT"
     outside.write_text(
-        '{"schema_version":"entroping.run-report.v1","summary":{"total":999}}\n',
+        (
+            '{"schema_version":"entroping.run-report.v1",'
+            f'"summary":{{"total":999,"marker":"{leak_marker}"}}}}\n'
+        ),
         encoding="utf-8",
     )
     (reports / "run-latest.json").symlink_to(outside)
@@ -157,7 +161,7 @@ def test_qa_brain_seed_preserves_invalid_and_unsafe_evidence_states(
     assert next(
         action for action in packet.next_actions if action.action.endswith("Bogus evidence.")
     ).source_ids == slices["bogus_evidence"].source_ids
-    assert "999" not in packet.model_dump_json()
+    assert leak_marker not in packet.model_dump_json()
 
 
 def test_qa_brain_seed_markdown_is_human_readable_and_value_free(
