@@ -3,6 +3,7 @@
 import os
 import stat
 import subprocess
+from contextlib import suppress
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -303,11 +304,9 @@ def test_finish_issue_preserves_factory_metrics_before_worktree_removal(
     root_content = root_ledger.read_text(encoding="utf-8")
     nested_content = nested_ledger.read_text(encoding="utf-8")
     metrics_dir = worktree / ".entroping" / "factory-metrics"
-    try:
+    with suppress(OSError):
         (metrics_dir / "linked.jsonl").symlink_to(root_ledger)
         (metrics_dir / "linked-workers").symlink_to(metrics_dir / "workers")
-    except OSError:
-        pass
     fake_bin = write_fake_gh(tmp_path)
 
     result = run_finish_issue(repo, fake_bin, tmp_path, "99")

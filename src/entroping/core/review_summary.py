@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from html import escape
 from pathlib import Path
@@ -32,10 +32,8 @@ _MAX_REVIEW_SUMMARY_ARTIFACT_BYTES: Final = LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES
 
 class _XmlElement(Protocol):
     text: str | None
-
-    def get(self, key: str) -> str | None: ...
-
-    def findall(self, path: str) -> Sequence[_XmlElement]: ...
+    get: Callable[[str], str | None]
+    findall: Callable[[str], Sequence[_XmlElement]]
 
 
 class ReviewSummaryError(ValueError):
@@ -251,7 +249,7 @@ def _findings_from_junit(
         return ()
 
     try:
-        root_element = cast(_XmlElement, ElementTree.parse(path).getroot())
+        root_element = cast(_XmlElement, cast(object, ElementTree.parse(path).getroot()))
     except DefusedXmlException as exc:
         msg = f"Could not parse JUnit report {path}: unsafe XML construct: {exc}"
         raise ReviewSummaryError(msg) from exc
