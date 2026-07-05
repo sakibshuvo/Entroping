@@ -2699,6 +2699,20 @@ def test_report_mutation_readiness_replay_validates_manifest(
     assert "mutation-readiness replay manifest valid" in result.output
 
 
+def test_report_mutation_readiness_replay_prints_manifest_warnings(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    run_mutation_readiness_report(project_root=tmp_path, output="json")
+
+    result = CliRunner().invoke(app, ["report", "mutation-readiness-replay"])
+
+    assert result.exit_code == 0
+    assert "warn: no seeded fuzz candidates were present for replay" in result.output
+    assert "mutation-readiness replay manifest valid" in result.output
+
+
 def test_report_mutation_readiness_replay_reports_validation_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

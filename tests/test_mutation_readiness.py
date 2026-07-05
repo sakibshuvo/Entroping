@@ -943,6 +943,233 @@ def test_mutation_readiness_replay_validation_rejects_bad_json(tmp_path: Path) -
         run_mutation_readiness_replay_validation(project_root=tmp_path)
 
 
+def test_mutation_readiness_replay_validation_rejects_unreadable_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path = tmp_path / "reports" / "mutation-readiness.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text("{}", encoding="utf-8")
+    real_read_bytes = Path.read_bytes
+
+    def fail_read_bytes(self: Path) -> bytes:
+        if self == manifest_path:
+            raise OSError("permission denied")
+        return real_read_bytes(self)
+
+    monkeypatch.setattr(Path, "read_bytes", fail_read_bytes)
+
+    with pytest.raises(
+        MutationReadinessReplayValidationError,
+        match="cannot read manifest",
+    ):
+        run_mutation_readiness_replay_validation(project_root=tmp_path)
+
+
+def test_mutation_readiness_replay_validation_rejects_large_and_non_utf8_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path = tmp_path / "reports" / "mutation-readiness.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(
+        mutation_readiness,
+        "_MAX_MUTATION_READINESS_ARTIFACT_BYTES",
+        2,
+    )
+    manifest_path.write_bytes(b"abc")
+
+    with pytest.raises(
+        MutationReadinessReplayValidationError,
+        match="manifest is too large",
+    ):
+        run_mutation_readiness_replay_validation(project_root=tmp_path)
+
+    monkeypatch.setattr(
+        mutation_readiness,
+        "_MAX_MUTATION_READINESS_ARTIFACT_BYTES",
+        1024,
+    )
+    manifest_path.write_bytes(b"\xff")
+
+    with pytest.raises(
+        MutationReadinessReplayValidationError,
+        match="manifest is not UTF-8",
+    ):
+        run_mutation_readiness_replay_validation(project_root=tmp_path)
+
+
+def test_mutation_readiness_replay_validation_rejects_invalid_manifest_schema(
+    tmp_path: Path,
+) -> None:
+    manifest_path = tmp_path / "reports" / "mutation-readiness.json"
+    _write_text(manifest_path, "[]\n")
+
+    with pytest.raises(
+        MutationReadinessReplayValidationError,
+        match="manifest root must be a JSON object",
+    ):
+        run_mutation_readiness_replay_validation(project_root=tmp_path)
+
+    _write_json(manifest_path, {"schema_version": "entroping.other.v1"})
+
+    with pytest.raises(
+        MutationReadinessReplayValidationError,
+        match="unexpected schema_version",
+    ):
+        run_mutation_readiness_replay_validation(project_root=tmp_path)
+
+    _write_json(
+        manifest_path,
+        {"schema_version": "entroping.mutation-readiness.v1"},
+    )
+
+    with pytest.raises(
+        MutationReadinessReplayValidationError,
+        match="manifest schema validation failed",
+    ):
+        run_mutation_readiness_replay_validation(project_root=tmp_path)
+
+
+def test_mutation_readiness_replay_validation_rejects_local_state_and_symlink_manifest_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with pytest.raises(
+        MutationReadinessReplayValidationError,
+        match="must not target local state",
+    ):
+        run_mutation_readiness_replay_validation(
+            project_root=tmp_path,
+            manifest_path=Path(".entroping") / "mutation-readiness.json",
+        )
+
+    manifest_path = tmp_path / "reports" / "mutation-readiness.json"
+    _write_json(manifest_path, {})
+
+    def reject_path(path: Path, *, root: Path) -> str | None:
+        _ = path, root
+        raise ValueError("symlinked component")
+
+    monkeypatch.setattr(mutation_readiness, "_unsafe_path_summary", reject_path)
+
+    with pytest.raises(
+        MutationReadinessReplayValidationError,
+        match="symlinked component",
+    ):
+        run_mutation_readiness_replay_validation(
+            project_root=tmp_path,
+            manifest_path=Path("reports") / "mutation-readiness.json",
+        )
+
+
+def test_mutation_readiness_replay_validation_reports_empty_and_duplicate_candidates(
+    tmp_path: Path,
+) -> None:
+    manifest_path = _write_replay_manifest(tmp_path)
+    payload = _read_json(manifest_path)
+    candidate = _seeded_candidate(payload)
+    payload["seeded_fuzz_candidates"] = []
+    _write_json(manifest_path, payload)
+
+    validation = run_mutation_readiness_replay_validation(project_root=tmp_path)
+
+    assert validation.passed
+    assert validation.candidate_count == 0
+    assert validation.warnings == ("no seeded fuzz candidates were present for replay",)
+
+    payload = _read_json(manifest_path)
+    payload["seeded_fuzz_candidates"] = [
+        candidate,
+        dict(candidate),
+    ]
+    _write_json(manifest_path, payload)
+
+    validation = run_mutation_readiness_replay_validation(project_root=tmp_path)
+
+    assert not validation.passed
+    assert "seeded fuzz manifest contains duplicate candidate ids" in validation.errors
+
+
+def test_mutation_readiness_replay_validation_reports_candidate_id_mismatches(
+    tmp_path: Path,
+) -> None:
+    manifest_path = _write_replay_manifest(tmp_path)
+    payload = _read_json(manifest_path)
+    candidate = _seeded_candidate(payload)
+    candidate["id"] = "malformed"
+    payload["seeded_fuzz_candidates"] = [candidate]
+    _write_json(manifest_path, payload)
+
+    validation = run_mutation_readiness_replay_validation(project_root=tmp_path)
+
+    assert not validation.passed
+    assert any("malformed id" in error for error in validation.errors)
+
+    payload = _read_json(manifest_path)
+    candidate = _seeded_candidate(payload)
+    candidate["id"] = "manual:auth:tests/generated/negative/other.hurl"
+    payload["seeded_fuzz_candidates"] = [candidate]
+    _write_json(manifest_path, payload)
+
+    validation = run_mutation_readiness_replay_validation(project_root=tmp_path)
+
+    assert any("id prefix invalid" in error for error in validation.errors)
+    assert any("id category mismatch" in error for error in validation.errors)
+    assert any("id source path mismatch" in error for error in validation.errors)
+
+
+def test_mutation_readiness_replay_validation_reports_source_path_mismatches(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path = _write_replay_manifest(tmp_path)
+    payload = _read_json(manifest_path)
+    candidate = _seeded_candidate(payload)
+    candidate["category"] = "latency"
+    candidate["id"] = f"seeded-fuzz:latency:{candidate['source_path']}"
+    payload["seeded_fuzz_candidates"] = [candidate]
+    _write_json(manifest_path, payload)
+
+    validation = run_mutation_readiness_replay_validation(project_root=tmp_path)
+
+    assert any("source_path category mismatch" in error for error in validation.errors)
+
+    payload = _read_json(manifest_path)
+    candidate = _seeded_candidate(payload)
+    candidate["source_path"] = "tests/generated/negative"
+    candidate["id"] = "seeded-fuzz:schema:tests/generated/negative"
+    payload["seeded_fuzz_candidates"] = [candidate]
+    _write_json(manifest_path, payload)
+
+    validation = run_mutation_readiness_replay_validation(project_root=tmp_path)
+
+    assert any(
+        "source_path tests/generated/negative is unsafe" in error
+        for error in validation.errors
+    )
+
+    payload = _read_json(manifest_path)
+    candidate = _seeded_candidate(payload)
+    candidate["source_path"] = "tests/generated/negative"
+    candidate["id"] = "seeded-fuzz:schema:tests/generated/negative"
+    payload["seeded_fuzz_candidates"] = [candidate]
+    _write_json(manifest_path, payload)
+
+    monkeypatch.setattr(
+        mutation_readiness,
+        "_unsafe_path_summary",
+        lambda path, *, root: None,
+    )
+
+    validation = run_mutation_readiness_replay_validation(project_root=tmp_path)
+
+    assert any(
+        "source_path tests/generated/negative is not a file" in error
+        for error in validation.errors
+    )
+
+
 def test_mutation_readiness_rejects_secret_like_rendered_output(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1082,3 +1309,38 @@ def _write_bytes(path: Path, content: bytes) -> Path:
 
 def _write_json(path: Path, payload: object) -> Path:
     return _write_text(path, json.dumps(payload) + "\n")
+
+
+def _read_json(path: Path) -> dict[str, object]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    assert isinstance(payload, dict)
+    return payload
+
+
+def _seeded_candidate(payload: dict[str, object]) -> dict[str, object]:
+    candidates = payload["seeded_fuzz_candidates"]
+    assert isinstance(candidates, list)
+    candidate = candidates[0]
+    assert isinstance(candidate, dict)
+    return dict(candidate)
+
+
+def _write_replay_manifest(project_root: Path) -> Path:
+    _write_text(
+        project_root / "tests" / "generated" / "negative" / "schema.hurl",
+        "\n".join(
+            (
+                "# entroping: tags=generated,negative",
+                "# entroping: source=openapi",
+                "# entroping: negative_category=schema-violations",
+                "# entroping: fuzz_seed=schema-seed",
+                "POST http://127.0.0.1:18080/orders",
+                "HTTP 422",
+                "[Asserts]",
+                'jsonpath "$.code" isString',
+            )
+        )
+        + "\n",
+    )
+    result = run_mutation_readiness_report(project_root=project_root, output="json")
+    return result.output_path
