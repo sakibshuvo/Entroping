@@ -73,7 +73,11 @@ from entroping.core.plan.team_access_control_plan import TeamAccessControlPlanEr
 from entroping.core.readiness.devex_readiness import DevexReadinessError
 from entroping.core.readiness.evidence_cloud_readiness import EvidenceCloudReadinessError
 from entroping.core.readiness.integration_readiness import IntegrationReadinessError
-from entroping.core.readiness.mutation_readiness import MutationReadinessError
+from entroping.core.readiness.mutation_readiness import (
+    MutationReadinessError,
+    MutationReadinessReplayValidationError,
+    run_mutation_readiness_report,
+)
 from entroping.core.readiness.observability_adapter_readiness import (
     ObservabilityAdapterReadinessError,
 )
@@ -331,6 +335,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "observability-adapter-readiness",
         "api-inventory",
         "mutation-readiness",
+        "mutation-readiness-replay",
         "evidence-index",
         "qa-brain-seed",
         "qa-brain-eval-plan",
@@ -2662,6 +2667,104 @@ def test_report_mutation_readiness_rejects_unsupported_output() -> None:
     assert result.exit_code == 2
     assert "Unsupported mutation-readiness output" in result.output
     assert not Path("reports/mutation-readiness.html").exists()
+
+
+def test_report_mutation_readiness_replay_validates_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("tests") / "generated" / "security" / "auth.hurl",
+        "\n".join(
+            (
+                "# entroping: tags=generated,negative",
+                "# entroping: source=openapi",
+                "# entroping: operation_id=getOrders",
+                "# entroping: negative_category=invalid-auth",
+                "# entroping: mutation_seed=auth-seed",
+                "GET http://127.0.0.1:18080/orders",
+                "HTTP 401",
+                "[Asserts]",
+                'header "WWW-Authenticate" exists',
+            )
+        )
+        + "\n",
+    )
+    run_mutation_readiness_report(project_root=tmp_path, output="json")
+
+    result = CliRunner().invoke(app, ["report", "mutation-readiness-replay"])
+
+    assert result.exit_code == 0
+    assert "mutation-readiness replay manifest valid" in result.output
+
+
+def test_report_mutation_readiness_replay_prints_manifest_warnings(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    run_mutation_readiness_report(project_root=tmp_path, output="json")
+
+    result = CliRunner().invoke(app, ["report", "mutation-readiness-replay"])
+
+    assert result.exit_code == 0
+    assert "warn: no seeded fuzz candidates were present for replay" in result.output
+    assert "mutation-readiness replay manifest valid" in result.output
+
+
+def test_report_mutation_readiness_replay_reports_validation_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("tests") / "generated" / "security" / "auth.hurl",
+        "\n".join(
+            (
+                "# entroping: tags=generated,negative",
+                "# entroping: source=openapi",
+                "# entroping: operation_id=getOrders",
+                "# entroping: negative_category=invalid-auth",
+                "# entroping: mutation_seed=auth-seed",
+                "GET http://127.0.0.1:18080/orders",
+                "HTTP 401",
+                "[Asserts]",
+                'header "WWW-Authenticate" exists',
+            )
+        )
+        + "\n",
+    )
+    result_report = run_mutation_readiness_report(project_root=tmp_path, output="json")
+    payload = json.loads(result_report.output_path.read_text(encoding="utf-8"))
+    payload["seeded_fuzz_candidates"][0]["seed_metadata"] = False
+    result_report.output_path.write_text(
+        json.dumps(payload, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["report", "mutation-readiness-replay"])
+    assert result.exit_code == 1
+    assert "missing seed" in result.output
+
+
+def test_report_mutation_readiness_replay_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_mutation_readiness_replay(*args: object, **kwargs: object) -> object:
+        raise MutationReadinessReplayValidationError(
+            "mutation readiness replay path is unsafe"
+        )
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_mutation_readiness_replay_validation",
+        fail_mutation_readiness_replay,
+    )
+
+    result = CliRunner().invoke(app, ["report", "mutation-readiness-replay"])
+    assert result.exit_code == 1
+    assert "mutation readiness replay path is unsafe" in result.output
 
 
 def test_report_mutation_readiness_wraps_core_errors(

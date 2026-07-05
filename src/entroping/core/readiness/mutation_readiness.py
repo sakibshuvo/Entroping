@@ -10,7 +10,7 @@ from html import escape
 from pathlib import Path
 from typing import Any, Final, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from pydantic.main import IncEx
 
 from entroping.core.evidence_common import (
@@ -103,6 +103,10 @@ class MutationReadinessError(ValueError):
     """Raised when a mutation-readiness report cannot be generated safely."""
 
 
+class MutationReadinessReplayValidationError(ValueError):
+    pass
+
+
 class MutationReadinessCategoryCoverage(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -174,6 +178,18 @@ class MutationReadinessSeededFuzzCandidate(BaseModel):
     assertions: int = Field(ge=0)
     seed_metadata: bool
     next_action: str
+
+
+@dataclass(frozen=True, slots=True)
+class MutationReadinessReplayValidationResult:
+    manifest_path: Path
+    candidate_count: int
+    errors: tuple[str, ...] = ()
+    warnings: tuple[str, ...] = ()
+
+    @property
+    def passed(self) -> bool:
+        return not self.errors
 
 
 class MutationReadinessPacket(BaseModel):
@@ -321,6 +337,85 @@ def run_mutation_readiness_report(
         safe_write=safe_write_text,
     )
     return MutationReadinessResult(output_path=result.output_path, packet=result.packet)
+
+
+def run_mutation_readiness_replay_validation(
+    *,
+    project_root: Path,
+    manifest_path: Path = Path("reports") / "mutation-readiness.json",
+) -> MutationReadinessReplayValidationResult:
+    root = project_root.expanduser().resolve()
+    resolved_manifest = _resolve_replay_manifest_path(manifest_path, root=root)
+    try:
+        raw_bytes = resolved_manifest.read_bytes()
+        if len(raw_bytes) > _MAX_MUTATION_READINESS_ARTIFACT_BYTES:
+            raise MutationReadinessReplayValidationError(
+                f"manifest is too large: {len(raw_bytes)} bytes"
+            )
+        try:
+            raw_text = raw_bytes.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            msg = f"manifest is not UTF-8: {exc}"
+            raise MutationReadinessReplayValidationError(msg) from exc
+    except OSError as exc:
+        msg = f"cannot read manifest {resolved_manifest}: {exc}"
+        raise MutationReadinessReplayValidationError(msg) from exc
+
+    try:
+        document = json.loads(raw_text)
+    except json.JSONDecodeError as exc:
+        msg = f"manifest is not valid JSON: {exc}"
+        raise MutationReadinessReplayValidationError(msg) from exc
+
+    if not isinstance(document, dict):
+        raise MutationReadinessReplayValidationError("manifest root must be a JSON object")
+
+    schema_version = document.get("schema_version")
+    if schema_version != MUTATION_READINESS_SCHEMA_VERSION:
+        msg = (
+            "manifest has unexpected schema_version "
+            f"(expected {MUTATION_READINESS_SCHEMA_VERSION}, got {schema_version!r})"
+        )
+        raise MutationReadinessReplayValidationError(msg)
+
+    try:
+        packet = MutationReadinessPacket.model_validate(document)
+    except ValidationError as exc:
+        raise MutationReadinessReplayValidationError(
+            f"manifest schema validation failed: {exc}"
+        ) from exc
+
+    errors: list[str] = []
+    warnings: list[str] = []
+    source_paths = {
+        source.path: source
+        for source in packet.sources
+        if source.kind == "generated_hurl" and source.state == "present"
+    }
+    candidate_ids = [candidate.id for candidate in packet.seeded_fuzz_candidates]
+    if candidate_ids != sorted(candidate_ids):
+        errors.append("seeded fuzz manifest candidates are not sorted deterministically")
+    if len(candidate_ids) != len(set(candidate_ids)):
+        errors.append("seeded fuzz manifest contains duplicate candidate ids")
+
+    for candidate in packet.seeded_fuzz_candidates:
+        errors.extend(
+            _validate_replay_candidate(
+                root=root,
+                candidate=candidate,
+                source_paths=source_paths,
+            )
+        )
+
+    if not packet.seeded_fuzz_candidates:
+        warnings.append("no seeded fuzz candidates were present for replay")
+
+    return MutationReadinessReplayValidationResult(
+        manifest_path=resolved_manifest,
+        candidate_count=len(packet.seeded_fuzz_candidates),
+        errors=tuple(errors),
+        warnings=tuple(warnings),
+    )
 
 
 def build_mutation_readiness(*, project_root: Path) -> MutationReadinessPacket:
@@ -667,6 +762,81 @@ def _read_text_artifact(
             ),
         )
     return raw_text
+
+
+def _resolve_replay_manifest_path(path: Path, *, root: Path) -> Path:
+    manifest = path.expanduser()
+    if not manifest.is_absolute():
+        manifest = root / manifest
+    try:
+        manifest_relative = manifest.resolve(strict=False).relative_to(root)
+    except ValueError as exc:
+        raise MutationReadinessReplayValidationError(
+            "manifest path is unsafe: output must stay under project root"
+        ) from exc
+    if manifest_relative.parts and manifest_relative.parts[0] in {".entroping", "envs"}:
+        msg = "manifest path is unsafe: output must not target local state"
+        raise MutationReadinessReplayValidationError(msg)
+    try:
+        _unsafe_path_summary(root / manifest_relative, root=root)
+    except ValueError as exc:
+        raise MutationReadinessReplayValidationError(
+            f"manifest path is unsafe: {exc}"
+        ) from exc
+    return root / manifest_relative
+
+
+def _validate_replay_candidate(
+    *,
+    root: Path,
+    candidate: MutationReadinessSeededFuzzCandidate,
+    source_paths: dict[str, MutationReadinessSource],
+) -> list[str]:
+    errors: list[str] = []
+
+    if not candidate.seed_metadata:
+        errors.append(
+            f"seeded manifest row for {candidate.source_path} missing seed metadata"
+        )
+
+    parts = candidate.id.split(":", maxsplit=2)
+    if len(parts) != 3:
+        errors.append(f"seeded manifest row has malformed id: {candidate.id}")
+        return errors
+    if parts[0] != "seeded-fuzz":
+        errors.append(f"seeded manifest id prefix invalid: {candidate.id}")
+    if parts[1] != candidate.category:
+        errors.append(f"seeded manifest id category mismatch: {candidate.id}")
+    if parts[2] != candidate.source_path:
+        errors.append(f"seeded manifest id source path mismatch: {candidate.id}")
+
+    source_path = root / candidate.source_path
+    source_summary = source_paths.get(candidate.source_path)
+    if source_summary is None:
+        errors.append(
+            f"seeded manifest source_path {candidate.source_path} is not present in sources"
+        )
+    if source_summary is not None and candidate.category not in source_summary.candidate_categories:
+        errors.append(
+            f"seeded manifest source_path category mismatch for {candidate.source_path}"
+        )
+
+    unsafe = _unsafe_path_summary(source_path, root=root)
+    if unsafe is not None:
+        errors.append(
+            f"seeded manifest source_path {candidate.source_path} is unsafe: {unsafe}"
+        )
+    else:
+        if not source_path.exists():
+            errors.append(
+                f"seeded manifest source_path {candidate.source_path} does not exist"
+            )
+        elif not source_path.is_file():
+            errors.append(
+                f"seeded manifest source_path {candidate.source_path} is not a file"
+            )
+
+    return errors
 
 
 def _source(
