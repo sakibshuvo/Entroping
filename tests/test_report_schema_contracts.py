@@ -181,6 +181,19 @@ from entroping.core.evidence.otel_mapping import (
     OtelMappingSource,
     OtelMappingSummary,
 )
+from entroping.core.evidence.otlp_preview import (
+    OTLP_PREVIEW_SCHEMA_VERSION,
+    OtlpPreviewAttribute,
+    OtlpPreviewBoundaryControl,
+    OtlpPreviewFixture,
+    OtlpPreviewLogRecord,
+    OtlpPreviewMetric,
+    OtlpPreviewNextAction,
+    OtlpPreviewPacket,
+    OtlpPreviewSource,
+    OtlpPreviewSpan,
+    OtlpPreviewSummary,
+)
 from entroping.core.evidence.pilot_cohort import (
     PILOT_COHORT_SCHEMA_VERSION,
     PilotCohortAction,
@@ -3992,6 +4005,179 @@ def test_otel_mapping_v1_schema_contract_is_versioned_and_stable() -> None:
     assert schema["$defs"]["signal"]["enum"] == ["resource", "log", "metric", "trace"]
 
 
+def test_otlp_preview_v1_schema_contract_is_versioned_and_stable() -> None:
+    schema = json.loads((SCHEMA_DIR / "otlp-preview.v1.schema.json").read_text())
+    packet = OtlpPreviewPacket(
+        generated_at="2026-07-04T00:00:00+00:00",
+        summary=OtlpPreviewSummary(
+            status="partial",
+            severity="attention",
+            sources_total=3,
+            sources_present=1,
+            sources_missing=2,
+            sources_invalid=0,
+            sources_unsafe=0,
+            resource_attributes_total=1,
+            log_records_total=1,
+            metrics_total=1,
+            spans_total=1,
+        ),
+        sources=(
+            OtlpPreviewSource(
+                id="run_report",
+                label="Run report",
+                path="reports/run-latest.json",
+                state="present",
+                schema_version="entroping.run-report.v1",
+                sha256="a" * 64,
+                summary="fail run, 2 total, 1 passed, 1 failed",
+            ),
+        ),
+        fixture=OtlpPreviewFixture(
+            resource_attributes=(
+                OtlpPreviewAttribute(
+                    key="service.name",
+                    value_kind="string",
+                    value="entroping-local-preview",
+                    source_ids=("run_report",),
+                ),
+            ),
+            log_records=(
+                OtlpPreviewLogRecord(
+                    name="entroping.run.summary",
+                    severity_text="attention",
+                    attributes=(),
+                ),
+            ),
+            metrics=(
+                OtlpPreviewMetric(
+                    name="entroping.tests.total",
+                    unit="1",
+                    value_kind="sum",
+                    value=2,
+                ),
+            ),
+            spans=(
+                OtlpPreviewSpan(
+                    name="entroping.run",
+                    status_code="ERROR",
+                    attributes=(),
+                ),
+            ),
+        ),
+        boundary_controls=(
+            OtlpPreviewBoundaryControl(
+                id="local-only",
+                summary="Writes a local preview file only.",
+            ),
+        ),
+        next_actions=(
+            OtlpPreviewNextAction(
+                priority="medium",
+                action="Generate reports/otel-mapping.json.",
+                source_ids=("otel_mapping",),
+            ),
+        ),
+    )
+
+    payload = packet.model_dump(mode="json")
+
+    assert OTLP_PREVIEW_SCHEMA_VERSION == "entroping.otlp-preview.v1"
+    assert payload == {
+        "schema_version": "entroping.otlp-preview.v1",
+        "generated_at": "2026-07-04T00:00:00+00:00",
+        "summary": {
+            "status": "partial",
+            "severity": "attention",
+            "sources_total": 3,
+            "sources_present": 1,
+            "sources_missing": 2,
+            "sources_invalid": 0,
+            "sources_unsafe": 0,
+            "resource_attributes_total": 1,
+            "log_records_total": 1,
+            "metrics_total": 1,
+            "spans_total": 1,
+        },
+        "sources": [
+            {
+                "id": "run_report",
+                "label": "Run report",
+                "path": "reports/run-latest.json",
+                "state": "present",
+                "schema_version": "entroping.run-report.v1",
+                "sha256": "a" * 64,
+                "summary": "fail run, 2 total, 1 passed, 1 failed",
+            }
+        ],
+        "fixture": {
+            "transport": "otlp-json-preview",
+            "network_policy": "local-only-no-export",
+            "resource_attributes": [
+                {
+                    "key": "service.name",
+                    "value_kind": "string",
+                    "value": "entroping-local-preview",
+                    "source_ids": ["run_report"],
+                }
+            ],
+            "log_records": [
+                {
+                    "name": "entroping.run.summary",
+                    "severity_text": "attention",
+                    "attributes": [],
+                }
+            ],
+            "metrics": [
+                {
+                    "name": "entroping.tests.total",
+                    "unit": "1",
+                    "value_kind": "sum",
+                    "value": 2,
+                    "attributes": [],
+                }
+            ],
+            "spans": [
+                {
+                    "name": "entroping.run",
+                    "status_code": "ERROR",
+                    "attributes": [],
+                }
+            ],
+        },
+        "boundary_controls": [
+            {
+                "id": "local-only",
+                "summary": "Writes a local preview file only.",
+            }
+        ],
+        "next_actions": [
+            {
+                "priority": "medium",
+                "action": "Generate reports/otel-mapping.json.",
+                "source_ids": ["otel_mapping"],
+            }
+        ],
+    }
+    assert schema["properties"]["schema_version"]["const"] == "entroping.otlp-preview.v1"
+    assert schema["properties"]["fixture"]["$ref"] == "#/$defs/OtlpPreviewFixture"
+    assert schema["$defs"]["OtlpPreviewSummary"]["properties"]["status"]["enum"] == [
+        "ready",
+        "partial",
+        "insufficient",
+    ]
+    assert schema["$defs"]["OtlpPreviewSource"]["properties"]["state"]["enum"] == [
+        "present",
+        "missing",
+        "invalid",
+        "unsafe",
+    ]
+    assert (
+        schema["$defs"]["OtlpPreviewFixture"]["properties"]["network_policy"]["const"]
+        == "local-only-no-export"
+    )
+
+
 def test_observability_adapter_readiness_v1_schema_contract_is_versioned_and_stable() -> None:
     schema = json.loads(
         (SCHEMA_DIR / "observability-adapter-readiness.v1.schema.json").read_text()
@@ -6591,6 +6777,7 @@ def test_report_schema_files_are_parseable_and_list_current_versions() -> None:
         "entroping.integration-readiness.v1": (SCHEMA_DIR / "integration-readiness.v1.schema.json"),
         "entroping.observability-packet.v1": (SCHEMA_DIR / "observability-packet.v1.schema.json"),
         "entroping.otel-mapping.v1": SCHEMA_DIR / "otel-mapping.v1.schema.json",
+        "entroping.otlp-preview.v1": SCHEMA_DIR / "otlp-preview.v1.schema.json",
         "entroping.observability-adapter-readiness.v1": (
             SCHEMA_DIR / "observability-adapter-readiness.v1.schema.json"
         ),

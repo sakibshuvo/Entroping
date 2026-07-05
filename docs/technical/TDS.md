@@ -123,6 +123,7 @@ src/entroping/
     traffic_to_hurl.py
     traffic_to_wiremock.py
     traffic_to_graph.py
+    graphql_to_hurl.py
     policy_to_hurl.py
     story_traceability.py
     merge.py
@@ -325,17 +326,20 @@ current top-level inventory is:
 | --- | --- | --- |
 | `capture_summary.py` | Safe aggregate summaries from redacted captured traffic | Proxy capture, SQLite persistence, raw body retention |
 | `effective_policy.py` | Effective QAnstitution policy evidence rendering | Policy loading, filesystem writes outside the report adapter |
-| `effective_policy_diff.py` | Deterministic diffs between effective policy evidence reports | Policy mutation, compatibility decisions |
+| `effective_policy_diff.py` | Effective-policy evidence diffs | Policy mutation, compatibility decisions |
 | `gate_coverage.py` | QAnstitution gate coverage over discovered Hurl tests | Hurl subprocess execution, report file writes |
-| `gate_injection_explain.py` | Deterministic gate-injection explanation reports | Temporary execution-copy creation, Hurl execution |
+| `gate_injection_explain.py` | Gate-injection explanation reports | Temporary execution-copy creation, Hurl execution |
+| `asyncapi_to_hurl.py` | AsyncAPI webhook-ack Hurl scaffold from local contract metadata | Broker/cloud/webhook execution, message delivery, file writes |
 | `merge.py` | Manual-edit-preserving Hurl merge/refactor logic | Test generation strategy |
-| `openapi_audit.py` | OpenAPI operation coverage audit against discovered Hurl tests | File discovery, Hurl execution, LLM calls |
+| `openapi_audit.py` | OpenAPI operation coverage audit against Hurl tests | File discovery, Hurl execution, LLM calls |
 | `openapi_diff.py` | Pure OpenAPI operation-change detection | Git invocation, file reads, generated-test writes |
-| `openapi_to_hurl/` | OpenAPI operation/schema/parameter translation to Hurl models through bounded compiler, schema, validation, parameter, and data-model modules | LLM calls, file writes, merge strategy |
+| `openapi_to_hurl/` | OpenAPI operation/schema/parameter translation to Hurl models through bounded compiler modules | LLM calls, file writes, merge strategy |
 | `policy_to_hurl.py` | QAnstitution gate to Hurl assertions | Hurl subprocess execution |
+| `proto_to_hurl.py` | Proto HTTP-transcoding Hurl scaffold | Native gRPC, streaming, proto detail rendering |
 | `redaction_review.py` | Safe redaction review summaries from redacted traffic | Raw traffic capture, secret storage |
+| `soap_to_hurl.py` | Local WSDL to SOAP smoke Hurl scaffold | SOAP runtime, network execution, WSDL detail rendering |
 | `story_traceability.py` | Story IDs, local story Markdown files, owners, external doc URLs | Business-system API clients |
-| `target_to_hurl.py` | Single target URL smoke-test Hurl scaffold compilation | Network execution, CLI file writes, non-read-only HTTP methods |
+| `target_to_hurl.py` | Single target URL smoke-test Hurl scaffold | Network execution, CLI file writes, non-read-only HTTP methods |
 | `test_pyramid.py` | Local test-pyramid evidence summaries | Test execution, artifact generation |
 | `test_quality.py` | Deterministic quality reports for generated Hurl tests | Hurl parsing side effects, source mutation |
 | `traffic_openapi_audit.py` | Redacted traffic route audit against OpenAPI operations | Traffic persistence, OpenAPI file loading |
@@ -830,6 +834,7 @@ report generation, and artifact schemas remain the compatibility contract.
 | Pilot Cohort | `report pilot-cohort --manifest <path> --output md|json` | Local value-free design-partner cohort rollup from explicit pilot outcome packets |
 | Connector Intent | `report connector-intent --output md|json` | Read-only value-free connector intents for issue trackers, chat, enterprise automation, enterprise AI, observability, and developer-experience surfaces |
 | OpenTelemetry Mapping | `report otel-mapping --output md|json` | Local value-free mapping packet from sanitized observability and test-evidence artifacts for future OTLP adapters |
+| OTLP Preview | `report otlp-preview --output md|json` | Local deterministic OTLP-shaped preview fixture from sanitized run/report evidence; not an exporter |
 | Observability Adapter Readiness | `report observability-adapter-readiness --output md|json` | Local value-free readiness packet for future OpenTelemetry, Datadog, Splunk, Grafana, and generic observability adapters |
 | Evidence Index | `report evidence-index --output md|json` | Stable value-free local evidence artifact index for cross-surface navigation |
 | QA Brain Seed | `report qa-brain-seed --output md|json` | Deterministic value-free seed metadata for future QA Brain retrieval and eval design |
@@ -1031,6 +1036,7 @@ entroping report pilot-cohort --manifest <path> [--output <md|json>]
 entroping report connector-intent [--output <md|json>]
 entroping report observability-packet [--output <md|json>]
 entroping report otel-mapping [--output <md|json>]
+entroping report otlp-preview [--output <md|json>]
 entroping report observability-adapter-readiness [--output <md|json>]
 entroping report api-inventory [--output <md|json>]
 entroping report mutation-readiness [--output <md|json>]
@@ -1754,6 +1760,20 @@ provider outputs, credentials, environment values, webhook URLs, ticket
 mutation payloads, source Hurl contents, raw traffic, raw report contents, or
 full report contents.
 
+`entroping report otlp-preview` writes a local read-only OTLP-shaped preview at
+`reports/otlp-preview.md` by default, or `reports/otlp-preview.json` with
+`--output json`. It converts sanitized run/report evidence into aggregate
+resource, log, metric, and span preview rows without exporting telemetry or
+configuring collectors. Missing source artifacts become explicit readiness
+states; malformed, oversized, non-file, symlinked, wrong-schema, unreadable, or
+secret-like artifacts are marked invalid or unsafe. The command does not call
+OpenTelemetry collectors, Datadog, Splunk, Grafana, or other vendor APIs,
+mutate dashboards, monitors, tickets, chat, PRs, or hosted state, parse traffic
+state, execute Hurl, run tests, invoke models, change `entroping run`, or
+include raw test output, test paths, URLs, headers, bodies, cookies, prompts,
+provider outputs, credentials, environment values, raw traffic, or full report
+contents.
+
 `entroping report observability-adapter-readiness` writes a local read-only
 observability adapter readiness packet at
 `reports/observability-adapter-readiness.md` by default, or
@@ -1772,6 +1792,15 @@ change `entroping run`, or include raw URLs, headers, bodies, cookies,
 prompts, provider outputs, credentials, environment values, webhook URLs,
 dashboard payloads, monitor payloads, source Hurl contents, raw traffic, raw
 report contents, or full report contents.
+
+Troubleshooting posture:
+
+- Datadog and Splunk should enter adapter implementation only after local
+  packets are generated (especially observability packet and mapping packet).
+- Grafana design should reference local packet metadata first, then wire to the
+  vendor layer.
+- Generic observability adapters consume the same local packet set and stay
+  value-free by default.
 
 `entroping report api-inventory` writes a local read-only API surface inventory
 at `reports/api-inventory.md` by default, or `reports/api-inventory.json` with
@@ -2082,6 +2111,8 @@ primitive for local report files.
 | `entroping report observability-packet --output json` | `reports/observability-packet.json` | Machine-readable observability packet using `entroping.observability-packet.v1`. |
 | `entroping report otel-mapping --output md` | `reports/otel-mapping.md` | Human-readable OpenTelemetry evidence mapping packet for future OTLP adapters. |
 | `entroping report otel-mapping --output json` | `reports/otel-mapping.json` | Machine-readable OpenTelemetry mapping packet using `entroping.otel-mapping.v1`. |
+| `entroping report otlp-preview --output md` | `reports/otlp-preview.md` | Human-readable local OTLP-shaped preview fixture; not an exporter. |
+| `entroping report otlp-preview --output json` | `reports/otlp-preview.json` | Machine-readable local OTLP preview packet using `entroping.otlp-preview.v1`. |
 | `entroping report observability-adapter-readiness --output md` | `reports/observability-adapter-readiness.md` | Human-readable read-only observability adapter readiness packet. |
 | `entroping report observability-adapter-readiness --output json` | `reports/observability-adapter-readiness.json` | Machine-readable observability adapter readiness packet using `entroping.observability-adapter-readiness.v1`. |
 | `entroping report api-inventory --output md` | `reports/api-inventory.md` | Human-readable read-only API style inventory for REST/OpenAPI, GraphQL, SOAP/XML, gRPC/proto, AsyncAPI, webhook/event, WebSocket/realtime, and unknown HTTP signals. |

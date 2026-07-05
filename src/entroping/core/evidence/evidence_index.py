@@ -27,7 +27,10 @@ from entroping.core.evidence.external_test_evidence import EXTERNAL_TEST_EVIDENC
 from entroping.core.evidence.handoff_packet import HANDOFF_SCHEMA_VERSION
 from entroping.core.evidence.notification_packet import NOTIFICATION_PACKET_SCHEMA_VERSION
 from entroping.core.evidence.observability_packet import OBSERVABILITY_PACKET_SCHEMA_VERSION
-from entroping.core.evidence_common import contains_unredacted_evidence_secret
+from entroping.core.evidence_common import (
+    append_local_evidence_descriptor,
+    contains_unredacted_evidence_secret,
+)
 from entroping.core.failure_bundle import FAILURE_BUNDLE_SCHEMA_VERSION
 from entroping.core.path_safety import first_symlink_path_component
 from entroping.core.readiness.mutation_readiness import MUTATION_READINESS_SCHEMA_VERSION
@@ -804,7 +807,7 @@ def _read_json_artifact_bytes_no_follow(
     file_descriptor: int | None = None
     try:
         root_descriptor = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
-        directory_descriptors.append(root_descriptor)
+        append_local_evidence_descriptor(directory_descriptors, root_descriptor)
         directory_descriptor = root_descriptor
         for component in relative_path.parts[:-1]:
             next_descriptor = os.open(
@@ -812,7 +815,7 @@ def _read_json_artifact_bytes_no_follow(
                 os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
                 dir_fd=directory_descriptor,
             )
-            directory_descriptors.append(next_descriptor)
+            append_local_evidence_descriptor(directory_descriptors, next_descriptor)
             directory_descriptor = next_descriptor
         file_descriptor = os.open(
             relative_path.name,

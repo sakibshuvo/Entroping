@@ -21,6 +21,23 @@ def test_local_evidence_artifact_cap_is_100_mib() -> None:
     assert LOCAL_EVIDENCE_MAX_ARTIFACT_BYTES == 100 * 1024 * 1024
 
 
+def test_append_local_evidence_descriptor_closes_on_append_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    closed_descriptors: list[int] = []
+
+    class FailingDescriptors(list[int]):
+        def append(self, descriptor: int) -> None:
+            raise RuntimeError("append failed")
+
+    monkeypatch.setattr(os, "close", closed_descriptors.append)
+
+    with pytest.raises(RuntimeError, match="append failed"):
+        evidence_common.append_local_evidence_descriptor(FailingDescriptors(), 123)
+
+    assert closed_descriptors == [123]
+
+
 def test_safe_evidence_text_redacts_and_normalizes_ascii_controls() -> None:
     text = safe_evidence_text("Authorization: Bearer live-token\r\nnext\tvalue\x00tail")
 

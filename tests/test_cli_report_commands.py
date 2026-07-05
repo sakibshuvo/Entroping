@@ -42,10 +42,16 @@ from entroping.core.evidence.handoff_packet import HandoffError
 from entroping.core.evidence.notification_packet import NotificationPacketError
 from entroping.core.evidence.observability_packet import ObservabilityPacketError
 from entroping.core.evidence.otel_mapping import OtelMappingError
+from entroping.core.evidence.otlp_preview import OtlpPreviewError
 from entroping.core.evidence.pilot_cohort import PilotCohortError
 from entroping.core.evidence.pilot_metrics import PilotMetricsError
 from entroping.core.evidence.pilot_outcome import PilotOutcomeError
-from entroping.core.evidence.pr_evidence_card import PrEvidenceCardError
+from entroping.core.evidence.pr_evidence_card import (
+    PrEvidenceCardError,
+    PrEvidenceCardSummaryError,
+    build_pr_evidence_card_packet,
+    run_pr_evidence_card_report,
+)
 from entroping.core.export.evidence_cloud_export import EvidenceCloudExportError
 from entroping.core.export.evidence_cloud_workspace import EvidenceCloudWorkspaceError
 from entroping.core.export.work_item_draft import WorkItemDraftError
@@ -259,6 +265,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         maxsplit=1,
     )[0]
     for command in (
+        "aha-artifact-index",
         "bug",
         "failure-bundle",
         "first-run-checklist",
@@ -320,6 +327,7 @@ def test_report_help_classifies_launch_stable_experimental_and_maintainer_comman
         "team-evidence-readiness",
         "observability-packet",
         "otel-mapping",
+        "otlp-preview",
         "observability-adapter-readiness",
         "api-inventory",
         "mutation-readiness",
@@ -1713,6 +1721,56 @@ def test_report_pr_evidence_card_wraps_core_errors(
     assert "PR evidence card path is unsafe" in result.output
 
 
+def test_report_pr_evidence_card_summary_uses_default_artifact_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    run_pr_evidence_card_report(project_root=tmp_path, output="json")
+    result = CliRunner().invoke(app, ["report", "pr-evidence-card-summary"])
+
+    assert result.exit_code == 0, result.output
+    assert "# Entroping PR Evidence Card Summary" in result.output
+    assert "## Next Actions" in result.output
+
+
+def test_report_pr_evidence_card_summary_supports_artifact_path_option(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    artifact_path = tmp_path / "artifacts" / "pr-evidence-card.json"
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    packet = build_pr_evidence_card_packet(project_root=tmp_path)
+    artifact_path.write_text(packet.model_dump_json(), encoding="utf-8")
+
+    result = CliRunner().invoke(
+        app,
+        ["report", "pr-evidence-card-summary", "--artifact-path", str(artifact_path)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "## Sources" in result.output
+
+
+def test_report_pr_evidence_card_summary_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_pr_evidence_card_summary(*args: object, **kwargs: object) -> object:
+        raise PrEvidenceCardSummaryError("PR evidence card summary is unavailable")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_pr_evidence_card_summary_report",
+        fail_pr_evidence_card_summary,
+    )
+
+    result = CliRunner().invoke(app, ["report", "pr-evidence-card-summary"])
+
+    assert result.exit_code == 1
+    assert "PR evidence card summary is unavailable" in result.output
+
+
 def test_report_evidence_action_plan_writes_markdown(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -2340,6 +2398,91 @@ def test_report_otel_mapping_wraps_core_errors(
 
     assert result.exit_code == 1
     assert "otel mapping path is unsafe" in result.output
+
+
+def test_report_otlp_preview_writes_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_text(
+        Path("reports") / "run-latest.json",
+        """
+{
+  "schema_version": "entroping.run-report.v1",
+  "project": "private-checkout-service",
+  "environment": "local",
+  "generated_at": "2026-07-04T00:00:00+00:00",
+  "summary": {"total": 2, "passed": 1, "failed": 1, "exit_code": 1},
+  "tests": [
+    {
+      "path": "tests/private-flow.hurl",
+      "execution_path": ".entroping/run/private-flow.hurl",
+      "status": "failed",
+      "exit_code": 1,
+      "duration_ms": 10,
+      "rule_ids": [],
+      "stdout": "raw-output-should-not-render",
+      "stderr": ""
+    }
+  ]
+}
+""",
+    )
+
+    result = CliRunner().invoke(app, ["report", "otlp-preview"])
+
+    assert result.exit_code == 0
+    assert "Wrote OTLP preview: reports/otlp-preview.md" in result.output
+    markdown = Path("reports/otlp-preview.md").read_text(encoding="utf-8")
+    assert "# Entroping OTLP Preview" in markdown
+    assert "| entroping.tests.total | 1 | sum | 2 |" in markdown
+    assert "local-only-no-export" in markdown
+    assert "private-checkout-service" not in markdown
+    assert "private-flow" not in markdown
+    assert "raw-output-should-not-render" not in markdown
+
+
+def test_report_otlp_preview_writes_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["report", "otlp-preview", "--output", "json"])
+
+    assert result.exit_code == 0
+    assert "Wrote OTLP preview: reports/otlp-preview.json" in result.output
+    payload = json.loads(Path("reports/otlp-preview.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "entroping.otlp-preview.v1"
+    assert payload["summary"]["status"] == "insufficient"
+    assert payload["fixture"]["network_policy"] == "local-only-no-export"
+
+
+def test_report_otlp_preview_rejects_unsupported_output() -> None:
+    result = CliRunner().invoke(app, ["report", "otlp-preview", "--output", "html"])
+
+    assert result.exit_code == 2
+    assert "Unsupported otlp-preview output" in result.output
+    assert not Path("reports/otlp-preview.html").exists()
+
+
+def test_report_otlp_preview_wraps_core_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_otlp_preview(*args: object, **kwargs: object) -> object:
+        raise OtlpPreviewError("otlp preview path is unsafe")
+
+    monkeypatch.setattr(
+        report_cli,
+        "run_otlp_preview_report",
+        fail_otlp_preview,
+    )
+
+    result = CliRunner().invoke(app, ["report", "otlp-preview"])
+
+    assert result.exit_code == 1
+    assert "otlp preview path is unsafe" in result.output
 
 
 def test_report_observability_adapter_readiness_writes_markdown(
@@ -3451,6 +3594,47 @@ def test_report_first_run_checklist_prints_local_artifact_states(
     assert "Delta output: " in result.output
     assert "present" in result.output
     assert "optional" not in result.output.lower()
+
+
+def test_report_aha_artifact_index_prints_local_paths_schema_and_hints(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports_dir = Path("reports")
+    reports_dir.mkdir()
+    (reports_dir / "run-latest.json").write_text(
+        '{"schema_version":"entroping.run-report.v1","project":"private-demo"}\n',
+        encoding="utf-8",
+    )
+    (reports_dir / "run-latest.html").write_text("<!doctype html>\n", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["report", "aha-artifact-index"])
+
+    assert result.exit_code == 0
+    assert "Run JSON: present" in result.output
+    assert "path: reports/run-latest.json" in result.output
+    assert "schema: entroping.run-report.v1" in result.output
+    assert "Run HTML: present" in result.output
+    assert "Runtime card JSON: missing" in result.output
+    assert "hint: Run entroping report runtime-card --output json" in result.output
+    assert "private-demo" not in result.output
+
+
+def test_report_aha_artifact_index_exits_nonzero_for_invalid_artifact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    reports_dir = Path("reports")
+    reports_dir.mkdir()
+    (reports_dir / "run-latest.json").write_text("{", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["report", "aha-artifact-index"])
+
+    assert result.exit_code == 1
+    assert "Run JSON: invalid" in result.output
+    assert "hint: Artifact JSON is invalid." in result.output
 
 
 def test_report_first_run_checklist_reports_missing_hint_and_errors(

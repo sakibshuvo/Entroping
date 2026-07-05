@@ -17,6 +17,11 @@ from entroping.bridge.story_traceability import (
     story_traceability_report_to_dict,
 )
 from entroping.cli.shared import console, display_cli_path, print_cli_error
+from entroping.core.aha_artifact_index import (
+    AhaArtifactIndex,
+    AhaArtifactIndexItem,
+    build_aha_artifact_index,
+)
 from entroping.core.capture_summary_report import (
     CaptureSummaryError,
     CaptureSummaryOutput,
@@ -106,6 +111,11 @@ from entroping.core.evidence.otel_mapping import (
     OtelMappingOutput,
     run_otel_mapping_report,
 )
+from entroping.core.evidence.otlp_preview import (
+    OtlpPreviewError,
+    OtlpPreviewOutput,
+    run_otlp_preview_report,
+)
 from entroping.core.evidence.pilot_cohort import (
     PilotCohortError,
     PilotCohortOutput,
@@ -124,7 +134,10 @@ from entroping.core.evidence.pilot_outcome import (
 from entroping.core.evidence.pr_evidence_card import (
     PrEvidenceCardError,
     PrEvidenceCardOutput,
+    PrEvidenceCardSummaryError,
+    PrEvidenceCardSummaryResult,
     run_pr_evidence_card_report,
+    run_pr_evidence_card_summary_report,
 )
 from entroping.core.evidence.test_pyramid_report import (
     TestPyramidOutput,
@@ -291,6 +304,8 @@ from entroping.models.hurl import HurlMetadataSyntaxError
 
 __all__ = [
     "AGENT_BUNDLE_ROLES",
+    "AhaArtifactIndex",
+    "AhaArtifactIndexItem",
     "AgentBundleError",
     "AgentBundleOutput",
     "ApiInventoryError",
@@ -352,6 +367,8 @@ __all__ = [
     "ObservabilityPacketError",
     "OtelMappingError",
     "OtelMappingOutput",
+    "OtlpPreviewError",
+    "OtlpPreviewOutput",
     "PilotCohortError",
     "PilotCohortOutput",
     "PilotMetricsError",
@@ -360,6 +377,8 @@ __all__ = [
     "PilotOutcomeOutput",
     "PrEvidenceCardError",
     "PrEvidenceCardOutput",
+    "PrEvidenceCardSummaryError",
+    "PrEvidenceCardSummaryResult",
     "QaBrainEvalPlanError",
     "QaBrainEvalPlanOutput",
     "QaBrainFineTuneReadinessError",
@@ -398,6 +417,7 @@ __all__ = [
     "WorkItemImportBundleError",
     "WorkItemImportBundleOutput",
     "build_effective_policy_diff_report",
+    "build_aha_artifact_index",
     "build_run_delta_report",
     "collect_github_annotations",
     "compile_story_traceability",
@@ -444,10 +464,12 @@ __all__ = [
     "run_observability_adapter_readiness_report",
     "run_observability_packet_report",
     "run_otel_mapping_report",
+    "run_otlp_preview_report",
     "run_pilot_cohort_report",
     "run_pilot_metrics_report",
     "run_pilot_outcome_report",
     "run_pr_evidence_card_report",
+    "run_pr_evidence_card_summary_report",
     "run_qa_brain_eval_plan_report",
     "run_qa_brain_fine_tune_readiness_report",
     "run_qa_brain_model_packaging_plan_report",

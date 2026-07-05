@@ -1,0 +1,14 @@
+type Query {
+  user(id: ID!): User
+}
+
+type Mutation {
+  updatePlan(id: ID!, plan: String!): User
+}
+
+type User {
+  id: ID!
+  name: String!
+  plan: String!
+  updated: Boolean
+}

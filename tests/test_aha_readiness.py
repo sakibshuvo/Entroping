@@ -58,6 +58,24 @@ def test_aha_readiness_returns_ready_payload_when_all_checks_pass(tmp_path: Path
     assert payload["external_blockers"] == []
 
 
+def test_aha_readiness_allows_unrelated_init_demo_deferral(tmp_path: Path) -> None:
+    root = _build_aha_root(tmp_path, include_failure_fixture=True, install_deferred=False)
+    decision_path = root / "docs" / "meta" / "ZERO_CONFIG_DEMO_ENTRYPOINT.md"
+    decision_path.write_text(
+        decision_path.read_text(encoding="utf-8")
+        + "\n| `entroping init --demo` | Deferred | future setup command |\n",
+        encoding="utf-8",
+    )
+
+    result = run_aha_readiness("--format", "json", root=root)
+    payload = _json_payload(result.stdout)
+
+    assert result.returncode == 0
+    assert payload["status"] == "ready"
+    assert payload["aha_ready"] is True
+    assert payload["external_blockers"] == []
+
+
 def test_aha_readiness_partial_check_is_reflected_without_strict(tmp_path: Path) -> None:
     root = _build_aha_root(
         tmp_path,

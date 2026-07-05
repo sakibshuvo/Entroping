@@ -1,0 +1,472 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://entroping.dev/schemas/otlp-preview.v1.schema.json",
+  "title": "Entroping OTLP preview packet",
+  "$defs": {
+    "OtlpPreviewAttribute": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "value_kind": {
+          "enum": [
+            "string",
+            "count",
+            "status",
+            "classification"
+          ],
+          "title": "Value Kind",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "title": "Value"
+        },
+        "source_ids": {
+          "items": {
+            "enum": [
+              "run_report",
+              "runtime_card",
+              "otel_mapping"
+            ],
+            "type": "string"
+          },
+          "title": "Source Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "key",
+        "value_kind",
+        "value",
+        "source_ids"
+      ],
+      "title": "OtlpPreviewAttribute",
+      "type": "object"
+    },
+    "OtlpPreviewBoundaryControl": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "summary"
+      ],
+      "title": "OtlpPreviewBoundaryControl",
+      "type": "object"
+    },
+    "OtlpPreviewFixture": {
+      "additionalProperties": false,
+      "properties": {
+        "transport": {
+          "const": "otlp-json-preview",
+          "default": "otlp-json-preview",
+          "title": "Transport",
+          "type": "string"
+        },
+        "network_policy": {
+          "const": "local-only-no-export",
+          "default": "local-only-no-export",
+          "title": "Network Policy",
+          "type": "string"
+        },
+        "resource_attributes": {
+          "items": {
+            "$ref": "#/$defs/OtlpPreviewAttribute"
+          },
+          "title": "Resource Attributes",
+          "type": "array"
+        },
+        "log_records": {
+          "items": {
+            "$ref": "#/$defs/OtlpPreviewLogRecord"
+          },
+          "title": "Log Records",
+          "type": "array"
+        },
+        "metrics": {
+          "items": {
+            "$ref": "#/$defs/OtlpPreviewMetric"
+          },
+          "title": "Metrics",
+          "type": "array"
+        },
+        "spans": {
+          "items": {
+            "$ref": "#/$defs/OtlpPreviewSpan"
+          },
+          "title": "Spans",
+          "type": "array"
+        }
+      },
+      "required": [
+        "resource_attributes",
+        "log_records",
+        "metrics",
+        "spans"
+      ],
+      "title": "OtlpPreviewFixture",
+      "type": "object"
+    },
+    "OtlpPreviewLogRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "severity_text": {
+          "enum": [
+            "info",
+            "attention",
+            "blocker"
+          ],
+          "title": "Severity Text",
+          "type": "string"
+        },
+        "attributes": {
+          "items": {
+            "$ref": "#/$defs/OtlpPreviewAttribute"
+          },
+          "title": "Attributes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "severity_text",
+        "attributes"
+      ],
+      "title": "OtlpPreviewLogRecord",
+      "type": "object"
+    },
+    "OtlpPreviewMetric": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        },
+        "value_kind": {
+          "enum": [
+            "sum",
+            "gauge"
+          ],
+          "title": "Value Kind",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "integer"
+        },
+        "attributes": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/OtlpPreviewAttribute"
+          },
+          "title": "Attributes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "unit",
+        "value_kind",
+        "value"
+      ],
+      "title": "OtlpPreviewMetric",
+      "type": "object"
+    },
+    "OtlpPreviewNextAction": {
+      "additionalProperties": false,
+      "properties": {
+        "priority": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Priority",
+          "type": "string"
+        },
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "source_ids": {
+          "items": {
+            "enum": [
+              "run_report",
+              "runtime_card",
+              "otel_mapping"
+            ],
+            "type": "string"
+          },
+          "title": "Source Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "priority",
+        "action",
+        "source_ids"
+      ],
+      "title": "OtlpPreviewNextAction",
+      "type": "object"
+    },
+    "OtlpPreviewSource": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "enum": [
+            "run_report",
+            "runtime_card",
+            "otel_mapping"
+          ],
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "present",
+            "missing",
+            "invalid",
+            "unsafe"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "schema_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Schema Version"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "path",
+        "state",
+        "summary"
+      ],
+      "title": "OtlpPreviewSource",
+      "type": "object"
+    },
+    "OtlpPreviewSpan": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "status_code": {
+          "enum": [
+            "OK",
+            "ERROR"
+          ],
+          "title": "Status Code",
+          "type": "string"
+        },
+        "attributes": {
+          "items": {
+            "$ref": "#/$defs/OtlpPreviewAttribute"
+          },
+          "title": "Attributes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "status_code",
+        "attributes"
+      ],
+      "title": "OtlpPreviewSpan",
+      "type": "object"
+    },
+    "OtlpPreviewSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "ready",
+            "partial",
+            "insufficient"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "attention",
+            "blocker"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "sources_total": {
+          "minimum": 0,
+          "title": "Sources Total",
+          "type": "integer"
+        },
+        "sources_present": {
+          "minimum": 0,
+          "title": "Sources Present",
+          "type": "integer"
+        },
+        "sources_missing": {
+          "minimum": 0,
+          "title": "Sources Missing",
+          "type": "integer"
+        },
+        "sources_invalid": {
+          "minimum": 0,
+          "title": "Sources Invalid",
+          "type": "integer"
+        },
+        "sources_unsafe": {
+          "minimum": 0,
+          "title": "Sources Unsafe",
+          "type": "integer"
+        },
+        "resource_attributes_total": {
+          "minimum": 0,
+          "title": "Resource Attributes Total",
+          "type": "integer"
+        },
+        "log_records_total": {
+          "minimum": 0,
+          "title": "Log Records Total",
+          "type": "integer"
+        },
+        "metrics_total": {
+          "minimum": 0,
+          "title": "Metrics Total",
+          "type": "integer"
+        },
+        "spans_total": {
+          "minimum": 0,
+          "title": "Spans Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "status",
+        "severity",
+        "sources_total",
+        "sources_present",
+        "sources_missing",
+        "sources_invalid",
+        "sources_unsafe",
+        "resource_attributes_total",
+        "log_records_total",
+        "metrics_total",
+        "spans_total"
+      ],
+      "title": "OtlpPreviewSummary",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "entroping.otlp-preview.v1",
+      "default": "entroping.otlp-preview.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "generated_at": {
+      "title": "Generated At",
+      "type": "string"
+    },
+    "summary": {
+      "$ref": "#/$defs/OtlpPreviewSummary"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/OtlpPreviewSource"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "fixture": {
+      "$ref": "#/$defs/OtlpPreviewFixture"
+    },
+    "boundary_controls": {
+      "items": {
+        "$ref": "#/$defs/OtlpPreviewBoundaryControl"
+      },
+      "title": "Boundary Controls",
+      "type": "array"
+    },
+    "next_actions": {
+      "items": {
+        "$ref": "#/$defs/OtlpPreviewNextAction"
+      },
+      "title": "Next Actions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "generated_at",
+    "summary",
+    "sources",
+    "fixture",
+    "boundary_controls",
+    "next_actions"
+  ],
+  "type": "object"
+}

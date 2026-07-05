@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package internal.orders;
+
+import "google/api/annotations.proto";
+
+service OrderService {
+  rpc GetOrder(GetOrderRequest) returns (Order) {
+    option (google.api.http) = {
+      get: "/v1/orders/{id}"
+    };
+  }
+
+  rpc CreateOrder(CreateOrderRequest) returns (Order) {
+    option (google.api.http) = {
+      post: "/v1/orders"
+      body: "*"
+    };
+  }
+}
+
+message GetOrderRequest {
+  string id = 1;
+}
+
+message CreateOrderRequest {
+  string id = 1;
+}
+
+message Order {
+  string id = 1;
+  string status = 2;
+}

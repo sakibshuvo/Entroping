@@ -57,6 +57,7 @@ entroping report evidence-links [--output <md|json>]
 entroping report evidence-portal [--output <html|json>]
 entroping report pr-evidence-card [--output <md|json>]
 entroping report evidence-action-plan [--output <md|json>]
+entroping report otlp-preview [--output <md|json>]
 entroping report work-item-draft [--output <md|json>]
 entroping report work-item-import-bundle [--output <json|csv>]
 entroping report pilot-outcome [--output <md|json>]
@@ -462,6 +463,8 @@ Experimental design-partner evidence commands:
 | `entroping report pr-evidence-card --output md` | Write local PR evidence card Markdown |
 | `entroping report pr-evidence-card --output json` | Write machine-readable PR evidence card JSON |
 | `entroping report evidence-action-plan --output md` | Write local prioritized evidence action-plan Markdown |
+| `entroping report otlp-preview --output md` | Write a local OTLP-shaped preview fixture to `reports/otlp-preview.md` |
+| `entroping report otlp-preview --output json` | Write machine-readable OTLP preview metadata to `reports/otlp-preview.json` |
 | `entroping report evidence-action-plan --output json` | Write machine-readable evidence action-plan JSON |
 | `entroping report work-item-draft --output md` | Write local read-only work item draft Markdown |
 | `entroping report work-item-draft --output json` | Write machine-readable work item draft JSON |
@@ -477,7 +480,7 @@ Experimental design-partner evidence commands:
 | `entroping report observability-packet --output json` | Write machine-readable observability evidence to `reports/observability-packet.json` |
 | `entroping report otel-mapping --output md` | Write a local OpenTelemetry evidence mapping packet to `reports/otel-mapping.md` |
 | `entroping report otel-mapping --output json` | Write machine-readable OpenTelemetry mapping metadata to `reports/otel-mapping.json` |
-| `entroping report observability-adapter-readiness --output md` | Write a local observability adapter readiness packet to `reports/observability-adapter-readiness.md` |
+| `entroping report observability-adapter-readiness --output md` | Write a local observability adapter readiness troubleshooting packet (Datadog/Splunk/Grafana) to `reports/observability-adapter-readiness.md` |
 | `entroping report observability-adapter-readiness --output json` | Write machine-readable observability adapter readiness metadata to `reports/observability-adapter-readiness.json` |
 | `entroping report api-inventory --output md` | Write a read-only API surface inventory, including WebSocket/realtime signals, to `reports/api-inventory.md` |
 | `entroping report api-inventory --output json` | Write machine-readable API style evidence, including WebSocket/realtime signals, to `reports/api-inventory.json` |
