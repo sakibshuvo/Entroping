@@ -75,6 +75,35 @@ def test_agent_control_plane_documents_artifact_first_worker_review() -> None:
         assert term in combined
 
 
+def test_agent_control_plane_specifies_portable_role_metrics_boundary() -> None:
+    control_plane = (
+        REPO_ROOT / "docs" / "meta" / "AGENT_CONTROL_PLANE.md"
+    ).read_text(encoding="utf-8")
+    role_registry = (
+        REPO_ROOT / "docs" / "meta" / "AGENT_ROLE_REGISTRY.yaml"
+    ).read_text(encoding="utf-8")
+    combined = " ".join(f"{control_plane}\n{role_registry}".split())
+
+    required_terms = [
+        "Portable role and metrics boundary",
+        "Portable role fields",
+        "Entroping-only role fields",
+        "Portable metrics fields",
+        "Entroping-only metrics fields",
+        "Merge-trust evidence",
+        "Privacy and security boundary",
+        "provider lane",
+        "model id",
+        "No one model, host, or billing path is mandatory",
+        "raw provider transcripts",
+        "unredacted traffic",
+        "Tier A/B/C",
+    ]
+
+    for term in required_terms:
+        assert term in combined
+
+
 def test_worker_prompts_define_codex_pickup_handoff_and_shortcut_guards() -> None:
     pickup_prompt_paths = [
         REPO_ROOT / "docs" / "meta" / "prompt-library" / "issue-worker.md",

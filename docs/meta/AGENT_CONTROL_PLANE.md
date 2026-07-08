@@ -245,6 +245,44 @@ evidence, and prints only value-free event metadata and matched markers.
 The factory framework owns workflow, context, metrics, and guardrails; the
 project owns product truth.
 
+### Portable role and metrics boundary
+
+The portable role and metrics boundary is intentionally small. It describes
+who may work, what evidence they owe, and which local metrics are safe to
+compare before a future seed repo copies the factory workflow.
+
+Portable role fields are role id, display name, mission, suggested context
+modes, default autonomy tier, allowed authority, forbidden decisions, and
+metrics tags. These fields are reusable because they describe work selection,
+review accountability, stop conditions, and evidence routing. Entroping-only
+role fields are product slogans, QAnstitution/Hurl ownership, Traffic is Truth
+claims, release-readiness claims, package-index state, and any runtime or
+security policy that only makes sense for this repository.
+
+Portable metrics fields are issue number, role, provider lane, provider host,
+model id, autonomy tier, context mode, context bytes or estimated tokens,
+duration, sanitized token/cost totals when known, outcome, local gate names,
+CI status, accepted/rejected decision, and known gaps. Entroping-only metrics
+fields are source Hurl details, report payloads, raw traffic state, release
+evidence contents, QAnstitution policy internals, package-index proof, and any
+domain-specific readiness score that cannot be compared across repositories.
+No one model, host, or billing path is mandatory; missing provider or cost
+evidence stays explicit instead of being guessed.
+
+Merge-trust evidence is the minimum packet another role needs before trusting
+or merging work: GitHub issue scope, changed files, diff summary, tests or
+docs gates run, PR-body evidence, provider lane and model id when a model was
+used, autonomy tier, merge authority, CI rollup, and unresolved gaps. Tier A/B/C
+authority limits still apply after the packet exists: Tier A may merge only
+inside its declared low-risk lane after gates and green CI, Tier B requires
+Codex or human review, and Tier C remains proposal-only.
+
+Privacy and security boundary: factory roles and metrics must not store raw
+provider transcripts, raw prompts, raw stdout/stderr captures, provider keys,
+secrets, credentials, local env values, cookies, unredacted traffic, raw report
+payloads, source Hurl contents, or unchecked generated artifacts. Generated
+worker output remains evidence to inspect, not truth to trust.
+
 One write agent per issue-scoped worktree. Parallelism comes from independent
 issues, not from multiple agents editing the same files.
 
