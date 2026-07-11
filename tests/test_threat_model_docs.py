@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from _public_docs import public_doc_sources
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 THREAT_MODEL = REPO_ROOT / "docs" / "technical" / "THREAT_MODEL.md"
 
@@ -30,10 +32,11 @@ def test_threat_model_is_visible_from_canonical_indexes() -> None:
     required_targets = {
         "docs/index.md": "technical/THREAT_MODEL.md",
         "docs/meta/VAULT_INDEX.md": "[[docs/technical/THREAT_MODEL|THREAT_MODEL]]",
-        "mkdocs.yml": "Threat Model: technical/THREAT_MODEL.md",
         "docs/meta/RELEASE_CHECKLIST.md": "docs/technical/THREAT_MODEL.md",
     }
 
     for relative_path, expected in required_targets.items():
         content = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
         assert expected in content
+
+    assert "docs/technical/THREAT_MODEL.md" in public_doc_sources()

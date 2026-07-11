@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from _public_docs import public_doc_sources
+
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -49,10 +51,6 @@ def test_studio_mutation_design_is_linked_from_studio_docs() -> None:
             "[[docs/technical/STUDIO_MUTATION_WORKFLOW_DESIGN|"
             "STUDIO_MUTATION_WORKFLOW_DESIGN]]"
         ),
-        "mkdocs.yml": (
-            "Studio Mutation Workflow Design: "
-            "technical/STUDIO_MUTATION_WORKFLOW_DESIGN.md"
-        ),
         "docs/index.md": "technical/STUDIO_MUTATION_WORKFLOW_DESIGN.md",
         "docs/user/USER_GUIDE.md": "STUDIO_MUTATION_WORKFLOW_DESIGN.md",
         "docs/technical/TDS.md": "STUDIO_MUTATION_WORKFLOW_DESIGN.md",
@@ -64,6 +62,8 @@ def test_studio_mutation_design_is_linked_from_studio_docs() -> None:
     for relative_path, expected in required_links.items():
         content = (_REPO_ROOT / relative_path).read_text(encoding="utf-8")
         assert expected in content
+
+    assert "docs/technical/STUDIO_MUTATION_WORKFLOW_DESIGN.md" in public_doc_sources()
 
 
 def test_studio_scope_decision_remains_no_mutation_for_v03() -> None:

@@ -67,7 +67,7 @@ Use these first. They are the control panel for current work:
 - [[docs/meta/RELEASE_EVIDENCE|RELEASE_EVIDENCE]] - committed alpha release, main CI, package-index, and stable-core blocker evidence.
 - `docs/meta/dependency-license-policy.json` - reviewed direct dependency license policy used by the security gate.
 - [[docs/meta/PYPI_RELEASE_RUNBOOK|PYPI_RELEASE_RUNBOOK]] - TestPyPI-first and PyPI Trusted Publishing plan.
-- [[docs/meta/PUBLIC_DOCS_SITE_DECISION|PUBLIC_DOCS_SITE_DECISION]] - MkDocs Material public docs site decision and scaffold.
+- [[docs/meta/PUBLIC_DOCS_SITE_DECISION|PUBLIC_DOCS_SITE_DECISION]] - Astro and Starlight public launch/docs decision, including the superseded MkDocs history.
 - [[docs/meta/PUBLIC_REPO_SURFACE|PUBLIC_REPO_SURFACE]] - what belongs in the public clone, maintainer context, and local-only Obsidian state.
 - [[docs/meta/INSTALL_SMOKE_MATRIX|INSTALL_SMOKE_MATRIX]] - Linux, macOS, and Windows install-smoke claims and non-claims.
 - [[docs/meta/DOWNSTREAM_SMOKE_EVIDENCE|DOWNSTREAM_SMOKE_EVIDENCE]] - local external-project smoke evidence and its stable-core limits.

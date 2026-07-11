@@ -1,0 +1,141 @@
+---
+import Icon from "./Icon.astro";
+
+type Props = {
+  readonly label: string;
+  readonly code: string;
+  readonly result?: string;
+};
+
+const { label, code, result } = Astro.props;
+---
+
+<figure class="code-window">
+  <figcaption class="code-window__bar">
+    <span>{label}</span>
+    <button class="code-window__copy" type="button" data-copy-value={code}>
+      <Icon name="copy" size={18} />
+      <span>Copy</span>
+    </button>
+  </figcaption>
+  <pre><code>{code}</code></pre>
+  {
+    result && (
+      <div class="code-window__result">
+        <Icon name="check" size={18} />
+        <span>{result}</span>
+      </div>
+    )
+  }
+  <span class="code-window__status sr-only" aria-live="polite"></span>
+</figure>
+
+<script>
+  const copyButtons =
+    document.querySelectorAll<HTMLButtonElement>("[data-copy-value]");
+
+  for (const button of copyButtons) {
+    button.addEventListener("click", async () => {
+      const windowElement = button.closest(".code-window");
+      const status = windowElement?.querySelector<HTMLElement>(
+        ".code-window__status",
+      );
+      const value = button.dataset.copyValue;
+
+      if (status === undefined || status === null || value === undefined) {
+        return;
+      }
+      if (navigator.clipboard === undefined) {
+        status.textContent = "Copy unavailable. Select the command manually.";
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(value);
+        status.textContent = "Copied command.";
+        const label = button.querySelector("span");
+        if (label !== null) {
+          label.textContent = "Copied";
+        }
+      } catch (error) {
+        if (error instanceof DOMException) {
+          status.textContent = "Copy failed. Select the command manually.";
+          return;
+        }
+        throw error;
+      }
+    });
+  }
+</script>
+
+<style>
+  .code-window {
+    background: var(--color-ink);
+    border: var(--border-strong);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-hard-md);
+    color: var(--color-paper);
+    margin: 0;
+    overflow: hidden;
+  }
+
+  .code-window__bar {
+    align-items: center;
+    background: var(--color-lavender-soft);
+    color: var(--color-ink);
+    display: flex;
+    font-family: var(--font-mono);
+    font-size: var(--text-mono-label);
+    font-weight: 700;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .code-window__copy {
+    align-items: center;
+    background: var(--color-paper);
+    border: var(--border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--color-ink);
+    cursor: pointer;
+    display: inline-flex;
+    font: inherit;
+    gap: var(--space-2);
+    min-height: 2.5rem;
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .code-window__copy:hover {
+    background: var(--color-sky-strong);
+  }
+
+  .code-window__copy:focus-visible {
+    box-shadow: var(--shadow-focus);
+    outline: none;
+  }
+
+  pre {
+    margin: 0;
+    overflow-x: auto;
+    padding: var(--space-6);
+  }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: var(--text-body-small);
+    line-height: 1.75;
+  }
+
+  .code-window__result {
+    align-items: center;
+    background: var(--color-paper);
+    border-block-start: var(--border-strong);
+    color: var(--color-pass);
+    display: flex;
+    font-family: var(--font-mono);
+    font-size: var(--text-body-small);
+    font-weight: 700;
+    gap: var(--space-2);
+    padding: var(--space-4);
+  }
+</style>

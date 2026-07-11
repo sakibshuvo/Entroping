@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import yaml
+from _public_docs import public_doc_sources
 
 from entroping.core.config_loader import load_qanstitution
 
@@ -94,7 +95,6 @@ def test_policy_pack_layout_is_linked_from_entrypoints() -> None:
         "README.md": "POLICY_PACK_LAYOUT.md",
         "docs/meta/VAULT_INDEX.md": "[[docs/technical/POLICY_PACK_LAYOUT|POLICY_PACK_LAYOUT]]",
         "docs/index.md": "technical/POLICY_PACK_LAYOUT.md",
-        "mkdocs.yml": "Policy Pack Layout: technical/POLICY_PACK_LAYOUT.md",
         "docs/technical/QANSTITUTION_REFERENCE.md": "POLICY_PACK_LAYOUT.md",
         "docs/technical/TDS.md": "POLICY_PACK_LAYOUT.md",
         "docs/product/OPEN_CORE_BOUNDARIES.md": "POLICY_PACK_LAYOUT.md",
@@ -103,3 +103,5 @@ def test_policy_pack_layout_is_linked_from_entrypoints() -> None:
     for relative_path, expected in required_links.items():
         content = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
         assert expected in content
+
+    assert "docs/technical/POLICY_PACK_LAYOUT.md" in public_doc_sources()

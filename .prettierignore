@@ -1,0 +1,13 @@
+.context/
+.github/workflows/*
+!.github/workflows/ci.yml
+!.github/workflows/pages.yml
+decisions/
+docs/
+examples/
+prompts/
+tests/
+DESIGN.md
+README.md
+ROADMAP.md
+package-lock.json

@@ -1,0 +1,88 @@
+---
+import KineticGlyphField from "../components/KineticGlyphField.astro";
+import LaunchFooter from "../components/LaunchFooter.astro";
+import LaunchNav from "../components/LaunchNav.astro";
+import TiltButton from "../components/TiltButton.astro";
+import { withBase } from "../config/base-path";
+import LaunchLayout from "../layouts/LaunchLayout.astro";
+
+const homeUrl = withBase();
+---
+
+<LaunchLayout
+  title="Page not found | Entroping"
+  description="The requested Entroping page could not be found."
+>
+  <LaunchNav />
+  <main id="main-content" class="not-found">
+    <KineticGlyphField density="section" />
+    <div class="not-found__inner">
+      <p class="not-found__code">404</p>
+      <h1>Proof missing.</h1>
+      <p>
+        This route did not survive the run. Return home or continue with the
+        curated documentation.
+      </p>
+      <div class="not-found__actions">
+        <TiltButton href={homeUrl} variant="primary" icon="arrow">
+          Return home
+        </TiltButton>
+        <TiltButton href={withBase("docs/")} variant="secondary" icon="book">
+          Read the docs
+        </TiltButton>
+      </div>
+    </div>
+  </main>
+  <LaunchFooter />
+</LaunchLayout>
+
+<style>
+  .not-found {
+    background: var(--color-sky);
+    min-height: 70dvh;
+    overflow: hidden;
+    padding: var(--space-24) var(--gutter-mobile);
+    position: relative;
+  }
+
+  .not-found__inner {
+    margin-inline: auto;
+    max-width: var(--launch-max-width);
+    position: relative;
+    z-index: 1;
+  }
+
+  .not-found__code {
+    color: var(--color-coral);
+    font-family: var(--font-mono);
+    font-size: var(--text-lead);
+    font-weight: 700;
+    margin: 0;
+  }
+
+  h1 {
+    font-size: var(--text-section);
+    letter-spacing: -0.055em;
+    line-height: 0.9;
+    margin: var(--space-4) 0;
+  }
+
+  .not-found__inner > p:not(.not-found__code) {
+    color: var(--color-ink-muted);
+    font-size: var(--text-lead);
+    max-width: var(--prose-max-width);
+  }
+
+  .not-found__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-6);
+    margin-block-start: var(--space-8);
+  }
+
+  @media (min-width: 64rem) {
+    .not-found {
+      padding-inline: var(--gutter-desktop);
+    }
+  }
+</style>

@@ -1,0 +1,389 @@
+---
+type Density = "hero" | "section" | "docs";
+
+type Props = {
+  readonly density: Density;
+};
+
+type Glyph = {
+  readonly mark: string;
+  readonly x: string;
+  readonly y: string;
+  readonly color: "cobalt" | "coral" | "lavender" | "sage" | "butter" | "ink";
+  readonly size: string;
+  readonly delay: string;
+  readonly rotation: string;
+};
+
+const glyphs = [
+  {
+    mark: "{}",
+    x: "4%",
+    y: "12%",
+    color: "lavender",
+    size: "1.2rem",
+    delay: "40ms",
+    rotation: "-8deg",
+  },
+  {
+    mark: "GET",
+    x: "34%",
+    y: "2%",
+    color: "cobalt",
+    size: "0.9rem",
+    delay: "70ms",
+    rotation: "2deg",
+  },
+  {
+    mark: ";",
+    x: "62%",
+    y: "6%",
+    color: "ink",
+    size: "1.4rem",
+    delay: "90ms",
+    rotation: "8deg",
+  },
+  {
+    mark: "[]",
+    x: "84%",
+    y: "10%",
+    color: "coral",
+    size: "1rem",
+    delay: "110ms",
+    rotation: "-3deg",
+  },
+  {
+    mark: "/",
+    x: "15%",
+    y: "24%",
+    color: "sage",
+    size: "2.8rem",
+    delay: "130ms",
+    rotation: "17deg",
+  },
+  {
+    mark: "POST",
+    x: "28%",
+    y: "18%",
+    color: "lavender",
+    size: "1rem",
+    delay: "150ms",
+    rotation: "-2deg",
+  },
+  {
+    mark: "<>",
+    x: "49%",
+    y: "21%",
+    color: "butter",
+    size: "1rem",
+    delay: "170ms",
+    rotation: "4deg",
+  },
+  {
+    mark: "{",
+    x: "66%",
+    y: "24%",
+    color: "coral",
+    size: "2rem",
+    delay: "190ms",
+    rotation: "-4deg",
+  },
+  {
+    mark: "()",
+    x: "77%",
+    y: "20%",
+    color: "ink",
+    size: "1rem",
+    delay: "210ms",
+    rotation: "8deg",
+  },
+  {
+    mark: "PATCH",
+    x: "86%",
+    y: "30%",
+    color: "sage",
+    size: "0.9rem",
+    delay: "230ms",
+    rotation: "1deg",
+  },
+  {
+    mark: "//",
+    x: "52%",
+    y: "34%",
+    color: "cobalt",
+    size: "1.5rem",
+    delay: "250ms",
+    rotation: "5deg",
+  },
+  {
+    mark: "**",
+    x: "88%",
+    y: "42%",
+    color: "lavender",
+    size: "1.1rem",
+    delay: "270ms",
+    rotation: "-7deg",
+  },
+  {
+    mark: "?",
+    x: "91%",
+    y: "56%",
+    color: "ink",
+    size: "1.2rem",
+    delay: "290ms",
+    rotation: "4deg",
+  },
+  {
+    mark: "{}",
+    x: "8%",
+    y: "47%",
+    color: "cobalt",
+    size: "1rem",
+    delay: "310ms",
+    rotation: "-5deg",
+  },
+  {
+    mark: "/",
+    x: "72%",
+    y: "46%",
+    color: "coral",
+    size: "1.3rem",
+    delay: "330ms",
+    rotation: "18deg",
+  },
+  {
+    mark: "::",
+    x: "88%",
+    y: "48%",
+    color: "cobalt",
+    size: "1.2rem",
+    delay: "350ms",
+    rotation: "-2deg",
+  },
+  {
+    mark: "=",
+    x: "81%",
+    y: "58%",
+    color: "sage",
+    size: "1.2rem",
+    delay: "370ms",
+    rotation: "1deg",
+  },
+  {
+    mark: "/*",
+    x: "73%",
+    y: "66%",
+    color: "ink",
+    size: "0.9rem",
+    delay: "390ms",
+    rotation: "3deg",
+  },
+  {
+    mark: "[]",
+    x: "88%",
+    y: "70%",
+    color: "ink",
+    size: "1rem",
+    delay: "410ms",
+    rotation: "-4deg",
+  },
+  {
+    mark: "}",
+    x: "10%",
+    y: "75%",
+    color: "coral",
+    size: "2rem",
+    delay: "430ms",
+    rotation: "-5deg",
+  },
+  {
+    mark: "{}",
+    x: "56%",
+    y: "78%",
+    color: "coral",
+    size: "1.2rem",
+    delay: "450ms",
+    rotation: "5deg",
+  },
+  {
+    mark: "<>",
+    x: "69%",
+    y: "83%",
+    color: "butter",
+    size: "0.9rem",
+    delay: "470ms",
+    rotation: "-6deg",
+  },
+  {
+    mark: ";",
+    x: "17%",
+    y: "88%",
+    color: "sage",
+    size: "1rem",
+    delay: "490ms",
+    rotation: "8deg",
+  },
+  {
+    mark: "::",
+    x: "36%",
+    y: "89%",
+    color: "lavender",
+    size: "1rem",
+    delay: "510ms",
+    rotation: "-3deg",
+  },
+  {
+    mark: "[ ]",
+    x: "3%",
+    y: "62%",
+    color: "lavender",
+    size: "0.9rem",
+    delay: "100ms",
+    rotation: "2deg",
+  },
+  {
+    mark: "|",
+    x: "93%",
+    y: "38%",
+    color: "butter",
+    size: "1.6rem",
+    delay: "140ms",
+    rotation: "0deg",
+  },
+  {
+    mark: ".",
+    x: "23%",
+    y: "13%",
+    color: "coral",
+    size: "1.4rem",
+    delay: "180ms",
+    rotation: "0deg",
+  },
+  {
+    mark: "`",
+    x: "39%",
+    y: "58%",
+    color: "lavender",
+    size: "1.3rem",
+    delay: "220ms",
+    rotation: "9deg",
+  },
+  {
+    mark: "!",
+    x: "92%",
+    y: "82%",
+    color: "coral",
+    size: "1.2rem",
+    delay: "260ms",
+    rotation: "-4deg",
+  },
+  {
+    mark: "..",
+    x: "31%",
+    y: "70%",
+    color: "cobalt",
+    size: "1rem",
+    delay: "300ms",
+    rotation: "0deg",
+  },
+] as const satisfies readonly Glyph[];
+
+const densityCount = {
+  hero: 30,
+  section: 18,
+  docs: 8,
+} as const satisfies Record<Density, number>;
+const { density } = Astro.props;
+const visibleGlyphs = glyphs.slice(0, densityCount[density]);
+---
+
+<div class:list={["glyph-field", `glyph-field--${density}`]} aria-hidden="true">
+  {
+    visibleGlyphs.map((glyph) => (
+      <span
+        class:list={["glyph-field__mark", `glyph-field__mark--${glyph.color}`]}
+        style={`--glyph-x:${glyph.x};--glyph-y:${glyph.y};--glyph-size:${glyph.size};--glyph-delay:${glyph.delay};--glyph-rotation:${glyph.rotation}`}
+      >
+        {glyph.mark}
+      </span>
+    ))
+  }
+</div>
+
+<style>
+  .glyph-field {
+    --glyph-final-opacity: 1;
+
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    position: absolute;
+  }
+
+  .glyph-field__mark {
+    animation: glyph-settle var(--motion-emphasis) both;
+    animation-delay: var(--glyph-delay);
+    font-family: var(--font-mono);
+    font-size: var(--glyph-size);
+    font-weight: 700;
+    left: var(--glyph-x);
+    line-height: 1;
+    opacity: 0;
+    position: absolute;
+    top: var(--glyph-y);
+    transform: translate3d(-12px, -18px, 0) rotate(var(--glyph-rotation));
+  }
+
+  .glyph-field--docs .glyph-field__mark {
+    --glyph-final-opacity: 0.52;
+  }
+
+  .glyph-field--section .glyph-field__mark {
+    --glyph-final-opacity: 0.72;
+  }
+
+  .glyph-field__mark--cobalt {
+    color: var(--color-cobalt);
+  }
+
+  .glyph-field__mark--coral {
+    color: var(--color-coral);
+  }
+
+  .glyph-field__mark--lavender {
+    color: var(--color-lavender);
+  }
+
+  .glyph-field__mark--sage {
+    color: var(--color-sage);
+  }
+
+  .glyph-field__mark--butter {
+    color: var(--color-butter);
+  }
+
+  .glyph-field__mark--ink {
+    color: var(--color-ink);
+  }
+
+  @keyframes glyph-settle {
+    to {
+      opacity: var(--glyph-final-opacity);
+      transform: translate3d(0, 0, 0) rotate(var(--glyph-rotation));
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .glyph-field__mark {
+      animation: none;
+      opacity: var(--glyph-final-opacity);
+      transform: rotate(var(--glyph-rotation));
+    }
+  }
+
+  @media (min-width: 48rem) {
+    .glyph-field__mark:nth-child(6) {
+      display: none;
+    }
+  }
+</style>

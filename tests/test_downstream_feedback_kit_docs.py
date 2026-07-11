@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from _public_docs import public_doc_sources
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -36,9 +38,10 @@ def test_downstream_feedback_kit_is_linked_from_stable_core_and_contributor_docs
         "docs/meta/GOOD_FIRST_ISSUE_WALKTHROUGH.md": "DOWNSTREAM_FEEDBACK_KIT.md",
         "docs/meta/VAULT_INDEX.md": "[[docs/meta/DOWNSTREAM_FEEDBACK_KIT|DOWNSTREAM_FEEDBACK_KIT]]",
         "docs/index.md": "meta/DOWNSTREAM_FEEDBACK_KIT.md",
-        "mkdocs.yml": "Downstream Feedback Kit: meta/DOWNSTREAM_FEEDBACK_KIT.md",
     }
 
     for relative_path, expected in required_links.items():
         content = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
         assert expected in content
+
+    assert "docs/meta/DOWNSTREAM_FEEDBACK_KIT.md" in public_doc_sources()

@@ -114,7 +114,7 @@ Stable-core readiness remains blocked by evidence that cannot be manufactured en
 | [Local policy-pack vendoring](https://github.com/sakibshuvo/Entroping/issues/401) | Done | `config vendor-policy-pack` copies reviewed local packs under `policy-packs/`, validates manifest/entrypoint evidence, preserves final-gate behavior, and appends a local import without remote registry coupling. |
 | [Open-source license and package metadata](https://github.com/sakibshuvo/Entroping/issues/58) | Done | Apache-2.0 public core and package metadata are explicit. |
 | [Public clean-checkout onboarding smoke](https://github.com/sakibshuvo/Entroping/issues/185) | Done | `scripts/release_check.sh --require-live-demo` passed from a fresh public clone. |
-| Public docs site decision | Done | MkDocs Material publishes existing canonical docs without duplicating the tree. |
+| Public launch and docs site | Done | Astro 7 serves the branded launch page and Starlight renders curated canonical Markdown through `site/public-docs.json` without duplicating the tree. |
 | PyPI/TestPyPI trusted publishing workflow | Done | Manual protected workflow plus local package-index readiness preflight exist; package-index proof is still separate. |
 | Homebrew tap prototype | Done | Prototype stays blocked until PyPI alpha proof exists. |
 | Distribution path recommendation | Done | `uv tool install` first, PyPI next, Homebrew after PyPI, standalone later. |

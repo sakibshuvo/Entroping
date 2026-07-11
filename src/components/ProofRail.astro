@@ -1,0 +1,91 @@
+---
+type Accent = "cobalt" | "coral" | "pass";
+
+type ProofStep = {
+  readonly title: string;
+  readonly body: string;
+  readonly accent: Accent;
+};
+
+type Props = {
+  readonly steps: readonly ProofStep[];
+};
+
+const { steps } = Astro.props;
+---
+
+<ol class="proof-rail">
+  {
+    steps.map((step, index) => (
+      <li class:list={["proof-rail__step", `proof-rail__step--${step.accent}`]}>
+        <span class="proof-rail__number" aria-hidden="true">
+          {String(index + 1).padStart(2, "0")}
+        </span>
+        <div>
+          <h3>{step.title}</h3>
+          <p>{step.body}</p>
+        </div>
+      </li>
+    ))
+  }
+</ol>
+
+<style>
+  .proof-rail {
+    display: grid;
+    gap: var(--space-8);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .proof-rail__step {
+    align-items: start;
+    border-block-start: var(--border-strong);
+    display: grid;
+    gap: var(--space-4);
+    grid-template-columns: auto 1fr;
+    padding-block-start: var(--space-4);
+  }
+
+  .proof-rail__number {
+    color: var(--step-accent);
+    font-family: var(--font-mono);
+    font-size: var(--text-mono-label);
+    font-weight: 700;
+  }
+
+  .proof-rail__step--cobalt {
+    --step-accent: var(--color-cobalt);
+  }
+
+  .proof-rail__step--coral {
+    --step-accent: var(--color-coral);
+  }
+
+  .proof-rail__step--pass {
+    --step-accent: var(--color-pass);
+  }
+
+  h3 {
+    font-size: var(--text-h3);
+    margin: 0;
+  }
+
+  p {
+    color: var(--color-ink-muted);
+    font-size: var(--text-body-large);
+    margin: var(--space-2) 0 0;
+    max-width: var(--prose-max-width);
+  }
+
+  @media (min-width: 48rem) {
+    .proof-rail {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .proof-rail__step {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

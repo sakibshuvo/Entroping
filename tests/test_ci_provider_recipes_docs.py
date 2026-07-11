@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from _public_docs import public_doc_sources
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CI_PROVIDER_DOC = REPO_ROOT / "docs" / "user" / "CI_PROVIDER_RECIPES.md"
 
@@ -45,7 +47,6 @@ def test_ci_provider_recipes_are_linked_from_entrypoints() -> None:
         "docs/index.md": "user/CI_PROVIDER_RECIPES.md",
         "docs/user/USER_GUIDE.md": "docs/user/CI_PROVIDER_RECIPES.md",
         "docs/user/USER_FLOWS.md": "docs/user/CI_PROVIDER_RECIPES.md",
-        "mkdocs.yml": "CI Provider Recipes: user/CI_PROVIDER_RECIPES.md",
         "docs/meta/PROJECT_PROGRESS.md": "Non-GitHub CI provider recipes",
         ".context/plan.md": "Issue #204 documents non-GitHub CI provider recipes",
     }
@@ -53,3 +54,5 @@ def test_ci_provider_recipes_are_linked_from_entrypoints() -> None:
     for relative_path, expected in required_links.items():
         content = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
         assert expected in content
+
+    assert "docs/user/CI_PROVIDER_RECIPES.md" in public_doc_sources()

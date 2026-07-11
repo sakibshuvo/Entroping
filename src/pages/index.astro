@@ -1,0 +1,26 @@
+---
+import ChaosProofSection from "../components/ChaosProofSection.astro";
+import DemoSection from "../components/DemoSection.astro";
+import HeroSection from "../components/HeroSection.astro";
+import LaunchFooter from "../components/LaunchFooter.astro";
+import LaunchNav from "../components/LaunchNav.astro";
+import PhilosophySection from "../components/PhilosophySection.astro";
+import ScopeSection from "../components/ScopeSection.astro";
+import LaunchLayout from "../layouts/LaunchLayout.astro";
+
+const title = "Entroping | Runtime truth for AI-assisted APIs";
+const description =
+  "Code at the speed of AI without losing deterministic runtime proof. QAnstitution governs, Hurl executes, and CI keeps the receipt.";
+---
+
+<LaunchLayout title={title} description={description}>
+  <LaunchNav />
+  <main id="main-content">
+    <HeroSection />
+    <ChaosProofSection />
+    <DemoSection />
+    <PhilosophySection />
+    <ScopeSection />
+  </main>
+  <LaunchFooter />
+</LaunchLayout>

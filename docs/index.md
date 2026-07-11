@@ -10,8 +10,8 @@ tags:
 # Entroping Documentation
 
 Entroping is a local-first runtime governance layer for AI-assisted backend
-development. Use this site for public docs that should be easy to read outside
-Obsidian.
+development. This is the curated public reading path, built directly from the
+canonical Markdown in the repository.
 
 Start here:
 
@@ -37,7 +37,8 @@ This site is the public reading path generated from the repository's Markdown.
 It is optimized for first-hour users; Obsidian remains a separate context layer.
 
 - README sells and orients.
-- MkDocs is the public reading path.
+- Astro and Starlight render the public reading path from
+  `site/public-docs.json`.
 - GitHub Issues track work.
 - `ROADMAP.md` sequences releases.
 - `docs/meta/VAULT_INDEX.md` maps the Obsidian vault.
@@ -66,5 +67,6 @@ implementation layer. For maintainer and release evidence, use
 [Downstream Feedback Kit](meta/DOWNSTREAM_FEEDBACK_KIT.md) when you need the
 release-owner evidence layer.
 
-Canonical source still lives in the repository Markdown. The Obsidian vault
-entry point remains `docs/meta/VAULT_INDEX.md`; this page is only the public web landing page.
+Canonical source stays in the repository Markdown. The Obsidian vault entry
+point remains `docs/meta/VAULT_INDEX.md`; this page is only the public web
+landing page.

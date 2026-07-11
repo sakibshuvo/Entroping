@@ -5,7 +5,8 @@ status: active
 tags:
   - docs
   - public-site
-  - mkdocs
+  - astro
+  - starlight
 ---
 
 # Public Docs Site Decision
@@ -13,70 +14,77 @@ tags:
 ## Problem
 
 The repository is useful in Obsidian, but first-time open-source visitors should
-not need Obsidian to read core docs. The site should publish a curated public
-path without copying or forking the canonical Markdown.
+not need Obsidian to read core docs. The site must publish a curated public path
+without copying or forking the canonical Markdown.
 
-## Options
+## Original decision
 
-| Option | Fit | Cost | Decision |
-| --- | --- | --- | --- |
-| MkDocs Material | Strong fit for Python projects, Markdown docs, search, GitHub Pages, and low-friction local preview | Adds one Python docs-site tool when publishing is activated | Chosen |
-| VitePress | Strong static docs UX and fast builds | Adds a Node toolchain and a separate docs mental model to a Python-first repo | Defer |
-| GitHub Pages/Jekyll | Native GitHub Pages path and minimal setup | Ruby/Jekyll conventions are less aligned with the existing Python/uv workflow | Defer |
+The original decision selected MkDocs Material after comparing it with
+VitePress and GitHub Pages/Jekyll. MkDocs fit the Python-first repository,
+provided search and strict builds, and kept the canonical docs in `docs/`.
 
-## Decision
-
-Decision: MkDocs Material.
-
-Use `mkdocs.yml` at the repository root, keep `docs_dir: docs`, and add a small
-`docs/index.md` public landing page. Do not duplicate canonical docs into a
-second docs tree. The canonical docs stay in `docs/`, while root `README.md`,
-`ROADMAP.md`, and `docs/meta/VAULT_INDEX.md` remain repository and Obsidian entry points.
-
-Obsidian links remain source-friendly. Public-site pages should prefer normal
-Markdown links when they are meant for first-time readers, but the vault does
-not need to give up wiki links in internal notes just to satisfy the public
-site. Keep internal Obsidian-heavy notes under `docs/meta/` and exclude them
-from the first public navigation unless they are useful to maintainers.
-
-## Scaffold
-
-Current automation:
-
-- `mkdocs.yml` defines the public site metadata, Material theme, selected
-  Markdown extensions, strict mode, and curated navigation.
-- `docs/index.md` is the public landing page.
-- `docs/meta/PUBLIC_DOCS_SITE_DECISION.md` records this decision.
-- `.github/workflows/ci.yml` runs a `docs-site` job on pull requests and
-  pushes to `main`.
-- `.github/workflows/pages.yml` publishes the strict build from `main` through
-  GitHub Pages.
-
-Local preview/build command:
+The original scaffold used `mkdocs.yml`, `docs/index.md`, and this decision
+record. It built with:
 
 ```bash
 uvx --with 'mkdocs-material==9.*' mkdocs build --strict
 ```
 
-Use `mkdocs serve` only for local preview:
+That decision established durable requirements that still apply:
+
+- Do not duplicate canonical docs.
+- The canonical docs stay in `docs/`.
+- Obsidian links remain source-friendly.
+- Public navigation stays curated instead of exposing maintainer memory by
+  default.
+- GitHub Issues and milestones remain the project tracker.
+
+## Superseding decision
+
+As of 2026-07-11, GitHub issue #1507 supersedes the site implementation while
+preserving the original curation and source-of-truth rules.
+
+Use one Astro 7 static build with Starlight for documentation:
+
+- `src/pages/index.astro` owns the branded launch page.
+- Starlight renders documentation under `/docs/`.
+- `site/public-docs.json` owns public labels, canonical source paths, and route
+  slugs.
+- Astro's content loader reads those exact Markdown files directly from
+  `docs/`.
+- `DESIGN.md` and `src/styles/tokens.css` own the shared launch and docs visual
+  system.
+- The configured `/Entroping/` base path remains valid on GitHub Pages.
+
+Astro and Starlight replace executable MkDocs configuration. They do not create
+a second docs tree or change the role of README, the roadmap, the vault index,
+or GitHub Issues.
+
+## Current implementation
+
+Install, check, build, validate, and preview with:
 
 ```bash
-uvx --with 'mkdocs-material==9.*' mkdocs serve
+npm ci
+npm run format:check
+npm run check
+npm run build
+npm run test:site
+npm run preview
 ```
 
-GitHub Pages deployment is active at
-`https://sakibshuvo.github.io/Entroping/`. Broken links fail CI through `mkdocs build --strict`
-before deployment, and the Pages workflow only publishes the curated `site/`
-artifact from `main`.
+The `docs-site` CI job runs the same deterministic checks. The Pages workflow
+publishes only the generated `dist/` artifact from `main` after its own checked
+build. GitHub Pages deployment is active at
+`https://sakibshuvo.github.io/Entroping/`.
 
 ## Guardrails
 
-- Do not duplicate canonical docs.
-- Do not move product, technical, user, or meta docs out of `docs/` for the site.
-- Do not make the docs site the project tracker; GitHub Issues and milestones
-  remain the tracker.
-- Do not publish Obsidian UI state, generated local context output, reports, `.entroping/`, or
-  generated site output.
-- Keep `site/` ignored when local builds are introduced.
-- Keep the public navigation curated; Obsidian-only notes, source exports, and
-  private implementation context should stay out of `mkdocs.yml`.
+- Do not move product, technical, user, or meta docs out of `docs/` for the
+  site.
+- Do not make the public site a project tracker.
+- Do not publish Obsidian UI state, generated local context output, reports,
+  `.entroping/`, provider output, or generated site output.
+- Keep `node_modules/`, `.astro/`, `.pagefind/`, and `dist/` ignored.
+- Keep Obsidian-only notes, source exports, evolution history, prompt libraries,
+  and private implementation context out of first-level public navigation.

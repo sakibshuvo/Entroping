@@ -1,0 +1,188 @@
+---
+import KineticGlyphField from "./KineticGlyphField.astro";
+import PassMatrix from "./PassMatrix.astro";
+import TiltButton from "./TiltButton.astro";
+import { withBase } from "../config/base-path";
+---
+
+<section class="hero" aria-labelledby="hero-heading">
+  <KineticGlyphField density="hero" />
+  <div class="hero__inner">
+    <h1 id="hero-heading">
+      <span class="hero__line hero__line--first">
+        <span class="hero__phrase">Code</span>{" "}
+        <span class="hero__phrase">at the speed</span>{" "}
+        <span class="hero__phrase">of <em>AI</em>.</span>
+      </span>{" "}
+      <span class="hero__line hero__line--second">
+        <strong>
+          <span class="hero__phrase">Don't</span>{" "}
+          <span class="hero__phrase">crash</span>
+        </strong>{" "}
+        <span class="hero__phrase">at the speed</span>{" "}
+        <span class="hero__phrase">of <em>AI</em>.</span>
+      </span>
+    </h1>
+    <p class="hero__truth">
+      <span>AI can suggest.</span>
+      <span><b>Runtime truth</b> decides.</span>
+    </p>
+    <div class="hero__proof">
+      <PassMatrix />
+    </div>
+    <div class="hero__actions">
+      <TiltButton href="#demo" variant="primary" icon="play">
+        Run the 2-minute demo
+      </TiltButton>
+      <TiltButton href={withBase("docs/")} variant="secondary" icon="book">
+        Read the docs
+      </TiltButton>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    background: var(--color-sky);
+    min-height: calc(100dvh - var(--space-20));
+    overflow: hidden;
+    padding: var(--space-4) var(--gutter-mobile) 0;
+    position: relative;
+  }
+
+  .hero::after {
+    background: var(--color-cloud);
+    bottom: 0;
+    content: "";
+    height: var(--space-4);
+    left: 0;
+    position: absolute;
+    right: 0;
+  }
+
+  .hero__inner {
+    display: grid;
+    gap: var(--space-6);
+    margin-inline: auto;
+    max-width: var(--launch-max-width);
+    position: relative;
+    z-index: 1;
+  }
+
+  h1 {
+    font-size: var(--text-hero);
+    font-weight: 700;
+    letter-spacing: -0.065em;
+    line-height: 0.84;
+    margin: var(--space-4) 0 0;
+    max-width: 100%;
+  }
+
+  .hero__line {
+    display: block;
+  }
+
+  .hero__phrase {
+    display: block;
+  }
+
+  .hero__line--second {
+    margin-block-start: var(--space-4);
+  }
+
+  em {
+    color: var(--color-cobalt);
+    font-style: normal;
+  }
+
+  strong {
+    color: var(--color-coral);
+    display: block;
+    text-shadow: 0.05em 0.06em 0 var(--color-ink);
+  }
+
+  .hero__truth {
+    background: var(--color-sky);
+    box-shadow: var(--shadow-mask-sky);
+    color: var(--color-ink);
+    font-size: var(--text-lead);
+    font-weight: 650;
+    letter-spacing: -0.025em;
+    line-height: 1.18;
+    margin: 0;
+    width: max-content;
+    max-width: 100%;
+  }
+
+  .hero__truth span {
+    display: block;
+  }
+
+  .hero__truth b {
+    color: var(--color-lavender);
+  }
+
+  .hero__proof {
+    background: var(--color-sky);
+    box-shadow: var(--shadow-mask-sky);
+    justify-self: stretch;
+  }
+
+  .hero__actions {
+    display: grid;
+    gap: var(--space-5);
+  }
+
+  @media (min-width: 30rem) {
+    .hero__actions {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 48rem) {
+    h1 {
+      font-size: clamp(4.75rem, 12vw, 7rem);
+    }
+
+    .hero__phrase,
+    strong {
+      display: inline;
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .hero {
+      padding: var(--space-16) var(--gutter-desktop) var(--space-24);
+    }
+
+    .hero__inner {
+      align-items: end;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+    }
+
+    h1 {
+      font-size: clamp(5rem, 8vw, 8rem);
+      grid-column: 1 / 13;
+      max-width: none;
+    }
+
+    .hero__line--second {
+      margin-inline-start: 0.4em;
+    }
+
+    .hero__truth {
+      grid-column: 1 / 3;
+    }
+
+    .hero__proof {
+      align-self: center;
+      grid-column: 3 / 7;
+    }
+
+    .hero__actions {
+      align-self: center;
+      grid-column: 7 / 13;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+</style>

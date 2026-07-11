@@ -1,3 +1,12 @@
+---
+title: Entroping User Guide
+type: guide
+status: active
+tags:
+  - user-guide
+  - onboarding
+---
+
 # Entroping User Guide
 
 **Version:** 4.1 Stable  

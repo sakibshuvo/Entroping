@@ -1,121 +1,192 @@
-"""Guardrails for the public documentation site scaffold."""
-
+import json
+import re
 from pathlib import Path
+from typing import cast
 
 import yaml
+from _public_docs import (
+    PUBLIC_DOCS_MANIFEST,
+    PublicDocsManifest,
+    public_doc_slugs,
+    public_doc_sources,
+    public_sidebar_labels,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+PACKAGE = REPO_ROOT / "package.json"
+ASTRO_CONFIG = REPO_ROOT / "astro.config.mjs"
+CONTENT_CONFIG = REPO_ROOT / "src" / "content.config.ts"
+SITE_CHECK = REPO_ROOT / "scripts" / "check-site-build.mjs"
+MOBILE_MENU_TOGGLE = (
+    REPO_ROOT / "src" / "components" / "docs" / "MobileMenuToggle.astro"
+)
 PAGES_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "pages.yml"
 CHECKOUT_PIN = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
+SETUP_NODE_PIN = "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020"
 CONFIGURE_PAGES_PIN = "actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d"
 UPLOAD_PAGES_ARTIFACT_PIN = "actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9"
 DEPLOY_PAGES_PIN = "actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128"
 
 
-def _nav_section(nav: list[object], name: str) -> object:
-    for item in nav:
-        if isinstance(item, dict) and name in item:
-            return item[name]
-    raise AssertionError(f"missing MkDocs nav section: {name}")
+def _manifest() -> PublicDocsManifest:
+    assert PUBLIC_DOCS_MANIFEST.is_file()
+    return cast(
+        PublicDocsManifest,
+        json.loads(PUBLIC_DOCS_MANIFEST.read_text(encoding="utf-8")),
+    )
 
 
-def test_public_docs_site_decision_compares_options_and_picks_mkdocs() -> None:
+def test_public_docs_manifest_uses_canonical_markdown() -> None:
+    assert PUBLIC_DOCS_MANIFEST.is_file()
+    sources = public_doc_sources()
+
+    assert "docs/index.md" in sources
+    assert "docs/user/QANSTITUTION_FIRST_HOUR.md" in sources
+    assert "docs/technical/QANSTITUTION_REFERENCE.md" in sources
+    assert "docs/technical/TDS.md" in sources
+    assert all((REPO_ROOT / source).is_file() for source in sources)
+    assert len(sources) == len(set(sources))
+
+
+def test_public_docs_manifest_has_unique_url_safe_slugs() -> None:
+    assert PUBLIC_DOCS_MANIFEST.is_file()
+    slugs = public_doc_slugs()
+
+    assert slugs[0] == "docs"
+    assert all(slug == slug.lower() for slug in slugs)
+    assert all(re.fullmatch(r"docs(?:/[a-z0-9-]+)*", slug) for slug in slugs)
+    assert len(slugs) == len(set(slugs))
+
+
+def test_public_docs_manifest_keeps_internal_context_out_of_navigation() -> None:
+    assert PUBLIC_DOCS_MANIFEST.is_file()
+    sources = public_doc_sources()
+
+    assert not any("prompt-library" in source for source in sources)
+    assert not any("AGENT_CONTROL_PLANE" in source for source in sources)
+    assert not any("docs/evolution/" in source for source in sources)
+    assert not any(source.startswith(".context/") for source in sources)
+
+
+def test_public_docs_manifest_preserves_curated_sidebar_order() -> None:
+    assert PUBLIC_DOCS_MANIFEST.is_file()
+    manifest = _manifest()
+
+    assert public_sidebar_labels() == [
+        "Introduction",
+        "Getting started",
+        "User guide",
+        "Policy and QAnstitution",
+        "CI and reports",
+        "Technical reference",
+        "Maintainer reference",
+    ]
+    assert manifest["groups"][-1].get("collapsed") is True
+    assert [item["label"] for item in manifest["external"]] == ["Roadmap"]
+    assert manifest["external"][0].get("url") == (
+        "https://github.com/sakibshuvo/Entroping/blob/main/ROADMAP.md"
+    )
+
+
+def test_public_docs_manifest_items_have_exact_route_or_external_shapes() -> None:
+    manifest = _manifest()
+
+    for group in manifest["groups"]:
+        assert group["items"]
+        for route in group["items"]:
+            assert set(route) == {"label", "source", "slug"}
+            assert route["source"].startswith("docs/")
+
+    for external_item in manifest["external"]:
+        assert set(external_item) == {"label", "url"}
+
+
+def test_public_docs_manifest_keeps_existing_public_entries() -> None:
+    assert PUBLIC_DOCS_MANIFEST.is_file()
+    sources = public_doc_sources()
+
+    expected_sources = {
+        "docs/assets/launch/README.md",
+        "docs/user/USER_GUIDE.md",
+        "docs/user/AI_PROVIDER_SETUP.md",
+        "docs/user/DRIFT_BASELINE_WORKFLOW.md",
+        "docs/technical/POLICY_PACK_LAYOUT.md",
+        "docs/technical/POLICY_PACK_DISTRIBUTION.md",
+        "docs/product/OPEN_CORE_BOUNDARIES.md",
+        "docs/user/GITHUB_ACTIONS_STARTER.md",
+        "docs/user/CI_PROVIDER_RECIPES.md",
+        "docs/technical/REPORT_SCHEMAS.md",
+        "docs/technical/THREAT_MODEL.md",
+        "docs/technical/STUDIO_MUTATION_WORKFLOW_DESIGN.md",
+        "docs/meta/RELEASE_CHECKLIST.md",
+        "docs/meta/PYPI_RELEASE_RUNBOOK.md",
+        "docs/meta/HOMEBREW_TAP_PROTOTYPE.md",
+        "docs/meta/DOWNSTREAM_FEEDBACK_KIT.md",
+    }
+    assert expected_sources <= set(sources)
+
+
+def test_site_scaffold_is_astro_not_mkdocs() -> None:
+    assert PACKAGE.is_file()
+    assert ASTRO_CONFIG.is_file()
+    assert not (REPO_ROOT / "mkdocs.yml").exists()
+
+    package = json.loads(PACKAGE.read_text(encoding="utf-8"))
+    assert package["scripts"]["build"] == "astro build"
+    assert package["scripts"]["test:site"] == "node scripts/check-site-build.mjs"
+    assert package["dependencies"]["@astrojs/starlight"] == "0.41.3"
+    assert package["dependencies"]["astro"] == "7.0.7"
+    assert 'PageTitle: "./src/components/docs/Empty.astro"' in (
+        ASTRO_CONFIG.read_text(encoding="utf-8")
+    )
+    assert "docsSchema" in ASTRO_CONFIG.read_text(encoding="utf-8") or (
+        CONTENT_CONFIG.is_file()
+    )
+    assert SITE_CHECK.is_file()
+
+
+def test_site_scaffold_tracks_manifest_and_ignores_generated_output() -> None:
+    gitignore = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+
+    assert "node_modules/" in gitignore
+    assert ".astro/" in gitignore
+    assert ".pagefind/" in gitignore
+    assert "site/" not in gitignore
+    assert "dist/" in gitignore
+
+
+def test_docs_mobile_menu_reports_expanded_state_on_the_button() -> None:
+    config = ASTRO_CONFIG.read_text(encoding="utf-8")
+
+    assert 'MobileMenuToggle: "./src/components/docs/MobileMenuToggle.astro"' in config
+    assert MOBILE_MENU_TOGGLE.is_file()
+
+    component = MOBILE_MENU_TOGGLE.read_text(encoding="utf-8")
+    assert 'attributeFilter: ["aria-expanded"]' in component
+    assert 'button.setAttribute("aria-expanded", expanded)' in component
+
+
+def test_public_docs_site_decision_preserves_and_supersedes_mkdocs_history() -> None:
     decision = (
         REPO_ROOT / "docs" / "meta" / "PUBLIC_DOCS_SITE_DECISION.md"
     ).read_text(encoding="utf-8")
 
-    required_terms = [
-        "Decision: MkDocs Material",
+    for term in [
+        "Original decision",
         "MkDocs Material",
-        "VitePress",
-        "GitHub Pages/Jekyll",
+        "Superseding decision",
+        "Astro",
+        "Starlight",
         "Do not duplicate canonical docs",
         "canonical docs stay in `docs/`",
-        "Obsidian links remain source-friendly",
-        "uvx --with 'mkdocs-material==9.*' mkdocs build --strict",
         "GitHub Pages deployment is active",
-        "Broken links fail CI through `mkdocs build --strict`",
-    ]
-
-    for term in required_terms:
+    ]:
         assert term in decision
 
-    assert decision.index("## Options") < decision.index("## Decision")
-    assert decision.index("## Decision") < decision.index("## Scaffold")
+    assert decision.index("Original decision") < decision.index("Superseding decision")
 
 
-def test_mkdocs_scaffold_uses_existing_docs_tree_with_strict_deploy() -> None:
-    config = yaml.safe_load((REPO_ROOT / "mkdocs.yml").read_text(encoding="utf-8"))
-    workflows = {path.name for path in (REPO_ROOT / ".github" / "workflows").glob("*.yml")}
-    gitignore = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8")
-
-    assert config["site_name"] == "Entroping"
-    assert config["docs_dir"] == "docs"
-    assert config["site_dir"] == "site"
-    assert config["strict"] is True
-    assert config["theme"]["name"] == "material"
-    assert "docs-site" not in config.values()
-    assert "pages.yml" in workflows
-
-    nav = config["nav"]
-    top_level = [
-        next(iter(item)) if isinstance(item, dict) else item
-        for item in nav
-    ]
-    assert top_level[:6] == [
-        "Introduction",
-        "Getting Started",
-        "User Guide",
-        "Policy / QAnstitution Reference",
-        "CI / Reports",
-        "Technical Reference",
-    ]
-    assert "Roadmap / Status" not in top_level
-    assert all(not str(item).startswith("meta/") for item in top_level)
-    assert all(not str(item).startswith("technical/") for item in top_level)
-
-    nav_text = repr(config["nav"])
-    assert "index.md" in nav_text
-    assert "user/USER_GUIDE.md" in nav_text
-    assert "user/AI_PROVIDER_SETUP.md" in nav_text
-    assert "technical/QANSTITUTION_REFERENCE.md" in nav_text
-    assert "meta/PYPI_RELEASE_RUNBOOK.md" in nav_text
-    assert "Maintainer Reference" in nav_text
-    assert "docs/evolution" not in nav_text
-    assert "OBSIDIAN" not in nav_text
-    assert "sources/" not in nav_text
-    assert ".context/" not in nav_text
-    assert "site/" in gitignore
-
-
-def test_mkdocs_keeps_maintainer_evidence_out_of_first_hour_nav() -> None:
-    config = yaml.safe_load((REPO_ROOT / "mkdocs.yml").read_text(encoding="utf-8"))
-    top_level = [
-        next(iter(item)) if isinstance(item, dict) else item
-        for item in config["nav"]
-    ]
-
-    assert top_level.index("Maintainer Reference") > top_level.index(
-        "Technical Reference"
-    )
-    assert "Maintainer Evidence" not in repr(
-        _nav_section(config["nav"], "Technical Reference")
-    )
-
-    maintainer_nav = repr(_nav_section(config["nav"], "Maintainer Reference"))
-    for expected in [
-        "meta/RELEASE_CHECKLIST.md",
-        "meta/RELEASE_EVIDENCE.md",
-        "meta/PYPI_RELEASE_RUNBOOK.md",
-        "meta/HOMEBREW_TAP_PROTOTYPE.md",
-        "meta/INSTALL_SMOKE_MATRIX.md",
-        "meta/DOWNSTREAM_SMOKE_EVIDENCE.md",
-        "meta/DOWNSTREAM_FEEDBACK_KIT.md",
-    ]:
-        assert expected in maintainer_nav
-
-
-def test_mkdocs_home_keeps_release_runbooks_out_of_start_here() -> None:
+def test_docs_landing_keeps_release_runbooks_below_first_hour_content() -> None:
     index = (REPO_ROOT / "docs" / "index.md").read_text(encoding="utf-8")
     start_here = index.split("## How This Site Fits", maxsplit=1)[0]
     project_context = index.split("## Project Context", maxsplit=1)[1]
@@ -125,17 +196,7 @@ def test_mkdocs_home_keeps_release_runbooks_out_of_start_here() -> None:
     assert "PyPI Release Runbook" in project_context
 
 
-def test_mkdocs_navigation_exposes_public_roadmap_without_duplicating_it() -> None:
-    config = yaml.safe_load((REPO_ROOT / "mkdocs.yml").read_text(encoding="utf-8"))
-
-    assert (REPO_ROOT / "ROADMAP.md").is_file()
-    assert not (REPO_ROOT / "docs" / "ROADMAP.md").exists()
-    assert {
-        "Roadmap": "https://github.com/sakibshuvo/Entroping/blob/main/ROADMAP.md"
-    } in config["nav"]
-
-
-def test_pages_workflow_builds_strict_mkdocs_and_deploys_with_least_privilege() -> None:
+def test_pages_workflow_builds_astro_and_deploys_with_least_privilege() -> None:
     workflow = yaml.safe_load(PAGES_WORKFLOW.read_text(encoding="utf-8"))
 
     triggers = workflow["on"]
@@ -160,11 +221,19 @@ def test_pages_workflow_builds_strict_mkdocs_and_deploys_with_least_privilege() 
         "id-token": "write",
         "pages": "write",
     }
-    assert "uvx --with 'mkdocs-material==9.*' mkdocs build --strict" in build_run_blocks
+    assert "npm ci" in build_run_blocks
+    assert "npm run format:check" in build_run_blocks
+    assert "npm run check" in build_run_blocks
+    assert "npm run build" in build_run_blocks
+    assert "mkdocs" not in build_run_blocks.lower()
     assert any(
-        step.get("uses") == CONFIGURE_PAGES_PIN
+        step.get("uses") == SETUP_NODE_PIN
+        and step.get("with", {}).get("node-version") == "24"
+        and step.get("with", {}).get("cache") == "npm"
+        and step.get("with", {}).get("cache-dependency-path") == "package-lock.json"
         for step in build["steps"]
     )
+    assert any(step.get("uses") == CONFIGURE_PAGES_PIN for step in build["steps"])
     assert any(
         step.get("uses") == CHECKOUT_PIN
         and step.get("with", {}).get("persist-credentials") is False
@@ -172,7 +241,7 @@ def test_pages_workflow_builds_strict_mkdocs_and_deploys_with_least_privilege() 
     )
     assert any(
         step.get("uses") == UPLOAD_PAGES_ARTIFACT_PIN
-        and step.get("with", {}).get("path") == "site"
+        and step.get("with", {}).get("path") == "dist"
         for step in build["steps"]
     )
     assert any(
@@ -196,5 +265,5 @@ def test_public_docs_landing_is_linked_from_project_entrypoints() -> None:
     assert "[GitHub Actions Starter](user/GITHUB_ACTIONS_STARTER.md)" in landing
     assert "[QAnstitution Reference](technical/QANSTITUTION_REFERENCE.md)" in landing
     assert "[[docs/meta/PUBLIC_DOCS_SITE_DECISION|PUBLIC_DOCS_SITE_DECISION]]" in index
-    assert "mkdocs.yml" in readme
-    assert "Public docs site decision" in progress
+    assert "https://sakibshuvo.github.io/Entroping/docs/" in readme
+    assert "Public launch and docs site" in progress

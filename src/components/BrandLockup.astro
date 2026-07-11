@@ -1,0 +1,57 @@
+---
+type Props = {
+  readonly href: string;
+  readonly variant?: "launch" | "docs" | "footer";
+};
+
+const { href, variant = "launch" } = Astro.props;
+---
+
+<a
+  class:list={["brand-lockup", `brand-lockup--${variant}`]}
+  href={href}
+  aria-label="Entroping home"
+  translate="no"
+>
+  Entroping
+</a>
+
+<style>
+  .brand-lockup {
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-lead);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    text-decoration: none;
+    transition:
+      color var(--motion-standard),
+      transform var(--motion-standard);
+  }
+
+  .brand-lockup:hover {
+    color: var(--color-cobalt);
+    transform: translateY(-1px);
+  }
+
+  .brand-lockup:focus-visible {
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-focus);
+    outline: none;
+  }
+
+  .brand-lockup--footer {
+    font-size: var(--text-body-large);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .brand-lockup {
+      transition: none;
+    }
+
+    .brand-lockup:hover {
+      transform: none;
+    }
+  }
+</style>

@@ -98,16 +98,27 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
-          python-version: "3.12"
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: package-lock.json
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39
+      - name: Install site dependencies
+        run: npm ci
 
-      - name: Build public docs strictly
-        run: uvx --with 'mkdocs-material==9.*' mkdocs build --strict
+      - name: Check site formatting
+        run: npm run format:check
+
+      - name: Check site types and content
+        run: npm run check
+
+      - name: Build public site
+        run: npm run build
+
+      - name: Validate static site output
+        run: npm run test:site
 
   install-smoke:
     runs-on: ${{ matrix.os }}

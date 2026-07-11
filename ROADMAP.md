@@ -62,7 +62,7 @@ policy packs, services, and team workflows without weakening the free tool.
 1. Keep correctness and report safety tight: generated Hurl validation, escaped
    human-readable reports, and regression coverage for every changed runtime
    boundary.
-2. Keep the public entry points sharp: README, MkDocs, demo media, and first-hour
+2. Keep the public entry points sharp: launch site, Starlight docs, demo media, and first-hour
    QAnstitution guidance should stay welcoming instead of encyclopedic.
 3. Keep policy-pack and organization-governance work local-first until package
    indexes, provenance, and external user feedback prove the distribution path.
@@ -118,7 +118,7 @@ Goal: make the first hour with Entroping smooth enough for real users.
 - Fresh clone smoke test from the public README.
 - Contributor-friendly good-first-issue path.
 - Better demo media: terminal output, HTML report preview, and dependency map.
-- Public docs site decision and strict MkDocs deployment.
+- Branded Astro launch site and checked Starlight documentation deployment.
 - Packaging plan for PyPI/TestPyPI, Homebrew, and deferred standalone binaries.
 - GitHub Actions template for running Entroping in downstream repos.
 - Provider setup guide for LiteLLM, local Qwen/oMLX, and no-provider CI.

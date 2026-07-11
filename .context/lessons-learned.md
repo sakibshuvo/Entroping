@@ -636,7 +636,10 @@
 - Agent handoff scripts should prefer repository-relative defaults plus environment overrides over hardcoded workstation paths.
 - Agent workflow docs should be portable even when the maintainer has a known local checkout. Use placeholders in committed docs and keep machine-specific paths in local prompts or environment variables.
 - Public README status language needs the same regression protection as code: stale "scaffold" wording can quietly undercut a real alpha.
-- Public docs deployment needs two gates: PR CI should build the MkDocs site strictly, while the Pages workflow should publish only from `main` after the same strict build.
+- Public web deployment needs two gates: PR CI should check and build the Astro/Starlight site, while the Pages workflow should publish only the validated `dist/` artifact from `main`.
+- Astro project base paths may not include a trailing slash at runtime. Join
+  `/Entroping/` links through one helper and validate the generated HTML instead
+  of trusting source-level URL strings.
 - Organization governance should compile into one effective local QAnstitution. Preserve provenance and final-gate behavior before adding remote policy registries, caches, or approval workflows.
 - Do not ship native CI-provider templates just because the shell recipe is portable. Mark GitLab, Buildkite, and CircleCI templates as deferred until their actual runners prove install, Hurl checksum, Entroping run, and artifact behavior.
 - Standalone binaries are a support and security commitment, not just a convenience feature. Require proven package-manager demand, signing/notarization ownership, and native dependency update plans before adding Nuitka or PyInstaller automation.
