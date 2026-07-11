@@ -8,21 +8,27 @@ import { withBase } from "../config/base-path";
 <section class="hero" aria-labelledby="hero-heading">
   <KineticGlyphField density="hero" />
   <div class="hero__inner">
-    <h1 id="hero-heading">
-      <span class="hero__line hero__line--first">
-        <span class="hero__phrase">Code</span>{" "}
-        <span class="hero__phrase">at the speed</span>{" "}
-        <span class="hero__phrase">of <em>AI</em>.</span>
-      </span>{" "}
-      <span class="hero__line hero__line--second">
-        <strong>
-          <span class="hero__phrase">Don't</span>{" "}
-          <span class="hero__phrase">crash</span>
-        </strong>{" "}
-        <span class="hero__phrase">at the speed</span>{" "}
-        <span class="hero__phrase">of <em>AI</em>.</span>
-      </span>
-    </h1>
+    <div class="hero__statement">
+      <h1 id="hero-heading">
+        <span class="hero__line hero__line--first">
+          <span class="hero__phrase">Code</span>{" "}
+          <span class="hero__phrase">at the speed</span>{" "}
+          <span class="hero__phrase">of <em>AI</em>.</span>
+        </span>{" "}
+        <span class="hero__line hero__line--second">
+          <strong>
+            <span class="hero__phrase">Don't</span>{" "}
+            <span class="hero__phrase">crash</span>
+          </strong>{" "}
+          <span class="hero__phrase">at the speed</span>{" "}
+          <span class="hero__phrase">of <em>AI</em>.</span>
+        </span>
+      </h1>
+      <p class="hero__speed-note">
+        <span>// write fast</span>{" "}
+        <span>verify faster</span>
+      </p>
+    </div>
     <p class="hero__truth">
       <span>AI can suggest.</span>
       <span><b>Runtime truth</b> decides.</span>
@@ -69,6 +75,10 @@ import { withBase } from "../config/base-path";
     z-index: 1;
   }
 
+  .hero__statement {
+    position: relative;
+  }
+
   h1 {
     font-size: var(--text-hero);
     font-weight: 700;
@@ -88,6 +98,30 @@ import { withBase } from "../config/base-path";
 
   .hero__line--second {
     margin-block-start: var(--space-4);
+  }
+
+  .hero__speed-note {
+    background: var(--color-sky);
+    box-shadow: var(--shadow-mask-sky);
+    color: var(--color-lavender);
+    font-family: var(--font-mono);
+    font-size: var(--text-mono-label);
+    font-weight: 600;
+    letter-spacing: 0.025em;
+    line-height: 1.25;
+    margin: 0;
+    pointer-events: none;
+    position: absolute;
+    right: clamp(var(--space-2), 10vw, var(--space-12));
+    top: clamp(
+      calc(var(--space-24) + var(--space-4)),
+      35vw,
+      calc(var(--space-24) + var(--space-16))
+    );
+  }
+
+  .hero__speed-note span {
+    display: block;
   }
 
   em {
@@ -148,6 +182,11 @@ import { withBase } from "../config/base-path";
     strong {
       display: inline;
     }
+
+    .hero__speed-note {
+      right: var(--space-4);
+      top: calc(var(--space-24) + var(--space-12));
+    }
   }
 
   @media (min-width: 64rem) {
@@ -160,10 +199,18 @@ import { withBase } from "../config/base-path";
       grid-template-columns: repeat(12, minmax(0, 1fr));
     }
 
+    .hero__statement {
+      grid-column: 1 / 13;
+    }
+
     h1 {
       font-size: clamp(5rem, 8vw, 8rem);
-      grid-column: 1 / 13;
       max-width: none;
+    }
+
+    .hero__speed-note {
+      right: var(--space-16);
+      top: calc(var(--space-24) + var(--space-12));
     }
 
     .hero__line--second {
