@@ -14,8 +14,12 @@ coverage.xml
 htmlcov/
 dist/
 build/
-site/
 *.egg-info/
+
+# Astro
+node_modules/
+.astro/
+.pagefind/
 
 # Local runtime state and generated outputs
 .entroping/

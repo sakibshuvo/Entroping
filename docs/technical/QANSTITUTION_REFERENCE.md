@@ -1,3 +1,12 @@
+---
+title: QAnstitution Reference
+type: technical-reference
+status: active
+tags:
+  - qanstitution
+  - policy
+---
+
 # QAnstitution Reference
 
 **File:** `qanstitution.yaml`  

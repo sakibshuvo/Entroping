@@ -1,3 +1,12 @@
+---
+title: Entroping Use Cases
+type: guide
+status: active
+tags:
+  - use-cases
+  - onboarding
+---
+
 # Entroping Use Cases
 
 **Version:** 4.1 Stable

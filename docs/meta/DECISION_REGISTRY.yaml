@@ -339,7 +339,7 @@ decisions:
     related_docs:
       - README.md
       - docs/index.md
-      - mkdocs.yml
+      - site/public-docs.json
       - docs/technical/CLI_COMPATIBILITY_AUDIT.md
     related_issues: ["#494", "#493"]
     supersedes: []
@@ -482,5 +482,33 @@ decisions:
       - docs/meta/TEST_STRATEGY.md
       - docs/meta/PROJECT_PROGRESS.md
     related_issues: ["#959"]
+    supersedes: []
+    superseded_by: null
+
+  - id: ENT-DEC-0021
+    title: Public launch and docs share one Astro and Starlight build
+    status: accepted
+    date: "2026-07-11"
+    summary: >
+      Entroping uses one static Astro 7 build for the branded launch page and
+      Starlight documentation. The declarative site/public-docs.json manifest
+      maps curated navigation to canonical Markdown under docs/, while the
+      shared DESIGN.md contract keeps the launch and reading surfaces visually
+      coherent without duplicating the documentation tree.
+    tags: [public-site, documentation, astro, starlight, github-pages]
+    source_links:
+      - path: DESIGN.md
+        role: design-contract
+      - path: docs/superpowers/specs/2026-07-11-launch-site-docs-design.md
+        role: implementation-spec
+      - path: astro.config.mjs
+        role: site-config
+      - path: site/public-docs.json
+        role: public-navigation-manifest
+    related_docs:
+      - docs/meta/PUBLIC_DOCS_SITE_DECISION.md
+      - docs/meta/DOCS_GOVERNANCE.md
+      - docs/meta/TEST_STRATEGY.md
+    related_issues: ["#1507"]
     supersedes: []
     superseded_by: null

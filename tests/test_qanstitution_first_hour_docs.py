@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 
 import yaml
+from _public_docs import public_doc_sources
 
 from entroping.cli.main import MINIMAL_QANSTITUTION
 from entroping.core.config_loader import load_qanstitution
@@ -65,7 +66,6 @@ def test_first_hour_policy_doc_is_visible_from_public_onboarding_surfaces() -> N
         REPO_ROOT / "docs" / "technical" / "QANSTITUTION_REFERENCE.md"
     ).read_text(encoding="utf-8")
     docs_index = (REPO_ROOT / "docs" / "index.md").read_text(encoding="utf-8")
-    mkdocs = (REPO_ROOT / "mkdocs.yml").read_text(encoding="utf-8")
     vault_index = (REPO_ROOT / "docs/meta/VAULT_INDEX.md").read_text(encoding="utf-8")
 
     assert required_link in readme
@@ -74,5 +74,5 @@ def test_first_hour_policy_doc_is_visible_from_public_onboarding_surfaces() -> N
     assert 'New QAnstitution files should use `version: "4.1"`.' in user_guide
     assert "old or future version" in user_guide
     assert "user/QANSTITUTION_FIRST_HOUR.md" in docs_index
-    assert "QAnstitution First Hour: user/QANSTITUTION_FIRST_HOUR.md" in mkdocs
+    assert required_link in public_doc_sources()
     assert "[[docs/user/QANSTITUTION_FIRST_HOUR|QANSTITUTION_FIRST_HOUR]]" in vault_index

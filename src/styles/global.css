@@ -1,0 +1,92 @@
+@import "@fontsource-variable/space-grotesk/wght.css";
+@import "@fontsource-variable/jetbrains-mono/wght.css";
+@import "./tokens.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--color-sky);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 20rem;
+  overflow-x: clip;
+}
+
+body,
+button,
+input {
+  font-family: var(--font-sans);
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: var(--color-cobalt);
+  text-underline-offset: 0.2em;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--color-ink);
+  text-wrap: balance;
+}
+
+.skip-link {
+  background: var(--color-paper);
+  border: var(--border-strong);
+  color: var(--color-ink);
+  left: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  position: fixed;
+  top: var(--space-4);
+  transform: translateY(-200%);
+  transition: transform var(--motion-micro);
+  z-index: 100;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.sr-only {
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    scroll-behavior: auto;
+    transition-duration: 0.01ms;
+  }
+}

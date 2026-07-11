@@ -22,6 +22,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 _CHECKOUT_PIN = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
 _SETUP_PYTHON_PIN = "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1"
 _SETUP_UV_PIN = "astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39"
+_SETUP_NODE_PIN = "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020"
 _UPLOAD_ARTIFACT_PIN = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
 _SCORECARD_PIN = "ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a"
 _CODEQL_ACTION_PIN = "github/codeql-action/{action}@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a"
@@ -267,7 +268,7 @@ def test_ci_workflow_runs_optional_extras_runtime_smoke() -> None:
     assert "pip-audit" not in run_blocks
 
 
-def test_ci_workflow_runs_strict_public_docs_build() -> None:
+def test_ci_workflow_runs_checked_astro_public_site_build() -> None:
     workflow = yaml.safe_load(_WORKFLOW_PATH.read_text(encoding="utf-8"))
 
     docs_site = workflow["jobs"]["docs-site"]
@@ -276,10 +277,19 @@ def test_ci_workflow_runs_strict_public_docs_build() -> None:
 
     assert docs_site["runs-on"] == "ubuntu-latest"
     assert docs_site["needs"] == "checks"
-    assert "uvx --with 'mkdocs-material==9.*' mkdocs build --strict" in run_blocks
+    assert "npm ci" in run_blocks
+    assert "npm run format:check" in run_blocks
+    assert "npm run check" in run_blocks
+    assert "npm run build" in run_blocks
+    assert "mkdocs" not in run_blocks.lower()
     assert any(step.get("uses") == _CHECKOUT_PIN for step in steps)
-    assert any(step.get("uses") == _SETUP_PYTHON_PIN for step in steps)
-    assert any(step.get("uses") == _SETUP_UV_PIN for step in steps)
+    assert any(
+        step.get("uses") == _SETUP_NODE_PIN
+        and step.get("with", {}).get("node-version") == "24"
+        and step.get("with", {}).get("cache") == "npm"
+        and step.get("with", {}).get("cache-dependency-path") == "package-lock.json"
+        for step in steps
+    )
 
 
 def test_optional_extras_smoke_script_exercises_optional_runtime_boundaries() -> None:

@@ -1,0 +1,42 @@
+---
+import { withBase } from "../../config/base-path";
+---
+
+<nav class="entroping-mobile-links" aria-label="Site links">
+  <a href={withBase()}>Home</a>
+  <a href="https://github.com/sakibshuvo/Entroping">GitHub</a>
+</nav>
+
+<style>
+  .entroping-mobile-links {
+    border-block-start: var(--border-soft);
+    display: flex;
+    gap: var(--space-4);
+    padding-block: var(--space-4);
+  }
+
+  a {
+    align-items: center;
+    border: var(--border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--color-ink);
+    display: inline-flex;
+    font-weight: 700;
+    min-height: 3rem;
+    padding: var(--space-3) var(--space-4);
+    text-decoration: none;
+  }
+
+  a:first-child {
+    background: var(--color-lavender-soft);
+  }
+
+  a:last-child {
+    background: var(--color-paper);
+  }
+
+  a:focus-visible {
+    box-shadow: var(--shadow-focus);
+    outline: none;
+  }
+</style>

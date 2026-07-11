@@ -28,7 +28,7 @@ For the practical day-to-day distinction between GitHub and Obsidian, read
 | Surface | Owner job |
 | --- | --- |
 | `README.md` | Public front door, product promise, quick demo path |
-| MkDocs site | Public reading path generated from `docs/` |
+| Astro/Starlight site | Public reading path generated from `docs/` through `site/public-docs.json` |
 | GitHub Issues | Bugs, feature slices, chores, regressions, and action items |
 | `ROADMAP.md` | Release sequence and public scope, not the full backlog |
 | `CHANGELOG.md` | Public release history |
@@ -50,7 +50,7 @@ Only add a new document when all of these are true:
 
 - no existing canonical owner can hold the information cleanly.
 - the new file has a stable owner and expected reader.
-- the file is linked from the vault index, README, MkDocs, or another canonical
+- the file is linked from the vault index, README, public site, or another canonical
   entry point as appropriate.
 - the PR explains why the information could not live in an existing file.
 
@@ -76,7 +76,7 @@ default-agent Markdown budget. Candidate categories point to stale reference
 docs, duplicate titles, default-agent context risk, or archive/source status;
 they are review evidence only and must not delete docs automatically.
 `docs/evolution` is treated as historical source material; before any
-beta-facing cleanup or MkDocs reordering, run inventory and classify each
+beta-facing cleanup or public-site reordering, run inventory and classify each
 evolution document as `status: historical|archive|stable` in frontmatter before
 moving it toward maintainer-only or deletion.
 `README.md` and `docs/meta/VAULT_INDEX.md` remain important
@@ -99,10 +99,10 @@ Use this order for public onboarding surfaces:
 Historical exports, evolution notes, source maps, Obsidian workflow notes,
 agent-control notes, and `.context/` handoff files should stay linked from the
 vault or relevant maintainer docs unless they directly help a new user adopt
-the tool. New MkDocs top-level nav entries require a public-reader reason in
-the PR; otherwise place the document under an existing group or leave it out of
-the public nav.
-Maintainer release evidence can stay in MkDocs for transparency, but it belongs
+the tool. New `site/public-docs.json` top-level groups require a public-reader
+reason in the PR; otherwise place the document under an existing group or leave
+it out of the public nav.
+Maintainer release evidence can stay in the public site for transparency, but it belongs
 under a clearly labeled maintainer reference group after first-hour user,
 policy, CI, and technical paths. Do not place release runbooks or evidence
 ledgers in the home-page `Start here` list.
@@ -232,7 +232,7 @@ checklist. Related issues: #303, #304, #305, #306, #308.
 - [ ] `docs/meta/release-evidence.json` — `stable_core_ready` stays false until
   proven
 - [ ] GitHub release descriptions — no claim of PyPI or Homebrew unless published
-- [ ] MkDocs site — no implied production readiness, 100% coverage, or security
+- [ ] Public Astro/Starlight site — no implied production readiness, 100% coverage, or security
   guarantees
 - [ ] `scripts/public_claims_audit.py` output — passes clean
 

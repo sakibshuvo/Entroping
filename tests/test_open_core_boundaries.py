@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from _public_docs import public_doc_sources
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -53,11 +55,10 @@ def test_open_core_boundary_document_is_linked_from_entrypoints() -> None:
     ).read_text(encoding="utf-8")
     docs_index = (REPO_ROOT / "docs" / "index.md").read_text(encoding="utf-8")
     vault_index = (REPO_ROOT / "docs/meta/VAULT_INDEX.md").read_text(encoding="utf-8")
-    mkdocs = (REPO_ROOT / "mkdocs.yml").read_text(encoding="utf-8")
 
     assert boundary_link in readme
     assert boundary_link in roadmap
     assert boundary_link in growth
     assert "product/OPEN_CORE_BOUNDARIES.md" in docs_index
     assert "[[docs/product/OPEN_CORE_BOUNDARIES|OPEN_CORE_BOUNDARIES]]" in vault_index
-    assert "Open-Core Boundaries: product/OPEN_CORE_BOUNDARIES.md" in mkdocs
+    assert "docs/product/OPEN_CORE_BOUNDARIES.md" in public_doc_sources()

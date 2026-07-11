@@ -1,3 +1,13 @@
+---
+title: Entroping Technical Design Specification
+description: Alpha technical design; stable-core readiness remains blocked.
+type: technical
+status: active
+tags:
+  - architecture
+  - technical-design
+---
+
 # Entroping Technical Design Specification
 
 **System:** Entroping Core

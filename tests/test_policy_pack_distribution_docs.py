@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from _public_docs import public_doc_sources
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -55,9 +57,10 @@ def test_policy_pack_distribution_doc_is_linked_from_entrypoints() -> None:
             "[[docs/technical/POLICY_PACK_DISTRIBUTION|POLICY_PACK_DISTRIBUTION]]"
         ),
         "docs/index.md": "technical/POLICY_PACK_DISTRIBUTION.md",
-        "mkdocs.yml": "Policy Pack Distribution: technical/POLICY_PACK_DISTRIBUTION.md",
     }
 
     for relative_path, expected in required_links.items():
         content = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
         assert expected in content
+
+    assert "docs/technical/POLICY_PACK_DISTRIBUTION.md" in public_doc_sources()

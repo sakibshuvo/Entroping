@@ -20,7 +20,8 @@ tool first: README, roadmap, docs, package code, tests, examples, ADRs, and CI.
 | --- | --- | --- |
 | `README.md` | Public front door | Product pitch, demo proof, install path, links |
 | `ROADMAP.md` | Public roadmap | Milestones and active issue sequencing |
-| `docs/` | Public and maintainer docs | Curated Markdown source for MkDocs and Obsidian |
+| `docs/` | Public and maintainer docs | Canonical Markdown source for Starlight and Obsidian |
+| `site/public-docs.json` | Public navigation manifest | Curates labels, canonical sources, and stable routes |
 | `docs/meta/VAULT_INDEX.md` | Obsidian vault entry | Durable navigation map, not root-level public landing |
 | `docs/meta/*.canvas` and `docs/meta/*.base` | Curated Obsidian helpers | Tracked only when they point at repo files and improve navigation |
 | `.context/plan.md` | Maintainer/agent handoff | Tracked because Codex/OpenCode sessions need fast rehydration |
@@ -36,7 +37,7 @@ tool first: README, roadmap, docs, package code, tests, examples, ADRs, and CI.
 - Keep the Obsidian vault index, but store it as `docs/meta/VAULT_INDEX.md`
   instead of root `00_INDEX.md`.
 - Keep `.context/` tracked for now because it is agent handoff material, not
-  machine state. It stays out of MkDocs navigation and is not a product docs
+  machine state. It stays out of public Starlight navigation and is not a product docs
   surface.
 - Remove tracked Obsidian machine state. A user can reopen the repo as a vault
   and let Obsidian recreate `.obsidian/` locally.

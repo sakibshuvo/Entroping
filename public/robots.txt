@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://sakibshuvo.github.io/Entroping/sitemap-index.xml

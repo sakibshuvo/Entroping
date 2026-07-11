@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Entroping</title>
+  <rect width="64" height="64" rx="12" fill="#d8effc"/>
+  <path d="M15 14h35v9H25v6h21v8H25v7h26v9H15z" fill="#0a1b47"/>
+  <rect x="42" y="43" width="9" height="10" fill="#ff654a"/>
+</svg>

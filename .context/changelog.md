@@ -1,5 +1,16 @@
 # Entroping Changelog
 
+## 2026-07-11
+
+- Added issue #1507's unified public web experience: Astro 7 renders the
+  branded launch page, Starlight renders curated canonical Markdown under
+  `/docs/`, and `site/public-docs.json` owns stable public labels and routes.
+- Replaced executable MkDocs CI and Pages jobs with pinned Node 24, npm checks,
+  static `dist/` deployment, and deterministic production-output validation.
+- Added the shared light-first visual system, glyph-to-PASS proof motif,
+  opposing CTA tilts, responsive launch sections, and branded docs shell with
+  48-pixel mobile controls and accurate drawer state for assistive technology.
+
 ## 2026-07-03
 
 - Added issue #1327's tracked CodeQL workflow: GitHub code scanning now has a

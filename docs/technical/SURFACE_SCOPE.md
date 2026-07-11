@@ -31,7 +31,7 @@ clarifying what is core, advanced, hidden, and deferred.
 ## Operational Rule
 
 - **Core surfaces** are what first-time users should read about in `README` and
-  MkDocs first-hour docs.
+  the public first-hour docs.
 - **Advanced-but-supported** surfaces are shipped, documented, and tested, but
   described as optional. They may appear in demos or launch assets when they
   clarify value, but they should not displace the core README pitch.

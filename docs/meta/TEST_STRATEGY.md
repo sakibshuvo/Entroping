@@ -261,15 +261,20 @@ Proxy-stack security overrides in `pyproject.toml` must stay covered by this
 lane and by the all-extras dependency audit so upstream transitive caps cannot
 silently pin vulnerable runtime packages.
 
-The `docs-site` job builds the public documentation with MkDocs strict mode on
-pull requests and pushes to `main`:
+The `docs-site` job checks and builds the Astro/Starlight public site on pull
+requests and pushes to `main`:
 
 ```bash
-uvx --with 'mkdocs-material==9.*' mkdocs build --strict
+npm ci
+npm run format:check
+npm run check
+npm run build
+npm run test:site
 ```
 
-Broken public-docs links, invalid navigation entries, and MkDocs warnings fail
-before the GitHub Pages deployment workflow can publish from `main`.
+Missing manifest sources, invalid content, broken generated links, and wrong
+GitHub Pages base paths fail before the deployment workflow can publish from
+`main`.
 
 The separate `performance-smoke` workflow runs on a weekly schedule and by
 manual dispatch only:
@@ -291,8 +296,8 @@ Unsupported public claims such as production readiness or guaranteed security
 must fail before review.
 
 Pull-request CI-enforced commands are `scripts/regression.sh --security`,
-`scripts/audit_quality.sh`, `uvx --with 'mkdocs-material==9.*' mkdocs build
---strict`, the `install-smoke` matrix, and the `optional-extras-smoke` lane.
+`scripts/audit_quality.sh`, the checked Astro/Starlight build, the
+`install-smoke` matrix, and the `optional-extras-smoke` lane.
 Scheduled/manual CI also runs the performance smoke. Because the regression gate
 runs the feature gate, CI also runs shell syntax validation through
 `scripts/shell_quality.sh`.

@@ -1,0 +1,131 @@
+---
+import Icon from "./Icon.astro";
+import SectionBand from "./SectionBand.astro";
+import TiltButton from "./TiltButton.astro";
+import { withBase } from "../config/base-path";
+---
+
+<SectionBand variant="cloud" labelledBy="scope-heading">
+  <div class="scope">
+    <div class="scope__copy">
+      <p class="scope__eyebrow">Focused alpha scope</p>
+      <h2 id="scope-heading">Proof before promise.</h2>
+      <p class="scope__lead">
+        Entroping's public first-hour story is intentionally narrow:
+        REST/OpenAPI, QAnstitution, Hurl, and CI reports.
+      </p>
+      <p>
+        Traffic-backed regression capture is documented and supported. Hosted
+        services, autonomous merge authority, and production guarantees are not
+        part of this alpha.
+      </p>
+    </div>
+    <div class="scope__alpha">
+      <Icon name="check" size={36} />
+      <p>
+        Alpha software, local-first execution, and reviewable evidence. No model
+        provider is required for deterministic runs.
+      </p>
+    </div>
+    <div class="scope__actions">
+      <TiltButton href="#demo" variant="primary" icon="play">
+        Run the 2-minute demo
+      </TiltButton>
+      <TiltButton href={withBase("docs/")} variant="secondary" icon="book">
+        Start with the docs
+      </TiltButton>
+      <a class="scope__github" href="https://github.com/sakibshuvo/Entroping">
+        <Icon name="github" size={24} />
+        View Entroping on GitHub
+      </a>
+    </div>
+  </div>
+</SectionBand>
+
+<style>
+  .scope {
+    display: grid;
+    gap: var(--space-12);
+  }
+
+  .scope__eyebrow {
+    color: var(--color-coral);
+    font-family: var(--font-mono);
+    font-size: var(--text-mono-label);
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    margin: 0 0 var(--space-3);
+    text-transform: uppercase;
+  }
+
+  h2 {
+    font-size: var(--text-section);
+    letter-spacing: -0.055em;
+    line-height: 0.9;
+    margin: 0;
+  }
+
+  .scope__lead {
+    font-size: var(--text-lead);
+    font-weight: 600;
+  }
+
+  .scope__copy > p:not(.scope__eyebrow) {
+    color: var(--color-ink-muted);
+    max-width: var(--prose-max-width);
+  }
+
+  .scope__alpha {
+    align-items: start;
+    background: var(--color-sky);
+    border: var(--border-strong);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-hard-md);
+    color: var(--color-pass);
+    display: grid;
+    gap: var(--space-4);
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: var(--space-6);
+  }
+
+  .scope__alpha p {
+    color: var(--color-ink);
+    font-size: var(--text-body-large);
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .scope__actions {
+    display: grid;
+    gap: var(--space-5);
+  }
+
+  .scope__github {
+    align-items: center;
+    display: inline-flex;
+    font-weight: 700;
+    gap: var(--space-3);
+    justify-self: center;
+    min-height: 3rem;
+  }
+
+  .scope__github:focus-visible {
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-focus);
+    outline: none;
+  }
+
+  @media (min-width: 48rem) {
+    .scope {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .scope__copy {
+      grid-column: 1 / -1;
+    }
+
+    .scope__actions {
+      align-self: center;
+    }
+  }
+</style>

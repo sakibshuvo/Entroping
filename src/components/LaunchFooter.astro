@@ -1,0 +1,72 @@
+---
+import BrandLockup from "./BrandLockup.astro";
+import { withBase } from "../config/base-path";
+
+const homeUrl = withBase();
+---
+
+<footer class="launch-footer">
+  <div class="launch-footer__inner">
+    <BrandLockup href={homeUrl} variant="footer" />
+    <p>Runtime governance for AI-assisted backend development.</p>
+    <nav aria-label="Footer navigation">
+      <a href={withBase("docs/")}>Docs</a>
+      <a href="https://github.com/sakibshuvo/Entroping">GitHub</a>
+      <a href="https://github.com/sakibshuvo/Entroping/blob/main/ROADMAP.md">
+        Roadmap
+      </a>
+    </nav>
+  </div>
+</footer>
+
+<style>
+  .launch-footer {
+    background: var(--color-ink);
+    color: var(--color-paper);
+    padding: var(--space-12) var(--gutter-mobile);
+  }
+
+  .launch-footer__inner {
+    display: grid;
+    gap: var(--space-6);
+    margin-inline: auto;
+    max-width: var(--launch-max-width);
+  }
+
+  .launch-footer :global(.brand-lockup) {
+    color: var(--color-paper);
+  }
+
+  p {
+    color: var(--color-sky-strong);
+    margin: 0;
+  }
+
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-6);
+  }
+
+  nav a {
+    color: var(--color-paper);
+    font-weight: 650;
+  }
+
+  nav a:focus-visible {
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-focus-inverse);
+    outline: none;
+  }
+
+  @media (min-width: 48rem) {
+    .launch-footer {
+      padding: var(--space-16) var(--gutter-desktop);
+    }
+
+    .launch-footer__inner {
+      align-items: center;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+  }
+</style>

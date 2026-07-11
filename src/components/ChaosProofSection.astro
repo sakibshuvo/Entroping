@@ -1,0 +1,87 @@
+---
+import KineticGlyphField from "./KineticGlyphField.astro";
+import PassMatrix from "./PassMatrix.astro";
+import ProofRail from "./ProofRail.astro";
+import SectionBand from "./SectionBand.astro";
+
+const proofSteps = [
+  {
+    title: "QAnstitution governs.",
+    body: "Policies define allowed runtime behavior.",
+    accent: "cobalt",
+  },
+  {
+    title: "Hurl executes.",
+    body: "Real HTTP requests produce deterministic results.",
+    accent: "coral",
+  },
+  {
+    title: "CI keeps the receipt.",
+    body: "JSON, JUnit, and HTML evidence survive the run.",
+    accent: "pass",
+  },
+] as const;
+---
+
+<SectionBand variant="cloud" labelledBy="chaos-proof-heading">
+  <div class="chaos-proof">
+    <KineticGlyphField density="section" />
+    <div class="chaos-proof__heading">
+      <h2 id="chaos-proof-heading">
+        Chaos in<span>.</span><br />Proof out<span>.</span>
+      </h2>
+      <PassMatrix compact />
+    </div>
+    <ProofRail steps={proofSteps} />
+  </div>
+</SectionBand>
+
+<style>
+  .chaos-proof {
+    display: grid;
+    gap: var(--space-16);
+    position: relative;
+  }
+
+  .chaos-proof :global(.glyph-field) {
+    bottom: auto;
+    height: min(22rem, 52%);
+  }
+
+  .chaos-proof > :not(.glyph-field) {
+    position: relative;
+    z-index: 1;
+  }
+
+  .chaos-proof__heading {
+    align-items: end;
+    display: grid;
+    gap: var(--space-8);
+  }
+
+  .chaos-proof__heading > :global(.pass-matrix) {
+    background: var(--color-cloud);
+    box-shadow: var(--shadow-mask-cloud);
+  }
+
+  h2 {
+    background: var(--color-cloud);
+    box-shadow: var(--shadow-mask-cloud);
+    font-size: var(--text-section);
+    letter-spacing: -0.055em;
+    line-height: 0.9;
+    margin: 0;
+    width: max-content;
+    max-width: 100%;
+  }
+
+  h2 span {
+    color: var(--color-pass);
+  }
+
+  @media (min-width: 48rem) {
+    .chaos-proof__heading {
+      grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.7fr);
+    }
+  }
+</style>

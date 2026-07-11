@@ -1,7 +1,7 @@
 # Entroping Implementation Plan
 
-**Date:** 2026-05-31
-**Status:** v0.4 integration and stable-core evidence track
+**Date:** 2026-07-11
+**Status:** Issue #1507 implemented and locally verified; pending review and publish
 
 ## Objective
 
@@ -16,19 +16,20 @@ init -> validate QAnstitution -> discover Hurl tests -> inject gates into temp f
 The repo should remain usable as an Obsidian vault, a GitHub issue-driven
 project, and a Codex workspace with fast context rehydration.
 
-## Current Issue Slice: #1141-#1143 Artifact-First Worker Handoff
+## Current Issue Slice: #1507 Launch Site And Documentation
 
-Refresh the multi-model worker workflow so Codex spends tokens on compact
-evidence review instead of worker transcripts. Keep the change narrow: update
-repo-owned prompt guardrails, add a read-only compact worker review packet, and
-surface stale Tier A expensive routing before dispatch. Do not change
-`entroping run`, Hurl execution, provider/model product boundaries, traffic
-capture, hosted upload, or runtime report schema fields.
+Replace the MkDocs public surface with one Astro 7 build: a branded launch page
+at `/`, curated Starlight documentation at `/docs/`, and
+`site/public-docs.json` as the navigation contract over canonical repository
+Markdown. Keep runtime, CLI, Hurl, QAnstitution, traffic, provider, report, and
+security behavior unchanged.
 
 ## Current Baseline
 
 - The locked v4.1 CLI surface, deterministic `entroping run`, Hurl execution,
   QAnstitution governance, and hexagonal boundaries remain release gates.
+- The public launch and docs share `DESIGN.md` tokens, static GitHub Pages
+  output, and canonical Markdown without a duplicate docs tree.
 - Report commands stay local-only unless their docs explicitly say otherwise;
   they must not call providers, vendor APIs, hosted services, or mutate tickets,
   chat, PRs, dashboards, source Hurl, `.entroping/` state, or `entroping run`.

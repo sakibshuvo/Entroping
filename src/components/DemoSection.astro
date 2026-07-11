@@ -1,0 +1,81 @@
+---
+import CodeWindow from "./CodeWindow.astro";
+import SectionBand from "./SectionBand.astro";
+
+const checkoutCommand = `git clone https://github.com/sakibshuvo/Entroping.git
+cd Entroping
+brew install uv hurl
+scripts/demo.sh`;
+const packageCommand = "entroping demo --project ./entroping-checkout-demo";
+---
+
+<SectionBand variant="lavender-soft" id="demo" labelledBy="demo-heading">
+  <div class="demo">
+    <div class="demo__intro">
+      <p class="demo__eyebrow">Two-minute proof</p>
+      <h2 id="demo-heading">Run the truth, locally.</h2>
+      <p>
+        Clone the repository and run the reviewed checkout fixture, or use the
+        installed-package command in a new or empty demo directory.
+      </p>
+    </div>
+    <div class="demo__commands">
+      <CodeWindow
+        label="Repository checkout"
+        code={checkoutCommand}
+        result="Hurl passes and writes JSON, JUnit, and HTML reports."
+      />
+      <CodeWindow
+        label="Installed package"
+        code={packageCommand}
+        result="No provider credentials or external API calls are required."
+      />
+    </div>
+  </div>
+</SectionBand>
+
+<style>
+  .demo {
+    display: grid;
+    gap: var(--space-12);
+  }
+
+  .demo__intro {
+    max-width: var(--prose-max-width);
+  }
+
+  .demo__eyebrow {
+    color: var(--color-cobalt);
+    font-family: var(--font-mono);
+    font-size: var(--text-mono-label);
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    margin: 0 0 var(--space-3);
+    text-transform: uppercase;
+  }
+
+  h2 {
+    font-size: var(--text-section);
+    letter-spacing: -0.055em;
+    line-height: 0.9;
+    margin: 0;
+  }
+
+  .demo__intro > p:last-child {
+    color: var(--color-ink-muted);
+    font-size: var(--text-lead);
+    margin: var(--space-6) 0 0;
+  }
+
+  .demo__commands {
+    display: grid;
+    gap: var(--space-8);
+  }
+
+  @media (min-width: 48rem) {
+    .demo {
+      align-items: start;
+      grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    }
+  }
+</style>

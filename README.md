@@ -157,7 +157,7 @@ scripts/feature_gate.sh --security
 scripts/regression.sh --security
 ```
 
-CI enforces `scripts/regression.sh --security` for pull requests and pushes to `main`. CI enforces `scripts/audit_quality.sh` as a separate quality-audit job, runs cross-platform install smokes, optional-extras smoke, and the live demo. CI quality-audit runs `uv run python scripts/performance_smoke.py` through that audit script and uploads its JSON evidence with the other ignored reports.
+CI enforces `scripts/regression.sh --security` for pull requests and pushes to `main`. CI enforces `scripts/audit_quality.sh` as a separate quality-audit job, runs cross-platform install smokes, optional-extras smoke, and the live demo. CI quality-audit runs `uv run python scripts/performance_smoke.py` through that audit script and uploads its JSON evidence with the other ignored reports. For local public-site work, run `npm ci`, `npm run check`, `npm run build`, and `npm run test:site`; use `npm run preview` for the production preview.
 
 Local-only before release:
 
@@ -174,10 +174,10 @@ Public Docs are the adoption path. Maintainer and agent context is backstage and
 Obsidian is project memory, not the backlog.
 `docs/meta/DOCS_GOVERNANCE.md` decides which docs must change; [DOCS_GOVERNANCE.md](docs/meta/DOCS_GOVERNANCE.md) is the canonical update gate.
 
-- Public first-hour path: [Public Docs](https://sakibshuvo.github.io/Entroping/), [QAnstitution First Hour](docs/user/QANSTITUTION_FIRST_HOUR.md), [USER_GUIDE.md](docs/user/USER_GUIDE.md), [Use Cases](docs/user/USE_CASES.md).
+- Public first-hour path: [Launch Site](https://sakibshuvo.github.io/Entroping/), [Public Docs](https://sakibshuvo.github.io/Entroping/docs/), [QAnstitution First Hour](docs/user/QANSTITUTION_FIRST_HOUR.md), [USER_GUIDE.md](docs/user/USER_GUIDE.md), [Use Cases](docs/user/USE_CASES.md).
 - Work visibility: GitHub Issues track work; [ROADMAP.md](ROADMAP.md), [PROJECT_PROGRESS.md](docs/meta/PROJECT_PROGRESS.md), and [GitHub Project board](https://github.com/users/sakibshuvo/projects/1) track sequence and status.
 - Handoff context: `scripts/start_issue.sh`, `scripts/context_pack.sh --mode implementation`, and [Vault Index](docs/meta/VAULT_INDEX.md).
-- CI and release context: [CI_PROVIDER_RECIPES.md](docs/user/CI_PROVIDER_RECIPES.md), [GITHUB_ACTIONS_STARTER.md](docs/user/GITHUB_ACTIONS_STARTER.md), [INSTALL_SMOKE_MATRIX.md](docs/meta/INSTALL_SMOKE_MATRIX.md), [DISTRIBUTION_RECOMMENDATION.md](docs/meta/DISTRIBUTION_RECOMMENDATION.md), [PYPI_RELEASE_RUNBOOK.md](docs/meta/PYPI_RELEASE_RUNBOOK.md), [RELEASE_CHECKLIST.md](docs/meta/RELEASE_CHECKLIST.md), and `mkdocs.yml`.
+- CI and release context: [CI_PROVIDER_RECIPES.md](docs/user/CI_PROVIDER_RECIPES.md), [GITHUB_ACTIONS_STARTER.md](docs/user/GITHUB_ACTIONS_STARTER.md), [INSTALL_SMOKE_MATRIX.md](docs/meta/INSTALL_SMOKE_MATRIX.md), [DISTRIBUTION_RECOMMENDATION.md](docs/meta/DISTRIBUTION_RECOMMENDATION.md), [PYPI_RELEASE_RUNBOOK.md](docs/meta/PYPI_RELEASE_RUNBOOK.md), [RELEASE_CHECKLIST.md](docs/meta/RELEASE_CHECKLIST.md), `astro.config.mjs`, and `site/public-docs.json`.
 - Product boundaries: REST/OpenAPI + QAnstitution + Hurl + CI reports, [SURFACE_SCOPE.md](docs/technical/SURFACE_SCOPE.md), [POLICY_PACK_LAYOUT.md](docs/technical/POLICY_PACK_LAYOUT.md), and [DECISION_REGISTRY.yaml](docs/meta/DECISION_REGISTRY.yaml).
 - Local inspector boundary: optional local inspector is read-only; applied-gate drilldowns link latest-run report rule IDs to QAnstitution gates, and mutation design remains deferred in [STUDIO_MUTATION_WORKFLOW_DESIGN.md](docs/technical/STUDIO_MUTATION_WORKFLOW_DESIGN.md).
 - Launch scope: optional advanced examples remain documented for maintainers in the vault index, including [examples/support-api](examples/support-api/README.md).

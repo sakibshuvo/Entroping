@@ -1,0 +1,110 @@
+---
+import Icon from "./Icon.astro";
+
+type Props = {
+  readonly href: string;
+  readonly variant: "primary" | "secondary";
+  readonly icon: "play" | "book" | "arrow";
+  readonly disabled?: boolean;
+  readonly busy?: boolean;
+};
+
+const { href, variant, icon, disabled = false, busy = false } = Astro.props;
+const isUnavailable = disabled || busy;
+---
+
+<a
+  class:list={[
+    "tilt-button",
+    `tilt-button--${variant}`,
+    { "tilt-button--unavailable": isUnavailable },
+  ]}
+  href={isUnavailable ? undefined : href}
+  aria-disabled={isUnavailable ? "true" : undefined}
+  aria-busy={busy ? "true" : undefined}
+  tabindex={isUnavailable ? -1 : undefined}
+>
+  <Icon name={icon} size={26} />
+  <span><slot /></span>
+</a>
+
+<style>
+  .tilt-button {
+    align-items: center;
+    border: var(--border-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-hard-md);
+    display: inline-flex;
+    font-family: var(--font-sans);
+    font-size: var(--text-body-large);
+    font-weight: 700;
+    gap: var(--space-3);
+    justify-content: center;
+    min-height: 3rem;
+    padding: var(--space-4);
+    text-align: center;
+    text-decoration: none;
+    transition:
+      transform var(--motion-standard),
+      color var(--motion-standard),
+      background-color var(--motion-standard),
+      box-shadow var(--motion-micro);
+  }
+
+  .tilt-button--primary {
+    background: var(--color-cobalt);
+    color: var(--color-paper);
+    transform: rotate(-1.25deg);
+  }
+
+  .tilt-button--primary:hover {
+    background: var(--color-cobalt-hover);
+    transform: rotate(-2deg) translateY(-2px);
+  }
+
+  .tilt-button--primary:active {
+    box-shadow: var(--shadow-hard-sm);
+    transform: rotate(-0.5deg) translate(3px, 3px);
+  }
+
+  .tilt-button--secondary {
+    background: var(--color-lavender-soft);
+    color: var(--color-ink);
+    transform: rotate(0.75deg);
+  }
+
+  .tilt-button--secondary:hover {
+    background: var(--color-sky-strong);
+    transform: rotate(1.4deg) translateY(-2px);
+  }
+
+  .tilt-button--secondary:active {
+    box-shadow: var(--shadow-hard-sm);
+    transform: rotate(0.35deg) translate(3px, 3px);
+  }
+
+  .tilt-button:focus-visible {
+    box-shadow: var(--shadow-hard-md), var(--shadow-focus);
+    outline: none;
+  }
+
+  .tilt-button--unavailable {
+    cursor: not-allowed;
+    opacity: 0.56;
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tilt-button {
+      transition: none;
+    }
+
+    .tilt-button--primary:hover {
+      transform: rotate(-1.25deg);
+    }
+
+    .tilt-button--secondary:hover {
+      transform: rotate(0.75deg);
+    }
+  }
+</style>

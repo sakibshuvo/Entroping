@@ -1,0 +1,161 @@
+---
+import BrandLockup from "./BrandLockup.astro";
+import Icon from "./Icon.astro";
+import { withBase } from "../config/base-path";
+
+const homeUrl = withBase();
+---
+
+<header class="launch-header">
+  <nav class="launch-nav" aria-label="Primary navigation">
+    <BrandLockup href={homeUrl} />
+    <div class="launch-nav__desktop-links">
+      <a href={withBase("docs/")}>Docs</a>
+      <a href="https://github.com/sakibshuvo/Entroping">GitHub</a>
+    </div>
+    <details class="launch-nav__disclosure" data-nav-menu>
+      <summary aria-controls="launch-menu" aria-expanded="false">
+        <span class="sr-only">Open navigation menu</span>
+        <span class="launch-nav__menu-icon launch-nav__menu-icon--open">
+          <Icon name="menu" size={28} />
+        </span>
+        <span class="launch-nav__menu-icon launch-nav__menu-icon--close">
+          <Icon name="close" size={28} />
+        </span>
+      </summary>
+      <div class="launch-nav__links" id="launch-menu">
+        <a href={withBase("docs/")}>Docs</a>
+        <a href="https://github.com/sakibshuvo/Entroping">GitHub</a>
+      </div>
+    </details>
+  </nav>
+</header>
+
+<script>
+  const menus =
+    document.querySelectorAll<HTMLDetailsElement>("[data-nav-menu]");
+  for (const menu of menus) {
+    const summary = menu.querySelector("summary");
+    menu.addEventListener("toggle", () => {
+      summary?.setAttribute("aria-expanded", String(menu.open));
+    });
+  }
+</script>
+
+<style>
+  .launch-header {
+    background: var(--color-sky);
+    padding: var(--space-6) var(--gutter-mobile) 0;
+    position: relative;
+    z-index: 20;
+  }
+
+  .launch-nav {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    margin-inline: auto;
+    max-width: var(--launch-max-width);
+  }
+
+  .launch-nav__disclosure {
+    position: relative;
+  }
+
+  .launch-nav__desktop-links {
+    display: none;
+  }
+
+  summary {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: var(--radius-md);
+    color: var(--color-ink);
+    cursor: pointer;
+    display: flex;
+    height: 3rem;
+    justify-content: center;
+    list-style: none;
+    width: 3rem;
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  summary:hover {
+    background: var(--color-sky-strong);
+  }
+
+  summary:focus-visible {
+    box-shadow: var(--shadow-focus);
+    outline: none;
+  }
+
+  .launch-nav__menu-icon--close,
+  details[open] .launch-nav__menu-icon--open {
+    display: none;
+  }
+
+  details[open] .launch-nav__menu-icon--close {
+    display: block;
+  }
+
+  .launch-nav__links {
+    background: var(--color-paper);
+    border: var(--border-strong);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-hard-sm);
+    display: grid;
+    gap: var(--space-2);
+    inset-block-start: calc(100% + var(--space-3));
+    min-width: 10rem;
+    padding: var(--space-3);
+    position: absolute;
+    right: 0;
+  }
+
+  .launch-nav__links a,
+  .launch-nav__desktop-links a {
+    border-radius: var(--radius-sm);
+    color: var(--color-ink);
+    font-weight: 650;
+    min-height: 3rem;
+    padding: var(--space-3) var(--space-4);
+    text-decoration: none;
+  }
+
+  .launch-nav__links a:hover,
+  .launch-nav__desktop-links a:hover {
+    background: var(--color-lavender-soft);
+    color: var(--color-cobalt);
+  }
+
+  .launch-nav__links a:focus-visible,
+  .launch-nav__desktop-links a:focus-visible {
+    box-shadow: var(--shadow-focus);
+    outline: none;
+  }
+
+  @media (min-width: 48rem) {
+    .launch-header {
+      padding: var(--space-8) var(--gutter-desktop) 0;
+    }
+
+    .launch-nav__disclosure {
+      display: none;
+    }
+
+    .launch-nav__desktop-links {
+      align-items: center;
+      display: flex;
+      gap: var(--space-2);
+    }
+
+    .launch-nav__desktop-links a {
+      align-items: center;
+      display: inline-flex;
+    }
+  }
+</style>

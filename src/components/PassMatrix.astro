@@ -1,0 +1,94 @@
+---
+type Props = {
+  readonly compact?: boolean;
+};
+
+const rows = [
+  "000000000000000010000000",
+  "000000000000000100000000",
+  "000000000000001000000000",
+  "000001000000010000000000",
+  "000000100000100000000000",
+  "000000010001000000000000",
+  "000000001110000000000000",
+] as const;
+
+const { compact = false } = Astro.props;
+---
+
+<div class:list={["pass-matrix", { "pass-matrix--compact": compact }]}>
+  <span class="sr-only" role="status">Verified: PASS</span>
+  <span class="pass-matrix__label" aria-hidden="true">PASS</span>
+  <div class="pass-matrix__grid" aria-hidden="true">
+    {
+      rows.flatMap((row) =>
+        [...row].map((cell) => (
+          <span
+            class:list={[
+              "pass-matrix__cell",
+              { "pass-matrix__cell--on": cell === "1" },
+            ]}
+          />
+        )),
+      )
+    }
+  </div>
+</div>
+
+<style>
+  .pass-matrix {
+    --matrix-gap: var(--space-2);
+
+    display: grid;
+    gap: var(--space-3);
+    justify-items: start;
+    width: min(100%, 21rem);
+  }
+
+  .pass-matrix__grid {
+    display: grid;
+    gap: var(--matrix-gap);
+    grid-template-columns: repeat(24, var(--space-1));
+    max-width: 100%;
+  }
+
+  .pass-matrix__cell {
+    background: var(--color-cobalt);
+    height: var(--space-1);
+    opacity: 0.7;
+    width: var(--space-1);
+  }
+
+  .pass-matrix__cell:nth-child(5n) {
+    background: var(--color-lavender);
+  }
+
+  .pass-matrix__cell:nth-child(11n) {
+    background: var(--color-butter);
+  }
+
+  .pass-matrix__cell--on {
+    background: var(--color-pass);
+    opacity: 1;
+    transform: scale(2);
+  }
+
+  .pass-matrix__label {
+    color: var(--color-pass);
+    font-family: var(--font-mono);
+    font-size: var(--text-mono-label);
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    justify-self: end;
+  }
+
+  .pass-matrix--compact {
+    --matrix-gap: var(--space-1);
+
+    max-width: 14rem;
+  }
+
+  .pass-matrix--compact .pass-matrix__cell--on {
+    transform: scale(1.6);
+  }
+</style>

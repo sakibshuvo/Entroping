@@ -1,3 +1,13 @@
+---
+title: Entroping Command Cheat Sheet
+description: Alpha command surface; stable-core compatibility is not promised.
+type: reference
+status: active
+tags:
+  - cli
+  - commands
+---
+
 # Entroping Command Cheat Sheet
 
 **Command Surface Version:** 4.1

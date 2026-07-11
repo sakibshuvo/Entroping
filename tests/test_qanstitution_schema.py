@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import cast
 
 import pytest
+from _public_docs import public_doc_sources
 from pydantic import ValidationError
 
 from entroping.models.conditions import CONDITION_JSON_SCHEMA_PATTERN
@@ -583,7 +584,6 @@ def test_qanstitution_schema_authoring_guidance_is_public_and_editor_ready() -> 
     )
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     docs_index = (REPO_ROOT / "docs" / "index.md").read_text(encoding="utf-8")
-    mkdocs = (REPO_ROOT / "mkdocs.yml").read_text(encoding="utf-8")
 
     assert "qanstitution.yaml" in schema_mapping
     assert "**/qanstitution.yaml" in schema_mapping
@@ -604,7 +604,7 @@ def test_qanstitution_schema_authoring_guidance_is_public_and_editor_ready() -> 
     assert "QANSTITUTION_REFERENCE.md" in readme
     assert "`entroping doctor` remains the authoritative runtime validation" in readme
     assert "technical/qanstitution.schema.json" in docs_index
-    assert "QAnstitution Reference: technical/QANSTITUTION_REFERENCE.md" in mkdocs
+    assert "docs/technical/QANSTITUTION_REFERENCE.md" in public_doc_sources()
 
 
 def test_qanstitution_reference_marks_types_source_as_reserved_metadata() -> None:

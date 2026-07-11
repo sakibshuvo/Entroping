@@ -4,6 +4,8 @@ import json
 import tomllib
 from pathlib import Path
 
+from _public_docs import public_doc_sources
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -378,7 +380,7 @@ def test_readme_keeps_backstage_context_out_of_product_pitch() -> None:
     assert "not required for first use" in project_context
 
 
-def test_mkdocs_home_explains_repository_context_surfaces() -> None:
+def test_public_docs_home_explains_repository_context_surfaces() -> None:
     index = (REPO_ROOT / "docs" / "index.md").read_text(encoding="utf-8")
 
     assert "How This Site Fits" in index
@@ -549,7 +551,6 @@ def test_readme_frontloads_owasp_policy_pack_wedge_without_overclaiming() -> Non
 def test_launch_copy_keeps_pitch_excluded_surfaces_out_of_front_door() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     docs_index = (REPO_ROOT / "docs" / "index.md").read_text(encoding="utf-8")
-    mkdocs = (REPO_ROOT / "mkdocs.yml").read_text(encoding="utf-8")
     public_pitch = readme.split("## Project Context", maxsplit=1)[0]
     project_context = readme.split("## Project Context", maxsplit=1)[1].split(
         "## Locked Alpha CLI Surface",
@@ -568,8 +569,9 @@ def test_launch_copy_keeps_pitch_excluded_surfaces_out_of_front_door() -> None:
         "## Project Context",
         maxsplit=1,
     )[0]
-    assert "Advanced Boundaries" in mkdocs
-    assert "Studio Mutation Workflow Design" in mkdocs
+    sources = public_doc_sources()
+    assert "docs/technical/FREEZE_MAP_PLAN.md" in sources
+    assert "docs/technical/STUDIO_MUTATION_WORKFLOW_DESIGN.md" in sources
 
     surface_scope = (REPO_ROOT / "docs" / "technical" / "SURFACE_SCOPE.md").read_text(
         encoding="utf-8"

@@ -1,0 +1,191 @@
+{
+  "groups": [
+    {
+      "label": "Introduction",
+      "items": [
+        {
+          "label": "Overview",
+          "source": "docs/index.md",
+          "slug": "docs"
+        }
+      ]
+    },
+    {
+      "label": "Getting started",
+      "items": [
+        {
+          "label": "QAnstitution First Hour",
+          "source": "docs/user/QANSTITUTION_FIRST_HOUR.md",
+          "slug": "docs/user/qanstitution-first-hour"
+        },
+        {
+          "label": "Two-Minute Demo Assets",
+          "source": "docs/assets/launch/README.md",
+          "slug": "docs/assets/launch"
+        }
+      ]
+    },
+    {
+      "label": "User guide",
+      "items": [
+        {
+          "label": "User Guide",
+          "source": "docs/user/USER_GUIDE.md",
+          "slug": "docs/user/user-guide"
+        },
+        {
+          "label": "Use Cases",
+          "source": "docs/user/USE_CASES.md",
+          "slug": "docs/user/use-cases"
+        },
+        {
+          "label": "AI Provider Setup",
+          "source": "docs/user/AI_PROVIDER_SETUP.md",
+          "slug": "docs/user/ai-provider-setup"
+        },
+        {
+          "label": "Drift Baseline Workflow",
+          "source": "docs/user/DRIFT_BASELINE_WORKFLOW.md",
+          "slug": "docs/user/drift-baseline-workflow"
+        }
+      ]
+    },
+    {
+      "label": "Policy and QAnstitution",
+      "items": [
+        {
+          "label": "QAnstitution Reference",
+          "source": "docs/technical/QANSTITUTION_REFERENCE.md",
+          "slug": "docs/technical/qanstitution-reference"
+        },
+        {
+          "label": "Policy Pack Layout",
+          "source": "docs/technical/POLICY_PACK_LAYOUT.md",
+          "slug": "docs/technical/policy-pack-layout"
+        },
+        {
+          "label": "Policy Pack Distribution",
+          "source": "docs/technical/POLICY_PACK_DISTRIBUTION.md",
+          "slug": "docs/technical/policy-pack-distribution"
+        },
+        {
+          "label": "Open-Core Boundaries",
+          "source": "docs/product/OPEN_CORE_BOUNDARIES.md",
+          "slug": "docs/product/open-core-boundaries"
+        }
+      ]
+    },
+    {
+      "label": "CI and reports",
+      "items": [
+        {
+          "label": "GitHub Actions Starter",
+          "source": "docs/user/GITHUB_ACTIONS_STARTER.md",
+          "slug": "docs/user/github-actions-starter"
+        },
+        {
+          "label": "CI Provider Recipes",
+          "source": "docs/user/CI_PROVIDER_RECIPES.md",
+          "slug": "docs/user/ci-provider-recipes"
+        },
+        {
+          "label": "Report Schemas",
+          "source": "docs/technical/REPORT_SCHEMAS.md",
+          "slug": "docs/technical/report-schemas"
+        }
+      ]
+    },
+    {
+      "label": "Technical reference",
+      "items": [
+        {
+          "label": "Technical Design",
+          "source": "docs/technical/TDS.md",
+          "slug": "docs/technical/tds"
+        },
+        {
+          "label": "Surface Scope Policy",
+          "source": "docs/technical/SURFACE_SCOPE.md",
+          "slug": "docs/technical/surface-scope"
+        },
+        {
+          "label": "Threat Model",
+          "source": "docs/technical/THREAT_MODEL.md",
+          "slug": "docs/technical/threat-model"
+        },
+        {
+          "label": "Python Compatibility",
+          "source": "docs/technical/PYTHON_COMPATIBILITY.md",
+          "slug": "docs/technical/python-compatibility"
+        },
+        {
+          "label": "CLI Compatibility Audit",
+          "source": "docs/technical/CLI_COMPATIBILITY_AUDIT.md",
+          "slug": "docs/technical/cli-compatibility-audit"
+        },
+        {
+          "label": "Command Cheat Sheet",
+          "source": "docs/technical/COMMAND_CHEAT_SHEET.md",
+          "slug": "docs/technical/command-cheat-sheet"
+        },
+        {
+          "label": "Studio Mutation Workflow Design",
+          "source": "docs/technical/STUDIO_MUTATION_WORKFLOW_DESIGN.md",
+          "slug": "docs/technical/studio-mutation-workflow-design"
+        },
+        {
+          "label": "WireMock and Dependency Mapping",
+          "source": "docs/technical/FREEZE_MAP_PLAN.md",
+          "slug": "docs/technical/freeze-map-plan"
+        }
+      ]
+    },
+    {
+      "label": "Maintainer reference",
+      "collapsed": true,
+      "items": [
+        {
+          "label": "Release Checklist",
+          "source": "docs/meta/RELEASE_CHECKLIST.md",
+          "slug": "docs/meta/release-checklist"
+        },
+        {
+          "label": "Release Evidence",
+          "source": "docs/meta/RELEASE_EVIDENCE.md",
+          "slug": "docs/meta/release-evidence"
+        },
+        {
+          "label": "PyPI Release Runbook",
+          "source": "docs/meta/PYPI_RELEASE_RUNBOOK.md",
+          "slug": "docs/meta/pypi-release-runbook"
+        },
+        {
+          "label": "Homebrew Tap Prototype",
+          "source": "docs/meta/HOMEBREW_TAP_PROTOTYPE.md",
+          "slug": "docs/meta/homebrew-tap-prototype"
+        },
+        {
+          "label": "Install Smoke Matrix",
+          "source": "docs/meta/INSTALL_SMOKE_MATRIX.md",
+          "slug": "docs/meta/install-smoke-matrix"
+        },
+        {
+          "label": "Downstream Smoke Evidence",
+          "source": "docs/meta/DOWNSTREAM_SMOKE_EVIDENCE.md",
+          "slug": "docs/meta/downstream-smoke-evidence"
+        },
+        {
+          "label": "Downstream Feedback Kit",
+          "source": "docs/meta/DOWNSTREAM_FEEDBACK_KIT.md",
+          "slug": "docs/meta/downstream-feedback-kit"
+        }
+      ]
+    }
+  ],
+  "external": [
+    {
+      "label": "Roadmap",
+      "url": "https://github.com/sakibshuvo/Entroping/blob/main/ROADMAP.md"
+    }
+  ]
+}

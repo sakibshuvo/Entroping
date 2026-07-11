@@ -1,0 +1,119 @@
+---
+import SectionBand from "./SectionBand.astro";
+import { withBase } from "../config/base-path";
+---
+
+<div class="philosophy" aria-label="Entroping philosophy">
+  <SectionBand variant="coral-soft" labelledBy="law-heading">
+    <article class="philosophy__principle">
+      <p class="philosophy__index">01</p>
+      <div>
+        <h2 id="law-heading">QAnstitution is Law.</h2>
+        <p>
+          Versioned policy defines the runtime behavior every generated or
+          hand-written Hurl test must prove.
+        </p>
+        <a href={withBase("docs/technical/qanstitution-reference/")}>
+          Read the QAnstitution reference
+        </a>
+      </div>
+    </article>
+  </SectionBand>
+  <SectionBand variant="sky" labelledBy="traffic-heading">
+    <article class="philosophy__principle philosophy__principle--reverse">
+      <p class="philosophy__index">02</p>
+      <div>
+        <h2 id="traffic-heading">Traffic is Truth.</h2>
+        <p>
+          Redacted, reviewed traffic can become regression evidence without
+          making captured secrets or raw payloads part of the public record.
+        </p>
+        <a href={withBase("docs/technical/freeze-map-plan/")}>
+          See the traffic boundary
+        </a>
+      </div>
+    </article>
+  </SectionBand>
+  <SectionBand variant="lavender-soft" labelledBy="hurl-heading">
+    <article class="philosophy__principle">
+      <p class="philosophy__index">03</p>
+      <div>
+        <h2 id="hurl-heading">Hurl is the Enforcer.</h2>
+        <p>
+          Python orchestrates. Hurl sends the real HTTP requests and returns
+          deterministic evidence that CI can retain.
+        </p>
+        <a href={withBase("docs/technical/tds/")}>Read the technical design</a>
+      </div>
+    </article>
+  </SectionBand>
+  <p class="philosophy__closing">
+    AI can propose tests. CI stays LLM-free, and runtime truth decides.
+  </p>
+</div>
+
+<style>
+  .philosophy {
+    background: var(--color-ink);
+  }
+
+  .philosophy__principle {
+    display: grid;
+    gap: var(--space-6);
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .philosophy__index {
+    color: var(--color-coral);
+    font-family: var(--font-mono);
+    font-size: var(--text-mono-label);
+    font-weight: 700;
+    margin: var(--space-2) 0 0;
+  }
+
+  h2 {
+    font-size: var(--text-section);
+    letter-spacing: -0.055em;
+    line-height: 0.9;
+    margin: 0;
+  }
+
+  article p:not(.philosophy__index) {
+    color: var(--color-ink-muted);
+    font-size: var(--text-lead);
+    margin: var(--space-6) 0;
+    max-width: var(--prose-max-width);
+  }
+
+  article a {
+    font-size: var(--text-body-large);
+    font-weight: 700;
+  }
+
+  .philosophy__closing {
+    color: var(--color-paper);
+    font-size: var(--text-lead);
+    font-weight: 650;
+    margin: 0 auto;
+    max-width: var(--launch-max-width);
+    padding: var(--space-12) var(--gutter-mobile);
+    text-align: center;
+  }
+
+  @media (min-width: 48rem) {
+    .philosophy__principle {
+      gap: var(--space-12);
+      grid-template-columns: minmax(4rem, 0.3fr) minmax(0, 1fr);
+    }
+
+    .philosophy__principle--reverse {
+      margin-inline-start: 18%;
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .philosophy__closing {
+      padding: var(--space-16) var(--gutter-desktop);
+    }
+  }
+</style>
