@@ -70,6 +70,13 @@ Don't crash at the speed of AI.
 AI can suggest. Runtime truth decides.
 ```
 
+Visible mono annotation:
+
+```text
+// write fast
+verify faster
+```
+
 - The full statement is the visual focus.
 - `AI` is cobalt and `Don't crash` is coral with an ink hard shadow.
 - Code glyphs begin scattered and resolve toward the `PASS` matrix.

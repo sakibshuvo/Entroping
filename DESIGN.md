@@ -187,10 +187,12 @@ All spacing is based on `4px`.
 ### Hero Statement
 
 - **Structure:** semantic `h1` containing two sentence spans and emphasis spans
-  for `AI` and `Don't crash`.
+  for `AI` and `Don't crash`, followed by the visible two-line mono annotation
+  `// write fast` / `verify faster` from the approved reference.
 - **Variants:** mobile stacked and desktop editorial grid.
 - **Accessibility:** DOM order remains the spoken sentence order even when CSS
-  offsets the visual rhythm.
+  offsets the visual rhythm; the annotation remains a separate paragraph so it
+  does not alter the heading's accessible name.
 - **Motion:** one transform/opacity entrance sequence; no character-by-character
   animation.
 
