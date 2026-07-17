@@ -161,6 +161,53 @@ entroping report review-summary [--output md] [--junit <path>] [--run-json <path
 | QA brain repair plan | `report qa-brain-repair-plan [--output <md|json>]` writes deterministic value-free repair-proposal readiness metadata from local generated-test quality, mutation readiness, evidence action-plan, routing-plan, and evidence-index states before generation, mutation/fuzz execution, provider calls, prompt execution, or Hurl execution. |
 | Report formats | `run --report` is repeatable and owns run artifact creation. `report bug`, `report failure-bundle`, `report delta`, `report badges`, `report redaction`, `report capture-summary`, `report policy`, `report policy-diff`, `report gate-coverage`, `report gate-injection`, `report test-quality`, `report test-pyramid`, `report external-test-evidence`, `report artifact-manifest`, `report evidence-bundle`, `report design-partner-feedback`, `report runtime-card`, `report handoff`, `report notification-packet`, `report team-evidence-readiness`, `report team-access-control-plan`, `report integration-readiness`, `report devex-readiness`, `report evidence-cloud-readiness`, `report evidence-cloud-export`, `report evidence-cloud-workspace`, `report evidence-cloud-dashboard`, `report evidence-links`, `report evidence-portal`, `report pr-evidence-card`, `report evidence-action-plan`, `report work-item-draft`, `report work-item-import-bundle`, `report pilot-outcome`, `report pilot-cohort`, `report connector-intent`, `report observability-packet`, `report otel-mapping`, `report observability-adapter-readiness`, `report api-inventory`, `report mutation-readiness`, `report evidence-index`, `report qa-brain-seed`, `report qa-brain-eval-plan`, `report qa-brain-retrieval-plan`, `report qa-brain-prompt-plan`, `report qa-brain-fine-tune-readiness`, `report qa-brain-model-packaging-plan`, `report qa-brain-routing-plan`, `report qa-brain-repair-plan`, `report pilot-metrics`, `report agent-bundle`, `report traceability`, `report github-annotations`, `report sarif`, `report promote-drift-baseline`, and `report review-summary` are handoff/reporting commands, not test execution commands. |
 
+## Compatibility Shim Retirement
+
+The tracked
+[`compatibility-shim-retirement.json`](../meta/compatibility-shim-retirement.json)
+ledger is the authoritative owner, disposition, evidence, review-date, and
+retirement-criteria record for the 42 live compatibility surfaces. The
+inventory guard discovers core module proxies from Python syntax, verifies the
+three bounded package/report mechanisms, validates the ledger with a closed
+schema, and fails when a surface is unowned or an entry is stale.
+`src/entroping/core/_compat.py` is shared implementation infrastructure, not a
+separate compatibility surface.
+
+### Census
+
+| Family | Owner | Count | Current disposition |
+| --- | --- | ---: | --- |
+| Old-path core evidence module proxies | `core-evidence` | 19 | Retire when eligible |
+| Old-path core export module proxies | `core-export` | 4 | Retire when eligible |
+| Old-path core plan module proxies | `core-plan` | 10 | Retire when eligible |
+| Old-path core readiness module proxies | `core-readiness` | 6 | Retire when eligible |
+| OpenAPI package monkeypatch proxy | `bridge-openapi` | 1 | Retain |
+| Report package legacy attribute proxy | `cli-report` | 1 | Retain |
+| Report late-bound monkeypatch adapter | `cli-report` | 1 | Retain |
+| **Total** |  | **42** |  |
+
+The first four rows are 39 module proxies installed through
+`install_core_module_compat`. They preserve old import identity while canonical
+implementations live in bounded `evidence`, `export`, `plan`, and `readiness`
+packages. The remaining three surfaces preserve supported package-level
+monkeypatch behavior across the OpenAPI compiler and split report commands.
+
+`review_on` is a scheduled human review point, not an automatic expiry. A
+surface never becomes eligible merely because the date has passed.
+
+### Six-step retirement protocol
+
+1. Open a dedicated compatibility issue naming one ledger entry and its owner.
+2. Prove tracked callers use the canonical target and collect downstream compatibility evidence.
+3. Migrate active monkeypatch consumers to an approved replacement seam.
+4. Approve a migration note, announce the deprecation window, and preserve the shim through it.
+5. Replace compatibility evidence, then remove the shim and ledger entry atomically.
+6. Run the inventory guard, affected behavior slices, security regression, quality audit, and CI before merge.
+
+Retained entries require an explicit replacement seam before deprecation.
+`retire-when-eligible` is permission to evaluate the protocol, not permission
+to delete a surface without its evidence.
+
 ## Post-Alpha UX Decision Queue
 
 ## Compatibility Graduation Decision Template

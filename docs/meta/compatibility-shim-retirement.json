@@ -1,0 +1,808 @@
+{
+  "schema_version": "entroping.compatibility-shim-retirement.v1",
+  "entries": [
+    {
+      "id": "bridge-openapi-package-monkeypatch-proxy",
+      "kind": "package-monkeypatch-proxy",
+      "surface": "entroping.bridge.openapi_to_hurl",
+      "source_paths": ["src/entroping/bridge/openapi_to_hurl/__init__.py"],
+      "canonical_targets": ["entroping.bridge.openapi_to_hurl.compiler"],
+      "owner": "bridge-openapi",
+      "disposition": "retain",
+      "evidence": [
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility",
+        "tests/test_openapi_to_hurl.py::test_compile_openapi_rejects_duplicate_schema_negative_generated_paths",
+        "tests/test_openapi_to_hurl.py::test_openapi_to_hurl_package_exposes_compatibility_surface"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "A replacement injection seam preserves supported compiler-helper patching.",
+        "Supported callers migrate to the replacement seam.",
+        "One announced deprecation window elapses with the replacement behavior covered."
+      ]
+    },
+    {
+      "id": "cli-report-late-bound-monkeypatch-adapter",
+      "kind": "late-bound-monkeypatch-adapter",
+      "surface": "entroping.cli.commands.report.report_dependency",
+      "source_paths": ["src/entroping/cli/commands/report/_deps.py"],
+      "canonical_targets": ["entroping.cli.commands.report"],
+      "owner": "cli-report",
+      "disposition": "retain",
+      "evidence": [
+        "tests/test_cli_gate_coverage_report.py::test_report_gate_coverage_prints_workflow_errors",
+        "tests/test_cli_test_pyramid_report.py::test_report_test_pyramid_prints_report_errors",
+        "tests/test_cli_test_quality_report.py::test_report_test_quality_prints_workflow_errors",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Split report commands use an explicit dependency-injection seam.",
+        "Supported package-level monkeypatch callers migrate to that seam.",
+        "One announced deprecation window elapses with CLI error behavior covered."
+      ]
+    },
+    {
+      "id": "cli-report-legacy-attribute-proxy",
+      "kind": "legacy-attribute-proxy",
+      "surface": "entroping.cli.commands.report",
+      "source_paths": ["src/entroping/cli/commands/report/__init__.py"],
+      "canonical_targets": ["entroping.cli.commands.report._deps"],
+      "owner": "cli-report",
+      "disposition": "retain",
+      "evidence": [
+        "tests/test_cli_gate_coverage_report.py::test_report_gate_coverage_prints_workflow_errors",
+        "tests/test_cli_test_pyramid_report.py::test_report_test_pyramid_prints_report_errors",
+        "tests/test_cli_test_quality_report.py::test_report_test_quality_prints_workflow_errors",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Supported callers no longer patch report dependencies through package attributes.",
+        "A documented dependency-injection seam replaces the legacy attributes.",
+        "One announced deprecation window elapses with CLI error behavior covered."
+      ]
+    },
+    {
+      "id": "core-agent-bundle-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.agent_bundle",
+      "source_paths": ["src/entroping/core/agent_bundle.py"],
+      "canonical_targets": ["entroping.core.evidence.agent_bundle"],
+      "owner": "core-evidence",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-api-inventory-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.api_inventory",
+      "source_paths": ["src/entroping/core/api_inventory.py"],
+      "canonical_targets": ["entroping.core.evidence.api_inventory"],
+      "owner": "core-evidence",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-connector-intent-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.connector_intent",
+      "source_paths": ["src/entroping/core/connector_intent.py"],
+      "canonical_targets": ["entroping.core.evidence.connector_intent"],
+      "owner": "core-evidence",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-devex-readiness-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.devex_readiness",
+      "source_paths": ["src/entroping/core/devex_readiness.py"],
+      "canonical_targets": ["entroping.core.readiness.devex_readiness"],
+      "owner": "core-readiness",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-evidence-action-plan-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.evidence_action_plan",
+      "source_paths": ["src/entroping/core/evidence_action_plan.py"],
+      "canonical_targets": ["entroping.core.plan.evidence_action_plan"],
+      "owner": "core-plan",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-evidence-bundle-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.evidence_bundle",
+      "source_paths": ["src/entroping/core/evidence_bundle.py"],
+      "canonical_targets": ["entroping.core.evidence.evidence_bundle"],
+      "owner": "core-evidence",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-evidence-cloud-dashboard-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.evidence_cloud_dashboard",
+      "source_paths": ["src/entroping/core/evidence_cloud_dashboard.py"],
+      "canonical_targets": ["entroping.core.evidence.evidence_cloud_dashboard"],
+      "owner": "core-evidence",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-evidence-cloud-export-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.evidence_cloud_export",
+      "source_paths": ["src/entroping/core/evidence_cloud_export.py"],
+      "canonical_targets": ["entroping.core.export.evidence_cloud_export"],
+      "owner": "core-export",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-evidence-cloud-readiness-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.evidence_cloud_readiness",
+      "source_paths": ["src/entroping/core/evidence_cloud_readiness.py"],
+      "canonical_targets": ["entroping.core.readiness.evidence_cloud_readiness"],
+      "owner": "core-readiness",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-evidence-cloud-workspace-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.evidence_cloud_workspace",
+      "source_paths": ["src/entroping/core/evidence_cloud_workspace.py"],
+      "canonical_targets": ["entroping.core.export.evidence_cloud_workspace"],
+      "owner": "core-export",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-evidence-index-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.evidence_index",
+      "source_paths": ["src/entroping/core/evidence_index.py"],
+      "canonical_targets": ["entroping.core.evidence.evidence_index"],
+      "owner": "core-evidence",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-evidence-index-report-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.evidence_index_report",
+      "source_paths": ["src/entroping/core/evidence_index_report.py"],
+      "canonical_targets": ["entroping.core.evidence.evidence_index_report"],
+      "owner": "core-evidence",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-evidence-links-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.evidence_links",
+      "source_paths": ["src/entroping/core/evidence_links.py"],
+      "canonical_targets": ["entroping.core.evidence.evidence_links"],
+      "owner": "core-evidence",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-evidence-portal-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.evidence_portal",
+      "source_paths": ["src/entroping/core/evidence_portal.py"],
+      "canonical_targets": ["entroping.core.evidence.evidence_portal"],
+      "owner": "core-evidence",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-external-test-evidence-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.external_test_evidence",
+      "source_paths": ["src/entroping/core/external_test_evidence.py"],
+      "canonical_targets": ["entroping.core.evidence.external_test_evidence"],
+      "owner": "core-evidence",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-handoff-packet-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.handoff_packet",
+      "source_paths": ["src/entroping/core/handoff_packet.py"],
+      "canonical_targets": ["entroping.core.evidence.handoff_packet"],
+      "owner": "core-evidence",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-integration-readiness-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.integration_readiness",
+      "source_paths": ["src/entroping/core/integration_readiness.py"],
+      "canonical_targets": ["entroping.core.readiness.integration_readiness"],
+      "owner": "core-readiness",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-mutation-readiness-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.mutation_readiness",
+      "source_paths": ["src/entroping/core/mutation_readiness.py"],
+      "canonical_targets": ["entroping.core.readiness.mutation_readiness"],
+      "owner": "core-readiness",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-notification-packet-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.notification_packet",
+      "source_paths": ["src/entroping/core/notification_packet.py"],
+      "canonical_targets": ["entroping.core.evidence.notification_packet"],
+      "owner": "core-evidence",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-observability-adapter-readiness-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.observability_adapter_readiness",
+      "source_paths": ["src/entroping/core/observability_adapter_readiness.py"],
+      "canonical_targets": ["entroping.core.readiness.observability_adapter_readiness"],
+      "owner": "core-readiness",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-observability-packet-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.observability_packet",
+      "source_paths": ["src/entroping/core/observability_packet.py"],
+      "canonical_targets": ["entroping.core.evidence.observability_packet"],
+      "owner": "core-evidence",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-otel-mapping-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.otel_mapping",
+      "source_paths": ["src/entroping/core/otel_mapping.py"],
+      "canonical_targets": ["entroping.core.evidence.otel_mapping"],
+      "owner": "core-evidence",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-pilot-cohort-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.pilot_cohort",
+      "source_paths": ["src/entroping/core/pilot_cohort.py"],
+      "canonical_targets": ["entroping.core.evidence.pilot_cohort"],
+      "owner": "core-evidence",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-pilot-metrics-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.pilot_metrics",
+      "source_paths": ["src/entroping/core/pilot_metrics.py"],
+      "canonical_targets": ["entroping.core.evidence.pilot_metrics"],
+      "owner": "core-evidence",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-pilot-outcome-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.pilot_outcome",
+      "source_paths": ["src/entroping/core/pilot_outcome.py"],
+      "canonical_targets": ["entroping.core.evidence.pilot_outcome"],
+      "owner": "core-evidence",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-pr-evidence-card-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.pr_evidence_card",
+      "source_paths": ["src/entroping/core/pr_evidence_card.py"],
+      "canonical_targets": ["entroping.core.evidence.pr_evidence_card"],
+      "owner": "core-evidence",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-qa-brain-eval-plan-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.qa_brain_eval_plan",
+      "source_paths": ["src/entroping/core/qa_brain_eval_plan.py"],
+      "canonical_targets": ["entroping.core.plan.qa_brain_eval_plan"],
+      "owner": "core-plan",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-qa-brain-fine-tune-readiness-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.qa_brain_fine_tune_readiness",
+      "source_paths": ["src/entroping/core/qa_brain_fine_tune_readiness.py"],
+      "canonical_targets": ["entroping.core.plan.qa_brain_fine_tune_readiness"],
+      "owner": "core-plan",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-qa-brain-model-packaging-plan-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.qa_brain_model_packaging_plan",
+      "source_paths": ["src/entroping/core/qa_brain_model_packaging_plan.py"],
+      "canonical_targets": ["entroping.core.plan.qa_brain_model_packaging_plan"],
+      "owner": "core-plan",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-qa-brain-prompt-plan-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.qa_brain_prompt_plan",
+      "source_paths": ["src/entroping/core/qa_brain_prompt_plan.py"],
+      "canonical_targets": ["entroping.core.plan.qa_brain_prompt_plan"],
+      "owner": "core-plan",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-qa-brain-repair-plan-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.qa_brain_repair_plan",
+      "source_paths": ["src/entroping/core/qa_brain_repair_plan.py"],
+      "canonical_targets": ["entroping.core.plan.qa_brain_repair_plan"],
+      "owner": "core-plan",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-qa-brain-retrieval-plan-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.qa_brain_retrieval_plan",
+      "source_paths": ["src/entroping/core/qa_brain_retrieval_plan.py"],
+      "canonical_targets": ["entroping.core.plan.qa_brain_retrieval_plan"],
+      "owner": "core-plan",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-qa-brain-routing-plan-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.qa_brain_routing_plan",
+      "source_paths": ["src/entroping/core/qa_brain_routing_plan.py"],
+      "canonical_targets": ["entroping.core.plan.qa_brain_routing_plan"],
+      "owner": "core-plan",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-qa-brain-seed-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.qa_brain_seed",
+      "source_paths": ["src/entroping/core/qa_brain_seed.py"],
+      "canonical_targets": ["entroping.core.plan.qa_brain_seed"],
+      "owner": "core-plan",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-team-access-control-plan-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.team_access_control_plan",
+      "source_paths": ["src/entroping/core/team_access_control_plan.py"],
+      "canonical_targets": ["entroping.core.plan.team_access_control_plan"],
+      "owner": "core-plan",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-team-evidence-readiness-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.team_evidence_readiness",
+      "source_paths": ["src/entroping/core/team_evidence_readiness.py"],
+      "canonical_targets": ["entroping.core.readiness.team_evidence_readiness"],
+      "owner": "core-readiness",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-test-pyramid-report-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.test_pyramid_report",
+      "source_paths": ["src/entroping/core/test_pyramid_report.py"],
+      "canonical_targets": ["entroping.core.evidence.test_pyramid_report"],
+      "owner": "core-evidence",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-work-item-draft-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.work_item_draft",
+      "source_paths": ["src/entroping/core/work_item_draft.py"],
+      "canonical_targets": ["entroping.core.export.work_item_draft"],
+      "owner": "core-export",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    },
+    {
+      "id": "core-work-item-import-bundle-module-proxy",
+      "kind": "module-proxy",
+      "surface": "entroping.core.work_item_import_bundle",
+      "source_paths": ["src/entroping/core/work_item_import_bundle.py"],
+      "canonical_targets": ["entroping.core.export.work_item_import_bundle"],
+      "owner": "core-export",
+      "disposition": "retire-when-eligible",
+      "evidence": [
+        "tests/test_architecture_boundaries.py::test_core_evidence_families_live_in_bounded_packages_with_old_path_shims",
+        "tests/test_compatibility_shim_inventory.py::test_live_identity_and_monkeypatch_compatibility"
+      ],
+      "review_on": "2026-08-31",
+      "retirement_criteria": [
+        "Tracked callers import the canonical target.",
+        "Downstream package compatibility evidence supports removal.",
+        "An approved compatibility issue and migration note authorize removal."
+      ]
+    }
+  ]
+}
