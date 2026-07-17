@@ -84,6 +84,22 @@ class _LayerDefinition:
     junit_source_id: ExternalTestEvidenceSourceId
 
 
+@dataclass(frozen=True, slots=True)
+class _SourceCounts:
+    present: int
+    missing: int
+    invalid: int
+    unsafe: int
+
+
+@dataclass(frozen=True, slots=True)
+class _EventCounts:
+    tests: int
+    failures: int
+    errors: int
+    skipped: int
+
+
 _SOURCE_DEFINITIONS: Final[tuple[_SourceDefinition, ...]] = (
     _SourceDefinition(
         id="unit_junit",
@@ -1022,29 +1038,53 @@ def _dedupe_actions(
     return tuple(result)
 
 
+def _source_counts(
+    sources: tuple[ExternalTestEvidenceSource, ...],
+) -> _SourceCounts:
+    return _SourceCounts(
+        present=sum(1 for source in sources if source.state == "present"),
+        missing=sum(1 for source in sources if source.state == "missing"),
+        invalid=sum(1 for source in sources if source.state == "invalid"),
+        unsafe=sum(1 for source in sources if source.state == "unsafe"),
+    )
+
+
+def _event_counts(
+    sources: tuple[ExternalTestEvidenceSource, ...],
+) -> _EventCounts:
+    junit_sources = tuple(source for source in sources if source.kind == "junit")
+    return _EventCounts(
+        tests=sum(source.tests or 0 for source in junit_sources),
+        failures=sum(source.failures or 0 for source in junit_sources),
+        errors=sum(source.errors or 0 for source in junit_sources),
+        skipped=sum(source.skipped or 0 for source in junit_sources),
+    )
+
+
 def _summary(
     *,
     sources: tuple[ExternalTestEvidenceSource, ...],
     layers: tuple[ExternalTestEvidenceLayer, ...],
     next_actions: tuple[ExternalTestEvidenceNextAction, ...],
 ) -> ExternalTestEvidenceSummary:
-    junit_sources = tuple(source for source in sources if source.kind == "junit")
+    source_counts = _source_counts(sources)
+    event_counts = _event_counts(sources)
     sarif_source = next(source for source in sources if source.id == "sarif_json")
     return ExternalTestEvidenceSummary(
         status=_status(sources=sources, layers=layers),
         sources_total=len(sources),
-        sources_present=sum(1 for source in sources if source.state == "present"),
-        sources_missing=sum(1 for source in sources if source.state == "missing"),
-        sources_invalid=sum(1 for source in sources if source.state == "invalid"),
-        sources_unsafe=sum(1 for source in sources if source.state == "unsafe"),
+        sources_present=source_counts.present,
+        sources_missing=source_counts.missing,
+        sources_invalid=source_counts.invalid,
+        sources_unsafe=source_counts.unsafe,
         layers_total=len(layers),
         layers_with_evidence=sum(1 for layer in layers if layer.status == "covered"),
         layers_missing=sum(1 for layer in layers if layer.status == "missing"),
         layers_blocked=sum(1 for layer in layers if layer.status == "blocked"),
-        total_tests=sum(source.tests or 0 for source in junit_sources),
-        total_failures=sum(source.failures or 0 for source in junit_sources),
-        total_errors=sum(source.errors or 0 for source in junit_sources),
-        total_skipped=sum(source.skipped or 0 for source in junit_sources),
+        total_tests=event_counts.tests,
+        total_failures=event_counts.failures,
+        total_errors=event_counts.errors,
+        total_skipped=event_counts.skipped,
         line_coverage_percent=_preferred_coverage(sources, field="line_coverage_percent"),
         branch_coverage_percent=_preferred_coverage(sources, field="branch_coverage_percent"),
         sarif_results_total=sarif_source.sarif_results_total or 0,
