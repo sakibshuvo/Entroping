@@ -41,7 +41,9 @@ uv run python scripts/test_taxonomy.py --output reports/test-taxonomy.json --str
 ```
 
 The report uses schema `entroping.test-taxonomy.v1` and summarizes test files
-plus static test definitions by category:
+plus static test definitions by category. The v1 schema additively records
+whether each file/category attribution is `explicit`, `inferred`, or `mixed`,
+along with the contributing pytest markers and filename rules:
 
 - `behavior`: runtime, domain, adapter, and compiler behavior tests for product code.
 - `docs-compliance`: public docs, roadmap, release evidence, and public-claim checks.
@@ -56,7 +58,48 @@ coverage, Radon, Vulture, quality-trend, and bounded performance smoke gates,
 then uploads the report with the rest of the ignored quality artifacts in CI.
 The taxonomy is file-level and deterministic; pytest markers improve
 classification when present, but the script also uses stable file-name rules so
-it can summarize the existing suite without mass marker churn.
+it can summarize the existing suite without mass marker churn. Strict mode
+requires aggregate explicit marker evidence for the `integration`, `regression`,
+and `security` categories; inference alone never satisfies them. Evidence counts
+only final, statically collectable `test*`/`Test*` bindings under canonical
+`pytest`. It does not execute imports or module code; the required pytest gates
+decide live collection. Suppression, overwrites, inherited behavior, non-marker
+decorators, invalid rows, and lookalike namespaces do not count. Other categories
+may use inference.
+
+For mechanical test-suite splits, generate a static collection manifest before
+and after moving definitions:
+
+```bash
+uv run python scripts/pytest_collection_manifest.py \
+  --output /absolute/host/evidence/collection-before.json \
+  tests/test_original.py
+
+uv run python scripts/pytest_collection_manifest.py \
+  --output /absolute/host/evidence/collection-after.json \
+  tests/test_split_one.py tests/test_split_two.py
+
+uv run python scripts/pytest_collection_manifest.py \
+  --compare \
+  /absolute/host/evidence/collection-before.json \
+  /absolute/host/evidence/collection-after.json
+```
+
+The `entroping.pytest-collection-manifest.v1` artifact uses a standard-library
+AST reader to store a canonical multiset of module-normalized test IDs and
+effective markers. It never imports or executes tests, conftest, plugins, or
+pytest. Evidence covers supported syntax and unchanged imports only; run focused
+pytest before and after a split.
+
+`parameter_id_projection: normalized-away` keeps literal-row multiplicity and
+static row marks while omitting values and ID suffixes; nested row values stay
+opaque and explicit IDs are rejected. The allowlist requires canonical `pytest`
+(including `cli_test_support`) and inert, statically provable annotations.
+Dynamic collection, excessive expansion, metaprogramming, mutation, aliases,
+constructors, duplicate bindings, hooks, plugins, and collection controls fail
+closed. Reads use stable descriptor metadata and no-follow walks; final symlinks
+are forbidden. Sources cap at 2 MiB, while generated and compared manifests
+share an 8 MiB ceiling.
 
 ## Required Commands
 
