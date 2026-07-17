@@ -214,6 +214,25 @@ class _LoadedEvidenceIndex:
     source: ObservabilitySource
 
 
+@dataclass(frozen=True, slots=True)
+class _SourceCounts:
+    total: int
+    present: int
+    missing: int
+    invalid: int
+    unsafe: int
+    status: ObservabilityStatus
+
+
+@dataclass(frozen=True, slots=True)
+class _EventCounts:
+    total: int
+    debug: int
+    info: int
+    warning: int
+    error: int
+
+
 def run_observability_packet_report(
     *,
     project_root: Path,
@@ -758,38 +777,57 @@ def _summary(
     runtime: ObservabilityRuntimeSummary | None,
     events: tuple[ObservabilityEventSummary, ...],
 ) -> ObservabilitySummary:
+    source_counts = _source_counts(sources)
+    event_counts = _event_counts(events)
+    return ObservabilitySummary(
+        status=source_counts.status,
+        severity=_severity(
+            status=source_counts.status,
+            runtime=runtime,
+            warning_events=event_counts.warning,
+            error_events=event_counts.error,
+        ),
+        sources_total=source_counts.total,
+        sources_present=source_counts.present,
+        sources_missing=source_counts.missing,
+        sources_invalid=source_counts.invalid,
+        sources_unsafe=source_counts.unsafe,
+        events_total=event_counts.total,
+        debug_events=event_counts.debug,
+        info_events=event_counts.info,
+        warning_events=event_counts.warning,
+        error_events=event_counts.error,
+    )
+
+
+def _source_counts(sources: tuple[ObservabilitySource, ...]) -> _SourceCounts:
     present = sum(1 for source in sources if source.state == "present")
     missing = sum(1 for source in sources if source.state == "missing")
     invalid = sum(1 for source in sources if source.state == "invalid")
     unsafe = sum(1 for source in sources if source.state == "unsafe")
-    debug_events = sum(1 for event in events if event.severity == "debug")
-    info_events = sum(1 for event in events if event.severity == "info")
-    warning_events = sum(1 for event in events if event.severity == "warning")
-    error_events = sum(1 for event in events if event.severity == "error")
     if present == 0:
         status: ObservabilityStatus = "insufficient"
     elif missing or invalid or unsafe:
         status = "partial"
     else:
         status = "ready"
-    return ObservabilitySummary(
+    return _SourceCounts(
+        total=len(sources),
         status=status,
-        severity=_severity(
-            status=status,
-            runtime=runtime,
-            warning_events=warning_events,
-            error_events=error_events,
-        ),
-        sources_total=len(sources),
-        sources_present=present,
-        sources_missing=missing,
-        sources_invalid=invalid,
-        sources_unsafe=unsafe,
-        events_total=len(events),
-        debug_events=debug_events,
-        info_events=info_events,
-        warning_events=warning_events,
-        error_events=error_events,
+        present=present,
+        missing=missing,
+        invalid=invalid,
+        unsafe=unsafe,
+    )
+
+
+def _event_counts(events: tuple[ObservabilityEventSummary, ...]) -> _EventCounts:
+    return _EventCounts(
+        total=len(events),
+        debug=sum(1 for event in events if event.severity == "debug"),
+        info=sum(1 for event in events if event.severity == "info"),
+        warning=sum(1 for event in events if event.severity == "warning"),
+        error=sum(1 for event in events if event.severity == "error"),
     )
 
 

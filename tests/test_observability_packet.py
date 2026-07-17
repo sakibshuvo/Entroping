@@ -26,6 +26,62 @@ from entroping.core.structured_diagnostics import (
 )
 
 
+def test_observability_source_counts_preserve_every_state() -> None:
+    states: tuple[observability_packet.ObservabilitySourceState, ...] = (
+        "present",
+        "missing",
+        "invalid",
+        "unsafe",
+    )
+    sources = tuple(
+        observability_packet.ObservabilitySource(
+            id="diagnostics",
+            label=state,
+            path=f"{state}.json",
+            state=state,
+            schema_version=None,
+            summary=state,
+        )
+        for state in states
+    )
+
+    counts = observability_packet._source_counts(sources)
+
+    assert counts.total == 4
+    assert counts.present == 1
+    assert counts.missing == 1
+    assert counts.invalid == 1
+    assert counts.unsafe == 1
+    assert counts.status == "partial"
+
+
+def test_observability_event_counts_preserve_every_severity() -> None:
+    severities: tuple[observability_packet.ObservabilityEventSeverity, ...] = (
+        "debug",
+        "info",
+        "warning",
+        "error",
+    )
+    events = tuple(
+        observability_packet.ObservabilityEventSummary(
+            component="report",
+            operation="observability_packet",
+            severity=severity,
+            code=f"observability.{severity}",
+            summary=f"{severity} event",
+        )
+        for severity in severities
+    )
+
+    counts = observability_packet._event_counts(events)
+
+    assert counts.total == 4
+    assert counts.debug == 1
+    assert counts.info == 1
+    assert counts.warning == 1
+    assert counts.error == 1
+
+
 def test_run_observability_packet_writes_value_free_json_from_local_evidence(
     tmp_path: Path,
 ) -> None:
