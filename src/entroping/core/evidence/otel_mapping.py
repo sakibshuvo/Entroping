@@ -172,6 +172,24 @@ class _LoadedSource:
     document: dict[str, object] | None
 
 
+@dataclass(frozen=True, slots=True)
+class _SourceCounts:
+    total: int
+    present: int
+    missing: int
+    invalid: int
+    unsafe: int
+
+
+@dataclass(frozen=True, slots=True)
+class _SignalCounts:
+    total: int
+    resource: int
+    log: int
+    metric: int
+    trace: int
+
+
 def run_otel_mapping_report(
     *,
     project_root: Path,
@@ -499,35 +517,61 @@ def _summary(
     controls: tuple[OtelBoundaryControl, ...],
 ) -> OtelMappingSummary:
     sources = tuple(loaded.source for loaded in loaded_sources)
-    present = sum(1 for source in sources if source.state == "present")
-    missing = sum(1 for source in sources if source.state == "missing")
-    invalid = sum(1 for source in sources if source.state == "invalid")
-    unsafe = sum(1 for source in sources if source.state == "unsafe")
-    status: OtelMappingStatus
-    if unsafe or invalid or present == 0:
-        status = "insufficient"
-    elif missing:
-        status = "partial"
-    else:
-        status = "ready"
-    severity: OtelMappingSeverity = (
-        "blocker" if unsafe or invalid else _source_severity(loaded_sources)
-    )
+    source_counts = _source_counts(sources)
+    signal_counts = _signal_counts(mappings)
     return OtelMappingSummary(
-        status=status,
-        severity=severity,
-        sources_total=len(sources),
-        sources_present=present,
-        sources_missing=missing,
-        sources_invalid=invalid,
-        sources_unsafe=unsafe,
-        mappings_total=len(mappings),
-        resource_mappings=sum(1 for mapping in mappings if mapping.signal == "resource"),
-        log_mappings=sum(1 for mapping in mappings if mapping.signal == "log"),
-        metric_mappings=sum(1 for mapping in mappings if mapping.signal == "metric"),
-        trace_mappings=sum(1 for mapping in mappings if mapping.signal == "trace"),
+        status=_summary_status(source_counts),
+        severity=_summary_severity(source_counts, loaded_sources=loaded_sources),
+        sources_total=source_counts.total,
+        sources_present=source_counts.present,
+        sources_missing=source_counts.missing,
+        sources_invalid=source_counts.invalid,
+        sources_unsafe=source_counts.unsafe,
+        mappings_total=signal_counts.total,
+        resource_mappings=signal_counts.resource,
+        log_mappings=signal_counts.log,
+        metric_mappings=signal_counts.metric,
+        trace_mappings=signal_counts.trace,
         boundary_controls=len(controls),
     )
+
+
+def _source_counts(sources: tuple[OtelMappingSource, ...]) -> _SourceCounts:
+    return _SourceCounts(
+        total=len(sources),
+        present=sum(1 for source in sources if source.state == "present"),
+        missing=sum(1 for source in sources if source.state == "missing"),
+        invalid=sum(1 for source in sources if source.state == "invalid"),
+        unsafe=sum(1 for source in sources if source.state == "unsafe"),
+    )
+
+
+def _signal_counts(mappings: tuple[OtelAttributeMapping, ...]) -> _SignalCounts:
+    return _SignalCounts(
+        total=len(mappings),
+        resource=sum(1 for mapping in mappings if mapping.signal == "resource"),
+        log=sum(1 for mapping in mappings if mapping.signal == "log"),
+        metric=sum(1 for mapping in mappings if mapping.signal == "metric"),
+        trace=sum(1 for mapping in mappings if mapping.signal == "trace"),
+    )
+
+
+def _summary_status(counts: _SourceCounts) -> OtelMappingStatus:
+    if counts.unsafe or counts.invalid or counts.present == 0:
+        return "insufficient"
+    if counts.missing:
+        return "partial"
+    return "ready"
+
+
+def _summary_severity(
+    counts: _SourceCounts,
+    *,
+    loaded_sources: tuple[_LoadedSource, ...],
+) -> OtelMappingSeverity:
+    if counts.unsafe or counts.invalid:
+        return "blocker"
+    return _source_severity(loaded_sources)
 
 
 def _source_severity(loaded_sources: tuple[_LoadedSource, ...]) -> OtelMappingSeverity:
