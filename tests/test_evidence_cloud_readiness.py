@@ -655,6 +655,109 @@ def test_evidence_cloud_summary_counts_upload_candidate_blockers_once() -> None:
     )
 
 
+def test_evidence_cloud_summary_helpers_count_all_states() -> None:
+    source_states: tuple[readiness.EvidenceCloudSourceState, ...] = (
+        "present",
+        "missing",
+        "invalid",
+        "unsafe",
+    )
+    sources = tuple(
+        readiness.EvidenceCloudSource(
+            id="team_evidence_readiness",
+            label=f"Source {state}",
+            path=f"reports/{state}.json",
+            state=state,
+            schema_version=None,
+            summary=state,
+        )
+        for state in source_states
+    )
+    area_statuses: tuple[readiness.EvidenceCloudAreaStatus, ...] = (
+        "ready",
+        "attention",
+        "blocked",
+    )
+    areas = tuple(
+        readiness.EvidenceCloudReadinessArea(
+            id="team_upload_boundary",
+            label=f"Area {status}",
+            status=status,
+            source_ids=(),
+            boundary="local only",
+            upload_candidate=False,
+            next_action=f"Handle {status}.",
+        )
+        for status in area_statuses
+    )
+    candidate_states: tuple[readiness.EvidenceCloudUploadCandidateState, ...] = (
+        "ready",
+        "blocked",
+    )
+    candidates = tuple(
+        readiness.EvidenceCloudUploadCandidate(
+            id="team_evidence_bundle",
+            label=f"Candidate {state}",
+            state=state,
+            source_ids=(),
+            description="Local metadata.",
+        )
+        for state in candidate_states
+    )
+
+    assert readiness._source_counts(sources) == readiness._SourceCounts(
+        present=1,
+        missing=1,
+        invalid=1,
+        unsafe=1,
+    )
+    assert readiness._area_counts(areas) == readiness._AreaCounts(
+        ready=1,
+        attention=1,
+        blocked=1,
+    )
+    assert readiness._candidate_counts(candidates) == readiness._CandidateCounts(
+        ready=1,
+        blocked=1,
+    )
+
+
+def test_evidence_cloud_unique_blockers_unions_areas_and_candidates() -> None:
+    areas = (
+        readiness.EvidenceCloudReadinessArea(
+            id="team_upload_boundary",
+            label="Team upload boundary",
+            status="blocked",
+            source_ids=(),
+            boundary="local only",
+            upload_candidate=True,
+            blockers=("Shared blocker.", "Area-only blocker."),
+            next_action="Repair local evidence.",
+        ),
+    )
+    candidates = (
+        readiness.EvidenceCloudUploadCandidate(
+            id="team_evidence_bundle",
+            label="Team evidence bundle",
+            state="blocked",
+            source_ids=(),
+            description="Local metadata.",
+            blockers=("Shared blocker.", "Candidate-only blocker."),
+        ),
+    )
+
+    assert readiness._unique_blockers(
+        areas=areas,
+        upload_candidates=candidates,
+    ) == frozenset(
+        {
+            "Shared blocker.",
+            "Area-only blocker.",
+            "Candidate-only blocker.",
+        }
+    )
+
+
 def test_evidence_cloud_readiness_packet_schema_rejects_extra_fields() -> None:
     payload = {
         "schema_version": EVIDENCE_CLOUD_READINESS_SCHEMA_VERSION,
