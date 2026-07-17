@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import shutil
+from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
@@ -9,6 +10,7 @@ import pytest
 import entroping.core.evidence.api_inventory as api_inventory
 from entroping.core.evidence.api_inventory import (
     ApiInventoryError,
+    ApiInventorySource,
     build_api_inventory,
     render_api_inventory_markdown,
     run_api_inventory_report,
@@ -17,6 +19,63 @@ from entroping.core.safe_write import SafeWriteError
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 WEBHOOK_FIXTURE_ROOT = REPO_ROOT / "examples" / "webhook-api"
+
+
+@pytest.mark.parametrize(
+    ("tags", "expected"),
+    [
+        (frozenset({"rest", "graphql"}), "graphql"),
+        (frozenset({"rest_openapi", "soap_xml"}), "soap_xml"),
+        (frozenset({"openapi", "proto"}), "grpc_proto"),
+        (frozenset({"rest", "async_api"}), "asyncapi"),
+        (frozenset({"rest", "event_contract"}), "webhook_event"),
+        (frozenset({"rest", "wss"}), "websocket_realtime"),
+        (frozenset({"REST"}), "rest_openapi"),
+        (frozenset({"smoke"}), None),
+    ],
+)
+def test_api_inventory_style_priority_preserves_protocol_classification(
+    tags: frozenset[str],
+    expected: api_inventory.ApiStyle | None,
+) -> None:
+    assert api_inventory._style_from_tags(tags) == expected
+
+
+def test_api_inventory_style_priority_is_explicit_and_ordered() -> None:
+    assert tuple(rule.style for rule in api_inventory._STYLE_TAG_PRIORITY) == (
+        "graphql",
+        "soap_xml",
+        "grpc_proto",
+        "asyncapi",
+        "webhook_event",
+        "websocket_realtime",
+        "rest_openapi",
+    )
+
+
+def test_api_inventory_source_state_counts_are_frozen_and_present_totals_only() -> None:
+    sources = (
+        _inventory_source(state="present", kind="hurl_test", operations=2),
+        _inventory_source(state="missing", kind="hurl_test", operations=3),
+        _inventory_source(state="invalid", kind="schema_file", operations=5),
+        _inventory_source(state="unsafe", kind="schema_file", operations=7),
+    )
+
+    counts = api_inventory._source_state_counts(sources)
+    summary = api_inventory._summary(sources=sources, styles=())
+
+    assert (
+        counts.present,
+        counts.missing,
+        counts.invalid,
+        counts.unsafe,
+    ) == (1, 1, 1, 1)
+    assert not hasattr(counts, "__dict__")
+    with pytest.raises(FrozenInstanceError):
+        counts.__setattr__("present", 2)
+    assert summary.status == "partial"
+    assert summary.hurl_tests_total == 1
+    assert summary.operations_total == 2
 
 
 def test_run_api_inventory_writes_json_from_local_api_signals(tmp_path: Path) -> None:
@@ -1648,3 +1707,19 @@ def _write_text(path: Path, content: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
     return path
+
+
+def _inventory_source(
+    *,
+    state: api_inventory.ApiSourceState,
+    kind: api_inventory.ApiSourceKind,
+    operations: int,
+) -> ApiInventorySource:
+    return ApiInventorySource(
+        kind=kind,
+        style="unknown_http",
+        path=f"{state}.source",
+        state=state,
+        operations=operations,
+        summary=f"{state} source",
+    )
