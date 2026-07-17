@@ -105,6 +105,25 @@ def test_run_observability_adapter_readiness_writes_value_free_json(
         "generic",
     }
     assert {adapter["status"] for adapter in payload["adapters"]} == {"ready"}
+    assert payload["next_actions"] == [
+        {
+            "priority": "low",
+            "action": "Use this packet as the local value-free adapter readiness contract.",
+            "source_ids": [
+                "observability_packet",
+                "otel_mapping",
+                "evidence_index",
+                "runtime_card",
+            ],
+            "adapter_ids": [
+                "opentelemetry",
+                "datadog",
+                "splunk",
+                "grafana",
+                "generic",
+            ],
+        }
+    ]
     serialized = json.dumps(payload)
     assert "sk-proj" not in serialized
     assert "raw.example.internal" not in serialized
@@ -147,6 +166,18 @@ def test_observability_adapter_readiness_marks_bad_sources_without_raw_values(
     assert packet.summary.status == "insufficient"
     assert packet.summary.severity == "blocker"
     assert {adapter.status for adapter in packet.adapters} == {"blocked"}
+    assert packet.next_actions[0].priority == "high"
+    assert packet.next_actions[0].action == (
+        "Repair invalid or unsafe evidence before adapter design."
+    )
+    assert packet.next_actions[0].source_ids == ()
+    assert packet.next_actions[0].adapter_ids == (
+        "opentelemetry",
+        "datadog",
+        "splunk",
+        "grafana",
+        "generic",
+    )
     serialized = packet.model_dump_json()
     assert "sk-proj" not in serialized
     assert "raw.example.internal" not in serialized
@@ -171,6 +202,17 @@ def test_observability_adapter_readiness_writes_markdown_and_partial_state(
     assert result.packet.summary.status == "partial"
     assert result.packet.summary.severity == "attention"
     assert result.packet.next_actions[0].priority == "medium"
+    assert result.packet.next_actions[0].action == (
+        "Generate missing sanitized evidence before adapter design."
+    )
+    assert result.packet.next_actions[0].source_ids == ("observability_packet",)
+    assert result.packet.next_actions[0].adapter_ids == (
+        "opentelemetry",
+        "datadog",
+        "splunk",
+        "grafana",
+        "generic",
+    )
     markdown = result.output_path.read_text(encoding="utf-8")
     assert "# Entroping Observability Adapter Readiness" in markdown
     assert "| datadog | Datadog | attention |" in markdown
@@ -267,7 +309,9 @@ def test_observability_adapter_readiness_keeps_unknown_counts_value_free(
 
     packet = build_observability_adapter_readiness_packet(project_root=tmp_path)
 
+    assert packet.summary.status == "ready"
     assert packet.summary.severity == "blocker"
+    assert packet.next_actions[0].priority == "low"
 
 
 def test_observability_adapter_readiness_marks_additional_bad_source_shapes(
@@ -363,6 +407,136 @@ def test_observability_adapter_readiness_adapter_definitions_reference_known_sou
     for definition in adapter_readiness._adapter_definitions():
         assert set(definition.required_source_ids) <= source_ids
         assert set(definition.optional_source_ids) <= source_ids
+
+
+def test_observability_adapter_readiness_summary_count_helpers_characterize_states() -> None:
+    source_states: tuple[
+        tuple[
+            adapter_readiness.ObservabilityAdapterSourceId,
+            adapter_readiness.ObservabilityAdapterReadinessSourceState,
+        ],
+        ...,
+    ] = (
+        ("observability_packet", "present"),
+        ("otel_mapping", "missing"),
+        ("evidence_index", "invalid"),
+        ("runtime_card", "unsafe"),
+    )
+    sources = tuple(
+        adapter_readiness.ObservabilityAdapterReadinessSource(
+            id=source_id,
+            label=source_id,
+            path=f"reports/{source_id}.json",
+            state=state,
+            schema_version=None,
+            summary=state,
+        )
+        for source_id, state in source_states
+    )
+    adapter_states: tuple[
+        tuple[
+            adapter_readiness.ObservabilityAdapterId,
+            adapter_readiness.ObservabilityAdapterStatus,
+        ],
+        ...,
+    ] = (
+        ("opentelemetry", "ready"),
+        ("datadog", "attention"),
+        ("splunk", "blocked"),
+    )
+    adapters = tuple(
+        adapter_readiness.ObservabilityAdapterReadinessRow(
+            id=adapter_id,
+            label=adapter_id,
+            status=status,
+            required_source_ids=(),
+            optional_source_ids=(),
+            summary=status,
+            next_action=status,
+            forbidden_fields=(),
+        )
+        for adapter_id, status in adapter_states
+    )
+
+    assert adapter_readiness._source_state_counts(sources) == (
+        adapter_readiness._SourceStateCounts(4, 1, 1, 1, 1)
+    )
+    assert adapter_readiness._adapter_status_counts(adapters) == (
+        adapter_readiness._AdapterStatusCounts(3, 1, 1, 1)
+    )
+
+
+@pytest.mark.parametrize(
+    (
+        "sources",
+        "adapters",
+        "source_severity",
+        "expected_status",
+        "expected_severity",
+    ),
+    [
+        (
+            adapter_readiness._SourceStateCounts(4, 4, 0, 0, 0),
+            adapter_readiness._AdapterStatusCounts(5, 5, 0, 0),
+            "info",
+            "ready",
+            "info",
+        ),
+        (
+            adapter_readiness._SourceStateCounts(4, 1, 3, 0, 0),
+            adapter_readiness._AdapterStatusCounts(5, 0, 5, 0),
+            "attention",
+            "partial",
+            "attention",
+        ),
+        (
+            adapter_readiness._SourceStateCounts(4, 0, 4, 0, 0),
+            adapter_readiness._AdapterStatusCounts(5, 0, 5, 0),
+            "attention",
+            "insufficient",
+            "attention",
+        ),
+        (
+            adapter_readiness._SourceStateCounts(4, 3, 0, 1, 0),
+            adapter_readiness._AdapterStatusCounts(5, 5, 0, 0),
+            "info",
+            "insufficient",
+            "blocker",
+        ),
+        (
+            adapter_readiness._SourceStateCounts(4, 3, 0, 0, 1),
+            adapter_readiness._AdapterStatusCounts(5, 5, 0, 0),
+            "info",
+            "insufficient",
+            "blocker",
+        ),
+        (
+            adapter_readiness._SourceStateCounts(4, 4, 0, 0, 0),
+            adapter_readiness._AdapterStatusCounts(5, 4, 0, 1),
+            "info",
+            "insufficient",
+            "blocker",
+        ),
+    ],
+)
+def test_observability_adapter_readiness_summary_helpers_preserve_state_semantics(
+    sources: adapter_readiness._SourceStateCounts,
+    adapters: adapter_readiness._AdapterStatusCounts,
+    source_severity: adapter_readiness.ObservabilityAdapterReadinessSeverity,
+    expected_status: adapter_readiness.ObservabilityAdapterReadinessStatus,
+    expected_severity: adapter_readiness.ObservabilityAdapterReadinessSeverity,
+) -> None:
+    assert (
+        adapter_readiness._readiness_status(sources=sources, adapters=adapters) == expected_status
+    )
+    assert (
+        adapter_readiness._readiness_severity(
+            sources=sources,
+            adapters=adapters,
+            source_severity=source_severity,
+        )
+        == expected_severity
+    )
 
 
 def test_observability_adapter_readiness_rejects_unsupported_and_unsafe_outputs(

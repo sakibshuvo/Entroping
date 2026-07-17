@@ -194,6 +194,23 @@ class _AdapterDefinition:
     attention_action: str
 
 
+@dataclass(frozen=True, slots=True)
+class _SourceStateCounts:
+    total: int
+    present: int
+    missing: int
+    invalid: int
+    unsafe: int
+
+
+@dataclass(frozen=True, slots=True)
+class _AdapterStatusCounts:
+    total: int
+    ready: int
+    attention: int
+    blocked: int
+
+
 def run_observability_adapter_readiness_report(
     *,
     project_root: Path,
@@ -622,37 +639,77 @@ def _summary(
     controls: tuple[ObservabilityAdapterBoundaryControl, ...],
 ) -> ObservabilityAdapterReadinessSummary:
     sources = tuple(loaded.source for loaded in loaded_sources)
-    present = sum(1 for source in sources if source.state == "present")
-    missing = sum(1 for source in sources if source.state == "missing")
-    invalid = sum(1 for source in sources if source.state == "invalid")
-    unsafe = sum(1 for source in sources if source.state == "unsafe")
-    ready = sum(1 for adapter in adapters if adapter.status == "ready")
-    attention = sum(1 for adapter in adapters if adapter.status == "attention")
-    blocked = sum(1 for adapter in adapters if adapter.status == "blocked")
-    status: ObservabilityAdapterReadinessStatus
-    if unsafe or invalid or present == 0 or blocked:
-        status = "insufficient"
-    elif missing or attention:
-        status = "partial"
-    else:
-        status = "ready"
-    severity: ObservabilityAdapterReadinessSeverity = (
-        "blocker" if unsafe or invalid or blocked else _source_severity(loaded_sources)
+    source_counts = _source_state_counts(sources)
+    adapter_counts = _adapter_status_counts(adapters)
+    status = _readiness_status(
+        sources=source_counts,
+        adapters=adapter_counts,
+    )
+    severity = _readiness_severity(
+        sources=source_counts,
+        adapters=adapter_counts,
+        source_severity=_source_severity(loaded_sources),
     )
     return ObservabilityAdapterReadinessSummary(
         status=status,
         severity=severity,
-        sources_total=len(sources),
-        sources_present=present,
-        sources_missing=missing,
-        sources_invalid=invalid,
-        sources_unsafe=unsafe,
-        adapters_total=len(adapters),
-        adapters_ready=ready,
-        adapters_attention=attention,
-        adapters_blocked=blocked,
+        sources_total=source_counts.total,
+        sources_present=source_counts.present,
+        sources_missing=source_counts.missing,
+        sources_invalid=source_counts.invalid,
+        sources_unsafe=source_counts.unsafe,
+        adapters_total=adapter_counts.total,
+        adapters_ready=adapter_counts.ready,
+        adapters_attention=adapter_counts.attention,
+        adapters_blocked=adapter_counts.blocked,
         boundary_controls=len(controls),
     )
+
+
+def _source_state_counts(
+    sources: tuple[ObservabilityAdapterReadinessSource, ...],
+) -> _SourceStateCounts:
+    return _SourceStateCounts(
+        total=len(sources),
+        present=sum(source.state == "present" for source in sources),
+        missing=sum(source.state == "missing" for source in sources),
+        invalid=sum(source.state == "invalid" for source in sources),
+        unsafe=sum(source.state == "unsafe" for source in sources),
+    )
+
+
+def _adapter_status_counts(
+    adapters: tuple[ObservabilityAdapterReadinessRow, ...],
+) -> _AdapterStatusCounts:
+    return _AdapterStatusCounts(
+        total=len(adapters),
+        ready=sum(adapter.status == "ready" for adapter in adapters),
+        attention=sum(adapter.status == "attention" for adapter in adapters),
+        blocked=sum(adapter.status == "blocked" for adapter in adapters),
+    )
+
+
+def _readiness_status(
+    *,
+    sources: _SourceStateCounts,
+    adapters: _AdapterStatusCounts,
+) -> ObservabilityAdapterReadinessStatus:
+    if sources.unsafe or sources.invalid or sources.present == 0 or adapters.blocked:
+        return "insufficient"
+    if sources.missing or adapters.attention:
+        return "partial"
+    return "ready"
+
+
+def _readiness_severity(
+    *,
+    sources: _SourceStateCounts,
+    adapters: _AdapterStatusCounts,
+    source_severity: ObservabilityAdapterReadinessSeverity,
+) -> ObservabilityAdapterReadinessSeverity:
+    if sources.unsafe or sources.invalid or adapters.blocked:
+        return "blocker"
+    return source_severity
 
 
 def _source_severity(
