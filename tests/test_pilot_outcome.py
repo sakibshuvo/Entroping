@@ -164,6 +164,95 @@ def _complete_feedback() -> dict[str, object]:
     return payload
 
 
+def _summary_source(
+    state: pilot_outcome.PilotOutcomeSourceState,
+) -> pilot_outcome.PilotOutcomeSource:
+    return pilot_outcome.PilotOutcomeSource(
+        id="design-partner-feedback-json",
+        label="Design-partner feedback",
+        path="reports/design-partner-feedback.json",
+        state=state,
+        summary=state,
+    )
+
+
+def test_pilot_outcome_source_counts_group_source_states() -> None:
+    sources = (
+        _summary_source("present"),
+        _summary_source("present"),
+        _summary_source("missing"),
+        _summary_source("invalid"),
+        _summary_source("unsafe"),
+    )
+
+    counts = pilot_outcome._source_counts(sources)
+
+    assert counts == pilot_outcome._SourceCounts(
+        present=2,
+        missing=1,
+        invalid=1,
+        unsafe=1,
+    )
+
+
+def test_pilot_outcome_monetization_counts_group_signal_answers() -> None:
+    signals = (
+        pilot_outcome.PilotOutcomeMonetizationSignal(
+            id="hosted_aggregation",
+            answer="yes",
+            manual_reason_required=False,
+        ),
+        pilot_outcome.PilotOutcomeMonetizationSignal(
+            id="premium_policy_packs",
+            answer="no",
+            manual_reason_required=False,
+        ),
+        pilot_outcome.PilotOutcomeMonetizationSignal(
+            id="hosted_aggregation",
+            answer="unclear",
+            manual_reason_required=True,
+        ),
+        pilot_outcome.PilotOutcomeMonetizationSignal(
+            id="premium_policy_packs",
+            answer="unclear",
+            manual_reason_required=True,
+        ),
+    )
+
+    counts = pilot_outcome._monetization_counts(signals)
+
+    assert counts == pilot_outcome._MonetizationCounts(yes=1, no=1, unclear=2)
+
+
+def test_pilot_outcome_action_counts_group_priorities() -> None:
+    actions = (
+        pilot_outcome.PilotOutcomeAction(
+            priority="high",
+            category="repair",
+            action="Repair invalid source.",
+        ),
+        pilot_outcome.PilotOutcomeAction(
+            priority="high",
+            category="repair",
+            action="Repair unsafe source.",
+        ),
+        pilot_outcome.PilotOutcomeAction(
+            priority="medium",
+            category="collect",
+            action="Collect manual input.",
+        ),
+        pilot_outcome.PilotOutcomeAction(
+            priority="low",
+            category="review",
+            action="Review unclear signal.",
+        ),
+    )
+
+    counts = pilot_outcome._action_counts(actions)
+
+    assert counts == pilot_outcome._ActionCounts(high=2, medium=1, low=1)
+
+
 def test_pilot_outcome_writes_json_from_sanitized_sources(tmp_path: Path) -> None:
     _write_all_sources(tmp_path)
 

@@ -189,6 +189,28 @@ class PilotOutcomeResult:
     packet: PilotOutcomePacket
 
 
+@dataclass(frozen=True, slots=True)
+class _SourceCounts:
+    present: int
+    missing: int
+    invalid: int
+    unsafe: int
+
+
+@dataclass(frozen=True, slots=True)
+class _MonetizationCounts:
+    yes: int
+    no: int
+    unclear: int
+
+
+@dataclass(frozen=True, slots=True)
+class _ActionCounts:
+    high: int
+    medium: int
+    low: int
+
+
 def run_pilot_outcome_report(
     *,
     project_root: Path,
@@ -376,21 +398,51 @@ def _summary(
     signals: tuple[PilotOutcomeMonetizationSignal, ...],
     actions: tuple[PilotOutcomeAction, ...],
 ) -> PilotOutcomeSummary:
+    source_counts = _source_counts(sources)
+    monetization_counts = _monetization_counts(signals)
+    action_counts = _action_counts(actions)
     return PilotOutcomeSummary(
         status=_status(sources=sources, manual_gaps=manual_gaps, signals=signals),
         sources_total=len(sources),
-        sources_present=sum(1 for source in sources if source.state == "present"),
-        sources_missing=sum(1 for source in sources if source.state == "missing"),
-        sources_invalid=sum(1 for source in sources if source.state == "invalid"),
-        sources_unsafe=sum(1 for source in sources if source.state == "unsafe"),
+        sources_present=source_counts.present,
+        sources_missing=source_counts.missing,
+        sources_invalid=source_counts.invalid,
+        sources_unsafe=source_counts.unsafe,
         manual_input_gaps=len(manual_gaps),
-        monetization_yes=sum(1 for signal in signals if signal.answer == "yes"),
-        monetization_no=sum(1 for signal in signals if signal.answer == "no"),
-        monetization_unclear=sum(1 for signal in signals if signal.answer == "unclear"),
+        monetization_yes=monetization_counts.yes,
+        monetization_no=monetization_counts.no,
+        monetization_unclear=monetization_counts.unclear,
         actions_total=len(actions),
-        actions_high=sum(1 for action in actions if action.priority == "high"),
-        actions_medium=sum(1 for action in actions if action.priority == "medium"),
-        actions_low=sum(1 for action in actions if action.priority == "low"),
+        actions_high=action_counts.high,
+        actions_medium=action_counts.medium,
+        actions_low=action_counts.low,
+    )
+
+
+def _source_counts(sources: tuple[PilotOutcomeSource, ...]) -> _SourceCounts:
+    return _SourceCounts(
+        present=sum(1 for source in sources if source.state == "present"),
+        missing=sum(1 for source in sources if source.state == "missing"),
+        invalid=sum(1 for source in sources if source.state == "invalid"),
+        unsafe=sum(1 for source in sources if source.state == "unsafe"),
+    )
+
+
+def _monetization_counts(
+    signals: tuple[PilotOutcomeMonetizationSignal, ...],
+) -> _MonetizationCounts:
+    return _MonetizationCounts(
+        yes=sum(1 for signal in signals if signal.answer == "yes"),
+        no=sum(1 for signal in signals if signal.answer == "no"),
+        unclear=sum(1 for signal in signals if signal.answer == "unclear"),
+    )
+
+
+def _action_counts(actions: tuple[PilotOutcomeAction, ...]) -> _ActionCounts:
+    return _ActionCounts(
+        high=sum(1 for action in actions if action.priority == "high"),
+        medium=sum(1 for action in actions if action.priority == "medium"),
+        low=sum(1 for action in actions if action.priority == "low"),
     )
 
 
