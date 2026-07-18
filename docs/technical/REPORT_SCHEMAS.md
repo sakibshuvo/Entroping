@@ -1436,7 +1436,7 @@ happy-path tests without serializing arbitrary metadata or raw request values.
 
 ## Test Coverage
 
-`tests/test_report_schema_contracts.py` freezes representative v1 payloads and
-checks that each schema file declares the matching `schema_version`. Report
+Modules matching `tests/test_report_schema_*.py` freeze representative v1
+payloads and validate matching `schema_version` values. Report
 shape changes should update the schema, the compatibility policy notes, and the
 contract tests together.
