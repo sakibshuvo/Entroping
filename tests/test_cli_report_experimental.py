@@ -15,6 +15,8 @@ from cli_test_support import (
     pytest,
     report_cli,
 )
+from typer.core import TyperCommand, TyperGroup
+from typer.main import get_command
 
 from entroping.core.design_partner_feedback import DesignPartnerFeedbackError
 from entroping.core.evidence.api_inventory import ApiInventoryError
@@ -68,6 +70,40 @@ from entroping.core.readiness.observability_adapter_readiness import (
     ObservabilityAdapterReadinessError,
 )
 from entroping.core.readiness.team_evidence_readiness import TeamEvidenceReadinessError
+
+
+def _assert_report_description(command_name: str, expected: str) -> None:
+    root_command = get_command(app)
+    assert isinstance(root_command, TyperGroup)
+    report_command = root_command.commands["report"]
+    assert isinstance(report_command, TyperGroup)
+    command = report_command.commands[command_name]
+    assert isinstance(command, TyperCommand)
+    assert command.help == expected
+
+
+@pytest.mark.parametrize(
+    ("command_name", "description"),
+    (
+        (
+            "otlp-preview",
+            "Write a local OTLP preview from sanitized telemetry evidence.",
+        ),
+        (
+            "pr-evidence-card-summary",
+            "Summarize a local PR evidence-card artifact for review.",
+        ),
+        (
+            "mutation-readiness-replay",
+            "Validate a local mutation-readiness manifest for deterministic replay.",
+        ),
+    ),
+)
+def test_experimental_report_command_descriptions_are_actionable(
+    command_name: str,
+    description: str,
+) -> None:
+    _assert_report_description(command_name, description)
 
 
 def test_report_evidence_bundle_writes_ready_bundle(

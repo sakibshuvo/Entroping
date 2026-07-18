@@ -32,6 +32,8 @@ run_aha_artifact_index = report_dependency("build_aha_artifact_index")
 
 @app.command("aha-artifact-index", rich_help_panel=LAUNCH_REPORT_PANEL)
 def report_aha_artifact_index() -> None:
+    """Inspect local Aha artifacts and print readiness hints."""
+
     index = cast(AhaArtifactIndex, run_aha_artifact_index(project_root=Path.cwd()))
     for item in index.items:
         color = {
@@ -101,6 +103,8 @@ def report_failure_bundle(
 
 @app.command("first-run-checklist", rich_help_panel=LAUNCH_REPORT_PANEL)
 def report_first_run_checklist() -> None:
+    """Inspect local first-run prerequisites and print readiness hints."""
+
     result = run_first_run_checklist(project_root=Path.cwd())
     for item in result.items:
         color = {

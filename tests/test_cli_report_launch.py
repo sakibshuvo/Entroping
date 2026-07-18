@@ -1,5 +1,7 @@
 """Launch-critical CLI report command tests."""
 
+from collections.abc import Mapping
+
 from cli_report_test_helpers import (
     _write_text,
 )
@@ -18,8 +20,175 @@ from cli_test_support import (
     subprocess,
     write_json_report,
 )
+from typer.core import TyperCommand, TyperGroup
+from typer.main import get_command
 
 from entroping.core.runtime_card import RuntimeCardError
+
+_REPORT_COMMAND_NAMES = (
+    "aha-artifact-index",
+    "bug",
+    "failure-bundle",
+    "first-run-checklist",
+    "runtime-card",
+    "review-summary",
+    "delta",
+    "policy-diff",
+    "redaction",
+    "capture-summary",
+    "policy",
+    "gate-coverage",
+    "github-annotations",
+    "sarif",
+    "traceability",
+    "badges",
+    "gate-injection",
+    "test-quality",
+    "test-pyramid",
+    "artifact-manifest",
+    "promote-drift-baseline",
+    "evidence-bundle",
+    "design-partner-feedback",
+    "pilot-metrics",
+    "pilot-outcome",
+    "pilot-cohort",
+    "handoff",
+    "notification-packet",
+    "team-evidence-readiness",
+    "evidence-cloud-readiness",
+    "evidence-cloud-export",
+    "evidence-cloud-workspace",
+    "evidence-cloud-dashboard",
+    "evidence-links",
+    "otlp-preview",
+    "evidence-portal",
+    "pr-evidence-card",
+    "pr-evidence-card-summary",
+    "evidence-action-plan",
+    "work-item-draft",
+    "work-item-import-bundle",
+    "team-access-control-plan",
+    "integration-readiness",
+    "devex-readiness",
+    "connector-intent",
+    "external-test-evidence",
+    "observability-packet",
+    "otel-mapping",
+    "observability-adapter-readiness",
+    "api-inventory",
+    "mutation-readiness",
+    "evidence-index",
+    "qa-brain-seed",
+    "qa-brain-eval-plan",
+    "qa-brain-retrieval-plan",
+    "qa-brain-prompt-plan",
+    "qa-brain-fine-tune-readiness",
+    "qa-brain-model-packaging-plan",
+    "qa-brain-routing-plan",
+    "qa-brain-repair-plan",
+    "agent-bundle",
+    "mutation-readiness-replay",
+)
+_REPORT_COMMAND_PANEL_RANGES = (
+    (0, 6, "Launch-Critical Reports"),
+    (6, 15, "Stable Public Reports"),
+    (15, 21, "Maintainer And Baseline Tools"),
+    (21, 62, "Experimental Design-Partner Evidence"),
+)
+_APPROVED_DESCRIPTION_VERBS = {
+    "Compare",
+    "Emit",
+    "Explain",
+    "Generate",
+    "Inspect",
+    "Map",
+    "Promote",
+    "Summarize",
+    "Validate",
+    "Write",
+}
+
+
+def _resolved_report_group() -> TyperGroup:
+    root_command = get_command(app)
+    assert isinstance(root_command, TyperGroup)
+    report_command = root_command.commands["report"]
+    assert isinstance(report_command, TyperGroup)
+    return report_command
+
+
+def _report_description_errors(
+    commands: Mapping[str, TyperCommand],
+) -> tuple[str, ...]:
+    errors: list[str] = []
+    for command_name, command in commands.items():
+        description = command.help
+        if description is None or not description.strip():
+            errors.append(f"{command_name}: description is blank")
+            continue
+        if len(description.splitlines()) != 1:
+            errors.append(f"{command_name}: description must be one line")
+        if len(description) > 80:
+            errors.append(f"{command_name}: description exceeds 80 characters")
+        if not description.endswith("."):
+            errors.append(f"{command_name}: description must end with a period")
+        if description.partition(" ")[0] not in _APPROVED_DESCRIPTION_VERBS:
+            errors.append(f"{command_name}: description must start with an approved verb")
+    return tuple(errors)
+
+
+def _assert_report_description(command_name: str, expected: str) -> None:
+    command = _resolved_report_group().commands[command_name]
+    assert command.help == expected
+
+
+def test_report_command_names_order_and_panel_ranges_are_stable() -> None:
+    commands = _resolved_report_group().commands
+
+    assert tuple(commands) == _REPORT_COMMAND_NAMES
+    command_values = tuple(commands.values())
+    for start, stop, panel in _REPORT_COMMAND_PANEL_RANGES:
+        panel_commands = command_values[start:stop]
+        for command in panel_commands:
+            assert isinstance(command, TyperCommand)
+            assert command.rich_help_panel == panel
+
+
+def test_report_command_descriptions_are_actionable() -> None:
+    commands: dict[str, TyperCommand] = {}
+    for command_name, command in _resolved_report_group().commands.items():
+        assert isinstance(command, TyperCommand)
+        commands[command_name] = command
+
+    assert _report_description_errors(commands) == ()
+
+
+def test_report_description_validator_names_blank_command() -> None:
+    blank_command = TyperCommand("blank-fixture", help=" \t ")
+
+    assert _report_description_errors({"blank-fixture": blank_command}) == (
+        "blank-fixture: description is blank",
+    )
+
+
+@pytest.mark.parametrize(
+    ("command_name", "description"),
+    (
+        (
+            "aha-artifact-index",
+            "Inspect local Aha artifacts and print readiness hints.",
+        ),
+        (
+            "first-run-checklist",
+            "Inspect local first-run prerequisites and print readiness hints.",
+        ),
+    ),
+)
+def test_launch_report_command_descriptions_are_actionable(
+    command_name: str,
+    description: str,
+) -> None:
+    _assert_report_description(command_name, description)
 
 
 def test_report_help_classifies_launch_stable_experimental_and_maintainer_commands() -> None:
